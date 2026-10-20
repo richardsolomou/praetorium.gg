@@ -400,17 +400,32 @@ export function app(): App {
       refreshSponsors()
       setInterval(refreshSponsors, 60 * 60 * 1000).unref()
     }
-    const drainPhotoDeletions = () =>
-      void collectionPhotos.drainDeletions().catch((error: unknown) => {
-        console.error({ event: 'collection_photo_deletion_failed', error })
-      })
-    setInterval(drainPhotoDeletions, 10 * 60 * 1000).unref()
+    let thumbnailsPending = true
+    let maintainingPhotos = false
+    const maintainPhotos = async () => {
+      if (maintainingPhotos) return
+      maintainingPhotos = true
+      try {
+        await collectionPhotos.drainDeletions()
+        if (thumbnailsPending) {
+          const result = await collectionPhotos.backfillThumbnails()
+          thumbnailsPending = result.failed > 0
+          console.info({ event: 'collection_photo_thumbnails_backfilled', ...result })
+        }
+      } catch (error) {
+        console.error({ event: 'collection_photo_maintenance_failed', error })
+      } finally {
+        maintainingPhotos = false
+      }
+    }
+    setInterval(() => void maintainPhotos(), 10 * 60 * 1000).unref()
     if (process.env.NODE_ENV === 'production')
       reportRuntimeMetrics((name, value, options) => void telemetry.metrics.gauge(name, value, options), {
         instance: os.hostname(),
         host: deploymentHost() ?? 'unknown',
       })
     if (sync.state.status === 'ready') ready = warm(instance)
+    void ready.then(maintainPhotos).catch((error: unknown) => console.error({ event: 'collection_photo_maintenance_failed', error }))
     return instance
   }
   const instance = globalSingleton('praetorium.app', createApp)

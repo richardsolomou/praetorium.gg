@@ -1976,6 +1976,21 @@ export const removeCollectionPhotoById = spacetime.reducer({ photoId: t.string()
   touchCollection(ctx, photo.userId)
 })
 
+export const collectionPhotoIds = spacetime.procedure(
+  { after: t.option(t.string()), limit: t.u32() },
+  t.string(),
+  (ctx, { after, limit }) =>
+    ctx.withTx((tx) => {
+      requireOperator(tx)
+      return productJson(
+        Array.from(tx.db.collectionPhotos.iter(), (photo) => photo.photoId)
+          .filter((photoId) => after === undefined || photoId > after)
+          .sort()
+          .slice(0, Math.min(limit, 100)),
+      )
+    }),
+)
+
 export const collectionPhotoDeletions = spacetime.procedure({ limit: t.u32() }, t.string(), (ctx, { limit }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
@@ -1987,6 +2002,13 @@ export const collectionPhotoDeletions = spacetime.procedure({ limit: t.u32() }, 
     return productJson(ids)
   }),
 )
+
+export const queueCollectionPhotoDeletion = spacetime.reducer({ photoId: t.string() }, (ctx, { photoId }) => {
+  requireOperator(ctx)
+  z.uuid().parse(photoId)
+  if (!ctx.db.collectionPhotos.photoId.find(photoId) && !ctx.db.collectionPhotoDeletions.photoId.find(photoId))
+    ctx.db.collectionPhotoDeletions.insert({ photoId })
+})
 
 export const clearCollectionPhotoDeletions = spacetime.reducer({ photoIds: t.array(t.string()) }, (ctx, { photoIds }) => {
   requireOperator(ctx)

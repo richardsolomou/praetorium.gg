@@ -1244,3 +1244,54 @@ describe('recent matchups', () => {
     expect(recent(setup)).toEqual([])
   })
 })
+
+describe('collection photo thumbnail inventory', () => {
+  function setup() {
+    const host = harness()
+    const ids = Array.from({ length: 102 }, (_, index) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`)
+    host.call(host.operator, (ctx) => {
+      for (const photoId of ids.toReversed())
+        ctx.db.collectionPhotos.insert({ photoId, key: 'private', userId: 'owner', entryId: 'warriors', at: 1n, likes: 0, review: 'held' })
+    })
+    return { ...host, ids }
+  }
+
+  it('includes held photos in stable pages capped at one hundred', () => {
+    const host = setup()
+    expect(JSON.parse(module.collectionPhotoIds(host.procedure(host.operator), { after: undefined, limit: 1000 }))).toEqual(
+      host.ids.slice(0, 100),
+    )
+  })
+
+  it('continues after the previous page without repeating its last photo', () => {
+    const host = setup()
+    expect(JSON.parse(module.collectionPhotoIds(host.procedure(host.operator), { after: host.ids[99], limit: 100 }))).toEqual(
+      host.ids.slice(100),
+    )
+  })
+
+  it('keeps the inventory private to the operator', () => {
+    const host = setup()
+    expect(() => module.collectionPhotoIds(host.procedure(player('reader')), { after: undefined, limit: 100 })).toThrow('Operator required')
+  })
+
+  it('queues an unregistered photo once so failed upload cleanup can retry', () => {
+    const host = setup()
+    const photoId = 'ffffffff-ffff-4fff-8fff-ffffffffffff'
+    for (let attempt = 0; attempt < 2; attempt++) host.call(host.operator, (ctx) => module.queueCollectionPhotoDeletion(ctx, { photoId }))
+    expect(JSON.parse(module.collectionPhotoDeletions(host.procedure(host.operator), { limit: 100 }))).toEqual([photoId])
+  })
+
+  it('keeps live photos out of the cleanup queue', () => {
+    const host = setup()
+    host.call(host.operator, (ctx) => module.queueCollectionPhotoDeletion(ctx, { photoId: host.ids[0]! }))
+    expect(JSON.parse(module.collectionPhotoDeletions(host.procedure(host.operator), { limit: 100 }))).toEqual([])
+  })
+
+  it('requires the operator to queue orphan cleanup', () => {
+    const host = setup()
+    expect(() => host.call(player('reader'), (ctx) => module.queueCollectionPhotoDeletion(ctx, { photoId: host.ids[0]! }))).toThrow(
+      'Operator required',
+    )
+  })
+})

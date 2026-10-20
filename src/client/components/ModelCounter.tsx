@@ -8,7 +8,7 @@ export function ModelCounter({
   min = 1,
   max,
   disabled = false,
-  stacked = false,
+  compact = false,
   onChange,
 }: {
   count: number | null
@@ -17,8 +17,7 @@ export function ModelCounter({
   min?: number
   max: number
   disabled?: boolean
-  /** Places the buttons below the input in narrow containers. */
-  stacked?: boolean
+  compact?: boolean
   onChange: (count: number) => void | Promise<unknown>
 }) {
   const [draft, setDraft] = useState(count === null ? '' : String(count))
@@ -43,7 +42,7 @@ export function ModelCounter({
   const unavailable = disabled || count === null
   return (
     <span
-      className={`grid shrink-0 items-center gap-1 ${stacked ? 'w-14 grid-cols-2 @[23rem]:w-auto @[23rem]:grid-cols-[1.5rem_3.5rem_1.5rem]' : 'grid-cols-[1.5rem_3.5rem_1.5rem]'}`}
+      className={`grid shrink-0 items-center ${compact ? 'w-14 max-w-full grid-cols-2 gap-1 @[18rem]:w-full @[18rem]:max-w-24 @[18rem]:grid-cols-[1.5rem_minmax(0,1fr)_1.5rem] @[18rem]:gap-0.5' : 'grid-cols-[1.5rem_3.5rem_1.5rem] gap-1'}`}
     >
       <CountButton
         label={`Fewer ${label} models`}
@@ -75,7 +74,7 @@ export function ModelCounter({
           if (event.key === 'Enter') event.currentTarget.blur()
           if (event.key === 'Escape') setDraft(count === null ? '' : String(count))
         }}
-        className={`readout h-6 w-14 rounded-sm border border-edge-strong bg-transparent px-1 text-center text-sm outline-none [appearance:textfield] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${stacked ? 'col-span-2 row-start-1 @[23rem]:col-span-1 @[23rem]:row-auto' : ''}`}
+        className={`readout h-6 min-w-0 rounded-sm border border-edge-strong bg-transparent text-center outline-none [appearance:textfield] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${compact ? 'col-span-2 row-start-1 w-full px-0 text-xs @[18rem]:col-span-1 @[18rem]:row-auto' : 'w-14 px-1 text-sm'}`}
       />
       <CountButton
         label={`More ${label} models`}

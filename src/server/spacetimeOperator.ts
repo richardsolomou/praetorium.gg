@@ -743,8 +743,16 @@ export class SpacetimeOperator {
     return this.read('collection_photo_deletions', [limit], z.array(z.string()).max(1_000))
   }
 
+  async collectionPhotoIds(after: string | null, limit: number) {
+    return this.read('collection_photo_ids', [after === null ? { none: [] } : { some: after }, limit], z.array(z.uuid()).max(100))
+  }
+
   async clearCollectionPhotoDeletions(photoIds: readonly string[]) {
     await this.call('clear_collection_photo_deletions', [photoIds])
+  }
+
+  async queueCollectionPhotoDeletion(photoId: string) {
+    await this.call('queue_collection_photo_deletion', [photoId])
   }
 
   async favouriteFactionsByUser(userId: string) {

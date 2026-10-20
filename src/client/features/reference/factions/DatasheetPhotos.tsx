@@ -40,7 +40,7 @@ export function DatasheetPhotos({ entryId, name }: { entryId: string; name: stri
                 onClick={() => setViewing(photo)}
               >
                 <img
-                  src={collectionPhotoPath(photo.photoId)}
+                  src={collectionPhotoPath(photo.photoId, 'thumbnail')}
                   alt=""
                   loading="lazy"
                   className="aspect-square w-full border border-edge bg-sunken object-cover group-hover:border-info"

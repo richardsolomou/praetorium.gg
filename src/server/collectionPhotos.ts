@@ -1,8 +1,10 @@
 import { z } from 'zod'
+import { randomUUID } from 'node:crypto'
 import { COLLECTION_PHOTO_MAX_BYTES, collectionPhotoPath } from '../contracts/collection'
 import { ifNoneMatch } from './ifNoneMatch'
 import { notFound } from './notFound'
-import { privateImageResponse, type PrivateObjects, storePrivateImage } from './privateImages'
+import { parseImageDataUrl, privateImageResponse, type PrivateObjects } from './privateImages'
+import { collectionPhotoThumbnail, collectionPhotoThumbnailKey } from './collectionPhotoThumbnail'
 import type { SpacetimeRepository } from './spacetimeRepository'
 
 const PREFIX = 'collection-photos/'
@@ -26,7 +28,9 @@ type PhotoRepository = Pick<
   | 'collectionPhoto'
   | 'datasheetPhotos'
   | 'collectionPhotoDeletions'
+  | 'collectionPhotoIds'
   | 'clearCollectionPhotoDeletions'
+  | 'queueCollectionPhotoDeletion'
   | 'namesByIds'
 >
 
@@ -39,6 +43,35 @@ export function collectionPhotoStore(
   privateObjects: () => PrivateObjects | null,
   clock: () => number = Date.now,
 ) {
+  async function deleteObjects(objects: PrivateObjects, photoId: string) {
+    await Promise.all([objects.delete(`${PREFIX}${photoId}`), objects.delete(collectionPhotoThumbnailKey(photoId))])
+  }
+
+  async function generateThumbnail(objects: PrivateObjects, photoId: string) {
+    const original = await objects.get(`${PREFIX}${photoId}`)
+    if (!original) {
+      if (await repository.collectionPhotoForAdmin(photoId)) throw new Error('Photo original is missing')
+      return null
+    }
+    const thumbnail = await collectionPhotoThumbnail(original)
+    const key = collectionPhotoThumbnailKey(photoId)
+    try {
+      await objects.put(key, thumbnail, 'image/webp')
+      // A deletion sweep can finish while the original is being resized.
+      if (await repository.collectionPhotoForAdmin(photoId)) return thumbnail
+      await objects.delete(key)
+      return null
+    } catch (error) {
+      try {
+        await objects.delete(key)
+      } catch (cleanupError) {
+        await repository.queueCollectionPhotoDeletion(photoId)
+        throw new AggregateError([error, cleanupError], 'Thumbnail generation and cleanup failed', { cause: cleanupError })
+      }
+      throw error
+    }
+  }
+
   /** Names each photo's owner, keeping a deleted owner's photo reviewable. */
   async function withOwners<Row extends { userId: string }>(rows: Row[]) {
     const owners = await repository.namesByIds(rows.map((row) => row.userId))
@@ -48,14 +81,25 @@ export function collectionPhotoStore(
   return {
     async upload(userId: string, entryId: string, image: string) {
       const objects = privateObjects()
-      const photoId = await storePrivateImage(objects, PREFIX, image, {
-        maxBytes: COLLECTION_PHOTO_MAX_BYTES,
-        refusal: 'Choose a JPEG, PNG or WebP photo.',
+      if (!objects) throw new Response('image uploads are not available', { status: 503 })
+      const parsed = parseImageDataUrl(image)
+      if (!parsed || parsed.bytes.length > COLLECTION_PHOTO_MAX_BYTES)
+        throw new Response('Choose a JPEG, PNG or WebP photo.', { status: 400 })
+      const thumbnail = await collectionPhotoThumbnail(parsed.bytes).catch(() => {
+        throw new Response('That photo could not be read.', { status: 400 })
       })
+      const photoId = randomUUID()
       try {
+        await objects.put(`${PREFIX}${photoId}`, parsed.bytes, parsed.contentType)
+        await objects.put(collectionPhotoThumbnailKey(photoId), thumbnail, 'image/webp')
         await repository.setCollectionPhoto({ userId, entryId, photoId, now: clock() })
       } catch (error) {
-        await objects?.delete(`${PREFIX}${photoId}`).catch(() => undefined)
+        try {
+          await deleteObjects(objects, photoId)
+        } catch (cleanupError) {
+          await repository.queueCollectionPhotoDeletion(photoId)
+          throw new AggregateError([error, cleanupError], 'Photo upload and cleanup failed', { cause: cleanupError })
+        }
         throw error
       }
       return photoId
@@ -112,13 +156,42 @@ export function collectionPhotoStore(
       if (!z.uuid().safeParse(photoId).success) return notFound()
       const photo = admin ? await repository.collectionPhotoForAdmin(photoId) : await repository.collectionPhoto(photoId, viewerId)
       if (!photo) return notFound()
-      const headers = { 'Cache-Control': 'private, no-cache', ETag: `"${photoId}"` }
+      const thumbnail = request && new URL(request.url).searchParams.get('size') === 'thumbnail'
+      const headers = { 'Cache-Control': 'private, no-cache', ETag: `"${photoId}${thumbnail ? '-thumbnail-v1' : ''}"` }
       if (request && ifNoneMatch(request, headers.ETag)) return new Response(null, { status: 304, headers })
-      const response = await privateImageResponse(privateObjects(), `${PREFIX}${photoId}`)
+      const objects = privateObjects()
+      let response: Response
+      if (thumbnail && objects) {
+        const bytes = (await objects.get(collectionPhotoThumbnailKey(photoId))) ?? (await generateThumbnail(objects, photoId))
+        response = bytes
+          ? new Response(new Uint8Array(bytes), { headers: { 'Content-Type': 'image/webp', 'X-Content-Type-Options': 'nosniff' } })
+          : notFound()
+      } else response = await privateImageResponse(objects, `${PREFIX}${photoId}`)
       if (response.ok) {
         for (const [name, value] of Object.entries(headers)) response.headers.set(name, value)
       }
       return response
+    },
+
+    async backfillThumbnails() {
+      const objects = privateObjects()
+      const result = { generated: 0, failed: 0 }
+      if (!objects) return result
+      let after: string | null = null
+      while (true) {
+        const photoIds = await repository.collectionPhotoIds(after, DELETION_BATCH)
+        if (!photoIds.length) return result
+        for (const photoId of photoIds) {
+          try {
+            if (!(await objects.head(collectionPhotoThumbnailKey(photoId))) && (await generateThumbnail(objects, photoId)))
+              result.generated++
+          } catch (error) {
+            result.failed++
+            console.error({ event: 'collection_photo_thumbnail_failed', photoId, error })
+          }
+        }
+        after = photoIds.at(-1)!
+      }
     },
 
     /** Deletes stored objects whose photos are gone; safe to run on every replica at once, since deleting twice is harmless. */
@@ -129,7 +202,7 @@ export function collectionPhotoStore(
       for (let batch = 0; batch < DELETION_BATCHES_PER_DRAIN; batch += 1) {
         const photoIds = await repository.collectionPhotoDeletions(DELETION_BATCH)
         if (!photoIds.length) break
-        await Promise.all(photoIds.map((photoId) => objects.delete(`${PREFIX}${photoId}`)))
+        await Promise.all(photoIds.map((photoId) => deleteObjects(objects, photoId)))
         await repository.clearCollectionPhotoDeletions(photoIds)
         deleted += photoIds.length
       }

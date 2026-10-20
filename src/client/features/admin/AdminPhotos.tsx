@@ -105,7 +105,7 @@ function PhotoSection({
           <li key={photo.photoId} className="flex min-w-0 flex-col border border-edge bg-sunken">
             <a href={collectionPhotoPath(photo.photoId)} target="_blank" rel="noreferrer" className="block">
               <img
-                src={collectionPhotoPath(photo.photoId)}
+                src={collectionPhotoPath(photo.photoId, 'thumbnail')}
                 alt={`${title} from ${photo.owner.name}’s collection`}
                 loading="lazy"
                 className="aspect-square w-full bg-panel object-contain"

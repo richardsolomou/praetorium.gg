@@ -840,8 +840,16 @@ export class SpacetimeRepository {
     return this.product.collectionPhotoDeletions(...args)
   }
 
+  collectionPhotoIds(...args: Parameters<SpacetimeOperator['collectionPhotoIds']>) {
+    return this.product.collectionPhotoIds(...args)
+  }
+
   clearCollectionPhotoDeletions(...args: Parameters<SpacetimeOperator['clearCollectionPhotoDeletions']>) {
     return this.product.clearCollectionPhotoDeletions(...args)
+  }
+
+  queueCollectionPhotoDeletion(...args: Parameters<SpacetimeOperator['queueCollectionPhotoDeletion']>) {
+    return this.product.queueCollectionPhotoDeletion(...args)
   }
 
   favouriteFactionsByUser(...args: Parameters<SpacetimeOperator['favouriteFactionsByUser']>) {

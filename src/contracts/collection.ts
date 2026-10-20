@@ -39,6 +39,7 @@ export const collectionPhotoLikeSchema = collectionPhotoIdSchema.extend({ liked:
 export const collectionPhotoReportSchema = collectionPhotoIdSchema.extend({ reason: z.string().trim().max(500) })
 
 /** Where a collection photo is served; the route checks the owner still shares it on every read. */
-export const collectionPhotoPath = (photoId: string) => `/api/collection-photos/${photoId}`
+export const collectionPhotoPath = (photoId: string, size: 'original' | 'thumbnail' = 'original') =>
+  `/api/collection-photos/${photoId}${size === 'thumbnail' ? '?size=thumbnail' : ''}`
 
 export type { CollectionGroup } from '../core/collection'

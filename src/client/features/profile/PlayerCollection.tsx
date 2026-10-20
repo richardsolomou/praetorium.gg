@@ -84,7 +84,7 @@ function CollectionGroups({ groups, unit }: { groups: readonly CollectionGroup[]
                   {entry.photoIds?.[0] ? (
                     <a href={collectionPhotoPath(entry.photoIds[0])} target="_blank" rel="noreferrer" className="shrink-0">
                       <img
-                        src={collectionPhotoPath(entry.photoIds[0])}
+                        src={collectionPhotoPath(entry.photoIds[0], 'thumbnail')}
                         alt={entry.name}
                         loading="lazy"
                         className="size-8 border border-edge bg-sunken object-cover"

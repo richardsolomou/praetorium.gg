@@ -90,7 +90,6 @@ export const homeRosters = createServerFn({ method: 'GET' }).handler(() =>
 )
 
 const WISHLIST_ARMIES = 3
-const WISHLIST_SUGGESTIONS = 24
 
 const fieldedEntryIds = (roster: { catalogueId: string; picks: readonly RosterPick[] }) => ({
   entryIds: roster.picks.map((pick) => currentEntryId(pick.entryId, pick.catalogueId ?? roster.catalogueId)),
@@ -98,7 +97,7 @@ const fieldedEntryIds = (roster: { catalogueId: string; picks: readonly RosterPi
 
 /**
  * Datasheets in the player's most-built armies, counting only unarchived rosters, that none of their rosters use, ranked by how many of other players' recent
- * public rosters field them; an army nobody else has published offers all its unused datasheets.
+ * public rosters field them, followed by other unused datasheets.
  */
 export const wishlistSuggestions = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
@@ -144,7 +143,7 @@ export const wishlistSuggestions = createServerFn({ method: 'GET' }).handler(() 
         rosters: published[index]!,
         datasheets: books.filter((book) => currentCatalogueFamilyId(book.catalogueId) === filter.faction).flatMap((book) => book.units),
       })),
-    ).slice(0, WISHLIST_SUGGESTIONS)
+    )
   }),
 )
 

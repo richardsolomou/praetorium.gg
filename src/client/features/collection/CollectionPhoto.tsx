@@ -18,11 +18,15 @@ export function CollectionPhoto({ entryId, name }: { entryId: string; name: stri
     <>
       <button
         type="button"
-        className="relative grid size-10 shrink-0 place-items-center overflow-hidden border border-edge bg-sunken text-faint hover:border-info hover:text-info"
+        className="relative grid size-8 shrink-0 place-items-center overflow-hidden border border-edge bg-sunken text-faint hover:border-info hover:text-info"
         aria-label={own.length ? `Photos of your ${name}` : `Add photos of your ${name}`}
         onClick={() => setOpen(true)}
       >
-        {own[0] ? <img src={collectionPhotoPath(own[0])} alt="" className="size-full object-cover" /> : <Camera className="size-5" />}
+        {own[0] ? (
+          <img src={collectionPhotoPath(own[0], 'thumbnail')} alt="" className="size-full object-cover" />
+        ) : (
+          <Camera className="size-5" />
+        )}
         {own.length > 1 ? (
           <span className="readout absolute right-0 bottom-0 bg-sunken/90 px-1 text-xs text-bone">{own.length}</span>
         ) : null}
@@ -62,7 +66,7 @@ export function OwnPhotos({ entryId, name, className = 'grid-cols-3' }: { entryI
           aria-label={`Your photo ${index + 1} of ${name}`}
           onClick={() => setViewing(photoId)}
         >
-          <img src={collectionPhotoPath(photoId)} alt="" className="aspect-square w-full bg-sunken object-cover" />
+          <img src={collectionPhotoPath(photoId, 'thumbnail')} alt="" className="aspect-square w-full bg-sunken object-cover" />
         </button>
       ))}
       <PhotoDropZone entryId={entryId} name={name} className="aspect-square" />

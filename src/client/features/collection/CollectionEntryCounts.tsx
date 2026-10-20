@@ -15,9 +15,9 @@ export function CollectionEntryCounts({ entryId, name }: { entryId: string; name
   const painted = built === null ? null : (progress?.[entryId]?.painted ?? 0)
   return (
     <span className="@container block">
-      <span className="flex flex-col gap-2 @[15rem]:flex-row @[15rem]:justify-center @[15rem]:gap-5 @[23rem]:gap-3">
+      <span className="grid grid-cols-1 gap-2 @[15rem]:grid-cols-3">
         <Labelled label="Owned">
-          <CollectionCount entryId={entryId} name={name} stacked />
+          <CollectionCount entryId={entryId} name={name} compact />
         </Labelled>
         <Labelled label="Built">
           <ModelCounter
@@ -26,7 +26,7 @@ export function CollectionEntryCounts({ entryId, name }: { entryId: string; name
             inputLabel={`${name} models built`}
             min={0}
             max={models ?? 0}
-            stacked
+            compact
             onChange={(next) => mutation.mutateAsync({ entryId, built: next, painted: Math.min(painted ?? 0, next) })}
           />
         </Labelled>
@@ -37,7 +37,7 @@ export function CollectionEntryCounts({ entryId, name }: { entryId: string; name
             inputLabel={`${name} models painted`}
             min={0}
             max={built ?? 0}
-            stacked
+            compact
             onChange={(next) => mutation.mutateAsync({ entryId, built: built ?? 0, painted: next })}
           />
         </Labelled>
@@ -48,7 +48,7 @@ export function CollectionEntryCounts({ entryId, name }: { entryId: string; name
 
 function Labelled({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <span className="flex flex-wrap items-center justify-between gap-2 @[15rem]:flex-col @[15rem]:items-center @[15rem]:gap-1">
+    <span className="flex min-w-0 flex-wrap items-center justify-between gap-2 @[15rem]:flex-col @[15rem]:items-center @[15rem]:gap-1">
       <span className="text-xs text-dim">{label}</span>
       {children}
     </span>
