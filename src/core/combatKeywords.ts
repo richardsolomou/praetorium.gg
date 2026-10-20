@@ -39,7 +39,16 @@ function targets(text: string): NonNullable<CombatKeyword['target']> | null {
   return keywords.every((word) => /^[a-z][a-z0-9 '-]*$/.test(word)) ? { keywords, excluded } : null
 }
 
+// Weapon keywords are a small catalogue vocabulary that every attack plan parses again.
+const parsedKeywords = new Map<string, CombatKeyword | null>()
+
 export function combatKeyword(text: string): CombatKeyword | null {
+  let parsed = parsedKeywords.get(text)
+  if (parsed === undefined) parsedKeywords.set(text, (parsed = parseCombatKeyword(text)))
+  return parsed
+}
+
+function parseCombatKeyword(text: string): CombatKeyword | null {
   const [written = '', restriction, extra] = normalizeCombatKeyword(text).split(/\s*:\s*/)
   if (extra !== undefined) return null
   const target = restriction === undefined ? undefined : targets(restriction)
