@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.173.1
+
+### Patch Changes
+
+- 4f3a0fe: Spread each army's collection across the page width instead of one narrow column.
+- dce0223: Show From your battles above the wishlist on the collection page.
+- 49d43be: Stop suggesting collection datasheets from armies whose every roster is archived.
+
 ## 0.173.0
 
 ### Minor Changes
