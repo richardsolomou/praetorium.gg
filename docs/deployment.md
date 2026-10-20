@@ -39,6 +39,8 @@ Pull requests receive disposable Dokploy previews at `pr-<number>.praetorium.gg`
 
 `.github/workflows/dokploy-preview-image.yml` builds a digest-pinned image without deployment credentials; the trusted `dokploy-preview-deploy.yml` job and `scripts/dokployPreview.ts` deploy it. Fork artifacts require maintainer approval before trusted deployment.
 
+Preview images target `linux/arm64`, matching the hosted VM. The shared build workflow applies the same target to registry images and fork artifacts. Deployment runs on `ubuntu-24.04-arm` so the trusted lifecycle script can pull the image and extract its database module natively.
+
 Each preview has its own SQLite accounts, SpacetimeDB database, secret, operator identity, auth issuer, audience, and runtime catalogue cache. Redeployment resets both stores and ends old sessions; deterministic seed IDs retain cross-store links. Sign in with `preview@praetorium.gg` / `preview-preview-preview` or `opponent@praetorium.gg` / `opponent-opponent-opponent`. Previews are public; keep sensitive data out. Closing or merging removes preview resources, and scheduled pruning recovers missed cleanup.
 
 ## Backups
