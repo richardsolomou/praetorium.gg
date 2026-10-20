@@ -1,10 +1,10 @@
-import { collectionDatasheets, type CollectionCounts } from '../../../core/collection'
+import { boundedProgress, collectionDatasheets, type CollectionCounts } from '../../../core/collection'
 import { useQuery } from '@tanstack/react-query'
 import { Boxes, Plus, Swords, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { FactionMark, factionColour, type FactionPresentation } from '../../components/FactionMark'
+import { FactionMark, type FactionPresentation } from '../../components/FactionMark'
 import { FactionReferenceLink } from '../../components/FactionReferenceLink'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
@@ -142,7 +142,7 @@ export function CollectionPage() {
             onValueChange={(value) => add((JSON.parse(value) as [string, string])[1])}
             index={(units.data ?? []).map((book) => ({ ...book, units: book.units.filter((unit) => !owned.has(unit.id)) }))}
           />
-          <p className="flex items-baseline gap-4 sm:ml-auto">
+          <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1 sm:ml-auto">
             <Tally label="models" value={pending ? null : models} />
             <Tally label={owned.size === 1 ? 'datasheet' : 'datasheets'} value={pending ? null : owned.size} />
           </p>
@@ -173,44 +173,58 @@ export function CollectionPage() {
         ) : (
           <div className="space-y-4">
             {armies.map(({ sheets, first }) => {
-              const armyModels = sheets.reduce((total, sheet) => total + countOf(sheet.id), 0)
+              const totals = sheets.reduce(
+                (total, sheet) => {
+                  const ownedModels = countOf(sheet.id)
+                  const { built, painted } = boundedProgress(ownedModels, progress.data?.[sheet.id] ?? { built: 0, painted: 0 })
+                  return { owned: total.owned + ownedModels, built: total.built + built, painted: total.painted + painted }
+                },
+                { owned: 0, built: 0, painted: 0 },
+              )
               return (
-                <section
-                  key={first.catalogueId}
-                  aria-label={first.faction}
-                  className="border border-t-[3px] border-edge bg-panel"
-                  style={{ borderTopColor: factionColour(first.presentation?.slug ?? first.catalogueId, first.faction) }}
-                >
-                  <header className="flex items-center gap-3 border-b border-edge px-3 py-2.5">
-                    {first.presentation ? <Mark faction={first.presentation} size="md" /> : null}
-                    <h2 className="rubric min-w-0 flex-1 truncate text-bone">{first.faction}</h2>
-                    <span className="text-xs text-dim">
-                      <span className="figure mr-1 text-lg text-bone">{armyModels}</span>
-                      {armyModels === 1 ? 'model' : 'models'}
-                    </span>
+                <section key={first.catalogueId} aria-label={first.faction} className="@container/army space-y-3">
+                  <header className="flex flex-wrap items-center gap-3 border-b border-edge pb-2">
+                    <div className="flex min-w-0 flex-1 flex-col items-start gap-3 @[15rem]/army:flex-row @[15rem]/army:items-center">
+                      {first.presentation ? <Mark faction={first.presentation} size="md" /> : null}
+                      <div className="min-w-0">
+                        <h2 className="rubric break-words text-bone">{first.faction}</h2>
+                        <p className="mt-1 text-xs text-dim">{countLabel(sheets.length, 'datasheet')}</p>
+                      </div>
+                    </div>
+                    <dl className="flex w-full flex-wrap gap-x-4 gap-y-2 @xl/army:w-auto">
+                      {Object.entries(totals).map(([label, value]) => (
+                        <div key={label} className="flex items-baseline gap-x-1.5">
+                          <dt className="text-xs text-dim capitalize">{label}</dt>
+                          <dd data-collection-total={label} className="figure text-lg text-bone">
+                            {counts.isPending || (label !== 'owned' && progress.isPending) ? (
+                              <Skeleton className="h-6 w-8" aria-label={`Loading ${label}`} />
+                            ) : (
+                              value
+                            )}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
                   </header>
-                  {/* Each datasheet keeps a bottom border, pulled over the panel's own, so a second column starts without a doubled rule. */}
-                  <ul className="-mb-px md:columns-2 md:gap-0 md:[column-rule:1px_solid_var(--color-edge)]">
+                  <ul className="grid grid-cols-1 gap-2 @xl/army:grid-cols-2 @4xl/army:grid-cols-3">
                     {sheets.map((sheet) => (
                       <li
                         key={sheet.id}
                         data-unit={sheet.name}
-                        className="grid break-inside-avoid grid-cols-[auto_minmax(0,1fr)] grid-rows-[auto_1fr] gap-x-3 border-b border-edge p-2"
+                        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 border border-edge bg-sunken/60 p-3 @[15rem]/army:grid-cols-[auto_minmax(0,1fr)_auto]"
                       >
-                        <span className="row-span-2">
-                          <CollectionPhoto entryId={sheet.id} name={sheet.name} />
-                        </span>
-                        <div className="flex items-start justify-between gap-2">
-                          <FactionReferenceLink
-                            to="/factions/$catalogueId/datasheets/$entryId"
-                            params={{ catalogueId: sheet.catalogueId, entryId: sheet.slug }}
-                            className="text-sm font-semibold break-words text-bone uppercase underline-offset-4 hover:text-info hover:underline"
-                          >
-                            {sheet.name}
-                          </FactionReferenceLink>
+                        <CollectionPhoto entryId={sheet.id} name={sheet.name} />
+                        <FactionReferenceLink
+                          to="/factions/$catalogueId/datasheets/$entryId"
+                          params={{ catalogueId: sheet.catalogueId, entryId: sheet.slug }}
+                          className="col-span-2 min-w-0 text-sm font-semibold break-words text-bone uppercase underline-offset-4 hover:text-info hover:underline @[15rem]/army:col-span-1"
+                        >
+                          {sheet.name}
+                        </FactionReferenceLink>
+                        <span className="col-start-2 row-start-1 @[15rem]/army:col-start-3">
                           <RemoveButton name={sheet.name} onRemove={() => setRemoving(sheet)} />
-                        </div>
-                        <div className="col-start-2">
+                        </span>
+                        <div className="col-span-2 @[15rem]/army:col-span-3">
                           <CollectionEntryCounts entryId={sheet.id} name={sheet.name} />
                         </div>
                       </li>

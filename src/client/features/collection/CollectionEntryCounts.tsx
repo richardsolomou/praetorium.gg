@@ -14,11 +14,10 @@ export function CollectionEntryCounts({ entryId, name }: { entryId: string; name
   const built = isPending || models === null ? null : (progress?.[entryId]?.built ?? 0)
   const painted = built === null ? null : (progress?.[entryId]?.painted ?? 0)
   return (
-    // Three steppers need about 23rem in a row; narrower, they stack with their labels beside them rather than wrap unevenly.
     <span className="@container block">
-      <span className="flex flex-col gap-1.5 @[23rem]:flex-row @[23rem]:gap-3">
+      <span className="flex flex-col gap-2 @[15rem]:flex-row @[15rem]:justify-center @[15rem]:gap-5 @[23rem]:gap-3">
         <Labelled label="Owned">
-          <CollectionCount entryId={entryId} name={name} />
+          <CollectionCount entryId={entryId} name={name} stacked />
         </Labelled>
         <Labelled label="Built">
           <ModelCounter
@@ -27,6 +26,7 @@ export function CollectionEntryCounts({ entryId, name }: { entryId: string; name
             inputLabel={`${name} models built`}
             min={0}
             max={models ?? 0}
+            stacked
             onChange={(next) => mutation.mutateAsync({ entryId, built: next, painted: Math.min(painted ?? 0, next) })}
           />
         </Labelled>
@@ -37,6 +37,7 @@ export function CollectionEntryCounts({ entryId, name }: { entryId: string; name
             inputLabel={`${name} models painted`}
             min={0}
             max={built ?? 0}
+            stacked
             onChange={(next) => mutation.mutateAsync({ entryId, built: built ?? 0, painted: next })}
           />
         </Labelled>
@@ -47,8 +48,8 @@ export function CollectionEntryCounts({ entryId, name }: { entryId: string; name
 
 function Labelled({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <span className="flex items-center gap-2 @[23rem]:flex-col @[23rem]:items-start @[23rem]:gap-0.5">
-      <span className="w-14 text-xs text-dim @[23rem]:w-auto">{label}</span>
+    <span className="flex flex-wrap items-center justify-between gap-2 @[15rem]:flex-col @[15rem]:items-center @[15rem]:gap-1">
+      <span className="text-xs text-dim">{label}</span>
       {children}
     </span>
   )

@@ -6,7 +6,7 @@ import { FactionMark, type FactionPresentation } from '../../components/FactionM
 import { FactionReferenceLink } from '../../components/FactionReferenceLink'
 import { ModelCounter } from '../../components/ModelCounter'
 import { UnitPicker } from '../../components/UnitPicker'
-import { collectionWishesQuery, combatUnitsQuery, wishlistSuggestionsQuery } from '../../queries'
+import { collectionQuery, collectionWishesQuery, combatUnitsQuery, wishlistSuggestionsQuery } from '../../queries'
 import { useCollectionWantedMutation } from '../../useCollection'
 import { countLabel } from '../../text'
 
@@ -16,6 +16,7 @@ type Datasheet = { id: string; slug: string; name: string; catalogueId: string; 
 
 /** Models a player plans to buy, counted apart from those they own. */
 export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<string, Datasheet> }) {
+  const collection = useQuery(collectionQuery())
   const wishes = useQuery(collectionWishesQuery())
   const units = useQuery(combatUnitsQuery())
   const suggested = useQuery(wishlistSuggestionsQuery())
@@ -25,10 +26,11 @@ export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<str
     .toSorted((a, b) => (a.sheet?.name ?? '').localeCompare(b.sheet?.name ?? ''))
   const total = wanted.reduce((sum, wish) => sum + wish.count, 0)
   const set = (entryId: string, count: number) => mutation.mutateAsync({ entryId, wanted: count })
+  const owned = new Set(collection.data ?? [])
   const suggestions = (suggested.data ?? [])
     .flatMap((suggestion) => {
       const sheet = datasheets.get(suggestion.entryId)
-      return sheet && !wishes.data?.[suggestion.entryId] ? [{ ...suggestion, sheet }] : []
+      return sheet && !owned.has(suggestion.entryId) && !wishes.data?.[suggestion.entryId] ? [{ ...suggestion, sheet }] : []
     })
     .slice(0, SUGGESTIONS_SHOWN)
   return (
