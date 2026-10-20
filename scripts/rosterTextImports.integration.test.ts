@@ -16,6 +16,7 @@ import type { LoadedCatalogue } from '../src/server/catalogueIndex'
 import { custodesOfficial } from '../src/core/rosterText.custodes.fixture'
 import { kriegGermanOfficial } from '../src/core/rosterText.krieg.fixture'
 import { necronsOfficial } from '../src/core/rosterText.necrons.fixture'
+import { blackTemplarsNewRecruit } from '../src/core/rosterText.blackTemplars.fixture'
 import type { LoadedRules } from '../src/shared/rules'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import { importRosterFile } from '../src/shared/rosterFiles'
@@ -44,6 +45,16 @@ describe.skipIf(!fs.existsSync(source))('genuine exports from other army builder
   }
 
   it.each([
+    [
+      'blackTemplarsNewRecruit',
+      blackTemplarsNewRecruit,
+      'roster-file',
+      'Imperium - Adeptus Astartes - Black Templars',
+      3,
+      '16 of 16',
+      5,
+      '2000 for 2000',
+    ],
     ['listForgeDetailed', listForgeDetailed, 'listforge', 'Xenos - Drukhari', 2, '6 of 6', 2, '510 for 510'],
     ['listForgeWtc', listForgeWtc, 'listforge-wtc', 'Xenos - Drukhari', 2, '6 of 6', 2, '510 for 510'],
     ['listForgeAllies', listForgeAllies, 'listforge', 'Imperium - Grey Knights', 1, '2 of 2', 0, '285 for 285'],

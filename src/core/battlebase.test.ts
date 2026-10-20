@@ -3,6 +3,7 @@ import { fromBattleBaseText } from './battlebase'
 import { warmindOfficial } from './rosterText.fixtures'
 import { kriegGermanOfficial } from './rosterText.krieg.fixture'
 import { necronsOfficial } from './rosterText.necrons.fixture'
+import { blackTemplarsNewRecruit } from './rosterText.blackTemplars.fixture'
 
 const exportText = `CL 1K - Ammentar Destroyer Spearhead (990 Points)
 
@@ -52,6 +53,15 @@ Immortals (70 Points)
 Exported with BattleBase, Data Version: v20260812`
 
 describe('BattleBase text import', () => {
+  it('reads the chapter and disposition after a parent faction in New Recruit text', () => {
+    expect(fromBattleBaseText(blackTemplarsNewRecruit)).toMatchObject({
+      faction: 'Black Templars',
+      detachment: "Marshal's Household, Assault Brethren, and Tacticus Attack Force",
+      disposition: 'Take and Hold',
+      limit: 2000,
+    })
+  })
+
   it("reads Warmind's official app layout, which gives each detachment a line", () => {
     expect(fromBattleBaseText(warmindOfficial)).toMatchObject({
       name: 'Sanitised list',

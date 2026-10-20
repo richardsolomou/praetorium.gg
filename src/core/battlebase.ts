@@ -39,16 +39,23 @@ export function fromBattleBaseText(input: string): TextRoster | null {
   const body = lines.slice(setupEnd)
   const isUnit = (line: string) => !selection.test(line) && price(line)?.unit === pointsWord
 
-  const faction = setup[0] ?? ''
-  const sizeLine = setup.slice(1).find((line) => price(line)?.unit === pointsWord)
+  // Chapter exports put the parent faction before the army immediately above the priced detachments.
+  const detachmentAt = setup.findIndex((line) => {
+    const priced = price(line)
+    return priced && priced.unit !== pointsWord
+  })
+  const factionAt = Math.max(0, detachmentAt - 1)
+  const faction = setup[factionAt] ?? ''
+  const armySetup = setup.slice(factionAt + 1)
+  const sizeLine = armySetup.find((line) => price(line)?.unit === pointsWord)
   const exportedBy = /Exported with (?:BattleBase|Praetorium\.gg)/i.test(input)
   if (!exportedBy && (!titlePrice || !faction || !sizeLine || !body.some(isUnit))) return null
   const size = sizeLine ? price(sizeLine) : null
   // Detachments are priced in their own points; Warmind gives each one a line.
-  const pricedDetachments = setup.slice(1).filter((line) => line !== sizeLine && price(line))
-  const statedDisposition = setup.slice(1).find((line) => labelled.test(line))
+  const pricedDetachments = armySetup.filter((line) => line !== sizeLine && price(line))
+  const statedDisposition = armySetup.find((line) => labelled.test(line))
   // New Recruit and the official app write the disposition alone on the line after a priced detachment.
-  const unlabelled = setup.slice(1).filter((line) => line !== sizeLine && line !== statedDisposition && !pricedDetachments.includes(line))
+  const unlabelled = armySetup.filter((line) => line !== sizeLine && line !== statedDisposition && !pricedDetachments.includes(line))
   const dispositionLine = statedDisposition ?? (pricedDetachments.length && unlabelled.length === 1 ? unlabelled[0] : undefined)
   const detachment = pricedDetachments.length
     ? pricedDetachments.map((line) => price(line)!.name).join(', ')

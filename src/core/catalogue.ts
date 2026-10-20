@@ -463,12 +463,17 @@ function rootEntriesOf(book: Catalogue, definitions: ReadonlyMap<string, Definit
  * size of what it borrows says so.
  */
 export function importsOf(book: Catalogue, books: ReadonlyMap<string, Catalogue>, definitions: ReadonlyMap<string, Definition>) {
-  const imported: Catalogue[] = []
-  for (const link of book.catalogueLinks ?? []) {
-    const source = link.importRootEntries ? books.get(link.targetId) : undefined
-    if (source) imported.push(source)
+  const imported = [book]
+  const seen = new Set([book.id])
+  for (const parent of imported) {
+    for (const link of parent.catalogueLinks ?? []) {
+      const source = link.importRootEntries ? books.get(link.targetId) : undefined
+      if (!source || seen.has(source.id)) continue
+      seen.add(source.id)
+      imported.push(source)
+    }
   }
-  return imported.toSorted((left, right) => rootEntriesOf(right, definitions).length - rootEntriesOf(left, definitions).length)
+  return imported.slice(1).toSorted((left, right) => rootEntriesOf(right, definitions).length - rootEntriesOf(left, definitions).length)
 }
 
 /**
