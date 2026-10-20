@@ -20,7 +20,7 @@ jobs:
       checks: write
       issues: write
       pull-requests: write
-    uses: richardsolomou/ras-stack/.github/workflows/build-dokploy-preview.yml@v1
+    uses: richardsolomou/ras-stack/.github/workflows/build-dokploy-preview.yml@627f0857a9bf8623cda27193d461a34b6e40d1f9
     with:
       package: praetorium.gg
       local-image: praetorium-preview
@@ -29,6 +29,7 @@ jobs:
       marker: <!-- praetorium-vm-preview -->
       note: Test battles with `preview@praetorium.gg` / `preview-preview-preview` and `opponent@praetorium.gg` / `opponent-opponent-opponent`. Preview data is disposable and resets on every deployment.
       dockerfile: Dockerfile.node
+      platform: linux/arm64
       build-args: |
         GITHUB_SHA=${{ github.event.pull_request.head.sha }}
       cache-scope: praetorium-preview
