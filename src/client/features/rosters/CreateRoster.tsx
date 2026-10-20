@@ -33,9 +33,9 @@ export function CreateRoster({
 }) {
   const [open, setOpen] = useState(false)
   const [reference, setReference] = useState<MissionReference>()
-  const { data: defaults = DEFAULT_PLAYER_DEFAULTS } = useQuery(playerDefaultsQuery())
-  const initial = { ...EMPTY_SETUP, visibility: defaults.rosterVisibility, limit: limit ?? defaults.battleSize }
   const create = useNewRoster(reference)
+  const { data: defaults = DEFAULT_PLAYER_DEFAULTS } = useQuery({ ...playerDefaultsQuery(), enabled: !create.guest })
+  const initial = { ...EMPTY_SETUP, visibility: defaults.rosterVisibility, limit: limit ?? defaults.battleSize }
   const started = (source?: MissionReference) => {
     posthog.capture('roster_creation_started', source ? { reference: source } : undefined)
     advanceOnboarding('roster', 'roster-start', 'roster-faction')

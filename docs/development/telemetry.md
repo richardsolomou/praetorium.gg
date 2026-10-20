@@ -8,7 +8,7 @@ Browsers send through the same-origin `/t` proxy, which drops cookies and forwar
 
 The WebView browser owns product events, identified replay, logs, and metrics. Mask every form input and mark account, security, and administration surfaces `ph-no-capture`. The Expo client captures only shell lifecycle and errors; native screenshot replay stays disabled because it cannot redact the WebView DOM.
 
-Server logs, spans, and request metrics use stable operation or server-function names and bounded metadata, never raw URLs or payloads. In the `process.*` gauges from `src/server/runtimeMetrics.ts`, ArrayBuffer bytes are already part of external memory; do not add the two.
+Server logs, spans, and request metrics use stable operation or server-function names and bounded metadata, never raw URLs or payloads. A server function that throws a `Response`, such as the sign-in refusal of an account read, records outcome `error` with no exception, so the browser must not call account reads for a visitor. In the `process.*` gauges from `src/server/runtimeMetrics.ts`, ArrayBuffer bytes are already part of external memory; do not add the two.
 
 Server telemetry resources carry `deployment.host` from the public `APP_URL`. Older spans lack it and can mix deployed instances; do not infer a production hostname from `deployment.environment` alone.
 
