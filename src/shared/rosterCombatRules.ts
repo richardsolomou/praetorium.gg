@@ -12,22 +12,50 @@ import { detachmentReference } from './detachmentReference'
 import { buildRosterPick, rosterDatasheetContext } from './rosterDatasheetContext'
 import { type LoadedRules, rulesFaction } from './rules'
 import { selectedDetachmentRules } from './selectedDetachmentRules'
+import type { UnitChoiceCache } from '../core/unitChoices'
+import type { ModifierCache } from '../core/evaluate'
+
+/**
+ * What projections of one built roster can share: unit choices and modifiers are keyed by value, and each unit's
+ * support abilities by its place in that roster, so share it only between projections of the same `prepared` roster.
+ */
+export type RosterProjectionCache = {
+  choiceCache: UnitChoiceCache
+  modifierCache: ModifierCache
+  supportSources: Map<number, ReturnType<typeof datasheetAbilitiesIn>>
+}
+
+/** The modifier cache holds catalogue data only, so a caller may share one across rosters. */
+export const rosterProjectionCache = (modifierCache: ModifierCache = new WeakMap()): RosterProjectionCache => ({
+  choiceCache: new WeakMap(),
+  modifierCache,
+  supportSources: new Map(),
+})
+
+type Projection = NonNullable<ReturnType<typeof rosterDatasheetContext>> & RosterProjectionCache
 
 export function rosterCombatant(
   loaded: LoadedCatalogue,
   rules: LoadedRules | null,
   data: Parameters<typeof rosterDatasheetContext>[1] & { inactivePicks?: number[] },
   prepared?: Parameters<typeof rosterDatasheetContext>[2],
-  /** The leaders and bodyguards that could join, which the simulator offers; a loadout search reads none of them. */
-  { attachmentChoices = true }: { attachmentChoices?: boolean } = {},
+  {
+    attachmentChoices = true,
+    cache = rosterProjectionCache(),
+  }: {
+    /** The leaders and bodyguards that could join, which the simulator offers; a loadout search reads none of them. */
+    attachmentChoices?: boolean
+    cache?: RosterProjectionCache
+  } = {},
 ) {
   data = {
     ...data,
     picks: data.picks.map((pick, index) => (data.inactivePicks?.includes(index) ? { ...pick, attachedTo: undefined } : pick)),
   }
   const projected = rosterDatasheetContext(loaded, data, prepared)
-  const context = projected && {
+  const context: Projection | undefined = projected && {
     ...projected,
+    ...cache,
     companions: projected.companions.filter((selectionIndex) =>
       projected.unitSelections.some((unit) => unit.selectionIndex === selectionIndex && !data.inactivePicks?.includes(unit.pickIndex)),
     ),
@@ -185,26 +213,32 @@ function rosterCombatRules(
   loaded: LoadedCatalogue,
   rules: LoadedRules | null,
   data: Parameters<typeof rosterDatasheetContext>[1] & { inactivePicks?: number[] },
-  context: NonNullable<ReturnType<typeof rosterDatasheetContext>>,
+  context: Projection,
   sheet: Datasheet,
 ) {
   const selectedPick = data.picks[data.pickIndex!]!
   const modelProfiles = sheet.profiles.filter((profile) => datasheetProfileKind(profile.type) === 'unit')
   const candidates: CombatRule[] = []
   const attached = attachedUnit(data.picks, data.pickIndex!)
+  const others = context.unitSelections.flatMap((unit) => {
+    if (unit.pickIndex === data.pickIndex || data.inactivePicks?.includes(unit.pickIndex)) return []
+    let source = context.supportSources.get(unit.selectionIndex)
+    if (source === undefined) {
+      const pick = data.picks[unit.pickIndex]!
+      source = datasheetAbilitiesIn(loaded, pick.catalogueId ?? data.catalogueId, pick.entryId, {
+        selections: context.selections,
+        unitSelectionIndex: unit.selectionIndex,
+        choiceCache: context.choiceCache,
+        modifierCache: context.modifierCache,
+      })
+      context.supportSources.set(unit.selectionIndex, source)
+    }
+    return [{ unit, source }]
+  })
   const unitKeywords = [
     ...new Set([
       ...sheet.keywords,
-      ...context.unitSelections.flatMap((unit) => {
-        if (!attached.includes(unit.pickIndex) || data.inactivePicks?.includes(unit.pickIndex)) return []
-        const pick = data.picks[unit.pickIndex]!
-        return (
-          datasheetAbilitiesIn(loaded, pick.catalogueId ?? data.catalogueId, pick.entryId, {
-            selections: context.selections,
-            unitSelectionIndex: unit.selectionIndex,
-          })?.keywords ?? []
-        )
-      }),
+      ...others.flatMap(({ unit, source }) => (attached.includes(unit.pickIndex) ? (source?.keywords ?? []) : [])),
     ]),
   ]
   const supportKeywords = [sheet.keywords]
@@ -244,13 +278,7 @@ function rosterCombatRules(
       { origin: 'own', attached: selectedPick.attachedTo !== undefined },
     )
   }
-  for (const unit of context.unitSelections) {
-    if (unit.pickIndex === data.pickIndex || data.inactivePicks?.includes(unit.pickIndex)) continue
-    const pick = data.picks[unit.pickIndex]!
-    const source = datasheetAbilitiesIn(loaded, pick.catalogueId ?? data.catalogueId, pick.entryId, {
-      selections: context.selections,
-      unitSelectionIndex: unit.selectionIndex,
-    })
+  for (const { unit, source } of others) {
     if (source) supportKeywords.push(source.keywords)
     for (const ability of source?.abilities ?? []) {
       if (!ability.description || ability.kind === 'core' || ability.kind === 'faction') continue

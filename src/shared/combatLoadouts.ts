@@ -10,7 +10,7 @@ import type { LoadedCatalogue } from './catalogueIndex'
 import { buildRosterPick, rosterDatasheetContext } from './rosterDatasheetContext'
 import { rosterDetachments } from './rosterDetachments'
 import { attachedUnit } from '../core/attach'
-import { rosterCombatant } from './rosterCombatRules'
+import { rosterCombatant, rosterProjectionCache } from './rosterCombatRules'
 import type { LoadedRules } from './rules'
 import { nextTask } from './nextTask'
 
@@ -231,7 +231,10 @@ export async function* combatLoadoutCandidates(
     if (!errors(built).every((error) => known.has(error))) return
     const updates = new Map(indexes.map((pickIndex, at) => [pickIndex, resolved[at]!]))
     const roster = data.picks.map((pick, pickIndex) => updates.get(pickIndex) ?? pick)
-    const projected = rosterCombatant(loaded, rules, { ...data, picks: roster }, prepared(built), { attachmentChoices: false })
+    const projected = rosterCombatant(loaded, rules, { ...data, picks: roster }, prepared(built), {
+      attachmentChoices: false,
+      cache: rosterProjectionCache(modifierCache),
+    })
     if (!projected) throw new Error('The attached unit could not be loaded.')
     if (projected.attachmentErrors.length) {
       if (seen.size === 1) throw new Error('The attached unit could not be evaluated legally.')
