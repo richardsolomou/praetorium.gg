@@ -97,12 +97,38 @@ async function productModule(image: string) {
   }
 }
 
+// Every image creates /data for the server user, so the volume is writable from whichever preview mounts it first.
+const catalogueCache = { type: 'volume', volumeName: 'praetorium-preview-catalogues', mountPath: '/data' } as const
+
+/**
+ * Mounts the catalogue cache every preview shares, before the application first starts. Prepared
+ * catalogues are scoped by compiler, so a preview whose compiler another has prepared starts in
+ * seconds instead of compiling for minutes.
+ */
+export async function shareCatalogueCache(client: DokployClient, name: string) {
+  let application = await client.application(name)
+  if (!application) {
+    await client.api('application.create', { body: { name, appName: name, environmentId: client.environmentId } })
+    application = await client.application(name)
+  }
+  if (!application) throw new Error(`Dokploy did not create ${name}`)
+  const { mounts } = await client.api<{ mounts?: { volumeName?: string | null; mountPath: string }[] }>('application.one', {
+    query: { applicationId: application.applicationId },
+  })
+  if (mounts?.some((mount) => mount.volumeName === catalogueCache.volumeName && mount.mountPath === catalogueCache.mountPath)) return
+  await client.api('mounts.create', { body: { ...catalogueCache, serviceType: 'application', serviceId: application.applicationId } })
+}
+
 async function deploy() {
   const number = pullRequestNumber(requiredEnv('PR_NUMBER'))
   const image = requiredEnv('PREVIEW_IMAGE')
   const revision = previewImageRevision(image, number)
   const { config } = dokployPreviewFromEnvironment()
   if (!config.domain) throw new Error('Preview requires a protected HTTPS domain')
+  await shareCatalogueCache(
+    new DokployClient({ url: config.url, apiKey: config.apiKey, environmentId: config.environmentId }),
+    `${config.applicationPrefix}-pr-${number}`,
+  )
   const module = await productModule(image)
   const name = previewDatabase(number)
   const previewUrl = `https://${config.subdomainPrefix}-${number}.${config.domain}`
@@ -121,7 +147,8 @@ async function deploy() {
   process.env.PREVIEW_ENVIRONMENT = [
     'APP_URL={{PREVIEW_URL}}',
     `AUTH_SECRET=${randomBytes(32).toString('hex')}`,
-    'AUTH_SQLITE_PATH=/data/auth.sqlite',
+    // Outside the shared /data volume, so each deployment starts with fresh accounts.
+    'AUTH_SQLITE_PATH=/home/node/auth.sqlite',
     'AUTH_INITIALIZE_EMPTY=true',
     'PRAETORIUM_SEED_PREVIEW=true',
     `SPACETIME_URL=http://${internalHost}:3000/`,
