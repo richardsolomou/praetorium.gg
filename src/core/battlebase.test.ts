@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { fromBattleBaseText } from './battlebase'
 import { warmindOfficial } from './rosterText.fixtures'
+import { kriegGermanOfficial } from './rosterText.krieg.fixture'
 import { necronsOfficial } from './rosterText.necrons.fixture'
 
 const exportText = `CL 1K - Ammentar Destroyer Spearhead (990 Points)
@@ -142,6 +143,51 @@ describe('BattleBase text import', () => {
       { name: 'Chronomancer’s stave', count: 1 },
       { name: 'Enhancements: Murdermind', count: 1 },
     ])
+  })
+
+  describe('German official-app text', () => {
+    const parsed = fromBattleBaseText(kriegGermanOfficial)
+
+    it('reads the list setup', () => {
+      expect(parsed).toMatchObject({
+        name: 'Death Korps of Krieg',
+        reportedPoints: 1995,
+        faction: 'Astra Militarum',
+        detachment: 'Siege Regiment',
+        disposition: 'Störangriff',
+        limit: 2000,
+        sizeName: 'Einsatzverband',
+      })
+    })
+
+    it('reads every unit across the German section headings', () => {
+      expect(parsed?.units).toHaveLength(20)
+    })
+
+    it('attaches each leader to its bodyguard', () => {
+      expect(parsed?.units.slice(0, 4).map((unit) => [unit.attachedToEntry, unit.entry])).toEqual([
+        [1, undefined],
+        [undefined, 1],
+        [2, undefined],
+        [undefined, 2],
+      ])
+    })
+
+    it('reads the Warlord', () => {
+      expect(parsed?.units.filter((unit) => unit.warlord).map((unit) => unit.name)).toEqual(['Lord Marshal Dreir'])
+    })
+
+    it('reads an enhancement under its translated label', () => {
+      expect(parsed?.units[4]?.selections).toContainEqual({ name: 'Enhancements: Flash Grenades', count: 1 })
+    })
+
+    it('leaves nothing unread', () => {
+      expect([parsed?.unread, ...(parsed?.units.map((unit) => unit.unread) ?? [])].filter(Boolean)).toEqual([])
+    })
+
+    it('reads thousands separated by a narrow no-break space', () => {
+      expect(fromBattleBaseText(kriegGermanOfficial.replace('1 995', '1\u202f995'))?.reportedPoints).toBe(1995)
+    })
   })
 
   describe('hand-edited app text', () => {

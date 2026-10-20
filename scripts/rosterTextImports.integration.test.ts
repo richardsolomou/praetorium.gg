@@ -14,6 +14,7 @@ import {
 } from '../src/core/rosterText.fixtures'
 import type { LoadedCatalogue } from '../src/server/catalogueIndex'
 import { custodesOfficial } from '../src/core/rosterText.custodes.fixture'
+import { kriegGermanOfficial } from '../src/core/rosterText.krieg.fixture'
 import { necronsOfficial } from '../src/core/rosterText.necrons.fixture'
 import type { LoadedRules } from '../src/shared/rules'
 import { calculateRosterPrice } from '../src/shared/pricing'
@@ -155,6 +156,21 @@ Sanctifiers (100 pts)
       mismatches: [],
       points: '1000 for 1000',
     })
+  })
+
+  it('imports the reported German official-app Krieg roster with every unit and attachment', () => {
+    expect(summary(kriegGermanOfficial)).toMatchObject({
+      format: 'roster-file',
+      faction: 'Imperium - Astra Militarum',
+      detachments: 1,
+      units: '20 of 20',
+      attached: 2,
+      points: '1995 for 1995',
+    })
+  })
+
+  it('takes the German Krieg force disposition from its detachment', () => {
+    expect(imported(kriegGermanOfficial)).toMatchObject({ disposition: 'disruption' })
   })
 
   it('preserves the official Necrons model counts', () => {

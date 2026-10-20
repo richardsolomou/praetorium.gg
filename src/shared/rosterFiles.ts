@@ -35,7 +35,7 @@ import {
   DROPPED_REASON,
   WARLORD_REASON,
 } from './importMismatch'
-import type { LoadedCatalogue } from './catalogueIndex'
+import { DISPOSITIONS, type LoadedCatalogue } from './catalogueIndex'
 import { rosterDetachments } from './rosterDetachments'
 import { importRosterSchema, type ExportRosterInput, type ImportRosterInput } from '../contracts/schemas'
 import { editionLabel } from '../core/catalogueEdition'
@@ -282,15 +282,14 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
   }
 
   const { limit, pointsBudget } = importedBattleSize(parsed, unknown)
-  if (parsed.disposition?.includes(','))
-    unknown.push({ name: parsed.disposition, reason: 'more than one force disposition was stated; choose one in setup' })
+  const disposition = importedDisposition(parsed.disposition, detachments, unknown)
 
   return {
     name: parsed.name,
     catalogueId: faction.id,
     catalogueName: faction.name,
     detachmentIds,
-    disposition: parsed.disposition && !parsed.disposition.includes(',') ? slug(parsed.disposition) : null,
+    disposition,
     limit,
     pointsBudget,
     units,
@@ -300,6 +299,21 @@ function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, fa
       choices: [...choices].map(([name, reason]) => ({ name, reason })),
     })),
   }
+}
+
+/** The stated force disposition, or its detachments' own when the text names it in another language. */
+function importedDisposition(stated: string | null, detachments: readonly { disposition: string | null }[], unknown: UnmatchedName[]) {
+  if (!stated) return null
+  if (stated.includes(',')) {
+    unknown.push({ name: stated, reason: 'more than one force disposition was stated; choose one in setup' })
+    return null
+  }
+  if (DISPOSITIONS.has(slug(stated))) return slug(stated)
+  const own = new Set(detachments.map((detachment) => detachment.disposition))
+  const [only] = own
+  if (own.size === 1 && only) return only
+  unknown.push({ name: stated, reason: 'this force disposition is not recognised; choose one in setup' })
+  return null
 }
 
 /**
