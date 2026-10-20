@@ -2,7 +2,7 @@ import { ChevronDown, X } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { ModelCounter } from '../../components/ModelCounter'
-import { CombatUnitPicker } from './CombatUnitPicker'
+import { UnitPicker } from '../../components/UnitPicker'
 import { FactionMark } from '../../components/FactionMark'
 import { combatantDatasheetQuery, factionIndexQuery } from '../../queries'
 import { useState } from 'react'
@@ -73,7 +73,7 @@ export function BenchmarkTargets({
               )
             })}
           </div>
-          <CombatUnitPicker
+          <UnitPicker
             ariaLabel="Add benchmark target"
             value=""
             placeholder="Add a benchmark from any faction"

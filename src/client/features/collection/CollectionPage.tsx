@@ -8,8 +8,8 @@ import { FactionMark, factionColour, type FactionPresentation } from '../../comp
 import { FactionReferenceLink } from '../../components/FactionReferenceLink'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
-import { SearchableSelect } from '../../components/SearchableSelect'
 import { SignInRequired } from '../../components/SignInRequired'
+import { UnitPicker } from '../../components/UnitPicker'
 import {
   collectionCountsQuery,
   collectionProgressQuery,
@@ -99,7 +99,13 @@ export function CollectionPage() {
           >
             {sheet.presentation ? <Mark faction={sheet.presentation} /> : null}
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-semibold text-bone uppercase">{sheet.name}</span>
+              <FactionReferenceLink
+                to="/factions/$catalogueId/datasheets/$entryId"
+                params={{ catalogueId: sheet.catalogueId, entryId: sheet.slug }}
+                className="inline-block max-w-full truncate align-top text-sm font-semibold text-bone uppercase underline-offset-4 hover:text-info hover:underline"
+              >
+                {sheet.name}
+              </FactionReferenceLink>
               <span className="block text-xs text-dim">{countLabel(sheet.battles, 'battle')}</span>
             </span>
             <Button size="sm" variant="outline" aria-label={`Add ${sheet.name} to your collection`} onClick={() => add(sheet.id)}>
@@ -125,27 +131,16 @@ export function CollectionPage() {
       />
       <PageContent className="space-y-6">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
-          <SearchableSelect
+          <UnitPicker
             ariaLabel="Add a datasheet to your collection"
             className="w-full sm:w-80"
             popupClassName="min-w-[min(22rem,var(--available-width))]"
             placeholder="Add a datasheet…"
             searchPlaceholder="Search datasheets…"
-            virtualized
             loading={units.isPending}
             value=""
             onValueChange={(value) => add((JSON.parse(value) as [string, string])[1])}
-            groups={(units.data ?? []).flatMap((faction) => {
-              const presentation = factions.data?.factions.find((entry) => entry.id === faction.catalogueId)
-              const items = faction.units
-                .filter((unit) => !owned.has(unit.id))
-                .map((unit) => ({
-                  value: JSON.stringify([faction.catalogueId, unit.id]),
-                  label: unit.name,
-                  icon: presentation ? <Mark faction={presentation} /> : undefined,
-                }))
-              return items.length ? [{ label: faction.name, items }] : []
-            })}
+            index={(units.data ?? []).map((book) => ({ ...book, units: book.units.filter((unit) => !owned.has(unit.id)) }))}
           />
           <p className="flex items-baseline gap-4 sm:ml-auto">
             <Tally label="models" value={pending ? null : models} />
@@ -199,7 +194,7 @@ export function CollectionPage() {
                       <li
                         key={sheet.id}
                         data-unit={sheet.name}
-                        className="grid grid-cols-[auto_minmax(0,1fr)] grid-rows-[auto_1fr] gap-x-3 gap-y-2 p-2"
+                        className="grid grid-cols-[auto_minmax(0,1fr)] grid-rows-[auto_1fr] gap-x-3 p-2"
                       >
                         <span className="row-span-2">
                           <CollectionPhoto entryId={sheet.id} name={sheet.name} />
@@ -214,7 +209,7 @@ export function CollectionPage() {
                           </FactionReferenceLink>
                           <RemoveButton name={sheet.name} onRemove={() => setRemoving(sheet)} />
                         </div>
-                        <div className="col-start-2 self-end">
+                        <div className="col-start-2">
                           <CollectionEntryCounts entryId={sheet.id} name={sheet.name} />
                         </div>
                       </li>

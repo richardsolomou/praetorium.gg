@@ -14,6 +14,7 @@ import {
   collectionPhotos,
   datasheetPhotos,
   fieldedDatasheets,
+  wishlistSuggestions,
   datasheet,
   datasheetOfferedBy,
   discoverRosters,
@@ -44,6 +45,7 @@ import {
   datasheetPhotosKey,
   factionDatasheetsKey,
   fieldedDatasheetsKey,
+  wishlistSuggestionsKey,
   homeRostersKey,
   rosterAccessKey,
   rosterBootstrapKey,
@@ -80,6 +82,8 @@ export const discoveredRostersQuery = (filter: RosterDiscoveryFilter, audience: 
 export const collectionQuery = () => queryOptions({ queryKey: collectionKey(), queryFn: () => collection(), staleTime: SSR_STALE_TIME })
 export const fieldedDatasheetsQuery = () =>
   queryOptions({ queryKey: fieldedDatasheetsKey(), queryFn: () => fieldedDatasheets(), staleTime: SSR_STALE_TIME })
+export const wishlistSuggestionsQuery = () =>
+  queryOptions({ queryKey: wishlistSuggestionsKey(), queryFn: () => wishlistSuggestions(), staleTime: SSR_STALE_TIME })
 export const collectionCountsQuery = () =>
   queryOptions({ queryKey: collectionCountsKey(), queryFn: () => collectionCounts(), staleTime: SSR_STALE_TIME })
 /** Only datasheets with built models appear; the rest have none built or painted. */

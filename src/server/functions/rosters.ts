@@ -12,11 +12,15 @@ import { importRosterInput } from '../rosterImport'
 import { captureRosterCreated } from '../rosterTelemetry'
 import { ROSTER_PRICED_SAMPLE_RATE, rosterPricedProperties, rosterTelemetryProperties } from '../../shared/rosterTelemetry'
 import { isRosterExchangeCode } from '../../core/rosterExchange'
-import { ROSTER_DISCOVERY_PAGE_SIZE } from '../../core/rosterDiscovery'
+import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, ROSTER_DISCOVERY_PAGE_SIZE } from '../../core/rosterDiscovery'
 import { discoveryScope, inDiscoveryScope } from '../../core/rosterDiscoveryScope'
 import { variantDifferences } from '../rosterDifferences'
 import { copySavedRoster, saveOwnedRoster } from '../saveOwnedRoster'
 import { copiedArmy } from '../../core/rosterCopies'
+import { currentCatalogueFamilyId, currentEntryId } from '../../core/retiredCatalogueIds'
+import { groupBy } from '../../core/collections'
+import type { RosterPick } from '../../core/roster'
+import { wishlistSuggestions as suggestFromRosters } from '../../core/wishlistSuggestions'
 import { ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
 import { rosterChangeWithoutPricing, rosterStatus, rosterVerdict } from '../rosterStatus'
 import {
@@ -82,6 +86,60 @@ export const homeRosters = createServerFn({ method: 'GET' }).handler(() =>
       problem: verdicts[index]!.problem,
     }))
     return { count, rosters }
+  }),
+)
+
+const WISHLIST_ARMIES = 3
+const WISHLIST_SUGGESTIONS = 24
+
+const fieldedEntryIds = (roster: { catalogueId: string; picks: readonly RosterPick[] }) => ({
+  entryIds: roster.picks.map((pick) => currentEntryId(pick.entryId, pick.catalogueId ?? roster.catalogueId)),
+})
+
+/**
+ * Datasheets in the player's most-built armies that none of their rosters use, ranked by how many of other players' recent
+ * public rosters field them; an army nobody else has published offers all its unused datasheets.
+ */
+export const wishlistSuggestions = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const viewerId = await currentUserId()
+    if (!viewerId) return []
+    const instance = app()
+    const [own, factionIndex, books] = await Promise.all([
+      instance.service.rosterService.savedRosters(viewerId),
+      instance.factionIndexFor(),
+      instance.combatUnitsFor(),
+    ])
+    const factions = factionIndex?.factions ?? []
+    const indexed = new Map(factions.map((faction) => [faction.id, faction]))
+    const armies = [...groupBy(own, (roster) => currentCatalogueFamilyId(roster.catalogueId)).entries()]
+      .toSorted(([, a], [, b]) => b.length - a.length)
+      .slice(0, WISHLIST_ARMIES)
+      .map(([faction]) => ({ faction, rules: 'current' as const }))
+    const published = await Promise.all(
+      armies.map(async (filter) => {
+        const scope = discoveryScope(filter, factions)
+        if (!scope) return []
+        const { rosters } = await instance.service.rosterService.discoverRosters({
+          ...scope,
+          audience: 'public',
+          viewerId,
+          sort: 'updated-desc',
+          before: null,
+          limit: ROSTER_DISCOVERY_MAX_PAGE_SIZE,
+        })
+        return rosters
+          .filter(({ summary }) => inDiscoveryScope(summary, filter, indexed))
+          .map(({ priceable }) => fieldedEntryIds(priceable))
+      }),
+    )
+    return suggestFromRosters(
+      own.map(fieldedEntryIds),
+      armies.map((filter, index) => ({
+        rosters: published[index]!,
+        datasheets: books.filter((book) => currentCatalogueFamilyId(book.catalogueId) === filter.faction).flatMap((book) => book.units),
+      })),
+    ).slice(0, WISHLIST_SUGGESTIONS)
   }),
 )
 

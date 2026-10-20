@@ -5,6 +5,7 @@ import {
   createBattle,
   createRoster,
   retryUntilVisible,
+  savedArmy,
   signInAsPreview,
   signUp,
   uniqueName,
@@ -521,4 +522,20 @@ test('a saved roster shows shortages its units share and adds them to the wishli
   await expect(row).toContainText('5 on your wishlist')
   await page.goto('/collection')
   await expect(page.getByRole('spinbutton', { name: 'Necron Warriors models wanted', exact: true })).toHaveValue('5')
+})
+
+test('the wishlist suggests datasheets other players field that none of the player’s rosters use', async ({ page, browser }) => {
+  const publisher = await browser.newPage()
+  await savedArmy(publisher, 'Wishlist publisher', { name: 'Published', visibility: 'public' })
+  await publisher.close()
+  const source = (await (await productOperator()).roster('preview-necrons-cursed-skyshroud'))!
+  const picks = (JSON.parse(source.picks) as { entryId: string }[]).filter((pick) => pick.entryId !== '821d-665-499f-e895')
+  await savedArmy(page, 'Wishlist suggestions', { name: 'Without Immortals', picks: JSON.stringify(picks) })
+  await page.goto('/collection')
+  const suggestion = page.locator('[data-wish-suggestion="Immortals"]')
+  await expect(suggestion).toContainText(/In \d+ of \d+ recent public Necrons rosters?/)
+  await expect(page.locator('[data-wish-suggestion="Necron Warriors"]')).toHaveCount(0)
+  await suggestion.getByRole('button', { name: 'Add Immortals to your wishlist', exact: true }).click()
+  await expect(page.getByRole('spinbutton', { name: 'Immortals models wanted', exact: true })).toHaveValue('1')
+  await expect(suggestion).toBeHidden()
 })

@@ -1,13 +1,14 @@
 import { useQuery } from '@tanstack/react-query'
 import type { ComponentProps } from 'react'
-import type { combatUnits } from '../../functions'
-import { factionIndexQuery } from '../../queries'
-import { FactionMark } from '../../components/FactionMark'
-import { SearchableSelect, type SearchableGroup } from '../../components/SearchableSelect'
+import type { combatUnits } from '../functions'
+import { factionIndexQuery } from '../queries'
+import { FactionMark } from './FactionMark'
+import { SearchableSelect, type SearchableGroup } from './SearchableSelect'
 
 const noExtraGroups: SearchableGroup[] = []
 
-export function CombatUnitPicker({
+/** Datasheets grouped by army, each marked with its faction. */
+export function UnitPicker({
   index,
   extraGroups = noExtraGroups,
   ...props
