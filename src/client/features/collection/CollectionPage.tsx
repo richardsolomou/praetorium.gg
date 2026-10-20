@@ -154,7 +154,7 @@ export function CollectionPage() {
         {owned.size ? null : fieldedShelf}
 
         {pending ? (
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="space-y-4">
             <Skeleton className="h-40" />
             <Skeleton className="h-40" />
           </div>
@@ -171,14 +171,14 @@ export function CollectionPage() {
             }
           />
         ) : (
-          <div className="gap-4 space-y-4 lg:columns-2">
+          <div className="space-y-4">
             {armies.map(({ sheets, first }) => {
               const armyModels = sheets.reduce((total, sheet) => total + countOf(sheet.id), 0)
               return (
                 <section
                   key={first.catalogueId}
                   aria-label={first.faction}
-                  className="break-inside-avoid border border-t-[3px] border-edge bg-panel"
+                  className="border border-t-[3px] border-edge bg-panel"
                   style={{ borderTopColor: factionColour(first.presentation?.slug ?? first.catalogueId, first.faction) }}
                 >
                   <header className="flex items-center gap-3 border-b border-edge px-3 py-2.5">
@@ -189,12 +189,13 @@ export function CollectionPage() {
                       {armyModels === 1 ? 'model' : 'models'}
                     </span>
                   </header>
-                  <ul className="divide-y divide-edge">
+                  {/* Each datasheet keeps a bottom border, pulled over the panel's own, so a second column starts without a doubled rule. */}
+                  <ul className="-mb-px md:columns-2 md:gap-0 md:[column-rule:1px_solid_var(--color-edge)]">
                     {sheets.map((sheet) => (
                       <li
                         key={sheet.id}
                         data-unit={sheet.name}
-                        className="grid grid-cols-[auto_minmax(0,1fr)] grid-rows-[auto_1fr] gap-x-3 p-2"
+                        className="grid break-inside-avoid grid-cols-[auto_minmax(0,1fr)] grid-rows-[auto_1fr] gap-x-3 border-b border-edge p-2"
                       >
                         <span className="row-span-2">
                           <CollectionPhoto entryId={sheet.id} name={sheet.name} />
@@ -219,7 +220,7 @@ export function CollectionPage() {
               )
             })}
             {retired.length ? (
-              <section aria-label="Retired datasheets" className="break-inside-avoid border border-edge bg-panel">
+              <section aria-label="Retired datasheets" className="border border-edge bg-panel">
                 <header className="border-b border-edge px-3 py-2.5">
                   <h2 className="rubric">No longer in the rules</h2>
                 </header>
