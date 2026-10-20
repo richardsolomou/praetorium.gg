@@ -155,7 +155,7 @@ export function CombatSimulator({
     [shared, onShare],
   )
   return (
-    <main className="w-full bg-sunken">
+    <main className="w-full">
       <PageHeader
         eyebrow={null}
         title="Combat simulator"

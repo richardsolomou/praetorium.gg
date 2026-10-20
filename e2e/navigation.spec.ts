@@ -95,7 +95,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await page.setViewportSize({ width: 860, height: 844 })
   const reference = page.getByRole('navigation', { name: 'Reference' })
   await expect(reference.getByRole('link')).toHaveText(['Factions', 'Missions', 'Force dispositions', 'Rules'])
-  await expect(primary.getByRole('link')).toHaveText(['Rosters', 'Battles', 'Leagues', 'Leaderboard', 'Simulator'])
+  await expect(primary.getByRole('link')).toHaveText(['Rosters', 'Battles', 'Simulator', 'Leagues', 'Leaderboard'])
   await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
   await page.setViewportSize({ width: 910, height: 844 })
   await expect(primary.getByRole('link', { name: 'Rosters' }).locator('svg')).toHaveCount(1)
