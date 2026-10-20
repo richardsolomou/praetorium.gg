@@ -72,6 +72,14 @@ it('takes a roster out of public army discovery when its owner changes who can r
   expect(client.getQueryState(['discovered-rosters', {}])?.isInvalidated).toBe(true)
 })
 
+it.each(['rosters', 'leagues'] as const)('refreshes league roster sharing after a %s change', async (scope) => {
+  const client = new QueryClient()
+  const key = ['league-roster-sharing', 'league', 'event', 'owner']
+  client.setQueryData(key, {})
+  await invalidateProductQueries(client, scope)
+  expect(client.getQueryState(key)?.isInvalidated).toBe(true)
+})
+
 it('refreshes opponent choices when a practice account is removed', async () => {
   const client = new QueryClient()
   client.setQueryData(['opponents'], [])

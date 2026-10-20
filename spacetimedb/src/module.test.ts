@@ -48,6 +48,239 @@ beforeEach(() => {
   for (const key of Object.keys(env)) delete env[key]
 })
 
+describe('sharing a revealed league roster', () => {
+  function setup(revealed = true) {
+    const host = harness()
+    const picks = [{ entryId: 'captain', note: 'Owner-only plan', toggles: { warlord: 1 } }]
+    const snapshot = JSON.stringify({
+      name: 'League army',
+      text: 'The submitted army',
+      built: { catalogueId: 'catalogue', revision: 'revision', limit: 1000, detachment: null, disposition: null, picks, units: [] },
+    })
+    host.call(host.operator, (ctx) => {
+      ctx.db.leagues.insert({
+        id: 'league',
+        token: 'league',
+        ownerId: 'organizer',
+        name: 'League',
+        description: '',
+        visibility: 'private',
+        admission: 'automatic',
+        playerLimit: undefined,
+        recurring: true,
+        createdAt: 1n,
+      })
+      ctx.db.leagueEvents.insert({
+        id: 'event',
+        token: 'event',
+        leagueId: 'league',
+        number: 1,
+        format: '1v1',
+        rosterLimit: 1000,
+        createdAt: 1n,
+        revealedAt: revealed ? 10n : undefined,
+        revealedBy: 'organizer',
+      })
+      ctx.db.leagueEventEntries.insert({
+        key: '["event","entrant"]',
+        eventId: 'event',
+        userId: 'entrant',
+        status: 'accepted',
+        joinedAt: 1n,
+        rosterId: 'saved',
+        rosterName: 'League army',
+        rosterSnapshot: snapshot,
+        submittedAt: 5n,
+        requiredLimit: undefined,
+        teamId: undefined,
+      })
+    })
+    const save = (id = 'saved', changes: Record<string, unknown> = {}) =>
+      module.saveRoster(host.procedure(host.operator), {
+        payload: JSON.stringify({
+          id,
+          userId: 'entrant',
+          name: 'League army',
+          automaticName: false,
+          catalogueId: 'catalogue',
+          detachmentId: '[]',
+          disposition: null,
+          limit: 1000,
+          picks: JSON.stringify(picks),
+          prep: '{"reminders":[]}',
+          tags: '[]',
+          waivedRules: '[]',
+          optionalRules: '[]',
+          borrowedDetachmentId: null,
+          visibility: 'private',
+          source: 'editable',
+          now: NOW,
+          ...changes,
+        }),
+      })
+    save()
+    const read = (userId = 'entrant', eventToken = 'event') =>
+      JSON.parse(module.leagueRosterSharing(host.procedure(host.operator), { token: 'league', eventToken, userId })) as {
+        prompt: boolean
+        roster: { id: string; visibility: string } | null
+      } | null
+    const command = (op: string, extra: Record<string, unknown> = {}) =>
+      JSON.parse(
+        module.leagueCommand(host.procedure(host.operator), {
+          payload: JSON.stringify({
+            op,
+            token: 'league',
+            eventToken: 'event',
+            ownerId: 'entrant',
+            submittedAt: 5,
+            rosterId: 'saved',
+            now: NOW + 1,
+            ...extra,
+          }),
+        }),
+      ) as unknown
+    return { ...host, read, command, save }
+  }
+
+  it('offers sharing to an ordinary entrant after reveal', () => {
+    expect(setup().read()).toMatchObject({ prompt: true, roster: { id: 'saved', visibility: 'private' } })
+  })
+
+  it('does not expose sharing before reveal', () => {
+    expect(setup(false).read()).toBeNull()
+  })
+
+  it('refuses publication before reveal', () => {
+    expect(setup(false).command('share-roster')).toBe('unavailable')
+  })
+
+  it('does not expose another entrant’s publication controls', () => {
+    expect(setup().read('organizer')).toBeNull()
+  })
+
+  it('refuses to publish for someone without an accepted submission', () => {
+    expect(setup().command('share-roster', { ownerId: 'organizer' })).toBe('unavailable')
+  })
+
+  it('makes the original saved roster public', () => {
+    const fixture = setup()
+    fixture.command('share-roster')
+    expect(fixture.test.db.rosters.id.find('saved')?.visibility).toBe('public')
+  })
+
+  it('keeps private notes and preparation untouched on the original saved roster', () => {
+    const fixture = setup()
+    const before = fixture.test.db.rosters.id.find('saved')!
+    fixture.command('share-roster')
+    const after = fixture.test.db.rosters.id.find('saved')!
+    expect([after.picks, after.prep]).toEqual([before.picks, before.prep])
+  })
+
+  it('still asks when only another roster is public', () => {
+    const fixture = setup()
+    fixture.save('other-copy', { visibility: 'public' })
+    expect(fixture.read()).toMatchObject({ prompt: true, roster: { id: 'saved', visibility: 'private' } })
+  })
+
+  it('does not ask when the original roster is already public', () => {
+    const fixture = setup()
+    fixture.save('saved', { visibility: 'public', picks: '[{"entryId":"other"}]' })
+    expect(fixture.read()?.prompt).toBe(false)
+  })
+
+  it('does not ask about an already public roster kept in the archive', () => {
+    const fixture = setup()
+    fixture.save('saved', { visibility: 'public' })
+    module.setRosterArchived(fixture.procedure(fixture.operator), { id: 'saved', userId: 'entrant', archived: true, now: BigInt(NOW + 2) })
+    expect(fixture.read()?.prompt).toBe(false)
+  })
+
+  it('does not reuse another account’s public roster', () => {
+    const fixture = setup()
+    fixture.save('other-copy', { userId: 'other', visibility: 'public' })
+    expect(fixture.read()?.prompt).toBe(true)
+  })
+
+  it('publishes the original roster with edits made since sealing', () => {
+    const fixture = setup()
+    fixture.save('saved', { picks: '[{"entryId":"other"}]' })
+    fixture.command('share-roster')
+    expect(fixture.test.db.rosters.id.find('saved')).toMatchObject({ visibility: 'public', picks: '[{"entryId":"other"}]' })
+  })
+
+  it('does not create a copy when publishing', () => {
+    const fixture = setup()
+    fixture.save('saved', { picks: '[{"entryId":"other"}]' })
+    fixture.command('share-roster')
+    expect(fixture.test.db.rosters.count()).toBe(1n)
+  })
+
+  it('does not offer publication after the original roster is deleted', () => {
+    const fixture = setup()
+    fixture.call(fixture.operator, (ctx) => ctx.db.rosters.id.delete('saved'))
+    expect(fixture.read()).toBeNull()
+  })
+
+  it('refuses publication after the original roster is deleted', () => {
+    const fixture = setup()
+    fixture.call(fixture.operator, (ctx) => ctx.db.rosters.id.delete('saved'))
+    expect(fixture.command('share-roster')).toBe('unavailable')
+  })
+
+  it('does not publish a roster belonging to another account', () => {
+    const fixture = setup()
+    fixture.call(fixture.operator, (ctx) => {
+      const roster = ctx.db.rosters.id.find('saved')!
+      ctx.db.rosters.id.update({ ...roster, userId: 'other' })
+    })
+    expect(fixture.command('share-roster')).toBe('unavailable')
+  })
+
+  it('does not create copies on a repeated publication', () => {
+    const fixture = setup()
+    fixture.command('share-roster')
+    fixture.command('share-roster')
+    expect(fixture.test.db.rosters.count()).toBe(1n)
+  })
+
+  it('refuses a stale submission after an unseal and replacement', () => {
+    const fixture = setup()
+    expect(fixture.command('share-roster', { submittedAt: 4 })).toBe('stale')
+  })
+
+  it('refuses a different roster ID supplied by the caller', () => {
+    const fixture = setup()
+    fixture.save('other-copy')
+    expect(fixture.command('share-roster', { rosterId: 'other-copy' })).toBe('stale')
+  })
+
+  it('persists dismissal on the account without changing roster visibility', () => {
+    const fixture = setup()
+    fixture.command('dismiss-roster-sharing')
+    expect(fixture.read()).toMatchObject({ prompt: false, roster: { visibility: 'private' } })
+  })
+
+  it('still permits explicit publication after declining', () => {
+    const fixture = setup()
+    fixture.command('dismiss-roster-sharing')
+    expect(fixture.command('share-roster')).toMatchObject({ roster: { visibility: 'public' } })
+  })
+
+  it('deletes sharing preferences with the account', () => {
+    const fixture = setup()
+    fixture.command('dismiss-roster-sharing')
+    fixture.call(fixture.operator, (ctx) => module.deleteUserData(ctx, { userId: 'entrant' }))
+    expect(fixture.test.db.leagueRosterSharing.count()).toBe(0n)
+  })
+
+  it('deletes event sharing choices with the league', () => {
+    const fixture = setup()
+    fixture.command('dismiss-roster-sharing')
+    fixture.command('delete', { ownerId: 'organizer' })
+    expect(fixture.test.db.leagueRosterSharing.count()).toBe(0n)
+  })
+})
+
 describe('saved action acknowledgements', () => {
   const input = () => ({
     id: '00000000-0000-4000-8000-000000000001',

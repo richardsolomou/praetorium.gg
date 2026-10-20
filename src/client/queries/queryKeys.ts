@@ -69,6 +69,12 @@ export const leaguesKey = () => ['leagues']
 export const leagueReadsKey = (token: string) => ['league', token]
 export const leagueKey = (token: string, eventToken?: string) => [...leagueReadsKey(token), eventToken ?? 'current']
 export const leagueResultsKey = (token: string, eventToken: string) => [...leagueReadsKey(token), 'results', eventToken]
+export const leagueRosterSharingKey = (token: string, eventToken: string, userId: string) => [
+  'league-roster-sharing',
+  token,
+  eventToken,
+  userId,
+]
 export const leagueRosterKey = (token: string, eventToken: string | undefined, userId: string) => [
   'league-roster',
   token,

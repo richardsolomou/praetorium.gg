@@ -49,6 +49,7 @@ import { LeagueBattleSkeleton, RosterChooser } from './LeagueRosterChooser'
 import { LeagueCombatDialog } from './LeagueCombatDialog'
 import { LeagueResults } from './LeagueResults'
 import { TeamDispositionPanel } from './LeagueTeamDisposition'
+import { LeagueRosterSharing } from './LeagueRosterSharing'
 import { Problem } from '../../components/Problem'
 import { formatList } from '../../text'
 
@@ -286,6 +287,11 @@ export function LeagueEventView({
           onClose={() => setSimulating(null)}
         />
       ) : null}
+      <div>
+        {revealed && viewerId && ownEntry?.status === 'accepted' && ownEntry.submitted ? (
+          <LeagueRosterSharing key={league.eventToken} token={token} eventToken={league.eventToken} userId={viewerId} />
+        ) : null}
+      </div>
       {/* The reader's own next step leads the side column, and a phone, where it comes first. */}
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_1fr]">
         <div className="lg:col-start-2 lg:row-start-1">

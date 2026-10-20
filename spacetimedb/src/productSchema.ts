@@ -227,6 +227,16 @@ const leagueEventTeams = table(
   },
 )
 
+const leagueRosterSharing = table(
+  { name: 'league_roster_sharing' },
+  {
+    key: t.string().primaryKey(),
+    eventId: t.string().index('btree'),
+    userId: t.string().index('btree'),
+    rosterId: t.option(t.string()),
+  },
+)
+
 /** Players the owner trusts to run the league beside them; the owner alone deletes it or changes who these are. */
 const leagueAdmins = table(
   { name: 'league_admins' },
@@ -442,6 +452,7 @@ export const productTables = {
   leagueEvents,
   leagueEventEntries,
   leagueEventTeams,
+  leagueRosterSharing,
   leagueEventBattles,
   leagueAdmins,
   collection,

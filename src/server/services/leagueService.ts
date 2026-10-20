@@ -340,6 +340,34 @@ export class LeagueService {
     return rosterWithoutUnitNotes(roster)
   }
 
+  rosterSharing(token: string, eventToken: string, userId: string) {
+    return this.repository.leagueRosterSharing(token, eventToken, userId)
+  }
+
+  async shareRoster(token: string, eventToken: string, userId: string, submittedAt: number, rosterId: string) {
+    const result = await this.repository.updateLeagueRosterSharing({
+      op: 'share-roster',
+      token,
+      eventToken,
+      ownerId: userId,
+      submittedAt,
+      rosterId,
+      now: this.clock(),
+    })
+    return rosterSharingResult(result)
+  }
+
+  async dismissRosterSharing(token: string, eventToken: string, userId: string) {
+    return rosterSharingResult(
+      await this.repository.updateLeagueRosterSharing({
+        op: 'dismiss-roster-sharing',
+        token,
+        eventToken,
+        ownerId: userId,
+      }),
+    )
+  }
+
   async createLeagueBattle(
     userId: string,
     leagueToken: string,
@@ -399,4 +427,10 @@ function eventRule(rule: { format?: TableShape; rosterLimit?: number }) {
 
 function tooFewPlaces(format: TableShape) {
   return format === '2v2' ? 'a 2v2 event needs an even number of at least four places' : 'a 2v1 event needs at least three places'
+}
+
+function rosterSharingResult(result: Awaited<ReturnType<RepositoryPort['updateLeagueRosterSharing']>>) {
+  if (typeof result !== 'string') return result
+  if (result === 'stale') throw new Response('Your roster changed. Check the sharing options and try again.', { status: 409 })
+  throw new Response('Only your own submitted roster can be shared after reveal.', { status: 409 })
 }

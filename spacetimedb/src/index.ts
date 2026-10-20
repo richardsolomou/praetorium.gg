@@ -294,6 +294,7 @@ function deleteBattle(ctx: Context, battleId: string) {
 function deleteLeague(ctx: Context, leagueId: string) {
   touchLeague(ctx, leagueId)
   for (const event of Array.from(ctx.db.leagueEvents.leagueId.filter(leagueId))) {
+    for (const row of Array.from(ctx.db.leagueRosterSharing.eventId.filter(event.id))) ctx.db.leagueRosterSharing.key.delete(row.key)
     for (const row of Array.from(ctx.db.leagueEventEntries.eventId.filter(event.id))) ctx.db.leagueEventEntries.key.delete(row.key)
     clearTeamPicks(ctx, event.id)
     for (const row of Array.from(ctx.db.leagueEventBattles.eventId.filter(event.id)))
@@ -376,6 +377,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   ctx.db.battleSharing.userId.delete(userId)
   ctx.db.pushPreferences.userId.delete(userId)
   ctx.db.playerDefaults.userId.delete(userId)
+  for (const row of Array.from(ctx.db.leagueRosterSharing.userId.filter(userId))) ctx.db.leagueRosterSharing.key.delete(row.key)
   if (collectionPublished(ctx, userId)) touchPublic(ctx, 'collection')
   ctx.db.collectionSharing.userId.delete(userId)
   for (const row of Array.from(ctx.db.pushTokens.userId.filter(userId))) ctx.db.pushTokens.token.delete(row.token)
@@ -2463,6 +2465,41 @@ export const leagueRosters = spacetime.procedure(
 type LeagueEntryRow = NonNullable<ReturnType<Context['db']['leagueEventEntries']['key']['find']>>
 type LeagueEventRow = NonNullable<ReturnType<Context['db']['leagueEvents']['id']['find']>>
 
+function leagueRosterSharingState(tx: Context, event: LeagueEventRow, userId: string) {
+  if (event.revealedAt === undefined) return null
+  const key = JSON.stringify([event.id, userId])
+  const entry = tx.db.leagueEventEntries.key.find(key)
+  if (entry?.status !== 'accepted' || entry.rosterSnapshot === undefined || entry.submittedAt === undefined) return null
+  const roster = entry.rosterId ? tx.db.rosters.id.find(entry.rosterId) : null
+  if (!roster || roster.userId !== userId) return null
+  return {
+    entry,
+    roster,
+    state: {
+      submittedAt: safeNumber(entry.submittedAt),
+      prompt: !tx.db.leagueRosterSharing.key.find(key) && roster.visibility !== 'public',
+      roster: {
+        id: roster.id,
+        name: roster.name || entry.rosterName || 'Your saved roster',
+        visibility: roster.visibility,
+        updatedAt: safeNumber(roster.updatedAt),
+      },
+    },
+  }
+}
+
+export const leagueRosterSharing = spacetime.procedure(
+  { token: t.string(), eventToken: t.string(), userId: t.string() },
+  t.string(),
+  (ctx, { token, eventToken, userId }) =>
+    ctx.withTx((tx) => {
+      requireOperator(tx)
+      const league = tx.db.leagues.token.find(token)
+      const event = league && leagueEventFor(tx, league.id, eventToken)
+      return productJson(event ? (leagueRosterSharingState(tx, event, userId)?.state ?? null) : null)
+    }),
+)
+
 /** Accepts waiting requests in `leagueEntriesFor` order, oldest first, until the event's places run out, returning who got in. */
 function admitWaiting(ctx: Context, entries: LeagueEntryRow[], playerLimit: number | null, include: (entry: LeagueEntryRow) => boolean) {
   const accepted = entries.filter((entry) => entry.status === 'accepted').length
@@ -3140,7 +3177,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
   if (
     ownerOnly
       ? league.ownerId !== ownerId
-      : !['submit', 'set-team-disposition', 'create-battle', 'reveal'].includes(operation) && !organizer
+      : !['submit', 'set-team-disposition', 'create-battle', 'reveal', 'share-roster', 'dismiss-roster-sharing'].includes(operation) &&
+        !organizer
   )
     return productJson('forbidden')
 
@@ -3249,6 +3287,43 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
   const eventToken = leagueCommandInput(z.object({ eventToken: z.string().max(MAX_ID_LENGTH) }), value).eventToken
   const event = leagueEventFor(tx, league.id, eventToken || null)
   if (!event) return productJson(operation === 'reveal' ? { outcome: 'not-ready' } : 'missing')
+  if (operation === 'share-roster' || operation === 'dismiss-roster-sharing') {
+    const current = leagueRosterSharingState(tx, event, ownerId)
+    if (!current) return productJson('unavailable')
+    const key = current.entry.key
+    const previous = tx.db.leagueRosterSharing.key.find(key)
+    if (operation === 'share-roster') {
+      const input = leagueCommandInput(
+        z.object({
+          submittedAt: leagueTimeInput,
+          now: leagueTimeInput,
+          rosterId: idInput,
+        }),
+        value,
+      )
+      if (current.state.submittedAt !== input.submittedAt || current.roster.id !== input.rosterId) return productJson('stale')
+      const roster = current.roster
+      if (roster.visibility !== 'public') {
+        tx.db.rosters.id.update({
+          ...roster,
+          visibility: 'public',
+          updatedAt: roster.updatedAt >= BigInt(input.now) ? roster.updatedAt + 1n : BigInt(input.now),
+        })
+        touchProduct(tx, ownerId, 'rosters')
+        touchPublic(tx, 'rosters')
+      }
+    }
+    const row = {
+      key,
+      eventId: event.id,
+      userId: ownerId,
+      rosterId: operation === 'share-roster' ? current.roster.id : previous?.rosterId,
+    }
+    if (previous) tx.db.leagueRosterSharing.key.update(row)
+    else tx.db.leagueRosterSharing.insert(row)
+    touchProduct(tx, ownerId, 'leagues')
+    return productJson(leagueRosterSharingState(tx, event, ownerId)!.state)
+  }
   if (operation === 'admit') {
     const input = leagueCommandInput(z.object({ op: z.literal('admit'), userIds: z.array(idInput).max(128) }), value)
     if (event.revealedAt !== undefined) return productJson('closed')
