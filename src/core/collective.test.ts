@@ -56,3 +56,11 @@ describe('what a stored count means', () => {
     expect(scaleOf(entry('gun-knife-link'), entry('guns'), index, 10)).toBe(10)
   })
 })
+
+it('answers for each catalogue its definitions are read in', () => {
+  const link = { id: 'gun-link', targetId: 'gun', type: 'selectionEntry' as const }
+  const reads = [true, false].map((collective) =>
+    indexOf({ sharedSelectionEntries: [{ id: 'gun', name: 'Gun', type: 'upgrade', collective }], entryLinks: [link] }),
+  )
+  expect(reads.map((index) => storesUnitTotal(link, undefined, index))).toEqual([true, false])
+})

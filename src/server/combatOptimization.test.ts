@@ -3,7 +3,7 @@ import type { SelectionEntry } from '../core/catalogue'
 import { DEFAULT_COMBAT_OPTIONS } from '../core/combat'
 import { applyOptimizedLoadout, optimizeLoadout } from '../core/combatLoadouts'
 import { bookOf } from './catalogue.fixtures'
-import { combatLoadoutCandidates, loadoutStates } from '../shared/combatLoadouts'
+import { combatLoadoutCandidates, loadoutStates, withoutEmptyEntries } from '../shared/combatLoadouts'
 import { rosterCombatant } from '../shared/rosterCombatRules'
 
 function unit(id: string, name: string, kind?: 'Leader' | 'Support'): SelectionEntry {
@@ -256,4 +256,14 @@ it('counts the ways a squad can split a weapon choice among its models', () => {
   }
   // Totals of 0 to 3 with at most 2 of a: 1 + 2 + 3 + 3.
   expect(loadoutStates([split as never])).toBe(9)
+})
+
+it('keys a trimmed request’s loadout as the same state as one requested exactly', () => {
+  const weapon = (id: string, count: number) => ({ id, count })
+  const trimmed = { id: 'squad', count: 1, selections: [{ id: 'model', count: 5, selections: [weapon('bolter', 5), weapon('melta', 0)] }] }
+  expect(withoutEmptyEntries(trimmed)).toEqual({
+    id: 'squad',
+    count: 1,
+    selections: [{ id: 'model', count: 5, selections: [weapon('bolter', 5)] }],
+  })
 })
