@@ -2,7 +2,7 @@ import { canonicalJson } from '../core/text'
 import { combatCarriers } from '../core/combatLoadout'
 import { toBase64 } from '../core/base64'
 import { isWeaponProfile, type LoadoutBatch, type LoadoutCandidate, type LoadoutOption, type LoadoutSpace } from '../core/combatLoadouts'
-import { evaluate, type ModifierCache } from '../core/evaluate'
+import { evaluate, type ModifierCache, type Selection } from '../core/evaluate'
 import type { BuiltUnit, RosterPick } from '../core/roster'
 import { isUnitCompositionChoice, type UnitChoice, type UnitChoiceCache } from '../core/unitChoices'
 import { datasheetViewsIn } from './catalogue'
@@ -210,7 +210,7 @@ export async function* combatLoadoutCandidates(
   }
   const enqueue = async (members: RosterPick[], built: BuiltUnit[]) => {
     if (built.some((unit, index) => unit.size.models !== units[index]!.size.models)) return
-    const key = await digest(JSON.stringify(built.map((unit) => unit.selection)))
+    const key = await digest(JSON.stringify(built.map((unit) => withoutEmptyEntries(unit.selection))))
     if (seen.has(key)) return
     if (queue.length - head >= SEARCH_LIMITS.queued) throw incomplete()
     retain(key)
@@ -343,6 +343,16 @@ export function loadoutStates(choices: UnitChoice[]) {
  */
 async function digest(value: string) {
   return toBase64(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))))
+}
+
+/**
+ * A selection without the zero-count entries a build keeps when it trims an over-filled request; they hold no models
+ * or equipment, so a loadout reached that way is the same state as one requested exactly.
+ */
+export function withoutEmptyEntries(selection: Selection): Selection {
+  return selection.selections
+    ? { ...selection, selections: selection.selections.filter((child) => child.count !== 0).map(withoutEmptyEntries) }
+    : selection
 }
 
 function loadoutRequestKey(pick: RosterPick) {

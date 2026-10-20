@@ -115,6 +115,7 @@ type Walked = NonNullable<ReturnType<typeof walk>>
 
 const walkCache = new WeakMap<LoadedCatalogue, Map<string, Walked | null>>()
 const sheetCache = new WeakMap<LoadedCatalogue, Map<string, Datasheet | null>>()
+const priceCache = new WeakMap<LoadedCatalogue, Map<string, number | null>>()
 
 /**
  * What a datasheet is on its own, read once per snapshot.
@@ -251,7 +252,7 @@ function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string,
     slug: datasheetSlug(loaded, catalogueId, root.id),
     referenceRoute: referenceDatasheetRoute(loaded, name, { catalogueId, entryId }),
     name,
-    points: priceOf(loaded, catalogueId, entryId),
+    points: cachedIn(priceCache, loaded, `${catalogueId}:${entryId}`, () => priceOf(loaded, catalogueId, entryId)),
     keywords: walked.keywords,
     profiles: walked.profiles,
     abilities: walked.abilities,
