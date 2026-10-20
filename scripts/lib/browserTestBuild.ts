@@ -98,7 +98,8 @@ export async function restoreBrowserTestBuild(cache: string, fingerprint: string
     const before = await stat(cache, { bigint: true })
     if ((await readFile(path.join(cache, 'fingerprint'), 'utf8')) !== fingerprint) return false
     await mkdir(output, { recursive: true })
-    for (const directory of ['server', 'public']) await cp(path.join(cache, directory), path.join(output, directory), { recursive: true })
+    for (const directory of ['server', 'public'])
+      await cp(path.join(cache, directory), path.join(output, directory), { recursive: true, verbatimSymlinks: true })
     for (const file of [
       'server/index.mjs',
       'server/seed-preview.mjs',
@@ -125,7 +126,7 @@ export async function saveBrowserTestBuild(cache: string, fingerprint: string, o
   try {
     await mkdir(temporary, { recursive: true })
     for (const directory of ['server', 'public'])
-      await cp(path.join(output, directory), path.join(temporary, directory), { recursive: true })
+      await cp(path.join(output, directory), path.join(temporary, directory), { recursive: true, verbatimSymlinks: true })
     await writeFile(path.join(temporary, 'fingerprint'), fingerprint)
     publishDirectory(temporary, cache)
   } finally {

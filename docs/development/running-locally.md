@@ -29,6 +29,8 @@ Ports are allocated automatically; on a collision with an explicit `LOCAL_*_PORT
 
 `just e2e` runs isolated production-mode stacks with fresh `/tmp/praetorium-e2e-<id>` data, reusing a fingerprinted compiled build (`scripts/browserTestBuild.ts`); `just e2e-cold <spec>` bypasses that cache. The fingerprint uses the verified snapshot identity or, for public source builds, the catalogue files themselves. Run `just catalogue-preflight` before shipping a catalogue change; it requires private release-snapshot access. Never reuse the interactive Vite preview as a browser-test stack, and never let concurrent worktrees share test data.
 
+Build-cache copies must preserve relative dependency symlinks verbatim so restored builds and CI artifacts remain runnable after their original build directories are removed. `scripts/lib/browserTestBuild.integration.test.ts` verifies relocation through both cache boundaries.
+
 An interrupted run leaves its stack and processes behind. Run `just teardown` once the branch's pull request has merged; it stops only stacks this worktree or a deleted worktree started, scoped by each stack's directory rather than a process name.
 
 PR CI distributes all browser tests, including `@catalogue` journeys, across the same duration-balanced runners; the tag selects the release preflight rather than a separate CI lane. Every runner uses the shared build's exact Node version because the build fingerprint includes it. Refresh `e2e/durations.json` with `just e2e-durations <run-id>...` after changing the suite.

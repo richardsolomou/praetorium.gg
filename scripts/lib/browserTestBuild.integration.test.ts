@@ -1,8 +1,9 @@
 import { execFile } from 'node:child_process'
 import { createHash } from 'node:crypto'
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { browserTestBuildFingerprint, ensureBrowserTestBuild, restoreBrowserTestBuild, saveBrowserTestBuild } from './browserTestBuild'
@@ -122,6 +123,26 @@ it('restores compiled files into a fresh run without copying database state', as
   await restoreBrowserTestBuild(cache, 'current', path.join(directory, 'run'))
   expect(await readFile(path.join(directory, 'run/server/index.mjs'), 'utf8')).toBe('compiled output')
   await expect(readFile(path.join(directory, 'run/auth.sqlite'))).rejects.toMatchObject({ code: 'ENOENT' })
+})
+
+it('keeps traced dependencies resolvable after the build and cache directories are removed', async () => {
+  const output = await build()
+  await file('build/server/index.mjs', "export { default } from 'example'")
+  await file('build/server/node_modules/.nf3/example/index.mjs', 'export default 42')
+  await file('build/server/node_modules/.nf3/example/package.json', JSON.stringify({ type: 'module', main: 'index.mjs' }))
+  await symlink('.nf3/example', path.join(output, 'server/node_modules/example'), 'dir')
+  const cache = path.join(directory, 'cache')
+  const restored = path.join(directory, 'run')
+  await saveBrowserTestBuild(cache, 'current', output)
+  await restoreBrowserTestBuild(cache, 'current', restored)
+  await rm(output, { recursive: true })
+  await rm(cache, { recursive: true })
+  const { stdout } = await execute(process.execPath, [
+    '--input-type=module',
+    '-e',
+    `console.log((await import(${JSON.stringify(pathToFileURL(path.join(restored, 'server/index.mjs')).href)})).default)`,
+  ])
+  expect(stdout.trim()).toBe('42')
 })
 
 it('rejects a build from different inputs', async () => {
