@@ -25,6 +25,7 @@ export function parseImageDataUrl(image: string, formats: readonly ImageFormat[]
 }
 
 export type PrivateObjects = {
+  head: (key: string) => Promise<boolean>
   put: (key: string, body: Uint8Array, contentType: string) => Promise<void>
   get: (key: string) => Promise<Uint8Array | null>
   /** Succeeds when the object is already gone, so a repeated deletion is harmless. */
@@ -39,6 +40,7 @@ export function privateObjects(environment: NodeJS.ProcessEnv = process.env): Pr
   const local = localDevelopmentObjectStore(environment)
   if (local)
     return {
+      head: async (key) => Boolean(await local.head(key)),
       put: (key, body) => local.put(key, body),
       get: async (key) => {
         const object = await local.get(key)
@@ -50,6 +52,7 @@ export function privateObjects(environment: NodeJS.ProcessEnv = process.env): Pr
   if (!r2) return null
   const objects = r2Objects(r2)
   return {
+    head: objects.head,
     put: (key, body, contentType) => objects.put(key, body, { 'content-type': contentType }),
     get: objects.get,
     delete: objects.delete,

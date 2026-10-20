@@ -14,6 +14,11 @@ import {
 import { expectNoHorizontalOverflow } from './builder.harness'
 import { productOperator } from './storage'
 import type { LocalState } from '../src/contracts/localState'
+import sharp from 'sharp'
+import { collectionPhotoStore } from '../src/server/collectionPhotos'
+import { privateObjects } from '../src/server/privateImages'
+import { root } from './stackEnv'
+import { join } from 'node:path'
 
 async function addDatasheet(page: Page, name: string, faction: string) {
   const search = page.getByPlaceholder('Search datasheets…')
@@ -252,10 +257,27 @@ test('collection photos are added together, removed only after confirmation, and
   const dialog = page.getByRole('dialog', { name: 'Your Overlord', exact: true })
   const photo = (index: number) => dialog.getByRole('button', { name: `Your photo ${index} of Overlord`, exact: true })
   await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Add photos of your Overlord', exact: true }).click())
-  await dialog.getByLabel('Choose photos of your Overlord').setInputFiles([png('first.png'), png('second.png')])
+  const largePhoto = await sharp({ create: { width: 960, height: 1280, channels: 3, background: '#596943' } })
+    .png()
+    .toBuffer()
+  await dialog
+    .getByLabel('Choose photos of your Overlord')
+    .setInputFiles([{ name: 'first.png', mimeType: 'image/png', buffer: largePhoto }, png('second.png')])
   await loaded(photo(2).locator('img'))
   const first = (await photo(1).locator('img').getAttribute('src'))!
   const second = (await photo(2).locator('img').getAttribute('src'))!
+  expect(new URL(first, page.url()).searchParams.get('size')).toBe('thumbnail')
+  const originalPath = new URL(first, page.url()).pathname
+  const original = await page.request.get(new URL(originalPath, page.url()).href)
+  const originalImage = await sharp(await original.body()).metadata()
+  const thumbnailImage = await sharp(await (await page.request.get(new URL(first, page.url()).href)).body()).metadata()
+  expect([originalImage.width, originalImage.height, thumbnailImage.width, thumbnailImage.height]).toEqual([960, 1280, 240, 320])
+  const objects = privateObjects({ PRAETORIUM_LOCAL_DEV: 'true', LOCAL_OBJECT_DIR: join(root, 'objects') })!
+  const firstId = originalPath.split('/').at(-1)!
+  await objects.delete(`collection-photos/${firstId}.thumbnail.webp`)
+  const maintenance = collectionPhotoStore(Object.assign(await productOperator(), { namesByIds: async () => new Map() }), () => objects)
+  expect((await maintenance.backfillThumbnails()).generated).toBeGreaterThan(0)
+  expect(await objects.head(`collection-photos/${firstId}.thumbnail.webp`)).toBe(true)
   await page.keyboard.press('Escape')
   await expect(page.getByRole('button', { name: 'Photos of your Overlord', exact: true })).toHaveText('2')
 
@@ -269,9 +291,9 @@ test('collection photos are added together, removed only after confirmation, and
   const revalidated = await guest.request.get(new URL(second, page.url()).href, { headers: { 'If-None-Match': etag } })
   expect([revalidated.status(), await revalidated.text()]).toEqual([304, ''])
 
-  const cachedThumbnail = page.waitForRequest((request) => new URL(request.url()).pathname === first)
+  const cachedThumbnail = page.waitForRequest((request) => request.url() === new URL(first, page.url()).href)
   await page.reload()
-  expect((await (await cachedThumbnail).allHeaders())['if-none-match']).toBe(`"${first.split('/').at(-1)}"`)
+  expect((await (await cachedThumbnail).allHeaders())['if-none-match']).toBe(`"${firstId}-thumbnail-v1"`)
   await loaded(page.getByRole('button', { name: 'Photos of your Overlord', exact: true }).locator('img'))
   const downloaded = await page.evaluate((src) => {
     const resource = performance.getEntriesByName(new URL(src, location.href).href).at(-1) as PerformanceResourceTiming
@@ -303,6 +325,12 @@ test('collection photos are added together, removed only after confirmation, and
   await expect(photo(2)).toHaveCount(0)
   await expect(photo(1).locator('img')).toHaveAttribute('src', second)
   expect(await status(page, first)).toBe(404)
+  expect(await status(page, originalPath)).toBe(404)
+  await maintenance.drainDeletions()
+  expect([await objects.head(`collection-photos/${firstId}`), await objects.head(`collection-photos/${firstId}.thumbnail.webp`)]).toEqual([
+    false,
+    false,
+  ])
   await guestContext.close()
 })
 
@@ -587,10 +615,12 @@ test('the wishlist suggests unowned datasheets other players field that none of 
   await savedArmy(page, 'Wishlist suggestions', { name: 'Without Immortals', picks: JSON.stringify(picks) })
   await page.goto('/collection')
   const suggestion = page.locator('[data-wish-suggestion="Immortals"]')
+  await expect(page.locator('[data-wish-suggestion]')).toHaveCount(6)
   await expect(suggestion).toContainText(/In \d+ of \d+ recent public Necrons rosters?/)
   await expect(page.locator('[data-wish-suggestion="Necron Warriors"]')).toHaveCount(0)
   await addDatasheet(page, 'Immortals', 'Necrons')
   await expect(suggestion).toBeHidden()
+  await expect(page.locator('[data-wish-suggestion]')).toHaveCount(6)
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
   await page.reload()
   await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
@@ -608,6 +638,17 @@ test('the wishlist suggests unowned datasheets other players field that none of 
   await expect(suggestion).toBeHidden()
   await addDatasheet(page, 'Immortals', 'Necrons')
   await expect(page.getByRole('spinbutton', { name: 'Immortals models wanted', exact: true })).toHaveValue('1')
+  for (const width of [1440, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 900 })
+    await expectNoHorizontalOverflow(page.locator('main'))
+    await expect(page.locator('[data-wish-suggestion]')).toHaveCount(6)
+    await page.locator('[aria-labelledby="wishlist-heading"]').scrollIntoViewIfNeeded()
+    await page.screenshot({ path: test.info().outputPath(`wishlist-${width}.png`), fullPage: true })
+  }
+  await page.addStyleTag({ content: 'html { font-size: 200% }' })
+  await expectNoHorizontalOverflow(page.locator('main'))
+  await page.getByRole('button', { name: 'More wanted Immortals models', exact: true }).click()
+  await expect(page.getByRole('spinbutton', { name: 'Immortals models wanted', exact: true })).toHaveValue('2')
 })
 
 test('an army whose every roster is archived keeps its collection but leaves the wishlist suggestions', async ({ page }) => {

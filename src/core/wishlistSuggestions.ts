@@ -2,7 +2,7 @@
  * Datasheets in the player's armies that none of the player's own rosters use.
  *
  * Each army's other-player rosters are counted apart, so a suggestion leads by the share of its army's rosters that field it.
- * An army with no such rosters offers all its unused datasheets after the counted ones, by name.
+ * Other unused datasheets follow the counted ones, by name.
  */
 export function wishlistSuggestions(
   own: readonly { entryIds: readonly string[] }[],
@@ -15,12 +15,9 @@ export function wishlistSuggestions(
       for (const entryId of new Set(roster.entryIds)) if (!used.has(entryId)) counts.set(entryId, (counts.get(entryId) ?? 0) + 1)
     return [...counts].map(([entryId, count]) => ({ entryId, rosters: count, of: rosters.length }))
   })
-  const unfielded = [
-    ...new Map(
-      armies.flatMap(({ rosters, datasheets }) => (rosters.length ? [] : datasheets.map((sheet) => [sheet.id, sheet] as const))),
-    ).values(),
-  ]
-    .filter((datasheet) => !used.has(datasheet.id))
+  const suggested = new Set(fielded.map(({ entryId }) => entryId))
+  const unfielded = [...new Map(armies.flatMap(({ datasheets }) => datasheets.map((sheet) => [sheet.id, sheet] as const))).values()]
+    .filter((datasheet) => !used.has(datasheet.id) && !suggested.has(datasheet.id))
     .toSorted((a, b) => a.name.localeCompare(b.name))
     .map((datasheet) => ({ entryId: datasheet.id, rosters: 0, of: 0 }))
   return [

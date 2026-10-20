@@ -44,6 +44,7 @@ import DeleteRosterReducer from './delete_roster_reducer'
 import DeleteUserDataReducer from './delete_user_data_reducer'
 import ForgetMatchupReducer from './forget_matchup_reducer'
 import KeepCollectionPhotoReducer from './keep_collection_photo_reducer'
+import QueueCollectionPhotoDeletionReducer from './queue_collection_photo_deletion_reducer'
 import RegisterPracticeOpponentReducer from './register_practice_opponent_reducer'
 import RegisterPushTokenReducer from './register_push_token_reducer'
 import RememberMatchupReducer from './remember_matchup_reducer'
@@ -79,6 +80,7 @@ import * as CollectionByUserProcedure from './collection_by_user_procedure'
 import * as CollectionPhotoProcedure from './collection_photo_procedure'
 import * as CollectionPhotoDeletionsProcedure from './collection_photo_deletions_procedure'
 import * as CollectionPhotoForAdminProcedure from './collection_photo_for_admin_procedure'
+import * as CollectionPhotoIdsProcedure from './collection_photo_ids_procedure'
 import * as CollectionProfileProcedure from './collection_profile_procedure'
 import * as CollectionWishesByUserProcedure from './collection_wishes_by_user_procedure'
 import * as CreateBattleProcedure from './create_battle_procedure'
@@ -225,6 +227,7 @@ const reducersSchema = __reducers(
   __reducerSchema('delete_user_data', DeleteUserDataReducer),
   __reducerSchema('forget_matchup', ForgetMatchupReducer),
   __reducerSchema('keep_collection_photo', KeepCollectionPhotoReducer),
+  __reducerSchema('queue_collection_photo_deletion', QueueCollectionPhotoDeletionReducer),
   __reducerSchema('register_practice_opponent', RegisterPracticeOpponentReducer),
   __reducerSchema('register_push_token', RegisterPushTokenReducer),
   __reducerSchema('remember_matchup', RememberMatchupReducer),
@@ -262,6 +265,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('collection_photo', CollectionPhotoProcedure.params, CollectionPhotoProcedure.returnType),
   __procedureSchema('collection_photo_deletions', CollectionPhotoDeletionsProcedure.params, CollectionPhotoDeletionsProcedure.returnType),
   __procedureSchema('collection_photo_for_admin', CollectionPhotoForAdminProcedure.params, CollectionPhotoForAdminProcedure.returnType),
+  __procedureSchema('collection_photo_ids', CollectionPhotoIdsProcedure.params, CollectionPhotoIdsProcedure.returnType),
   __procedureSchema('collection_profile', CollectionProfileProcedure.params, CollectionProfileProcedure.returnType),
   __procedureSchema('collection_wishes_by_user', CollectionWishesByUserProcedure.params, CollectionWishesByUserProcedure.returnType),
   __procedureSchema('create_battle', CreateBattleProcedure.params, CreateBattleProcedure.returnType),

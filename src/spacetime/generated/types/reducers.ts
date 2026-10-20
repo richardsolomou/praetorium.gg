@@ -16,6 +16,7 @@ import DeleteRosterReducer from '../delete_roster_reducer'
 import DeleteUserDataReducer from '../delete_user_data_reducer'
 import ForgetMatchupReducer from '../forget_matchup_reducer'
 import KeepCollectionPhotoReducer from '../keep_collection_photo_reducer'
+import QueueCollectionPhotoDeletionReducer from '../queue_collection_photo_deletion_reducer'
 import RegisterPracticeOpponentReducer from '../register_practice_opponent_reducer'
 import RegisterPushTokenReducer from '../register_push_token_reducer'
 import RememberMatchupReducer from '../remember_matchup_reducer'
@@ -48,6 +49,7 @@ export type DeleteRosterParams = __Infer<typeof DeleteRosterReducer>
 export type DeleteUserDataParams = __Infer<typeof DeleteUserDataReducer>
 export type ForgetMatchupParams = __Infer<typeof ForgetMatchupReducer>
 export type KeepCollectionPhotoParams = __Infer<typeof KeepCollectionPhotoReducer>
+export type QueueCollectionPhotoDeletionParams = __Infer<typeof QueueCollectionPhotoDeletionReducer>
 export type RegisterPracticeOpponentParams = __Infer<typeof RegisterPracticeOpponentReducer>
 export type RegisterPushTokenParams = __Infer<typeof RegisterPushTokenReducer>
 export type RememberMatchupParams = __Infer<typeof RememberMatchupReducer>

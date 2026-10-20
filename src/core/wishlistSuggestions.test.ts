@@ -40,8 +40,25 @@ describe('wishlist suggestions', () => {
     ])
   })
 
-  it('leaves out an army’s other datasheets once other players’ rosters are found', () => {
-    expect(wishlistSuggestions([], [army([roster('scarabs')], ['scarabs', 'wraiths'])]).map((row) => row.entryId)).toEqual(['scarabs'])
+  it('fills remaining suggestions with unused datasheets after public-roster suggestions', () => {
+    expect(wishlistSuggestions([], [army([roster('scarabs')], ['scarabs', 'wraiths'])]).map((row) => row.entryId)).toEqual([
+      'scarabs',
+      'wraiths',
+    ])
+  })
+
+  it('does not repeat fielded datasheets in the fallback', () => {
+    expect(wishlistSuggestions([], [army([roster('scarabs')], ['scarabs', 'warriors', 'wraiths'])]).map((row) => row.entryId)).toEqual([
+      'scarabs',
+      'warriors',
+      'wraiths',
+    ])
+  })
+
+  it('leaves out the player’s used datasheets from the fallback', () => {
+    expect(
+      wishlistSuggestions([roster('warriors')], [army([roster('scarabs')], ['warriors', 'wraiths'])]).map((row) => row.entryId),
+    ).toEqual(['scarabs', 'wraiths'])
   })
 
   it('lists unfielded datasheets after fielded ones, by name', () => {

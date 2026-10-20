@@ -2,13 +2,13 @@ import { useQuery } from '@tanstack/react-query'
 import { Plus, Star, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { MAX_COLLECTION_MODELS } from '../../../core/collection'
-import { FactionMark, type FactionPresentation } from '../../components/FactionMark'
-import { FactionReferenceLink } from '../../components/FactionReferenceLink'
+import { type FactionPresentation } from '../../components/FactionMark'
 import { ModelCounter } from '../../components/ModelCounter'
 import { UnitPicker } from '../../components/UnitPicker'
 import { collectionQuery, collectionWishesQuery, combatUnitsQuery, wishlistSuggestionsQuery } from '../../queries'
 import { useCollectionWantedMutation } from '../../useCollection'
 import { countLabel } from '../../text'
+import { CollectionCard, CollectionCardGrid } from './CollectionCard'
 
 const SUGGESTIONS_SHOWN = 6
 
@@ -34,7 +34,7 @@ export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<str
     })
     .slice(0, SUGGESTIONS_SHOWN)
   return (
-    <section aria-labelledby="wishlist-heading" className="space-y-3">
+    <section aria-labelledby="wishlist-heading" className="@container/army space-y-3">
       <h2
         id="wishlist-heading"
         className="rubric flex flex-col gap-1 border-b border-edge pb-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3"
@@ -58,96 +58,65 @@ export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<str
         index={(units.data ?? []).map((book) => ({ ...book, units: book.units.filter((unit) => !wishes.data?.[unit.id]) }))}
       />
       {wanted.length ? (
-        <ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">
+        <CollectionCardGrid>
           {wanted.map(({ entryId, count, sheet }) => {
             const name = sheet?.name ?? 'A datasheet from earlier rules'
             return (
-              <li key={entryId} data-wish={name} className="flex items-center gap-3 border border-edge bg-panel py-2 pr-2 pl-3">
-                {sheet?.presentation ? (
-                  <FactionMark
-                    id={sheet.presentation.slug}
-                    name={sheet.presentation.displayName}
-                    edition={sheet.presentation.edition}
-                    icon={sheet.presentation.icon}
-                    size="sm"
+              <CollectionCard
+                key={entryId}
+                data-wish={name}
+                name={name}
+                sheet={sheet}
+                description={sheet?.faction}
+                controls={
+                  <ModelCounter
+                    count={count}
+                    label={`wanted ${name}`}
+                    inputLabel={`${name} models wanted`}
+                    max={MAX_COLLECTION_MODELS}
+                    onChange={(next) => set(entryId, next)}
                   />
-                ) : null}
-                <span className="min-w-0 flex-1">
-                  {sheet ? (
-                    <FactionReferenceLink
-                      to="/factions/$catalogueId/datasheets/$entryId"
-                      params={{ catalogueId: sheet.catalogueId, entryId: sheet.slug }}
-                      className="text-sm font-semibold break-words text-bone uppercase underline-offset-4 hover:text-info hover:underline"
-                    >
-                      {name}
-                    </FactionReferenceLink>
-                  ) : (
-                    <span className="block truncate text-sm text-dim">{name}</span>
-                  )}
-                </span>
-                <ModelCounter
-                  count={count}
-                  label={`wanted ${name}`}
-                  inputLabel={`${name} models wanted`}
-                  max={MAX_COLLECTION_MODELS}
-                  onChange={(next) => set(entryId, next)}
-                />
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="text-faint hover:text-destructive"
-                  aria-label={`Remove ${name} from your wishlist`}
-                  onClick={() => void set(entryId, 0).catch(() => undefined)}
-                >
-                  <Trash2 />
-                </Button>
-              </li>
+                }
+                action={
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    className="text-faint hover:text-destructive"
+                    aria-label={`Remove ${name} from your wishlist`}
+                    onClick={() => void set(entryId, 0).catch(() => undefined)}
+                  >
+                    <Trash2 />
+                  </Button>
+                }
+              />
             )
           })}
-        </ul>
+        </CollectionCardGrid>
       ) : null}
       {suggestions.length ? (
         <div className="space-y-2">
           <h3 className="text-xs text-dim">In none of your rosters</h3>
-          <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <CollectionCardGrid>
             {suggestions.map(({ entryId, rosters, of, sheet }) => (
-              <li
+              <CollectionCard
                 key={entryId}
                 data-wish-suggestion={sheet.name}
-                className="flex items-center gap-3 border border-dashed border-edge-strong bg-sunken/60 py-2 pr-2 pl-3"
-              >
-                {sheet.presentation ? (
-                  <FactionMark
-                    id={sheet.presentation.slug}
-                    name={sheet.presentation.displayName}
-                    edition={sheet.presentation.edition}
-                    icon={sheet.presentation.icon}
+                name={sheet.name}
+                sheet={sheet}
+                description={of ? `In ${rosters} of ${countLabel(of, `recent public ${sheet.faction} roster`)}` : sheet.faction}
+                action={
+                  <Button
                     size="sm"
-                  />
-                ) : null}
-                <span className="min-w-0 flex-1">
-                  <FactionReferenceLink
-                    to="/factions/$catalogueId/datasheets/$entryId"
-                    params={{ catalogueId: sheet.catalogueId, entryId: sheet.slug }}
-                    className="inline-block max-w-full truncate align-top text-sm font-semibold text-bone uppercase underline-offset-4 hover:text-info hover:underline"
+                    variant="outline"
+                    aria-label={`Add ${sheet.name} to your wishlist`}
+                    onClick={() => void set(entryId, 1).catch(() => undefined)}
                   >
-                    {sheet.name}
-                  </FactionReferenceLink>
-                  <span className="block text-xs text-dim">
-                    {of ? `In ${rosters} of ${countLabel(of, `recent public ${sheet.faction} roster`)}` : sheet.faction}
-                  </span>
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  aria-label={`Add ${sheet.name} to your wishlist`}
-                  onClick={() => void set(entryId, 1).catch(() => undefined)}
-                >
-                  <Plus /> Add
-                </Button>
-              </li>
+                    <Plus /> Add
+                  </Button>
+                }
+              />
             ))}
-          </ul>
+          </CollectionCardGrid>
         </div>
       ) : null}
     </section>

@@ -18,6 +18,7 @@ import * as CollectionByUserProcedure from '../collection_by_user_procedure'
 import * as CollectionPhotoProcedure from '../collection_photo_procedure'
 import * as CollectionPhotoDeletionsProcedure from '../collection_photo_deletions_procedure'
 import * as CollectionPhotoForAdminProcedure from '../collection_photo_for_admin_procedure'
+import * as CollectionPhotoIdsProcedure from '../collection_photo_ids_procedure'
 import * as CollectionProfileProcedure from '../collection_profile_procedure'
 import * as CollectionWishesByUserProcedure from '../collection_wishes_by_user_procedure'
 import * as CreateBattleProcedure from '../create_battle_procedure'
@@ -114,6 +115,8 @@ export type CollectionPhotoDeletionsArgs = __Infer<typeof CollectionPhotoDeletio
 export type CollectionPhotoDeletionsResult = __Infer<typeof CollectionPhotoDeletionsProcedure.returnType>
 export type CollectionPhotoForAdminArgs = __Infer<typeof CollectionPhotoForAdminProcedure.params>
 export type CollectionPhotoForAdminResult = __Infer<typeof CollectionPhotoForAdminProcedure.returnType>
+export type CollectionPhotoIdsArgs = __Infer<typeof CollectionPhotoIdsProcedure.params>
+export type CollectionPhotoIdsResult = __Infer<typeof CollectionPhotoIdsProcedure.returnType>
 export type CollectionProfileArgs = __Infer<typeof CollectionProfileProcedure.params>
 export type CollectionProfileResult = __Infer<typeof CollectionProfileProcedure.returnType>
 export type CollectionWishesByUserArgs = __Infer<typeof CollectionWishesByUserProcedure.params>

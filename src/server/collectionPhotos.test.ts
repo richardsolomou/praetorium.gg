@@ -1,8 +1,12 @@
 import { describe, expect, it, vi } from 'vitest'
 import { collectionPhotoReportEmail, collectionPhotoStore } from './collectionPhotos'
 import type { PrivateObjects } from './privateImages'
+import sharp from 'sharp'
+import { randomUUID } from 'node:crypto'
 
-const WEBP = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBPVP8 ')])
+const WEBP = await sharp({ create: { width: 960, height: 1280, channels: 3, background: '#596943' } })
+  .webp()
+  .toBuffer()
 const image = `data:image/webp;base64,${WEBP.toString('base64')}`
 const conditional = (photoId: string, etag = `"${photoId}"`) =>
   new Request(`https://praetorium.gg/api/collection-photos/${photoId}`, { headers: { 'If-None-Match': etag } })
@@ -10,6 +14,7 @@ const conditional = (photoId: string, etag = `"${photoId}"`) =>
 function memoryObjects() {
   const stored = new Map<string, Uint8Array>()
   const objects: PrivateObjects = {
+    head: async (key) => stored.has(key),
     put: async (key, body) => void stored.set(key, body),
     get: async (key) => stored.get(key) ?? null,
     delete: async (key) => void stored.delete(key),
@@ -58,6 +63,14 @@ function fakeRepository({ refuse = false } = {}) {
     clearCollectionPhotoDeletions: async (photoIds: readonly string[]) => {
       for (const photoId of photoIds) deletions.splice(deletions.indexOf(photoId), 1)
     },
+    collectionPhotoIds: async (after: string | null, limit: number) =>
+      [...photos.keys()]
+        .filter((id) => after === null || id > after)
+        .sort()
+        .slice(0, limit),
+    queueCollectionPhotoDeletion: async (photoId: string) => {
+      if (!photos.has(photoId) && !deletions.includes(photoId)) deletions.push(photoId)
+    },
   }
 }
 
@@ -66,7 +79,212 @@ describe('collectionPhotoStore', () => {
     const { stored, objects } = memoryObjects()
     const repository = fakeRepository()
     const photoId = await collectionPhotoStore(repository, () => objects).upload('owner', 'warriors', image)
-    expect([[...stored.keys()], repository.photos.get(photoId)?.entryId]).toEqual([[`collection-photos/${photoId}`], 'warriors'])
+    expect([[...stored.keys()], repository.photos.get(photoId)?.entryId]).toEqual([
+      [`collection-photos/${photoId}`, `collection-photos/${photoId}.thumbnail.webp`],
+      'warriors',
+    ])
+  })
+
+  it('stores a smaller WebP thumbnail with the original aspect ratio', async () => {
+    const { stored, objects } = memoryObjects()
+    const photoId = await collectionPhotoStore(fakeRepository(), () => objects).upload('owner', 'warriors', image)
+    const thumbnail = stored.get(`collection-photos/${photoId}.thumbnail.webp`)!
+    const metadata = await sharp(thumbnail).metadata()
+    expect([metadata.format, metadata.width, metadata.height, thumbnail.length < WEBP.length]).toEqual(['webp', 240, 320, true])
+  })
+
+  it('rolls back both objects when storing the thumbnail fails', async () => {
+    const { stored, objects } = memoryObjects()
+    const put = objects.put
+    objects.put = async (...args) => {
+      if (args[0].endsWith('.thumbnail.webp')) throw new Error('thumbnail write failed')
+      await put(...args)
+    }
+    await expect(collectionPhotoStore(fakeRepository(), () => objects).upload('owner', 'warriors', image)).rejects.toThrow(
+      'thumbnail write failed',
+    )
+    expect(stored.size).toBe(0)
+  })
+
+  it('queues cleanup when an upload is refused and object deletion fails', async () => {
+    const { stored, objects } = memoryObjects()
+    const repository = fakeRepository({ refuse: true })
+    const store = collectionPhotoStore(repository, () => objects)
+    const remove = objects.delete
+    objects.delete = async () => {
+      throw new Error('storage unavailable')
+    }
+    await expect(store.upload('owner', 'warriors', image)).rejects.toThrow('Photo upload and cleanup failed')
+    expect(repository.deletions).toHaveLength(1)
+    objects.delete = remove
+    await store.drainDeletions()
+    expect(stored.size).toBe(0)
+  })
+
+  it('serves thumbnail bytes with a distinct validator', async () => {
+    const { stored, objects } = memoryObjects()
+    const store = collectionPhotoStore(fakeRepository(), () => objects)
+    const photoId = await store.upload('owner', 'warriors', image)
+    const request = new Request(`https://praetorium.gg/api/collection-photos/${photoId}?size=thumbnail`)
+    const response = await store.response(photoId, null, false, request)
+    expect([response.headers.get('etag'), Buffer.from(await response.arrayBuffer())]).toEqual([
+      `"${photoId}-thumbnail-v1"`,
+      Buffer.from(stored.get(`collection-photos/${photoId}.thumbnail.webp`)!),
+    ])
+  })
+
+  it('backfills existing originals and skips completed thumbnails on a second pass', async () => {
+    const { stored, objects } = memoryObjects()
+    const repository = fakeRepository()
+    const photoId = randomUUID()
+    repository.photos.set(photoId, { userId: 'owner', entryId: 'warriors', published: false, held: true })
+    stored.set(`collection-photos/${photoId}`, WEBP)
+    const store = collectionPhotoStore(repository, () => objects)
+    await store.backfillThumbnails()
+    const put = vi.spyOn(objects, 'put')
+    expect([stored.has(`collection-photos/${photoId}.thumbnail.webp`), await store.backfillThumbnails(), put.mock.calls.length]).toEqual([
+      true,
+      { generated: 0, failed: 0 },
+      0,
+    ])
+  })
+
+  it('removes a backfilled thumbnail when the photo was deleted during its write', async () => {
+    const { stored, objects } = memoryObjects()
+    const repository = fakeRepository()
+    const photoId = randomUUID()
+    repository.photos.set(photoId, { userId: 'owner', entryId: 'warriors', published: true })
+    stored.set(`collection-photos/${photoId}`, WEBP)
+    const put = objects.put
+    objects.put = async (...args) => {
+      await put(...args)
+      repository.photos.delete(photoId)
+      stored.delete(`collection-photos/${photoId}`)
+    }
+    await collectionPhotoStore(repository, () => objects).backfillThumbnails()
+    expect(stored.size).toBe(0)
+  })
+
+  it('queues a racing deletion when thumbnail cleanup fails after the original was removed', async () => {
+    const { stored, objects } = memoryObjects()
+    const repository = fakeRepository()
+    const photoId = randomUUID()
+    repository.photos.set(photoId, { userId: 'owner', entryId: 'warriors', published: true })
+    stored.set(`collection-photos/${photoId}`, WEBP)
+    const put = objects.put
+    const remove = objects.delete
+    objects.put = async (...args) => {
+      await put(...args)
+      repository.photos.delete(photoId)
+      stored.delete(`collection-photos/${photoId}`)
+    }
+    objects.delete = async () => {
+      throw new Error('storage unavailable')
+    }
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      const store = collectionPhotoStore(repository, () => objects)
+      await store.backfillThumbnails()
+      expect(repository.deletions).toEqual([photoId])
+      objects.delete = remove
+      await store.drainDeletions()
+      expect(stored.size).toBe(0)
+    } finally {
+      log.mockRestore()
+    }
+  })
+
+  it('generates a missing thumbnail on its first authorized read', async () => {
+    const { stored, objects } = memoryObjects()
+    const repository = fakeRepository()
+    const store = collectionPhotoStore(repository, () => objects)
+    const photoId = await store.upload('owner', 'warriors', image)
+    stored.delete(`collection-photos/${photoId}.thumbnail.webp`)
+    const response = await store.response(
+      photoId,
+      null,
+      false,
+      new Request(`https://praetorium.gg/api/collection-photos/${photoId}?size=thumbnail`),
+    )
+    expect([response.status, stored.has(`collection-photos/${photoId}.thumbnail.webp`)]).toEqual([200, true])
+  })
+
+  it('revalidates a cached thumbnail without reading stored bytes', async () => {
+    const { objects } = memoryObjects()
+    const store = collectionPhotoStore(fakeRepository(), () => objects)
+    const photoId = await store.upload('owner', 'warriors', image)
+    vi.spyOn(objects, 'get').mockRejectedValue(new Error('read cached thumbnail'))
+    const response = await store.response(
+      photoId,
+      null,
+      false,
+      new Request(`https://praetorium.gg/api/collection-photos/${photoId}?size=thumbnail`, {
+        headers: { 'If-None-Match': `"${photoId}-thumbnail-v1"` },
+      }),
+    )
+    expect([response.status, await response.text()]).toEqual([304, ''])
+  })
+
+  it.each(['private', 'held', 'removed'] as const)('revokes a cached thumbnail when the photo becomes %s', async (state) => {
+    const { objects } = memoryObjects()
+    const repository = fakeRepository()
+    const store = collectionPhotoStore(repository, () => objects)
+    const photoId = await store.upload('owner', 'warriors', image)
+    if (state === 'private') repository.photos.get(photoId)!.published = false
+    if (state === 'held') repository.photos.get(photoId)!.held = true
+    if (state === 'removed') repository.photos.delete(photoId)
+    const response = await store.response(
+      photoId,
+      null,
+      false,
+      new Request(`https://praetorium.gg/api/collection-photos/${photoId}?size=thumbnail`, {
+        headers: { 'If-None-Match': `"${photoId}-thumbnail-v1"` },
+      }),
+    )
+    expect([response.status, response.headers.get('cache-control')]).toEqual([404, 'no-store'])
+  })
+
+  it('keeps deletion records until both objects have been removed', async () => {
+    const { stored, objects } = memoryObjects()
+    const repository = fakeRepository()
+    const store = collectionPhotoStore(repository, () => objects)
+    const photoId = await store.upload('owner', 'warriors', image)
+    repository.deletions.push(photoId)
+    const remove = objects.delete
+    objects.delete = async (key) => {
+      if (key.endsWith('.thumbnail.webp')) throw new Error('storage unavailable')
+      await remove(key)
+    }
+    await expect(store.drainDeletions()).rejects.toThrow('storage unavailable')
+    expect(repository.deletions).toEqual([photoId])
+    objects.delete = remove
+    await store.drainDeletions()
+    expect([stored.size, repository.deletions]).toEqual([0, []])
+  })
+
+  it('finishes later migration pages after an earlier thumbnail fails and retries it on rerun', async () => {
+    const { stored, objects } = memoryObjects()
+    const repository = fakeRepository()
+    const ids = [randomUUID(), randomUUID(), randomUUID()].sort()
+    for (const id of ids) {
+      repository.photos.set(id, { userId: 'owner', entryId: 'warriors', published: true })
+      stored.set(`collection-photos/${id}`, WEBP)
+    }
+    repository.collectionPhotoIds = async (after) => ids.filter((id) => after === null || id > after).slice(0, 1)
+    const put = objects.put
+    objects.put = async (...args) => {
+      if (args[0].includes(ids[0]!)) throw new Error('storage unavailable')
+      await put(...args)
+    }
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    try {
+      const store = collectionPhotoStore(repository, () => objects)
+      expect(await store.backfillThumbnails()).toEqual({ generated: 2, failed: 1 })
+      objects.put = put
+      expect(await store.backfillThumbnails()).toEqual({ generated: 1, failed: 0 })
+    } finally {
+      log.mockRestore()
+    }
   })
 
   it('deletes the stored object when the collection refuses the photo', async () => {

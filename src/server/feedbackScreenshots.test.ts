@@ -8,6 +8,7 @@ const PNG = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex')
 function memoryObjects() {
   const stored = new Map<string, { body: Uint8Array; contentType: string }>()
   const objects: PrivateObjects = {
+    head: async (key) => stored.has(key),
     put: async (key, body, contentType) => void stored.set(key, { body, contentType }),
     get: async (key) => {
       const object = stored.get(key)

@@ -39,6 +39,8 @@ ARG BUILDARCH
 RUN tar -xzf "/tmp/spacetime-$BUILDARCH.tar.gz" -C /tmp spacetimedb-cli && /tmp/spacetimedb-cli build -p spacetimedb && rm -rf node_modules
 # Nitro traced the build platform's native binary; the target platform's copy is added below.
 RUN rm -r .output/server/node_modules/@libsql/linux-*
+# Resolve sharp from the target platform's production dependencies.
+RUN rm -rf .output/server/node_modules/sharp .output/server/node_modules/@img
 
 # Installing for the target architecture from the build platform avoids running pnpm under emulation;
 # no production dependency needs its install script.
@@ -61,6 +63,7 @@ COPY --from=build --chown=node:node /app /app
 COPY --from=dependencies --chown=node:node /app/node_modules /app/node_modules
 COPY --from=dependencies --chown=node:node /native/ /app/.output/server/node_modules/@libsql/
 RUN node -e "require('/app/.output/server/node_modules/libsql')"
+RUN node -e "require('sharp')({ create: { width: 1, height: 1, channels: 3, background: 'black' } }).webp().toBuffer()"
 
 ARG GITHUB_SHA
 LABEL org.opencontainers.image.source="https://github.com/richardsolomou/praetorium.gg"

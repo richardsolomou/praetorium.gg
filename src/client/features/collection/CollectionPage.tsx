@@ -5,7 +5,6 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { FactionMark, type FactionPresentation } from '../../components/FactionMark'
-import { FactionReferenceLink } from '../../components/FactionReferenceLink'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { SignInRequired } from '../../components/SignInRequired'
@@ -21,6 +20,7 @@ import {
   meQuery,
 } from '../../queries'
 import { useCollectionMutation } from '../../useCollection'
+import { CollectionCard, CollectionCardGrid } from './CollectionCard'
 import { CollectionEntryCounts } from './CollectionEntryCounts'
 import { CollectionExchange } from './CollectionExchange'
 import { CollectionPhoto } from './CollectionPhoto'
@@ -80,7 +80,7 @@ export function CollectionPage() {
   const add = (entryId: string) => setOwned({ entryId, owned: true })
   // Suggestions lead an empty shelf and follow a stocked one, so the collection itself comes first.
   const fieldedShelf = suggestions.length ? (
-    <section aria-labelledby="fielded-heading">
+    <section aria-labelledby="fielded-heading" className="@container/army space-y-3">
       <h2
         id="fielded-heading"
         className="rubric flex flex-col gap-1 border-b border-edge pb-2 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3"
@@ -90,30 +90,22 @@ export function CollectionPage() {
         </span>
         <span className="text-xs text-dim normal-case">Fielded, not yet in your collection</span>
       </h2>
-      <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <CollectionCardGrid>
         {(allSuggestions ? suggestions : suggestions.slice(0, SUGGESTIONS_SHOWN)).map((sheet) => (
-          <li
+          <CollectionCard
             key={sheet.id}
             data-suggestion={sheet.name}
-            className="flex items-center gap-3 border border-dashed border-edge-strong bg-sunken/60 py-2 pr-2 pl-3"
-          >
-            {sheet.presentation ? <Mark faction={sheet.presentation} /> : null}
-            <span className="min-w-0 flex-1">
-              <FactionReferenceLink
-                to="/factions/$catalogueId/datasheets/$entryId"
-                params={{ catalogueId: sheet.catalogueId, entryId: sheet.slug }}
-                className="inline-block max-w-full truncate align-top text-sm font-semibold text-bone uppercase underline-offset-4 hover:text-info hover:underline"
-              >
-                {sheet.name}
-              </FactionReferenceLink>
-              <span className="block text-xs text-dim">{countLabel(sheet.battles, 'battle')}</span>
-            </span>
-            <Button size="sm" variant="outline" aria-label={`Add ${sheet.name} to your collection`} onClick={() => add(sheet.id)}>
-              <Plus /> Add
-            </Button>
-          </li>
+            name={sheet.name}
+            sheet={sheet}
+            description={countLabel(sheet.battles, 'battle')}
+            action={
+              <Button size="sm" variant="outline" aria-label={`Add ${sheet.name} to your collection`} onClick={() => add(sheet.id)}>
+                <Plus /> Add
+              </Button>
+            }
+          />
         ))}
-      </ul>
+      </CollectionCardGrid>
       {suggestions.length > SUGGESTIONS_SHOWN ? (
         <Button variant="link" size="sm" className="mt-1 px-0 text-info" onClick={() => setAllSuggestions((shown) => !shown)}>
           {allSuggestions ? 'Show fewer' : `Show all ${suggestions.length}`}
@@ -206,30 +198,20 @@ export function CollectionPage() {
                       ))}
                     </dl>
                   </header>
-                  <ul className="grid grid-cols-1 gap-2 @xl/army:grid-cols-2 @4xl/army:grid-cols-3">
+                  <CollectionCardGrid>
                     {sheets.map((sheet) => (
-                      <li
+                      <CollectionCard
                         key={sheet.id}
                         data-unit={sheet.name}
-                        className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-3 border border-edge bg-sunken/60 p-3 @[15rem]/army:grid-cols-[auto_minmax(0,1fr)_auto]"
+                        name={sheet.name}
+                        sheet={sheet}
+                        photo={<CollectionPhoto entryId={sheet.id} name={sheet.name} />}
+                        action={<RemoveButton name={sheet.name} onRemove={() => setRemoving(sheet)} />}
                       >
-                        <CollectionPhoto entryId={sheet.id} name={sheet.name} />
-                        <FactionReferenceLink
-                          to="/factions/$catalogueId/datasheets/$entryId"
-                          params={{ catalogueId: sheet.catalogueId, entryId: sheet.slug }}
-                          className="col-span-2 min-w-0 text-sm font-semibold break-words text-bone uppercase underline-offset-4 hover:text-info hover:underline @[15rem]/army:col-span-1"
-                        >
-                          {sheet.name}
-                        </FactionReferenceLink>
-                        <span className="col-start-2 row-start-1 @[15rem]/army:col-start-3">
-                          <RemoveButton name={sheet.name} onRemove={() => setRemoving(sheet)} />
-                        </span>
-                        <div className="col-span-2 @[15rem]/army:col-span-3">
-                          <CollectionEntryCounts entryId={sheet.id} name={sheet.name} />
-                        </div>
-                      </li>
+                        <CollectionEntryCounts entryId={sheet.id} name={sheet.name} />
+                      </CollectionCard>
                     ))}
-                  </ul>
+                  </CollectionCardGrid>
                 </section>
               )
             })}
