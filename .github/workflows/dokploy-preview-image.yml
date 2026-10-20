@@ -20,7 +20,7 @@ jobs:
       checks: write
       issues: write
       pull-requests: write
-    uses: richardsolomou/ras-stack/.github/workflows/build-dokploy-preview.yml@627f0857a9bf8623cda27193d461a34b6e40d1f9
+    uses: richardsolomou/ras-stack/.github/workflows/build-dokploy-preview.yml@e4485fd0eddf67b197a5c2095012a956c784ff6e
     with:
       package: praetorium.gg
       local-image: praetorium-preview
