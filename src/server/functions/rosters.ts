@@ -97,7 +97,7 @@ const fieldedEntryIds = (roster: { catalogueId: string; picks: readonly RosterPi
 })
 
 /**
- * Datasheets in the player's most-built armies that none of their rosters use, ranked by how many of other players' recent
+ * Datasheets in the player's most-built armies, counting only unarchived rosters, that none of their rosters use, ranked by how many of other players' recent
  * public rosters field them; an army nobody else has published offers all its unused datasheets.
  */
 export const wishlistSuggestions = createServerFn({ method: 'GET' }).handler(() =>
@@ -112,7 +112,12 @@ export const wishlistSuggestions = createServerFn({ method: 'GET' }).handler(() 
     ])
     const factions = factionIndex?.factions ?? []
     const indexed = new Map(factions.map((faction) => [faction.id, faction]))
-    const armies = [...groupBy(own, (roster) => currentCatalogueFamilyId(roster.catalogueId)).entries()]
+    const armies = [
+      ...groupBy(
+        own.filter((roster) => !roster.archived),
+        (roster) => currentCatalogueFamilyId(roster.catalogueId),
+      ).entries(),
+    ]
       .toSorted(([, a], [, b]) => b.length - a.length)
       .slice(0, WISHLIST_ARMIES)
       .map(([faction]) => ({ faction, rules: 'current' as const }))

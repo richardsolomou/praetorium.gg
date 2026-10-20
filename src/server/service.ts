@@ -50,6 +50,8 @@ import { type Standing, type StandingFaction, standings } from '../core/standing
 import { leagueResults } from '../core/leagueResults'
 import { REPLAY_BATCH_SIZE, type BattlesCursor } from '../contracts/battles'
 import { gameReferencesFor } from '../shared/gameReferences'
+import { archivedArmies } from '../core/archivedArmies'
+import { currentCatalogueFamilyId } from '../core/retiredCatalogueIds'
 import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type Mission } from './rules'
 import { type Notifier, silentNotifier } from './pushNotifier'
 import { LeagueService } from './services/leagueService'
@@ -405,12 +407,17 @@ export class PraetoriumService {
     }
   }
 
-  /** Datasheets in the player's own armies across their recent battles, with how many battles each appeared in. */
+  /** Datasheets in the player's own armies across their recent battles, with how many battles each appeared in, except armies they have archived. */
   async fieldedDatasheets(userId: string) {
-    const seated = await this.repository.battlesSeatedBy(userId, PROFILE_BATTLE_LIMIT, userId)
+    const [seated, rosters] = await Promise.all([
+      this.repository.battlesSeatedBy(userId, PROFILE_BATTLE_LIMIT, userId),
+      this.repository.rostersByUser(userId),
+    ])
+    const archived = archivedArmies(rosters)
     const uses = new Map<string, number>()
     for (const history of seated) {
       const built = foldHistory(history).players.find((player) => player.id === userId)?.roster?.built
+      if (built && archived.has(currentCatalogueFamilyId(built.catalogueId))) continue
       const entries = new Set([
         ...(built?.picks ?? []).map((pick) => pick.entryId),
         ...(built?.units ?? []).flatMap((unit) => (unit.entryId ? [unit.entryId] : [])),
