@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.174.0
+
+### Minor Changes
+
+- 5b0d920: Add Max actions for built and painted collection counts, and preserve newer collection edits, profile changes and simulator roster selections while requests finish.
+
 ## 0.173.3
 
 ### Patch Changes
