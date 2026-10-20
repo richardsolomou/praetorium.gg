@@ -16,7 +16,7 @@ Public leagues are listed; private ones are reachable by opaque link, so new lea
 
 ## Roster sealing
 
-Only accepted entrants with resolved assignments may seal. Submission reprices the saved list against its rules version (preview, released, or archived), checks exact size and unwaived legality, and stores the frozen snapshot atomically without the saved ID. Incomplete validation is a warning; waived restrictions need confirmation and stay visible.
+Only accepted entrants with resolved assignments may seal. Submission reprices the saved list against its rules version (preview, released, or archived), checks exact size and unwaived legality, and stores the frozen snapshot and original saved roster ID atomically. Incomplete validation is a warning; waived restrictions need confirmation and stay visible.
 
 Outside doubles every roster has one eligible Warlord; in doubles the first roster may have zero or one and the team exactly one. Freeze source-backed eligibility rather than inferring it from names; both seal paths explain refusals through `leagueWarlordRefusal`.
 
@@ -31,6 +31,12 @@ Detail reads expose submission status and frozen name, not roster JSON. Before r
 ## Reveal
 
 `leagueRevealChecklist` feeds both UI and command, but reveal also validates rosters and Warlords in its transaction, so a complete checklist is not proof. The organizer or any accepted entrant reveals (`mayRevealLeague`), and the event records who; nothing reveals automatically, even when full. Reveal is irreversible and closes registration, assignment, and submission. The organizer may then unseal one roster: the event stays revealed, that entrant cannot start battles until resealing, and the replacement gets ordinary validation. The revealed-list [simulator](combat-simulation.md#interface-and-context) reads sealed copies and never changes submissions or battles.
+
+## Sharing revealed rosters
+
+After reveal, `LeagueRosterSharing` offers an entrant publication in an info banner above the rosters. Either choice removes the whole banner after server acceptance. Publish only the original saved roster identified by the entrant's submission, including its current edits; never create or substitute a copy. The banner discloses that changes since sealing and future edits are public too. The frozen league submission stays unchanged, and personal notes and preparation keep their ordinary private access. Do not show the banner if the original roster is missing, belongs to another account, or is already public. Never publish through reveal or an organizer action. Publication checks the submitted timestamp and original roster ID within its transaction.
+
+`league_roster_sharing` remembers an event's dismissal or publication across devices. Unseal and reseal do not ask again for the same event. League or account deletion removes the relevant choices. The original roster keeps ordinary visibility and deletion controls.
 
 ## Battles
 

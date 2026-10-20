@@ -495,6 +495,23 @@ export async function setRosterVisibility(
   return null
 }
 
+export async function shareLeagueRoster(args: Parameters<typeof server.shareLeagueRoster>[0]): ReturnType<typeof server.shareLeagueRoster> {
+  const owner = localOwner()?.id
+  const resource = `roster:${args.data.rosterId}`
+  if (!navigator.onLine) throw new Error('Connect to the internet to share your league roster.')
+  if (await hasLocalChanges(resource)) {
+    await syncLocalWork()
+    if (await hasLocalChanges(resource)) throw new Error('This roster has changes waiting to sync. Sync or review them first.')
+  }
+  if (localOwner()?.id !== owner) throw accountChanged()
+  const result = await server.shareLeagueRoster(args)
+  const roster = result.roster
+  const local = await localDocument<LocalRoster | null>(resource)
+  if (local)
+    await rememberDocument(resource, { ...local, visibility: roster.visibility, updatedAt: roster.updatedAt }, roster.updatedAt, owner)
+  return result
+}
+
 /** Saved loadouts are kept only by the server, so saving or deleting one needs a connection. */
 export async function saveUnitLoadout(args: Parameters<typeof server.saveUnitLoadout>[0]): ReturnType<typeof server.saveUnitLoadout> {
   if (!navigator.onLine) throw new Error('Connect to the internet to save a loadout.')

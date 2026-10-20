@@ -1,10 +1,33 @@
 import { queryOptions } from '@tanstack/react-query'
-import { leagueResults, listLeagueBattles, listLeagues, openLeague, openLeagueRoster, outdatedLeagueEntriesForRoster } from '../functions'
+import {
+  leagueResults,
+  leagueRosterSharing,
+  listLeagueBattles,
+  listLeagues,
+  openLeague,
+  openLeagueRoster,
+  outdatedLeagueEntriesForRoster,
+} from '../functions'
 import { battleFeedQuery } from './battles'
 import { SSR_STALE_TIME } from './shared'
-import { leagueBattlesKey, leagueKey, leagueResultsKey, leagueRosterKey, leaguesKey, outdatedLeagueEntriesKey } from './queryKeys'
+import {
+  leagueBattlesKey,
+  leagueKey,
+  leagueResultsKey,
+  leagueRosterKey,
+  leagueRosterSharingKey,
+  leaguesKey,
+  outdatedLeagueEntriesKey,
+} from './queryKeys'
 
 export const leaguesQuery = () => queryOptions({ queryKey: leaguesKey(), queryFn: () => listLeagues(), staleTime: SSR_STALE_TIME })
+
+export const leagueRosterSharingQuery = (token: string, eventToken: string, userId: string) =>
+  queryOptions({
+    queryKey: leagueRosterSharingKey(token, eventToken, userId),
+    queryFn: () => leagueRosterSharing({ data: { token, eventToken } }),
+    staleTime: SSR_STALE_TIME,
+  })
 export const outdatedLeagueEntriesQuery = (rosterId: string) =>
   queryOptions({
     queryKey: outdatedLeagueEntriesKey(rosterId),

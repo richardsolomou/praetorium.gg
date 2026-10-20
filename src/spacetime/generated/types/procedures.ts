@@ -43,6 +43,7 @@ import * as LeagueBattleCandidatesProcedure from '../league_battle_candidates_pr
 import * as LeagueByTokenProcedure from '../league_by_token_procedure'
 import * as LeagueCommandProcedure from '../league_command_procedure'
 import * as LeagueNamesProcedure from '../league_names_procedure'
+import * as LeagueRosterSharingProcedure from '../league_roster_sharing_procedure'
 import * as LeagueRostersProcedure from '../league_rosters_procedure'
 import * as LeaguesVisibleToProcedure from '../leagues_visible_to_procedure'
 import * as LendRosterProcedure from '../lend_roster_procedure'
@@ -163,6 +164,8 @@ export type LeagueCommandArgs = __Infer<typeof LeagueCommandProcedure.params>
 export type LeagueCommandResult = __Infer<typeof LeagueCommandProcedure.returnType>
 export type LeagueNamesArgs = __Infer<typeof LeagueNamesProcedure.params>
 export type LeagueNamesResult = __Infer<typeof LeagueNamesProcedure.returnType>
+export type LeagueRosterSharingArgs = __Infer<typeof LeagueRosterSharingProcedure.params>
+export type LeagueRosterSharingResult = __Infer<typeof LeagueRosterSharingProcedure.returnType>
 export type LeagueRostersArgs = __Infer<typeof LeagueRostersProcedure.params>
 export type LeagueRostersResult = __Infer<typeof LeagueRostersProcedure.returnType>
 export type LeaguesVisibleToArgs = __Infer<typeof LeaguesVisibleToProcedure.params>

@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { app } from '../app'
 import { currentUserId, requireUser } from '../playerSession'
 import { mutationRpc, rpc } from '../rpc'
+import { dismissLeagueRosterSharingSchema, shareLeagueRosterSchema } from '../../contracts/leagueRosterSharing'
 import {
   addLeagueEntrantsSchema,
   admitLeagueEntriesSchema,
@@ -151,6 +152,41 @@ export const openLeagueRoster = createServerFn({ method: 'GET' })
   .validator(leagueRosterSchema)
   .handler(({ data }) =>
     rpc(async () => app().service.leagueService.leagueRoster(data.token, data.userId, data.eventToken, await currentUserId())),
+  )
+
+export const leagueRosterSharing = createServerFn({ method: 'GET' })
+  .validator(leagueEventSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      const player = await requireUser()
+      return app().service.leagueService.rosterSharing(data.token, data.eventToken ?? '', player.id)
+    }),
+  )
+
+export const shareLeagueRoster = createServerFn({ method: 'POST' })
+  .validator(shareLeagueRosterSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const result = await app().service.leagueService.shareRoster(
+        data.token,
+        data.eventToken ?? '',
+        player.id,
+        data.submittedAt,
+        data.rosterId,
+      )
+      await app().telemetry.capture(player.id, 'league_roster_published')
+      return result
+    }),
+  )
+
+export const dismissLeagueRosterSharing = createServerFn({ method: 'POST' })
+  .validator(dismissLeagueRosterSharingSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      return app().service.leagueService.dismissRosterSharing(data.token, data.eventToken ?? '', player.id)
+    }),
   )
 
 export const unsealLeagueRoster = createServerFn({ method: 'POST' })

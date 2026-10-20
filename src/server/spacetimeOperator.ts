@@ -15,6 +15,7 @@ import { recentMatchupSchema, type RecentMatchup } from '../core/recentMatchups'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
 import { TABLE_SHAPES } from '../core/tableShape'
 import { unitLoadoutPickSchema, type UnitLoadout } from '../core/unitLoadouts'
+import { leagueRosterSharingSchema } from '../contracts/leagueRosterSharing'
 
 // Module results drop fields this build does not know, so a replica still on the previous build keeps
 // reading after a newer module appends a column or result field.
@@ -867,6 +868,10 @@ export class SpacetimeOperator {
 
   async leagueRosters(token: string, userId: string, eventToken?: string, readerId?: string | null) {
     return this.read('league_rosters', [token, userId, eventToken ?? '', readerId ?? ''], z.array(leagueRoster))
+  }
+
+  async leagueRosterSharing(token: string, eventToken: string, userId: string) {
+    return this.read('league_roster_sharing', [token, eventToken, userId], leagueRosterSharingSchema.nullable())
   }
 
   async leagueCommand<S extends z.ZodType>(command: Record<string, unknown>, result: S): Promise<z.output<S>> {

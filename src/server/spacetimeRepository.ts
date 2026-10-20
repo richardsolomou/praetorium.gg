@@ -7,6 +7,7 @@ import type { Command } from '../core/battle'
 import { z } from 'zod'
 import { SqliteAccountRepository } from './accountRepository'
 import { SpacetimeOperator } from './spacetimeOperator'
+import { leagueRosterSharingSchema } from '../contracts/leagueRosterSharing'
 
 type Snapshot = NonNullable<Awaited<ReturnType<SpacetimeOperator['battleByToken']>>>
 type BattlePlayer = NonNullable<Awaited<ReturnType<SqliteAccountRepository['profileByUserId']>>> & { side: number; automated: boolean }
@@ -605,6 +606,20 @@ export class SpacetimeRepository {
             }
           : null,
     }))
+  }
+
+  leagueRosterSharing(...args: Parameters<SpacetimeOperator['leagueRosterSharing']>) {
+    return this.product.leagueRosterSharing(...args)
+  }
+
+  updateLeagueRosterSharing(
+    input: {
+      token: string
+      eventToken: string
+      ownerId: string
+    } & ({ op: 'share-roster'; submittedAt: number; now: number; rosterId: string } | { op: 'dismiss-roster-sharing' }),
+  ) {
+    return this.product.leagueCommand(input, z.union([leagueRosterSharingSchema, z.enum(['missing', 'forbidden', 'unavailable', 'stale'])]))
   }
 
   async createLeagueBattle<T>(

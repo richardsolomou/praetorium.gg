@@ -221,6 +221,14 @@ export const LeagueEvents = __t.object('LeagueEvents', {
 })
 export type LeagueEvents = __Infer<typeof LeagueEvents>
 
+export const LeagueRosterSharing = __t.object('LeagueRosterSharing', {
+  key: __t.string(),
+  eventId: __t.string(),
+  userId: __t.string(),
+  rosterId: __t.option(__t.string()),
+})
+export type LeagueRosterSharing = __Infer<typeof LeagueRosterSharing>
+
 export const Leagues = __t.object('Leagues', {
   id: __t.string(),
   token: __t.string(),
