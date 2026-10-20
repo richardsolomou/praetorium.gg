@@ -12,10 +12,11 @@ afterEach(() => {
 function fixture() {
   const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-catalogue-leases-'))
   directories.push(parent)
-  const cache = (number: number, authoring = 'compatible') => {
+  const cache = (number: number, authoring = 'compatible', sources = 'sources') => {
     const root = path.join(parent, number.toString(16).repeat(64))
     fs.mkdirSync(path.join(root, 'f'.repeat(64), 'catalogue'), { recursive: true })
     fs.writeFileSync(path.join(root, 'f'.repeat(64), 'catalogue/revision.json'), '{}')
+    fs.writeFileSync(path.join(root, 'f'.repeat(64), 'sources.json'), JSON.stringify({ key: sources }))
     fs.writeFileSync(path.join(root, 'current.json'), JSON.stringify({ id: 'f'.repeat(64) }))
     fs.writeFileSync(path.join(root, 'authoring'), authoring)
     fs.utimesSync(root, new Date(number * 1_000), new Date(number * 1_000))
@@ -34,6 +35,16 @@ it('reuses the most recent working source data only when its authoring configura
     root: previous,
     directory: path.join(previous, 'f'.repeat(64), 'catalogue'),
   })
+})
+
+it('prefers the source data last published, though a newer cache holds older data', () => {
+  const { parent, cache } = fixture()
+  const current = cache(1)
+  const published = cache(2, 'compatible', 'upstream refreshed')
+  cache(3, 'compatible', 'pinned baseline')
+  fs.writeFileSync(path.join(parent, 'live-sources'), 'upstream refreshed')
+
+  expect(retainedCatalogueCache(current, 'compatible')?.root).toBe(published)
 })
 
 it('skips an incomplete cache when looking for source data for a new compiler', () => {
