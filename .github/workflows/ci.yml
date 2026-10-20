@@ -86,8 +86,9 @@ jobs:
       - run: pnpm test:python
 
   build:
-    needs: changes
-    if: needs.changes.outputs.runtime == 'true'
+    # The browser-test build compiles and shares a new catalogue first, so this lane restores it rather than compiling it a second time.
+    needs: [changes, browser-build]
+    if: ${{ !cancelled() && needs.changes.outputs.runtime == 'true' }}
     runs-on: ubuntu-latest
     # A catalogue runtime or offline reference that no build has shared yet is uploaded under its key for every later build and deployment.
     env:
@@ -120,6 +121,10 @@ jobs:
     if: needs.changes.outputs.runtime == 'true'
     name: Browser-test build
     runs-on: ubuntu-latest
+    env:
+      R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      ASSETS_R2_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
+      ASSETS_R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
     outputs:
       node-version: ${{ steps.node.outputs.version }}
       runner-count: ${{ inputs.e2e-runners || '16' }}
