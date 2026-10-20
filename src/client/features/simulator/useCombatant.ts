@@ -26,6 +26,8 @@ export type CombatRoster = {
   waivedRules: readonly FormatRuleId[]
   borrowedDetachmentId: string | null
   optionalRules: readonly OptionalRuleId[]
+  /** The saved roster a standalone side came from, so its link and recent simulation can reopen it. */
+  saved?: { id: string; name: string }
   battle?: {
     units: { available: boolean; key: string; name: string; models: number; startingModels: number; damage: number; wounds?: number }[]
   }
@@ -37,9 +39,11 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
   const [selectedIndex, selectRosterUnit] = useState(roster?.pickIndex ?? 0)
   // A unit destroyed while the battle simulator is open hands the side back to the battle's choice.
   const pickIndex = roster?.battle?.units[selectedIndex]?.available === false ? roster.pickIndex : selectedIndex
-  // A restored pick takes the first key, so its rule choices belong to that identity.
+  // Picks are keyed by position when seeded, so restored rule choices belong to the restored pick's identity.
   const [selectedRules, setSelectedRules] = useState<Record<string, Record<string, number>>>(() =>
-    initial ? { [`${initial.pick.catalogueId ?? initial.catalogueId}:0:${initial.pick.entryId}`]: initial.rules } : {},
+    initial
+      ? { [`${initial.pick.catalogueId ?? initial.catalogueId}:${roster?.pickIndex ?? 0}:${initial.pick.entryId}`]: initial.rules }
+      : {},
   )
   const [initialPreferences] = useState(initial?.preferences ?? {})
   const [selectedPreferences, setSelectedPreferences] = useState<StoredWeaponPreferences | null>(null)
@@ -226,6 +230,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
     setHealth: (update: Partial<{ models: number; damage: number }>) =>
       setHealth((current) => ({ ...current, [healthKey(pickIndex)]: { models, damage, ...update } })),
     roster: Boolean(roster),
+    rosterName: roster?.saved?.name,
     detachmentIds,
     pickIndex,
     pick,
@@ -285,7 +290,7 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
       })
     },
     /** What a shared link needs to restore this standalone side. */
-    shared: shareable(roster, catalogueId, picks.picks[pickIndex], ruleSelections, weaponPreferences, picks.picks),
+    shared: shareable(roster, catalogueId, picks.picks[pickIndex], pickIndex, ruleSelections, weaponPreferences, picks.picks),
     addAttachment: (attachmentId: string) => {
       const option = sheets.data?.attachmentOptions.find((candidate) => candidate.entryId === attachmentId)
       const host = picks.picks[pickIndex]
@@ -349,12 +354,21 @@ function shareable(
   roster: CombatRoster | undefined,
   catalogueId: string,
   pick: KeyedPick | undefined,
+  pickIndex: number,
   rules: Record<string, number>,
   preferences: Record<string, string>,
   picks: readonly KeyedPick[],
 ): SimulatorSide | null {
-  if (roster || !catalogueId || !pick) return null
-  const { key: _key, attachedTo: _attachedTo, ...shared } = pick
+  if ((roster && !roster.saved) || !catalogueId || !pick) return null
+  const { key: _key, attachedTo: _attachedTo, note: _note, ...shared } = pick
+  if (roster?.saved)
+    return {
+      catalogueId,
+      pick: shared,
+      rules,
+      ...(Object.keys(preferences).length ? { preferences } : {}),
+      roster: { id: roster.saved.id, pickIndex },
+    }
   const attached = picks
     .filter((member) => member.attachedTo === pick.key)
     .map(({ key: _memberKey, attachedTo: _host, ...member }) => member)

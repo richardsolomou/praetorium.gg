@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { datasheetMatchup, decodeSimulatorState, encodeSimulatorState, type SimulatorState } from './simulatorState'
+import { datasheetMatchup, decodeSimulatorState, encodeSimulatorState, simulatorPairing, type SimulatorState } from './simulatorState'
 
 const state: SimulatorState = {
   v: 1,
@@ -81,5 +81,32 @@ describe('a datasheet opened in the simulator', () => {
 
   it('defends with the unit and leaves the attacker to choose', () => {
     expect(decodeSimulatorState(datasheetMatchup('necrons', 'immortals', 'defender'))?.sides).toEqual([null, unit])
+  })
+})
+
+describe('saved roster sides', () => {
+  const fromRoster: SimulatorState = {
+    ...state,
+    sides: [{ ...state.sides[0]!, roster: { id: 'roster-1', pickIndex: 3 } }, state.sides[1]],
+  }
+  it('restore the roster and unit they name', () => {
+    expect(decodeSimulatorState(encodeSimulatorState(fromRoster))?.sides[0]?.roster).toEqual({ id: 'roster-1', pickIndex: 3 })
+  })
+  it('pair apart from the same unit picked without a roster', () => {
+    expect(simulatorPairing(encodeSimulatorState(fromRoster))).not.toBe(simulatorPairing(encodeSimulatorState(state)))
+  })
+  it('pair apart from the same unit in another roster', () => {
+    const other: SimulatorState = {
+      ...fromRoster,
+      sides: [{ ...fromRoster.sides[0]!, roster: { id: 'roster-2', pickIndex: 3 } }, state.sides[1]],
+    }
+    expect(simulatorPairing(encodeSimulatorState(fromRoster))).not.toBe(simulatorPairing(encodeSimulatorState(other)))
+  })
+  it('pair with the same roster unit whichever position it moved to', () => {
+    const moved: SimulatorState = {
+      ...fromRoster,
+      sides: [{ ...fromRoster.sides[0]!, roster: { id: 'roster-1', pickIndex: 0 } }, state.sides[1]],
+    }
+    expect(simulatorPairing(encodeSimulatorState(fromRoster))).toBe(simulatorPairing(encodeSimulatorState(moved)))
   })
 })

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { posthog } from 'posthog-js'
-import { ArrowLeftRight } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
+import { ArrowLeftRight, BookOpen } from 'lucide-react'
+import { useInfiniteQuery, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { PageContent, PageHeader } from '../../components/Page'
 import { advanceOnboarding, ONBOARDING_FOCUS_EVENT } from '../onboarding/onboarding'
@@ -9,14 +9,43 @@ import { CombatantCard } from './CombatantCard'
 import { CombatMatchup } from './CombatMatchup'
 import { CombatBuffControls } from './CombatBuffControls'
 import { SimulationMode } from './CombatControls'
+import { RosterPicker } from './RosterPicker'
 import { RosterCombatComparison } from './RosterCombatComparison'
 import { type Combatant, type CombatRoster, useCombatant } from './useCombatant'
 import { attachedUnit } from '../../../core/attach'
-import { decodeSimulatorState, encodeSimulatorState, type MatchupSettings, type SimulatorState } from '../../../contracts/simulatorState'
-import { combatUnitsQuery } from '../../queries'
+import {
+  decodeSimulatorState,
+  encodeSimulatorState,
+  type MatchupSettings,
+  type SimulatorSide,
+  type SimulatorState,
+} from '../../../contracts/simulatorState'
+import {
+  combatUnitsQuery,
+  discoveredRostersQuery,
+  factionIndexQuery,
+  meQuery,
+  savedRosterSummariesQuery,
+  sharedRosterQuery,
+} from '../../queries'
+import type { LocalRoster } from '../../offline/localRuntime'
+import { rosterTitle } from '../rosters/RosterSummary'
 import { exampleMatchup, useMatchupHistory } from './matchupHistory'
-import { RecentMatchups } from './RecentMatchups'
+import { RecentSimulations } from './RecentSimulations'
 import type { RecentMatchup } from '../../../core/recentMatchups'
+
+const NO_ROSTER = 'none'
+
+/** A link's saved-roster side with that roster's current contents; null when the roster or its unit is gone. */
+function savedRosterSide(side: SimulatorSide, roster: LocalRoster | null | undefined, name: string): CombatRoster | null {
+  if (!roster || roster.catalogueId !== side.catalogueId) return null
+  const { pickIndex } = side.roster!
+  const index =
+    roster.picks[pickIndex]?.entryId === side.pick.entryId
+      ? pickIndex
+      : roster.picks.findIndex((pick) => pick.entryId === side.pick.entryId && pick.attachedTo === undefined)
+  return index < 0 ? null : { ...roster, pickIndex: index, saved: { id: side.roster!.id, name } }
+}
 
 /** The standalone page keeps its matchup in the URL, so a link reopens the same calculation. */
 export function CombatSimulator({
@@ -31,16 +60,92 @@ export function CombatSimulator({
 }) {
   const [comparingRosters, setComparingRosters] = useState(false)
   const [session, setSession] = useState(() => ({ key: 0, shared }))
+  const [problem, setProblem] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const units = useQuery(combatUnitsQuery())
   const history = useMatchupHistory()
+  const me = useQuery(meQuery())
+  const saved = useQuery({ ...savedRosterSummariesQuery(), enabled: Boolean(me.data) })
+  const factions = useQuery(factionIndexQuery())
+  const titled = (roster: Parameters<typeof rosterTitle>[0] & { catalogueId: string }) =>
+    rosterTitle(
+      roster,
+      factions.data?.factions.find((faction) => faction.id === roster.catalogueId),
+    )
+  const savedRosters = (saved.data ?? []).filter((roster) => !roster.archived)
+  // The newest page of friends' public rosters, as the Friends tab of the roster library lists them.
+  const friends = useInfiniteQuery({ ...discoveredRostersQuery({}, 'friends', 'updated-desc'), enabled: Boolean(me.data) })
+  const friendRosters = friends.data?.pages[0]?.rosters ?? []
   const example = units.data ? exampleMatchup(units.data) : null
+  const linked = decodeSimulatorState(session.shared)
+  const linkedIds = [...new Set(linked?.sides.flatMap((side) => side?.roster?.id ?? []))]
+  const linkedRosters = useQueries({ queries: linkedIds.map((id) => sharedRosterQuery(id)) })
+  const sides = linked?.sides.map((side) => {
+    if (!side?.roster) return { side, roster: undefined }
+    const roster = linkedRosters[linkedIds.indexOf(side.roster.id)]?.data
+    const combat = savedRosterSide(side, roster, roster ? titled({ ...roster, unitCount: roster.picks.length }) : '')
+    return { side: combat ? side : null, roster: combat ?? undefined }
+  })
+  const loadingRoster = linkedRosters.some((query) => query.isLoading)
+  const missingRoster = sides?.some(({ side, roster }, index) => linked?.sides[index]?.roster && (!side || !roster)) ?? false
+  // The emptied side leaves the link on its next change, so the notice is kept until another link opens.
+  if (missingRoster && !problem) setProblem('A roster in this simulation is no longer available, so its side is empty.')
   const restore = (value: string) => {
     const initial = decodeSimulatorState(value)
     if (!initial) return
     setSession((current) => ({ key: current.key + 1, shared: value }))
     setComparingRosters(false)
+    setProblem(null)
     onShare(value)
   }
+  const chooseRoster = async (index: 0 | 1, id: string) => {
+    const next = [...(linked?.sides ?? [null, null])] as SimulatorState['sides']
+    if (id === NO_ROSTER) next[index] = null
+    else {
+      const roster = await queryClient.query(sharedRosterQuery(id)).catch(() => null)
+      const pickIndex = roster?.picks.findIndex((pick) => pick.attachedTo === undefined) ?? -1
+      const host = roster?.picks[pickIndex]
+      if (!roster || !host) {
+        setProblem(roster ? 'That roster has no units yet.' : 'That roster could not be opened.')
+        return
+      }
+      const { attachedTo: _attachedTo, note: _note, ...pick } = host
+      next[index] = { catalogueId: roster.catalogueId, pick, rules: {}, roster: { id, pickIndex } }
+    }
+    restore(encodeSimulatorState({ v: 1, sides: next, swapped: linked?.swapped ?? false }))
+  }
+  const rosterControl = (index: 0 | 1) =>
+    savedRosters.length || friendRosters.length ? (
+      <div className="mb-3 text-xs text-dim">
+        Roster
+        <RosterPicker
+          ariaLabel={`${index ? 'Second' : 'First'} roster`}
+          className="mt-1"
+          popupClassName="min-w-[min(20rem,var(--available-width))]"
+          searchPlaceholder="Search rosters…"
+          groups={[
+            {
+              label: 'Catalogue',
+              options: [{ id: NO_ROSTER, label: 'No roster', icon: <BookOpen className="size-4 text-info" aria-hidden /> }],
+            },
+            {
+              label: 'Your rosters',
+              options: savedRosters.map((roster) => ({ id: roster.id, label: titled(roster), catalogueId: roster.catalogueId })),
+            },
+            {
+              label: "Friends' rosters",
+              options: friendRosters.map(({ roster, owner }) => ({
+                id: roster.id,
+                label: `${titled(roster)} · ${owner.name}`,
+                catalogueId: roster.catalogueId,
+              })),
+            },
+          ]}
+          value={sides?.[index]?.roster?.saved?.id ?? NO_ROSTER}
+          onValueChange={(id) => void chooseRoster(index, id)}
+        />
+      </div>
+    ) : undefined
   const share = useCallback(
     (state: SimulatorState) => {
       const encoded = state.sides.some(Boolean) ? encodeSimulatorState(state) : undefined
@@ -79,14 +184,23 @@ export function CombatSimulator({
           onChange={setComparingRosters}
           units={
             <div className="space-y-6">
-              <CombatSimulatorMatchup
-                key={session.key}
-                initial={decodeSimulatorState(session.shared)}
-                onChange={share}
-                onRemember={history.remember}
-                reference={reference}
-              />
-              <RecentMatchups surface="simulator" onOpen={restore} />
+              {problem ? <output className="block text-sm text-dim">{problem}</output> : null}
+              {loadingRoster ? (
+                <p className="border border-edge bg-panel p-4 text-sm text-dim">Loading roster…</p>
+              ) : (
+                <CombatSimulatorMatchup
+                  key={session.key}
+                  roster={sides?.[0]?.roster}
+                  opponentRoster={sides?.[1]?.roster}
+                  firstArmyControl={rosterControl(0)}
+                  secondArmyControl={rosterControl(1)}
+                  initial={linked && sides ? { ...linked, sides: [sides[0]!.side, sides[1]!.side] } : null}
+                  onChange={share}
+                  onRemember={history.remember}
+                  reference={reference}
+                />
+              )}
+              <RecentSimulations surface="simulator" onOpen={restore} />
             </div>
           }
           comparison={
@@ -100,13 +214,13 @@ export function CombatSimulator({
   )
 }
 
-/** The selected unit and everything attached to it, so a recent matchup names its leaders too. */
+/** The selected unit, everything attached to it, and its roster, so a recent simulation names them too. */
 function joinedUnitName(combatant: Combatant) {
-  const { pickIndex, picks, price } = combatant
-  return [pickIndex, ...attachedUnit(picks.positioned, pickIndex)]
+  const { pickIndex, picks, price, rosterName } = combatant
+  const unit = [pickIndex, ...attachedUnit(picks.positioned, pickIndex)]
     .flatMap((index) => price.data?.units[index]?.name ?? [])
     .join(' + ')
-    .slice(0, 200)
+  return (rosterName ? `${unit} · ${rosterName}` : unit).slice(0, 200)
 }
 
 export function CombatSimulatorMatchup({
@@ -129,7 +243,7 @@ export function CombatSimulatorMatchup({
   inDialog?: boolean
   initial?: SimulatorState | null
   onChange?: (state: SimulatorState) => void
-  /** Keeps a completed pairing in the player's recent matchups; only the standalone simulator supplies it. */
+  /** Keeps a completed pairing in the player's recent simulations; only the standalone simulator supplies it. */
   onRemember?: (entry: RecentMatchup) => void
   reference?: 'datasheet'
 }) {

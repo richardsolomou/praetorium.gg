@@ -381,3 +381,42 @@ it('detaches a leader the battle reports destroyed', () => {
   hooks.effects.forEach((effect) => effect())
   expect(renderBattle(attached({ entryId: 'leader' })).picks.positioned[1]?.attachedTo).toBeUndefined()
 })
+
+function savedRoster(pickIndex: number): CombatRoster {
+  return {
+    catalogueId: 'cat',
+    detachmentIds: ['detachment'],
+    disposition: null,
+    limit: 2000,
+    picks: [{ entryId: 'squad' }, { entryId: 'leader', note: 'Hold the left flank' }],
+    pickIndex,
+    waivedRules: [],
+    borrowedDetachmentId: null,
+    optionalRules: [],
+    saved: { id: 'roster-1', name: 'Court of the Ankh' },
+  }
+}
+
+it('shares a saved roster’s unit by roster and position, without its note', () => {
+  expect(renderBattle(savedRoster(1)).shared).toEqual({
+    catalogueId: 'cat',
+    pick: { entryId: 'leader' },
+    rules: {},
+    roster: { id: 'roster-1', pickIndex: 1 },
+  })
+})
+
+it('shares nothing for a roster that was never saved', () => {
+  expect(renderBattle({ ...savedRoster(1), saved: undefined }).shared).toBeNull()
+})
+
+it('restores rule choices to the saved roster unit the link names', () => {
+  hooks.cursor = 0
+  const side: SimulatorSide = {
+    catalogueId: 'cat',
+    pick: { entryId: 'leader' },
+    rules: { command: 2 },
+    roster: { id: 'roster-1', pickIndex: 1 },
+  }
+  expect(useCombatant(savedRoster(1), side).ruleSelections).toEqual({ command: 2 })
+})

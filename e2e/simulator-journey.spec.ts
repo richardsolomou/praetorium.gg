@@ -1,15 +1,15 @@
 import { expect, test } from './test'
-import { retryUntilVisible, signIn, signInAsPreview, signUp, uniqueName } from './account'
-import { holdCombatCalculations } from './combat'
+import { addUnit, createRoster, retryUntilVisible, signIn, signInAsPreview, signUp, uniqueName, waitForRosterSave } from './account'
+import { chooseCombatUnit, combatEstimate, holdCombatCalculations } from './combat'
 
 const pairing = 'Intercessor Squad vs Necron Warriors'
-const history = '[aria-label="Recent matchups"]'
+const history = '[aria-label="Recent simulations"]'
 
 test(
   'an editable example is remembered only after a result and reopens with its latest settings',
   { tag: '@catalogue' },
   async ({ page, context }) => {
-    await signUp(page, uniqueName('Recent matchups'))
+    await signUp(page, uniqueName('Recent simulations'))
     await page.goto('/simulator')
     await page.waitForLoadState('networkidle')
     const gate = await holdCombatCalculations(page)
@@ -17,7 +17,7 @@ test(
     await gate.waitForStart()
     await expect(page.locator(history)).toHaveCount(0)
     await gate.release()
-    const recent = page.getByRole('region', { name: 'Recent matchups', exact: true })
+    const recent = page.getByRole('region', { name: 'Recent simulations', exact: true })
     await expect(recent.getByRole('link', { name: pairing, exact: true })).toBeVisible()
     await page.getByRole('button', { name: 'More attacker models', exact: true }).click()
     await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('6')
@@ -41,7 +41,7 @@ test(
     const other = await context.newPage()
     await other.goto('/')
     await expect(
-      other.getByRole('region', { name: 'Recent matchups', exact: true }).getByRole('link', { name: pairing, exact: true }),
+      other.getByRole('region', { name: 'Recent simulations', exact: true }).getByRole('link', { name: pairing, exact: true }),
     ).toBeVisible()
     await other.getByRole('button', { name: `Remove ${pairing}`, exact: true }).click()
     await expect(recent).toHaveCount(0)
@@ -51,23 +51,23 @@ test(
   },
 )
 
-test('recent matchups are accessible from signed-in home at desktop and phone widths', { tag: '@catalogue' }, async ({ page }) => {
+test('recent simulations are accessible from signed-in home at desktop and phone widths', { tag: '@catalogue' }, async ({ page }) => {
   await signInAsPreview(page)
   await page.goto('/simulator')
   await page.waitForLoadState('networkidle')
   await page.getByRole('button', { name: 'Try an example', exact: true }).click()
-  await expect(page.getByRole('region', { name: 'Recent matchups', exact: true })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Recent simulations', exact: true })).toBeVisible()
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await page.goto('/')
-    const recent = page.getByRole('region', { name: 'Recent matchups', exact: true })
+    const recent = page.getByRole('region', { name: 'Recent simulations', exact: true })
     await expect(recent.getByRole('link', { name: pairing, exact: true })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-    await recent.screenshot({ path: `test-results/recent-matchups-home-${width}.png` })
+    await recent.screenshot({ path: `test-results/recent-simulations-home-${width}.png` })
     await recent.getByRole('link', { name: pairing, exact: true }).click()
     await expect(page.getByRole('combobox', { name: 'Attacker unit', exact: true })).toContainText('Intercessor Squad')
     await expect(page.getByRole('region', { name: 'Combined estimate' })).toHaveAttribute('aria-busy', 'false')
-    await page.screenshot({ path: `test-results/recent-matchups-simulator-${width}.png`, fullPage: true })
+    await page.screenshot({ path: `test-results/recent-simulations-simulator-${width}.png`, fullPage: true })
   }
 })
 
@@ -84,12 +84,14 @@ test(
     await page.goto('/simulator')
     await page.waitForLoadState('networkidle')
     await page.getByRole('button', { name: 'Try an example', exact: true }).click()
-    await expect(page.getByRole('region', { name: 'Recent matchups', exact: true }).getByRole('link', { name: pairing })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Recent simulations', exact: true }).getByRole('link', { name: pairing })).toBeVisible()
     const elsewhere = await (await browser.newContext()).newPage()
     await signIn(elsewhere, account.email, account.password)
     await elsewhere.waitForURL('/')
     await elsewhere.goto('/simulator')
-    await expect(elsewhere.getByRole('region', { name: 'Recent matchups', exact: true }).getByRole('link', { name: pairing })).toBeVisible()
+    await expect(
+      elsewhere.getByRole('region', { name: 'Recent simulations', exact: true }).getByRole('link', { name: pairing }),
+    ).toBeVisible()
     await elsewhere.getByRole('button', { name: `Remove ${pairing}`, exact: true }).click()
     await expect(elsewhere.locator(history)).toHaveCount(0)
     await page.goto('/')
@@ -106,3 +108,43 @@ test('an invalid shared link leaves the simulator usable', async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: 'test-results/simulator-example-phone.png', fullPage: true })
 })
+
+test(
+  'a unit from a saved roster keeps its enhancement against any unit and reopens from recent simulations',
+  { tag: '@catalogue' },
+  async ({ page }) => {
+    await signUp(page, uniqueName('Roster unit'))
+    await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name: 'Ankh Court' })
+    await addUnit(page, 'Overlord')
+    const lord = page.locator('[data-unit="Overlord"]')
+    await lord.getByRole('button', { name: 'Overlord', exact: true }).click()
+    await waitForRosterSave(page, () =>
+      page.locator('aside[aria-label="Loadout"]').getByRole('button', { name: 'Select Destroyer Ankh', exact: true }).click(),
+    )
+    await page.goto('/simulator')
+    await page.waitForLoadState('networkidle')
+    const option = page.getByRole('option', { name: 'Ankh Court', exact: true })
+    await retryUntilVisible(option, () => page.getByRole('combobox', { name: 'First roster', exact: true }).click())
+    await option.click()
+    await expect(page.getByRole('combobox', { name: 'Attacker unit', exact: true })).toContainText('Overlord')
+    await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
+    const melee = page.getByRole('region', { name: 'Melee results' })
+    const enhanced = melee.getByRole('button', { name: 'A 6, modified from 4 by Destroyer Ankh', exact: true })
+    await expect(enhanced).toBeVisible()
+    await expect((await combatEstimate(page, 'Melee')).locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
+    const recent = page.getByRole('region', { name: 'Recent simulations', exact: true })
+    const rosterPairing = recent.getByRole('link', { name: 'Overlord · Ankh Court vs Intercessor Squad', exact: true })
+    await expect(rosterPairing).toBeVisible()
+    await page.screenshot({ path: 'test-results/simulator-roster-unit-desktop.png', fullPage: true })
+    await page.goto('/')
+    const home = page.getByRole('region', { name: 'Recent simulations', exact: true })
+    await expect(home.getByRole('link', { name: 'Overlord · Ankh Court vs Intercessor Squad' })).toBeVisible()
+    await page.screenshot({ path: 'test-results/recent-simulations-home-roster.png' })
+    await home.getByRole('link', { name: 'Overlord · Ankh Court vs Intercessor Squad' }).click()
+    await expect(page.getByRole('combobox', { name: 'First roster', exact: true })).toContainText('Ankh Court')
+    await expect(enhanced).toBeVisible()
+    await page.setViewportSize({ width: 390, height: 844 })
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: 'test-results/simulator-roster-unit-phone.png', fullPage: true })
+  },
+)

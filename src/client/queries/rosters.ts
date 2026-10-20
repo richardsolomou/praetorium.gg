@@ -29,6 +29,7 @@ import {
   savedRosterLoadoutDatasheets,
   savedRosterSummaries,
   savedRosterPage,
+  sharedRoster,
   unitLoadouts,
   units,
 } from '../functions'
@@ -48,6 +49,7 @@ import {
   rosterBootstrapKey,
   savedRosterPageKey,
   savedRosterSummariesKey,
+  sharedRosterKey,
   unitLoadoutsKey,
 } from './queryKeys'
 
@@ -236,6 +238,13 @@ export const savedRosterSummariesQuery = () =>
   queryOptions({
     queryKey: savedRosterSummariesKey(),
     queryFn: ({ signal }) => savedRosterSummaries({ signal }),
+    staleTime: SSR_STALE_TIME,
+  })
+/** A roster the reader may open, or null once they no longer can. */
+export const sharedRosterQuery = (id: string) =>
+  queryOptions({
+    queryKey: sharedRosterKey(id),
+    queryFn: ({ signal }) => sharedRoster({ data: { id }, signal }),
     staleTime: SSR_STALE_TIME,
   })
 export const savedRosterPageQuery = (ids: string[]) =>

@@ -271,7 +271,8 @@ export function CombatantCard({
         </div>
       </div>
       {armyControl}
-      {combatant.roster ? (
+      {/* A saved roster's own picker already names it and its faction. */}
+      {combatant.roster && !combatant.rosterName ? (
         <div className="mb-3 flex h-8 min-w-0 items-center gap-2 text-sm text-dim" aria-label={`${side} faction`}>
           {selectedFaction ? <FactionLabel faction={selectedFaction} /> : 'Loading faction…'}
           <span className="ml-auto text-xs text-faint">{battleUnit ? 'Battle' : 'Roster'}</span>

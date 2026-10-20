@@ -1,9 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
-import { ArrowLeftRight, Crosshair, ScrollText } from 'lucide-react'
+import { ArrowLeftRight, Crosshair } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { SearchableSelect } from '../../components/SearchableSelect'
-import { FactionMark } from '../../components/FactionMark'
 import { combatUnitsQuery, factionIndexQuery, meQuery, savedRosterSummariesQuery } from '../../queries'
 import { sharedRoster } from '../../functions'
 import { errorMessage } from '../../queryClient'
@@ -18,6 +16,7 @@ import { readRosterCombatSelection, writeRosterCombatSelection } from './rosterC
 import type { RosterCombatSummary, RosterCombatUnit } from './rosterCombat'
 import { RosterCombatTable } from './RosterCombatTable'
 import { BenchmarkTargets } from './BenchmarkTargets'
+import { RosterPicker } from './RosterPicker'
 import { benchmarkRosters, defaultBenchmarkTargets, parseBenchmarkTargets, type BenchmarkTarget } from './benchmarks'
 import { Problem } from '../../components/Problem'
 
@@ -266,36 +265,19 @@ export function RosterCombatComparison({
           {(['attacker', 'defender'] as const).map((side, index) => (
             <div key={side} className={index ? 'col-start-3 row-start-1 min-w-0' : 'min-w-0'}>
               <p className="eyebrow mb-1">{index ? 'Targets' : 'Attackers'}</p>
-              <SearchableSelect
+              <RosterPicker
                 ariaLabel={index ? 'Defending roster' : 'Attacking roster'}
                 groups={[
                   {
                     label: sources ? 'Revealed rosters' : 'Rosters and targets',
-                    items: options.map((source) => {
-                      const faction = factions.data?.factions.find((entry) => entry.id === source.catalogueId)
-                      return {
-                        value: source.id,
-                        label: source.label,
-                        icon: faction ? (
-                          <FactionMark
-                            id={faction.slug}
-                            name={faction.displayName}
-                            edition={faction.edition}
-                            icon={faction.icon}
-                            size="sm"
-                          />
-                        ) : source.id === 'benchmarks' ? (
-                          <Crosshair className="size-4 text-info" aria-hidden />
-                        ) : (
-                          <ScrollText className="size-4 text-info" aria-hidden />
-                        ),
-                      }
-                    }),
+                    options: options.map((source) => ({
+                      ...source,
+                      icon: source.id === 'benchmarks' ? <Crosshair className="size-4 text-info" aria-hidden /> : undefined,
+                    })),
                   },
                 ]}
                 value={index ? defenderId : attackerId}
                 onValueChange={(id) => change(side, id)}
-                placeholder="Choose a roster"
                 disabled={running}
                 loading={!sources && Boolean(me.data) && saved.isPending}
               />

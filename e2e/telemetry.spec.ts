@@ -447,12 +447,12 @@ test('simulator setup checkpoints carry no unit contents', { tag: '@catalogue' }
 })
 
 test('example and recent matchup entry actions are attributed without their contents', { tag: '@catalogue' }, async ({ page }) => {
-  await signUp(page, uniqueName('Recent matchups'))
+  await signUp(page, uniqueName('Recent simulations'))
   await page.goto('/simulator')
   await page.waitForLoadState('networkidle')
   const events = await recordEvents(page)
   await page.getByRole('button', { name: 'Try an example', exact: true }).click()
-  const recent = page.getByRole('region', { name: 'Recent matchups', exact: true })
+  const recent = page.getByRole('region', { name: 'Recent simulations', exact: true })
   const link = recent.getByRole('link', { name: 'Intercessor Squad vs Necron Warriors', exact: true })
   await expect(link).toBeVisible()
   await link.click()

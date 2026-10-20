@@ -1,13 +1,22 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { X } from 'lucide-react'
+import { ChevronRight, X } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { decodeSimulatorState } from '../../../contracts/simulatorState'
 import { FactionMark } from '../../components/FactionMark'
 import { factionIndexQuery } from '../../queries'
 import { useMatchupHistory } from './matchupHistory'
 
-export function RecentMatchups({ surface, onOpen }: { surface: 'home' | 'simulator'; onOpen?: (shared: string) => void }) {
+/** `limit` stacks only the newest simulations and links to the rest on the simulator; without it they scroll in a row. */
+export function RecentSimulations({
+  surface,
+  onOpen,
+  limit,
+}: {
+  surface: 'home' | 'simulator'
+  onOpen?: (shared: string) => void
+  limit?: number
+}) {
   const { recent, forget } = useMatchupHistory()
   const { data: index } = useQuery({ ...factionIndexQuery(), enabled: recent.length > 0 })
   if (!recent.length) return null
@@ -17,19 +26,19 @@ export function RecentMatchups({ surface, onOpen }: { surface: 'home' | 'simulat
     return <FactionMark id={faction?.slug ?? catalogueId} name={faction?.displayName} icon={faction?.icon ?? null} size="sm" />
   }
   return (
-    <section aria-label="Recent matchups" className="min-w-0">
+    <section aria-label="Recent simulations" className="min-w-0">
       <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-        <span>Recent matchups</span>
+        <span>Recent simulations</span>
         <span className="readout">{recent.length}</span>
       </h2>
-      {/* Bleeds to the window on a phone, so the cut-off card reads as a scroller. */}
-      <ul className="-mx-3 mt-3 flex snap-x gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0">
-        {recent.map((entry) => {
+      {/* A row bleeds to the window on a phone, so the cut-off card reads as a scroller. */}
+      <ul className={limit ? 'mt-3 grid gap-2' : '-mx-3 mt-3 flex snap-x gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0'}>
+        {recent.slice(0, limit).map((entry) => {
           const [attacker, defender] = decodeSimulatorState(entry.shared)?.sides ?? []
           return (
             <li
               key={entry.shared}
-              className="group relative w-64 shrink-0 snap-start border border-edge bg-panel transition-colors hover:border-info hover:bg-raised"
+              className={`group relative border border-edge bg-panel transition-colors hover:border-info hover:bg-raised ${limit ? 'min-w-0' : 'w-64 shrink-0 snap-start'}`}
             >
               <Link
                 to="/simulator"
@@ -70,6 +79,11 @@ export function RecentMatchups({ surface, onOpen }: { surface: 'home' | 'simulat
           )
         })}
       </ul>
+      {limit && recent.length > limit ? (
+        <Link to="/simulator" className="eyebrow mt-2 inline-flex items-center gap-1 text-info hover:text-parchment">
+          All simulations <ChevronRight className="size-3.5" />
+        </Link>
+      ) : null}
     </section>
   )
 }

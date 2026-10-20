@@ -494,7 +494,7 @@
   "simulator-journey.spec.ts › a guest keeps no matchups, and a player’s follow their account to another device": 9.7,
   "simulator-journey.spec.ts › an editable example is remembered only after a result and reopens with its latest settings": 12.6,
   "simulator-journey.spec.ts › an invalid shared link leaves the simulator usable": 1.5,
-  "simulator-journey.spec.ts › recent matchups are accessible from signed-in home at desktop and phone widths": 9,
+  "simulator-journey.spec.ts › recent simulations are accessible from signed-in home at desktop and phone widths": 9,
   "simulator.spec.ts › a failed worker can be retried without reselecting either unit": 4.5,
   "simulator.spec.ts › a link that does not decode opens an empty simulator": 1.2,
   "simulator.spec.ts › a printed wound re-roll makes a weaker modifier show no effect": 4.8,
