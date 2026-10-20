@@ -24,7 +24,7 @@ export async function startCatalogueRefresh(buildDirectory: string, dataDirector
     if (running || signal.aborted) return
     running = true
     try {
-      const { stdout } = await execute(
+      const execution = execute(
         process.execPath,
         [path.join(buildDirectory, 'server/catalogue-refresh.mjs'), ...(!liveCatalogueRevision(root) ? ['--baseline'] : [])],
         {
@@ -35,7 +35,9 @@ export async function startCatalogueRefresh(buildDirectory: string, dataDirector
           maxBuffer: 4_000_000,
         },
       )
-      if (stdout.trim()) console.log(stdout.trim())
+      execution.child.stdout?.pipe(process.stdout)
+      execution.child.stderr?.pipe(process.stderr)
+      await execution
     } catch (error) {
       if (signal.aborted) return
       if (!liveCatalogueRevision(root)) throw error
