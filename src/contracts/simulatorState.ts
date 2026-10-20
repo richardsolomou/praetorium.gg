@@ -25,6 +25,8 @@ const sideSchema = z.object({
     .array(rosterPickSchema.omit({ attachedTo: true }))
     .max(7)
     .optional(),
+  /** A unit from a saved roster, simulated with that roster's detachment, enhancements, and attachments. */
+  roster: z.object({ id: idSchema, pickIndex: z.int().min(0).max(500) }).optional(),
 })
 export type SimulatorSide = z.infer<typeof sideSchema>
 
@@ -54,11 +56,14 @@ export function decodeSimulatorState(value: string | undefined): SimulatorState 
   }
 }
 
-/** The main units and sides a link pairs, ignoring attached units and settings; null until both sides are chosen. */
+/** The main units, their rosters, and sides a link pairs, ignoring attached units and settings; null until both sides are chosen. */
 export function simulatorPairing(shared: string) {
   const state = decodeSimulatorState(shared)
   if (!state?.sides.every(Boolean)) return null
-  return JSON.stringify([state.swapped, state.sides.map((side) => [side!.catalogueId, side!.pick.entryId])])
+  return JSON.stringify([
+    state.swapped,
+    state.sides.map((side) => [side!.catalogueId, side!.pick.entryId, ...(side!.roster ? [side!.roster.id] : [])]),
+  ])
 }
 
 /** A link that puts one datasheet on the chosen side, with the other side still to pick. */
