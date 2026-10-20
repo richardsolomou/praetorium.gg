@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.174.4
+
+### Patch Changes
+
+- e9f37be: Optimizing a unit's loadout in the combat simulator is faster again: in a full army it takes about a third of the time it did.
+- e9f37be: Comparing two whole rosters in the combat simulator gets its units ready several times sooner.
+
 ## 0.174.3
 
 ### Patch Changes
