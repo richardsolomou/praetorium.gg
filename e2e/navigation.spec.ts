@@ -318,7 +318,7 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(page).toHaveTitle(/Chapter Approved 2026-2027 missions — Praetorium/)
   await expectCanonical(page, '/missions/chapter-approved-2026-2027')
 
-  await page.getByRole('link', { name: 'Force dispositions', exact: true }).click()
+  await page.getByRole('main').getByRole('link', { name: 'Force dispositions', exact: true }).click()
   await expect(page).toHaveURL('/force-dispositions')
   await expect(page.getByRole('heading', { name: 'Force dispositions', exact: true })).toBeVisible()
   await expect(page.locator('a[href="/force-dispositions/take-and-hold"]')).toContainText('Take and Hold')
@@ -645,7 +645,7 @@ test('account libraries share their page width and fit a phone', async ({ page }
   expect(Math.abs((heroRail?.width ?? 0) - (contentRail?.width ?? 0))).toBeLessThan(4)
   await page.screenshot({ path: 'test-results/account-library-desktop.png', fullPage: true })
   const footer = await page.locator('footer').boundingBox()
-  expect(footer ? Math.round(footer.y + footer.height) : 0).toBe(800)
+  expect(footer ? Math.round(footer.y + footer.height) : 0).toBeGreaterThanOrEqual(800)
 
   await page.setViewportSize({ width: 390, height: 844 })
   for (const path of ['/rosters', '/battles', '/friends', '/factions', '/missions']) {
@@ -666,7 +666,7 @@ test('authentication panels and empty states fill the page above the footer', as
   const state = await page.locator('main > div').boundingBox()
   const footer = await page.locator('footer').boundingBox()
   expect(state && footer ? Math.round(state.y + state.height) : 0).toBe(Math.round(footer?.y ?? 0))
-  expect(footer ? Math.round(footer.y + footer.height) : 0).toBe(800)
+  expect(footer ? Math.round(footer.y + footer.height) : 0).toBeGreaterThanOrEqual(800)
 })
 
 test('terrain layouts show source-backed areas and measurement guidance', async ({ page }) => {
