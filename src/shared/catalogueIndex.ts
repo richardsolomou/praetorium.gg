@@ -27,7 +27,7 @@ export type LoadedCatalogue = {
    */
   definitionTexts?: (raw: string) => string | null
 }
-const DISPOSITIONS = new Set(['take-and-hold', 'disruption', 'purge-the-foe', 'priority-assets', 'reconnaissance'])
+export const DISPOSITIONS = new Set(['take-and-hold', 'disruption', 'purge-the-foe', 'priority-assets', 'reconnaissance'])
 const DETACHMENT_ENTRY = 'detachment'
 export function catalogueFromIndex(index: CatalogueIndex, files: readonly CatalogueFile[], datacards: LoadedDatacards): LoadedCatalogue {
   const detachments = detachmentsOf(files, index)

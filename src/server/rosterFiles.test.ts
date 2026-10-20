@@ -1639,6 +1639,34 @@ Exported with New Recruit v36.49, Data Version: v2`
     expect(imported).toMatchObject({ disposition: 'purge-the-foe', detachmentIds: ['pantheon'] })
   })
 
+  it('takes a translated force disposition from its detachment', () => {
+    const imported = importRosterFile(
+      { file: list('CHARACTERS\n\nLokhust Lord (80 Points)').replace('Detachment Points)\n', 'Detachment Points)\nStörangriff\n') },
+      loaded,
+    )
+
+    expect(imported).toMatchObject({ disposition: 'disruption', unknown: [] })
+  })
+
+  it('reports a force disposition its detachments cannot settle', () => {
+    const imported = importRosterFile(
+      {
+        file: list('CHARACTERS\n\nLokhust Lord (80 Points)')
+          .replace(
+            'Pantheon of Woe (2 Detachment Points)',
+            'Pantheon of Woe (2 Detachment Points)\nSkyshroud Spearhead (1 Detachment Point)',
+          )
+          .replace('Detachment Point)\n', 'Detachment Point)\nStörangriff\n'),
+      },
+      loaded,
+    )
+
+    expect(imported).toMatchObject({
+      disposition: null,
+      unknown: [{ name: 'Störangriff', reason: 'this force disposition is not recognised; choose one in setup' }],
+    })
+  })
+
   it('attaches a leader listed with its bodyguard', () => {
     const imported = importRosterFile(
       {
