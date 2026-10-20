@@ -3,7 +3,6 @@ import { createHash } from 'node:crypto'
 import { readFile, writeFile, rename } from 'node:fs/promises'
 import { tsImport } from 'tsx/esm/api'
 import { build, type Plugin } from 'vite'
-import { compilerFingerprint } from './compilerSources.ts'
 
 export function offlineAppPlugin(): Plugin {
   return {
@@ -51,10 +50,13 @@ export function offlineAppPlugin(): Plugin {
       // tsx loads the reference compiler at build time, so the Vite config does not load application modules.
       if (process.env.CATALOGUE_RUNTIME_FETCH !== 'true') {
         const reference: typeof import('./offlineReferenceCache.ts') = await tsImport('./offlineReferenceCache.ts', import.meta.url)
-        const runtime: typeof import('./catalogueRuntimeCache.ts') = await tsImport('./catalogueRuntimeCache.ts', import.meta.url)
+        const { checkoutReferenceKey }: typeof import('./checkoutReferenceKey.ts') = await tsImport(
+          './checkoutReferenceKey.ts',
+          import.meta.url,
+        )
         const { catalogueDataDirectory }: typeof import('./catalogueFiles.ts') = await tsImport('./catalogueFiles.ts', import.meta.url)
         const directory = catalogueDataDirectory()
-        const key = reference.referenceBundleKey(directory, runtime.runtimeCacheKey(directory, await compilerFingerprint()))
+        const key = await checkoutReferenceKey(directory)
         console.log(`Prepared the offline reference (${await reference.prepareReferenceBundle(outDir, key, directory)})`)
       }
     },

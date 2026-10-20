@@ -23,6 +23,7 @@ import { gameReferencesFor } from '../src/shared/gameReferences'
 import { pickerUnitsFor } from '../src/shared/pickerUnits'
 import { rosterCombatant } from '../src/shared/rosterCombatRules'
 import { rosterLoadoutDatasheets } from '../src/shared/rosterReads'
+import { checkoutReferenceKey } from './lib/checkoutReferenceKey'
 import { prepareReferenceBundle } from './lib/offlineReferenceCache'
 import { namesIn, normal, sourceProse, stringsIn } from './lib/sourceProse.fixtures'
 
@@ -104,7 +105,7 @@ describe.skipIf(!exists)('what the browser gets from Praetorium', () => {
     const out = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-offline-'))
     try {
       fs.mkdirSync(path.join(out, 'assets'))
-      await prepareReferenceBundle(out, root)
+      await prepareReferenceBundle(out, await checkoutReferenceKey(root), root)
       for (const file of fs.readdirSync(path.join(out, 'assets'))) {
         const bundle = decodeReferenceBundle(JSON.parse(gunzipSync(fs.readFileSync(path.join(out, 'assets', file))).toString())) as {
           queries: unknown
