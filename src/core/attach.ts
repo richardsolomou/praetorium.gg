@@ -35,6 +35,8 @@ const attachmentCache = new WeakMap<CatalogueIndex, WeakMap<Definition, Attachme
 const substitutionCache = new WeakMap<CatalogueIndex, ReadonlyMap<string, readonly string[]>>()
 const categoryTargetCache = new WeakMap<CatalogueIndex, readonly string[]>()
 const associationCandidateCache = new WeakMap<CatalogueIndex, readonly Definition[]>()
+/** An association's targets by its answers about the unit's own selection, the only input that varies between calls. */
+const associationTargetCache = new WeakMap<CatalogueIndex, WeakMap<Association, Map<string, string[]>>>()
 
 export function attachmentLimitsOf(definition: Definition, index: CatalogueIndex): AttachmentLimits {
   const sources = [...new Set([definition, targetOf(definition, index.definitions)])]
@@ -123,11 +125,20 @@ function attachmentFromAssociations(definition: Definition, selection: Selection
       .map((id) => index.definitions.get(id))
       .filter((candidate): candidate is Definition => Boolean(candidate))
   if (!associationCandidateCache.has(index)) associationCandidateCache.set(index, candidates)
+  let byAssociation = associationTargetCache.get(index)
+  if (!byAssociation) associationTargetCache.set(index, (byAssociation = new WeakMap()))
   const found: Attachment[] = []
   for (const { association, kind } of associations) {
-    const targets = candidates
-      .filter((candidate) => associationHolds(association, selection, candidate, index))
-      .map((candidate) => nameOf(candidate, index.definitions))
+    let byAnswers = byAssociation.get(association)
+    if (!byAnswers) byAssociation.set(association, (byAnswers = new Map()))
+    const answers = selfAnswers(association, selection, index).join('')
+    let targets = byAnswers.get(answers)
+    if (!targets) {
+      targets = candidates
+        .filter((candidate) => associationHolds(association, selection, candidate, index))
+        .map((candidate) => nameOf(candidate, index.definitions))
+      byAnswers.set(answers, targets)
+    }
     if (targets.length) found.push({ kind, targets })
   }
   if (!found.length) return null
@@ -139,6 +150,17 @@ const associationKind = (association: Association): Attachment['kind'] | null =>
   if (name === 'leading') return 'leader'
   if (name === 'supporting') return 'support'
   return null
+}
+
+function selfAnswers(group: Association | ConditionGroup, selection: Selection, index: CatalogueIndex): number[] {
+  return [
+    ...(group.conditions ?? []).flatMap((condition) =>
+      condition.field === 'selections' && condition.queryFromSelf
+        ? [selectionHas(selection, condition.childId, condition.includeChildSelections === true, index) ? 1 : 0]
+        : [],
+    ),
+    ...(group.conditionGroups ?? []).flatMap((nested) => selfAnswers(nested, selection, index)),
+  ]
 }
 
 function associationHolds(association: Association, selection: Selection, candidate: Definition, index: CatalogueIndex): boolean {
