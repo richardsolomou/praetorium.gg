@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.173.0
+
+### Minor Changes
+
+- b475841: Suggest wishlist datasheets that other players' public rosters field in your armies and none of your own rosters use.
+
+### Patch Changes
+
+- b475841: Show a collection datasheet's owned, built and painted counts directly beneath its name.
+- b475841: Open a datasheet from its name in the collection's From your battles suggestions.
+- b475841: Show faction marks and points in the collection and wishlist datasheet pickers, matching the simulator's unit picker.
+
 ## 0.172.1
 
 ### Patch Changes
