@@ -24,7 +24,7 @@ type Lockfile = {
   snapshots: Record<string, { dependencies?: Dependencies; optionalDependencies?: Dependencies }>
 }
 
-export function nativeInput(file: string) {
+export function mobileInput(file: string) {
   if (/\.(?:md|(?:test|spec)\.[^.]+)$/.test(file) || file.includes('/Tests/')) return false
   return (
     file.startsWith('mobile/') ||
@@ -33,7 +33,7 @@ export function nativeInput(file: string) {
   )
 }
 
-function iosFingerprint(root: string, revision: string) {
+export function iosDeliveryFingerprint(root: string, revision: string, env: NodeJS.ProcessEnv = process.env) {
   const git = (...args: string[]) =>
     execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 8_000_000, stdio: ['ignore', 'pipe', 'pipe'] })
   const commit = git('rev-parse', '--verify', '--end-of-options', `${revision}^{commit}`).trim()
@@ -47,7 +47,7 @@ function iosFingerprint(root: string, revision: string) {
       }),
   )
   const read = (file: string) => git('show', `${commit}:${file}`)
-  const inputs = new Set([...files.keys()].filter(nativeInput))
+  const inputs = new Set([...files.keys()].filter(mobileInput))
   const importedPackages = new Map<string, Set<string>>()
   for (const file of inputs) {
     if (!/\.[cm]?[jt]sx?$/.test(file)) continue
@@ -111,19 +111,29 @@ function iosFingerprint(root: string, revision: string) {
   }
   const manifest = JSON.parse(read('package.json')) as { packageManager?: string; engines?: Record<string, string> }
   const hash = createHash('sha256').update(JSON.stringify([manifest.packageManager, manifest.engines, lock.settings]))
+  const publicEnvironment = Object.keys(env)
+    .filter((key) => key.startsWith('EXPO_PUBLIC_') && env[key] !== undefined)
+    .sort()
+    .map((key) => [key, env[key]])
+  hash.update(JSON.stringify(publicEnvironment))
+  const workspace = parse(read('pnpm-workspace.yaml')) as Record<string, unknown>
+  delete workspace.minimumReleaseAge
+  delete workspace.minimumReleaseAgeExclude
+  inputs.delete('pnpm-workspace.yaml')
+  hash.update(JSON.stringify(workspace))
   for (const file of [...inputs].sort()) hash.update(file).update('\0').update(files.get(file)!).update('\0')
   hash.update(JSON.stringify([...selected.entries()].sort(([left], [right]) => left.localeCompare(right))))
   return hash.digest('hex')
 }
 
 export function iosDeliveryChanged(root: string, base: string, revision: string, pending: string[] = []) {
-  const current = iosFingerprint(root, revision)
+  const current = iosDeliveryFingerprint(root, revision)
   return ![base, ...pending].some((previous) => {
     if (/^0+$/.test(previous)) return false
     const ancestry = spawnSync('git', ['merge-base', '--is-ancestor', revision, previous], { cwd: root, encoding: 'utf8' })
     if (ancestry.status === 0) return true
     if (ancestry.status !== 1) throw new Error(`Cannot compare iOS revisions: ${ancestry.stderr}`, { cause: ancestry.error })
-    return iosFingerprint(root, previous) === current
+    return iosDeliveryFingerprint(root, previous) === current
   })
 }
 

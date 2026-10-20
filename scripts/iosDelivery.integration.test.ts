@@ -4,7 +4,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, expect, test } from 'vitest'
 import { parse, stringify } from 'yaml'
-import { iosDeliveryChanged } from './iosDelivery'
+import { iosDeliveryChanged, iosDeliveryFingerprint } from './iosDelivery'
+import { planIosDelivery } from './iosDeliveryPlan'
 
 let root: string
 let base: string
@@ -30,7 +31,7 @@ const initialLock = {
 }
 
 const releaseWorkflow = parse(readFileSync(new URL('../.github/workflows/release.yml', import.meta.url), 'utf8')) as {
-  jobs: { 'after-release': { steps: { id?: string; run?: string }[] } }
+  jobs: { 'after-release': { steps: { id?: string; name?: string; run?: string }[] } }
 }
 const checkCommand = releaseWorkflow.jobs['after-release'].steps.find((step) => step.id === 'ios')!.run!
 
@@ -98,6 +99,36 @@ test('skips iOS delivery when only web code changes', () => {
   expect(iosDeliveryChanged(root, base, commit())).toBe(false)
 })
 
+test.each(['EXPO_PUBLIC_POSTHOG_API_KEY', 'EXPO_PUBLIC_POSTHOG_HOST', 'EXPO_PUBLIC_APP_URL'])(
+  'publishes an OTA update without rebuilding when %s changes',
+  (name) => {
+    const previous = {
+      runtimeVersion: 'installed-runtime',
+      appVersion: '1.0.0',
+      inputFingerprint: iosDeliveryFingerprint(root, base, { [name]: 'previous-value' }),
+    }
+    const current = { ...previous, inputFingerprint: iosDeliveryFingerprint(root, base, { [name]: 'replacement-value' }) }
+    const receipt = { sha: base, payload: previous }
+    expect(planIosDelivery(root, base, current, receipt, receipt, false)).toEqual({ build: false, update: true })
+  },
+)
+
+test('distinguishes an unset public variable from an empty value', () => {
+  expect(iosDeliveryFingerprint(root, base, {})).not.toBe(iosDeliveryFingerprint(root, base, { EXPO_PUBLIC_APP_URL: '' }))
+})
+
+test('ignores private environment changes in the delivery fingerprint', () => {
+  expect(iosDeliveryFingerprint(root, base, { EXPO_TOKEN: 'first-token' })).toBe(
+    iosDeliveryFingerprint(root, base, { EXPO_TOKEN: 'replacement-token' }),
+  )
+})
+
+test('keeps the delivery fingerprint stable when public variable order changes', () => {
+  expect(iosDeliveryFingerprint(root, base, { EXPO_PUBLIC_APP_URL: 'app', EXPO_PUBLIC_POSTHOG_HOST: 'host' })).toBe(
+    iosDeliveryFingerprint(root, base, { EXPO_PUBLIC_POSTHOG_HOST: 'host', EXPO_PUBLIC_APP_URL: 'app' }),
+  )
+})
+
 test('skips web version, scripts, and dependency changes in the root manifest', () => {
   file(
     'package.json',
@@ -120,12 +151,25 @@ test('skips a web-only lockfile update even when the root importer and package r
   expect(iosDeliveryChanged(root, base, commit())).toBe(false)
 })
 
-test.each(['mobile/src/localStateStorage.ts', 'src/contracts/localState.ts'])('rebuilds iOS when %s changes', (name) => {
+test('skips dependency age exceptions and workspace comments', () => {
+  file(
+    'pnpm-workspace.yaml',
+    'packages: [., mobile]\n# Reviewed web SDK update\nminimumReleaseAge: 10080\nminimumReleaseAgeExclude: [web@2.0.0]\n',
+  )
+  expect(iosDeliveryChanged(root, base, commit())).toBe(false)
+})
+
+test('delivers changes to workspace package extensions', () => {
+  file('pnpm-workspace.yaml', 'packages: [., mobile]\npackageExtensions: {native: {dependencies: {storage: 1.0.0}}}\n')
+  expect(iosDeliveryChanged(root, base, commit())).toBe(true)
+})
+
+test.each(['mobile/src/localStateStorage.ts', 'src/contracts/localState.ts'])('delivers mobile JavaScript when %s changes', (name) => {
   file(name, `${readFileSync(path.join(root, name), 'utf8')}\nchanged native input`)
   expect(iosDeliveryChanged(root, base, commit())).toBe(true)
 })
 
-test('rebuilds for shared code imported transitively by native storage', () => {
+test('delivers shared code imported transitively by native storage', () => {
   file('src/contracts/localState.ts', "export { parseLocalState } from './storageValidation'\n")
   file('src/contracts/storageValidation.ts', 'export const parseLocalState = () => null\n')
   base = commit()
@@ -144,26 +188,26 @@ test.each(["import type { State } from './webModel'", "export type { State } fro
   },
 )
 
-test('rebuilds when native storage is deleted', () => {
+test('delivers when native storage is deleted', () => {
   rmSync(path.join(root, 'mobile/src/localStateStorage.ts'))
   expect(iosDeliveryChanged(root, base, commit())).toBe(true)
 })
 
-test('rebuilds when a native transitive dependency changes without changing the mobile importer', () => {
+test('delivers when a native transitive dependency changes without changing the mobile importer', () => {
   const lock = structuredClone(initialLock)
   lock.packages['storage@1.0.0'].resolution.integrity = 'replacement native bytes'
   file('pnpm-lock.yaml', stringify(lock))
   expect(iosDeliveryChanged(root, base, commit())).toBe(true)
 })
 
-test('rebuilds when a root dependency used by shared native code changes', () => {
+test('delivers when a root dependency used by shared native code changes', () => {
   const lock = structuredClone(initialLock)
   lock.packages['zod@4.5.4'].resolution.integrity = 'replacement shared bytes'
   file('pnpm-lock.yaml', stringify(lock))
   expect(iosDeliveryChanged(root, base, commit())).toBe(true)
 })
 
-test('rebuilds when the mobile importer changes', () => {
+test('delivers when the mobile importer changes', () => {
   const lock = structuredClone(initialLock)
   lock.importers.mobile.dependencies.native.specifier = '^1.0.0'
   file('pnpm-lock.yaml', stringify(lock))
@@ -177,7 +221,7 @@ test('includes a mobile version bump in the generated release commit', () => {
   expect(iosDeliveryChanged(root, base, commit())).toBe(true)
 })
 
-test('rebuilds when there is no recorded iOS delivery', () => {
+test('delivers when there is no recorded iOS delivery', () => {
   expect(iosDeliveryChanged(root, '0'.repeat(40), base)).toBe(true)
 })
 
@@ -188,7 +232,7 @@ test('skips another delivery when a pending build already includes the native ch
   expect(iosDeliveryChanged(root, base, commit(), [pending])).toBe(false)
 })
 
-test('rebuilds when a pending build does not include a later native change', () => {
+test('delivers when a pending build does not include a later native change', () => {
   file('mobile/src/localStateStorage.ts', 'new native storage')
   const pending = commit()
   file('mobile/src/localStateStorage.ts', 'additional native storage change')
@@ -262,4 +306,18 @@ test('the release workflow retries native changes after a completed failed deliv
 
 test('the release workflow stops if GitHub delivery history cannot be read', () => {
   expect(releaseCheck(base, [], true)).toMatchObject({ status: 23, output: '' })
+})
+
+test('automatic releases dispatch delivery without forcing a native build', () => {
+  file('test-bin/gh', '#!/bin/sh\nprintf "%s\\n" "$@"\n')
+  execFileSync('chmod', ['+x', 'test-bin/gh'], { cwd: root })
+  const command = releaseWorkflow.jobs['after-release'].steps.find((step) => step.name === 'Deliver changed iOS application')!.run!
+  const args = execFileSync('bash', ['-euo', 'pipefail', '-c', command], {
+    cwd: root,
+    encoding: 'utf8',
+    env: { ...process.env, PATH: `${root}/test-bin:${process.env.PATH}`, GITHUB_REPOSITORY: 'test/app', RELEASE_REVISION: base },
+  })
+    .trim()
+    .split('\n')
+  expect(args).toContain('force_build=false')
 })
