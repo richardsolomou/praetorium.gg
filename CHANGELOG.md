@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.174.3
+
+### Patch Changes
+
+- 2f0ac37: Import New Recruit chapter rosters with their faction, disposition, attached units, and allied datasheets intact.
+
 ## 0.174.2
 
 ### Patch Changes
