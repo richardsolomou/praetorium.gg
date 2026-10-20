@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { COLLECTION_PHOTO_MAX_BYTES, collectionPhotoPath } from '../contracts/collection'
+import { ifNoneMatch } from './ifNoneMatch'
 import { notFound } from './notFound'
 import { privateImageResponse, type PrivateObjects, storePrivateImage } from './privateImages'
 import type { SpacetimeRepository } from './spacetimeRepository'
@@ -107,11 +108,17 @@ export function collectionPhotoStore(
     },
 
     /** Administrators see every photo, including those reports hold. */
-    async response(photoId: string, viewerId: string | null, admin = false) {
+    async response(photoId: string, viewerId: string | null, admin = false, request?: Request) {
       if (!z.uuid().safeParse(photoId).success) return notFound()
       const photo = admin ? await repository.collectionPhotoForAdmin(photoId) : await repository.collectionPhoto(photoId, viewerId)
       if (!photo) return notFound()
-      return privateImageResponse(privateObjects(), `${PREFIX}${photoId}`)
+      const headers = { 'Cache-Control': 'private, no-cache', ETag: `"${photoId}"` }
+      if (request && ifNoneMatch(request, headers.ETag)) return new Response(null, { status: 304, headers })
+      const response = await privateImageResponse(privateObjects(), `${PREFIX}${photoId}`)
+      if (response.ok) {
+        for (const [name, value] of Object.entries(headers)) response.headers.set(name, value)
+      }
+      return response
     },
 
     /** Deletes stored objects whose photos are gone; safe to run on every replica at once, since deleting twice is harmless. */

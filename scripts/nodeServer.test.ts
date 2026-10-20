@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { forwardVisitor, spacetimeOrigin, spacetimeRoute, uncacheAssetMiss } from './nodeServer'
+import { cacheAssetResponse, forwardVisitor, spacetimeOrigin, spacetimeRoute } from './nodeServer'
 
 const database = 'praetorium-staging'
 
@@ -29,7 +29,7 @@ it('accepts HTTP only for loopback or one configured internal service', () => {
 it('stops a CDN or browser from keeping a missing build asset', () => {
   const proxied = (url: string, statusCode: number) => {
     const response = { statusCode, headers: { 'cache-control': statusCode === 200 ? 'public, max-age=31536000, immutable' : undefined } }
-    uncacheAssetMiss({ url }, response)
+    cacheAssetResponse({ url, method: 'GET' }, response)
     return response.headers['cache-control']
   }
   expect([proxied('/assets/index-BRgM8bBN.js', 404), proxied('/assets/index-BRgM8bBN.js', 200), proxied('/rosters/missing', 404)]).toEqual([
@@ -38,6 +38,42 @@ it('stops a CDN or browser from keeping a missing build asset', () => {
     undefined,
   ])
 })
+
+it.each([
+  ['/guides/build-an-army-4df98ae9.png', 'public, max-age=31536000, immutable'],
+  ['/guides/build-an-army-4df98ae9.png?download=1', 'public, max-age=31536000, immutable'],
+  ['/logo.svg', 'public, max-age=86400'],
+  ['/favicon.svg', 'public, max-age=86400'],
+  ['/guides/build-an-army', undefined],
+  ['/guides/unversioned.png', undefined],
+  ['/api/collection-photos/photo', undefined],
+  ['/api/previews/rosters/list', undefined],
+])('sets a static image policy for %s', (url, expected) => {
+  const response = { statusCode: 200, headers: {} as Record<string, string> }
+  cacheAssetResponse({ url, method: 'GET' }, response)
+  expect(response.headers['cache-control']).toBe(expected)
+})
+
+it.each([200, 304])('keeps the static image policy on HEAD responses with status %s', (statusCode) => {
+  const response = { statusCode, headers: {} as Record<string, string> }
+  cacheAssetResponse({ url: '/logo.svg', method: 'HEAD' }, response)
+  expect(response.headers['cache-control']).toBe('public, max-age=86400')
+})
+
+it.each([404, 500])('does not cache a static image response with status %s', (statusCode) => {
+  const response = { statusCode, headers: { 'cache-control': 'public, max-age=31536000, immutable' } }
+  cacheAssetResponse({ url: '/guides/missing-12345678.png', method: 'GET' }, response)
+  expect(response.headers['cache-control']).toBe('no-store')
+})
+
+it.each([{ 'cache-control': 'private, no-store' }, { 'set-cookie': ['session=private'] }])(
+  'preserves an upstream privacy boundary',
+  (headers) => {
+    const response = { statusCode: 200, headers: { ...headers } }
+    cacheAssetResponse({ url: '/logo.svg', method: 'GET' }, response)
+    expect(response.headers).toEqual(headers)
+  },
+)
 
 const forwarded = (headers: Record<string, string>) => {
   const request = { headers: { ...headers } }

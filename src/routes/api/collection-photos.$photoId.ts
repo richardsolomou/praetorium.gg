@@ -14,7 +14,7 @@ export const Route = createFileRoute('/api/collection-photos/$photoId')({
             () => true,
             () => false,
           ))
-        return app().collectionPhotos.response(params.photoId, viewer?.id ?? null, admin)
+        return app().collectionPhotos.response(params.photoId, viewer?.id ?? null, admin, request)
       },
     },
   },
