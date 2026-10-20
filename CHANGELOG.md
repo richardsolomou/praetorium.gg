@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.173.3
+
+### Patch Changes
+
+- dc23723: Collection and wishlist cards take less space, suggestions fill available slots, and uploaded photos load faster from smaller previews.
+
 ## 0.173.2
 
 ### Patch Changes
