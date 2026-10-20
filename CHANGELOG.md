@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.170.0
+
+### Minor Changes
+
+- 73fd3fa: Simulate a unit from one of your saved rosters or a friend's public roster, with its detachment, enhancements and attachments, against any unit in the combat simulator.
+
+### Patch Changes
+
+- 73fd3fa: Call recent matchups recent simulations, and show only the newest three on the home page with a link to the rest in the simulator.
+
 ## 0.169.4
 
 ### Patch Changes
