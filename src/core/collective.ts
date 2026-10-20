@@ -13,22 +13,43 @@ import { type CatalogueIndex, type Definition, targetOf } from './catalogue'
 
 const resolve = (definition: Definition, index: CatalogueIndex) => targetOf(definition, index.definitions)
 
+// Every count the evaluator reads asks these of a definition, and a loaded catalogue's definitions never change.
+const collectiveCache = new WeakMap<CatalogueIndex, WeakMap<Definition, boolean>>()
+const collectiveGroupCache = new WeakMap<CatalogueIndex, WeakMap<Definition, boolean>>()
+
+function remembered(
+  store: WeakMap<CatalogueIndex, WeakMap<Definition, boolean>>,
+  definition: Definition,
+  index: CatalogueIndex,
+  answer: () => boolean,
+) {
+  let answers = store.get(index)
+  if (!answers) store.set(index, (answers = new WeakMap()))
+  let known = answers.get(definition)
+  if (known === undefined) answers.set(definition, (known = answer()))
+  return known
+}
+
 /** The entry itself is marked as storing the unit's total. */
 export function isCollective(definition: Definition, index: CatalogueIndex): boolean {
-  const target = resolve(definition, index)
-  return Boolean(('collective' in definition && definition.collective) || ('collective' in target && target.collective))
+  return remembered(collectiveCache, definition, index, () => {
+    const target = resolve(definition, index)
+    return Boolean(('collective' in definition && definition.collective) || ('collective' in target && target.collective))
+  })
 }
 
 /** A group whose options share one squad-wide capacity, because one of them stores the unit's total. */
 export function isCollectiveGroup(definition: Definition, index: CatalogueIndex): boolean {
-  const target = resolve(definition, index)
-  if (target.type !== undefined) return false
-  const children = [
-    ...(target.selectionEntries ?? []),
-    ...(target.selectionEntryGroups ?? []),
-    ...(target.entryLinks ?? []).filter((link) => index.definitions.has(link.targetId)),
-  ]
-  return children.some((child) => isCollective(child, index))
+  return remembered(collectiveGroupCache, definition, index, () => {
+    const target = resolve(definition, index)
+    if (target.type !== undefined) return false
+    const children = [
+      ...(target.selectionEntries ?? []),
+      ...(target.selectionEntryGroups ?? []),
+      ...(target.entryLinks ?? []).filter((link) => index.definitions.has(link.targetId)),
+    ]
+    return children.some((child) => isCollective(child, index))
+  })
 }
 
 /**
