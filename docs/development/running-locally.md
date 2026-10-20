@@ -57,10 +57,10 @@ Run the complete affected scenario before shipping, including full navigation, r
 
 `just rosters-fetch` exports saved selections into `data-dev/production-rosters.json`; `just rosters-import` copies them into this worktree's running preview account (`preview@praetorium.gg` / `preview-preview-preview`) as private rosters with new IDs, preserving local edits on repeated imports. `scripts/productionRosters.ts` owns both.
 
-For the current Dokploy host, add these non-secret settings to the ignored `.env.local`:
+Set these non-secret values in the ignored `.env.local` for the host running the live web service; the deployment controller can be elsewhere:
 
 ```dotenv
-PRODUCTION_SSH_HOST=hetzner
+PRODUCTION_SSH_HOST=user@your-production-host
 PRODUCTION_WEB_SERVICE=praetoriumgg-web-ecmusg
 ```
 
