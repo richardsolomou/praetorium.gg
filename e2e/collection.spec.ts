@@ -264,7 +264,20 @@ test('collection photos are added together, removed only after confirmation, and
   const guest = await guestContext.newPage()
   const status = async (reader: Page, src: string) => (await reader.request.get(new URL(src, page.url()).href)).status()
   const served = await guest.request.get(new URL(second, page.url()).href)
-  expect([served.status(), served.headers()['cache-control'], await status(guest, first)]).toEqual([200, 'private, no-store', 200])
+  expect([served.status(), served.headers()['cache-control'], await status(guest, first)]).toEqual([200, 'private, no-cache', 200])
+  const etag = served.headers()['etag']
+  const revalidated = await guest.request.get(new URL(second, page.url()).href, { headers: { 'If-None-Match': etag } })
+  expect([revalidated.status(), await revalidated.text()]).toEqual([304, ''])
+
+  const cachedThumbnail = page.waitForRequest((request) => new URL(request.url()).pathname === first)
+  await page.reload()
+  expect((await (await cachedThumbnail).allHeaders())['if-none-match']).toBe(`"${first.split('/').at(-1)}"`)
+  await loaded(page.getByRole('button', { name: 'Photos of your Overlord', exact: true }).locator('img'))
+  const downloaded = await page.evaluate((src) => {
+    const resource = performance.getEntriesByName(new URL(src, location.href).href).at(-1) as PerformanceResourceTiming
+    return resource.encodedBodySize
+  }, first)
+  expect(downloaded).toBe(0)
   await guest.goto(new URL(`/users/${owner}?tab=collection`, page.url()).href)
   const thumbnail = guest.locator('[data-collection-unit="Overlord"]').getByRole('img', { name: 'Overlord', exact: true })
   await loaded(thumbnail)
@@ -273,6 +286,8 @@ test('collection photos are added together, removed only after confirmation, and
   const operator = await productOperator()
   await operator.setCollectionPublished(owner, false)
   expect([await status(guest, second), await status(page, second)]).toEqual([404, 200])
+  const hidden = await guest.request.get(new URL(second, page.url()).href, { headers: { 'If-None-Match': etag } })
+  expect([hidden.status(), hidden.headers()['cache-control']]).toEqual([404, 'no-store'])
   await operator.setCollectionPublished(owner, true)
 
   await page.getByRole('button', { name: 'Photos of your Overlord', exact: true }).click()

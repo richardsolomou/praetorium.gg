@@ -1,9 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { collectionPhotoReportEmail, collectionPhotoStore } from './collectionPhotos'
 import type { PrivateObjects } from './privateImages'
 
 const WEBP = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBPVP8 ')])
 const image = `data:image/webp;base64,${WEBP.toString('base64')}`
+const conditional = (photoId: string, etag = `"${photoId}"`) =>
+  new Request(`https://praetorium.gg/api/collection-photos/${photoId}`, { headers: { 'If-None-Match': etag } })
 
 function memoryObjects() {
   const stored = new Map<string, Uint8Array>()
@@ -75,15 +77,72 @@ describe('collectionPhotoStore', () => {
     expect(stored.size).toBe(0)
   })
 
-  it('serves a shared photo without caching', async () => {
+  it('lets browsers store a photo but requires access revalidation before reuse', async () => {
     const { objects } = memoryObjects()
     const store = collectionPhotoStore(fakeRepository(), () => objects)
-    const response = await store.response(await store.upload('owner', 'warriors', image), null)
-    expect([response.status, response.headers.get('content-type'), response.headers.get('cache-control')]).toEqual([
-      200,
-      'image/webp',
-      'private, no-store',
+    const photoId = await store.upload('owner', 'warriors', image)
+    const response = await store.response(photoId, null)
+    expect([
+      response.status,
+      response.headers.get('content-type'),
+      response.headers.get('cache-control'),
+      response.headers.get('etag'),
+    ]).toEqual([200, 'image/webp', 'private, no-cache', `"${photoId}"`])
+  })
+
+  it('revalidates a cached photo without reading or sending its stored bytes again', async () => {
+    const { objects } = memoryObjects()
+    const store = collectionPhotoStore(fakeRepository(), () => objects)
+    const photoId = await store.upload('owner', 'warriors', image)
+    await store.response(photoId, null)
+    vi.spyOn(objects, 'get').mockRejectedValue(new Error('read cached image'))
+    const response = await store.response(photoId, null, false, conditional(photoId))
+    expect([response.status, response.headers.get('cache-control'), response.headers.get('etag'), await response.text()]).toEqual([
+      304,
+      'private, no-cache',
+      `"${photoId}"`,
+      '',
     ])
+  })
+
+  it('sends the image when the cached validator differs', async () => {
+    const { objects } = memoryObjects()
+    const store = collectionPhotoStore(fakeRepository(), () => objects)
+    const photoId = await store.upload('owner', 'warriors', image)
+    const response = await store.response(photoId, null, false, conditional(photoId, '"other"'))
+    expect([response.status, Buffer.from(await response.arrayBuffer())]).toEqual([200, WEBP])
+  })
+
+  it.each(['private', 'held', 'removed'] as const)('refuses a cached photo after it becomes %s', async (state) => {
+    const { objects } = memoryObjects()
+    const repository = fakeRepository()
+    const store = collectionPhotoStore(repository, () => objects)
+    const photoId = await store.upload('owner', 'warriors', image)
+    await store.response(photoId, 'reader')
+    if (state === 'private') repository.photos.get(photoId)!.published = false
+    if (state === 'held') await store.report('reader', photoId)
+    if (state === 'removed') repository.photos.delete(photoId)
+    const response = await store.response(photoId, 'reader', false, conditional(photoId))
+    expect([response.status, response.headers.get('cache-control'), response.headers.get('etag')]).toEqual([404, 'no-store', null])
+  })
+
+  it('checks the current viewer before revalidating a private photo cached by its owner', async () => {
+    const { objects } = memoryObjects()
+    const repository = fakeRepository()
+    const store = collectionPhotoStore(repository, () => objects)
+    const photoId = await store.upload('owner', 'warriors', image)
+    repository.photos.get(photoId)!.published = false
+    await store.response(photoId, 'owner')
+    expect((await store.response(photoId, null, false, conditional(photoId))).status).toBe(404)
+  })
+
+  it('keeps a missing object response uncacheable', async () => {
+    const { objects, stored } = memoryObjects()
+    const store = collectionPhotoStore(fakeRepository(), () => objects)
+    const photoId = await store.upload('owner', 'warriors', image)
+    stored.clear()
+    const response = await store.response(photoId, 'owner')
+    expect([response.status, response.headers.get('cache-control'), response.headers.get('etag')]).toEqual([404, 'no-store', null])
   })
 
   it('hides a photo from other readers once its owner stops sharing', async () => {

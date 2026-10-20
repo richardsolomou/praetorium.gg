@@ -57,9 +57,27 @@ export function spacetimeOrigin(environment: NodeJS.ProcessEnv) {
   return upstream
 }
 
-/** A missing immutable asset must not become a cached failure. */
-export function uncacheAssetMiss(request: Pick<IncomingMessage, 'url'>, response: Pick<IncomingMessage, 'statusCode' | 'headers'>) {
-  if (request.url?.startsWith('/assets/') && (response.statusCode ?? 0) >= 400) response.headers['cache-control'] = 'no-store'
+export function cacheAssetResponse(
+  request: Pick<IncomingMessage, 'url' | 'method'>,
+  response: Pick<IncomingMessage, 'statusCode' | 'headers'>,
+) {
+  const pathname = request.url?.split('?')[0] ?? ''
+  const policy = /^\/guides\/[a-z0-9-]+-[a-f0-9]{8}\.png$/.test(pathname)
+    ? 'public, max-age=31536000, immutable'
+    : pathname === '/logo.svg' || pathname === '/favicon.svg'
+      ? 'public, max-age=86400'
+      : null
+  if ((pathname.startsWith('/assets/') || policy) && (response.statusCode ?? 0) >= 400) {
+    response.headers['cache-control'] = 'no-store'
+  } else if (
+    policy &&
+    (request.method === 'GET' || request.method === 'HEAD') &&
+    (response.statusCode === 200 || response.statusCode === 304) &&
+    !response.headers['cache-control'] &&
+    !response.headers['set-cookie']
+  ) {
+    response.headers['cache-control'] = policy
+  }
 }
 
 /**
@@ -210,7 +228,7 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
   if (!ready) throw new Error('Node server did not become healthy')
   console.error(`Node startup: application readiness completed in ${Math.round(performance.now() - started)}ms`)
   const proxy = httpProxy.createProxyServer({ changeOrigin: false, xfwd: true })
-  proxy.on('proxyRes', (proxyResponse, request) => uncacheAssetMiss(request, proxyResponse))
+  proxy.on('proxyRes', (proxyResponse, request) => cacheAssetResponse(request, proxyResponse))
   proxy.on('proxyReqWs', (upstreamRequest, request) => {
     if (!request.url?.startsWith(`/v1/database/${database}/subscribe`)) return
     if (process.env.SPACETIME_ACCESS_CLIENT_ID && process.env.SPACETIME_ACCESS_CLIENT_SECRET) {
