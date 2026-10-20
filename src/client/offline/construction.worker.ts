@@ -68,7 +68,7 @@ async function prepare({ catalogueId, units, keys }: Extract<ConstructionWorkerR
     const { catalogue, rules } = await construction(catalogueId)
     if (units && catalogueId) {
       const steps = pickerConstruction(catalogue, rules, catalogueId)
-      // Yielding lets reads already prepared be answered meanwhile; only every slice, because each timer waits at least 4 ms.
+      // Yielding once per slice lets reads already prepared be answered meanwhile.
       let slice = performance.now()
       while (!steps.next().done) {
         if (performance.now() - slice < PREPARATION_SLICE_MS) continue
