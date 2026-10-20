@@ -8,12 +8,13 @@ import {
   infoLinkHiddenByRules,
   keywordIds,
   keywordIdsBySelection,
+  type ModifierCache,
   profileModifiers,
   type ProfileModifier,
   type Selection,
 } from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
-import { isUnitCompositionChoice, unitChoices } from '../core/unitChoices'
+import { isUnitCompositionChoice, unitChoices, type UnitChoiceCache } from '../core/unitChoices'
 import { choiceOptionWargear } from '../core/modelKinds'
 import { wargearKey, wargearOf } from '../core/wargear'
 import { combatCarriers, referenceOnlyWeapon } from '../core/combatLoadout'
@@ -106,6 +107,8 @@ type DatasheetContext = {
   rosterKeywordIds?: readonly (readonly string[])[]
   /** Shared by paired projections of the same roster and unit. */
   modifiers?: readonly ProfileModifier[]
+  choiceCache?: UnitChoiceCache
+  modifierCache?: ModifierCache
 }
 
 const abilityDescription = (profile: Profile) =>
@@ -289,7 +292,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
           context.selections,
           entryId,
           loaded.index,
-          { primaryCatalogueId: catalogueId },
+          { primaryCatalogueId: catalogueId, modifierCache: context.modifierCache },
           context.unitSelectionIndex,
           context.companions ?? [],
         )
@@ -472,7 +475,12 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
 
   const selection = selectedUnit ?? defaultSelection(root.id, loaded.index, { primaryCatalogueId: catalogueId })
   const choices = selection
-    ? unitChoices(root.id, selection, loaded.index, { primaryCatalogueId: catalogueId, roster: context?.selections })
+    ? unitChoices(root.id, selection, loaded.index, {
+        primaryCatalogueId: catalogueId,
+        roster: context?.selections,
+        choiceCache: context?.choiceCache,
+        modifierCache: context?.modifierCache,
+      })
     : []
   // What the datasheet offers sits on the options themselves, which a tank's sponsons
   // reach through a shared group of shared weapons the walk above does not enter.

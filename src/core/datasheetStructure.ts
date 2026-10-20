@@ -1,7 +1,17 @@
 import { joinKey } from './text'
 import type { Datasheet, DatasheetCharacteristicKind, DatasheetProfileKind, StructuredDatasheetProfile } from './datasheet'
 
+// Profile types and characteristic names are a small catalogue vocabulary, and attack plans classify them per candidate.
+const profileKinds = new Map<string, DatasheetProfileKind>()
+const characteristicKindsByName = new Map<string, DatasheetCharacteristicKind>()
+
 export function datasheetProfileKind(type: string): DatasheetProfileKind {
+  let kind = profileKinds.get(type)
+  if (!kind) profileKinds.set(type, (kind = profileKindOf(type)))
+  return kind
+}
+
+function profileKindOf(type: string): DatasheetProfileKind {
   switch (joinKey(type)) {
     case 'unit':
       return 'unit'
@@ -54,7 +64,9 @@ const characteristicKinds: Readonly<Record<string, DatasheetCharacteristicKind>>
 }
 
 export function datasheetCharacteristicKind(name: string): DatasheetCharacteristicKind {
-  return characteristicKinds[joinKey(name)] ?? 'other'
+  let kind = characteristicKindsByName.get(name)
+  if (!kind) characteristicKindsByName.set(name, (kind = characteristicKinds[joinKey(name)] ?? 'other'))
+  return kind
 }
 
 type DatasheetCharacteristic = Datasheet['profiles'][number]['values'][number] & { kind?: DatasheetCharacteristicKind }
