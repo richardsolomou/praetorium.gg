@@ -4,13 +4,13 @@ import type { Command } from '../core/battle'
 import type { RepositoryPort } from './spacetimeRepository'
 import { PraetoriumService } from './service'
 
-const army = (entryIds: string[]): Command => ({
+const army = (entryIds: string[], catalogueId = 'cat'): Command => ({
   kind: 'attach-roster',
   roster: {
     name: 'Army',
     text: entryIds.join('\n'),
     built: {
-      catalogueId: 'cat',
+      catalogueId,
       revision: 'rev',
       limit: 2000,
       detachment: 'Detachment',
@@ -26,8 +26,11 @@ const battle = (id: string, ...entries: Parameters<typeof log>) => ({
   log: log(...entries),
 })
 
-function fielded(battles: ReturnType<typeof battle>[]) {
-  const repository = { battlesSeatedBy: vi.fn().mockResolvedValue(battles) } as unknown as RepositoryPort
+function fielded(battles: ReturnType<typeof battle>[], rosters: { catalogueId: string; archived: boolean }[] = []) {
+  const repository = {
+    battlesSeatedBy: vi.fn().mockResolvedValue(battles),
+    rostersByUser: vi.fn().mockResolvedValue(rosters),
+  } as unknown as RepositoryPort
   return new PraetoriumService(
     repository,
     () => 0,
@@ -56,4 +59,16 @@ it('orders datasheets by how many battles used them and ignores the opponent’s
     { entryId: 'overlord', battles: 2 },
     { entryId: 'warriors', battles: 1 },
   ])
+})
+
+it('leaves out armies the player has archived every roster for', async () => {
+  expect(
+    await fielded(
+      [battle('one', [ALICE, army(['overlord'], 'necrons')]), battle('two', [ALICE, army(['boyz'], 'orks')])],
+      [
+        { catalogueId: 'necrons', archived: true },
+        { catalogueId: 'orks', archived: false },
+      ],
+    ),
+  ).toEqual([{ entryId: 'boyz', battles: 1 }])
 })

@@ -539,3 +539,10 @@ test('the wishlist suggests datasheets other players field that none of the play
   await expect(page.getByRole('spinbutton', { name: 'Immortals models wanted', exact: true })).toHaveValue('1')
   await expect(suggestion).toBeHidden()
 })
+
+test('the wishlist suggests nothing from an army whose every roster is archived', async ({ page }) => {
+  const { id, userId, operator } = await savedArmy(page, 'Archived wishlist', { name: 'Retired Necrons' })
+  await operator.setRosterArchived(id, userId, true, Date.now())
+  await page.goto('/collection', { waitUntil: 'networkidle' })
+  await expect(page.locator('[data-wish-suggestion]')).toHaveCount(0)
+})
