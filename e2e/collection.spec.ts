@@ -53,6 +53,73 @@ test('starts a datasheet at one model and saves multiple', async ({ page }) => {
   await expect(owned(page, 'Necron Warriors')).toHaveValue('100')
 })
 
+test('rapid collection steps keep the latest count while earlier saves finish', async ({ page }) => {
+  await signUp(page, uniqueName('Rapid collection counts'))
+  await page.goto('/collection')
+  await addDatasheet(page, 'Necron Warriors', 'Necrons')
+  await expect(owned(page, 'Necron Warriors')).toHaveValue('1')
+  const owner = (await savedWork(page))!.owner
+  const operator = await productOperator()
+  await expect.poll(async () => (await operator.collectionByUser(owner))[0]?.models).toBe(1)
+  await page.getByRole('combobox', { name: 'Add a datasheet to your wishlist', exact: true }).click()
+  await page.getByPlaceholder('Search datasheets…').fill('Necron Warriors Necrons')
+  await page.getByRole('option', { name: /^Necron Warriors, Necrons/ }).click()
+  await expect(page.getByRole('spinbutton', { name: 'Necron Warriors models wanted', exact: true })).toHaveValue('1')
+  await page.evaluate(() => {
+    const complete = Object.getOwnPropertyDescriptor(IDBTransaction.prototype, 'oncomplete')!
+    Object.defineProperty(IDBTransaction.prototype, 'oncomplete', {
+      ...complete,
+      set(callback) {
+        complete.set!.call(
+          this,
+          this.db.name === 'praetorium-work' && this.mode === 'readwrite'
+            ? (event: Event) => setTimeout(() => callback.call(this, event), 150)
+            : callback,
+        )
+      },
+    })
+  })
+  for (const [kind, initial, increases, decreases] of [
+    ['owned', 1, 1, 1],
+    ['owned', 1, 12, 4],
+    ['built', 0, 7, 2],
+    ['painted', 0, 5, 2],
+    ['wanted', 1, 8, 3],
+  ] as const) {
+    const input = page.getByRole('spinbutton', { name: `Necron Warriors models ${kind}`, exact: true })
+    const label = `${kind === 'owned' ? '' : `${kind} `}Necron Warriors models`
+    let expected = initial
+    for (const [action, steps, delta] of [
+      ['More', increases, 1],
+      ['Fewer', decreases, -1],
+    ] as const)
+      for (let step = 0; step < steps; step++) {
+        await page.getByRole('button', { name: `${action} ${label}`, exact: true }).click({ delay: 20 })
+        expected += delta
+        await expect(input).toHaveValue(String(expected))
+      }
+    await expect
+      .poll(async () => {
+        if (kind === 'wanted') return (await operator.collectionWishesByUser(owner))[0]?.wanted
+        const entry = (await operator.collectionByUser(owner))[0]
+        return entry?.[kind === 'owned' ? 'models' : kind]
+      })
+      .toBe(expected)
+    await expect(input).toHaveValue(String(expected))
+  }
+  const entry = (await operator.collectionByUser(owner))[0]
+  for (const models of [10, 9]) {
+    await operator.setCollectionModels({ userId: owner, entryId: entry.entryId, models, now: Date.now() })
+    await expect(owned(page, 'Necron Warriors')).toHaveValue(String(models))
+  }
+  await page.screenshot({ path: test.info().outputPath('rapid-collection-counts.png'), fullPage: true })
+  await page.reload()
+  await expect(owned(page, 'Necron Warriors')).toHaveValue('9')
+  await expect(progress(page, 'Necron Warriors', 'built')).toHaveValue('5')
+  await expect(progress(page, 'Necron Warriors', 'painted')).toHaveValue('3')
+  await expect(page.getByRole('spinbutton', { name: 'Necron Warriors models wanted', exact: true })).toHaveValue('6')
+})
+
 test('totals models across datasheets and drops a removed datasheet', async ({ page }) => {
   await signUp(page, uniqueName('Collection total'))
   await page.goto('/collection')
@@ -157,14 +224,21 @@ test('collection counts survive a cold offline reopen and reconnect', async ({ p
   await context.setOffline(true)
   await page.getByRole('button', { name: 'More Overlord models', exact: true }).click()
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(1)
+  await page.getByRole('button', { name: 'Max built Overlord models', exact: true }).click()
+  await expect(progress(page, 'Overlord', 'built')).toHaveValue('2')
+  await page.getByRole('button', { name: 'Max painted Overlord models', exact: true }).click()
+  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(3)
   await page.close()
   const reopened = await context.newPage()
   await reopened.goto('/collection')
   await expect(owned(reopened, 'Overlord')).toHaveValue('2')
+  await expect(progress(reopened, 'Overlord', 'built')).toHaveValue('2')
+  await expect(progress(reopened, 'Overlord', 'painted')).toHaveValue('2')
   expect(await serverCount()).toBe(1)
   await context.setOffline(false)
   await reopened.evaluate(() => window.dispatchEvent(new Event('online')))
   await expect.poll(serverCount, { timeout: 30_000 }).toBe(2)
+  await expect.poll(async () => (await operator.collectionByUser(owner))[0]?.painted, { timeout: 30_000 }).toBe(2)
   await expect.poll(async () => (await savedWork(reopened))?.operations.length).toBe(0)
   await reopened.reload()
   await expect(owned(reopened, 'Overlord')).toHaveValue('2')
@@ -496,6 +570,39 @@ test('built and painted counts stay within the models owned', async ({ page }) =
   await expect(progress(page, 'Necron Warriors', 'built')).toHaveValue('5')
   await expect(progress(page, 'Necron Warriors', 'painted')).toHaveValue('5')
   await expect(faction.locator('[data-collection-total="painted"]')).toHaveText('7')
+})
+
+test('max built and painted match their preceding collection counts', async ({ page }) => {
+  await signUp(page, uniqueName('Collection max'))
+  await page.goto('/collection')
+  await addDatasheet(page, 'Necron Warriors', 'Necrons')
+  await setOwned(page, 'Necron Warriors', '20')
+  await setBuilt(page, 'Necron Warriors', '12')
+  await setCount(progress(page, 'Necron Warriors', 'painted'), '8')
+  const maxBuilt = page.getByRole('button', { name: 'Max built Necron Warriors models', exact: true })
+  const maxPainted = page.getByRole('button', { name: 'Max painted Necron Warriors models', exact: true })
+  await expect(maxBuilt).toBeEnabled()
+  await expect(maxPainted).toBeEnabled()
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await expectNoHorizontalOverflow(page.locator('main'))
+    await page.screenshot({ path: test.info().outputPath(`collection-max-${width}.png`), fullPage: true })
+  }
+  await page.getByRole('button', { name: 'More built Necron Warriors models', exact: true }).click()
+  await maxBuilt.click()
+  await expect(progress(page, 'Necron Warriors', 'built')).toHaveValue('20')
+  await expect(progress(page, 'Necron Warriors', 'painted')).toHaveValue('8')
+  await expect(maxBuilt).toBeDisabled()
+  await page.getByRole('button', { name: 'More painted Necron Warriors models', exact: true }).click()
+  await maxPainted.click()
+  await expect(progress(page, 'Necron Warriors', 'painted')).toHaveValue('20')
+  await expect(maxPainted).toBeDisabled()
+  const owner = (await savedWork(page))!.owner
+  const operator = await productOperator()
+  await expect.poll(async () => (await operator.collectionByUser(owner))[0]?.painted).toBe(20)
+  await page.reload()
+  await expect(progress(page, 'Necron Warriors', 'built')).toHaveValue('20')
+  await expect(progress(page, 'Necron Warriors', 'painted')).toHaveValue('20')
 })
 
 test('faction collection rows keep every counter reachable across screen and text sizes', async ({ page }) => {

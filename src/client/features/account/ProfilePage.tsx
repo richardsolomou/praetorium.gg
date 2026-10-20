@@ -48,7 +48,7 @@ export function ProfilePage({ error, verified }: { error?: string; verified?: bo
     return <SignInRequired title="Check your email verification" explanation="Sign in to confirm your email status." />
   }
   if (!me) return <SignInRequired title="Your profile" explanation="Sign in to edit your profile." />
-  return <ProfileForm me={me} callbackError={callbackError} verified={verified && methods?.emailVerified} />
+  return <ProfileForm key={me.id} me={me} callbackError={callbackError} verified={verified && methods?.emailVerified} />
 }
 
 function ProfileForm({
@@ -60,8 +60,10 @@ function ProfileForm({
   callbackError?: string
   verified?: boolean
 }) {
-  const [name, setName] = useState(me.name)
-  const [image, setImage] = useState(me.image)
+  const [nameDraft, setName] = useState<string>()
+  const [imageDraft, setImage] = useState<string | null>()
+  const name = nameDraft ?? me.name
+  const image = imageDraft === undefined ? me.image : imageDraft
   const [imageError, setImageError] = useState<string | null>(null)
   const [preparing, setPreparing] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -69,20 +71,15 @@ function ProfileForm({
   const queryClient = useQueryClient()
   const submit = useAuthAction({ failureMessage: errorMessage })
 
-  // A saved or refreshed account replaces the fields, as React's guide to adjusting state on a prop change describes.
-  const [shown, setShown] = useState({ name: me.name, image: me.image })
-  if (shown.name !== me.name || shown.image !== me.image) {
-    setShown({ name: me.name, image: me.image })
-    setName(me.name)
-    setImage(me.image)
-  }
-
   const changed = name.trim() !== me.name || image !== me.image
   const save = async () => {
     setSaved(false)
-    const result = await submit.run(() => authClient.updateUser({ name: name.trim(), image }))
+    const submitted = { name: name.trim(), image }
+    const result = await submit.run(() => authClient.updateUser(submitted))
     if (result.error) return
     await queryClient.invalidateQueries({ queryKey: meQuery().queryKey })
+    setName((current) => (current?.trim() === submitted.name ? undefined : current))
+    setImage((current) => (current === submitted.image ? undefined : current))
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey }),
       queryClient.invalidateQueries({ queryKey: friendshipsQuery().queryKey }),
@@ -200,7 +197,7 @@ function ProfileForm({
               {submit.busy ? 'Saving…' : 'Save profile'}
             </Button>
             {submit.error ? <Problem>{submit.error}</Problem> : null}
-            {saved ? <output className="text-sm text-achieved">Profile saved.</output> : null}
+            {saved && !changed ? <output className="text-sm text-achieved">Profile saved.</output> : null}
           </div>
         </form>
         <AccountSecurity

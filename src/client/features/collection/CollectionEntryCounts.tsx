@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ModelCounter } from '../../components/ModelCounter'
 import { collectionCountsQuery, collectionProgressQuery } from '../../queries'
@@ -16,41 +15,30 @@ export function CollectionEntryCounts({ entryId, name }: { entryId: string; name
   return (
     <span className="@container block">
       <span className="grid grid-cols-1 gap-2 @[15rem]:grid-cols-3">
-        <Labelled label="Owned">
-          <CollectionCount entryId={entryId} name={name} compact />
-        </Labelled>
-        <Labelled label="Built">
-          <ModelCounter
-            count={built}
-            label={`built ${name}`}
-            inputLabel={`${name} models built`}
-            min={0}
-            max={models ?? 0}
-            compact
-            onChange={(next) => mutation.mutateAsync({ entryId, built: next, painted: Math.min(painted ?? 0, next) })}
-          />
-        </Labelled>
-        <Labelled label="Painted">
-          <ModelCounter
-            count={painted}
-            label={`painted ${name}`}
-            inputLabel={`${name} models painted`}
-            min={0}
-            max={built ?? 0}
-            compact
-            onChange={(next) => mutation.mutateAsync({ entryId, built: built ?? 0, painted: next })}
-          />
-        </Labelled>
+        <CollectionCount entryId={entryId} name={name} compact caption="Owned" />
+        <ModelCounter
+          count={built}
+          label={`built ${name}`}
+          inputLabel={`${name} models built`}
+          min={0}
+          max={models ?? 0}
+          compact
+          caption="Built"
+          maxAction
+          onChange={(next) => mutation.mutateAsync({ entryId, built: next, painted: Math.min(painted ?? 0, next) })}
+        />
+        <ModelCounter
+          count={painted}
+          label={`painted ${name}`}
+          inputLabel={`${name} models painted`}
+          min={0}
+          max={built ?? 0}
+          compact
+          caption="Painted"
+          maxAction
+          onChange={(next) => mutation.mutateAsync({ entryId, built: built ?? 0, painted: next })}
+        />
       </span>
-    </span>
-  )
-}
-
-function Labelled({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <span className="flex min-w-0 flex-wrap items-center justify-between gap-2 @[15rem]:flex-col @[15rem]:items-center @[15rem]:gap-1">
-      <span className="text-xs text-dim">{label}</span>
-      {children}
     </span>
   )
 }

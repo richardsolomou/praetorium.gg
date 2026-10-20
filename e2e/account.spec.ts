@@ -210,6 +210,51 @@ test('a player can edit their display name and profile picture', async ({ page }
   await expect(page.locator('main img')).toHaveCount(0)
 })
 
+test('profile saves preserve newer name and picture edits', async ({ page }) => {
+  await signUp(page, uniqueName('Profile draft'))
+  await page.goto('/profile')
+  let release = () => {}
+  const gate = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  let started = false
+  await page.route('**/api/auth/update-user', async (route) => {
+    started = true
+    await gate
+    await route.continue()
+  })
+  try {
+    const name = page.getByLabel('Display name', { exact: true })
+    await name.fill('First saved name')
+    await page.getByLabel('Choose profile picture').setInputFiles({
+      name: 'avatar.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64'),
+    })
+    await expect(page.getByRole('button', { name: 'Replace picture', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Save profile', exact: true }).click()
+    await expect.poll(() => started).toBe(true)
+    await name.fill('Newer unsaved name')
+    await page.locator('form').getByRole('button', { name: 'Remove', exact: true }).click()
+    release()
+    await expect(page.getByRole('button', { name: 'Account menu for First saved name', exact: true })).toBeVisible()
+    await expect(name).toHaveValue('Newer unsaved name')
+    await expect(page.getByRole('button', { name: 'Add picture', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Save profile', exact: true })).toBeEnabled()
+    await expect(page.getByText('Profile saved.', { exact: true })).toBeHidden()
+    await page.screenshot({ path: test.info().outputPath('profile-preserved-draft.png'), fullPage: true })
+    await page.getByRole('button', { name: 'Save profile', exact: true }).click()
+    await expect(page.getByText('Profile saved.', { exact: true })).toBeVisible()
+    await page.reload()
+    await expect(name).toHaveValue('Newer unsaved name')
+    await expect(page.getByRole('button', { name: 'Add picture', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Save profile', exact: true })).toBeDisabled()
+  } finally {
+    release()
+    await page.unrouteAll({ behavior: 'wait' })
+  }
+})
+
 test('profile defaults apply to rosters while battles infer their format', async ({ page }) => {
   await signUp(page, uniqueName('Alice'))
   // Neither choice is a new account's default, so each assertion below needs its press to have saved.
