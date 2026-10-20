@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.172.1
+
+### Patch Changes
+
+- 3b2a3cf: Move Simulator to third in desktop navigation and match its page background to the other pages.
+
 ## 0.172.0
 
 ### Minor Changes
