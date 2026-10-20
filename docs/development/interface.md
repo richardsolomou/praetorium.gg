@@ -10,7 +10,9 @@ Keep contextual help brief and learning guidance in player guides; illustrative 
 
 ## Application navigation
 
-`src/client/features/shell` owns shared web and native navigation; `src/styles.css` owns breakpoints and safe-area dimensions, so do not duplicate them in components. Only builder screens are immersive. The desktop header folds through rem container queries because media queries ignore page text size. `src/client/textSize.ts` sets `data-text-size` from an inline head script before first paint, and styles map it to the root font size so every rem scales together.
+`src/client/features/shell` owns shared web and native navigation; `src/styles.css` owns breakpoints and safe-area dimensions, so do not duplicate them in components. Only builder screens are immersive. The desktop header tightens through rem container queries because media queries ignore page text size; when its sections still do not fit, they scroll sideways rather than folding into a menu. `src/client/textSize.ts` sets `data-text-size` from an inline head script before first paint, and styles map it to the root font size so every rem scales together.
+
+The desktop header's second row lists the reference sections (Factions, Missions, Force dispositions, Rules) outside any menu; it scrolls away with the page so sticky battle bars keep their `top-12` offset, and builder screens leave it out.
 
 Home and Battles are separate tabs so an open battle never highlights Home. The bar holds at most five tabs: a sixth truncates labels at the larger text sizes. Everything else is listed in More, and the footer leaves out what More lists while the tabs show.
 

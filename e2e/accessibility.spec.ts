@@ -60,16 +60,15 @@ test('keeps the header controls on screen at double text size', async ({ page })
   await page.goto('/battles')
   await page.waitForLoadState('networkidle')
   await doubleText(page)
-  const header = page.locator('[data-web-app-chrome]')
+  const header = page.locator('header[data-web-app-chrome]')
   const outside = await header.evaluate((element) =>
-    ['[aria-label="Open primary navigation"]', '[aria-label="Search Praetorium"]', '[aria-label="Account menu"]'].some((selector) => {
+    ['nav[aria-label="Primary"]', '[aria-label="Search Praetorium"]', '[aria-label="Account menu"]'].some((selector) => {
       const bounds = element.querySelector(selector)!.getBoundingClientRect()
       return bounds.width === 0 || bounds.right > innerWidth
     }),
   )
   expect(outside).toBe(false)
-  await header.getByRole('button', { name: 'Open primary navigation' }).click()
-  await header.getByRole('navigation', { name: 'Primary' }).getByRole('link', { name: 'Missions' }).click()
+  await page.getByRole('navigation', { name: 'Reference' }).getByRole('link', { name: 'Missions' }).click()
   await expect(page).toHaveURL(/\/missions/)
 })
 
