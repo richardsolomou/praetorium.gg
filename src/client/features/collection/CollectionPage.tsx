@@ -239,8 +239,8 @@ export function CollectionPage() {
             ) : null}
           </div>
         )}
-        <CollectionWishlist datasheets={datasheets} />
         {owned.size ? fieldedShelf : null}
+        <CollectionWishlist datasheets={datasheets} />
       </PageContent>
       <RemoveFromCollection datasheet={removing} onClose={() => setRemoving(null)} />
     </main>
