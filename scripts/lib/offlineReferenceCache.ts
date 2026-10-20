@@ -6,7 +6,6 @@ import { unzipSync, zipSync } from 'fflate'
 import { CATALOGUE_HISTORY_FILE } from '../../src/server/catalogueHistory'
 import { catalogueCacheRoot } from './catalogueCache'
 import { catalogueDataDirectory } from './catalogueFiles'
-import { runtimeCacheKey } from './catalogueRuntimeCache'
 import { downloadArchive, storeHasArchive, storeUrl, uploadArchive } from './catalogueRuntimeDistribution'
 import { writeReferenceBundle } from './offlineReferenceBundle'
 
@@ -28,7 +27,7 @@ const sharedStore: ReferenceStore = {
 }
 
 /** The bundle reads what the compiled runtime reads, plus the snapshot's change history. */
-export function referenceBundleKey(directory: string, runtimeKey = runtimeCacheKey(directory)) {
+export function referenceBundleKey(directory: string, runtimeKey: string) {
   const history = path.join(directory, CATALOGUE_HISTORY_FILE)
   return `${runtimeKey}-${hash('sha256', fs.existsSync(history) ? fs.readFileSync(history) : 'absent').slice(0, 16)}`
 }
@@ -86,10 +85,10 @@ function tryInstall(outDir: string, archive: Uint8Array, origin: string) {
  */
 export async function prepareReferenceBundle(
   outDir: string,
+  key: string,
   directory = catalogueDataDirectory(),
   cacheRoot = catalogueCacheRoot('offline-reference'),
   build: (outDir: string, directory: string) => Promise<void> = writeReferenceBundle,
-  key = referenceBundleKey(directory),
   store: ReferenceStore = sharedStore,
 ): Promise<'cached' | 'downloaded' | 'built'> {
   const cached = cacheRoot ? path.join(cacheRoot, `${key}.zip`) : null

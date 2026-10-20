@@ -34,9 +34,34 @@ permissions:
   contents: read
 
 jobs:
+  # A replica serves only once its catalogue is prepared for its compiler; preparing the live catalogue here, beside the image build, lets it download that instead of compiling it.
+  catalogue:
+    name: Prepare the live catalogue
+    if: inputs.environment == 'production'
+    # The replica compiles its own catalogue without it, so a failure here never fails the deploy.
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+      ASSETS_R2_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
+      ASSETS_R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.revision || github.sha }}
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - run: pnpm exec tsx scripts/prepareLiveCatalogue.ts "$TARGET"
+        env:
+          TARGET: ${{ inputs.environment }}
+
   deploy:
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
       packages: write
     env:
@@ -178,6 +203,19 @@ jobs:
         if: inputs.environment == 'production'
         continue-on-error: true
         run: curl --fail --silent --show-error --max-time 30 --output "$RUNNER_TEMP/sitemap-before.xml" "https://praetorium.gg/sitemap.xml?before=${DEPLOY_SHA}"
+      # A failed or slow preparation leaves the replica to compile its own catalogue, as it would without one.
+      - name: Wait for the live catalogue
+        if: inputs.environment == 'production'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for _ in $(seq 120); do
+            status="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" --jq '[.jobs[] | select(.name | endswith("Prepare the live catalogue")) | .status] | first // "absent"')"
+            if [[ "$status" == completed || "$status" == absent ]]; then exit 0; fi
+            sleep 10
+          done
+          echo '::warning::The live catalogue is still being prepared; the replica prepares its own'
       - name: Deploy the pinned image
         uses: richardsolomou/ras-stack/actions/deploy-dokploy-image@v1
         with:

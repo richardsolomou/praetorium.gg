@@ -5,8 +5,6 @@ import path from 'node:path'
 import { catalogueRuntimeFingerprint, readCatalogueRuntime, runtimeManifestSchema } from '../../src/server/catalogueRuntime'
 import { writeCatalogueRuntime } from './catalogueRuntime'
 import { publishDirectory } from './publishDirectory'
-import { compilerSourcesFingerprint } from './compilerSources'
-export { compilerSourcesFingerprint } from './compilerSources'
 import { downloadRuntime, packCatalogueRuntime, storeHasArchive, uploadRuntime } from './catalogueRuntimeDistribution'
 
 type Compile = (directory: string, output: string) => Promise<void> | void
@@ -17,8 +15,9 @@ export type RuntimeStore = {
 }
 
 const sharedStore: RuntimeStore = { has: storeHasArchive, download: downloadRuntime, upload: uploadRuntime }
-export function runtimeCacheKey(directory: string, sources = compilerSourcesFingerprint()) {
-  return `${catalogueRuntimeFingerprint(directory)}-${sources.slice(0, 16)}`
+/** `compiler` is `compilerFingerprint()`, computed by the build and handed to the production worker. */
+export function runtimeCacheKey(directory: string, compiler: string) {
+  return `${catalogueRuntimeFingerprint(directory)}-${compiler.slice(0, 16)}`
 }
 
 /**
@@ -30,8 +29,8 @@ export async function prepareCatalogueRuntime(
   directory: string,
   output: string,
   cacheRoot: string | null,
+  key: string,
   compile: Compile = writeCatalogueRuntime,
-  key = runtimeCacheKey(directory),
   store: RuntimeStore = sharedStore,
 ): Promise<'cached' | 'downloaded' | 'compiled'> {
   const cached = cacheRoot ? path.join(cacheRoot, key) : null

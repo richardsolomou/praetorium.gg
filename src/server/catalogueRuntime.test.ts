@@ -178,7 +178,7 @@ it('recompiles version 12 packages when preparing the base and edition runtime',
     path.join(directory, 'canonical', 'editions.json'),
     JSON.stringify({ catalogues: { 'version-1:': stale(previous.read('version-1.canonical')) } }),
   )
-  await prepareCatalogueRuntime(directory, output, null, undefined, undefined, {
+  await prepareCatalogueRuntime(directory, output, null, 'runtime-test', undefined, {
     has: async () => false,
     download: async () => false,
     upload: async () => undefined,

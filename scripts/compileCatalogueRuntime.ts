@@ -1,11 +1,15 @@
+import fs from 'node:fs'
 import path from 'node:path'
 import { catalogueCacheRoot } from './lib/catalogueCache'
-import { prepareCatalogueRuntime } from './lib/catalogueRuntimeCache'
+import { prepareCatalogueRuntime, runtimeCacheKey } from './lib/catalogueRuntimeCache'
 import { catalogueDataDirectory } from './lib/catalogueFiles'
 
-const output = path.resolve(process.env.LOCAL_BUILD_DIR ?? '.output', 'server/catalogue-runtime')
+const server = path.resolve(process.env.LOCAL_BUILD_DIR ?? '.output', 'server')
+const output = path.join(server, 'catalogue-runtime')
 const directory = catalogueDataDirectory()
 if (process.env.CATALOGUE_RUNTIME_FETCH !== 'true') {
-  const result = await prepareCatalogueRuntime(directory, output, catalogueCacheRoot('runtime'))
+  // The seed build just recorded the compiler it bundled.
+  const { key } = JSON.parse(fs.readFileSync(path.join(server, 'catalogue-compiler.json'), 'utf8')) as { key: string }
+  const result = await prepareCatalogueRuntime(directory, output, catalogueCacheRoot('runtime'), runtimeCacheKey(directory, key))
   console.log(`Prepared catalogue runtime at ${output} (${result})`)
 }

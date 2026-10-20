@@ -28,7 +28,12 @@ export async function startCatalogueRefresh(buildDirectory: string, dataDirector
         process.execPath,
         [path.join(buildDirectory, 'server/catalogue-refresh.mjs'), ...(!liveCatalogueRevision(root) ? ['--baseline'] : [])],
         {
-          env: { ...process.env, CATALOGUE_LIVE_DIR: root, CATALOGUE_DIR: process.env.CATALOGUE_DIR ?? retained?.directory },
+          env: {
+            ...process.env,
+            CATALOGUE_LIVE_DIR: root,
+            CATALOGUE_COMPILER: key,
+            CATALOGUE_DIR: process.env.CATALOGUE_DIR ?? retained?.directory,
+          },
           signal,
           timeout: timeoutMs,
           killSignal: 'SIGKILL',
