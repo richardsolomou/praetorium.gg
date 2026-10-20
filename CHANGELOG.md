@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.174.2
+
+### Patch Changes
+
+- 60d176d: Optimizing a unit's loadout in the combat simulator finishes about a third sooner.
+
 ## 0.174.1
 
 ### Patch Changes
