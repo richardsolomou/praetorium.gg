@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.174.1
+
+### Patch Changes
+
+- b886786: Lists exported from the official app in another language, such as German, now import with their units, attachments, Warlord and enhancements.
+- b886786: An imported list whose force disposition is not recognised takes its detachment's disposition, or asks you to choose one in setup.
+
 ## 0.174.0
 
 ### Minor Changes
