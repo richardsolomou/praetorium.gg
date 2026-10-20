@@ -85,6 +85,8 @@ Import guide illustrations with `?no-inline` so Vite emits hashed assets that de
 
 Session tokens never reach the browser. Administrator status is not permission to view private battles; battle access uses the ordinary audience check. Account cleanup protects administrators from deletion.
 
+Profile fields keep unsaved edits across account refreshes. A successful save clears only drafts that still match its submitted values, including a picture replaced or removed while the save was pending. Verify name and picture changes during a delayed save, a second save, and reload in `e2e/account.spec.ts`.
+
 Roster exchange QR codes are generated only within `ROSTER_EXCHANGE_QR_MAX_LENGTH`; friend invite QR codes encode the existing one-time link with its expiry and revocation. Keep the readable link if image generation fails.
 
 `e2e/update-pages.spec.ts` covers What's new and Data updates. [Combat simulation](combat-simulation.md#interface-and-context) owns the matchup UI.

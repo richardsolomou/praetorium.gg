@@ -4,7 +4,17 @@ import { ModelCounter } from '../../components/ModelCounter'
 import { collectionCountsQuery } from '../../queries'
 import { useCollectionCountMutation } from '../../useCollection'
 
-export function CollectionCount({ entryId, name, compact = false }: { entryId: string; name: string; compact?: boolean }) {
+export function CollectionCount({
+  entryId,
+  name,
+  compact = false,
+  caption,
+}: {
+  entryId: string
+  name: string
+  compact?: boolean
+  caption?: string
+}) {
   const { data: counts, isPending } = useQuery(collectionCountsQuery())
   const mutation = useCollectionCountMutation()
   return (
@@ -14,6 +24,7 @@ export function CollectionCount({ entryId, name, compact = false }: { entryId: s
       inputLabel={`${name} models owned`}
       max={MAX_COLLECTION_MODELS}
       compact={compact}
+      caption={caption}
       onChange={(models) => mutation.mutateAsync({ entryId, models })}
     />
   )

@@ -60,6 +60,7 @@ export function CombatSimulator({
 }) {
   const [comparingRosters, setComparingRosters] = useState(false)
   const [session, setSession] = useState(() => ({ key: 0, shared }))
+  const rosterRequests = useRef<[number, number]>([0, 0])
   const [problem, setProblem] = useState<string | null>(null)
   const queryClient = useQueryClient()
   const units = useQuery(combatUnitsQuery())
@@ -75,6 +76,9 @@ export function CombatSimulator({
   const savedRosters = (saved.data ?? []).filter((roster) => !roster.archived)
   // The newest page of friends' public rosters, as the Friends tab of the roster library lists them.
   const friends = useInfiniteQuery({ ...discoveredRostersQuery({}, 'friends', 'updated-desc'), enabled: Boolean(me.data) })
+  useEffect(() => {
+    if (session.shared !== shared) onShare(session.shared)
+  }, [session.shared, shared, onShare])
   const friendRosters = friends.data?.pages[0]?.rosters ?? []
   const example = units.data ? exampleMatchup(units.data) : null
   const linked = decodeSimulatorState(session.shared)
@@ -93,16 +97,18 @@ export function CombatSimulator({
   const restore = (value: string) => {
     const initial = decodeSimulatorState(value)
     if (!initial) return
+    rosterRequests.current[0]++
+    rosterRequests.current[1]++
     setSession((current) => ({ key: current.key + 1, shared: value }))
     setComparingRosters(false)
     setProblem(null)
-    onShare(value)
   }
   const chooseRoster = async (index: 0 | 1, id: string) => {
-    const next = [...(linked?.sides ?? [null, null])] as SimulatorState['sides']
-    if (id === NO_ROSTER) next[index] = null
-    else {
+    const request = ++rosterRequests.current[index]
+    let side: SimulatorSide | null = null
+    if (id !== NO_ROSTER) {
       const roster = await queryClient.query(sharedRosterQuery(id)).catch(() => null)
+      if (request !== rosterRequests.current[index]) return
       const pickIndex = roster?.picks.findIndex((pick) => pick.attachedTo === undefined) ?? -1
       const host = roster?.picks[pickIndex]
       if (!roster || !host) {
@@ -110,9 +116,16 @@ export function CombatSimulator({
         return
       }
       const { attachedTo: _attachedTo, note: _note, ...pick } = host
-      next[index] = { catalogueId: roster.catalogueId, pick, rules: {}, roster: { id, pickIndex } }
+      side = { catalogueId: roster.catalogueId, pick, rules: {}, roster: { id, pickIndex } }
     }
-    restore(encodeSimulatorState({ v: 1, sides: next, swapped: linked?.swapped ?? false }))
+    setSession((current) => {
+      const state = decodeSimulatorState(current.shared)
+      const next = [...(state?.sides ?? [null, null])] as SimulatorState['sides']
+      next[index] = side
+      return { key: current.key + 1, shared: encodeSimulatorState({ v: 1, sides: next, swapped: state?.swapped ?? false }) }
+    })
+    setComparingRosters(false)
+    setProblem(null)
   }
   const rosterControl = (index: 0 | 1) =>
     savedRosters.length || friendRosters.length ? (
@@ -146,14 +159,10 @@ export function CombatSimulator({
         />
       </div>
     ) : undefined
-  const share = useCallback(
-    (state: SimulatorState) => {
-      const encoded = state.sides.some(Boolean) ? encodeSimulatorState(state) : undefined
-      setSession((current) => (current.shared === encoded ? current : { ...current, shared: encoded }))
-      if (encoded !== shared) onShare(encoded)
-    },
-    [shared, onShare],
-  )
+  const share = useCallback((state: SimulatorState) => {
+    const encoded = state.sides.some(Boolean) ? encodeSimulatorState(state) : undefined
+    setSession((current) => (current.shared === encoded ? current : { ...current, shared: encoded }))
+  }, [])
   return (
     <main className="w-full">
       <PageHeader
