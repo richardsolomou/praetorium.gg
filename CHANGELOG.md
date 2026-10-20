@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.172.0
+
+### Minor Changes
+
+- ed4557d: After league rosters are revealed, choose to make your original saved roster public for other players to discover and copy.
+
 ## 0.171.0
 
 ### Minor Changes
