@@ -1,15 +1,11 @@
 import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import { parse } from '@babel/parser'
+import { build, type Rolldown } from 'vite'
 
-const compilerSources = [
-  'pnpm-lock.yaml',
-  'tsconfig.json',
-  'catalogue',
-  'scripts/catalogueRefresh.ts',
-  'scripts/compileCatalogueRuntime.ts',
-]
+const compilerEntries = ['scripts/catalogueRefresh.ts', 'scripts/compileCatalogueRuntime.ts']
+// The compiler reads catalogue configuration from disk; the seed build config bundles the production worker.
+const compilerFiles = ['catalogue', 'vite.seed.config.ts']
 
 function* sourceFiles(root: string, relative: string): Generator<string> {
   const target = path.join(root, relative)
@@ -21,58 +17,50 @@ function* sourceFiles(root: string, relative: string): Generator<string> {
   for (const entry of fs.readdirSync(target).sort()) yield* sourceFiles(root, path.join(relative, entry))
 }
 
-function* imports(node: unknown): Generator<string> {
-  if (!node || typeof node !== 'object') return
-  if (Array.isArray(node)) {
-    for (const child of node) yield* imports(child)
-    return
-  }
-  const syntax = node as { type?: string; source?: { type: string; value?: string } }
-  if (['ImportDeclaration', 'ExportNamedDeclaration', 'ExportAllDeclaration', 'ImportExpression'].includes(syntax.type ?? '')) {
-    if (syntax.type === 'ImportExpression' && syntax.source?.type !== 'StringLiteral') {
-      throw new Error('Cannot fingerprint a computed dynamic import in catalogue compiler sources')
-    }
-    if (syntax.source?.value) yield syntax.source.value
-  }
-  for (const child of Object.values(node)) yield* imports(child)
-}
-
-function resolveImport(root: string, importer: string, specifier: string) {
-  if (!specifier.startsWith('.') && !specifier.startsWith('@/')) return null
-  const target = specifier.startsWith('@/')
-    ? path.join(root, 'src', specifier.slice(2))
-    : path.resolve(root, path.dirname(importer), specifier)
-  const candidates = [
-    target,
-    ...['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs', '.json', '/index.ts', '/index.tsx'].map((ext) => target + ext),
-  ]
-  const resolved = candidates.find((candidate) => fs.existsSync(candidate) && fs.statSync(candidate).isFile())
-  if (!resolved) throw new Error(`Cannot resolve catalogue compiler import ${specifier} from ${importer}`)
-  return path.relative(root, resolved)
-}
-
-/** Hash compiler inputs from disk because application images omit Git metadata. */
-export function compilerSourcesFingerprint(worktree = process.cwd(), inputs = compilerSources) {
-  const files = new Set(inputs.flatMap((source) => [...sourceFiles(worktree, source)]))
-  for (const file of files) {
-    if (!/\.[cm]?[jt]sx?$/.test(file)) continue
-    const syntax = parse(fs.readFileSync(path.join(worktree, file), 'utf8'), {
-      sourceType: 'module',
-      plugins: ['typescript', 'jsx'],
-      createImportExpressions: true,
-    })
-    for (const specifier of imports(syntax.program)) {
-      const dependency = resolveImport(worktree, file, specifier)
-      if (dependency) files.add(dependency)
-    }
-  }
+/** Hashes every file under `inputs`, byte for byte. */
+export function treeFingerprint(root: string, inputs: readonly string[]) {
   const hash = createHash('sha256')
-  for (const file of [...files].sort()) {
+  for (const file of new Set(inputs.flatMap((input) => [...sourceFiles(root, input)])))
     hash
       .update(file)
       .update('\0')
-      .update(fs.readFileSync(path.join(worktree, file)))
+      .update(fs.readFileSync(path.join(root, file)))
       .update('\0')
-  }
   return hash.digest('hex')
+}
+
+/**
+ * Identifies the catalogue compiler by its entry points bundled with every dependency they
+ * reach, so only a change to code the compiler runs invalidates prepared catalogues. Comments,
+ * formatting, unused exports and unrelated modules or packages never reach the bundle.
+ */
+export async function compilerFingerprint(root = process.cwd(), entries = compilerEntries) {
+  const result = (await build({
+    configFile: false,
+    envDir: false,
+    logLevel: 'silent',
+    mode: 'production',
+    root,
+    ssr: { noExternal: true },
+    build: {
+      ssr: true,
+      write: false,
+      minify: false,
+      reportCompressedSize: false,
+      rolldownOptions: {
+        input: entries.map((entry) => path.join(root, entry)),
+        output: { entryFileNames: '[name].mjs', chunkFileNames: '[name].mjs', comments: false },
+      },
+    },
+  })) as Rolldown.RolldownOutput | Rolldown.RolldownOutput[]
+  const hash = createHash('sha256')
+  const outputs = [result].flat().flatMap(({ output }) => output)
+  for (const output of outputs.toSorted((left, right) => left.fileName.localeCompare(right.fileName)))
+    hash
+      .update(output.fileName)
+      .update('\0')
+      // Region markers name each module's path, which depends on where dependencies are installed.
+      .update(output.type === 'chunk' ? output.code.replace(/^\/\/#(?:end)?region\b.*$/gm, '') : output.source)
+      .update('\0')
+  return hash.update(treeFingerprint(root, compilerFiles)).digest('hex')
 }

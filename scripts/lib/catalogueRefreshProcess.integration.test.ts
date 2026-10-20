@@ -33,6 +33,7 @@ async function fixture(cached = false) {
     `
       import fs from 'node:fs';
       import path from 'node:path';
+      if (process.env.CATALOGUE_COMPILER !== 'a'.repeat(64)) throw new Error('The worker needs its compiler');
       if (!process.argv.includes('--baseline') && !${cached}) process.exit(0);
       console.log('Preparing server projections');
       console.error('Catalogue diagnostic');

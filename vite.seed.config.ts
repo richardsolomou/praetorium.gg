@@ -1,13 +1,9 @@
 import { defineConfig } from 'vite'
 import path from 'node:path'
-import fs from 'node:fs'
-import { createHash } from 'node:crypto'
-import { compilerSourcesFingerprint } from './scripts/lib/compilerSources.ts'
+import { compilerFingerprint, treeFingerprint } from './scripts/lib/compilerSources.ts'
 
-const compiler = createHash('sha256').update(compilerSourcesFingerprint())
-for (const file of ['scripts/catalogueRefresh.ts', 'vite.seed.config.ts']) compiler.update(file).update(fs.readFileSync(file))
-const catalogueKey = compiler.digest('hex')
-const authoring = compilerSourcesFingerprint(process.cwd(), ['catalogue'])
+const catalogueKey = await compilerFingerprint()
+const authoring = treeFingerprint(process.cwd(), ['catalogue'])
 
 export default defineConfig({
   ssr: { noExternal: true },

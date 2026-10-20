@@ -36,14 +36,14 @@ const archiveOf = (files: Record<string, string>) =>
 
 it('builds the reference once and restores it for the next build', async () => {
   const results = [
-    await prepareReferenceBundle(outDir, directory, cacheRoot, build, 'key', empty()),
-    await prepareReferenceBundle(path.join(root, 'second'), directory, cacheRoot, build, 'key', empty()),
+    await prepareReferenceBundle(outDir, 'key', directory, cacheRoot, build, empty()),
+    await prepareReferenceBundle(path.join(root, 'second'), 'key', directory, cacheRoot, build, empty()),
   ]
   expect({ results, builds: build.mock.calls.length }).toEqual({ results: ['built', 'cached'], builds: 1 })
 })
 
 it('writes the manifest and every asset it names', async () => {
-  await prepareReferenceBundle(outDir, directory, cacheRoot, build, 'key', empty())
+  await prepareReferenceBundle(outDir, 'key', directory, cacheRoot, build, empty())
   expect({ manifest: fs.readFileSync(path.join(outDir, 'offline-reference-version.json'), 'utf8'), assets: written() }).toEqual({
     manifest,
     assets: { [bundle]: bundle, [current]: current, [complete]: complete },
@@ -52,7 +52,7 @@ it('writes the manifest and every asset it names', async () => {
 
 it('shares a built reference under its key', async () => {
   const store = empty()
-  await prepareReferenceBundle(outDir, directory, null, build, 'key', store)
+  await prepareReferenceBundle(outDir, 'key', directory, null, build, store)
   expect(vi.mocked(store.upload).mock.calls[0]?.[0]).toBe('key')
 })
 
@@ -63,7 +63,7 @@ it('restores a shared reference without building', async () => {
     [current.slice(1)]: 'c',
     [complete.slice(1)]: 'd',
   })
-  const result = await prepareReferenceBundle(outDir, directory, null, build, 'key', { ...empty(), download: async () => shared })
+  const result = await prepareReferenceBundle(outDir, 'key', directory, null, build, { ...empty(), download: async () => shared })
   expect({ result, builds: build.mock.calls.length, assets: written() }).toEqual({
     result: 'downloaded',
     builds: 0,
@@ -79,7 +79,7 @@ it('builds instead of restoring an archive with files its manifest does not name
     [complete.slice(1)]: 'd',
     '../escape.js': 'x',
   })
-  expect(await prepareReferenceBundle(outDir, directory, null, build, 'key', { ...empty(), download: async () => shared })).toBe('built')
+  expect(await prepareReferenceBundle(outDir, 'key', directory, null, build, { ...empty(), download: async () => shared })).toBe('built')
 })
 
 it('keys the reference by the snapshot change history', () => {

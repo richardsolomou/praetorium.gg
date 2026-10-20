@@ -20,14 +20,15 @@ import { CATALOGUE_HISTORY_FILE, loadCatalogueHistory, parseCatalogueHistory } f
 import { materializeCatalogue } from './lib/catalogueMaterialize'
 import { resolveCatalogueUpstream } from './lib/catalogueUpstream'
 import { refreshLiveCatalogue } from './lib/liveCatalogue'
-import { prepareCatalogueRuntime } from './lib/catalogueRuntimeCache'
-import { prepareReferenceBundle } from './lib/offlineReferenceCache'
-import { readCatalogueRuntime } from '../src/server/catalogueRuntime'
-import { writeReferenceBundle } from './lib/offlineReferenceBundle'
+import { prepareCatalogueOutputs } from './lib/catalogueOutputs'
 import { compiledChangeSource } from './lib/catalogueHistoryCompile'
+import { publishLiveCatalogue } from './lib/liveCatalogueArchive'
+import { liveCatalogueRevision } from '../src/server/liveCatalogue'
 
 const root = process.env.CATALOGUE_LIVE_DIR
 if (!root || !path.isAbsolute(root)) throw new Error('CATALOGUE_LIVE_DIR must be absolute')
+const compiler = process.env.CATALOGUE_COMPILER
+if (!compiler || !/^[a-f0-9]{64}$/.test(compiler)) throw new Error('CATALOGUE_COMPILER must name the bundled compiler')
 const bootstrap = process.argv[2] === '--baseline'
 if (process.argv.length > (bootstrap ? 3 : 2)) throw new Error('expected --baseline or no argument')
 setPriority(10)
@@ -134,15 +135,7 @@ await refreshLiveCatalogue(
       fs.mkdirSync(path.dirname(historyFile), { recursive: true })
       fs.writeFileSync(historyFile, historyJson)
     }
-    console.log('Preparing server projections')
-    const runtime = path.join(staging, 'runtime')
-    await prepareCatalogueRuntime(directory, runtime, null)
-    const compiled = readCatalogueRuntime(directory, runtime)
-    compiled.read('startup')
-    const publicDirectory = path.join(staging, 'public')
-    fs.mkdirSync(path.join(publicDirectory, 'assets'), { recursive: true })
-    console.log('Preparing browser downloads')
-    await prepareReferenceBundle(publicDirectory, directory, null, (output, source) => writeReferenceBundle(output, source, compiled))
+    const publicDirectory = await prepareCatalogueOutputs(directory, staging, compiler)
     const manifestFile = path.join(publicDirectory, 'offline-reference-version.json')
     const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'))
     const address = (value: string) => `/catalogue-assets/${path.basename(root)}/${path.basename(value)}`
@@ -155,3 +148,19 @@ await refreshLiveCatalogue(
   },
   path.join(path.dirname(root), 'refresh.sqlite'),
 )
+
+// After activation, so a failed upload never costs a working catalogue.
+const archiveTarget = process.env.CATALOGUE_LIVE_ARCHIVE
+const live = archiveTarget ? liveCatalogueRevision(root) : null
+if (archiveTarget && live) {
+  try {
+    const result = await publishLiveCatalogue(
+      path.join(live.directory, 'catalogue'),
+      archiveTarget,
+      path.join(path.dirname(root), 'live-archive'),
+    )
+    console.log(`Live catalogue archive ${result}`)
+  } catch (error) {
+    console.error({ event: 'live_catalogue_archive_failed', error })
+  }
+}

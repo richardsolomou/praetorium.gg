@@ -56,6 +56,8 @@ export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging
   if (target === 'production') {
     entries.R2_ACCESS_KEY_ID = requiredEnv('R2_ACCESS_KEY_ID', environment)
     entries.R2_SECRET_ACCESS_KEY = requiredEnv('R2_SECRET_ACCESS_KEY', environment)
+    // Releases prepare this catalogue for their compiler before replicas change.
+    entries.CATALOGUE_LIVE_ARCHIVE = 'production'
     entries.APPLE_CLIENT_ID = requiredEnv('APPLE_CLIENT_ID', environment)
     entries.APPLE_TEAM_ID = requiredEnv('APPLE_TEAM_ID', environment)
     entries.APPLE_KEY_ID = requiredEnv('APPLE_KEY_ID', environment)

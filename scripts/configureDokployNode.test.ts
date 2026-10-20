@@ -73,6 +73,14 @@ it('keeps private backup credentials only in production', () => {
 const github = { GITHUB_CLIENT_ID: 'github-id', GITHUB_CLIENT_SECRET: 'github-secret', GITHUB_SPONSORS_TOKEN: 'sponsors-token' }
 const apple = { APPLE_CLIENT_ID: 'apple', APPLE_TEAM_ID: 'team', APPLE_KEY_ID: 'key', APPLE_PRIVATE_KEY: 'private' }
 
+it('publishes the live catalogue for releases from production only', () => {
+  expect(
+    [nodeEnvironment({ ...environment, ...apple }, 'production'), nodeEnvironment(environment, 'staging')].map((config) =>
+      config.includes('CATALOGUE_LIVE_ARCHIVE=production'),
+    ),
+  ).toEqual([true, false])
+})
+
 it('passes GitHub sponsor linking to production', () => {
   expect(nodeEnvironment({ ...environment, ...apple, ...github }, 'production')).toContain(
     'GITHUB_CLIENT_ID=github-id\nGITHUB_CLIENT_SECRET=github-secret\nGITHUB_SPONSORS_TOKEN=sponsors-token',

@@ -10,9 +10,6 @@ importers:
 
   .:
     dependencies:
-      '@babel/parser':
-        specifier: 7.29.9
-        version: 7.29.9
       '@base-ui/react':
         specifier: ^1.9.0
         version: 1.9.0(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
