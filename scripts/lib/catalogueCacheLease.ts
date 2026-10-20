@@ -44,14 +44,28 @@ function retainedRevision(root: string) {
   }
 }
 
+/**
+ * The source data a new compiler prepares from: the revision last published for releases when a cache holds it, so the
+ * release's prepared outputs match, otherwise the newest working cache with the same authoring configuration.
+ */
 export function retainedCatalogueCache(root: string, authoring: string) {
-  for (const candidate of caches(root)) {
-    if (candidate === root || !fs.existsSync(path.join(candidate, 'authoring'))) continue
-    if (fs.readFileSync(path.join(candidate, 'authoring'), 'utf8') !== authoring) continue
+  const published = path.join(path.dirname(root), 'live-sources')
+  const wanted = fs.existsSync(published) ? fs.readFileSync(published, 'utf8') : null
+  const usable = caches(root).flatMap((candidate) => {
+    if (candidate === root || !fs.existsSync(path.join(candidate, 'authoring'))) return []
+    if (fs.readFileSync(path.join(candidate, 'authoring'), 'utf8') !== authoring) return []
     const current = retainedRevision(candidate)
-    if (current) return { root: candidate, directory: path.join(current.directory, 'catalogue') }
+    return current ? [{ root: candidate, directory: path.join(current.directory, 'catalogue'), revision: current.directory }] : []
+  })
+  const sourcesOf = (revision: string) => {
+    try {
+      return (JSON.parse(fs.readFileSync(path.join(revision, 'sources.json'), 'utf8')) as { key?: unknown }).key
+    } catch {
+      return undefined
+    }
   }
-  return null
+  const chosen = (wanted && usable.find((candidate) => sourcesOf(candidate.revision) === wanted)) || usable[0]
+  return chosen ? { root: chosen.root, directory: chosen.directory } : null
 }
 
 export function pruneCatalogueCaches(root: string, now = Date.now()) {

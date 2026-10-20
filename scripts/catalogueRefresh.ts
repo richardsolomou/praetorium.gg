@@ -161,6 +161,9 @@ if (archiveTarget && live) {
       archiveTarget,
       path.join(path.dirname(root), 'live-archive'),
     )
+    // The next compiler starts from these sources, which are the ones a release prepares (`retainedCatalogueCache`).
+    const { key } = JSON.parse(fs.readFileSync(path.join(live.directory, 'sources.json'), 'utf8')) as { key: string }
+    fs.writeFileSync(path.join(path.dirname(root), 'live-sources'), key)
     console.log(`Live catalogue archive ${result}`)
   } catch (error) {
     console.error({ event: 'live_catalogue_archive_failed', error })
