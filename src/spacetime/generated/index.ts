@@ -104,6 +104,7 @@ import * as LeagueBattleCandidatesProcedure from './league_battle_candidates_pro
 import * as LeagueByTokenProcedure from './league_by_token_procedure'
 import * as LeagueCommandProcedure from './league_command_procedure'
 import * as LeagueNamesProcedure from './league_names_procedure'
+import * as LeagueRosterSharingProcedure from './league_roster_sharing_procedure'
 import * as LeagueRostersProcedure from './league_rosters_procedure'
 import * as LeaguesVisibleToProcedure from './leagues_visible_to_procedure'
 import * as LendRosterProcedure from './lend_roster_procedure'
@@ -294,6 +295,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('league_by_token', LeagueByTokenProcedure.params, LeagueByTokenProcedure.returnType),
   __procedureSchema('league_command', LeagueCommandProcedure.params, LeagueCommandProcedure.returnType),
   __procedureSchema('league_names', LeagueNamesProcedure.params, LeagueNamesProcedure.returnType),
+  __procedureSchema('league_roster_sharing', LeagueRosterSharingProcedure.params, LeagueRosterSharingProcedure.returnType),
   __procedureSchema('league_rosters', LeagueRostersProcedure.params, LeagueRostersProcedure.returnType),
   __procedureSchema('leagues_visible_to', LeaguesVisibleToProcedure.params, LeaguesVisibleToProcedure.returnType),
   __procedureSchema('lend_roster', LendRosterProcedure.params, LendRosterProcedure.returnType),
