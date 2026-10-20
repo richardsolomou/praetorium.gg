@@ -47,6 +47,8 @@ jobs:
           POSTHOG_CLI_DRY_RUN: 'true'
         run: pnpm exec tsx scripts/iosDeliveryPlan.ts native-changed "$RUNNER_TEMP/ios-base"
   build:
+    # The required `build` check is CI's build lane; sharing its name let a skipped iOS build satisfy it.
+    name: iOS build
     needs: [changes]
     if: needs.changes.outputs.native == 'true'
     runs-on: macos-26
