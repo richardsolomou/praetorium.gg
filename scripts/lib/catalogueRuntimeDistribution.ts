@@ -63,11 +63,23 @@ export function installRuntimeArchive(directory: string, output: string, bytes: 
   }
 }
 
+/**
+ * Reads an object from the store, asking past the mirror's CDN once when it answers 404: the CDN caches a miss for
+ * hours, so a lookup made before an upload would otherwise hide the object. Objects never change once written, so a
+ * cached hit is always current.
+ */
+async function storeObject(url: string, init: RequestInit) {
+  const response = await fetchWithRetry(url, init)
+  if (response.status !== 404) return response
+  await response.body?.cancel()
+  return fetchWithRetry(`${url}?uncached=${Date.now()}`, init)
+}
+
 /** Whether the store already holds `key`; an unreachable store reads as holding it, so nothing retries uploads against it. */
 export async function storeHasArchive(key: string, store = runtimeStoreUrl()) {
   if (!store) return true
   try {
-    const response = await fetchWithRetry(`${store}/${key}.zip`, { method: 'HEAD', signal: AbortSignal.timeout(15_000) })
+    const response = await storeObject(`${store}/${key}.zip`, { method: 'HEAD', signal: AbortSignal.timeout(15_000) })
     await response.body?.cancel()
     return response.status !== 404
   } catch {
@@ -79,7 +91,7 @@ export async function storeHasArchive(key: string, store = runtimeStoreUrl()) {
 export async function downloadArchive(key: string, store: string | null) {
   if (!store) return null
   try {
-    const response = await fetchWithRetry(`${store}/${key}.zip`, { signal: AbortSignal.timeout(60_000) })
+    const response = await storeObject(`${store}/${key}.zip`, { signal: AbortSignal.timeout(60_000) })
     if (!response.ok || !response.body) {
       await response.body?.cancel()
       return null

@@ -13,6 +13,7 @@ import {
   packCatalogueRuntime,
   runtimeStoreUrl,
   uploadRuntime,
+  downloadArchive,
   storeHasArchive,
 } from './catalogueRuntimeDistribution'
 
@@ -64,7 +65,7 @@ it('asks the store for the archive named by the key', async () => {
     return new Response('', { status: 404 })
   })
   expect(await downloadRuntime(source, path.join(root, 'installed'), 'abc-def', 'https://store.test/by-key')).toBe(false)
-  expect(requests).toEqual(['https://store.test/by-key/abc-def.zip'])
+  expect(requests[0]).toBe('https://store.test/by-key/abc-def.zip')
 })
 
 it('rejects an archive prepared for another snapshot', async () => {
@@ -115,6 +116,20 @@ it('reports a key the store answers for, and treats an unreachable store as hold
     unreachable: true,
     off: true,
   })
+})
+
+// The mirror's CDN caches a 404 for hours, so a lookup made before an upload would otherwise hide the object.
+const cachedMiss = (body: BodyInit) => async (input: string) =>
+  new Response(input.includes('?') ? body : '', { status: input.includes('?') ? 200 : 404 })
+
+it('rechecks a missing archive past a cached miss before calling it absent', async () => {
+  vi.stubGlobal('fetch', cachedMiss('archive'))
+  expect(await storeHasArchive('key', 'https://store.test/by-key')).toBe(true)
+})
+
+it('downloads an archive the CDN still reports missing from a lookup before its upload', async () => {
+  vi.stubGlobal('fetch', cachedMiss('archive'))
+  expect(Buffer.from((await downloadArchive('key', 'https://store.test/by-key'))!).toString()).toBe('archive')
 })
 
 it('shares the catalogue mirror by default', () => {
