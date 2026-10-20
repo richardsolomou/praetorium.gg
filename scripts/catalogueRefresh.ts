@@ -146,7 +146,9 @@ await refreshLiveCatalogue(
     console.log(`Prepared live catalogue ${id}`)
     return id
   },
-  path.join(path.dirname(root), 'refresh.sqlite'),
+  // Replicas of a deployment share one lock across compiler revisions; previews share their volume with unrelated
+  // previews, so only those on the same compiler wait for each other.
+  path.join(process.env.CATALOGUE_REFRESH_SCOPE === 'compiler' ? root : path.dirname(root), 'refresh.sqlite'),
 )
 
 // After activation, so a failed upload never costs a working catalogue.
