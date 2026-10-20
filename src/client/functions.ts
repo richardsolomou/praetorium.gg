@@ -797,6 +797,7 @@ export {
   collectionProgress,
   collectionWishes,
   fieldedDatasheets,
+  wishlistSuggestions,
   updateOnboardingProgress,
   favouriteFactions,
   favouriteDetachments,

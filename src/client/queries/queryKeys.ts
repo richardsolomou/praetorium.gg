@@ -34,6 +34,7 @@ export const collectionCountsKey = () => ['collection-counts']
 export const collectionProgressKey = () => ['collection-progress']
 export const collectionWishesKey = () => ['collection-wishes']
 export const fieldedDatasheetsKey = () => ['fielded-datasheets']
+export const wishlistSuggestionsKey = () => ['wishlist-suggestions']
 /** Without an entry, every datasheet's photos. */
 export const datasheetPhotosKey = (entryId?: string) => (entryId === undefined ? ['datasheet-photos'] : ['datasheet-photos', entryId])
 /** Without a player, every player's collection. */

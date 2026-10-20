@@ -13,7 +13,7 @@ import { combatLoadoutsQuery, combatUnitsQuery, factionIndexQuery, factionQuery,
 import { Loadout } from '../rosters/builder/Loadout'
 import { Stepper } from '../../components/Stepper'
 import { CombatSurvivorControls } from './CombatSurvivorControls'
-import { CombatUnitPicker } from './CombatUnitPicker'
+import { UnitPicker } from '../../components/UnitPicker'
 import { LoadoutOddsContext, LoadoutOddsStatus, LoadoutOptimizationContext, useOptionNote, useProfileNote } from './LoadoutOdds'
 import { useLoadoutOdds } from './useLoadoutOdds'
 import { namespaceLoadoutSpace } from '../../../core/combatLoadouts'
@@ -139,7 +139,7 @@ export function CombatantCard({
       ]}
     />
   ) : (
-    <CombatUnitPicker
+    <UnitPicker
       ariaLabel={`${side} unit`}
       popupClassName="min-w-[min(20rem,var(--available-width))]"
       loading={Boolean(pick) && !ready}

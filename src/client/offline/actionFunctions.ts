@@ -24,6 +24,7 @@ import {
   favouriteDetachmentsKey,
   favouriteFactionsKey,
   fieldedDatasheetsKey,
+  wishlistSuggestionsKey,
   friendInviteKey,
   friendshipsKey,
   leagueKey,
@@ -59,6 +60,7 @@ export const collectionCounts = () => accountRead(collectionCountsKey(), () => s
 export const collectionProgress = () => accountRead(collectionProgressKey(), () => server.collectionProgress())
 export const collectionWishes = () => accountRead(collectionWishesKey(), () => server.collectionWishes())
 export const fieldedDatasheets = () => cachedRead(fieldedDatasheetsKey(), () => server.fieldedDatasheets())
+export const wishlistSuggestions = () => cachedRead(wishlistSuggestionsKey(), () => server.wishlistSuggestions())
 export const favouriteFactions = () => accountRead(favouriteFactionsKey(), () => server.favouriteFactions())
 export const favouriteDetachments = () => accountRead(favouriteDetachmentsKey(), () => server.favouriteDetachments())
 export const favouriteDatasheets = () => accountRead(favouriteDatasheetsKey(), () => server.favouriteDatasheets())
