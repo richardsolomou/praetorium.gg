@@ -2,14 +2,30 @@ import { Button } from '@/components/ui/button'
 import { openTextSourcesDialog } from '../../components/TextSourcesDialog'
 import { chooseTextSources, useTextSourceChoice } from '../../rulesText'
 
+const RULES_TEXT_PATHS = [
+  '/factions/',
+  '/rules/',
+  '/missions',
+  '/mission-packs/',
+  '/mission-matchups/',
+  '/rosters',
+  '/battles/',
+  '/simulator',
+]
+
+/** Whether a page draws rules text, so asking where it comes from belongs there. */
+export function showsRulesText(path: string) {
+  return RULES_TEXT_PATHS.some((prefix) => path === prefix || path.startsWith(prefix.endsWith('/') ? prefix : `${prefix}/`))
+}
+
 /**
  * Asks every new device, signed in or not, where its rules text should come from, until it
- * answers. Inline above the page so it never covers what it explains.
+ * answers, on the pages that draw rules text. Inline above the page so it never covers what it explains.
  */
 export function TextSourcesNotice({ path }: { path: string }) {
   const choice = useTextSourceChoice()
   // Drawn by the server too, so it never pushes the page down late; a device that answered hides it from the first frame (styles.css).
-  if (choice.decided || path === '/sources') return null
+  if (choice.decided || !showsRulesText(path)) return null
   return (
     <aside
       aria-label="Rules text"
