@@ -14,7 +14,14 @@ import { rosterCombatant, rosterProjectionCache } from './rosterCombatRules'
 import type { LoadedRules } from './rules'
 import { nextTask } from './nextTask'
 
-type LoadoutRequest = { catalogueId: string; detachmentIds: string[]; picks: RosterPick[]; pickIndex: number }
+type LoadoutRequest = {
+  catalogueId: string
+  detachmentIds: string[]
+  picks: RosterPick[]
+  pickIndex: number
+  /** Start from a legal loadout this many random edits away, chosen by `seed`, instead of the one requested. */
+  walk?: { seed: number; steps: number }
+}
 
 /** Enhancements and detachment upgrades are army decisions, not a unit's weapon choice. */
 const ARMY_CHOICE = /enhancement|upgrade/i
@@ -130,6 +137,12 @@ export function combatLoadoutSpace(loaded: LoadedCatalogue, data: LoadoutRequest
 
 const LOADOUT_SLICE_MS = 16
 
+/**
+ * The most loadouts a unit's choices may allow for the search to visit them all. Beyond it a search returns only the
+ * loadouts near the requested one, and the page climbs from there.
+ */
+export const EXHAUSTIVE_STATES = 1000
+
 /** Where a search stops without claiming an optimum. */
 const SEARCH_LIMITS = { retainedBytes: 64 * 1024 * 1024, queued: 50_000, equipment: 20_000, ms: 120_000, attempts: 100_000 }
 
@@ -167,7 +180,10 @@ export async function* combatLoadoutCandidates(
       },
     ).errors.map((error) => `${error.entryId}:${error.message}`)
   const known = new Set(errors(units))
+  const legal = (built: BuiltUnit[]) => errors(built).every((error) => known.has(error))
   const estimated = units.reduce((states, unit) => states * loadoutStates(unit.choices), 1)
+  const local = estimated > EXHAUSTIVE_STATES || data.walk !== undefined
+  const start = data.walk ? walked(data.walk) : { picks, units }
   const memberSelections = indexes.map((pickIndex) => context.unitSelections.find((unit) => unit.pickIndex === pickIndex))
   if (memberSelections.some((unit) => !unit)) throw new Error('The attached unit could not be loaded.')
   // The roster as built for a candidate, reusing the members just built and every other unit as the roster built it.
@@ -181,9 +197,9 @@ export async function* combatLoadoutCandidates(
       }),
     }
   }
-  const queue: ({ units: BuiltUnit[]; resolved: RosterPick[] } | null)[] = []
+  const queue: ({ units: BuiltUnit[]; resolved: RosterPick[]; depth: number; legal: boolean } | null)[] = []
   const requestKey = (members: RosterPick[]) => JSON.stringify(members.map(loadoutRequestKey))
-  const requested = new Set([requestKey(picks)])
+  const requested = new Set([requestKey(start.picks)])
   const seen = new Set<string>()
   const equipment = new Set<string>()
   let candidates: LoadoutCandidate[] = []
@@ -203,32 +219,22 @@ export async function* combatLoadoutCandidates(
     if (retainedBytes > SEARCH_LIMITS.retainedBytes) throw incomplete()
   }
   const takeBatch = (done = false): LoadoutBatch => {
-    const batch = { candidates, built: expanded, scheduled: seen.size, estimated, done }
+    const batch = { candidates, built: expanded, scheduled: seen.size, estimated, done, local }
     candidates = []
     work = 0
     return batch
   }
-  const enqueue = async (members: RosterPick[], built: BuiltUnit[]) => {
+  const enqueue = async (members: RosterPick[], built: BuiltUnit[], depth: number) => {
     if (built.some((unit, index) => unit.size.models !== units[index]!.size.models)) return
     const key = await digest(JSON.stringify(built.map((unit) => withoutEmptyEntries(unit.selection))))
     if (seen.has(key)) return
     if (queue.length - head >= SEARCH_LIMITS.queued) throw incomplete()
     retain(key)
     seen.add(key)
-    const resolved = members.map((candidate, index) => ({
-      ...candidate,
-      spreads: {
-        ...candidate.spreads,
-        ...Object.fromEntries(
-          built[index]!.choices.filter((choice) => candidate.spreads?.[choice.key] !== undefined).map((choice) => [
-            choice.key,
-            Object.fromEntries(choice.options.map((option) => [option.id, option.count])),
-          ]),
-        ),
-      },
-    }))
-    queue.push({ units: built, resolved })
-    if (!errors(built).every((error) => known.has(error))) return
+    const resolved = members.map((candidate, index) => resolvedPick(candidate, built[index]!))
+    const isLegal = legal(built)
+    queue.push({ units: built, resolved, depth, legal: isLegal })
+    if (!isLegal) return
     const updates = new Map(indexes.map((pickIndex, at) => [pickIndex, resolved[at]!]))
     const roster = data.picks.map((pick, pickIndex) => updates.get(pickIndex) ?? pick)
     const projected = rosterCombatant(loaded, rules, { ...data, picks: roster }, prepared(built), {
@@ -269,14 +275,16 @@ export async function* combatLoadoutCandidates(
     equipment.add(equipmentKey)
     candidates.push(candidate)
   }
-  await enqueue(picks, units)
-  yield { candidates: [], built: 0, scheduled: 1, estimated, done: false }
+  await enqueue(start.picks, start.units, 0)
+  yield { candidates: [], built: 0, scheduled: 1, estimated, done: false, local }
   await nextTask()
   while (head < queue.length) {
     if (signal.aborted) return
     if (performance.now() - started > SEARCH_LIMITS.ms) throw incomplete()
     const current = queue[head]!
     queue[head++] = null
+    // A local search looks one edit away, and one more past an illegal step, since shared limits can need two.
+    if (local && (current.depth > 1 || (current.depth === 1 && current.legal))) continue
     expanded++
     if (head >= 1024) {
       queue.splice(0, head)
@@ -310,11 +318,48 @@ export async function* combatLoadoutCandidates(
           await enqueue(
             members,
             current.units.map((unit, index) => (index === at ? built : unit)),
+            current.depth + 1,
           )
       }
     }
   }
   yield takeBatch(true)
+
+  /** A legal loadout reached by random edits from the requested one, or the requested one when the walk finds none. */
+  function walked({ seed, steps }: NonNullable<LoadoutRequest['walk']>) {
+    let state = seed
+    const random = () => (state = (state * 1103515245 + 12345) % 2147483648) / 2147483648
+    let here = { picks, units }
+    for (let move = 0; move < steps || (move < steps * 3 && !legal(here.units)); move++) {
+      const edits = indexes.flatMap((_, at) =>
+        [...loadoutEdits(here.picks[at]!, here.units[at]!.choices, units[at]!.size.models)].map((candidate) => ({ at, candidate })),
+      )
+      if (!edits.length) break
+      const { at, candidate } = edits[Math.floor(random() * edits.length)]!
+      const built = build(candidate)
+      if (!built || built.size.models !== units[at]!.size.models) continue
+      here = {
+        picks: here.picks.map((pick, index) => (index === at ? resolvedPick(candidate, built) : pick)),
+        units: here.units.map((unit, index) => (index === at ? built : unit)),
+      }
+    }
+    return legal(here.units) ? here : { picks, units }
+  }
+}
+
+/** A request with each spread it states settled to the counts the unit was built with. */
+function resolvedPick(candidate: RosterPick, built: BuiltUnit): RosterPick {
+  return {
+    ...candidate,
+    spreads: {
+      ...candidate.spreads,
+      ...Object.fromEntries(
+        built.choices
+          .filter((choice) => candidate.spreads?.[choice.key] !== undefined)
+          .map((choice) => [choice.key, Object.fromEntries(choice.options.map((option) => [option.id, option.count]))]),
+      ),
+    },
+  }
 }
 
 /**

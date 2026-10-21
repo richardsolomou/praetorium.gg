@@ -39,13 +39,18 @@ export type LoadoutCandidate = {
   members: { pickIndex: number; pick: RosterPick; sheet: Datasheet; models: number; carriers: CombatCarrier[]; rules: CombatRule[] }[]
 }
 export type LoadoutCandidates = { candidates: LoadoutCandidate[] }
-/** A search's next candidates and its progress: states built, states found, and how many it estimates there are. */
-export type LoadoutBatch = LoadoutCandidates & { built: number; scheduled: number; estimated: number; done: boolean }
+/**
+ * A search's next candidates and its progress: states built, states found, and how many it estimates there are. A
+ * `local` search holds only the loadouts near the requested one, because the unit allows too many to visit.
+ */
+export type LoadoutBatch = LoadoutCandidates & { built: number; scheduled: number; estimated: number; done: boolean; local: boolean }
 export type OptimizedLoadout = {
   picks: { pickIndex: number; pick: RosterPick }[]
   preferences: Record<string, string>
   result: CombatResult
 }
+/** The best of some candidates, and how many could not be estimated, with the first reason why. */
+export type LoadoutOptimization = { best?: OptimizedLoadout; skipped: number; reason?: string }
 
 export function applyOptimizedLoadout<T extends RosterPick>(picks: readonly T[], optimized: OptimizedLoadout['picks']): T[] {
   const updates = new Map(optimized.map((member) => [member.pickIndex, member.pick]))
@@ -303,18 +308,43 @@ export function loadoutOdds(space: LoadoutSpace, scoring: LoadoutScoring, expect
   return { estimates: optionEstimates(choices, now), profiles: loadoutProfileOdds(space, scoring) }
 }
 
+class SearchLimit extends Error {
+  constructor() {
+    super('The full search could not finish. The best loadout found so far has been kept.')
+  }
+}
+
+/**
+ * The best of the candidates against the target. A candidate whose rules cannot be estimated is left out and counted,
+ * so one unsupported loadout does not hide the others; work limits still end the search.
+ */
 export function optimizeLoadout(
   space: LoadoutCandidates,
   scoring: LoadoutScoring,
   mode: LoadoutOptimizationMode = 'combined',
-): OptimizedLoadout {
+): LoadoutOptimization {
   if (mode === 'combined' && scoring.sequenceError) throw new Error(scoring.sequenceError)
   const phases = mode === 'combined' ? PHASES : [mode]
   let best: OptimizedLoadout | undefined
+  let skipped = 0
+  let reason: string | undefined
   const results = new Map<string, CombatResult>()
   let work = 0
   let retainedBytes = 0
   for (const candidate of space.candidates) {
+    try {
+      const found = optimizeCandidate(candidate)
+      if (found && (!best || compareOutcomes(found.result, best.result) > 0)) best = found
+    } catch (error) {
+      if (error instanceof SearchLimit) throw error
+      skipped++
+      reason ??= error instanceof Error ? error.message : String(error)
+    }
+  }
+  return { best, skipped, reason }
+
+  function optimizeCandidate(candidate: LoadoutCandidate) {
+    let top: OptimizedLoadout | undefined
     const members = candidate.members.map((member) => ({
       sheet: member.sheet,
       carriers: member.carriers,
@@ -336,7 +366,7 @@ export function optimizeLoadout(
       if (!sameDefences || !sameOptions) throw new Error('Some loadouts change unit-wide rules. Optimization could not finish.')
     }
     const search = (preferences: Record<string, string>, chosen: ReadonlySet<string>) => {
-      if (++work > 100_000) throw new Error('The full search could not finish. The best loadout found so far has been kept.')
+      if (++work > 100_000) throw new SearchLimit()
       const attacks = combatAttacks(attacker, scoring.opponent, preferences, { ranged: [], melee: [] })
       const choice = phases
         .flatMap((phase) => attacks[phase].plan.choices)
@@ -362,16 +392,14 @@ export function optimizeLoadout(
       let result = results.get(key)
       if (!result) {
         retainedBytes += key.length * 2
-        if (results.size >= 20_000 || retainedBytes > 32 * 1024 * 1024)
-          throw new Error('The full search could not finish. The best loadout found so far has been kept.')
+        if (results.size >= 20_000 || retainedBytes > 32 * 1024 * 1024) throw new SearchLimit()
         result = mode === 'combined' ? calculateCombatSequence(inputs) : calculateCombat(inputs[0]!)
         results.set(key, result)
       }
-      if (!best || compareOutcomes(result, best.result) > 0)
-        best = { picks: candidate.members.map(({ pickIndex, pick }) => ({ pickIndex, pick })), preferences, result }
+      if (!top || compareOutcomes(result, top.result) > 0)
+        top = { picks: candidate.members.map(({ pickIndex, pick }) => ({ pickIndex, pick })), preferences, result }
     }
     search({ ...scoring.preferences }, new Set())
+    return top
   }
-  if (!best) throw new Error('No supported legal loadout is available.')
-  return best
 }

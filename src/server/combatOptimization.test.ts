@@ -128,11 +128,11 @@ it('applies the best complete loadout and reproduces its scored attacks after re
       },
     },
   )
-  const rebuilt = rosterCombatant(book, null, { ...request, picks: applyOptimizedLoadout(request.picks, optimized.picks) })!
+  const rebuilt = rosterCombatant(book, null, { ...request, picks: applyOptimizedLoadout(request.picks, optimized.best!.picks) })!
   expect(
     [rebuilt.carriers, ...rebuilt.companions.map((member) => member.carriers)].map((carriers) => carriers[0]!.weapons[0]!.name),
   ).toEqual(['Squad strong', 'Leader strong', 'Support strong'])
-  expect(optimized.result.meanDamage).toBeCloseTo((3 * 5) / 6, 12)
+  expect(optimized.best!.result.meanDamage).toBeCloseTo((3 * 5) / 6, 12)
 })
 
 it('includes the bodyguard and sibling support when optimizing from a selected leader', async () => {
@@ -157,7 +157,7 @@ it('scores every member with the player’s selected shared buff', async () => {
       },
     },
   )
-  expect(optimized.result.meanDamage).toBeCloseTo((3 * 35) / 36, 12)
+  expect(optimized.best!.result.meanDamage).toBeCloseTo((3 * 35) / 36, 12)
 })
 
 it('leaves unrelated units and attachment identities unchanged when applying a result', () => {
@@ -242,6 +242,26 @@ it('estimates a search by the loadouts its unit’s weapon choices allow', async
   for await (const batch of combatLoadoutCandidates(book, request, new AbortController().signal)) batches.push(batch)
   // Squad, leader and support each choose between a strong and a weak weapon.
   expect(batches[0]!.estimated).toBe(8)
+})
+
+it('searches every loadout when the unit allows few enough', async () => {
+  const batches = []
+  for await (const batch of combatLoadoutCandidates(book, request, new AbortController().signal)) batches.push(batch)
+  expect(batches.map((batch) => batch.local)).not.toContain(true)
+})
+
+it('searches only the loadouts one edit from a random walk’s legal start', async () => {
+  const batches = []
+  const walk = { seed: 7, steps: 2 }
+  for await (const batch of combatLoadoutCandidates(book, { ...request, walk }, new AbortController().signal)) batches.push(batch)
+  const weapons = batches.flatMap((batch) =>
+    batch.candidates.map((candidate) => candidate.members.map((member) => member.carriers[0]!.weapons[0]!.name)),
+  )
+  const [start, ...near] = weapons
+  expect({
+    local: batches.every((batch) => batch.local),
+    edits: near.map((loadout) => loadout.filter((weapon, at) => weapon !== start![at]).length),
+  }).toEqual({ local: true, edits: [1, 1, 1] })
 })
 
 it('counts the ways a squad can split a weapon choice among its models', () => {

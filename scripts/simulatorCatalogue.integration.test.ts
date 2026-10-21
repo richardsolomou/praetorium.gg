@@ -4,6 +4,7 @@ import { calculateCombat, DEFAULT_COMBAT_OPTIONS, type CombatOptions } from '../
 import { combatAttacks } from '../src/core/combatScenario'
 import { combatUnitTarget } from '../src/core/combatUnit'
 import { combatUnitsFor } from '../src/shared/combatUnits'
+import { combatLoadoutCandidates, EXHAUSTIVE_STATES } from '../src/shared/combatLoadouts'
 import { rosterCombatant } from '../src/shared/rosterCombatRules'
 import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
 
@@ -58,6 +59,22 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
     const attack = attacks(defiler, { [choice.key]: option.value }).melee
     expect(attack.plan.active.map(({ profile }) => profile.name)).toEqual([`Shearing claws - ${mode}`])
     expect(damage(attack, 'melee')).toBeGreaterThan(0)
+  })
+
+  it.each([
+    ['Death Guard', 'Plague Marines', 10, true],
+    ['Orks', 'Boyz', 10, false],
+  ] as const)('%s %s ×%i searches only near the requested loadout: %s', async (faction, name, models, local) => {
+    const book = index.find((candidate) => candidate.name === faction)!
+    const entry = book.units.find((candidate) => candidate.name === name)!
+    const data = { catalogueId: book.catalogueId, detachmentIds: [], picks: [{ entryId: entry.id, models }], pickIndex: 0 }
+    const batches = []
+    for await (const batch of combatLoadoutCandidates(snapshot.catalogue, data, new AbortController().signal, snapshot.rules))
+      batches.push(batch)
+    expect({
+      local: batches.every((batch) => batch.local),
+      beyondBound: batches[0]!.estimated > EXHAUSTIVE_STATES,
+    }).toEqual({ local, beyondBound: local })
   })
 
   it.each([
