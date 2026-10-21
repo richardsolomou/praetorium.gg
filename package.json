@@ -83,10 +83,11 @@
     "openskill": "5.0.1",
     "p-retry": "^8.0.1",
     "qrcode": "^1.5.4",
-    "ras-stack": "git+https://github.com/richardsolomou/ras-stack.git#a1138e15ad73be185b186281c4fdaf72636f18b3&path:/packages/ras-stack",
+    "ras-stack": "git+https://github.com/richardsolomou/ras-stack.git#eb0b4a67d395dec7fdcb220597681fb30560567e&path:/packages/ras-stack",
     "react-markdown": "10.1.0",
     "satori": "0.44.3",
     "sharp": "0.35.5",
+    "spacetimedb": "2.12.0",
     "tailwind-merge": "^3.7.0",
     "zod": "^4.6.6"
   },

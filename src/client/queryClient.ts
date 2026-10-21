@@ -1,5 +1,6 @@
 import { offlineData } from './offline/runtime'
-import { MutationCache, QueryClient } from '@tanstack/react-query'
+import { MutationCache } from '@tanstack/react-query'
+import { createQueryClient as configuredQueryClient } from 'ras-stack/query'
 import { captureAppSnapshot, restoreAppSnapshot } from './offline/appSnapshot'
 import { writeAppSnapshot } from './offline/appStorage'
 import { configureLocalRuntime } from './offline/localRuntime'
@@ -14,7 +15,7 @@ import {
 } from './queries/queryKeys'
 
 export function createQueryClient() {
-  const client = new QueryClient({
+  const client = configuredQueryClient({
     defaultOptions: { queries: { staleTime: 1000, networkMode: 'always' }, mutations: { networkMode: 'always' } },
     // Onboarding progress is folded from rows anything can write, so any successful write may have finished a task.
     mutationCache: new MutationCache({

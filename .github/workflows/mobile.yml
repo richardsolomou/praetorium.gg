@@ -46,7 +46,7 @@ jobs:
           fetch-depth: 0
       - name: Resolve the mobile revision
         run: echo "MOBILE_REVISION=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-      - uses: richardsolomou/ras-stack/actions/setup-js@a1138e15ad73be185b186281c4fdaf72636f18b3
+      - uses: richardsolomou/ras-stack/actions/setup-js@eb0b4a67d395dec7fdcb220597681fb30560567e
       - name: Plan the canary delivery
         id: canary
         env:

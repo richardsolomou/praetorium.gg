@@ -1,7 +1,6 @@
 import {
   defineConfig,
   tanstackStart,
-  spacetimeDB,
   betterAuth,
   libsql,
   email,
@@ -17,7 +16,7 @@ import {
 } from 'ras-stack/config'
 
 export default defineConfig({
-  integrations: [tanstackStart, spacetimeDB, betterAuth, libsql, email, posthog.react, posthog.server],
+  integrations: [tanstackStart, betterAuth, libsql, email, posthog.react, posthog.server],
   tooling: [
     typescript.tanstack,
     oxlint.application,

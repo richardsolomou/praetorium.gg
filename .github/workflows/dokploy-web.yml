@@ -53,7 +53,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.revision || github.sha }}
-      - uses: richardsolomou/ras-stack/actions/setup-js@a1138e15ad73be185b186281c4fdaf72636f18b3
+      - uses: richardsolomou/ras-stack/actions/setup-js@eb0b4a67d395dec7fdcb220597681fb30560567e
       - run: pnpm exec tsx scripts/prepareLiveCatalogue.ts "$TARGET"
         env:
           TARGET: ${{ inputs.environment }}
@@ -113,7 +113,7 @@ jobs:
         with:
           ref: ${{ inputs.revision || github.sha }}
           fetch-depth: 0
-      - uses: richardsolomou/ras-stack/actions/setup-js@a1138e15ad73be185b186281c4fdaf72636f18b3
+      - uses: richardsolomou/ras-stack/actions/setup-js@eb0b4a67d395dec7fdcb220597681fb30560567e
       - name: Require an immutable main revision for production
         run: |
           [[ "$DEPLOY_SHA" =~ ^[0-9a-f]{40}$ ]]

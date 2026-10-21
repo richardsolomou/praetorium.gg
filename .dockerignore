@@ -14,5 +14,4 @@ mobile/android
 mobile/.simulator-derived
 .catalogue-objects
 .ras/
-.ras-*/
 .ras-install.lock/
