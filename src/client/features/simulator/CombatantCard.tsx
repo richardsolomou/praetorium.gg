@@ -412,6 +412,11 @@ export function CombatantCard({
         ) : null}
       </div>
       {optimizer.error ? <Problem className="mt-2 text-xs">{optimizer.error}</Problem> : null}
+      {optimizer.notice ? (
+        <output aria-live="polite" className="mt-2 block text-xs text-dim">
+          {optimizer.notice}
+        </output>
+      ) : null}
       {combatant.sheets.data?.attachmentErrors.length ? (
         <p role="alert" className="mt-2 text-xs text-discarded">
           {combatant.sheets.data.attachmentErrors.map((error) => `${error.entryName}: ${error.message}`).join(' · ')}

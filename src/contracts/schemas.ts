@@ -312,6 +312,7 @@ export const combatLoadoutSchema = z
     detachmentIds: z.array(detachmentIdSchema).max(DETACHMENTS_MAX).default([]),
     picks: z.array(rosterPickSchema).min(1).max(100),
     pickIndex: z.number().int().min(0).max(99),
+    walk: z.object({ seed: z.number().int().min(0).max(2_147_483_647), steps: z.number().int().min(1).max(16) }).optional(),
   })
   .overwrite(currentRosterIds)
 export const savedRosterDatasheetSchema = rosterInBattleSchema.extend({ pickIndex: z.number().int().min(0).max(99) })

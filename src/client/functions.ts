@@ -77,7 +77,13 @@ export { retireDeviceConstruction } from './offline/constructionWorker'
 
 /** A unit's loadouts as a stream of candidate batches, searched on this device when it has the data, otherwise by the server. */
 export const loadoutSearch = async (
-  input: { catalogueId: string; detachmentIds: readonly string[]; picks: readonly RosterPick[]; pickIndex: number },
+  input: {
+    catalogueId: string
+    detachmentIds: readonly string[]
+    picks: readonly RosterPick[]
+    pickIndex: number
+    walk?: { seed: number; steps: number }
+  },
   signal: AbortSignal,
 ) =>
   deviceLoadoutSearch(input, signal) ??

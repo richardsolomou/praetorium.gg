@@ -263,7 +263,7 @@ describe('exclusive squad weapon choices', () => {
           })),
         },
         scoring,
-      ).result.meanDamage,
+      ).best!.result.meanDamage,
     ).toBeCloseTo(4 * (5 / 6) * (4 / 6) * (4 / 6) * 2)
   })
 })

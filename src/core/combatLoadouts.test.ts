@@ -68,39 +68,47 @@ describe('optimization phase', () => {
     phases: { ranged: setup, melee: setup },
   }
   it('ranks both phases together by default', () => {
-    expect(optimizeLoadout(space, scoring).picks[0]?.pick.entryId).toBe('melee')
+    expect(optimizeLoadout(space, scoring).best?.picks[0]?.pick.entryId).toBe('melee')
   })
   it('chooses the better ranged loadout despite its weaker combined attack', () => {
-    expect(optimizeLoadout(space, scoring, 'ranged').picks[0]?.pick.entryId).toBe('ranged')
+    expect(optimizeLoadout(space, scoring, 'ranged').best?.picks[0]?.pick.entryId).toBe('ranged')
   })
   it('chooses the better melee loadout despite its weaker ranged attack', () => {
     expect(
-      optimizeLoadout({ candidates: [candidate('ranged', '8', '1'), candidate('melee', '1', '4')] }, scoring, 'melee').picks[0]?.pick
+      optimizeLoadout({ candidates: [candidate('ranged', '8', '1'), candidate('melee', '1', '4')] }, scoring, 'melee').best?.picks[0]?.pick
         .entryId,
     ).toBe('melee')
   })
   it('returns only the selected phase’s damage', () => {
-    expect(optimizeLoadout(space, scoring, 'ranged').result.meanDamage).toBeCloseTo(4 * (5 / 6) ** 3, 10)
+    expect(optimizeLoadout(space, scoring, 'ranged').best?.result.meanDamage).toBeCloseTo(4 * (5 / 6) ** 3, 10)
   })
   it('scores ranged loadouts when melee is unsupported', () => {
     expect(
       optimizeLoadout({ candidates: [candidate('ranged', '4', '?')] }, { ...scoring, phases: { ranged: setup, melee: null } }, 'ranged')
-        .picks[0]?.pick.entryId,
+        .best?.picks[0]?.pick.entryId,
     ).toBe('ranged')
   })
   it('scores melee loadouts when ranged is unsupported', () => {
     expect(
-      optimizeLoadout({ candidates: [candidate('melee', '?', '4')] }, { ...scoring, phases: { ranged: null, melee: setup } }, 'melee')
-        .picks[0]?.pick.entryId,
+      optimizeLoadout({ candidates: [candidate('melee', '?', '4')] }, { ...scoring, phases: { ranged: null, melee: setup } }, 'melee').best
+        ?.picks[0]?.pick.entryId,
     ).toBe('melee')
   })
   it('does not apply combined-sequence restrictions to one phase', () => {
-    expect(optimizeLoadout(space, { ...scoring, sequenceError: 'Shared defence can expire.' }, 'ranged').picks[0]?.pick.entryId).toBe(
+    expect(optimizeLoadout(space, { ...scoring, sequenceError: 'Shared defence can expire.' }, 'ranged').best?.picks[0]?.pick.entryId).toBe(
       'ranged',
     )
   })
+  it('leaves out an unsupported loadout and keeps the best supported one', () => {
+    expect(
+      optimizeLoadout({ candidates: [candidate('unsupported', '?', '4'), candidate('ranged', '4', '1')] }, scoring, 'ranged'),
+    ).toMatchObject({
+      best: { picks: [{ pick: { entryId: 'ranged' } }] },
+      skipped: 1,
+    })
+  })
   it('still refuses unsupported weapons in the selected phase', () => {
-    expect(() => optimizeLoadout({ candidates: [candidate('ranged', '?', '4')] }, scoring, 'ranged')).toThrow(
+    expect(optimizeLoadout({ candidates: [candidate('ranged', '?', '4')] }, scoring, 'ranged').reason).toContain(
       'Optimization could not finish.',
     )
   })
@@ -378,18 +386,18 @@ describe('loadout odds', () => {
     )
   })
   it('refuses a loadout that changes inherited unit-wide attack options', () => {
-    expect(() =>
+    expect(
       optimizeLoadout(
         { candidates: [{ members: [{ pickIndex: 0, pick: { entryId: 'unit' }, sheet, models: 5, carriers: space.carriers, rules: [] }] }] },
         {
           ...scoring,
           rules: [{ name: 'Accuracy', effects: [{ role: 'attacker', phases: ['ranged'], options: { hitReroll: 'ones' } }] }],
         },
-      ),
-    ).toThrow('Some loadouts change unit-wide rules. Optimization could not finish.')
+      ).reason,
+    ).toBe('Some loadouts change unit-wide rules. Optimization could not finish.')
   })
   it('names the unsupported rule that stops an optimization', () => {
-    expect(() =>
+    expect(
       optimizeLoadout(
         {
           candidates: [
@@ -397,18 +405,18 @@ describe('loadout odds', () => {
           ],
         },
         scoring,
-      ),
-    ).toThrow('Boltgun: equipped weapons could not be matched to their models. Optimization could not finish.')
+      ).reason,
+    ).toBe('Boltgun: equipped weapons could not be matched to their models. Optimization could not finish.')
   })
   it('refuses a loadout that changes the opponent’s calculated defences', () => {
-    expect(() =>
+    expect(
       optimizeLoadout(
         { candidates: [{ members: [{ pickIndex: 0, pick: { entryId: 'unit' }, sheet, models: 5, carriers: space.carriers, rules: [] }] }] },
         {
           ...scoring,
           rules: [{ name: 'Infection', effects: [{ role: 'attacker', phases: ['ranged'], targetToughness: -1 }] }],
         },
-      ),
-    ).toThrow('Some loadouts change unit-wide rules. Optimization could not finish.')
+      ).reason,
+    ).toBe('Some loadouts change unit-wide rules. Optimization could not finish.')
   })
 })
