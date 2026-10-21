@@ -53,7 +53,7 @@ jobs:
             echo "current=true" >> "$GITHUB_OUTPUT"
           fi
           echo "battlemaster=$(jq -r .battlemaster.revision catalogue/sources.json)" >> "$GITHUB_OUTPUT"
-      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - uses: richardsolomou/ras-stack/actions/setup-js@88386db224c7550980746392855aa3053fb59afc
         if: steps.pinned.outputs.current != 'true'
       - uses: actions/cache@v6
         if: steps.pinned.outputs.current != 'true'

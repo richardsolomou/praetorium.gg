@@ -20,7 +20,7 @@ outputs:
 runs:
   using: composite
   steps:
-    - uses: richardsolomou/ras-stack/actions/setup-js@v1
+    - uses: richardsolomou/ras-stack/actions/setup-js@88386db224c7550980746392855aa3053fb59afc
       with:
         install: 'false'
     - uses: actions/setup-node@v7

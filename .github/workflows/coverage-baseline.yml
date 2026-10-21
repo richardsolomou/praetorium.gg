@@ -26,7 +26,7 @@ jobs:
             part: 1/2
     steps:
       - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - uses: richardsolomou/ras-stack/actions/setup-js@88386db224c7550980746392855aa3053fb59afc
       - run: pnpm catalogue:sync
         # Catalogue snapshots are private, read with these on this step alone.
         env:

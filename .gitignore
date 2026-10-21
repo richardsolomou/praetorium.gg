@@ -19,3 +19,6 @@ catalogue-snapshot.zip
 .combat-rule-cache/
 combat-reports/
 .catalogue-objects/
+.ras/
+.ras-*/
+.ras-install.lock/
