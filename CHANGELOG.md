@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.175.4
+
+### Patch Changes
+
+- 2f5dceb: Import Salamanders rosters containing Deathwatch Support alongside Forgefather's Seekers without losing either detachment.
+
 ## 0.175.3
 
 ### Patch Changes
