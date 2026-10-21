@@ -395,6 +395,44 @@ describe('canonical catalogue', () => {
     )
   })
 
+  it('runs cheap steps together instead of one per event-loop turn', async () => {
+    let turns = 0
+    let counting = true
+    const count = () => {
+      if (!counting) return
+      turns++
+      setImmediate(count)
+    }
+    setImmediate(count)
+    function* cheap() {
+      for (let index = 0; index < 1000; index++) yield
+      return 'done'
+    }
+    expect(await completeStepsCooperatively(cheap())).toBe('done')
+    counting = false
+    expect(turns).toBeLessThan(10)
+  })
+
+  it('lets other work in once a slice has used its time', async () => {
+    let now = 0
+    const clock = vi.spyOn(performance, 'now').mockImplementation(() => (now += 25))
+    const order: string[] = []
+    function* slow() {
+      yield
+      order.push('first')
+      yield
+      order.push('second')
+    }
+    try {
+      const pending = completeStepsCooperatively(slow())
+      setImmediate(() => order.push('other request'))
+      await pending
+    } finally {
+      clock.mockRestore()
+    }
+    expect(order).toEqual(['first', 'other request', 'second'])
+  })
+
   it('is deterministic for the same source snapshot', () => {
     const loaded = catalogue()
     expect(compileCanonicalCatalogue(loaded, revisions)).toEqual(compileCanonicalCatalogue(loaded, revisions))

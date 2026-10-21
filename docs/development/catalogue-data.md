@@ -51,7 +51,7 @@ Reproducible archive builds install runtime JSON from the local cache, the share
 
 Readiness loads only prepared projections and the base construction catalogue. Rules-version contexts and faction pickers are built afterwards as steps (`construction()` in `src/server/catalogueEditions.ts`, generators in `src/shared/steps.ts`) that `warm` in `src/server/app.ts` runs in short slices between requests: building them before readiness held health for minutes, and leaving them to the first request stalled every request behind it. Keep each step to a file, a faction or a datasheet. `LOCAL_TEST_MODE` skips the background build because it starves browsers sharing the runner. In development, warming starts from the first request rather than the Nitro plugin, which runs a second copy of `app.ts`, and a hot reload swaps catalogue loaders without warming, so each projection rebuilds when first read.
 
-Public datasheet reads use the prepared canonical catalogue before loading construction data. Cold faction reference lists advance the shared unit-summary preparation between event-loop turns (`referenceFactionDatasheets`), preserving the same pricing and filtering as synchronous picker reads while allowing concurrent requests to run.
+Public datasheet reads use the prepared canonical catalogue before loading construction data. Cold faction reference lists advance the shared unit-summary preparation in short time slices between other requests (`referenceFactionDatasheets`), preserving the same pricing and filtering as synchronous picker reads while allowing concurrent requests to run.
 
 Keep construction contexts for the process lifetime; eviction rebuilds indexes on a request. Do not scope server construction files to catalogue imports: sources omit imports for shared-ID overrides, and name-based keyword and attachment lookups need books beyond that graph. After changing construction preparation, compare production roster prices, availability and legality and complete reference projections.
 
@@ -129,7 +129,7 @@ Author verified replacements in `catalogue/roster-migrations.json` chronological
 
 Retained editions can pin an immutable `snapshot`, which they cannot overlay. `catalogue/retained-roster-rules.json` matches exact removed detachment or selection signatures, before path migrations, only for rosters last saved before `savedBefore` (when the app first served the replacing rules); zero-count options do not match. Its notice must not claim current-rule illegality without evaluating it.
 
-Startup compiles canonical records only for each edition's advertised factions; support books compile on demand through `canonicalCatalogueSteps`, one datasheet per event-loop turn. Never compile unrelated archived armies before health succeeds.
+Startup compiles canonical records only for each edition's advertised factions; support books compile on demand through `canonicalCatalogueSteps` in short time slices (`completeStepsCooperatively`). Do not yield after every datasheet: during the background warm-up each event-loop turn also carries a construction slice, so a per-datasheet yield makes a cold read take seconds per faction. Never compile unrelated archived armies before health succeeds.
 
 `scripts/retainRosterCatalogue.ts` reproduces historical profile construction from `catalogue/retained-profile-build.json`; publish and verify its immutable archives before pinning them. Preserve saved loadouts even where the original dataset reports a legality error; never suppress the error to pass a rehearsal.
 

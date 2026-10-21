@@ -361,13 +361,23 @@ function issuesFor(
 /** A compile that pauses before each datasheet; a driver decides whether other work runs in between. */
 export type CanonicalCatalogueSteps = Steps<CanonicalCatalogue>
 
-/** Runs a compile one step per event-loop turn, so requests are served between datasheets. */
+const COOPERATIVE_SLICE_MS = 20
+
+/**
+ * Runs a compile in short slices, so requests are served between them.
+ *
+ * One step per event-loop turn made a cold read wait a whole turn per datasheet, and during the
+ * background warm-up each turn also carries its slice, so a large faction took tens of seconds.
+ */
 export async function completeStepsCooperatively<T>(steps: Steps<T>): Promise<T> {
-  for (;;) {
-    const step = steps.next()
-    if (step.done) return step.value
+  let step = steps.next()
+  while (!step.done) {
     await yieldToEventLoop()
+    const deadline = performance.now() + COOPERATIVE_SLICE_MS
+    do step = steps.next()
+    while (!step.done && performance.now() < deadline)
   }
+  return step.value
 }
 
 export function compileCanonicalCatalogue(loaded: LoadedCatalogue, revisions: Record<string, string>, rules: LoadedRules | null = null) {

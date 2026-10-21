@@ -109,13 +109,10 @@ it('lets another request run while preparing a cold faction reference list', asy
     })),
   })
   let settled = false
-  const pending = referenceFactionDatasheets(catalogue, { catalogueId: 'cat', query: '' }).then((value) => {
-    settled = true
-    return value
-  })
-  const beforeComplete = await new Promise<boolean>((resolve) => setImmediate(() => resolve(settled)))
-  await pending
-  expect(beforeComplete).toBe(false)
+  const beforeComplete = new Promise<boolean>((resolve) => setImmediate(() => resolve(settled)))
+  await referenceFactionDatasheets(catalogue, { catalogueId: 'cat', query: '' })
+  settled = true
+  expect(await beforeComplete).toBe(false)
 })
 
 it('shares preparation with concurrent and synchronous faction readers', async () => {
