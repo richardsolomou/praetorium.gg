@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.175.3
+
+### Patch Changes
+
+- a6fd686: Loadout optimization keeps working after a fresh reference download.
+
 ## 0.175.2
 
 ### Patch Changes
