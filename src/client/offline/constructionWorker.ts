@@ -67,8 +67,10 @@ function stop(error: Error) {
 function deviceSource(): ConstructionWorkerSource | null {
   if (typeof Worker === 'undefined' || outdated) return null
   const saved = connected() ? currentReference() : referenceData()
-  const url = connected() ? currentConstruction() : saved?.constructionBundle
-  if (!saved || !url || unavailable.has(url)) return null
+  const bundle = connected() ? currentConstruction() : saved?.constructionBundle
+  if (!saved || !bundle) return null
+  const url = new URL(bundle, location.href).href
+  if (unavailable.has(url)) return null
   const packed = packedConstructionOf(saved)
   if (!connected() && !packed) return null
   return packed ? { url, packed } : { url }
