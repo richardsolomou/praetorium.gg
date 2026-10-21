@@ -30,6 +30,7 @@ jobs:
         with:
           fetch-depth: 0
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - run: pnpm exec ras sync --check
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm docs:lint
