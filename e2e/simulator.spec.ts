@@ -9,6 +9,7 @@ import {
 } from './combat'
 import { expect, startUnchosen, test, type Locator, type Page } from './test'
 import { chooseUnit as chooseCatalogueUnit, retryUntilVisible } from './account'
+import { waitForOfflineApp } from './offline'
 
 async function choose(page: Page, control: string, name: string) {
   const option = page.getByRole('option', { name, exact: true })
@@ -1842,9 +1843,18 @@ test('optimized weapon profiles follow the unit through swaps and reload', async
 })
 
 test('Defiler can optimize ranged attacks instead of its stronger combined loadout', async ({ page }) => {
+  let serverSearches = 0
+  page.on('request', (request) => {
+    if (request.url().includes('/api/simulator/optimize')) serverSearches++
+  })
   await page.goto('/simulator')
   await chooseCombatUnit(page, 'Attacker', 'Death Guard', 'Defiler')
   await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
+  await waitForOfflineApp(page)
+  // A fresh download has no packed copy for the worker, so it must fetch its construction asset.
+  await page.evaluate(() => {
+    window.PraetoriumReferenceCache = structuredClone(window.PraetoriumReferenceCache)
+  })
   const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
   const options = attacker.getByRole('button', { name: 'Optimization options', exact: true })
   const optimize = attacker.getByRole('button', { name: 'Optimize', exact: true })
@@ -1853,6 +1863,7 @@ test('Defiler can optimize ranged attacks instead of its stronger combined loado
   await optimize.click()
   await expect(optimize).toBeVisible({ timeout: 120_000 })
   await expect(attacker.getByRole('alert')).toHaveCount(0)
+  expect(serverSearches).toBe(0)
   await expect(melee).toContainText('Electroscourge')
   const rangedDamage = (await combatEstimate(page, 'Shooting')).locator('.readout').first()
   const before = Number(await rangedDamage.textContent())

@@ -1,6 +1,7 @@
 import { expect, type Page, test } from './test'
 import { retryUntilVisible, signUp, uniqueName, visitorSetup } from './account'
 import { add } from './builder.harness'
+import { SIGN_IN_REQUIRED } from '../src/core/session'
 
 /** A visitor starts a Necrons list from the rosters page, with no account behind them, and opens it in the builder. */
 async function startGuestRoster(page: Page) {
@@ -43,6 +44,22 @@ function recordSaves(page: Page) {
   })
   return saves
 }
+
+/** A visitor's setup starts from the usual defaults without asking for an account's own. */
+test('a visitor opens the roster setup without a refused account read', async ({ page }) => {
+  const refused: Promise<boolean>[] = []
+  page.on('response', (response) => {
+    if (response.url().includes('/_serverFn/'))
+      refused.push(
+        response.text().then(
+          (body) => body.includes(SIGN_IN_REQUIRED),
+          () => false,
+        ),
+      )
+  })
+  await visitorSetup(page)
+  expect(await Promise.all(refused)).not.toContain(true)
+})
 
 /**
  * Trying the builder is the one thing a visitor may make here.

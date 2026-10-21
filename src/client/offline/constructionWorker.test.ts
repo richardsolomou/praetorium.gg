@@ -67,6 +67,7 @@ beforeEach(async () => {
   mocks.packed.mockReturnValue(undefined)
   vi.stubGlobal('Worker', FakeWorker)
   vi.stubGlobal('navigator', { onLine: true })
+  vi.stubGlobal('location', { href: 'https://praetorium.gg/simulator' })
   worker = await import('./constructionWorker')
 })
 afterEach(() => {
@@ -100,7 +101,13 @@ it('starts preparing what an unanswered read needs from the published download',
   start(wounds)
   await loaded()
   expect(mocks.workers[0]!.of('prepare')).toEqual([
-    { kind: 'prepare', source: { url: DOWNLOAD.constructionBundle }, catalogueId: 'cat', units: false, keys: ['build:'] },
+    {
+      kind: 'prepare',
+      source: { url: `https://praetorium.gg${DOWNLOAD.constructionBundle}` },
+      catalogueId: 'cat',
+      units: false,
+      keys: ['build:'],
+    },
   ])
 })
 
@@ -108,7 +115,10 @@ it('hands the worker the page’s packed copy so it need not fetch the download 
   mocks.packed.mockReturnValue('packed')
   start(wounds)
   await loaded()
-  expect(mocks.workers[0]!.of('prepare')[0]?.source).toEqual({ url: DOWNLOAD.constructionBundle, packed: 'packed' })
+  expect(mocks.workers[0]!.of('prepare')[0]?.source).toEqual({
+    url: `https://praetorium.gg${DOWNLOAD.constructionBundle}`,
+    packed: 'packed',
+  })
 })
 
 it('answers a prepared read from the worker', async () => {
@@ -185,7 +195,10 @@ it('loads the held download from its packed copy while disconnected', async () =
   disconnected()
   start(wounds)
   await loaded()
-  expect(mocks.workers[0]!.of('prepare')[0]?.source).toEqual({ url: DOWNLOAD.constructionBundle, packed: 'packed' })
+  expect(mocks.workers[0]!.of('prepare')[0]?.source).toEqual({
+    url: `https://praetorium.gg${DOWNLOAD.constructionBundle}`,
+    packed: 'packed',
+  })
 })
 
 it('lets a disconnected read fall back when the worker cannot prepare it', async () => {
