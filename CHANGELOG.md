@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.175.1
+
+### Patch Changes
+
+- e8733a1: Each rule on a rules page now offers to load its text where you are reading, the same way datasheets do, instead of one notice at the top of the page.
+- e8733a1: The question about where rules text comes from now appears only on pages that show rules text, such as factions, rules, missions, rosters, battles and the simulator.
+
 ## 0.175.0
 
 ### Minor Changes
