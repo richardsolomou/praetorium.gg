@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.175.2
+
+### Patch Changes
+
+- 207b249: A faction's datasheet list no longer sometimes takes many seconds to open.
+
 ## 0.175.1
 
 ### Patch Changes
