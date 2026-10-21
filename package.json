@@ -83,7 +83,7 @@
     "openskill": "5.0.1",
     "p-retry": "^8.0.1",
     "qrcode": "^1.5.4",
-    "ras-stack": "git+https://github.com/richardsolomou/ras-stack.git#88386db224c7550980746392855aa3053fb59afc&path:/packages/ras-stack",
+    "ras-stack": "git+https://github.com/richardsolomou/ras-stack.git#eebc2bec147e93b679d301e25fb4e29e71b7c0a2&path:/packages/ras-stack",
     "react-markdown": "10.1.0",
     "satori": "0.44.3",
     "sharp": "0.35.5",

@@ -26,7 +26,7 @@ jobs:
       SNAPSHOT_ENDPOINT: https://${{ vars.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
     steps:
       - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@88386db224c7550980746392855aa3053fb59afc
+      - uses: richardsolomou/ras-stack/actions/setup-js@eebc2bec147e93b679d301e25fb4e29e71b7c0a2
       - name: Build the verified history seed
         run: pnpm catalogue:history-seed --out /tmp/catalogue-history-seed.json
       - name: Publish and verify the seed

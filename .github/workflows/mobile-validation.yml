@@ -33,7 +33,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: richardsolomou/ras-stack/actions/setup-js@88386db224c7550980746392855aa3053fb59afc
+      - uses: richardsolomou/ras-stack/actions/setup-js@eebc2bec147e93b679d301e25fb4e29e71b7c0a2
       - name: Prepare the base iOS dependencies
         env:
           BASE_REVISION: ${{ github.event.pull_request.base.sha }}
@@ -60,7 +60,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-      - uses: richardsolomou/ras-stack/actions/setup-js@88386db224c7550980746392855aa3053fb59afc
+      - uses: richardsolomou/ras-stack/actions/setup-js@eebc2bec147e93b679d301e25fb4e29e71b7c0a2
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.4'

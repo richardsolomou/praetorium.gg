@@ -8,7 +8,7 @@ allowBuilds:
   core-js: true
   esbuild: true
   protobufjs: false
-  ras-stack@https://codeload.github.com/richardsolomou/ras-stack/tar.gz/88386db224c7550980746392855aa3053fb59afc#path:/packages/ras-stack: true
+  ras-stack@https://codeload.github.com/richardsolomou/ras-stack/tar.gz/eebc2bec147e93b679d301e25fb4e29e71b7c0a2#path:/packages/ras-stack: true
 minimumReleaseAgeExclude:
   # Reviewed SDK health updates; drop once the Node release is seven days old on 2026-10-23.
   - posthog-js@1.438.12

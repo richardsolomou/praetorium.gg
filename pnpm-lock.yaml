@@ -128,8 +128,8 @@ importers:
         specifier: ^1.5.4
         version: 1.5.4
       ras-stack:
-        specifier: git+https://github.com/richardsolomou/ras-stack.git#88386db224c7550980746392855aa3053fb59afc&path:/packages/ras-stack
-        version: https://codeload.github.com/richardsolomou/ras-stack/tar.gz/88386db224c7550980746392855aa3053fb59afc#path:/packages/ras-stack(@cloudflare/workers-types@5.20260918.1)(@electric-sql/pglite@0.5.8)(@opentelemetry/api@1.9.1)(@tanstack/query-core@5.104.1)(@tanstack/router-core@1.171.35)(@types/better-sqlite3@9.6.0)(babel-plugin-react-compiler@1.0.0)(crossws@0.4.15(srvx@1.0.5))(drizzle-kit@0.31.11)(esbuild@0.28.2)(jiti@2.7.0)(kysely@0.29.6)(postgres@3.4.9)(rolldown@1.2.13)(rollup@4.63.2)(supports-color@10.2.2)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)
+        specifier: git+https://github.com/richardsolomou/ras-stack.git#eebc2bec147e93b679d301e25fb4e29e71b7c0a2&path:/packages/ras-stack
+        version: https://codeload.github.com/richardsolomou/ras-stack/tar.gz/eebc2bec147e93b679d301e25fb4e29e71b7c0a2#path:/packages/ras-stack(@cloudflare/workers-types@5.20260918.1)(@electric-sql/pglite@0.5.8)(@opentelemetry/api@1.9.1)(@tanstack/query-core@5.104.1)(@tanstack/router-core@1.171.35)(@types/better-sqlite3@9.6.0)(babel-plugin-react-compiler@1.0.0)(crossws@0.4.15(srvx@1.0.5))(drizzle-kit@0.31.11)(esbuild@0.28.2)(jiti@2.7.0)(kysely@0.29.6)(postgres@3.4.9)(rolldown@1.2.13)(rollup@4.63.2)(supports-color@10.2.2)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1)
       react-markdown:
         specifier: 10.1.0
         version: 10.1.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2)
@@ -6340,8 +6340,8 @@ packages:
     resolution: {integrity: sha512-hek2mFQpPuI4E1BBKrSto+BU3e3x4xuarsbiwr3+lf7p44juvFMV0XFWQAP3xUyqXA4RrXLIoaSUGbSt056ZMw==}
     engines: {node: '>= 0.6'}
 
-  ras-stack@https://codeload.github.com/richardsolomou/ras-stack/tar.gz/88386db224c7550980746392855aa3053fb59afc#path:/packages/ras-stack:
-    resolution: {gitHosted: true, integrity: sha512-2wvX7GmRKHWIP/lg9x+s1OHlRNj3Q3RSaO5hJKafNqK850souzjzrG938Brz2epAMkDlkouKd+HuL8rmVDPYfg==, path: /packages/ras-stack, tarball: https://codeload.github.com/richardsolomou/ras-stack/tar.gz/88386db224c7550980746392855aa3053fb59afc}
+  ras-stack@https://codeload.github.com/richardsolomou/ras-stack/tar.gz/eebc2bec147e93b679d301e25fb4e29e71b7c0a2#path:/packages/ras-stack:
+    resolution: {gitHosted: true, integrity: sha512-xuDQhIURhxGfuNYT0yo6Lwf5l+YeT7E/NWeSEOEJFbhZnz5PDAAekyBJd/iaxp10OkX6LT7m1PYOftwkiZe2Zw==, path: /packages/ras-stack, tarball: https://codeload.github.com/richardsolomou/ras-stack/tar.gz/eebc2bec147e93b679d301e25fb4e29e71b7c0a2}
     version: 4.4.2
     engines: {node: '>=24 <25'}
     hasBin: true
@@ -13400,7 +13400,7 @@ snapshots:
 
   range-parser@1.3.0: {}
 
-  ras-stack@https://codeload.github.com/richardsolomou/ras-stack/tar.gz/88386db224c7550980746392855aa3053fb59afc#path:/packages/ras-stack(@cloudflare/workers-types@5.20260918.1)(@electric-sql/pglite@0.5.8)(@opentelemetry/api@1.9.1)(@tanstack/query-core@5.104.1)(@tanstack/router-core@1.171.35)(@types/better-sqlite3@9.6.0)(babel-plugin-react-compiler@1.0.0)(crossws@0.4.15(srvx@1.0.5))(drizzle-kit@0.31.11)(esbuild@0.28.2)(jiti@2.7.0)(kysely@0.29.6)(postgres@3.4.9)(rolldown@1.2.13)(rollup@4.63.2)(supports-color@10.2.2)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1):
+  ras-stack@https://codeload.github.com/richardsolomou/ras-stack/tar.gz/eebc2bec147e93b679d301e25fb4e29e71b7c0a2#path:/packages/ras-stack(@cloudflare/workers-types@5.20260918.1)(@electric-sql/pglite@0.5.8)(@opentelemetry/api@1.9.1)(@tanstack/query-core@5.104.1)(@tanstack/router-core@1.171.35)(@types/better-sqlite3@9.6.0)(babel-plugin-react-compiler@1.0.0)(crossws@0.4.15(srvx@1.0.5))(drizzle-kit@0.31.11)(esbuild@0.28.2)(jiti@2.7.0)(kysely@0.29.6)(postgres@3.4.9)(rolldown@1.2.13)(rollup@4.63.2)(supports-color@10.2.2)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1):
     dependencies:
       '@changesets/parse': 1.0.0
       '@libsql/client': 0.18.0
