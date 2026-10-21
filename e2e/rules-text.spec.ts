@@ -12,6 +12,7 @@ const coreRules = fs.readFileSync(path.join(catalogue, 'datacards', '11th', 'gdc
 const prose = 'The principles of movement are explained here.'
 const ability = 'subtract 1 from that attack’s Damage characteristic'
 
+const rulesPage = '/rules/core-rules/moving'
 const notice = (page: Page) => page.getByRole('complementary', { name: 'Rules text' })
 const dialog = (page: Page) => page.getByRole('dialog', { name: 'Load rules text from community sources' })
 
@@ -32,19 +33,25 @@ async function setSource(page: Page, name: 'BSData' | 'Game Datacards', on: bool
   await expect(toggle).toBeChecked({ checked: on })
 }
 
-test('a new device is asked where rules text comes from', async ({ page }) => {
+test('a page without rules text does not ask where it comes from', async ({ page }) => {
   await page.goto('/')
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await expect(notice(page)).toHaveCount(0)
+})
+
+test('a new device is asked where rules text comes from', async ({ page }) => {
+  await page.goto(rulesPage)
   await expect(notice(page)).toContainText('Rules text loads in your browser from community sources you choose.')
 })
 
 test('a signed-in reader on a new device is asked the same way', async ({ page }) => {
   await signUp(page, uniqueName('Sources'))
-  await page.goto('/factions')
+  await page.goto(rulesPage)
   await expect(notice(page)).toBeVisible()
 })
 
 test('declining the question keeps it answered across a reload', async ({ page }) => {
-  await page.goto('/factions')
+  await page.goto(rulesPage)
   await notice(page).getByRole('button', { name: 'Not now' }).click()
   await expect(notice(page)).toHaveCount(0)
   await page.reload()
@@ -53,7 +60,7 @@ test('declining the question keeps it answered across a reload', async ({ page }
 })
 
 test('choosing sources asks which external sources to load, with none turned on', async ({ page }) => {
-  await page.goto('/factions')
+  await page.goto(rulesPage)
   await notice(page).getByRole('button', { name: 'Choose sources' }).click()
   await expect(dialog(page)).toContainText('Praetorium doesn’t host or serve it.')
   await expect(dialog(page).getByRole('switch', { name: 'BSData' })).not.toBeChecked()
@@ -65,7 +72,7 @@ test('choosing sources asks which external sources to load, with none turned on'
 })
 
 test('cancelling the dialog records nothing', async ({ page }) => {
-  await page.goto('/factions')
+  await page.goto(rulesPage)
   await notice(page).getByRole('button', { name: 'Choose sources' }).click()
   await dialog(page).getByRole('switch', { name: 'BSData' }).click()
   await dialog(page).getByRole('button', { name: 'Cancel' }).click()
@@ -79,16 +86,23 @@ test('a rules page carries no rules text until the reader loads it', async ({ pa
   expect(await response?.text()).not.toContain(prose)
   await expect(page.getByRole('heading', { level: 2, name: 'Moving Units' })).toBeVisible()
   await expect(page.getByText(prose)).toHaveCount(0)
-  await page.getByRole('main').getByRole('button', { name: 'Choose sources' }).click()
+  await page.getByRole('main').getByRole('button', { name: 'Choose sources' }).first().click()
   await loadFromDialog(page, ['Game Datacards'])
   await expect(page.getByText(prose)).toBeVisible()
   // Loaded text says nothing about where it came from; the data sources page does.
   await expect(page.getByRole('main').getByText('Game Datacards')).toHaveCount(0)
 })
 
+test('every rule on a rules page asks for its text', async ({ page }) => {
+  await page.goto(rulesPage)
+  const rules = page.getByRole('main').getByRole('article')
+  await expect(rules.first()).toBeVisible()
+  await expect(page.getByRole('main').getByText('Rules text isn’t loaded.')).toHaveCount(await rules.count())
+})
+
 test('a source turned on holds across a reload until it is turned off', async ({ page }) => {
   await page.goto('/rules/core-rules/moving')
-  await page.getByRole('main').getByRole('button', { name: 'Choose sources' }).click()
+  await page.getByRole('main').getByRole('button', { name: 'Choose sources' }).first().click()
   await loadFromDialog(page, ['Game Datacards'])
   await expect(page.getByText(prose)).toBeVisible()
   await page.reload()
@@ -102,7 +116,7 @@ test('a source turned on holds across a reload until it is turned off', async ({
 test('a file that is not the pinned one is refused', async ({ page }) => {
   replaceUpstreamFile(page.context(), '/core_rules.json', coreRules.replace(prose, 'Models move however they like.'))
   await page.goto('/rules/core-rules/moving')
-  await page.getByRole('main').getByRole('button', { name: 'Choose sources' }).click()
+  await page.getByRole('main').getByRole('button', { name: 'Choose sources' }).first().click()
   await loadFromDialog(page, ['Game Datacards'])
   await expect(page.getByRole('alert')).toHaveText('Couldn’t load the rules text.')
   await expect(page.getByText('Models move however they like.')).toHaveCount(0)
@@ -133,7 +147,7 @@ test('BSData text loads while Game Datacards text stays unloaded', async ({ page
   await expect(page.getByText(ability)).toBeVisible()
   await page.goto('/rules/core-rules/moving')
   await expect(page.getByRole('heading', { level: 2, name: 'Moving Units' })).toBeVisible()
-  await expect(page.getByRole('main').getByRole('button', { name: 'Choose sources' })).toBeVisible()
+  await expect(page.getByRole('main').getByRole('button', { name: 'Choose sources' }).first()).toBeVisible()
   await expect(page.getByText(prose)).toHaveCount(0)
 })
 
@@ -159,7 +173,6 @@ async function firstFrame(page: Page, route: string, stored: string | null) {
 
 // The first frame holds both sides of every gap, so only the side the document's choice shows counts.
 const gapAsk = (page: Page) => page.getByRole('main').getByText('Rules text isn’t loaded.').filter({ visible: true })
-const rulesWait = (page: Page) => page.getByRole('main').getByText('Loading rules text…').filter({ visible: true })
 const gapWait = (page: Page) => page.getByRole('main').getByRole('status', { name: 'Loading rules text' })
 
 test.describe('the first frame draws the device’s own choice', () => {
@@ -188,13 +201,13 @@ test.describe('the first frame draws the device’s own choice', () => {
   test('a rules page waits for a chosen source without asking', async ({ page }) => {
     await firstFrame(page, '/rules/core-rules/moving', 'game-datacards')
     await expect(page.getByRole('heading', { level: 2, name: 'Moving Units' })).toBeVisible()
-    await expect(rulesWait(page)).toBeVisible()
-    await expect(page.getByRole('main').getByRole('button', { name: 'Choose sources' })).toHaveCount(0)
+    await expect(gapWait(page).first()).toBeVisible()
+    await expect(gapAsk(page)).toHaveCount(0)
   })
 
   test('a rules page asks a device that chose only the other source', async ({ page }) => {
     await firstFrame(page, '/rules/core-rules/moving', 'bsdata')
-    await expect(page.getByRole('main').getByRole('button', { name: 'Choose sources' })).toBeVisible()
-    await expect(rulesWait(page)).toHaveCount(0)
+    await expect(gapAsk(page).first()).toBeVisible()
+    await expect(gapWait(page)).toHaveCount(0)
   })
 })

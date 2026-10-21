@@ -6,6 +6,8 @@ import type { RuleEntry, RuleSection } from '../../../../contracts/rules'
 import { type RuleLinks, ruleLinks } from '../../../ruleLinks'
 import { ruleIndexQuery, ruleSectionQuery } from '../../../queries'
 import { RuleMarkup } from '../../../components/RuleMarkup'
+import { SourceTextPrompt } from '../../../components/SourceTextPrompt'
+import type { MissingText } from '../../../sourceText'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { useRuleText } from '../../../rulesText'
 import { RulesTextNotice } from './RulesTextNotice'
@@ -37,6 +39,8 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
   const sections = index.documents.find((candidate) => candidate.slug === documentId)?.sections ?? []
   const at = sections.findIndex((candidate) => candidate.slug === sectionId)
   const links = ruleLinks(index, documentId)
+  const missing: MissingText =
+    !data.document.text || text.query.isError ? 'unavailable' : !text.chosen ? 'unchosen' : text.document ? null : 'loading'
 
   return (
     <main className="w-full">
@@ -52,7 +56,7 @@ export function RuleSectionPage({ documentId, sectionId }: { documentId: string;
         <RulesTextNotice text={data.document.text} state={text} />
         <div className="space-y-5">
           {shown.entries.map((entry) => (
-            <Rule key={entry.anchor} entry={entry} links={links} />
+            <Rule key={entry.anchor} entry={entry} links={links} missing={missing} />
           ))}
         </div>
         <nav className="flex items-stretch justify-between gap-2 border-t border-edge pt-4">
@@ -87,7 +91,7 @@ function withText(outline: RuleSection, loaded: RuleSection): RuleSection {
   }
 }
 
-function Rule({ entry, links }: { entry: RuleEntry; links: RuleLinks }) {
+function Rule({ entry, links, missing }: { entry: RuleEntry; links: RuleLinks; missing: MissingText }) {
   return (
     <article id={entry.anchor} data-onboarding="rule-article" className="scroll-mt-16 border border-edge bg-panel p-3 sm:p-4">
       <div className="flex flex-wrap items-baseline gap-2">
@@ -95,6 +99,7 @@ function Rule({ entry, links }: { entry: RuleEntry; links: RuleLinks }) {
         <h2 className="text-xl">{entry.title}</h2>
         {entry.cost === null ? null : <span className="chip readout">{entry.cost} CP</span>}
       </div>
+      {missing ? <SourceTextPrompt missing={missing} source="game-datacards" className="mt-2" /> : null}
       {entry.lore ? <p className="mt-2 font-rules text-sm text-faint italic">{entry.lore}</p> : null}
       {entry.facts.length ? (
         <dl className="mt-3 space-y-2 border-t border-edge pt-3">
