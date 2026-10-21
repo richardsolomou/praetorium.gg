@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.175.0
+
+### Minor Changes
+
+- 9b118e3: Optimizing a squad with a very large choice of weapons, such as Plague Marines, Legionaries or Chaos Terminators, now finishes in seconds instead of running for minutes and giving up. Such squads have too many loadouts to compare them all, so the simulator improves the loadout step by step from several starting points and says so.
+
+### Patch Changes
+
+- e541595: Building and changing units is faster, which speeds up loadout optimizing by about a quarter.
+- 9b118e3: Optimizing a unit no longer fails when only some of its loadouts use rules the simulator cannot estimate, such as Einhyr Hearthguard's; those loadouts are left out and the simulator says so.
+
 ## 0.174.4
 
 ### Patch Changes
