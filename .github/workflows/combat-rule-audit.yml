@@ -25,7 +25,7 @@ jobs:
       S3_ENDPOINT: https://${{ vars.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com
     steps:
       - uses: actions/checkout@v7
-      - uses: richardsolomou/ras-stack/actions/setup-js@eb0b4a67d395dec7fdcb220597681fb30560567e
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
       - name: Read the published catalogue
         run: pnpm catalogue:sync --latest
         # Catalogue snapshots are private, read with these on this step alone.

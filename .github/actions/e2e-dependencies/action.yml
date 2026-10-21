@@ -17,6 +17,3 @@ runs:
       run: |
         pnpm install --frozen-lockfile
         pnpm exec playwright install chromium --only-shell
-    - name: Prepare managed RAS configuration
-      shell: bash
-      run: pnpm exec ras prepare

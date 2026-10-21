@@ -45,7 +45,7 @@ jobs:
         with:
           ref: ${{ needs.release.outputs.sha || github.sha }}
           fetch-depth: 0
-      - uses: richardsolomou/ras-stack/actions/setup-js@eb0b4a67d395dec7fdcb220597681fb30560567e
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
       - name: Check iOS delivery inputs
         id: ios
         env:

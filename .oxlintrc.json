@@ -78,8 +78,7 @@
     ".output/**",
     "node_modules/**",
     "src/components/ui/**",
-    ".ras/**",
-    ".pnpmfile.cjs"
+    ".ras/**"
   ],
   "env": {
     "builtin": true

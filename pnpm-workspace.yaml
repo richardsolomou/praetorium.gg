@@ -8,8 +8,8 @@ allowBuilds:
   core-js: true
   esbuild: true
   protobufjs: false
-  ras-stack@https://codeload.github.com/richardsolomou/ras-stack/tar.gz/eb0b4a67d395dec7fdcb220597681fb30560567e#path:/packages/ras-stack: true
 minimumReleaseAgeExclude:
+  - ras-stack@5.0.0-next.0
   # Reviewed SDK health updates; drop once the Node release is seven days old on 2026-10-23.
   - posthog-js@1.438.12
   - posthog-node@5.56.2
@@ -92,3 +92,7 @@ packageExtensions:
   posthog-react-native:
     dependencies:
       '@babel/runtime': ^7.20.0
+
+configDependencies:
+  ras-stack: 5.0.0-next.0
+pnpmfile: node_modules/.pnpm-config/ras-stack/pnpmfile.cjs

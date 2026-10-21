@@ -6,7 +6,7 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
-    "dev": "ras prepare && tsx scripts/dev.ts",
+    "dev": "tsx scripts/dev.ts",
     "build": "ras build && ras build --config vite.seed.config.ts && tsx scripts/compileCatalogueRuntime.ts",
     "typecheck": "ras typecheck && pnpm --dir mobile typecheck && pnpm --dir spacetimedb typecheck",
     "lint": "ras exec -- oxlint --type-aware --deny-warnings --report-unused-disable-directives-severity=error .",
@@ -83,7 +83,6 @@
     "openskill": "5.0.1",
     "p-retry": "^8.0.1",
     "qrcode": "^1.5.4",
-    "ras-stack": "git+https://github.com/richardsolomou/ras-stack.git#eb0b4a67d395dec7fdcb220597681fb30560567e&path:/packages/ras-stack",
     "react-markdown": "10.1.0",
     "satori": "0.44.3",
     "sharp": "0.35.5",
@@ -106,5 +105,5 @@
   "engines": {
     "node": ">=24 <25"
   },
-  "packageManager": "pnpm@11.28.5"
+  "packageManager": "pnpm@12.13.0"
 }

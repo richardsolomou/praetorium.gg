@@ -6,7 +6,6 @@ default:
 install:
     corepack enable
     pnpm install
-    pnpm exec ras prepare
 
 # Start or reuse this worktree's persistent Vite, SQLite, object storage, and SpacetimeDB stack
 dev:
