@@ -519,6 +519,8 @@ export function hiddenByRules(
   options: EvaluateOptions = {},
   lineage: readonly Definition[] = [],
 ): boolean {
+  const sources = candidateSources(definition, index)
+  if (!rosterDependent(sources).hidden) return Boolean(definition.hidden || sources[0]!.hidden)
   const census = new Census(0, options.modifierCache)
   const { root, node } = candidateContext(definition, index, options, census, lineage)
 
@@ -537,6 +539,9 @@ export function hiddenByRulesAt(
   index: CatalogueIndex,
   options: EvaluateOptions = {},
 ): boolean {
+  const sources = pathSources(selection, path, index)
+  if (!sources) return true
+  if (!rosterDependent(sources).hidden) return Boolean(definition.hidden || sources[0]!.hidden)
   const census = new Census(0, options.modifierCache)
   const counter = { next: 0 }
   const root = candidateRoot(index, options, census, counter)
@@ -579,6 +584,8 @@ export function selectionCountBounds(
   index: CatalogueIndex,
   options: EvaluateOptions = {},
 ): { minimum: number; maximum: number | null } {
+  const sources = candidateSources(definition, index)
+  if (!rosterDependent(sources).limits) return countBounds(sources, (constraint) => constraint.value)
   const census = new Census(0, options.modifierCache)
   const { root, node } = candidateContext(definition, index, options, census)
   return selectionCountBoundsFor(node, root, index, census)
@@ -591,6 +598,9 @@ export function selectionCountBoundsAt(
   index: CatalogueIndex,
   options: EvaluateOptions = {},
 ): { minimum: number; maximum: number | null } | null {
+  const sources = pathSources(selection, path, index)
+  if (!sources) return null
+  if (!rosterDependent(sources).limits) return countBounds(sources, (constraint) => constraint.value)
   const census = new Census(0, options.modifierCache)
   const candidate = withPath(selection, path)
   const { root, forces } = rosterContext([[...(options.roster ?? []), candidate]], index, census, options)
@@ -600,18 +610,64 @@ export function selectionCountBoundsAt(
 }
 
 function selectionCountBoundsFor(node: Node, root: Node, index: CatalogueIndex, census: Census) {
+  return countBounds(sourcesOf(node), (constraint) => constraintValue(constraint, node, root, index, census))
+}
+
+function countBounds(sources: readonly Definition[], valueOf: (constraint: Constraint) => number) {
   let minimum = 0
   let maximum: number | null = null
 
-  for (const constraint of sourcesOf(node).flatMap((source) => source.constraints ?? [])) {
+  for (const constraint of sources.flatMap((source) => source.constraints ?? [])) {
     if (constraint.field !== 'selections') continue
-    const value = constraintValue(constraint, node, root, index, census)
+    const value = valueOf(constraint)
     if (constraint.type === 'min' && (constraint.scope === 'parent' || constraint.scope === 'self')) {
       minimum = Math.max(minimum, value)
     }
     if (constraint.type === 'max' && value >= 0) maximum = maximum === null ? value : Math.min(maximum, value)
   }
   return { minimum, maximum }
+}
+
+const dependence = new WeakMap<Definition, { hidden: boolean; limits: boolean }>()
+
+/**
+ * Whether a modifier can change these sources' visibility or selection limits. Without one, both read the
+ * same in every roster, so answering needs no roster tree.
+ */
+function rosterDependent(sources: readonly Definition[]) {
+  const key = sources.at(-1)!
+  let found = dependence.get(key)
+  if (!found) {
+    const modifiers = flattenedModifiers(sources)
+    const limits = new Set(
+      sources
+        .flatMap((source) => source.constraints ?? [])
+        .flatMap((constraint) => (constraint.field === 'selections' ? [constraint.id] : [])),
+    )
+    found = {
+      hidden: modifiers.some((modifier) => modifier.field === 'hidden'),
+      limits: modifiers.some((modifier) => limits.has(modifier.field)),
+    }
+    dependence.set(key, found)
+  }
+  return found
+}
+
+/** The definitions a node built for this candidate reads, as `candidateContext` resolves it. */
+function candidateSources(definition: Definition, index: CatalogueIndex): Definition[] {
+  return isLink(definition) ? [index.definitions.get(definition.targetId) ?? definition, definition] : [definition]
+}
+
+/** The definitions the node at `path` in this unit reads, or null when `build` could not reach it. */
+function pathSources(selection: Selection, path: readonly string[], index: CatalogueIndex): Definition[] | null {
+  let sources: Definition[] | null = null
+  for (const id of [selection.id, ...path]) {
+    const definition = index.definitions.get(id)
+    const target = definition && (isLink(definition) ? index.definitions.get(definition.targetId) : definition)
+    if (!definition || !target) return null
+    sources = target === definition ? [target] : [target, definition]
+  }
+  return sources
 }
 
 function withPath(selection: Selection, path: readonly string[], count = 0): Selection {
