@@ -9,6 +9,8 @@ import {
   typescript,
   oxlint,
   oxfmt,
+  tailwind,
+  nitro,
   vite,
   vitest,
   playwright,
@@ -16,5 +18,18 @@ import {
 
 export default defineConfig({
   integrations: [tanstackStart, spacetimeDB, betterAuth, libsql, email, posthog.react, posthog.server],
-  tooling: [typescript.tanstack, oxlint.application, oxlint.tanstack, oxlint.domain, oxlint.layers, oxfmt, vite, vitest, playwright],
+  tooling: [
+    typescript.tanstack,
+    oxlint.application,
+    oxlint.tanstack,
+    oxlint.domain,
+    oxlint.layers,
+    oxfmt,
+    tailwind,
+    nitro,
+    posthog.build,
+    vite,
+    vitest,
+    playwright,
+  ],
 })

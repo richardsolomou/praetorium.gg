@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { afterEach, expect, test } from 'vitest'
 import { build } from 'vite'
-import { webSourceMapPlugins } from '../vite.config'
+import { postHogSourceMapPlugins } from 'ras-stack/vite'
 
 const dockerfile = readFileSync(new URL('../Dockerfile.node', import.meta.url), 'utf8')
 const uploadCommand = dockerfile
@@ -79,7 +79,7 @@ test('changes content-hashed chunk URLs when their injected PostHog IDs change',
     const output = await build({
       configFile: false,
       logLevel: 'silent',
-      plugins: webSourceMapPlugins(uploadEnvironment),
+      plugins: await postHogSourceMapPlugins(uploadEnvironment, { sourcemaps: { releaseMode: 'symbol-set' } }),
       build: {
         write: false,
         minify: true,

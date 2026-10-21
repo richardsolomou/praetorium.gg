@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "fingerprint": "dec78bfec3def6b25f2440ebf3d2a7c5aab8cc536e56e7751aade8df8cfa66ea",
+  "fingerprint": "6dd2ad93a4e6ac9ae3e91e2be909ad19ee908106fb639c98a9aa6bd2664792bd",
   "plan": {
     "dependencies": {
       "@libsql/client": "0.18.0",
@@ -10,6 +10,8 @@
       "@opentelemetry/sdk-logs": "0.223.0",
       "@playwright/test": "1.64.0",
       "@posthog/react": "1.11.3",
+      "@posthog/rollup-plugin": "1.6.1",
+      "@tailwindcss/vite": "4.3.3",
       "@tanstack/react-query": "5.104.1",
       "@tanstack/react-router": "1.170.42",
       "@tanstack/react-router-ssr-query": "1.167.3",
@@ -22,6 +24,7 @@
       "@vitest/coverage-v8": "5.0.3",
       "better-auth": "1.7.10",
       "drizzle-orm": "0.45.4",
+      "nitro": "3.0.260903-beta",
       "nodemailer": "10.1.0",
       "oxfmt": "0.72.0",
       "oxlint": "1.87.0",
@@ -31,6 +34,7 @@
       "react": "19.3.0",
       "react-dom": "19.3.0",
       "spacetimedb": "2.12.0",
+      "tailwindcss": "4.3.3",
       "typescript": "7.0.2",
       "vite": "8.3.4",
       "vitest": "5.0.3"
@@ -90,6 +94,13 @@
         "tanstack",
         "domain",
         "layers"
+      ],
+      "vite": [
+        "start",
+        "tailwind",
+        "nitro",
+        "posthog",
+        "react"
       ],
       "typescript": "tanstack"
     },
