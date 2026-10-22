@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.178.1
+
+### Patch Changes
+
+- 5a88c2c: The app keeps the logo on screen while Praetorium opens, on the same background as the header and tab bar, instead of switching to a small spinner.
+- e9c5292: Scrolling in the iPhone app keeps its momentum like Safari instead of stopping early.
+- 0f9c500: More leads with the combat simulator, missions, rules and leagues as large tiles, with the rest grouped below.
+
 ## 0.178.0
 
 ### Minor Changes
