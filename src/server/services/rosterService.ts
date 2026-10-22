@@ -142,10 +142,10 @@ export class RosterService {
     return { summaries: readerSummaries(rows), priceable: rows.map((row) => rosterFromRow(row)) }
   }
 
-  /** Public rosters anyone can find, newest save first, named for their owner; a roster whose owner has no account is left out. */
+  /** Public rosters anyone can find, newest save first, named and pictured for their owner; a roster whose owner has no account is left out. */
   async discoverRosters(query: RosterDiscoveryQuery) {
     const { rows, nextCursor } = await this.repository.discoverRosters(query)
-    const owners = await this.repository.namesByIds(rows.map((row) => row.userId))
+    const owners = await this.repository.profilesByIds(rows.map((row) => row.userId))
     const owned = rows.filter((row) => owners.has(row.userId))
     const summaries = readerSummaries(owned)
     return {

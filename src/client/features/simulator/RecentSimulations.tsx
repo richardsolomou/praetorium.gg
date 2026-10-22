@@ -6,6 +6,7 @@ import { decodeSimulatorState } from '../../../contracts/simulatorState'
 import { FactionMark } from '../../components/FactionMark'
 import { factionIndexQuery } from '../../queries'
 import { useMatchupHistory } from './matchupHistory'
+import { OwnerAvatars, useRosterOwners } from './rosterOwners'
 
 /** `limit` stacks only the newest simulations and links to the rest on the simulator; without it they scroll in a row. */
 export function RecentSimulations({
@@ -18,6 +19,7 @@ export function RecentSimulations({
   limit?: number
 }) {
   const { recent, forget } = useMatchupHistory()
+  const ownerOf = useRosterOwners()
   const { data: index } = useQuery({ ...factionIndexQuery(), enabled: recent.length > 0 })
   if (!recent.length) return null
   const mark = (catalogueId: string | undefined) => {
@@ -54,18 +56,25 @@ export function RecentSimulations({
                   }
                 }}
               >
-                <span className="flex min-w-0 items-start gap-2">
-                  {mark(attacker?.catalogueId)}
-                  <span className="line-clamp-2 font-bold break-words text-bone" title={entry.attacker}>
-                    {entry.attacker}
-                  </span>
-                </span>
-                <span className="flex min-w-0 items-start gap-2">
-                  {mark(defender?.catalogueId)}
-                  <span className="line-clamp-2 break-words text-dim" title={entry.defender}>
-                    {entry.defender}
-                  </span>
-                </span>
+                {[
+                  { role: 'attacker', side: attacker, name: entry.attacker, tone: 'font-bold text-bone' },
+                  { role: 'defender', side: defender, name: entry.defender, tone: 'text-dim' },
+                ].map(({ role, side, name, tone }) => {
+                  const owner = ownerOf(side?.roster)
+                  return (
+                    <span key={role} className="flex min-w-0 items-start gap-2">
+                      {mark(side?.catalogueId)}
+                      <span className={`line-clamp-2 min-w-0 flex-1 break-words ${tone}`} title={name}>
+                        {name}
+                      </span>
+                      {owner ? (
+                        <span title={owner.name}>
+                          <OwnerAvatars owners={[owner]} />
+                        </span>
+                      ) : null}
+                    </span>
+                  )
+                })}
               </Link>
               <button
                 type="button"

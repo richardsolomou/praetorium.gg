@@ -340,7 +340,11 @@ export function attachmentErrors(
     const name = definition?.name ?? unit.entryId
     const error = (message: string) => errors.push({ entryId: unit.entryId, entryName: name, message })
     if (unit.attachedTo === undefined) {
-      const required = definition && attachmentRequirement(definition, index)
+      // Core rules: each Support unit in a roster must be attached to a Bodyguard unit; a Leader may stand alone.
+      const required =
+        definition &&
+        (attachmentRequirement(definition, index) ??
+          (attachmentOf(definition, index, selections[position])?.kind === 'support' ? 'must be attached to a Bodyguard unit' : null))
       if (required) error(required)
       return
     }

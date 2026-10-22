@@ -16,6 +16,11 @@ const matchupSettingsSchema = z.object({
 })
 export type MatchupSettings = z.infer<typeof matchupSettingsSchema>
 
+const savedRosterSource = z.object({ id: idSchema })
+const leagueRosterSource = z.object({ league: z.object({ token: idSchema, eventToken: idSchema, userId: idSchema }) })
+export type SimulatorRosterSource = z.infer<typeof savedRosterSource> | z.infer<typeof leagueRosterSource>
+const pickIndexSchema = z.int().min(0).max(500)
+
 const sideSchema = z.object({
   catalogueId: idSchema,
   pick: rosterPickSchema.omit({ attachedTo: true }),
@@ -25,10 +30,17 @@ const sideSchema = z.object({
     .array(rosterPickSchema.omit({ attachedTo: true }))
     .max(7)
     .optional(),
-  /** A unit from a saved roster, simulated with that roster's detachment, enhancements, and attachments. */
-  roster: z.object({ id: idSchema, pickIndex: z.int().min(0).max(500) }).optional(),
+  /** A unit from a saved roster or a revealed league list, simulated with its detachment, enhancements, and attachments. */
+  roster: z
+    .union([savedRosterSource.extend({ pickIndex: pickIndexSchema }), leagueRosterSource.extend({ pickIndex: pickIndexSchema })])
+    .optional(),
 })
 export type SimulatorSide = z.infer<typeof sideSchema>
+
+/** Identifies a side's roster, whichever kind it is. */
+export function rosterSourceKey(source: SimulatorRosterSource) {
+  return 'id' in source ? source.id : JSON.stringify(['league', source.league.token, source.league.eventToken, source.league.userId])
+}
 
 /** Everything a shared simulator link restores; the first side attacks unless swapped. */
 const simulatorStateSchema = z.object({
@@ -62,8 +74,13 @@ export function simulatorPairing(shared: string) {
   if (!state?.sides.every(Boolean)) return null
   return JSON.stringify([
     state.swapped,
-    state.sides.map((side) => [side!.catalogueId, side!.pick.entryId, ...(side!.roster ? [side!.roster.id] : [])]),
+    state.sides.map((side) => [side!.catalogueId, side!.pick.entryId, ...(side!.roster ? [rosterSourceKey(side!.roster)] : [])]),
   ])
+}
+
+/** A link that defends with one unit of a roster, with the attacker still to pick. */
+export function rosterMatchup(catalogueId: string, pick: SimulatorSide['pick'], source: SimulatorRosterSource, pickIndex: number) {
+  return encodeSimulatorState({ v: 1, sides: [null, { catalogueId, pick, rules: {}, roster: { ...source, pickIndex } }], swapped: false })
 }
 
 /** A link that puts one datasheet on the chosen side, with the other side still to pick. */

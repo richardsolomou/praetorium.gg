@@ -8,7 +8,8 @@ import { combatRuleSelections } from '../../../core/combatRules'
 import { useSourceTexts } from '../../sourceText'
 import { combatantTexts, readableCombatant } from './readableRules'
 import { combatLoadoutsQuery, combatantDatasheetQuery, priceQuery } from '../../queries'
-import type { SimulatorSide } from '../../../contracts/simulatorState'
+import type { SimulatorRosterSource, SimulatorSide } from '../../../contracts/simulatorState'
+import type { RosterOwner } from './rosterOwners'
 import { useSettled } from '../../useSettled'
 import { survivingUnits } from '../rosters/builder/pricePlaceholder'
 import type { KeyedPick } from '../rosters/rosterPicks'
@@ -26,8 +27,10 @@ export type CombatRoster = {
   waivedRules: readonly FormatRuleId[]
   borrowedDetachmentId: string | null
   optionalRules: readonly OptionalRuleId[]
-  /** The saved roster a standalone side came from, so its link and recent simulation can reopen it. */
-  saved?: { id: string; name: string }
+  /** The saved roster or revealed league list a standalone side came from, so its link and recent simulation can reopen it. */
+  saved?: { source: SimulatorRosterSource; name: string }
+  /** Whose list this is, when a comparison fields more than one roster on a side. */
+  owner?: RosterOwner
   battle?: {
     units: { available: boolean; key: string; name: string; models: number; startingModels: number; damage: number; wounds?: number }[]
   }
@@ -367,7 +370,7 @@ function shareable(
       pick: shared,
       rules,
       ...(Object.keys(preferences).length ? { preferences } : {}),
-      roster: { id: roster.saved.id, pickIndex },
+      roster: { ...roster.saved.source, pickIndex },
     }
   const attached = picks
     .filter((member) => member.attachedTo === pick.key)

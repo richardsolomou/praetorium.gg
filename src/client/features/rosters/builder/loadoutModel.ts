@@ -67,15 +67,6 @@ export type LoadoutUnit = {
 
 export type WeaponProfileData = Datasheet['profiles'][number]
 
-export function equippedWeaponProfiles(
-  profiles: readonly WeaponProfileData[],
-  choices: readonly { options: readonly Pick<LoadoutOption, 'name' | 'count' | 'pieceCounts'>[] }[],
-) {
-  return profiles.filter(
-    (profile) => (profile.count ?? 1) > Math.max(...weaponProfileNames(profile).map((name) => controlledProfileCount(choices, name))),
-  )
-}
-
 export function unmodeledGrantedWeapons(
   profiles: readonly WeaponProfileData[],
   models: readonly LoadoutModel[],
@@ -234,21 +225,6 @@ export function weaponMatches(optionName: string, profileName: string) {
 
 export const weaponPieceMatches = (pieceName: string, profileName: string) =>
   sameWargear(pieceName, profileName) || wargearKey(pieceName) === wargearKey(profileName, true)
-
-export function controlledProfileCount(
-  choices: readonly { options: readonly Pick<LoadoutOption, 'name' | 'count' | 'pieceCounts'>[] }[],
-  profileName: string,
-) {
-  return choices
-    .flatMap((choice) => choice.options)
-    .reduce((total, option) => {
-      if (!option.count) return total
-      const pieces = option.pieceCounts
-        ?.filter((piece) => weaponPieceMatches(piece.name, profileName))
-        .reduce((count, piece) => count + piece.count, 0)
-      return total + (pieces ?? (weaponMatches(option.name, profileName) ? option.count : 0))
-    }, 0)
-}
 
 export function wargearMatches(optionName: string, abilityName: string) {
   return named(optionName, abilityName)

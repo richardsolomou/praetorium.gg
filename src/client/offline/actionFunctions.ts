@@ -34,6 +34,7 @@ import {
   notificationSettingsKey,
   onboardingKey,
   opponentsKey,
+  friendLeagueRostersKey,
   outdatedLeagueEntriesKey,
   playerDefaultsKey,
   recentMatchupsKey,
@@ -99,6 +100,7 @@ export const friendInvite = (args: Parameters<typeof server.friendInvite>[0]) =>
   cachedRead(friendInviteKey(args.data.token), () => server.friendInvite(args))
 export const openLeagueRoster = (args: Parameters<typeof server.openLeagueRoster>[0]) =>
   cachedRead(leagueRosterKey(args.data.token, args.data.eventToken, args.data.userId), () => server.openLeagueRoster(args))
+export const listFriendLeagueRosters = () => cachedRead(friendLeagueRostersKey(), () => server.listFriendLeagueRosters())
 export const outdatedLeagueEntriesForRoster = (args: Parameters<typeof server.outdatedLeagueEntriesForRoster>[0]) =>
   cachedRead(outdatedLeagueEntriesKey(args.data.rosterId), () => server.outdatedLeagueEntriesForRoster(args))
 export const openLeague = async (args: Parameters<typeof server.openLeague>[0]): ReturnType<typeof server.openLeague> => {

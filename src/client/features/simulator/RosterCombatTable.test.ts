@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { bestRosterMatches, RosterCombatTable } from './RosterCombatTable'
+import { bestRosterMatches, matchupShade, ownerRuns, RosterCombatTable } from './RosterCombatTable'
 
 const answer = (meanDamage: number, meanKills: number, wipe: number) => ({ result: { meanDamage, meanKills, wipe } })
 it('highlights damage rather than destruction chance when comparing wounds', () => {
@@ -34,4 +34,35 @@ it('shows every attacking unit without paging', () => {
     createElement(RosterCombatTable, { attackers: units, defenders: [units[0]!], results: {}, onSelect: () => {} }),
   )
   expect([...markup.matchAll(/scope="row"/g)]).toHaveLength(12)
+})
+
+it('shades a matchup by its share of the largest result', () => {
+  expect([matchupShade(8, 8), matchupShade(4, 8), matchupShade(0, 8), matchupShade(undefined, 8)]).toEqual([28, 16, 0, 0])
+})
+
+it('groups consecutive units by whose list they come from', () => {
+  const unit = (name?: string) => ({ rosterIndex: 0, pickIndex: 0, name: 'Squad', snapshot: null, owner: name ? { name } : undefined })
+  expect(ownerRuns([unit('Ana'), unit('Ana'), unit('Ben')])).toEqual([
+    { owner: { name: 'Ana' }, start: 0, count: 2 },
+    { owner: { name: 'Ben' }, start: 2, count: 1 },
+  ])
+})
+
+it('names no groups for a single unlabelled roster', () => {
+  expect(ownerRuns([{ rosterIndex: 0, pickIndex: 0, name: 'Squad', snapshot: null }])).toEqual([])
+})
+
+it('explains once why a unit that cannot attack has no results', () => {
+  const squad = { rosterIndex: 0, pickIndex: 0, name: 'Squad', snapshot: null }
+  const ancient = { ...squad, pickIndex: 1, name: 'Ancient', error: 'must be attached to a Bodyguard unit' }
+  const failed = { ranged: { error: 'must be attached to a Bodyguard unit' }, melee: {}, combined: {} }
+  const markup = renderToStaticMarkup(
+    createElement(RosterCombatTable, {
+      attackers: [ancient],
+      defenders: [squad, { ...squad, pickIndex: 2 }],
+      results: { '0:0': failed, '0:1': failed },
+      onSelect: () => {},
+    }),
+  )
+  expect([...markup.matchAll(/Not calculated: must be attached to a Bodyguard unit/g)]).toHaveLength(1)
 })

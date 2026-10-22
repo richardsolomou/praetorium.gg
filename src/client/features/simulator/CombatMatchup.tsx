@@ -24,7 +24,7 @@ import { combatMatchup, type CombatAnswer, type CombatantSnapshot, type CombatRe
 import type { CombatAdjustments, TargetAdjustment, WeaponAdjustment } from '../../../core/combatAdjustments'
 import { wargearKey } from '../../../core/wargear'
 import { CombatRuleLabel } from './CombatRuleLabel'
-import { Chip, Choice } from './CombatControls'
+import { Chip, Choice, PhaseIcon } from './CombatControls'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CombatResults } from './CombatResults'
 import { LoadoutOddsContext, LoadoutOptimizationContext, type LoadoutOptimization } from './LoadoutOdds'
@@ -34,6 +34,7 @@ import type { LoadoutSpace } from '../../../core/combatLoadouts'
 import { groupBy } from '../../../core/collections'
 import { Problem } from '../../components/Problem'
 import { countLabel } from '../../text'
+import { calculationInputs } from './calculationInputs'
 
 function weaponToggleGroups(entries: readonly { profile: Datasheet['profiles'][number]; count: number }[]) {
   return [
@@ -95,6 +96,8 @@ const phases = [
 ] as const
 
 /** The same matchup surface accepts catalogue picks or already evaluated roster/battle units. */
+const VALID_ATTACHMENTS = {}
+
 export function CombatMatchup({
   entryPoint = 'standalone',
   attacker,
@@ -113,6 +116,7 @@ export function CombatMatchup({
   preferences,
   invalidatedPreferences = false,
   onPreferencesChange: setPreferences,
+  invalidAttachments = VALID_ATTACHMENTS,
 }: {
   entryPoint?: CombatEntryPoint
   attacker: CombatantSnapshot | null
@@ -133,6 +137,8 @@ export function CombatMatchup({
   onPreferencesChange: Dispatch<SetStateAction<Record<string, string>>>
   /** The attacker's weapon choices, when its loadout can change in this matchup. */
   loadoutSpace?: LoadoutSpace | null
+  /** Which sides have illegal attachments, such as a Support unit without a Bodyguard unit, so they cannot be calculated. */
+  invalidAttachments?: { attacker?: boolean; defender?: boolean }
 }) {
   const [adjustments, setAdjustments] = useState<CombatAdjustments>(initialSettings?.adjustments ?? {})
   const [modifiersOpen, setModifiersOpen] = useState(Boolean(Object.keys(initialSettings?.adjustments ?? {}).length))
@@ -563,10 +569,16 @@ export function CombatMatchup({
           ) : null}
           {attacker?.allocationRequired ? (
             <p role="alert" className="mb-3 text-sm text-discarded">
-              Choose the attacker's surviving models and weapons to calculate attacks.
+              {invalidAttachments.attacker
+                ? 'Fix the attacker’s attachments to calculate attacks.'
+                : "Choose the attacker's surviving models and weapons to calculate attacks."}
             </p>
           ) : null}
-          {target?.error ? <Problem className="mb-3">{target.error}</Problem> : null}
+          {target?.error ? (
+            <Problem className="mb-3">
+              {invalidAttachments.defender ? 'Fix the defender’s attachments to calculate attacks against it.' : target.error}
+            </Problem>
+          ) : null}
           <div className="grid gap-x-3 gap-y-6 @xl:grid-cols-2">
             {phases.map(([phase, title]) => {
               const plan = plans[phase]
@@ -645,7 +657,7 @@ export function CombatMatchup({
           <details data-combat-buffs className="mt-3 border-t border-edge">
             <summary
               data-onboarding="simulator-buffs"
-              className="rubric w-fit cursor-pointer py-3 text-info outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              className="rubric cursor-pointer py-3 text-info outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               Rules & buffs
             </summary>
@@ -658,7 +670,7 @@ export function CombatMatchup({
             <details data-manual-modifiers open={modifiersOpen} onToggle={(event) => setModifiersOpen(event.currentTarget.open)}>
               <summary
                 data-onboarding="simulator-modifiers"
-                className="rubric w-fit cursor-pointer py-3 text-info outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className="rubric cursor-pointer py-3 text-info outline-none focus-visible:ring-2 focus-visible:ring-primary"
               >
                 Manual modifiers
               </summary>
@@ -934,12 +946,23 @@ export function CombatMatchup({
               <h3 className="rubric">Calculation uses</h3>
               {sources.length ? <p className="text-dim">Profile changes: {sources.join(' · ')}.</p> : null}
               {phases.map(([phase, title]) => {
-                const applied = phaseSummary(phase)
+                const plan = plans[phase]
+                const excluded = weaponToggleGroups(plan?.used ?? []).flatMap(([key, group]) =>
+                  excludedWeapons[phase].includes(key) ? [group[0]!.name] : [],
+                )
+                const applied = [
+                  ...calculationInputs(phase, { attacker, defender, choices: plan?.choices ?? [], excluded }),
+                  ...phaseSummary(phase),
+                ]
                 return (
-                  <p key={phase}>
-                    <span className="font-semibold text-bone">{title}.</span>{' '}
-                    <span className="text-dim">{scenarios[phase] ? applied.join('. ') : 'No attack calculated'}.</span>
-                  </p>
+                  <div key={phase}>
+                    <p className="font-semibold text-bone">{title}</p>
+                    <ul className="mt-0.5 space-y-0.5 text-dim">
+                      {(scenarios[phase] ? applied : ['No attack calculated']).map((entry) => (
+                        <li key={entry}>{entry}</li>
+                      ))}
+                    </ul>
+                  </div>
                 )
               })}
             </section>
@@ -1062,12 +1085,6 @@ function CombatDefences({
       </table>
     </div>
   )
-}
-
-/** Without a title the icon only decorates a heading that already names the phase. */
-function PhaseIcon({ phase, title }: { phase: Phase; title?: string }) {
-  const Icon = phase === 'ranged' ? Crosshair : Swords
-  return <Icon className="size-3.5 shrink-0 text-info" aria-label={title} aria-hidden={title ? undefined : true} />
 }
 
 function ChipRow({ label, children }: { label: string; children: ReactNode }) {

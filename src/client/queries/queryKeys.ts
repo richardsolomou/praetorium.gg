@@ -82,6 +82,7 @@ export const leagueRosterKey = (token: string, eventToken: string | undefined, u
   eventToken,
   userId,
 ]
+export const friendLeagueRostersKey = () => ['friend-league-rosters']
 export const leagueBattlesKey = (token: string, eventToken: string) => ['league-battles', token, eventToken]
 /** Without a roster, every roster's outdated entries. */
 export const outdatedLeagueEntriesKey = (rosterId?: string) =>

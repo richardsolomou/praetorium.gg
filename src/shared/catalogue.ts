@@ -14,8 +14,7 @@ import {
   type Selection,
 } from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
-import { isUnitCompositionChoice, unitChoices, type UnitChoiceCache } from '../core/unitChoices'
-import { choiceOptionWargear } from '../core/modelKinds'
+import { unitChoices, type UnitChoiceCache } from '../core/unitChoices'
 import { wargearKey, wargearOf } from '../core/wargear'
 import { combatCarriers, referenceOnlyWeapon } from '../core/combatLoadout'
 import { ruleReferenceMatches, splitWeaponKeywords } from '../core/ruleReference'
@@ -675,19 +674,7 @@ export function datasheetViewsIn(
   const shared = { ...context, modifiers }
   const selection = context.unitSelectionIndex === undefined ? undefined : context.selections[context.unitSelectionIndex]
   const options = { primaryCatalogueId: catalogueId, roster: context.selections.filter((entry) => entry !== selection) }
-  const controlledChoices = selection
-    ? unitChoices(entryId, selection, loaded.index, options)
-        .filter((choice) => !isUnitCompositionChoice(choice))
-        .map((choice) => ({
-          options: choice.options.map((option) => ({
-            name: option.name,
-            count: option.count,
-            pieceCounts: choiceOptionWargear(choice.key, option.id, selection, loaded.index, options),
-          })),
-        }))
-    : []
   return {
-    controlledChoices,
     carriers: selection ? combatCarriers(selection, loaded.index, options) : [],
     selected: datasheetIn(loaded, catalogueId, entryId, shared),
     available: datasheetIn(loaded, catalogueId, entryId, { ...shared, everyWeapon: true, everyWargearAbility: true }),

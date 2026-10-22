@@ -2340,19 +2340,23 @@ export const leagueByToken = spacetime.procedure({ token: t.string(), eventToken
   }),
 )
 
+/** Leagues a player owns, helps run, or has entered in any event. */
+function personalLeagueIds(ctx: Context, userId: string) {
+  const ids = new Set<string>()
+  for (const row of ctx.db.leagues.ownerId.filter(userId)) ids.add(row.id)
+  for (const row of ctx.db.leagueAdmins.userId.filter(userId)) ids.add(row.leagueId)
+  for (const entry of ctx.db.leagueEventEntries.userId.filter(userId)) {
+    const event = ctx.db.leagueEvents.id.find(entry.eventId)
+    if (event) ids.add(event.leagueId)
+  }
+  return ids
+}
+
 export const leaguesVisibleTo = spacetime.procedure({ userId: t.string(), limit: t.u32() }, t.string(), (ctx, { userId, limit }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
     if (userId.length > MAX_ID_LENGTH || limit < 1 || limit > 100) throw new SenderError('Invalid league list')
-    const personal = new Set<string>()
-    if (userId) {
-      for (const row of tx.db.leagues.ownerId.filter(userId)) personal.add(row.id)
-      for (const row of tx.db.leagueAdmins.userId.filter(userId)) personal.add(row.leagueId)
-      for (const entry of tx.db.leagueEventEntries.userId.filter(userId)) {
-        const event = tx.db.leagueEvents.id.find(entry.eventId)
-        if (event) personal.add(event.leagueId)
-      }
-    }
+    const personal = userId ? personalLeagueIds(tx, userId) : new Set<string>()
     const leagues = []
     let scanned = 0
     for (const league of tx.db.leagues.iter()) {
@@ -2428,6 +2432,47 @@ export const outdatedLeagueEntriesForRoster = spacetime.procedure(
       }
       return productJson(matches)
     }),
+)
+
+/** Friends' sealed lists from revealed events in leagues the viewer can list, newest reveal first. */
+export const friendLeagueRosters = spacetime.procedure({ viewerId: t.string() }, t.string(), (ctx, { viewerId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (!validId(viewerId)) throw new SenderError('Invalid league roster list')
+    const personal = personalLeagueIds(tx, viewerId)
+    const rosters = []
+    let scanned = 0
+    for (const friendId of acceptedFriendIds(tx, viewerId)) {
+      for (const entry of tx.db.leagueEventEntries.userId.filter(friendId)) {
+        if (++scanned > 10_000) throw new SenderError('Too many league entries')
+        if (entry.status !== 'accepted' || entry.rosterSnapshot === undefined) continue
+        const event = tx.db.leagueEvents.id.find(entry.eventId)
+        if (!event || event.revealedAt === undefined) continue
+        const league = tx.db.leagues.id.find(event.leagueId)
+        if (!league || (league.visibility !== 'public' && !personal.has(league.id))) continue
+        let catalogueId: string | undefined
+        try {
+          catalogueId = parseRosterSnapshot(entry.rosterSnapshot).built?.catalogueId
+        } catch {
+          // An unreadable snapshot cannot be simulated.
+        }
+        if (!catalogueId) continue
+        rosters.push({
+          leagueToken: league.token,
+          leagueName: league.name,
+          eventToken: event.token,
+          eventNumber: event.number,
+          eventCount: leagueEventsFor(tx, league.id).length,
+          userId: friendId,
+          rosterName: entry.rosterName ?? '',
+          catalogueId,
+          revealedAt: event.revealedAt,
+        })
+      }
+    }
+    rosters.sort((a, b) => Number(b.revealedAt - a.revealedAt) || b.eventNumber - a.eventNumber)
+    return productJson(rosters.slice(0, 50))
+  }),
 )
 
 export const leagueBattleCandidates = spacetime.procedure(

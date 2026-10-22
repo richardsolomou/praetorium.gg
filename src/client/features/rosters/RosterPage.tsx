@@ -34,7 +34,14 @@ export function RosterPage({
   const { data: access } = useQuery({ ...rosterAccessQuery(id, battle), enabled: !snapshot })
   const roster = access?.roster
 
-  if (leagueSnapshot) return sealed ? <BattleRosterSnapshot roster={sealed} print={print} /> : null
+  if (leagueSnapshot)
+    return sealed ? (
+      <BattleRosterSnapshot
+        roster={sealed}
+        print={print}
+        simulatorSource={league && event ? { league: { token: league, eventToken: event, userId: id } } : undefined}
+      />
+    ) : null
   if (snapshot && battle && screen && screen.kind !== 'unavailable') {
     const fielded = fieldedRoster(screen.view, id)
     return fielded ? <BattleRosterSnapshot roster={fielded} print={print} /> : null
@@ -50,6 +57,7 @@ export function RosterPage({
       locked={editable && roster.locked}
       print={print}
       battle={battle}
+      simulatorSource={access.editable || battle ? undefined : { id: roster.id }}
       variants={access.variants}
       differences={access.differences}
       copiedFrom={access.copiedFrom ?? null}

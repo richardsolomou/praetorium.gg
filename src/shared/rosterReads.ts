@@ -21,7 +21,6 @@ export function rosterLoadoutDatasheets(
   const views = context ? datasheetViewsIn(loaded, data.catalogueId, data.entryId, context) : null
   return {
     datacardJoin: datacardJoinOutcome(loaded, data.catalogueId, data.entryId),
-    controlledChoices: views?.controlledChoices ?? [],
     carriers: views?.carriers ?? [],
     selected: views
       ? describeDatasheetAbilities(loaded, data.catalogueId, views.selected, rules)

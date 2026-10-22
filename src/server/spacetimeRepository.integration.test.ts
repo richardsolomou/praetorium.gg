@@ -145,7 +145,13 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
     })
     // Admins come from the owner's friends, run the league beside them, and cannot remove it or choose other admins.
     expect(await repository.setLeagueAdmins(leagueToken, creatorId, [opponentId], now.getTime())).toBe('not-friends')
+    expect(await repository.friendLeagueRosters(creatorId)).toEqual([])
     await repository.acceptFriend(creatorId, opponentId, now.getTime())
+    // A friend's revealed list is offered to the simulator; a stranger sees none.
+    expect((await repository.friendLeagueRosters(creatorId)).map((row) => [row.userId, row.ownerName, row.catalogueId])).toEqual([
+      [opponentId, 'Opponent', 'test'],
+    ])
+    expect(await repository.friendLeagueRosters(randomUUID())).toEqual([])
     expect(await repository.setLeagueAdmins(leagueToken, creatorId, [opponentId], now.getTime())).toEqual({ added: [opponentId] })
     expect(await repository.setLeagueAdmins(leagueToken, opponentId, [], now.getTime())).toBe('forbidden')
     expect(await repository.deleteLeague(leagueToken, opponentId)).toBe('forbidden')

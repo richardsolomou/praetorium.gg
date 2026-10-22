@@ -819,6 +819,7 @@ export {
   activeFriendInvite,
   friendInvite,
   openLeagueRoster,
+  listFriendLeagueRosters,
   outdatedLeagueEntriesForRoster,
   openLeague,
   requestFriend,

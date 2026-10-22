@@ -94,6 +94,7 @@ import * as FavouriteDetachmentsByUserProcedure from './favourite_detachments_by
 import * as FavouriteFactionsByUserProcedure from './favourite_factions_by_user_procedure'
 import * as FriendInviteByInviterProcedure from './friend_invite_by_inviter_procedure'
 import * as FriendInviteByTokenProcedure from './friend_invite_by_token_procedure'
+import * as FriendLeagueRostersProcedure from './friend_league_rosters_procedure'
 import * as FriendshipsByUserProcedure from './friendships_by_user_procedure'
 import * as GuestDeviceProcedure from './guest_device_procedure'
 import * as GuestInviteProcedure from './guest_invite_procedure'
@@ -287,6 +288,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('favourite_factions_by_user', FavouriteFactionsByUserProcedure.params, FavouriteFactionsByUserProcedure.returnType),
   __procedureSchema('friend_invite_by_inviter', FriendInviteByInviterProcedure.params, FriendInviteByInviterProcedure.returnType),
   __procedureSchema('friend_invite_by_token', FriendInviteByTokenProcedure.params, FriendInviteByTokenProcedure.returnType),
+  __procedureSchema('friend_league_rosters', FriendLeagueRostersProcedure.params, FriendLeagueRostersProcedure.returnType),
   __procedureSchema('friendships_by_user', FriendshipsByUserProcedure.params, FriendshipsByUserProcedure.returnType),
   __procedureSchema('guest_device', GuestDeviceProcedure.params, GuestDeviceProcedure.returnType),
   __procedureSchema('guest_invite', GuestInviteProcedure.params, GuestInviteProcedure.returnType),

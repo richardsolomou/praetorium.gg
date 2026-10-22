@@ -1,6 +1,7 @@
 import { bookOf } from './catalogue.fixtures'
 
-export function preferenceBook(equipmentChoice = false) {
+/** `armedKind` makes the armed character a Leader where a test fields it on its own, which a Support character may not be. */
+export function preferenceBook(equipmentChoice = false, armedKind: 'Support' | 'Leader' = 'Support') {
   const weapon = (id: string, name: string, damage: string) => ({
     id,
     name,
@@ -38,9 +39,9 @@ export function preferenceBook(equipmentChoice = false) {
       model('squad', 'Squad'),
       model('leader', 'Leader', 'Leader'),
       {
-        ...model('support', 'Support', 'Support'),
+        ...model('support', 'Support', armedKind),
         profiles: [
-          ...model('support', 'Support', 'Support').profiles,
+          ...model('support', 'Support', armedKind).profiles,
           ...(equipmentChoice
             ? []
             : [weapon('support-focused', 'Plasma - focused', '1'), weapon('support-spread', 'Plasma - spread', '3')]),
