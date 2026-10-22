@@ -93,7 +93,7 @@ export function RuleText({
 function SourcedRuleText({ text, rules, className }: { text: string; rules: KeywordRule[]; className?: string }) {
   const source = useSourceText(text)
   // Labels with nothing loaded beneath them say nothing, so a card waiting on its text shows only why.
-  if (source.missing === 'unchosen' || source.missing === 'loading')
+  if (source.missing && source.missing !== 'unavailable')
     return <SourceTextPrompt missing={source.missing} className={cn('mt-2', className)} />
   return <RuleTextBody text={source.text} rules={rules} className={className} />
 }

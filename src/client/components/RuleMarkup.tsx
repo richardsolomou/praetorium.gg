@@ -38,8 +38,7 @@ export function RuleMarkup({
 
 function SourcedRuleMarkup({ markup, links, className }: { markup: string; links: RuleLinks; className?: string }) {
   const source = useSourceText(markup)
-  if (source.missing === 'unchosen' || source.missing === 'loading')
-    return <SourceTextPrompt missing={source.missing} className={className} />
+  if (source.missing && source.missing !== 'unavailable') return <SourceTextPrompt missing={source.missing} className={className} />
   return <RuleMarkupBody markup={source.text} links={links} className={className} />
 }
 

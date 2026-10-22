@@ -1,7 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
+import { posthog } from 'posthog-js'
+import { useEffect } from 'react'
 import type { RuleDocument, RuleTextSource } from '../contracts/rules'
 import { ruleDocumentFrom } from '../shared/ruleDocuments'
 import { TEXT_SOURCES, type TextSource } from '../shared/sourceText'
+import { isFetchNetworkFailure } from './networkErrors'
 import { readStoredValue, subscribeStoredValues, useStoredValue, writeStoredValue } from './storedValue'
 import { rulesTextKey } from './queries/queryKeys'
 
@@ -89,6 +92,28 @@ async function verified(response: Response, text: RuleTextSource) {
   return hex(await crypto.subtle.digest('SHA-256', bytes)) === text.sha256 ? bytes : null
 }
 
+/** An upstream answer that is not the pinned file, with only what telemetry may carry about it. */
+class UpstreamTextError extends Error {
+  constructor(
+    message: string,
+    readonly failure: TextLoadFailure,
+  ) {
+    super(message)
+  }
+}
+
+export type TextLoadFailure = { reason: 'network' | 'http' | 'mismatch' | 'invalid'; status?: number }
+
+/** Why a rules text file did not load, never the error's message. */
+export function textLoadFailure(error: unknown): TextLoadFailure {
+  if (error instanceof UpstreamTextError) return error.failure
+  return { reason: isFetchNetworkFailure(error) ? 'network' : 'invalid' }
+}
+
+export function reportTextLoadFailure(source: TextSource | undefined, error: unknown) {
+  posthog.capture('rules_text_load_failed', { source, ...textLoadFailure(error) })
+}
+
 /**
  * A pinned upstream file's bytes, from this device's copy when it kept one that `accept`
  * still takes. A copy is kept only once accepted, so a refused answer is asked again.
@@ -99,9 +124,9 @@ export async function upstreamBytes(url: string, accept: (response: Response) =>
   const keptBytes = kept ? await accept(kept) : null
   if (keptBytes) return keptBytes
   const response = await fetch(url, { credentials: 'omit', referrerPolicy: 'no-referrer' })
-  if (!response.ok) throw new Error(`The source answered ${response.status}`)
+  if (!response.ok) throw new UpstreamTextError(`The source answered ${response.status}`, { reason: 'http', status: response.status })
   const bytes = await accept(response)
-  if (!bytes) throw new Error('The source file does not match the pinned version')
+  if (!bytes) throw new UpstreamTextError('The source file does not match the pinned version', { reason: 'mismatch' })
   await cache?.put(url, new Response(bytes, { headers: { 'Content-Type': 'application/json' } })).catch(() => undefined)
   return bytes
 }
@@ -126,6 +151,9 @@ export function useRuleText(text: RuleTextSource | null) {
     staleTime: Number.POSITIVE_INFINITY,
     retry: 1,
   })
+  useEffect(() => {
+    if (query.error) reportTextLoadFailure('game-datacards', query.error)
+  }, [query.error])
   // A copy loaded before the reader stopped loading stays cached, so the choice decides what shows.
   return { chosen, query, document: chosen ? (query.data ?? null) : null }
 }

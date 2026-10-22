@@ -14,7 +14,7 @@ import {
 } from '../shared/sourceText'
 import { textSources } from './functions'
 import { referenceQuery } from './queries/shared'
-import { type TextSourceChoice, hex, textSourceChoice, upstreamBytes, useTextSourceChoice } from './rulesText'
+import { type TextSourceChoice, hex, reportTextLoadFailure, textSourceChoice, upstreamBytes, useTextSourceChoice } from './rulesText'
 
 const encoder = new TextEncoder()
 /** Digests run concurrently in batches: one at a time is slow, and every string of a large file at once holds them all in memory. */
@@ -23,8 +23,18 @@ const BATCH = 512
 /** Every string a pinned upstream file holds, by the truncated hash a token names it by. */
 export async function loadSourceStrings(url: string): Promise<ReadonlyMap<string, string>> {
   // The file is not compared whole: each string answers only a token naming its own hash.
-  const bytes = await upstreamBytes(url, (response) => response.arrayBuffer())
-  const strings = [...sourceStrings(JSON.parse(new TextDecoder().decode(bytes)))]
+  // It must still parse, or the device would keep the broken answer and serve it on every visit.
+  let file: unknown
+  await upstreamBytes(url, async (response) => {
+    const bytes = await response.arrayBuffer()
+    try {
+      file = JSON.parse(new TextDecoder().decode(bytes))
+      return bytes
+    } catch {
+      return null
+    }
+  })
+  const strings = [...sourceStrings(file)]
   const byHash = new Map<string, string>()
   for (let at = 0; at < strings.length; at += BATCH) {
     const batch = strings.slice(at, at + BATCH)
@@ -51,7 +61,10 @@ const changed = () => {
   for (const listener of listeners) listener()
 }
 
-/** Starts loading one file, once per page; every reader of the store renders again when it lands. */
+/**
+ * Starts loading one file, once per page; every reader of the store renders again when it lands.
+ * A failure stays until the reader retries, so rows mounting as a list scrolls cannot repeat it.
+ */
 export function loadTextFile(id: string): Promise<void> {
   const url = urls.get(id)
   if (!url) return Promise.resolve()
@@ -63,8 +76,9 @@ export function loadTextFile(id: string): Promise<void> {
       files.set(url, { strings })
       changed()
     },
-    () => {
+    (error: unknown) => {
       files.set(url, { failed: true })
+      reportTextLoadFailure(sourceOf.get(id), error)
       changed()
     },
   )
@@ -72,6 +86,16 @@ export function loadTextFile(id: string): Promise<void> {
   return loaded
 }
 const loading = new Map<string, Promise<void>>()
+
+/** Asks again for every file whose load failed. */
+export async function retryFailedTextFiles() {
+  const retries = [...urls].flatMap(([id, url]) => {
+    if (!files.get(url)?.failed) return []
+    loading.delete(url)
+    return [loadTextFile(id)]
+  })
+  await Promise.all(retries)
+}
 
 /** Where each file a token names lives upstream, and its source, as the server lists them. */
 export function registerTextSources(table: Readonly<Record<string, TextSourceFile>>) {
@@ -85,8 +109,8 @@ export function registerTextSources(table: Readonly<Record<string, TextSourceFil
   if (added) changed()
 }
 
-/** What stands in for text this device has not chosen to load, is still loading, or cannot find. */
-export type MissingText = 'unchosen' | 'loading' | 'unavailable' | null
+/** What stands in for text this device has not chosen to load, is still loading, could not load, or cannot find. */
+export type MissingText = 'unchosen' | 'loading' | 'failed' | 'unavailable' | null
 /** Text as this device can show it. */
 export type LoadedText = { text: string; missing: MissingText }
 
@@ -123,6 +147,11 @@ export function loadedText(text: string, choice = textSourceChoice()): LoadedTex
     return !loaded?.strings && !loaded?.failed
   })
   if (waiting) return { text: withoutText(text), missing: 'loading' }
+  const failed = tokens.some(({ file }) => {
+    const url = urls.get(file)
+    return url !== undefined && files.get(url)?.failed === true
+  })
+  if (failed) return { text: withoutText(text), missing: 'failed' }
   return {
     text: resolvedText(text, lookup, () => '—'),
     missing: tokens.some((token) => lookup(token) === null) ? 'unavailable' : null,
