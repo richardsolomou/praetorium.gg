@@ -494,7 +494,7 @@ test('automatic shooting and melee with stable edits', async ({ page }) => {
   await page.route('**/offline-reference-version.json', (route) => route.abort())
   await page.setViewportSize({ width: 1440, height: 1000 })
   await page.goto('/more')
-  await page.getByRole('link', { name: 'Simulator Damage and kill probabilities' }).click()
+  await page.getByRole('link', { name: /^Combat simulator/ }).click()
   await expect(page.getByRole('heading', { name: 'Combat simulator', exact: true })).toBeVisible()
   const swap = page.getByRole('button', { name: 'Swap attacker and defender' })
   await expect(swap).toBeDisabled()
