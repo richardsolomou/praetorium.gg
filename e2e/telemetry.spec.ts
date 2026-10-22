@@ -6,7 +6,6 @@ import { chooseCombatUnit } from './combat'
 
 test.use({ serviceWorkers: 'block' })
 
-
 test('search reports empty results, dismissal, and successful selection without the query', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
