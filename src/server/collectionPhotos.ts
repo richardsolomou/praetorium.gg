@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { randomUUID } from 'node:crypto'
-import { COLLECTION_PHOTO_MAX_BYTES, collectionPhotoPath } from '../contracts/collection'
+import { type AdminCollectionPhotosCursor, COLLECTION_PHOTO_MAX_BYTES, collectionPhotoPath } from '../contracts/collection'
 import { ifNoneMatch } from './ifNoneMatch'
 import { notFound } from './notFound'
 import { parseImageDataUrl, privateImageResponse, type PrivateObjects } from './privateImages'
@@ -12,7 +12,7 @@ const DELETION_BATCH = 100
 const DELETION_BATCHES_PER_DRAIN = 20
 const DATASHEET_GALLERY_SIZE = 12
 const HELD_LIST_SIZE = 100
-const RECENT_LIST_SIZE = 24
+const ADMIN_PAGE_SIZE = 24
 
 type PhotoRepository = Pick<
   SpacetimeRepository,
@@ -23,7 +23,7 @@ type PhotoRepository = Pick<
   | 'reportCollectionPhoto'
   | 'keepCollectionPhoto'
   | 'heldCollectionPhotos'
-  | 'recentCollectionPhotos'
+  | 'adminCollectionPhotos'
   | 'setCollectionPhotoLike'
   | 'collectionPhoto'
   | 'datasheetPhotos'
@@ -141,9 +141,10 @@ export function collectionPhotoStore(
       return withOwners(await repository.heldCollectionPhotos(HELD_LIST_SIZE))
     },
 
-    /** The newest photos no report holds, so administrators can remove one nobody has reported yet. */
-    async recent() {
-      return withOwners(await repository.recentCollectionPhotos(RECENT_LIST_SIZE))
+    /** A page of the photos no report holds, newest first, so administrators can remove one nobody has reported yet. */
+    async browse(before: AdminCollectionPhotosCursor | null) {
+      const page = await repository.adminCollectionPhotos({ before, limit: ADMIN_PAGE_SIZE })
+      return { photos: await withOwners(page.photos), nextCursor: page.nextCursor }
     },
 
     /** Whether `viewerId` may see the photo, and whose it is. */

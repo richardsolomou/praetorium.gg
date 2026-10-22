@@ -6,6 +6,6 @@
 import { TypeBuilder as __TypeBuilder, t as __t, type AlgebraicTypeType as __AlgebraicTypeType, type Infer as __Infer } from 'spacetimedb'
 
 export const params = {
-  limit: __t.u32(),
+  payload: __t.string(),
 }
 export const returnType = __t.string()

@@ -70,6 +70,7 @@ import WatchBattleReducer from './watch_battle_reducer'
 // Import all procedure arg schemas
 import * as AcceptFriendProcedure from './accept_friend_procedure'
 import * as AcceptFriendInviteProcedure from './accept_friend_invite_procedure'
+import * as AdminCollectionPhotosProcedure from './admin_collection_photos_procedure'
 import * as BattleAudiencesProcedure from './battle_audiences_procedure'
 import * as BattleByTokenProcedure from './battle_by_token_procedure'
 import * as BattleFeedProcedure from './battle_feed_procedure'
@@ -121,7 +122,6 @@ import * as ProductStatsProcedure from './product_stats_procedure'
 import * as PublicStandingsRevisionProcedure from './public_standings_revision_procedure'
 import * as PushEnabledProcedure from './push_enabled_procedure'
 import * as PushTargetsProcedure from './push_targets_procedure'
-import * as RecentCollectionPhotosProcedure from './recent_collection_photos_procedure'
 import * as RecentMatchupsByUserProcedure from './recent_matchups_by_user_procedure'
 import * as RejectFriendProcedure from './reject_friend_procedure'
 import * as RemoveBattleProcedure from './remove_battle_procedure'
@@ -256,6 +256,7 @@ const reducersSchema = __reducers(
 const proceduresSchema = __procedures(
   __procedureSchema('accept_friend', AcceptFriendProcedure.params, AcceptFriendProcedure.returnType),
   __procedureSchema('accept_friend_invite', AcceptFriendInviteProcedure.params, AcceptFriendInviteProcedure.returnType),
+  __procedureSchema('admin_collection_photos', AdminCollectionPhotosProcedure.params, AdminCollectionPhotosProcedure.returnType),
   __procedureSchema('battle_audiences', BattleAudiencesProcedure.params, BattleAudiencesProcedure.returnType),
   __procedureSchema('battle_by_token', BattleByTokenProcedure.params, BattleByTokenProcedure.returnType),
   __procedureSchema('battle_feed', BattleFeedProcedure.params, BattleFeedProcedure.returnType),
@@ -319,7 +320,6 @@ const proceduresSchema = __procedures(
   __procedureSchema('public_standings_revision', PublicStandingsRevisionProcedure.params, PublicStandingsRevisionProcedure.returnType),
   __procedureSchema('push_enabled', PushEnabledProcedure.params, PushEnabledProcedure.returnType),
   __procedureSchema('push_targets', PushTargetsProcedure.params, PushTargetsProcedure.returnType),
-  __procedureSchema('recent_collection_photos', RecentCollectionPhotosProcedure.params, RecentCollectionPhotosProcedure.returnType),
   __procedureSchema('recent_matchups_by_user', RecentMatchupsByUserProcedure.params, RecentMatchupsByUserProcedure.returnType),
   __procedureSchema('reject_friend', RejectFriendProcedure.params, RejectFriendProcedure.returnType),
   __procedureSchema('remove_battle', RemoveBattleProcedure.params, RemoveBattleProcedure.returnType),

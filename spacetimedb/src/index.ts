@@ -1937,18 +1937,40 @@ export const heldCollectionPhotos = spacetime.procedure({ limit: t.u32() }, t.st
   }),
 )
 
-/** The newest photos awaiting no review, for administrators to catch what nobody has reported yet. */
-export const recentCollectionPhotos = spacetime.procedure({ limit: t.u32() }, t.string(), (ctx, { limit }) =>
+const adminCollectionPhotosQuery = z.strictObject({
+  before: z.strictObject({ at: z.number().int().nonnegative(), id: z.string().max(MAX_ID_LENGTH) }).nullable(),
+  limit: z.number().int().min(1).max(100),
+})
+
+/** Photos awaiting no review, newest first, a page at a time for administrators, with whether others can see each and its likes. */
+export const adminCollectionPhotos = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
-    const recent = []
-    for (const row of tx.db.collectionPhotos.iter()) if (!awaitsReview(row)) recent.push(row)
-    return productJson(
-      recent
-        .sort((left, right) => Number(right.at - left.at) || left.photoId.localeCompare(right.photoId))
-        .slice(0, Math.min(limit, 100))
-        .map(({ photoId, userId, entryId, at }) => ({ photoId, userId, entryId, at })),
-    )
+    if (payload.length > 1_000) throw new SenderError('Invalid photo list')
+    const input = decodePayload(adminCollectionPhotosQuery, payload, 'Invalid photo list')
+    const rows = []
+    for (const row of tx.db.collectionPhotos.iter()) {
+      if (awaitsReview(row)) continue
+      const at = safeNumber(row.at)
+      if (input.before && (at > input.before.at || (at === input.before.at && row.photoId >= input.before.id))) continue
+      rows.push({ row, at })
+    }
+    rows.sort((left, right) => right.at - left.at || right.row.photoId.localeCompare(left.row.photoId))
+    const published = new Map<string, boolean>()
+    const photos = rows.slice(0, input.limit).map(({ row, at }) => {
+      if (!published.has(row.userId)) published.set(row.userId, collectionPublished(tx, row.userId))
+      return {
+        photoId: row.photoId,
+        userId: row.userId,
+        entryId: row.entryId,
+        at,
+        likes: row.likes ?? 0,
+        published: published.get(row.userId)!,
+        kept: row.review === 'kept',
+      }
+    })
+    const last = photos.at(-1)
+    return productJson({ photos, nextCursor: rows.length > input.limit && last ? { at: last.at, id: last.photoId } : null })
   }),
 )
 
