@@ -219,7 +219,7 @@ it('serves reference discovery and structured records through MCP', async () => 
   expect(await guide.json()).toMatchObject({
     result: {
       contents: [
-        { text: expect.stringMatching(/shooting and melee.*\/guides.*standalone combat simulator without an account.*## Agent workflow/s) },
+        { text: expect.stringMatching(/shooting and melee.*\/docs.*standalone combat simulator without an account.*## Agent workflow/s) },
       ],
     },
   })

@@ -48,7 +48,7 @@ const ACCOUNT: readonly MoreLink[] = [
 ]
 
 const HELP: readonly MoreLink[] = [
-  { description: 'Army lists, imports and battle tracking', icon: GraduationCap, label: 'Player guides', to: '/guides' },
+  { description: 'Army lists, imports and battle tracking', icon: GraduationCap, label: 'Docs', to: '/docs' },
   { description: 'Changes to the app', icon: Sparkles, label: "What's new", to: '/whats-new' },
 ]
 

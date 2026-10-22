@@ -1,12 +1,4 @@
-import { readdirSync } from 'node:fs'
 import { expect, test } from './test'
-
-for (const file of readdirSync('public/guides')) {
-  test(`caches the versioned guide image ${file}`, async ({ request }) => {
-    const response = await request.get(`/guides/${file}`)
-    expect([response.status(), response.headers()['cache-control']]).toEqual([200, 'public, max-age=31536000, immutable'])
-  })
-}
 
 for (const file of ['logo.svg', 'favicon.svg']) {
   test(`revalidates the cached ${file}`, async ({ request }) => {
@@ -20,11 +12,6 @@ for (const file of ['logo.svg', 'favicon.svg']) {
     ])
   })
 }
-
-test('does not cache a missing guide image', async ({ request }) => {
-  const response = await request.get('/guides/missing-12345678.png')
-  expect([response.status(), response.headers()['cache-control']]).toEqual([404, 'no-store'])
-})
 
 test('keeps the reference API representations separate', async ({ request }) => {
   const json = await request.get('/api/reference/v1/factions')

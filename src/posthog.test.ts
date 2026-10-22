@@ -15,7 +15,7 @@ it.each([
   ['/mission-packs/pack', 'missions'],
   ['/force-dispositions/disposition', 'force-dispositions'],
   ['/simulator', 'simulator'],
-  ['/guides/compare-loadouts', 'guides'],
+  ['/docs/compare-loadouts', 'docs'],
   ['/friends', 'friends'],
   ['/invite/private-invite', 'friends'],
   ['/users/private-user', 'players'],

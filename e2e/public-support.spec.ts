@@ -1,3 +1,4 @@
+import { PRODUCT_DOCS } from '../src/contracts/productDocs'
 import { expect, test } from './test'
 
 for (const pageDetails of [
@@ -45,7 +46,20 @@ test('support sends feedback in place and keeps the public issue tracker', async
     await page.keyboard.press('Escape')
     await expect(page).toHaveURL(/\/support$/)
     await expect(page.getByRole('heading', { name: 'Report a problem' })).toHaveCount(0)
-    await expect(page.getByRole('main').getByRole('textbox')).toHaveCount(0)
+    await expect(page.getByRole('main').getByRole('textbox')).toHaveAccessibleName('Search docs')
     await page.screenshot({ path: `test-results/support-${width}.png`, fullPage: true })
   }
+})
+
+test('support lists every area of fixes and searches the docs', async ({ page }) => {
+  await page.goto('/support')
+  const fixes = page.getByRole('list', { name: 'Troubleshooting' })
+  for (const doc of PRODUCT_DOCS.filter((entry) => entry.slug.endsWith('-problems')))
+    await expect(fixes.getByRole('link', { name: new RegExp(`^${doc.title}`) })).toHaveAttribute('href', `/docs/${doc.slug}`)
+  await page.getByRole('textbox', { name: 'Search docs' }).fill('start battle greyed')
+  await page
+    .getByRole('region', { name: 'Search results' })
+    .getByRole('link', { name: /Start battle is greyed out/ })
+    .click()
+  await expect(page).toHaveURL('/docs/battle-problems#start-battle-is-greyed-out')
 })

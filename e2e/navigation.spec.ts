@@ -59,7 +59,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
     '/force-dispositions',
     '/data-updates',
     '/leaderboard',
-    '/guides',
+    '/docs',
     '/whats-new',
     '/support',
   ])
