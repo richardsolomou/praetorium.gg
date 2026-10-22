@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.178.0
+
+### Minor Changes
+
+- 011f38f: The force dispositions page shows how many detachments and armies can field each disposition.
+
+### Patch Changes
+
+- 72114bf: Official-app imports keep a Relic Greataxe, a multi-melta Eradicator, a Thunderwolf Cavalry Pack Leader and a Wulfen Death Totem that the catalogue names differently.
+- 72114bf: Importing text from the official app reads every weapon when the app lists several under one bullet, instead of asking you to place them by hand.
+- 72114bf: Official-app text copied without its title line now imports instead of being refused as an unsupported export.
+- 86cc1fd: Search shows your recent searches and the page list in one scrolling list instead of two.
+
 ## 0.177.0
 
 ### Minor Changes
