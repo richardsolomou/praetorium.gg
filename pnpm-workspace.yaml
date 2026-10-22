@@ -9,7 +9,7 @@ allowBuilds:
   esbuild: true
   protobufjs: false
 minimumReleaseAgeExclude:
-  - ras-stack@5.0.0-next.2
+  - ras-stack@5.0.0-next.3
   # Reviewed SDK health updates; drop once the Node release is seven days old on 2026-10-23.
   - posthog-js@1.438.12
   - posthog-node@5.56.2
@@ -92,3 +92,6 @@ packageExtensions:
   posthog-react-native:
     dependencies:
       '@babel/runtime': ^7.20.0
+configDependencies:
+  ras-stack: 5.0.0-next.3
+pnpmfile: node_modules/.pnpm-config/ras-stack/pnpmfile.mjs
