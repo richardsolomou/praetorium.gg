@@ -43,7 +43,7 @@ export function RecentSearches({ onOpen, onEmptied }: { onOpen?: (result: Global
           Clear
         </Button>
       </div>
-      <ul className={onOpen ? 'max-h-[30dvh] overflow-y-auto overscroll-contain pt-1' : 'pt-1'}>
+      <ul className="pt-1">
         {recent.map((result, index) => {
           const content = (
             <>

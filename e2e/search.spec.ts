@@ -112,7 +112,7 @@ test('the search page shows the same results as global autocomplete', async ({ p
   const scroller = page.getByRole('region', { name: 'Search results' })
   expect(await scroller.getByRole('link').count()).toBeLessThan(50)
   await scroller.evaluate((element) => {
-    element.scrollTop = element.scrollHeight
+    element.parentElement!.scrollTop = element.parentElement!.scrollHeight
   })
   await expect(scroller.getByRole('link').last()).toHaveText(lastLabel!.trim())
   await page.screenshot({ path: test.info().outputPath('virtual-page-end.png') })

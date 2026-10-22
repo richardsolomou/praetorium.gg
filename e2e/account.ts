@@ -624,8 +624,9 @@ export async function scrollSearchResultIntoView(page: Page, result: Locator) {
   const list = await scroller
   await expect(async () => {
     if (!(await result.isVisible()))
+      // The results share one scrolling area with whatever leads them.
       await list.evaluate((element) => {
-        element.scrollTop += element.clientHeight / 2
+        element.parentElement!.scrollTop += element.parentElement!.clientHeight / 2
       })
     await expect(result).toBeVisible({ timeout: 100 })
     // Device results are replaced by the server's, so a result can leave the list mid-scroll.

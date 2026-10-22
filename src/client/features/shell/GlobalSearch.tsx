@@ -171,8 +171,10 @@ export function GlobalSearchProvider({ children }: { children: ReactNode }) {
                 <p className="py-6 text-center text-sm text-dim">No results found.</p>
               )
             ) : null}
-            {trimmed ? null : <RecentSearches onOpen={(result) => void go(result, true)} onEmptied={() => inputRef.current?.focus()} />}
             <SearchResults
+              before={
+                trimmed ? null : <RecentSearches onOpen={(result) => void go(result, true)} onEmptied={() => inputRef.current?.focus()} />
+              }
               results={results}
               query={settled}
               listId={listId}

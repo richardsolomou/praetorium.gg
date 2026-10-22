@@ -18,6 +18,7 @@ import { kriegGermanOfficial } from '../src/core/rosterText.krieg.fixture'
 import { necronsOfficial } from '../src/core/rosterText.necrons.fixture'
 import { blackTemplarsNewRecruit } from '../src/core/rosterText.blackTemplars.fixture'
 import { salamandersOfficial } from '../src/core/rosterText.salamanders.fixture'
+import { spaceWolvesOfficial } from '../src/core/rosterText.spaceWolves.fixture'
 import type { LoadedRules } from '../src/shared/rules'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import { importRosterFile } from '../src/shared/rosterFiles'
@@ -156,6 +157,30 @@ Sanctifiers (100 pts)
       mismatches: [],
       points: '2000 for 2000',
     })
+  })
+
+  it('imports the reported official-app Space Wolves roster without mismatches', () => {
+    expect(summary(spaceWolvesOfficial)).toEqual({
+      format: 'roster-file',
+      faction: 'Imperium - Adeptus Astartes - Space Wolves',
+      detachments: 3,
+      units: '15 of 15',
+      attached: 3,
+      mismatches: [],
+      points: '2000 for 2000',
+    })
+  })
+
+  it('arms the Wolf Guard Pack Leader with the Relic Greataxe the catalogue spells Relic Great Axe', () => {
+    expect(wargear(spaceWolvesOfficial, 'Wolf Guard Terminators')).toContain('1x relic great axe')
+  })
+
+  it('reads an Eradicator listed with a multi-melta as the Eradicator with Multi-melta', () => {
+    expect(wargear(spaceWolvesOfficial, 'Eradicator Squad with Melta Rifles')).toContain('1x multi-melta')
+  })
+
+  it('counts the Thunderwolf Cavalry Pack Leader among its models', () => {
+    expect(imported(spaceWolvesOfficial).units.at(-1)?.models).toBe(6)
   })
 
   it('imports official-app Necrons with every leader and support attachment', () => {
