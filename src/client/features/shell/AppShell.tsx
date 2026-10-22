@@ -15,7 +15,6 @@ import { POSTHOG_BROWSER_OPTIONS } from '../../../posthog'
 import { authClient } from '../../authClient'
 import { Account } from './Account'
 import { GlobalSearch, GlobalSearchProvider } from './GlobalSearch'
-import { TextSourcesNotice } from './TextSourcesNotice'
 import { TextSourcesDialog } from '../../components/TextSourcesDialog'
 import { ReleaseUpdateNotice } from './ReleaseUpdateNotice'
 import { ImpersonationBanner } from './ImpersonationBanner'
@@ -174,7 +173,6 @@ export function AppShell() {
                   <OfflineReference />
                   <AppPersistence />
                   <SyncStatus />
-                  <TextSourcesNotice path={path} />
                   <WebMcp />
                   <Outlet />
                 </div>

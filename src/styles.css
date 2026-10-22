@@ -842,7 +842,6 @@ html[data-native-app='true'] [data-battle-sticky-header] {
  * already the reader's own: a wait where a chosen source will fill it, the question where none
  * will. A gap that cannot name its source yet counts any chosen source as its own.
  */
-html[data-text-sources] [data-text-sources-notice],
 html:not([data-text-sources~='bsdata']) [data-text-gap='bsdata'] > [data-text-gap-wait],
 html:not([data-text-sources~='game-datacards']) [data-text-gap='game-datacards'] > [data-text-gap-wait],
 html:is(:not([data-text-sources]), [data-text-sources='']) [data-text-gap='any'] > [data-text-gap-wait],

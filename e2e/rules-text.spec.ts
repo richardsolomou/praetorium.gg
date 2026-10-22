@@ -1,7 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { Page } from '@playwright/test'
-import { signUp, uniqueName } from './account'
 import { catalogue } from './stackEnv'
 import { expect, replaceUpstreamFile, test } from './test'
 
@@ -13,7 +12,7 @@ const prose = 'The principles of movement are explained here.'
 const ability = 'subtract 1 from that attack’s Damage characteristic'
 
 const rulesPage = '/rules/core-rules/moving'
-const notice = (page: Page) => page.getByRole('complementary', { name: 'Rules text' })
+const ask = (page: Page) => page.getByRole('main').getByRole('button', { name: 'Choose sources' }).first()
 const dialog = (page: Page) => page.getByRole('dialog', { name: 'Load rules text from community sources' })
 
 /** Turns on exactly these sources in the dialog a prompt opened, then loads them. */
@@ -33,35 +32,15 @@ async function setSource(page: Page, name: 'BSData' | 'Game Datacards', on: bool
   await expect(toggle).toBeChecked({ checked: on })
 }
 
-test('a page without rules text does not ask where it comes from', async ({ page }) => {
-  await page.goto('/')
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-  await expect(notice(page)).toHaveCount(0)
-})
-
-test('a new device is asked where rules text comes from', async ({ page }) => {
+test('a new device is asked where rules text comes from only where text is missing', async ({ page }) => {
   await page.goto(rulesPage)
-  await expect(notice(page)).toContainText('Rules text loads in your browser from community sources you choose.')
-})
-
-test('a signed-in reader on a new device is asked the same way', async ({ page }) => {
-  await signUp(page, uniqueName('Sources'))
-  await page.goto(rulesPage)
-  await expect(notice(page)).toBeVisible()
-})
-
-test('declining the question keeps it answered across a reload', async ({ page }) => {
-  await page.goto(rulesPage)
-  await notice(page).getByRole('button', { name: 'Not now' }).click()
-  await expect(notice(page)).toHaveCount(0)
-  await page.reload()
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-  await expect(notice(page)).toHaveCount(0)
+  await expect(page.getByRole('main').getByText('Rules text isn’t loaded.').first()).toBeVisible()
+  await expect(page.getByRole('complementary', { name: 'Rules text' })).toHaveCount(0)
 })
 
 test('choosing sources asks which external sources to load, with none turned on', async ({ page }) => {
   await page.goto(rulesPage)
-  await notice(page).getByRole('button', { name: 'Choose sources' }).click()
+  await ask(page).click()
   await expect(dialog(page)).toContainText('Praetorium doesn’t host or serve it.')
   await expect(dialog(page).getByRole('switch', { name: 'BSData' })).not.toBeChecked()
   await expect(dialog(page).getByRole('switch', { name: 'Game Datacards' })).not.toBeChecked()
@@ -73,12 +52,12 @@ test('choosing sources asks which external sources to load, with none turned on'
 
 test('cancelling the dialog records nothing', async ({ page }) => {
   await page.goto(rulesPage)
-  await notice(page).getByRole('button', { name: 'Choose sources' }).click()
+  await ask(page).click()
   await dialog(page).getByRole('switch', { name: 'BSData' }).click()
   await dialog(page).getByRole('button', { name: 'Cancel' }).click()
   await expect(dialog(page)).toHaveCount(0)
   await page.reload()
-  await expect(notice(page)).toBeVisible()
+  await expect(ask(page)).toBeVisible()
 })
 
 test('a rules page carries no rules text until the reader loads it', async ({ page }) => {
@@ -191,15 +170,13 @@ const gapWait = (page: Page) => page.getByRole('main').getByRole('status', { nam
 test.describe('the first frame draws the device’s own choice', () => {
   test('an undecided device is asked from the first frame', async ({ page }) => {
     await firstFrame(page, '/factions/necrons/datasheets/overlord', null)
-    await expect(notice(page)).toBeVisible()
     await expect(gapAsk(page).first()).toBeVisible()
     await expect(gapWait(page)).toHaveCount(0)
   })
 
-  test('a device that chose none sees its gaps and no question', async ({ page }) => {
+  test('a device that chose none still sees what its gaps ask', async ({ page }) => {
     await firstFrame(page, '/factions/necrons/datasheets/overlord', '')
     await expect(page.getByRole('heading', { name: 'Implacable Resilience' })).toBeVisible()
-    await expect(notice(page)).toHaveCount(0)
     await expect(gapAsk(page).first()).toBeVisible()
   })
 
@@ -208,7 +185,6 @@ test.describe('the first frame draws the device’s own choice', () => {
     await expect(page.getByRole('heading', { name: 'Implacable Resilience' })).toBeVisible()
     await expect(gapWait(page).first()).toBeVisible()
     await expect(gapAsk(page)).toHaveCount(0)
-    await expect(notice(page)).toHaveCount(0)
   })
 
   test('a rules page waits for a chosen source without asking', async ({ page }) => {
