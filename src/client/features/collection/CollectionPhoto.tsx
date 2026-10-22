@@ -8,6 +8,7 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, Dia
 import { collectionPhotosQuery, meQuery } from '../../queries'
 import { PhotoDropZone } from './PhotoDropZone'
 import { PhotoViewer } from './PhotoViewer'
+import { usePhotoSteps } from './PhotoLightbox'
 
 /** A collection row's photo: its first thumbnail, or a camera when there is none, opening the player's photos of that datasheet. */
 export function CollectionPhoto({ entryId, name }: { entryId: string; name: string }) {
@@ -53,9 +54,9 @@ export function CollectionPhoto({ entryId, name }: { entryId: string; name: stri
 export function OwnPhotos({ entryId, name, className = 'grid-cols-3' }: { entryId: string; name: string; className?: string }) {
   const { data: me } = useQuery(meQuery())
   const { data: photos } = useQuery({ ...collectionPhotosQuery(), enabled: Boolean(me) })
-  const [viewing, setViewing] = useState<string | null>(null)
-  if (!me) return null
   const own = photos?.[entryId] ?? []
+  const viewing = usePhotoSteps(me ? own.map((photoId) => ({ photoId, owner: { id: me.id, name: me.name } })) : [])
+  if (!me) return null
   return (
     <div className={cn('grid gap-2', className)} data-own-photos>
       {own.map((photoId, index) => (
@@ -64,7 +65,7 @@ export function OwnPhotos({ entryId, name, className = 'grid-cols-3' }: { entryI
           type="button"
           className="block border border-edge hover:border-info"
           aria-label={`Your photo ${index + 1} of ${name}`}
-          onClick={() => setViewing(photoId)}
+          onClick={() => viewing.open(photoId)}
         >
           <img src={collectionPhotoPath(photoId, 'thumbnail')} alt="" className="aspect-square w-full bg-sunken object-cover" />
         </button>
@@ -73,8 +74,10 @@ export function OwnPhotos({ entryId, name, className = 'grid-cols-3' }: { entryI
       <PhotoViewer
         entryId={entryId}
         name={name}
-        photo={viewing ? { photoId: viewing, owner: { id: me.id, name: me.name } } : null}
-        onClose={() => setViewing(null)}
+        photo={viewing.current}
+        onClose={viewing.close}
+        onPrevious={viewing.previous}
+        onNext={viewing.next}
       />
     </div>
   )

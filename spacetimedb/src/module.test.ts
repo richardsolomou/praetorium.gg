@@ -1245,6 +1245,69 @@ describe('recent matchups', () => {
   })
 })
 
+describe('administrator photo list', () => {
+  const photo = (index: number) => `00000000-0000-4000-8000-${String(index).padStart(12, '0')}`
+  function setup() {
+    const host = harness()
+    host.call(host.operator, (ctx) => {
+      const insert = (index: number, userId: string, at: bigint, review?: string) =>
+        ctx.db.collectionPhotos.insert({ photoId: photo(index), key: 'private', userId, entryId: 'warriors', at, likes: 0, review })
+      insert(1, 'owner', 1n)
+      insert(2, 'owner', 2n)
+      insert(3, 'owner', 2n)
+      insert(4, 'other', 3n)
+      insert(5, 'owner', 4n, 'held')
+      insert(6, 'owner', 5n, 'flagged')
+      insert(7, 'owner', 6n, 'kept')
+    })
+    return host
+  }
+  type Page = { photos: { photoId: string; kept: boolean; published: boolean }[]; nextCursor: { at: number; id: string } | null }
+  const list = (host: ReturnType<typeof setup>, input: object) =>
+    JSON.parse(
+      module.adminCollectionPhotos(host.procedure(host.operator), {
+        payload: JSON.stringify({ before: null, limit: 100, ...input }),
+      }),
+    ) as Page
+  const ids = (page: Page) => page.photos.map((row) => row.photoId)
+
+  it('lists photos awaiting no review, newest first', () => {
+    expect(ids(list(setup(), {}))).toEqual([photo(7), photo(4), photo(3), photo(2), photo(1)])
+  })
+
+  it('continues after a page that ends between photos uploaded at the same moment', () => {
+    const host = setup()
+    const first = list(host, { limit: 3 })
+    expect([ids(first), ids(list(host, { before: first.nextCursor }))]).toEqual([
+      [photo(7), photo(4), photo(3)],
+      [photo(2), photo(1)],
+    ])
+  })
+
+  it('says whose collections others cannot see', () => {
+    const host = setup()
+    module.setCollectionPublished(host.procedure(host.operator), { userId: 'other', published: false })
+    expect(list(host, {}).photos.map((row) => row.published)).toEqual([true, false, true, true, true])
+  })
+
+  it('says which photos an administrator kept before', () => {
+    expect(list(setup(), {}).photos.map((row) => row.kept)).toEqual([true, false, false, false, false])
+  })
+
+  it('ends without a cursor on the last page', () => {
+    expect(list(setup(), { limit: 5 }).nextCursor).toBeNull()
+  })
+
+  it('keeps the list private to the operator', () => {
+    const host = setup()
+    expect(() =>
+      module.adminCollectionPhotos(host.procedure(player('reader')), {
+        payload: JSON.stringify({ before: null, limit: 1 }),
+      }),
+    ).toThrow('Operator required')
+  })
+})
+
 describe('collection photo thumbnail inventory', () => {
   function setup() {
     const host = harness()

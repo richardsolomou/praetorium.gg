@@ -518,6 +518,9 @@ html[data-native-app='true'] [data-battle-sticky-header] {
 }
 
 :root {
+  /* The sticky header's height, which `AppShell` replaces with the measured one while the desktop header shows. */
+  --app-header: 3rem;
+
   /* Almost nothing is rounded: 3px on buttons, 4px on cards. */
   --radius: 0.25rem;
 
@@ -784,6 +787,32 @@ html[data-native-app='true'] [data-battle-sticky-header] {
   @apply text-2xs font-semibold tracking-eyebrow text-dim uppercase;
 }
 
+/**
+ * A header section tab, underlined while its section is open. Its icon shows from the width the header's
+ * `--nav-tab-icon` names, so a row that runs out of room drops icons before it folds a group into a menu.
+ */
+@utility nav-tab {
+  @apply relative flex shrink-0 items-center gap-2 text-xs font-semibold tracking-label whitespace-nowrap uppercase hover:text-info;
+
+  &::after {
+    @apply absolute inset-x-0 bottom-0 h-0.5 bg-parchment opacity-0 content-[''];
+  }
+
+  &[data-status='active'] {
+    @apply text-parchment after:opacity-100;
+  }
+
+  & > svg {
+    @apply size-4 shrink-0 text-info;
+    display: var(--nav-tab-icon, none);
+  }
+}
+
+/** An anchor target's clearance below the sticky header, whose height `AppShell` publishes. */
+@utility scroll-mt-header {
+  scroll-margin-top: calc(var(--app-header) + 1rem);
+}
+
 /** A section heading with a count beside it, as every list on screen carries. */
 @utility rubric {
   @apply text-[0.9375rem] font-bold tracking-label text-dim uppercase;
@@ -842,7 +871,6 @@ html[data-native-app='true'] [data-battle-sticky-header] {
  * already the reader's own: a wait where a chosen source will fill it, the question where none
  * will. A gap that cannot name its source yet counts any chosen source as its own.
  */
-html[data-text-sources] [data-text-sources-notice],
 html:not([data-text-sources~='bsdata']) [data-text-gap='bsdata'] > [data-text-gap-wait],
 html:not([data-text-sources~='game-datacards']) [data-text-gap='game-datacards'] > [data-text-gap-wait],
 html:is(:not([data-text-sources]), [data-text-sources='']) [data-text-gap='any'] > [data-text-gap-wait],

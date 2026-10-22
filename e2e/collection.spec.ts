@@ -286,7 +286,9 @@ test('profiles show a new collection by default and settings hide it', async ({ 
   for (const width of [1440, 390]) {
     await guest.setViewportSize({ width, height: 900 })
     await expect(shown).toContainText('31 models · 2 datasheets')
-    await expect(shown.getByRole('region', { name: 'Necrons', exact: true })).toContainText('30 models')
+    await expect(
+      shown.getByRole('region', { name: 'Necrons', exact: true }).getByLabel('Overlord: 30 owned', { exact: true }),
+    ).toBeVisible()
     await expect(guest.getByRole('switch')).toHaveCount(0)
     await expectNoHorizontalOverflow(guest.locator('main'))
   }
@@ -294,9 +296,9 @@ test('profiles show a new collection by default and settings hide it', async ({ 
 
   await page.goto(profileUrl)
   const collection = page.locator('[data-player-collection]')
-  await expect(collection).toContainText('Anyone can see your collection here.')
+  await expect(collection).toContainText('31 models · 2 datasheets')
   await expect(page.getByRole('switch')).toHaveCount(0)
-  await collection.getByRole('link', { name: 'Privacy settings', exact: true }).click()
+  await page.goto('/profile#collection-sharing')
   const sharing = page.getByRole('switch', { name: /Show collection on profile/ })
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
@@ -317,7 +319,6 @@ test('profiles show a new collection by default and settings hide it', async ({ 
   await expect(sharing).not.toBeChecked()
   await page.goto(profileUrl)
   await expect(collection).toContainText('31 models · 2 datasheets')
-  await expect(collection).toContainText('Only you can see your collection here.')
   await guestContext.close()
 })
 
@@ -375,7 +376,10 @@ test('collection photos are added together, removed only after confirmation, and
   }, first)
   expect(downloaded).toBe(0)
   await guest.goto(new URL(`/users/${owner}?tab=collection`, page.url()).href)
-  const thumbnail = guest.locator('[data-collection-unit="Overlord"]').getByRole('img', { name: 'Overlord', exact: true })
+  const thumbnail = guest
+    .locator('[data-collection-unit="Overlord"]')
+    .getByRole('button', { name: 'Photos of Overlord', exact: true })
+    .locator('img')
   await loaded(thumbnail)
   await expectNoHorizontalOverflow(guest.locator('main'))
 
@@ -389,6 +393,14 @@ test('collection photos are added together, removed only after confirmation, and
   await page.getByRole('button', { name: 'Photos of your Overlord', exact: true }).click()
   await photo(1).click()
   const viewer = page.getByRole('dialog', { name: 'Overlord', exact: true })
+  const shownPhoto = viewer.getByRole('img', { name: /^Overlord from / })
+  await expect(shownPhoto).toHaveAttribute('src', originalPath)
+  await expect(viewer.getByRole('button', { name: 'Previous photo', exact: true })).toBeDisabled()
+  await expect(viewer.getByRole('link')).toBeFocused()
+  await page.keyboard.press('ArrowRight')
+  await expect(shownPhoto).toHaveAttribute('src', new URL(second, page.url()).pathname)
+  await viewer.getByRole('button', { name: 'Previous photo', exact: true }).click()
+  await expect(shownPhoto).toHaveAttribute('src', originalPath)
   const confirm = page.getByRole('alertdialog', { name: 'Remove this photo?', exact: true })
   await viewer.getByRole('button', { name: 'Remove photo', exact: true }).click()
   await confirm.getByRole('button', { name: 'Keep', exact: true }).click()
@@ -501,18 +513,34 @@ test('a reported photo is hidden from everyone but its owner until an administra
       .getByRole('listitem')
       .filter({ has: admin.getByRole('link', { name: sharer, exact: true }) })
   await expect(sharers('Recently uploaded')).toHaveCount(0)
-  await loaded(sharers('Reported').getByRole('img'))
-  await sharers('Reported').getByRole('button', { name: 'Keep', exact: true }).click()
+  await loaded(sharers('Reported').locator('img'))
+  await sharers('Reported')
+    .getByRole('button', { name: `Keep Royal Warden from ${sharer}`, exact: true })
+    .click()
   await expect(sharers('Reported')).toHaveCount(0)
   await expect(sharers('Recently uploaded')).toHaveCount(1)
   await reader.reload()
   await expect(shared(reader)).toBeVisible()
 
+  await sharers('Recently uploaded')
+    .getByRole('button', { name: `Royal Warden from ${sharer}’s collection`, exact: true })
+    .click()
+  await expect(admin.getByRole('dialog', { name: 'Royal Warden', exact: true }).getByRole('img')).toBeVisible()
+  await admin.keyboard.press('Escape')
+  await expect(sharers('Recently uploaded').getByRole('link', { name: sharer, exact: true })).toHaveAttribute(
+    'href',
+    /^\/users\/[^/?]+\?tab=collection$/,
+  )
+
   const confirm = admin.getByRole('alertdialog', { name: 'Remove this photo?', exact: true })
-  await sharers('Recently uploaded').getByRole('button', { name: 'Remove', exact: true }).click()
+  await sharers('Recently uploaded')
+    .getByRole('button', { name: `Remove Royal Warden from ${sharer}`, exact: true })
+    .click()
   await confirm.getByRole('button', { name: 'Cancel', exact: true }).click()
   await expect(sharers('Recently uploaded')).toHaveCount(1)
-  await sharers('Recently uploaded').getByRole('button', { name: 'Remove', exact: true }).click()
+  await sharers('Recently uploaded')
+    .getByRole('button', { name: `Remove Royal Warden from ${sharer}`, exact: true })
+    .click()
   await confirm.getByRole('button', { name: 'Remove', exact: true }).click()
   await expect(sharers('Recently uploaded')).toHaveCount(0)
   await reader.reload()

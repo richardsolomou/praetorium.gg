@@ -175,7 +175,7 @@ export function Abilities({
           </h2>
           <div className="mt-2 flex flex-wrap gap-1">
             {found.map((ability) => (
-              <span id={`ability-${ability.id}`} key={ability.id} className="scroll-mt-16">
+              <span id={`ability-${ability.id}`} key={ability.id} className="scroll-mt-header">
                 <Keyword
                   name={ability.name}
                   rules={ability.description ? [{ name: ability.name, description: ability.description }] : []}
@@ -494,5 +494,5 @@ export function TransportReference({
 }
 
 function ReferenceAnchors({ prefix, ids }: { prefix: 'ability' | 'profile'; ids: readonly string[] }) {
-  return ids.map((id) => <span id={`${prefix}-${id}`} key={id} className="block scroll-mt-16" />)
+  return ids.map((id) => <span id={`${prefix}-${id}`} key={id} className="block scroll-mt-header" />)
 }

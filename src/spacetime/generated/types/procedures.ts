@@ -8,6 +8,7 @@ import { type Infer as __Infer } from 'spacetimedb'
 // Import all procedure arg schemas
 import * as AcceptFriendProcedure from '../accept_friend_procedure'
 import * as AcceptFriendInviteProcedure from '../accept_friend_invite_procedure'
+import * as AdminCollectionPhotosProcedure from '../admin_collection_photos_procedure'
 import * as BattleAudiencesProcedure from '../battle_audiences_procedure'
 import * as BattleByTokenProcedure from '../battle_by_token_procedure'
 import * as BattleFeedProcedure from '../battle_feed_procedure'
@@ -59,7 +60,6 @@ import * as ProductStatsProcedure from '../product_stats_procedure'
 import * as PublicStandingsRevisionProcedure from '../public_standings_revision_procedure'
 import * as PushEnabledProcedure from '../push_enabled_procedure'
 import * as PushTargetsProcedure from '../push_targets_procedure'
-import * as RecentCollectionPhotosProcedure from '../recent_collection_photos_procedure'
 import * as RecentMatchupsByUserProcedure from '../recent_matchups_by_user_procedure'
 import * as RejectFriendProcedure from '../reject_friend_procedure'
 import * as RemoveBattleProcedure from '../remove_battle_procedure'
@@ -96,6 +96,8 @@ export type AcceptFriendArgs = __Infer<typeof AcceptFriendProcedure.params>
 export type AcceptFriendResult = __Infer<typeof AcceptFriendProcedure.returnType>
 export type AcceptFriendInviteArgs = __Infer<typeof AcceptFriendInviteProcedure.params>
 export type AcceptFriendInviteResult = __Infer<typeof AcceptFriendInviteProcedure.returnType>
+export type AdminCollectionPhotosArgs = __Infer<typeof AdminCollectionPhotosProcedure.params>
+export type AdminCollectionPhotosResult = __Infer<typeof AdminCollectionPhotosProcedure.returnType>
 export type BattleAudiencesArgs = __Infer<typeof BattleAudiencesProcedure.params>
 export type BattleAudiencesResult = __Infer<typeof BattleAudiencesProcedure.returnType>
 export type BattleByTokenArgs = __Infer<typeof BattleByTokenProcedure.params>
@@ -198,8 +200,6 @@ export type PushEnabledArgs = __Infer<typeof PushEnabledProcedure.params>
 export type PushEnabledResult = __Infer<typeof PushEnabledProcedure.returnType>
 export type PushTargetsArgs = __Infer<typeof PushTargetsProcedure.params>
 export type PushTargetsResult = __Infer<typeof PushTargetsProcedure.returnType>
-export type RecentCollectionPhotosArgs = __Infer<typeof RecentCollectionPhotosProcedure.params>
-export type RecentCollectionPhotosResult = __Infer<typeof RecentCollectionPhotosProcedure.returnType>
 export type RecentMatchupsByUserArgs = __Infer<typeof RecentMatchupsByUserProcedure.params>
 export type RecentMatchupsByUserResult = __Infer<typeof RecentMatchupsByUserProcedure.returnType>
 export type RejectFriendArgs = __Infer<typeof RejectFriendProcedure.params>

@@ -7,7 +7,9 @@ import { version } from '../../../../package.json'
 import { useQuery } from '@tanstack/react-query'
 import { HeadContent, Link, Outlet, Scripts, useLocation } from '@tanstack/react-router'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { BookOpen, Calculator, Gavel, Layers3, Medal, ScrollText, Swords, Trophy, UsersRound } from 'lucide-react'
+import { BookOpen, Calculator, ChevronDown, Gavel, Layers3, Medal, ScrollText, Swords, Trophy, UsersRound } from 'lucide-react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import { cn } from '@/lib/utils'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
 import { useEffect, useLayoutEffect } from 'react'
@@ -15,7 +17,6 @@ import { POSTHOG_BROWSER_OPTIONS } from '../../../posthog'
 import { authClient } from '../../authClient'
 import { Account } from './Account'
 import { GlobalSearch, GlobalSearchProvider } from './GlobalSearch'
-import { TextSourcesNotice } from './TextSourcesNotice'
 import { TextSourcesDialog } from '../../components/TextSourcesDialog'
 import { ReleaseUpdateNotice } from './ReleaseUpdateNotice'
 import { ImpersonationBanner } from './ImpersonationBanner'
@@ -53,45 +54,90 @@ const REFERENCE_LINKS = [
   { to: '/rules', label: 'Rules', Icon: Gavel },
 ] as const
 
-function PrimaryNavigation() {
+function Tabs({ links, tone }: { links: typeof PRIMARY_LINKS | typeof REFERENCE_LINKS; tone: string }) {
+  return links.map(({ to, label, Icon }) => (
+    <Link key={to} to={to} search={to === '/leaderboard' ? { faction: undefined } : undefined} className={cn('nav-tab', tone)}>
+      <Icon aria-hidden />
+      {label}
+    </Link>
+  ))
+}
+
+function ReferenceMenu() {
+  const path = useLocation({ select: (location) => location.pathname })
+  const inReference = REFERENCE_LINKS.some(({ to }) => path === to || path.startsWith(`${to}/`))
   return (
-    <nav aria-label="Primary" className="flex min-w-0 items-center gap-3 overflow-x-auto @min-[55.55rem]:gap-4">
-      {PRIMARY_LINKS.map(({ to, label, Icon }) => (
-        <Link
-          key={to}
-          to={to}
-          search={to === '/leaderboard' ? { faction: undefined } : undefined}
-          className="eyebrow flex shrink-0 items-center gap-1.5 whitespace-nowrap hover:text-info"
-          activeProps={{ className: 'text-parchment' }}
-        >
-          <Icon aria-hidden className="size-4 shrink-0 text-info" />
-          {label}
-        </Link>
-      ))}
-    </nav>
+    <DropdownMenu>
+      <DropdownMenuTrigger className="nav-tab text-dim @min-[47rem]:hidden" data-status={inReference ? 'active' : undefined}>
+        Reference <ChevronDown aria-hidden className="block! size-3.5" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-auto">
+        {REFERENCE_LINKS.map(({ to, label, Icon }) => (
+          <DropdownMenuItem key={to} className="whitespace-nowrap" render={<Link to={to} />}>
+            <Icon aria-hidden className="text-info" />
+            {label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
-function ReferenceNavigation() {
+/**
+ * One bar while every section fits beside the search; narrower, the sections move to a row of their own below it, losing
+ * their icons and then folding the reference into a menu. The sections render once and grid areas move them, and rem
+ * widths track the reader's text size. The whole header stays pinned; `publishHeaderHeight` tells what sits beneath it.
+ */
+function SiteHeader() {
   return (
-    <nav
+    <header
       data-web-app-chrome
-      aria-label="Reference"
-      className="flex h-9 shrink-0 items-center gap-4 overflow-x-auto border-b border-edge bg-panel/60 px-2 sm:px-4"
+      ref={publishHeaderHeight}
+      className="@container sticky top-0 z-30 border-b border-edge-strong bg-sunken/95 backdrop-blur"
     >
-      {REFERENCE_LINKS.map(({ to, label, Icon }) => (
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] grid-rows-[3rem_2.75rem] gap-x-4 px-2 [grid-template-areas:'logo_search_account'_'nav_nav_nav'] sm:px-4 @min-[76rem]:grid-cols-[auto_auto_minmax(0,1fr)_auto] @min-[76rem]:grid-rows-[3rem] @min-[76rem]:gap-x-5 @min-[76rem]:[grid-template-areas:'logo_nav_search_account']">
         <Link
-          key={to}
-          to={to}
-          className="eyebrow flex shrink-0 items-center gap-1.5 whitespace-nowrap text-dim hover:text-info"
-          activeProps={{ className: 'text-parchment' }}
+          to="/"
+          className="group flex items-center gap-2 font-display text-base leading-none font-bold tracking-label text-bone uppercase [grid-area:logo] hover:text-info"
         >
-          <Icon aria-hidden className="size-3.5 shrink-0 text-info" />
-          {label}
+          <img src={offlineData()?.logo ?? '/logo.svg'} alt="" className="size-7 transition-transform group-hover:rotate-45" />
+          Praetorium
         </Link>
-      ))}
-    </nav>
+        <div className="mx-auto flex w-full max-w-lg min-w-0 items-center [grid-area:search] @min-[76rem]:mr-0 @min-[76rem]:max-w-56">
+          <GlobalSearch />
+        </div>
+        <div className="flex items-center gap-1 [grid-area:account]">
+          <CommunityLinks compact />
+          <Account className="size-8" />
+        </div>
+        {/* Spans the padding as its own row, so its hairline crosses the window; in the bar it sits inside it. */}
+        <div className="-mx-2 flex items-stretch gap-4 border-t border-edge px-2 [grid-area:nav] sm:-mx-4 sm:px-4 @min-[62.5rem]:gap-6 @min-[62.5rem]:[--nav-tab-icon:block] @min-[76rem]:mx-0 @min-[76rem]:border-0 @min-[76rem]:px-0 @min-[76rem]:[--nav-tab-icon:none] @min-[94rem]:[--nav-tab-icon:block]">
+          <nav aria-label="Primary" className="flex items-stretch gap-4 @min-[62.5rem]:gap-5">
+            <Tabs links={PRIMARY_LINKS} tone="text-bone" />
+          </nav>
+          <span aria-hidden className="my-3 w-px shrink-0 bg-edge" />
+          <nav aria-label="Reference" className="hidden items-stretch gap-4 @min-[47rem]:flex @min-[62.5rem]:gap-5">
+            <Tabs links={REFERENCE_LINKS} tone="text-dim" />
+          </nav>
+          <ReferenceMenu />
+        </div>
+      </div>
+    </header>
   )
+}
+
+/** Pins sticky bars and anchor targets below the header at whatever height its layout takes; hidden, it leaves the default. */
+function publishHeaderHeight(header: HTMLElement) {
+  const root = document.documentElement.style
+  const observer = new ResizeObserver(() => {
+    if (header.offsetHeight) root.setProperty('--app-header', `${header.offsetHeight}px`)
+    else root.removeProperty('--app-header')
+  })
+  observer.observe(header)
+  return () => {
+    observer.disconnect()
+    root.removeProperty('--app-header')
+  }
 }
 
 export function AppShell() {
@@ -122,29 +168,12 @@ export function AppShell() {
                * measure. Nothing here is centred on the page's behalf.
                */}
               <div data-native-app-frame className={`flex flex-col ${immersive ? 'h-dvh' : 'min-h-dvh'}`}>
-                <header data-web-app-chrome className="@container sticky top-0 z-30 border-b border-edge bg-panel/95 backdrop-blur">
-                  <div className="flex h-12 items-center gap-3 px-2 sm:px-4 @min-[55.55rem]:gap-5">
-                    <Link
-                      to="/"
-                      className="group flex shrink-0 items-center gap-1.5 font-display text-base leading-none font-bold tracking-label text-bone uppercase hover:text-info"
-                    >
-                      <img src={offlineData()?.logo ?? '/logo.svg'} alt="" className="size-7 transition-transform group-hover:rotate-45" />
-                      <span className="hidden @min-[61.11rem]:inline">Praetorium</span>
-                    </Link>
-                    <PrimaryNavigation />
-                    <div className="ml-auto flex shrink-0 items-center gap-1">
-                      <GlobalSearch />
-                      <CommunityLinks compact />
-                      <Account className="size-8" />
-                    </div>
-                  </div>
-                </header>
-                {immersive ? null : <ReferenceNavigation />}
+                <SiteHeader />
                 {immersive ? null : (
                   <header
                     data-mobile-app-header
                     data-print-hide
-                    className="fixed inset-x-0 top-0 z-30 hidden h-12 items-center border-b border-edge bg-panel/95 px-2 backdrop-blur"
+                    className="fixed inset-x-0 top-0 z-30 hidden h-12 items-center border-b border-edge-strong bg-sunken/95 px-2 backdrop-blur"
                   >
                     <Link
                       to="/"
@@ -169,12 +198,11 @@ export function AppShell() {
                 <div
                   data-native-app-content
                   data-immersive={immersive || undefined}
-                  className={`flex min-h-0 flex-col [&>main]:min-h-0 [&>main]:flex-1 ${immersive ? 'h-[calc(100dvh-3rem)]' : 'flex-1'}`}
+                  className={`flex min-h-0 flex-col [&>main]:min-h-0 [&>main]:flex-1 ${immersive ? 'h-[calc(100dvh-var(--app-header))]' : 'flex-1'}`}
                 >
                   <OfflineReference />
                   <AppPersistence />
                   <SyncStatus />
-                  <TextSourcesNotice path={path} />
                   <WebMcp />
                   <Outlet />
                 </div>

@@ -14,7 +14,8 @@ import {
   userSchema,
 } from '../../contracts/schemas'
 import { unlinkSignInMethod } from '../signInMethods'
-import { collectionPhotoIdSchema } from '../../contracts/collection'
+import { adminCollectionPhotosSchema, collectionPhotoIdSchema } from '../../contracts/collection'
+import { collectionDatasheets } from '../../core/collection'
 
 /** Every administrator action is counted under one event, named by what was done. */
 const track = (actorId: string, action: AdminAction) => app().telemetry.capture(actorId, 'admin_action', { action })
@@ -212,16 +213,32 @@ export const deleteBattleAsAdmin = createServerFn({ method: 'POST' })
 export const heldCollectionPhotos = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     await requireAdmin()
-    return app().collectionPhotos.held()
+    return withDatasheetNames(await app().collectionPhotos.held())
   }),
 )
 
-export const recentCollectionPhotos = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    await requireAdmin()
-    return app().collectionPhotos.recent()
-  }),
-)
+export const adminCollectionPhotos = createServerFn({ method: 'GET' })
+  .validator(adminCollectionPhotosSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      await requireAdmin()
+      const page = await app().collectionPhotos.browse(data.before)
+      return { ...page, photos: await withDatasheetNames(page.photos) }
+    }),
+  )
+
+/** Names each photo's datasheet and faction, as the collection names one the current rules no longer have. */
+async function withDatasheetNames<Photo extends { entryId: string }>(photos: Photo[]) {
+  const sheets = collectionDatasheets(await app().combatUnitsFor())
+  return photos.map((photo) => {
+    const sheet = sheets.get(photo.entryId)
+    return {
+      ...photo,
+      name: sheet?.name ?? 'A datasheet from earlier rules',
+      sheet: sheet ? { catalogueId: sheet.catalogueId, slug: sheet.slug, faction: sheet.faction } : null,
+    }
+  })
+}
 
 export const keepCollectionPhotoAsAdmin = createServerFn({ method: 'POST' })
   .validator(collectionPhotoIdSchema)

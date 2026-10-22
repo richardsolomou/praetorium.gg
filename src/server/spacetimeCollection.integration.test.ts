@@ -189,24 +189,28 @@ it.skipIf(!url || !database || !token)(
   },
 )
 
-it.skipIf(!url || !database || !token)('lists the newest photos for administrators, leaving out those awaiting review', async () => {
+it.skipIf(!url || !database || !token)('pages the newest photos for administrators, leaving out those awaiting review', async () => {
   const operator = new SpacetimeOperator(url!, database!, token!)
   const entryId = `recent-${randomUUID()}`
-  const [owner, reader] = [randomUUID(), randomUUID()]
-  const [older, newer, reported, flagged] = [randomUUID(), randomUUID(), randomUUID(), randomUUID()]
+  const [owner, other, reader] = [randomUUID(), randomUUID(), randomUUID()]
+  const [older, newer, reported, flagged, others] = [randomUUID(), randomUUID(), randomUUID(), randomUUID(), randomUUID()]
   const now = Date.now()
   try {
     await operator.setCollectionModels({ userId: owner, entryId, models: 4, now })
+    await operator.setCollectionModels({ userId: other, entryId, models: 1, now })
     await operator.setCollectionPhoto({ userId: owner, entryId, photoId: older, now })
     await operator.setCollectionPhoto({ userId: owner, entryId, photoId: newer, now: now + 1 })
     await operator.setCollectionPhoto({ userId: owner, entryId, photoId: reported, now: now + 2 })
     await operator.setCollectionPhoto({ userId: owner, entryId, photoId: flagged, now: now + 3 })
+    await operator.setCollectionPhoto({ userId: other, entryId, photoId: others, now: now + 4 })
     await operator.reportCollectionPhoto({ userId: reader, photoId: reported })
     await operator.keepCollectionPhoto(flagged)
     await operator.reportCollectionPhoto({ userId: reader, photoId: flagged })
-    const recent = (await operator.recentCollectionPhotos(100)).filter((row) => row.entryId === entryId).map((row) => row.photoId)
-    expect(recent).toEqual([newer, older])
+    const everyone = await operator.adminCollectionPhotos({ before: null, limit: 100 })
+    expect(everyone.photos.filter((row) => row.entryId === entryId).map((row) => row.photoId)).toEqual([others, newer, older])
+    const after = await operator.adminCollectionPhotos({ before: { at: now + 4, id: others }, limit: 100 })
+    expect(after.photos.filter((row) => row.entryId === entryId).map((row) => row.photoId)).toEqual([newer, older])
   } finally {
-    await Promise.all([operator.deleteUserData(owner), operator.deleteUserData(reader)])
+    await Promise.all([operator.deleteUserData(owner), operator.deleteUserData(other), operator.deleteUserData(reader)])
   }
 })

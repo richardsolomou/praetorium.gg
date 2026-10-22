@@ -742,11 +742,26 @@ export class SpacetimeOperator {
     )
   }
 
-  async recentCollectionPhotos(limit: number) {
+  async adminCollectionPhotos(input: { before: { at: number; id: string } | null; limit: number }) {
     return this.read(
-      'recent_collection_photos',
-      [limit],
-      z.array(z.object({ photoId: z.uuid(), userId: z.string(), entryId: z.string(), at: z.number().int() })).max(100),
+      'admin_collection_photos',
+      [JSON.stringify(input)],
+      z.object({
+        photos: z
+          .array(
+            z.object({
+              photoId: z.uuid(),
+              userId: z.string(),
+              entryId: z.string(),
+              at: z.number().int(),
+              likes: z.number().int().nonnegative(),
+              published: z.boolean(),
+              kept: z.boolean(),
+            }),
+          )
+          .max(100),
+        nextCursor: z.object({ at: z.number().int(), id: z.string() }).nullable(),
+      }),
     )
   }
 

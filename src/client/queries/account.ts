@@ -1,7 +1,8 @@
 import { captureAppSnapshot, reconcileAppAccount } from '../offline/appSnapshot'
 import { clearSavedApp, writeAppSnapshot } from '../offline/appStorage'
-import { keepPreviousData, queryOptions, type QueryClient } from '@tanstack/react-query'
+import { infiniteQueryOptions, keepPreviousData, queryOptions, type QueryClient } from '@tanstack/react-query'
 import type { AdminUsersRequest } from '../../admin'
+import type { AdminCollectionPhotosCursor } from '../../contracts/collection'
 import {
   accountMethods,
   activeFriendInvite,
@@ -13,7 +14,7 @@ import {
   githubSponsorship,
   mcpConnections,
   heldCollectionPhotos,
-  recentCollectionPhotos,
+  adminCollectionPhotos,
   me,
   notificationSettings,
   onboardingProgress,
@@ -97,8 +98,13 @@ export const adminPlayerBattlesQuery = (userId: string) =>
   queryOptions({ queryKey: [...ADMIN_QUERY_KEY, 'player-battles', userId], queryFn: () => adminPlayerBattles({ data: { userId } }) })
 export const heldCollectionPhotosQuery = () =>
   queryOptions({ queryKey: [...ADMIN_QUERY_KEY, 'held-photos'], queryFn: () => heldCollectionPhotos() })
-export const recentCollectionPhotosQuery = () =>
-  queryOptions({ queryKey: [...ADMIN_QUERY_KEY, 'recent-photos'], queryFn: () => recentCollectionPhotos() })
+export const adminCollectionPhotosQuery = () =>
+  infiniteQueryOptions({
+    queryKey: [...ADMIN_QUERY_KEY, 'photos'],
+    queryFn: ({ pageParam }) => adminCollectionPhotos({ data: { before: pageParam } }),
+    initialPageParam: null as AdminCollectionPhotosCursor | null,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+  })
 
 export const userProfileQuery = (userId: string) =>
   queryOptions({

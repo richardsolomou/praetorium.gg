@@ -117,7 +117,7 @@ export function NativeAppNavigation({
         data-native-app-tabs
         data-print-hide
         aria-label="Application sections"
-        className="fixed right-0 bottom-0 left-0 z-50 hidden h-16 items-stretch border-t border-edge bg-panel/95 backdrop-blur"
+        className="fixed right-0 bottom-0 left-0 z-50 hidden h-16 items-stretch border-t border-edge-strong bg-sunken/95 backdrop-blur"
       >
         {PRIMARY_TABS.map(({ icon: Icon, label, section, to }) => (
           <Link

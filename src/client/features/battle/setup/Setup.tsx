@@ -615,7 +615,7 @@ function SetupSection({
       data-locked={locked}
       data-complete={complete}
       aria-labelledby={`setup-${id}-title`}
-      className={`scroll-mt-16! space-y-4 rounded-lg border border-edge bg-panel p-4 transition-opacity sm:p-5 ${locked ? 'opacity-40' : ''}`}
+      className={`scroll-mt-header! space-y-4 rounded-lg border border-edge bg-panel p-4 transition-opacity sm:p-5 ${locked ? 'opacity-40' : ''}`}
     >
       <div className="space-y-1 border-b border-edge pb-1.5">
         <h2 id={`setup-${id}-title`} className="flex items-center gap-2 text-base">
