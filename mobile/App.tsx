@@ -14,8 +14,22 @@ import * as WebBrowser from 'expo-web-browser'
 import PostHog, { PostHogProvider, type PostHogOptions } from 'posthog-react-native'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { File, Paths } from 'expo-file-system'
-import { ActivityIndicator, Alert, AppState, BackHandler, Linking, Platform, Pressable, Share, StyleSheet, Text, View } from 'react-native'
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context'
+import {
+  Alert,
+  Animated,
+  AppState,
+  BackHandler,
+  Easing,
+  Image,
+  Linking,
+  Platform,
+  Pressable,
+  Share,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native'
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 import { WebView } from 'react-native-webview'
 import type { WebViewNavigation } from 'react-native-webview'
 import {
@@ -119,24 +133,51 @@ Notifications.setNotificationHandler({
   handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false }),
 })
 
+const SPLASH_MARK = 160
+const PROGRESS_WIDTH = 96
+
+function LoadingView() {
+  const insets = useSafeAreaInsets()
+  const [sweep] = useState(() => new Animated.Value(0))
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.timing(sweep, { toValue: 1, duration: 1100, easing: Easing.bezier(0.45, 0, 0.55, 1), useNativeDriver: true }),
+    )
+    animation.start()
+    return () => animation.stop()
+  }, [sweep])
+  const translateX = sweep.interpolate({ inputRange: [0, 1], outputRange: [-PROGRESS_WIDTH / 3, PROGRESS_WIDTH] })
+
+  // Centre the mark on the whole screen, not the safe area, so it holds still as the splash screen hands over.
+  return (
+    <View
+      accessibilityLabel="Opening Praetorium"
+      accessibilityRole="progressbar"
+      style={[styles.state, { top: -insets.top, bottom: -insets.bottom }]}
+    >
+      <View>
+        <Image source={require('./assets/splash-icon.png')} style={styles.mark} />
+        <View style={styles.progressBlock}>
+          <View style={styles.progressTrack}>
+            <Animated.View style={[styles.progressBar, { transform: [{ translateX }] }]} />
+          </View>
+          <Text style={styles.loading}>OPENING PRAETORIUM</Text>
+        </View>
+      </View>
+    </View>
+  )
+}
+
 function StateView({ error, retry }: { error?: boolean; retry?: () => void }) {
+  if (!error) return <LoadingView />
   return (
     <View style={styles.state}>
-      {error ? (
-        <>
-          <Text style={styles.eyebrow}>CONNECTION LOST</Text>
-          <Text style={styles.title}>Praetorium could not load</Text>
-          <Text style={styles.explanation}>Check your connection and try again.</Text>
-          <Pressable accessibilityRole="button" onPress={retry} style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}>
-            <Text style={styles.buttonText}>Try again</Text>
-          </Pressable>
-        </>
-      ) : (
-        <>
-          <ActivityIndicator color="#9bd0a9" size="large" />
-          <Text style={styles.loading}>Opening Praetorium</Text>
-        </>
-      )}
+      <Text style={styles.eyebrow}>CONNECTION LOST</Text>
+      <Text style={styles.title}>Praetorium could not load</Text>
+      <Text style={styles.explanation}>Check your connection and try again.</Text>
+      <Pressable accessibilityRole="button" onPress={retry} style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}>
+        <Text style={styles.buttonText}>Try again</Text>
+      </Pressable>
     </View>
   )
 }
@@ -746,7 +787,9 @@ function AppShell() {
           }}
         />
       ) : (
-        <StateView />
+        <View style={styles.webView}>
+          <StateView />
+        </View>
       )}
     </SafeAreaView>
   )
@@ -786,7 +829,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 12,
     padding: 32,
-    backgroundColor: BACKGROUND,
+    backgroundColor: BARS,
   },
   eyebrow: {
     color: '#9bd0a9',
@@ -806,9 +849,34 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     textAlign: 'center',
   },
+  mark: {
+    width: SPLASH_MARK,
+    height: SPLASH_MARK,
+  },
+  progressBlock: {
+    position: 'absolute',
+    top: SPLASH_MARK + 40,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    gap: 14,
+  },
+  progressTrack: {
+    width: PROGRESS_WIDTH,
+    height: 2,
+    overflow: 'hidden',
+    backgroundColor: '#1b2328',
+  },
+  progressBar: {
+    width: PROGRESS_WIDTH / 3,
+    height: 2,
+    backgroundColor: '#9bd0a9',
+  },
   loading: {
     color: '#a6b0ae',
-    fontSize: 14,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1.6,
   },
   button: {
     minHeight: 44,
