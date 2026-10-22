@@ -3,9 +3,7 @@ import {
   canAddPooledOption,
   changedDraftSpreadCounts,
   choiceRemoval,
-  controlledProfileCount,
   donorPriority,
-  equippedWeaponProfiles,
   increaseBlocked,
   type LoadoutChoice,
   type LoadoutModel,
@@ -47,18 +45,6 @@ const choice = (options: LoadoutChoice['options'], room: number, optional = fals
 })
 
 const weapon = (name: string, type: string) => ({ id: name, name, type, values: [] })
-
-it('shows only fixed weapons outside the choices for a squad without model rows', () => {
-  const profiles = [
-    { ...weapon('Superfrag Rocket Launcher', 'Ranged Weapons'), count: 4 },
-    { ...weapon('Vengor Launcher', 'Ranged Weapons'), count: 1 },
-  ]
-  const choices = [
-    choice([{ ...option('vengor', 1, 1), name: 'Vengor Launcher', pieceCounts: [{ name: 'Vengor Launcher', count: 1 }] }], 1),
-  ]
-
-  expect(equippedWeaponProfiles(profiles, choices).map((profile) => profile.name)).toEqual(['Superfrag Rocket Launcher'])
-})
 
 it('shows an equipped enhancement weapon outside the model loadout without repeating its other weapons', () => {
   const model: LoadoutModel = {
@@ -179,26 +165,6 @@ it('keeps only spread groups changed since the evaluated result', () => {
 })
 
 describe('matching a wargear name to what describes it', () => {
-  it('counts every copy of a weapon represented by one selected option', () => {
-    const stormBolters = {
-      ...option('storm-bolters', 1, 1),
-      name: '2 Storm Bolters',
-      pieceCounts: [{ name: 'Storm bolter', count: 2 }],
-    }
-
-    expect(controlledProfileCount([choice([stormBolters], 1)], 'Storm bolter')).toBe(2)
-  })
-
-  it('does not multiply totals from repeated selections twice', () => {
-    const rifles = {
-      ...option('rifles', 3, 3),
-      name: 'Bolt Rifle w/ Grenade Launcher',
-      pieceCounts: [{ name: 'Bolt Rifle', count: 3 }],
-    }
-
-    expect(controlledProfileCount([choice([rifles], 3)], 'Bolt Rifle')).toBe(3)
-  })
-
   it('reads a parenthesised mode as the same weapon', () => {
     expect(sameWeapon('Staff of light', 'Staff of light (Melee)')).toBe(true)
     expect(sameWeapon('Staff of light (Ranged)', 'Staff of light (Melee)')).toBe(true)
@@ -970,15 +936,6 @@ it('matches a weapon within a bundle by its existing profile name', () => {
       { ...weapon('Kroot bolt thrower', 'Ranged Weapons'), equipmentName: 'Kroot bolt thrower and Kroot rifle' },
     ]).map((profile) => profile.name),
   ).toEqual(['Kroot rifle (Ranged)'])
-})
-
-it.each([0, 1, 3])('retains the existing equipped-profile accounting for %s bundled rifles', (count) => {
-  expect(
-    equippedWeaponProfiles(
-      [{ ...weapon('Rifle', 'Ranged Weapons'), count, equipmentName: 'Cannon and Rifle' }],
-      [{ options: [{ name: 'Rifle', count, pieceCounts: [{ name: 'Rifle', count }] }] }],
-    ),
-  ).toEqual([])
 })
 
 describe('why one more of an option cannot be added', () => {

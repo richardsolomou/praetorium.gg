@@ -101,7 +101,6 @@ it.each([true, false])('offers one composition control when fixed sizes are %s',
   const data: NonNullable<Awaited<ReturnType<typeof loadoutDatasheets>>> = {
     selected: { ...sheet, detachments: [], attribution: null },
     available: { ...sheet, detachments: [], attribution: null },
-    controlledChoices: [],
     carriers: [],
     datacardJoin: 'none',
   }
@@ -143,6 +142,90 @@ it.each([true, false])('offers one composition control when fixed sizes are %s',
   )
   expect(markup).toContain('Select Vexilla')
   expect(markup.includes('Select 3 models')).toBe(!fixedSizes)
+})
+
+it('lists weapons a chosen bundle replaced among the equipped weapons of a unit without model cards', () => {
+  const queryClient = new QueryClient()
+  const picks = [{ entryId: 'walker' }]
+  const gun = (name: string, count: number) => ({ id: name, name, type: 'Ranged Weapons', count, values: [{ name: 'A', value: '6' }] })
+  const sheet: Datasheet = {
+    id: 'walker',
+    slug: 'walker',
+    referenceRoute: null,
+    name: 'Walker',
+    points: 190,
+    keywords: [],
+    profiles: [gun('Missile launcher', 1), gun('Excruciator cannon', 2)],
+    abilities: [],
+    composition: [],
+    loadout: null,
+    wargearOptions: [],
+    baseSize: null,
+    transport: null,
+    costs: [],
+    attachments: [],
+    leaders: [],
+    supporters: [],
+    keywordRules: [],
+  }
+  const data: NonNullable<Awaited<ReturnType<typeof loadoutDatasheets>>> = {
+    selected: { ...sheet, detachments: [], attribution: null },
+    available: { ...sheet, detachments: [], attribution: null },
+    carriers: [],
+    datacardJoin: 'none',
+  }
+  queryClient.setQueryData(loadoutDatasheetsQuery('catalogue', 'walker', [], picks, 0).queryKey, data)
+  const unit: LoadoutUnit = {
+    entryId: 'walker',
+    name: 'Walker',
+    points: 190,
+    size: { min: 1, max: 1, models: 1, resizable: false },
+    toggles: [],
+    models: [],
+    choices: [
+      {
+        key: 'cannons',
+        name: 'Replace excruciator cannons',
+        chosen: 'cannons',
+        optional: false,
+        carried: false,
+        room: 1,
+        uniform: false,
+        owner: null,
+        options: [
+          {
+            id: 'cannons',
+            name: 'Two excruciator cannons',
+            pieceCounts: [{ name: 'Excruciator cannon', count: 2 }],
+            count: 1,
+            points: 0,
+            min: 0,
+            max: 1,
+          },
+        ],
+      },
+    ],
+  }
+  const markup = renderToStaticMarkup(
+    createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(Loadout, {
+        catalogueId: 'catalogue',
+        unit,
+        detachmentIds: [],
+        picks,
+        pickIndex: 0,
+        onChoose: () => undefined,
+        onSpread: () => undefined,
+      }),
+    ),
+  )
+  const equipped = markup.slice(
+    markup.indexOf('Equipped ranged weapons'),
+    markup.indexOf('</section>', markup.indexOf('Equipped ranged weapons')),
+  )
+  expect(equipped).toContain('Excruciator cannon')
 })
 
 it('groups firing profiles under one weapon within a paired loadout', () => {
