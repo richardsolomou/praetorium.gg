@@ -103,7 +103,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await page.screenshot({ path: 'test-results/navigation-desktop-910.png' })
   await reference.getByRole('link', { name: 'Force dispositions' }).click()
   await expect(page).toHaveURL('/force-dispositions')
-  await expect(reference.getByRole('link', { name: 'Force dispositions' })).toHaveClass(/text-parchment/)
+  await expect(reference.getByRole('link', { name: 'Force dispositions' })).toHaveAttribute('aria-current', 'page')
   await expect(sections).toBeHidden()
   await expect(mobileHeader).toBeHidden()
   await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))

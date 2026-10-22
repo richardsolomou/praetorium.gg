@@ -74,7 +74,7 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
               <div
                 key={side.seat}
                 id={`mission-${side.mission.id}`}
-                className={`scroll-mt-16 border-t-[3px] pt-3 ${dispositionAccent(side.disposition.id)}`}
+                className={`scroll-mt-header border-t-[3px] pt-3 ${dispositionAccent(side.disposition.id)}`}
               >
                 <h3 className="text-xl">{side.mission.name}</h3>
                 {side.mission.card ? (
@@ -194,8 +194,8 @@ function TerrainLayout({
   const description = deployment?.name ?? layout.description ?? layout.name
 
   return (
-    <div id={`terrain-${layout.id}`} className="h-full scroll-mt-16">
-      {deployment ? <span id={`deployment-${deployment.id}`} className="block scroll-mt-16" /> : null}
+    <div id={`terrain-${layout.id}`} className="h-full scroll-mt-header">
+      {deployment ? <span id={`deployment-${deployment.id}`} className="block scroll-mt-header" /> : null}
       <Dialog>
         <DialogTrigger
           render={

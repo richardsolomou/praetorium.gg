@@ -13,7 +13,7 @@ export function UpdateChanges({ update }: { update: LinkedChangeSet }) {
   return (
     <div className="space-y-6">
       {update.factions.map((faction) => (
-        <div key={faction.catalogueId} id={faction.anchor} data-faction={faction.faction} className="scroll-mt-16">
+        <div key={faction.catalogueId} id={faction.anchor} data-faction={faction.faction} className="scroll-mt-header">
           <h3 className="border-b border-edge pb-3 text-base normal-case">
             {faction.slug ? (
               <FactionReferenceLink to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="hover:text-bone">

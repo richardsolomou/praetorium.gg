@@ -68,7 +68,8 @@ test('keeps the header controls on screen at double text size', async ({ page })
     }),
   )
   expect(outside).toBe(false)
-  await page.getByRole('navigation', { name: 'Reference' }).getByRole('link', { name: 'Missions' }).click()
+  await page.getByRole('button', { name: 'Reference' }).click()
+  await page.getByRole('menuitem', { name: 'Missions' }).click()
   await expect(page).toHaveURL(/\/missions/)
 })
 

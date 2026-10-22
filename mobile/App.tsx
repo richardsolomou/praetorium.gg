@@ -66,6 +66,8 @@ import { NATIVE_USER_AGENT } from './src/version'
 import { deleteSecureValue, getSecureValue, setSecureValue } from './src/secureStorage'
 
 const BACKGROUND = '#0e1316'
+/** The web header's and tab bar's `--color-sunken`, so the safe areas continue them. */
+const BARS = '#090d0f'
 const PENDING_AUTH_KEY = 'praetorium.native-auth.pending'
 let pendingAuthTestValue: string | null = null
 const pendingAuthStorage = process.env.EXPO_PUBLIC_NATIVE_AUTH_TEST_APP_URL
@@ -768,7 +770,7 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#141a1e',
+    backgroundColor: BARS,
   },
   webView: {
     flex: 1,
