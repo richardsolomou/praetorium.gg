@@ -1,7 +1,8 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import { Check, Eye, FileLock2, Pencil, ShieldCheck, Swords, TriangleAlert, UserPlus } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import { posthog } from 'posthog-js'
+import { useEffect, useState, type ReactNode } from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -119,7 +120,10 @@ export function LeagueEventView({
       await refresh()
     },
   })
+  const battleFormat = leagueTableShape(league.format)
   const battle = useMutation({
+    onMutate: () => posthog.capture('battle_creation_submitted', { format: battleFormat, source: 'league' }),
+    onError: () => posthog.capture('battle_creation_failed', { format: battleFormat, reason: 'request', source: 'league' }),
     mutationFn: async (players: { opponentId: string; allyId?: string; secondOpponentId?: string }) => {
       const references = await queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' })
       return createLeagueBattle({
@@ -131,6 +135,10 @@ export function LeagueEventView({
       await navigate({ to: '/battles/$token', params: { token: battleToken } })
     },
   })
+  // Counted when the chooser appears, whether the page or a casual battle's league prompt opened it.
+  useEffect(() => {
+    if (choosingBattle) posthog.capture('battle_creation_started', { source: 'league' })
+  }, [choosingBattle])
   const openRosterChooser = () => {
     submit.reset()
     setChoosing(true)
@@ -157,7 +165,6 @@ export function LeagueEventView({
   const sealedEntrants = accepted.filter((entry) => entry.submitted)
   const labels = disambiguatedPlayerLabels(league.entries.map((entry) => ({ id: entry.userId, name: entry.name })))
   const label = (entry: LeagueEntryView) => labels.get(entry.userId) ?? entry.name
-  const battleFormat = leagueTableShape(league.format)
   const ownTeam = ownEntry?.teamId ? (doublesTeams(accepted).find((team) => team.id === ownEntry.teamId)?.members ?? []) : []
   const ownSideSealed =
     league.format === '2v2' || ownEntry?.teamId ? ownTeam.length === 2 && ownTeam.every((entry) => entry.submitted) : true
