@@ -4,6 +4,7 @@ import { warmindOfficial } from './rosterText.fixtures'
 import { kriegGermanOfficial } from './rosterText.krieg.fixture'
 import { necronsOfficial } from './rosterText.necrons.fixture'
 import { blackTemplarsNewRecruit } from './rosterText.blackTemplars.fixture'
+import { spaceWolvesOfficial } from './rosterText.spaceWolves.fixture'
 
 const exportText = `CL 1K - Ammentar Destroyer Spearhead (990 Points)
 
@@ -239,6 +240,31 @@ TOTAL ARMY POINTS: 600pts`
         { name: 'Lokhust Lord', models: 1, leading: null, warlord: true, selections: [{ name: "Lord's blade", count: 1 }] },
         { name: 'Lokhust Destroyers', models: 6, leading: null, warlord: false, selections: [{ name: 'Gauss cannon', count: 6 }] },
       ])
+    })
+  })
+
+  describe('official-app text listing a model’s wargear under one bullet', () => {
+    const parsed = fromBattleBaseText(spaceWolvesOfficial)
+
+    it('reads the unbulleted wargear lines', () => {
+      expect(parsed?.units[0]?.selections).toEqual([
+        { name: 'Axe Morkai', count: 1 },
+        { name: 'Storm Bolter', count: 1 },
+        { name: 'Tyrnak and Fenrir', count: 1 },
+      ])
+    })
+
+    it('leaves no line unread', () => {
+      expect(parsed?.units.flatMap((unit) => unit.unread ?? [])).toEqual([])
+    })
+
+    it('reads the list setup when the title line was not copied', () => {
+      expect(fromBattleBaseText(spaceWolvesOfficial.replace('wolves go (2000 points)\n\n', ''))).toMatchObject({
+        faction: 'Space Wolves',
+        detachment: 'Assault Brethren, Saga of the Beastslayer and Stormlance Task Force',
+        disposition: 'Purge the Foe',
+        limit: 2000,
+      })
     })
   })
 })
