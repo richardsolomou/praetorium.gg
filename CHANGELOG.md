@@ -1,5 +1,24 @@
 # praetorium
 
+## 0.176.0
+
+### Minor Changes
+
+- 79400bb: In 2v1 and 2v2 league events, comparing revealed rosters can now field both lists of a pair together, starting with your team against your opponent's.
+- 79400bb: The simulator's Rosters comparison now lists your friends' public rosters and friends' revealed league lists alongside your own.
+- 79400bb: Simulate on a unit of another player's roster or revealed league list now opens the combat simulator with that unit defending, so you can attack it with one of your own rosters.
+- 79400bb: The combat simulator's roster picker now lists friends' rosters from revealed league events.
+- 79400bb: The combat simulator shows whose roster each side comes from, with the player's avatar, on unit cards, recent simulations and roster comparisons.
+
+### Patch Changes
+
+- 3628925: A unit's equipped weapons now include weapons its chosen wargear options supply, such as a Defiler's two excruciator cannons.
+- 79400bb: The roster comparison is easier to read: phases switch with tabs, a bar tracks a running comparison, cells shade by result, best matchups are outlined, a pair's units are grouped under each player, and units that can't attack explain why once.
+- 79400bb: The simulator's Calculation uses section now lists both sides' active rules and buffs, chosen weapon options and left-out weapons, not just manual modifiers.
+- 79400bb: Reopening a simulator link with a roster side no longer says the roster is unavailable while it loads.
+- 79400bb: The simulator's Rules & buffs and Manual modifiers headings now open from anywhere on their row.
+- 79400bb: A Support unit that isn't attached to a Bodyguard unit is now flagged as illegal in rosters, and the simulator asks you to attach it before calculating its attacks.
+
 ## 0.175.5
 
 ### Patch Changes
