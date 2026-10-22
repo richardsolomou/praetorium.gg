@@ -52,12 +52,12 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   expect(
     await page.locator('main section a').evaluateAll((links) => links.map((link) => new URL((link as HTMLAnchorElement).href).pathname)),
   ).toEqual([
-    '/missions',
-    '/force-dispositions',
-    '/rules',
-    '/data-updates',
     '/simulator',
+    '/missions',
+    '/rules',
     '/leagues',
+    '/force-dispositions',
+    '/data-updates',
     '/leaderboard',
     '/guides',
     '/whats-new',
