@@ -32,6 +32,7 @@ import * as FavouriteDetachmentsByUserProcedure from '../favourite_detachments_b
 import * as FavouriteFactionsByUserProcedure from '../favourite_factions_by_user_procedure'
 import * as FriendInviteByInviterProcedure from '../friend_invite_by_inviter_procedure'
 import * as FriendInviteByTokenProcedure from '../friend_invite_by_token_procedure'
+import * as FriendLeagueRostersProcedure from '../friend_league_rosters_procedure'
 import * as FriendshipsByUserProcedure from '../friendships_by_user_procedure'
 import * as GuestDeviceProcedure from '../guest_device_procedure'
 import * as GuestInviteProcedure from '../guest_invite_procedure'
@@ -143,6 +144,8 @@ export type FriendInviteByInviterArgs = __Infer<typeof FriendInviteByInviterProc
 export type FriendInviteByInviterResult = __Infer<typeof FriendInviteByInviterProcedure.returnType>
 export type FriendInviteByTokenArgs = __Infer<typeof FriendInviteByTokenProcedure.params>
 export type FriendInviteByTokenResult = __Infer<typeof FriendInviteByTokenProcedure.returnType>
+export type FriendLeagueRostersArgs = __Infer<typeof FriendLeagueRostersProcedure.params>
+export type FriendLeagueRostersResult = __Infer<typeof FriendLeagueRostersProcedure.returnType>
 export type FriendshipsByUserArgs = __Infer<typeof FriendshipsByUserProcedure.params>
 export type FriendshipsByUserResult = __Infer<typeof FriendshipsByUserProcedure.returnType>
 export type GuestDeviceArgs = __Infer<typeof GuestDeviceProcedure.params>
