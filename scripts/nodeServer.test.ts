@@ -40,12 +40,9 @@ it('stops a CDN or browser from keeping a missing build asset', () => {
 })
 
 it.each([
-  ['/guides/build-an-army-4df98ae9.png', 'public, max-age=31536000, immutable'],
-  ['/guides/build-an-army-4df98ae9.png?download=1', 'public, max-age=31536000, immutable'],
   ['/logo.svg', 'public, max-age=86400'],
   ['/favicon.svg', 'public, max-age=86400'],
-  ['/guides/build-an-army', undefined],
-  ['/guides/unversioned.png', undefined],
+  ['/logo.svg?download=1', 'public, max-age=86400'],
   ['/api/collection-photos/photo', undefined],
   ['/api/previews/rosters/list', undefined],
 ])('sets a static image policy for %s', (url, expected) => {
@@ -62,7 +59,7 @@ it.each([200, 304])('keeps the static image policy on HEAD responses with status
 
 it.each([404, 500])('does not cache a static image response with status %s', (statusCode) => {
   const response = { statusCode, headers: { 'cache-control': 'public, max-age=31536000, immutable' } }
-  cacheAssetResponse({ url: '/guides/missing-12345678.png', method: 'GET' }, response)
+  cacheAssetResponse({ url: '/logo.svg', method: 'GET' }, response)
   expect(response.headers['cache-control']).toBe('no-store')
 })
 

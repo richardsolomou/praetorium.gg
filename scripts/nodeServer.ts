@@ -62,11 +62,7 @@ export function cacheAssetResponse(
   response: Pick<IncomingMessage, 'statusCode' | 'headers'>,
 ) {
   const pathname = request.url?.split('?')[0] ?? ''
-  const policy = /^\/guides\/[a-z0-9-]+-[a-f0-9]{8}\.png$/.test(pathname)
-    ? 'public, max-age=31536000, immutable'
-    : pathname === '/logo.svg' || pathname === '/favicon.svg'
-      ? 'public, max-age=86400'
-      : null
+  const policy = pathname === '/logo.svg' || pathname === '/favicon.svg' ? 'public, max-age=86400' : null
   if ((pathname.startsWith('/assets/') || policy) && (response.statusCode ?? 0) >= 400) {
     response.headers['cache-control'] = 'no-store'
   } else if (

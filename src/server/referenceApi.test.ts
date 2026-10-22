@@ -171,8 +171,8 @@ it('explains the simulator and visitor access in the HTTP product guide', async 
   expect({
     simulator: guide.capabilities.some((text: string) => text.includes('shooting and melee')),
     visitorAccess: guide.boundaries.some((text: string) => text.includes('standalone combat simulator without an account')),
-    guides: guide.capabilities.some((text: string) => text.includes('/guides')),
-  }).toEqual({ simulator: true, visitorAccess: true, guides: true })
+    docs: guide.capabilities.some((text: string) => text.includes('/docs')),
+  }).toEqual({ simulator: true, visitorAccess: true, docs: true })
 })
 
 it('keeps an ETag stable while the active snapshot is unchanged', async () => {

@@ -1,0 +1,36 @@
+## Common problems
+
+### Start battle is greyed out
+
+The bar beside it lists what's left: an army, the battle size, a Force Disposition, the battlefield, defender, mission cards or first turn.
+
+### "Choose rosters with the same points budget for each side."
+
+Your lists were built for different sizes or budgets. Pick lists built for the same points, or edit one.
+
+### The roster chooser says none of your saved rosters is built for the battle's points
+
+The battle size is already set by the other armies. Choose **Choose a different battle size** or build a list for it in [Rosters](/rosters).
+
+### "This list waives a rule."
+
+The roster skips a rule of its battle size. You can **Bring it anyway**, and everyone at the table sees what it waives.
+
+### The phase button is blocked
+
+The message under it tells you why, usually unfinished scoring from the previous turn, or secondary missions that still need drawing or reviewing.
+
+### The guest link says someone already joined
+
+Another device took the seat. Take the seat back and send the new link.
+
+### "This battle is not open to you."
+
+A seated player's privacy setting keeps you out.
+
+## Limits
+
+- Praetorium records what you tell it. It doesn't roll dice, check movement, range or line of sight, or judge whether a score was earned. In a manual battle it doesn't check scores or CP at all.
+- There's no computer opponent. A practice opponent is a side you play yourself.
+- Guests can't sit on your side or play in leagues.
+- A finished battle can't be reopened from the app.

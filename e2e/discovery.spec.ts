@@ -1,3 +1,4 @@
+import { PRODUCT_DOCS } from '../src/contracts/productDocs'
 import { expect, test } from './test'
 
 const pages = [
@@ -10,7 +11,7 @@ const pages = [
   { path: '/privacy', title: 'Privacy policy' },
   { path: '/terms', title: 'Terms of service' },
   { path: '/delete-account', title: 'Delete account' },
-  { path: '/guides', title: 'Warhammer 40,000 player guides' },
+  { path: '/docs', title: 'Praetorium docs' },
 ]
 
 test('Terms account requirements match public guest tools', async ({ page }, testInfo) => {
@@ -96,58 +97,23 @@ test('faction datasheet indexes deliver their own canonical metadata without Jav
   await context.close()
 })
 
-const guides = [
-  {
-    slug: 'build-an-army',
-    title: 'How to build and check a Warhammer 40,000 army list',
-    fact: 'A visitor’s draft stays on this device.',
-    action: 'Open the army builder',
-    to: '/rosters',
-  },
-  {
-    slug: 'import-a-roster',
-    title: 'How to import a Warhammer 40,000 roster',
-    fact: 'If the faction cannot be identified, the import stops.',
-    action: 'Open Rosters to import',
-    to: '/rosters',
-  },
-  {
-    slug: 'compare-loadouts',
-    title: 'How to compare Warhammer 40,000 unit loadouts',
-    fact: 'the combined result carries shooting’s survivors into melee.',
-    action: 'Open the combat simulator',
-    to: '/simulator',
-  },
-  {
-    slug: 'track-a-battle',
-    title: 'How to track a Warhammer 40,000 battle',
-    fact: 'practice games count in neither.',
-    action: 'Open Battles',
-    to: '/battles',
-  },
-]
-
-for (const guide of guides) {
-  test(`${guide.slug} is readable and usable without JavaScript on desktop and phone`, async ({ browser, baseURL }, testInfo) => {
+for (const doc of PRODUCT_DOCS) {
+  test(`the ${doc.slug} doc is readable without JavaScript on desktop and phone`, async ({ browser, baseURL }) => {
     const context = await browser.newContext({ javaScriptEnabled: false })
     const page = await context.newPage()
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 })
-      const response = await page.goto(new URL(`/guides/${guide.slug}`, baseURL).href)
+      const response = await page.goto(new URL(`/docs/${doc.slug}`, baseURL).href)
       expect(response?.status()).toBe(200)
-      await expect(page).toHaveTitle(`${guide.title} — Praetorium`)
-      await expect(page.getByRole('heading', { level: 1, name: guide.title })).toBeVisible()
-      await expect(page.locator('main')).toContainText(guide.fact)
-      await expect(page.getByRole('list', { name: 'Steps', exact: true }).getByRole('listitem')).toHaveCount(4)
-      await expect(page.locator('h2#worked-example')).toBeVisible()
-      await expect(page.getByRole('list', { name: 'Example steps' }).getByRole('listitem')).not.toHaveCount(0)
-      const image = page.locator('main figure img')
-      await image.scrollIntoViewIfNeeded()
-      await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
-      await expect(image).toHaveAttribute('alt', /\S/)
-      await expect(page.locator('main figure a')).toHaveAttribute('href', new RegExp(`^/guides/${guide.slug}-[a-f0-9]{8}\\.png$`))
-      await expect(page.getByRole('heading', { name: 'Common questions' })).toBeVisible()
-      await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', new URL(`/guides/${guide.slug}`, baseURL).href)
+      await expect(page).toHaveTitle(`${doc.title} — Praetorium`)
+      await expect(page.getByRole('heading', { level: 1, name: doc.title })).toBeVisible()
+      await expect(page.locator('main article')).not.toBeEmpty()
+      for (const image of await page.locator('main article img').all()) {
+        await image.scrollIntoViewIfNeeded()
+        await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
+        await expect(image).toHaveAttribute('alt', /\S/)
+      }
+      await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', new URL(`/docs/${doc.slug}`, baseURL).href)
       expect(
         await page
           .locator('script[type="application/ld+json"]')
@@ -157,49 +123,64 @@ for (const guide of guides) {
           '@context': 'https://schema.org',
           '@type': 'BreadcrumbList',
           itemListElement: [
-            { '@type': 'ListItem', position: 1, name: 'Player guides', item: new URL('/guides', baseURL).href },
-            { '@type': 'ListItem', position: 2, name: guide.title, item: new URL(`/guides/${guide.slug}`, baseURL).href },
+            { '@type': 'ListItem', position: 1, name: 'Docs', item: new URL('/docs', baseURL).href },
+            { '@type': 'ListItem', position: 2, name: doc.title, item: new URL(`/docs/${doc.slug}`, baseURL).href },
           ],
         },
       ])
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-      await page.evaluate(() => window.scrollTo(0, 0))
-      await page.screenshot({ path: testInfo.outputPath(`${guide.slug}-${width}.png`), fullPage: true })
-      await page.getByRole('link', { name: guide.action, exact: true }).click()
-      await expect(page).toHaveURL(new URL(guide.to, baseURL).href)
     }
     await context.close()
   })
 }
 
-test('guides can be discovered from the home page, sitemap and agent text', async ({ page, request }, testInfo) => {
+test('docs can be discovered from the home page, sitemap and agent text', async ({ page, request }, testInfo) => {
   await page.goto('/')
-  await page.screenshot({ path: testInfo.outputPath('home-guides-1440.png'), fullPage: true })
-  await page.getByRole('link', { name: 'Read the player guides', exact: true }).click()
-  await expect(page).toHaveURL('/guides')
-  for (const guide of guides) {
-    await expect(page.locator('main').getByRole('link').filter({ hasText: guide.title })).toHaveAttribute('href', `/guides/${guide.slug}`)
-  }
-  await expect(page.locator('footer').getByRole('link', { name: 'Player guides', exact: true })).toHaveAttribute('href', '/guides')
-  await page.screenshot({ path: testInfo.outputPath('guides-index-1440.png'), fullPage: true })
+  await page.getByRole('link', { name: 'Read the docs', exact: true }).click()
+  await expect(page).toHaveURL('/docs')
+  for (const doc of PRODUCT_DOCS)
+    await expect(page.locator('main').getByRole('link', { name: doc.title, exact: true })).toHaveAttribute('href', `/docs/${doc.slug}`)
+  await expect(page.locator('footer').getByRole('link', { name: 'Docs', exact: true })).toHaveAttribute('href', '/docs')
+  await page.screenshot({ path: testInfo.outputPath('docs-index-1440.png'), fullPage: true })
   await page.setViewportSize({ width: 390, height: 900 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-  await page.screenshot({ path: testInfo.outputPath('guides-index-390.png'), fullPage: true })
+  await page.screenshot({ path: testInfo.outputPath('docs-index-390.png'), fullPage: true })
+  await page.setViewportSize({ width: 1440, height: 900 })
   const sitemap = await (await request.get('/sitemap.xml')).text()
   const llms = await (await request.get('/llms.txt')).text()
-  for (const guide of guides) {
-    expect(sitemap).toContain(`/guides/${guide.slug}</loc>`)
-    expect(llms).toContain(`/guides/${guide.slug})`)
+  for (const doc of PRODUCT_DOCS) {
+    expect(sitemap).toContain(`/docs/${doc.slug}</loc>`)
+    expect(llms).toContain(`/docs/${doc.slug})`)
   }
   expect(sitemap).not.toMatch(/<loc>[^<]*\/missions<\/loc>/)
   await page.getByRole('button', { name: 'Search Praetorium', exact: true }).filter({ visible: true }).click()
   await page.getByPlaceholder('Search everything…').fill('import')
-  await page.getByRole('option').filter({ hasText: 'How to import a Warhammer 40,000 roster' }).click()
-  await expect(page).toHaveURL('/guides/import-a-roster')
+  await page.getByRole('option').filter({ hasText: 'Import a list' }).click()
+  await expect(page).toHaveURL('/docs/import-a-list')
 })
 
-test('unknown guides return a real 404', async ({ request }) => {
-  expect((await request.get('/guides/not-a-guide')).status()).toBe(404)
+test('the docs search finds a problem by its symptom and opens its fix', async ({ page }) => {
+  await page.goto('/docs')
+  await page.getByRole('textbox', { name: 'Search docs' }).fill('optimize greyed')
+  const results = page.getByRole('region', { name: 'Search results' })
+  await results.getByRole('link', { name: /Optimize is greyed out/ }).click()
+  await expect(page).toHaveURL('/docs/simulator-problems#optimize-is-greyed-out')
+  await expect(page.getByRole('heading', { level: 3, name: 'Optimize is greyed out' })).toBeInViewport()
+})
+
+for (const [from, to] of [
+  ['/guides', '/docs'],
+  ['/guides/import-a-roster', '/docs/import-a-list'],
+  ['/guides/plan-your-scoring', '/docs'],
+] as const) {
+  test(`the old guide address ${from} moves permanently to ${to}`, async ({ request }) => {
+    const response = await request.get(from, { maxRedirects: 0 })
+    expect([response.status(), new URL(response.headers()['location'], 'http://x').pathname]).toEqual([301, to])
+  })
+}
+
+test('unknown docs and guides return a real 404', async ({ request }) => {
+  expect([(await request.get('/docs/not-a-doc')).status(), (await request.get('/guides/not-a-guide')).status()]).toEqual([404, 404])
 })
 
 // Titles name each path in words: two titles that differ only by punctuation share one output directory.
@@ -226,4 +207,20 @@ test('rules documents still link to readable sections', async ({ page }) => {
   await expect(page.getByRole('heading', { level: 1, name: '03. Moving', exact: true })).toBeVisible()
   const section = await page.goto('/rules/core-rules/moving')
   expect(section?.status()).toBe(200)
+})
+
+test('a docs screenshot opens at full size in a dialog', async ({ page }) => {
+  await page.goto('/docs/modifiers')
+  await page
+    .getByRole('button', { name: /^Enlarge screenshot: / })
+    .first()
+    .click()
+  const dialog = page.getByRole('dialog')
+  await expect(
+    dialog.getByRole('heading', { name: 'The All, Shooting and Melee tabs choose which attacks a modifier affects' }),
+  ).toBeVisible()
+  await expect.poll(() => dialog.getByRole('img').evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0)
+  await expect(page).toHaveURL('/docs/modifiers')
+  await page.keyboard.press('Escape')
+  await expect(dialog).toBeHidden()
 })
