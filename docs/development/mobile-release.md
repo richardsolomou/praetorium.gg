@@ -107,7 +107,7 @@ These match the privacy manifest in `mobile/app.json`; the answers must also cov
 
 Declare collection of name, email address, user IDs, photos, other user-generated content, app interactions, crash logs, diagnostics, and device or other identifiers used for sessions and abuse prevention. Profile pictures are optional; account, roster, battle, and session data are required. Data is encrypted in transit, deletable on request, not sold, and not used for advertising. PostHog and the hosting and email providers are service providers; confirm the current [Data safety](https://support.google.com/googleplay/android-developer/answer/10787469) wording before relying on that exception.
 
-State that the app creates accounts, give `https://praetorium.gg/delete-account` as the web deletion resource, and verify Profile → Account security → Permanently delete account. See [Google Play's account deletion requirements](https://support.google.com/googleplay/android-developer/answer/13327111).
+State that the app creates accounts, give `https://praetorium.gg/delete-account` as the web deletion resource, and verify Profile → Delete account → Permanently delete account. See [Google Play's account deletion requirements](https://support.google.com/googleplay/android-developer/answer/13327111).
 
 ## Content and age rating
 
@@ -123,7 +123,7 @@ Review notes, after replacing the bracketed value:
 >
 > The application loads the production service at `https://praetorium.gg`. The native shell adds verified links, secure system-browser authentication, native sharing and printing, battle-action haptics, and a screen wake lock during active battles. It loads trusted application pages and opens external links through the operating system. Compatible JavaScript updates are delivered through EAS Update.
 >
-> Supported social providers use the system authentication session. Email/password sign-in is available in the application. Account deletion is under Profile → Account security → Permanently delete account. The application has no purchases, subscriptions, ads, or chat. Players can publish rosters and share battles.
+> Supported social providers use the system authentication session. Email/password sign-in is available in the application. Account deletion is under Profile → Delete account → Permanently delete account. The application has no purchases, subscriptions, ads, or chat. Players can publish rosters and share battles.
 >
 > Praetorium uses community-maintained catalogue and rules data under the licences recorded at `https://github.com/richardsolomou/praetorium.gg/blob/main/catalogue/sources.json`. It is unofficial and is not affiliated with or endorsed by Games Workshop.
 
