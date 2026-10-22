@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.175.5
+
+### Patch Changes
+
+- 2b0f0b7: Rules text that once arrived broken no longer stays missing on that device.
+- 2b0f0b7: When rules text can't load from its community source, each rule now says so and offers Try again instead of showing a dash.
+
 ## 0.175.4
 
 ### Patch Changes
