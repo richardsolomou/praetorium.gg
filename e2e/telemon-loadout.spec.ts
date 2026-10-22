@@ -66,7 +66,7 @@ for (const width of [1440, 390]) {
     if (width < 1300) await loadout.getByRole('button', { name: 'Back to roster', exact: true }).click()
     await page.getByRole('button', { name: 'View', exact: true }).click()
     if (width < 1300) await card.getByRole('button', { name: 'Telemon Heavy Dreadnought', exact: true }).click()
-    await expect(loadout.getByRole('heading', { name: '2× Twin Neutronium Cascade Projectors', exact: true })).toHaveCount(1)
+    await expect(equipped.getByRole('heading', { name: '2× Twin Neutronium Cascade Projectors', exact: true })).toHaveCount(1)
     await expect(weapons.getByRole('button', { name: /^Select / })).toHaveCount(0)
     if (width < 1300) await loadout.getByRole('button', { name: 'Back to roster', exact: true }).click()
     await page.getByRole('button', { name: 'Roster actions' }).click()
