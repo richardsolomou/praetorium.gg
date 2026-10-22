@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.179.1
+
+### Patch Changes
+
+- 34c77d5: The privacy policy and the account deletion confirmation name GitHub alongside Apple, Google and Discord as sign-in providers.
+
 ## 0.179.0
 
 ### Minor Changes
