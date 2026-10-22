@@ -141,6 +141,19 @@ test('a datasheet gap opens the dialog and loads only the source turned on', asy
   await expect(page.getByText(prose)).toHaveCount(0)
 })
 
+test('a source file that fails to load says so and loads when tried again', async ({ page }) => {
+  const necrons = fs.readFileSync(path.join(catalogue, 'definitions', 'Necrons.json'), 'utf8')
+  replaceUpstreamFile(page.context(), '/Necrons.json', 'Not the file')
+  await setSource(page, 'BSData', true)
+  await page.goto('/factions/necrons/datasheets/overlord')
+  const failures = page.getByRole('main').getByText('Couldn’t load the rules text.')
+  await expect(failures.first()).toBeVisible()
+  replaceUpstreamFile(page.context(), '/Necrons.json', necrons)
+  await page.getByRole('main').getByRole('button', { name: 'Try again' }).first().click()
+  await expect(page.getByText(ability)).toBeVisible()
+  await expect(failures).toHaveCount(0)
+})
+
 test('BSData text loads while Game Datacards text stays unloaded', async ({ page }) => {
   await setSource(page, 'BSData', true)
   await page.goto('/factions/necrons/datasheets/overlord')

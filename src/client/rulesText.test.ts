@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import { runInNewContext } from 'node:vm'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { TEXT_SOURCES_SCRIPT, applyTextSourceChoice, loadRuleText, textSourceChoiceFrom } from './rulesText'
+import { TEXT_SOURCES_SCRIPT, applyTextSourceChoice, loadRuleText, textLoadFailure, textSourceChoiceFrom } from './rulesText'
 
 const file = JSON.stringify({
   id: 'core-rules-document',
@@ -43,6 +43,18 @@ describe('loading a document’s rules text', () => {
   it('refuses an answer that is not the file', async () => {
     serve('Not Found', 404)
     await expect(loadRuleText(text)).rejects.toThrow('answered 404')
+  })
+
+  it('names a file that is not the pinned version as a mismatch', async () => {
+    serve(file.replace('Units move.', 'Units fly.'))
+    expect(await loadRuleText(text).catch(textLoadFailure)).toEqual({ reason: 'mismatch' })
+  })
+
+  it('names a file that is not a rules document as invalid', async () => {
+    const other = JSON.stringify({ id: 'not-rules' })
+    serve(other)
+    const failure = await loadRuleText({ ...text, sha256: createHash('sha256').update(other).digest('hex') }).catch(textLoadFailure)
+    expect(failure).toEqual({ reason: 'invalid' })
   })
 
   it('sends no cookies or referrer to the upstream host', async () => {

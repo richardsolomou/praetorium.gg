@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils'
 import type { TextSource } from '../../shared/sourceText'
-import type { MissingText } from '../sourceText'
+import { type MissingText, retryFailedTextFiles } from '../sourceText'
 import { useHydrated } from '../useClientValue'
 import { openTextSourcesDialog } from './TextSourcesDialog'
 
@@ -30,8 +30,21 @@ export function SourceTextPrompt({
       </div>
     )
   if (missing === 'loading') return <TextWait className={className} />
+  if (missing === 'failed') return <TextFailed className={className} />
   if (missing === 'unavailable') return null
   return <TextAsk className={className} />
+}
+
+/** Not a `Problem`: a page of rules has one gap per rule, and an alert for each would flood a screen reader. */
+function TextFailed({ className }: { className?: string }) {
+  return (
+    <p className={cn('text-xs text-destructive', className)}>
+      Couldn’t load the rules text.{' '}
+      <button type="button" className="text-info hover:text-bone" onClick={() => void retryFailedTextFiles()}>
+        Try again
+      </button>
+    </p>
+  )
 }
 
 function TextAsk({ className, ...props }: { className?: string; 'data-text-gap-ask'?: boolean }) {
