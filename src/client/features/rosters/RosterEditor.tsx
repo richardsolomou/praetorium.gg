@@ -27,6 +27,7 @@ type Props = {
   locked?: boolean
   print?: boolean
   battle?: string
+  simulatorSource?: ListBuilderProps['simulatorSource']
   resolvePersistedRoster?: boolean
   /** The units and total a battle froze, for a list that is read rather than priced. */
   frozen?: FrozenRoster
@@ -47,6 +48,7 @@ export function RosterEditor({
   locked,
   print,
   battle,
+  simulatorSource,
   resolvePersistedRoster = true,
   frozen,
   variants,
@@ -67,6 +69,7 @@ export function RosterEditor({
         locked={locked}
         print={print}
         battle={battle}
+        simulatorSource={simulatorSource}
         resolvePersistedRoster={resolvePersistedRoster}
         frozen={frozen}
         variants={variants}

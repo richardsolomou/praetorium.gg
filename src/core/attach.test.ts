@@ -440,6 +440,40 @@ describe('attachment legality', () => {
     })
   })
 
+  describe('a Support unit on its own', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'model',
+          profiles: [ability('Leader', 'This model can be attached to the following units: SQUAD')],
+        },
+        {
+          id: 'ancient',
+          name: 'Ancient',
+          type: 'model',
+          profiles: [ability('Support', 'This model can be attached to the following units: SQUAD')],
+        },
+        { id: 'squad', name: 'SQUAD', type: 'unit' },
+      ],
+    })
+
+    it('is illegal, because every Support unit joins a Bodyguard unit', () => {
+      expect(attachmentErrors([{ entryId: 'ancient' }, { entryId: 'squad' }], index)).toEqual([
+        { entryId: 'ancient', entryName: 'Ancient', message: 'must be attached to a Bodyguard unit' },
+      ])
+    })
+
+    it('is legal once attached', () => {
+      expect(attachmentErrors([{ entryId: 'ancient', attachedTo: 1 }, { entryId: 'squad' }], index)).toEqual([])
+    })
+
+    it('differs from a Leader, which may stand alone', () => {
+      expect(attachmentErrors([{ entryId: 'captain' }, { entryId: 'squad' }], index)).toEqual([])
+    })
+  })
+
   it('accepts a named host', () => {
     const index = indexOf({
       sharedSelectionEntries: [
@@ -567,7 +601,8 @@ describe('attachment legality', () => {
       { entryId: 'overlord', attachedTo: 4 },
       { entryId: 'ancient', attachedTo: 4 },
       { entryId: 'lord' },
-      { entryId: 'apothecary' },
+      { entryId: 'apothecary', attachedTo: 5 },
+      { entryId: 'squad' },
       { entryId: 'squad' },
     ]
     expect(attachmentErrors(one, index)).toEqual([])

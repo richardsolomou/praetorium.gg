@@ -6,6 +6,8 @@ import type { CombatResult } from '../../../core/combat'
 import type { combatantDatasheet } from '../../functions'
 import { combatAtHealth } from '../../../core/combatSurvivors'
 import type { CombatRoster } from './useCombatant'
+import type { RosterOwner } from './rosterOwners'
+import type { Roster } from '../../../core/battle'
 
 type ProjectedCombatant = NonNullable<Awaited<ReturnType<typeof combatantDatasheet>>>
 export type RosterCombatSummary = Record<
@@ -19,9 +21,28 @@ export type RosterCombatUnit = {
   rosterIndex: number
   pickIndex: number
   name: string
+  /** Whose list the unit comes from, when a side fields more than one. */
+  owner?: RosterOwner
   snapshot: CombatantSnapshot | null
   live?: boolean
   error?: string
+}
+
+/** A sealed league list at full strength, starting from its first unit; null when it kept no loadouts. */
+export function sealedCombatRoster(roster: Roster | null | undefined): CombatRoster | null {
+  const built = roster?.built
+  if (!built?.picks?.length) return null
+  return {
+    catalogueId: built.catalogueId,
+    detachmentIds: built.detachmentIds ?? [],
+    disposition: built.disposition,
+    limit: built.limit,
+    picks: built.picks,
+    pickIndex: 0,
+    waivedRules: built.waivedRules ?? [],
+    borrowedDetachmentId: null,
+    optionalRules: [],
+  }
 }
 
 export function rosterCombatIndices(picks: readonly RosterPick[]) {

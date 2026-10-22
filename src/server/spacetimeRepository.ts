@@ -109,6 +109,10 @@ export class SpacetimeRepository {
     return this.accounts.namesByIds(ids)
   }
 
+  profilesByIds(ids: readonly string[]) {
+    return this.accounts.profilesByIds(ids)
+  }
+
   async searchPlayers(userId: string, query: string) {
     const [relationships, practiceIds] = await Promise.all([this.product.friendshipsByUser(userId), this.product.practiceOpponentIds()])
     const excluded = new Set([
@@ -373,6 +377,15 @@ export class SpacetimeRepository {
 
   outdatedLeagueEntriesForRoster(userId: string, rosterId: string) {
     return this.product.outdatedLeagueEntriesForRoster(userId, rosterId)
+  }
+
+  async friendLeagueRosters(viewerId: string) {
+    const rows = await this.product.friendLeagueRosters(viewerId)
+    const owners = await this.accounts.profilesByIds(rows.map((row) => row.userId))
+    return rows.flatMap((row) => {
+      const owner = owners.get(row.userId)
+      return owner ? [{ ...row, ownerName: owner.name, ownerImage: owner.image }] : []
+    })
   }
 
   async leagueBattleCandidates(userId: string, participantIds: readonly string[]) {

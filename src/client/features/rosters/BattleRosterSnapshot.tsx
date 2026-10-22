@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
 import type { Roster } from '../../../core/battle'
+import type { SimulatorRosterSource } from '../../../contracts/simulatorState'
 import { factionQuery } from '../../queries'
 import { rosterWaivers } from '../../components/FormatWaivers'
 import type { FrozenRoster } from './ListBuilder'
@@ -16,7 +17,15 @@ import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPres
  * nothing but its text left — pasted, on a log written before selections were
  * recorded — is drawn here, because there is no roster to draw.
  */
-export function BattleRosterSnapshot({ roster, print }: { roster: Roster; print?: boolean }) {
+export function BattleRosterSnapshot({
+  roster,
+  print,
+  simulatorSource,
+}: {
+  roster: Roster
+  print?: boolean
+  simulatorSource?: SimulatorRosterSource
+}) {
   const built = roster.built
   const factionResult = useQuery({ ...factionQuery(built?.catalogueId ?? ''), enabled: Boolean(built) })
   const faction = factionResult.data
@@ -55,6 +64,7 @@ export function BattleRosterSnapshot({ roster, print }: { roster: Roster; print?
         snapshotEdition={built.edition ?? null}
         editable={false}
         resolvePersistedRoster={false}
+        simulatorSource={simulatorSource}
         print={print}
         frozen={reading.frozen}
       />

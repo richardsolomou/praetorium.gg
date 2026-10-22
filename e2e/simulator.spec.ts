@@ -341,7 +341,7 @@ test('named weapon alternatives and once-per-battle attack buffs calculate from 
   await ammo.click()
   await expect.poll(async () => Number(await damage.textContent())).toBe(unbuffed)
   await expect(page.getByRole('region', { name: 'Attacker rules', exact: true })).not.toContainText('Waaagh!')
-  await chooseCombatUnit(page, 'Attacker', 'Orks', 'Painboy')
+  // The Boyz defend: a lone Support unit cannot fight on its own, and a Leader's own invulnerable save would hide the Waaagh!.
   await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
   await openCombatControls(page)
   const waaagh = page.getByRole('switch', { name: 'Defender Waaagh!', exact: true })
@@ -1107,16 +1107,13 @@ test('the simulator leads with one outcome and reveals its controls', async ({ p
       const section = page.locator(selector)
       const heading = section.locator(':scope > summary')
       await heading.evaluate((element) => element.scrollIntoView({ block: 'center' }))
+      // The whole heading row toggles, not just its words.
       const box = await section.boundingBox()
       const headingBox = await heading.boundingBox()
       await section.click({ position: { x: box!.width - 8, y: headingBox!.height / 2 } })
-      await expect(section).toHaveAttribute('open')
-      await heading.click()
       await expect(section).not.toHaveAttribute('open')
       await heading.evaluate((element) => element.scrollIntoView({ block: 'center' }))
       await section.click({ position: { x: box!.width - 8, y: headingBox!.height / 2 } })
-      await expect(section).not.toHaveAttribute('open')
-      await heading.click()
       await expect(section).toHaveAttribute('open')
     }
   })

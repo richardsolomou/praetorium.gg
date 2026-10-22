@@ -242,7 +242,7 @@ Catalogue root imports follow every transitive `importRootEntries` link once, in
 
 The destination roster is the pricing authority for reference-to-roster adds. Keep picker rows stable as points change (base price, no conditional budget warning). Add stays clickable during repricing; queued clicks run one at a time against completed limits and are discarded if setup changed.
 
-Roster cards discover attachments; the picker does not. `src/core/attachmentOptions.ts` uses the card unit's current rules, and new datasheets go through the picker's queued Add with the attachment in the same edit. Options breaking a slot, category or required-Leader rule are hidden; copy-limited ones stay visible and disabled with a reason. Missing attachment rules mean no attachment. Cover changes in `e2e/builder-guidance.spec.ts`.
+Roster cards discover attachments; the picker does not. `src/core/attachmentOptions.ts` uses the card unit's current rules, and new datasheets go through the picker's queued Add with the attachment in the same edit. Options breaking a slot, category or required-Leader rule are hidden; copy-limited ones stay visible and disabled with a reason. Missing attachment rules mean no attachment. A Leader may stand alone, but the core rules require every Support unit (a `Support` ability or `supporting` association) to be attached to a Bodyguard unit, so `attachmentErrors` reports an unattached one and the simulator refuses its attacks until it joins one. Cover changes in `e2e/builder-guidance.spec.ts`.
 
 ## Saved lists and interchange
 

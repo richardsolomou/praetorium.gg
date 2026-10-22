@@ -290,7 +290,22 @@ export function LeagueEventView({
           eventToken={league.eventToken}
           viewerId={viewerId}
           opponentId={simulating}
-          entries={sealedEntrants.map((entry) => ({ userId: entry.userId, label: label(entry) }))}
+          entries={sealedEntrants.map((entry) => ({
+            userId: entry.userId,
+            label: label(entry),
+            owner: { name: label(entry), image: entry.image },
+          }))}
+          teams={groups.flatMap((group) =>
+            group.teamId && group.entries.length > 1 && group.entries.every((entry) => sealedEntrants.includes(entry))
+              ? [
+                  {
+                    id: `team:${group.teamId}`,
+                    label: `${group.title}: ${formatList(group.entries.map(label))}`,
+                    userIds: group.entries.map((entry) => entry.userId),
+                  },
+                ]
+              : [],
+          )}
           onClose={() => setSimulating(null)}
         />
       ) : null}

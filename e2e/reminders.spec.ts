@@ -1,4 +1,5 @@
 import { expect, test } from './test'
+import { attach } from './builder.harness'
 import {
   advance,
   attachRoster,
@@ -38,6 +39,10 @@ test('roster reminders cover selected rules and advances from another device', a
     .first()
     .click()
   await makeWarlord(page, 'Plasmancer')
+  // A Support unit must join a Bodyguard unit for the list to be legal to field.
+  await page.getByLabel('Add a unit').fill('Immortals')
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
+  await waitForRosterSave(page, () => attach(page, 'Plasmancer', 'Immortals'))
   const plasmancer = page.locator('[data-unit="Plasmancer"]')
 
   const enhancements = page.getByRole('group', { name: 'Plasmancer Enhancements' })

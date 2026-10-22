@@ -46,7 +46,7 @@ const roster: CombatRoster = {
 beforeEach(() => {
   clearRosterCombatCache()
   clearCombatAnswerCache()
-  mocks.project.mockReset().mockImplementation(({ data }) => Promise.resolve(rosterCombatant(preferenceBook(), null, data)))
+  mocks.project.mockReset().mockImplementation(({ data }) => Promise.resolve(rosterCombatant(preferenceBook(false, 'Leader'), null, data)))
   mocks.worker.mockReset().mockImplementation(() => {
     const current = worker()
     current.postMessage.mockImplementation((request: CombatRequest) =>
@@ -115,7 +115,7 @@ it('invalidates cached results when current wounds change', async () => {
 })
 
 it('reuses attacks when changed equipment resolves to the same calculation', async () => {
-  mocks.project.mockImplementation(({ data }) => Promise.resolve(rosterCombatant(preferenceBook(true), null, data)))
+  mocks.project.mockImplementation(({ data }) => Promise.resolve(rosterCombatant(preferenceBook(true, 'Leader'), null, data)))
   await cachedComparison({ attacker: { ...roster, picks: [{ entryId: 'support', choices: { 'support-weapon': 'staff' } }] } })
   mocks.worker.mockClear()
   await cachedComparison({ attacker: { ...roster, picks: [{ entryId: 'support', choices: { 'support-weapon': 'plasma' } }] } })
@@ -134,7 +134,7 @@ it('invalidates cached results when the evaluated rules change with the same ros
   await cachedComparison({ onResult: original })
   mocks.worker.mockClear()
   mocks.project.mockImplementation(({ data }) => {
-    const projected = structuredClone(rosterCombatant(preferenceBook(), null, data)!)
+    const projected = structuredClone(rosterCombatant(preferenceBook(false, 'Leader'), null, data)!)
     for (const profile of projected.selected.profiles) for (const value of profile.values) if (value.name === 'T') value.value = '10'
     return Promise.resolve(projected)
   })
@@ -258,7 +258,7 @@ it('projects each benchmark in its own faction rather than the attacking rosterâ
   const contexts: string[] = []
   mocks.project.mockImplementation(({ data }) => {
     contexts.push(data.catalogueId)
-    return Promise.resolve(rosterCombatant(preferenceBook(), null, { ...data, catalogueId: 'cat' }))
+    return Promise.resolve(rosterCombatant(preferenceBook(false, 'Leader'), null, { ...data, catalogueId: 'cat' }))
   })
   await runRosterCombat({
     attacker: roster,
@@ -377,4 +377,21 @@ it('settles a worker posting failure', async () => {
   mocks.worker.mockReturnValue(current)
   expect((await calculateCombatPair(request, new AbortController().signal)).ranged?.error).toContain('could not start')
   expect(current.terminate).toHaveBeenCalledOnce()
+})
+
+it('names whose list a unit comes from when one side fields a pair of rosters', async () => {
+  let owners: (string | undefined)[] = []
+  await runRosterCombat({
+    attacker: [
+      { ...roster, picks: [{ entryId: 'squad' }], owner: { name: 'Alice' } },
+      { ...roster, picks: [{ entryId: 'squad' }], owner: { name: 'Bob' } },
+    ],
+    defender: roster,
+    signal: new AbortController().signal,
+    onPrepared: (attackers) => {
+      owners = attackers.map((unit) => unit.owner?.name)
+    },
+    onResult: () => {},
+  })
+  expect(owners).toEqual(['Alice', 'Bob'])
 })

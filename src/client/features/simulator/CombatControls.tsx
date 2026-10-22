@@ -5,6 +5,7 @@ import { Toggle as ToggleButton } from '@/components/ui/toggle'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
+import { Crosshair, Swords } from 'lucide-react'
 
 const selectClass = 'h-9 w-full min-w-0 border border-edge bg-sunken px-2 text-sm text-bone'
 
@@ -153,4 +154,10 @@ export function SimulationMode({
       <TabsContent value="rosters">{comparison}</TabsContent>
     </Tabs>
   )
+}
+
+/** Without a title the icon only decorates a heading that already names the phase. */
+export function PhaseIcon({ phase, title }: { phase: 'ranged' | 'melee'; title?: string }) {
+  const Icon = phase === 'ranged' ? Crosshair : Swords
+  return <Icon className="size-3.5 shrink-0 text-info" aria-label={title} aria-hidden={title ? undefined : true} />
 }

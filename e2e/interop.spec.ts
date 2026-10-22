@@ -270,7 +270,7 @@ Strike Force (2,000 Points)
 
 CHARACTER
 
-Technomancer (70 Points)
+Overlord (85 Points)
   • Warlord
 
 Exported with BattleBase, Data Version: v20260812`)

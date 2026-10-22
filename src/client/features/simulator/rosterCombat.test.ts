@@ -50,7 +50,7 @@ it('retains the selected plasma equipment rather than the default staff', () => 
 })
 
 it('retains unsupported phase errors beside an available phase', () => {
-  const data = rosterCombatant(preferenceBook(), null, {
+  const data = rosterCombatant(preferenceBook(false, 'Leader'), null, {
     catalogueId: 'cat',
     detachmentIds: [],
     picks: [{ entryId: 'support' }],

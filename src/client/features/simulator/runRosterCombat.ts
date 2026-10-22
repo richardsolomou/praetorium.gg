@@ -87,6 +87,7 @@ export async function runRosterCombat({
       const pick = roster.picks[pickIndex]!
       const data = projections[rosterIndex]![positions[rosterIndex]!]!
       positions[rosterIndex]! += 1
+      const owner = roster.owner ? { owner: roster.owner } : {}
       try {
         if (!data) throw new Error('This unit could not be loaded under the roster’s selected rules.')
         if ('error' in data) throw new Error(data.error)
@@ -96,12 +97,13 @@ export async function runRosterCombat({
           rosterIndex,
           pickIndex,
           name: [data.selected.name, ...data.companions.map((member) => member.selected.name)].join(' + '),
+          ...owner,
           snapshot: rosterCombatSnapshot(data, roster.picks, roster.battle ? { units: roster.battle.units, pickIndex } : undefined),
           live: Boolean(roster.battle),
           ...(data.attachmentErrors.length ? { error: data.attachmentErrors.map((error) => error.message).join('; ') } : {}),
         }
       } catch (error) {
-        return { rosterIndex, pickIndex, name: `Unit ${pickIndex + 1}`, snapshot: null, error: errorMessage(error) }
+        return { rosterIndex, pickIndex, name: `Unit ${pickIndex + 1}`, ...owner, snapshot: null, error: errorMessage(error) }
       }
     })
   }

@@ -83,12 +83,13 @@ test('a full roster matrix batches projections and uses the server without brows
   await page.setViewportSize({ width: 390, height: 844 })
   const options = dialog.getByRole('button', { name: 'View options', exact: true })
   await expect(options).toHaveAttribute('aria-expanded', 'false')
-  await expect(dialog.getByRole('combobox', { name: 'Comparison phase' })).toBeHidden()
+  await expect(dialog.getByRole('combobox', { name: 'Comparison metric' })).toBeHidden()
+  await expect(dialog.getByRole('tab', { name: 'Shooting', exact: true })).toBeVisible()
   await options.click()
   await dialog.getByRole('combobox', { name: 'Comparison metric' }).click()
   await page.getByRole('option', { name: 'Models lost', exact: true }).click()
   await options.click()
-  await expect(options).toContainText('Shooting · Models lost')
+  await expect(options).toContainText('Models lost · Best attackers')
   expect(calculations).toBe(before)
   const attackerSource = (await dialog.getByRole('combobox', { name: 'Attacking roster' }).boundingBox())!
   const defenderSource = (await dialog.getByRole('combobox', { name: 'Defending roster' }).boundingBox())!

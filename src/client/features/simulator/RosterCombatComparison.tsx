@@ -1,9 +1,18 @@
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { ArrowLeftRight, Crosshair } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { combatUnitsQuery, factionIndexQuery, meQuery, savedRosterSummariesQuery } from '../../queries'
-import { sharedRoster } from '../../functions'
+import {
+  combatUnitsQuery,
+  discoveredRostersQuery,
+  factionIndexQuery,
+  friendLeagueRostersQuery,
+  meQuery,
+  savedRosterSummariesQuery,
+} from '../../queries'
+import { openLeagueRoster, sharedRoster } from '../../functions'
+import { rosterSourceKey } from '../../../contracts/simulatorState'
+import { sealedCombatRoster } from './rosterCombat'
 import { errorMessage } from '../../queryClient'
 import { useStoredValue, writeStoredValue } from '../../storedValue'
 import { useHydrated } from '../../useClientValue'
@@ -19,11 +28,16 @@ import { BenchmarkTargets } from './BenchmarkTargets'
 import { RosterPicker } from './RosterPicker'
 import { benchmarkRosters, defaultBenchmarkTargets, parseBenchmarkTargets, type BenchmarkTarget } from './benchmarks'
 import { Problem } from '../../components/Problem'
+import { friendLeagueLabel, friendLeagueSource, OwnerAvatars, type RosterOwner } from './rosterOwners'
 
 export type RosterCombatSource = {
   id: string
   label: string
   catalogueId?: string
+  /** Whose lists these are, shown by face in the pickers. */
+  owners?: readonly RosterOwner[]
+  /** The picker heading it is listed under, when it is not one of the player's own. */
+  group?: string
   load: (signal: AbortSignal) => Promise<readonly CombatRoster[]>
 }
 type Comparison = {
@@ -53,6 +67,9 @@ export function RosterCombatComparison({
   const me = useQuery({ ...meQuery(), enabled: !sources })
   const saved = useQuery({ ...savedRosterSummariesQuery(), enabled: !sources && Boolean(me.data) })
   const activeRosters = saved.data?.filter((roster) => !roster.archived) ?? []
+  // The same friends' rosters and league lists the unit simulator offers.
+  const friends = useInfiniteQuery({ ...discoveredRostersQuery({}, 'friends', 'updated-desc'), enabled: !sources && Boolean(me.data) })
+  const leagues = useQuery({ ...friendLeagueRostersQuery(), enabled: !sources && Boolean(me.data) })
   const factions = useQuery(factionIndexQuery())
   const catalogue = useQuery({ ...combatUnitsQuery(), enabled: !sources })
   const storageKey = `praetorium.combat-benchmarks.v1:${me.data?.id ?? 'guest'}`
@@ -91,6 +108,39 @@ export function RosterCombatComparison({
         return [{ ...data, pickIndex: 0 }]
       },
     })),
+    ...(friends.data?.pages[0]?.rosters ?? []).map(({ roster, owner }) => ({
+      id: roster.id,
+      catalogueId: roster.catalogueId,
+      group: "Friends' rosters",
+      owners: [owner],
+      label: `${rosterTitle(
+        roster,
+        factions.data?.factions.find((faction) => faction.id === roster.catalogueId),
+      )} · ${owner.name}`,
+      load: async (signal: AbortSignal) => {
+        const data = await sharedRoster({ data: { id: roster.id }, signal })
+        if (!data) throw new Error('This roster is no longer available.')
+        return [{ ...data, pickIndex: 0, owner }]
+      },
+    })),
+    ...(leagues.data ?? []).map((entry) => {
+      const { league } = friendLeagueSource(entry)
+      const owner = { name: entry.ownerName, image: entry.ownerImage }
+      return {
+        id: rosterSourceKey({ league }),
+        catalogueId: entry.catalogueId,
+        group: "Friends' league rosters",
+        owners: [owner],
+        label: friendLeagueLabel(entry),
+        load: async (signal: AbortSignal) => {
+          const roster = sealedCombatRoster(
+            await openLeagueRoster({ data: { token: league.token, eventToken: league.eventToken, userId: league.userId }, signal }),
+          )
+          if (!roster) throw new Error('This revealed roster has no saved loadouts available to simulate.')
+          return [{ ...roster, owner }]
+        },
+      }
+    }),
   ]
   const selectionKey = `${storageKey}:${currentRoster ? 'draft' : sessionKey}`
   const [attackerId, setAttackerId] = useState(
@@ -267,15 +317,20 @@ export function RosterCombatComparison({
               <p className="eyebrow mb-1">{index ? 'Targets' : 'Attackers'}</p>
               <RosterPicker
                 ariaLabel={index ? 'Defending roster' : 'Attacking roster'}
-                groups={[
-                  {
-                    label: sources ? 'Revealed rosters' : 'Rosters and targets',
-                    options: options.map((source) => ({
+                groups={[undefined, "Friends' rosters", "Friends' league rosters"].map((group) => ({
+                  label: group ?? (sources ? 'Revealed rosters' : 'Rosters and targets'),
+                  options: options
+                    .filter((source) => source.group === group)
+                    .map((source) => ({
                       ...source,
-                      icon: source.id === 'benchmarks' ? <Crosshair className="size-4 text-info" aria-hidden /> : undefined,
+                      icon:
+                        source.id === 'benchmarks' ? (
+                          <Crosshair className="size-4 text-info" aria-hidden />
+                        ) : source.owners?.length ? (
+                          <OwnerAvatars owners={source.owners} />
+                        ) : undefined,
                     })),
-                  },
-                ]}
+                }))}
                 value={index ? defenderId : attackerId}
                 onValueChange={(id) => change(side, id)}
                 disabled={running}
@@ -308,7 +363,7 @@ export function RosterCombatComparison({
       {!sources && !currentRoster && !me.isPending && !me.data ? (
         <p className="text-sm text-dim">Sign in and save both rosters to compare them here.</p>
       ) : null}
-      {!sources && me.data && saved.isSuccess && !activeRosters.length && !currentRoster ? (
+      {!sources && me.data && saved.isSuccess && !currentRoster && options.every((source) => source.id === 'benchmarks') ? (
         <p className="text-sm text-dim">Save or import two rosters to start comparing targets.</p>
       ) : null}
       {readError ? (
@@ -340,6 +395,14 @@ export function RosterCombatComparison({
               : ''}
         </output>
       </div>
+      {running ? (
+        <progress
+          aria-label="Matchups calculated"
+          max={total || undefined}
+          value={total ? (comparison?.completed ?? 0) : undefined}
+          className="block h-1 w-full appearance-none overflow-hidden border-0 bg-raised [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-raised [&::-webkit-progress-value]:bg-primary [&::-webkit-progress-value]:transition-[width] [&::-webkit-progress-value]:duration-300 motion-reduce:[&::-webkit-progress-value]:transition-none"
+        />
+      ) : null}
       {problem ? <Problem>{problem}</Problem> : null}
       <p className="text-xs text-dim">
         {liveKey === undefined ? 'Full health' : 'Live models and wounds'} · Default conditions
@@ -353,6 +416,11 @@ export function RosterCombatComparison({
           onChange={editTargets}
           onReset={() => editTargets(null)}
         />
+      ) : null}
+      {!comparison && !running && attackerId && defenderId ? (
+        <p className="border border-dashed border-edge p-4 text-center text-sm text-dim">
+          Every attacking unit is matched against every target. Run all matchups to fill in the table.
+        </p>
       ) : null}
       {comparison ? (
         <RosterCombatTable
