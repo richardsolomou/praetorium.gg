@@ -403,7 +403,7 @@ function confirmationCopy(user: AdminUser, confirming: Confirming) {
       return {
         title: `Mark ${user.email} as verified?`,
         description:
-          'Only once you know the player controls this address: an Apple, Google, or Discord account with the same email can then sign in to this one.',
+          'Only once you know the player controls this address: an Apple, Google, Discord, or GitHub account with the same email can then sign in to this one.',
         cancel: 'Leave unverified',
         confirm: 'Mark verified',
         pendingLabel: 'Saving…',
