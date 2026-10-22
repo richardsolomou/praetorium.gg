@@ -664,6 +664,7 @@ function AppShell() {
           thirdPartyCookiesEnabled={false}
           allowsBackForwardNavigationGestures={false}
           allowsLinkPreview={false}
+          decelerationRate="normal"
           setBuiltInZoomControls={false}
           setSupportMultipleWindows
           injectedJavaScriptBeforeContentLoaded={`${mountedSnapshot.script}\nwindow.PraetoriumOfflineStart=${JSON.stringify(offlineView.path)};\n${NATIVE_BRIDGE_SCRIPT}\n${nativeWatchCapabilityScript(watchAvailable)}`}
@@ -702,6 +703,7 @@ function AppShell() {
           thirdPartyCookiesEnabled={false}
           allowsBackForwardNavigationGestures={backSwipeGated || historyBack}
           allowsLinkPreview={false}
+          decelerationRate="normal"
           setBuiltInZoomControls={false}
           setSupportMultipleWindows
           startInLoadingState
