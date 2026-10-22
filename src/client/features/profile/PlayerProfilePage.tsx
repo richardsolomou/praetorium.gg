@@ -180,9 +180,9 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
           <TabsContent value="collection" className="mt-4">
             {collection.data ? (
               <PlayerCollection
+                owner={{ id: userId, name: profile.name }}
                 groups={collection.data.groups}
                 wishlist={collection.data.wishlist}
-                published={collection.data.published}
                 yourself={yourself}
               />
             ) : collection.isError ? (

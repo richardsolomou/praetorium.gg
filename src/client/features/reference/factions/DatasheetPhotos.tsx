@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
 import { collectionPhotoPath } from '../../../../contracts/collection'
 import { datasheetPhotosQuery, meQuery } from '../../../queries'
 import { PhotoDropZone } from '../../collection/PhotoDropZone'
 import { PhotoLike } from '../../collection/PhotoLike'
-import { PhotoViewer, type SharedPhoto } from '../../collection/PhotoViewer'
+import { PhotoViewer } from '../../collection/PhotoViewer'
+import { usePhotoSteps } from '../../collection/PhotoLightbox'
 
 /**
  * Players' photos of this datasheet from their shared collections, most liked first, led by space for a signed-in reader to add theirs.
@@ -14,7 +14,7 @@ import { PhotoViewer, type SharedPhoto } from '../../collection/PhotoViewer'
 export function DatasheetPhotos({ entryId, name }: { entryId: string; name: string }) {
   const photos = useQuery(datasheetPhotosQuery(entryId))
   const { data: me } = useQuery(meQuery())
-  const [viewing, setViewing] = useState<SharedPhoto | null>(null)
+  const viewing = usePhotoSteps(photos.data ?? [])
   if (!photos.data) return null
   return (
     <section aria-labelledby="player-photos" data-datasheet-photos>
@@ -37,7 +37,7 @@ export function DatasheetPhotos({ entryId, name }: { entryId: string; name: stri
                 type="button"
                 className="group block w-full"
                 aria-label={`${name} from ${photo.owner.name}’s collection`}
-                onClick={() => setViewing(photo)}
+                onClick={() => viewing.open(photo.photoId)}
               >
                 <img
                   src={collectionPhotoPath(photo.photoId, 'thumbnail')}
@@ -56,7 +56,14 @@ export function DatasheetPhotos({ entryId, name }: { entryId: string; name: stri
       ) : (
         <p className="mt-2 text-sm text-dim">No player photos yet.</p>
       )}
-      <PhotoViewer entryId={entryId} name={name} photo={viewing} onClose={() => setViewing(null)} />
+      <PhotoViewer
+        entryId={entryId}
+        name={name}
+        photo={viewing.current}
+        onClose={viewing.close}
+        onPrevious={viewing.previous}
+        onNext={viewing.next}
+      />
     </section>
   )
 }
