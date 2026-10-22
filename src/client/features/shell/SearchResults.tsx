@@ -1,7 +1,7 @@
 import { defaultRangeExtractor } from '@tanstack/react-virtual'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
-import { useEffect, useMemo, useRef } from 'react'
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { GlobalSearchResult } from '../../functions'
 import { DatasheetMatchReasons } from '../../components/DatasheetMatchReasons'
 import { useVirtualRows } from '../../components/useVirtualRows'
@@ -20,7 +20,10 @@ function ResultList({
   listId,
   selectedIndex,
   onSelect,
+  before,
 }: {
+  /** Shown above the results in the same scrolling area, so the dialog has one scrollbar. */
+  before?: ReactNode
   results: GlobalSearchResult[]
   query: string
   listId?: string
@@ -28,6 +31,16 @@ function ResultList({
   onSelect?: (result: GlobalSearchResult) => void
 }) {
   const scroller = useRef<HTMLDivElement>(null)
+  const [leadHeight, setLeadHeight] = useState(0)
+  // The rows start below what leads them, so they are virtualized from that offset.
+  const lead = useCallback((node: HTMLDivElement) => {
+    const observer = new ResizeObserver(() => setLeadHeight(node.offsetHeight))
+    observer.observe(node)
+    return () => {
+      observer.disconnect()
+      setLeadHeight(0)
+    }
+  }, [])
   const rows = useMemo(
     () =>
       globalSearchGroups.flatMap((group) => {
@@ -58,24 +71,30 @@ function ResultList({
       return row.kind === 'heading' ? row.label : row.result.id
     },
     initialRect: { width: 600, height: 480 },
+    scrollMargin: leadHeight,
     overscan: 5,
     rangeExtractor: (range) =>
       [...new Set([...defaultRangeExtractor(range), ...(activeRow >= 0 ? [activeRow] : [])])].sort((a, b) => a - b),
   })
+  // Only a moved selection scrolls, so the list opens at the top with anything leading it in view.
+  const shownRow = useRef(activeRow)
   useEffect(() => {
-    if (activeRow >= 0) virtualizer.scrollToIndex(activeRow, { align: 'auto' })
+    if (activeRow < 0 || activeRow === shownRow.current) return
+    shownRow.current = activeRow
+    virtualizer.scrollToIndex(activeRow, { align: 'auto' })
   }, [activeRow, virtualizer])
 
   // oxlint-disable jsx-a11y/prefer-tag-over-role -- Native options cannot contain faction marks and match details.
   return (
-    <div
-      ref={scroller}
-      id={listId}
-      role={onSelect ? 'listbox' : 'region'}
-      aria-label="Search results"
-      className="max-h-[min(60vh,30rem)] overflow-y-auto overscroll-contain"
-    >
-      <div className="relative w-full" style={{ height: totalSize }}>
+    <div ref={scroller} className="max-h-[min(60vh,30rem)] overflow-y-auto overscroll-contain">
+      {before ? <div ref={lead}>{before}</div> : null}
+      <div
+        id={listId}
+        role={onSelect ? 'listbox' : 'region'}
+        aria-label="Search results"
+        className="relative w-full"
+        style={{ height: totalSize }}
+      >
         {items.map((item) => {
           const row = rows[item.index]!
           const content =
@@ -95,7 +114,7 @@ function ResultList({
               data-index={item.index}
               ref={virtualizer.measureElement}
               className="absolute left-0 top-0 w-full px-1 pb-1"
-              style={{ transform: `translateY(${item.start}px)` }}
+              style={{ transform: `translateY(${item.start - leadHeight}px)` }}
             >
               {row.kind === 'heading' ? (
                 <h2 className="rubric border-b border-edge px-3 py-2">{row.label}</h2>
