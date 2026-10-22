@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.179.0
+
+### Minor Changes
+
+- f0ae1df: Player guides are now docs: short pages on building and importing lists, the combat simulator, battles and AI assistants, with screenshots that outline the control each step names, a troubleshooting page per area, and a search on the docs page that finds problems by their symptom. Old guide links redirect.
+
+### Patch Changes
+
+- a0058b1: The desktop footer no longer repeats Send feedback; it stays in the account menu and on the Support page.
+- b6a9dc5: The Support page leads with the docs search and each area's troubleshooting page, and account and app help now lives in the docs.
+
 ## 0.178.1
 
 ### Patch Changes
