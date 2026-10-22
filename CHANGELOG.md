@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.177.0
+
+### Minor Changes
+
+- 3f79de8: The header shows every section, including Factions, Missions, Force dispositions and Rules, in one bar on wide screens and a second row on narrower ones, and stays at the top while you scroll.
+- c39412a: Photos on player profiles open in a viewer instead of a new tab, and every photo viewer steps to the previous or next photo with its arrows or the arrow keys.
+
+### Patch Changes
+
+- 3f79de8: The header and the phone tab bar are darker, and the search box stands out from them.
+- b520550: Pages no longer show a banner asking where rules text comes from; choose sources from any rule that has no text yet.
+- 3f79de8: Search on phones opens as a panel near the top of the screen instead of covering the whole page.
+- c39412a: Collections on player profiles use the same faction sections and datasheet cards as your own collection, with owned, built and painted counts for every datasheet.
+
 ## 0.176.0
 
 ### Minor Changes
