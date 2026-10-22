@@ -1,3 +1,4 @@
+import { recordEvents } from './telemetry.harness'
 import { expect, test, type Locator, type Page } from './test'
 import { z } from 'zod'
 import { confirmRosterSetup, befriend, createRoster, uniqueName, signUp, waitForRosterSave, makeWarlord } from './account'
@@ -1012,6 +1013,8 @@ test('an eligible casual matchup is directed through its league event', async ({
   await expectNoHorizontalOverflow(owner)
 
   await owner.goto('/battles')
+  await owner.getByRole('button', { name: 'New battle' }).waitFor()
+  const events = await recordEvents(owner)
   await owner.getByRole('button', { name: 'New battle' }).click()
   const casual = owner.getByRole('dialog', { name: 'Start a battle' })
   await casual.getByRole('combobox', { name: 'Opponent' }).click()
@@ -1029,6 +1032,10 @@ test('an eligible casual matchup is directed through its league event', async ({
   await expect(leagueChooser.getByRole('combobox', { name: 'Opponent' })).toContainText(entrantName)
   await leagueChooser.getByRole('button', { name: 'Start battle' }).click()
   await expect(owner).toHaveURL(/\/battles\/[^/?]+$/)
+  expect(events.filter((event) => event.properties.source === 'league')).toEqual([
+    { name: 'battle_creation_started', properties: { source: 'league' } },
+    { name: 'battle_creation_submitted', properties: { format: '1v1', source: 'league' } },
+  ])
   await owner.goto(leagueUrl.toString())
   await eventLoaded(owner)
   await expect(owner.locator('[data-battle-shelf="Battles"]')).toContainText(entrantName)
