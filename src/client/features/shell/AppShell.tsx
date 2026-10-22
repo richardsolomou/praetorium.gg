@@ -23,7 +23,7 @@ import { ImpersonationBanner } from './ImpersonationBanner'
 import { NativeAppNavigation } from './NativeAppNavigation'
 import { NativePushRegistration } from './NativePushRegistration'
 import { OnboardingGuide } from '../onboarding/OnboardingGuide'
-import { FeedbackDialog, openFeedback } from '../feedback/FeedbackDialog'
+import { FeedbackDialog } from '../feedback/FeedbackDialog'
 import { meQuery } from '../../queries'
 import { CommunityLinks } from './CommunityLinks'
 import { followTextSize } from '../../textSize'
@@ -237,9 +237,6 @@ export function AppShell() {
                       <Link to="/support" data-listed-in-more className="transition-colors hover:text-bone">
                         Support
                       </Link>
-                      <button type="button" data-listed-in-more onClick={openFeedback} className="transition-colors hover:text-bone">
-                        Send feedback
-                      </button>
                       <Link to="/privacy" className="transition-colors hover:text-bone">
                         Privacy policy
                       </Link>

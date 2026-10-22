@@ -444,7 +444,10 @@ test('feedback is sent as a survey response from the page the player is on', asy
   await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
   const events = await recordEvents(page)
   const dialog = page.getByRole('dialog', { name: 'Send feedback' })
-  await retryUntilVisible(dialog, () => page.locator('[data-web-app-footer]').getByRole('button', { name: 'Send feedback' }).click())
+  await retryUntilVisible(dialog, async () => {
+    await page.getByRole('button', { name: 'Account menu' }).filter({ visible: true }).click()
+    await page.getByRole('menuitem', { name: 'Send feedback' }).click()
+  })
   await dialog.getByRole('button', { name: 'Idea' }).click()
   await dialog.getByLabel('Message').fill('  Group factions by alliance  ')
   await dialog.getByLabel('Email for a reply (optional)').fill('guest@example.com')
@@ -479,7 +482,10 @@ test('an administrator sends feedback without an email field and opens its scree
   await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
   const events = await recordEvents(page)
   const dialog = page.getByRole('dialog', { name: 'Send feedback' })
-  await retryUntilVisible(dialog, () => page.locator('[data-web-app-footer]').getByRole('button', { name: 'Send feedback' }).click())
+  await retryUntilVisible(dialog, async () => {
+    await page.getByRole('button', { name: 'Account menu' }).filter({ visible: true }).click()
+    await page.getByRole('menuitem', { name: 'Send feedback' }).click()
+  })
   await expect(dialog.getByLabel('Email for a reply (optional)')).toHaveCount(0)
   await dialog.getByLabel('Message').fill('Attached the broken layout')
   await dialog.getByLabel('Attach screenshot').setInputFiles(SCREENSHOT)
