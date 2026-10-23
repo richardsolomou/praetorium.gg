@@ -14,7 +14,7 @@ import {
 } from '../src/core/rosterText.fixtures'
 import type { LoadedCatalogue } from '../src/server/catalogueIndex'
 import { custodesOfficial } from '../src/core/rosterText.custodes.fixture'
-import { kriegGermanOfficial } from '../src/core/rosterText.krieg.fixture'
+import { astraMilitarumNewRecruit, kriegGermanOfficial } from '../src/core/rosterText.krieg.fixture'
 import { necronsOfficial } from '../src/core/rosterText.necrons.fixture'
 import { blackTemplarsNewRecruit } from '../src/core/rosterText.blackTemplars.fixture'
 import { salamandersOfficial } from '../src/core/rosterText.salamanders.fixture'
@@ -242,6 +242,36 @@ Sanctifiers (100 pts)
       attached: 2,
       points: '1995 for 1995',
     })
+  })
+
+  it('imports the New Recruit Astra Militarum list without a mismatch', () => {
+    expect(summary(astraMilitarumNewRecruit)).toEqual({
+      format: 'roster-file',
+      faction: 'Imperium - Astra Militarum',
+      detachments: 1,
+      units: '11 of 11',
+      attached: 3,
+      mismatches: [],
+      points: '1000 for 1000',
+    })
+  })
+
+  // Their pistol and melee swaps sit inside the loadout their wargear group picks, seven containers below the datasheet.
+  it.each(['2x plasma pistol', '2x power weapon'])("keeps the Death Korps Watchmasters' %s", (equipment) => {
+    expect(wargear(astraMilitarumNewRecruit, 'Death Korps of Krieg')).toContain(equipment)
+  })
+
+  // The Lord Commissar's default power weapon, swapped for the stated power fist, is not the one the list states.
+  it("gives a Krieg veteran the list's power weapon", () => {
+    expect(wargear(astraMilitarumNewRecruit, 'Krieg Command Squad')).toContain('1x power weapon')
+  })
+
+  it('reports a stated weapon its unit lost though a group bears its name', () => {
+    const both = astraMilitarumNewRecruit.replace(
+      '◦ 1x Power weapon\n◦ 1x Regimental',
+      '◦ 1x Power weapon\n◦ 1x Trench club\n◦ 1x Regimental',
+    )
+    expect(imported(both).unplaced.flatMap((unit) => unit.choices.map((choice) => choice.name))).toEqual(['Power weapon'])
   })
 
   it('takes the German Krieg force disposition from its detachment', () => {
