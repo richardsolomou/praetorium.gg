@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.183.3
+
+### Patch Changes
+
+- 19a5750: Leaders whose attachment data names unit types no longer offer single-model characters as bodyguards, such as a Runtherd leading Grotmas Gitz.
+
 ## 0.183.2
 
 ### Patch Changes
