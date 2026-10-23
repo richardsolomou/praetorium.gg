@@ -151,7 +151,9 @@ function attachmentFromAssociations(definition: Definition, selection: Selection
     let targets = byAnswers.get(answers)
     if (!targets) {
       targets = candidates
-        .filter((candidate) => associationHolds(association, selection, candidate, index))
+        .filter(
+          (candidate) => definitionHas(candidate, association.childId, index) && associationHolds(association, selection, candidate, index),
+        )
         .map((candidate) => nameOf(candidate, index.definitions))
       byAnswers.set(answers, targets)
     }
