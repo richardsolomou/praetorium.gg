@@ -2,14 +2,18 @@ import { execFileSync } from 'node:child_process'
 import { appendFileSync } from 'node:fs'
 import { isEntryPoint } from './lib/entryPoint.ts'
 
+/** Paths that no runtime lane, build or deploy reads; `static` still checks them. CHANGELOG.md is not here: the app imports it. */
+const INERT = [
+  /^docs\/[\s\S]+\.md$/,
+  /^(README|CONTRIBUTING|CLAUDE|AGENTS|SECURITY|DESIGN|PRODUCT)\.md$/,
+  /^\.changeset\/[^/]+\.md$/,
+  /^plugin\//,
+  /^justfile$/,
+  /^\.github\/pull_request_template\.md$/,
+]
+
 export function needsRuntimeChecks(files: readonly string[]) {
-  return (
-    files.length === 0 ||
-    files.some(
-      (file) =>
-        !/^docs\/[\s\S]+\.md$/.test(file) && !['README.md', 'CONTRIBUTING.md', 'CLAUDE.md', 'AGENTS.md', 'SECURITY.md'].includes(file),
-    )
-  )
+  return files.length === 0 || files.some((file) => !INERT.some((pattern) => pattern.test(file)))
 }
 
 if (isEntryPoint(import.meta.url)) {
