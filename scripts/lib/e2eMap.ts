@@ -18,6 +18,8 @@ export type E2eMap = {
   revision: string
   specs: string[]
   files: Record<string, { loaded: number[]; functions: [start: number, end: number, specs: number[]][] }>
+  /** Source the catalogue compiler or a web worker runs, which browser and server coverage never sees. */
+  whole: string[]
 }
 
 type Script = { trace: TraceMap; length: number; lineStarts: number[]; sources: (string | null)[] }
@@ -29,6 +31,16 @@ function sourcePath(source: string | null, root: string) {
   const absolute = path.isAbsolute(source) ? source : source.replace(/^(\.\.\/)+/, '/')
   const file = path.relative(root, absolute).replace(/\?.*$/, '')
   return file.startsWith('src/') ? file : null
+}
+
+/** Source files in the build's web worker chunks, which page coverage cannot see into. */
+export function workerSources(buildDirectory: string, root: string) {
+  const assets = path.join(buildDirectory, 'public/assets')
+  return fs
+    .readdirSync(assets)
+    .filter((file) => /\.worker-[\w-]+\.js\.map$/.test(file))
+    .flatMap((file) => (JSON.parse(fs.readFileSync(path.join(assets, file), 'utf8')) as { sources: (string | null)[] }).sources)
+    .flatMap((source) => sourcePath(source, root) ?? [])
 }
 
 /** Reads a built script and its source map from the build directory, by the address the test loaded it from. */
@@ -61,7 +73,8 @@ export function scriptReader(buildDirectory: string, root: string) {
   }
 }
 
-function originalAt(script: Script, offset: number) {
+/** The zero-based generated line holding `offset`. */
+function lineAt(script: Script, offset: number) {
   let low = 0
   let high = script.lineStarts.length - 1
   while (low < high) {
@@ -69,7 +82,28 @@ function originalAt(script: Script, offset: number) {
     if (script.lineStarts[middle]! <= offset) low = middle
     else high = middle - 1
   }
-  return originalPositionFor(script.trace, { line: low + 1, column: offset - script.lineStarts[low]! })
+  return low
+}
+
+function originalAt(script: Script, offset: number) {
+  const line = lineAt(script, offset)
+  return originalPositionFor(script.trace, { line: line + 1, column: offset - script.lineStarts[line]! })
+}
+
+/**
+ * The last source line a function's body maps to. Closing braces often carry no mapping, so this
+ * walks back line by line from the function's end; finding none leaves only its first line, so
+ * an edit later in the body counts as top-level.
+ */
+function lastMappedLine(script: Script, start: number, end: number, source: string, firstLine: number) {
+  let offset = Math.max(start, end - 1)
+  while (offset >= start) {
+    const position = originalAt(script, offset)
+    if (position.source === source && position.line !== null && position.line >= firstLine) return position.line
+    // Step to the end of the previous generated line.
+    offset = script.lineStarts[lineAt(script, offset)]! - 1
+  }
+  return firstLine
 }
 
 /** Folds every test's coverage into one map; tests of the same spec file count as that spec. */
@@ -78,6 +112,7 @@ export function buildE2eMap(
   readScript: ReturnType<typeof scriptReader>,
   root: string,
   revision: string,
+  whole: readonly string[] = [],
 ): E2eMap {
   const specs: string[] = []
   const loaded = new Map<string, Set<number>>()
@@ -94,9 +129,7 @@ export function buildE2eMap(
       const first = originalAt(script, start)
       const file = sourcePath(first.source, root)
       if (!file || first.line === null) continue
-      const last = originalAt(script, Math.max(start, end - 1))
-      // An end that maps elsewhere leaves only the first line, so an edit later in the body counts as top-level.
-      const lastLine = last.source === first.source && last.line !== null && last.line >= first.line ? last.line : first.line
+      const lastLine = lastMappedLine(script, start, end, first.source!, first.line)
       const spans = functions.get(file) ?? new Map<string, Set<number>>()
       const key = `${first.line}:${lastLine}`
       spans.set(key, (spans.get(key) ?? new Set()).add(spec))
@@ -113,5 +146,5 @@ export function buildE2eMap(
         .toSorted((left, right) => left[0] - right[0] || left[1] - right[1]),
     }
   }
-  return { revision, specs, files }
+  return { revision, specs, files, whole: [...new Set(whole)].toSorted() }
 }

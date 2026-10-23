@@ -1,10 +1,10 @@
 name: CI
 
 on:
+  # A push runs the browser specs its change exercises; enabling auto-merge runs them all, and
+  # only that full run reports the required `e2e` check, so nothing merges on a partial suite.
   pull_request:
-  # Every merge runs the whole browser suite, and release.yml deploys only after its `e2e` job passes.
-  push:
-    branches: [main]
+    types: [opened, synchronize, reopened, auto_merge_enabled]
   # The nightly run records the source each spec executes, which pull requests choose their specs from.
   schedule:
     - cron: '17 3 * * *'
@@ -21,12 +21,14 @@ on:
         default: false
 
 concurrency:
-  # A coverage run must not cancel, or be cancelled by, the push run that gates a deploy.
-  group: ${{ github.workflow }}-${{ (github.event_name == 'schedule' || inputs.coverage) && 'coverage' || github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
+
+env:
+  FULL_E2E: ${{ github.event_name != 'pull_request' || github.event.pull_request.auto_merge != null }}
 
 # `just check` runs these lanes in sequence locally; CI runs them side by side so the fast ones answer first.
 jobs:
@@ -151,29 +153,28 @@ jobs:
       - name: Record the build's Node version
         id: node
         run: node -p "'version=' + process.version" >> "$GITHUB_OUTPUT"
-      # Until `E2E_SELECTION` is `enforce`, the selection is only reported and every spec runs.
       - name: Choose the browser runners
         id: runners
         env:
           SELECTED: ${{ needs.changes.outputs.e2e-specs }}
           REASON: ${{ needs.changes.outputs.e2e-reason }}
-          ENFORCE: ${{ vars.E2E_SELECTION == 'enforce' && github.event_name == 'pull_request' }}
+          FULL: ${{ env.FULL_E2E }}
           MAX: ${{ inputs.e2e-runners || '16' }}
         run: |
           set -euo pipefail
-          specs=all
-          if [ "$ENFORCE" = true ]; then specs="$SELECTED"; fi
+          specs="$SELECTED"
+          if [ "$FULL" = true ]; then specs=all; fi
           runners="$(node scripts/e2eShard.ts --runners "$specs" "$MAX")"
-          wanted="$(node scripts/e2eShard.ts --runners "$SELECTED" "$MAX")"
           {
             echo "specs=$specs"
             echo "runners=$runners"
             echo "count=$(node -p 'JSON.parse(process.argv[1]).length' "$runners")"
           } >> "$GITHUB_OUTPUT"
           {
-            echo "### End-to-end selection ($([ "$ENFORCE" = true ] && echo enforced || echo reported only))"
-            echo "$REASON; the change needs $(node -p 'JSON.parse(process.argv[1]).length' "$wanted") of $MAX runners."
+            if [ "$FULL" = true ]; then echo '### Every end-to-end spec runs'; else echo '### Only the affected end-to-end specs run'; fi
+            echo "$REASON; this run uses $(node -p 'JSON.parse(process.argv[1]).length' "$runners") of $MAX runners."
             if [ "$SELECTED" != all ]; then node -p 'JSON.parse(process.argv[1]).map((spec) => "- " + spec).join("\n")' "$SELECTED"; fi
+            if [ "$FULL" != true ]; then echo 'Enable auto-merge to run every spec and report the required e2e check.'; fi
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: ./.github/actions/e2e-dependencies
       - run: pnpm catalogue:sync
@@ -279,11 +280,15 @@ jobs:
           retention-days: 7
 
   e2e:
-    if: always() && needs.changes.outputs.runtime != 'false'
+    # A partial run reports under another name, so the required `e2e` check stays expected until a
+    # full run passes; a change with no runtime effect needs no specs and reports `e2e` at once.
+    name: ${{ (github.event_name != 'pull_request' || github.event.pull_request.auto_merge || needs.changes.outputs.runtime == 'false') && 'e2e' || 'e2e (affected specs)' }}
+    if: always()
     needs: [changes, browser-build, e2e-shard]
     runs-on: ubuntu-latest
     steps:
       - name: Require every E2E runner
+        if: needs.changes.outputs.runtime != 'false'
         run: |
           test '${{ needs.changes.result }}' = success
           test '${{ needs.browser-build.result }}' = success

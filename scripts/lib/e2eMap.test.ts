@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, expect, it } from 'vitest'
-import { buildE2eMap, scriptReader } from './e2eMap'
+import { buildE2eMap, scriptReader, workerSources } from './e2eMap'
 
 let root: string
 let build: string
@@ -88,4 +88,23 @@ it('ignores scripts without a source map', () => {
     'abc',
   )
   expect(map.files).toEqual({})
+})
+
+it('spans a function to the last line its body maps to when its closing brace has no mapping', () => {
+  // Server bundles keep each statement on its own line; this one maps lines 1–2 to src/a.ts 5–6.
+  const body = 'function c(){\nreturn 3\n}\n'
+  fs.mkdirSync(path.join(build, 'server'), { recursive: true })
+  fs.writeFileSync(path.join(build, 'server/c.mjs'), body)
+  fs.writeFileSync(
+    path.join(build, 'server/c.mjs.map'),
+    JSON.stringify({ version: 3, sources: [`../../../..${root}/src/a.ts`], names: [], mappings: 'AAIA;AACA' }),
+  )
+  const server = { url: 'file:///tmp/praetorium-e2e-x/build/server/c.mjs', start: 0, end: body.length - 1 }
+  const map = buildE2eMap([{ spec: 'e2e/one.spec.ts', client: [], server: [server] }], scriptReader(build, root), root, 'abc')
+  expect(map.files['src/a.ts']?.functions).toEqual([[5, 6, [0]]])
+})
+
+it('lists the application source in web worker chunks', () => {
+  fs.copyFileSync(path.join(build, 'public/assets/chunk.js.map'), path.join(build, 'public/assets/sim.worker-Ab1_c.js.map'))
+  expect(workerSources(build, root)).toEqual(['src/a.ts', 'src/b.ts'])
 })

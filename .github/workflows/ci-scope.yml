@@ -32,7 +32,7 @@ jobs:
       - name: Classify changed paths
         id: scope
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.sha }}
         run: node scripts/ciScope.ts
       # The nightly coverage run saves the map under its revision; the newest one is restored.

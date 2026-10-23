@@ -20,11 +20,8 @@ if (isEntryPoint(import.meta.url)) {
   const base = process.env.BASE_SHA
   const head = process.env.HEAD_SHA
   let runtime = true
-  // A push compares with the branch's previous head; a new branch's previous head is all zeros.
-  const compared =
-    process.env.GITHUB_EVENT_NAME === 'pull_request' || (process.env.GITHUB_EVENT_NAME === 'push' && !/^0+$/.test(base ?? ''))
-  if (compared) {
-    if (!base || !head) throw new Error('the comparison requires BASE_SHA and HEAD_SHA')
+  if (process.env.GITHUB_EVENT_NAME === 'pull_request') {
+    if (!base || !head) throw new Error('pull request comparison requires BASE_SHA and HEAD_SHA')
     const files = execFileSync('git', ['diff', '--name-only', '--no-renames', '-z', `${base}...${head}`, '--'], { encoding: 'utf8' })
       .split('\0')
       .filter(Boolean)
