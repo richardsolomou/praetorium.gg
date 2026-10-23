@@ -323,10 +323,13 @@ function collectUnitChoices(
           ? effectiveCount(selection, repeating.path, repeating.definition, index, options)
           : scaleOf(child.definition, definition, index, carriers)
         const capacity = maximumCountAt(selection, here, child.definition, index, options)
+        // Specialists that each take a squadmate's place, as a Skitarii Rangers' options do,
+        // compete for no shared room either.
         const independent =
           capacity === null &&
           choosable.length > 1 &&
-          choosable.every((option) => /^This model can be equipped with 1 .+\.$/i.test(resolve(option.definition, index).name ?? ''))
+          (choosable.every((option) => /^This model can be equipped with 1 .+\.$/i.test(resolve(option.definition, index).name ?? '')) ||
+            replacesSquadmate(child.definition, childrenOf(target, index), index, options.modifierCache))
         const room =
           capacity === null
             ? independent
