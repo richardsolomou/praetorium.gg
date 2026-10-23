@@ -57,15 +57,6 @@ const guestSeats = table(
   },
 )
 
-const battleSharing = table(
-  { name: 'battle_sharing' },
-  {
-    userId: t.string().primaryKey(),
-    audience: t.string(),
-    at: t.u64(),
-  },
-)
-
 const pushPreferences = table(
   { name: 'push_preferences' },
   {
@@ -266,8 +257,6 @@ const collectionStock = table(
   },
 )
 
-const collectionSharing = table({ name: 'collection_sharing' }, { userId: t.string().primaryKey(), published: t.bool() })
-
 const collection = table(
   { name: 'collection' },
   {
@@ -439,7 +428,6 @@ export const productTables = {
   battles,
   battleUsers,
   guestSeats,
-  battleSharing,
   pushPreferences,
   playerDefaults,
   pushTokens,
@@ -456,7 +444,6 @@ export const productTables = {
   leagueEventBattles,
   leagueAdmins,
   collection,
-  collectionSharing,
   collectionWishes,
   collectionStock,
   collectionPhotos,

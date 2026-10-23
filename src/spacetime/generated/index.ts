@@ -71,7 +71,6 @@ import WatchBattleReducer from './watch_battle_reducer'
 import * as AcceptFriendProcedure from './accept_friend_procedure'
 import * as AcceptFriendInviteProcedure from './accept_friend_invite_procedure'
 import * as AdminCollectionPhotosProcedure from './admin_collection_photos_procedure'
-import * as BattleAudiencesProcedure from './battle_audiences_procedure'
 import * as BattleByTokenProcedure from './battle_by_token_procedure'
 import * as BattleFeedProcedure from './battle_feed_procedure'
 import * as BattleForOperatorProcedure from './battle_for_operator_procedure'
@@ -255,7 +254,6 @@ const proceduresSchema = __procedures(
   __procedureSchema('accept_friend', AcceptFriendProcedure.params, AcceptFriendProcedure.returnType),
   __procedureSchema('accept_friend_invite', AcceptFriendInviteProcedure.params, AcceptFriendInviteProcedure.returnType),
   __procedureSchema('admin_collection_photos', AdminCollectionPhotosProcedure.params, AdminCollectionPhotosProcedure.returnType),
-  __procedureSchema('battle_audiences', BattleAudiencesProcedure.params, BattleAudiencesProcedure.returnType),
   __procedureSchema('battle_by_token', BattleByTokenProcedure.params, BattleByTokenProcedure.returnType),
   __procedureSchema('battle_feed', BattleFeedProcedure.params, BattleFeedProcedure.returnType),
   __procedureSchema('battle_for_operator', BattleForOperatorProcedure.params, BattleForOperatorProcedure.returnType),

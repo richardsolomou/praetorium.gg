@@ -1247,7 +1247,7 @@ describe('administrator photo list', () => {
     })
     return host
   }
-  type Page = { photos: { photoId: string; kept: boolean; published: boolean }[]; nextCursor: { at: number; id: string } | null }
+  type Page = { photos: { photoId: string; kept: boolean }[]; nextCursor: { at: number; id: string } | null }
   const list = (host: ReturnType<typeof setup>, input: object) =>
     JSON.parse(
       module.adminCollectionPhotos(host.procedure(host.operator), {
