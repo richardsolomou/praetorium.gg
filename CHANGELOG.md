@@ -1,5 +1,16 @@
 # praetorium
 
+## 0.179.5
+
+### Patch Changes
+
+- 00d30e8: The Praetorium plugin adds skills for building a roster, comparing two units and tracking a battle, so assistants follow Praetorium's steps for each.
+- 1bd7432: Connected apps on your profile links to the steps for connecting Claude, ChatGPT or Gemini.
+- 3e477d5: Importing a list keeps a pistol or melee swap that sits inside a chosen loadout, such as two Death Korps Watchmasters with plasma pistols and power weapons.
+- 3e477d5: Importing a list gives a Krieg Command Squad veteran its stated power weapon when the Lord Commissar swaps his default power weapon for a power fist, and warns when a stated weapon is dropped even if a wargear group shares its name.
+- 390e892: A Death Korps Watchmaster can swap their laspistol for a bolt or plasma pistol and their chainsword for a power weapon, and search finds Death Korps of Krieg by those weapons.
+- 874b18d: An AI assistant that saves a roster gets its Praetorium link to share.
+
 ## 0.179.4
 
 ### Patch Changes
