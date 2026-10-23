@@ -201,6 +201,12 @@ export const PRODUCT_DOCS = [
     description: 'Signing in on the app, offline use, notifications and updates.',
   },
   {
+    slug: 'search',
+    section: 'Account and app',
+    title: 'Search Praetorium',
+    description: 'Find units by what they do, rules by number, and search from your browser.',
+  },
+  {
     slug: 'account-problems',
     section: 'Account and app',
     title: 'Account and app problems',

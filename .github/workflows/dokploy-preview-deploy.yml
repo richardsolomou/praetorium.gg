@@ -54,6 +54,7 @@ jobs:
     uses: richardsolomou/ras-stack/.github/workflows/deploy-dokploy-preview.yml@e4485fd0eddf67b197a5c2095012a956c784ff6e
     with:
       package: praetorium.gg
+      # Pulls the arm64 preview image and extracts its database module natively.
       runner: ubuntu-24.04-arm
       local-image: praetorium-preview
       application-prefix: praetorium

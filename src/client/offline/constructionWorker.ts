@@ -69,6 +69,7 @@ function deviceSource(): ConstructionWorkerSource | null {
   const saved = connected() ? currentReference() : referenceData()
   const bundle = connected() ? currentConstruction() : saved?.constructionBundle
   if (!saved || !bundle) return null
+  // Absolute, because the inline worker's blob URL cannot resolve a relative path.
   const url = new URL(bundle, location.href).href
   if (unavailable.has(url)) return null
   const packed = packedConstructionOf(saved)

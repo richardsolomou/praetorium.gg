@@ -131,7 +131,7 @@ const FactionDatasheetRow = memo(function FactionDatasheetRow({
       >
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-bold uppercase">{unit.name}</span>
-          <DatasheetMatchReasons query={query} reasons={unit.matchReasons} />
+          <DatasheetMatchReasons query={query} reasons={unit.matchReasons} fuzzy={unit.fuzzy} />
         </span>
         {unit.points === null ? null : <span className="chip ml-2 shrink-0 text-info">{unit.points} pts</span>}
         <ChevronRight className="ml-2 size-4 shrink-0 text-dim" aria-hidden />

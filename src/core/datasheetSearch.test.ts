@@ -65,6 +65,51 @@ describe('datasheet search', () => {
     ])
   })
 
+  it('leaves out ability-effect matches while a datasheet matches by its own fields', () => {
+    const entries = [
+      { name: 'Intercessor Squad', search: { ...fields, name: 'Intercessor Squad' } },
+      {
+        name: 'Lieutenant',
+        search: {
+          ...fields,
+          name: 'Lieutenant',
+          abilityDescriptions: [{ name: 'Leader', description: 'This model can lead an Intercessor Squad.' }],
+        },
+      },
+    ]
+    expect(searchDatasheetEntries(entries, 'intercessor squad', (entry) => entry.search).map(({ name }) => name)).toEqual([
+      'Intercessor Squad',
+    ])
+  })
+
+  it('offers ability-effect matches when nothing matches by its own fields', () => {
+    const entries = [
+      {
+        name: 'Imotekh',
+        search: { ...fields, name: 'Imotekh', abilityDescriptions: [{ name: 'Grand Strategist', description: 'You gain 1CP.' }] },
+      },
+    ]
+    expect(searchDatasheetEntries(entries, 'gain 1cp', (entry) => entry.search).map(({ name }) => name)).toEqual(['Imotekh'])
+  })
+
+  it('offers close name matches when nothing matches directly', () => {
+    const entries = [
+      { name: 'Chaplain in Terminator Armour', search: { ...fields, name: 'Chaplain in Terminator Armour' } },
+      { name: 'Captain in Terminator Armour', search: { ...fields, name: 'Captain in Terminator Armour' } },
+    ]
+    expect(searchDatasheetEntries(entries, 'terminator chaplin', (entry) => entry.search)).toEqual([
+      expect.objectContaining({ name: 'Chaplain in Terminator Armour', fuzzy: true }),
+    ])
+  })
+
+  it('keeps close name matches out while anything matches directly', () => {
+    const entries = [
+      { name: 'Chaplain', search: { ...fields, name: 'Chaplain' } },
+      { name: 'Chapter Master', search: { ...fields, name: 'Chapter Master' } },
+    ]
+    expect(searchDatasheetEntries(entries, 'chaplain', (entry) => entry.search)).toEqual([entries[0]])
+  })
+
   it('matches words across structured fields', () => {
     expect(matchDatasheet('cryptek staff', fields)?.reasons).toEqual([
       { kind: 'keyword', value: 'Cryptek' },

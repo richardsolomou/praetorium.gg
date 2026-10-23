@@ -196,12 +196,7 @@ export const abilityNamesIn = (loaded: LoadedCatalogue, catalogueId: string, ent
   ...new Set(walkRecord(loaded, catalogueId, entryId)?.abilities.map((ability) => ability.name) ?? []),
 ]
 
-export function datasheetSearchFieldsIn(
-  loaded: LoadedCatalogue,
-  catalogueId: string,
-  entryId: string,
-  { includeAbilityDescriptions = false } = {},
-): DatasheetSearchFields | null {
+export function datasheetSearchFieldsIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): DatasheetSearchFields | null {
   const walked = walkRecord(loaded, catalogueId, entryId)
   if (!walked) return null
   const weapons = walked.profiles.filter((profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons')
@@ -209,13 +204,11 @@ export function datasheetSearchFieldsIn(
     name: walked.name,
     keywords: walked.keywords,
     abilities: [...new Set(walked.abilities.filter((ability) => ability.kind !== 'rule').map((ability) => ability.name))],
-    abilityDescriptions: includeAbilityDescriptions
-      ? walked.abilities.flatMap((ability) =>
-          (ability.kind === 'datasheet' || ability.kind === 'wargear' || ability.kind === 'upgrade') && ability.description
-            ? [{ name: ability.name, description: withoutText(ability.description) }]
-            : [],
-        )
-      : undefined,
+    abilityDescriptions: walked.abilities.flatMap((ability) =>
+      (ability.kind === 'datasheet' || ability.kind === 'wargear' || ability.kind === 'upgrade') && ability.description
+        ? [{ name: ability.name, description: withoutText(ability.description) }]
+        : [],
+    ),
     weapons: dedupeWeapons(weapons.map((weapon) => weapon.name)),
     weaponKeywords: [
       ...new Set(

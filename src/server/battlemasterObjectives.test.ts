@@ -58,6 +58,11 @@ it('rejects a different mission slot', () => {
   expect(() => battlemasterObjectiveHosts(detail, raw, id)).toThrow('objective layout identity')
 })
 
+it('rejects a different deployment', () => {
+  const other = { ...detail, layout: { ...detail.layout, chapterApprovedDeploymentKey: 4 } }
+  expect(() => battlemasterObjectiveHosts(other, lite(), id)).toThrow('objective layout identity')
+})
+
 it('rejects an incomplete terrain instance list', () => {
   const raw = lite()
   raw.litePayload.i.pop()
@@ -73,6 +78,12 @@ it('rejects reordered terrain instead of assigning objectives to the wrong area'
 it('rejects an unmatched terrain rotation', () => {
   const raw = lite()
   raw.litePayload.i[0]![3] = 90
+  expect(() => battlemasterObjectiveHosts(detail, raw, id)).toThrow('objective terrain 1')
+})
+
+it('rejects an unmatched terrain position', () => {
+  const raw = lite()
+  raw.litePayload.i[0]![1] = -4
   expect(() => battlemasterObjectiveHosts(detail, raw, id)).toThrow('objective terrain 1')
 })
 

@@ -6,23 +6,29 @@ import { escapeRegExp } from '../../core/text'
 type Props = {
   query: string
   reasons: readonly DatasheetSearchReason[] | undefined
+  /** Found by a name close to the query rather than by matching it. */
+  fuzzy?: boolean
 }
 
-export function DatasheetMatchReasons({ query, reasons }: Props) {
-  if (!reasons?.length) return null
+export function DatasheetMatchReasons({ query, reasons, fuzzy }: Props) {
+  if (!fuzzy && !reasons?.length) return null
   return (
     <span className="readout mt-0.5 flex min-w-0 items-start gap-1 text-2xs leading-snug text-faint">
       <Search className="mt-0.5 size-3 shrink-0 text-parchment" aria-hidden />
       <span className="min-w-0">
-        Matches{' '}
-        {reasons.map((reason, index) => (
-          <Fragment key={`${reason.kind}:${reason.value}`}>
-            {index ? <span> · </span> : null}
-            <span className="text-dim">
-              <HighlightedValue query={query} value={reason.value} /> {reason.kind}
-            </span>
-          </Fragment>
-        ))}
+        {fuzzy
+          ? 'Close match'
+          : [
+              'Matches ',
+              ...(reasons ?? []).map((reason, index) => (
+                <Fragment key={`${reason.kind}:${reason.value}`}>
+                  {index ? <span> · </span> : null}
+                  <span className="text-dim">
+                    <HighlightedValue query={query} value={reason.value} /> {reason.kind}
+                  </span>
+                </Fragment>
+              )),
+            ]}
       </span>
     </span>
   )

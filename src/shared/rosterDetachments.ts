@@ -31,6 +31,7 @@ export const isDetachmentWrapperLimit = (error: EvaluationError, chosen: number)
  * Each detachment's partners that would break a catalogue limit beside it, such as a second
  * Unique Shield Host or Necron Dynasty, named by the limit they share. Pairs cover the
  * one-per-army limits the data uses; a larger limit is still reported when the roster is priced.
+ * Setup disables these partners, and asking the pricing evaluator keeps it from disagreeing with legality.
  */
 export function exclusiveDetachments(loaded: LoadedCatalogue, catalogueId: string) {
   const options = loaded.detachments.get(catalogueId)?.options ?? []

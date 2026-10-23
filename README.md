@@ -30,7 +30,7 @@ This repository contains source pins and authored correction patches in `catalog
 
 The public reference is available without an account: [faction datasheets](https://praetorium.gg/factions?utm_source=github&utm_medium=profile&utm_campaign=readme), [missions](https://praetorium.gg/missions?utm_source=github&utm_medium=profile&utm_campaign=readme), and [rules](https://praetorium.gg/rules?utm_source=github&utm_medium=profile&utm_campaign=readme). Each page reads the service's verified community data snapshot.
 
-To search Praetorium from your browser's address bar, add Praetorium as a custom search engine with the URL `https://praetorium.gg/search?q=%s`. Choose a shortcut such as `p`, then use it followed by a unit name. The [search page](https://praetorium.gg/search?utm_source=github&utm_medium=profile&utm_campaign=readme) finds the same results as global autocomplete.
+The [docs](https://praetorium.gg/docs?utm_source=github&utm_medium=profile&utm_campaign=readme) explain how to use each part of Praetorium.
 
 The source is open so anyone can inspect the product and contribute to it. [Contributing](CONTRIBUTING.md) covers running a local development copy.
 

@@ -153,6 +153,17 @@ describe('collectionPhotoStore', () => {
     ])
   })
 
+  it('never rewrites the original while it backfills a thumbnail', async () => {
+    const { stored, objects } = memoryObjects()
+    const repository = fakeRepository()
+    const photoId = randomUUID()
+    repository.photos.set(photoId, { userId: 'owner', entryId: 'warriors', published: true })
+    stored.set(`collection-photos/${photoId}`, WEBP)
+    const put = vi.spyOn(objects, 'put')
+    await collectionPhotoStore(repository, () => objects).backfillThumbnails()
+    expect(put.mock.calls.map(([key]) => key)).toEqual([`collection-photos/${photoId}.thumbnail.webp`])
+  })
+
   it('removes a backfilled thumbnail when the photo was deleted during its write', async () => {
     const { stored, objects } = memoryObjects()
     const repository = fakeRepository()
