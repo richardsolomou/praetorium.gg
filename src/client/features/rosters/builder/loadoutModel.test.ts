@@ -14,6 +14,7 @@ import {
   ordered,
   orderedModelWargear,
   poolChangeUpdates,
+  pressedCounts,
   poolHandlers,
   relativeSpread,
   orderedChoices,
@@ -523,6 +524,11 @@ describe('dividing a group between its options', () => {
     expect(spreadHandlers(group, { blaster: 2, carbine: 1 }).more(group.options[1]!)).toBeUndefined()
   })
 
+  it('folds against the built counts once the saved ones overflow the group', () => {
+    const group = choice([option('lasgun', 0, 2), option('plasma', 1, 1), option('melta', 1, 1)], 2)
+    expect(pressedCounts(group, { lasgun: 2, plasma: 1, melta: 1 })).toEqual({ lasgun: 0, plasma: 1, melta: 1 })
+  })
+
   it('turns a pooled result into the same change against newer counts', () => {
     const group = choice([option('blaster', 3, 3), option('carbine', 0, 3)], 3)
     const update = relativeSpread(group, { blaster: 2, carbine: 1 })
@@ -656,6 +662,38 @@ describe('putting a weapon down on a model card', () => {
     expect(handlers.spend(model.rows[1]!)).toEqual([['models', { 'coils-beamer': 1, coils: 0 }]])
     expect(handlers.free(model.rows[2]!)).toEqual([['models', { 'coils-caster': 1, coils: 2 }]])
     expect(handlers.spend(model.rows[0]!)).toEqual([['models', { 'claws-caster': 1, 'coils-caster': 1 }]])
+  })
+})
+
+describe('a specialist card whose squadmates stand on another card', () => {
+  // A Tempestus Command Squad files its armed Scions apart from the standard bearer and
+  // vox-caster, so the body a standard bearer needs is on the Scions' card.
+  const scions: LoadoutChoice = {
+    ...choice(
+      [
+        { ...option('scion', 4, 4), default: true, pieces: ['Hot-shot lasgun'] },
+        { ...option('standard', 0, 1), pieces: ['Regimental standard', 'Hot-shot lasgun'] },
+        { ...option('vox', 0, 1), pieces: ['Master vox', 'Hot-shot laspistol'] },
+      ],
+      4,
+    ),
+    key: 'scions',
+  }
+  const model: LoadoutModel = {
+    name: 'Tempestus Scion',
+    fixed: [],
+    members: [
+      { id: 'standard', choiceKey: 'scions', baseCount: 0 },
+      { id: 'vox', choiceKey: 'scions', baseCount: 0 },
+    ],
+    rows: [
+      { name: 'Regimental standard and Hot-shot lasgun', choiceKey: 'scions', optionId: 'standard' },
+      { name: 'Master vox and Hot-shot laspistol', choiceKey: 'scions', optionId: 'vox' },
+    ],
+  }
+
+  it('takes the body from the default model of the group', () => {
+    expect(poolHandlers(model, [scions], []).spend(model.rows[0]!)).toEqual([['scions', { standard: 1, scion: 3 }]])
   })
 })
 

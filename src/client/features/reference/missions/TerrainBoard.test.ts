@@ -34,7 +34,7 @@ describe('terrain material colours', () => {
           points,
           markers: [],
           objective: null,
-          objectiveGroup: null,
+          group: null,
           measurements: [],
           parts: materials.map((material, index) => ({
             id: `part-${index}`,
@@ -61,6 +61,36 @@ describe('terrain material colours', () => {
       'fill-discarded/20 stroke-discarded',
       'fill-bone/10 stroke-bone',
     ])
+  })
+})
+
+describe('terrain areas', () => {
+  const footprint = (id: string, x: number, group: string | null): TerrainGeometry['areas'][number] => ({
+    id,
+    name: id,
+    points: [
+      { x, y: 10 },
+      { x: x + 4, y: 10 },
+      { x: x + 4, y: 14 },
+      { x, y: 14 },
+    ],
+    markers: [],
+    objective: null,
+    group,
+    measurements: [],
+    parts: [],
+  })
+  const outlines = (areas: TerrainGeometry['areas']) =>
+    renderToStaticMarkup(
+      createElement(TerrainBoard, { layout: { name: 'Test layout', pieces: [], geometry: { board, areas } }, templates: [] }),
+    ).match(/<g class="stroke-azure"/g)?.length
+
+  it('outlines footprints of one terrain area together', () => {
+    expect(outlines([footprint('area-1', 10, 'area-1'), footprint('area-2', 14, 'area-1')])).toBe(1)
+  })
+
+  it('outlines touching terrain areas separately', () => {
+    expect(outlines([footprint('area-1', 10, null), footprint('area-2', 14, null)])).toBe(2)
   })
 })
 
@@ -184,7 +214,7 @@ const terrainArea = (id: string): TerrainGeometry['areas'][number] => ({
   markers: [],
   parts: [],
   objective: null,
-  objectiveGroup: null,
+  group: null,
   measurements: [],
 })
 function renderBoard(geometry: TerrainGeometry, detailed: boolean, flipped = false, objectives = [{ x: 1, y: 1 }]) {

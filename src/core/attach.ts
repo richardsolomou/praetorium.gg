@@ -1,3 +1,4 @@
+import { attachedHost, attachedUnits } from './attachedUnits'
 import { uniqueBy } from './collections'
 import {
   type Association,
@@ -41,6 +42,7 @@ const attachmentCache = new WeakMap<CatalogueIndex, WeakMap<Definition, Attachme
 const substitutionCache = new WeakMap<CatalogueIndex, ReadonlyMap<string, readonly string[]>>()
 const categoryTargetCache = new WeakMap<CatalogueIndex, readonly string[]>()
 const associationCandidateCache = new WeakMap<CatalogueIndex, readonly Definition[]>()
+const modelCategoryCache = new WeakMap<CatalogueIndex, WeakMap<Definition, ReadonlySet<string>>>()
 /** An association's targets by its answers about the unit's own selection, the only input that varies between calls. */
 const associationTargetCache = new WeakMap<CatalogueIndex, WeakMap<Association, Map<string, string[]>>>()
 
@@ -149,7 +151,9 @@ function attachmentFromAssociations(definition: Definition, selection: Selection
     let targets = byAnswers.get(answers)
     if (!targets) {
       targets = candidates
-        .filter((candidate) => associationHolds(association, selection, candidate, index))
+        .filter(
+          (candidate) => definitionHas(candidate, association.childId, index) && associationHolds(association, selection, candidate, index),
+        )
         .map((candidate) => nameOf(candidate, index.definitions))
       byAnswers.set(answers, targets)
     }
@@ -231,10 +235,38 @@ function definitionHas(definition: Definition, childId: string | undefined, inde
   const target = targetOf(definition, index.definitions)
   if (childId === 'model-or-unit') return target.type === 'model' || target.type === 'unit'
   if (childId === 'model' || childId === 'unit' || childId === 'upgrade') return target.type === childId
-  return [definition, target].some(
-    (source) => source.id === childId || source.categoryLinks?.some((category) => category.targetId === childId),
+  return (
+    [definition, target].some(
+      (source) => source.id === childId || source.categoryLinks?.some((category) => category.targetId === childId),
+    ) || modelCategoriesOf(target, index).has(childId)
   )
 }
+
+/** Core rules 02.05.01: a unit has all the keywords of all its models, so a unit is matched by any model it can include. */
+function modelCategoriesOf(unit: Definition, index: CatalogueIndex): ReadonlySet<string> {
+  let byUnit = modelCategoryCache.get(index)
+  if (!byUnit) modelCategoryCache.set(index, (byUnit = new WeakMap()))
+  const cached = byUnit.get(unit)
+  if (cached) return cached
+  const found = new Set<string>()
+  const visit = (entries: readonly Definition[]) => {
+    for (const entry of entries) {
+      const target = targetOf(entry, index.definitions)
+      if (target.type === 'model') {
+        for (const source of [entry, target]) for (const category of source.categoryLinks ?? []) found.add(category.targetId)
+      } else if (target.type !== 'upgrade' && target.type !== 'unit') visit(childrenOf(target))
+    }
+  }
+  if (unit.type === 'unit') visit(childrenOf(unit))
+  byUnit.set(unit, found)
+  return found
+}
+
+const childrenOf = (definition: Definition): Definition[] => [
+  ...(definition.selectionEntries ?? []),
+  ...(definition.selectionEntryGroups ?? []),
+  ...(definition.entryLinks ?? []),
+]
 
 function findAttachment(definition: Definition, index: CatalogueIndex): Attachment | null {
   for (const [title, text] of statements(definition, index)) {
@@ -330,9 +362,16 @@ export function admitsHost(attachment: Attachment, hostName: string, hostKeyword
  * that speaks of the bearer's unit means every model in it.
  */
 export function attachedUnit(units: readonly { attachedTo?: number }[], position: number): number[] {
-  const host = units[position]?.attachedTo ?? position
-  return units.flatMap((unit, at) => (at !== position && (at === host || unit.attachedTo === host) ? [at] : []))
+  return attachedUnits(units.map(byPosition), position).flatMap(({ key }) => (key === position ? [] : [key]))
 }
+
+/** The position of the bodyguard unit a list entry is part of, following a Loyal Protector through its Command Squad. */
+export function attachmentHost(units: readonly { attachedTo?: number }[], position: number): number {
+  const positioned = units.map(byPosition)
+  return positioned[position] ? attachedHost(positioned, positioned[position]).key : position
+}
+
+const byPosition = ({ attachedTo }: { attachedTo?: number }, key: number) => ({ key, attachedTo })
 
 /**
  * Why a unit standing on its own is illegal, when the data insists it joins one.

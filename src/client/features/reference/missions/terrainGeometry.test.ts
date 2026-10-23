@@ -26,7 +26,7 @@ const openArea = (points: { x: number; y: number }[], markers: { label: string; 
   points,
   markers,
   objective: null,
-  objectiveGroup: null,
+  group: null,
   measurements: [],
   parts: [],
 })

@@ -175,11 +175,20 @@ export type SpreadCounts = Record<string, number>
 /** A counter press folded against the counts that the pick holds when it runs. */
 export type SpreadUpdate = (counts: SpreadCounts) => SpreadCounts | null
 
-/** The counts a press folds against: what the pick saved for the group over what was built. */
-export const pressedCounts = (choice: { options: readonly { id: string; count: number }[] }, saved?: SpreadCounts): SpreadCounts => ({
-  ...Object.fromEntries(choice.options.map((option) => [option.id, option.count])),
-  ...saved,
-})
+/**
+ * The counts a press folds against: what the pick saved for the group over what was built.
+ *
+ * Saved counts the group no longer has room for describe models a specialist has since
+ * replaced, so the build shed them and folding against them would undo the wrong weapon.
+ */
+export function pressedCounts(
+  choice: { room?: number; options: readonly { id: string; count: number }[] },
+  saved?: SpreadCounts,
+): SpreadCounts {
+  const built = Object.fromEntries(choice.options.map((option) => [option.id, option.count]))
+  const savedTotal = Object.values(saved ?? {}).reduce((total, count) => total + count, 0)
+  return choice.room !== undefined && savedTotal > choice.room ? built : { ...built, ...saved }
+}
 
 /** Prefer the catalogue's ordinary allocation before taking a specialist's place. */
 export const donorPriority = (left: LoadoutOption, right: LoadoutOption) =>
@@ -628,7 +637,7 @@ export function poolHandlers(model: LoadoutModel, choices: readonly LoadoutChoic
   }
   const sameSource = (one: Entry, other: Entry) => one.choice.key === other.choice.key && one.option.id === other.option.id
 
-  const spend = (taker: Entry) => {
+  const spend = (taker: Entry): PoolChange | null => {
     // A group with no room left gives up one of its own: the veteran holding the
     // pyrecannon is the one who puts it down for a heavy bolter, and asking a
     // squadmate with a bolt rifle instead would put a second special weapon in a
@@ -650,7 +659,17 @@ export function poolHandlers(model: LoadoutModel, choices: readonly LoadoutChoic
       .toSorted((one, other) => donorPriority(one.option, other.option))[0]
     if (!full && occupied < count) return canAddPooledOption(taker.option) ? move([], [taker]) : null
     if (giver) return move([giver], [taker])
-    return !full && canAddPooledOption(taker.option) ? move([], [taker]) : null
+    if (!full) return canAddPooledOption(taker.option) ? move([], [taker]) : null
+    // Nobody on this card can make way, as the standard bearer's card holds no Scions,
+    // so the squad's own model group gives up a body the way its heading would.
+    const donor = addsModel(model, taker)
+      ? taker.choice.options
+          .filter((option) => option.id !== taker.option.id && (option.count > option.min || (option.mutableMin && option.count > 0)))
+          .toSorted(donorPriority)[0]
+      : undefined
+    return donor && canAddPooledOption(taker.option)
+      ? [[taker.choice.key, { [taker.option.id]: taker.option.count + 1, [donor.id]: donor.count - 1 }]]
+      : null
   }
 
   const free = (giver: Entry) => {

@@ -16,7 +16,8 @@ beforeEach(() => {
   fs.writeFileSync(path.join(root, 'package.json'), '{"type":"module"}')
   for (const script of ['syncCatalogue.ts', 'materializeCatalogue.ts'])
     fs.copyFileSync(path.join(import.meta.dirname, script), path.join(root, 'scripts', script))
-  fs.symlinkSync(path.join(import.meta.dirname, 'lib'), path.join(root, 'scripts', 'lib'))
+  // A copy rather than a link, so the materializer reads this root's (absent) patches instead of the repository's.
+  fs.cpSync(path.join(import.meta.dirname, 'lib'), path.join(root, 'scripts', 'lib'), { recursive: true })
   fs.symlinkSync(path.join(import.meta.dirname, '..', 'src'), path.join(root, 'src'))
   fs.symlinkSync(path.join(import.meta.dirname, '..', 'node_modules'), path.join(root, 'node_modules'))
   fs.writeFileSync(
