@@ -1,6 +1,6 @@
 import { expect, test } from './test'
 import { createRoster, signUp, waitForRosterSave } from './account'
-import { shot, expectNoHorizontalOverflow, expectNotAttachable, openBuilder, add, attach } from './builder.harness'
+import { shot, expectNoHorizontalOverflow, expectNotAttachable, openBuilder, add, arrangeByRole, attach } from './builder.harness'
 
 test('enhancement choices show descriptions when rule and catalogue names differ', async ({ page }) => {
   await openBuilder(page, 'Necrons', /Cursed Legion/)
@@ -382,6 +382,7 @@ test('destroyer plasmacytes follow the unit size', async ({ page }) => {
  * take, which is fetched without the list and so cannot see an enhancement at all.
  */
 test('an enhancement changes the weapons of the model bearing it', async ({ page }) => {
+  await arrangeByRole(page)
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page, 'Necrons', /Cursed Legion/)
   await add(page, 'Overlord')
