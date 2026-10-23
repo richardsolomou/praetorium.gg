@@ -17,7 +17,7 @@ Source stratagem corrections belong in `catalogue/patches/datacards/`; correctio
 - Use source payouts, eligibility, timing, and caps; unknown timing stays off the schedule.
 - Both sides receive the command-phase CP grant. Additional CP gains have a separate per-round allowance that spending never reopens.
 - Tactical cards finish when scored and are discarded only by choice; the next turn deals its full draw without topping up to a hand size. Discard and its CP, including discarding none, is one undoable command.
-- Draws resolve on the server under the battle lock, ignoring client placeholder cards. New Orders is once per battle, even for preparation saved before that restriction existed.
+- Draws resolve on the server under the battle lock, ignoring client placeholder cards. New Orders is once per battle (`src/core/stratagemCorrections.ts`).
 - Settle the ended opponent turn, with that turn's hand and round, before the incoming draw. `score-settlement` carries its round; older commands keep their original interpretation, and stored logs are never rewritten to repair attribution.
 - `endOfBattle` objectives score after the second final turn and bypass only the round ceiling, never the battle ceiling. Undo restores the whole award. Historical frozen awards stay unchanged; older battles use manual score corrections.
 - A missed action is judged as of its moment: live phase, turn, and usage limits then; its cost must not overdraw the side at any point since; a CP gain uses that round's allowance; a score banks in its round under the same caps, carries no end-of-battle claim or settlement round, and needs the secondary active and drawn by then. New Orders cannot be recorded late. Refuse anything else rather than rewriting later decisions.

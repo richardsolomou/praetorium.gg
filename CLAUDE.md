@@ -34,6 +34,6 @@ Read the relevant guide and section before changing its behavior. Read [Architec
 
 ## Working preview
 
-Check the thread's browser status and `just dev-status` before starting local services. `just dev` starts or reuses this worktree's persistent Vite stack and prints its URL; run it again after any checkout, pull, or merge, because it installs a changed lockfile and restarts the stack. Leave it running while the branch is open; once its pull request has merged, released or not, run `just teardown` in that worktree so its stack and leftover browser-test stacks stop, because each orphaned stack keeps two cores busy for days. Use its reported URL; never kill a process by a shared port or a broad process-name match. Restart only through `just dev-restart` when the product module or startup configuration changed. Application source edits use hot reload. Browser tests own disposable stacks and must not replace the interactive preview.
+Check the thread's browser status and `just dev-status` before starting local services. Follow [Running locally](docs/development/running-locally.md#development-lifecycle): run `just dev` after any checkout, pull, or merge, use its reported URL, and run `just teardown` once the branch's pull request has merged, released or not. Never kill a process by a shared port or a broad process-name match.
 
 When the user is testing, preserve their tab and inspect in a hidden tab on the same origin. Add corrections to the owning topic guide instead of growing this root file with feature-specific regression notes.

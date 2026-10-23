@@ -32,7 +32,7 @@ Run `just check` first.
 
 [`scripts/iosDeliveryPlan.ts`](../../scripts/iosDeliveryPlan.ts) resolves the runtime under each channel's EAS environment and checks the runtime and public version embedded in each IPA before upload. [`mobile/fingerprint.config.js`](../../mobile/fingerprint.config.js) includes the custom Watch source and build profiles, which Expo's default fingerprint does not cover. PR validation compares the base and head native runtimes and public versions before running Xcode.
 
-Each channel records an upload receipt in `mobile-ios-<channel>-binary` immediately after a successful upload, and a separate `mobile-ios-<channel>` receipt after successful OTA delivery. Receipts retain the runtime, public version, and mobile input fingerprint, including resolved `EXPO_PUBLIC_` values. An OTA retry reuses an already uploaded binary; an older queued revision cannot replace a newer receipt. Missing binary receipts require a build, including the first delivery with this scheme. Keep the binary receipts independent of OTA and metadata success.
+Each channel records an upload receipt in `mobile-ios-<channel>-binary` immediately after a successful upload, and a separate `mobile-ios-<channel>` receipt after successful OTA delivery. Receipts retain the runtime, public version, and mobile input fingerprint, including resolved `EXPO_PUBLIC_` values. An OTA retry reuses an already uploaded binary; an older queued revision cannot replace a newer receipt. A missing binary receipt requires a build. Keep the binary receipts independent of OTA and metadata success.
 
 Inspect the last run before restarting delivery from `main`, and never start a second delivery while one is running:
 
