@@ -207,7 +207,7 @@ function area(
     points: points.map(landscape),
     markers: [],
     objective: objective ? { position: landscape(objective), group: null } : null,
-    objectiveGroup: null,
+    group: null,
     measurements,
     parts,
   }

@@ -31,6 +31,18 @@ if (fs.existsSync(objectiveSources) && fs.readdirSync(objectiveSources).some((fi
   if (objectiveLayouts !== available) throw new Error('terrain layouts have missing source objectives')
 }
 
+const areaGroups = path.join(directory, 'battlemaster', 'terrain-areas.json')
+if (fs.existsSync(areaGroups)) {
+  const listed = new Set(
+    (JSON.parse(fs.readFileSync(areaGroups, 'utf8')) as { layouts: { layoutId: string }[] }).layouts.map(({ layoutId }) => layoutId),
+  )
+  const catalog = JSON.parse(fs.readFileSync(path.join(directory, 'battlemaster', 'catalog.json'), 'utf8')) as { layouts: { id: string }[] }
+  const unlisted = catalog.layouts.filter(({ id }) => !listed.has(id)).map(({ id }) => id)
+  const grouped = layouts.filter((layout) => layout.geometry?.areas.some((area) => area.group)).length
+  console.log(`terrain area groups: ${grouped}/${available} layouts`)
+  if (unlisted.length) throw new Error(`terrain area groups omit layouts: ${unlisted.join(', ')}`)
+}
+
 console.log(`terrain geometry: ${available}/${layouts.length} layouts`)
 console.log(`terrain marker labels: ${labelled}/${layouts.length} layouts`)
 if (!available) throw new Error('no terrain layout has exact geometry')
