@@ -27,11 +27,15 @@ export async function localTestEnvironment(kind: 'e2e' | 'native-auth-ios', envi
     for (const name of ['PLAYWRIGHT_PORT', 'PLAYWRIGHT_INTERNAL_PORT', 'PLAYWRIGHT_SPACETIME_PORT', 'PLAYWRIGHT_READY_PORT']) {
       ports.push(await reserveLocalPort(environment[name] === undefined ? 0 : Number(environment[name])))
     }
+    // A coverage run reads the app server's executed functions through its inspector.
+    const inspect = environment.E2E_COVERAGE_DIR ? await reserveLocalPort(0) : null
+    if (inspect) ports.push(inspect)
     return {
       PLAYWRIGHT_PORT: String(ports[0]!.port),
       PLAYWRIGHT_INTERNAL_PORT: String(ports[1]!.port),
       PLAYWRIGHT_SPACETIME_PORT: String(ports[2]!.port),
       PLAYWRIGHT_READY_PORT: String(ports[3]!.port),
+      ...(inspect ? { PLAYWRIGHT_INSPECT_PORT: String(inspect.port) } : {}),
       PLAYWRIGHT_DATA_ROOT: environment.PLAYWRIGHT_DATA_ROOT ?? `/tmp/praetorium-${kind}-${randomUUID()}`,
     }
   } finally {

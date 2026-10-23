@@ -3,7 +3,7 @@ import path from 'node:path'
 import { test as base, type BrowserContext, type Page, type Response } from '@playwright/test'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { retainedSnapshots, upstreamUrl } from '../src/server/sourceTexts'
-import { catalogue } from './stackEnv'
+import { catalogue, inspectPort } from './stackEnv'
 
 /**
  * Resolves a page load once the app has hydrated, as `AppShell` marks the document,
@@ -103,7 +103,78 @@ export const startUnchosen = (context: BrowserContext) =>
     localStorage.removeItem('praetorium-text-sources')
   })
 
-export const test = base.extend<{ closeOpenedContexts: void; rulesText: boolean }>({
+/** Where a coverage run writes each test's executed functions; unset in every ordinary run. */
+const coverageDirectory = process.env.E2E_COVERAGE_DIR
+const coveredPages = new Set<Page>()
+
+/**
+ * Starts coverage before a page's first navigation, so its first scripts are counted. A context
+ * without JavaScript runs no scripts to count, and Chromium refuses to start coverage in it.
+ */
+const coveredContexts = new WeakSet<BrowserContext>()
+function coverNewPages(context: BrowserContext, javaScriptEnabled = true) {
+  // The default context passes through both the context fixture and the wrapped `newContext`.
+  if (!coverageDirectory || !javaScriptEnabled || coveredContexts.has(context)) return
+  coveredContexts.add(context)
+  const newPage = context.newPage.bind(context)
+  context.newPage = async () => {
+    const page = await newPage()
+    await page.coverage.startJSCoverage({ resetOnNavigation: false })
+    coveredPages.add(page)
+    const close = page.close.bind(page)
+    page.close = async (options) => {
+      await collectPage(page)
+      return close(options)
+    }
+    return page
+  }
+}
+
+type ExecutedFunction = { url: string; start: number; end: number }
+type CoverageResult = { url: string; functions: { ranges: { startOffset: number; endOffset: number; count: number }[] }[] }[]
+const executed: ExecutedFunction[] = []
+const executedFunctions = (result: CoverageResult) =>
+  result.flatMap(({ url, functions }) =>
+    functions.flatMap(({ ranges: [range] }) => (range && range.count > 0 ? [{ url, start: range.startOffset, end: range.endOffset }] : [])),
+  )
+
+/** Asks the app server's inspector for precise coverage; each read resets the counts, so it covers one test. */
+let inspector: Promise<(method: string) => Promise<{ result?: CoverageResult }>> | undefined
+function serverCoverage() {
+  inspector ??= (async () => {
+    const targets: { webSocketDebuggerUrl: string }[] = await (await fetch(`http://127.0.0.1:${inspectPort}/json/list`)).json()
+    const socket = new WebSocket(targets[0].webSocketDebuggerUrl)
+    await new Promise((resolve, reject) => {
+      socket.onopen = resolve
+      socket.onerror = reject
+    })
+    let id = 0
+    const pending = new Map<number, (message: { result?: unknown; error?: { message: string } }) => void>()
+    socket.onmessage = (event) => {
+      const message = JSON.parse(String(event.data)) as { id: number; result?: unknown; error?: { message: string } }
+      pending.get(message.id)?.(message)
+      pending.delete(message.id)
+    }
+    const send = (method: string, params = {}) =>
+      new Promise<{ result?: CoverageResult }>((resolve, reject) => {
+        id += 1
+        pending.set(id, (message) =>
+          message.error ? reject(new Error(message.error.message)) : resolve(message.result as { result?: CoverageResult }),
+        )
+        socket.send(JSON.stringify({ id, method, params }))
+      })
+    await send('Profiler.enable')
+    await send('Profiler.startPreciseCoverage', { callCount: true, detailed: false })
+    return send
+  })()
+  return inspector
+}
+async function collectPage(page: Page) {
+  if (!coveredPages.delete(page) || page.isClosed()) return
+  executed.push(...executedFunctions(await page.coverage.stopJSCoverage()))
+}
+
+export const test = base.extend<{ closeOpenedContexts: void; recordCoverage: void; rulesText: boolean }>({
   /** Whether the reader has chosen to load rules text; specs about the unloaded state turn it off. */
   rulesText: [true, { option: true }],
   context: async ({ context, javaScriptEnabled, rulesText }, use) => {
@@ -111,6 +182,7 @@ export const test = base.extend<{ closeOpenedContexts: void; rulesText: boolean 
     context.off('page', awaitHydration)
     if (javaScriptEnabled) context.on('page', awaitHydration)
     if (!rulesText) await startUnchosen(context)
+    coverNewPages(context, javaScriptEnabled)
     await use(context)
   },
   /** Closes the contexts a test opens with `browser.newContext()`; Playwright closes only those its fixtures create. */
@@ -122,6 +194,7 @@ export const test = base.extend<{ closeOpenedContexts: void; rulesText: boolean 
         const context = await newContext(options)
         if (options?.javaScriptEnabled !== false) context.on('page', awaitHydration)
         await serveRulesText(context)
+        coverNewPages(context, options?.javaScriptEnabled !== false)
         return context
       }
       await use()
@@ -132,6 +205,31 @@ export const test = base.extend<{ closeOpenedContexts: void; rulesText: boolean 
           .filter((context) => !existing.has(context))
           .map((context) => context.close()),
       )
+    },
+    { auto: true },
+  ],
+  /** Writes the browser functions this test executed, for the map that picks which specs a change needs. */
+  recordCoverage: [
+    // Depending on the context fixtures tears this down first, while every page is still open.
+    async ({ context: _context, closeOpenedContexts: _contexts }, use, testInfo) => {
+      const server = coverageDirectory && inspectPort ? await serverCoverage() : null
+      await server?.('Profiler.takePreciseCoverage')
+      await use()
+      if (!coverageDirectory) return
+      await Promise.all([...coveredPages].map(collectPage))
+      const spec = path.relative(process.cwd(), testInfo.file)
+      const serverExecuted = server ? executedFunctions((await server('Profiler.takePreciseCoverage')).result ?? []) : []
+      fs.mkdirSync(coverageDirectory, { recursive: true })
+      fs.writeFileSync(
+        path.join(coverageDirectory, `${testInfo.testId}.json`),
+        JSON.stringify({
+          spec,
+          title: testInfo.title,
+          client: executed,
+          server: serverExecuted.filter(({ url }) => url.includes('/server/')),
+        }),
+      )
+      executed.length = 0
     },
     { auto: true },
   ],

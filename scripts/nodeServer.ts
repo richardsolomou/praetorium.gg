@@ -198,10 +198,17 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
   lifecycle.signal.throwIfAborted()
   if (!viteOrigin) {
     lifecycle.ownChild(
-      spawn(process.execPath, [path.join(nodeBuildDirectory(), 'server/index.mjs')], {
-        env: { ...process.env, NITRO_PORT: String(internalPort), NITRO_HOST: '127.0.0.1' },
-        stdio: 'inherit',
-      }),
+      spawn(
+        process.execPath,
+        [
+          ...(process.env.LOCAL_SERVER_INSPECT_PORT ? [`--inspect=127.0.0.1:${process.env.LOCAL_SERVER_INSPECT_PORT}`] : []),
+          path.join(nodeBuildDirectory(), 'server/index.mjs'),
+        ],
+        {
+          env: { ...process.env, NITRO_PORT: String(internalPort), NITRO_HOST: '127.0.0.1' },
+          stdio: 'inherit',
+        },
+      ),
     )
   }
   const appOrigin = viteOrigin ?? `http://127.0.0.1:${internalPort}`

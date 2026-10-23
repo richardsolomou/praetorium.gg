@@ -93,6 +93,7 @@
   },
   "devDependencies": {
     "@changesets/cli": "3.0.3",
+    "@jridgewell/trace-mapping": "0.3.31",
     "@posthog/cli": "0.18.10",
     "@types/canvas-confetti": "^1.9.0",
     "@types/http-proxy": "1.17.17",

@@ -1,7 +1,13 @@
 name: CI
 
 on:
+  # A push runs the browser specs its change exercises; enabling auto-merge runs them all, and
+  # only that full run reports the required `e2e` check, so nothing merges on a partial suite.
   pull_request:
+    types: [opened, synchronize, reopened, auto_merge_enabled]
+  # The nightly run records the source each spec executes, which pull requests choose their specs from.
+  schedule:
+    - cron: '17 3 * * *'
   workflow_dispatch:
     inputs:
       e2e-runners:
@@ -9,6 +15,10 @@ on:
         type: choice
         options: ['16', '8']
         default: '16'
+      coverage:
+        description: Record the coverage map that pull requests choose specs from
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -16,6 +26,9 @@ concurrency:
 
 permissions:
   contents: read
+
+env:
+  FULL_E2E: ${{ github.event_name != 'pull_request' || github.event.pull_request.auto_merge != null }}
 
 # `just check` runs these lanes in sequence locally; CI runs them side by side so the fast ones answer first.
 jobs:
@@ -129,8 +142,9 @@ jobs:
       ASSETS_R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
     outputs:
       node-version: ${{ steps.node.outputs.version }}
-      runner-count: ${{ inputs.e2e-runners || '16' }}
-      runners: ${{ inputs.e2e-runners == '8' && '[1,2,3,4,5,6,7,8]' || '[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]' }}
+      runner-count: ${{ steps.runners.outputs.count }}
+      runners: ${{ steps.runners.outputs.runners }}
+      specs: ${{ steps.runners.outputs.specs }}
     steps:
       - uses: actions/checkout@v7
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
@@ -139,6 +153,29 @@ jobs:
       - name: Record the build's Node version
         id: node
         run: node -p "'version=' + process.version" >> "$GITHUB_OUTPUT"
+      - name: Choose the browser runners
+        id: runners
+        env:
+          SELECTED: ${{ needs.changes.outputs.e2e-specs }}
+          REASON: ${{ needs.changes.outputs.e2e-reason }}
+          FULL: ${{ env.FULL_E2E }}
+          MAX: ${{ inputs.e2e-runners || '16' }}
+        run: |
+          set -euo pipefail
+          specs="$SELECTED"
+          if [ "$FULL" = true ]; then specs=all; fi
+          runners="$(node scripts/e2eShard.ts --runners "$specs" "$MAX")"
+          {
+            echo "specs=$specs"
+            echo "runners=$runners"
+            echo "count=$(node -p 'JSON.parse(process.argv[1]).length' "$runners")"
+          } >> "$GITHUB_OUTPUT"
+          {
+            if [ "$FULL" = true ]; then echo '### Every end-to-end spec runs'; else echo '### Only the affected end-to-end specs run'; fi
+            echo "$REASON; this run uses $(node -p 'JSON.parse(process.argv[1]).length' "$runners") of $MAX runners."
+            if [ "$SELECTED" != all ]; then node -p 'JSON.parse(process.argv[1]).map((spec) => "- " + spec).join("\n")' "$SELECTED"; fi
+            if [ "$FULL" != true ]; then echo 'Enable auto-merge to run every spec and report the required e2e check.'; fi
+          } >> "$GITHUB_STEP_SUMMARY"
       - uses: ./.github/actions/e2e-dependencies
       - run: pnpm catalogue:sync
         # Catalogue snapshots are private, read with these on this step alone.
@@ -177,6 +214,7 @@ jobs:
   e2e-shard:
     name: E2E runner ${{ matrix.runner }} of ${{ needs.browser-build.outputs.runner-count }}
     needs: [browser-build]
+    if: needs.browser-build.outputs.runner-count != '0'
     strategy:
       fail-fast: false
       matrix:
@@ -196,6 +234,8 @@ jobs:
         env:
           E2E_SHARD: ${{ matrix.runner }}
           E2E_RUNNERS: ${{ needs.browser-build.outputs.runner-count }}
+          E2E_SPECS: ${{ needs.browser-build.outputs.specs != 'all' && needs.browser-build.outputs.specs || '' }}
+          E2E_COVERAGE_DIR: ${{ (github.event_name == 'schedule' || inputs.coverage) && format('{0}/e2e-coverage', runner.temp) || '' }}
           SPACETIME_BIN: ${{ steps.stack.outputs.spacetime-bin }}
           PLAYWRIGHT_STARTUP_REPORT: e2e-startup-${{ matrix.runner }}.json
         run: |
@@ -213,6 +253,13 @@ jobs:
             echo 'Browser-test startup (seconds):' >> "$GITHUB_STEP_SUMMARY"
             cat "e2e-startup-${{ matrix.runner }}.json" >> "$GITHUB_STEP_SUMMARY"
           fi
+      - if: github.event_name == 'schedule' || inputs.coverage
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-coverage-${{ matrix.runner }}
+          path: ${{ runner.temp }}/e2e-coverage
+          retention-days: 2
+          if-no-files-found: error
       # `just e2e-durations <run id>` rebalances the runners from these reports.
       - if: success() || failure()
         uses: actions/upload-artifact@v7
@@ -233,15 +280,41 @@ jobs:
           retention-days: 7
 
   e2e:
-    if: always() && needs.changes.outputs.runtime != 'false'
+    # A partial run reports under another name, so the required `e2e` check stays expected until a
+    # full run passes; a change with no runtime effect needs no specs and reports `e2e` at once.
+    name: ${{ (github.event_name != 'pull_request' || github.event.pull_request.auto_merge || needs.changes.outputs.runtime == 'false') && 'e2e' || 'e2e (affected specs)' }}
+    if: always()
     needs: [changes, browser-build, e2e-shard]
     runs-on: ubuntu-latest
     steps:
       - name: Require every E2E runner
+        if: needs.changes.outputs.runtime != 'false'
         run: |
           test '${{ needs.changes.result }}' = success
           test '${{ needs.browser-build.result }}' = success
-          test '${{ needs.e2e-shard.result }}' = success
+          # A change no spec exercises runs no browser runner.
+          test '${{ needs.e2e-shard.result }}' = success || { test '${{ needs.browser-build.outputs.runner-count }}' = 0 && test '${{ needs.e2e-shard.result }}' = skipped; }
+
+  e2e-map:
+    if: github.event_name == 'schedule' || inputs.coverage
+    needs: [browser-build, e2e-shard]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - uses: actions/download-artifact@v8
+        with:
+          name: browser-test-build
+          path: data-dev/e2e-build
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: e2e-coverage-*
+          path: e2e-coverage
+      - run: pnpm exec tsx scripts/e2eMap.ts data-dev/e2e-build "$GITHUB_SHA" e2e-map.json e2e-coverage/*
+      - uses: actions/cache/save@v6
+        with:
+          path: e2e-map.json
+          key: e2e-map-${{ github.sha }}
 
   points:
     needs: changes

@@ -5,6 +5,11 @@ on:
     outputs:
       runtime:
         value: ${{ jobs.changes.outputs.runtime }}
+      e2e-specs:
+        description: '`all`, or a JSON array of the spec files the coverage map says the change needs.'
+        value: ${{ jobs.changes.outputs.e2e-specs }}
+      e2e-reason:
+        value: ${{ jobs.changes.outputs.e2e-reason }}
 
 permissions:
   contents: read
@@ -14,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       runtime: ${{ steps.scope.outputs.runtime }}
+      e2e-specs: ${{ steps.e2e.outputs.specs }}
+      e2e-reason: ${{ steps.e2e.outputs.reason }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -28,3 +35,23 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.sha }}
         run: node scripts/ciScope.ts
+      # The nightly coverage run saves the map under its revision; the newest one is restored.
+      - name: Restore the latest coverage map
+        if: github.event_name == 'pull_request'
+        uses: actions/cache/restore@v6
+        with:
+          path: e2e-map.json
+          key: e2e-map-${{ github.sha }}
+          restore-keys: e2e-map-
+      - name: Choose the end-to-end specs
+        id: e2e
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+          E2E_MAP: e2e-map.json
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            node scripts/e2eSelect.ts
+          else
+            printf 'specs=all\nreason=every spec runs outside pull requests\n' >> "$GITHUB_OUTPUT"
+          fi

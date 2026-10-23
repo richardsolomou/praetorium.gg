@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { medianDurations, recordedDurations, shardTitles, testTitles } from './e2eShard'
+import { medianDurations, recordedDurations, runnersFor, selectedTitles, shardTitles, testTitles } from './e2eShard'
 
 const report = (results: { status: string; duration: number }[]) => ({
   suites: [
@@ -52,4 +52,25 @@ it('gives every test to exactly one runner', () => {
 
 it('refuses a runner outside the shard count', () => {
   expect(() => shardTitles(['a'], {}, 4, 3)).toThrow('shard must be between 1 and 3, got 4')
+})
+
+const durations = {
+  'battle.spec.ts › opens a battle': 30,
+  'battle.spec.ts › scores a round': 30,
+  'roster.spec.ts › saves a list': 60,
+  'home.spec.ts › loads': 40,
+}
+
+it('lists only the tests of the selected spec files', () => {
+  expect(selectedTitles(Object.keys(durations), ['e2e/roster.spec.ts'])).toEqual(['roster.spec.ts › saves a list'])
+})
+
+it('gives selected specs the runners their share of the suite fills', () => {
+  expect([runnersFor(durations, 'all', 16), runnersFor(durations, ['e2e/battle.spec.ts'], 16), runnersFor(durations, [], 16)]).toEqual([
+    16, 6, 0,
+  ])
+})
+
+it('gives a selected spec with no recorded duration one runner', () => {
+  expect(runnersFor(durations, ['e2e/new.spec.ts'], 16)).toBe(1)
 })

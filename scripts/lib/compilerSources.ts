@@ -29,12 +29,8 @@ export function treeFingerprint(root: string, inputs: readonly string[]) {
   return hash.digest('hex')
 }
 
-/**
- * Identifies the catalogue compiler by its entry points bundled with every dependency they
- * reach, so only a change to code the compiler runs invalidates prepared catalogues. Comments,
- * formatting, unused exports and unrelated modules or packages never reach the bundle.
- */
-export async function compilerFingerprint(root = process.cwd(), entries = compilerEntries) {
+/** The compiler's entry points bundled with every dependency they reach. */
+async function compilerBundle(root: string, entries: readonly string[]) {
   const result = (await build({
     configFile: false,
     envDir: false,
@@ -53,8 +49,17 @@ export async function compilerFingerprint(root = process.cwd(), entries = compil
       },
     },
   })) as Rolldown.RolldownOutput | Rolldown.RolldownOutput[]
+  return [result].flat().flatMap(({ output }) => output)
+}
+
+/**
+ * Identifies the catalogue compiler by its bundle, so only a change to code the compiler runs
+ * invalidates prepared catalogues. Comments, formatting, unused exports and unrelated modules or
+ * packages never reach the bundle.
+ */
+export async function compilerFingerprint(root = process.cwd(), entries = compilerEntries) {
   const hash = createHash('sha256')
-  const outputs = [result].flat().flatMap(({ output }) => output)
+  const outputs = await compilerBundle(root, entries)
   for (const output of outputs.toSorted((left, right) => left.fileName.localeCompare(right.fileName)))
     hash
       .update(output.fileName)
@@ -63,4 +68,12 @@ export async function compilerFingerprint(root = process.cwd(), entries = compil
       .update(output.type === 'chunk' ? output.code.replace(/^\/\/#(?:end)?region\b.*$/gm, '') : output.source)
       .update('\0')
   return hash.update(treeFingerprint(root, compilerFiles)).digest('hex')
+}
+
+/** The application source files the compiler's bundle reaches, relative to `root`. */
+export async function compilerModules(root = process.cwd(), entries = compilerEntries) {
+  const modules = (await compilerBundle(root, entries)).flatMap((output) => (output.type === 'chunk' ? output.moduleIds : []))
+  return [
+    ...new Set(modules.map((id) => path.relative(root, id.replace(/\?.*$/, ''))).filter((file) => file.startsWith('src/'))),
+  ].toSorted()
 }
