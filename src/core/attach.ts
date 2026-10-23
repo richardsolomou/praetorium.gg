@@ -116,6 +116,13 @@ export function attachmentOf(definition: Definition, index: CatalogueIndex, sele
   }
 }
 
+/**
+ * The attachment a datasheet page shows: its ability text, or failing that its unselected associations.
+ * Association targets are not shown alongside text because many name Legends and Crucible units the printed datasheet does not.
+ */
+export const referenceAttachmentOf = (definition: Definition, index: CatalogueIndex) =>
+  attachmentOf(definition, index) ?? attachmentOf(definition, index, { id: definition.id })
+
 function attachmentFromAssociations(definition: Definition, selection: Selection, index: CatalogueIndex): Attachment | null {
   const sources = [...new Set([definition, targetOf(definition, index.definitions)])]
   const associations = sources.flatMap((source) =>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { attachedUnit, attachmentErrors, attachmentLimitsOf, attachmentOf } from './attach'
+import { attachedUnit, attachmentErrors, attachmentLimitsOf, attachmentOf, referenceAttachmentOf } from './attach'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
 
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: 'pts', name: 'pts' }] } }
@@ -330,6 +330,31 @@ describe('a character that can join a unit', () => {
       'IMMORTALS',
       'Lokhust Heavy Destroyers',
     ])
+  })
+
+  it('shows a datasheet page its ability text rather than wider association targets', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'chronomancer',
+          name: 'Chronomancer',
+          type: 'model',
+          profiles: [ability('Support', 'This model can be attached to the following units:\n■ IMMORTALS')],
+          associations: [
+            {
+              name: 'Supporting',
+              childId: 'unit',
+              action: 'group',
+              conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'self', childId: 'heavy-destroyers' }],
+            },
+          ],
+        },
+        { id: 'heavy-destroyers', name: 'Lokhust Heavy Destroyers', type: 'unit' },
+      ],
+      entryLinks: [{ id: 'heavy-link', name: 'Lokhust Heavy Destroyers', type: 'selectionEntry', targetId: 'heavy-destroyers' }],
+    })
+
+    expect(referenceAttachmentOf(index.definitions.get('chronomancer')!, index)?.targets).toEqual(['IMMORTALS'])
   })
 
   describe('through an association named after its own ability', () => {

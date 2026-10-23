@@ -102,6 +102,45 @@ describe('a datasheet', () => {
     })
   })
 
+  describe('joined only through an association', () => {
+    const book = () =>
+      bookOf({
+        categoryEntries: [{ id: 'command-category', name: 'Command Squad' }],
+        selectionEntries: [
+          {
+            id: 'ogryn',
+            name: 'Ogryn Bodyguard',
+            type: 'model',
+            associations: [
+              {
+                name: 'Loyal Protector',
+                childId: 'unit',
+                action: 'group',
+                min: 1,
+                conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'self', childId: 'command-category' }],
+              },
+            ],
+          },
+          {
+            id: 'command',
+            name: 'Cadian Command Squad',
+            type: 'unit',
+            categoryLinks: [{ id: 'command-link', name: 'Command Squad', targetId: 'command-category' }],
+          },
+        ],
+      })
+
+    it('lists its targets on its own datasheet', () => {
+      expect(datasheetIn(book(), 'cat', 'ogryn')?.attachments.map(({ kind, name }) => ({ kind, name }))).toEqual([
+        { kind: 'support', name: 'Cadian Command Squad' },
+      ])
+    })
+
+    it('lists it as a supporter on its target', () => {
+      expect(datasheetIn(book(), 'cat', 'command')?.supporters.map(({ name }) => name)).toEqual(['Ogryn Bodyguard'])
+    })
+  })
+
   it('links an imported datasheet without a faction category to its defining book', () => {
     const book = shelfOf(
       { name: 'Space Marines', selectionEntries: [{ id: 'intercessors', name: 'Intercessor Squad', type: 'unit' }] },
