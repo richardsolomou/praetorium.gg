@@ -179,6 +179,17 @@ it('repeats each tool title in its annotations for directory listings', async ()
   expect(tools.filter((tool) => tool.annotations.title !== tool.title)).toEqual([])
 })
 
+it('marks every write tool open-world because its results can be visible to other players', async () => {
+  const response = await handleReferenceMcp(rpcRequest('tools/list'))
+  const { tools } = (
+    (await response.json()) as { result: { tools: { name: string; annotations: { readOnlyHint?: boolean; openWorldHint?: boolean } }[] } }
+  ).result
+
+  expect(
+    tools.filter((tool) => !tool.annotations.readOnlyHint && tool.annotations.openWorldHint !== true).map((tool) => tool.name),
+  ).toEqual([])
+})
+
 it('advertises product instructions, read-only tools, resources, and prompts', async () => {
   const initialized = await handleReferenceMcp(
     rpcRequest('initialize', {

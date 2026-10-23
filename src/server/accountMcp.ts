@@ -24,7 +24,8 @@ export const ACCOUNT_MCP_SCOPES: Record<string, 'mcp:read' | 'mcp:write'> = {
 }
 
 const READ = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } as const
-const WRITE = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false } as const
+// Rosters and battles can be public, so a write may publish to other players.
+const WRITE = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true } as const
 
 function structured(result: Record<string, unknown>) {
   return { content: [{ type: 'text' as const, text: JSON.stringify(result) }], structuredContent: result }
