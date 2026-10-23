@@ -4,7 +4,7 @@ Keep changes small and include tests for new behavior and failure paths. Discuss
 
 ## Start the app
 
-Install Node 24.x, pnpm 11.28.5, just 1.58.0, and SpacetimeDB CLI 2.12.0, then run:
+Install Node 24.x, pnpm 12.13.0, just 1.58.0, and SpacetimeDB CLI 2.12.0, then run:
 
 ```sh
 just install
@@ -12,6 +12,8 @@ just dev
 ```
 
 `just dev` prepares a missing catalogue and prints the URL of a persistent Vite server; leave it running while testing. No private credentials are needed. Use `just dev-status`, `just dev-stop`, and `just dev-restart` to manage only this worktree's stack. [Running locally](docs/development/running-locally.md) covers catalogue preparation, local databases, and individual commands.
+
+Shared tool configuration and dependency maintenance are documented in the [RAS documentation](https://github.com/richardsolomou/ras-stack/blob/main/docs/README.md).
 
 ## Check a change
 

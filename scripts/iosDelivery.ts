@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto'
 import { appendFileSync } from 'node:fs'
 import { createRequire, isBuiltin } from 'node:module'
 import path from 'node:path'
-import { parse } from 'yaml'
+import { parse, parseAllDocuments } from 'yaml'
 import { isEntryPoint } from './lib/entryPoint.ts'
 
 // The shell pins TypeScript 6; the web compiler no longer exposes this parser API.
@@ -83,7 +83,10 @@ export function iosDeliveryFingerprint(root: string, revision: string, env: Node
     }
   }
 
-  const lock = parse(read('pnpm-lock.yaml')) as Lockfile
+  const document = parseAllDocuments(read('pnpm-lock.yaml')).at(-1)
+  if (!document) throw new Error('Missing application lockfile')
+  if (document.errors.length) throw document.errors[0]
+  const lock = document.toJS() as Lockfile
   if (String(lock.lockfileVersion) !== '9.0') throw new Error(`Unsupported native lockfile version ${lock.lockfileVersion}`)
   const selected = new Map<string, unknown>()
   const visit = (name: string, version: string) => {

@@ -1,11 +1,6 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "extends": [
-    "./node_modules/ras-stack-config/config/oxlint/application.json",
-    "./node_modules/ras-stack-config/config/oxlint/tanstack.json",
-    "./node_modules/ras-stack-config/config/oxlint/domain.json",
-    "./node_modules/ras-stack-config/config/oxlint/layers.json"
-  ],
+  "extends": ["./.ras/oxlint.json"],
   "rules": {
     "typescript/no-deprecated": "error"
   },
@@ -77,7 +72,14 @@
       "excludeFiles": ["**/*.test.*", "**/*.spec.*"]
     }
   ],
-  "ignorePatterns": ["src/routeTree.gen.ts", "src/spacetime/generated/**", ".output/**", "node_modules/**", "src/components/ui/**"],
+  "ignorePatterns": [
+    "src/routeTree.gen.ts",
+    "src/spacetime/generated/**",
+    ".output/**",
+    "node_modules/**",
+    "src/components/ui/**",
+    ".ras/**"
+  ],
   "env": {
     "builtin": true
   }

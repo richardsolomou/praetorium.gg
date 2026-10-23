@@ -38,6 +38,7 @@ it.each([
   'scripts/example.ts',
   'public/reference-worker.js',
   'pnpm-lock.yaml',
+  'ras.config.ts',
   'catalogue.json',
   'vite.config.ts',
   '.env.production.local',

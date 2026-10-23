@@ -151,6 +151,18 @@ test('skips a web-only lockfile update even when the root importer and package r
   expect(iosDeliveryChanged(root, base, commit())).toBe(false)
 })
 
+test('reads the application lockfile after pnpm configuration dependencies', () => {
+  file('pnpm-lock.yaml', `---\nlockfileVersion: '9.0'\nimporters:\n  .:\n    configDependencies: {}\n---\n${stringify(initialLock)}`)
+  expect(iosDeliveryChanged(root, base, commit())).toBe(false)
+})
+
+test('delivers native dependency changes after pnpm configuration dependencies', () => {
+  const lock = structuredClone(initialLock)
+  lock.packages['storage@1.0.0'].resolution.integrity = 'replacement native bytes'
+  file('pnpm-lock.yaml', `---\nlockfileVersion: '9.0'\nimporters:\n  .:\n    configDependencies: {}\n---\n${stringify(lock)}`)
+  expect(iosDeliveryChanged(root, base, commit())).toBe(true)
+})
+
 test('skips dependency age exceptions and workspace comments', () => {
   file(
     'pnpm-workspace.yaml',

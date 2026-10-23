@@ -9,15 +9,13 @@ allowBuilds:
   esbuild: true
   protobufjs: false
 minimumReleaseAgeExclude:
+  - ras-stack@5.0.0
   # Reviewed SDK health updates; drop once the Node release is seven days old on 2026-10-23.
   - posthog-js@1.438.12
   - posthog-node@5.56.2
   - '@posthog/browser-common@0.9.5'
   - '@posthog/core@1.59.1'
   - '@posthog/types@1.416.0'
-  # ras-stack 4.2.0 adds the SpacetimeDB helpers; drop once it passes the age threshold on 2026-10-24.
-  - ras-stack@4.2.0
-  - ras-stack-config@3.0.0
   # better-auth 1.7.10 carries the oauth-provider resource-seeding fix; drop these once it is
   # seven days old (2026-10-22).
   - better-auth@1.7.10
@@ -94,3 +92,6 @@ packageExtensions:
   posthog-react-native:
     dependencies:
       '@babel/runtime': ^7.20.0
+configDependencies:
+  ras-stack: 5.0.0
+pnpmfile: node_modules/.pnpm-config/ras-stack/pnpmfile.mjs
