@@ -1,11 +1,10 @@
 name: CI
 
 on:
-  # A push runs the browser specs its change exercises; enabling auto-merge runs them all, and
-  # only that full run reports the required `e2e` check, so nothing merges on a partial suite.
+  # A pull request runs only the browser specs its change exercises, and that run is the required
+  # `e2e` check; the nightly run is the full suite that catches a spec the selection missed.
   pull_request:
-    types: [opened, synchronize, reopened, auto_merge_enabled]
-  # The nightly run records the source each spec executes, which pull requests choose their specs from.
+  # The nightly run also records the source each spec executes, which pull requests choose their specs from.
   schedule:
     - cron: '17 3 * * *'
   workflow_dispatch:
@@ -28,7 +27,7 @@ permissions:
   contents: read
 
 env:
-  FULL_E2E: ${{ github.event_name != 'pull_request' || github.event.pull_request.auto_merge != null }}
+  FULL_E2E: ${{ github.event_name != 'pull_request' }}
 
 # `just check` runs these lanes in sequence locally; CI runs them side by side so the fast ones answer first.
 jobs:
@@ -174,7 +173,6 @@ jobs:
             if [ "$FULL" = true ]; then echo '### Every end-to-end spec runs'; else echo '### Only the affected end-to-end specs run'; fi
             echo "$REASON; this run uses $(node -p 'JSON.parse(process.argv[1]).length' "$runners") of $MAX runners."
             if [ "$SELECTED" != all ]; then node -p 'JSON.parse(process.argv[1]).map((spec) => "- " + spec).join("\n")' "$SELECTED"; fi
-            if [ "$FULL" != true ]; then echo 'Enable auto-merge to run every spec and report the required e2e check.'; fi
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: ./.github/actions/e2e-dependencies
       - run: pnpm catalogue:sync
@@ -280,9 +278,6 @@ jobs:
           retention-days: 7
 
   e2e:
-    # A partial run reports under another name, so the required `e2e` check stays expected until a
-    # full run passes; a change with no runtime effect needs no specs and reports `e2e` at once.
-    name: ${{ (github.event_name != 'pull_request' || github.event.pull_request.auto_merge || needs.changes.outputs.runtime == 'false') && 'e2e' || 'e2e (affected specs)' }}
     if: always()
     needs: [changes, browser-build, e2e-shard]
     runs-on: ubuntu-latest
