@@ -3,6 +3,7 @@
   "displayName": "Praetorium",
   "version": "1.0.0",
   "description": "Warhammer 40,000 datasheets, points, detachments, missions and a combat simulator, plus your saved rosters and battles on Praetorium.",
+  "icon": "./assets/logo.png",
   "author": {
     "name": "Richard Solomou",
     "url": "https://praetorium.gg"
