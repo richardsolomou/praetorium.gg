@@ -189,6 +189,41 @@ describe('a character that can join a unit', () => {
     ])
   })
 
+  const inquisitorAndScions = () =>
+    indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'inquisitor',
+          name: 'Inquisitor',
+          type: 'model',
+          profiles: [ability('Leader', 'This model can be attached to the following units: IMPERIUM BATTLELINE INFANTRY')],
+        },
+        { id: 'scions', name: 'Tempestus Scions', type: 'unit' },
+      ],
+    })
+
+  it('joins a unit that holds the named keywords in this list', () => {
+    expect(
+      attachmentErrors(
+        [{ entryId: 'inquisitor', attachedTo: 1 }, { entryId: 'scions' }],
+        inquisitorAndScions(),
+        [],
+        [[], ['Faction: Imperium', 'Battleline', 'Infantry']],
+      ),
+    ).toEqual([])
+  })
+
+  it('refuses a unit missing one of the named keywords in this list', () => {
+    expect(
+      attachmentErrors(
+        [{ entryId: 'inquisitor', attachedTo: 1 }, { entryId: 'scions' }],
+        inquisitorAndScions(),
+        [],
+        [[], ['Imperium', 'Infantry']],
+      ),
+    ).toEqual([{ entryId: 'inquisitor', entryName: 'Inquisitor', message: 'cannot be attached to Tempestus Scions' }])
+  })
+
   it('reads an ability the entry links to rather than holds', () => {
     const index = indexOf({
       sharedInfoGroups: [
