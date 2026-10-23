@@ -58,7 +58,7 @@ it('strips personal roster reminders from another player’s downloaded log', ()
   ])
   expect(JSON.stringify(visibleBattleLog(players, history, BOB))).not.toContain('Private note')
 })
-it('strips unit notes from another player’s downloaded log', () => {
+it('strips unit notes but keeps nicknames in another player’s downloaded log', () => {
   const history = log([
     ALICE,
     {
@@ -72,13 +72,14 @@ it('strips unit notes from another player’s downloaded log', () => {
           limit: 2000,
           detachment: null,
           disposition: null,
-          picks: [{ entryId: 'intercessors', note: 'Private plan' }],
-          units: [{ key: 'u0', name: 'Intercessors', note: 'Private plan', points: 80, models: 5 }],
+          picks: [{ entryId: 'intercessors', nickname: 'Alpha', note: 'Private plan' }],
+          units: [{ key: 'u0', name: 'Intercessors', nickname: 'Alpha', note: 'Private plan', points: 80, models: 5 }],
         },
       },
     },
   ])
-  expect(JSON.stringify(visibleBattleLog(players, history, BOB))).not.toContain('Private plan')
+  const downloaded = JSON.stringify(visibleBattleLog(players, history, BOB))
+  expect([downloaded.includes('Private plan'), downloaded.includes('Alpha')]).toEqual([false, true])
 })
 it('records local commands with nondecreasing timestamps and derives their undo', () => {
   const history = log(...started())

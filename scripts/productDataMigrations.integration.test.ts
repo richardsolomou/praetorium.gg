@@ -108,7 +108,6 @@ it.skipIf(!existsSync(cli))(
         automaticName: true,
         locked: false,
         detachmentId: '["first"]',
-        picks: '[{"entryId":"unit","note":"Hold home"}]',
         prep: '{"stratagems":[],"secondaries":[],"remindersEnabled":false}',
       })
       expect(await migrateProductData(source)).toEqual({ rosters: 0, collection: 0 })

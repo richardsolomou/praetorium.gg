@@ -83,7 +83,7 @@ import { Section } from './builder/Section'
 import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
-import { UnitNote } from './builder/UnitNote'
+import { UnitAnnotations } from './builder/UnitAnnotations'
 import { UnitPhoto } from './builder/UnitPhoto'
 import { useDetachmentRules } from './builder/useDetachmentRules'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
@@ -1119,7 +1119,11 @@ export function ListBuilder({
       reminders={building && selected !== null ? reminderControls : undefined}
       header={
         building && selected !== null && selectedPick ? (
-          <UnitNote note={selectedPick.note} onChange={(value) => edit.annotate(selected, value)} />
+          <UnitAnnotations
+            nickname={selectedPick.nickname}
+            note={selectedPick.note}
+            onChange={(field, value) => edit.annotate(selected, field, value)}
+          />
         ) : undefined
       }
       footer={optimisticUnit ? <UnitPhoto entryId={optimisticUnit.entryId} name={optimisticUnit.name} /> : undefined}
@@ -1565,6 +1569,7 @@ export function ListBuilder({
                       <UnitCard
                         key={unit.entryId + index}
                         unit={unit}
+                        nickname={frozen.units[index]?.nickname}
                         note={frozen.units[index]?.note}
                         joined={joined}
                         selected={selected === index}
@@ -1575,6 +1580,7 @@ export function ListBuilder({
                       <BuilderUnitCard
                         key={picks[index]?.key ?? unit.entryId}
                         unit={unit}
+                        nickname={picks[index]?.nickname}
                         note={picks[index]?.note}
                         index={index}
                         joined={cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? []}

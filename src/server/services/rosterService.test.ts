@@ -76,7 +76,7 @@ it('retains the original Marine codex for a library summary saved against it', a
 describe('unit notes on a shared roster', () => {
   const picks = JSON.stringify([
     { entryId: 'intercessors', nickname: 'Alpha', note: 'Hold home.' },
-    { entryId: 'intercessors', note: 'Push midfield.' },
+    { entryId: 'intercessors', nickname: 'Bravo', note: 'Push midfield.' },
   ])
   const prep = (shareNotes?: boolean) =>
     JSON.stringify({ stratagems: [], secondaries: [], ...(shareNotes === undefined ? {} : { shareNotes }) })
@@ -107,8 +107,8 @@ describe('unit notes on a shared roster', () => {
     ])
   })
 
-  it('leaves out a unit nickname saved before nicknames were removed', async () => {
-    expect((await read({ picks, prep: prep(), visibility: 'private' }, 'user-1'))?.[0]).not.toHaveProperty('nickname')
+  it('shows another reader of a public roster the nicknames', async () => {
+    expect((await read({ picks, prep: prep(), visibility: 'public' }, 'user-2'))?.map((pick) => pick.nickname)).toEqual(['Alpha', 'Bravo'])
   })
 })
 const edit = {

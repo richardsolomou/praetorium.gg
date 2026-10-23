@@ -445,7 +445,7 @@ it('freezes a custom points budget and halves it for the strategic reserve limit
   ])
 })
 
-it('freezes two identical units with their own notes, unaffected by later edits to the saved list', () => {
+it('freezes two identical units with their own nicknames and notes, unaffected by later edits to the saved list', () => {
   const unit = (key: number) => ({
     key,
     entryId: 'intercessors',
@@ -470,8 +470,8 @@ it('freezes two identical units with their own notes, unaffected by later edits 
     limit: 2_000,
     waivedRules: [],
     picks: [
-      { entryId: 'intercessors', note: 'Hold home.' },
-      { entryId: 'intercessors', note: 'Push midfield.' },
+      { entryId: 'intercessors', nickname: 'Alpha', note: 'Hold home.' },
+      { entryId: 'intercessors', nickname: 'Bravo', note: 'Push midfield.' },
     ],
   }
   const snapshot = rosterSnapshot(
@@ -489,13 +489,20 @@ it('freezes two identical units with their own notes, unaffected by later edits 
     },
     [],
   )
+  saved.picks[0]!.nickname = 'Renamed'
   saved.picks[1]!.note = 'Changed plan.'
 
   expect({
-    units: snapshot.built?.units.map((frozen) => frozen.note),
-    picks: snapshot.built?.picks?.map((pick) => pick.note),
+    units: snapshot.built?.units.map(({ name, nickname, note }) => ({ name, nickname, note })),
+    picks: snapshot.built?.picks?.map(({ nickname, note }) => ({ nickname, note })),
   }).toEqual({
-    units: ['Hold home.', 'Push midfield.'],
-    picks: ['Hold home.', 'Push midfield.'],
+    units: [
+      { name: 'Intercessor Squad', nickname: 'Alpha', note: 'Hold home.' },
+      { name: 'Intercessor Squad', nickname: 'Bravo', note: 'Push midfield.' },
+    ],
+    picks: [
+      { nickname: 'Alpha', note: 'Hold home.' },
+      { nickname: 'Bravo', note: 'Push midfield.' },
+    ],
   })
 })

@@ -74,8 +74,11 @@ it.each([0, 1, 3])('retains %i units and their choices when library setup switch
   expect(await update('custodes', picks, 'preview~custodes')).toEqual(picks)
 })
 
-it('keeps unit notes when library setup switches rules version', async () => {
-  const picks = [{ entryId: 'guard', note: 'Screen the left objective.' }, { entryId: 'guard' }]
+it('keeps unit nicknames and notes when library setup switches rules version', async () => {
+  const picks = [
+    { entryId: 'guard', nickname: 'Shield of Dawn', note: 'Screen the left objective.' },
+    { entryId: 'guard', nickname: 'Shield of Dusk' },
+  ]
   expect(await update('custodes', picks, 'preview~custodes')).toEqual(picks)
 })
 

@@ -11,6 +11,8 @@ Below, each kind of model has its own card with its weapons and choices, and cho
 
 Enhancements and detachment **Unit upgrades** are chosen here too, with **No enhancement** or **No upgrade** to clear them. A chosen enhancement shows as a chip on the unit's card.
 
+**Custom name** renames the unit, up to 40 characters, so you can tell two copies of the same datasheet apart. Its card shows the custom name above the datasheet name, and anyone who can read the roster sees it, including your opponent in a battle and the text export.
+
 The **Note** box holds up to 500 characters that only you can see. Exports and other readers never get it.
 
 ## Unit actions

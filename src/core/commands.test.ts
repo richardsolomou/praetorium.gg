@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import { FIXED_SECONDARIES, SECONDARIES_MAX, SETUP_STEP_MAX } from './battle'
 import { commandSchema, rosterPickSchema } from './commands'
-import { UNIT_NOTE_MAX_LENGTH } from './unitNotes'
+import { UNIT_NICKNAME_MAX_LENGTH, UNIT_NOTE_MAX_LENGTH } from './unitNotes'
 
 describe('roster pick schema', () => {
-  const pick = (fields: { note?: string }) => rosterPickSchema.safeParse({ entryId: 'intercessors', ...fields }).success
+  const pick = (fields: { nickname?: string; note?: string }) => rosterPickSchema.safeParse({ entryId: 'intercessors', ...fields }).success
+
+  it('accepts a nickname at its length limit', () => {
+    expect(pick({ nickname: 'n'.repeat(UNIT_NICKNAME_MAX_LENGTH) })).toBe(true)
+  })
+
+  it('refuses a nickname over its length limit', () => {
+    expect(pick({ nickname: 'n'.repeat(UNIT_NICKNAME_MAX_LENGTH + 1) })).toBe(false)
+  })
 
   it('accepts a note at its length limit', () => {
     expect(pick({ note: 'n'.repeat(UNIT_NOTE_MAX_LENGTH) })).toBe(true)
@@ -14,38 +22,28 @@ describe('roster pick schema', () => {
     expect(pick({ note: 'n'.repeat(UNIT_NOTE_MAX_LENGTH + 1) })).toBe(false)
   })
 
-  const attached = (unit: Record<string, unknown>) => ({
-    kind: 'attach-roster',
-    roster: {
-      name: 'Army',
-      text: 'Intercessor Squad — 80',
-      built: {
-        catalogueId: 'marines',
-        revision: 'revision',
-        limit: 2000,
-        detachment: null,
-        disposition: null,
-        units: [{ key: '0-intercessors', name: 'Intercessor Squad', points: 80, models: 5, ...unit }],
+  it('keeps frozen unit nicknames and notes in an attached roster', () => {
+    const command = {
+      kind: 'attach-roster',
+      roster: {
+        name: 'Army',
+        text: 'Alpha · Intercessor Squad — 80',
+        built: {
+          catalogueId: 'marines',
+          revision: 'revision',
+          limit: 2000,
+          detachment: null,
+          disposition: null,
+          units: [{ key: '0-intercessors', name: 'Intercessor Squad', nickname: 'Alpha', note: 'Hold home.', points: 80, models: 5 }],
+        },
       },
-    },
-  })
-
-  it('keeps frozen unit notes in an attached roster', () => {
-    const command = attached({ note: 'Hold home.' })
+    }
     expect(commandSchema.parse(JSON.parse(JSON.stringify(command)))).toEqual(command)
   })
 
-  it('reads a frozen unit nickname from a battle logged before nicknames were removed, and drops it', () => {
-    expect(commandSchema.parse(attached({ nickname: 'Alpha' }))).toEqual(attached({}))
-  })
-
-  it('keeps a note through stored JSON', () => {
-    const annotated = { entryId: 'intercessors', note: 'Hold home.' }
+  it('keeps a nickname and note through stored JSON', () => {
+    const annotated = { entryId: 'intercessors', nickname: 'Alpha', note: 'Hold home.' }
     expect(rosterPickSchema.parse(JSON.parse(JSON.stringify(annotated)))).toEqual(annotated)
-  })
-
-  it('reads a pick saved with a unit nickname before nicknames were removed, and drops it', () => {
-    expect(rosterPickSchema.parse({ entryId: 'intercessors', nickname: 'Alpha' })).toEqual({ entryId: 'intercessors' })
   })
 })
 
