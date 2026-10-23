@@ -3,7 +3,12 @@
   "mcpServers": {
     "praetorium": {
       "type": "streamable-http",
-      "url": "https://praetorium.gg/mcp"
+      "url": "https://praetorium.gg/mcp",
+      "extensions": {
+        "com.openai": {
+          "auth": { "type": "mixed" }
+        }
+      }
     }
   }
 }
