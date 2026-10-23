@@ -58,6 +58,18 @@ it('runs runtime checks for manual dispatches regardless of the changed paths', 
   expect(check('HEAD', 'workflow_dispatch').stdout).toBe('runtime=true\n')
 })
 
+it('skips runtime checks for a push that only changes documentation', () => {
+  fs.writeFileSync(path.join(root, 'docs/guide.md'), '# Edited\n')
+  commit()
+  expect(check('HEAD', 'push').stdout).toBe('runtime=false\n')
+})
+
+it('runs runtime checks for a push that starts a branch', () => {
+  fs.writeFileSync(path.join(root, 'docs/guide.md'), '# Edited\n')
+  commit()
+  expect(check('HEAD', 'push', '0'.repeat(40)).stdout).toBe('runtime=true\n')
+})
+
 it('fails without emitting a skip when git cannot compare the revisions', () => {
   const result = check('missing-revision')
   expect({ status: result.status, output: result.stdout }).toEqual({ status: 1, output: '' })
