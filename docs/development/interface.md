@@ -2,6 +2,16 @@
 
 Praetorium uses a compact interface that stays dark only. [Product design](../product-design.md) owns product scope; [Architecture](architecture.md) owns code placement. Domain behavior belongs to [Catalogue data](catalogue-data.md), [Battles](battles.md), [Leagues](leagues.md), and [Combat simulation](combat-simulation.md). Components and e2e specs encode screen layouts; this guide keeps shared conventions and decisions that are easy to undo by mistake.
 
+## Area guides
+
+Read the area guide for the task; this page keeps what applies to all of them.
+
+| Working on                                            | Read                                                         |
+| ----------------------------------------------------- | ------------------------------------------------------------ |
+| Roster library, discovery, builder screens            | [Rosters](interface/rosters.md)                              |
+| Battle and league screens, other pages, link previews | [Battles, leagues and other surfaces](interface/surfaces.md) |
+| Offline downloads on the device, saved work, sync     | [Saved application data](interface/saved-data.md)            |
+
 ## Voice and copy
 
 Write for a player: name the game task, outcome, and next action, and keep implementation terms in technical documentation. Deletion warnings name what will be lost. Label Copy when an action writes to the clipboard and Share only when `useNativeShare` reports the system share sheet. Marketing leads with player benefits, keeps licensing and attribution, and avoids unsupported competitor comparisons. Dates spell out the month; battle cards and Home activity show scores once, without a result sentence.
@@ -36,96 +46,6 @@ Send feedback opens one dialog over the current page. Do not add another entry p
 - Use `src/client/useSettled.ts` for settled edits. Keep prior results and final geometry stable while pending; show failures with an actionable retry.
 - Cards have one main click target; nested controls own their clicks. Section headings do not toggle shelves; the adjacent chevron does.
 - Filters and tabs that represent destinations live in the URL.
-
-## Rosters
-
-Call the catalogue selector “Rules version”: versions may contain codex, points, or other rules updates. `FactionMark` and `FactionLabel` own faction and version presentation; do not add a version text chip beside the faction name or repeat preview status in a warning sentence. Carry version metadata through summary projections; frozen armies retain their recorded status. Name a custom points budget beside the battle size with `battleSizeLabel`; the budget is the points ceiling and the battle size still sets the other limits. Setup offers a custom budget as a battle size choice that names whose limits apply, not as a separate field.
-
-The builder has one picker and one loadout instance, moved between desktop columns and compact panes by `src/client/features/rosters/builder/Pane.tsx`. Reserve the desktop workspace before hydration. The header shows unit and model totals; model totals sum the priced squad sizes, or the recorded sizes for frozen lists. Edit squad size only on the roster card; `modelCountChoices` in `src/core/unitSize.ts` decides listed counts for the builder and simulator.
-
-`loadoutModel.ts` and its components own loadouts. Display each option once and keep weapon profiles visible before selection. A unit without model cards lists every weapon it carries in its equipped section, including those its wargear choices supply. A single weapon must not match a similarly named dual weapon. Offer a press only when it folds against the saved counts (`pressedCounts`), and state why a disabled add is blocked (`increaseBlocked`).
-
-One roster card serves libraries, choosers, editable and read-only lists, and frozen snapshots. A pending price is a loading state, not an empty roster. Frozen snapshots retain recorded cards and totals without today's legality or data-update warnings. Readers who cannot edit get no mutation controls but keep Test targets and Simulate combat, which never save. Locked rosters read as they do to other readers. Library legality and changed-list counts use [Catalogue data](catalogue-data.md#data-updates).
-
-Roster menus put setup, conversion, and copies first, then sharing, export, and print, then deletion; library and context menus follow the same order. Deleting an active roster offers Archive as the primary action.
-
-A copy records `copiedFromRosterId` once and names its source only while the reader may still open it, resolved through `rosterAccess` on every read. Sharing saves first only when edits are unsaved and reports its result beneath the header, not in the closed menu.
-
-Rosters has Mine, Friends, Public and Played tabs in the URL (`?view=`), like Battles; `/rosters/discover` redirects there with its filters. Mine also lists rosters lent to the player, with the lender beneath. A visitor gets the same tabs; their Friends tab offers an account instead of a list. Friends and Public draw the library's roster summary with the owner, Duplicate, the faction/detachment/rules-version Filter dialog, and the library's sort menu with the order in the URL; `discover_rosters` pages in that order through `compareRosters` (`src/core/rosterSort.ts`). Played has the same filter and no sort: `discoverPlayedArmies` folds one page of the public battle feed through `playedArmies` (`src/core/playedArmies.ts`), so a page can come back short. Its cards show the recorded rules version and status beside today's points and legality for that version, and draw the side's result as battle cards do (`battleOutcome`, `sideScore`, `battleOutcomeStage`). The card opens the frozen army in its battle, and Duplicate saves `copiedArmy` (`src/core/rosterCopies.ts`) in that rules version, where the builder reports what it no longer allows and offers conversion.
-
-Reference pages lead into the builder. Faction and detachment pages offer Start a roster with that faction, and the detachment, already chosen (`StartRoster` in `ReferenceRosterActions.tsx`); datasheets offer a roster through their Add to menu. Mission pack and matchup pages link to `/rosters/new`, which opens the rosters page's New roster setup and then drops the request from the URL.
-
-A signed-out visitor, including a battle guest, gets the same rosters page, card, row actions and builder as a player, holding the one list their device keeps (`guestRosterSummary` in `src/client/features/rosters/guestDraft.ts`); it opens at `/rosters/<draft id>`, the address the account saves it under. Creating, duplicating, importing or copying another list, and actions that need an account (variants, saved loadouts, sharing, locking, archiving, lending, choosing access), stay visible and open the sign-up prompt (`useAccountPrompt`) rather than being hidden. A cookie hints at the draft for SSR without storing the list. If storage rejects a new list, keep the setup open and say so; if it rejects an edit, keep the player in the builder rather than navigating into authentication and losing it.
-
-`RosterPrintPack.tsx` prints from current pricing and the same version's references. Never print a partial pack after a failed read. Battle and league snapshots keep their summary print so current reference data is never presented as frozen rules. Printed rosters unfold scrolling ancestors; inspect a long list under print media, including its last card.
-
-Specs: `e2e/roster-discovery.spec.ts`, `e2e/played-armies.spec.ts`, `e2e/unit-loadouts.spec.ts`, `e2e/roster-setup-review.spec.ts`, `e2e/guest-roster.spec.ts`, `e2e/parity.spec.ts` (sharing), and `e2e/roster-print.spec.ts` (paginated PDF and native delivery).
-
-## Battles and leagues
-
-Setup is one page in rules order with no pinned bars: each section names its state beside its heading, and Start battle ends the page. Keep secondary choices, reserves, deployment units, and pre-battle units visible; only settled format and twist choices may fold. Render battle controls by side, not seat; allies share a panel and resources. Keep one scoreboard and one phase-control instance across layouts. Live status badges use a filled green background with dark text on battle cards and the home hero.
-
-A mission choice opens by itself once when its moment arrives and stays recordable from its card while the moment lasts. Required prompts open one at a time. Minimize preserves local answers; battle-changing controls stay disabled until parked dialogs are resumed or closed. Undo preserves answers when the same battle moment returns, without leaking them into another hand or prompt. Personal reminders precede shared prompts without becoming shared commands.
-
-Scoring prompts keep guidance, limits, and cap explanations in the scrollable body. Pin only the title, total, and compact actions; verify short phone viewports at enlarged text sizes so mission cards retain room to scroll.
-
-Players, spectators, and replay share the frozen loadout view, which renders the roster editor's `DatasheetPanel`; only seated players receive casualty controls. The army dialog (`ArmyRoster`) keeps the list beside the selected unit's datasheet from 860 pixels; narrower, the datasheet replaces the list and a back button in the header returns to it. The datasheet pane holds only the datasheet; casualty controls stay on the list. Readers without a seat get one in-flow invitation to build an army or start a battle; it never covers the scoreboard or timeline, stays out of the native application, and is not shown to accounts that have played.
-
-League entrants and organizers share one event page, whose next-action card and progress use the same state decision. Sealing requires choosing a list and confirming it by name. Touch controls meet a 44-pixel target. [Leagues](leagues.md) owns access, sealing, and reveal rules.
-
-## Other surfaces
-
-`Home` owns fetching and `HomeView` renders props. The played, friends' and public game shelves each show at most three games, with links to their full lists. Many players only build lists, so nothing assumes battles. The home loader waits for the player's record only within `RECORD_BUDGET_MS`. Never leave a query pending in the SSR query cache: a streamed pending query holds the document, and hydration, open until it settles.
-
-`/search?q=…` and global autocomplete share `useGlobalSearch`: a current download answers on every keystroke, otherwise `globalSearchQuery` asks the service once typing settles. Keep the query in the URL and results in the initial HTML; replace the URL rather than adding a history entry per keystroke. Search rows are virtualized: keep every result reachable by scrolling and keyboard, and keep the active option mounted for its accessible name. `useVirtualRows` defers viewport and row measurements to an animation frame so a render cannot resize an observed element during the same observer delivery; keep that scheduling shared with `SearchableSelect`. Before anything is typed, both list the last eight public results opened from search on this device (`searchHistory.ts`), each removable; the player's own rosters and battles are never remembered. `e2e/search.spec.ts` covers the journey. Friends search requires a name rather than listing every account.
-
-Onboarding opens only by player choice and stays nonmodal. Domain-backed progress is derived; only reading tours, skips, and welcome state are stored. Finishing a tour dismisses its prompt only after progress is saved durably.
-
-Docs screenshots are captured by the `e2e/docs-screenshots.*.spec.ts` specs (`DOCS_SCREENSHOTS=1`), which outline the control a doc points at, and are referenced from the docs as `screenshot:<name>`; Vite emits them as hashed assets. Regenerate a doc's screenshots after changing the screens it shows.
-
-Session tokens never reach the browser. Administrator status is not permission to view private battles; battle access uses the ordinary audience check. Account cleanup protects administrators from deletion.
-
-Profile fields keep unsaved edits across account refreshes. A successful save clears only drafts that still match its submitted values, including a picture replaced or removed while the save was pending. Verify name and picture changes during a delayed save, a second save, and reload in `e2e/account.spec.ts`.
-
-Roster exchange QR codes are generated only within `ROSTER_EXCHANGE_QR_MAX_LENGTH`; friend invite QR codes encode the existing one-time link with its expiry and revocation. Keep the readable link if image generation fails.
-
-`e2e/update-pages.spec.ts` covers What's new and Data updates. [Combat simulation](combat-simulation.md#interface-and-context) owns the matchup UI.
-
-## Link previews
-
-`src/client/linkPreview.ts` owns page tags and canonical URLs; `src/server/previewImage.tsx` owns bounded PNG rendering. Use absolute URLs from the request's public origin. Tags consume the loader's signed-out view; image handlers always ignore the session. An inaccessible image returns `404` with `no-store`.
-
-- Battles expose only the spectator view; unavailable battles use generic metadata.
-- Public rosters are indexable at their parameter-free URL. Unlisted rosters preview for link holders but carry `noindex`; frozen snapshots also carry `noindex`. Private rosters remain unavailable.
-- Profiles expose only visible records; hidden games cannot enter metadata.
-- Reference previews use source-backed names and unconditional prices.
-
-Cache only public results. The image renderer's static fonts and WebAssembly bundling are deliberate; verify compatibility before changing its pinned dependencies. [Agent reference](agent-reference.md#crawlers) owns crawler discovery.
-
-## Saved application data
-
-[`src/client/offline`](../../src/client/offline) owns reference downloads, account snapshots, and refreshes; [`src/contracts/appSnapshot.ts`](../../src/contracts/appSnapshot.ts) owns saved-query eligibility and limits; [Mobile](mobile.md#saved-application-data) owns native storage. `SyncStatus` shows saved, offline, and review states with retry, export, and explicit discard.
-
-Restoration and refresh:
-
-- Hosted pages preserve server-rendered data through hydration; injected native reference data must not seed the hosted query client.
-- Restore cached public references only into missing queries after the initial screen settles; never overwrite the saved snapshot before restoration. A failed refresh retains the last successful response, and a refreshed response never replaces a newer one.
-- Refresh saved account queries only when focus or connectivity returns or the account changes, never on a timer: each refresh refetches the whole snapshot, and screens in view already poll or subscribe.
-- A download whose revision the service still publishes is current (`currentReference()` in [`runtime.ts`](../../src/client/offline/runtime.ts)): reference reads, search, datasheet filters and datasheet changes answer from it without a request until a manifest check finds another revision. Any other download is only a fallback behind the service.
-- Restore the saved download and check the manifest right after the initial route paints; defer account preparation and new downloads until it has idled for ten seconds. Publish only complete saved applications, retaining the previous version on failure. Manifest checks bypass caches.
-- A new download applies its reference before fetching construction data, so pages and search use it first; the held construction data stays in use until the new one is saved. Saved downloads pack construction data apart from the reference and keep each query serialized. A hosted page restores one in a worker (`referenceRestore.ts`), parses each saved query only when it is read, and prepares search in idle slices. The construction worker loads the page's packed construction data itself, and a refresh that keeps the same construction asset saves the packed copy again without decoding it; the page decodes construction data only for synchronous battle and setup work, or when the worker cannot answer offline. Keep that work off the main thread.
-- Development websites do not install the service worker. Authentication, administration, and API documents keep their hosted path.
-
-Account boundaries:
-
-- Exclude authentication secrets, administration, and impersonated accounts from snapshots. Saved responses never authenticate requests.
-- Clear screen snapshots on sign-out or account change, including in other tabs. `idb-keyval`'s atomic `update` keeps account-generation checks and writes in one transaction so a stale tab cannot restore signed-out data.
-- Cross-tab account notices refresh the authoritative session, which clears private data only when identity changes. Do not cancel queries or set a temporary signed-out identity for the notice: that interrupts navigation and rebroadcasts account changes between tabs.
-- Unsynced work stays partitioned by owner; sign-out directs the player to sync, export, or discard it. A failed disk cleanup is reported without interrupting sign-out or navigation.
-
-[Architecture](architecture.md#offline-work) owns durable local work and sync.
-
-Run `just e2e offline-work.spec.ts offline.spec.ts app-cache.spec.ts` after changes to this flow. Cold-loading tests must start in a browser context without saved IndexedDB or service workers. Read server-rendered HTML through the request context; a controlled navigation returns the saved application instead.
 
 ## Route recovery
 

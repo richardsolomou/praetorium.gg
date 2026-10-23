@@ -14,7 +14,7 @@
 | Offline queue and saved workspaces               | `src/client/offline/battleFunctions.ts`                         |
 | Realtime signals and connection                  | `src/client/productSignals.ts`, `spacetimeConnection.ts`        |
 
-[Game rules](game-rules.md) owns mission and scoring semantics. [Interface](interface.md#battles-and-leagues) owns layout and interaction. [Leagues](leagues.md#battles) owns event-linked creation.
+[Game rules](game-rules.md) owns mission and scoring semantics. [Interface](interface/surfaces.md#battles-and-leagues) owns layout and interaction. [Leagues](leagues.md#battles) owns event-linked creation.
 
 ## Command log
 

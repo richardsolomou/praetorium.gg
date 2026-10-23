@@ -34,11 +34,11 @@ Match layouts through pinned source references; missing or ambiguous geometry ca
 
 Reflect Battlemaster parts within their declared bounds before applying rotations. Distinguish printed dimensions from approximate traced positions. Geometry changes must advance `TERRAIN_GEOMETRY_VERSION` and its accepted server schema so saved reference queries refresh.
 
-King of the Colosseum follows [Play On Tabletop's rules](https://playontabletop.com/kotc/); [catalogue data](catalogue-data.md#pricing-and-legality) owns its construction rules.
+King of the Colosseum follows [Play On Tabletop's rules](https://playontabletop.com/kotc/); [catalogue data](catalogue/construction.md#pricing-and-legality) owns its construction rules.
 
 ## Rules documents
 
-Stratagem and mission text is published as [tokens](catalogue-data.md#published-rules-text); its timing and limits are read from the raw card during the parse.
+Stratagem and mission text is published as [tokens](catalogue/sources.md#published-rules-text); its timing and limits are read from the raw card during the parse.
 
 `src/shared/ruleDocuments.ts` parses source-declared documents for both the server and the browser. The server publishes only their outline — titles, rule numbers, costs, and addresses — on every surface, with each document's pinned upstream URL and SHA-256 (`src/server/rulesCore.ts`). A reader who opts in on a device loads the text in their browser from that file (`src/client/rulesText.ts`), which refuses any file whose hash differs and keeps verified copies in Cache Storage; never add rules prose back to a server response, the snapshot's compiled output, or the offline bundle. A correction to a core rules file would change its hash, so make it upstream rather than in `catalogue/patches/`. `src/client/ruleMarkup.ts` renders supported markup. Derive numbering and links through `ruleIndexOf`: numbers belong to their own document, falling back to core only when absent locally, and duplicates need distinct addresses. Unrecognized markup stays literal text, never browser HTML. Parse Markdown only across genuine paired delimiters so footnote asterisks cannot swallow later prose. Never republish rulebook photography; every page keeps source attribution.
 

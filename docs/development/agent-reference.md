@@ -4,7 +4,7 @@ Browser pages, HTTP, MCP, sitemap, and Markdown responses read one verified cano
 
 ## Reference corpus
 
-Preserve canonical URLs, source revisions, attribution, and unavailable fields; keep geometry in structured records, not excerpts. Agents get names, numbers, points, and computed results, never rules text: the corpus, the API, and agent tools carry no [tokens](catalogue-data.md#published-rules-text) and no words. Where text is withheld they point to it instead. `withTextPointers` (`src/shared/sourceText.ts`) adds `textSources` to each record that lost text, and corpus sections carry their own. Each pointer has the pinned upstream URL from `textSourceFiles`, its source, and the record's id when that file holds a record by it (`publishedTextLocations`). The server never fetches or relays the words. `scripts/agentText.integration.test.ts` walks every public tool and the reference API over the installed snapshot and fails on any source sentence, token, or pointer that misses its file. `pnpm reference:evaluate` checks recall, citations, size, and latency against fixtures that never commit source prose.
+Preserve canonical URLs, source revisions, attribution, and unavailable fields; keep geometry in structured records, not excerpts. Agents get names, numbers, points, and computed results, never rules text: the corpus, the API, and agent tools carry no [tokens](catalogue/sources.md#published-rules-text) and no words. Where text is withheld they point to it instead. `withTextPointers` (`src/shared/sourceText.ts`) adds `textSources` to each record that lost text, and corpus sections carry their own. Each pointer has the pinned upstream URL from `textSourceFiles`, its source, and the record's id when that file holds a record by it (`publishedTextLocations`). The server never fetches or relays the words. `scripts/agentText.integration.test.ts` walks every public tool and the reference API over the installed snapshot and fails on any source sentence, token, or pointer that misses its file. `pnpm reference:evaluate` checks recall, citations, size, and latency against fixtures that never commit source prose.
 
 ## HTTP API
 
@@ -12,7 +12,7 @@ Preserve canonical URLs, source revisions, attribution, and unavailable fields; 
 
 ## MCP
 
-`POST /mcp` uses stateless Streamable HTTP; `src/server/referenceMcp.ts` owns tools, resources, and version, and `server.json` the registry entry. Account tools require Better Auth OAuth (`mcp:read`, `mcp:write`) with resource-bound bearer tokens, never browser cookies, and reuse the site's ownership, legality, and sequence checks. `save_roster`'s `limit` is the battle size, with an optional [custom points budget](catalogue-data.md#custom-points-budgets); `create_battle`'s `limit` is only the battle size.
+`POST /mcp` uses stateless Streamable HTTP; `src/server/referenceMcp.ts` owns tools, resources, and version, and `server.json` the registry entry. Account tools require Better Auth OAuth (`mcp:read`, `mcp:write`) with resource-bound bearer tokens, never browser cookies, and reuse the site's ownership, legality, and sequence checks. `save_roster`'s `limit` is the battle size, with an optional [custom points budget](catalogue/construction.md#custom-points-budgets); `create_battle`'s `limit` is only the battle size.
 
 MCP tool and resource citations are absolute URLs for the configured public origin. `src/server/agentLinks.ts` resolves them at the MCP boundary, including JSON text and Markdown canonical citations; internal browser routes and stable record IDs remain relative. Verify the actual assistant's returned link, not only its answer text.
 
@@ -32,7 +32,7 @@ Feature-detect the API without a polyfill; follow the [imperative API documentat
 
 ## Crawlers
 
-`/sitemap.xml`, `/robots.txt`, and `/llms.txt` expose discovery. Reference content must be in initial server-rendered HTML with absolute canonical URLs; child routes must not duplicate parent JSON-LD. [Interface](interface.md#link-previews) owns account-sensitive metadata, [Catalogue data](catalogue-data.md#data-updates) `lastmod`, and [Deployment](../deployment.md) IndexNow.
+`/sitemap.xml`, `/robots.txt`, and `/llms.txt` expose discovery. Reference content must be in initial server-rendered HTML with absolute canonical URLs; child routes must not duplicate parent JSON-LD. [Interface](interface/surfaces.md#link-previews) owns account-sensitive metadata, [Catalogue data](catalogue/rules-versions.md#data-updates) `lastmod`, and [Deployment](../deployment.md) IndexNow.
 
 Canonicals omit parameters and the sitemap lists final destinations. Sign-in stays `noindex`; robots disallows sign-in and sign-in return links are `nofollow`. Reference points include only unconditional source-backed values. Discovery ETags must change with content even when the snapshot does not. Unknown rules documents, including encoded route placeholders, return 404.
 

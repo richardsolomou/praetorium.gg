@@ -71,4 +71,4 @@ The SSH path, which needs the configured SSH identity and permission to read Doc
 
 `just rosters-normalise [snapshot.json]` rewrites saved loadouts whose counts disagree with the units the app builds from them, accepting only rewrites that leave wargear, counts, points, and errors unchanged. `--apply` is the only production write these commands make: run it from a checkout of the deployed release; it refuses unless production's catalogue `revision.json` matches and saves against the version it read, so a concurrent edit wins and reruns are safe.
 
-Roster copies are a migration test corpus, not a backup; [Deployment](../deployment.md#backups) owns disaster recovery and [Catalogue data](catalogue-data.md#roster-migration-rehearsal) owns migration rehearsal.
+Roster copies are a migration test corpus, not a backup; [Deployment](../deployment.md#backups) owns disaster recovery and [Catalogue data](catalogue/rules-versions.md#roster-migration-rehearsal) owns migration rehearsal.

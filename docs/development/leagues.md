@@ -1,6 +1,6 @@
 # Leagues
 
-Leagues organize registration, sealed rosters, entrant-started battles, and a results table. They do not generate pairings or schedules. `src/core/league.ts` owns decisions, `leagueResults.ts` the results table, `tableShape.ts` formats and minimum places, and `src/server/services/leagueService.ts` application operations. [Interface](interface.md#battles-and-leagues) owns presentation.
+Leagues organize registration, sealed rosters, entrant-started battles, and a results table. They do not generate pairings or schedules. `src/core/league.ts` owns decisions, `leagueResults.ts` the results table, `tableShape.ts` formats and minimum places, and `src/server/services/leagueService.ts` application operations. [Interface](interface/surfaces.md#battles-and-leagues) owns presentation.
 
 ## Events
 

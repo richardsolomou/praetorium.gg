@@ -36,7 +36,7 @@ Shared modules must run in the bundled Hermes runtime; Node or browser support a
 
 ## Saved application data
 
-[Interface](interface.md#saved-application-data) owns snapshot eligibility, lookup, and offline preparation. The shell stores the reference and application bundle in [`offlineReferenceStorage.ts`](../../mobile/src/offlineReferenceStorage.ts), screen data in [`appSnapshotStorage.ts`](../../mobile/src/appSnapshotStorage.ts), and unsynced work in [`localStateStorage.ts`](../../mobile/src/localStateStorage.ts), each behind its capability. Shells without `local-state` keep the connected mutation path.
+[Interface](interface/saved-data.md#saved-application-data) owns snapshot eligibility, lookup, and offline preparation. The shell stores the reference and application bundle in [`offlineReferenceStorage.ts`](../../mobile/src/offlineReferenceStorage.ts), screen data in [`appSnapshotStorage.ts`](../../mobile/src/appSnapshotStorage.ts), and unsynced work in [`localStateStorage.ts`](../../mobile/src/localStateStorage.ts), each behind its capability. Shells without `local-state` keep the connected mutation path.
 
 - Keep files separate by application origin, and never let a signed-out or changed account read another account's queue.
 - Check replacements before discarding previous data, retain a recoverable previous generation, and ignore incomplete writes. Move verified writes to a new filename: Expo overwrite moves delete the destination first.
