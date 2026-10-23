@@ -211,3 +211,128 @@ Sisters of Battle Squad (110 Punkte)
 ◦ 1x Simulacrum Imperialis
 
 Exportiert mit App-Version v2.8.1 (1), Datenversion: v995`
+
+/** New Recruit text from the automatic import failure report on 23 October 2026, New Recruit v37.1, data v2. */
+export const astraMilitarumNewRecruit = `ОШГ W-4R-D34D-X "Доблесні Смертні" (1,000 Points)
+
+Astra Militarum
+Combined Arms (2 Detachment Points)
+Take and Hold
+Incursion (1,000 Points)
+
+ATTACHED UNITS
+
+Attached unit 1
+
+Commissar Yarrick (110 Points)
+• Attached as: Leader (Character)
+• Warlord
+• 1x Bale Eye
+• 1x Laspistol
+• 1x Power klaw
+• 1x Power sword
+• 1x Storm bolter
+
+Primaris Psyker (60 Points)
+• Attached as: Leader (Character)
+• 1x Force weapon
+• 1x Laspistol
+• 1x Psychic maelstrom
+
+Death Korps of Krieg (135 Points)
+• Attached as: Bodyguard (Battleline)
+• 2x Death Korps Watchmaster
+◦ 2x Plasma pistol
+◦ 2x Power weapon
+• 18x Death Korps Trooper
+◦ 18x Close combat weapon
+◦ 2x Death Korps of Krieg Medi-pack
+◦ 14x Lasgun
+◦ 2x Meltagun
+◦ 2x Plasma gun
+◦ 2x Vox-caster
+
+Attached unit 2
+
+Cadian Castellan (55 Points)
+• Attached as: Leader (Character)
+• 1x Plasma pistol
+• 1x Power fist
+
+Kasrkin (105 Points)
+• Attached as: Bodyguard
+• 1x Kasrkin Sergeant
+◦ 1x Plasma pistol
+◦ 1x Power weapon
+• 9x Kasrkin Trooper
+◦ 9x Close combat weapon
+◦ 3x Hot-shot lasgun
+◦ 1x Hot-shot laspistol
+◦ 1x Hot-shot marksman rifle
+◦ 1x Melta mine
+◦ 2x Meltagun
+◦ 2x Plasma gun
+◦ 1x Vox-caster
+
+CHARACTERS
+
+Krieg Command Squad (60 Points)
+• 1x Lord Commissar
+◦ 1x Laspistol
+◦ 1x Plasma pistol
+◦ 1x Power fist
+• 5x Veteran Guardsman
+◦ 1x Alchemyk Counteragents
+◦ 4x Close combat weapon
+◦ 2x Lasgun
+◦ 1x Laspistol
+◦ 1x Master vox
+◦ 1x Plasma gun
+◦ 1x Plasma pistol
+◦ 1x Power weapon
+◦ 1x Regimental standard
+◦ 1x Servo-scribes
+
+DEDICATED TRANSPORTS
+
+Taurox (65 Points)
+• 1x Armoured tracks
+• 1x Storm bolter
+• 1x Twin autocannon
+
+OTHER DATASHEETS
+
+Krieg Combat Engineers (65 Points)
+• 1x Krieg Engineer Watchmaster
+◦ 1x Hand flamer
+◦ 1x Power weapon
+• 4x Krieg Combat Engineer
+◦ 1x Autopistol
+◦ 4x Close combat weapon
+◦ 2x Combat shotgun
+◦ 1x Flamer
+◦ 1x Remote mine
+
+Leman Russ Exterminator (160 Points)
+• 1x Armoured tracks
+• 1x Exterminator autocannon
+• 1x Heavy bolter
+• 2x Heavy bolter
+• 1x Heavy stubber
+• 1x Hunter-killer missile
+
+Leman Russ Vanquisher (130 Points)
+• 1x Armoured tracks
+• 1x Heavy bolter
+• 2x Heavy bolter
+• 1x Heavy stubber
+• 1x Hunter-killer missile
+• 1x Vanquisher battle cannon
+
+Scout Sentinels (55 Points)
+• 1x Close combat weapon
+• 1x Hunter-killer missile
+• 1x Lascannon
+• 1x Sentinel chainsaw
+
+Exported with New Recruit v37.1, Data Version: v2`

@@ -567,17 +567,14 @@ function textRosterPick(
       toggles,
       attachedTo: undefined as number | undefined,
     }
-    return { pick, placed, choices }
+    return { pick, placed }
   }
   const first = pickFrom(built?.selection ?? { id: entryId, count: 1 })
-  // A choice can open another, as a Trygon's Character upgrade opens its enhancements.
+  // Read again from the unit as first picked: a choice can open another, as a Trygon's
+  // Character upgrade opens its enhancements, and a default the list swaps away no longer
+  // accounts for what it states, as a Lord Commissar's power weapon taken for a power fist.
   const opened = buildUnit(entryId, loaded.index, first.pick.models, first.pick.choices, { ...context, spreads: first.pick.spreads })
-  const known = new Set(first.choices.map((choice) => choice.key))
-  const reopened =
-    opened && unitChoices(entryId, opened.selection, loaded.index, context).some((choice) => !known.has(choice.key))
-      ? pickFrom(opened.selection)
-      : null
-  const { pick, placed } = reopened ?? first
+  const { pick, placed } = opened ? pickFrom(opened.selection) : first
   const toggles = pick.toggles
 
   // Only the unit the pick builds says what was kept: an option the datasheet offers can
@@ -620,7 +617,9 @@ function carriedNames(selection: Selection, index: LoadedCatalogue['index']) {
       target.type === 'model'
         ? []
         : (target.profiles ?? []).flatMap((held) => held.name?.replace(/^➤\s*/, '').replace(/\s+-\s+.+$/, '') ?? [])
-    for (const name of [nameOf(definition, index.definitions), target.name, profile, ...weapons]) {
+    // A group holds nothing itself, though it is often named after its default, as a Lord Commissar's "Power Weapon" holds a power fist.
+    const names = target.type === undefined ? [] : [nameOf(definition, index.definitions), target.name, profile, ...weapons]
+    for (const name of names) {
       if (!name) continue
       found.add(withoutArticle(name))
       found.add(withoutArticle(upgradeName(name.replace(modelLoadout, ''))))
@@ -720,6 +719,13 @@ function optionAliases(
       const selection = defaultSelection(option.id, loaded.index, context)
       const names = new Map([option.name, upgradeName(option.name)].map((name) => [normalized(name), 1]))
       for (const [name, count] of selection ? wargearCounts(selection, loaded.index) : []) names.set(name, count)
+      // A loadout also answers to the swaps it holds, as a Watchmaster's plasma pistol is taken through "Laspistol and chainsword".
+      if (!isModel(option.id, loaded.index)) {
+        eachDefinition(option.id, loaded.index, (definition, target) => {
+          if (target.type === undefined) return
+          for (const name of nameVariants(nameOf(definition, loaded.index.definitions))) if (!names.has(name)) names.set(name, 1)
+        })
+      }
       return [option.id, names]
     }),
   )
