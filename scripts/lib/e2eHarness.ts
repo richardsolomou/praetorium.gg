@@ -5,18 +5,27 @@ import { compilerEntries } from './compilerSources.ts'
 import { importClosures } from './moduleGraph.ts'
 
 /**
- * Where browser tests start processes from: the Playwright config, the seed and worker build, the
- * SpacetimeDB module, the catalogue compiler, and the actions CI's browser jobs use.
+ * Where browser tests start processes from: the Playwright config, the app's build and its
+ * plugins, the seed and worker build, the SpacetimeDB module, the catalogue compiler, and the
+ * actions CI's browser jobs use.
  */
-const roots = ['playwright.config.ts', 'vite.seed.config.ts', 'spacetimedb/src/index.ts', '.github/actions', ...compilerEntries]
+const roots = [
+  'playwright.config.ts',
+  'vite.config.ts',
+  'vite.seed.config.ts',
+  'spacetimedb/src/index.ts',
+  '.github/actions',
+  ...compilerEntries,
+]
 const workflow = '.github/workflows/ci.yml'
-const browserJobs = ['browser-build', 'e2e-shard']
+// `changes` chooses the specs, so a change to how it scopes or selects needs every spec.
+const browserJobs = ['changes', 'browser-build', 'e2e-shard']
 
 const modulePath = /\b(?:scripts|src|e2e|spacetimedb)\/[\w./-]+\.(?:ts|tsx|mts|mjs)\b/g
 const workflowPath = /\.github\/workflows\/[\w.-]+\.ya?ml\b/g
 const pnpmScript = /\bpnpm (?:run )?([\w:-]+)/g
 // Scripts spawn their siblings by bare file name, as in `path.join(import.meta.dirname, 'worker.ts')`.
-const siblingPath = /['"`]([\w.-]+\.(?:ts|mts|mjs))['"`]/g
+const siblingPath = /['"`](?:\.\/)?([\w.-]+\.(?:ts|mts|mjs))['"`]/g
 
 function* files(root: string, relative: string): Generator<string> {
   const target = path.join(root, relative)
