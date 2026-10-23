@@ -1,5 +1,6 @@
 import { Fragment, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { Check, MailCheck, ShieldCheck, Trash2 } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useAuthAction } from 'ras-stack/auth/react'
@@ -253,7 +254,12 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
 
       <section className="border border-edge bg-panel p-5 md:p-7 lg:col-span-2">
         <h2 className="rubric border-b border-edge pb-2">Connected apps</h2>
-        <p className="mt-2 text-sm text-dim">Apps you have allowed to read or change your rosters and battles.</p>
+        <p className="mt-2 text-sm text-dim">
+          Apps you have allowed to read or change your rosters and battles.{' '}
+          <Link to="/docs/$docId" params={{ docId: 'connect-an-assistant' }} className="text-info underline-offset-4 hover:underline">
+            Connect Claude, ChatGPT or Gemini
+          </Link>
+        </p>
         {connectionsResult.isPending ? <Skeleton className="mt-4 h-10 w-full" /> : null}
         {connectionsResult.isError ? (
           <Button className="mt-4" variant="outline" onClick={() => void connectionsResult.refetch()}>
