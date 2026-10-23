@@ -1,5 +1,5 @@
 import { groupBy, RecentlyUsed, uniqueBy } from '../core/collections'
-import { admitsHost, attachmentCategoriesOf, attachmentErrors, attachmentLimitsOf, attachmentOf } from '../core/attach'
+import { admitsHost, attachmentCategoriesOf, attachmentErrors, attachmentHost, attachmentLimitsOf, attachmentOf } from '../core/attach'
 import { routeSlug } from '../core/slug'
 import { borrowedDispositionError, detachmentPointBudget, detachmentPointsError, isKotcLimit } from '../core/battle'
 import { type CatalogueIndex, targetOf } from '../core/catalogue'
@@ -589,7 +589,7 @@ function calculateRoster(
   const selfContradictory = new Set(whole.errors.filter((error) => isCatalogueSelfContradiction(error, composedByCatalogue)))
   const pickedSelections = data.units.map((_, key) => picked.find((unit) => unit.key === key)?.selection)
   const pickedIndexByKey = new Map(picked.map((unit, at) => [unit.key, at]))
-  const attachedByHost = groupBy(data.units.keys(), (key) => data.units[key]!.attachedTo ?? key)
+  const attachedByHost = groupBy(data.units.keys(), (key) => attachmentHost(data.units, key))
 
   /*
    * The enhancements an army may hold, which its battle size sets for the whole army
@@ -685,7 +685,7 @@ function calculateRoster(
       const definition = loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }
       const unitSelectionIndex = selectionIndex.get(unit.selection)
       const unitKeywords = keywordNamesOf(unit)
-      const host = data.units[unit.key]?.attachedTo ?? unit.key
+      const host = attachmentHost(data.units, unit.key)
       const companions = (attachedByHost.get(host) ?? []).flatMap((key) => {
         const index = pickedIndexByKey.get(key)
         const companion = index === undefined ? undefined : picked[index]
