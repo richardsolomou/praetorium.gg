@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.179.3
+
+### Patch Changes
+
+- b50724c: Connect an assistant links to Praetorium in Claude's connector directory, gives step-by-step setup for ChatGPT and Gemini, and shows the Connect to Praetorium page; the account docs show Connected apps.
+- 1cb69a0: The simulator link an AI assistant gets from a combat simulation is a full praetorium.gg address, so it opens from the chat.
+- 0071b2a: AI assistants and connector directories show each Praetorium tool by its readable name, such as "List my saved rosters", instead of its internal one.
+
 ## 0.179.2
 
 ### Patch Changes
