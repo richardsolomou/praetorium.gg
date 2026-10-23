@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.179.2
+
+### Patch Changes
+
+- e4ce5d5: The roster editor and faction datasheet lists offer close matches for a misspelt unit name, as global search does.
+- e4ce5d5: The roster editor and faction datasheet lists find units by what their abilities do, as global search does.
+- 430060e: The docs explain what search matches and how to search Praetorium from your browser's address bar.
+
 ## 0.179.1
 
 ### Patch Changes
