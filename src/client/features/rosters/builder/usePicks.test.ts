@@ -424,6 +424,40 @@ describe('unit nicknames and notes', () => {
   })
 })
 
+describe('a unit’s starting transport', () => {
+  function embarked(run: (edit: ReturnType<typeof pickEditor>) => void) {
+    let picks: KeyedPick[] = [
+      { key: 0, entryId: 'rhino', catalogueId: 'imperium' },
+      { key: 1, entryId: 'squad', catalogueId: 'imperium', embarkedIn: 0 },
+    ]
+    const edit = pickEditor(
+      (update) => {
+        picks = typeof update === 'function' ? update(picks) : update
+      },
+      { catalogueId: 'imperium', units: [], limits: new Map([['squad', null]]) },
+      () => 2,
+    )
+    run(edit)
+    return picks
+  }
+
+  it('leaves the unit outside once its transport is deleted', () => {
+    expect(embarked((edit) => edit.drop(0))).toEqual([{ key: 1, entryId: 'squad', catalogueId: 'imperium' }])
+  })
+
+  it('duplicates the unit without its seat in the transport', () => {
+    expect(embarked((edit) => edit.duplicate(1))[2]).not.toHaveProperty('embarkedIn')
+  })
+
+  it('lets go of the transport when the unit joins another', () => {
+    expect(embarked((edit) => edit.join(1, 0))[1]?.embarkedIn).toBeUndefined()
+  })
+
+  it('records and clears the transport', () => {
+    expect(embarked((edit) => edit.embark(1, undefined))[1]?.embarkedIn).toBeUndefined()
+  })
+})
+
 describe('adding a unit to attach', () => {
   function added(limits: Map<string, number | null>, run: (edit: ReturnType<typeof pickEditor>) => void) {
     let picks: KeyedPick[] = [

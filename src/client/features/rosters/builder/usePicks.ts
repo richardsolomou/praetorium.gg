@@ -219,7 +219,7 @@ export function pickEditor(
       })
     },
 
-    /** A copy takes the loadout; the nickname and note name the unit it was copied from. */
+    /** A copy takes the loadout; the nickname, note and transport seat belong to the unit it was copied from. */
     duplicate: (index: number) =>
       insert((current) => {
         const pick = current[index]
@@ -229,7 +229,7 @@ export function pickEditor(
           !canAddCopy(pick.entryId, current.filter((unit) => unit.entryId === pick.entryId).length, context.limits)
         )
           return null
-        const { nickname: _nickname, note: _note, ...copy } = pick
+        const { nickname: _nickname, note: _note, embarkedIn: _embarkedIn, ...copy } = pick
         return { pick: copy, after: index }
       }),
 
@@ -237,7 +237,17 @@ export function pickEditor(
     drop: (index: number) =>
       setPicks((current) => {
         const going = current[index]?.key
-        return current.flatMap((pick, at) => (at === index ? [] : [pick.attachedTo === going ? { ...pick, attachedTo: undefined } : pick]))
+        return current.flatMap((pick, at) => {
+          if (at === index) return []
+          if (pick.attachedTo !== going && pick.embarkedIn !== going) return [pick]
+          return [
+            {
+              ...pick,
+              ...(pick.attachedTo === going ? { attachedTo: undefined } : {}),
+              ...(pick.embarkedIn === going ? { embarkedIn: undefined } : {}),
+            },
+          ]
+        })
       }),
 
     resize: (index: number, step: (models: number) => number) =>
@@ -309,7 +319,12 @@ export function pickEditor(
         }),
       ),
 
-    join: (index: number, targetKey: number | undefined) => editAt(index, (pick) => ({ ...pick, attachedTo: targetKey })),
+    /** A joined unit rides wherever its host does, so its own starting transport is let go. */
+    join: (index: number, targetKey: number | undefined) =>
+      editAt(index, (pick) => ({ ...pick, attachedTo: targetKey, ...(targetKey === undefined ? {} : { embarkedIn: undefined }) })),
+
+    /** The transport the unit starts in, which battle setup checks against the transport's rule. */
+    embark: (index: number, transportKey: number | undefined) => editAt(index, (pick) => ({ ...pick, embarkedIn: transportKey })),
 
     /** An emptied field is removed rather than saved blank. */
     annotate: (index: number, field: 'nickname' | 'note', value: string) =>

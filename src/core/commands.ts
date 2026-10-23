@@ -42,6 +42,7 @@ export const rosterPickSchema = z.object({
   spreads: z.record(z.string().max(400), z.record(z.string().max(64), z.number().int().min(0).max(60))).optional(),
   toggles: z.record(z.string().max(400), z.number().int().min(0).max(1)).optional(),
   attachedTo: z.number().int().min(0).max(99).optional(),
+  embarkedIn: z.number().int().min(0).max(99).optional(),
   nickname: z.string().max(UNIT_NICKNAME_MAX_LENGTH).optional(),
   note: z.string().max(UNIT_NOTE_MAX_LENGTH).optional(),
 })
@@ -214,6 +215,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
                   .max(20)
                   .optional(),
                 attachedTo: id.optional(),
+                startsEmbarkedIn: id.optional(),
                 formationOptions: z.array(z.enum(UNIT_FORMATIONS)).max(4).optional(),
                 prebattleRules: z
                   .array(z.enum(['infiltrators', 'scouts']))

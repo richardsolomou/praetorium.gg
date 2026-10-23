@@ -77,6 +77,13 @@ export function rosterSnapshot(
       return host === undefined ? [] : [[at, host] as const]
     }),
   )
+  // The transport each standalone unit starts in, in the same keys.
+  const transportsByPick = new Map(
+    saved.picks.flatMap((pick, at) => {
+      const transport = pick.attachedTo !== undefined || pick.embarkedIn === undefined ? undefined : keysByPick.get(pick.embarkedIn)
+      return transport === undefined ? [] : [[at, transport] as const]
+    }),
+  )
   const detailsByEntry = new Map(details.map((entry) => [entry.entryId, entry]))
   const pointsBudget = customPointsBudget(saved.limit, saved.pointsBudget)
   return {
@@ -152,6 +159,7 @@ export function rosterSnapshot(
           upgrades: [...unit.upgrades],
           joined: attachmentRows(keyedPicks, unitsByPick, unit.key).map(({ label, name }) => ({ label, name })),
           ...(hostsByPick.has(unit.key) ? { attachedTo: hostsByPick.get(unit.key) } : {}),
+          ...(transportsByPick.has(unit.key) ? { startsEmbarkedIn: transportsByPick.get(unit.key) } : {}),
           formationOptions: [...unit.formationOptions],
           prebattleRules: [...unit.prebattleRules],
           ...(unit.strategicReserveExempt ? { strategicReserveExempt: true } : {}),

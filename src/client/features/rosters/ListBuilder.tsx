@@ -84,6 +84,8 @@ import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
 import { UnitAnnotations } from './builder/UnitAnnotations'
+import { UnitEmbark } from './builder/UnitEmbark'
+import { embarkOptions } from './builder/embarkOptions'
 import { UnitPhoto } from './builder/UnitPhoto'
 import { useDetachmentRules } from './builder/useDetachmentRules'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
@@ -1026,6 +1028,7 @@ export function ListBuilder({
   const loadoutAvailable = !frozen || picks.length > 0
   const selectedPick = selected === null ? null : (picks[selected] ?? null)
   const selectedUnitLoading = selected !== null && !selectedUnit
+  const selectedTransports = useMemo(() => (selected === null ? null : embarkOptions(picks, units, selected)), [picks, selected, units])
   const evaluatedPick = selectedPick ? (evaluatedPicks.current.get(selectedPick.key) ?? null) : null
   const loadoutConstraintsPending = Boolean(
     selectedUnit && selectedPick?.models !== undefined && selectedPick.models !== selectedUnit.size.models,
@@ -1119,11 +1122,20 @@ export function ListBuilder({
       reminders={building && selected !== null ? reminderControls : undefined}
       header={
         building && selected !== null && selectedPick ? (
-          <UnitAnnotations
-            nickname={selectedPick.nickname}
-            note={selectedPick.note}
-            onChange={(field, value) => edit.annotate(selected, field, value)}
-          />
+          <>
+            <UnitAnnotations
+              nickname={selectedPick.nickname}
+              note={selectedPick.note}
+              onChange={(field, value) => edit.annotate(selected, field, value)}
+            />
+            {selectedTransports?.length ? (
+              <UnitEmbark
+                transports={selectedTransports}
+                value={selectedPick.embarkedIn}
+                onChange={(transportKey) => edit.embark(selected, transportKey)}
+              />
+            ) : null}
+          </>
         ) : undefined
       }
       footer={optimisticUnit ? <UnitPhoto entryId={optimisticUnit.entryId} name={optimisticUnit.name} /> : undefined}
@@ -1181,7 +1193,7 @@ export function ListBuilder({
   const openCombat = (pickIndex: number, compare: boolean) => {
     if (simulatorSource && !compare) {
       const host = positioned[pickIndex]?.attachedTo ?? pickIndex
-      const { attachedTo: _attachedTo, note: _note, ...pick } = positioned[host]!
+      const { attachedTo: _attachedTo, embarkedIn: _embarkedIn, note: _note, ...pick } = positioned[host]!
       void navigate({ to: '/simulator', search: { s: rosterMatchup(catalogueId, pick, simulatorSource, host) } })
       return
     }

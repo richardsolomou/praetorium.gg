@@ -161,6 +161,11 @@ type SubmittedUnit = {
    * as an army of units standing alone.
    */
   attachedTo?: string
+  /**
+   * The transport, by key, the saved list starts this unit in. Attaching the list
+   * embarks it when the transport can carry it, and setup can still change it.
+   */
+  startsEmbarkedIn?: string
   formationOptions?: UnitFormation[]
   prebattleRules?: ('infiltrators' | 'scouts')[]
   /** A selected rule says this unit's points do not count towards the starting reserve limit. */
@@ -320,6 +325,21 @@ function changedFormation(unit: UnitState, formation: UnitFormation, redeployed 
     embarkedIn: formation === 'embarked' ? transportKey : undefined,
     deployed: formation === 'battlefield',
     postDeploymentReserve: startsInStrategicReserves(formation) && (redeployed || (remainsInReserves && unit.postDeploymentReserve)),
+  }
+}
+
+/**
+ * Each embark the saved list chose, judged as a setup press would be. A choice the
+ * frozen list or the transport rule no longer allows is left out, not refused, so the
+ * unit starts on the battlefield and the list still attaches.
+ */
+function embarkAsListed(state: BattleState, player: PlayerState): void {
+  for (const unit of player.units) {
+    const transportKey = unit.startsEmbarkedIn
+    if (!transportKey || unit.attachedTo || unitFormationRefusal(state, player, { unitKey: unit.key, formation: 'embarked', transportKey }))
+      continue
+    for (const moving of attachedUnits(player.units, unit.key))
+      Object.assign(moving, changedFormation(moving, 'embarked', false, transportKey))
   }
 }
 
@@ -1925,6 +1945,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
         state.deploymentId = null
         state.settings.terrainLayoutId = null
         inferBattleSize(state)
+        embarkAsListed(state, player)
       }
       return
     }

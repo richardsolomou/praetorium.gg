@@ -23,11 +23,11 @@ const pickIndexSchema = z.int().min(0).max(500)
 
 const sideSchema = z.object({
   catalogueId: idSchema,
-  pick: rosterPickSchema.omit({ attachedTo: true }),
+  pick: rosterPickSchema.omit({ attachedTo: true, embarkedIn: true }),
   rules: z.record(key, z.int().min(0).max(20)),
   preferences: weaponPreferencesSchema.optional(),
   attached: z
-    .array(rosterPickSchema.omit({ attachedTo: true }))
+    .array(rosterPickSchema.omit({ attachedTo: true, embarkedIn: true }))
     .max(7)
     .optional(),
   /** A unit from a saved roster or a revealed league list, simulated with its detachment, enhancements, and attachments. */

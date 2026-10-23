@@ -320,6 +320,50 @@ it('freezes the unit a character joined into a roster snapshot', () => {
   expect(roster.built?.units[1]?.attachedTo).toBe(roster.built?.units[0]?.key)
 })
 
+it('freezes the transport a unit starts in, but not one chosen for a joined character', () => {
+  const unit = {
+    points: 80,
+    toggles: [],
+    size: { models: 5, resizable: false },
+    attachment: null,
+    wargear: [],
+    enhancements: [],
+    upgrades: [],
+    formationOptions: [] as const,
+    prebattleRules: [] as const,
+  }
+  const roster = rosterSnapshot(
+    {
+      id: 'roster',
+      name: 'Army',
+      catalogueId: 'catalogue',
+      detachmentIds: [],
+      disposition: null,
+      limit: 2_000,
+      waivedRules: [],
+      picks: [{ entryId: 'rhino' }, { entryId: 'marines', embarkedIn: 0 }, { entryId: 'lord', attachedTo: 1, embarkedIn: 0 }],
+    },
+    {
+      points: 240,
+      revision: 'revision',
+      label: 'GTF 2K',
+      detachment: null,
+      detachments: [],
+      detachmentPointBudget: null,
+      disposition: null,
+      dispositions: [],
+      units: [
+        { ...unit, key: 0, entryId: 'rhino', name: 'Rhino', group: 'transport', transport: true },
+        { ...unit, key: 1, entryId: 'marines', name: 'Plague Marines', group: 'battleline' },
+        { ...unit, key: 2, entryId: 'lord', name: 'Lord of Contagion', group: 'character' },
+      ],
+    },
+    [],
+  )
+
+  expect(roster.built?.units.map((frozen) => frozen.startsEmbarkedIn)).toEqual([undefined, roster.built?.units[0]?.key, undefined])
+})
+
 it('leaves a character the list joined to nothing unattached', () => {
   const roster = rosterSnapshot(
     {

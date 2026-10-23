@@ -231,6 +231,53 @@ describe('battle management', () => {
     )
   })
 
+  it('starts units in the transports their saved list chose, leaving out one that no longer fits', () => {
+    const armyRoster = builtRoster('Ultramarines', ['Intercessors', 'Scouts', 'Rhino'], { models: 5 })
+    if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
+    const [intercessors, scouts, rhino] = armyRoster.roster.built.units
+    rhino!.transport = true
+    rhino!.transportRule = 'This model has a transport capacity of 8 INFANTRY models.'
+    intercessors!.startsEmbarkedIn = 'u2'
+    scouts!.startsEmbarkedIn = 'u2'
+    const state = reduceBattle(PLAYERS, log([ALICE, armyRoster]))
+
+    expect(state.players[0]?.units.map((unit) => [unit.formation, unit.embarkedIn])).toEqual([
+      ['embarked', 'u2'],
+      ['battlefield', undefined],
+      ['battlefield', undefined],
+    ])
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'battlefield' })).toBeNull()
+  })
+
+  it('starts a joined character in the transport its bodyguard’s list chose', () => {
+    const armyRoster = attachedRoster()
+    if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
+    armyRoster.roster.built.units[0]!.startsEmbarkedIn = 'u2'
+    armyRoster.roster.built.units.push({
+      key: 'u2',
+      name: 'Rhino',
+      points: 100,
+      models: 1,
+      transport: true,
+      transportRule: 'This model has a transport capacity of 12 INFANTRY models.',
+    })
+
+    expect(reduceBattle(PLAYERS, log([ALICE, armyRoster])).players[0]?.units.map((unit) => unit.embarkedIn)).toEqual([
+      'u2',
+      'u2',
+      undefined,
+    ])
+  })
+
+  it('attaches a list whose chosen transport is missing, with the unit on the battlefield', () => {
+    const armyRoster = builtRoster('Ultramarines', ['Intercessors'])
+    if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
+    armyRoster.roster.built.units[0]!.startsEmbarkedIn = 'u9'
+
+    expect(validate(reduceBattle(PLAYERS, log()), ALICE, armyRoster)).toBeNull()
+    expect(reduceBattle(PLAYERS, log([ALICE, armyRoster])).players[0]?.units[0]).toMatchObject({ formation: 'battlefield' })
+  })
+
   it('rejects boarding above a transport’s selected loadout capacity', () => {
     const armyRoster = builtRoster('Orks', ['Boyz', 'Battlewagon'], { models: 16 })
     if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')

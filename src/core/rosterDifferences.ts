@@ -22,7 +22,7 @@ export type RosterDifferences = {
   detachments: { added: string[]; removed: string[]; replaced: boolean }
   added: RosterUnitChange[]
   removed: RosterUnitChange[]
-  /** Units of one datasheet on both sides whose models, wargear, Warlord or attachment differ. */
+  /** Units of one datasheet on both sides whose models, wargear, Warlord, attachment or starting transport differ. */
   loadouts: number
 }
 
@@ -32,11 +32,12 @@ const sameSet = (left: readonly string[] = [], right: readonly string[] = []) =>
 /** Units grouped by datasheet, each keyed by everything a player chose for it. */
 function unitsOf(picks: readonly RosterPick[]) {
   const datasheets = new Map<string, { unit: RosterUnitChange; keys: string[] }>()
-  for (const { attachedTo, ...pick } of picks) {
+  for (const { attachedTo, embarkedIn, ...pick } of picks) {
     const identity = `${pick.catalogueId ?? ''}:${pick.entryId}`
-    // A position shifts whenever an earlier unit is added or removed, so a joined unit is compared by what it joins.
+    // A position shifts whenever an earlier unit is added or removed, so a joined or embarked unit is compared by what it joins or rides in.
     const joins = attachedTo === undefined ? null : (picks[attachedTo]?.entryId ?? null)
-    const key = canonicalJson({ ...pick, joins })
+    const rides = embarkedIn === undefined ? null : (picks[embarkedIn]?.entryId ?? null)
+    const key = canonicalJson({ ...pick, joins, ...(rides === null ? {} : { rides }) })
     const group = datasheets.get(identity)
     if (group) group.keys.push(key)
     else datasheets.set(identity, { unit: { entryId: pick.entryId, catalogueId: pick.catalogueId, count: 0 }, keys: [key] })

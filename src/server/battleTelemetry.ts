@@ -20,6 +20,10 @@ export async function captureBattleCommand(
     outcome: result.outcome,
     ...(result.outcome === 'refused' ? { reason: result.code } : {}),
     ...(command.kind === 'set-setup-step' ? { setup_step: command.step } : {}),
+    ...(command.kind === 'set-unit-formation' ? { formation: command.formation } : {}),
+    ...(command.kind === 'attach-roster'
+      ? { listed_embark_count: command.roster.built?.units.filter((unit) => unit.startsEmbarkedIn).length ?? 0 }
+      : {}),
     duration_ms: Math.round(duration),
     delivery,
   })

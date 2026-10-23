@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RosterPick } from '../../../core/roster'
 import { picksAfterDetachmentChange } from '../../../core/rosterSetup'
+import { normalisePicks, positionedAnnotatedPicks } from './rosterPicks'
 
 describe('changing roster detachments', () => {
   const picks: RosterPick[] = [
@@ -53,4 +54,19 @@ it('keeps allied selections and attachments when shrinking removes a detachment'
     { entryId: 'captain', attachedTo: 1, choices: { weapon: 'sword' } },
     { entryId: 'ally', catalogueId: 'allies', models: 3 },
   ])
+})
+
+describe('a starting transport in the saved list', () => {
+  const picks = [
+    { key: 4, entryId: 'squad', embarkedIn: 7 },
+    { key: 7, entryId: 'rhino' },
+  ]
+
+  it('is saved as the transport’s position', () => {
+    expect(positionedAnnotatedPicks(picks)[0]?.embarkedIn).toBe(1)
+  })
+
+  it('is left out of what a price reads', () => {
+    expect(normalisePicks(picks)[0]).not.toHaveProperty('embarkedIn')
+  })
 })
