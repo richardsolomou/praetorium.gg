@@ -189,6 +189,41 @@ describe('a character that can join a unit', () => {
     ])
   })
 
+  const inquisitorAndScions = () =>
+    indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'inquisitor',
+          name: 'Inquisitor',
+          type: 'model',
+          profiles: [ability('Leader', 'This model can be attached to the following units: IMPERIUM BATTLELINE INFANTRY')],
+        },
+        { id: 'scions', name: 'Tempestus Scions', type: 'unit' },
+      ],
+    })
+
+  it('joins a unit that holds the named keywords in this list', () => {
+    expect(
+      attachmentErrors(
+        [{ entryId: 'inquisitor', attachedTo: 1 }, { entryId: 'scions' }],
+        inquisitorAndScions(),
+        [],
+        [[], ['Faction: Imperium', 'Battleline', 'Infantry']],
+      ),
+    ).toEqual([])
+  })
+
+  it('refuses a unit missing one of the named keywords in this list', () => {
+    expect(
+      attachmentErrors(
+        [{ entryId: 'inquisitor', attachedTo: 1 }, { entryId: 'scions' }],
+        inquisitorAndScions(),
+        [],
+        [[], ['Imperium', 'Infantry']],
+      ),
+    ).toEqual([{ entryId: 'inquisitor', entryName: 'Inquisitor', message: 'cannot be attached to Tempestus Scions' }])
+  })
+
   it('reads an ability the entry links to rather than holds', () => {
     const index = indexOf({
       sharedInfoGroups: [
@@ -295,6 +330,56 @@ describe('a character that can join a unit', () => {
       'IMMORTALS',
       'Lokhust Heavy Destroyers',
     ])
+  })
+
+  describe('through an association named after its own ability', () => {
+    const indexWithJoin = (min: number) =>
+      indexOf({
+        categoryEntries: [{ id: 'command-squad-category', name: 'Command Squad' }],
+        sharedSelectionEntries: [
+          {
+            id: 'ogryn-bodyguard',
+            name: 'Ogryn Bodyguard',
+            type: 'model',
+            associations: [
+              {
+                name: 'Loyal Protector',
+                childId: 'unit',
+                action: 'group',
+                min,
+                conditionGroups: [
+                  {
+                    type: 'or',
+                    conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'self', childId: 'command-squad-category' }],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            id: 'cadian-command-squad',
+            name: 'Cadian Command Squad',
+            type: 'unit',
+            categoryLinks: [{ id: 'command-link', name: 'Command Squad', targetId: 'command-squad-category' }],
+          },
+        ],
+        entryLinks: [{ id: 'command-squad-link', name: 'Cadian Command Squad', type: 'selectionEntry', targetId: 'cadian-command-squad' }],
+      })
+
+    it('supports the matching units when the join is required', () => {
+      const index = indexWithJoin(1)
+
+      expect(attachmentOf(index.definitions.get('ogryn-bodyguard')!, index, { id: 'ogryn-bodyguard' })).toEqual({
+        kind: 'support',
+        targets: ['Cadian Command Squad'],
+      })
+    })
+
+    it('stays unattachable when the join is optional', () => {
+      const index = indexWithJoin(0)
+
+      expect(attachmentOf(index.definitions.get('ogryn-bodyguard')!, index, { id: 'ogryn-bodyguard' })).toBeNull()
+    })
   })
 
   it('does not broaden substitutions limited to a named kind of character', () => {

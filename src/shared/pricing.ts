@@ -1,5 +1,5 @@
 import { groupBy, RecentlyUsed, uniqueBy } from '../core/collections'
-import { attachmentCategoriesOf, attachmentErrors, attachmentLimitsOf, attachmentOf } from '../core/attach'
+import { admitsHost, attachmentCategoriesOf, attachmentErrors, attachmentLimitsOf, attachmentOf } from '../core/attach'
 import { routeSlug } from '../core/slug'
 import { borrowedDispositionError, detachmentPointBudget, detachmentPointsError, isKotcLimit } from '../core/battle'
 import { type CatalogueIndex, targetOf } from '../core/catalogue'
@@ -9,7 +9,7 @@ import {
   enhancementLimit,
   evaluate,
   evaluateForces,
-  keywordIdsBySelection,
+  keywordsBySelection,
   type Selection,
 } from '../core/evaluate'
 import { type ModelKind, modelKindsOf, modelRowSources, choiceOptionWargear, ownChoiceOptionWargear } from '../core/modelKinds'
@@ -26,7 +26,7 @@ import { describedEnhancements } from './catalogueDescriptions'
 import { descriptionKey } from './datacards'
 import { factionDisplayName } from './factionNames'
 import { detachmentNamed } from './factionReferences'
-import { contextualUnitLimit, groupOfEntry, unitsIn } from './cataloguePicker'
+import { contextualUnitLimit, groupOfEntry, shelfOfCategory, unitsIn } from './cataloguePicker'
 import { isDetachmentWrapperLimit, rosterDetachments } from './rosterDetachments'
 import { detachmentPoints } from './detachmentPoints'
 import { mfmUnitFor, unitPointAdjustment } from './unitPoints'
@@ -503,16 +503,26 @@ function calculateRoster(
   const forces = [...forceSelections.values()]
   const selections = forces.flat()
   const selectionIndex = new Map(selections.map((selection, at) => [selection, at]))
-  const keywordIdsByCatalogue = new Map<string, string[][]>()
-  const keywordMatrixFor = (catalogueId: string) => {
-    let keywords = keywordIdsByCatalogue.get(catalogueId)
+  const keywordsByCatalogue = new Map<string, ReturnType<typeof keywordsBySelection>>()
+  const rosterKeywordsFor = (catalogueId: string) => {
+    let keywords = keywordsByCatalogue.get(catalogueId)
     if (!keywords) {
-      keywords = keywordIdsBySelection(selections, loaded.index, { primaryCatalogueId: catalogueId })
-      keywordIdsByCatalogue.set(catalogueId, keywords)
+      keywords = keywordsBySelection(selections, loaded.index, { primaryCatalogueId: catalogueId })
+      keywordsByCatalogue.set(catalogueId, keywords)
     }
     return keywords
   }
-  const keywordsFor = (catalogueId: string, at: number) => keywordMatrixFor(catalogueId)[at] ?? []
+  const keywordMatrixFor = (catalogueId: string) => rosterKeywordsFor(catalogueId).map(({ keywords }) => keywords)
+  const keywordsFor = (catalogueId: string, at: number) => rosterKeywordsFor(catalogueId)[at]?.keywords ?? []
+  const catalogueOfUnit = (unit: (typeof picked)[number]) =>
+    data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+  const keywordNamesOf = (unit: (typeof picked)[number]) => {
+    const at = selectionIndex.get(unit.selection)
+    return (at === undefined ? [] : keywordsFor(catalogueOfUnit(unit), at)).flatMap((id) => {
+      const category = loaded.index.categories.get(id)
+      return category?.hidden || !category?.name ? [] : [category.name.replace(/^Faction:\s*/iu, '')]
+    })
+  }
   // Model kinds are the dear part of a unit's projection, and the price reads them
   // twice: once to find units the catalogue composes itself, and once to draw each
   // unit's card. Project each built unit once and keep the result with it.
@@ -593,7 +603,15 @@ function calculateRoster(
   const reported = [
     ...savedSelectionErrors(data, picked, loaded),
     ...whole.errors.filter((error) => !isDetachmentWrapperLimit(error, chosen.length) && !selfContradictory.has(error)),
-    ...attachmentErrors(data.units, loaded.index, pickedSelections),
+    ...attachmentErrors(
+      data.units,
+      loaded.index,
+      pickedSelections,
+      data.units.map((_, key) => {
+        const unit = picked.find((candidate) => candidate.key === key)
+        return unit ? keywordNamesOf(unit) : undefined
+      }),
+    ),
     ...factionRestrictionViolations(restrictions, constructionUnits),
     ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, constructionUnits, data.limit, data.waivedRules) : []),
     ...(enhancementsAllowed !== null && enhancementsHeld > enhancementsAllowed
@@ -664,14 +682,11 @@ function calculateRoster(
     ],
     selections,
     units: picked.map((unit) => {
-      const catalogueId = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+      const catalogueId = catalogueOfUnit(unit)
       const mfmUnit = mfmUnitFor(loaded, data.units[unit.key]?.catalogueId ?? data.catalogueId, unit.entryId)
       const definition = loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }
       const unitSelectionIndex = selectionIndex.get(unit.selection)
-      const keywordNames = (unitSelectionIndex === undefined ? [] : keywordsFor(catalogueId, unitSelectionIndex)).flatMap((id) => {
-        const category = loaded.index.categories.get(id)
-        return category?.hidden || !category?.name ? [] : [category.name.replace(/^Faction:\s*/iu, '')]
-      })
+      const keywordNames = keywordNamesOf(unit)
       const host = data.units[unit.key]?.attachedTo ?? unit.key
       const companions = (attachedByHost.get(host) ?? []).flatMap((key) => {
         const index = pickedIndexByKey.get(key)
@@ -747,6 +762,13 @@ function calculateRoster(
         attachment = attachmentOf(definition, loaded.index, unit.selection)
         builtAttachments.set(unit.source, attachment)
       }
+      const listed = attachment
+      const hosts = listed?.keywords
+        ? picked.filter((other) => other !== unit && admitsHost(listed, other.name, keywordNamesOf(other))).map((other) => other.name)
+        : []
+      const shelf = (unitSelectionIndex === undefined ? [] : (rosterKeywordsFor(catalogueId)[unitSelectionIndex]?.primaries ?? []))
+        .map((id) => shelfOfCategory(loaded.index.categories.get(id)?.name))
+        .find(Boolean)
       return {
         key: unit.key,
         entryId: unit.entryId,
@@ -768,8 +790,8 @@ function calculateRoster(
         enhancements: selectedEnhancements,
         upgrades,
         wargear: wargear.filter((piece) => !specialSelections.has(routeSlug(piece.name)) || specialWargear.has(routeSlug(piece.name))),
-        group: groupOfEntry(loaded.index, unit.entryId),
-        attachment,
+        group: shelf ?? groupOfEntry(loaded.index, unit.entryId),
+        attachment: listed && hosts.length ? { ...listed, targets: uniqueNames([...listed.targets, ...hosts]) } : listed,
         attachmentLimits: attachmentLimitsOf(definition, loaded.index),
         attachmentCategories: attachment ? attachmentCategoriesOf(definition, loaded.index) : [],
       }
