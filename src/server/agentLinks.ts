@@ -4,7 +4,7 @@ export function absoluteAgentLinks<T>(value: T, origin: string): T {
   return Object.fromEntries(
     Object.entries(value).map(([key, entry]) => [
       key,
-      (key === 'url' || key === 'canonicalUrl') && typeof entry === 'string' && entry.startsWith('/') && !entry.startsWith('//')
+      (key === 'url' || key.endsWith('Url')) && typeof entry === 'string' && entry.startsWith('/') && !entry.startsWith('//')
         ? new URL(entry, origin).href
         : absoluteAgentLinks(entry, origin),
     ]),
