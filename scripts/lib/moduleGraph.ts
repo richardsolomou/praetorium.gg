@@ -19,6 +19,8 @@ export async function importClosures(directory: string, entries: readonly string
     root,
     // The repository's one path alias, from `tsconfig.json`; an import nothing resolves fails the build.
     resolve: { alias: [{ find: /^@\//, replacement: `${path.join(root, 'src')}/` }] },
+    // Only import edges matter, so no tsconfig is read; some extend packages CI may not have installed.
+    oxc: false,
     plugins: [
       {
         name: 'import-closures',
@@ -39,6 +41,7 @@ export async function importClosures(directory: string, entries: readonly string
         input: entries.map((entry) => path.join(root, entry)),
         // Only the import edges matter, not whether the bundle would link.
         shimMissingExports: true,
+        tsconfig: false,
         // A bare specifier is a package; everything else resolves inside the repository.
         external: (id) => !/^[./\0]|^@\//.test(id) && !id.startsWith(root),
       },
