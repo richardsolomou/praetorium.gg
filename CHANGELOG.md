@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.180.0
+
+### Minor Changes
+
+- 7c6579e: Every battle is public: the Battle privacy setting is gone, and anyone can find and watch a battle.
+- 7c6579e: Every collection is public: the Show collection on profile setting is gone.
+- 7c6579e: The Text size setting is gone; use your browser or device zoom to read larger.
+
+### Patch Changes
+
+- 7c6579e: Account settings show sign-in methods and two-factor authentication in one panel, and connected assistants such as Claude, ChatGPT, Codex and Gemini with their logos.
+
 ## 0.179.5
 
 ### Patch Changes
