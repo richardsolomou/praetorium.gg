@@ -145,10 +145,11 @@ function attachmentFromAssociations(definition: Definition, selection: Selection
   return { kind: found[0]!.kind, targets: uniqueNormalizedNames(found.flatMap((attachment) => attachment.targets)) }
 }
 
+/** A required join under its own name (Loyal Protector) acts as a Support unit; optional retinue joins depend on who leads the host, which this does not model. */
 const associationKind = (association: Association): Attachment['kind'] | null => {
   const name = association.name?.trim().toLowerCase()
   if (name === 'leading') return 'leader'
-  if (name === 'supporting') return 'support'
+  if (name === 'supporting' || (association.min ?? 0) >= 1) return 'support'
   return null
 }
 

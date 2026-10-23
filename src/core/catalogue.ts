@@ -165,6 +165,7 @@ export type Association = {
   name?: string
   childId?: string
   action?: string
+  min?: number
   conditions?: Condition[]
   conditionGroups?: ConditionGroup[]
 }

@@ -297,6 +297,56 @@ describe('a character that can join a unit', () => {
     ])
   })
 
+  describe('through an association named after its own ability', () => {
+    const indexWithJoin = (min: number) =>
+      indexOf({
+        categoryEntries: [{ id: 'command-squad-category', name: 'Command Squad' }],
+        sharedSelectionEntries: [
+          {
+            id: 'ogryn-bodyguard',
+            name: 'Ogryn Bodyguard',
+            type: 'model',
+            associations: [
+              {
+                name: 'Loyal Protector',
+                childId: 'unit',
+                action: 'group',
+                min,
+                conditionGroups: [
+                  {
+                    type: 'or',
+                    conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'self', childId: 'command-squad-category' }],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            id: 'cadian-command-squad',
+            name: 'Cadian Command Squad',
+            type: 'unit',
+            categoryLinks: [{ id: 'command-link', name: 'Command Squad', targetId: 'command-squad-category' }],
+          },
+        ],
+        entryLinks: [{ id: 'command-squad-link', name: 'Cadian Command Squad', type: 'selectionEntry', targetId: 'cadian-command-squad' }],
+      })
+
+    it('supports the matching units when the join is required', () => {
+      const index = indexWithJoin(1)
+
+      expect(attachmentOf(index.definitions.get('ogryn-bodyguard')!, index, { id: 'ogryn-bodyguard' })).toEqual({
+        kind: 'support',
+        targets: ['Cadian Command Squad'],
+      })
+    })
+
+    it('stays unattachable when the join is optional', () => {
+      const index = indexWithJoin(0)
+
+      expect(attachmentOf(index.definitions.get('ogryn-bodyguard')!, index, { id: 'ogryn-bodyguard' })).toBeNull()
+    })
+  })
+
   it('does not broaden substitutions limited to a named kind of character', () => {
     const index = indexOf({
       sharedSelectionEntries: [
