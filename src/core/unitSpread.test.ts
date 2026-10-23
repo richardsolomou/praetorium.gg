@@ -918,11 +918,13 @@ describe('a specialist armed by a choice and counted by a spread', () => {
 describe('a specialist that takes the place of a squadmate', () => {
   // Sanctifiers: a Sanctifier may swap his hand flamer for the simulacrum imperialis or a
   // second hand flamer, and the data says so by lowering the hand-flamer Sanctifiers' limits.
-  const swapped = (limit: string) => ({
+  // Skitarii Rangers write the same thing as a group of specialists beside the squadmates,
+  // lowering their limits by whatever that group holds.
+  const swapped = (limit: string, counted: readonly string[]) => ({
     type: 'decrement' as const,
     field: limit,
     value: 1,
-    repeats: ['simulacrum', 'two-flamers'].map((childId) => ({
+    repeats: counted.map((childId) => ({
       childId,
       field: 'selections',
       scope: 'sanctifiers',
@@ -934,7 +936,7 @@ describe('a specialist that takes the place of a squadmate', () => {
   const armed = (id: string, weapon: string) => [
     { id: `${id}-${weapon}`, name: weapon, type: 'upgrade' as const, constraints: mandatory(`${id}-${weapon}-min`) },
   ]
-  const models = [
+  const squadmates = (counted: readonly string[]) => [
     {
       id: 'missionary',
       name: 'Missionary',
@@ -952,20 +954,22 @@ describe('a specialist that takes the place of a squadmate', () => {
         { id: 'flamers-min', type: 'min' as const, value: 4, field: 'selections', scope: 'parent' },
         { id: 'flamers-max', type: 'max' as const, value: 4, field: 'selections', scope: 'parent' },
       ],
-      modifiers: [swapped('flamers-min'), swapped('flamers-max')],
+      modifiers: [swapped('flamers-min', counted), swapped('flamers-max', counted)],
       selectionEntries: armed('flamers', 'Hand flamer'),
     },
-    ...[
-      ['simulacrum', 'Sanctifier w/ simulacrum imperialis', 'Simulacrum imperialis'],
-      ['two-flamers', 'Sanctifier w/ two hand flamers', 'Two hand flamers'],
-    ].map(([id, name, weapon]) => ({
-      id: id!,
-      name: name!,
-      type: 'model' as const,
-      constraints: [{ id: `${id}-max`, type: 'max' as const, value: 1, field: 'selections', scope: 'parent' }],
-      selectionEntries: armed(id!, weapon!),
-    })),
   ]
+  const [simulacrum, twoFlamers, censer] = [
+    ['simulacrum', 'Sanctifier w/ simulacrum imperialis', 'Simulacrum imperialis'],
+    ['two-flamers', 'Sanctifier w/ two hand flamers', 'Two hand flamers'],
+    ['censer', 'Sanctifier w/ censer', 'Censer'],
+  ].map(([id, name, weapon]) => ({
+    id: id!,
+    name: name!,
+    type: 'model' as const,
+    constraints: [{ id: `${id}-max`, type: 'max' as const, value: 1, field: 'selections', scope: 'parent' }],
+    selectionEntries: armed(id!, weapon!),
+  }))
+  const models = [...squadmates(['simulacrum', 'two-flamers']), simulacrum!, twoFlamers!]
   const shapes = {
     'on the datasheet': indexOf({
       sharedSelectionEntries: [{ id: 'sanctifiers', name: 'Sanctifiers', type: 'unit', selectionEntries: models }],
@@ -977,6 +981,31 @@ describe('a specialist that takes the place of a squadmate', () => {
           name: 'Sanctifiers',
           type: 'unit',
           selectionEntryGroups: [{ id: 'squad', name: 'Sanctifiers', selectionEntries: models }],
+        },
+      ],
+    }),
+    'in a group beside the squad': indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'sanctifiers',
+          name: 'Sanctifiers',
+          type: 'unit',
+          selectionEntries: squadmates(['specialists']),
+          selectionEntryGroups: [
+            {
+              id: 'specialists',
+              name: 'Sanctifier options',
+              selectionEntries: [simulacrum!, twoFlamers!],
+              selectionEntryGroups: [
+                {
+                  id: 'either',
+                  name: 'Either',
+                  constraints: [{ id: 'either-max', type: 'max' as const, value: 1, field: 'selections', scope: 'parent' }],
+                  selectionEntries: [censer!],
+                },
+              ],
+            },
+          ],
         },
       ],
     }),
@@ -1025,6 +1054,16 @@ describe('a specialist that takes the place of a squadmate', () => {
 
   it.each(Object.entries(shapes))('keeps the squad a fixed size once a specialist is taken %s', (_shape, index) => {
     expect(taking(index, 'simulacrum').size).toMatchObject({ min: 5, max: 5 })
+  })
+
+  it('takes the place of a squadmate from a group nested beside the squad', () => {
+    const index = shapes['in a group beside the squad']
+    expect(wargearOf(taking(index, 'simulacrum', 'censer').selection, index)).toContainEqual({ name: 'Hand flamer', count: 2 })
+  })
+
+  it('offers every specialist in a group beside the squad at once', () => {
+    const choice = buildUnit('sanctifiers', shapes['in a group beside the squad'])!.choices.find((each) => each.key === 'specialists')
+    expect(choice?.room).toBe(2)
   })
 })
 

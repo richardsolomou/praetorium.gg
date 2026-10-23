@@ -444,17 +444,9 @@ function keepingAFullGroup(before: Selection, after: Selection, path: readonly s
  * given the simulacrum imperialis lowers the hand-flamer Sanctifiers', so the body moves
  * between them and the squad keeps its size.
  */
-function keepingReplacedSquadmates(before: Selection, after: Selection, groupPath: readonly string[], index: CatalogueIndex): Selection {
-  const held = at(after, groupPath)
-  const holder = held && index.definitions.get(held.id)
-  if (!holder) return after
-  const offered = childrenOf(resolve(holder, index), index)
-  const replacing = offered.some(
-    (option) =>
-      countAt(before, [...groupPath, option.id]) !== countAt(after, [...groupPath, option.id]) &&
-      replacesSquadmate(option.definition, offered, index),
-  )
-  if (!replacing) return after
+function keepingReplacedSquadmates(before: Selection, after: Selection, path: readonly string[], index: CatalogueIndex): Selection {
+  const groupPath = replacedSquadmatesPath(before, after, path, index)
+  if (!groupPath) return after
   const fielded = (tree: Selection) => {
     const group = at(tree, groupPath)
     return group ? modelCountOf(group, index) : 0
@@ -464,6 +456,30 @@ function keepingReplacedSquadmates(before: Selection, after: Selection, groupPat
   if (grew > 0) return spendBodies(after, groupPath, '', grew, index, (giver) => bounds(giver)?.maximum ?? giver.count ?? 1)
   if (grew < 0) return refundBodies(after, groupPath, '', -grew, index, (taker) => bounds(taker)?.minimum ?? 0)
   return after
+}
+
+/**
+ * Where the squadmates a changed specialist replaces stand: beside it in its group, or
+ * beside an enclosing group whose selections lower their limits, as a Skitarii Rangers'
+ * options group stands beside the galvanic-rifle Rangers.
+ */
+function replacedSquadmatesPath(before: Selection, after: Selection, path: readonly string[], index: CatalogueIndex) {
+  const holder = index.definitions.get(at(after, path)?.id ?? '')
+  if (!holder) return null
+  const offered = childrenOf(resolve(holder, index), index)
+  const replacing = offered.some(
+    (option) =>
+      countAt(before, [...path, option.id]) !== countAt(after, [...path, option.id]) &&
+      replacesSquadmate(option.definition, offered, index),
+  )
+  if (replacing) return path
+  for (let depth = path.length - 1; depth >= 0; depth--) {
+    const group = index.definitions.get(path[depth]!)
+    const parent = index.definitions.get(at(after, path.slice(0, depth))?.id ?? '')
+    if (!group || !parent || resolve(group, index).type !== undefined) return null
+    if (replacesSquadmate(group, childrenOf(resolve(parent, index), index), index)) return path.slice(0, depth)
+  }
+  return null
 }
 
 /**
