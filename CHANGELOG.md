@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.183.1
+
+### Patch Changes
+
+- a0579d7: The combat simulator accepts an Inquisitor leading Tempestus Scions in Bridgehead Strike.
+
 ## 0.183.0
 
 ### Minor Changes
