@@ -14,7 +14,7 @@ Reset links last an hour and work once. Choose **Return to sign in** and request
 
 ### "An account already uses this email. Sign in with its existing method, then link this provider from your profile."
 
-You signed up with a password and that email isn't verified yet. Sign in with your password, then either link the provider under **Sign-in methods** or verify your email. See [Sign-in methods](/docs/account-security#sign-in-methods).
+You signed up with a password and that email isn't verified yet. Sign in with your password, then either link the provider under **Sign-in and security** or verify your email. See [Sign-in methods](/docs/account-security#sign-in-methods).
 
 ### "Could not sign in with this provider. Try again."
 
@@ -34,7 +34,7 @@ Choose **Use a recovery code** and enter one of the codes you saved during setup
 
 ### Set up authenticator is greyed out
 
-It says **Needs a password**. Choose **Create password** under **Sign-in methods** first.
+It says **Needs a password**. Choose **Create password** under **Sign-in and security** first.
 
 ### Remove is greyed out on the password
 

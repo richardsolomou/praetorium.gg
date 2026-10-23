@@ -109,28 +109,28 @@ test('profile security settings reserve their content before hydration', async (
 
   await serverPage.goto('/profile')
 
-  const methods = serverPage.locator('section').filter({ hasText: 'Sign-in methods' })
+  const methods = serverPage.locator('#sign-in-methods')
   await expect(methods.getByLabel('Loading sign-in methods')).toBeVisible()
   await expect(methods.getByText('Password', { exact: true })).toHaveCount(0)
   await serverPage.screenshot({ path: 'test-results/profile-loading-state.png', fullPage: true })
   await context.close()
 })
 
-test('profile puts sign-in methods first without a notifications section', async ({ page }) => {
+test('profile lists sign-in methods and two-factor together without a notifications section', async ({ page }) => {
   await signUp(page, uniqueName('Account Methods'))
   await page.goto('/profile')
 
   const methods = page.locator('#sign-in-methods')
-  const twoFactor = page.getByText('Two-factor authentication', { exact: true }).locator('..')
-  await expect(methods).toBeVisible()
+  const password = methods.getByText('Password', { exact: true })
+  const twoFactor = methods.getByText('Two-factor authentication', { exact: true })
   await expect(twoFactor).toBeVisible()
-  expect((await methods.boundingBox())!.x).toBeLessThan((await twoFactor.boundingBox())!.x)
+  expect((await password.boundingBox())!.y).toBe((await twoFactor.boundingBox())!.y)
   await expect(page.getByText('Notifications on your phone')).toHaveCount(0)
   await page.screenshot({ path: 'test-results/profile-settings.png', fullPage: true })
 
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  expect((await methods.boundingBox())!.y).toBeLessThan((await twoFactor.boundingBox())!.y)
+  expect((await password.boundingBox())!.y).toBeLessThan((await twoFactor.boundingBox())!.y)
   await page.screenshot({ path: 'test-results/profile-settings-phone.png', fullPage: true })
 })
 

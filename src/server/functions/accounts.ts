@@ -17,7 +17,6 @@ import { fixedWindowRateLimit } from '../rateLimit'
 import { mutationRpc, rpc } from '../rpc'
 import { unlinkSignInMethod } from '../signInMethods'
 import {
-  battleAudienceSchema,
   playerDefaultsSchema,
   favouriteDetachmentSchema,
   favouriteFactionSchema,
@@ -30,7 +29,6 @@ import {
   collectionImportSchema,
   collectionProgressSchema,
   collectionWantedSchema,
-  collectionPublishedSchema,
   favouriteDatasheetSchema,
   userSchema,
   setOwnPasswordSchema,
@@ -52,11 +50,6 @@ export const updateOnboardingProgress = createServerFn({ method: 'POST' })
     }),
   )
 
-/** How widely this player's battles may be seen. */
-export const battleAudience = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => app().service.battleAudience(await requireUserId())),
-)
-
 /** What this player's new rosters and battles start with. */
 export const playerDefaults = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => app().service.playerDefaults(await requireUserId())),
@@ -68,15 +61,6 @@ export const setPlayerDefaults = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       return productActions.setPlayerDefaults(player.id, data)
-    }),
-  )
-
-export const setBattleAudience = createServerFn({ method: 'POST' })
-  .validator(battleAudienceSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.setBattleAudience(player.id, data)
     }),
   )
 
@@ -483,7 +467,3 @@ export const collectionProfile = createServerFn({ method: 'GET' })
       }
     }),
   )
-
-export const setCollectionPublished = createServerFn({ method: 'POST' })
-  .validator(collectionPublishedSchema)
-  .handler(({ data }) => mutationRpc(async () => app().service.setCollectionPublished(await requireUserId(), data.published)))

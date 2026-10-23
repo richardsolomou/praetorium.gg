@@ -28,7 +28,7 @@ export function BattlePage({ token }: { token: string }) {
 
   if (isPending) return <FullPageState loading title="Loading battle" explanation="Opening the battle history." />
   if (!screen) return <Navigate to="/battles" replace />
-  if (screen.kind === 'unavailable') return <BattleUnavailable token={token} />
+  if (screen.kind === 'unavailable') return <BattleUnavailable />
   if (screen.kind === 'spectator')
     return (
       <Spectator view={screen.view} clock={screen.clock} missions={screen.missions} report={screen.report} timeline={screen.timeline} />

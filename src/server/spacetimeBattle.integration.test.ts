@@ -85,11 +85,7 @@ it.skipIf(!url || !database || !token)('serializes concurrent battle commands an
     expect((await feed('public')).battles.some((row) => row.battle.id === battleId)).toBe(true)
     await operator.requestFriend(creatorId, viewerId, now)
     await operator.acceptFriend(creatorId, viewerId, now)
-    await operator.setBattleAudience(creatorId, 'friends', now)
-    expect((await feed('public')).battles.some((row) => row.battle.id === battleId)).toBe(false)
     expect((await feed('friends')).battles.some((row) => row.battle.id === battleId)).toBe(true)
-    await operator.setBattleAudience(creatorId, 'private', now)
-    expect((await feed('friends')).battles.some((row) => row.battle.id === battleId)).toBe(false)
 
     const refused = await operator.submit({ ...input, userId: 'outsider', expectedSeq: 1 })
     expect(refused.result).toEqual({ outcome: 'refused', code: 'not-seated', reason: 'you are not in this battle' })

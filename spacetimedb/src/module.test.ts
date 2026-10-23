@@ -282,20 +282,21 @@ describe('sharing a revealed league roster', () => {
 })
 
 describe('saved action acknowledgements', () => {
+  const saved = JSON.stringify(JSON.stringify({ rosterVisibility: 'private', battleSize: 1000 }))
   const input = () => ({
     id: '00000000-0000-4000-8000-000000000001',
     owner: 'creator',
     fingerprint: 'a'.repeat(64),
     createdAt: NOW * 1_000,
-    name: 'set_battle_audience',
-    args: ['creator', 'friends', NOW * 1_000],
+    name: 'set_player_defaults',
+    args: ['creator', 'private', 1000, NOW * 1_000],
     reportApplied: true,
   })
 
   it('identifies the transaction that applied a saved action', () => {
     const { procedure, operator } = harness()
     expect(JSON.parse(module.syncProduct(procedure(operator), { payload: JSON.stringify(input()) }))).toEqual({
-      result: '"friends"',
+      result: saved,
       applied: true,
     })
   })
@@ -305,7 +306,7 @@ describe('saved action acknowledgements', () => {
     const data = input()
     module.syncProduct(procedure(operator), { payload: JSON.stringify(data) })
     expect(JSON.parse(module.syncProduct(procedure(operator), { payload: JSON.stringify(data) }))).toEqual({
-      result: '"friends"',
+      result: saved,
       applied: false,
     })
   })
@@ -314,7 +315,7 @@ describe('saved action acknowledgements', () => {
     const { procedure, operator } = harness()
     const data = { ...input(), reportApplied: undefined }
     const first = module.syncProduct(procedure(operator), { payload: JSON.stringify(data) })
-    expect([first, module.syncProduct(procedure(operator), { payload: JSON.stringify(data) })]).toEqual(['"friends"', '"friends"'])
+    expect([first, module.syncProduct(procedure(operator), { payload: JSON.stringify(data) })]).toEqual([saved, saved])
   })
 })
 
@@ -405,7 +406,7 @@ describe('public battle feed', () => {
         }),
       ) as { battles: { battle: { token: string } }[] }
     ).battles.map((battle) => battle.battle.token)
-  const tableWithAGuest = (creatorAudience: string) => {
+  it('lists a battle whose only other seat is a guest', () => {
     const { operator, procedure } = harness()
     module.createBattle(procedure(operator), {
       payload: JSON.stringify({
@@ -419,16 +420,7 @@ describe('public battle feed', () => {
         now: NOW,
       }),
     })
-    module.setBattleAudience(procedure(operator), { userId: 'creator', audience: creatorAudience, now: BigInt(NOW) })
-    return feed(procedure, operator)
-  }
-
-  it('lists a battle whose only other seat has no audience of its own', () => {
-    expect(tableWithAGuest('public')).toEqual(['battle-token'])
-  })
-
-  it('leaves out that battle when its account holder narrows their audience', () => {
-    expect(tableWithAGuest('friends')).toEqual([])
+    expect(feed(procedure, operator)).toEqual(['battle-token'])
   })
 })
 
@@ -600,17 +592,10 @@ describe('guest seats', () => {
     ).toThrow('Invalid friendship')
   })
 
-  it('lists a guest battle publicly when the host shares battles publicly', () => {
+  it('lists a guest battle publicly', () => {
     const { operator, procedure } = harness()
     create(procedure, operator, { guestNames: ['Alex'], initialCommands: [] })
     expect(publicFeed(procedure, operator)).toEqual(['battle'])
-  })
-
-  it('keeps a guest battle out of the public feed when the host keeps battles to players', () => {
-    const { operator, procedure } = harness()
-    create(procedure, operator, { guestNames: ['Alex'], initialCommands: [] })
-    module.setBattleAudience(procedure(operator), { userId: 'host', audience: 'private', now: BigInt(NOW) })
-    expect(publicFeed(procedure, operator)).toEqual([])
   })
 })
 
@@ -1282,12 +1267,6 @@ describe('administrator photo list', () => {
       [photo(7), photo(4), photo(3)],
       [photo(2), photo(1)],
     ])
-  })
-
-  it('says whose collections others cannot see', () => {
-    const host = setup()
-    module.setCollectionPublished(host.procedure(host.operator), { userId: 'other', published: false })
-    expect(list(host, {}).photos.map((row) => row.published)).toEqual([true, false, true, true, true])
   })
 
   it('says which photos an administrator kept before', () => {

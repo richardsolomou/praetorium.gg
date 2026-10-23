@@ -28,7 +28,6 @@ export const SYNC_PRODUCT_ACTIONS = new Set([
   'replace_friend_invite',
   'cancel_friend_invite',
   'accept_friend_invite',
-  'set_battle_audience',
   'update_onboarding',
   'add_to_collection',
   'remove_from_collection',

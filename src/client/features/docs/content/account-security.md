@@ -2,7 +2,7 @@ Everything on this page is in [Account settings](/profile). Open the account men
 
 ## Sign-in methods
 
-**Sign-in methods** lists **Password** and each provider, marked **Linked** or **Available to link**. Choose **Link** beside a provider and sign in with it to link it. Any linked method then signs you into the same account.
+**Sign-in and security** lists **Password** and each provider, marked **Linked** or **Available to link**. Choose **Link** beside a provider and sign in with it to link it. Any linked method then signs you into the same account.
 
 - **Change** on the password row asks for your **Current password** and a **New password**. Changing it signs out every other device.
 - If you've only used a provider so far, **Create password** adds email and password sign-in alongside it.
@@ -21,7 +21,7 @@ Two-factor authentication adds a code from an authenticator app to password sign
 3. Scan the QR code with your authenticator app, or open **Cannot scan the QR code?** for the setup address. Enter the app's current **Authenticator code** and choose **Verify and enable**.
 4. Choose **Copy recovery codes** and keep the ten codes somewhere safe. Each works once, and Praetorium doesn't show them again. Then choose **I saved my recovery codes**.
 
-![The Two-factor authentication section in Account settings, showing the authenticator app as not set up.](screenshot:account-two-factor 'Set up authenticator, under Two-factor authentication')
+![Sign-in and security in Account settings, with two-factor authentication not set up.](screenshot:account-two-factor 'Set up authenticator, under Two-factor authentication')
 
 ![The recovery codes shown after setting up an authenticator, with buttons to copy them and to finish.](screenshot:account-recovery-codes 'Copy recovery codes, above I saved my recovery codes')
 

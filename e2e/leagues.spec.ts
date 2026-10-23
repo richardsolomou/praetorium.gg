@@ -1734,13 +1734,9 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const publicPreview = await spectator.request.get(previewPath)
   expect(publicPreview.status()).toBe(200)
   expect(publicPreview.headers()['cache-control']).toBe('no-store')
-  const viewerContext = await browser.newContext()
-  const viewer = await viewerContext.newPage()
-  const viewerName = uniqueName('League audience reader')
-  await signUp(viewer, viewerName)
   const ids = await withAuthSql((database) => {
     const find = (name: string) => (database.prepare('SELECT id FROM user WHERE name = ?').get(name) as { id: string }).id
-    return { owner: find(ownerName), viewer: find(viewerName) }
+    return { owner: find(ownerName) }
   })
   const product = await productOperator()
   const [battleIdentity] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${battlePath.split('/').at(-1)!}`
@@ -1756,35 +1752,6 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const feed = (viewerId?: string) =>
     product.battleFeed({ scope: 'league', leagueToken, eventToken: eventIdentity.token, limit: 1, viewerId })
   expect((await feed()).battles).toHaveLength(1)
-  await owner.goto('/profile')
-  for (const audience of ['Friends', 'Players only']) {
-    const choice = owner.getByRole('button', { name: new RegExp(`^${audience}`) })
-    await choice.click()
-    await expect(choice).toHaveAttribute('aria-pressed', 'true')
-    await expect(choice).toBeEnabled()
-    await spectator.goto(leagueUrl)
-    await expect(spectator.locator(`a[href="${battlePath}"]`)).toHaveCount(0)
-    await spectator.goto(battleUrl)
-    await expect(spectator.getByText('Battle setup', { exact: true })).toHaveCount(0)
-    await expect(spectator.locator('[data-replay-timeline]')).toHaveCount(0)
-    await expect(spectator.getByRole('button', { name: 'Open 2,000-point roster' })).toHaveCount(0)
-    expect((await spectator.request.get(previewPath)).status()).toBe(404)
-    await expect(spectator).toHaveTitle('Battle — Praetorium')
-    expect((await feed()).battles).toEqual([])
-    if (audience === 'Friends') {
-      expect((await feed(ids.viewer)).battles).toEqual([])
-      await product.requestFriend(ids.owner, ids.viewer, Date.now())
-      expect((await feed(ids.viewer)).battles).toEqual([])
-      await product.acceptFriend(ids.owner, ids.viewer, Date.now())
-      expect((await feed(ids.viewer)).battles).toHaveLength(1)
-      await viewer.goto(battleUrl)
-      await expect(viewer.getByText('Battle setup', { exact: true })).toBeVisible()
-    } else {
-      expect((await feed(ids.viewer)).battles).toEqual([])
-      await viewer.reload()
-      await expect(viewer.getByText('Battle setup', { exact: true })).toHaveCount(0)
-    }
-  }
   await owner.setViewportSize({ width: 1440, height: 900 })
   await owner.goto(battleUrl)
   await expect(owner.getByRole('region', { name: 'Armies' })).toBeVisible()
@@ -1796,7 +1763,6 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await alliedContext.close()
   await secondAlliedContext.close()
   await spectatorContext.close()
-  await viewerContext.close()
 })
 
 test('a doubles event pairs teams, filters half-size rosters, and starts a four-seat battle', async ({ browser, page: owner }) => {

@@ -3,8 +3,6 @@ export const MAX_COLLECTION_MODELS = 10_000
 
 export const MAX_COLLECTION_DATASHEETS = 5_000
 
-export const DEFAULT_COLLECTION_PUBLISHED = true
-
 /** Owned models, how many of them are built and painted, and how many more the player wants; zero models means not owned. */
 export type CollectionCounts = { models: number; built: number; painted: number; wanted: number }
 

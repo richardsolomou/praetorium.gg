@@ -23,14 +23,14 @@ function memoryObjects() {
 }
 
 function fakeRepository({ refuse = false } = {}) {
-  const photos = new Map<string, { userId: string; entryId: string; published: boolean; held?: boolean }>()
+  const photos = new Map<string, { userId: string; entryId: string; held?: boolean }>()
   const deletions: string[] = []
   return {
     photos,
     deletions,
     setCollectionPhoto: async ({ userId, entryId, photoId }: { userId: string; entryId: string; photoId: string }) => {
       if (refuse) throw new Error('refused')
-      photos.set(photoId, { userId, entryId, published: true })
+      photos.set(photoId, { userId, entryId })
     },
     removeCollectionPhoto: async () => undefined,
     removeCollectionPhotoById: async () => undefined,
@@ -43,9 +43,7 @@ function fakeRepository({ refuse = false } = {}) {
       new Map(ids.filter((id) => id !== 'deleted').map((id) => [id, { id, name: `Player ${id}` }] as const)),
     collectionPhoto: async (photoId: string, viewerId: string | null) => {
       const photo = photos.get(photoId)
-      return photo && ((photo.published && !photo.held) || photo.userId === viewerId)
-        ? { userId: photo.userId, entryId: photo.entryId }
-        : null
+      return photo && (!photo.held || photo.userId === viewerId) ? { userId: photo.userId, entryId: photo.entryId } : null
     },
     collectionPhotoForAdmin: async (photoId: string) => {
       const photo = photos.get(photoId)
@@ -60,7 +58,7 @@ function fakeRepository({ refuse = false } = {}) {
     adminCollectionPhotos: async () => ({
       photos: [...photos]
         .filter(([, photo]) => !photo.held)
-        .map(([photoId, { userId, entryId }]) => ({ photoId, userId, entryId, at: 1, likes: 0, published: true, kept: false })),
+        .map(([photoId, { userId, entryId }]) => ({ photoId, userId, entryId, at: 1, likes: 0, kept: false })),
       nextCursor: null,
     }),
     collectionPhotoDeletions: async (limit: number) => deletions.slice(0, limit),
@@ -141,7 +139,7 @@ describe('collectionPhotoStore', () => {
     const { stored, objects } = memoryObjects()
     const repository = fakeRepository()
     const photoId = randomUUID()
-    repository.photos.set(photoId, { userId: 'owner', entryId: 'warriors', published: false, held: true })
+    repository.photos.set(photoId, { userId: 'owner', entryId: 'warriors', held: true })
     stored.set(`collection-photos/${photoId}`, WEBP)
     const store = collectionPhotoStore(repository, () => objects)
     await store.backfillThumbnails()
@@ -157,7 +155,7 @@ describe('collectionPhotoStore', () => {
     const { stored, objects } = memoryObjects()
     const repository = fakeRepository()
     const photoId = randomUUID()
-    repository.photos.set(photoId, { userId: 'owner', entryId: 'warriors', published: true })
+    repository.photos.set(photoId, { userId: 'owner', entryId: 'warriors' })
     stored.set(`collection-photos/${photoId}`, WEBP)
     const put = vi.spyOn(objects, 'put')
     await collectionPhotoStore(repository, () => objects).backfillThumbnails()
@@ -168,7 +166,7 @@ describe('collectionPhotoStore', () => {
     const { stored, objects } = memoryObjects()
     const repository = fakeRepository()
     const photoId = randomUUID()
-    repository.photos.set(photoId, { userId: 'owner', entryId: 'warriors', published: true })
+    repository.photos.set(photoId, { userId: 'owner', entryId: 'warriors' })
     stored.set(`collection-photos/${photoId}`, WEBP)
     const put = objects.put
     objects.put = async (...args) => {
@@ -184,7 +182,7 @@ describe('collectionPhotoStore', () => {
     const { stored, objects } = memoryObjects()
     const repository = fakeRepository()
     const photoId = randomUUID()
-    repository.photos.set(photoId, { userId: 'owner', entryId: 'warriors', published: true })
+    repository.photos.set(photoId, { userId: 'owner', entryId: 'warriors' })
     stored.set(`collection-photos/${photoId}`, WEBP)
     const put = objects.put
     const remove = objects.delete
@@ -240,12 +238,11 @@ describe('collectionPhotoStore', () => {
     expect([response.status, await response.text()]).toEqual([304, ''])
   })
 
-  it.each(['private', 'held', 'removed'] as const)('revokes a cached thumbnail when the photo becomes %s', async (state) => {
+  it.each(['held', 'removed'] as const)('revokes a cached thumbnail when the photo becomes %s', async (state) => {
     const { objects } = memoryObjects()
     const repository = fakeRepository()
     const store = collectionPhotoStore(repository, () => objects)
     const photoId = await store.upload('owner', 'warriors', image)
-    if (state === 'private') repository.photos.get(photoId)!.published = false
     if (state === 'held') repository.photos.get(photoId)!.held = true
     if (state === 'removed') repository.photos.delete(photoId)
     const response = await store.response(
@@ -282,7 +279,7 @@ describe('collectionPhotoStore', () => {
     const repository = fakeRepository()
     const ids = [randomUUID(), randomUUID(), randomUUID()].sort()
     for (const id of ids) {
-      repository.photos.set(id, { userId: 'owner', entryId: 'warriors', published: true })
+      repository.photos.set(id, { userId: 'owner', entryId: 'warriors' })
       stored.set(`collection-photos/${id}`, WEBP)
     }
     repository.collectionPhotoIds = async (after) => ids.filter((id) => after === null || id > after).slice(0, 1)
@@ -346,25 +343,24 @@ describe('collectionPhotoStore', () => {
     expect([response.status, Buffer.from(await response.arrayBuffer())]).toEqual([200, WEBP])
   })
 
-  it.each(['private', 'held', 'removed'] as const)('refuses a cached photo after it becomes %s', async (state) => {
+  it.each(['held', 'removed'] as const)('refuses a cached photo after it becomes %s', async (state) => {
     const { objects } = memoryObjects()
     const repository = fakeRepository()
     const store = collectionPhotoStore(repository, () => objects)
     const photoId = await store.upload('owner', 'warriors', image)
     await store.response(photoId, 'reader')
-    if (state === 'private') repository.photos.get(photoId)!.published = false
     if (state === 'held') await store.report('reader', photoId)
     if (state === 'removed') repository.photos.delete(photoId)
     const response = await store.response(photoId, 'reader', false, conditional(photoId))
     expect([response.status, response.headers.get('cache-control'), response.headers.get('etag')]).toEqual([404, 'no-store', null])
   })
 
-  it('checks the current viewer before revalidating a private photo cached by its owner', async () => {
+  it('checks the current viewer before revalidating a held photo cached by its owner', async () => {
     const { objects } = memoryObjects()
     const repository = fakeRepository()
     const store = collectionPhotoStore(repository, () => objects)
     const photoId = await store.upload('owner', 'warriors', image)
-    repository.photos.get(photoId)!.published = false
+    repository.photos.get(photoId)!.held = true
     await store.response(photoId, 'owner')
     expect((await store.response(photoId, null, false, conditional(photoId))).status).toBe(404)
   })
@@ -376,15 +372,6 @@ describe('collectionPhotoStore', () => {
     stored.clear()
     const response = await store.response(photoId, 'owner')
     expect([response.status, response.headers.get('cache-control'), response.headers.get('etag')]).toEqual([404, 'no-store', null])
-  })
-
-  it('hides a photo from other readers once its owner stops sharing', async () => {
-    const { objects } = memoryObjects()
-    const repository = fakeRepository()
-    const store = collectionPhotoStore(repository, () => objects)
-    const photoId = await store.upload('owner', 'warriors', image)
-    repository.photos.get(photoId)!.published = false
-    expect([(await store.response(photoId, 'reader')).status, (await store.response(photoId, 'owner')).status]).toEqual([404, 200])
   })
 
   it('shows a photo a report holds to administrators only', async () => {

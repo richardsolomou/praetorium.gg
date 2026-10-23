@@ -12,7 +12,6 @@ export const offlineActionSchemas = {
   rememberMatchup: schemas.rememberMatchupSchema,
   forgetMatchup: schemas.forgetMatchupSchema,
   setPlayerDefaults: schemas.playerDefaultsSchema,
-  setBattleAudience: schemas.battleAudienceSchema,
   setPushNotifications: schemas.pushPreferenceSchema,
   updateOnboardingProgress: schemas.onboardingUpdateSchema,
   requestFriend: schemas.friendSchema,

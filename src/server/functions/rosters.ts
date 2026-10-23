@@ -390,9 +390,9 @@ export const discoverPlayedArmies = createServerFn({ method: 'GET' })
     }),
   )
 
-/** An army from a finished battle the reader may watch, as a roster that would copy it; nothing is saved. */
-async function playedArmyCopy(data: { token: string; playerId: string }, viewerId: string | null) {
-  const army = await app().service.playedArmy(data.token, data.playerId, viewerId)
+/** An army from a finished battle, as a roster that would copy it; nothing is saved. */
+async function playedArmyCopy(data: { token: string; playerId: string }) {
+  const army = await app().service.playedArmy(data.token, data.playerId)
   if (!army) throw new Response('That army is no longer available to copy.', { status: 404 })
   const copy = copiedArmy(army)
   return saveRosterSchema.parse({
@@ -418,7 +418,7 @@ export const copyPlayedArmy = createServerFn({ method: 'POST' })
       const player = await requireUser()
       const instance = app()
       const { rosterVisibility } = await instance.service.playerDefaults(player.id)
-      const roster = { ...(await playedArmyCopy(data, player.id)), visibility: rosterVisibility }
+      const roster = { ...(await playedArmyCopy(data)), visibility: rosterVisibility }
       const saved = await saveOwnedRoster(player.id, roster)
       await captureRosterCreated(instance, player.id, roster, { played: true })
       return { id: saved.id }
@@ -428,7 +428,7 @@ export const copyPlayedArmy = createServerFn({ method: 'POST' })
 /** A played army as a visitor's copy would hold it, which their device keeps rather than an account. */
 export const playedArmyDraft = createServerFn({ method: 'GET' })
   .validator(playedArmySchema)
-  .handler(({ data }) => rpc(async () => playedArmyCopy(data, await currentUserId())))
+  .handler(({ data }) => rpc(async () => playedArmyCopy(data)))
 
 export const copyRoster = createServerFn({ method: 'POST' })
   .validator(copyRosterSchema)

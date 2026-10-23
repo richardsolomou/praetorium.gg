@@ -8,12 +8,8 @@ test('account and app screenshots', async ({ page, request }) => {
   const { password } = await signUp(page, 'Docs player')
   await page.goto('/profile')
 
-  const battlePrivacy = page.locator('#battle-sharing')
-  await expect(battlePrivacy.getByRole('button', { name: /^Anyone/, pressed: true })).toBeVisible()
-  await capture('account-battle-privacy', battlePrivacy, battlePrivacy.getByRole('group', { name: 'Who can watch' }))
-
   const setUp = page.getByRole('button', { name: 'Set up authenticator' })
-  const twoFactor = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Two-factor authentication' }) })
+  const twoFactor = page.locator('#sign-in-methods')
   await expect(setUp).toBeEnabled()
   // The sticky site header would cover a section scrolled only just into view.
   await twoFactor.evaluate((element) => element.scrollIntoView({ block: 'center' }))

@@ -157,7 +157,7 @@ describe('onboarding steps', () => {
 
   it('walks the community tour outwards from the reader', () => {
     const community = Object.values(ONBOARDING_UI).filter((step) => step.task === 'community')
-    expect([...new Set(community.map((step) => step.page))]).toEqual(['home', 'leaderboard', 'player', 'profile'])
+    expect([...new Set(community.map((step) => step.page))]).toEqual(['home', 'leaderboard', 'player'])
   })
 
   it('gives every step a control of its own, so no prompt describes a whole screen', () => {

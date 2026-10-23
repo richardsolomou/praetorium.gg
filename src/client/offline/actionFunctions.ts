@@ -15,7 +15,6 @@ import type { LocalRoster } from './localRuntime'
 import { accountChanged, cachedRead } from './reads'
 import type { LocalDocumentUpdate } from './syncEngine'
 import {
-  battleAudienceKey,
   collectionCountsKey,
   collectionKey,
   collectionProgressKey,
@@ -67,7 +66,6 @@ export const favouriteDetachments = () => accountRead(favouriteDetachmentsKey(),
 export const favouriteDatasheets = () => accountRead(favouriteDatasheetsKey(), () => server.favouriteDatasheets())
 export const recentMatchups = () => accountRead(recentMatchupsKey(), () => server.recentMatchups())
 export const playerDefaults = () => accountRead(playerDefaultsKey(), () => server.playerDefaults())
-export const battleAudience = () => accountRead(battleAudienceKey(), () => server.battleAudience())
 export const onboardingProgress = () => accountRead(onboardingKey(), () => server.onboardingProgress())
 export const notificationSettings = () => cachedRead(notificationSettingsKey(), () => server.notificationSettings())
 export const friendships = () => cachedRead(friendshipsKey(), () => server.friendships())
@@ -294,12 +292,6 @@ export async function setPlayerDefaults(args: Parameters<typeof server.setPlayer
   const next = offlineActionSchemas.setPlayerDefaults.parse(args.data)
   await defer('setPlayerDefaults', next, queryResource(playerDefaultsKey()), next)
   return next
-}
-export async function setBattleAudience(args: Parameters<typeof server.setBattleAudience>[0]): ReturnType<typeof server.setBattleAudience> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.setBattleAudience(args)
-  await defer('setBattleAudience', args.data, queryResource(battleAudienceKey()), args.data.audience)
-  return args.data.audience
 }
 export async function setPushNotifications(
   args: Parameters<typeof server.setPushNotifications>[0],
