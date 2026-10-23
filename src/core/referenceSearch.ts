@@ -40,7 +40,14 @@ export type GlobalSearchIndex = {
   rules: IndexedResult[]
 }
 
-import { fuzzyNameScore, matchDatasheet, matchSearchText, prepareDatasheetSearch, prepareSearchText } from './datasheetSearch'
+import {
+  fuzzyNameScore,
+  matchDatasheet,
+  strongestMatches,
+  matchSearchText,
+  prepareDatasheetSearch,
+  prepareSearchText,
+} from './datasheetSearch'
 
 export function searchReference(query: string, index: GlobalSearchIndex): GlobalSearchResult[] {
   const wanted = query.toLowerCase()
@@ -60,9 +67,11 @@ function catalogueResults(wanted: string, index: GlobalSearchIndex | null): Glob
     ...detachmentResults(wanted, index.detachments),
   ]
   const datasheets = new Map<string, { primary: RankedResult[]; allied?: RankedResult }>()
-  for (const entry of index.datasheets) {
+  const matches = index.datasheets.flatMap((entry) => {
     const match = matchDatasheet(wanted, entry.fields)
-    if (!match) continue
+    return match ? [{ entry, match }] : []
+  })
+  for (const { entry, match } of strongestMatches(matches)) {
     const result = match.reasons.length ? { ...entry.result, matchReasons: match.reasons } : entry.result
     const found = datasheets.get(entry.targetId) ?? { primary: [] }
     const ranked = { result, score: match.score }

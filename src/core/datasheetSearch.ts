@@ -25,7 +25,14 @@ export type DatasheetSearchReason = {
   value: string
 }
 
-export type DatasheetSearchMatch = { score: number; reasons: DatasheetSearchReason[] }
+/** `effectOnly` marks a datasheet found only through what its abilities say, which only counts when nothing is found by its own fields. */
+export type DatasheetSearchMatch = { score: number; reasons: DatasheetSearchReason[]; effectOnly: boolean }
+
+/** The matches found by their own fields, or the ability-effect matches when there are none. */
+export function strongestMatches<M extends { match: DatasheetSearchMatch }>(matches: readonly M[]): readonly M[] {
+  const own = matches.filter(({ match }) => !match.effectOnly)
+  return own.length ? own : matches
+}
 
 export function searchDatasheetEntries<T extends { name: string }>(
   entries: readonly T[],
@@ -34,11 +41,13 @@ export function searchDatasheetEntries<T extends { name: string }>(
 ): (T & { matchReasons?: DatasheetSearchReason[]; fuzzy?: boolean })[] {
   const wanted = query.trim().toLowerCase()
   if (!wanted) return [...entries]
-  const direct = entries.flatMap((entry) => {
-    const fields = fieldsFor(entry)
-    const match = fields ? matchDatasheet(wanted, fields) : null
-    return match ? [{ entry: match.reasons.length ? { ...entry, matchReasons: match.reasons } : entry, score: match.score }] : []
-  })
+  const direct = strongestMatches(
+    entries.flatMap((entry) => {
+      const fields = fieldsFor(entry)
+      const match = fields ? matchDatasheet(wanted, fields) : null
+      return match ? [{ entry: match.reasons.length ? { ...entry, matchReasons: match.reasons } : entry, score: match.score, match }] : []
+    }),
+  )
   const found = direct.length
     ? direct
     : entries.flatMap((entry) => {
@@ -80,13 +89,14 @@ const EXACT_REASON_CANDIDATE_LIMIT = 16
 
 export function matchDatasheet(query: string, fields: DatasheetSearchFields): DatasheetSearchMatch | null {
   const wanted = [...new Set(wordsIn(query))]
-  if (!wanted.length) return { score: 0, reasons: [] }
+  if (!wanted.length) return { score: 0, reasons: [], effectOnly: false }
 
   const nameMatch = fieldMatch(wanted, fields.name)
-  if (nameMatch?.complete) return { score: nameMatch.quality, reasons: [] }
+  if (nameMatch?.complete) return { score: nameMatch.quality, reasons: [], effectOnly: false }
 
   const searchable = searchableText(fields)
-  if (!wanted.every((word) => textHasWord(searchable, word))) return null
+  if (!wanted.every((word) => textHasWord(searchable.all, word))) return null
+  const effectOnly = !wanted.every((word) => textHasWord(searchable.own, word))
 
   const descriptions = (fields.abilityDescriptions ?? []).map(({ name, description }) => ({ name, text: `${name} ${description}` }))
 
@@ -114,6 +124,7 @@ export function matchDatasheet(query: string, fields: DatasheetSearchFields): Da
   return {
     score: best.weight + (best.complete ? 0 : 1_000) + (wanted.length - best.coverage) * 10 + best.quality,
     reasons: selectReasons(wanted, nameMatch?.matchingWords ?? [], ranked),
+    effectOnly,
   }
 }
 
@@ -216,21 +227,20 @@ export function prepareDatasheetSearch(fields: DatasheetSearchFields) {
   searchableText(fields)
 }
 
-const searchableTextCache = new WeakMap<DatasheetSearchFields, string>()
+const searchableTextCache = new WeakMap<DatasheetSearchFields, { all: string; own: string }>()
+
+const wordText = (values: readonly string[]) => ` ${[...new Set(values.flatMap((value) => indexed(value).words))].join(' ')} `
 
 /**
  * Every distinct word a datasheet can be found by, space-separated, so most datasheets are rejected by one native
- * substring search before their fields are ranked.
+ * substring search before their fields are ranked; `own` leaves out what its abilities say.
  */
 function searchableText(fields: DatasheetSearchFields) {
   let text = searchableTextCache.get(fields)
   if (text === undefined) {
-    const values = [
-      fields.name,
-      ...METADATA.flatMap(({ field }) => fields[field]),
-      ...(fields.abilityDescriptions ?? []).map(({ name, description }) => `${name} ${description}`),
-    ]
-    text = ` ${[...new Set(values.flatMap((value) => indexed(value).words))].join(' ')} `
+    const own = [fields.name, ...METADATA.flatMap(({ field }) => fields[field])]
+    const effects = (fields.abilityDescriptions ?? []).map(({ name, description }) => `${name} ${description}`)
+    text = { all: wordText([...own, ...effects]), own: wordText(own) }
     searchableTextCache.set(fields, text)
   }
   return text

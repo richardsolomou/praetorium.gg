@@ -2,7 +2,7 @@ Search finds factions, datasheets, detachments, missions and rules from anywhere
 
 ## What it matches
 
-- **Datasheets** by name, keyword, ability, weapon, weapon keyword or wargear, and by what a unit's abilities do. `gain 1cp` finds units whose abilities give you a Command point. Each result names what matched.
+- **Datasheets** by name, keyword, ability, weapon, weapon keyword or wargear. When none of those match, search reads what units' abilities do, so `gain 1cp` finds units whose abilities give you a Command point. Each result names what matched.
 - **Detachments** by name, or by their rules, enhancements and stratagems.
 - **Rules** by name or by the number they're printed under, so you can type a number you see quoted on a card.
 
