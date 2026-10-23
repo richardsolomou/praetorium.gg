@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { build, type Rolldown } from 'vite'
 
-const compilerEntries = ['scripts/catalogueRefresh.ts', 'scripts/compileCatalogueRuntime.ts']
+export const compilerEntries = ['scripts/catalogueRefresh.ts', 'scripts/compileCatalogueRuntime.ts']
 // The compiler reads catalogue configuration from disk; the seed build config bundles the production worker.
 const compilerFiles = ['catalogue', 'vite.seed.config.ts']
 
