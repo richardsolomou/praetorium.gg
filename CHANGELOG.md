@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.181.0
+
+### Minor Changes
+
+- ca5f8b3: Profiles show results against each opponent.
+- ca5f8b3: Profiles show each stratagem's win rate and name the best and worst stratagems used in three or more battles.
+- ca5f8b3: Anyone can see a player's performance over time on their profile.
+- ca5f8b3: Profile stratagem and secondary mission tables show the top ten, with Show all for the rest.
+
+### Patch Changes
+
+- ca5f8b3: A stratagem or secondary mission no longer appears twice on a profile after a data update renamed it.
+
 ## 0.180.0
 
 ### Minor Changes
