@@ -12,8 +12,8 @@ on:
       e2e-runners:
         description: Browser runners for a timing comparison
         type: choice
-        options: ['16', '8']
-        default: '16'
+        options: ['14', '16', '8']
+        default: '14'
       coverage:
         description: Record the coverage map that pull requests choose specs from
         type: boolean
@@ -158,7 +158,9 @@ jobs:
           SELECTED: ${{ needs.changes.outputs.e2e-specs }}
           REASON: ${{ needs.changes.outputs.e2e-reason }}
           FULL: ${{ env.FULL_E2E }}
-          MAX: ${{ inputs.e2e-runners || '16' }}
+          # The account runs 20 jobs at once and the other lanes hold about six while the runners
+          # start, so a 16th runner waits for a slot instead of finishing sooner.
+          MAX: ${{ inputs.e2e-runners || '14' }}
         run: |
           set -euo pipefail
           specs="$SELECTED"
@@ -431,18 +433,13 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      # Coverage finishes minutes before the browser runners, so two at a time leaves their
+      # starting slots free; the head parts come first because the base ones are usually cached.
+      max-parallel: 2
       matrix:
         # Main's snapshot usually restores from the cache that `coverage-baseline.yml` fills
         # part by part, but a pull request pushed just after main moved computes it here.
         include:
-          - revision: base
-            sha: ${{ needs.coverage-data.outputs.base-sha }}
-            file: base-0.json
-            part: 0/2
-          - revision: base
-            sha: ${{ needs.coverage-data.outputs.base-sha }}
-            file: base-1.json
-            part: 1/2
           - revision: head
             sha: ${{ needs.coverage-data.outputs.head-sha }}
             file: head-0.json
@@ -450,6 +447,14 @@ jobs:
           - revision: head
             sha: ${{ needs.coverage-data.outputs.head-sha }}
             file: head-1.json
+            part: 1/2
+          - revision: base
+            sha: ${{ needs.coverage-data.outputs.base-sha }}
+            file: base-0.json
+            part: 0/2
+          - revision: base
+            sha: ${{ needs.coverage-data.outputs.base-sha }}
+            file: base-1.json
             part: 1/2
     steps:
       # Each snapshot installs the dependencies of the revision it measures, so a
