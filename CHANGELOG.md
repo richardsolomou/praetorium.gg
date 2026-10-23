@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.181.2
+
+### Patch Changes
+
+- 4999dc2: Inquisitors can lead units that a detachment makes Imperium Battleline Infantry, such as Tempestus Scions under Bridgehead Strike.
+- 4999dc2: Bridgehead Strike makes Tempestus Scions Battleline when a Militarum Tempestus Officer is the Warlord.
+- 4999dc2: Detachments that double a unit limit, such as Bridgehead Strike for Tempestus Scions, double it in the builder.
+
 ## 0.181.1
 
 ### Patch Changes
