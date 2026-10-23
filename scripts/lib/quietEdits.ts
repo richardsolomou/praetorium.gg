@@ -35,7 +35,8 @@ export function declarations(text: string): Declaration[] {
   const found: Declaration[] = []
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index]!
-    if (/^import\b/.test(line) || /^export\s+(type\s+)?(\*|\{)/.test(line)) {
+    // `import.meta` and `import()` are expressions, not declarations.
+    if (/^import\b(?!\s*[.(])/.test(line) || /^export\s+(type\s+)?(\*|\{)/.test(line)) {
       let end = index
       // Statements end on their module specifier; a local `export { a }` has none and is no import.
       while (end < lines.length - 1 && !/['"][^'"]+['"]\s*;?\s*$/.test(lines[end]!)) end += 1

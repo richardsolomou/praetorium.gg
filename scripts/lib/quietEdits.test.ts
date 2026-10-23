@@ -90,3 +90,8 @@ it('does not treat dropping the last import from a module as quiet', () => {
   const head = base.replace("import { score, undo } from './battle'\n", '')
   expect(quietHunk(edit(1, ["import { score, undo } from './battle'"], []), base, head)).toBe(false)
 })
+
+it('does not read a column-0 `import.meta` expression as an import declaration', () => {
+  const text = "import.meta.hot?.accept(\n  'x',\n)\nexport const limit = 'a'"
+  expect(declarations(text)).toEqual([])
+})

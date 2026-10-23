@@ -121,9 +121,18 @@ export function buildE2eMap(
   const specs: string[] = []
   const loaded = new Map<string, Set<number>>()
   const functions = new Map<string, Map<string, Set<number>>>()
+  // The server loads its modules before any test, so every spec it served ran their top level.
+  const serverFiles = new Set<string>()
+  const serverSpecs = new Set<number>()
   for (const record of records) {
     let spec = specs.indexOf(record.spec)
     if (spec === -1) spec = specs.push(record.spec) - 1
+    for (const { url } of record.server) {
+      const script = readScript(url)
+      if (!script) continue
+      serverSpecs.add(spec)
+      for (const source of script.sources) if (source) serverFiles.add(source)
+    }
     for (const { url, start, end } of [...record.client, ...record.server]) {
       const script = readScript(url)
       if (!script) continue
@@ -144,7 +153,7 @@ export function buildE2eMap(
   const files: E2eMap['files'] = {}
   for (const file of [...new Set([...loaded.keys(), ...functions.keys()])].toSorted()) {
     files[file] = {
-      loaded: sorted(loaded.get(file) ?? []),
+      loaded: sorted(new Set([...(loaded.get(file) ?? []), ...(serverFiles.has(file) ? serverSpecs : [])])),
       functions: [...(functions.get(file) ?? [])]
         .map(([key, users]) => [...(key.split(':').map(Number) as [number, number]), sorted(users)] as [number, number, number[]])
         .toSorted((left, right) => left[0] - right[0] || left[1] - right[1]),

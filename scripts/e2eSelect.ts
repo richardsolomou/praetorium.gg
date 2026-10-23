@@ -16,7 +16,10 @@ import { changedHunks, lineMoves, selectSpecs, type Graph, type Selection } from
 const git = (...args: string[]) => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 256_000_000 })
 
 async function graph(): Promise<Graph> {
-  const specs = readdirSync('e2e').flatMap((file) => (file.endsWith('.spec.ts') ? [`e2e/${file}`] : []))
+  // Playwright finds specs anywhere under `e2e/`.
+  const specs = readdirSync('e2e', { recursive: true, encoding: 'utf8' }).flatMap((file) =>
+    file.endsWith('.spec.ts') ? [`e2e/${file}`] : [],
+  )
   const imports = new Map<string, string[]>()
   for (const [spec, closure] of await importClosures(process.cwd(), specs))
     for (const file of closure) imports.set(file, [...(imports.get(file) ?? []), spec])
