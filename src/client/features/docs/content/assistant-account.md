@@ -26,6 +26,8 @@ The assistant decides which access it asks for. If it asks for more than you wan
 
 Open your [profile](/profile) and find **Connected apps**. Each app shows what it can do, such as **Read rosters and battles** or **Change rosters and record battles**. Choose **Revoke access** next to an app to disconnect it straight away; it loses access to your account, though public lookups still work. Connecting again later asks for permission again.
 
+![Connected apps on the profile, listing Claude with read and change access and a Revoke access button.](screenshot:assistant-connected-apps 'Connected apps, under your profile')
+
 ## Other ways in
 
 Assistants and crawlers can also read the same reference over a read-only web API, described at `/api/reference/v1/openapi.json`. The site's `/llms.txt` summarises what Praetorium does, lists these interfaces and links to these docs. You don't need either to use the MCP server.

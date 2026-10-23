@@ -34,6 +34,10 @@ Look in the assistant's settings for connectors, apps, integrations or MCP serve
 
 Once it's added, check that the assistant lists Praetorium's tools, and turn the connector on for the chat you're using if your assistant asks you to enable connectors per conversation.
 
+The first time the assistant needs your rosters or battles, it opens this page on Praetorium so you can choose what it may do. [Let an assistant use your account](/docs/assistant-account) explains each permission and how to revoke them.
+
+![The Connect to Praetorium page, where Claude asks to read and edit rosters and battles, with Allow access and Cancel.](screenshot:assistant-consent 'Connect to Praetorium, the first time an assistant needs your account')
+
 ## Ask your first question
 
 Name Praetorium in the prompt the first time so the assistant reaches for it rather than answering from memory:
