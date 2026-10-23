@@ -4,13 +4,7 @@ The Expo shell hosts the shared web interface. React Native owns safe areas, sys
 
 ## Run it
 
-Start the [local web service](running-locally.md), then use its reported URL:
-
-```sh
-EXPO_PUBLIC_APP_URL="http://127.0.0.1:<reported-port>" just mobile
-```
-
-Press `i` for iOS or `a` for Android. `mobile/ios` and `mobile/android` are disposable prebuild output; keep persistent configuration in `mobile/app.json` and `mobile/app.config.js`.
+Start the [local web service](running-locally.md), then run `just mobile` and press `i` for iOS, or run `just mobile-ios` or `just mobile-android`. They open this worktree's running preview (`scripts/mobileAppUrl.ts`; Android through the emulator's `10.0.2.2` host alias) unless `EXPO_PUBLIC_APP_URL` is set. `mobile/ios` and `mobile/android` are disposable prebuild output; keep persistent configuration in `mobile/app.json` and `mobile/app.config.js`.
 
 ## Shell boundaries
 
