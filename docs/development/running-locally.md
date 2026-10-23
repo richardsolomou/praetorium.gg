@@ -31,7 +31,7 @@ On a collision with an explicit `LOCAL_*_PORT`, choose another free port without
 
 PR CI distributes all browser tests, including `@catalogue` journeys, across the same duration-balanced runners; the tag selects the release preflight rather than a separate CI lane. Refresh `e2e/durations.json` with `just e2e-durations <run-id>...` after changing the suite; an unrecorded test weighs as much as the median, so one long new test leaves its runner minutes behind the rest.
 
-Documentation-only pull requests run static checks and skip runtime tests, builds, catalogue comparisons and preview images. `scripts/ciScope.ts` owns the narrow documentation allowlist. The publication text audit runs after the production build in CI so it reuses the offline bundle that build generated; local integration checks still include it.
+Pull requests that only change files no runtime lane, build or deploy reads (contributor docs, changesets, `plugin/`, `justfile`) run static checks and skip runtime tests, builds, catalogue comparisons and preview images. `scripts/ciScope.ts` owns that allowlist; add a path only after checking nothing in CI, the build or the app reads it, and keep `CHANGELOG.md` out because the app imports it. The publication text audit runs after the production build in CI so it reuses the offline bundle that build generated; local integration checks still include it.
 
 Compare browser runner counts through the CI workflow's manual dispatch on the same revision, and record queue waits separately from job and test durations. `pnpm exec tsx scripts/benchmarkE2eRunners.ts <setup-seconds> <report.json>...` models runner counts from downloaded passing reports. Confirm estimates with workflow dispatches before changing the default.
 
