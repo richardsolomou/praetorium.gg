@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.182.0
+
+### Minor Changes
+
+- 218332d: Give units in a roster an optional custom name, shown above the datasheet name to everyone who can read the roster.
+
 ## 0.181.3
 
 ### Patch Changes
