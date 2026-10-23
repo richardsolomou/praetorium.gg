@@ -9,6 +9,7 @@
  */
 
 import type { CatalogueIndex, Definition } from './catalogue'
+import { isCollectiveGroup } from './collective'
 import {
   childrenOf,
   MAX_DEPTH,
@@ -111,16 +112,25 @@ function spreadOptions(
   const asking = Object.values(counts).some((count) => count > 0)
   const carrier = asking ? withExpandedCarrier(selection, path, index) : selection
   if (!selectedCarriers(carrier, path, index)) return selection
-  return updateSelection(withPlaceFor(carrier, path), path, (held) => ({
-    ...held,
-    selections: [
-      ...(held.selections ?? []).filter((child) => !requested.has(child.id)),
-      ...Object.entries(counts).flatMap(([optionId, count]) => {
-        const option = byId.get(optionId)
-        return option && count > 0 ? [expand(option.id, option.definition, index, MAX_DEPTH, count, new Set(), 1)] : []
-      }),
-    ],
-  }))
+  const holder = at(carrier, path.slice(0, -1))
+  const holderDefinition = holder && index.definitions.get(holder.id)
+  // A shared capacity asked for more than its models can carry, as a saved split outlives
+  // the Scions a specialist replaced, holds what they can.
+  const carriers =
+    isCollectiveGroup(group, index) && holderDefinition && resolve(holderDefinition, index).type === 'model' ? (holder.count ?? 1) : null
+  return updateSelection(withPlaceFor(carrier, path), path, (held) => {
+    const spread = {
+      ...held,
+      selections: [
+        ...(held.selections ?? []).filter((child) => !requested.has(child.id)),
+        ...Object.entries(counts).flatMap(([optionId, count]) => {
+          const option = byId.get(optionId)
+          return option && count > 0 ? [expand(option.id, option.definition, index, MAX_DEPTH, count, new Set(), 1)] : []
+        }),
+      ],
+    }
+    return carriers === null ? spread : withinGroupCapacity(spread, group, carriers, index)
+  })
 }
 
 function withExpandedCarrier(selection: Selection, path: readonly string[], index: CatalogueIndex) {
@@ -221,7 +231,7 @@ function withModelOccupants(
         ...untouched.flatMap((child) => {
           const count = remaining.get(child)
           if (count === undefined || count === (child.count ?? 1)) return [child]
-          return count > 0 ? [{ ...child, count }] : []
+          return count > 0 ? [withFewerModels(child, count, index)] : []
         }),
         ...occupants.flatMap((option) => standing(held.selections ?? [], option, allocated.get(option.id) ?? 0, index)),
       ],
@@ -542,8 +552,49 @@ function spendBodies(
         const take = spent.get(child.id) ?? 0
         if (!take) return [child]
         const remaining = (child.count ?? 1) - take
-        return remaining > 0 ? [{ ...child, count: remaining }] : []
+        return remaining > 0 ? [withFewerModels(child, remaining, index)] : []
       }),
     }
   })
+}
+
+/**
+ * Copies of a model given up, with the shared weapon groups they hold given up alongside them.
+ *
+ * A group holding a collective weapon stores what every copy carries, so three Scions
+ * left of four hold three hot-shot lasguns. The group sheds its default first, so a
+ * special weapon chosen for one of the remaining Scions stays.
+ */
+function withFewerModels(model: Selection, count: number, index: CatalogueIndex): Selection {
+  return {
+    ...model,
+    count,
+    selections: model.selections?.map((child) => {
+      const definition = index.definitions.get(child.id)
+      return definition && isCollectiveGroup(definition, index) ? withinGroupCapacity(child, definition, count, index) : child
+    }),
+  }
+}
+
+function withinGroupCapacity(group: Selection, definition: Definition, carriers: number, index: CatalogueIndex): Selection {
+  const most = maximumCount(definition, index)
+  const held = group.selections ?? []
+  let excess = most === null ? 0 : held.reduce((total, option) => total + (option.count ?? 1), 0) - most * carriers
+  if (excess <= 0) return group
+  const defaultId = 'defaultSelectionEntryId' in definition ? definition.defaultSelectionEntryId : undefined
+  const shed = new Map<Selection, number>()
+  for (const option of held.toSorted(
+    (one, other) => Number(other.id === defaultId) - Number(one.id === defaultId) || (other.count ?? 1) - (one.count ?? 1),
+  )) {
+    const removed = Math.min(option.count ?? 1, excess)
+    shed.set(option, removed)
+    excess -= removed
+  }
+  return {
+    ...group,
+    selections: held.flatMap((option) => {
+      const count = (option.count ?? 1) - (shed.get(option) ?? 0)
+      return count > 0 ? [{ ...option, count }] : []
+    }),
+  }
 }
