@@ -40,15 +40,15 @@ rosters-audit *args:
 rosters-normalise *args:
     node --env-file-if-exists=.env.local --import tsx scripts/productionRosters.ts normalise {{ args }}
 
-# The native application against the local development service
+# The native application against this worktree's running preview
 mobile *args:
-    EXPO_PUBLIC_APP_URL="${EXPO_PUBLIC_APP_URL:-http://localhost:3000}" pnpm mobile -- {{ args }}
+    url="${EXPO_PUBLIC_APP_URL:-$(node --import tsx scripts/mobileAppUrl.ts ios)}" && EXPO_PUBLIC_APP_URL="$url" pnpm mobile -- {{ args }}
 
 mobile-ios:
-    EXPO_PUBLIC_APP_URL="${EXPO_PUBLIC_APP_URL:-http://localhost:3000}" pnpm mobile:ios
+    url="${EXPO_PUBLIC_APP_URL:-$(node --import tsx scripts/mobileAppUrl.ts ios)}" && EXPO_PUBLIC_APP_URL="$url" pnpm mobile:ios
 
 mobile-android:
-    EXPO_PUBLIC_APP_URL="${EXPO_PUBLIC_APP_URL:-http://10.0.2.2:3000}" pnpm mobile:android
+    url="${EXPO_PUBLIC_APP_URL:-$(node --import tsx scripts/mobileAppUrl.ts android)}" && EXPO_PUBLIC_APP_URL="$url" pnpm mobile:android
 
 format:
     pnpm format

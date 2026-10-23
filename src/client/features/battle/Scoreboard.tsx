@@ -27,7 +27,7 @@ export function Scoreboard({ view, clock, sides, outcome }: Props) {
       data-onboarding="battle-live-score"
       data-scoreboard
       aria-label="Battle scoreboard"
-      className="@container sticky top-12 z-20 -mx-3 border-b border-edge bg-void/95 px-3 py-2 backdrop-blur"
+      className="@container sticky top-(--app-header) z-20 -mx-3 border-b border-edge bg-void/95 px-3 py-2 backdrop-blur"
     >
       {/*
        * A finished battle gives the whole strip to its result on a phone. Each side's

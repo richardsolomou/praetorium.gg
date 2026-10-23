@@ -132,7 +132,7 @@ export function MissionPackPage({ packId }: { packId: string }) {
             </h2>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               {pack.twists.map((twist) => (
-                <article id={`twist-${twist.id}`} key={twist.id} className="scroll-mt-16 border border-edge bg-panel p-4">
+                <article id={`twist-${twist.id}`} key={twist.id} className="scroll-mt-header border border-edge bg-panel p-4">
                   <h3 className="text-lg">{twist.name}</h3>
                   {twist.lore ? <RuleText text={twist.lore} /> : null}
                   {twist.rules ? <RuleText text={twist.rules} className="mt-3 text-base text-bone" /> : null}

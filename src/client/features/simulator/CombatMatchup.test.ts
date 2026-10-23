@@ -126,7 +126,9 @@ it('separates sourced re-rolls from explicit manual adjustments in the calculati
       initialSettings: { adjustments: { all: { hitModifier: 1 } }, preferences: {}, excluded: { ranged: [], melee: [] }, allocation: [] },
     }),
   )
-  expect(markup.slice(markup.indexOf('aria-label="Applied modifiers"'))).toContain('Re-roll wound 1s from rules. Manual: +1 to hit (All).')
+  expect(markup.slice(markup.indexOf('aria-label="Applied modifiers"'))).toContain(
+    '<li>Attacker rules: Source re-roll</li><li>No defender rules</li><li>Re-roll wound 1s from rules</li><li>Manual: +1 to hit (All)</li>',
+  )
 })
 
 it('explains when equipment invalidates a previously selected weapon profile', () => {

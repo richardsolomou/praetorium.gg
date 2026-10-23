@@ -1,29 +1,9 @@
-import { createHmac } from 'node:crypto'
 import { expect, test } from './test'
 import { PREVIEW_EMAIL } from '../scripts/seedPreview'
-import { befriend, signIn, signInAsPreview, signUp, uniqueName } from './account'
+import { befriend, currentTotp, signIn, signInAsPreview, signUp, uniqueName } from './account'
 
 // The seeded administrator is shared by every attempt, so these tests never change its
 // security settings and give each player they create a name of its own.
-
-function decodeBase32(value: string) {
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'
-  const bits = value
-    .split('')
-    .map((character) => alphabet.indexOf(character).toString(2).padStart(5, '0'))
-    .join('')
-  return Buffer.from(bits.match(/.{8}/g)?.map((byte) => Number.parseInt(byte, 2)) ?? [])
-}
-
-function currentTotp(uri: string) {
-  const secret = new URL(uri).searchParams.get('secret')
-  if (!secret) throw new Error('The authenticator URI has no secret.')
-  const counter = Buffer.alloc(8)
-  counter.writeBigUInt64BE(BigInt(Math.floor(Date.now() / 30_000)))
-  const digest = createHmac('sha1', decodeBase32(secret)).update(counter).digest()
-  const offset = digest.at(-1)! & 0x0f
-  return ((digest.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).toString().padStart(6, '0')
-}
 
 test('a player secures an account with an authenticator app', async ({ page, request }) => {
   const name = uniqueName('Secure Player')

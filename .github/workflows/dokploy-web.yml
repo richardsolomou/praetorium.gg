@@ -198,7 +198,7 @@ jobs:
         run: node --import tsx scripts/migrateProductData.ts "$TARGET"
       - name: Configure the selected web service
         run: node scripts/configureDokployNode.ts configure "$TARGET"
-      # Compared with the sitemap after the deploy, so only pages it added or re-dated reach IndexNow.
+      # Compared with the sitemap after the deploy, so only pages it added or re-dated reach IndexNow; the query string skips the edge's cached copy.
       - name: Record the sitemap production serves before the deploy
         if: inputs.environment == 'production'
         continue-on-error: true

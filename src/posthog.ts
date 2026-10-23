@@ -12,7 +12,7 @@ const FEATURES = {
   'mission-packs': 'missions',
   'force-dispositions': 'force-dispositions',
   simulator: 'simulator',
-  guides: 'guides',
+  docs: 'docs',
   friends: 'friends',
   invite: 'friends',
   users: 'players',

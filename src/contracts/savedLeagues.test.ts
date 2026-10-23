@@ -10,3 +10,7 @@ it.each([{ ids: [] }, { ids: ['admin'] }, { ids: ['admin', 'other'] }])('preserv
   const summary = { adminIds: ids }
   expect(migrateSavedLeague(summary, 'adminIds')).toBe(summary)
 })
+
+it.each(['admins', 'adminIds'] as const)('gives a league saved before admins an empty %s list', (field) => {
+  expect(migrateSavedLeague({ name: 'League' }, field)).toEqual({ name: 'League', [field]: [] })
+})

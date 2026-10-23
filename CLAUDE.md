@@ -4,7 +4,7 @@
 
 ## Read for the task
 
-Read the relevant guide and section before changing its behavior. Read [Architecture](docs/development/architecture.md) for code placement. Topic guides own their domain and verification rules; do not copy them here or read every guide for an unrelated change. Keep guides to durable constraints, code entry points, and verification. Link to code, tests, and workflows for changing implementation details; replace stale guidance rather than appending a history of fixes. State required steps explicitly and distinguish them from descriptions of automation.
+Read the relevant guide and section before changing its behavior. Read [Architecture](docs/development/architecture.md) for code placement. Topic guides own their domain and verification rules; do not copy them here or read every guide for an unrelated change. Large guides are a short page plus area guides; read the page, then only the area the task touches.
 
 | Working on                                          | Read                                                       |
 | --------------------------------------------------- | ---------------------------------------------------------- |
@@ -22,6 +22,20 @@ Read the relevant guide and section before changing its behavior. Read [Architec
 | Native distribution and store setup                 | [Mobile release](docs/development/mobile-release.md)       |
 | Analytics, errors, logs                             | [Telemetry](docs/development/telemetry.md)                 |
 
+## Where knowledge goes
+
+Before writing anything down, put it in the first place that fits; a guide is the last resort.
+
+| What you learned                                                    | Where it goes                                                     |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| A rule a test can enforce                                           | The test                                                          |
+| Why one function or file works the way it does                      | A comment on that code                                            |
+| What broke and how it was fixed                                     | The commit message and pull request                               |
+| How players use a feature                                           | The in-app docs (`src/client/features/docs/content`)              |
+| A constraint spanning files that code can't express and still holds | The owning guide, replacing what it supersedes; name entry points |
+
+Guides keep durable constraints, code entry points, and verification, and state required steps apart from descriptions of automation. `pnpm docs:budget` (part of `just check`) caps each guide file and the total; when a guide needs room, remove or move something rather than raising the cap.
+
 ## Shared constraints
 
 - Keep acquisition strategy, outreach targets and drafts, personal/location context, private analytics links, and operational measurement plans in private notes. Public issues and documentation retain reproducible product problems, implementation contracts, and technical verification.
@@ -34,6 +48,6 @@ Read the relevant guide and section before changing its behavior. Read [Architec
 
 ## Working preview
 
-Check the thread's browser status and `just dev-status` before starting local services. `just dev` starts or reuses this worktree's persistent Vite stack and prints its URL; run it again after any checkout, pull, or merge, because it installs a changed lockfile and restarts the stack. Leave it running while the branch is open; once its pull request has merged, released or not, run `just teardown` in that worktree so its stack and leftover browser-test stacks stop, because each orphaned stack keeps two cores busy for days. Use its reported URL; never kill a process by a shared port or a broad process-name match. Restart only through `just dev-restart` when the product module or startup configuration changed. Application source edits use hot reload. Browser tests own disposable stacks and must not replace the interactive preview.
+Check the thread's browser status and `just dev-status` before starting local services. Follow [Running locally](docs/development/running-locally.md#development-lifecycle): run `just dev` after any checkout, pull, or merge, use its reported URL, and run `just teardown` once the branch's pull request has merged, released or not. Never kill a process by a shared port or a broad process-name match.
 
 When the user is testing, preserve their tab and inspect in a hidden tab on the same origin. Add corrections to the owning topic guide instead of growing this root file with feature-specific regression notes.

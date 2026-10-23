@@ -22,9 +22,9 @@ export function CollectionCard({
   return (
     <li {...props} className="@container/card flex flex-col gap-2 border border-edge bg-sunken/60 p-2">
       <div className="flex flex-wrap items-center gap-2">
-        {photo ?? (
-          <span className="flex size-6 shrink-0 items-center justify-center">
-            {sheet?.presentation ? (
+        {photo ??
+          (sheet?.presentation ? (
+            <span className="flex size-6 shrink-0 items-center justify-center">
               <FactionMark
                 id={sheet.presentation.slug}
                 name={sheet.presentation.displayName}
@@ -32,9 +32,8 @@ export function CollectionCard({
                 icon={sheet.presentation.icon}
                 size="sm"
               />
-            ) : null}
-          </span>
-        )}
+            </span>
+          ) : null)}
         <span className="min-w-[6rem] flex-1 break-words">
           {sheet ? (
             <FactionReferenceLink

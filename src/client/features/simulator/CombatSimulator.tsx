@@ -18,12 +18,16 @@ import {
   encodeSimulatorState,
   type MatchupSettings,
   type SimulatorSide,
+  rosterSourceKey,
+  type SimulatorRosterSource,
   type SimulatorState,
 } from '../../../contracts/simulatorState'
 import {
   combatUnitsQuery,
   discoveredRostersQuery,
   factionIndexQuery,
+  friendLeagueRostersQuery,
+  leagueRosterQuery,
   meQuery,
   savedRosterSummariesQuery,
   sharedRosterQuery,
@@ -32,20 +36,24 @@ import type { LocalRoster } from '../../offline/localRuntime'
 import { rosterTitle } from '../rosters/RosterSummary'
 import { exampleMatchup, useMatchupHistory } from './matchupHistory'
 import { RecentSimulations } from './RecentSimulations'
+import { sealedCombatRoster } from './rosterCombat'
+import { friendLeagueLabel, friendLeagueSource, OwnerName, useRosterOwners } from './rosterOwners'
 import type { RecentMatchup } from '../../../core/recentMatchups'
 
 const NO_ROSTER = 'none'
 
-/** A link's saved-roster side with that roster's current contents; null when the roster or its unit is gone. */
-function savedRosterSide(side: SimulatorSide, roster: LocalRoster | null | undefined, name: string): CombatRoster | null {
+/** A link's roster side with that roster's current contents; null when the roster or its unit is gone. */
+function savedRosterSide(side: SimulatorSide, roster: CombatRoster | null, name: string): CombatRoster | null {
   if (!roster || roster.catalogueId !== side.catalogueId) return null
-  const { pickIndex } = side.roster!
+  const { pickIndex, ...source } = side.roster!
   const index =
     roster.picks[pickIndex]?.entryId === side.pick.entryId
       ? pickIndex
       : roster.picks.findIndex((pick) => pick.entryId === side.pick.entryId && pick.attachedTo === undefined)
-  return index < 0 ? null : { ...roster, pickIndex: index, saved: { id: side.roster!.id, name } }
+  return index < 0 ? null : { ...roster, pickIndex: index, saved: { source, name } }
 }
+
+const savedCombatRoster = (roster: LocalRoster | null | undefined): CombatRoster | null => (roster ? { ...roster, pickIndex: 0 } : null)
 
 /** The standalone page keeps its matchup in the URL, so a link reopens the same calculation. */
 export function CombatSimulator({
@@ -80,18 +88,46 @@ export function CombatSimulator({
     if (session.shared !== shared) onShare(session.shared)
   }, [session.shared, shared, onShare])
   const friendRosters = friends.data?.pages[0]?.rosters ?? []
+  const leagues = useQuery({ ...friendLeagueRostersQuery(), enabled: Boolean(me.data) })
+  const ownerOf = useRosterOwners()
+  const leagueSources = new Map<string, SimulatorRosterSource>(
+    (leagues.data ?? []).map((entry) => {
+      const source = friendLeagueSource(entry)
+      return [rosterSourceKey(source), source]
+    }),
+  )
   const example = units.data ? exampleMatchup(units.data) : null
   const linked = decodeSimulatorState(session.shared)
-  const linkedIds = [...new Set(linked?.sides.flatMap((side) => side?.roster?.id ?? []))]
+  const linkedSources = linked?.sides.flatMap((side) => (side?.roster ? [side.roster] : [])) ?? []
+  const linkedIds = [...new Set(linkedSources.flatMap((source) => ('id' in source ? [source.id] : [])))]
+  const linkedLeagues = new Map(linkedSources.flatMap((source) => ('league' in source ? [[rosterSourceKey(source), source.league]] : [])))
   const linkedRosters = useQueries({ queries: linkedIds.map((id) => sharedRosterQuery(id)) })
+  const linkedLeagueRosters = useQueries({
+    queries: [...linkedLeagues.values()].map(({ token, eventToken, userId }) => leagueRosterQuery(token, eventToken, userId)),
+  })
+  const linkedRoster = (source: SimulatorRosterSource) => {
+    if ('id' in source) {
+      const roster = linkedRosters[linkedIds.indexOf(source.id)]?.data
+      return { roster: savedCombatRoster(roster), name: roster ? titled({ ...roster, unitCount: roster.picks.length }) : '' }
+    }
+    const roster = linkedLeagueRosters[[...linkedLeagues.keys()].indexOf(rosterSourceKey(source))]?.data
+    return { roster: sealedCombatRoster(roster), name: roster?.name ?? '' }
+  }
   const sides = linked?.sides.map((side) => {
     if (!side?.roster) return { side, roster: undefined }
-    const roster = linkedRosters[linkedIds.indexOf(side.roster.id)]?.data
-    const combat = savedRosterSide(side, roster, roster ? titled({ ...roster, unitCount: roster.picks.length }) : '')
+    const { roster, name } = linkedRoster(side.roster)
+    const combat = savedRosterSide(side, roster, name)
     return { side: combat ? side : null, roster: combat ?? undefined }
   })
-  const loadingRoster = linkedRosters.some((query) => query.isLoading)
-  const missingRoster = sides?.some(({ side, roster }, index) => linked?.sides[index]?.roster && (!side || !roster)) ?? false
+  // A linked roster this player does not otherwise list, such as another player's roster they opened.
+  const listed = new Set([...savedRosters.map(({ id }) => id), ...friendRosters.map(({ roster }) => roster.id), ...leagueSources.keys()])
+  const otherRosters = [...new Map(linkedSources.map((source) => [rosterSourceKey(source), source])).entries()].flatMap(([key, source]) => {
+    const { roster, name } = linkedRoster(source)
+    return listed.has(key) || !roster ? [] : [{ id: key, label: name, catalogueId: roster.catalogueId }]
+  })
+  const loadingRoster = [...linkedRosters, ...linkedLeagueRosters].some((query) => query.isPending)
+  const missingRoster =
+    !loadingRoster && Boolean(sides?.some(({ side, roster }, index) => linked?.sides[index]?.roster && (!side || !roster)))
   // The emptied side leaves the link on its next change, so the notice is kept until another link opens.
   if (missingRoster && !problem) setProblem('A roster in this simulation is no longer available, so its side is empty.')
   const restore = (value: string) => {
@@ -103,11 +139,18 @@ export function CombatSimulator({
     setComparingRosters(false)
     setProblem(null)
   }
-  const chooseRoster = async (index: 0 | 1, id: string) => {
+  const chooseRoster = async (index: 0 | 1, key: string) => {
     const request = ++rosterRequests.current[index]
     let side: SimulatorSide | null = null
-    if (id !== NO_ROSTER) {
-      const roster = await queryClient.query(sharedRosterQuery(id)).catch(() => null)
+    if (key !== NO_ROSTER) {
+      const linkedLeague = linkedLeagues.get(key)
+      const source = leagueSources.get(key) ?? (linkedLeague ? { league: linkedLeague } : { id: key })
+      const { league } = 'league' in source ? source : {}
+      const roster = await (
+        league
+          ? queryClient.query(leagueRosterQuery(league.token, league.eventToken, league.userId)).then(sealedCombatRoster)
+          : queryClient.query(sharedRosterQuery(key)).then(savedCombatRoster)
+      ).catch(() => null)
       if (request !== rosterRequests.current[index]) return
       const pickIndex = roster?.picks.findIndex((pick) => pick.attachedTo === undefined) ?? -1
       const host = roster?.picks[pickIndex]
@@ -116,7 +159,7 @@ export function CombatSimulator({
         return
       }
       const { attachedTo: _attachedTo, note: _note, ...pick } = host
-      side = { catalogueId: roster.catalogueId, pick, rules: {}, roster: { id, pickIndex } }
+      side = { catalogueId: roster.catalogueId, pick, rules: {}, roster: { ...source, pickIndex } }
     }
     setSession((current) => {
       const state = decodeSimulatorState(current.shared)
@@ -127,10 +170,14 @@ export function CombatSimulator({
     setComparingRosters(false)
     setProblem(null)
   }
-  const rosterControl = (index: 0 | 1) =>
-    savedRosters.length || friendRosters.length ? (
+  const rosterControl = (index: 0 | 1) => {
+    const sideOwner = ownerOf(sides?.[index]?.roster?.saved?.source)
+    return savedRosters.length || friendRosters.length || leagueSources.size || otherRosters.length ? (
       <div className="mb-3 text-xs text-dim">
-        Roster
+        <span className="flex min-w-0 items-center justify-between gap-2">
+          Roster
+          {sideOwner ? <OwnerName owner={sideOwner} className="text-bone" /> : null}
+        </span>
         <RosterPicker
           ariaLabel={`${index ? 'Second' : 'First'} roster`}
           className="mt-1"
@@ -141,6 +188,7 @@ export function CombatSimulator({
               label: 'Catalogue',
               options: [{ id: NO_ROSTER, label: 'No roster', icon: <BookOpen className="size-4 text-info" aria-hidden /> }],
             },
+            { label: 'Opened rosters', options: otherRosters },
             {
               label: 'Your rosters',
               options: savedRosters.map((roster) => ({ id: roster.id, label: titled(roster), catalogueId: roster.catalogueId })),
@@ -153,12 +201,21 @@ export function CombatSimulator({
                 catalogueId: roster.catalogueId,
               })),
             },
+            {
+              label: "Friends' league rosters",
+              options: (leagues.data ?? []).map((entry) => ({
+                id: rosterSourceKey(friendLeagueSource(entry)),
+                label: friendLeagueLabel(entry),
+                catalogueId: entry.catalogueId,
+              })),
+            },
           ]}
-          value={sides?.[index]?.roster?.saved?.id ?? NO_ROSTER}
+          value={sides?.[index]?.roster?.saved ? rosterSourceKey(sides[index].roster.saved.source) : NO_ROSTER}
           onValueChange={(id) => void chooseRoster(index, id)}
         />
       </div>
     ) : undefined
+  }
   const share = useCallback((state: SimulatorState) => {
     const encoded = state.sides.some(Boolean) ? encodeSimulatorState(state) : undefined
     setSession((current) => (current.shared === encoded ? current : { ...current, shared: encoded }))
@@ -354,6 +411,10 @@ export function CombatSimulatorMatchup({
       defender={defender.snapshot}
       pending={!attacker.ready || !defender.ready}
       failed={failed}
+      invalidAttachments={{
+        attacker: Boolean(attacker.sheets.data?.attachmentErrors.length),
+        defender: Boolean(defender.sheets.data?.attachmentErrors.length),
+      }}
       inDialog={inDialog}
       loadoutSpace={attacker.loadoutSpace}
       attackerControl={

@@ -190,10 +190,13 @@ describe('public roster discovery', () => {
     ],
   })
   const listed = { ...row, visibility: 'public' as const, picks, prep, baseRosterId: 'unlisted-base' }
-  const discover = async (rows: (typeof listed)[], names = new Map([['user-1', { id: 'user-1', name: 'Owner' }]])) => {
+  const discover = async (
+    rows: (typeof listed)[],
+    names = new Map([['user-1', { id: 'user-1', name: 'Owner', image: 'https://example.com/owner.png' }]]),
+  ) => {
     const discoverRosters = vi.fn().mockResolvedValue({ rows, nextCursor: { at: 2, id: 'roster-1' } })
-    const namesByIds = vi.fn().mockResolvedValue(names)
-    const service = new RosterService({ discoverRosters, namesByIds } as unknown as RepositoryPort, () => 0)
+    const profilesByIds = vi.fn().mockResolvedValue(names)
+    const service = new RosterService({ discoverRosters, profilesByIds } as unknown as RepositoryPort, () => 0)
     return service.discoverRosters({
       audience: 'public',
       viewerId: null,
@@ -207,6 +210,10 @@ describe('public roster discovery', () => {
 
   it('names the owner of a discovered roster', async () => {
     expect((await discover([listed])).rosters.map((entry) => entry.owner.name)).toEqual(['Owner'])
+  })
+
+  it('shows the owner of a discovered roster by their profile picture', async () => {
+    expect((await discover([listed])).rosters.map((entry) => entry.owner.image)).toEqual(['https://example.com/owner.png'])
   })
 
   it('leaves out a roster whose owner has no account', async () => {

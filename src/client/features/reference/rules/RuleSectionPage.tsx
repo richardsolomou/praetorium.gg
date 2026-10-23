@@ -93,7 +93,7 @@ function withText(outline: RuleSection, loaded: RuleSection): RuleSection {
 
 function Rule({ entry, links, missing }: { entry: RuleEntry; links: RuleLinks; missing: MissingText }) {
   return (
-    <article id={entry.anchor} data-onboarding="rule-article" className="scroll-mt-16 border border-edge bg-panel p-3 sm:p-4">
+    <article id={entry.anchor} data-onboarding="rule-article" className="scroll-mt-header border border-edge bg-panel p-3 sm:p-4">
       <div className="flex flex-wrap items-baseline gap-2">
         {entry.code ? <span className="chip readout">{entry.code}</span> : null}
         <h2 className="text-xl">{entry.title}</h2>
@@ -129,7 +129,7 @@ function Rule({ entry, links, missing }: { entry: RuleEntry; links: RuleLinks; m
             <div
               key={key}
               id={block.anchor ?? undefined}
-              className="mt-3 flex scroll-mt-16 items-center gap-2 border border-edge bg-sunken px-3 py-2"
+              className="mt-3 flex scroll-mt-header items-center gap-2 border border-edge bg-sunken px-3 py-2"
             >
               {block.code ? <span className="readout shrink-0 text-xs text-faint">{block.code}</span> : null}
               <span className="min-w-0 flex-1 text-sm font-semibold text-bone">{block.title}</span>
@@ -137,7 +137,7 @@ function Rule({ entry, links, missing }: { entry: RuleEntry; links: RuleLinks; m
           )
         }
         return (
-          <details key={key} id={block.anchor ?? undefined} className="group mt-3 scroll-mt-16 border border-edge bg-sunken">
+          <details key={key} id={block.anchor ?? undefined} className="group mt-3 scroll-mt-header border border-edge bg-sunken">
             <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 hover:bg-raised">
               {block.code ? <span className="readout shrink-0 text-xs text-faint">{block.code}</span> : null}
               <span className="min-w-0 flex-1 text-sm font-semibold text-bone">{block.title}</span>

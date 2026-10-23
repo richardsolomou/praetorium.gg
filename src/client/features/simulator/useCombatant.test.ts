@@ -393,7 +393,7 @@ function savedRoster(pickIndex: number): CombatRoster {
     waivedRules: [],
     borrowedDetachmentId: null,
     optionalRules: [],
-    saved: { id: 'roster-1', name: 'Court of the Ankh' },
+    saved: { source: { id: 'roster-1' }, name: 'Court of the Ankh' },
   }
 }
 
@@ -403,6 +403,14 @@ it('shares a saved roster’s unit by roster and position, without its note', ()
     pick: { entryId: 'leader' },
     rules: {},
     roster: { id: 'roster-1', pickIndex: 1 },
+  })
+})
+
+it('shares a revealed league list’s unit by event, entrant and position', () => {
+  const league = { token: 'league-1', eventToken: 'event-1', userId: 'friend-1' }
+  expect(renderBattle({ ...savedRoster(1), saved: { source: { league }, name: 'Sealed' } }).shared?.roster).toEqual({
+    league,
+    pickIndex: 1,
   })
 })
 

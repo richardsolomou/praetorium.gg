@@ -184,22 +184,19 @@ it('lists the public pages no reference document names', async () => {
   )
 })
 
-it('lists public workflow guides alongside battles and leagues', async () => {
+it('lists public docs alongside battles and leagues', async () => {
   const urls = [...(await sitemap()).matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1])
 
   expect(urls).toEqual(
     expect.arrayContaining([
       'https://praetorium.gg/battles',
       'https://praetorium.gg/leagues',
-      'https://praetorium.gg/guides',
-      'https://praetorium.gg/guides/prepare-your-first-game',
-      'https://praetorium.gg/guides/build-a-balanced-army',
-      'https://praetorium.gg/guides/plan-your-scoring',
-      'https://praetorium.gg/guides/build-an-army',
-      'https://praetorium.gg/guides/import-a-roster',
-      'https://praetorium.gg/guides/compare-loadouts',
-      'https://praetorium.gg/guides/track-a-battle',
-      'https://praetorium.gg/guides/connect-an-ai-assistant',
+      'https://praetorium.gg/docs',
+      'https://praetorium.gg/docs/start-a-list',
+      'https://praetorium.gg/docs/import-a-list',
+      'https://praetorium.gg/docs/change-the-loadout',
+      'https://praetorium.gg/docs/start-a-battle',
+      'https://praetorium.gg/docs/connect-an-assistant',
     ]),
   )
 })
@@ -278,7 +275,7 @@ it('links agents and players to the MCP setup guide and canonical answers for co
   const body = await (await referenceLlms(new Request('https://praetorium.gg/llms.txt'))).text()
 
   expect(body).toMatch(
-    /\[MCP\]\(https:\/\/praetorium\.gg\/mcp\).*\(https:\/\/praetorium\.gg\/guides\/connect-an-ai-assistant\).*## Common questions.*points.*\/api\/reference\/v1\/factions\/\{catalogueId\}\/units.*\(https:\/\/praetorium\.gg\/guides\/build-an-army\).*\(https:\/\/praetorium\.gg\/guides\/import-a-roster\).*\(https:\/\/praetorium\.gg\/guides\/compare-loadouts\).*## Human reference/s,
+    /\[MCP\]\(https:\/\/praetorium\.gg\/mcp\).*\(https:\/\/praetorium\.gg\/docs\/connect-an-assistant\).*## Common questions.*points.*\/api\/reference\/v1\/factions\/\{catalogueId\}\/units.*\(https:\/\/praetorium\.gg\/docs\/list-checks\).*\(https:\/\/praetorium\.gg\/docs\/import-a-list\).*\(https:\/\/praetorium\.gg\/docs\/change-the-loadout\).*## Human reference/s,
   )
 })
 

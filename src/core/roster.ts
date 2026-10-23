@@ -397,7 +397,8 @@ function withOptionalModels(selection: Selection, models: number, index: Catalog
   let remaining = models - modelCountOf(selection, index)
   if (remaining <= 0) return selection
 
-  // A squad grows by the model its group defaults to before it takes on another kind.
+  // A squad grows by the model its group defaults to before it takes on another kind, because the MFM adjustment in
+  // `src/shared/unitPoints.ts` is measured against that default build.
   const defaultFirst = (slot: ModelSlot) => {
     const parent = index.definitions.get(slot.path.at(-2) ?? '')
     return parent && 'defaultSelectionEntryId' in parent && parent.defaultSelectionEntryId === slot.path.at(-1) ? 0 : 1

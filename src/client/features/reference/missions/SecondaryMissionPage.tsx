@@ -25,7 +25,7 @@ export function SecondaryMissionPage({ packId, cardId }: { packId: string; cardI
         title={card.name}
       />
       <PageContent className="space-y-6">
-        <section id={`secondary-${card.key}`} className="scroll-mt-16">
+        <section id={`secondary-${card.key}`} className="scroll-mt-header">
           <MissionCardReference card={card} />
           <MissionActions actions={card.actions} className="mt-4" />
         </section>

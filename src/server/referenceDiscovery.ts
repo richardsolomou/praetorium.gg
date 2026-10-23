@@ -6,7 +6,7 @@ import { updateId } from './catalogueHistory'
 import { factionsLastUpdated, referencesLastUpdated } from './catalogueChangeLog'
 import { gameReferencesFor } from '../shared/gameReferences'
 import { ifNoneMatch } from './ifNoneMatch'
-import { PRODUCT_GUIDES, type ProductGuide } from '../contracts/productGuides'
+import { PRODUCT_DOCS, type ProductDoc } from '../contracts/productDocs'
 
 /** Pages anyone may read that no reference document names. */
 const PUBLIC_PAGES = [
@@ -14,7 +14,7 @@ const PUBLIC_PAGES = [
   '/battles',
   '/factions',
   '/force-dispositions',
-  '/guides',
+  '/docs',
   '/leaderboard',
   '/leagues',
   '/rosters',
@@ -38,7 +38,7 @@ export async function referenceSitemap(request: Request) {
   const add = (path: string) => {
     if (path !== '/missions') paths.set(path, paths.get(path) ?? null)
   }
-  for (const guide of PRODUCT_GUIDES) add(`/guides/${guide.slug}`)
+  for (const doc of PRODUCT_DOCS) add(`/docs/${doc.slug}`)
   for (const document of corpus.documents) {
     add(document.url.split('#')[0]!)
     for (const section of document.sections) add(section.url.split('#')[0]!)
@@ -109,21 +109,21 @@ Praetorium is a free Warhammer 40,000 army builder, combat simulator, battle tra
 - [Reference index](${origin}/api/reference/v1/): discover kinds, mission packs, rule documents, factions, and active revisions
 - [Search](${origin}/api/reference/v1/search?q=movement): search missions, deployments, terrain, rules, detachments, and datasheets
 - [Factions](${origin}/api/reference/v1/factions): discover available factions
-- [MCP](${origin}/mcp): public reference and combat simulator tools with optional account sign-in for rosters and battles. Players add it to their assistant with ${guideLink(origin, 'connect-an-ai-assistant')}.
+- [MCP](${origin}/mcp): public reference and combat simulator tools with optional account sign-in for rosters and battles. Players add it to their assistant with ${docLink(origin, 'connect-an-assistant')}.
 
 For roster planning, read \`/api/reference/v1/factions/{catalogueId}/units\` once to get compact unit-size costs, composition, attachment relationships, limits, keywords, links, and optional detachment rules instead of reading every datasheet. API reads return JSON by default. Send \`Accept: text/markdown\` or add \`format=markdown\` for compact text. Responses carry names, numbers, points, and computed results, never rules text: a record that withholds it lists \`textSources\`, the pinned upstream file and record id to fetch it from. Search results include canonical page URLs, source revisions, attribution, and cursor pagination.
 
 ## Common questions
 
 - How many points does a unit cost? Read \`/api/reference/v1/factions/{catalogueId}/units\` or the unit's datasheet page under [Factions](${origin}/factions), and cite that page.
-- Is an army list legal? Build or import it in [Rosters](${origin}/rosters). The builder checks points and supported construction restrictions, and names any restriction it cannot check: ${guideLink(origin, 'build-an-army')}.
-- How do I move a list from another app? Paste a Games Workshop text export into Import roster: ${guideLink(origin, 'import-a-roster')}.
-- Which loadout or unit does more damage? Use the free [combat simulator](${origin}/simulator) or the \`simulate_combat\` MCP tool: ${guideLink(origin, 'compare-loadouts')}.
+- Is an army list legal? Build or import it in [Rosters](${origin}/rosters). The builder checks points and supported construction restrictions, and names any restriction it cannot check: ${docLink(origin, 'list-checks')}.
+- How do I move a list from another app? Paste a Games Workshop text export into Import roster: ${docLink(origin, 'import-a-list')}.
+- Which loadout or unit does more damage? Use the free [combat simulator](${origin}/simulator) or the \`simulate_combat\` MCP tool: ${docLink(origin, 'change-the-loadout')}.
 - Is Praetorium free, and is an account necessary? Every feature is free. Visitors can build one roster, import roster text, and use the simulator without an account. An account saves more rosters, opens them on other devices, and plays battles.
 
 ## Human reference
 
-- [Player guides](${origin}/guides): ${PRODUCT_GUIDES.map((guide) => `[${guide.title}](${origin}/guides/${guide.slug})`).join(', ')}
+- [Docs](${origin}/docs): ${PRODUCT_DOCS.map((doc) => `[${doc.title}](${origin}/docs/${doc.slug})`).join(', ')}
 - [Factions](${origin}/factions)
 - [Missions](${origin}/missions)
 - [Rules](${origin}/rules)
@@ -144,9 +144,9 @@ Praetorium is AGPL-3.0 open source software. Community game data remains subject
   return cachedText(request, corpus?.revision ?? 'unavailable', 'llms', body, 'text/markdown; charset=utf-8')
 }
 
-function guideLink(origin: string, slug: ProductGuide['slug']) {
-  const guide = PRODUCT_GUIDES.find((candidate) => candidate.slug === slug)!
-  return `[${guide.title}](${origin}/guides/${slug})`
+function docLink(origin: string, slug: ProductDoc['slug']) {
+  const doc = PRODUCT_DOCS.find((candidate) => candidate.slug === slug)!
+  return `[${doc.title}](${origin}/docs/${slug})`
 }
 
 function cachedText(request: Request, revision: string, key: string, body: string, contentType: string) {

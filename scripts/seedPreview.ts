@@ -83,8 +83,8 @@ const PREVIEW_PLAYER_ROSTERS: readonly PreviewRoster[] = [
     warlord: true,
     picks: [
       { entryId: '91e3-a419-8c58-98f5', toggles: { 'a89c-b01e-ffab-8ebb': 1 } },
-      { entryId: '9770-3a56-619e-f390' },
-      { entryId: 'cd69-af58-774-d387' },
+      { entryId: '9770-3a56-619e-f390', attachedTo: 3 },
+      { entryId: 'cd69-af58-774-d387', attachedTo: 4 },
       { entryId: '85b1-eb9a-17a6-e5be' },
       { entryId: 'c432-5254-8a25-6c8a' },
       { entryId: '4c8-e877-566b-a1ee' },

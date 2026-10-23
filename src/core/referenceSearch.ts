@@ -40,8 +40,14 @@ export type GlobalSearchIndex = {
   rules: IndexedResult[]
 }
 
-import { distance } from 'fastest-levenshtein'
-import { matchDatasheet, matchSearchText, prepareDatasheetSearch, prepareSearchText } from './datasheetSearch'
+import {
+  fuzzyNameScore,
+  matchDatasheet,
+  strongestMatches,
+  matchSearchText,
+  prepareDatasheetSearch,
+  prepareSearchText,
+} from './datasheetSearch'
 
 export function searchReference(query: string, index: GlobalSearchIndex): GlobalSearchResult[] {
   const wanted = query.toLowerCase()
@@ -61,9 +67,11 @@ function catalogueResults(wanted: string, index: GlobalSearchIndex | null): Glob
     ...detachmentResults(wanted, index.detachments),
   ]
   const datasheets = new Map<string, { primary: RankedResult[]; allied?: RankedResult }>()
-  for (const entry of index.datasheets) {
+  const matches = index.datasheets.flatMap((entry) => {
     const match = matchDatasheet(wanted, entry.fields)
-    if (!match) continue
+    return match ? [{ entry, match }] : []
+  })
+  for (const { entry, match } of strongestMatches(matches)) {
     const result = match.reasons.length ? { ...entry.result, matchReasons: match.reasons } : entry.result
     const found = datasheets.get(entry.targetId) ?? { primary: [] }
     const ranked = { result, score: match.score }
@@ -136,7 +144,7 @@ const datasheetResults = (datasheets: ReadonlyMap<string, { primary: RankedResul
 function fuzzyDatasheetResults(datasheets: readonly IndexedDatasheet[], query: string) {
   const found = new Map<string, { result: GlobalSearchResult; score: number }>()
   for (const entry of datasheets) {
-    const score = fuzzyScore(query, entry.name)
+    const score = fuzzyNameScore(query, entry.name)
     if (score === null) continue
     const existing = found.get(entry.targetId)
     if (existing && existing.score <= score) continue
@@ -146,22 +154,6 @@ function fuzzyDatasheetResults(datasheets: readonly IndexedDatasheet[], query: s
     .toSorted((left, right) => left.score - right.score || left.result.label.localeCompare(right.result.label))
     .map(({ result }) => result)
 }
-
-/** Every substantial word must be close to a word on the datasheet, avoiding broad guesses. */
-function fuzzyScore(query: string, name: string) {
-  const queryWords = wordsIn(query).filter((word) => word.length >= 3)
-  const nameWords = wordsIn(name)
-  if (!queryWords.length || !nameWords.length) return null
-  let score = 0
-  for (const queryWord of queryWords) {
-    const nearest = Math.min(...nameWords.map((nameWord) => distance(queryWord, nameWord) / Math.max(queryWord.length, nameWord.length)))
-    if (nearest > 0.34) return null
-    score += nearest
-  }
-  return score / queryWords.length
-}
-
-const wordsIn = (value: string) => value.toLowerCase().match(/[a-z0-9]+/g) ?? []
 
 /** The fewest characters global search answers. */
 export const SEARCH_MIN_LENGTH = 2

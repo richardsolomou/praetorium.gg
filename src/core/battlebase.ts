@@ -5,7 +5,8 @@ import { attachGroups, type TextRoster, type TextRosterUnit } from './textRoster
  * the name before it, the number, and the first word of its unit.
  */
 const pricePattern = /^(.+?)\s*\((\d{1,3}(?:[\s.,]\d{3})+|\d+)\s+([^\s;)]+)[^)]*\)$/
-const selection = /^[•◦]\s*(?:(\d+)x\s+)?(.+?)$/
+// The app lists each further piece of a model's wargear under the same bullet, on an unbulleted counted line.
+const selection = /^(?=[•◦]|\d+x\s)(?:[•◦]\s*)?(?:(\d+)x\s+)?(.+?)$/
 const labelled = /^([^:]+):\s*(.+)$/
 const appVersion = /\bv\d+(?:\.\d+)+\s+\(\d+\)/
 
@@ -27,11 +28,16 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     .replaceAll('\r', '')
     .split('\n')
     .map((line) => line.trim())
-  const titleAt = lines.findIndex(Boolean)
-  const title = lines[titleAt] ?? 'Imported list'
-  const titlePrice = price(title)
-  const pointsWord = titlePrice?.unit ?? 'points'
-  let setupEnd = titleAt + 1
+  const firstAt = lines.findIndex(Boolean)
+  let firstEnd = firstAt
+  while (firstEnd < lines.length && lines[firstEnd]) firstEnd++
+  // A paste copied from below the title opens with the setup, whose detachments and battle size are priced in different words.
+  const firstPrices = lines.slice(firstAt, firstEnd).flatMap((line) => price(line) ?? [])
+  const untitled = new Set(firstPrices.map(({ unit }) => unit)).size > 1
+  const title = untitled ? 'Imported list' : (lines[firstAt] ?? 'Imported list')
+  const titlePrice = untitled ? null : price(title)
+  const pointsWord = (untitled ? firstPrices.at(-1)?.unit : titlePrice?.unit) ?? 'points'
+  let setupEnd = untitled ? firstAt : firstAt + 1
   while (setupEnd < lines.length && !lines[setupEnd]) setupEnd++
   const setupStart = setupEnd
   while (setupEnd < lines.length && lines[setupEnd]) setupEnd++
@@ -49,7 +55,7 @@ export function fromBattleBaseText(input: string): TextRoster | null {
   const armySetup = setup.slice(factionAt + 1)
   const sizeLine = armySetup.find((line) => price(line)?.unit === pointsWord)
   const exportedBy = /Exported with (?:BattleBase|Praetorium\.gg)/i.test(input)
-  if (!exportedBy && (!titlePrice || !faction || !sizeLine || !body.some(isUnit))) return null
+  if (!exportedBy && ((!titlePrice && !untitled) || !faction || !sizeLine || !body.some(isUnit))) return null
   const size = sizeLine ? price(sizeLine) : null
   // Detachments are priced in their own points; Warmind gives each one a line.
   const pricedDetachments = armySetup.filter((line) => line !== sizeLine && price(line))

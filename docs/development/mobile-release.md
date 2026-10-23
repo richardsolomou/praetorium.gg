@@ -28,11 +28,11 @@ The Watch target `gg.praetorium.watch` has its own App Store profile and shares 
 
 Run `just check` first.
 
-[`.github/workflows/release.yml`](../../.github/workflows/release.yml) dispatches delivery only when [`scripts/iosDelivery.ts`](../../scripts/iosDelivery.ts) finds mobile inputs changed since the revision recorded in the `mobile-ios-stable` GitHub deployment. Web-only changes and dependency age exceptions do not dispatch delivery. [`.github/workflows/mobile.yml`](../../.github/workflows/mobile.yml) rechecks each channel inside its serialized delivery job: compatible JavaScript changes publish an EAS Update; a changed Expo native fingerprint or public mobile version builds and uploads a TestFlight binary first. Canary precedes stable; [`mobile/eas.json`](../../mobile/eas.json) owns profiles, channels, and build numbers. Delivery never submits for public App Store review.
+[`.github/workflows/release.yml`](../../.github/workflows/release.yml) dispatches delivery only when [`scripts/iosDelivery.ts`](../../scripts/iosDelivery.ts) finds mobile inputs changed since the revision recorded in the `mobile-ios-stable` GitHub deployment. [`.github/workflows/mobile.yml`](../../.github/workflows/mobile.yml) rechecks each channel inside its serialized delivery job, publishing an EAS Update or first uploading a TestFlight binary. Canary precedes stable; [`mobile/eas.json`](../../mobile/eas.json) owns profiles, channels, and build numbers. Delivery never submits for public App Store review.
 
-[`scripts/iosDeliveryPlan.ts`](../../scripts/iosDeliveryPlan.ts) resolves the runtime under each channel's EAS environment and checks the runtime and public version embedded in each IPA before upload. [`mobile/fingerprint.config.js`](../../mobile/fingerprint.config.js) includes the custom Watch source and build profiles, which Expo's default fingerprint does not cover. PR validation compares the base and head native runtimes and public versions before running Xcode.
+[`scripts/iosDeliveryPlan.ts`](../../scripts/iosDeliveryPlan.ts) resolves the runtime under each channel's EAS environment and checks the runtime and public version embedded in each IPA before upload. PR validation compares the base and head native runtimes and public versions before running Xcode.
 
-Each channel records an upload receipt in `mobile-ios-<channel>-binary` immediately after a successful upload, and a separate `mobile-ios-<channel>` receipt after successful OTA delivery. Receipts retain the runtime, public version, and mobile input fingerprint, including resolved `EXPO_PUBLIC_` values. An OTA retry reuses an already uploaded binary; an older queued revision cannot replace a newer receipt. Missing binary receipts require a build, including the first delivery with this scheme. Keep the binary receipts independent of OTA and metadata success.
+Each channel records its binary upload in the `mobile-ios-<channel>-binary` GitHub deployment and its OTA delivery in `mobile-ios-<channel>`.
 
 Inspect the last run before restarting delivery from `main`, and never start a second delivery while one is running:
 
@@ -40,7 +40,7 @@ Inspect the last run before restarting delivery from `main`, and never start a s
 gh workflow run mobile.yml --ref main
 ```
 
-A manual dispatch builds by default. Add `-f force_build=false` to use normal fingerprint decisions; automatic releases set this explicitly. Use this option after changing public JavaScript variables in EAS to publish an OTA update when the native runtime is unchanged. Main delivery rejects revisions outside `origin/main` before planning or recording delivery. On a feature branch delivery uploads only the canary binary, without OTA updates, stable delivery, or production receipts; add `-f provision_watch=true` to provision the Watch target and force a build:
+A manual dispatch builds by default. Add `-f force_build=false` to use normal fingerprint decisions. Use this option after changing public JavaScript variables in EAS to publish an OTA update when the native runtime is unchanged. On a feature branch delivery uploads only the canary binary, without OTA updates, stable delivery, or production receipts; add `-f provision_watch=true` to provision the Watch target and force a build:
 
 ```sh
 gh workflow run mobile.yml --ref <branch> -f provision_watch=true
@@ -107,7 +107,7 @@ These match the privacy manifest in `mobile/app.json`; the answers must also cov
 
 Declare collection of name, email address, user IDs, photos, other user-generated content, app interactions, crash logs, diagnostics, and device or other identifiers used for sessions and abuse prevention. Profile pictures are optional; account, roster, battle, and session data are required. Data is encrypted in transit, deletable on request, not sold, and not used for advertising. PostHog and the hosting and email providers are service providers; confirm the current [Data safety](https://support.google.com/googleplay/android-developer/answer/10787469) wording before relying on that exception.
 
-State that the app creates accounts, give `https://praetorium.gg/delete-account` as the web deletion resource, and verify Profile → Account security → Permanently delete account. See [Google Play's account deletion requirements](https://support.google.com/googleplay/android-developer/answer/13327111).
+State that the app creates accounts, give `https://praetorium.gg/delete-account` as the web deletion resource, and verify Profile → Delete account → Permanently delete account. See [Google Play's account deletion requirements](https://support.google.com/googleplay/android-developer/answer/13327111).
 
 ## Content and age rating
 
@@ -123,7 +123,7 @@ Review notes, after replacing the bracketed value:
 >
 > The application loads the production service at `https://praetorium.gg`. The native shell adds verified links, secure system-browser authentication, native sharing and printing, battle-action haptics, and a screen wake lock during active battles. It loads trusted application pages and opens external links through the operating system. Compatible JavaScript updates are delivered through EAS Update.
 >
-> Supported social providers use the system authentication session. Email/password sign-in is available in the application. Account deletion is under Profile → Account security → Permanently delete account. The application has no purchases, subscriptions, ads, or chat. Players can publish rosters and share battles.
+> Supported social providers use the system authentication session. Email/password sign-in is available in the application. Account deletion is under Profile → Delete account → Permanently delete account. The application has no purchases, subscriptions, ads, or chat. Players can publish rosters and share battles.
 >
 > Praetorium uses community-maintained catalogue and rules data under the licences recorded at `https://github.com/richardsolomou/praetorium.gg/blob/main/catalogue/sources.json`. It is unofficial and is not affiliated with or endorsed by Games Workshop.
 

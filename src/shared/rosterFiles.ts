@@ -5,6 +5,7 @@ import { attachmentRows } from '../core/attachmentRows'
 import { fromBattleBaseText } from '../core/battlebase'
 import { type Definition, nameOf } from '../core/catalogue'
 import { childrenOf, isRosterToggle, modelProfileOf, resolve } from '../core/definitions'
+import { canonicalDetachmentName } from '../core/detachmentName'
 import type { Selection } from '../core/evaluate'
 import { fromNewRecruitText } from '../core/newRecruit'
 import { normalizedNameVariants } from '../core/name'
@@ -397,15 +398,16 @@ function detachmentsNamed<T extends { id: string; name: string }>(combined: stri
   const candidates = options.toSorted((left, right) => normalized(right.name).length - normalized(left.name).length)
   const visit = (remaining: string, available: readonly T[]): T[] | null => {
     for (const candidate of available) {
-      const name = normalized(candidate.name)
-      if (remaining === name) return [candidate]
-      for (const separator of [', and ', ' and ', ', ']) {
-        if (!remaining.startsWith(name + separator)) continue
-        const rest = visit(
-          remaining.slice(name.length + separator.length),
-          available.filter((option) => option.id !== candidate.id),
-        )
-        if (rest) return [candidate, ...rest]
+      for (const name of new Set([candidate.name, canonicalDetachmentName(candidate.name)].map(normalized))) {
+        if (remaining === name) return [candidate]
+        for (const separator of [', and ', ' and ', ', ']) {
+          if (!remaining.startsWith(name + separator)) continue
+          const rest = visit(
+            remaining.slice(name.length + separator.length),
+            available.filter((option) => option.id !== candidate.id),
+          )
+          if (rest) return [candidate, ...rest]
+        }
       }
     }
     return null
@@ -415,10 +417,12 @@ function detachmentsNamed<T extends { id: string; name: string }>(combined: stri
 
 const upgradeName = (name: string) => name.replace(/(?:\s+\((?:one per army|Upgrade)\))+$/i, '')
 const nameVariants = (name: string) => normalizedNameVariants(normalized(name))
+const modelLoadout = /\s+w\/\s*(.+)$/i
 const modelAliases = (name: string) => [
   normalized(name),
-  ...nameVariants(name.replace(/\s+w\/\s.+$/i, '').replace(/\s+(?:Squad|Sodality)$/i, '')),
+  ...nameVariants(name.replace(modelLoadout, '').replace(/\s+(?:Squad|Sodality)$/i, '')),
 ]
+const compact = (name: string) => name.replaceAll(' ', '')
 
 function wargearCounts(selection: Selection, index: LoadedCatalogue['index']) {
   const counts = new Map<string, number>()
@@ -438,9 +442,10 @@ function textRosterPick(
   const stated = new Map<string, number>()
   const labels = new Map<string, string>()
   const statedUnder = new Map<string, Map<string, number>>()
+  const respaced = respacedNames(entryId, loaded.index)
   for (const selection of unit.selections) {
     const label = selection.name.replace(/^(?:Enhancements?|Upgrade):\s*(.+)$/i, (_, name: string) => upgradeName(name)).trim()
-    const name = normalized(label)
+    const name = respaced.get(compact(normalized(label))) ?? normalized(label)
     stated.set(name, (stated.get(name) ?? 0) + selection.count)
     if (!labels.has(name)) labels.set(name, label)
     if (!selection.model) continue
@@ -450,7 +455,11 @@ function textRosterPick(
     statedUnder.set(model, under)
   }
   const models = modelNames(entryId, loaded.index)
-  const statedModels = [...stated].reduce((total, [name, count]) => total + (models.has(name) ? count : 0), 0)
+  // The official app titles a model after its datasheet, as a "Thunderwolf Cavalry Pack Leader" the catalogue does not name;
+  // a name the datasheet holds, as a "Piranha fusion blaster", is not one.
+  const ownNames = nameVariants(unit.name)
+  const namedForUnit = (name: string) => !respaced.has(compact(name)) && ownNames.some((own) => name.startsWith(`${own} `))
+  const statedModels = [...stated].reduce((total, [name, count]) => total + (models.has(name) || namedForUnit(name) ? count : 0), 0)
   // Model lines size the unit; without them, its most numerous wargear stands in.
   const requestedModels = unit.models ?? (statedModels || Math.max(1, ...unit.selections.map((selection) => selection.count)))
   const context = { primaryCatalogueId: catalogueId, roster }
@@ -505,9 +514,17 @@ function textRosterPick(
           .flatMap((other) => other.options)
           .filter((option) => isModel(option.id, loaded.index))
           .reduce((total, option) => total + named(option), 0)
-        const asked =
-          bodies >= choice.room ? choice.options.map((option) => [option.id, named(option)] as const) : explicit ? [...counts] : []
-        return asked.length ? [[choice.key, Object.fromEntries(asked.map(([id, count]) => [id, Math.min(choice.room, count)]))]] : []
+        const asked = bodies >= choice.room ? new Map(choice.options.map((option) => [option.id, named(option)])) : explicit ? counts : null
+        // The official app names a model by its kind alone, as an "Eradicator" for the Eradicator with Multi-melta its wargear marks.
+        for (const variant of bodies >= choice.room ? choice.options : []) {
+          const kind = normalized(variant.name.replace(/\s+(?:w\/|with)\s*.+$/i, ''))
+          const base = choice.options.find((option) => option !== variant && normalized(option.name) === kind)
+          if (!base || asked!.get(variant.id) || !counts.get(variant.id)) continue
+          const moved = Math.min(counts.get(variant.id)!, asked!.get(base.id)!)
+          asked!.set(base.id, asked!.get(base.id)! - moved)
+          asked!.set(variant.id, moved)
+        }
+        return asked?.size ? [[choice.key, Object.fromEntries([...asked].map(([id, count]) => [id, Math.min(choice.room, count)]))]] : []
       }
       return [
         [
@@ -568,7 +585,7 @@ function textRosterPick(
   const imported = buildUnit(entryId, loaded.index, pick.models, pick.choices, { ...context, spreads: pick.spreads })
   const carried = imported ? carriedNames(imported.selection, loaded.index) : new Set<string>()
   const unplaced = [...stated.keys()]
-    .filter((name) => !isCarried(name, carried) && !warlordNames.has(name) && name !== normalized(unit.name))
+    .filter((name) => !isCarried(name, carried) && !warlordNames.has(name) && !namedForUnit(name) && name !== normalized(unit.name))
     .map((name) => {
       const label = labels.get(name) ?? name
       const reason = placed.has(name) ? DROPPED_REASON : unplacedChoiceReason(label, { loaded, catalogueId, detachmentIds })
@@ -606,7 +623,10 @@ function carriedNames(selection: Selection, index: LoadedCatalogue['index']) {
     for (const name of [nameOf(definition, index.definitions), target.name, profile, ...weapons]) {
       if (!name) continue
       found.add(withoutArticle(name))
-      found.add(withoutArticle(upgradeName(name.replace(/\s+w\/\s.+$/i, ''))))
+      found.add(withoutArticle(upgradeName(name.replace(modelLoadout, ''))))
+      // A model named for what it carries, as a "Wulfen w/Death Totem", carries it.
+      const loadout = target.type === 'model' ? name.match(modelLoadout)?.[1] : undefined
+      if (loadout) found.add(withoutArticle(loadout))
       if (target.type === 'model') for (const alias of modelAliases(name)) found.add(withoutArticle(alias))
       else for (const alias of nameVariants(name)) found.add(withoutArticle(alias))
     }
@@ -630,22 +650,39 @@ function isCarried(name: string, carried: ReadonlySet<string>) {
  */
 function modelNames(entryId: string, index: LoadedCatalogue['index']) {
   const names = new Set<string>()
+  eachDefinition(entryId, index, (definition, target) => {
+    if (target.type !== 'model') return
+    for (const name of [nameOf(definition, index.definitions), modelProfileOf(definition, index)]) {
+      if (!name) continue
+      for (const alias of modelAliases(name)) names.add(alias)
+    }
+  })
+  return names
+}
+
+/** A datasheet's names keyed without spaces, as BSData's "Relic Great Axe" is the app's "Relic Greataxe"; null where two collide. */
+function respacedNames(entryId: string, index: LoadedCatalogue['index']) {
+  const names = new Map<string, string | null>()
+  eachDefinition(entryId, index, (definition, target) => {
+    for (const name of new Set([nameOf(definition, index.definitions), target.name ?? ''].filter(Boolean).map(normalized))) {
+      const key = compact(name)
+      names.set(key, names.has(key) && names.get(key) !== name ? null : name)
+    }
+  })
+  return names
+}
+
+function eachDefinition(entryId: string, index: LoadedCatalogue['index'], visit: (definition: Definition, target: Definition) => void) {
   const seen = new Set<string>()
   const walk = (definition: Definition) => {
     const target = resolve(definition, index)
     if (seen.has(target.id)) return
     seen.add(target.id)
-    if (target.type === 'model') {
-      for (const name of [nameOf(definition, index.definitions), modelProfileOf(definition, index)]) {
-        if (!name) continue
-        for (const alias of modelAliases(name)) names.add(alias)
-      }
-    }
+    visit(definition, target)
     for (const child of childrenOf(target, index)) walk(child.definition)
   }
   const root = index.definitions.get(entryId)
   if (root) walk(root)
-  return names
 }
 
 /** What a datasheet's Warlord entries are renamed to, such as "Militarum Tempestus Warlord", which exporters list as wargear. */

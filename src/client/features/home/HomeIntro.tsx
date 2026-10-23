@@ -72,8 +72,8 @@ export function HomeIntro() {
           </li>
         ))}
       </ul>
-      <Link to="/guides" className="mt-5 inline-flex items-center gap-2 text-sm text-info hover:text-parchment">
-        Read the player guides <ChevronRight className="size-4" aria-hidden />
+      <Link to="/docs" className="mt-5 inline-flex items-center gap-2 text-sm text-info hover:text-parchment">
+        Read the docs <ChevronRight className="size-4" aria-hidden />
       </Link>
     </section>
   )

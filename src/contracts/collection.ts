@@ -38,6 +38,13 @@ export const collectionPhotoLikeSchema = collectionPhotoIdSchema.extend({ liked:
 
 export const collectionPhotoReportSchema = collectionPhotoIdSchema.extend({ reason: z.string().trim().max(500) })
 
+export const adminCollectionPhotosCursorSchema = z.object({ at: z.number().int().nonnegative(), id: z.uuid() })
+
+export type AdminCollectionPhotosCursor = z.infer<typeof adminCollectionPhotosCursorSchema>
+
+/** Without a cursor, the newest page. */
+export const adminCollectionPhotosSchema = z.object({ before: adminCollectionPhotosCursorSchema.nullable() })
+
 /** Where a collection photo is served; the route checks the owner still shares it on every read. */
 export const collectionPhotoPath = (photoId: string, size: 'original' | 'thumbnail' = 'original') =>
   `/api/collection-photos/${photoId}${size === 'thumbnail' ? '?size=thumbnail' : ''}`

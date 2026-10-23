@@ -545,7 +545,7 @@ const KOTC_LIMITS = [600] as const
 const RETIRED_KOTC_LIMITS = [500] as const
 export const DEFAULT_GAME_LIMIT = 2000
 
-/** The matched-play game sizes, smallest first. */
+/** The matched-play game sizes, smallest first; saved rosters and battle commands store these limits, so mission-pack size records never replace them. */
 export const GAME_SIZES = [
   ...KOTC_LIMITS.map((limit) => ({ name: 'King of the Colosseum', limit, detachmentPoints: null })),
   { name: 'Incursion', limit: 1000, detachmentPoints: 2 },
@@ -780,6 +780,7 @@ export type Command =
       manual?: boolean
     }
   | { kind: 'reset-setup' }
+  /** Only older logs carry it; setup progress is otherwise derived from the log. */
   | { kind: 'set-setup-step'; step: number }
   | { kind: 'set-attacker'; attackerId: PlayerId }
   | { kind: 'set-first-turn'; firstPlayerId: PlayerId }

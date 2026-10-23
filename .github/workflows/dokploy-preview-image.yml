@@ -29,6 +29,7 @@ jobs:
       marker: <!-- praetorium-vm-preview -->
       note: Test battles with `preview@praetorium.gg` / `preview-preview-preview` and `opponent@praetorium.gg` / `opponent-opponent-opponent`. Preview data is disposable and resets on every deployment.
       dockerfile: Dockerfile.node
+      # Matches the hosted VM.
       platform: linux/arm64
       build-args: |
         GITHUB_SHA=${{ github.event.pull_request.head.sha }}

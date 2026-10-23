@@ -1,5 +1,97 @@
 # praetorium
 
+## 0.179.2
+
+### Patch Changes
+
+- e4ce5d5: The roster editor and faction datasheet lists offer close matches for a misspelt unit name, as global search does.
+- e4ce5d5: The roster editor and faction datasheet lists find units by what their abilities do, as global search does.
+- 430060e: The docs explain what search matches and how to search Praetorium from your browser's address bar.
+
+## 0.179.1
+
+### Patch Changes
+
+- 34c77d5: The privacy policy and the account deletion confirmation name GitHub alongside Apple, Google and Discord as sign-in providers.
+
+## 0.179.0
+
+### Minor Changes
+
+- f0ae1df: Player guides are now docs: short pages on building and importing lists, the combat simulator, battles and AI assistants, with screenshots that outline the control each step names, a troubleshooting page per area, and a search on the docs page that finds problems by their symptom. Old guide links redirect.
+
+### Patch Changes
+
+- a0058b1: The desktop footer no longer repeats Send feedback; it stays in the account menu and on the Support page.
+- b6a9dc5: The Support page leads with the docs search and each area's troubleshooting page, and account and app help now lives in the docs.
+
+## 0.178.1
+
+### Patch Changes
+
+- 5a88c2c: The app keeps the logo on screen while Praetorium opens, on the same background as the header and tab bar, instead of switching to a small spinner.
+- e9c5292: Scrolling in the iPhone app keeps its momentum like Safari instead of stopping early.
+- 0f9c500: More leads with the combat simulator, missions, rules and leagues as large tiles, with the rest grouped below.
+
+## 0.178.0
+
+### Minor Changes
+
+- 011f38f: The force dispositions page shows how many detachments and armies can field each disposition.
+
+### Patch Changes
+
+- 72114bf: Official-app imports keep a Relic Greataxe, a multi-melta Eradicator, a Thunderwolf Cavalry Pack Leader and a Wulfen Death Totem that the catalogue names differently.
+- 72114bf: Importing text from the official app reads every weapon when the app lists several under one bullet, instead of asking you to place them by hand.
+- 72114bf: Official-app text copied without its title line now imports instead of being refused as an unsupported export.
+- 86cc1fd: Search shows your recent searches and the page list in one scrolling list instead of two.
+
+## 0.177.0
+
+### Minor Changes
+
+- 3f79de8: The header shows every section, including Factions, Missions, Force dispositions and Rules, in one bar on wide screens and a second row on narrower ones, and stays at the top while you scroll.
+- c39412a: Photos on player profiles open in a viewer instead of a new tab, and every photo viewer steps to the previous or next photo with its arrows or the arrow keys.
+
+### Patch Changes
+
+- 3f79de8: The header and the phone tab bar are darker, and the search box stands out from them.
+- b520550: Pages no longer show a banner asking where rules text comes from; choose sources from any rule that has no text yet.
+- 3f79de8: Search on phones opens as a panel near the top of the screen instead of covering the whole page.
+- c39412a: Collections on player profiles use the same faction sections and datasheet cards as your own collection, with owned, built and painted counts for every datasheet.
+
+## 0.176.0
+
+### Minor Changes
+
+- 79400bb: In 2v1 and 2v2 league events, comparing revealed rosters can now field both lists of a pair together, starting with your team against your opponent's.
+- 79400bb: The simulator's Rosters comparison now lists your friends' public rosters and friends' revealed league lists alongside your own.
+- 79400bb: Simulate on a unit of another player's roster or revealed league list now opens the combat simulator with that unit defending, so you can attack it with one of your own rosters.
+- 79400bb: The combat simulator's roster picker now lists friends' rosters from revealed league events.
+- 79400bb: The combat simulator shows whose roster each side comes from, with the player's avatar, on unit cards, recent simulations and roster comparisons.
+
+### Patch Changes
+
+- 3628925: A unit's equipped weapons now include weapons its chosen wargear options supply, such as a Defiler's two excruciator cannons.
+- 79400bb: The roster comparison is easier to read: phases switch with tabs, a bar tracks a running comparison, cells shade by result, best matchups are outlined, a pair's units are grouped under each player, and units that can't attack explain why once.
+- 79400bb: The simulator's Calculation uses section now lists both sides' active rules and buffs, chosen weapon options and left-out weapons, not just manual modifiers.
+- 79400bb: Reopening a simulator link with a roster side no longer says the roster is unavailable while it loads.
+- 79400bb: The simulator's Rules & buffs and Manual modifiers headings now open from anywhere on their row.
+- 79400bb: A Support unit that isn't attached to a Bodyguard unit is now flagged as illegal in rosters, and the simulator asks you to attach it before calculating its attacks.
+
+## 0.175.5
+
+### Patch Changes
+
+- 2b0f0b7: Rules text that once arrived broken no longer stays missing on that device.
+- 2b0f0b7: When rules text can't load from its community source, each rule now says so and offers Try again instead of showing a dash.
+
+## 0.175.4
+
+### Patch Changes
+
+- 2f5dceb: Import Salamanders rosters containing Deathwatch Support alongside Forgefather's Seekers without losing either detachment.
+
 ## 0.175.3
 
 ### Patch Changes

@@ -4,10 +4,9 @@ import { bookOf, profileOperationCases } from './catalogue.fixtures'
 import { describeDatasheetAbilities } from '../shared/datasheetDescriptions'
 import { deploymentRules } from '../shared/rosterDeployment'
 import { defaultSelection } from '../core/expand'
-import { equippedWeaponProfiles } from '../client/features/rosters/builder/loadoutModel'
 
 describe('the profile modifiers on a datasheet', () => {
-  it.each([4, 10])('keeps fixed weapons visible for a %i-model composition choice', (count) => {
+  it.each([4, 10])('counts fixed weapons for a %i-model composition choice', (count) => {
     const book = bookOf({
       selectionEntries: [
         {
@@ -57,9 +56,7 @@ describe('the profile modifiers on a datasheet', () => {
     })
     const selection = defaultSelection('unit', book.index, { primaryCatalogueId: 'cat' })!
     const views = datasheetViewsIn(book, 'cat', 'unit', { selections: [selection], unitSelectionIndex: 0 })
-    expect(
-      equippedWeaponProfiles(views.selected!.profiles, views.controlledChoices).map(({ name, count: held }) => ({ name, count: held })),
-    ).toEqual([
+    expect(views.selected!.profiles.map(({ name, count: held }) => ({ name, count: held }))).toEqual([
       { name: 'Weapon 0', count },
       { name: 'Weapon 1', count },
     ])

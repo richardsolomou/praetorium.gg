@@ -17,6 +17,7 @@ export type SpacetimeLink<T> = {
 const RETRY_MS = 5_000
 const MAX_RETRY_MS = 60_000
 const RECOVERY_MS = 30_000
+/** Inside the five-minute token, because only a new connection extends its `session_access`; the SDK's own reconnect does not. */
 const TOKEN_REFRESH_MS = 4 * 60 * 1_000
 const OUTAGE_ATTEMPTS = 5
 

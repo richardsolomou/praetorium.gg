@@ -1937,18 +1937,40 @@ export const heldCollectionPhotos = spacetime.procedure({ limit: t.u32() }, t.st
   }),
 )
 
-/** The newest photos awaiting no review, for administrators to catch what nobody has reported yet. */
-export const recentCollectionPhotos = spacetime.procedure({ limit: t.u32() }, t.string(), (ctx, { limit }) =>
+const adminCollectionPhotosQuery = z.strictObject({
+  before: z.strictObject({ at: z.number().int().nonnegative(), id: z.string().max(MAX_ID_LENGTH) }).nullable(),
+  limit: z.number().int().min(1).max(100),
+})
+
+/** Photos awaiting no review, newest first, a page at a time for administrators, with whether others can see each and its likes. */
+export const adminCollectionPhotos = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
-    const recent = []
-    for (const row of tx.db.collectionPhotos.iter()) if (!awaitsReview(row)) recent.push(row)
-    return productJson(
-      recent
-        .sort((left, right) => Number(right.at - left.at) || left.photoId.localeCompare(right.photoId))
-        .slice(0, Math.min(limit, 100))
-        .map(({ photoId, userId, entryId, at }) => ({ photoId, userId, entryId, at })),
-    )
+    if (payload.length > 1_000) throw new SenderError('Invalid photo list')
+    const input = decodePayload(adminCollectionPhotosQuery, payload, 'Invalid photo list')
+    const rows = []
+    for (const row of tx.db.collectionPhotos.iter()) {
+      if (awaitsReview(row)) continue
+      const at = safeNumber(row.at)
+      if (input.before && (at > input.before.at || (at === input.before.at && row.photoId >= input.before.id))) continue
+      rows.push({ row, at })
+    }
+    rows.sort((left, right) => right.at - left.at || right.row.photoId.localeCompare(left.row.photoId))
+    const published = new Map<string, boolean>()
+    const photos = rows.slice(0, input.limit).map(({ row, at }) => {
+      if (!published.has(row.userId)) published.set(row.userId, collectionPublished(tx, row.userId))
+      return {
+        photoId: row.photoId,
+        userId: row.userId,
+        entryId: row.entryId,
+        at,
+        likes: row.likes ?? 0,
+        published: published.get(row.userId)!,
+        kept: row.review === 'kept',
+      }
+    })
+    const last = photos.at(-1)
+    return productJson({ photos, nextCursor: rows.length > input.limit && last ? { at: last.at, id: last.photoId } : null })
   }),
 )
 
@@ -2340,19 +2362,23 @@ export const leagueByToken = spacetime.procedure({ token: t.string(), eventToken
   }),
 )
 
+/** Leagues a player owns, helps run, or has entered in any event. */
+function personalLeagueIds(ctx: Context, userId: string) {
+  const ids = new Set<string>()
+  for (const row of ctx.db.leagues.ownerId.filter(userId)) ids.add(row.id)
+  for (const row of ctx.db.leagueAdmins.userId.filter(userId)) ids.add(row.leagueId)
+  for (const entry of ctx.db.leagueEventEntries.userId.filter(userId)) {
+    const event = ctx.db.leagueEvents.id.find(entry.eventId)
+    if (event) ids.add(event.leagueId)
+  }
+  return ids
+}
+
 export const leaguesVisibleTo = spacetime.procedure({ userId: t.string(), limit: t.u32() }, t.string(), (ctx, { userId, limit }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
     if (userId.length > MAX_ID_LENGTH || limit < 1 || limit > 100) throw new SenderError('Invalid league list')
-    const personal = new Set<string>()
-    if (userId) {
-      for (const row of tx.db.leagues.ownerId.filter(userId)) personal.add(row.id)
-      for (const row of tx.db.leagueAdmins.userId.filter(userId)) personal.add(row.leagueId)
-      for (const entry of tx.db.leagueEventEntries.userId.filter(userId)) {
-        const event = tx.db.leagueEvents.id.find(entry.eventId)
-        if (event) personal.add(event.leagueId)
-      }
-    }
+    const personal = userId ? personalLeagueIds(tx, userId) : new Set<string>()
     const leagues = []
     let scanned = 0
     for (const league of tx.db.leagues.iter()) {
@@ -2428,6 +2454,47 @@ export const outdatedLeagueEntriesForRoster = spacetime.procedure(
       }
       return productJson(matches)
     }),
+)
+
+/** Friends' sealed lists from revealed events in leagues the viewer can list, newest reveal first. */
+export const friendLeagueRosters = spacetime.procedure({ viewerId: t.string() }, t.string(), (ctx, { viewerId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (!validId(viewerId)) throw new SenderError('Invalid league roster list')
+    const personal = personalLeagueIds(tx, viewerId)
+    const rosters = []
+    let scanned = 0
+    for (const friendId of acceptedFriendIds(tx, viewerId)) {
+      for (const entry of tx.db.leagueEventEntries.userId.filter(friendId)) {
+        if (++scanned > 10_000) throw new SenderError('Too many league entries')
+        if (entry.status !== 'accepted' || entry.rosterSnapshot === undefined) continue
+        const event = tx.db.leagueEvents.id.find(entry.eventId)
+        if (!event || event.revealedAt === undefined) continue
+        const league = tx.db.leagues.id.find(event.leagueId)
+        if (!league || (league.visibility !== 'public' && !personal.has(league.id))) continue
+        let catalogueId: string | undefined
+        try {
+          catalogueId = parseRosterSnapshot(entry.rosterSnapshot).built?.catalogueId
+        } catch {
+          // An unreadable snapshot cannot be simulated.
+        }
+        if (!catalogueId) continue
+        rosters.push({
+          leagueToken: league.token,
+          leagueName: league.name,
+          eventToken: event.token,
+          eventNumber: event.number,
+          eventCount: leagueEventsFor(tx, league.id).length,
+          userId: friendId,
+          rosterName: entry.rosterName ?? '',
+          catalogueId,
+          revealedAt: event.revealedAt,
+        })
+      }
+    }
+    rosters.sort((a, b) => Number(b.revealedAt - a.revealedAt) || b.eventNumber - a.eventNumber)
+    return productJson(rosters.slice(0, 50))
+  }),
 )
 
 export const leagueBattleCandidates = spacetime.procedure(

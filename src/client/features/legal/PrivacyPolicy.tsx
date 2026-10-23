@@ -2,7 +2,7 @@ import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage eyebrow="Legal" title="Privacy policy" updated="18 October 2026">
+    <LegalPage eyebrow="Legal" title="Privacy policy" updated="23 October 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
@@ -18,8 +18,8 @@ export function PrivacyPolicy() {
         <h3 className="text-sm tracking-label text-bone">Account data</h3>
         <p>
           Your display name, email address, optional profile image, and sign-in credentials. You can sign in with a password or with Apple,
-          Google or Discord; when you do, those providers share your name, email address and available profile image with us. Passwords are
-          stored only as hashes. If you enable two-factor sign-in we store its secret and recovery codes.
+          Google, Discord or GitHub; when you do, those providers share your name, email address and available profile image with us.
+          Passwords are stored only as hashes. If you enable two-factor sign-in we store its secret and recovery codes.
         </p>
         <h3 className="text-sm tracking-label text-bone">Your content</h3>
         <p>
@@ -113,7 +113,7 @@ export function PrivacyPolicy() {
           <li>Our hosting provider, to run the service.</li>
           <li>PostHog, for the usage measurement described above.</li>
           <li>An email delivery provider, to send account email.</li>
-          <li>Apple, Google or Discord, when you use one of them to sign in.</li>
+          <li>Apple, Google, Discord or GitHub, when you use one of them to sign in.</li>
           <li>
             TypeSafe, which checks each collection photo and profile picture you upload for content that does not belong on the service.
           </li>

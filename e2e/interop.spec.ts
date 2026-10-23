@@ -4,6 +4,7 @@ import { listForgeDetailed } from '../src/core/rosterText.fixtures'
 import { custodesOfficial } from '../src/core/rosterText.custodes.fixture'
 import { necronsOfficial } from '../src/core/rosterText.necrons.fixture'
 import { blackTemplarsNewRecruit } from '../src/core/rosterText.blackTemplars.fixture'
+import { salamandersOfficial } from '../src/core/rosterText.salamanders.fixture'
 import {
   confirmRosterSetup,
   attachRoster,
@@ -220,6 +221,40 @@ test('a New Recruit chapter roster keeps its allies and attachments after import
   await exported.screenshot({ path: testInfo.outputPath('black-templars-import-export-phone.png') })
 })
 
+test('a visitor imports the reported Salamanders detachments and keeps them after reload', async ({ page }, testInfo) => {
+  await page.goto('/rosters')
+  const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
+  await retryUntilVisible(review, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  await review.getByLabel('Roster text').fill(salamandersOfficial)
+  await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
+  await expect(review).toContainText('12 of 12 matched entries')
+  await expect(review).toContainText('Reported army: 1435 points. Matched entries at selected rules: 1435 points.')
+  await expect(review.getByRole('alert')).toHaveCount(0)
+  await review.screenshot({ path: testInfo.outputPath('salamanders-import-review-desktop.png') })
+  await page.setViewportSize({ width: 390, height: 700 })
+  await review.screenshot({ path: testInfo.outputPath('salamanders-import-review-phone.png') })
+  await review.getByRole('button', { name: 'Open imported draft', exact: true }).click()
+  await page.waitForURL(/\/rosters\/[^/]+$/)
+  await expect(page.locator('[data-unit]')).toHaveCount(12)
+  await page.reload()
+  await expect(page.locator('[data-unit]')).toHaveCount(12)
+  for (const [leader, count] of [
+    ['Adrax Agatone', 1],
+    ["Vulkan He'stan", 1],
+    ['Apothecary', 2],
+  ] as const) {
+    const cards = page.locator(`[data-unit="${leader}"]`)
+    await expect(cards).toHaveCount(count)
+    for (const card of await cards.all()) await expect(card).toContainText('Infernus Squad')
+  }
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  const exported = page.getByRole('dialog', { name: 'Export roster' })
+  for (const line of ['Dudes (1,435 Points)', 'Salamanders', 'Deathwatch Support', "Forgefather's Seekers", '3 Detachment Points'])
+    await expect(exported.locator('pre')).toContainText(line)
+  await exported.screenshot({ path: testInfo.outputPath('salamanders-import-export-phone.png') })
+})
+
 test('an imported roster with disagreeing dispositions asks for one before battle setup', async ({ page }) => {
   await signUp(page, 'Bob')
 
@@ -235,7 +270,7 @@ Strike Force (2,000 Points)
 
 CHARACTER
 
-Technomancer (70 Points)
+Overlord (85 Points)
   • Warlord
 
 Exported with BattleBase, Data Version: v20260812`)

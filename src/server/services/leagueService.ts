@@ -340,6 +340,10 @@ export class LeagueService {
     return rosterWithoutUnitNotes(roster)
   }
 
+  friendLeagueRosters(viewerId: string) {
+    return this.repository.friendLeagueRosters(viewerId)
+  }
+
   rosterSharing(token: string, eventToken: string, userId: string) {
     return this.repository.leagueRosterSharing(token, eventToken, userId)
   }

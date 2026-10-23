@@ -14,8 +14,7 @@ import {
   type Selection,
 } from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
-import { isUnitCompositionChoice, unitChoices, type UnitChoiceCache } from '../core/unitChoices'
-import { choiceOptionWargear } from '../core/modelKinds'
+import { unitChoices, type UnitChoiceCache } from '../core/unitChoices'
 import { wargearKey, wargearOf } from '../core/wargear'
 import { combatCarriers, referenceOnlyWeapon } from '../core/combatLoadout'
 import { ruleReferenceMatches, splitWeaponKeywords } from '../core/ruleReference'
@@ -197,12 +196,7 @@ export const abilityNamesIn = (loaded: LoadedCatalogue, catalogueId: string, ent
   ...new Set(walkRecord(loaded, catalogueId, entryId)?.abilities.map((ability) => ability.name) ?? []),
 ]
 
-export function datasheetSearchFieldsIn(
-  loaded: LoadedCatalogue,
-  catalogueId: string,
-  entryId: string,
-  { includeAbilityDescriptions = false } = {},
-): DatasheetSearchFields | null {
+export function datasheetSearchFieldsIn(loaded: LoadedCatalogue, catalogueId: string, entryId: string): DatasheetSearchFields | null {
   const walked = walkRecord(loaded, catalogueId, entryId)
   if (!walked) return null
   const weapons = walked.profiles.filter((profile) => profile.type === 'Ranged Weapons' || profile.type === 'Melee Weapons')
@@ -210,13 +204,11 @@ export function datasheetSearchFieldsIn(
     name: walked.name,
     keywords: walked.keywords,
     abilities: [...new Set(walked.abilities.filter((ability) => ability.kind !== 'rule').map((ability) => ability.name))],
-    abilityDescriptions: includeAbilityDescriptions
-      ? walked.abilities.flatMap((ability) =>
-          (ability.kind === 'datasheet' || ability.kind === 'wargear' || ability.kind === 'upgrade') && ability.description
-            ? [{ name: ability.name, description: withoutText(ability.description) }]
-            : [],
-        )
-      : undefined,
+    abilityDescriptions: walked.abilities.flatMap((ability) =>
+      (ability.kind === 'datasheet' || ability.kind === 'wargear' || ability.kind === 'upgrade') && ability.description
+        ? [{ name: ability.name, description: withoutText(ability.description) }]
+        : [],
+    ),
     weapons: dedupeWeapons(weapons.map((weapon) => weapon.name)),
     weaponKeywords: [
       ...new Set(
@@ -675,19 +667,7 @@ export function datasheetViewsIn(
   const shared = { ...context, modifiers }
   const selection = context.unitSelectionIndex === undefined ? undefined : context.selections[context.unitSelectionIndex]
   const options = { primaryCatalogueId: catalogueId, roster: context.selections.filter((entry) => entry !== selection) }
-  const controlledChoices = selection
-    ? unitChoices(entryId, selection, loaded.index, options)
-        .filter((choice) => !isUnitCompositionChoice(choice))
-        .map((choice) => ({
-          options: choice.options.map((option) => ({
-            name: option.name,
-            count: option.count,
-            pieceCounts: choiceOptionWargear(choice.key, option.id, selection, loaded.index, options),
-          })),
-        }))
-    : []
   return {
-    controlledChoices,
     carriers: selection ? combatCarriers(selection, loaded.index, options) : [],
     selected: datasheetIn(loaded, catalogueId, entryId, shared),
     available: datasheetIn(loaded, catalogueId, entryId, { ...shared, everyWeapon: true, everyWargearAbility: true }),

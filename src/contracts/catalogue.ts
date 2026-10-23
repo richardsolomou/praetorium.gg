@@ -26,6 +26,7 @@ export type UnitSummary = {
   allied: boolean
   alliedFaction: string | null
   matchReasons?: DatasheetSearchReason[]
+  fuzzy?: boolean
 }
 
 export type PickerUnit = UnitSummary & {

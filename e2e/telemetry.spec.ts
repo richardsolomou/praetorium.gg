@@ -1,48 +1,10 @@
-import { expect, type Page, test } from './test'
+import { expect, test } from './test'
+import { recordEvents } from './telemetry.harness'
 import { retryUntilVisible, signInAsPreview, signUp, uniqueName, visitorSetup, waitForRosterSave } from './account'
 import { add } from './builder.harness'
 import { chooseCombatUnit } from './combat'
 
 test.use({ serviceWorkers: 'block' })
-
-type Event = { name: string; properties: Record<string, unknown> }
-
-async function recordEvents(page: Page) {
-  const events: Event[] = []
-  await page.exposeFunction('recordTelemetry', (name: string, properties: Record<string, unknown> = {}) =>
-    events.push({ name, properties }),
-  )
-  await page.evaluate(async () => {
-    const url = performance.getEntriesByType('resource').find((entry) => /\/assets\/telemetry-[^/]+\.js/.test(entry.name))?.name
-    if (!url) throw new Error('The production telemetry chunk did not load')
-    const exports = await import(url)
-    const client = Object.values(exports).find(
-      (value) =>
-        value !== null &&
-        typeof value === 'object' &&
-        'capture' in value &&
-        typeof value.capture === 'function' &&
-        'identify' in value &&
-        typeof value.identify === 'function',
-    ) as
-      | {
-          capture: (name: string, properties?: Record<string, unknown>) => unknown
-          captureException: (error: unknown, properties?: Record<string, unknown>) => void
-        }
-      | undefined
-    if (!client) throw new Error('The telemetry chunk did not export the browser client')
-    const record = (name: string, properties?: Record<string, unknown>) =>
-      void (
-        window as unknown as { recordTelemetry: (name: string, properties?: Record<string, unknown>) => Promise<void> }
-      ).recordTelemetry(name, properties)
-    // A queued event is what the SDK returns, so callers that check it see a sent event.
-    client.capture = (name, properties) => (record(name, properties), { event: name, properties })
-    // The SDK drops exceptions until it is configured, which browser test stacks never do.
-    client.captureException = (error, properties) =>
-      record('$exception', { message: error instanceof Error ? error.message : String(error), ...properties })
-  })
-  return events
-}
 
 test('search reports empty results, dismissal, and successful selection without the query', async ({ page }) => {
   await page.goto('/')
@@ -482,7 +444,10 @@ test('feedback is sent as a survey response from the page the player is on', asy
   await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
   const events = await recordEvents(page)
   const dialog = page.getByRole('dialog', { name: 'Send feedback' })
-  await retryUntilVisible(dialog, () => page.locator('[data-web-app-footer]').getByRole('button', { name: 'Send feedback' }).click())
+  await retryUntilVisible(dialog, async () => {
+    await page.getByRole('button', { name: 'Account menu' }).filter({ visible: true }).click()
+    await page.getByRole('menuitem', { name: 'Send feedback' }).click()
+  })
   await dialog.getByRole('button', { name: 'Idea' }).click()
   await dialog.getByLabel('Message').fill('  Group factions by alliance  ')
   await dialog.getByLabel('Email for a reply (optional)').fill('guest@example.com')
@@ -517,7 +482,10 @@ test('an administrator sends feedback without an email field and opens its scree
   await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
   const events = await recordEvents(page)
   const dialog = page.getByRole('dialog', { name: 'Send feedback' })
-  await retryUntilVisible(dialog, () => page.locator('[data-web-app-footer]').getByRole('button', { name: 'Send feedback' }).click())
+  await retryUntilVisible(dialog, async () => {
+    await page.getByRole('button', { name: 'Account menu' }).filter({ visible: true }).click()
+    await page.getByRole('menuitem', { name: 'Send feedback' }).click()
+  })
   await expect(dialog.getByLabel('Email for a reply (optional)')).toHaveCount(0)
   await dialog.getByLabel('Message').fill('Attached the broken layout')
   await dialog.getByLabel('Attach screenshot').setInputFiles(SCREENSHOT)

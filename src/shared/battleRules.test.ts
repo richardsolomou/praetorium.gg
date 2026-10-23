@@ -69,6 +69,13 @@ it('retains the whole-battle ceiling on final awards', () => {
   expect(scoringCapError(value, ALICE, finalScore, rules)?.code).toBe('score-cap-battle')
 })
 
+it('allows a reduction while a total is already past its ceilings', () => {
+  const value = state()
+  value.players[1]!.primary = 50
+  value.players[1]!.primaryByRound[4] = 20
+  expect(scoringCapError(value, ALICE, { kind: 'score', playerId: BOB, category: 'primary', delta: -1 }, rules)).toBeNull()
+})
+
 it('caps the ordinary portion of a combined settlement', () => {
   expect(
     scoringCapError(

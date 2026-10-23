@@ -57,8 +57,12 @@ function fakeRepository({ refuse = false } = {}) {
       [...photos]
         .filter(([, photo]) => photo.held)
         .map(([photoId, { userId, entryId }]) => ({ photoId, userId, entryId, at: 1, shown: false })),
-    recentCollectionPhotos: async () =>
-      [...photos].filter(([, photo]) => !photo.held).map(([photoId, { userId, entryId }]) => ({ photoId, userId, entryId, at: 1 })),
+    adminCollectionPhotos: async () => ({
+      photos: [...photos]
+        .filter(([, photo]) => !photo.held)
+        .map(([photoId, { userId, entryId }]) => ({ photoId, userId, entryId, at: 1, likes: 0, published: true, kept: false })),
+      nextCursor: null,
+    }),
     collectionPhotoDeletions: async (limit: number) => deletions.slice(0, limit),
     clearCollectionPhotoDeletions: async (photoIds: readonly string[]) => {
       for (const photoId of photoIds) deletions.splice(deletions.indexOf(photoId), 1)
@@ -147,6 +151,17 @@ describe('collectionPhotoStore', () => {
       { generated: 0, failed: 0 },
       0,
     ])
+  })
+
+  it('never rewrites the original while it backfills a thumbnail', async () => {
+    const { stored, objects } = memoryObjects()
+    const repository = fakeRepository()
+    const photoId = randomUUID()
+    repository.photos.set(photoId, { userId: 'owner', entryId: 'warriors', published: true })
+    stored.set(`collection-photos/${photoId}`, WEBP)
+    const put = vi.spyOn(objects, 'put')
+    await collectionPhotoStore(repository, () => objects).backfillThumbnails()
+    expect(put.mock.calls.map(([key]) => key)).toEqual([`collection-photos/${photoId}.thumbnail.webp`])
   })
 
   it('removes a backfilled thumbnail when the photo was deleted during its write', async () => {
@@ -388,11 +403,11 @@ describe('collectionPhotoStore', () => {
     expect((await store.held()).map(({ owner }) => owner.name)).toEqual(['Deleted player'])
   })
 
-  it('lists recent photos named for their owners', async () => {
+  it('lists a page of photos named for their owners', async () => {
     const { objects } = memoryObjects()
     const store = collectionPhotoStore(fakeRepository(), () => objects)
     await store.upload('owner', 'warriors', image)
-    expect((await store.recent()).map(({ owner }) => owner.name)).toEqual(['Player owner'])
+    expect((await store.browse(null)).photos.map(({ owner }) => owner.name)).toEqual(['Player owner'])
   })
 
   it('answers a malformed photo id as not found without asking the collection', async () => {

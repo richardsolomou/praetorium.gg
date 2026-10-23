@@ -26,18 +26,19 @@ import { openFeedback } from '../feedback/FeedbackDialog'
 
 type MoreLink = { description: string; icon: LucideIcon; label: string; to: LinkProps['to'] }
 
-const REFERENCE: readonly MoreLink[] = [
-  { description: 'Mission packs, scoring and deployments', icon: BookOpen, label: 'Missions', to: '/missions' },
-  { description: 'Primary mission matchups', icon: Layers3, label: 'Force dispositions', to: '/force-dispositions' },
+const TOOLS: readonly MoreLink[] = [
+  { description: 'Damage and kill odds for any attack', icon: Calculator, label: 'Combat simulator', to: '/simulator' },
+  { description: 'Packs, scoring and deployments', icon: BookOpen, label: 'Missions', to: '/missions' },
   { description: 'Core rules, missions and event rules', icon: Gavel, label: 'Rules', to: '/rules' },
+  { description: 'Organized play', icon: Trophy, label: 'Leagues', to: '/leagues' },
+]
+
+const REFERENCE: readonly MoreLink[] = [
+  { description: 'Primary mission matchups', icon: Layers3, label: 'Force dispositions', to: '/force-dispositions' },
   { description: 'Points and datasheet changes', icon: History, label: 'Data updates', to: '/data-updates' },
 ]
 
-const PLAY: readonly MoreLink[] = [
-  { description: 'Damage and kill probabilities', icon: Calculator, label: 'Combat simulator', to: '/simulator' },
-  { description: 'Organized play', icon: Trophy, label: 'Leagues', to: '/leagues' },
-  { description: 'Player standings', icon: Medal, label: 'Leaderboard', to: '/leaderboard' },
-]
+const COMMUNITY: readonly MoreLink[] = [{ description: 'Player standings', icon: Medal, label: 'Leaderboard', to: '/leaderboard' }]
 
 const FRIENDS: MoreLink = { description: 'Invite friends to private battles', icon: Users, label: 'Friends', to: '/friends' }
 
@@ -47,7 +48,7 @@ const ACCOUNT: readonly MoreLink[] = [
 ]
 
 const HELP: readonly MoreLink[] = [
-  { description: 'Army lists, imports and battle tracking', icon: GraduationCap, label: 'Player guides', to: '/guides' },
+  { description: 'Army lists, imports and battle tracking', icon: GraduationCap, label: 'Docs', to: '/docs' },
   { description: 'Changes to the app', icon: Sparkles, label: "What's new", to: '/whats-new' },
 ]
 
@@ -85,38 +86,60 @@ function Links({ links }: { links: readonly MoreLink[] }) {
   ))
 }
 
+function Tools() {
+  return (
+    <section aria-labelledby="more-tools-heading">
+      <h2 id="more-tools-heading" className="sr-only">
+        Tools
+      </h2>
+      <div className="grid grid-cols-2 gap-px border border-edge bg-edge sm:grid-cols-4">
+        {TOOLS.map(({ to, icon: Icon, label, description }) => (
+          <Link key={to} to={to} className="flex min-h-32 flex-col gap-1 bg-panel p-3 text-bone hover:bg-raised">
+            <Icon className="mb-2 size-6 text-info" aria-hidden />
+            <h3 className="text-lg leading-tight text-balance">{label}</h3>
+            <span className="text-xs leading-snug text-dim">{description}</span>
+          </Link>
+        ))}
+      </div>
+    </section>
+  )
+}
+
 export function NativeMorePage() {
   const { data: me } = useQuery(meQuery())
 
   return (
     <main className="w-full bg-sunken">
       <h1 className="sr-only">More</h1>
-      <PageContent className="grid content-start gap-6 sm:grid-cols-2">
-        <Group id="more-reference-heading" title="Reference">
-          <Links links={REFERENCE} />
-        </Group>
-        <Group id="more-play-heading" title="Play">
-          <Links links={me ? [...PLAY, FRIENDS] : PLAY} />
-        </Group>
-        {me ? (
-          <Group id="more-account-heading" title="Account">
-            <Links links={ACCOUNT} />
-            {me.role === 'admin' ? (
-              <Link to="/admin" className={rowClass}>
-                <Row icon={ShieldCheck} label="Admin" description="Players and reported photos" />
-              </Link>
-            ) : null}
+      <PageContent className="grid content-start gap-6">
+        <Tools />
+        <div className="grid content-start gap-6 sm:grid-cols-2">
+          <Group id="more-reference-heading" title="Reference">
+            <Links links={REFERENCE} />
           </Group>
-        ) : null}
-        <Group id="more-help-heading" title="Help">
-          <Links links={HELP} />
-          <button type="button" onClick={openFeedback} className={rowClass}>
-            <Row icon={MessageSquareWarning} label="Send feedback" description="Report a problem or suggest a change" />
-          </button>
-          <Link to="/support" className={rowClass}>
-            <Row icon={CircleHelp} label="Support" description="Get help or recover your account" />
-          </Link>
-        </Group>
+          <Group id="more-community-heading" title="Community">
+            <Links links={me ? [...COMMUNITY, FRIENDS] : COMMUNITY} />
+          </Group>
+          {me ? (
+            <Group id="more-account-heading" title="Account">
+              <Links links={ACCOUNT} />
+              {me.role === 'admin' ? (
+                <Link to="/admin" className={rowClass}>
+                  <Row icon={ShieldCheck} label="Admin" description="Players and reported photos" />
+                </Link>
+              ) : null}
+            </Group>
+          ) : null}
+          <Group id="more-help-heading" title="Help">
+            <Links links={HELP} />
+            <button type="button" onClick={openFeedback} className={rowClass}>
+              <Row icon={MessageSquareWarning} label="Send feedback" description="Report a problem or suggest a change" />
+            </button>
+            <Link to="/support" className={rowClass}>
+              <Row icon={CircleHelp} label="Support" description="Get help or recover your account" />
+            </Link>
+          </Group>
+        </div>
       </PageContent>
     </main>
   )

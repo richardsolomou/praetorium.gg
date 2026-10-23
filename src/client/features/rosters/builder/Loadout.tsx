@@ -11,7 +11,6 @@ import type { loadoutDatasheets } from '../../../functions'
 import { useSettled } from '../../../useSettled'
 import { UnitProfile, WeaponSummary } from '../../../components/DatasheetProfiles'
 import {
-  equippedWeaponProfiles,
   type LoadoutModel,
   type LoadoutUnit,
   orderedChoices,
@@ -141,25 +140,10 @@ export function Loadout({
   const rules = availableSheet.keywordRules
   const abilities = availableSheet.abilities
 
-  const equipped = (type: string) =>
-    equippedWeaponProfiles(
-      sheet.profiles.filter((profile) => profile.type === type),
-      sheets.controlledChoices,
-    )
-  const equippedRanged = equipped('Ranged Weapons')
-  const equippedMelee = equipped('Melee Weapons')
-  const extraRanged = unmodeledGrantedWeapons(
-    sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons'),
-    unit.models,
-    unit.choices,
-  )
-  const extraMelee = unmodeledGrantedWeapons(
-    sheet.profiles.filter((profile) => profile.type === 'Melee Weapons'),
-    unit.models,
-    unit.choices,
-  )
-  const shownRanged = [...equippedRanged, ...extraRanged.filter((profile) => !equippedRanged.includes(profile))]
-  const shownMelee = [...equippedMelee, ...extraMelee.filter((profile) => !equippedMelee.includes(profile))]
+  const equippedRanged = sheet.profiles.filter((profile) => profile.type === 'Ranged Weapons')
+  const equippedMelee = sheet.profiles.filter((profile) => profile.type === 'Melee Weapons')
+  const extraRanged = unmodeledGrantedWeapons(equippedRanged, unit.models, unit.choices)
+  const extraMelee = unmodeledGrantedWeapons(equippedMelee, unit.models, unit.choices)
   const profile = primaryUnitProfile(sheet)
 
   const { models, loose } = divide(unit)
@@ -209,8 +193,8 @@ export function Loadout({
             </div>
           ) : (
             <>
-              {shownRanged.length ? <WeaponSummary title="Equipped ranged weapons" weapons={shownRanged} rules={rules} /> : null}
-              {shownMelee.length ? <WeaponSummary title="Equipped melee weapons" weapons={shownMelee} rules={rules} /> : null}
+              {equippedRanged.length ? <WeaponSummary title="Equipped ranged weapons" weapons={equippedRanged} rules={rules} /> : null}
+              {equippedMelee.length ? <WeaponSummary title="Equipped melee weapons" weapons={equippedMelee} rules={rules} /> : null}
             </>
           )}
           {visibleLoose.length ? (

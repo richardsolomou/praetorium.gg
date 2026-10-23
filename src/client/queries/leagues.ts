@@ -2,6 +2,7 @@ import { queryOptions } from '@tanstack/react-query'
 import {
   leagueResults,
   leagueRosterSharing,
+  listFriendLeagueRosters,
   listLeagueBattles,
   listLeagues,
   openLeague,
@@ -11,6 +12,7 @@ import {
 import { battleFeedQuery } from './battles'
 import { SSR_STALE_TIME } from './shared'
 import {
+  friendLeagueRostersKey,
   leagueBattlesKey,
   leagueKey,
   leagueResultsKey,
@@ -21,6 +23,10 @@ import {
 } from './queryKeys'
 
 export const leaguesQuery = () => queryOptions({ queryKey: leaguesKey(), queryFn: () => listLeagues(), staleTime: SSR_STALE_TIME })
+
+/** Friends' sealed lists from revealed events the player can open. */
+export const friendLeagueRostersQuery = () =>
+  queryOptions({ queryKey: friendLeagueRostersKey(), queryFn: () => listFriendLeagueRosters(), staleTime: SSR_STALE_TIME })
 
 export const leagueRosterSharingQuery = (token: string, eventToken: string, userId: string) =>
   queryOptions({

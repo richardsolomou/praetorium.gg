@@ -431,7 +431,7 @@ function DeleteAccountForm({ hasPassword }: { hasPassword: boolean }) {
             />
           </div>
         ) : (
-          <p className="text-sm text-dim">Your recent Apple, Google or Discord sign-in confirms this request.</p>
+          <p className="text-sm text-dim">Your recent Apple, Google, Discord or GitHub sign-in confirms this request.</p>
         )}
         <label className="flex items-start gap-3 text-sm text-dim">
           <input

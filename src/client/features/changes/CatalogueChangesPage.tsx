@@ -112,7 +112,7 @@ function PageLink({
 function Update({ update, named }: { update: IndexedUpdate; named: boolean }) {
   const { date, time } = useDateFormatting()
   return (
-    <details id={update.anchor} open={update.open} className="group scroll-mt-16 border border-edge bg-panel open:border-edge-strong">
+    <details id={update.anchor} open={update.open} className="group scroll-mt-header border border-edge bg-panel open:border-edge-strong">
       <summary className="cursor-pointer list-none p-4 hover:bg-raised/40 sm:p-5 [&::-webkit-details-marker]:hidden">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="flex min-w-0 items-center gap-3 text-lg text-bone sm:text-xl">

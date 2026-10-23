@@ -12,7 +12,7 @@ export type CollectionProgress = { built: number; painted: number }
 
 export type CollectionImportRow = { entryId: string } & CollectionCounts
 
-/** Painted models are built and built models are owned, so lowering one count lowers the counts it bounds. */
+/** Painted models are built and built models are owned, so lowering one count lowers the counts it bounds rather than refusing an edit another device may have made stale. */
 export function boundedProgress(models: number, progress: CollectionProgress): CollectionProgress {
   const built = Math.min(progress.built, models)
   return { built, painted: Math.min(progress.painted, built) }

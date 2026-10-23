@@ -1,5 +1,5 @@
 import type { GlobalSearchResult } from '../../functions'
-import { PRODUCT_GUIDES } from '../../../contracts/productGuides'
+import { PRODUCT_DOCS } from '../../../contracts/productDocs'
 
 export const SEARCH_DEBOUNCE_MS = 250
 
@@ -30,18 +30,18 @@ const pages: GlobalSearchResult[] = [
   },
   { id: 'page:rules', group: 'Pages', label: 'Rules', detail: 'Core rules, missions and event rules', href: '/rules' },
   {
-    id: 'page:guides',
+    id: 'page:docs',
     group: 'Pages',
-    label: 'Player guides',
+    label: 'Docs',
     detail: 'Army lists, imports, combat comparisons and battle tracking',
-    href: '/guides',
+    href: '/docs',
   },
-  ...PRODUCT_GUIDES.map<GlobalSearchResult>((guide) => ({
-    id: `guide:${guide.slug}`,
+  ...PRODUCT_DOCS.map<GlobalSearchResult>((doc) => ({
+    id: `doc:${doc.slug}`,
     group: 'Pages',
-    label: guide.title,
-    detail: guide.description,
-    href: `/guides/${guide.slug}`,
+    label: doc.title,
+    detail: doc.description,
+    href: `/docs/${doc.slug}`,
   })),
   { id: 'page:sign-in', group: 'Pages', label: 'Sign in', detail: 'Access your Praetorium account', href: '/sign-in' },
 ]

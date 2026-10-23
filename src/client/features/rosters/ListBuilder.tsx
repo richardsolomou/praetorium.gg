@@ -52,6 +52,7 @@ import {
 import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
 import { modelCountChoices } from '../../../core/unitSize'
 import type { Datasheet } from '../../../contracts/catalogue'
+import { rosterMatchup, type SimulatorRosterSource } from '../../../contracts/simulatorState'
 import { copyRoster, endRosterLoan, exportRoster, saveRoster, setRosterLocked } from '../../functions'
 import { shareLink, useNativeShare } from '../../nativeBridge'
 import {
@@ -168,6 +169,8 @@ type Props = {
   print?: boolean
   /** A battle token may entitle a read-only viewer to resolve a private roster. */
   battle?: string
+  /** Another player's list, which the standalone simulator can reopen, so Simulate defends with it there. */
+  simulatorSource?: SimulatorRosterSource
   /** Resolve read-only details by saved id; false when the supplied picks are themselves the snapshot. */
   resolvePersistedRoster?: boolean
   /**
@@ -223,6 +226,7 @@ export function ListBuilder({
   locked = false,
   print = false,
   battle,
+  simulatorSource,
   resolvePersistedRoster = true,
   guest,
   requested,
@@ -1167,6 +1171,12 @@ export function ListBuilder({
   ) : null
 
   const openCombat = (pickIndex: number, compare: boolean) => {
+    if (simulatorSource && !compare) {
+      const host = positioned[pickIndex]?.attachedTo ?? pickIndex
+      const { attachedTo: _attachedTo, note: _note, ...pick } = positioned[host]!
+      void navigate({ to: '/simulator', search: { s: rosterMatchup(catalogueId, pick, simulatorSource, host) } })
+      return
+    }
     setCompareTargets(compare)
     setCombatRoster({
       catalogueId,

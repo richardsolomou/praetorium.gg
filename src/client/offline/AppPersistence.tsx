@@ -77,6 +77,7 @@ export function AppPersistence() {
       clearTimeout(timer)
       timer = setTimeout(save, 250)
     })
+    // Runs on reconnect, foreground and account change, never on a timer: each run refetches the whole snapshot, and screens in view already poll or subscribe.
     const refresh = async () => {
       if (!active || !ready || !navigator.onLine) return
       if (refreshing) {

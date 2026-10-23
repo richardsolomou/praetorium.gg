@@ -346,8 +346,10 @@ test('the first character added is the warlord, which its unit editor can hand o
   await expect(profile.getByText('Invulnerable save', { exact: true })).toBeVisible()
   await expect(profile.getByText('2+', { exact: true })).toBeVisible()
   await expect(profile.getByText('4+', { exact: true })).toBeVisible()
+  // Equipped weapons list every weapon the Overlord carries once, including those its wargear choices supply.
+  const equipped = loadout.locator('section').filter({ has: page.getByRole('heading', { name: /^Equipped/ }) })
   for (const name of ['Tachyon arrow', "Overlord's blade"]) {
-    const weapon = loadout.getByRole('heading', { name, exact: true })
+    const weapon = equipped.getByRole('heading', { name, exact: true })
     await expect(weapon).toHaveCount(1)
     await expect(weapon).toBeVisible()
   }

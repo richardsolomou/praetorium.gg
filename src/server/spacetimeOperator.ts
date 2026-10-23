@@ -191,6 +191,17 @@ const visibleLeague = z.object({
 })
 const leagueCandidate = z.object({ league, event: leagueEvent, entries: z.array(leagueEntry) })
 const leagueRoster = z.object({ event: leagueEvent, entry: leagueEntry, reader: leagueEntry.nullable() })
+const friendLeagueRoster = z.object({
+  leagueToken: z.string(),
+  leagueName: z.string(),
+  eventToken: z.string(),
+  eventNumber: z.number().int(),
+  eventCount: z.number().int(),
+  userId: z.string(),
+  rosterName: z.string(),
+  catalogueId: z.string(),
+  revealedAt: z.number(),
+})
 const outdatedLeagueEntry = z.object({
   leagueToken: z.string(),
   leagueName: z.string(),
@@ -731,11 +742,26 @@ export class SpacetimeOperator {
     )
   }
 
-  async recentCollectionPhotos(limit: number) {
+  async adminCollectionPhotos(input: { before: { at: number; id: string } | null; limit: number }) {
     return this.read(
-      'recent_collection_photos',
-      [limit],
-      z.array(z.object({ photoId: z.uuid(), userId: z.string(), entryId: z.string(), at: z.number().int() })).max(100),
+      'admin_collection_photos',
+      [JSON.stringify(input)],
+      z.object({
+        photos: z
+          .array(
+            z.object({
+              photoId: z.uuid(),
+              userId: z.string(),
+              entryId: z.string(),
+              at: z.number().int(),
+              likes: z.number().int().nonnegative(),
+              published: z.boolean(),
+              kept: z.boolean(),
+            }),
+          )
+          .max(100),
+        nextCursor: z.object({ at: z.number().int(), id: z.string() }).nullable(),
+      }),
     )
   }
 
@@ -868,6 +894,10 @@ export class SpacetimeOperator {
 
   async outdatedLeagueEntriesForRoster(userId: string, rosterId: string) {
     return this.read('outdated_league_entries_for_roster', [userId, rosterId], z.array(outdatedLeagueEntry))
+  }
+
+  async friendLeagueRosters(viewerId: string) {
+    return this.read('friend_league_rosters', [viewerId], z.array(friendLeagueRoster))
   }
 
   async leagueBattleCandidates(userId: string, participantIds: readonly string[]) {

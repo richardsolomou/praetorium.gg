@@ -598,7 +598,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             onClose={() => setRecordingMissed(false)}
           />
         ) : null}
-        <div data-battle-sticky-header className="sticky top-12 z-20 space-y-2 bg-void/95 pb-2 backdrop-blur lg:contents">
+        <div data-battle-sticky-header className="sticky top-(--app-header) z-20 space-y-2 bg-void/95 pb-2 backdrop-blur lg:contents">
           <Scoreboard view={view} clock={clock} sides={table} outcome={null} />
 
           {/* Nobody across the table yet means neither a tab nor a column for them. */}
