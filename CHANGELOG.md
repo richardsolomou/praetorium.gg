@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.179.4
+
+### Patch Changes
+
+- edabe2c: AI assistants treat Praetorium's roster and battle changes as able to reach other players, since rosters and battles can be public.
+
 ## 0.179.3
 
 ### Patch Changes
