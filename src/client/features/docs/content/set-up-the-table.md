@@ -8,7 +8,7 @@ The setup page follows the order the rules play it. The bar at the bottom counts
 4. **Battlefield.** Pick one of the layouts shown for the matchup. It sets the deployment zones and the terrain for both sides.
 5. **Defender.** Roll off at the table, then record who defends. The defender deploys first.
 6. **Secondaries.** Each side picks **Tactical** (cards drawn during the battle) or **Fixed** (missions selected now and kept all game). Allies share one hand.
-7. **Reserves.** Move units into strategic reserves or deep strike, or embark them in transports. Units your roster [starts embarked](/docs/set-up-a-unit) are already inside their transport; a note says so if the frozen army can't fit one, and that unit starts on the battlefield instead. Anything you leave alone starts on the battlefield.
+7. **Reserves.** Move units into strategic reserves or deep strike, or embark them in transports. Units your roster [starts embarked](/docs/set-up-a-unit#start-units-embarked) are already inside their transport; a note says so if the frozen army can't fit one, and that unit starts on the battlefield instead. Anything you leave alone starts on the battlefield.
 8. **Deploy.** Nothing to record.
 9. **First turn.** Roll off and record who goes first.
 10. **Pre-battle rules.** Resolve them at the table, then choose **Start battle** to open the first Command phase.

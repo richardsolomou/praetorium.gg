@@ -8,7 +8,7 @@ Setup edits use `RosterSetupDialog`'s two-step review; `src/core/rosterSetup.ts`
 
 A pick's custom name (`nickname`, 40 characters) and `note` (500 characters) live in the saved picks, so copies, variants, conversions and frozen copies keep them; Duplicate unit copies neither, and `normalisePicks` omits both so typing never reprices. A nickname is shown above the datasheet name, never instead of it (`nicknamedUnit`), to every reader of the roster and its frozen copies, and travels in readable text and exchange codes. Unit notes are owner-only: `readerRosterFromRow` and battle/league reads strip them for other readers, rendered notes carry `ph-no-capture`, and no telemetry reads them. Legacy `prep.shareNotes` is stripped without changing pending operation inputs or receipts.
 
-A pick's `embarkedIn` lives on the unit a character joined and travels like `attachedTo`, but not in text exports or `normalisePicks`. The builder judges it as setup does (`frozenUnits`) and clears what no longer fits. Cover in `e2e/roster-embark.spec.ts`.
+A pick's `embarkedIn` lives on the unit a character joined and travels like `attachedTo`, but not in text exports or `normalisePicks`. The builder judges it like setup (`frozenUnits`, `embarkCards`) and clears what stops fitting. Cover in `e2e/roster-embark.spec.ts`.
 
 `saveRoster` and queued `syncRoster` apply `src/core/rosterLock.ts` before the version check, so stale or offline work gets a refusal kept for review. Locking, unlocking and archiving are explicit server operations that need a connection, first sync that roster's queued edits, and advance its version. A lock is not a permission: sharing, export, battles, leagues and deletion are unaffected. Cover in `e2e/roster-lock.spec.ts` and `e2e/roster-archive.spec.ts`.
 

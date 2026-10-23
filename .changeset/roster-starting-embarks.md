@@ -2,4 +2,4 @@
 'praetorium.gg': minor
 ---
 
-Choose which transport a unit starts embarked in while building a roster; battle setup starts it there, and you can still change it.
+Embark units in transports from the roster cards; each transport lists who starts inside it, and battle setup starts them there, which you can still change.

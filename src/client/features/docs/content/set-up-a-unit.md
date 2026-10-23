@@ -15,8 +15,6 @@ Enhancements and detachment **Unit upgrades** are chosen here too, with **No enh
 
 The **Note** box holds up to 500 characters that only you can see. Exports and other readers never get it.
 
-**Starts embarked** appears when the roster has a transport. Press **Embark** beside a transport to start the unit inside it, or **Remove** to start it on the battlefield. Each transport shows how many models are already aboard, and one the unit can't fit in, or whose capacity can't be read, is greyed out with the reason. A Leader or Support unit embarks with the unit it joined. If a later change means the unit no longer fits, such as a bigger squad, it goes back to the battlefield. Battle setup starts the unit in that transport, and you can still change it there.
-
 ## Unit actions
 
 Each card's menu (or a right-click) offers **Duplicate unit**, **Save loadout** and **Delete unit**. **Save loadout** keeps the model count and wargear under a name, up to 100 per account. It then appears beneath its datasheet in the picker for any roster of the same army; enhancements, upgrades, Warlord and attachments aren't kept.
@@ -31,3 +29,12 @@ Attach from the roster cards, not the picker:
 Each menu has **In this roster** and **Add a new unit**. The second adds the datasheet and attaches it in one step, with its price shown. Units at their copy limit are greyed out with the reason. Once joined, the card shows **Leading** or **Supporting** with **Remove**, and the Bodyguard shows **Leader** or **Support** with **Detach**. A Leader may stand on its own, but a Support unit must be attached to a Bodyguard.
 
 ![An Ancient's Attach to unit menu listing an Intercessor Squad in the roster and new squads with their prices.](screenshot:build-an-army-attach 'The Attach to unit menu, with In this roster and Add a new unit')
+
+## Start units embarked
+
+Embark from the roster cards too:
+
+- On a unit, **Embark in transport** lists the roster's transports with how many models each already carries.
+- On a transport, **Embark unit** lists the units that could ride in it.
+
+A transport the unit can't fit in, or whose capacity can't be read, is greyed out with the reason. Once aboard, the unit's card shows **Embarked in** with **Remove**, and the transport lists each unit inside with the models it takes and **Disembark**. A Leader or Support unit embarks with the unit it joined, listed once under that unit's name. If a later change means a unit no longer fits, such as a bigger squad, it goes back to the battlefield. Battle setup starts the unit in that transport, and you can still change it there.
