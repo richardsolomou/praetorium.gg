@@ -535,7 +535,11 @@ export function ListBuilder({
     mutationFn: (next: boolean) => setRosterLocked({ data: { id: savedId, locked: next } }),
     onSuccess: () => invalidateSavedRosters(queryClient),
   })
-  const saving = !guest && (save.isPending || settledPicks !== annotated || settledListName !== listName)
+  // Between an edit settling and its save starting, nothing is pending yet, so an
+  // unconfirmed draft counts as saving too; otherwise the page reads saved for a render.
+  const saving =
+    !guest &&
+    (save.isPending || settledPicks !== annotated || settledListName !== listName || (editable && currentDraftKey !== lastApplied.current))
   const variantDisposition = faction?.detachments.flatMap((entry) => entry.dispositions).find((entry) => entry.id === disposition)
 
   const priceRequest = priceQuery(
