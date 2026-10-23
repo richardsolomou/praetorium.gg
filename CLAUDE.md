@@ -4,7 +4,7 @@
 
 ## Read for the task
 
-Read the relevant guide and section before changing its behavior. Read [Architecture](docs/development/architecture.md) for code placement. Topic guides own their domain and verification rules; do not copy them here or read every guide for an unrelated change. Keep guides to durable constraints, code entry points, and verification. Link to code, tests, and workflows for changing implementation details; replace stale guidance rather than appending a history of fixes. State required steps explicitly and distinguish them from descriptions of automation.
+Read the relevant guide and section before changing its behavior. Read [Architecture](docs/development/architecture.md) for code placement. Topic guides own their domain and verification rules; do not copy them here or read every guide for an unrelated change. Large guides are a short page plus area guides; read the page, then only the area the task touches.
 
 | Working on                                          | Read                                                       |
 | --------------------------------------------------- | ---------------------------------------------------------- |
@@ -21,6 +21,20 @@ Read the relevant guide and section before changing its behavior. Read [Architec
 | Native shell and authentication                     | [Mobile](docs/development/mobile.md)                       |
 | Native distribution and store setup                 | [Mobile release](docs/development/mobile-release.md)       |
 | Analytics, errors, logs                             | [Telemetry](docs/development/telemetry.md)                 |
+
+## Where knowledge goes
+
+Before writing anything down, put it in the first place that fits; a guide is the last resort.
+
+| What you learned                                                    | Where it goes                                                     |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------- |
+| A rule a test can enforce                                           | The test                                                          |
+| Why one function or file works the way it does                      | A comment on that code                                            |
+| What broke and how it was fixed                                     | The commit message and pull request                               |
+| How players use a feature                                           | The in-app docs (`src/client/features/docs/content`)              |
+| A constraint spanning files that code can't express and still holds | The owning guide, replacing what it supersedes; name entry points |
+
+Guides keep durable constraints, code entry points, and verification, and state required steps apart from descriptions of automation. `pnpm docs:budget` (part of `just check`) caps each guide file and the total; when a guide needs room, remove or move something rather than raising the cap.
 
 ## Shared constraints
 
