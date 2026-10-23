@@ -172,7 +172,7 @@ jobs:
           E2E_MAP: e2e-map.json
         run: |
           if [ "$FULL_E2E" = true ]; then
-            printf 'specs=all\nreason=every spec runs before merge\n' >> "$GITHUB_OUTPUT"
+            printf 'specs=all\nreason=every spec runs outside pull requests\n' >> "$GITHUB_OUTPUT"
           else
             node scripts/e2eSelect.ts
           fi
