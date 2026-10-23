@@ -15,6 +15,8 @@ Enhancements and detachment **Unit upgrades** are chosen here too, with **No enh
 
 The **Note** box holds up to 500 characters that only you can see. Exports and other readers never get it.
 
+**Starts embarked** appears when the roster has a transport. Press **Embark** beside a transport to start the unit inside it, or **Remove** to start it on the battlefield. Each transport shows how many models are already aboard, and one the unit can't fit in, or whose capacity can't be read, is greyed out with the reason. A Leader or Support unit embarks with the unit it joined. If a later change means the unit no longer fits, such as a bigger squad, it goes back to the battlefield. Battle setup starts the unit in that transport, and you can still change it there.
+
 ## Unit actions
 
 Each card's menu (or a right-click) offers **Duplicate unit**, **Save loadout** and **Delete unit**. **Save loadout** keeps the model count and wargear under a name, up to 100 per account. It then appears beneath its datasheet in the picker for any roster of the same army; enhancements, upgrades, Warlord and attachments aren't kept.

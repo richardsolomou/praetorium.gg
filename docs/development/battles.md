@@ -57,7 +57,7 @@ Attaching a saved roster rechecks ownership or an active loan, price, and legali
 
 Personal roster reminders and frozen unit notes are owner-only: `battleView`, `visibleBattleLog`, and `leagueRoster` strip them from every other read; frozen custom unit names stay visible to every reader of the army. Reminder dismissals are local state, not commands, and reminders never replace shared scoring guards or prompts.
 
-Deep Strike changes ingress, not Strategic Reserves membership. `unitFormationRefusal` is the formation authority for `validate` and setup controls; [`src/core/transport.ts`](../../src/core/transport.ts) owns embarking. Incomplete source facts never invent restrictions.
+Deep Strike changes ingress, not Strategic Reserves membership. `unitFormationRefusal` is the formation authority for `validate` and setup controls; [`src/core/transport.ts`](../../src/core/transport.ts) owns embarking. Incomplete source facts never invent restrictions. Attaching in setup applies `startsEmbarkedIn` via `startingEmbarks` and `unitFormationRefusal` on the frozen army; Reserves says why one was refused.
 
 ## Prompts and replay
 
