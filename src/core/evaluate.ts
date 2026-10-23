@@ -443,6 +443,13 @@ export function keywordIdsBySelection(selections: readonly Selection[], index: C
   return keywordsBySelection(selections, index, options).map(({ keywords }) => keywords)
 }
 
+/** The printed names of keyword category ids, without the hidden categories the data uses for bookkeeping. */
+export const keywordNames = (ids: readonly string[], index: CatalogueIndex): string[] =>
+  ids.flatMap((id) => {
+    const category = index.categories.get(id)
+    return category?.hidden || !category?.name ? [] : [category.name.replace(/^Faction:\s*/iu, '')]
+  })
+
 /** Each selection's keywords, and the ones the list's own rules shelve it under ahead of its datasheet's. */
 export function keywordsBySelection(
   selections: readonly Selection[],

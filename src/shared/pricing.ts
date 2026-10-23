@@ -9,6 +9,7 @@ import {
   enhancementLimit,
   evaluate,
   evaluateForces,
+  keywordNames,
   keywordsBySelection,
   type Selection,
 } from '../core/evaluate'
@@ -518,10 +519,7 @@ function calculateRoster(
     data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
   const keywordNamesOf = (unit: (typeof picked)[number]) => {
     const at = selectionIndex.get(unit.selection)
-    return (at === undefined ? [] : keywordsFor(catalogueOfUnit(unit), at)).flatMap((id) => {
-      const category = loaded.index.categories.get(id)
-      return category?.hidden || !category?.name ? [] : [category.name.replace(/^Faction:\s*/iu, '')]
-    })
+    return keywordNames(at === undefined ? [] : keywordsFor(catalogueOfUnit(unit), at), loaded.index)
   }
   // Model kinds are the dear part of a unit's projection, and the price reads them
   // twice: once to find units the catalogue composes itself, and once to draw each
@@ -686,7 +684,7 @@ function calculateRoster(
       const mfmUnit = mfmUnitFor(loaded, data.units[unit.key]?.catalogueId ?? data.catalogueId, unit.entryId)
       const definition = loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }
       const unitSelectionIndex = selectionIndex.get(unit.selection)
-      const keywordNames = keywordNamesOf(unit)
+      const unitKeywords = keywordNamesOf(unit)
       const host = data.units[unit.key]?.attachedTo ?? unit.key
       const companions = (attachedByHost.get(host) ?? []).flatMap((key) => {
         const index = pickedIndexByKey.get(key)
@@ -741,7 +739,7 @@ function calculateRoster(
         }),
       }))
       const strategicReserveExempt =
-        reserveExemptionSelectors.some((selector) => matchesKeywordSelector(selector, keywordNames)) ||
+        reserveExemptionSelectors.some((selector) => matchesKeywordSelector(selector, unitKeywords)) ||
         selectedEnhancements.some((enhancement) =>
           grantsReserveExemptionIn(findEnhancementDescription(enhancementDescriptions, chosen, enhancement), loaded.datacards.textFacts),
         )
@@ -783,7 +781,7 @@ function calculateRoster(
         },
         ...deployment,
         ...(strategicReserveExempt ? { strategicReserveExempt: true } : {}),
-        ...(keywordNames.some((keyword) => keyword.toLowerCase() === 'transport') ? { transport: true } : {}),
+        ...(unitKeywords.some((keyword) => keyword.toLowerCase() === 'transport') ? { transport: true } : {}),
         choices,
         models,
         toggles: unit.toggles,
