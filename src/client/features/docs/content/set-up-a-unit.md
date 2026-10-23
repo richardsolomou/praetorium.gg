@@ -28,4 +28,6 @@ Attach from the roster cards, not the picker:
 
 Each menu has **In this roster** and **Add a new unit**. The second adds the datasheet and attaches it in one step, with its price shown. Units at their copy limit are greyed out with the reason. Once joined, the card shows **Leading** or **Supporting** with **Remove**, and the Bodyguard shows **Leader** or **Support** with **Detach**. A Leader may stand on its own, but a Support unit must be attached to a Bodyguard.
 
+Once a roster has an attached unit, the toggle above the cards switches between **Datasheets** and **Attached units**. **Attached units** shows each Bodyguard with the units that joined it as one block, on the Bodyguard's shelf. The block shows the Bodyguard's custom name or datasheet name and the points of the whole unit. Your choice applies to every roster on this device.
+
 ![An Ancient's Attach to unit menu listing an Intercessor Squad in the roster and new squads with their prices.](screenshot:build-an-army-attach 'The Attach to unit menu, with In this roster and Add a new unit')

@@ -139,6 +139,16 @@ test('a unit attaches a character already in the roster from its own card', asyn
   )
   await expect(page.locator('[data-unit="Overlord"]')).toContainText('Leading')
   await expect(page.locator('[data-unit]')).toHaveCount(2)
+
+  const shelf = (name: string) => page.locator('[data-slot="roster-units"]').getByRole('heading', { name, exact: true })
+  await expect(shelf('Characters')).toBeVisible()
+  await page.getByRole('group', { name: 'Group roster by' }).getByRole('button', { name: 'Attached units', exact: true }).click()
+  const unit = page.getByRole('group', { name: 'Immortals', exact: true })
+  await expect(unit.locator('[data-unit]')).toHaveCount(2)
+  await expect(unit).toContainText(/\d+ pts/)
+  await expect(shelf('Characters')).toHaveCount(0)
+  await page.reload()
+  await expect(page.getByRole('group', { name: 'Immortals', exact: true }).locator('[data-unit]')).toHaveCount(2)
 })
 
 /** A card's height once two readings a quarter-second apart agree: the picker can reflow while the roster's price arrives. */

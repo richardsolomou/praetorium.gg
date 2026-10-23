@@ -71,9 +71,8 @@ import type { RosterSetupReview } from './rosterSetupReview'
 import { requireReviewedRoster } from '../../offline/reviewedRoster'
 import { localEngine } from '../../offline/localRuntime'
 import { useSettled } from '../../useSettled'
-import { readStoredValue, writeStoredValue } from '../../storedValue'
+import { readStoredValue, useStoredValue, writeStoredValue } from '../../storedValue'
 import { DatasheetPanel } from './builder/DatasheetPanel'
-import { GROUPS } from '../../unitGroups'
 import { Loadout } from './builder/Loadout'
 import { Stepper } from '../../components/Stepper'
 import { changedDraftSpreadCounts, withDraftSpreadCounts } from './builder/loadoutModel'
@@ -102,6 +101,7 @@ import type { AttachChoice } from './builder/UnitCard'
 import { RosterDataChanges } from './RosterDataChanges'
 import { RosterRulesNotice } from './RosterRulesNotice'
 import { RosterReadiness } from './RosterReadiness'
+import { type RosterView, rosterShelves } from './rosterShelves'
 import { convertAsVariantOf } from './rosterLibrary'
 import { currentRulesFor } from '../../../core/currentRules'
 import { OutdatedLeagueRosters } from './OutdatedLeagueRosters'
@@ -195,6 +195,7 @@ export type FrozenRoster = {
 }
 
 const READ_ONLY_PREFERENCE = 'praetorium.roster-read-only'
+const ROSTER_VIEW_PREFERENCE = 'praetorium.roster-view'
 /** Which set of waived restrictions this workspace has already been told about. */
 const WAIVERS_DISMISSED = 'waivers-dismissed'
 const NO_UNITS = [] as const
@@ -314,6 +315,12 @@ export function ListBuilder({
     if (!editable) return
     setReadOnly(readStoredValue(READ_ONLY_PREFERENCE) === 'true')
   }, [editable])
+
+  const rosterView: RosterView = useStoredValue(ROSTER_VIEW_PREFERENCE) === 'units' ? 'units' : 'datasheets'
+  const setRosterView = (next: RosterView) => {
+    writeStoredValue(ROSTER_VIEW_PREFERENCE, next)
+    posthog.capture('roster_view_changed', { view: next })
+  }
 
   const setReadOnlyMode = (next: boolean) => {
     setReadOnly(next)
@@ -1002,6 +1009,9 @@ export function ListBuilder({
   const cards = frozen
     ? frozen.units.map((unit, index) => ({
         index,
+        key: unit.key,
+        attachedTo: unit.attachedTo,
+        nickname: unit.nickname,
         group: unit.group ?? ('other' as const),
         joined: unit.joined ?? [],
         unit: {
@@ -1015,10 +1025,16 @@ export function ListBuilder({
           upgrades: unit.upgrades ?? [],
         },
       }))
-    : units.map((unit, index) => ({ index, group: unit.group, joined: NO_JOINED, unit }))
+    : units.flatMap((unit, index) => {
+        const pick = picks[index]
+        return pick
+          ? [{ index, key: pick.key, attachedTo: pick.attachedTo, nickname: pick.nickname, group: unit.group, joined: NO_JOINED, unit }]
+          : []
+      })
   // The shelves draw a card per datasheet; the header says how many units the list
   // brings, which is the same fold the library and the battle count it by.
   const fieldedUnitCount = frozen ? attachedUnitCount(frozen.units) : attachedUnitCount(picks)
+  const hasAttachedUnits = cards.some((card) => card.attachedTo !== undefined)
   const selectedUnit = selected === null ? null : (units[selected] ?? null)
   const frozenSelected = frozen && selected !== null ? (frozen.units[selected] ?? null) : null
   // Frozen selections are what a datasheet is applied to; a log written without them
@@ -1204,6 +1220,46 @@ export function ListBuilder({
       <Calculator /> Test targets
     </DropdownMenuItem>
   ) : null
+
+  const renderCard = ({ unit, index, joined }: (typeof cards)[number]) =>
+    frozen ? (
+      <UnitCard
+        key={unit.entryId + index}
+        unit={unit}
+        nickname={frozen.units[index]?.nickname}
+        note={frozen.units[index]?.note}
+        joined={joined}
+        selected={selected === index}
+        onSelect={loadoutAvailable ? () => selectUnit(index) : undefined}
+        editable={false}
+      />
+    ) : (
+      <BuilderUnitCard
+        key={picks[index]?.key ?? unit.entryId}
+        unit={unit}
+        nickname={picks[index]?.nickname}
+        note={picks[index]?.note}
+        index={index}
+        joined={cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? []}
+        canJoin={cardRelationships.get(picks[index]?.key ?? -1)?.canJoin ?? []}
+        canHost={cardRelationships.get(picks[index]?.key ?? -1)?.canHost ?? []}
+        alliedFaction={
+          picks[index]?.catalogueId === catalogueId
+            ? undefined
+            : factionIndex?.factions.find((entry) => entry.id === picks[index]?.catalogueId)
+        }
+        selected={selected === index}
+        alertCount={editable ? reminderCountsByUnit.get(index) : undefined}
+        onSelect={selectUnit}
+        onRemove={drop}
+        onDuplicate={duplicate}
+        canDuplicate={!pricePending && canAddCopy(unit.entryId, held[unit.entryId] ?? 0, unitLimits)}
+        onSaveLoadout={pricePending ? undefined : guest ? askForLoadoutAccount : me ? openSaveLoadout : undefined}
+        onDetach={detach}
+        onAttach={attach}
+        editable={building}
+      />
+    )
 
   return (
     <RosterShell saving={saving} saveError={save.isError}>
@@ -1557,56 +1613,45 @@ export function ListBuilder({
         ) : null}
 
         <RosterUnits onboarding="roster-list">
+          {hasAttachedUnits ? (
+            <div className="flex justify-end pt-2 print:hidden">
+              <ToggleGroup
+                value={[rosterView]}
+                onValueChange={(value) => {
+                  if (value[0] === 'datasheets' || value[0] === 'units') setRosterView(value[0])
+                }}
+                variant="outline"
+                size="sm"
+                spacing={0}
+                aria-label="Group roster by"
+              >
+                <ToggleGroupItem value="datasheets">Datasheets</ToggleGroupItem>
+                <ToggleGroupItem value="units">Attached units</ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+          ) : null}
           {cards.length ? (
-            GROUPS.map(({ id, plural }) => {
-              const rows = cards
-                .filter((card) => card.group === id)
-                .toSorted((left, right) => left.unit.name.localeCompare(right.unit.name))
-              return rows.length ? (
-                <Section key={id} title={plural} count={rows.length}>
-                  {rows.map(({ unit, index, joined }) =>
-                    frozen ? (
-                      <UnitCard
-                        key={unit.entryId + index}
-                        unit={unit}
-                        nickname={frozen.units[index]?.nickname}
-                        note={frozen.units[index]?.note}
-                        joined={joined}
-                        selected={selected === index}
-                        onSelect={loadoutAvailable ? () => selectUnit(index) : undefined}
-                        editable={false}
-                      />
-                    ) : (
-                      <BuilderUnitCard
-                        key={picks[index]?.key ?? unit.entryId}
-                        unit={unit}
-                        nickname={picks[index]?.nickname}
-                        note={picks[index]?.note}
-                        index={index}
-                        joined={cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? []}
-                        canJoin={cardRelationships.get(picks[index]?.key ?? -1)?.canJoin ?? []}
-                        canHost={cardRelationships.get(picks[index]?.key ?? -1)?.canHost ?? []}
-                        alliedFaction={
-                          picks[index]?.catalogueId === catalogueId
-                            ? undefined
-                            : factionIndex?.factions.find((entry) => entry.id === picks[index]?.catalogueId)
-                        }
-                        selected={selected === index}
-                        alertCount={editable ? reminderCountsByUnit.get(index) : undefined}
-                        onSelect={selectUnit}
-                        onRemove={drop}
-                        onDuplicate={duplicate}
-                        canDuplicate={!pricePending && canAddCopy(unit.entryId, held[unit.entryId] ?? 0, unitLimits)}
-                        onSaveLoadout={pricePending ? undefined : guest ? askForLoadoutAccount : me ? openSaveLoadout : undefined}
-                        onDetach={detach}
-                        onAttach={attach}
-                        editable={building}
-                      />
-                    ),
-                  )}
-                </Section>
-              ) : null
-            })
+            rosterShelves<(typeof cards)[number]>(cards, rosterView).map(({ id, plural, entries }) => (
+              <Section key={id} title={plural} count={entries.length}>
+                {entries.map(({ host, joined, points: unitPoints }) =>
+                  joined.length ? (
+                    <fieldset
+                      key={host.key}
+                      aria-label={host.nickname ?? host.unit.name}
+                      className="min-w-0 space-y-1.5 border-l-2 border-primary/60 pl-2"
+                    >
+                      <div className="flex flex-wrap items-baseline justify-between gap-x-2 text-sm">
+                        <span className="min-w-0 font-medium">{host.nickname ?? host.unit.name}</span>
+                        <span className="chip text-info">{unitPoints} pts</span>
+                      </div>
+                      {[host, ...joined].map(renderCard)}
+                    </fieldset>
+                  ) : (
+                    renderCard(host)
+                  ),
+                )}
+              </Section>
+            ))
           ) : rosterLoading ? (
             <output className="block py-3" aria-label="Loading roster units">
               <span className="sr-only">Loading roster units…</span>
