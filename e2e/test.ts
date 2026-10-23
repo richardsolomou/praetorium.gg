@@ -107,11 +107,14 @@ export const startUnchosen = (context: BrowserContext) =>
 const coverageDirectory = process.env.E2E_COVERAGE_DIR
 const coveredPages = new Set<Page>()
 
-/** Starts coverage before a page's first navigation, so its first scripts are counted. */
+/**
+ * Starts coverage before a page's first navigation, so its first scripts are counted. A context
+ * without JavaScript runs no scripts to count, and Chromium refuses to start coverage in it.
+ */
 const coveredContexts = new WeakSet<BrowserContext>()
-function coverNewPages(context: BrowserContext) {
+function coverNewPages(context: BrowserContext, javaScriptEnabled = true) {
   // The default context passes through both the context fixture and the wrapped `newContext`.
-  if (!coverageDirectory || coveredContexts.has(context)) return
+  if (!coverageDirectory || !javaScriptEnabled || coveredContexts.has(context)) return
   coveredContexts.add(context)
   const newPage = context.newPage.bind(context)
   context.newPage = async () => {
@@ -179,7 +182,7 @@ export const test = base.extend<{ closeOpenedContexts: void; recordCoverage: voi
     context.off('page', awaitHydration)
     if (javaScriptEnabled) context.on('page', awaitHydration)
     if (!rulesText) await startUnchosen(context)
-    coverNewPages(context)
+    coverNewPages(context, javaScriptEnabled)
     await use(context)
   },
   /** Closes the contexts a test opens with `browser.newContext()`; Playwright closes only those its fixtures create. */
@@ -191,7 +194,7 @@ export const test = base.extend<{ closeOpenedContexts: void; recordCoverage: voi
         const context = await newContext(options)
         if (options?.javaScriptEnabled !== false) context.on('page', awaitHydration)
         await serveRulesText(context)
-        coverNewPages(context)
+        coverNewPages(context, options?.javaScriptEnabled !== false)
         return context
       }
       await use()
