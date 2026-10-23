@@ -5,7 +5,6 @@ import { MAX_DATASHEET_PHOTOS } from '../core/collectionPhotos'
 
 export const collectionProfileSchema = z
   .object({
-    published: z.boolean(),
     entries: z
       .array(
         z.object({

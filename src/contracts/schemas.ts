@@ -4,7 +4,6 @@ import { REPLAY_BATCH_SIZE } from '../contracts/battles'
 import { onboardingTaskIds, tourTaskIds } from '../core/onboarding'
 import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
 import { MAX_COLLECTION_DATASHEETS, MAX_COLLECTION_MODELS } from '../core/collection'
-import { BATTLE_AUDIENCES } from '../core/battleAudience'
 import { PUSH_PLATFORMS } from '../core/notificationConfig'
 import { unitLoadoutNameSchema, unitLoadoutSchema } from '../core/unitLoadouts'
 import { pushTokenSchema } from '../core/notifications'
@@ -197,7 +196,6 @@ export const deleteBattleSchema = z.object({ token })
 export const battlesPageSchema = z.object({
   before: battlesCursor.nullable().default(null),
 })
-export const battleAudienceSchema = z.object({ audience: z.enum(BATTLE_AUDIENCES) })
 export const playerDefaultsSchema = z
   .object({ rosterVisibility: z.enum(ROSTER_VISIBILITIES), battleSize: z.number().int() })
   .refine(isPlayerDefaults, 'choose a supported battle size')
@@ -452,5 +450,3 @@ export const exportRosterSchema = priceSchema
   .superRefine(validatePointsBudget)
   .overwrite(withStandardBudget)
 export type ExportRosterInput = z.infer<typeof exportRosterSchema>
-
-export const collectionPublishedSchema = z.object({ published: z.boolean() })

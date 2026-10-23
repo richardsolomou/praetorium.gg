@@ -1,5 +1,6 @@
 import type { ComponentProps } from 'react'
 
+/** One setting inside the profile's Preferences panel: what it is beside its controls. */
 export function SettingsSection({
   title,
   description,
@@ -7,12 +8,12 @@ export function SettingsSection({
   ...props
 }: Omit<ComponentProps<'section'>, 'title' | 'className'> & { title: string; description: string }) {
   return (
-    <section {...props} className="space-y-4 border border-edge bg-panel p-5 md:p-7 lg:col-span-2">
+    <section {...props} className="grid gap-3 py-4 first:pt-0 last:pb-0 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-8">
       <div>
-        <h2 className="rubric border-b border-edge pb-2">{title}</h2>
-        <p className="mt-2 text-sm text-dim">{description}</p>
+        <h3 className="text-base">{title}</h3>
+        <p className="mt-1 text-sm text-dim">{description}</p>
       </div>
-      {children}
+      <div className="space-y-3">{children}</div>
     </section>
   )
 }

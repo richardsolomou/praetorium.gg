@@ -151,7 +151,9 @@ async function configure(value: Credentials) {
     ownerToken: value.owner.token,
     operatorToken: value.operator.token,
   })
-  console.log(`Product data migration: ${migrated.rosters} rosters, ${migrated.collection} favourites`)
+  console.log(
+    `Product data migration: ${migrated.rosters} rosters, ${migrated.collection} favourites, ${migrated.battle_sharing + migrated.collection_sharing} retired sharing choices`,
+  )
 }
 
 async function main() {

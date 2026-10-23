@@ -1,4 +1,4 @@
-import { Fragment, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, MailCheck, ShieldCheck, Trash2 } from 'lucide-react'
@@ -14,6 +14,7 @@ import { authClient } from '../../authClient'
 import { hasNativeAuthBridge, requestNativeAuth, useGithubAuthAvailability } from '../../nativeAuth'
 import { accountMethodsQuery, mcpConnectionsQuery, meQuery } from '../../queries'
 import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES, type SocialAuthProvider } from './AuthMethodIcon'
+import { ConnectedAppIcon } from './ConnectedAppIcon'
 import { GithubSupporter } from './GithubSupporter'
 import {
   Dialog,
@@ -38,7 +39,7 @@ type AccountIdentity = {
 
 type DialogKind = 'create-password' | 'change-password' | 'delete-account' | 'two-factor-setup' | 'two-factor-disable'
 
-export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy: ReactNode }) {
+export function AccountSecurity({ me, preferences }: { me: AccountIdentity; preferences: ReactNode }) {
   const methodsResult = useQuery(accountMethodsQuery())
   const connectionsResult = useQuery(mcpConnectionsQuery())
   const { data: methods, isPending: methodsPending } = methodsResult
@@ -77,20 +78,20 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
             </Button>
           }
         />
-        {privacy}
+        {preferences}
       </div>
     )
   }
 
   return (
-    <div className="ph-no-capture grid gap-6 lg:grid-cols-2">
+    <div className="ph-no-capture grid gap-6">
       <section id="sign-in-methods" className="border border-edge bg-panel p-5 md:p-7">
-        <h2 className="rubric border-b border-edge pb-2">Sign-in methods</h2>
+        <h2 className="rubric border-b border-edge pb-2">Sign-in and security</h2>
         {methodsPending ? <AccountMethodsSkeleton /> : null}
         {methods ? (
-          <div className="mt-4 space-y-3">
+          <div className="mt-4 grid items-start gap-3 lg:grid-cols-2">
             {methods.emailDelivery && !methods.emailVerified ? (
-              <div className="border border-edge bg-sunken p-3">
+              <div className="border border-edge bg-sunken p-3 lg:col-span-2">
                 <div className="flex items-start gap-3">
                   <span className="grid size-8 shrink-0 place-items-center bg-raised text-parchment">
                     <MailCheck className="size-4" aria-hidden />
@@ -153,7 +154,7 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
               }
             />
             {SOCIAL_PROVIDERS.filter((provider) => available.has(provider) || linked.has(provider)).map((provider) => (
-              <Fragment key={provider}>
+              <div key={provider} className="space-y-2">
                 <MethodRow
                   method={provider}
                   name={SOCIAL_AUTH_PROVIDER_NAMES[provider]}
@@ -195,64 +196,38 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
                   }
                 />
                 {provider === 'github' ? <GithubSupporter /> : null}
-              </Fragment>
+              </div>
             ))}
-            {linkError ? <Problem>Secure provider linking could not start. Try again.</Problem> : null}
+            <SettingRow
+              icon={<ShieldCheck className="size-4 text-parchment" aria-hidden />}
+              title="Two-factor authentication"
+              detail={
+                me.twoFactorEnabled
+                  ? 'Enabled · Protects password sign-in'
+                  : hasPassword
+                    ? 'Not set up · Protects password sign-in'
+                    : 'Needs a password'
+              }
+              action={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={!hasPassword}
+                  onClick={() => setDialog(me.twoFactorEnabled ? 'two-factor-disable' : 'two-factor-setup')}
+                >
+                  {me.twoFactorEnabled ? 'Turn off' : 'Set up authenticator'}
+                </Button>
+              }
+            />
+            {linkError ? <Problem className="lg:col-span-2">Secure provider linking could not start. Try again.</Problem> : null}
           </div>
         ) : null}
       </section>
 
+      {preferences}
+
       <section className="border border-edge bg-panel p-5 md:p-7">
-        <h2 className="rubric border-b border-edge pb-2">Two-factor authentication</h2>
-        <div className="mt-4 flex items-start gap-3">
-          <span className="grid size-10 shrink-0 place-items-center border border-edge bg-sunken text-parchment">
-            <ShieldCheck className="size-5" aria-hidden />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-base">Authenticator app</h3>
-              {methodsPending ? (
-                <Skeleton className="h-5 w-24" />
-              ) : (
-                <span className={`chip ${me.twoFactorEnabled ? 'text-achieved' : 'text-dim'}`}>
-                  {me.twoFactorEnabled ? 'Enabled' : hasPassword ? 'Not set up' : 'Needs a password'}
-                </span>
-              )}
-            </div>
-            {methodsPending ? (
-              <div className="mt-2 space-y-2">
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-4/5" />
-              </div>
-            ) : (
-              <p className="mt-1 text-sm text-dim">
-                {me.twoFactorEnabled
-                  ? 'Password sign-in requires a current authenticator code or one-time recovery code.'
-                  : hasPassword
-                    ? 'Protect password sign-in with a time-based code from your authenticator app.'
-                    : 'Create a password sign-in method before setting up an authenticator.'}
-              </p>
-            )}
-          </div>
-        </div>
-        {methodsPending ? (
-          <Skeleton className="mt-4 h-8 w-40" />
-        ) : (
-          <Button
-            type="button"
-            variant="outline"
-            className="mt-4"
-            disabled={!hasPassword}
-            onClick={() => setDialog(me.twoFactorEnabled ? 'two-factor-disable' : 'two-factor-setup')}
-          >
-            {me.twoFactorEnabled ? 'Turn off' : 'Set up authenticator'}
-          </Button>
-        )}
-      </section>
-
-      {privacy}
-
-      <section className="border border-edge bg-panel p-5 md:p-7 lg:col-span-2">
         <h2 className="rubric border-b border-edge pb-2">Connected apps</h2>
         <p className="mt-2 text-sm text-dim">
           Apps you have allowed to read or change your rosters and battles.{' '}
@@ -267,45 +242,49 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
           </Button>
         ) : null}
         {connectionsResult.data?.length === 0 ? <p className="mt-4 text-sm text-dim">No apps connected.</p> : null}
-        {connectionsResult.data?.map((connection) => (
-          <div key={connection.id} className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-edge pt-4">
-            <div>
-              <p>{connection.name}</p>
-              <p className="text-sm text-dim">
-                {[
+        {connectionsResult.data?.length ? (
+          <div className="mt-4 space-y-3">
+            {connectionsResult.data.map((connection) => (
+              <SettingRow
+                key={connection.id}
+                icon={<ConnectedAppIcon name={connection.name} />}
+                title={connection.name}
+                detail={[
                   connection.scopes.includes('mcp:read') ? 'Read rosters and battles' : null,
                   connection.scopes.includes('mcp:write') ? 'Change rosters and record battles' : null,
                 ]
                   .filter(Boolean)
                   .join(' · ')}
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={revokingConnection !== null}
-              onClick={async () => {
-                setRevokingConnection(connection.id)
-                setConnectionError(false)
-                try {
-                  await revokeMcpConnection({ data: { id: connection.id } })
-                  await queryClient.invalidateQueries({ queryKey: mcpConnectionsQuery().queryKey })
-                } catch {
-                  setConnectionError(true)
-                } finally {
-                  setRevokingConnection(null)
+                action={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={revokingConnection !== null}
+                    onClick={async () => {
+                      setRevokingConnection(connection.id)
+                      setConnectionError(false)
+                      try {
+                        await revokeMcpConnection({ data: { id: connection.id } })
+                        await queryClient.invalidateQueries({ queryKey: mcpConnectionsQuery().queryKey })
+                      } catch {
+                        setConnectionError(true)
+                      } finally {
+                        setRevokingConnection(null)
+                      }
+                    }}
+                  >
+                    Revoke access
+                  </Button>
                 }
-              }}
-            >
-              Revoke access
-            </Button>
+              />
+            ))}
           </div>
-        ))}
+        ) : null}
         {connectionError ? <Problem className="mt-3">Could not revoke access. Try again.</Problem> : null}
       </section>
 
-      <section className="border border-destructive/40 bg-panel p-5 md:p-7 lg:col-span-2">
+      <section className="border border-destructive/40 bg-panel p-5 md:p-7">
         <h2 className="rubric border-b border-edge pb-2 text-destructive">Delete account</h2>
         <div className="mt-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-dim">Permanently deletes your rosters, friendships, leagues and every battle you played.</p>
@@ -379,8 +358,8 @@ export function AccountSecurity({ me, privacy }: { me: AccountIdentity; privacy:
 
 function AccountMethodsSkeleton() {
   return (
-    <div className="mt-4 space-y-3" aria-label="Loading sign-in methods">
-      {Array.from({ length: 3 }, (_, index) => (
+    <div className="mt-4 grid gap-3 lg:grid-cols-2" aria-label="Loading sign-in methods">
+      {Array.from({ length: 4 }, (_, index) => (
         <div key={index} className="flex items-center gap-3 border border-edge bg-sunken p-3" aria-hidden>
           <Skeleton className="size-8 shrink-0" />
           <div className="min-w-0 flex-1 space-y-2">

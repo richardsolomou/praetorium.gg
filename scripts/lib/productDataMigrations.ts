@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { spacetimeDatabaseUrl } from 'ras-stack/spacetime'
 
-const tables = ['rosters', 'collection'] as const
+const tables = ['rosters', 'collection', 'battle_sharing', 'collection_sharing'] as const
 type Source = {
   url: string
   database: string
@@ -52,14 +52,14 @@ export async function migrateProductData(source: Source, request: typeof fetch =
   }
   const inventory: { table: (typeof tables)[number]; keys: string[] }[] = []
   for (const table of tables) {
-    const column = table === 'rosters' ? 'id' : 'key'
+    const column = table === 'rosters' ? 'id' : table === 'collection' ? 'key' : 'userId'
     const [result] = z
       .array(z.object({ rows: z.array(z.tuple([z.string().min(1).max(512)])).max(100_000) }))
       .length(1)
       .parse(await send(endpoint, `SELECT ${column} FROM ${table}`, source.ownerToken, 'text/plain'))
     inventory.push({ table, keys: result!.rows.map(([key]) => key) })
   }
-  const totals = { rosters: 0, collection: 0 }
+  const totals = { rosters: 0, collection: 0, battle_sharing: 0, collection_sharing: 0 }
   for (const { table, keys } of inventory) {
     for (let offset = 0; offset < keys.length; offset += 20) {
       const raw = await send(

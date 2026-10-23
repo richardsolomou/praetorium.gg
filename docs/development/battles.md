@@ -6,7 +6,6 @@
 | ------------------------------------------------ | --------------------------------------------------------------- |
 | Commands, legality, and folded state             | `src/core/battle.ts`                                            |
 | Viewer-specific fields and historical visibility | `src/core/battleView.ts`                                        |
-| Audience permission                              | `src/core/battleAudience.ts`                                    |
 | Report, replay, and clocks                       | `src/core/battleReport.ts`, `battleReplay.ts`, `battleClock.ts` |
 | Results and player records                       | `src/core/standings.ts`, `serviceRecord.ts`                     |
 | Storage and application operations               | `src/server/spacetimeRepository.ts`, `src/server/services`      |
@@ -38,8 +37,8 @@ A guest is a real opponent without an account, seated on the opposing side by th
 - Operation: until the guest joins, the seat is automated like a practice seat, so seated players choose its roster from their own lists, answer its prompts, and see its private cards.
 - Joining: a seated account shares the seat's link (`guest_seats.invite`); the first device to open it takes the seat through its HTTP-only `praetorium-guest` cookie. The host's "take back" replaces the link and forgets the device, so the table plays the seat again; a guest who clears storage or changes device asks for a new link.
 - Acting: `battleViewerId` in `src/server/guestSession.ts` resolves who reads or acts. The service and fold then treat the seat like any other, so a guest acts only as their own seat in their own battle, through the same `mutationRpc` origin checks. A guest has no saved lists and fields the device's builder draft (`attach-draft-roster`). Guests stay connected-only, with no offline workspace or server analytics person; offline play for a guest is not supported. Their battle follows the same [live signal](#realtime-updates) as a seated account's.
-- Visibility: a guest has no audience preference, so the seated accounts' narrowest preference decides who may watch, and the name shows wherever the battle does. Creation says so.
-- Claiming: once the battle is finished, a signed-in device holding the seat can claim it (`guestClaimRefusal`), and the product module seats the account in its place (`battle_users.claimedSeat`). `battleData` in the product module is the only place commands leave storage; it resolves the seat through `claimedLog`, so every reader (fold, visibility, report, records, standings, feeds, played armies) sees one battle between two accounts. Every existing authority then applies: both records, standings when it is public and guided, the claimant's audience preference, and account deletion. A claim is not withdrawn; after a reopen the account appends under its own ID.
+- Visibility: the guest's name shows wherever the battle does. Creation says so.
+- Claiming: once the battle is finished, a signed-in device holding the seat can claim it (`guestClaimRefusal`), and the product module seats the account in its place (`battle_users.claimedSeat`). `battleData` in the product module is the only place commands leave storage; it resolves the seat through `claimedLog`, so every reader (fold, visibility, report, records, standings, feeds, played armies) sees one battle between two accounts. Every existing authority then applies: both records, standings when it is guided, and account deletion. A claim is not withdrawn; after a reopen the account appends under its own ID.
 - Not supported: guests in leagues or on the creator's side.
 
 Setup progress is derived from the log. Any seated player may answer for either side, but may choose only their own, lent, or practice-seat rosters. Any seated device records derived cards once every army is in, so an absent player cannot block setup; shared choices wait for those writes.
@@ -68,9 +67,9 @@ Replay folds each selected prefix with that moment's visibility. Saved secondary
 
 ## Audience and records
 
-`battleAudience` decides who may watch, where friends means friends of any seated player. Feeds, links, replay, profiles, and previews use the same decision, including league-linked battles; league reveal grants sealed rosters, not an exemption from battle audience. Filter feeds before pagination in the database and recheck in the service.
+Every battle with a seated account is public: feeds, links, replay, profiles, and previews show it to anyone (`mayWatch` in `src/server/service.ts`). Filter feeds before pagination in the database.
 
-`battleView` is the only field-visibility decision. Profiles and service records use only watchable games, so private results cannot leak through rank, counts, or metadata.
+`battleView` is the only field-visibility decision.
 
 Standings read bounded logs. Revision changes invalidate caches across replicas after finish, reopen, deletion, or visibility changes; report the actual window when a count limit truncates it. Teams Event battle points (`teamsBattlePoints.ts`) are display-only: results, standings, and ratings never use them.
 

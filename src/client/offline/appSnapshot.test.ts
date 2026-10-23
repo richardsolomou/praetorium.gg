@@ -37,6 +37,18 @@ it('restores a snapshot an earlier release saved with reference queries, leaving
   expect(parseAppSnapshot(saved)?.queries.map((query) => query.key[0])).toEqual(['me', 'home-rosters'])
 })
 
+it('restores a snapshot an earlier release saved with the retired battle audience, dropping that query', () => {
+  const saved = {
+    version: 1,
+    owner: 'alice',
+    queries: [
+      { key: ['me'], data: { id: 'alice' }, updatedAt: 1 },
+      { key: ['battle-audience'], data: 'friends', updatedAt: 1 },
+    ],
+  }
+  expect(parseAppSnapshot(saved)?.queries.map((query) => query.key[0])).toEqual(['me'])
+})
+
 it('does not save an impersonated account', () => {
   const client = new QueryClient()
   client.setQueryData(['me'], { id: 'alice', impersonatedBy: 'admin' })

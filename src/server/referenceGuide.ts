@@ -13,7 +13,7 @@ export const PRAETORIUM_GUIDE = {
     'Build a visitor roster and use the standalone combat simulator without an account. Visitor drafts stay on this device across visits; sign in to save them to your account or open them on other devices. Visitors can also import roster text. An account is required to play battles.',
     'Docs, reference pages, public battles, profiles, and leaderboards can be read without an account.',
     'The combat simulator estimates supported effects for the chosen matchup; players determine range, visibility, and activated effects. Unsupported calculations remain explicit.',
-    'Battle visibility is the narrowest setting chosen by anyone seated at the table. Watching never grants a seat or controls.',
+    'Battles are public. Watching never grants a seat or controls.',
     'The MCP reference and combat simulator tools are public. Optional account sign-in adds tools for saved rosters and battles, including edits and battle actions.',
     'Supported browser assistants can use the same capabilities through WebMCP. Browser account writes require the player to review and approve the proposed change on the page; assistants must never approve their own changes.',
   ],

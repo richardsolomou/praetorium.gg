@@ -81,19 +81,17 @@ export function PrivacyPolicy() {
           </li>
           <li>Your name, profile picture and profile page are public.</li>
           <li>
-            Your collection's datasheets, model counts, photos and wishlist are shown on your profile by default, and its photos on their
-            datasheet pages. Turn off Show collection on profile in your account settings to hide them; turning it back on shows them again.
-            A photo another player reports is hidden from everyone but you until an administrator reviews it.
+            Your collection's datasheets, model counts, photos and wishlist are shown on your profile, and its photos on their datasheet
+            pages. A photo another player reports is hidden from everyone but you until an administrator reviews it.
           </li>
           <li>
-            Battles are public by default. You choose whether anyone, confirmed friends of any seated player, or only the seated players can
-            watch. The most private choice at the table applies to past and live battles, including league battles. Spectators cannot change
-            a battle or see a face-down Secret Mission.
+            Battles are public: anyone can watch past and live battles, including league battles. Spectators cannot change a battle or see a
+            face-down Secret Mission.
           </li>
-          <li>Public battles may appear on the home page. Your profile's battle record includes only games its reader can watch.</li>
+          <li>Battles may appear on the home page and in your profile's battle record.</li>
           <li>
-            The leaderboard counts finished public games from the last 90 days. Games with a practice opponent, or with a guest who has not
-            claimed the game with an account, do not count.
+            The leaderboard counts finished games from the last 90 days. Games with a practice opponent, or with a guest who has not claimed
+            the game with an account, do not count.
           </li>
           <li>
             Sealing a league roster makes a separate frozen copy. Before reveal, only its assigned allies who are accepted entrants can read

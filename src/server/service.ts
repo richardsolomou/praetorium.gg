@@ -25,7 +25,6 @@ import {
   sideDisposition,
   type SubmitResult,
 } from '../core/battle'
-import { type BattleAudience, battleAudience, maySpectate } from '../core/battleAudience'
 import { playedArmies } from '../core/playedArmies'
 import type { PlayerDefaults } from '../core/playerDefaults'
 import type { RecentMatchup } from '../core/recentMatchups'
@@ -56,7 +55,7 @@ import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type M
 import { type Notifier, silentNotifier } from './pushNotifier'
 import { LeagueService } from './services/leagueService'
 import { RosterService } from './services/rosterService'
-import { SocialService, sortedFriends } from './services/socialService'
+import { SocialService } from './services/socialService'
 import type { BattleHistory, BattleSeats, RepositoryPort, SpacetimeRepository } from './spacetimeRepository'
 
 /**
@@ -182,10 +181,6 @@ export class PraetoriumService {
     return this.repository.collectionProfile(userId, viewerId)
   }
 
-  setCollectionPublished(userId: string, published: boolean) {
-    return this.repository.setCollectionPublished(userId, published)
-  }
-
   /** The last standings folded, and when they stop being offered. See `standings`. */
   private standingsHeld: { key: string; until: number; fold: StandingsFold } | null = null
   private readonly publicFeedHeld = new Map<string, { until: number; page: Promise<unknown> }>()
@@ -264,18 +259,17 @@ export class PraetoriumService {
 
   /**
    * The armies finished battles in one page of the public feed fielded, read without the feed's
-   * hold so a battle whose player narrows their audience leaves on the next read. A page holds
-   * only finished battles, so it can come back short; its cursor still continues.
+   * hold. A page holds only finished battles, so it can come back short; its cursor still continues.
    */
   async playedArmies(viewerId: string | null, before?: BattlesCursor, factions: readonly BattleFaction[] = []) {
     const { battles: histories, nextCursor } = await this.repository.publicBattles({ limit: PLAYED_ARMY_BATTLES, before, viewerId })
     return { armies: histories.flatMap((history) => this.playedArmiesOf(history, factions)), nextCursor }
   }
 
-  /** One army from a finished battle this reader may watch, or nothing. */
-  async playedArmy(token: string, playerId: string, viewerId: string | null) {
+  /** One army from a finished battle, or nothing. */
+  async playedArmy(token: string, playerId: string) {
     const history = await this.repository.battleHistoryByToken(token)
-    if (!history || !(await this.mayWatch(history, viewerId))) return null
+    if (!history || !this.mayWatch(history)) return null
     return this.playedArmiesOf(history, []).find((army) => army.player.id === playerId) ?? null
   }
 
@@ -385,10 +379,9 @@ export class PraetoriumService {
       this.repository.battlesSeatedBy(userId, PROFILE_BATTLE_LIMIT, viewerId),
       this.repository.practiceOpponents(),
     ])
-    const histories = await this.watchable(seated, viewerId)
     const practised = new Set(practice.map((opponent) => opponent.id))
     const summaries = this.recordBattles(
-      histories.filter((history) => !history.players.some((player) => practised.has(player.id))),
+      seated.filter((history) => !history.players.some((player) => practised.has(player.id))),
       viewerId,
       rules,
       factions,
@@ -428,14 +421,6 @@ export class PraetoriumService {
   }
 
   /** How widely this player's battles may be seen, and their own answer to it. */
-  battleAudience(userId: string) {
-    return this.repository.battleAudience(userId)
-  }
-
-  setBattleAudience(userId: string, audience: BattleAudience) {
-    return this.repository.setBattleAudience(userId, audience, this.clock())
-  }
-
   pushEnabled(userId: string) {
     return this.repository.pushEnabled(userId)
   }
@@ -477,28 +462,9 @@ export class PraetoriumService {
     return this.repository.unregisterPushToken(userId, token)
   }
 
-  /** Batch audience and friendship reads, then use `battleAudience` and `maySpectate` for each final visibility decision. */
-  private async watchable(histories: readonly BattleHistory[], viewerId: string | null) {
-    const seats = [...new Set(histories.flatMap((history) => history.players.map((player) => player.id)))]
-    const audiences = await this.repository.battleAudiences(seats)
-    const folded = histories.map((history) => ({
-      history,
-      audience: battleAudience(history.players.map((player) => audiences.get(player.id))),
-    }))
-    const turnsOnAFriend = Boolean(viewerId) && folded.some((one) => one.audience === 'friends')
-    const friends = viewerId && turnsOnAFriend ? sortedFriends(await this.repository.relationships(viewerId), viewerId).friends : []
-    return folded
-      .filter(({ history, audience }) => {
-        if (viewerId && history.players.some((player) => player.id === viewerId)) return true
-        const friend = friends.some((known) => history.players.some((player) => player.id === known.id))
-        return maySpectate(audience, { signedIn: Boolean(viewerId), friend })
-      })
-      .map(({ history }) => history)
-  }
-
-  /** Whether a viewer may read this one battle. One question, so one battle's worth of `watchable`. */
-  private async mayWatch(history: BattleHistory, viewerId: string | null) {
-    return (await this.watchable([history], viewerId)).length > 0
+  /** Every battle with a seated player is open to watch; a table nobody sits at is not. */
+  private mayWatch(history: BattleHistory) {
+    return history.players.length > 0
   }
 
   async leagueBattles(
@@ -513,7 +479,15 @@ export class PraetoriumService {
       ...page,
       viewerId,
     })
-    return { battles: this.battleSummaries(await this.watchable(histories, viewerId), viewerId, rules, factions), nextCursor }
+    return {
+      battles: this.battleSummaries(
+        histories.filter((history) => this.mayWatch(history)),
+        viewerId,
+        rules,
+        factions,
+      ),
+      nextCursor,
+    }
   }
 
   /**
@@ -575,11 +549,9 @@ export class PraetoriumService {
    * Someone's name and picture.
    *
    * Open to anybody, including a reader with no account. A name is already on
-   * every battle a player allows to be watched and on every row of the
-   * leaderboard, so gating the page that shows the same name behind a friendship
-   * only produced links that led nowhere. What a player keeps to themselves is
-   * their battles, which `battleAudience` governs; who they are is not a secret
-   * the product was ever keeping.
+   * every battle and on every row of the leaderboard, so gating the page that
+   * shows the same name behind a friendship only produced links that led
+   * nowhere; who a player is was never a secret the product was keeping.
    */
   async userProfile(userId: string) {
     const [profile, sponsorship, admin] = await Promise.all([
@@ -689,7 +661,7 @@ export class PraetoriumService {
     const screen = this.battleScreen(history, viewerId, rules)
     // Everyone else either watches or is told no. Nobody arrives here to sit down:
     // the seats were filled when the battle was created.
-    if (!(await this.mayWatch(history, userId))) return { kind: 'unavailable' }
+    if (!this.mayWatch(history)) return { kind: 'unavailable' }
     const report = this.viewerReport(history, SPECTATOR_ID, rules)
     return {
       kind: 'spectator',

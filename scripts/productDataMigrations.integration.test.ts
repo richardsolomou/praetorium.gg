@@ -38,6 +38,10 @@ export const seedMigrationFixture = spacetime.reducer({ broken: t.bool() }, (ctx
   const key = JSON.stringify([base.userId, 'duplicate'])
   ctx.db.favouriteDatasheets.key.delete(key)
   ctx.db.favouriteDatasheets.insert({ key, userId: base.userId, entryId: 'duplicate', at: 9n })
+  ctx.db.battleSharing.userId.delete(base.userId)
+  ctx.db.battleSharing.insert({ userId: base.userId, audience: 'friends', at: 1n })
+  ctx.db.collectionSharing.userId.delete(base.userId)
+  ctx.db.collectionSharing.insert({ userId: base.userId, published: false })
 })
 `
 
@@ -102,7 +106,7 @@ it.skipIf(!existsSync(cli))(
       const stranger = (await (await fetch(`${url}/v1/identity`, { method: 'POST' })).json()) as { token: string }
       await expect(send('/call/migrate_product_data', '["rosters",["old"]]', stranger.token)).rejects.toThrow('Operator required')
       await send('/call/seed_migration_fixture', '[false]')
-      expect(await migrateProductData(source)).toEqual({ rosters: 2, collection: 2 })
+      expect(await migrateProductData(source)).toEqual({ rosters: 2, collection: 2, battle_sharing: 1, collection_sharing: 1 })
       expect(await rawRoster('old')).toEqual({
         ...before,
         automaticName: true,
@@ -111,10 +115,9 @@ it.skipIf(!existsSync(cli))(
         picks: '[{"entryId":"unit","note":"Hold home"}]',
         prep: '{"stratagems":[],"secondaries":[],"remindersEnabled":false}',
       })
-      expect(await migrateProductData(source)).toEqual({ rosters: 0, collection: 0 })
+      expect(await migrateProductData(source)).toEqual({ rosters: 0, collection: 0, battle_sharing: 0, collection_sharing: 0 })
       const store = new SpacetimeOperator(url, database, identity.token)
       expect(await store.collectionProfile('migration-owner', null)).toEqual({
-        published: true,
         entries: [{ entryId: 'models', models: 12, built: 0, painted: 0 }],
         wishes: [],
       })

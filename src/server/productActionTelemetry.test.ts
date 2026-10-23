@@ -60,12 +60,6 @@ const cases: Case[] = [
     events: [['player_defaults_set', { roster_visibility: 'public', battle_size: 1000 }]],
   },
   {
-    kind: 'setBattleAudience',
-    input: { audience: 'private' },
-    result: 'friends',
-    events: [['battle_audience_set', { audience: 'friends' }]],
-  },
-  {
     kind: 'setPushNotifications',
     method: 'setPushEnabled',
     input: { enabled: true },
