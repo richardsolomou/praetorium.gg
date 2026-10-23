@@ -457,11 +457,18 @@ export function keywordsBySelection(
     const positioned = built[at]
     const node = positioned?.id === wanted.id ? positioned : built.find((child) => child.id === wanted.id)
     if (!node) return { keywords: [], primaries: [] }
-    const held = linkedCategories(node)
-    for (const [categoryId, present] of grants.get(node) ?? []) {
-      if (present) held.add(categoryId)
-      else held.delete(categoryId)
-    }
+    // Core rules 02.05.01: a unit has all the keywords of all its models.
+    const members = [node, ...descendants(node).filter((member) => member !== node && member.target.type === 'model' && member.fielded > 0)]
+    const held = new Set(
+      members.flatMap((member) => {
+        const own = linkedCategories(member)
+        for (const [categoryId, present] of grants.get(member) ?? []) {
+          if (present) own.add(categoryId)
+          else own.delete(categoryId)
+        }
+        return [...own]
+      }),
+    )
     return { keywords: [...held], primaries: (root.primaries?.get(node) ?? []).filter((id) => held.has(id)) }
   })
 }
