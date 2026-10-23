@@ -1,5 +1,5 @@
 import { needsRuntimeChecks } from '../ciScope.ts'
-import type { E2eMap } from './e2eMap.ts'
+import { E2E_MAP_VERSION, type E2eMap } from './e2eMap.ts'
 import { quietHunk, type Hunk } from './quietEdits.ts'
 
 /** A changed file and its edits, or null hunks when the whole file counts, as for a new file. */
@@ -15,35 +15,57 @@ export type Move = { oldCount: number; newStart: number; newCount: number }
 export type Moves = ReadonlyMap<string, Move[] | null>
 
 const unitTest = /\.test\.tsx?$/
+const moduleFile = /\.(?:ts|tsx|mts|mjs)$/
 
 /**
- * The end-to-end specs a change needs, from the map of what each spec executed.
+ * Whether a file the map does not know cannot affect a browser test. Below the repository root, a
+ * module none of the map's tests or harness import or name only runs through files that do, which
+ * a change adding or removing it edits too; routes are the exception, found by their directory.
+ * Workflows other than CI's, container builds and the native shell's own files never run in one.
+ */
+function unreached(file: string, hunks: Hunk[] | null, moves: Moves) {
+  if (/^(?:\.github\/workflows\/|mobile\/)|^(?:Dockerfile[^/]*|\.dockerignore)$/.test(file)) return true
+  if (!/^[^/]+\/.+\.(?:ts|tsx|mts|mjs)$/.test(file) || file.startsWith('src/routes/')) return false
+  // A module created since the map may already be imported by files the map does not know.
+  return hunks === null || moves.get(file) !== null
+}
+
+/**
+ * The end-to-end specs a change needs, from the map of what each spec executed and imports.
  *
- * An edit inside a function needs the specs that called it; any other edit to a file needs every
- * spec that loaded it, because top-level code runs on load. Anything the map cannot place, such
- * as a new source file, configuration, tooling, or a shared test helper, needs every spec.
- * A file changed since the map's revision has its lines translated back to the map's numbering
- * through `moves`; an edit to lines that themselves changed since counts as the whole file.
- * Edits that cannot change what runs, such as comments, types and added imports, need no spec;
- * a file the catalogue compiler or a web worker runs needs every spec, because the map sees neither.
+ * An edit inside a function needs the specs that called it; any other edit to a file coverage
+ * saw needs every spec that loaded it, because top-level code runs on load. A file a spec's own
+ * modules import needs that spec. Files the harness, compiler, workers or CI's browser jobs run
+ * need every spec, because coverage sees none of them. A file nothing a test runs can reach needs
+ * no spec (see `unreached`). A file changed since the map's revision has its lines translated back to the map's
+ * numbering through `moves`; an edit to lines that themselves changed since counts as the whole
+ * file. Edits that cannot change what runs, such as comments, types and added imports, need no
+ * spec. Anything else the map cannot place, such as configuration or a new file, needs every spec.
  */
 export function selectSpecs(map: E2eMap, changes: readonly Change[], moves: Moves, contents: Contents): Selection {
+  if (map.version !== E2E_MAP_VERSION)
+    return { all: true, reason: `the coverage map is version ${map.version ?? 1}, not ${E2E_MAP_VERSION}` }
   const whole = new Set(map.whole)
   const specs = new Set<string>()
+  const add = (indexes: readonly number[]) => indexes.forEach((index) => specs.add(map.specs[index]!))
   for (const { file, hunks } of changes) {
     if (unitTest.test(file) || !needsRuntimeChecks([file]) || file === 'e2e/durations.json') continue
     if (/^e2e\/.+\.spec\.ts$/.test(file)) {
       specs.add(file)
       continue
     }
-    if (!file.startsWith('src/')) return { all: true, reason: `${file} is outside the application source` }
-    const { base, head } = hunks ? contents(file) : { base: null, head: null }
-    const edits = hunks?.filter((hunk) => !quietHunk(hunk, base, head))
+    // Only modules have comments and declarations `quietHunk` understands; a `*` line in Markdown is a list item.
+    const { base, head } = hunks && moduleFile.test(file) ? contents(file) : { base: null, head: null }
+    const edits = moduleFile.test(file) ? hunks?.filter((hunk) => !quietHunk(hunk, base, head)) : hunks
     if (edits?.length === 0) continue
-    if (whole.has(file)) return { all: true, reason: `${file} runs in the catalogue compiler or a web worker` }
+    if (whole.has(file)) return { all: true, reason: `${file} runs in every browser test` }
     const entry = map.files[file]
-    if (!entry) return { all: true, reason: `${file} is not in the map` }
-    const add = (indexes: readonly number[]) => indexes.forEach((index) => specs.add(map.specs[index]!))
+    const imported = map.imports[file]
+    if (imported) add(imported)
+    if (!entry) {
+      if (imported || unreached(file, hunks, moves)) continue
+      return { all: true, reason: `${file} is not in the map` }
+    }
     const translated = edits?.map(({ start, end }) => mapSpan([start, end], moves.get(file)))
     if (!translated || translated.some((span) => span === null)) {
       add(entry.loaded)

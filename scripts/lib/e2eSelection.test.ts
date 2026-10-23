@@ -1,10 +1,11 @@
 import { expect, it } from 'vitest'
-import type { E2eMap } from './e2eMap'
+import { E2E_MAP_VERSION, type E2eMap } from './e2eMap'
 import { changedHunks, lineMoves, selectSpecs, type Contents, type Moves } from './e2eSelection'
 import type { Hunk } from './quietEdits'
 
 // `battle.ts` defines `score` on lines 10–20 (called by the battle spec) and `undo` on lines 30–40 (never called).
 const map: E2eMap = {
+  version: E2E_MAP_VERSION,
   revision: 'abc',
   specs: ['e2e/battle.spec.ts', 'e2e/roster.spec.ts', 'e2e/home.spec.ts'],
   files: {
@@ -12,7 +13,9 @@ const map: E2eMap = {
     'src/client/home.md': { loaded: [2], functions: [] },
     'src/shared/catalogue.ts': { loaded: [0], functions: [] },
   },
-  whole: ['src/shared/catalogue.ts'],
+  // The roster spec's helper imports `rosterFile.ts`; the harness runs the seed.
+  imports: { 'e2e/roster.ts': [1], 'src/shared/rosterFile.ts': [1] },
+  whole: ['src/shared/catalogue.ts', 'scripts/seedPreview.ts'],
 }
 const none: Moves = new Map()
 const unread: Contents = () => ({ base: null, head: null })
@@ -83,19 +86,47 @@ it('runs a spec file the change edits, and skips unit tests and documentation', 
 })
 
 it.each([
-  ['src/core/new.ts', 'src/core/new.ts is not in the map'],
-  ['e2e/account.ts', 'e2e/account.ts is outside the application source'],
-  ['vite.config.ts', 'vite.config.ts is outside the application source'],
-  ['pnpm-lock.yaml', 'pnpm-lock.yaml is outside the application source'],
+  ['src/client/about.md', 'src/client/about.md is not in the map'],
+  ['vite.config.ts', 'vite.config.ts is not in the map'],
+  ['pnpm-lock.yaml', 'pnpm-lock.yaml is not in the map'],
+  ['src/shared/catalogue.ts', 'src/shared/catalogue.ts runs in every browser test'],
+  ['scripts/seedPreview.ts', 'scripts/seedPreview.ts runs in every browser test'],
 ])('runs every spec when %s changes', (file, reason) => {
   expect(select([{ file, hunks: [hunk(1, 2)] }])).toEqual({ all: true, reason })
 })
 
-it('runs every spec when a file the catalogue compiler or a web worker runs changes', () => {
-  expect(select([{ file: 'src/shared/catalogue.ts', hunks: [hunk(1, 2)] }])).toEqual({
+it('runs the specs whose own modules import an edited file', () => {
+  expect(select([{ file: 'e2e/roster.ts', hunks: [hunk(1, 2)] }])).toEqual({ all: false, specs: ['e2e/roster.spec.ts'] })
+})
+
+it.each([
+  ['a module nothing a test runs imports', 'scripts/dokployPreview.ts', [hunk(1, 2)]],
+  ['a module the change adds', 'src/core/new.ts', null],
+  ['a workflow CI’s browser jobs do not run', '.github/workflows/release.yml', [hunk(1, 2)]],
+  ['the native shell’s own files', 'mobile/app.json', [hunk(1, 2)]],
+  ['a container build', 'Dockerfile.node', [hunk(1, 2)]],
+])('runs nothing for %s', (_, file, hunks) => {
+  expect(select([{ file, hunks }])).toEqual({ all: false, specs: [] })
+})
+
+it('runs every spec for a new route, which the router finds by its directory', () => {
+  expect(select([{ file: 'src/routes/new.tsx', hunks: null }])).toEqual({ all: true, reason: 'src/routes/new.tsx is not in the map' })
+})
+
+it('runs every spec for a module created since the map, which files the map does not know may import', () => {
+  expect(select([{ file: 'src/core/recent.ts', hunks: [hunk(1, 2)] }], new Map([['src/core/recent.ts', null]]))).toEqual({
     all: true,
-    reason: 'src/shared/catalogue.ts runs in the catalogue compiler or a web worker',
+    reason: 'src/core/recent.ts is not in the map',
   })
+})
+
+it('runs every spec for a map from an older version of the selection', () => {
+  expect(selectSpecs({ ...map, version: 1 }, [], none, unread)).toEqual({ all: true, reason: 'the coverage map is version 1, not 2' })
+})
+
+it('counts a Markdown list item as content, not a comment', () => {
+  const item: Hunk = { start: 3, end: 3, removed: ['* Old.'], added: ['* New.'], addedStart: 3 }
+  expect(select([{ file: 'src/client/home.md', hunks: [item] }])).toEqual({ all: false, specs: ['e2e/home.spec.ts'] })
 })
 
 it('runs nothing for an edit that only touches comments', () => {

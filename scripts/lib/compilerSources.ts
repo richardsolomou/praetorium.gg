@@ -69,11 +69,3 @@ export async function compilerFingerprint(root = process.cwd(), entries = compil
       .update('\0')
   return hash.update(treeFingerprint(root, compilerFiles)).digest('hex')
 }
-
-/** The application source files the compiler's bundle reaches, relative to `root`. */
-export async function compilerModules(root = process.cwd(), entries = compilerEntries) {
-  const modules = (await compilerBundle(root, entries)).flatMap((output) => (output.type === 'chunk' ? output.moduleIds : []))
-  return [
-    ...new Set(modules.map((id) => path.relative(root, id.replace(/\?.*$/, ''))).filter((file) => file.startsWith('src/'))),
-  ].toSorted()
-}

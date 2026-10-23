@@ -7,18 +7,24 @@ export type ExecutedFunction = { url: string; start: number; end: number }
 /** What `e2e/test.ts` writes for each test in a coverage run. */
 export type CoverageRecord = { spec: string; client: ExecutedFunction[]; server: ExecutedFunction[] }
 
+/** Bumped whenever selection reads the map differently, so an older cached map runs every spec. */
+export const E2E_MAP_VERSION = 2
+
 /**
- * Which specs exercise each source file, at one revision.
+ * Which specs exercise each repository file, at one revision.
  *
  * `loaded` lists every spec that loaded a script containing the file, so its top-level code ran.
  * `functions` lists the file's executed functions as 1-based source line spans, each with the
  * specs that called it. Specs are indexes into `specs`.
  */
 export type E2eMap = {
+  version: number
   revision: string
   specs: string[]
   files: Record<string, { loaded: number[]; functions: [start: number, end: number, specs: number[]][] }>
-  /** Source the catalogue compiler or a web worker runs, which browser and server coverage never sees. */
+  /** The specs whose own modules import each file, so it runs in the test process. */
+  imports: Record<string, number[]>
+  /** Files every spec depends on that coverage never sees: the harness, compiler, workers and CI's browser jobs. */
   whole: string[]
 }
 
@@ -113,6 +119,7 @@ export function buildE2eMap(
   root: string,
   revision: string,
   whole: readonly string[] = [],
+  specImports: ReadonlyMap<string, readonly string[]> = new Map(),
 ): E2eMap {
   const specs: string[] = []
   const loaded = new Map<string, Set<number>>()
@@ -146,5 +153,19 @@ export function buildE2eMap(
         .toSorted((left, right) => left[0] - right[0] || left[1] - right[1]),
     }
   }
-  return { revision, specs, files, whole: [...new Set(whole)].toSorted() }
+  const imports = new Map<string, Set<number>>()
+  for (const [spec, closure] of specImports) {
+    const index = specs.indexOf(spec)
+    if (index !== -1) for (const file of closure) imports.set(file, (imports.get(file) ?? new Set()).add(index))
+  }
+  return {
+    version: E2E_MAP_VERSION,
+    revision,
+    specs,
+    files,
+    imports: Object.fromEntries(
+      [...imports].toSorted(([left], [right]) => left.localeCompare(right)).map(([file, users]) => [file, sorted(users)]),
+    ),
+    whole: [...new Set(whole)].toSorted(),
+  }
 }

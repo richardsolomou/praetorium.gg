@@ -108,3 +108,18 @@ it('lists the application source in web worker chunks', () => {
   fs.copyFileSync(path.join(build, 'public/assets/chunk.js.map'), path.join(build, 'public/assets/sim.worker-Ab1_c.js.map'))
   expect(workerSources(build, root)).toEqual(['src/a.ts', 'src/b.ts'])
 })
+
+it('records which specs import each file, and ignores specs coverage did not record', () => {
+  const map = buildE2eMap(
+    [{ spec: 'e2e/one.spec.ts', client: [], server: [] }],
+    scriptReader(build, root),
+    root,
+    'abc',
+    [],
+    new Map([
+      ['e2e/one.spec.ts', ['e2e/one.spec.ts', 'e2e/helper.ts']],
+      ['e2e/gone.spec.ts', ['e2e/helper.ts']],
+    ]),
+  )
+  expect(map.imports).toEqual({ 'e2e/helper.ts': [0], 'e2e/one.spec.ts': [0] })
+})
