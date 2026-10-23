@@ -23,13 +23,6 @@ export const AdminSessions = __t.object('AdminSessions', {
 })
 export type AdminSessions = __Infer<typeof AdminSessions>
 
-export const BattleSharing = __t.object('BattleSharing', {
-  userId: __t.string(),
-  audience: __t.string(),
-  at: __t.u64(),
-})
-export type BattleSharing = __Infer<typeof BattleSharing>
-
 export const BattleSignal = __t.object('BattleSignal', {
   battleId: __t.string(),
   seq: __t.u32(),
@@ -88,12 +81,6 @@ export const CollectionPhotoLike = __t.object('CollectionPhotoLike', {
   at: __t.u64(),
 })
 export type CollectionPhotoLike = __Infer<typeof CollectionPhotoLike>
-
-export const CollectionSharing = __t.object('CollectionSharing', {
-  userId: __t.string(),
-  published: __t.bool(),
-})
-export type CollectionSharing = __Infer<typeof CollectionSharing>
 
 export const CollectionStock = __t.object('CollectionStock', {
   key: __t.string(),

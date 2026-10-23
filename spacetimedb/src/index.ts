@@ -373,12 +373,10 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   }
   for (const row of Array.from(ctx.db.userOnboardingTasks.userId.filter(userId))) ctx.db.userOnboardingTasks.key.delete(row.key)
   ctx.db.userOnboarding.userId.delete(userId)
-  ctx.db.battleSharing.userId.delete(userId)
   ctx.db.pushPreferences.userId.delete(userId)
   ctx.db.playerDefaults.userId.delete(userId)
   for (const row of Array.from(ctx.db.leagueRosterSharing.userId.filter(userId))) ctx.db.leagueRosterSharing.key.delete(row.key)
   touchPublic(ctx, 'collection')
-  ctx.db.collectionSharing.userId.delete(userId)
   for (const row of Array.from(ctx.db.pushTokens.userId.filter(userId))) ctx.db.pushTokens.token.delete(row.token)
   for (const row of Array.from(ctx.db.friendships.requesterId.filter(userId))) {
     touchFriends(ctx, row.requesterId, row.addresseeId)
@@ -1053,15 +1051,6 @@ export const acceptFriendInvite = spacetime.procedure(
   (ctx, input) => ctx.withTx((tx) => acceptFriendInviteIn(tx, [input.token, input.recipientId, input.now])),
 )
 
-// Answers the previous web build's audience reads while a release publishes; it goes with `battle_sharing`.
-export const battleAudiences = spacetime.procedure({ userIds: t.array(t.string()) }, t.string(), (ctx, { userIds }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
-    if (userIds.length > 1_000) throw new SenderError('Too many audience recipients')
-    return productJson([...new Set(userIds)].map((userId) => ({ userId, audience: 'public' })))
-  }),
-)
-
 export const shareBattle = spacetime.procedure({ userId: t.string(), otherId: t.string() }, t.bool(), (ctx, input) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
@@ -1122,10 +1111,7 @@ export const migrateProductData = spacetime.procedure({ table: t.string(), keys:
   ctx.withTx((tx) => {
     requireOperator(tx)
     const { table: entity, keys } = z
-      .object({
-        table: z.enum(['rosters', 'collection', 'battle_sharing', 'collection_sharing']),
-        keys: z.array(z.string().min(1).max(512)).max(20),
-      })
+      .object({ table: z.enum(['rosters', 'collection']), keys: z.array(z.string().min(1).max(512)).max(20) })
       .parse(input)
     let changed = 0
     for (const key of keys) {
@@ -1137,11 +1123,6 @@ export const migrateProductData = spacetime.procedure({ table: t.string(), keys:
         tx.db.rosters.id.update(migrated)
         touchProduct(tx, row.userId, 'rosters')
         changed++
-      } else if (entity === 'battle_sharing') {
-        // Battle and collection sharing are retired; their rows are deleted so a later module can drop the tables.
-        if (tx.db.battleSharing.userId.delete(key)) changed++
-      } else if (entity === 'collection_sharing') {
-        if (tx.db.collectionSharing.userId.delete(key)) changed++
       } else {
         const row = tx.db.collection.key.find(key)
         if (!row || !migrateCollectionHeart(tx, row)) continue
@@ -1659,8 +1640,7 @@ export const collectionProfile = spacetime.procedure(
           ...collectionPhotoField(tx, row.key, viewerId === userId),
         })
       }
-      // `published` keeps the previous web build's reader valid while a release publishes; it goes with `collection_sharing`.
-      return productJson({ published: true, entries, wishes: collectionWishes(tx, userId) })
+      return productJson({ entries, wishes: collectionWishes(tx, userId) })
     }),
 )
 
@@ -1911,8 +1891,6 @@ export const adminCollectionPhotos = spacetime.procedure({ payload: t.string() }
       entryId: row.entryId,
       at,
       likes: row.likes ?? 0,
-      // Keeps the previous web build's reader valid while a release publishes; it goes with `collection_sharing`.
-      published: true,
       kept: row.review === 'kept',
     }))
     const last = photos.at(-1)
