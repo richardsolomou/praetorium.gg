@@ -5,6 +5,7 @@ import { nameOf } from '../src/core/catalogue'
 import type { RosterPick } from '../src/core/roster'
 import type { LoadedCatalogue } from '../src/server/catalogueIndex'
 import { calculateRosterPrice } from '../src/shared/pricing'
+import { rosterCombatant } from '../src/shared/rosterCombatRules'
 import type { LoadedRules } from '../src/shared/rules'
 import { loadSnapshot } from './lib/catalogueSnapshotLoad'
 
@@ -19,7 +20,7 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('Bridgehead
     [...loaded.index.datasheets.get(catalogueId)!].find(
       (id) => nameOf(loaded.index.definitions.get(id)!, loaded.index.definitions) === name,
     )!
-  const priced = (warlord: boolean) => {
+  const roster = (warlord: boolean) => {
     const agents = loaded.factions.find((faction) => faction.name === 'Imperium - Agents of the Imperium')!.id
     const units: RosterPick[] = [
       {
@@ -30,7 +31,12 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('Bridgehead
       { entryId: datasheet(agents, 'Inquisitor Coteaz'), catalogueId: agents, attachedTo: 1 },
     ]
     const detachmentIds = [loaded.detachments.get(militarum)!.options.find((option) => option.name === 'Bridgehead Strike')!.id]
-    return calculateRosterPrice({ catalogueId: militarum, detachmentIds, disposition: null, limit: 2000, units }, loaded, rules)!
+    return { catalogueId: militarum, detachmentIds, units }
+  }
+  const priced = (warlord: boolean) => calculateRosterPrice({ ...roster(warlord), disposition: null, limit: 2000 }, loaded, rules)!
+  const simulated = (warlord: boolean) => {
+    const { units, ...data } = roster(warlord)
+    return rosterCombatant(loaded, rules, { ...data, picks: units, pickIndex: 1 })!
   }
 
   beforeAll(() => {
@@ -48,6 +54,14 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('Bridgehead
 
   it('accepts Inquisitor Coteaz leading Tempestus Scions', () => {
     expect(priced(true).errors.filter((error) => error.entryName === 'Inquisitor Coteaz')).toEqual([])
+  })
+
+  it('simulates Tempestus Scions led by Inquisitor Coteaz', () => {
+    expect(simulated(true).attachmentErrors).toEqual([])
+  })
+
+  it('refuses to simulate Inquisitor Coteaz leading Tempestus Scions without a Tempestus Warlord', () => {
+    expect(simulated(false).attachmentErrors.map((error) => error.message)).toEqual(['cannot be attached to Tempestus Scions'])
   })
 
   it('keeps Tempestus Scions Infantry without a Tempestus Warlord', () => {

@@ -78,6 +78,39 @@ function labelCorrection(directory: string, id: string, raw: Layout): LabelCorre
   return correction
 }
 
+/** Each footprint's terrain area group, keyed by footprint index; footprints that are a terrain area on their own are absent. */
+function terrainAreaGroups(directory: string, id: string, raw: Layout): Map<number, string> {
+  const groups = new Map<number, string>()
+  const file = path.join(directory, 'terrain-areas.json')
+  if (!fs.existsSync(file)) return groups
+  const document = JSON.parse(fs.readFileSync(file, 'utf8')) as {
+    format?: string
+    battlemasterRevision?: string
+    layouts?: { layoutId: string; layoutKey: string; groups: { id: string; name: string }[][] }[]
+  }
+  const catalog = JSON.parse(fs.readFileSync(path.join(directory, 'catalog.json'), 'utf8')) as { catalogKey?: string }
+  if (
+    document.format !== 'praetorium.terrain-area-groups.v1' ||
+    !catalog.catalogKey ||
+    document.battlemasterRevision !== hash('sha256', catalog.catalogKey) ||
+    !Array.isArray(document.layouts)
+  )
+    throw new Error('terrain area groups do not match the Battlemaster source')
+  const entries = document.layouts.filter((entry) => entry.layoutId === id)
+  if (!entries.length) return groups
+  if (entries.length !== 1 || entries[0]!.layoutKey !== raw.layout?.layoutKey) throw new Error(`terrain area groups are stale for ${id}`)
+  for (const members of entries[0]!.groups) {
+    const indexes = members.map((member) => (/^area-[1-9]\d*$/.test(member.id) ? Number(member.id.slice(5)) - 1 : -1))
+    if (
+      members.length < 2 ||
+      indexes.some((index, at) => raw.terrain?.[index]?.name !== members[at]!.name || groups.has(index) || indexes.indexOf(index) !== at)
+    )
+      throw new Error(`terrain area groups do not match ${id}`)
+    for (const index of indexes) groups.set(index, members[0]!.id)
+  }
+  return groups
+}
+
 const geometries = new Map<string, { source: string; geometry: TerrainGeometry | null }>()
 
 /**
@@ -92,7 +125,13 @@ export function battlemasterGeometry(directory: string, id: string): TerrainGeom
   if (!fs.existsSync(file)) return null
   const liteFile = path.join(directory, 'layouts', `${id}.lite.json`)
   const source = createHash('sha256')
-  for (const input of [file, liteFile, path.join(directory, 'terrain-labels.json'), path.join(directory, 'catalog.json')])
+  for (const input of [
+    file,
+    liteFile,
+    path.join(directory, 'terrain-labels.json'),
+    path.join(directory, 'terrain-areas.json'),
+    path.join(directory, 'catalog.json'),
+  ])
     source.update(fs.existsSync(input) ? fs.readFileSync(input) : '').update('\0')
   const fingerprint = source.digest('hex')
   const cached = geometries.get(file)
@@ -106,6 +145,7 @@ function readGeometry(directory: string, id: string, file: string, liteFile: str
   const raw = JSON.parse(fs.readFileSync(file, 'utf8')) as Layout
   if (!raw.terrain?.length || !matches(raw.layout, id)) return null
   const correction = labelCorrection(directory, id, raw)
+  const groups = terrainAreaGroups(directory, id, raw)
   const objectives = fs.existsSync(liteFile) ? battlemasterObjectiveHosts(raw, JSON.parse(fs.readFileSync(liteFile, 'utf8')), id) : []
   return {
     board: { width: 60, height: 44 },
@@ -130,7 +170,7 @@ function readGeometry(directory: string, id: string, file: string, liteFile: str
           return [{ label, position: boardPoint(centre, area.footprint, part) }]
         }),
         objective: objectives[at] ?? null,
-        objectiveGroup: null,
+        group: groups.get(at) ?? null,
         measurements: placementMeasurements(area),
         parts: area.parts.map((part, partIndex) => ({
           id: part.id ?? `area-${at + 1}-part-${partIndex + 1}`,

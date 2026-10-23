@@ -1,4 +1,4 @@
-export const TERRAIN_GEOMETRY_VERSION = 7
+export const TERRAIN_GEOMETRY_VERSION = 8
 
 export const terrainMatchupIds = (dispositions: readonly string[]) => {
   const matchup = dispositions.length === 2 ? dispositions : []
