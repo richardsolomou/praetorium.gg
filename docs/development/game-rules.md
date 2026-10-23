@@ -27,7 +27,7 @@ Mission nominations (`select-mission`, folded in `src/core/missionSelections.ts`
 
 ## Deployment patterns
 
-Match layouts through pinned source references; missing or ambiguous geometry cannot start a battle. Keep zones, territories, objectives, footprints, walls, and roofs from the same layout. Battlemaster gives only the attacker's territory; the rest is the defender's. A Battlemaster footprint is one placed template, not a terrain area: `battlemaster/terrain-areas.json` groups the footprints of one area, and `scripts/checkTerrain.ts` requires every pinned layout to be listed.
+Match layouts through pinned source references; missing or ambiguous geometry cannot start a battle. Keep zones, territories, objectives, footprints, walls, and roofs from the same layout. Battlemaster gives only the attacker's territory; the rest is the defender's.
 
 Distinguish printed dimensions from approximate traced positions. Geometry changes must advance `TERRAIN_GEOMETRY_VERSION` and its accepted server schema so saved reference queries refresh.
 
