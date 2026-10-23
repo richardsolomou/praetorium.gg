@@ -146,17 +146,41 @@ jobs:
       specs: ${{ steps.runners.outputs.specs }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Selection compares the change with the coverage map's revision.
+          fetch-depth: ${{ env.FULL_E2E == 'true' && 1 || 0 }}
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
         with:
           install: 'false'
       - name: Record the build's Node version
         id: node
         run: node -p "'version=' + process.version" >> "$GITHUB_OUTPUT"
+      - uses: ./.github/actions/e2e-dependencies
+      # The nightly coverage run saves the map under its revision; the newest one is restored.
+      - name: Restore the latest coverage map
+        if: env.FULL_E2E != 'true'
+        uses: actions/cache/restore@v6
+        with:
+          path: e2e-map.json
+          key: e2e-map-${{ github.sha }}
+          restore-keys: e2e-map-
+      - name: Choose the end-to-end specs
+        id: select
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+          E2E_MAP: e2e-map.json
+        run: |
+          if [ "$FULL_E2E" = true ]; then
+            printf 'specs=all\nreason=every spec runs before merge\n' >> "$GITHUB_OUTPUT"
+          else
+            node scripts/e2eSelect.ts
+          fi
       - name: Choose the browser runners
         id: runners
         env:
-          SELECTED: ${{ needs.changes.outputs.e2e-specs }}
-          REASON: ${{ needs.changes.outputs.e2e-reason }}
+          SELECTED: ${{ steps.select.outputs.specs }}
+          REASON: ${{ steps.select.outputs.reason }}
           FULL: ${{ env.FULL_E2E }}
           # The account runs 20 jobs at once and the other lanes hold about six while the runners
           # start, so a 16th runner waits for a slot instead of finishing sooner.
@@ -176,7 +200,6 @@ jobs:
             echo "$REASON; this run uses $(node -p 'JSON.parse(process.argv[1]).length' "$runners") of $MAX runners."
             if [ "$SELECTED" != all ]; then node -p 'JSON.parse(process.argv[1]).map((spec) => "- " + spec).join("\n")' "$SELECTED"; fi
           } >> "$GITHUB_STEP_SUMMARY"
-      - uses: ./.github/actions/e2e-dependencies
       - run: pnpm catalogue:sync
         # Catalogue snapshots are private, read with these on this step alone.
         env:

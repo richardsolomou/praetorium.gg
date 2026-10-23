@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import { E2E_MAP_VERSION, type E2eMap } from './e2eMap'
-import { changedHunks, lineMoves, selectSpecs, type Contents, type Moves } from './e2eSelection'
+import { changedHunks, lineMoves, selectSpecs, type Contents, type Graph, type Moves } from './e2eSelection'
 import type { Hunk } from './quietEdits'
 
 // `battle.ts` defines `score` on lines 10–20 (called by the battle spec) and `undo` on lines 30–40 (never called).
@@ -13,16 +13,19 @@ const map: E2eMap = {
     'src/client/home.md': { loaded: [2], functions: [] },
     'src/shared/catalogue.ts': { loaded: [0], functions: [] },
   },
-  // The roster spec's helper imports `rosterFile.ts`; the harness runs the seed.
-  imports: { 'e2e/roster.ts': [1], 'src/shared/rosterFile.ts': [1] },
-  whole: ['src/shared/catalogue.ts', 'scripts/seedPreview.ts'],
+  whole: ['src/client/simulator.worker.ts'],
+}
+// The harness runs the seed and the catalogue; the roster spec's helper imports `roster.ts`.
+const graph: Graph = {
+  harness: new Set(['src/shared/catalogue.ts', 'scripts/seedPreview.ts']),
+  imports: new Map([['e2e/roster.ts', ['e2e/roster.spec.ts']]]),
 }
 const none: Moves = new Map()
 const unread: Contents = () => ({ base: null, head: null })
 /** A code edit replacing base lines `start`–`end`. */
 const hunk = (start: number, end: number): Hunk => ({ start, end, removed: ['x()'], added: ['y()'], addedStart: start })
 const select = (changes: { file: string; hunks: Hunk[] | null }[], moves = none, contents = unread) =>
-  selectSpecs(map, changes, moves, contents)
+  selectSpecs(map, changes, moves, contents, graph)
 
 it('runs only the specs that called a function when an edit stays inside it', () => {
   expect(select([{ file: 'src/core/battle.ts', hunks: [hunk(12, 14)] }])).toEqual({ all: false, specs: ['e2e/battle.spec.ts'] })
@@ -87,10 +90,13 @@ it('runs a spec file the change edits, and skips unit tests and documentation', 
 
 it.each([
   ['src/client/about.md', 'src/client/about.md is not in the map'],
-  ['vite.config.ts', 'vite.config.ts is not in the map'],
-  ['pnpm-lock.yaml', 'pnpm-lock.yaml is not in the map'],
+  ['src/server/warmPlugin.ts', 'src/server/warmPlugin.ts is not in the map'],
+  ['vite.config.ts', 'vite.config.ts is outside the application source'],
+  ['pnpm-lock.yaml', 'pnpm-lock.yaml is outside the application source'],
+  ['mobile/package.json', 'mobile/package.json is outside the application source'],
   ['src/shared/catalogue.ts', 'src/shared/catalogue.ts runs in every browser test'],
   ['scripts/seedPreview.ts', 'scripts/seedPreview.ts runs in every browser test'],
+  ['src/client/simulator.worker.ts', 'src/client/simulator.worker.ts runs in every browser test'],
 ])('runs every spec when %s changes', (file, reason) => {
   expect(select([{ file, hunks: [hunk(1, 2)] }])).toEqual({ all: true, reason })
 })
@@ -101,27 +107,24 @@ it('runs the specs whose own modules import an edited file', () => {
 
 it.each([
   ['a module nothing a test runs imports', 'scripts/dokployPreview.ts', [hunk(1, 2)]],
-  ['a module the change adds', 'src/core/new.ts', null],
+  ['a module outside the application source that the change adds', 'scripts/newTool.ts', null],
   ['a workflow CI’s browser jobs do not run', '.github/workflows/release.yml', [hunk(1, 2)]],
   ['the native shell’s own files', 'mobile/app.json', [hunk(1, 2)]],
   ['a container build', 'Dockerfile.node', [hunk(1, 2)]],
+  ['a unit-test fixture no spec loaded', 'src/core/rosterText.krieg.fixture.ts', null],
 ])('runs nothing for %s', (_, file, hunks) => {
   expect(select([{ file, hunks }])).toEqual({ all: false, specs: [] })
 })
 
-it('runs every spec for a new route, which the router finds by its directory', () => {
+it('runs every spec for a new source file, which may run before any test or be found by its directory', () => {
   expect(select([{ file: 'src/routes/new.tsx', hunks: null }])).toEqual({ all: true, reason: 'src/routes/new.tsx is not in the map' })
 })
 
-it('runs every spec for a module created since the map, which files the map does not know may import', () => {
-  expect(select([{ file: 'src/core/recent.ts', hunks: [hunk(1, 2)] }], new Map([['src/core/recent.ts', null]]))).toEqual({
-    all: true,
-    reason: 'src/core/recent.ts is not in the map',
-  })
-})
-
 it('runs every spec for a map from an older version of the selection', () => {
-  expect(selectSpecs({ ...map, version: 1 }, [], none, unread)).toEqual({ all: true, reason: 'the coverage map is version 1, not 2' })
+  expect(selectSpecs({ ...map, version: 1 }, [], none, unread, graph)).toEqual({
+    all: true,
+    reason: 'the coverage map is version 1, not 2',
+  })
 })
 
 it('counts a Markdown list item as content, not a comment', () => {

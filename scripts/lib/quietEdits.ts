@@ -61,9 +61,10 @@ export function declarations(text: string): Declaration[] {
 
 /**
  * Whether an edit cannot change what runs: it only touches comments, type declarations, or imports
- * that add or drop bindings. Code that uses a new binding is itself an edit, so it is still
- * counted. Moving a binding to another module, or adding or removing an import that only runs a
- * module for its side effects, does change what runs and is not quiet.
+ * that add or drop bindings from modules the file already imports. Code that uses a new binding is
+ * itself an edit, so it is still counted. Moving a binding to another module, importing from a
+ * module the file did not import before or no longer does, or adding or removing an import that
+ * only runs a module for its side effects, does change what runs and is not quiet.
  */
 export function quietHunk(hunk: Hunk, base: string | null, head: string | null) {
   if ([...hunk.removed, ...hunk.added].every(comment)) return true
@@ -85,10 +86,18 @@ export function quietHunk(hunk: Hunk, base: string | null, head: string | null) 
       if (declaration.sideEffect) return false
       for (const [name, source] of declaration.bindings) sources.set(name, source)
     }
+  // Starting or stopping imports from a module starts or stops running its top level.
+  const importedFrom = (text: string) =>
+    new Set(declarations(text).flatMap((declaration) => (declaration.kind === 'import' ? [...declaration.bindings.values()] : [])))
+  const imported = importedFrom(base)
+  const stillImported = importedFrom(head)
+  for (const declaration of new Set(before))
+    if (declaration?.kind === 'import' && [...declaration.bindings.values()].some((source) => !stillImported.has(source))) return false
   for (const declaration of new Set(after))
     if (declaration?.kind === 'import') {
       if (declaration.sideEffect) return false
-      for (const [name, source] of declaration.bindings) if (sources.has(name) && sources.get(name) !== source) return false
+      for (const [name, source] of declaration.bindings)
+        if ((sources.has(name) && sources.get(name) !== source) || !imported.has(source)) return false
     }
   return true
 }
