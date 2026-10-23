@@ -71,14 +71,21 @@ export class AgentTools {
         account: false,
       },
       registerMcp: (server, origin) =>
-        server.registerTool<z.ZodRawShape, z.ZodObject<Shape>>(name, { ...config, inputSchema: schema }, async (input) => {
-          const result = await published(await execute(await schema.parseAsync(input)))
-          return {
-            ...result,
-            content: result.content.map((item) => (item.type === 'text' ? { ...item, text: absoluteAgentText(item.text, origin) } : item)),
-            ...(result.structuredContent ? { structuredContent: absoluteAgentLinks(result.structuredContent, origin) } : {}),
-          }
-        }),
+        server.registerTool<z.ZodRawShape, z.ZodObject<Shape>>(
+          name,
+          // Directory scanners read the listing name from annotations.title, not the tool's own title.
+          { ...config, annotations: { title: config.title, ...config.annotations }, inputSchema: schema },
+          async (input) => {
+            const result = await published(await execute(await schema.parseAsync(input)))
+            return {
+              ...result,
+              content: result.content.map((item) =>
+                item.type === 'text' ? { ...item, text: absoluteAgentText(item.text, origin) } : item,
+              ),
+              ...(result.structuredContent ? { structuredContent: absoluteAgentLinks(result.structuredContent, origin) } : {}),
+            }
+          },
+        ),
       parse,
       execute: async (input) => published(await execute(await parse(input))),
     })

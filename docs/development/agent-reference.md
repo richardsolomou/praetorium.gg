@@ -20,7 +20,7 @@ Preserve canonical URLs, source revisions, attribution, and unavailable fields; 
 
 ## Assistant directories
 
-The same `/mcp` server is listed in the ChatGPT plugin directory and Claude's Connectors Directory. Every tool needs a `title` and explicit `readOnlyHint`, `destructiveHint`, and `openWorldHint` annotations, which OpenAI's review checks, and both directories scan the live server, so tool changes reach the listings without resubmission.
+The same `/mcp` server is listed in the ChatGPT plugin directory and Claude's Connectors Directory. Every tool needs a `title` and explicit `readOnlyHint`, `destructiveHint`, and `openWorldHint` annotations; `AgentTools` copies the title into `annotations.title`, which Claude's directory reads. Both directories scan the live server, so tool changes reach the listings without resubmission.
 
 [`plugin/`](../../plugin) is the ChatGPT package: `plugin.json` holds the listing and review test cases, and `mcp.json` the server. `just plugin-zip` writes `dist/praetorium-plugin.zip` for upload at [OpenAI's plugin portal](https://platform.openai.com/plugins); listing or test-case edits need a new upload. The portal's domain challenge is served from `/.well-known/openai-apps-challenge`. Claude's connector has no repository files; its listing is edited at [claude.ai/directory/manage](https://claude.ai/directory/manage).
 
