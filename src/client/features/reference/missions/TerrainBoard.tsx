@@ -1,5 +1,6 @@
 import { useId } from 'react'
 import { cn } from '@/lib/utils'
+import { groupBy } from '../../../../core/collections'
 
 import {
   deploymentObjectiveMarkers,
@@ -189,13 +190,24 @@ export function TerrainBoard({
 }
 
 function ExactTerrainGeometry({ geometry, detailed }: { geometry: TerrainGeometry; detailed: boolean }) {
+  const terrainAreas = groupBy(geometry.areas, (area) => area.group ?? area.id)
   return (
     <>
+      {/* Each footprint's fill covers the inner half of its doubled outline, so footprints of one area show only their shared perimeter. */}
+      {[...terrainAreas].map(([key, footprints]) => (
+        <g key={key} className="stroke-azure" opacity=".9">
+          {footprints.map((area) => (
+            <polygon key={area.id} points={svgPoints(area.points)} fill="none" strokeWidth={detailed ? '.36' : '.5'} />
+          ))}
+          {footprints.map((area) => (
+            <polygon key={area.id} points={svgPoints(area.points)} className="fill-raised" stroke="none">
+              <title>{area.name}</title>
+            </polygon>
+          ))}
+        </g>
+      ))}
       {geometry.areas.map((area) => (
         <g key={area.id}>
-          <polygon points={svgPoints(area.points)} className="fill-raised/90 stroke-azure" strokeWidth={detailed ? '.18' : '.25'}>
-            <title>{area.name}</title>
-          </polygon>
           {area.parts.map((part) => {
             const colour =
               part.material === 'dense'
