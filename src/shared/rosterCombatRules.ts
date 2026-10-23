@@ -13,7 +13,7 @@ import { buildRosterPick, rosterDatasheetContext } from './rosterDatasheetContex
 import { type LoadedRules, rulesFaction } from './rules'
 import { selectedDetachmentRules } from './selectedDetachmentRules'
 import type { UnitChoiceCache } from '../core/unitChoices'
-import type { ModifierCache } from '../core/evaluate'
+import { keywordIdsBySelection, keywordNames, type ModifierCache } from '../core/evaluate'
 
 /**
  * What projections of one built roster can share: unit choices and modifiers are keyed by value, and each unit's
@@ -122,6 +122,19 @@ export function rosterCombatant(
     const unit = context.unitSelections.find((candidate) => candidate.pickIndex === index)
     return unit ? context.selections[unit.selectionIndex] : undefined
   })
+  const keywordIds = new Map<string, string[][]>()
+  // A unit can take an attachment by a keyword the list gives it, as Bridgehead Strike makes Tempestus Scions Battleline.
+  const keywords = data.picks.map((pick, index) => {
+    const unit = context.unitSelections.find((candidate) => candidate.pickIndex === index)
+    if (!unit) return undefined
+    const catalogueId = pick.catalogueId ?? data.catalogueId
+    let ids = keywordIds.get(catalogueId)
+    if (!ids) {
+      ids = keywordIdsBySelection(context.selections, loaded.index, { primaryCatalogueId: catalogueId, modifierCache: cache.modifierCache })
+      keywordIds.set(catalogueId, ids)
+    }
+    return keywordNames(ids[unit.selectionIndex] ?? [], loaded.index)
+  })
   const hostIndex = selectedPick.attachedTo ?? data.pickIndex
   const hostPick = data.picks[hostIndex]!
   const hostSheet = hostIndex === data.pickIndex ? sheet : companions.find((member) => member.pickIndex === hostIndex)?.selected
@@ -154,7 +167,7 @@ export function rosterCombatant(
       const groupIds = new Set(
         proposed.flatMap((pick, index) => (index === hostIndex || pick.attachedTo === hostIndex ? [pick.entryId] : [])),
       )
-      if (attachmentErrors(proposed, loaded.index, proposedSelections).some((error) => groupIds.has(error.entryId))) return []
+      if (attachmentErrors(proposed, loaded.index, proposedSelections, keywords).some((error) => groupIds.has(error.entryId))) return []
       return [
         {
           entryId: candidate.entryId,
@@ -202,7 +215,7 @@ export function rosterCombatant(
     attachmentReplacements,
     attachmentErrors: [
       ...projectionErrors,
-      ...attachmentErrors(data.picks, loaded.index, selections).filter((error) =>
+      ...attachmentErrors(data.picks, loaded.index, selections, keywords).filter((error) =>
         members.some((index) => data.picks[index]?.entryId === error.entryId),
       ),
     ],
