@@ -413,7 +413,7 @@ const PickerRow = memo(function PickerRow({
       >
         <span className="min-w-0 flex-1">
           <span className="block text-sm leading-tight font-semibold tracking-wide uppercase">{unit.name}</span>
-          <DatasheetMatchReasons query={query} reasons={unit.matchReasons} />
+          <DatasheetMatchReasons query={query} reasons={unit.matchReasons} fuzzy={unit.fuzzy} />
           {unavailableReason ? (
             <span className="mt-1 block text-2xs font-normal normal-case text-discarded">{unavailableReason}</span>
           ) : null}

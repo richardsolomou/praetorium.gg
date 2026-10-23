@@ -65,6 +65,24 @@ describe('datasheet search', () => {
     ])
   })
 
+  it('offers close name matches when nothing matches directly', () => {
+    const entries = [
+      { name: 'Chaplain in Terminator Armour', search: { ...fields, name: 'Chaplain in Terminator Armour' } },
+      { name: 'Captain in Terminator Armour', search: { ...fields, name: 'Captain in Terminator Armour' } },
+    ]
+    expect(searchDatasheetEntries(entries, 'terminator chaplin', (entry) => entry.search)).toEqual([
+      expect.objectContaining({ name: 'Chaplain in Terminator Armour', fuzzy: true }),
+    ])
+  })
+
+  it('keeps close name matches out while anything matches directly', () => {
+    const entries = [
+      { name: 'Chaplain', search: { ...fields, name: 'Chaplain' } },
+      { name: 'Chapter Master', search: { ...fields, name: 'Chapter Master' } },
+    ]
+    expect(searchDatasheetEntries(entries, 'chaplain', (entry) => entry.search)).toEqual([entries[0]])
+  })
+
   it('matches words across structured fields', () => {
     expect(matchDatasheet('cryptek staff', fields)?.reasons).toEqual([
       { kind: 'keyword', value: 'Cryptek' },

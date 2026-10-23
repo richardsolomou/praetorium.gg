@@ -150,8 +150,5 @@ export function offlineDatasheets(catalogueId: string, query: string) {
     fields = new Map(saved.search.datasheets.map((entry) => [entry.result.id, entry.fields]))
     datasheetFields.set(saved, fields)
   }
-  return searchDatasheetEntries(units ?? [], query, (unit) => {
-    const entry = fields.get(`datasheet:${catalogueId}:${unit.id}`)
-    return entry ? { ...entry, abilityDescriptions: undefined } : null
-  })
+  return searchDatasheetEntries(units ?? [], query, (unit) => fields.get(`datasheet:${catalogueId}:${unit.id}`) ?? null)
 }

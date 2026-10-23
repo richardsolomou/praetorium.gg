@@ -40,8 +40,7 @@ export type GlobalSearchIndex = {
   rules: IndexedResult[]
 }
 
-import { distance } from 'fastest-levenshtein'
-import { matchDatasheet, matchSearchText, prepareDatasheetSearch, prepareSearchText } from './datasheetSearch'
+import { fuzzyNameScore, matchDatasheet, matchSearchText, prepareDatasheetSearch, prepareSearchText } from './datasheetSearch'
 
 export function searchReference(query: string, index: GlobalSearchIndex): GlobalSearchResult[] {
   const wanted = query.toLowerCase()
@@ -136,7 +135,7 @@ const datasheetResults = (datasheets: ReadonlyMap<string, { primary: RankedResul
 function fuzzyDatasheetResults(datasheets: readonly IndexedDatasheet[], query: string) {
   const found = new Map<string, { result: GlobalSearchResult; score: number }>()
   for (const entry of datasheets) {
-    const score = fuzzyScore(query, entry.name)
+    const score = fuzzyNameScore(query, entry.name)
     if (score === null) continue
     const existing = found.get(entry.targetId)
     if (existing && existing.score <= score) continue
@@ -146,22 +145,6 @@ function fuzzyDatasheetResults(datasheets: readonly IndexedDatasheet[], query: s
     .toSorted((left, right) => left.score - right.score || left.result.label.localeCompare(right.result.label))
     .map(({ result }) => result)
 }
-
-/** Every substantial word must be close to a word on the datasheet, avoiding broad guesses. */
-function fuzzyScore(query: string, name: string) {
-  const queryWords = wordsIn(query).filter((word) => word.length >= 3)
-  const nameWords = wordsIn(name)
-  if (!queryWords.length || !nameWords.length) return null
-  let score = 0
-  for (const queryWord of queryWords) {
-    const nearest = Math.min(...nameWords.map((nameWord) => distance(queryWord, nameWord) / Math.max(queryWord.length, nameWord.length)))
-    if (nearest > 0.34) return null
-    score += nearest
-  }
-  return score / queryWords.length
-}
-
-const wordsIn = (value: string) => value.toLowerCase().match(/[a-z0-9]+/g) ?? []
 
 /** The fewest characters global search answers. */
 export const SEARCH_MIN_LENGTH = 2

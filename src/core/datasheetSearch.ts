@@ -1,3 +1,4 @@
+import { distance } from 'fastest-levenshtein'
 import { plainQuotes } from './text'
 import { wargearKey } from './wargear'
 import { uniqueBy } from './collections'
@@ -30,17 +31,40 @@ export function searchDatasheetEntries<T extends { name: string }>(
   entries: readonly T[],
   query: string,
   fieldsFor: (entry: T) => DatasheetSearchFields | null,
-): (T & { matchReasons?: DatasheetSearchReason[] })[] {
+): (T & { matchReasons?: DatasheetSearchReason[]; fuzzy?: boolean })[] {
   const wanted = query.trim().toLowerCase()
   if (!wanted) return [...entries]
-  return entries
-    .flatMap((entry) => {
-      const fields = fieldsFor(entry)
-      const match = fields ? matchDatasheet(wanted, fields) : null
-      return match ? [{ entry: match.reasons.length ? { ...entry, matchReasons: match.reasons } : entry, score: match.score }] : []
-    })
+  const direct = entries.flatMap((entry) => {
+    const fields = fieldsFor(entry)
+    const match = fields ? matchDatasheet(wanted, fields) : null
+    return match ? [{ entry: match.reasons.length ? { ...entry, matchReasons: match.reasons } : entry, score: match.score }] : []
+  })
+  const found = direct.length
+    ? direct
+    : entries.flatMap((entry) => {
+        const score = fuzzyNameScore(wanted, entry.name)
+        return score === null ? [] : [{ entry: { ...entry, fuzzy: true }, score }]
+      })
+  return found
     .toSorted((left, right) => left.score - right.score || left.entry.name.localeCompare(right.entry.name))
     .map(({ entry }) => entry)
+}
+
+/**
+ * How far a mistyped query is from a datasheet name, or null when it is not close: every substantial word must be close
+ * to a word of the name, avoiding broad guesses.
+ */
+export function fuzzyNameScore(query: string, name: string) {
+  const queryWords = wordsIn(query).filter((word) => word.length >= 3)
+  const nameWords = wordsIn(name)
+  if (!queryWords.length || !nameWords.length) return null
+  let score = 0
+  for (const queryWord of queryWords) {
+    const nearest = Math.min(...nameWords.map((nameWord) => distance(queryWord, nameWord) / Math.max(queryWord.length, nameWord.length)))
+    if (nearest > 0.34) return null
+    score += nearest
+  }
+  return score / queryWords.length
 }
 
 const METADATA = [
