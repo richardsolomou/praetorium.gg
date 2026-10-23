@@ -1,5 +1,5 @@
 import { needsRuntimeChecks } from '../ciScope.ts'
-import type { E2eMap } from './e2eMap.ts'
+import { E2E_MAP_VERSION, type E2eMap } from './e2eMap.ts'
 import { quietHunk, type Hunk } from './quietEdits.ts'
 
 /** A changed file and its edits, or null hunks when the whole file counts, as for a new file. */
@@ -14,36 +14,65 @@ export type Move = { oldCount: number; newStart: number; newCount: number }
 /** Per file changed since the map's revision, how its lines moved, or null when they cannot be followed. */
 export type Moves = ReadonlyMap<string, Move[] | null>
 
+/**
+ * Files browser tests run outside the processes coverage records, and the specs whose own modules
+ * import each file, both read from the change's head so they are never staler than it.
+ */
+export type Graph = { harness: ReadonlySet<string>; imports: ReadonlyMap<string, readonly string[]> }
+
 const unitTest = /\.test\.tsx?$/
+const moduleFile = /\.(?:ts|tsx|mts|mjs)$/
 
 /**
- * The end-to-end specs a change needs, from the map of what each spec executed.
- *
- * An edit inside a function needs the specs that called it; any other edit to a file needs every
- * spec that loaded it, because top-level code runs on load. Anything the map cannot place, such
- * as a new source file, configuration, tooling, or a shared test helper, needs every spec.
- * A file changed since the map's revision has its lines translated back to the map's numbering
- * through `moves`; an edit to lines that themselves changed since counts as the whole file.
- * Edits that cannot change what runs, such as comments, types and added imports, need no spec;
- * a file the catalogue compiler or a web worker runs needs every spec, because the map sees neither.
+ * Whether a file outside the application source that no spec or harness process reaches at the
+ * head cannot affect a browser test: a module below the repository root, a workflow other than
+ * CI's, a container build, or the native shell's own files other than its dependencies.
  */
-export function selectSpecs(map: E2eMap, changes: readonly Change[], moves: Moves, contents: Contents): Selection {
+function unreached(file: string) {
+  if (/^mobile\/(?:.+\/)?(?:package\.json|[\w-]*lock[\w.-]*)$/.test(file)) return false
+  return /^(?:\.github\/workflows\/|mobile\/|(?!src\/)[^/]+\/.+\.(?:ts|tsx|mts|mjs)$)|^(?:Dockerfile[^/]*|\.dockerignore)$/.test(file)
+}
+
+/**
+ * The end-to-end specs a change needs, from the map of what each spec executed and the head's
+ * import graph.
+ *
+ * An edit inside a function needs the specs that called it; any other edit to a source file
+ * coverage saw needs every spec that loaded it, because top-level code runs on load. A source
+ * file coverage never saw needs every spec, because it may run before any test does. A file a
+ * spec's own modules import needs that spec. A file the harness runs needs every spec. A file
+ * outside the application source that nothing reaches needs no spec (see `unreached`). A file
+ * changed since the map's revision has its lines translated back to the map's numbering through
+ * `moves`; an edit to lines that themselves changed since counts as the whole file. Edits that
+ * cannot change what runs, such as comments, types and added imports, need no spec. Anything else,
+ * such as configuration, needs every spec.
+ */
+export function selectSpecs(map: E2eMap, changes: readonly Change[], moves: Moves, contents: Contents, graph: Graph): Selection {
+  if (map.version !== E2E_MAP_VERSION)
+    return { all: true, reason: `the coverage map is version ${map.version ?? 1}, not ${E2E_MAP_VERSION}` }
   const whole = new Set(map.whole)
   const specs = new Set<string>()
+  const add = (indexes: readonly number[]) => indexes.forEach((index) => specs.add(map.specs[index]!))
   for (const { file, hunks } of changes) {
     if (unitTest.test(file) || !needsRuntimeChecks([file]) || file === 'e2e/durations.json') continue
     if (/^e2e\/.+\.spec\.ts$/.test(file)) {
       specs.add(file)
       continue
     }
-    if (!file.startsWith('src/')) return { all: true, reason: `${file} is outside the application source` }
-    const { base, head } = hunks ? contents(file) : { base: null, head: null }
-    const edits = hunks?.filter((hunk) => !quietHunk(hunk, base, head))
+    // Only modules have comments and declarations `quietHunk` understands; a `*` line in Markdown is a list item.
+    const { base, head } = hunks && moduleFile.test(file) ? contents(file) : { base: null, head: null }
+    const edits = moduleFile.test(file) ? hunks?.filter((hunk) => !quietHunk(hunk, base, head)) : hunks
     if (edits?.length === 0) continue
-    if (whole.has(file)) return { all: true, reason: `${file} runs in the catalogue compiler or a web worker` }
+    if (whole.has(file) || graph.harness.has(file)) return { all: true, reason: `${file} runs in every browser test` }
+    for (const spec of graph.imports.get(file) ?? []) specs.add(spec)
+    if (!file.startsWith('src/')) {
+      if (graph.imports.has(file) || unreached(file)) continue
+      return { all: true, reason: `${file} is outside the application source` }
+    }
     const entry = map.files[file]
+    // A unit-test fixture no spec loaded serves the unit tests alone; one the harness runs was caught above.
+    if (!entry && /\.fixtures?\.ts$/.test(file)) continue
     if (!entry) return { all: true, reason: `${file} is not in the map` }
-    const add = (indexes: readonly number[]) => indexes.forEach((index) => specs.add(map.specs[index]!))
     const translated = edits?.map(({ start, end }) => mapSpan([start, end], moves.get(file)))
     if (!translated || translated.some((span) => span === null)) {
       add(entry.loaded)

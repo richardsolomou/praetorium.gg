@@ -7,6 +7,9 @@ export type ExecutedFunction = { url: string; start: number; end: number }
 /** What `e2e/test.ts` writes for each test in a coverage run. */
 export type CoverageRecord = { spec: string; client: ExecutedFunction[]; server: ExecutedFunction[] }
 
+/** Bumped whenever selection reads the map differently, so an older cached map runs every spec. */
+export const E2E_MAP_VERSION = 2
+
 /**
  * Which specs exercise each source file, at one revision.
  *
@@ -15,10 +18,11 @@ export type CoverageRecord = { spec: string; client: ExecutedFunction[]; server:
  * specs that called it. Specs are indexes into `specs`.
  */
 export type E2eMap = {
+  version: number
   revision: string
   specs: string[]
   files: Record<string, { loaded: number[]; functions: [start: number, end: number, specs: number[]][] }>
-  /** Source the catalogue compiler or a web worker runs, which browser and server coverage never sees. */
+  /** Source the build's web workers run, which page coverage never sees into. */
   whole: string[]
 }
 
@@ -117,9 +121,18 @@ export function buildE2eMap(
   const specs: string[] = []
   const loaded = new Map<string, Set<number>>()
   const functions = new Map<string, Map<string, Set<number>>>()
+  // The server loads its modules before any test, so every spec it served ran their top level.
+  const serverFiles = new Set<string>()
+  const serverSpecs = new Set<number>()
   for (const record of records) {
     let spec = specs.indexOf(record.spec)
     if (spec === -1) spec = specs.push(record.spec) - 1
+    for (const { url } of record.server) {
+      const script = readScript(url)
+      if (!script) continue
+      serverSpecs.add(spec)
+      for (const source of script.sources) if (source) serverFiles.add(source)
+    }
     for (const { url, start, end } of [...record.client, ...record.server]) {
       const script = readScript(url)
       if (!script) continue
@@ -140,11 +153,11 @@ export function buildE2eMap(
   const files: E2eMap['files'] = {}
   for (const file of [...new Set([...loaded.keys(), ...functions.keys()])].toSorted()) {
     files[file] = {
-      loaded: sorted(loaded.get(file) ?? []),
+      loaded: sorted(new Set([...(loaded.get(file) ?? []), ...(serverFiles.has(file) ? serverSpecs : [])])),
       functions: [...(functions.get(file) ?? [])]
         .map(([key, users]) => [...(key.split(':').map(Number) as [number, number]), sorted(users)] as [number, number, number[]])
         .toSorted((left, right) => left[0] - right[0] || left[1] - right[1]),
     }
   }
-  return { revision, specs, files, whole: [...new Set(whole)].toSorted() }
+  return { version: E2E_MAP_VERSION, revision, specs, files, whole: [...new Set(whole)].toSorted() }
 }
