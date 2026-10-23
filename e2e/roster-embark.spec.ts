@@ -16,15 +16,12 @@ const phone = { viewport: { width: 390, height: 844 } }
 const desktop = { viewport: { width: 1440, height: 900 } }
 const SQUAD = 'Intercessor Squad'
 
-/** The squad's starting embark, opening its loadout unless a reload already restored that pane. */
-async function openSquad(page: Page) {
-  const embark = page.getByRole('region', { name: 'Starts embarked' })
+/** The roster's cards, with the picker put away on a phone. */
+async function cards(page: Page) {
   const picker = page.getByRole('dialog', { name: 'Add units' })
   if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close' }).click()
   await page.waitForLoadState('networkidle')
-  if (await embark.isVisible()) return embark
-  await page.locator(`[data-unit="${SQUAD}"]`).getByRole('button', { name: SQUAD, exact: true }).click()
-  return embark
+  return { squad: page.locator(`[data-unit="${SQUAD}"]`), rhino: page.locator('[data-unit="Rhino"]') }
 }
 
 for (const [size, label] of [
@@ -38,16 +35,20 @@ for (const [size, label] of [
     const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Mounted Marines' })
     for (const name of [SQUAD, 'Rhino']) await addUnit(page, name)
 
-    const embark = await openSquad(page)
-    await expect(embark).toContainText('On the battlefield')
-    await waitForRosterSave(page, () => embark.getByRole('button', { name: `Embark ${SQUAD} in Rhino`, exact: true }).click(), 'embarkedIn')
-    await expect(embark).toContainText('In Rhino')
-    await expect(embark).toContainText('5/12 models')
-    await shot(embark, `test-results/roster-embark-builder-${label}.png`)
+    const { squad, rhino } = await cards(page)
+    await squad.getByRole('button', { name: `Embark ${SQUAD} in transport`, exact: true }).click()
+    const boarding = page.getByRole('menuitem', { name: `Embark ${SQUAD} in Rhino`, exact: true })
+    await expect(boarding).toContainText('0/12 models')
+    await shot(page.getByRole('menu'), `test-results/roster-embark-board-menu-${label}.png`)
+    await waitForRosterSave(page, () => boarding.click(), 'embarkedIn')
+    await expect(squad).toContainText('Embarked inRhino')
+    await expect(rhino).toContainText(`Embarked${SQUAD}5/12 models`)
+    await shot(squad, `test-results/roster-embark-passenger-${label}.png`)
+    await shot(rhino, `test-results/roster-embark-transport-${label}.png`)
 
     await page.reload()
-    await expect(await openSquad(page)).toContainText('In Rhino')
-    await expect(page.getByRole('button', { name: `Disembark ${SQUAD} from Rhino`, exact: true })).toBeVisible()
+    await expect((await cards(page)).squad).toContainText('Embarked inRhino')
+    await expect(rhino.getByRole('button', { name: 'Disembark', exact: true })).toBeVisible()
 
     await createBattle(page, { practice: true })
     await attachRoster(page, roster)
@@ -71,18 +72,29 @@ test('a squad grown past its transport’s room starts on the battlefield again'
   await signUp(page, uniqueName('Overfill'))
   await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Overfilled Marines' })
   for (const name of [SQUAD, SQUAD, 'Rhino']) await addUnit(page, name)
-  const embark = page.getByRole('region', { name: 'Starts embarked' })
-  for (const at of [0, 1]) {
-    await page.locator(`[data-unit="${SQUAD}"]`).nth(at).getByRole('button', { name: SQUAD, exact: true }).click()
-    await waitForRosterSave(page, () => embark.getByRole('button', { name: `Embark ${SQUAD} in Rhino`, exact: true }).click(), 'embarkedIn')
+  const { squad, rhino } = await cards(page)
+  const carry = rhino.getByRole('button', { name: 'Embark a unit in Rhino', exact: true })
+  for (const at of [1, 2]) {
+    await carry.click()
+    await waitForRosterSave(
+      page,
+      () => page.getByRole('menuitem', { name: `Embark ${SQUAD} #${at} in Rhino`, exact: true }).click(),
+      'embarkedIn',
+    )
   }
-  await expect(embark).toContainText('10/12 models')
+  await expect(rhino.getByRole('button', { name: 'Disembark', exact: true })).toHaveCount(2)
+
+  await squad.nth(1).getByRole('button', { name: SQUAD, exact: true }).click()
   const more = page.getByRole('button', { name: `More models in ${SQUAD}`, exact: true })
-  for (const aboard of ['11/12', '12/12']) {
+  for (const aboard of ['6/12', '7/12']) {
     await more.click()
-    await expect(embark).toContainText(`${aboard} models`)
+    await expect(rhino).toContainText(`${SQUAD} #2${aboard} models`)
   }
   await more.click()
-  await expect(embark).toContainText('On the battlefield')
-  await expect(embark).toContainText('This transport can carry at most 12 models.')
+  await expect(squad.nth(1)).not.toContainText('Embarked in')
+  await expect(rhino.getByRole('button', { name: 'Disembark', exact: true })).toHaveCount(1)
+  await carry.click()
+  await expect(page.getByRole('menuitem', { name: `Embark ${SQUAD} #2 in Rhino`, exact: true })).toContainText(
+    'This transport can carry at most 12 models.',
+  )
 })

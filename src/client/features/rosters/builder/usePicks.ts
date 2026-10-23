@@ -325,9 +325,13 @@ export function pickEditor(
     join: (index: number, targetKey: number | undefined) =>
       editAt(index, (pick) => ({ ...(targetKey === undefined ? pick : withoutEmbark(pick)), attachedTo: targetKey })),
 
-    /** Where a unit starts: in the transport with this key, or on the battlefield. */
-    embark: (index: number, transportKey: number | undefined) =>
-      editAt(index, (pick) => (transportKey === undefined ? withoutEmbark(pick) : { ...pick, embarkedIn: transportKey })),
+    /** Where the unit with this key starts: in the transport with that key, or on the battlefield. */
+    embark: (key: number, transportKey: number | undefined) =>
+      setPicks((current) =>
+        current.map((pick) =>
+          pick.key !== key ? pick : transportKey === undefined ? withoutEmbark(pick) : { ...pick, embarkedIn: transportKey },
+        ),
+      ),
 
     /** Starting embarks the list can no longer hold, put back on the battlefield together. */
     disembark: (keys: readonly number[]) =>

@@ -16,6 +16,8 @@ import type { Attachment } from '../../../../core/attach'
 import { nicknamedUnit } from '../../../../core/unitNotes'
 import { FactionLabel, type FactionPresentation } from '../../../components/FactionMark'
 import { countLabel } from '../../../text'
+import { asSentence } from '../../battle/useCommand'
+import type { EmbarkChoice } from './embarkModel'
 
 type BuiltUnit = {
   entryId: string
@@ -33,8 +35,8 @@ export type AttachChoice =
   | { kind: 'roster'; key: number; name: string }
   | { kind: 'new'; entryId: string; name: string; points: number | null; reason: string | null }
 
-/** Who this unit is joined to, in whichever direction the card is showing. */
-type Joined = { label: string; name: string; action?: string; onAct?: () => void }
+/** Who this unit is joined to or riding with, in whichever direction the card is showing. */
+type Joined = { label: string; name: string; detail?: string; action?: string; onAct?: () => void }
 
 type Props = {
   unit: BuiltUnit
@@ -67,6 +69,12 @@ type Editing = {
   /** Units that may join this one. */
   canHost: AttachChoice[]
   onHost: (choice: AttachChoice) => void
+  /** Transports this unit may start in. */
+  canBoard: EmbarkChoice[]
+  onBoard: (choice: EmbarkChoice) => void
+  /** Units that may start in this transport. */
+  canCarry: EmbarkChoice[]
+  onCarry: (choice: EmbarkChoice) => void
 }
 
 /**
@@ -89,6 +97,10 @@ export function UnitCard({
   onJoin = noop,
   canHost = NONE,
   onHost = noop,
+  canBoard = NONE,
+  onBoard = noop,
+  canCarry = NONE,
+  onCarry = noop,
   status,
   alertCount = 0,
   editable = true,
@@ -184,6 +196,7 @@ export function UnitCard({
         <div key={`${row.label}-${row.name}`} className={`${ROW} pointer-events-none relative z-10 gap-2 [&_button]:pointer-events-auto`}>
           <span className="chip shrink-0">{row.label}</span>
           <span className="min-w-0 flex-1 text-xs">{row.name}</span>
+          {row.detail ? <span className="readout shrink-0 text-2xs text-dim">{row.detail}</span> : null}
           {editable && row.action ? (
             <Button
               data-print-hide
@@ -210,6 +223,26 @@ export function UnitCard({
 
       {editable && canHost.length ? (
         <AttachMenu label="Attach unit" ariaLabel={`Attach a unit to ${unit.name}`} choices={canHost} onChoose={onHost} />
+      ) : null}
+
+      {editable && canBoard.length ? (
+        <EmbarkMenu
+          label="Embark in transport"
+          ariaLabel={`Embark ${unit.name} in transport`}
+          choiceLabel={(choice) => `Embark ${unit.name} in ${choice.name}`}
+          choices={canBoard}
+          onChoose={onBoard}
+        />
+      ) : null}
+
+      {editable && canCarry.length ? (
+        <EmbarkMenu
+          label="Embark unit"
+          ariaLabel={`Embark a unit in ${unit.name}`}
+          choiceLabel={(choice) => `Embark ${choice.name} in ${unit.name}`}
+          choices={canCarry}
+          onChoose={onCarry}
+        />
       ) : null}
 
       {/* A wider gap than the rows above it: two counters side by side put one's `+` next to the other's `-`. */}
@@ -264,6 +297,103 @@ function AttachMenu({
   const roster = choices.filter((choice) => choice.kind === 'roster')
   const added = choices.filter((choice) => choice.kind === 'new')
   return (
+    <CardMenu label={label} ariaLabel={ariaLabel} onboarding={onboarding}>
+      {roster.length ? (
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="eyebrow text-faint">In this roster</DropdownMenuLabel>
+          {roster.map((choice) => (
+            <DropdownMenuItem key={choice.key} className={ITEM} onClick={() => onChoose(choice)}>
+              {choice.name}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+      ) : null}
+      {roster.length && added.length ? <DropdownMenuSeparator /> : null}
+      {added.length ? (
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="eyebrow text-faint">Add a new unit</DropdownMenuLabel>
+          {added.map((choice) => (
+            <DropdownMenuItem
+              key={choice.entryId}
+              aria-label={`Add new ${choice.name} and attach`}
+              aria-describedby={choice.reason ? `${id}-${choice.entryId}` : undefined}
+              disabled={Boolean(choice.reason)}
+              className="items-start data-disabled:opacity-100"
+              onClick={() => onChoose(choice)}
+            >
+              <Plus className={`mt-0.5 size-3.5 ${choice.reason ? 'text-faint' : 'text-info'}`} aria-hidden />
+              <span className="min-w-0 flex-1">
+                <span className={`block ${ITEM} ${choice.reason ? 'text-faint' : ''}`}>{choice.name}</span>
+                {choice.reason ? (
+                  <span id={`${id}-${choice.entryId}`} className="mt-0.5 block text-2xs text-discarded">
+                    {choice.reason}
+                  </span>
+                ) : null}
+              </span>
+              {choice.points === null ? null : (
+                <span className="chip w-[4.5rem] shrink-0 justify-center text-info">{choice.points} pts</span>
+              )}
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuGroup>
+      ) : null}
+    </CardMenu>
+  )
+}
+
+function EmbarkMenu({
+  label,
+  ariaLabel,
+  choiceLabel,
+  choices,
+  onChoose,
+}: {
+  label: string
+  ariaLabel: string
+  choiceLabel: (choice: EmbarkChoice) => string
+  choices: EmbarkChoice[]
+  onChoose: (choice: EmbarkChoice) => void
+}) {
+  const id = useId()
+  return (
+    <CardMenu label={label} ariaLabel={ariaLabel}>
+      {choices.map((choice, at) => (
+        <DropdownMenuItem
+          key={choice.name}
+          aria-label={choiceLabel(choice)}
+          aria-describedby={choice.reason ? `${id}-${at}` : undefined}
+          disabled={Boolean(choice.reason)}
+          className="items-start data-disabled:opacity-100"
+          onClick={() => onChoose(choice)}
+        >
+          <span className="min-w-0 flex-1">
+            <span className={`block ${ITEM} ${choice.reason ? 'text-faint' : ''}`}>{choice.name}</span>
+            {choice.reason ? (
+              <span id={`${id}-${at}`} className="mt-0.5 block text-2xs text-discarded">
+                {asSentence(choice.reason)}
+              </span>
+            ) : null}
+          </span>
+          {choice.detail ? <span className="readout shrink-0 text-2xs text-dim">{choice.detail}</span> : null}
+        </DropdownMenuItem>
+      ))}
+    </CardMenu>
+  )
+}
+
+/** A card row opening a menu of what the unit can be paired with. */
+function CardMenu({
+  label,
+  ariaLabel,
+  onboarding,
+  children,
+}: {
+  label: string
+  ariaLabel: string
+  onboarding?: string
+  children: ReactNode
+}) {
+  return (
     <div data-print-hide className={`${ROW} pointer-events-none relative z-10 [&_button]:pointer-events-auto`}>
       <DropdownMenu>
         <DropdownMenuTrigger
@@ -280,45 +410,7 @@ function AttachMenu({
           {label}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-72 max-w-[calc(100vw-1rem)]">
-          {roster.length ? (
-            <DropdownMenuGroup>
-              <DropdownMenuLabel className="eyebrow text-faint">In this roster</DropdownMenuLabel>
-              {roster.map((choice) => (
-                <DropdownMenuItem key={choice.key} className={ITEM} onClick={() => onChoose(choice)}>
-                  {choice.name}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuGroup>
-          ) : null}
-          {roster.length && added.length ? <DropdownMenuSeparator /> : null}
-          {added.length ? (
-            <DropdownMenuGroup>
-              <DropdownMenuLabel className="eyebrow text-faint">Add a new unit</DropdownMenuLabel>
-              {added.map((choice) => (
-                <DropdownMenuItem
-                  key={choice.entryId}
-                  aria-label={`Add new ${choice.name} and attach`}
-                  aria-describedby={choice.reason ? `${id}-${choice.entryId}` : undefined}
-                  disabled={Boolean(choice.reason)}
-                  className="items-start data-disabled:opacity-100"
-                  onClick={() => onChoose(choice)}
-                >
-                  <Plus className={`mt-0.5 size-3.5 ${choice.reason ? 'text-faint' : 'text-info'}`} aria-hidden />
-                  <span className="min-w-0 flex-1">
-                    <span className={`block ${ITEM} ${choice.reason ? 'text-faint' : ''}`}>{choice.name}</span>
-                    {choice.reason ? (
-                      <span id={`${id}-${choice.entryId}`} className="mt-0.5 block text-2xs text-discarded">
-                        {choice.reason}
-                      </span>
-                    ) : null}
-                  </span>
-                  {choice.points === null ? null : (
-                    <span className="chip w-[4.5rem] shrink-0 justify-center text-info">{choice.points} pts</span>
-                  )}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuGroup>
-          ) : null}
+          {children}
         </DropdownMenuContent>
       </DropdownMenu>
     </div>

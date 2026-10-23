@@ -4,6 +4,7 @@ import { availableChoices, newHosts, newJoiners, rosterJoiners } from '../../../
 import type { KeyedPick } from './rosterPicks'
 import { attachmentRows, joinableUnits } from './builder/attachments'
 import { type AttachChoice, UnitCard } from './builder/UnitCard'
+import { type EmbarkCard, NO_EMBARK } from './builder/embarkModel'
 import { unitLimitMessage } from './builder/usePicks'
 
 export type AttachDirection = 'join' | 'host'
@@ -16,6 +17,7 @@ type BuilderUnitCardProps = {
   joined: ReturnType<typeof attachmentRows>
   canJoin: AttachChoice[]
   canHost: AttachChoice[]
+  embark: EmbarkCard
   alliedFaction: ComponentProps<typeof UnitCard>['alliedFaction']
   selected: boolean
   editable: boolean
@@ -27,6 +29,8 @@ type BuilderUnitCardProps = {
   onSaveLoadout?: (index: number) => void
   onDetach: (index: number) => void
   onAttach: (index: number, direction: AttachDirection, choice: AttachChoice) => void
+  /** Starts the unit picked under `passengerKey` in the transport picked under `transportKey`, or on the battlefield. */
+  onEmbark: (passengerKey: number, transportKey: number | undefined) => void
 }
 
 export const BuilderUnitCard = memo(function BuilderUnitCard({
@@ -37,6 +41,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
   joined,
   canJoin,
   canHost,
+  embark,
   alliedFaction,
   selected,
   editable,
@@ -48,6 +53,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
   onSaveLoadout,
   onDetach,
   onAttach,
+  onEmbark,
 }: BuilderUnitCardProps) {
   return (
     <UnitCard
@@ -61,11 +67,18 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
       onDuplicate={() => onDuplicate(index)}
       canDuplicate={canDuplicate}
       onSaveLoadout={onSaveLoadout && (() => onSaveLoadout(index))}
-      joined={joined.map((row) => ({ ...row, onAct: () => onDetach(row.detach) }))}
+      joined={[
+        ...joined.map((row) => ({ ...row, onAct: () => onDetach(row.detach) })),
+        ...embark.rows.map((row) => ({ ...row, onAct: () => onEmbark(row.passenger, undefined) })),
+      ]}
       canJoin={canJoin}
       onJoin={(choice) => onAttach(index, 'join', choice)}
       canHost={canHost}
       onHost={(choice) => onAttach(index, 'host', choice)}
+      canBoard={embark.canBoard}
+      onBoard={(choice) => onEmbark(choice.passenger, choice.transport)}
+      canCarry={embark.canCarry}
+      onCarry={(choice) => onEmbark(choice.passenger, choice.transport)}
       alertCount={alertCount}
       editable={editable}
     />
@@ -76,6 +89,7 @@ type CardRelationships = {
   joined: ReturnType<typeof attachmentRows>
   canJoin: AttachChoice[]
   canHost: AttachChoice[]
+  embark: EmbarkCard
 }
 
 /** The book's datasheets and the roster's copy limits, which decide whether a new unit can be added to attach. */
@@ -89,6 +103,8 @@ export function useCardRelationships(
   picks: readonly KeyedPick[],
   units: Parameters<typeof attachmentRows>[1],
   discovery: AttachDiscovery | null,
+  /** Each card's starting embarks, by pick key. */
+  embarks: ReadonlyMap<number, EmbarkCard> | null,
 ) {
   const computed = useMemo(() => {
     const next = new Map<number, CardRelationships>()
@@ -114,11 +130,12 @@ export function useCardRelationships(
           ...rosterJoiners(picks, units, index).map((joiner) => ({ kind: 'roster' as const, ...joiner })),
           ...added(newJoiners(candidates, picks, units, index)),
         ]),
+        embark: embarks?.get(pick.key) ?? NO_EMBARK,
       }
       next.set(pick.key, candidate)
     }
     return next
-  }, [picks, units, discovery])
+  }, [picks, units, discovery, embarks])
   // A card whose relationships read the same keeps the same object, so it does not redraw; this is React's pattern for
   // keeping information from the previous render in state.
   const [kept, setKept] = useState({ from: computed, relationships: computed })

@@ -443,11 +443,11 @@ describe('starting embarks', () => {
   }
 
   it('starts a unit in a transport', () => {
-    expect(embarked((edit) => edit.embark(0, 12))[0]?.embarkedIn).toBe(12)
+    expect(embarked((edit) => edit.embark(10, 12))[0]?.embarkedIn).toBe(12)
   })
 
   it('puts a unit back on the battlefield', () => {
-    expect(embarked((edit) => edit.embark(0, undefined), [{ embarkedIn: 12 }])[0]).not.toHaveProperty('embarkedIn')
+    expect(embarked((edit) => edit.embark(10, undefined), [{ embarkedIn: 12 }])[0]).not.toHaveProperty('embarkedIn')
   })
 
   it('leaves passengers on the battlefield when their transport is removed', () => {

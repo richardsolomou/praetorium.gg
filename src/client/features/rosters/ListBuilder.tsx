@@ -37,6 +37,7 @@ import { attachedUnitCount } from '../../../core/attachedUnits'
 import type { FormatRuleId, Roster, Secondary, Stratagem } from '../../../core/battle'
 import { canTransport, enforces, type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
+import { frozenUnits } from '../../../core/rosterSnapshot'
 import { withoutUnitNotes } from '../../../core/unitNotes'
 import {
   armyReminder,
@@ -85,8 +86,7 @@ import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
 import { UnitAnnotations } from './builder/UnitAnnotations'
-import { UnitEmbark } from './builder/UnitEmbark'
-import { rosterEmbarks } from './builder/embarkModel'
+import { embarkCards, NO_EMBARK } from './builder/embarkModel'
 import { UnitPhoto } from './builder/UnitPhoto'
 import { useDetachmentRules } from './builder/useDetachmentRules'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
@@ -697,19 +697,23 @@ export function ListBuilder({
       catalogueId,
       picks.map((pick) => pick.entryId),
     ),
-    enabled: building && carried,
+    enabled: !frozen && carried,
     placeholderData: keepPreviousData,
   })
   const embarksPending = pricePending || battleDetailsPending
   // Judged only once the price and details describe these picks, so positions line up.
   const currentEmbarks = useMemo(
-    () => (building && priced && battleDetails && !embarksPending ? rosterEmbarks(annotated, priced.units, battleDetails) : null),
-    [annotated, battleDetails, building, embarksPending, priced],
+    () =>
+      !frozen && priced && battleDetails && !embarksPending
+        ? embarkCards(frozenUnits(annotated, priced.units, battleDetails), (at) => picks[priced.units[at]!.key]!.key)
+        : null,
+    [annotated, battleDetails, embarksPending, frozen, picks, priced],
   )
-  // The last judgement stays on screen, unpressable, while an edit is priced.
+  // The last judgement stays on screen while an edit is priced; it names units by key, so a press still means the same units.
   const shownEmbarks = useRef(currentEmbarks)
   if (currentEmbarks) shownEmbarks.current = currentEmbarks
-  const embarks = carried ? shownEmbarks.current : null
+  const embarks = carried ? (shownEmbarks.current?.cards ?? null) : null
+  const frozenEmbarks = useMemo(() => (frozen ? embarkCards(frozen.units).cards : null), [frozen])
   // An edit that leaves a unit unable to start in its transport, such as a larger squad, puts it back on the battlefield.
   // No details at all means the army data could not be read, which says nothing about what fits.
   const droppedEmbarks = useMemo(
@@ -717,9 +721,9 @@ export function ListBuilder({
     [battleDetails?.length, currentEmbarks],
   )
   useEffect(() => {
-    const keys = droppedEmbarks.flatMap((at) => (picks[at]?.embarkedIn === undefined ? [] : [picks[at].key]))
-    if (keys.length) edit.disembark(keys)
-  }, [droppedEmbarks, edit, picks])
+    const keys = droppedEmbarks.filter((key) => picks.some((pick) => pick.key === key && pick.embarkedIn !== undefined))
+    if (building && keys.length) edit.disembark(keys)
+  }, [building, droppedEmbarks, edit, picks])
   const editor = useRef(edit)
   /**
    * What an edit reports is the list it leaves behind, read once the edit has landed.
@@ -911,7 +915,7 @@ export function ListBuilder({
     () => (attachCandidates ? { candidates: attachCandidates, held, limits: unitLimits } : null),
     [attachCandidates, held, unitLimits],
   )
-  const cardRelationships = useCardRelationships(picks, units, attachDiscovery)
+  const cardRelationships = useCardRelationships(picks, units, attachDiscovery, embarks)
   const openSetup = () => {
     setSetupMode('edit')
     setSetupDraft({
@@ -1132,21 +1136,6 @@ export function ListBuilder({
       <p className="p-2.5 text-xs text-faint">Pick a book first.</p>
     )
 
-  const embarkHost = selected === null ? undefined : embarks?.hostOf(selected)
-  const embarkTransports = embarkHost === undefined ? [] : (embarks?.transportsFor(embarkHost) ?? [])
-  const selectedEmbark =
-    embarkHost !== undefined && embarkTransports.length ? (
-      <UnitEmbark
-        unitName={units[embarkHost]?.name ?? ''}
-        joined={embarkHost === selected ? undefined : units[embarkHost]?.name}
-        transports={embarkTransports}
-        pending={embarksPending || !currentEmbarks}
-        onEmbark={(transport) => {
-          const transportKey = transport === undefined ? undefined : picks[transport]?.key
-          if (transport === undefined || transportKey !== undefined) edit.embark(embarkHost, transportKey)
-        }}
-      />
-    ) : null
   const loadoutCatalogueId = selected === null ? catalogueId : (picks[selected]?.catalogueId ?? catalogueId)
   const datasheetCatalogueId = preview?.catalogueId ?? loadoutCatalogueId
   const loadout = (
@@ -1166,14 +1155,11 @@ export function ListBuilder({
       reminders={building && selected !== null ? reminderControls : undefined}
       header={
         building && selected !== null && selectedPick ? (
-          <>
-            <UnitAnnotations
-              nickname={selectedPick.nickname}
-              note={selectedPick.note}
-              onChange={(field, value) => edit.annotate(selected, field, value)}
-            />
-            {selectedEmbark}
-          </>
+          <UnitAnnotations
+            nickname={selectedPick.nickname}
+            note={selectedPick.note}
+            onChange={(field, value) => edit.annotate(selected, field, value)}
+          />
         ) : undefined
       }
       footer={optimisticUnit ? <UnitPhoto entryId={optimisticUnit.entryId} name={optimisticUnit.name} /> : undefined}
@@ -1621,7 +1607,7 @@ export function ListBuilder({
                         unit={unit}
                         nickname={frozen.units[index]?.nickname}
                         note={frozen.units[index]?.note}
-                        joined={joined}
+                        joined={[...joined, ...(frozenEmbarks?.get(index)?.rows ?? [])]}
                         selected={selected === index}
                         onSelect={loadoutAvailable ? () => selectUnit(index) : undefined}
                         editable={false}
@@ -1636,6 +1622,7 @@ export function ListBuilder({
                         joined={cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? []}
                         canJoin={cardRelationships.get(picks[index]?.key ?? -1)?.canJoin ?? []}
                         canHost={cardRelationships.get(picks[index]?.key ?? -1)?.canHost ?? []}
+                        embark={cardRelationships.get(picks[index]?.key ?? -1)?.embark ?? NO_EMBARK}
                         alliedFaction={
                           picks[index]?.catalogueId === catalogueId
                             ? undefined
@@ -1650,6 +1637,7 @@ export function ListBuilder({
                         onSaveLoadout={pricePending ? undefined : guest ? askForLoadoutAccount : me ? openSaveLoadout : undefined}
                         onDetach={detach}
                         onAttach={attach}
+                        onEmbark={edit.embark}
                         editable={building}
                       />
                     ),
