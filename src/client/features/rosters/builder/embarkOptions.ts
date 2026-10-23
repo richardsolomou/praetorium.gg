@@ -1,4 +1,4 @@
-import { canTransport } from '../../../../core/battle'
+import { canTransport, transportLabel } from '../../../../core/battle'
 import type { UnitGroup } from '../../../../core/unitGroups'
 import { nicknamedUnit } from '../../../../core/unitNotes'
 import type { KeyedPick } from '../rosterPicks'
@@ -6,25 +6,22 @@ import type { KeyedPick } from '../rosterPicks'
 type PricedUnit = { name: string; group: UnitGroup; transport?: boolean }
 
 /**
- * The transports the unit at `index` can be listed as starting in, or null when it
- * cannot start in one: a joined unit rides with its host, and a transport cannot
- * embark. Capacity is not judged here; attaching the list to a battle applies the
+ * The transports the unit at `index` can be listed as starting in, numbered as battle
+ * setup numbers them. None for a joined unit, which rides with its host, or for a
+ * transport. Capacity is not judged here; attaching the list to a battle applies the
  * transport's rule and leaves out a unit that does not fit.
  */
 export function embarkOptions(
   picks: readonly KeyedPick[],
   units: readonly (PricedUnit | undefined)[],
   index: number,
-): { key: number; label: string }[] | null {
+): { key: number; label: string }[] {
   const unit = units[index]
-  if (!unit || picks[index]?.attachedTo !== undefined || canTransport(unit)) return null
-  const transports = picks.flatMap((pick, at) => {
+  if (!unit || picks[index]?.attachedTo !== undefined || canTransport(unit)) return []
+  const named = picks.map((pick, at) => ({ key: pick.key, name: units[at]?.name ?? '' }))
+  return picks.flatMap((pick, at) => {
     const transport = units[at]
-    return at !== index && transport && pick.attachedTo === undefined && canTransport(transport) ? [{ pick, name: transport.name }] : []
-  })
-  return transports.map(({ pick, name }) => {
-    const named = transports.filter((candidate) => candidate.name === name)
-    const numbered = named.length > 1 ? `${name} #${named.findIndex((candidate) => candidate.pick === pick) + 1}` : name
-    return { key: pick.key, label: pick.nickname ? nicknamedUnit(name, pick.nickname) : numbered }
+    if (at === index || !transport || pick.attachedTo !== undefined || !canTransport(transport)) return []
+    return [{ key: pick.key, label: pick.nickname ? nicknamedUnit(transport.name, pick.nickname) : transportLabel(named, pick.key)! }]
   })
 }

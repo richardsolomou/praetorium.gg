@@ -27,7 +27,7 @@ describe('embarkOptions', () => {
   })
 
   it('offers nothing to a joined character or to a transport', () => {
-    expect(embarkOptions(picks, units, 3)).toBeNull()
-    expect(embarkOptions(picks, units, 1)).toBeNull()
+    expect(embarkOptions(picks, units, 3)).toEqual([])
+    expect(embarkOptions(picks, units, 1)).toEqual([])
   })
 })

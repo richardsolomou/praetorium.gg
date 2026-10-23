@@ -37,7 +37,7 @@ function unitsOf(picks: readonly RosterPick[]) {
     // A position shifts whenever an earlier unit is added or removed, so a joined or embarked unit is compared by what it joins or rides in.
     const joins = attachedTo === undefined ? null : (picks[attachedTo]?.entryId ?? null)
     const rides = embarkedIn === undefined ? null : (picks[embarkedIn]?.entryId ?? null)
-    const key = canonicalJson({ ...pick, joins, ...(rides === null ? {} : { rides }) })
+    const key = canonicalJson({ ...pick, joins, rides })
     const group = datasheets.get(identity)
     if (group) group.keys.push(key)
     else datasheets.set(identity, { unit: { entryId: pick.entryId, catalogueId: pick.catalogueId, count: 0 }, keys: [key] })

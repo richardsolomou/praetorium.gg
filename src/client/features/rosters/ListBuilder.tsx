@@ -1028,7 +1028,7 @@ export function ListBuilder({
   const loadoutAvailable = !frozen || picks.length > 0
   const selectedPick = selected === null ? null : (picks[selected] ?? null)
   const selectedUnitLoading = selected !== null && !selectedUnit
-  const selectedTransports = useMemo(() => (selected === null ? null : embarkOptions(picks, units, selected)), [picks, selected, units])
+  const selectedTransports = useMemo(() => (selected === null ? [] : embarkOptions(picks, units, selected)), [picks, selected, units])
   const evaluatedPick = selectedPick ? (evaluatedPicks.current.get(selectedPick.key) ?? null) : null
   const loadoutConstraintsPending = Boolean(
     selectedUnit && selectedPick?.models !== undefined && selectedPick.models !== selectedUnit.size.models,
@@ -1128,7 +1128,7 @@ export function ListBuilder({
               note={selectedPick.note}
               onChange={(field, value) => edit.annotate(selected, field, value)}
             />
-            {selectedTransports?.length ? (
+            {selectedTransports.length ? (
               <UnitEmbark
                 transports={selectedTransports}
                 value={selectedPick.embarkedIn}

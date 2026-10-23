@@ -237,17 +237,10 @@ export function pickEditor(
     drop: (index: number) =>
       setPicks((current) => {
         const going = current[index]?.key
-        return current.flatMap((pick, at) => {
-          if (at === index) return []
-          if (pick.attachedTo !== going && pick.embarkedIn !== going) return [pick]
-          return [
-            {
-              ...pick,
-              ...(pick.attachedTo === going ? { attachedTo: undefined } : {}),
-              ...(pick.embarkedIn === going ? { embarkedIn: undefined } : {}),
-            },
-          ]
-        })
+        const kept = (key: number | undefined) => (key === going ? undefined : key)
+        return current.flatMap((pick, at) =>
+          at === index ? [] : [{ ...pick, attachedTo: kept(pick.attachedTo), embarkedIn: kept(pick.embarkedIn) }],
+        )
       }),
 
     resize: (index: number, step: (models: number) => number) =>

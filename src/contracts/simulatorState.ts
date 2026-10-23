@@ -21,15 +21,14 @@ const leagueRosterSource = z.object({ league: z.object({ token: idSchema, eventT
 export type SimulatorRosterSource = z.infer<typeof savedRosterSource> | z.infer<typeof leagueRosterSource>
 const pickIndexSchema = z.int().min(0).max(500)
 
+const sidePickSchema = rosterPickSchema.omit({ attachedTo: true, embarkedIn: true })
+
 const sideSchema = z.object({
   catalogueId: idSchema,
-  pick: rosterPickSchema.omit({ attachedTo: true, embarkedIn: true }),
+  pick: sidePickSchema,
   rules: z.record(key, z.int().min(0).max(20)),
   preferences: weaponPreferencesSchema.optional(),
-  attached: z
-    .array(rosterPickSchema.omit({ attachedTo: true, embarkedIn: true }))
-    .max(7)
-    .optional(),
+  attached: z.array(sidePickSchema).max(7).optional(),
   /** A unit from a saved roster or a revealed league list, simulated with its detachment, enhancements, and attachments. */
   roster: z
     .union([savedRosterSource.extend({ pickIndex: pickIndexSchema }), leagueRosterSource.extend({ pickIndex: pickIndexSchema })])

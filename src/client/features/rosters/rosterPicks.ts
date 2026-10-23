@@ -39,14 +39,10 @@ export const annotatedPicks = (picks: readonly RosterPick[]): RosterPick[] =>
 /** Session keys resolved to the positions a saved list counts in. */
 const withPositions = (picks: readonly KeyedPick[]): RosterPick[] => {
   const position = (key: number | undefined) => {
-    const at = key === undefined ? -1 : picks.findIndex((candidate) => candidate.key === key)
+    const at = picks.findIndex((candidate) => candidate.key === key)
     return at < 0 ? undefined : at
   }
-  return picks.map((pick) =>
-    pick.attachedTo === undefined && pick.embarkedIn === undefined
-      ? pick
-      : { ...pick, attachedTo: position(pick.attachedTo), embarkedIn: position(pick.embarkedIn) },
-  )
+  return picks.map((pick) => ({ ...pick, attachedTo: position(pick.attachedTo), embarkedIn: position(pick.embarkedIn) }))
 }
 
 export const positionedPicks = (picks: readonly KeyedPick[]): RosterPick[] => normalisePicks(withPositions(picks))

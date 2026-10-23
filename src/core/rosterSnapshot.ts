@@ -70,20 +70,18 @@ export function rosterSnapshot(
   // snapshot calls it. A pick the catalogue could not build has neither.
   const unitsByPick = saved.picks.map((_, at) => priced.units.find((unit) => unit.key === at))
   const keysByPick = new Map(priced.units.map((unit, index) => [unit.key, `${index}-${unit.entryId}`]))
-  // What a character joined, in the keys the snapshot names units by.
-  const hostsByPick = new Map(
-    saved.picks.flatMap((pick, at) => {
-      const host = pick.attachedTo === undefined ? undefined : keysByPick.get(pick.attachedTo)
-      return host === undefined ? [] : [[at, host] as const]
-    }),
-  )
-  // The transport each standalone unit starts in, in the same keys.
-  const transportsByPick = new Map(
-    saved.picks.flatMap((pick, at) => {
-      const transport = pick.attachedTo !== undefined || pick.embarkedIn === undefined ? undefined : keysByPick.get(pick.embarkedIn)
-      return transport === undefined ? [] : [[at, transport] as const]
-    }),
-  )
+  // A pick another pick names by position, in the keys the snapshot names units by.
+  const keyedBy = (position: (pick: RosterPick) => number | undefined) =>
+    new Map(
+      saved.picks.flatMap((pick, at) => {
+        const named = position(pick)
+        const key = named === undefined ? undefined : keysByPick.get(named)
+        return key === undefined ? [] : [[at, key] as const]
+      }),
+    )
+  const hostsByPick = keyedBy((pick) => pick.attachedTo)
+  // A joined character rides with its host, so only a standalone unit names a transport.
+  const transportsByPick = keyedBy((pick) => (pick.attachedTo === undefined ? pick.embarkedIn : undefined))
   const detailsByEntry = new Map(details.map((entry) => [entry.entryId, entry]))
   const pointsBudget = customPointsBudget(saved.limit, saved.pointsBudget)
   return {

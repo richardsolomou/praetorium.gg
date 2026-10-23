@@ -205,7 +205,7 @@ export function strategicReservePoints(units: readonly ReserveUnit[]): number {
   }, 0)
 }
 
-export function transportLabel(units: readonly Pick<UnitState, 'key' | 'name'>[], key: string): string | null {
+export function transportLabel<Key>(units: readonly { key: Key; name: string }[], key: Key): string | null {
   const transport = units.find((unit) => unit.key === key)
   if (!transport) return null
   const matching = units.filter((unit) => unit.name === transport.name)
@@ -336,10 +336,25 @@ function changedFormation(unit: UnitState, formation: UnitFormation, redeployed 
 function embarkAsListed(state: BattleState, player: PlayerState): void {
   for (const unit of player.units) {
     const transportKey = unit.startsEmbarkedIn
-    if (!transportKey || unit.attachedTo || unitFormationRefusal(state, player, { unitKey: unit.key, formation: 'embarked', transportKey }))
-      continue
-    for (const moving of attachedUnits(player.units, unit.key))
-      Object.assign(moving, changedFormation(moving, 'embarked', false, transportKey))
+    const command = { unitKey: unit.key, formation: 'embarked' as const, transportKey }
+    if (transportKey && !unitFormationRefusal(state, player, command)) moveFormation(state, player, command)
+  }
+}
+
+/** The character and the unit he joined start together, so one press moves both. */
+function moveFormation(
+  state: BattleState,
+  player: PlayerState,
+  command: Pick<Extract<Command, { kind: 'set-unit-formation' }>, 'unitKey' | 'formation' | 'transportKey'>,
+): void {
+  const attached = attachedUnits(player.units, command.unitKey)
+  const redeployed =
+    state.status === 'setup' &&
+    Boolean(state.firstPlayerId) &&
+    command.formation === 'strategic-reserves' &&
+    attached.every((unit) => unit.deployedAtRollOff && unit.formation === 'battlefield')
+  for (const unit of attached) {
+    Object.assign(unit, changedFormation(unit, command.formation, redeployed, command.transportKey))
   }
 }
 
@@ -1979,16 +1994,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       return
     }
     case 'set-unit-formation': {
-      // The character and the unit he joined start together, so one press moves both.
-      const attached = attachedUnits(player.units, command.unitKey)
-      const redeployed =
-        state.status === 'setup' &&
-        Boolean(state.firstPlayerId) &&
-        command.formation === 'strategic-reserves' &&
-        attached.every((unit) => unit.deployedAtRollOff && unit.formation === 'battlefield')
-      for (const unit of attached) {
-        Object.assign(unit, changedFormation(unit, command.formation, redeployed, command.transportKey))
-      }
+      moveFormation(state, player, command)
       return
     }
     case 'set-painted': {
