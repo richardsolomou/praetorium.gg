@@ -1,4 +1,4 @@
-import { attachedUnit, attachmentErrors } from '../core/attach'
+import { attachedUnit, attachmentErrors, attachmentHost } from '../core/attach'
 import { hasTextTokens } from './sourceText'
 import { type CombatRule, type CombatRuleJudge, judgedCombatRule } from '../core/combatRules'
 import { datasheetCharacteristicKind, datasheetProfileKind } from '../core/datasheetStructure'
@@ -135,7 +135,7 @@ export function rosterCombatant(
     }
     return keywordNames(ids[unit.selectionIndex] ?? [], loaded.index)
   })
-  const hostIndex = selectedPick.attachedTo ?? data.pickIndex
+  const hostIndex = attachmentHost(data.picks, data.pickIndex)
   const hostPick = data.picks[hostIndex]!
   const hostSheet = hostIndex === data.pickIndex ? sheet : companions.find((member) => member.pickIndex === hostIndex)?.selected
   const optionsFor = (replaceIndex?: number) =>
@@ -164,9 +164,7 @@ export function rosterCombatant(
         replaceIndex === undefined
           ? [...selections, built.selection]
           : selections.map((selection, index) => (index === replaceIndex ? built.selection : selection))
-      const groupIds = new Set(
-        proposed.flatMap((pick, index) => (index === hostIndex || pick.attachedTo === hostIndex ? [pick.entryId] : [])),
-      )
+      const groupIds = new Set(proposed.flatMap((pick, index) => (attachmentHost(proposed, index) === hostIndex ? [pick.entryId] : [])))
       if (attachmentErrors(proposed, loaded.index, proposedSelections, keywords).some((error) => groupIds.has(error.entryId))) return []
       return [
         {

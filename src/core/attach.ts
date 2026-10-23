@@ -1,3 +1,4 @@
+import { attachedHost, attachedUnits } from './attachedUnits'
 import { uniqueBy } from './collections'
 import {
   type Association,
@@ -359,9 +360,16 @@ export function admitsHost(attachment: Attachment, hostName: string, hostKeyword
  * that speaks of the bearer's unit means every model in it.
  */
 export function attachedUnit(units: readonly { attachedTo?: number }[], position: number): number[] {
-  const host = units[position]?.attachedTo ?? position
-  return units.flatMap((unit, at) => (at !== position && (at === host || unit.attachedTo === host) ? [at] : []))
+  return attachedUnits(units.map(byPosition), position).flatMap(({ key }) => (key === position ? [] : [key]))
 }
+
+/** The position of the bodyguard unit a list entry is part of, following a Loyal Protector through its Command Squad. */
+export function attachmentHost(units: readonly { attachedTo?: number }[], position: number): number {
+  const positioned = units.map(byPosition)
+  return positioned[position] ? attachedHost(positioned, positioned[position]).key : position
+}
+
+const byPosition = ({ attachedTo }: { attachedTo?: number }, key: number) => ({ key, attachedTo })
 
 /**
  * Why a unit standing on its own is illegal, when the data insists it joins one.

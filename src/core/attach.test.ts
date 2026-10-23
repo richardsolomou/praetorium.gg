@@ -807,4 +807,15 @@ describe('the unit an attachment makes', () => {
   it('leaves a unit standing on its own alone', () => {
     expect(attachedUnit([{}, { attachedTo: 0 }, {}], 2)).toEqual([])
   })
+
+  // A Loyal Protector joins a Command Squad, which can then lead its bodyguard unit.
+  const protected_ = [{}, { attachedTo: 0 }, { attachedTo: 1 }]
+
+  it('counts a character joined to an attached character with the whole unit', () => {
+    expect(attachedUnit(protected_, 2)).toEqual([0, 1])
+  })
+
+  it('counts a character joined to an attached character from the bodyguard', () => {
+    expect(attachedUnit(protected_, 0)).toEqual([1, 2])
+  })
 })

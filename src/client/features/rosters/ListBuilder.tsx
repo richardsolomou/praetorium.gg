@@ -33,6 +33,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { attachmentHost } from '../../../core/attach'
 import { attachedUnitCount } from '../../../core/attachedUnits'
 import type { FormatRuleId, Roster, Secondary, Stratagem } from '../../../core/battle'
 import { enforces, type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../../core/battle'
@@ -1180,7 +1181,7 @@ export function ListBuilder({
 
   const openCombat = (pickIndex: number, compare: boolean) => {
     if (simulatorSource && !compare) {
-      const host = positioned[pickIndex]?.attachedTo ?? pickIndex
+      const host = attachmentHost(positioned, pickIndex)
       const { attachedTo: _attachedTo, note: _note, ...pick } = positioned[host]!
       void navigate({ to: '/simulator', search: { s: rosterMatchup(catalogueId, pick, simulatorSource, host) } })
       return

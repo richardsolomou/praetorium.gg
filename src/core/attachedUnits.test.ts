@@ -22,6 +22,19 @@ describe('attachedUnits', () => {
   it('knows nothing about a unit that is not there', () => {
     expect(attachedUnits([MARINES], 'lord')).toEqual([])
   })
+
+  it('answers a character joined to an attached character with the whole unit', () => {
+    const guard = { key: 'guard', attachedTo: 'lord', formationOptions: [], prebattleRules: [] }
+    expect(attachedUnits([MARINES, LORD, guard], 'guard').map((unit) => unit.key)).toEqual(['marines', 'lord', 'guard'])
+  })
+
+  it('leaves units attached in a loop standing alone', () => {
+    const units = [
+      { key: 'a', attachedTo: 'b' },
+      { key: 'b', attachedTo: 'a' },
+    ]
+    expect(attachedUnits(units, 'a').map((unit) => unit.key)).toEqual(['a'])
+  })
 })
 
 describe('attachedUnitList', () => {
