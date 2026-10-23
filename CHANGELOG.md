@@ -1,5 +1,19 @@
 # praetorium
 
+## 0.182.3
+
+### Patch Changes
+
+- 8bdecc7: Let a Skitarii Rangers or Vanguard specialist take the place of a galvanic-rifle or radium-carbine squadmate, so the squad stays at ten models, each specialist can be added or removed on its own, and lists with a transuranic arquebus or omnispex import.
+
+## 0.182.2
+
+### Patch Changes
+
+- 091533e: A Militarum Tempestus Command Squad can take its regimental standard and master vox again.
+- 091533e: Weapon buttons for a group a specialist has shrunk change the weapon pressed instead of another one.
+- 091533e: A specialist taking a squadmate's place, such as a Tempestus Scion with a medi-pack or regimental standard, takes that squadmate's weapon with it, so a Militarum Tempestus Command Squad with a plasma gun and meltagun stays legal.
+
 ## 0.182.1
 
 ### Patch Changes

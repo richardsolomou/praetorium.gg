@@ -828,6 +828,26 @@ test('Cadian Shock Troops can take their full special weapon allowance', async (
   await expect(page.getByText('Within the points limit')).toBeAttached()
 })
 
+test('Tempestus Scions keep their special weapons when specialists take their places', async ({ page }) => {
+  await page.setViewportSize({ width: 1600, height: 900 })
+  await openBuilder(page, 'Astra Militarum', /Combined Arms/)
+  await add(page, 'Militarum Tempestus Command Squad')
+  const card = page.locator('[data-unit="Militarum Tempestus Command Squad"]')
+  await card.getByRole('button', { name: 'Militarum Tempestus Command Squad', exact: true }).click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Plasma gun' }).click())
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Meltagun' }).click())
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Tempestus Scion w/ Medi-pack' }).click())
+  await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Regimental standard and Hot-shot lasgun' }).click())
+
+  // The two Scions left beside the medic and standard bearer hold the plasma gun and meltagun.
+  await expect(card).toContainText('1x Regimental standard')
+  await expect(card).toContainText('1x Plasma gun')
+  await expect(card).toContainText('1x Meltagun')
+  await expect(page.getByText('Within the points limit')).toBeAttached()
+})
+
 test('a selected multi-weapon option is not repeated in the equipped summary', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)

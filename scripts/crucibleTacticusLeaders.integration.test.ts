@@ -21,6 +21,15 @@ describe.skipIf(!fs.existsSync(source))('Crucible Tacticus leaders', () => {
     expect(attachmentOf(leader, loaded.index, { id: leader.id })?.targets).not.toContain('Captain')
   })
 
+  it.each(['Champion of the Chapter [Crucible]', 'Librarius Adept [Crucible]'])(
+    '%s cannot lead a unit whose Character keyword is on its model',
+    (name) => {
+      const leader = datasheet(name)
+
+      expect(attachmentOf(leader, loaded.index, { id: leader.id })?.targets).not.toContain('Chaplain Grimaldus')
+    },
+  )
+
   it.each(['Champion of the Chapter [Crucible]', 'Librarius Adept [Crucible]'])('%s still leads Tacticus squads', (name) => {
     const leader = datasheet(name)
 

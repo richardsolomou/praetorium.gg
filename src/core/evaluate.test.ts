@@ -950,6 +950,43 @@ describe('a keyword the data grants', () => {
     })
   })
 
+  describe('of a unit whose models carry different keywords', () => {
+    const index = indexOf({
+      categoryEntries: [
+        { id: 'character', name: 'Character' },
+        { id: 'infantry', name: 'Infantry' },
+      ],
+      sharedSelectionEntries: [
+        {
+          id: 'grimaldus-unit',
+          name: 'Chaplain Grimaldus',
+          type: 'unit',
+          categoryLinks: [{ id: 'unit-infantry', targetId: 'infantry', name: 'Infantry' }],
+          selectionEntries: [
+            {
+              id: 'grimaldus',
+              name: 'Chaplain Grimaldus',
+              type: 'model',
+              categoryLinks: [{ id: 'model-character', targetId: 'character', name: 'Character' }],
+            },
+            { id: 'servitor', name: 'Cenobyte Servitor', type: 'model' },
+          ],
+        },
+      ],
+    })
+
+    it('include every keyword of its models', () => {
+      expect(keywordIds([{ id: 'grimaldus-unit', selections: [{ id: 'grimaldus' }, { id: 'servitor' }] }], 0, index)).toEqual([
+        'infantry',
+        'character',
+      ])
+    })
+
+    it('exclude the keywords of a model it does not field', () => {
+      expect(keywordIds([{ id: 'grimaldus-unit', selections: [{ id: 'servitor' }] }], 0, index)).toEqual(['infantry'])
+    })
+  })
+
   it('can be withdrawn, and the withdrawal is what the list carries', () => {
     const index = indexOf({
       categoryEntries: [{ id: 'battleline', name: 'Battleline' }],

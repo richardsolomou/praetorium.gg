@@ -71,7 +71,7 @@ jobs:
           pnpm catalogue:descriptions
           pnpm catalogue:points
           pnpm catalogue:terrain
-          pnpm exec vitest run scripts/custodesAttachments.integration.test.ts scripts/crucibleTacticusLeaders.integration.test.ts
+          pnpm exec vitest run scripts/custodesAttachments.integration.test.ts scripts/crucibleTacticusLeaders.integration.test.ts scripts/unitKeywords.integration.test.ts
       - name: Carry history forward and prepare release artifacts
         if: steps.pinned.outputs.current != 'true'
         run: |
