@@ -18,6 +18,14 @@ Preserve canonical URLs, source revisions, attribution, and unavailable fields; 
 
 [Telemetry](telemetry.md#runtime-boundaries) owns MCP telemetry. Publish with `mcp-publisher login github` and `mcp-publisher publish` from the root, keeping registry and server versions aligned.
 
+## Assistant directories
+
+The same `/mcp` server is listed in the ChatGPT plugin directory and Claude's Connectors Directory. Every tool needs a `title` and explicit `readOnlyHint`, `destructiveHint`, and `openWorldHint` annotations, which OpenAI's review checks, and both directories scan the live server, so tool changes reach the listings without resubmission.
+
+[`plugin/`](../../plugin) is the ChatGPT package: `plugin.json` holds the listing and review test cases, and `mcp.json` the server. `just plugin-zip` writes `dist/praetorium-plugin.zip` for upload at [OpenAI's plugin portal](https://platform.openai.com/plugins); listing or test-case edits need a new upload. The portal's domain challenge is served from `/.well-known/openai-apps-challenge`. Claude's connector has no repository files; its listing is edited at [claude.ai/directory/manage](https://claude.ai/directory/manage).
+
+Reviewers sign in to production as the [review account](mobile-release.md#review-access), so keep its rosters and battles intact while a review is open.
+
 ## WebMCP
 
 [`WebMcp`](../../src/client/features/agents/WebMcp.tsx) registers the [`AgentTools`](../../src/server/agentTools.ts) surface through `document.modelContext`; MCP OAuth stays separate from browser sessions. Saved-roster tools never edit an unsaved draft.
