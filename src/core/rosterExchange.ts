@@ -44,7 +44,7 @@ const payloadSchema = z.object({
 })
 const exchangeSchema = payloadSchema.refine((payload) => !pointsBudgetError(payload.limit, payload.pointsBudget))
 
-/** A roster's contents and rules identity; owner, visibility, preparation, reminders and unit notes are never part of it. */
+/** A roster's contents, unit nicknames and rules identity; owner, visibility, preparation, reminders and unit notes are never part of it. */
 export type RosterExchange = z.infer<typeof payloadSchema>
 
 export type RosterExchangeProblem = 'malformed' | 'oversized' | 'unsupported-version'

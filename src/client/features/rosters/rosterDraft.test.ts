@@ -20,7 +20,7 @@ const roster = (picks: RosterPick[]) => ({
 })
 
 const picks: RosterPick[] = [
-  { entryId: 'overlord', choices: { enhancement: 'circlet' }, toggles: { warlord: 1 } },
+  { entryId: 'overlord', choices: { enhancement: 'circlet' }, toggles: { warlord: 1 }, nickname: 'The Phaeron' },
   { entryId: 'warriors', models: 20, spreads: { weapons: { gauss: 15, reaper: 5 } }, note: 'Hold the centre.' },
   { entryId: 'cryptek', attachedTo: 1 },
 ]
@@ -65,14 +65,17 @@ it('sees a rewritten note as a draft to save', () => {
   expect(draftKey(rewritten)).not.toBe(draftKey(savedDraft(roster(picks), prep)))
 })
 
-it('leaves out a unit nickname stored before nicknames were removed', () => {
-  const legacy = [{ entryId: 'overlord', nickname: 'The Phaeron' } as RosterPick]
+it('sees a renamed unit as a draft to save', () => {
+  const renamed = {
+    ...untouched(picks),
+    picks: positionedAnnotatedPicks(picks.map((pick, key) => ({ ...pick, key, nickname: key === 0 ? 'Szarekh' : pick.nickname }))),
+  }
 
-  expect(savedDraft(roster(legacy), prep).picks[0]).not.toHaveProperty('nickname')
+  expect(draftKey(renamed)).not.toBe(draftKey(savedDraft(roster(picks), prep)))
 })
 
-it('prices the same picks whatever their notes say', () => {
-  const plain = picks.map(({ note: _note, ...pick }, key) => ({ ...pick, key }))
+it('prices the same picks whatever their nicknames and notes say', () => {
+  const plain = picks.map(({ nickname: _nickname, note: _note, ...pick }, key) => ({ ...pick, key }))
 
   expect(positionedPicks(picks.map((pick, key) => ({ ...pick, key })))).toEqual(positionedPicks(plain))
 })

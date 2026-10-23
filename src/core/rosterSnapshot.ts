@@ -4,6 +4,7 @@ import { attachmentRows } from './attachmentRows'
 import { customPointsBudget, type FormatRuleId, pointsBudgetOf, type Roster, strategicReserveLimit } from './battle'
 import type { RosterPick } from './roster'
 import { remindersForDetachments, type RosterReminder } from './reminders'
+import { nicknamedUnit } from './unitNotes'
 import type { UnitGroup } from './unitGroups'
 import { type CatalogueEdition, editionLabel } from './catalogueEdition'
 
@@ -105,7 +106,10 @@ export function rosterSnapshot(
         (detachment, index) => `${index ? 'Detachment' : 'Primary detachment'}: ${detachment.name} (${detachment.points ?? '?'} DP)`,
       ),
       '',
-      ...priced.units.map((unit) => `${unit.name}${unit.size.resizable ? ` (${unit.size.models})` : ''} — ${unit.points}`),
+      ...priced.units.map(
+        (unit) =>
+          `${nicknamedUnit(unit.name, saved.picks[unit.key]?.nickname)}${unit.size.resizable ? ` (${unit.size.models})` : ''} — ${unit.points}`,
+      ),
     ].join('\n'),
     built: {
       catalogueId: saved.catalogueId,
@@ -127,11 +131,12 @@ export function rosterSnapshot(
       picks: saved.picks.map((pick) => ({ ...pick })),
       units: priced.units.map((unit, index) => {
         const detail = detailsByEntry.get(unit.entryId)
-        const note = saved.picks[unit.key]?.note
+        const { nickname, note } = saved.picks[unit.key] ?? {}
         return {
           key: `${index}-${unit.entryId}`,
           entryId: unit.entryId,
           name: unit.name,
+          ...(nickname ? { nickname } : {}),
           ...(note ? { note } : {}),
           points: unit.points,
           models: unit.size.models,

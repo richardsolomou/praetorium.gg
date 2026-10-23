@@ -49,14 +49,17 @@ describe('roster exchange codes', () => {
     expect(await decodeRosterExchange(await encodeRosterExchange(roster))).toEqual(roster)
   })
 
-  it('leaves unit notes behind', async () => {
-    const annotated = { ...roster, picks: roster.picks.map((pick) => ({ ...pick, note: 'Private plan' })) }
-    expect(await decodeRosterExchange(await encodeRosterExchange(annotated))).toEqual(roster)
-  })
-
-  it('reads a code carrying unit nicknames from before they were removed, without them', async () => {
-    const legacy = { ...roster, picks: roster.picks.map((pick, at) => ({ ...pick, nickname: `Unit ${at + 1}` })) }
-    expect(await decodeRosterExchange(await codeFor(JSON.stringify(legacy)))).toEqual(roster)
+  it('carries unit nicknames and leaves unit notes behind', async () => {
+    const annotated = {
+      ...roster,
+      picks: roster.picks.map((pick, at) => ({ ...pick, nickname: `Unit ${at + 1}`, note: 'Private plan' })),
+    }
+    const decoded = await decodeRosterExchange(await encodeRosterExchange(annotated))
+    expect(decoded.picks.map((pick) => [pick.nickname, pick.note])).toEqual([
+      ['Unit 1', undefined],
+      ['Unit 2', undefined],
+      ['Unit 3', undefined],
+    ])
   })
 
   it('encodes the same roster to the same code', async () => {

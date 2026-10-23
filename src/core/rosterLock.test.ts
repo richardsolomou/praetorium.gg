@@ -32,6 +32,7 @@ describe('a save to a locked roster', () => {
     ['converting the rules version', { catalogueId: 'necrons~2026' }],
     ['renaming it', { name: 'Practice list' }],
     ['switching to an automatic name', { name: '', automaticName: true }],
+    ['nicknaming a unit', { picks: [{ entryId: 'overlord', choices: { weapon: 'staff' }, nickname: 'Szarekh' }] }],
     ['writing a unit note', { picks: [{ entryId: 'overlord', choices: { weapon: 'staff' }, note: 'Hold home.' }] }],
     ['editing reminders', { prep: { stratagems: [], secondaries: [], reminders: [{ key: 'r' }], remindersEnabled: true } }],
     ['replacing everything from an import', { ...saved, catalogueId: 'aeldari', detachmentIds: [], picks: [] }],
@@ -48,18 +49,6 @@ describe('a save to a locked roster', () => {
       lockedRosterRefusal(
         { ...locked, name: 'Necrons 1990', automaticName: true },
         { ...saved, name: 'Necrons 1995', automaticName: true },
-      ),
-    ).toBeNull()
-  })
-
-  it('applies unchanged to a row saved with a unit nickname', () => {
-    expect(
-      lockedRosterRefusal(
-        migrateSavedRoster({
-          ...locked,
-          picks: [{ entryId: 'overlord', choices: { weapon: 'staff' }, nickname: 'Szarekh' }],
-        }) as typeof locked,
-        saved,
       ),
     ).toBeNull()
   })
