@@ -1,7 +1,7 @@
 import { normalizeRuleReference, ruleReferenceMatches } from '../core/ruleReference'
 import { escapeRegExp } from '../core/text'
 
-type AbilityGrant = { name: string; recipient: 'bearer' | 'leader' | 'unit' }
+type AbilityGrant = { name: string; recipient: 'bearer' | 'leader' | 'unit' | 'models'; models?: string }
 
 /** Exact catalogue phrases that grant a named ability to a bearer or every model in its unit. */
 export function parseAbilityGrants(
@@ -22,7 +22,9 @@ export function parseAbilityGrants(
     .replaceAll(/\s+/g, ' ')
     .replaceAll(/\babilty\b/giu, 'ability')
     .replaceAll(/\bModel's in\b/gu, 'Models in')
-  const grant = (written: string, recipient: 'bearer' | 'leader' | 'unit', explicitDeployment = false) => {
+  const grant = (written: string, recipient: AbilityGrant['recipient'], explicitDeployment = false) => {
+    // An invulnerable save is a characteristic the save collectors read, never a named ability.
+    if (/\binvulnerable save\b/iu.test(written)) return []
     const matched = linkedAbilities.filter((name) => ruleReferenceMatches(written, name) || ruleReferenceMatches(name, written))
     const listed = listedAbilities(written, linkedAbilities)
     const explicit = explicitDeployment ? (normalizeAbilityText(written).match(DEPLOYMENT_ABILITIES) ?? []) : []
@@ -98,6 +100,16 @@ export function parseAbilityGrants(
     const clause = prose.slice(Math.max(prose.lastIndexOf('.', modelGainsGrant.index) + 1, 0), modelGainsGrant.index)
     const conditional = /\b(?:if|when|while|until)\b/iu.test(clause) || /\b(?:until|for the (?:remainder|rest) of)\b/iu.test(prose)
     return { matched: true, grants: conditional ? [] : grant(modelGainsGrant[1]!, 'bearer') }
+  }
+  const keywordModelsGrant = prose.match(
+    /^While one or more ([\p{L} ]{1,60}?) models are in the same unit as this model, those \1 models have (?:the )?\[?([\p{L}\p{N} +"'’\p{Pd}]+?)\]? abilit(?:y|ies)\.?$/iu,
+  )
+  if (keywordModelsGrant) {
+    // The printed value is the grant; a parameterised ability the bearer links (its own Feel No Pain 5+) is another one.
+    return {
+      matched: true,
+      grants: [{ name: titleCaseAbility(keywordModelsGrant[2]!), recipient: 'models', models: keywordModelsGrant[1]! }],
+    }
   }
   const bodyguardGrant = prose.match(
     /^While a Character model is leading this unit, that Character model has the \[?([\p{L}\p{N} +'’\p{Pd}]+)\]? ability\.$/iu,

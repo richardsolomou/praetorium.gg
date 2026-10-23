@@ -563,7 +563,7 @@ describe('canonical catalogue', () => {
     }
   })
 
-  it.each([3, 12, 13, 14])('keeps compiler %s artifacts readable for audits while serving recompiles them', (compilerVersion) => {
+  it.each([3, 12, 13, 14, 15])('keeps compiler %s artifacts readable for audits while serving recompiles them', (compilerVersion) => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-canonical-previous-'))
     try {
       const file = path.join(root, 'canonical', 'catalogue.json')

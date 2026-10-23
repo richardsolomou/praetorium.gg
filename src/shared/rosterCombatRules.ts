@@ -1,5 +1,6 @@
 import { attachedUnit, attachmentErrors, attachmentHost } from '../core/attach'
 import { hasTextTokens } from './sourceText'
+import { parsedAbilityGrants } from './catalogueAbilityGrants'
 import { type CombatRule, type CombatRuleJudge, judgedCombatRule } from '../core/combatRules'
 import { datasheetCharacteristicKind, datasheetProfileKind } from '../core/datasheetStructure'
 import { routeSlug } from '../core/slug'
@@ -284,7 +285,12 @@ function rosterCombatRules(
         source: sheet.name,
         description: ability.description,
         scope: 'unit',
-        included: ability.kind === 'core' && /^Feel No Pain [2-6]\+$/.test(ability.name),
+        // Projection applies a Feel No Pain as a core ability, and one limited to models with a keyword to those models alone.
+        included:
+          (ability.kind === 'core' && /^Feel No Pain [2-6]\+$/.test(ability.name)) ||
+          parsedAbilityGrants(ability.description, true, [], true).some(
+            (grant) => grant.recipient === 'models' && /^Feel No Pain [2-6]\+$/.test(grant.name),
+          ),
       },
       { origin: 'own', attached: selectedPick.attachedTo !== undefined },
     )
