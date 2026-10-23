@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.182.2
+
+### Patch Changes
+
+- 091533e: A Militarum Tempestus Command Squad can take its regimental standard and master vox again.
+- 091533e: Weapon buttons for a group a specialist has shrunk change the weapon pressed instead of another one.
+- 091533e: A specialist taking a squadmate's place, such as a Tempestus Scion with a medi-pack or regimental standard, takes that squadmate's weapon with it, so a Militarum Tempestus Command Squad with a plasma gun and meltagun stays legal.
+
 ## 0.182.1
 
 ### Patch Changes
