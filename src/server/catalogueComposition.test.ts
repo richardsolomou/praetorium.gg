@@ -94,6 +94,18 @@ it('retains old editions for saved lists', () => {
   expect(() => validateEditionContinuity(composition(), null)).toThrow('retire it instead of deleting it')
 })
 
+it('refuses to remove a published edition', () => {
+  const next = composition()
+  next.editions = []
+  expect(() => validateEditionContinuity(composition(), next)).toThrow('retire it instead of deleting it')
+})
+
+it('refuses to remove a published faction from an edition', () => {
+  const next = composition()
+  next.editions[0]!.edition.catalogueIds = ['another']
+  expect(() => validateEditionContinuity(composition(), next)).toThrow('cannot remove published faction identities')
+})
+
 it.each(['released', 'retired'] as const)('keeps %s source pins unchanged when a new MFM is published', (status) => {
   const previous = composition()
   previous.editions[0]!.edition.status = status

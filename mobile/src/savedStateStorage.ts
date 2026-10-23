@@ -46,6 +46,7 @@ export function writeSavedState(
   try {
     file.writeSync(serialized)
     if (file.size !== size || (readBack && file.textSync() !== serialized)) throw new Error('Incomplete saved-data write')
+    // Expo's overwriting move deletes the destination first, so each verified write takes a new generation name.
     file.moveSync(new File(root, `${generation}-${id}.json`))
   } finally {
     if (file.exists && file.name.endsWith('.tmp')) file.delete()

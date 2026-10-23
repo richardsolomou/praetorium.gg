@@ -119,6 +119,7 @@ export function mfmPrice(unit: MfmUnit, models: number, copy: number): number | 
   const costs = tiers[0]!.costs.filter((cost) => !cost.addon).toSorted((left, right) => left.models - right.models)
   const prices = costs.filter((cost) => cost.models === models)
   if (prices.length) return prices.length === 1 ? prices[0]!.points : null
+  // MFM Starting Strength guidance (https://mfm.warhammer-community.com/en): only a two-row table charges counts between its rows, at the upper row.
   return costs.length === 2 && models > costs[0]!.models && models < costs[1]!.models ? costs[1]!.points : null
 }
 export function mfmCostRows(unit: MfmUnit) {

@@ -1,6 +1,6 @@
 /** Guides grow by a paragraph per fix unless something stops them; lower these as the docs shrink. */
-export const DOCS_FILE_BUDGET = 20_000
-export const DOCS_TOTAL_BUDGET = 240_000
+export const DOCS_FILE_BUDGET = 16_000
+export const DOCS_TOTAL_BUDGET = 200_000
 
 export const isBudgetedDoc = (path: string) => /^docs\/.+\.md$/.test(path) || path === 'CLAUDE.md' || path === 'CONTRIBUTING.md'
 

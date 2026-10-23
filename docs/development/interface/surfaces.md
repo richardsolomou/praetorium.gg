@@ -14,9 +14,9 @@ League entrants and organizers share one event page, whose next-action card and 
 
 ## Other surfaces
 
-`Home` owns fetching and `HomeView` renders props. The played, friends' and public game shelves each show at most three games, with links to their full lists. Many players only build lists, so nothing assumes battles. The home loader waits for the player's record only within `RECORD_BUDGET_MS`. Never leave a query pending in the SSR query cache: a streamed pending query holds the document, and hydration, open until it settles.
+`Home` owns fetching and `HomeView` renders props. The played, friends' and public game shelves each show at most three games, with links to their full lists. Many players only build lists, so nothing assumes battles. Never leave a query pending in the SSR query cache: a streamed pending query holds the document, and hydration, open until it settles.
 
-`/search?q=…` and global autocomplete share `useGlobalSearch`: a current download answers on every keystroke, otherwise `globalSearchQuery` asks the service once typing settles. Keep the query in the URL and results in the initial HTML; replace the URL rather than adding a history entry per keystroke. Search rows are virtualized: keep every result reachable by scrolling and keyboard, and keep the active option mounted for its accessible name. `useVirtualRows` defers viewport and row measurements to an animation frame so a render cannot resize an observed element during the same observer delivery; keep that scheduling shared with `SearchableSelect`. Before anything is typed, both list the last eight public results opened from search on this device (`searchHistory.ts`), each removable; the player's own rosters and battles are never remembered. `e2e/search.spec.ts` covers the journey. Friends search requires a name rather than listing every account.
+`/search?q=…` and global autocomplete share `useGlobalSearch`: a current download answers on every keystroke, otherwise `globalSearchQuery` asks the service once typing settles. Keep the query in the URL and results in the initial HTML; replace the URL rather than adding a history entry per keystroke. Search rows are virtualized: keep every result reachable by scrolling and keyboard, and keep the active option mounted for its accessible name. Before anything is typed, both list public results recently opened from search on this device (`searchHistory.ts`), each removable. `e2e/search.spec.ts` covers the journey. Friends search requires a name rather than listing every account.
 
 Onboarding opens only by player choice and stays nonmodal. Domain-backed progress is derived; only reading tours, skips, and welcome state are stored. Finishing a tour dismisses its prompt only after progress is saved durably.
 
@@ -26,7 +26,7 @@ Session tokens never reach the browser. Administrator status is not permission t
 
 Profile fields keep unsaved edits across account refreshes. A successful save clears only drafts that still match its submitted values, including a picture replaced or removed while the save was pending. Verify name and picture changes during a delayed save, a second save, and reload in `e2e/account.spec.ts`.
 
-Roster exchange QR codes are generated only within `ROSTER_EXCHANGE_QR_MAX_LENGTH`; friend invite QR codes encode the existing one-time link with its expiry and revocation. Keep the readable link if image generation fails.
+Friend invite QR codes encode the existing one-time link with its expiry and revocation. Keep the readable link if image generation fails.
 
 `e2e/update-pages.spec.ts` covers What's new and Data updates. [Combat simulation](../combat-simulation.md#interface-and-context) owns the matchup UI.
 

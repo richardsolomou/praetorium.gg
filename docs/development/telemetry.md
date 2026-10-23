@@ -6,15 +6,15 @@ PostHog is optional: every product path works without its variables. `src/postho
 
 Browsers send through the same-origin `/t` proxy, which drops cookies and forwards the visitor address; `VITE_POSTHOG_HOST` must be the ingestion host, not a managed reverse proxy that discards that header. Only production sends events: previews and browser tests run without the telemetry variables, local dev servers load the SDK only in a production bundle, and only production has a server project token.
 
-The WebView browser owns product events, identified replay, logs, and metrics. Mask every form input and mark account, security, and administration surfaces `ph-no-capture`. The Expo client captures only shell lifecycle and errors; native screenshot replay stays disabled because it cannot redact the WebView DOM.
+The WebView browser owns product events, identified replay, logs, and metrics. Mark account, security, and administration surfaces `ph-no-capture`. The Expo client captures only shell lifecycle and errors; native screenshot replay stays disabled because it cannot redact the WebView DOM.
 
 Server logs, spans, and request metrics use stable operation or server-function names and bounded metadata, never raw URLs or payloads. A server function that throws a `Response`, such as the sign-in refusal of an account read, records outcome `error` with no exception, so the browser must not call account reads for a visitor. In the `process.*` gauges from `src/server/runtimeMetrics.ts`, ArrayBuffer bytes are already part of external memory; do not add the two.
 
 Server telemetry resources carry `deployment.host` from the public `APP_URL`. Older spans lack it and can mix deployed instances; do not infer a production hostname from `deployment.environment` alone.
 
-Public crawler `$http_log` capture allows only reference/discovery paths without account or opaque object IDs, strips query strings, keeps only the referrer origin, disables GeoIP, and creates no person profile; its salted identities are day-scoped. Keep this bounded public-request capture unsampled for crawler diagnostics, including HEAD requests and failures. Because Cloudflare caches signed-out pages ([Deployment](../deployment.md#runtime)), these logs count origin requests, not all reads or people. They do not measure user harm or cost savings.
+Keep public crawler `$http_log` capture unsampled for crawler diagnostics. Because Cloudflare caches signed-out pages ([Deployment](../deployment.md#runtime)), these logs count origin requests, not all reads or people. They do not measure user harm or cost savings.
 
-MCP Analytics keeps anonymous tool names, timings, outcomes, and protocol/deployment metadata, never arguments, results, intent, client identifiers, or exceptions. The project's `Remove MCP Analytics IP` transformation removes the address added at ingestion; SDK `$ip = null` alone does not prove removal.
+The project's `Remove MCP Analytics IP` transformation removes the address added at ingestion; SDK `$ip = null` alone does not prove removal.
 
 ## Event contract
 
@@ -42,25 +42,25 @@ Custom events measure starts, attempts, completed actions, and bounded failures;
 - `rules_text_load_failed` fires once per failed attempt to load a pinned upstream rules text file in the browser, with its `source` and a `reason` of `network`, `http` (with `status`), `mismatch` (not the pinned file), or `invalid`; a reader's Try again is a new attempt.
 - `combat_simulator_setup_progressed` reports each of `attacker_selected`, `defender_selected`, `ready`, and `load_failed` at most once per mounted setup, with the existing `source`. Selection is not an estimate: use `combat_simulation_completed` for that outcome. `combat_simulator_example_started` and `combat_simulator_recent_opened` measure the optional entry actions; reopening and examples start a new setup. No matchup names, contents, or encoded state enter these events.
 
-Browser events receive bounded `feature` and `surface` at the send boundary; route parameters never enter `feature`, and server/native-shell events do not inherit them. Web vitals use the measured `$current_url`, since later SPA navigation can change `$pathname`.
+Only browser events carry `feature` and `surface`; server and native-shell events do not.
 
 ## Privacy boundary
 
 Signed-in browsers identify with the account ID, and `PostHogBetterAuthIdentity` in `AppShell.tsx` sets the account's `name` and `email` as person properties for support. Event properties never carry names, emails, images, opaque tokens or IDs, search text, unit/list contents, command payloads, rules prose, or error messages; use bounded enums, booleans, counts, durations, and outcomes. Source-normalized faction/detachment labels are allowed; catalogue IDs are not.
 
-The one exception is the automatic import report. When `roster_import_failed` fires, or `roster_import_review_required` has unmatched or unplaced entries, `RosterImport.tsx` files an App feedback response (`importFailureReport` in `src/client/features/feedback/feedback.ts`) whose message deliberately carries the unmatched and unplaced lines and the exact pasted text or exchange code, truncated below the SDK's 65,535-character string limit, so the failure can be reproduced. The `roster_import_*` events stay free of list contents.
+The one exception is the automatic import report. When `roster_import_failed` fires, or `roster_import_review_required` has unmatched or unplaced entries, `RosterImport.tsx` files an App feedback response (`importFailureReport` in `src/client/features/feedback/feedback.ts`) whose message deliberately carries the unmatched and unplaced lines and the exact pasted text or exchange code, so the failure can be reproduced. The `roster_import_*` events stay free of list contents.
 
-Exception tracking may carry stack traces; manual captures add only an operation label. React only logs errors caught by the router's error page, so `defaultOnCatch` in `src/router.tsx` reports them. `src/client/networkErrors.ts`, `src/client/realtimeErrors.ts`, and their callers decide which failures are expected and excluded.
+Exception tracking may carry stack traces; manual captures add only an operation label. `src/client/networkErrors.ts`, `src/client/realtimeErrors.ts`, and their callers decide which failures are expected and excluded.
 
 ## Feedback
 
-`src/client/features/feedback` answers the App feedback API survey with a `survey sent` event whose question ids are pinned in `feedback.ts`; changing the survey's questions means updating them there. Without a successful capture, the dialog keeps the message and offers the issue tracker; local and browser-test stacks always take that path unless a test stubs capture.
+Changing the PostHog App feedback survey's questions means updating the ids pinned in `src/client/features/feedback/feedback.ts`. Local and browser-test stacks cannot capture, so their feedback dialog always falls back to the issue tracker unless a test stubs capture.
 
-Screenshots go to the private `praetorium-private` R2 bucket (production reaches it with the backup credentials) and only administrators can open their links. After capture, `emailFeedback` emails every admin account through the auth SMTP delivery; a failed delivery never changes what the player sees, since capture is the record.
+Screenshots go to the private `praetorium-private` R2 bucket (production reaches it with the backup credentials) and only administrators can open their links.
 
 ## Source maps
 
-Hosted web builds upload hidden maps and bundles, including workers, before image publication; chunk-ID injection participates in asset hashing. Upload credentials are BuildKit secrets, and missing configuration or upload failure stops hosted builds. Containers ship no public maps. iOS uses the Expo/Metro plugins; see [PostHog's CLI documentation](https://posthog.com/docs/error-tracking/upload-source-maps/cli) for scopes and [Mobile release](mobile-release.md#build-and-upload) for delivery.
+`Dockerfile.node` uploads hosted web maps, including workers, before image publication and ships none; `scripts/webSourceMaps.test.ts` covers its failure paths. iOS uses the Expo/Metro plugins; see [PostHog's CLI documentation](https://posthog.com/docs/error-tracking/upload-source-maps/cli) for scopes and [Mobile release](mobile-release.md#build-and-upload) for delivery.
 
 ## Measuring success
 

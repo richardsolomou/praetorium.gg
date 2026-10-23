@@ -36,6 +36,14 @@ it('records the files crawlers read', () => {
   expect(crawlerRequestEvent(read('https://praetorium.gg/llms.txt'), 200, DAY)).not.toBeNull()
 })
 
+it('records a HEAD read', () => {
+  expect(crawlerRequestEvent(read('https://praetorium.gg/factions', {}, 'HEAD'), 200, DAY)).not.toBeNull()
+})
+
+it('records a read that failed', () => {
+  expect(crawlerRequestEvent(read('https://praetorium.gg/factions'), 503, DAY)?.properties.status_code).toBe(503)
+})
+
 it('records nothing for a request that is not a read', () => {
   expect(crawlerRequestEvent(read('https://praetorium.gg/factions', {}, 'POST'), 200, DAY)).toBeNull()
 })
@@ -50,6 +58,10 @@ it('cuts the referrer to its origin', () => {
 it('sends no address and no location', () => {
   const properties = crawlerRequestEvent(read('https://praetorium.gg/factions'), 200, DAY)?.properties
   expect([properties && '$ip' in properties, properties?.$geoip_disable]).toEqual([false, true])
+})
+
+it('creates no person profile', () => {
+  expect(crawlerRequestEvent(read('https://praetorium.gg/factions'), 200, DAY)?.properties.$process_person_profile).toBe(false)
 })
 
 it('gives one client one id within a day', () => {

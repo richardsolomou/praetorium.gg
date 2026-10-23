@@ -1,3 +1,4 @@
+// Compiling the reference as an object literal can exhaust the iOS renderer's memory; parsing JSON does not.
 export function referenceJsonExpression(json: string) {
   return `JSON.parse(${JSON.stringify(json).replaceAll('<', '\\u003c')})`
 }
