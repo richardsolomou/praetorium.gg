@@ -424,6 +424,54 @@ describe('unit nicknames and notes', () => {
   })
 })
 
+describe('starting embarks', () => {
+  function embarked(run: (edit: ReturnType<typeof pickEditor>) => void, start: Partial<KeyedPick>[] = [{}, {}, {}]) {
+    let picks: KeyedPick[] = [
+      { key: 10, entryId: 'squad', catalogueId: 'imperium', ...start[0] },
+      { key: 11, entryId: 'captain', catalogueId: 'imperium', ...start[1] },
+      { key: 12, entryId: 'rhino', catalogueId: 'imperium', ...start[2] },
+    ]
+    const edit = pickEditor(
+      (update) => {
+        picks = typeof update === 'function' ? update(picks) : update
+      },
+      { catalogueId: 'imperium', units: [], limits: new Map([['squad', null]]) },
+      () => 13,
+    )
+    run(edit)
+    return picks
+  }
+
+  it('starts a unit in a transport', () => {
+    expect(embarked((edit) => edit.embark(0, 12))[0]?.embarkedIn).toBe(12)
+  })
+
+  it('puts a unit back on the battlefield', () => {
+    expect(embarked((edit) => edit.embark(0, undefined), [{ embarkedIn: 12 }])[0]).not.toHaveProperty('embarkedIn')
+  })
+
+  it('leaves passengers on the battlefield when their transport is removed', () => {
+    expect(embarked((edit) => edit.drop(2), [{ embarkedIn: 12 }])[0]).not.toHaveProperty('embarkedIn')
+  })
+
+  it('clears several starting embarks at once', () => {
+    const picks = embarked((edit) => edit.disembark([10, 11]), [{ embarkedIn: 12 }, { embarkedIn: 12 }])
+    expect(picks.map((pick) => pick.embarkedIn)).toEqual([undefined, undefined, undefined])
+  })
+
+  it('duplicates a unit without its starting embark', () => {
+    expect(embarked((edit) => edit.duplicate(0), [{ embarkedIn: 12 }])[1]).not.toHaveProperty('embarkedIn')
+  })
+
+  it('leaves a character’s starting embark to the unit it joins', () => {
+    expect(embarked((edit) => edit.join(1, 10), [{}, { embarkedIn: 12 }])[1]).not.toHaveProperty('embarkedIn')
+  })
+
+  it('leaves a starting embark to the unit a newly added character joins', () => {
+    expect(embarked((edit) => edit.add('squad', { joinedBy: 11 }), [{}, { embarkedIn: 12 }])[1]).not.toHaveProperty('embarkedIn')
+  })
+})
+
 describe('adding a unit to attach', () => {
   function added(limits: Map<string, number | null>, run: (edit: ReturnType<typeof pickEditor>) => void) {
     let picks: KeyedPick[] = [

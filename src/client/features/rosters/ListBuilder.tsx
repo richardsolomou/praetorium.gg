@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { attachedUnitCount } from '../../../core/attachedUnits'
 import type { FormatRuleId, Roster, Secondary, Stratagem } from '../../../core/battle'
-import { enforces, type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../../core/battle'
+import { canTransport, enforces, type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
 import { withoutUnitNotes } from '../../../core/unitNotes'
 import {
@@ -63,6 +63,7 @@ import {
   playerDefaultsQuery,
   priceQuery,
   rostersLentToMeQuery,
+  unitBattleDetailsQuery,
   unitsQuery,
 } from '../../queries'
 import { errorMessage } from '../../queryClient'
@@ -84,6 +85,8 @@ import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
 import { UnitAnnotations } from './builder/UnitAnnotations'
+import { UnitEmbark } from './builder/UnitEmbark'
+import { rosterEmbarks } from './builder/embarkModel'
 import { UnitPhoto } from './builder/UnitPhoto'
 import { useDetachmentRules } from './builder/useDetachmentRules'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
@@ -688,6 +691,35 @@ export function ListBuilder({
     () => pickEditor(setPicks, { catalogueId, units, limits: pricePending ? undefined : unitLimits }, allocateKey),
     [allocateKey, catalogueId, pricePending, setPicks, unitLimits, units],
   )
+  const carried = units.some(canTransport)
+  const { data: battleDetails, isPlaceholderData: battleDetailsPending } = useQuery({
+    ...unitBattleDetailsQuery(
+      catalogueId,
+      picks.map((pick) => pick.entryId),
+    ),
+    enabled: building && carried,
+    placeholderData: keepPreviousData,
+  })
+  const embarksPending = pricePending || battleDetailsPending
+  // Judged only once the price and details describe these picks, so positions line up.
+  const currentEmbarks = useMemo(
+    () => (building && priced && battleDetails && !embarksPending ? rosterEmbarks(annotated, priced.units, battleDetails) : null),
+    [annotated, battleDetails, building, embarksPending, priced],
+  )
+  // The last judgement stays on screen, unpressable, while an edit is priced.
+  const shownEmbarks = useRef(currentEmbarks)
+  if (currentEmbarks) shownEmbarks.current = currentEmbarks
+  const embarks = carried ? shownEmbarks.current : null
+  // An edit that leaves a unit unable to start in its transport, such as a larger squad, puts it back on the battlefield.
+  // No details at all means the army data could not be read, which says nothing about what fits.
+  const droppedEmbarks = useMemo(
+    () => (currentEmbarks && battleDetails?.length ? currentEmbarks.dropped : []),
+    [battleDetails?.length, currentEmbarks],
+  )
+  useEffect(() => {
+    const keys = droppedEmbarks.flatMap((at) => (picks[at]?.embarkedIn === undefined ? [] : [picks[at].key]))
+    if (keys.length) edit.disembark(keys)
+  }, [droppedEmbarks, edit, picks])
   const editor = useRef(edit)
   /**
    * What an edit reports is the list it leaves behind, read once the edit has landed.
@@ -1100,6 +1132,21 @@ export function ListBuilder({
       <p className="p-2.5 text-xs text-faint">Pick a book first.</p>
     )
 
+  const embarkHost = selected === null ? undefined : embarks?.hostOf(selected)
+  const embarkTransports = embarkHost === undefined ? [] : (embarks?.transportsFor(embarkHost) ?? [])
+  const selectedEmbark =
+    embarkHost !== undefined && embarkTransports.length ? (
+      <UnitEmbark
+        unitName={units[embarkHost]?.name ?? ''}
+        joined={embarkHost === selected ? undefined : units[embarkHost]?.name}
+        transports={embarkTransports}
+        pending={embarksPending || !currentEmbarks}
+        onEmbark={(transport) => {
+          const transportKey = transport === undefined ? undefined : picks[transport]?.key
+          if (transport === undefined || transportKey !== undefined) edit.embark(embarkHost, transportKey)
+        }}
+      />
+    ) : null
   const loadoutCatalogueId = selected === null ? catalogueId : (picks[selected]?.catalogueId ?? catalogueId)
   const datasheetCatalogueId = preview?.catalogueId ?? loadoutCatalogueId
   const loadout = (
@@ -1119,11 +1166,14 @@ export function ListBuilder({
       reminders={building && selected !== null ? reminderControls : undefined}
       header={
         building && selected !== null && selectedPick ? (
-          <UnitAnnotations
-            nickname={selectedPick.nickname}
-            note={selectedPick.note}
-            onChange={(field, value) => edit.annotate(selected, field, value)}
-          />
+          <>
+            <UnitAnnotations
+              nickname={selectedPick.nickname}
+              note={selectedPick.note}
+              onChange={(field, value) => edit.annotate(selected, field, value)}
+            />
+            {selectedEmbark}
+          </>
         ) : undefined
       }
       footer={optimisticUnit ? <UnitPhoto entryId={optimisticUnit.entryId} name={optimisticUnit.name} /> : undefined}

@@ -41,6 +41,32 @@ describe('roster pick schema', () => {
     expect(commandSchema.parse(JSON.parse(JSON.stringify(command)))).toEqual(command)
   })
 
+  it('keeps the transport a frozen unit starts in', () => {
+    const command = {
+      kind: 'attach-roster',
+      roster: {
+        name: 'Army',
+        text: 'Intercessor Squad — 80\nRhino — 75',
+        built: {
+          catalogueId: 'marines',
+          revision: 'revision',
+          limit: 2000,
+          detachment: null,
+          disposition: null,
+          units: [
+            { key: '0-intercessors', name: 'Intercessor Squad', points: 80, models: 5, startsEmbarkedIn: '1-rhino' },
+            { key: '1-rhino', name: 'Rhino', points: 75, models: 1 },
+          ],
+        },
+      },
+    }
+    expect(commandSchema.parse(command)).toEqual(command)
+  })
+
+  it('keeps the transport a saved pick starts in', () => {
+    expect(rosterPickSchema.parse({ entryId: 'intercessors', embarkedIn: 1 })).toEqual({ entryId: 'intercessors', embarkedIn: 1 })
+  })
+
   it('keeps a nickname and note through stored JSON', () => {
     const annotated = { entryId: 'intercessors', nickname: 'Alpha', note: 'Hold home.' }
     expect(rosterPickSchema.parse(JSON.parse(JSON.stringify(annotated)))).toEqual(annotated)

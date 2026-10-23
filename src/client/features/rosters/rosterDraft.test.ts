@@ -74,6 +74,27 @@ it('sees a renamed unit as a draft to save', () => {
   expect(draftKey(renamed)).not.toBe(draftKey(savedDraft(roster(picks), prep)))
 })
 
+it('saves a starting embark at the position of its transport', () => {
+  const keyed = picks.map((pick, key) => ({ ...pick, key: key + 10, ...(key === 1 ? { embarkedIn: 12 } : {}) }))
+
+  expect(positionedAnnotatedPicks(keyed)[1]?.embarkedIn).toBe(2)
+})
+
+it('sees a changed starting embark as a draft to save', () => {
+  const embarked = {
+    ...untouched(picks),
+    picks: positionedAnnotatedPicks(picks.map((pick, key) => ({ ...pick, key, ...(key === 1 ? { embarkedIn: 0 } : {}) }))),
+  }
+
+  expect(draftKey(embarked)).not.toBe(draftKey(savedDraft(roster(picks), prep)))
+})
+
+it('prices the same picks wherever they start', () => {
+  expect(positionedPicks(picks.map((pick, key) => ({ ...pick, key, embarkedIn: 2 })))).toEqual(
+    positionedPicks(picks.map((pick, key) => ({ ...pick, key }))),
+  )
+})
+
 it('prices the same picks whatever their nicknames and notes say', () => {
   const plain = picks.map(({ nickname: _nickname, note: _note, ...pick }, key) => ({ ...pick, key }))
 
