@@ -8,7 +8,7 @@ export type RosterView = 'datasheets' | 'units'
 type Card = { key: string | number; attachedTo?: string | number; group: UnitGroup; unit: { name: string; points: number } }
 
 /** One entry on a shelf: a datasheet alone, or an attached unit with the characters that joined it. */
-export type ShelfEntry<T> = { host: T; joined: T[]; points: number }
+type ShelfEntry<T> = { host: T; joined: T[]; points: number }
 
 /**
  * The roster's role shelves, each holding datasheets or the attached units they form.

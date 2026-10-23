@@ -37,7 +37,7 @@ import { attachedUnitCount } from '../../../core/attachedUnits'
 import type { FormatRuleId, Roster, Secondary, Stratagem } from '../../../core/battle'
 import { enforces, type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
-import { withoutUnitNotes } from '../../../core/unitNotes'
+import { nicknamedUnit, withoutUnitNotes } from '../../../core/unitNotes'
 import {
   armyReminder,
   reminderKey,
@@ -1034,7 +1034,7 @@ export function ListBuilder({
   // The shelves draw a card per datasheet; the header says how many units the list
   // brings, which is the same fold the library and the battle count it by.
   const fieldedUnitCount = frozen ? attachedUnitCount(frozen.units) : attachedUnitCount(picks)
-  const hasAttachedUnits = cards.some((card) => card.attachedTo !== undefined)
+  const hasAttachedUnits = attachedUnitCount(cards) < cards.length
   const selectedUnit = selected === null ? null : (units[selected] ?? null)
   const frozenSelected = frozen && selected !== null ? (frozen.units[selected] ?? null) : null
   // Frozen selections are what a datasheet is applied to; a log written without them
@@ -1637,7 +1637,7 @@ export function ListBuilder({
                   joined.length ? (
                     <fieldset
                       key={host.key}
-                      aria-label={host.nickname ?? host.unit.name}
+                      aria-label={nicknamedUnit(host.unit.name, host.nickname)}
                       className="min-w-0 space-y-1.5 border-l-2 border-primary/60 pl-2"
                     >
                       <div className="flex flex-wrap items-baseline justify-between gap-x-2 text-sm">
