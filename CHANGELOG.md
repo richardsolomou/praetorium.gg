@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.181.3
+
+### Patch Changes
+
+- 81fd67d: Datasheet pages list the Command Squads an Ogryn Bodyguard or Nork Deddog can join, and other attachments that only the catalogue's unit links record.
+
 ## 0.181.2
 
 ### Patch Changes
