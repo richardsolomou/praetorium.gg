@@ -2,7 +2,7 @@ import { canonicalDetachmentName } from '../core/detachmentName'
 import { cachedIn, uniqueBy } from '../core/collections'
 import { type Definition, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
 import { withoutText } from './sourceText'
-import { attachmentOf } from '../core/attach'
+import { referenceAttachmentOf } from '../core/attach'
 import {
   flattenedModifiers,
   infoLinkHiddenByRules,
@@ -240,7 +240,7 @@ function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string,
   if (!walked) return null
   const { root, name, catalogueOptions } = walked
   const details = datacardOf(loaded, catalogueId, entryId)?.details ?? null
-  const attachment = attachmentOf(root, loaded.index)
+  const attachment = referenceAttachmentOf(root, loaded.index)
   const relationships = relationshipsFor(loaded, catalogueId, root.id, name)
   return {
     id: root.id,
