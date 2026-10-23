@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { ProfilePage } from '../client/features/account/ProfilePage'
-import { battleAudienceQuery, githubSponsorshipQuery, meQuery, playerDefaultsQuery } from '../client/queries'
+import { githubSponsorshipQuery, meQuery, playerDefaultsQuery } from '../client/queries'
 import { searchFlag } from '../client/searchParams'
 
 export const Route = createFileRoute('/profile')({
@@ -14,7 +14,6 @@ export const Route = createFileRoute('/profile')({
     const me = await context.queryClient.query({ ...meQuery(), staleTime: 'static' })
     if (me)
       await Promise.all([
-        context.queryClient.query({ ...battleAudienceQuery(), staleTime: 'static' }),
         context.queryClient.query({ ...playerDefaultsQuery(), staleTime: 'static' }),
         context.queryClient.query({ ...githubSponsorshipQuery(), staleTime: 'static' }),
       ])

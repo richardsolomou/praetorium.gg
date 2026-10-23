@@ -12,7 +12,6 @@ import { DEFAULT_PUSH_NOTIFICATIONS, PUSH_TOKENS_PER_USER, PUSH_PLATFORMS } from
 import { customPointsBudget, pointsBudgetError, reduceBattle, validate, type FormatRuleId, type LoggedCommand } from '../../src/core/battle'
 import { commandSchema } from '../../src/core/commands'
 import { teamDispositionChoices } from '../../src/core/teamDisposition'
-import { BATTLE_AUDIENCES, DEFAULT_BATTLE_AUDIENCE, battleAudience, maySpectate, type BattleAudience } from '../../src/core/battleAudience'
 import { DEFAULT_PLAYER_DEFAULTS, isPlayerDefaults } from '../../src/core/playerDefaults'
 import { matchupPairingSchema, RECENT_MATCHUP_LIMIT, recentMatchupSchema } from '../../src/core/recentMatchups'
 import { onboardingTaskIds, tourTaskIds } from '../../src/core/onboarding'
@@ -33,7 +32,7 @@ import {
 import { parseRosterSnapshot, rosterPickSchema } from '../../src/core/commands'
 import { admitConnection, authConfiguration } from './admission'
 import { rosterReminderSchema } from '../../src/core/reminders'
-import { boundedProgress, DEFAULT_COLLECTION_PUBLISHED, MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS } from '../../src/core/collection'
+import { boundedProgress, MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS } from '../../src/core/collection'
 import { groupBy } from '../../src/core/collections'
 import { TABLE_SHAPES, type TableShape } from '../../src/core/tableShape'
 import { guestSeatId, isGuestSeat } from '../../src/core/newBattle'
@@ -378,7 +377,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   ctx.db.pushPreferences.userId.delete(userId)
   ctx.db.playerDefaults.userId.delete(userId)
   for (const row of Array.from(ctx.db.leagueRosterSharing.userId.filter(userId))) ctx.db.leagueRosterSharing.key.delete(row.key)
-  if (collectionPublished(ctx, userId)) touchPublic(ctx, 'collection')
+  touchPublic(ctx, 'collection')
   ctx.db.collectionSharing.userId.delete(userId)
   for (const row of Array.from(ctx.db.pushTokens.userId.filter(userId))) ctx.db.pushTokens.token.delete(row.token)
   for (const row of Array.from(ctx.db.friendships.requesterId.filter(userId))) {
@@ -639,8 +638,7 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
     if (input.scope === 'league' && (!league || !event || event.leagueId !== league.id || event.revealedAt === undefined)) {
       return productJson({ battles: [], nextCursor: null })
     }
-    const friendViewer = input.scope === 'friends' ? input.userId : input.scope === 'league' ? input.viewerId : null
-    const friendIds = friendViewer ? acceptedFriendIds(tx, friendViewer) : new Set<string>()
+    const friendIds = input.scope === 'friends' ? acceptedFriendIds(tx, input.userId!) : new Set<string>()
 
     const rows: { id: string; token: string; createdAt: number; at: number }[] = []
     const candidates = function* () {
@@ -660,38 +658,12 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
       const seats = Array.from(tx.db.battleUsers.battleId.filter(battle.id))
       const seatIds = new Set(seats.map((seat) => seat.userId))
       const hasPractice = seats.some((seat) => Boolean(tx.db.practiceOpponents.userId.find(seat.userId)))
-      const withheldPublic = seats.some((seat) => {
-        const audience = tx.db.battleSharing.userId.find(seat.userId)?.audience ?? DEFAULT_BATTLE_AUDIENCE
-        return audience !== 'public'
-      })
-      const withheldFriends = seats.some((seat) => tx.db.battleSharing.userId.find(seat.userId)?.audience === 'private')
       if (input.scope === 'user' && (!seatIds.has(input.userId!) || (input.withUserId && !seatIds.has(input.withUserId)))) continue
       if (input.scope === 'league' && tx.db.leagueEventBattles.battleId.find(battle.id)?.eventId !== event!.id) continue
-      if (
-        input.scope === 'league' &&
-        (!input.viewerId || !seatIds.has(input.viewerId)) &&
-        !maySpectate(
-          battleAudience(seats.map((seat) => tx.db.battleSharing.userId.find(seat.userId)?.audience as BattleAudience | undefined)),
-          {
-            signedIn: Boolean(input.viewerId),
-            friend: seats.some((seat) => friendIds.has(seat.userId)),
-          },
-        )
-      )
+      if (input.scope === 'public' && (hasPractice || (input.viewerId && seatIds.has(input.viewerId)))) continue
+      if (input.scope === 'friends' && (hasPractice || seatIds.has(input.userId!) || !seats.some((seat) => friendIds.has(seat.userId))))
         continue
-      if (input.scope === 'public' && (withheldPublic || hasPractice || (input.viewerId && seatIds.has(input.viewerId)))) continue
-      if (
-        input.scope === 'friends' &&
-        (withheldFriends || hasPractice || seatIds.has(input.userId!) || !seats.some((seat) => friendIds.has(seat.userId)))
-      )
-        continue
-      if (input.scope === 'watchable' && withheldPublic) continue
-      if (
-        input.scope === 'profile' &&
-        (!seatIds.has(input.userId!) || (input.viewerId ? !seatIds.has(input.viewerId) && withheldFriends : withheldPublic))
-      ) {
-        continue
-      }
+      if (input.scope === 'profile' && !seatIds.has(input.userId!)) continue
       let activity = battle.createdAt
       if (input.scope === 'user' || input.scope === 'league' || input.scope === 'watchable' || input.scope === 'profile') {
         for (const command of tx.db.commands.battleId.filter(battle.id)) if (command.at > activity) activity = command.at
@@ -1081,21 +1053,13 @@ export const acceptFriendInvite = spacetime.procedure(
   (ctx, input) => ctx.withTx((tx) => acceptFriendInviteIn(tx, [input.token, input.recipientId, input.now])),
 )
 
+// Answers the previous web build's audience reads while a release publishes; it goes with `battle_sharing`.
 export const battleAudiences = spacetime.procedure({ userIds: t.array(t.string()) }, t.string(), (ctx, { userIds }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
     if (userIds.length > 1_000) throw new SenderError('Too many audience recipients')
-    return productJson(
-      [...new Set(userIds)].map((userId) => ({
-        userId,
-        audience: tx.db.battleSharing.userId.find(userId)?.audience ?? DEFAULT_BATTLE_AUDIENCE,
-      })),
-    )
+    return productJson([...new Set(userIds)].map((userId) => ({ userId, audience: 'public' })))
   }),
-)
-
-export const setBattleAudience = spacetime.procedure({ userId: t.string(), audience: t.string(), now: t.u64() }, t.string(), (ctx, input) =>
-  ctx.withTx((tx) => setBattleAudienceIn(tx, [input.userId, input.audience, input.now])),
 )
 
 export const shareBattle = spacetime.procedure({ userId: t.string(), otherId: t.string() }, t.bool(), (ctx, input) =>
@@ -1158,7 +1122,10 @@ export const migrateProductData = spacetime.procedure({ table: t.string(), keys:
   ctx.withTx((tx) => {
     requireOperator(tx)
     const { table: entity, keys } = z
-      .object({ table: z.enum(['rosters', 'collection']), keys: z.array(z.string().min(1).max(512)).max(20) })
+      .object({
+        table: z.enum(['rosters', 'collection', 'battle_sharing', 'collection_sharing']),
+        keys: z.array(z.string().min(1).max(512)).max(20),
+      })
       .parse(input)
     let changed = 0
     for (const key of keys) {
@@ -1170,6 +1137,11 @@ export const migrateProductData = spacetime.procedure({ table: t.string(), keys:
         tx.db.rosters.id.update(migrated)
         touchProduct(tx, row.userId, 'rosters')
         changed++
+      } else if (entity === 'battle_sharing') {
+        // Battle and collection sharing are retired; their rows are deleted so a later module can drop the tables.
+        if (tx.db.battleSharing.userId.delete(key)) changed++
+      } else if (entity === 'collection_sharing') {
+        if (tx.db.collectionSharing.userId.delete(key)) changed++
       } else {
         const row = tx.db.collection.key.find(key)
         if (!row || !migrateCollectionHeart(tx, row)) continue
@@ -1675,8 +1647,6 @@ export const collectionProfile = spacetime.procedure(
   (ctx, { userId, viewerId }) =>
     ctx.withTx((tx) => {
       requireOperator(tx)
-      const published = collectionPublished(tx, userId)
-      if (!published && viewerId !== userId) return productJson(null)
       moveHeartsToFavourites(tx, userId)
       const entries = []
       for (const row of tx.db.collection.userId.filter(userId)) {
@@ -1689,29 +1659,14 @@ export const collectionProfile = spacetime.procedure(
           ...collectionPhotoField(tx, row.key, viewerId === userId),
         })
       }
-      return productJson({ published, entries, wishes: collectionWishes(tx, userId) })
+      // `published` keeps the previous web build's reader valid while a release publishes; it goes with `collection_sharing`.
+      return productJson({ published: true, entries, wishes: collectionWishes(tx, userId) })
     }),
 )
 
-export const setCollectionPublished = spacetime.procedure({ userId: t.string(), published: t.bool() }, t.bool(), (ctx, input) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
-    if (!validId(input.userId)) throw new SenderError('Invalid user ID')
-    if (tx.db.collectionSharing.userId.find(input.userId)) tx.db.collectionSharing.userId.update(input)
-    else tx.db.collectionSharing.insert(input)
-    touchProduct(tx, input.userId, 'collection')
-    touchPublic(tx, 'collection')
-    return input.published
-  }),
-)
-
-function collectionPublished(ctx: Context, userId: string) {
-  return ctx.db.collectionSharing.userId.find(userId)?.published ?? DEFAULT_COLLECTION_PUBLISHED
-}
-
 function touchCollection(ctx: Context, userId: string) {
   touchProduct(ctx, userId, 'collection')
-  if (collectionPublished(ctx, userId)) touchPublic(ctx, 'collection')
+  touchPublic(ctx, 'collection')
 }
 
 export const addToCollection = spacetime.reducer({ userId: t.string(), entryId: t.string(), at: t.u64() }, (ctx, input) => {
@@ -1837,7 +1792,7 @@ export const collectionPhoto = spacetime.procedure(
     ctx.withTx((tx) => {
       requireOperator(tx)
       const row = tx.db.collectionPhotos.photoId.find(photoId)
-      return productJson(row && photoShown(tx, row, viewerId) ? { userId: row.userId, entryId: row.entryId } : null)
+      return productJson(row && photoShown(row, viewerId) ? { userId: row.userId, entryId: row.entryId } : null)
     }),
 )
 
@@ -1850,25 +1805,19 @@ export const collectionPhotoForAdmin = spacetime.procedure({ photoId: t.string()
   }),
 )
 
-/** Always shown to its owner; to anyone else while the collection is shared and no report holds it. */
-function photoShown(ctx: Context, row: { userId: string; review?: string }, viewerId: string | undefined) {
-  return row.userId === viewerId || (row.review !== 'held' && collectionPublished(ctx, row.userId))
+/** Always shown to its owner; to anyone else while no report holds it. */
+function photoShown(row: { userId: string; review?: string }, viewerId: string | undefined) {
+  return row.userId === viewerId || row.review !== 'held'
 }
 
-/** The photos of a datasheet its viewer may see, shared collections' and the viewer's own, in gallery order. */
+/** The photos of a datasheet its viewer may see, in gallery order. */
 export const datasheetPhotos = spacetime.procedure(
   { entryId: t.string(), viewerId: t.option(t.string()), limit: t.u32() },
   t.string(),
   (ctx, { entryId, viewerId, limit }) =>
     ctx.withTx((tx) => {
       requireOperator(tx)
-      const published = new Map<string, boolean>()
-      const visible = Array.from(tx.db.collectionPhotos.entryId.filter(entryId)).filter((row) => {
-        if (row.userId === viewerId) return true
-        if (row.review === 'held') return false
-        if (!published.has(row.userId)) published.set(row.userId, collectionPublished(tx, row.userId))
-        return published.get(row.userId)
-      })
+      const visible = Array.from(tx.db.collectionPhotos.entryId.filter(entryId)).filter((row) => photoShown(row, viewerId))
       return productJson(
         rankCollectionPhotos(visible.map((row) => ({ ...row, likes: row.likes ?? 0 })))
           .slice(0, Math.min(limit, 100))
@@ -1889,7 +1838,7 @@ export const setCollectionPhotoLike = spacetime.reducer(
   (ctx, { userId, photoId, liked, at }) => {
     requireOperator(ctx)
     const photo = ctx.db.collectionPhotos.photoId.find(photoId)
-    if (!photo || !photoShown(ctx, photo, userId)) throw new SenderError('That photo is no longer shown')
+    if (!photo || !photoShown(photo, userId)) throw new SenderError('That photo is no longer shown')
     if (photo.userId === userId) throw new SenderError('You cannot like your own photo')
     setLike(ctx, photoId, userId, liked, at)
   },
@@ -1899,7 +1848,7 @@ export const setCollectionPhotoLike = spacetime.reducer(
 export const reportCollectionPhoto = spacetime.reducer({ userId: t.string(), photoId: t.string() }, (ctx, { userId, photoId }) => {
   requireOperator(ctx)
   const photo = ctx.db.collectionPhotos.photoId.find(photoId)
-  if (!photo || !photoShown(ctx, photo, userId)) throw new SenderError('That photo is no longer shown')
+  if (!photo || !photoShown(photo, userId)) throw new SenderError('That photo is no longer shown')
   if (photo.userId === userId) throw new SenderError('You cannot report your own photo')
   if (photo.review === 'kept') {
     ctx.db.collectionPhotos.photoId.update({ ...photo, review: 'flagged' })
@@ -1956,19 +1905,16 @@ export const adminCollectionPhotos = spacetime.procedure({ payload: t.string() }
       rows.push({ row, at })
     }
     rows.sort((left, right) => right.at - left.at || right.row.photoId.localeCompare(left.row.photoId))
-    const published = new Map<string, boolean>()
-    const photos = rows.slice(0, input.limit).map(({ row, at }) => {
-      if (!published.has(row.userId)) published.set(row.userId, collectionPublished(tx, row.userId))
-      return {
-        photoId: row.photoId,
-        userId: row.userId,
-        entryId: row.entryId,
-        at,
-        likes: row.likes ?? 0,
-        published: published.get(row.userId)!,
-        kept: row.review === 'kept',
-      }
-    })
+    const photos = rows.slice(0, input.limit).map(({ row, at }) => ({
+      photoId: row.photoId,
+      userId: row.userId,
+      entryId: row.entryId,
+      at,
+      likes: row.likes ?? 0,
+      // Keeps the previous web build's reader valid while a release publishes; it goes with `collection_sharing`.
+      published: true,
+      kept: row.review === 'kept',
+    }))
     const last = photos.at(-1)
     return productJson({ photos, nextCursor: rows.length > input.limit && last ? { at: last.at, id: last.photoId } : null })
   }),
@@ -2929,23 +2875,6 @@ function acceptFriendInviteIn(tx: Context, args: unknown[]) {
   return productJson({ inviterId: invite.inviterId })
 }
 
-function setBattleAudienceIn(tx: Context, args: unknown[]) {
-  const [userId, audience, now] = z.tuple([textArg, textArg, timestampArg]).parse(args)
-
-  requireOperator(tx)
-  if (!validId(userId) || !(BATTLE_AUDIENCES as readonly string[]).includes(audience)) {
-    throw new SenderError('Invalid battle audience')
-  }
-  const current = tx.db.battleSharing.userId.find(userId)
-  const row = { userId, audience, at: now }
-  if (current) tx.db.battleSharing.userId.update(row)
-  else tx.db.battleSharing.insert(row)
-  touchProduct(tx, userId, 'settings', 'battles')
-  touchPublic(tx, 'battles')
-  touchPublic(tx, 'standings')
-  return audience
-}
-
 function updateOnboardingIn(tx: Context, args: unknown[]) {
   const [userId, operation, task] = z.tuple([textArg, textArg, textArg]).parse(args)
 
@@ -3815,7 +3744,6 @@ const syncProductActions = {
   replace_friend_invite: replaceFriendInviteIn,
   cancel_friend_invite: cancelFriendInviteIn,
   accept_friend_invite: acceptFriendInviteIn,
-  set_battle_audience: setBattleAudienceIn,
   update_onboarding: updateOnboardingIn,
   add_to_collection: addToCollectionIn,
   remove_from_collection: removeFromCollectionIn,
@@ -3876,7 +3804,7 @@ export const syncProduct = spacetime.procedure({ payload: t.string() }, t.string
     if (!Object.hasOwn(syncProductActions, input.name)) throw new SenderError('Unsupported saved action')
     const action = syncProductActions[input.name as keyof typeof syncProductActions]
     const result = action(tx, input.args)
-    const decoded: unknown = typeof result === 'string' && input.name !== 'set_battle_audience' ? JSON.parse(result) : result
+    const decoded: unknown = typeof result === 'string' ? JSON.parse(result) : result
     const refusal = productSyncRefusal(input.name, decoded)
     tx.db.syncReceipts.insert({
       id: input.id,

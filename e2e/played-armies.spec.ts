@@ -12,9 +12,7 @@ for (const [width, label] of [
   [390, 'phone'],
   [1440, 'desktop'],
 ] as const) {
-  test(`a played army is found, copied, edited and simulated without changing its battle, and leaves when its player turns battles private (${label})`, async ({
-    browser,
-  }) => {
+  test(`a played army is found, copied, edited and simulated without changing its battle (${label})`, async ({ browser }) => {
     test.setTimeout(180_000)
     const viewport = { width, height: width === 390 ? 844 : 900 }
     const operator = await productOperator()
@@ -81,11 +79,6 @@ for (const [width, label] of [
         await simulator.getByRole('button', { name: 'Close', exact: true }).click()
       }
       expect(await operator.log(token)).toEqual(fielded)
-
-      await operator.setBattleAudience(seated[0], 'private', Date.now())
-      await reader.goto('/rosters?view=played')
-      await expect(reader.getByRole('heading', { name: 'Played armies', exact: true })).toBeVisible()
-      await expect(playedArmy(reader, playerName)).toHaveCount(0)
     } finally {
       await operator.deleteBattleForOperator(token)
     }

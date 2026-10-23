@@ -4,11 +4,12 @@ import { SpacetimeOperator } from './spacetimeOperator'
 import { offlineContext } from './offlineContext'
 
 it.each([true, false])('retains whether this transaction applied the saved action (%s)', async (applied) => {
-  const request = vi.fn(async () => Response.json(JSON.stringify({ result: '"friends"', applied })))
+  const defaults = { rosterVisibility: 'private', battleSize: 1000 } as const
+  const request = vi.fn(async () => Response.json(JSON.stringify({ result: JSON.stringify(JSON.stringify(defaults)), applied })))
   const operator = new SpacetimeOperator('https://spacetime.example/', 'preview-42', 'operator-secret', request)
   const context = { id: crypto.randomUUID(), owner: 'player', fingerprint: 'a'.repeat(64), createdAt: 1, identifiers: {}, wrote: false }
-  const result = await offlineContext.run(context, () => operator.setBattleAudience('player', 'friends', 1))
-  expect({ result, applied: offlineContext.run(context, () => offlineContext.getStore()?.applied) }).toEqual({ result: 'friends', applied })
+  const result = await offlineContext.run(context, () => operator.setPlayerDefaults('player', defaults, 1))
+  expect({ result, applied: offlineContext.run(context, () => offlineContext.getStore()?.applied) }).toEqual({ result: defaults, applied })
 })
 
 it('accepts roster sync acknowledgements from a module that predates lifecycle telemetry', async () => {

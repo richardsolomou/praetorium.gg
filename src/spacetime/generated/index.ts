@@ -138,8 +138,6 @@ import * as RostersByUserProcedure from './rosters_by_user_procedure'
 import * as RostersLentToProcedure from './rosters_lent_to_procedure'
 import * as SaveRosterProcedure from './save_roster_procedure'
 import * as SaveUnitLoadoutProcedure from './save_unit_loadout_procedure'
-import * as SetBattleAudienceProcedure from './set_battle_audience_procedure'
-import * as SetCollectionPublishedProcedure from './set_collection_published_procedure'
 import * as SetPlayerDefaultsProcedure from './set_player_defaults_procedure'
 import * as SetPushEnabledProcedure from './set_push_enabled_procedure'
 import * as SetRosterArchivedProcedure from './set_roster_archived_procedure'
@@ -336,8 +334,6 @@ const proceduresSchema = __procedures(
   __procedureSchema('rosters_lent_to', RostersLentToProcedure.params, RostersLentToProcedure.returnType),
   __procedureSchema('save_roster', SaveRosterProcedure.params, SaveRosterProcedure.returnType),
   __procedureSchema('save_unit_loadout', SaveUnitLoadoutProcedure.params, SaveUnitLoadoutProcedure.returnType),
-  __procedureSchema('set_battle_audience', SetBattleAudienceProcedure.params, SetBattleAudienceProcedure.returnType),
-  __procedureSchema('set_collection_published', SetCollectionPublishedProcedure.params, SetCollectionPublishedProcedure.returnType),
   __procedureSchema('set_player_defaults', SetPlayerDefaultsProcedure.params, SetPlayerDefaultsProcedure.returnType),
   __procedureSchema('set_push_enabled', SetPushEnabledProcedure.params, SetPushEnabledProcedure.returnType),
   __procedureSchema('set_roster_archived', SetRosterArchivedProcedure.params, SetRosterArchivedProcedure.returnType),

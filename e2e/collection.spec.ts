@@ -267,7 +267,7 @@ test('direct collection counts reject invalid values and step from an unsaved ed
   await expect(count).toHaveValue('31')
 })
 
-test('profiles show a new collection by default and settings hide it', async ({ page, browser }) => {
+test('profiles show a new collection', async ({ page, browser }) => {
   await signUp(page, uniqueName('Profile collection'))
   await page.goto('/collection')
   await addDatasheet(page, 'Overlord', 'Necrons')
@@ -298,34 +298,10 @@ test('profiles show a new collection by default and settings hide it', async ({ 
   const collection = page.locator('[data-player-collection]')
   await expect(collection).toContainText('31 models · 2 datasheets')
   await expect(page.getByRole('switch')).toHaveCount(0)
-  await page.goto('/profile#collection-sharing')
-  const sharing = page.getByRole('switch', { name: /Show collection on profile/ })
-  for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: 900 })
-    await expect(sharing).toBeChecked()
-    await expect(sharing).toBeEnabled()
-    await expectNoHorizontalOverflow(page.locator('main'))
-  }
-  await page.setViewportSize({ width: 1440, height: 900 })
-  await sharing.click()
-  await expect(sharing).not.toBeChecked()
-  await expect.poll(() => operator.collectionProfile(owner, null)).toBeNull()
-  await expect(shown).toHaveCount(0)
-  await guest.reload()
-  await expect(guest.getByRole('tab', { name: 'Collection', exact: true })).toHaveCount(0)
-  await expect(guest.locator('[data-collection-unit]')).toHaveCount(0)
-  await page.reload()
-  await expect(sharing).toBeEnabled()
-  await expect(sharing).not.toBeChecked()
-  await page.goto(profileUrl)
-  await expect(collection).toContainText('31 models · 2 datasheets')
   await guestContext.close()
 })
 
-test('collection photos are added together, removed only after confirmation, and shown only while the collection is shared', async ({
-  page,
-  browser,
-}) => {
+test('collection photos are added together and removed only after confirmation', async ({ page, browser }) => {
   await signUp(page, uniqueName('Collection photo'))
   await page.goto('/collection')
   await addDatasheet(page, 'Overlord', 'Necrons')
@@ -382,13 +358,6 @@ test('collection photos are added together, removed only after confirmation, and
     .locator('img')
   await loaded(thumbnail)
   await expectNoHorizontalOverflow(guest.locator('main'))
-
-  const operator = await productOperator()
-  await operator.setCollectionPublished(owner, false)
-  expect([await status(guest, second), await status(page, second)]).toEqual([404, 200])
-  const hidden = await guest.request.get(new URL(second, page.url()).href, { headers: { 'If-None-Match': etag } })
-  expect([hidden.status(), hidden.headers()['cache-control']]).toEqual([404, 'no-store'])
-  await operator.setCollectionPublished(owner, true)
 
   await page.getByRole('button', { name: 'Photos of your Overlord', exact: true }).click()
   await photo(1).click()

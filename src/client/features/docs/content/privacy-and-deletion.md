@@ -1,16 +1,8 @@
-Your name, picture and profile page are public, and your email is private. The rest depends on settings in [Account settings](/profile) and on each roster's own access.
+Your name, picture and profile page are public, and your email is private. Battles and your collection are public too, and each roster has its own access.
 
 ## Battles
 
-**Battle privacy** sets **Who can watch** your past and live battles, league games included:
-
-- **Anyone**, the default. Your games are listed with public games, and finished ones count on the leaderboard.
-- **Friends**. Friends of any seated player can watch.
-- **Players only**. Only the seated players can find or watch it.
-
-The most private choice at the table applies to everyone in that battle. Spectators can't change anything or see a face-down Secret Mission. Your profile's battle record only shows games the reader is allowed to watch.
-
-![The Battle privacy section with Anyone, Friends and Players only.](screenshot:account-battle-privacy 'Who can watch, under Battle privacy')
+Battles are public. Anyone can find and watch your past and live battles, league games included, and finished ones count on the leaderboard. Spectators can't change anything or see a face-down Secret Mission.
 
 ## Rosters
 
@@ -20,7 +12,7 @@ Making a roster private again stops its link working, but the copies of it alrea
 
 ## Collection
 
-**Show collection on profile** is on by default, so anyone can see your collection's datasheets, model counts, photos and wishlist. Switch it off to hide them.
+Your collection is public: anyone can see its datasheets, model counts, photos and wishlist on your profile.
 
 ## Ask about your data
 

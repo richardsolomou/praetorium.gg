@@ -64,11 +64,6 @@ export const productActions = {
     })
     return defaults
   }),
-  setBattleAudience: action(schemas.setBattleAudience, async (owner, data) => {
-    const audience = await app().service.setBattleAudience(owner, data.audience)
-    await captureMutation(owner, 'battle_audience_set', { audience })
-    return audience
-  }),
   setPushNotifications: action(schemas.setPushNotifications, async (owner, data) => {
     const instance = app()
     const enabled = await instance.service.setPushEnabled(owner, data.enabled)

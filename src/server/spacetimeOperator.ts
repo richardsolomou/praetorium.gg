@@ -6,7 +6,6 @@ import type { CollectionImportRow } from '../core/collection'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES, type RosterSource, type RosterVisibility } from '../core/savedRoster'
 import { commandRefusal, reduceBattle, type Command, type LoggedCommand, type Refusal, type SubmitResult } from '../core/battle'
 import { commandSchema } from '../core/commands'
-import { BATTLE_AUDIENCES, DEFAULT_BATTLE_AUDIENCE, type BattleAudience } from '../core/battleAudience'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, rosterDiscoveryCursorSchema, type RosterDiscoveryQuery } from '../core/rosterDiscovery'
 import type { PlayerDefaults } from '../core/playerDefaults'
@@ -488,24 +487,6 @@ export class SpacetimeOperator {
     return this.read('accept_friend_invite', [token, recipientId, now], acceptedInvite)
   }
 
-  async battleAudiences(userIds: readonly string[]) {
-    if (!userIds.length) return new Map<string, BattleAudience>()
-    const rows = await this.read(
-      'battle_audiences',
-      [[...new Set(userIds)]],
-      z.array(z.object({ userId: z.string(), audience: z.enum(BATTLE_AUDIENCES) })),
-    )
-    return new Map(rows.map((row) => [row.userId, row.audience]))
-  }
-
-  async battleAudience(userId: string): Promise<BattleAudience> {
-    return (await this.battleAudiences([userId])).get(userId) ?? DEFAULT_BATTLE_AUDIENCE
-  }
-
-  async setBattleAudience(userId: string, audience: BattleAudience, now: number) {
-    return this.reply('set_battle_audience', [userId, audience, now], z.enum(BATTLE_AUDIENCES))
-  }
-
   async shareBattle(userId: string, otherId: string) {
     return this.reply('share_battle', [userId, otherId], z.boolean())
   }
@@ -640,10 +621,6 @@ export class SpacetimeOperator {
     return this.read('collection_profile', [userId, viewerId === null ? { none: [] } : { some: viewerId }], collectionProfileSchema)
   }
 
-  async setCollectionPublished(userId: string, published: boolean) {
-    return this.reply('set_collection_published', [userId, published], z.boolean())
-  }
-
   async collectionByUser(userId: string) {
     return this.read('collection_by_user', [userId], z.array(collectionRow))
   }
@@ -755,7 +732,6 @@ export class SpacetimeOperator {
               entryId: z.string(),
               at: z.number().int(),
               likes: z.number().int().nonnegative(),
-              published: z.boolean(),
               kept: z.boolean(),
             }),
           )
