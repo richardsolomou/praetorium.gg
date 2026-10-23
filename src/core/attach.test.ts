@@ -357,6 +357,45 @@ describe('a character that can join a unit', () => {
     expect(referenceAttachmentOf(index.definitions.get('chronomancer')!, index)?.targets).toEqual(['IMMORTALS'])
   })
 
+  it('offers a unit association only datasheets that are units', () => {
+    const index = indexOf({
+      categoryEntries: [{ id: 'tacticus', name: 'Tacticus' }],
+      sharedSelectionEntries: [
+        {
+          id: 'champion',
+          name: 'Champion of the Chapter',
+          type: 'model',
+          associations: [
+            {
+              name: 'Leading',
+              childId: 'unit',
+              action: 'group',
+              conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'self', childId: 'tacticus' }],
+            },
+          ],
+        },
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'model',
+          categoryLinks: [{ id: 'captain-tacticus', name: 'Tacticus', targetId: 'tacticus' }],
+        },
+        {
+          id: 'intercessors',
+          name: 'Intercessor Squad',
+          type: 'unit',
+          categoryLinks: [{ id: 'intercessor-tacticus', name: 'Tacticus', targetId: 'tacticus' }],
+        },
+      ],
+      entryLinks: [
+        { id: 'captain-link', name: 'Captain', type: 'selectionEntry', targetId: 'captain' },
+        { id: 'intercessors-link', name: 'Intercessor Squad', type: 'selectionEntry', targetId: 'intercessors' },
+      ],
+    })
+
+    expect(attachmentOf(index.definitions.get('champion')!, index, { id: 'champion' })?.targets).toEqual(['Intercessor Squad'])
+  })
+
   it("reads a candidate unit's keywords from its models too", () => {
     const index = indexOf({
       categoryEntries: [
