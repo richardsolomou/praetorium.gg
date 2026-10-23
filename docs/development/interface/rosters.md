@@ -10,7 +10,7 @@ The builder has one picker and one loadout instance, moved between desktop colum
 
 One roster card serves libraries, choosers, editable and read-only lists, and frozen snapshots. A pending price is a loading state, not an empty roster. Frozen snapshots retain recorded cards and totals without today's legality or data-update warnings. Readers who cannot edit get no mutation controls but keep Test targets and Simulate combat, which never save. Locked rosters read as they do to other readers. Library legality and changed-list counts use [Catalogue data](../catalogue/rules-versions.md#data-updates).
 
-Roster menus put setup, conversion, and copies first, then sharing, export, and print, then deletion; library and context menus follow the same order. The builder's roster menu titles its groups (`MenuSection`: Play, Setup, Copies and access, Share, then Display for view settings) so a long menu scans by purpose. Deleting an active roster offers Archive as the primary action.
+Roster menus put setup, conversion, and copies first, then sharing, export, and print, then deletion; library and context menus follow the same order. Deleting an active roster offers Archive as the primary action.
 
 A copy records `copiedFromRosterId` once and names its source only while the reader may still open it, resolved through `rosterAccess` on every read. Sharing saves first only when edits are unsaved and reports its result beneath the header, not in the closed menu.
 
