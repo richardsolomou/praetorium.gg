@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.182.1
+
+### Patch Changes
+
+- 86f7e86: Crucible Champion of the Chapter and Librarius Adept no longer offer Character units as bodyguards.
+
 ## 0.182.0
 
 ### Minor Changes
