@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.183.2
+
+### Patch Changes
+
+- 58df806: Nork Deddog and Ogryn Bodyguard count as part of the unit their Command Squad leads, so the simulator and reserves see one unit.
+
 ## 0.183.1
 
 ### Patch Changes
