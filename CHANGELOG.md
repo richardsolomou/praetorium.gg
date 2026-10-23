@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.183.0
+
+### Minor Changes
+
+- 68a78e5: Terrain layouts outline the pieces of one terrain area together, so they are no longer confused with separate pieces that touch.
+
 ## 0.182.4
 
 ### Patch Changes
