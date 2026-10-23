@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.181.1
+
+### Patch Changes
+
+- 39298a4: Ogryn Bodyguard and Nork Deddog can join a Command Squad.
+
 ## 0.181.0
 
 ### Minor Changes
