@@ -3,7 +3,10 @@
   "name": "praetorium",
   "version": "1.0.0",
   "description": "Warhammer 40,000 datasheets, points, detachments, missions and a combat simulator, plus your saved rosters and battles on Praetorium.",
-  "author": { "name": "Richard Solomou", "url": "https://praetorium.gg" },
+  "author": {
+    "name": "Richard Solomou",
+    "url": "https://praetorium.gg"
+  },
   "homepage": "https://praetorium.gg/docs/connect-an-assistant",
   "repository": "https://github.com/richardsolomou/praetorium.gg",
   "license": "AGPL-3.0-only",
@@ -37,7 +40,7 @@
             {
               "description": "Look up a unit's points",
               "prompt": "Using Praetorium, how many points is a five-model Immortals unit for Necrons?",
-              "tools_triggered": "search_reference, get_reference",
+              "tools_triggered": "list_units or search_reference",
               "expected_behavior": "States the points for five Immortals from the current Munitorum Field Manual, and links to the Immortals datasheet on praetorium.gg."
             },
             {
@@ -80,6 +83,7 @@
             }
           ]
         },
+        "demo_recording_url": "https://github.com/richardsolomou/praetorium.gg/releases/download/assistant-directory-demo/praetorium-chatgpt-demo-1080p.mp4",
         "commerce": false,
         "commerce_description": "Praetorium is free and does not sell products or process payments."
       },
