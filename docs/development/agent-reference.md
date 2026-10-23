@@ -24,6 +24,8 @@ The same `/mcp` server is listed in the ChatGPT plugin directory and Claude's Co
 
 [`plugin/`](../../plugin) is the ChatGPT package: `plugin.json` holds the listing and review test cases, and `mcp.json` the server. `just plugin-zip` writes `dist/praetorium-plugin.zip` for upload at [OpenAI's plugin portal](https://platform.openai.com/plugins); listing or test-case edits need a new upload. The portal's domain challenge is served from `/.well-known/openai-apps-challenge`. Claude's connector has no repository files; its listing is edited at [claude.ai/directory/manage](https://claude.ai/directory/manage).
 
+Gemini has no directory for third-party MCP servers; [Connect an assistant](../../src/client/features/docs/content/connect-an-assistant.md) covers adding the server as a Gemini custom app. When a listing is published or moves, update that assistant's steps there.
+
 Reviewers sign in to production as the [review account](mobile-release.md#review-access), so keep its rosters and battles intact while a review is open.
 
 ## WebMCP

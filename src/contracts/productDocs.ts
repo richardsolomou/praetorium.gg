@@ -156,7 +156,7 @@ export const PRODUCT_DOCS = [
     slug: 'connect-an-assistant',
     section: 'AI assistants',
     title: 'Connect an assistant',
-    description: 'Add the Praetorium MCP server to Claude, ChatGPT or another assistant.',
+    description: 'Add the Praetorium MCP server to Claude, ChatGPT, Gemini or another assistant.',
   },
   {
     slug: 'assistant-answers',
