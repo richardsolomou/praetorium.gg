@@ -3,7 +3,7 @@ import type { PickerUnit } from '../../../contracts/catalogue'
 import { availableChoices, joinableUnits, newHosts, newJoiners, rosterJoiners } from '../../../core/attachmentOptions'
 import { attachmentRows } from '../../../core/attachmentRows'
 import type { KeyedPick } from './rosterPicks'
-import { AttachMenu, type AttachChoice, EmbarkMenu, JoinedRow, ROW, UnitCard } from './builder/UnitCard'
+import { AttachMenu, type AttachChoice, EmbarkMenu, JoinedRow, UnitCard } from './builder/UnitCard'
 import { cardEmbark, type EmbarkCard, embarkRows, NO_EMBARK } from './builder/embarkModel'
 import { unitLimitMessage } from './builder/usePicks'
 
@@ -90,7 +90,6 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
       onBoard={(choice) => onEmbark(choice.passenger, choice.transport)}
       canCarry={embark.canCarry}
       onCarry={(choice) => onEmbark(choice.passenger, choice.transport)}
-      status={embark.notice ? <output className="text-xs">{embark.notice}</output> : undefined}
       alertCount={alertCount}
       editable={editable}
     />
@@ -118,7 +117,7 @@ export function AttachedUnitActions({
   onAttach?: (index: number, direction: AttachDirection, choice: AttachChoice) => void
   onEmbark?: (passengerKey: number, transportKey: number | undefined) => void
 }) {
-  const { ridesIn, notice } = embark
+  const { ridesIn } = embark
   return (
     <>
       {editable && canHost.length ? (
@@ -143,11 +142,6 @@ export function AttachedUnitActions({
           choices={embark.canBoard}
           onChoose={(choice) => onEmbark?.(choice.passenger, choice.transport)}
         />
-      ) : null}
-      {notice ? (
-        <div data-unit-status className={ROW}>
-          <output className="text-xs">{notice}</output>
-        </div>
       ) : null}
     </>
   )

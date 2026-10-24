@@ -2,7 +2,7 @@ import { BellRing, BookmarkPlus, Copy, Crown, EllipsisVertical, Plus, Unlink, Us
 import { type ReactNode, useId } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,7 +36,7 @@ export type AttachChoice =
   | { kind: 'new'; entryId: string; name: string; points: number | null; reason: string | null }
 
 /** Who this unit is joined to or riding with, in whichever direction the card is showing. */
-export type Joined = { label: string; name: string; detail?: string; action?: string; onAct?: () => void }
+export type Joined = { label: string; name: string; action?: string; onAct?: () => void }
 
 type Props = {
   unit: BuiltUnit
@@ -144,7 +144,7 @@ export function UnitCard({
                   <EllipsisVertical />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className={MENU}>
-                  <UnitActions Item={DropdownMenuItem} {...actions} />
+                  <UnitActions parts={DROPDOWN_PARTS} {...actions} />
                 </DropdownMenuContent>
               </DropdownMenu>
             </span>
@@ -264,7 +264,7 @@ export function UnitCard({
     <ContextMenu>
       <ContextMenuTrigger render={<div data-unit={unit.name} className={cardClassName} />}>{card}</ContextMenuTrigger>
       <ContextMenuContent className={MENU}>
-        <UnitActions Item={ContextMenuItem} {...actions} />
+        <UnitActions parts={CONTEXT_PARTS} {...actions} />
       </ContextMenuContent>
     </ContextMenu>
   )
@@ -284,7 +284,6 @@ export function JoinedRow({ row, editable }: { row: Joined; editable: boolean })
     <div className={`${ROW} pointer-events-none relative z-10 flex-wrap gap-2 [&_button]:pointer-events-auto`}>
       <span className="chip shrink-0">{row.label}</span>
       <span className="min-w-24 flex-1 text-xs break-words">{row.name}</span>
-      {row.detail ? <span className="readout shrink-0 text-2xs text-dim">{row.detail}</span> : null}
       {editable && row.action ? (
         <Button
           data-print-hide
@@ -388,13 +387,13 @@ export function EmbarkMenu({
         >
           <span className="min-w-0 flex-1">
             <span className={`block ${ITEM} ${choice.reason ? 'text-faint' : ''}`}>{choice.name}</span>
+            {choice.detail ? <span className="readout mt-0.5 block text-2xs text-dim">{choice.detail}</span> : null}
             {choice.reason ? (
               <span id={`${id}-${at}`} className="mt-0.5 block text-2xs text-discarded">
                 {asSentence(choice.reason)}
               </span>
             ) : null}
           </span>
-          {choice.detail ? <span className="readout shrink-0 text-2xs text-dim">{choice.detail}</span> : null}
         </DropdownMenuItem>
       ))}
     </CardMenu>
@@ -454,8 +453,11 @@ function UnitAlertMarker({ count, unitName }: { count: number; unitName: string 
   )
 }
 
+const DROPDOWN_PARTS = { Item: DropdownMenuItem, Separator: DropdownMenuSeparator }
+const CONTEXT_PARTS = { Item: ContextMenuItem, Separator: ContextMenuSeparator }
+
 function UnitActions({
-  Item,
+  parts: { Item, Separator },
   onDuplicate,
   canDuplicate,
   onSaveLoadout,
@@ -463,7 +465,7 @@ function UnitActions({
   onDetach,
   onRemove,
 }: {
-  Item: typeof DropdownMenuItem | typeof ContextMenuItem
+  parts: typeof DROPDOWN_PARTS | typeof CONTEXT_PARTS
   onDuplicate: () => void
   canDuplicate: boolean
   onSaveLoadout?: () => void
@@ -476,6 +478,7 @@ function UnitActions({
       <Item className={ITEM} disabled={!canDuplicate} onClick={onDuplicate}>
         <Copy className="size-3.5" /> Duplicate unit
       </Item>
+      {onSaveLoadout || onSaveAttachedUnit ? <Separator /> : null}
       {onSaveLoadout ? (
         <Item className={ITEM} onClick={onSaveLoadout}>
           <BookmarkPlus className="size-3.5" /> Save loadout
@@ -487,10 +490,14 @@ function UnitActions({
         </Item>
       ) : null}
       {onDetach ? (
-        <Item className={ITEM} onClick={onDetach}>
-          <Unlink className="size-3.5" /> Detach from unit
-        </Item>
+        <>
+          <Separator />
+          <Item className={ITEM} onClick={onDetach}>
+            <Unlink className="size-3.5" /> Detach from unit
+          </Item>
+        </>
       ) : null}
+      <Separator />
       <Item variant="destructive" className={ITEM} onClick={onRemove}>
         <X className="size-3.5" /> Delete unit
       </Item>

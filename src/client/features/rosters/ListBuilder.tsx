@@ -22,6 +22,7 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 import { posthog } from 'posthog-js'
+import { toast } from 'sonner'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -93,17 +94,7 @@ import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
 import { UnitAnnotations } from './builder/UnitAnnotations'
-import {
-  cardEmbark,
-  editedPicks,
-  embarkCards,
-  embarkRows,
-  NO_EMBARK,
-  type PutBack,
-  putBacks,
-  standingPutBacks,
-  withPutBackNotices,
-} from './builder/embarkModel'
+import { cardEmbark, editedPicks, embarkCards, embarkRows, NO_EMBARK, putBacks } from './builder/embarkModel'
 import { UnitPhoto } from './builder/UnitPhoto'
 import { useDetachmentRules } from './builder/useDetachmentRules'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
@@ -752,19 +743,16 @@ export function ListBuilder({
     () => (currentEmbarks && battleDetails?.length ? putBacks(currentEmbarks.dropped, picks) : []),
     [battleDetails?.length, currentEmbarks, picks],
   )
-  const [putBack, setPutBack] = useState<ReadonlyMap<number, PutBack>>(new Map())
   useEffect(() => {
     if (!building || !going.length) return
     edit.disembark(going.map(({ pick }) => pick.key))
-    setPutBack((current) => new Map([...current, ...going.map((entry) => [entry.pick.key, entry] as const)]))
+    // Keyed by unit, so an effect that runs twice shows one toast.
+    for (const { name: unit, transport, pick } of going) {
+      toast(`${unit} no longer fits in ${transport}, so it starts on the battlefield.`, { id: `put-back-${pick.key}`, duration: 3000 })
+    }
   }, [building, edit, going])
-  const standing = useMemo(() => standingPutBacks(putBack.values(), picks), [picks, putBack])
-  // Forgotten once cleared, so changing the unit back to how it was does not bring the notice back.
-  useEffect(() => {
-    if (standing.length !== putBack.size) setPutBack(new Map(standing.map((entry) => [entry.pick.key, entry])))
-  }, [putBack.size, standing])
   const judged = shownEmbarks.current
-  const embarks = useMemo(() => (carried && judged ? withPutBackNotices(judged.cards, standing) : null), [carried, judged, standing])
+  const embarks = carried && judged ? judged.cards : null
   const editor = useRef(edit)
   /**
    * What an edit reports is the list it leaves behind, read once the edit has landed.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RosterPick } from '../../../../core/roster'
 import { frozenUnits } from '../../../../core/rosterSnapshot'
-import { cardEmbark, editedPicks, embarkCards, NO_EMBARK, putBacks, standingPutBacks, withPutBackNotices } from './embarkModel'
+import { cardEmbark, editedPicks, embarkCards, putBacks } from './embarkModel'
 
 const unit = (key: number, entryId: string, models: number, keywords: string[], transport = false) => ({
   key,
@@ -53,8 +53,12 @@ describe('a passenger’s card', () => {
     expect(card(0, SQUAD_ABOARD).ridesIn).toEqual({ label: 'Embarked in', name: 'Rhino', action: 'Remove', passenger: 0 })
   })
 
-  it('stops offering the transport it already starts in', () => {
-    expect(card(0, SQUAD_ABOARD).canBoard).toEqual([])
+  it('offers no transport while it starts in one', () => {
+    const fleet = [...units, unit(5, 'Razorback', 1, ['Vehicle', 'Transport'], true)]
+    const from = [...details, { entryId: 'Razorback', transportRule: 'This model has a transport capacity of 6 INFANTRY models.' }]
+    const aboard = fleet.map((entry, at) => ({ ...SQUAD_ABOARD[at], entryId: entry.entryId }))
+    const { cards: fleetCards } = embarkCards(frozenUnits(aboard, fleet, from))
+    expect([fleetCards.get(0)!.canBoard, fleetCards.get(5)!.canCarry.map((choice) => choice.name)]).toEqual([[], ['Captain', 'Scouts']])
   })
 
   it('offers boarding only from the bodyguard of an attached unit', () => {
@@ -93,19 +97,19 @@ describe('a transport’s card', () => {
     ])
   })
 
-  it('lists an attached unit aboard once, with the room it takes', () => {
+  it('lists an attached unit aboard once', () => {
     expect(card(3, LED_SQUAD_ABOARD).carries).toEqual([
-      { label: 'Embarked', name: 'Intercessors', detail: '6/10 models', action: 'Disembark', passenger: 0 },
+      { label: 'Embarked', name: 'Intercessors + Captain', action: 'Disembark', passenger: 0 },
     ])
   })
 
-  it('names an embarked attached unit by its custom name', () => {
+  it('names every unit of an embarked attached unit', () => {
     expect(
       card(3, [
         { embarkedIn: 3, nickname: 'Alpha' },
         { attachedTo: 0, nickname: 'Commander' },
       ]).carries[0]?.name,
-    ).toBe('Alpha · Intercessors')
+    ).toBe('Alpha · Intercessors + Commander · Captain')
   })
 
   it('includes custom names in boarding choices and their attached characters', () => {
@@ -155,11 +159,13 @@ describe('starting embarks the list can no longer hold', () => {
   const OVERFULL = [{ embarkedIn: 3 }, { attachedTo: 0 }, { embarkedIn: 3 }]
 
   it('names the passenger that no longer fits and its transport', () => {
-    expect(cards(OVERFULL).dropped).toEqual([{ card: 2, transport: 'Rhino' }])
+    expect(cards(OVERFULL).dropped).toEqual([{ card: 2, name: 'Scouts', transport: 'Rhino' }])
   })
 
   it('puts back the unit an edit changed rather than another passenger', () => {
-    expect(embarkCards(frozenUnits(picks(OVERFULL), units, details), undefined, [1]).dropped).toEqual([{ card: 0, transport: 'Rhino' }])
+    expect(embarkCards(frozenUnits(picks(OVERFULL), units, details), undefined, [1]).dropped).toEqual([
+      { card: 0, name: 'Intercessors', transport: 'Rhino' },
+    ])
   })
 })
 
@@ -184,19 +190,6 @@ describe('units an edit put back on the battlefield', () => {
   const squad = { key: 2, entryId: 'squad', embarkedIn: 1, models: 10 }
 
   it('puts back only a unit the picks still hold embarked', () => {
-    expect(putBacks([{ card: 2, transport: 'Rhino' }], [rhino, { ...squad, embarkedIn: undefined }])).toEqual([])
-  })
-
-  it('keeps the notice while the unit stands as the edit left it', () => {
-    expect(standingPutBacks([{ transport: 'Rhino', pick: squad }], [rhino, { ...squad, embarkedIn: undefined }])).toHaveLength(1)
-  })
-
-  it('forgets the notice once the unit is changed again', () => {
-    expect(standingPutBacks([{ transport: 'Rhino', pick: squad }], [rhino, { ...squad, embarkedIn: undefined, models: 5 }])).toEqual([])
-  })
-
-  it('says on the card why the unit left its transport', () => {
-    const noticed = withPutBackNotices(new Map([[2, NO_EMBARK]]), [{ transport: 'Rhino', pick: squad }])
-    expect(noticed.get(2)?.notice).toBe('No longer fits in Rhino, so it starts on the battlefield')
+    expect(putBacks([{ card: 2, name: 'Squad', transport: 'Rhino' }], [rhino, { ...squad, embarkedIn: undefined }])).toEqual([])
   })
 })

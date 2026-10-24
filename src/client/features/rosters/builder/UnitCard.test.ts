@@ -13,7 +13,7 @@ const card = (props: Partial<ComponentProps<typeof UnitCard>> = {}) =>
   )
 
 const RHINO_BOARDING = { passenger: 0, transport: 1, name: 'Rhino', detail: '0/12 models', reason: null }
-const ABOARD = { label: 'Embarked', name: 'Intercessor Squad', detail: '5/12 models', action: 'Disembark' }
+const ABOARD = { label: 'Embarked', name: 'Intercessor Squad', action: 'Disembark' }
 
 it('shows a minor alert marker on a unit card', () => {
   expect(
@@ -35,10 +35,6 @@ it('offers a transport the units it can carry', () => {
 
 it('offers no embarking on a card that cannot be edited', () => {
   expect(card({ canBoard: [RHINO_BOARDING], editable: false })).not.toContain('Embark in transport')
-})
-
-it('says how much room a passenger takes', () => {
-  expect(card({ joined: [ABOARD] })).toContain('5/12 models')
 })
 
 it('keeps a passenger row without its action when read only', () => {

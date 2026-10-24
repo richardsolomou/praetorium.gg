@@ -12,7 +12,7 @@ import { attachedUnitList, attachedUnits } from '../../../../core/attachedUnits'
 import type { KeyedPick } from '../rosterPicks'
 
 /** A card's line saying where its unit rides, or who rides in it; `passenger` is the card whose choice it shows. */
-export type EmbarkRow = { label: string; name: string; detail?: string; action: string; passenger: number }
+export type EmbarkRow = { label: string; name: string; action: string; passenger: number }
 
 /** A pairing a card's menu offers, greyed out with `reason` when setup would refuse it. */
 export type EmbarkChoice = { passenger: number; transport: number; name: string; detail: string | null; reason: string | null }
@@ -26,8 +26,6 @@ export type EmbarkCard = {
   canBoard: EmbarkChoice[]
   /** Units that could start in this transport. */
   canCarry: EmbarkChoice[]
-  /** Why this unit was put back on the battlefield by the player's last edit to it. */
-  notice?: string
 }
 
 export const NO_EMBARK: EmbarkCard = { carries: [], canBoard: [], canCarry: [] }
@@ -63,10 +61,10 @@ export function embarkCards(
   const named = (unit: UnitState) => transportLabel(fielded, unit.key) ?? unit.name
   const transports = fielded.filter((unit) => canTransport(unit) && !unit.attachedTo)
   const passengers = attachedUnitList(started).filter(({ host, joined }) => ![host, ...joined].some(canTransport))
-  const aboard = (transport: UnitState, host?: UnitState) =>
+  const aboard = (transport: UnitState) =>
     transportAboard(
       transport,
-      started.filter((unit) => unit.embarkedIn === transport.key && (!host || (unit.attachedTo ?? unit.key) === host.key)),
+      started.filter((unit) => unit.embarkedIn === transport.key),
     )
   const pairing = (passenger: UnitState, transport: UnitState, name: string, detail: string | null): EmbarkChoice[] => {
     const refusal = startingEmbarkRefusal(fielded, passenger.key, transport.key)
@@ -85,19 +83,17 @@ export function embarkCards(
       }
       cards.get(card(transport))!.carries.push({
         label: 'Embarked',
-        name: named(host),
-        detail: aboard(transport, host) ?? undefined,
+        name: [host, ...joined].map(named).join(' + '),
         action: 'Disembark',
         passenger: card(host),
       })
+      // A unit aboard is offered nowhere else, so its only way out is Remove or Disembark.
+      continue
     }
     cards.get(card(host))!.canBoard = offered(
-      transports
-        .filter((candidate) => candidate !== transport)
-        .flatMap((candidate) => pairing(host, candidate, named(candidate), aboard(candidate))),
+      transports.flatMap((candidate) => pairing(host, candidate, named(candidate), aboard(candidate))),
     )
     for (const candidate of transports) {
-      if (candidate === transport) continue
       const detail = joined.length ? `With ${joined.map(named).join(', ')}` : null
       cards.get(card(candidate))!.canCarry.push(...pairing(host, candidate, named(host), detail))
     }
@@ -109,7 +105,7 @@ export function embarkCards(
     /** Cards whose starting embark the list can no longer hold, with the transport each was in. */
     dropped: started.flatMap((unit) =>
       unit.startingEmbarkRefused && unit.startsEmbarkedIn
-        ? [{ card: card(unit), transport: transportLabel(fielded, unit.startsEmbarkedIn) ?? 'its transport' }]
+        ? [{ card: card(unit), name: named(unit), transport: transportLabel(fielded, unit.startsEmbarkedIn) ?? 'its transport' }]
         : [],
     ),
   }
@@ -124,29 +120,11 @@ export function editedPicks(before: readonly KeyedPick[], after: readonly KeyedP
 }
 
 /** A unit an edit put back on the battlefield, and the pick as the edit left it. */
-export type PutBack = { transport: string; pick: KeyedPick }
+export type PutBack = { name: string; transport: string; pick: KeyedPick }
 
 /** The dropped embarks the picks still hold, which the builder puts back. */
-export const putBacks = (dropped: readonly { card: number; transport: string }[], picks: readonly KeyedPick[]): PutBack[] =>
-  dropped.flatMap(({ card, transport }) => {
+export const putBacks = (dropped: readonly { card: number; name: string; transport: string }[], picks: readonly KeyedPick[]): PutBack[] =>
+  dropped.flatMap(({ card, name, transport }) => {
     const pick = picks.find((each) => each.key === card && each.embarkedIn !== undefined)
-    return pick ? [{ transport, pick }] : []
+    return pick ? [{ name, transport, pick }] : []
   })
-
-/** The put-back units still as the edit left them; embarking or changing one again forgets it for good. */
-export const standingPutBacks = (putBack: Iterable<PutBack>, picks: readonly KeyedPick[]): PutBack[] =>
-  [...putBack].filter(({ pick }) => {
-    const now = picks.find((each) => each.key === pick.key)
-    return now?.embarkedIn === undefined && now && !editedPicks([pick], [now]).length
-  })
-
-/** The cards with a notice on each unit still standing where an edit put it. */
-export function withPutBackNotices(cards: ReadonlyMap<number, EmbarkCard>, standing: readonly PutBack[]): ReadonlyMap<number, EmbarkCard> {
-  if (!standing.length) return cards
-  const noticed = new Map(cards)
-  for (const { transport, pick } of standing) {
-    const card = noticed.get(pick.key)
-    if (card) noticed.set(pick.key, { ...card, notice: `No longer fits in ${transport}, so it starts on the battlefield` })
-  }
-  return noticed
-}
