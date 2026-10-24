@@ -1,5 +1,35 @@
 # praetorium
 
+## 0.190.0
+
+### Minor Changes
+
+- d2cf1b1: An ability alert now belongs to you rather than one roster: set it once and every unit with that ability, in any of your rosters, alerts in battle.
+- f27470e: Keep a unit's custom name in its saved loadout.
+- 6156b2f: Save a unit and the characters attached to it as one attached unit, and add it to another roster already attached.
+- 57f0a01: Allies in a 2v1 or 2v2 battle or league each keep their list's Warlord and choose whose leads their side.
+- d37e254: Your Warlord now has a crown beside its name in the roster list.
+- fa1701c: A list with a unit that can be Warlord is flagged unless it names exactly one, as the core rules require; untick Warlord under Format restrictions to play without one.
+
+### Patch Changes
+
+- 7e3291d: The attach menu offers only pairings the roster then accepts.
+- 5757cb4: A battle action that fails because the connection dropped now asks you to check your connection, instead of showing a raw browser error.
+- fba81aa: The unit picker finds units by keywords your detachment gives them, such as Ogryns, Bullgryns and Ratlings by Abhuman in Abhuman Auxiliaries.
+- b86c07e: Embarked units and boarding choices show custom unit names so you can tell similar squads apart.
+- b383ca2: Importing an official-app list no longer reports a Space Marine character's Chainsword as unplaced.
+- b383ca2: Importing an official-app list now gives a Death Korps medi-pack or Simulacrum Imperialis to the model that carries it, instead of reporting it as unplaced.
+- b383ca2: Importing an official-app list no longer reports Death Riders' Savage claws as unplaced.
+- 2bb6216: Ratlings, Tzaangors and the Ironclad Dreadnought can take every optional piece of wargear their datasheet allows together, instead of only one.
+- fba81aa: In King of the Colosseum, the unit picker allows two of a unit your detachment makes Battleline, such as Gretchin in Runt Swarm.
+- 0a67118: You can build rosters and compare loadouts on older browsers.
+- 9d03c28: Each Bullgryn, Troupe Player, and Corsair Cloud Dancer can now take its own wargear instead of the whole squad sharing one choice.
+- fba81aa: The unit picker lists units under the section your detachment moves them to, such as Gretchin under Battleline in Runt Swarm.
+- d37e254: Adding a unit that must be your Warlord now takes the role from your current Warlord instead of leaving you with two.
+- 9c76bd1: Changing the size of a squad whose models carry different wargear now keeps your picks, giving added models their standard wargear and removing standard-equipped models first.
+- 55fbffb: You can retry drawing secondary missions after a failed battle action.
+- 7e3291d: Removing a character from a simulated unit keeps a Loyal Protector with the Command Squad it joined.
+
 ## 0.189.0
 
 ### Minor Changes
