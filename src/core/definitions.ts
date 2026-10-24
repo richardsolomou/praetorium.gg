@@ -225,7 +225,9 @@ export function modelOwnerOf(trail: readonly string[], index: CatalogueIndex): {
 
 /** A model on this path the squad may take more than one of, or must when it states no maximum, and where it stands. */
 export function repeatedModelOn(path: readonly string[], index: CatalogueIndex): { path: string[]; definition: Definition } | null {
-  return modelOnPath(path, index, (definition) => (maximumCount(definition, index) ?? requiredCount(definition, index)) > 1)
+  const bound = (definition: Definition) => maximumCount(definition, index) ?? requiredCount(definition, index)
+  // A model with no count of its own takes the group it sits in, as "2-5 Bullgryns" bounds its Bullgryn.
+  return modelOnPath(path, index, (definition, group) => (bound(definition) || (group ? bound(group) : 0)) > 1)
 }
 
 /** A model on this path the squad need not take at all, but may take a bounded number of. */
@@ -236,15 +238,22 @@ function repeatableModelOn(path: readonly string[], index: CatalogueIndex): { pa
 function modelOnPath(
   path: readonly string[],
   index: CatalogueIndex,
-  accept: (definition: Definition) => boolean,
+  accept: (definition: Definition, group: Definition | undefined) => boolean,
 ): { path: string[]; definition: Definition } | null {
   for (let length = path.length; length > 0; length--) {
     const id = path[length - 1]
     const definition = id ? index.definitions.get(id) : undefined
     if (!definition || resolve(definition, index).type !== 'model') continue
-    if (accept(definition)) return { path: path.slice(0, length), definition }
+    if (accept(definition, enclosingGroupOf(path.slice(0, length), index))) return { path: path.slice(0, length), definition }
   }
   return null
+}
+
+/** The selection entry group directly holding the last entry on this path, if any. */
+function enclosingGroupOf(path: readonly string[], index: CatalogueIndex): Definition | undefined {
+  const parentId = path.at(-2)
+  const parent = parentId ? index.definitions.get(parentId) : undefined
+  return parent && resolve(parent, index).type === undefined ? parent : undefined
 }
 
 /**

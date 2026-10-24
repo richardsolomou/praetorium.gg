@@ -526,7 +526,9 @@ function effectiveCount(
   const ceiling = Math.max(1, modelCountOf(selection, index))
   const size = sizeOf(selection, index)
   const existing = allAt(selection, path).reduce((total, model) => total + (model.count ?? 1), 0)
-  // Required models are already counted; only optional specialists can join through a weapon choice.
+  // Required models, and the models the unit's size counts, are already counted; only
+  // optional specialists can join through a weapon choice.
+  if (size.path.join('/') === path.join('/')) return existing
   if (requiredCount(definition, index, { ...context, roster: [...(context.roster ?? []), selection] }) > 0) return existing
   for (let count = Math.max(1, existing + 1); count <= ceiling; count++) {
     let candidate = withCounts(selection, [{ path, count }])

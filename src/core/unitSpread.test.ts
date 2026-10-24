@@ -1251,3 +1251,65 @@ describe('specialists taking the places of squadmates holding a shared weapon gr
     ])
   })
 })
+
+describe('per-model wargear on a model its group counts', () => {
+  // Bullgryn Squad: the Bullgryn has no count of its own; "2-5 Bullgryns" holds it.
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Bullgryn Squad',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'boss',
+            name: "Bone 'ead",
+            type: 'model',
+            constraints: [...mandatory('boss-min'), { id: 'boss-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+          },
+        ],
+        selectionEntryGroups: [
+          {
+            id: 'bodies',
+            name: '2-5 Bullgryns',
+            defaultSelectionEntryId: 'body',
+            constraints: [
+              { id: 'bodies-min', type: 'min', value: 2, field: 'selections', scope: 'parent' },
+              { id: 'bodies-max', type: 'max', value: 5, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntries: [
+              {
+                id: 'body',
+                name: 'Bullgryn',
+                type: 'model',
+                selectionEntryGroups: [
+                  {
+                    id: 'shield',
+                    name: 'Shield',
+                    defaultSelectionEntryId: 'slab',
+                    constraints: [
+                      { id: 'shield-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                      { id: 'shield-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                    ],
+                    selectionEntries: [
+                      { id: 'slab', name: 'Slabshield', type: 'upgrade' },
+                      { id: 'brute', name: 'Brute shield', type: 'upgrade' },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('lets every model take its own option', () => {
+    const shield = buildUnit('squad', index)!.choices.find((choice) => choice.name === 'Shield')
+    expect(shield?.options.map((option) => [option.name, option.max])).toEqual([
+      ['Slabshield', 2],
+      ['Brute shield', 2],
+    ])
+  })
+})
