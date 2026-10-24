@@ -122,25 +122,28 @@ async function resource(url: string, signal: AbortSignal) {
 }
 
 /** The offline application around a complete saved reference, for the service worker or native shell to store. */
-export async function offlineApplication(data: OfflineReferenceData, version: OfflineAppVersion, signal: AbortSignal) {
+export async function offlineApplication(data: OfflineReferenceData, version: OfflineAppVersion, signal: AbortSignal, origin: string) {
   const saved = updatedReference(data, { appRevision: version.revision })
-  const cssResponse = await fetch(version.css, { credentials: 'omit', signal: anySignal([signal, AbortSignal.timeout(30_000)]) })
+  const cssResponse = await fetch(new URL(version.css, origin), {
+    credentials: 'omit',
+    signal: anySignal([signal, AbortSignal.timeout(30_000)]),
+  })
   if (!cssResponse.ok) throw new Error('The app styles could not be downloaded.')
   let css = await cssResponse.text()
   for (const match of css.matchAll(/url\(["']?([^"')]+)["']?\)/g)) {
-    const url = new URL(match[1]!, new URL(version.css, location.origin))
+    const url = new URL(match[1]!, new URL(version.css, origin))
     if (url.protocol !== 'data:') css = css.replaceAll(match[0], `url("${await resource(url.href, signal)}")`)
   }
   saved.css = css
-  saved.logo = await resource('/logo.svg', signal)
-  const scriptResponse = await fetch(version.script, {
+  saved.logo = await resource(new URL('/logo.svg', origin).href, signal)
+  const scriptResponse = await fetch(new URL(version.script, origin), {
     credentials: 'omit',
     signal: anySignal([signal, AbortSignal.timeout(30_000)]),
   })
   if (!scriptResponse.ok) throw new Error('The offline app is unavailable. Please try again.')
   const script = await scriptResponse.text()
   const json = referenceJsonExpression(JSON.stringify(await compressReference(saved, signal)))
-  const html = `<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'unsafe-inline'; img-src 'self' data: https:; font-src data:; connect-src 'self' https://raw.githubusercontent.com ${location.origin.replace(/^http/, 'ws')}; worker-src 'self' blob: data:; base-uri 'none'; form-action 'self'"></head><body><script>window.PraetoriumOffline=${json};</script><script type="module">${script.replaceAll('</script', '<\\/script')}</script></body></html>`
+  const html = `<!doctype html><html lang="en"><head><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'unsafe-inline'; img-src 'self' data: https:; font-src data:; connect-src 'self' https://raw.githubusercontent.com ${origin.replace(/^http/, 'ws')}; worker-src 'self' blob: data:; base-uri 'none'; form-action 'self'"></head><body><script>window.PraetoriumOffline=${json};</script><script type="module">${script.replaceAll('</script', '<\\/script')}</script></body></html>`
   if (new TextEncoder().encode(html).byteLength > MAX_OFFLINE_BYTES) throw new Error('The reference exceeds this device’s download limit.')
   return { html, savedAt: saved.savedAt, data: saved }
 }

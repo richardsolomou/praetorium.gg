@@ -4,18 +4,13 @@ import { useRouter } from '@tanstack/react-router'
 import { afterInitialScreen } from './background'
 import { requestNativeOfflineSave, supportsNativeOffline } from '../nativeBridge'
 import { referenceData, setPublishedReference, warmDownloadSearch } from './runtime'
-import { withConstructionOf } from './compressedReference'
+import { packedConstructionOf, withConstructionOf } from './compressedReference'
 import { applyReferenceData } from './referenceData'
 import { restoreReferenceInBackground } from './referenceRestoreWorker'
 import { REFERENCE_CACHE, SAVED_APPLICATION } from './referenceRestore'
-import {
-  constructionBundle,
-  constructionBundleFor,
-  offlineAppVersion,
-  offlineApplication,
-  offlineReferenceVersion,
-  referenceBundle,
-} from './download'
+import { constructionBundleFor, offlineAppVersion, offlineReferenceVersion } from './download'
+import { partsOf } from './referenceDownload'
+import { downloadInBackground } from './referenceDownloadWorker'
 import { rulesVersionsIn, rulesVersionsInUse } from './rulesVersionsInUse'
 import { PUBLIC_REFERENCE_QUERIES } from '../../contracts/appSnapshot'
 import type { OfflineReferenceVersion } from '../../contracts/offlineReference'
@@ -77,30 +72,32 @@ export function OfflineReference() {
           lastCheck.current = 0
           return
         }
-        const reference = await referenceBundle(manifest, abort.signal, held)
-        abort.signal.throwIfAborted()
-        const content = {
-          version: 1 as const,
-          revision: reference.revision,
-          queries: reference.queries,
-          search: reference.search,
-          savedAt: Date.now(),
-          css: '',
-          logo: '',
-          allRulesVersions: otherVersions,
-        }
-        // Pages and search answer from a new reference while its construction data downloads. The held construction
-        // data stays for offline use meanwhile; the device answers from it only while the service still publishes it.
-        if (held?.revision !== manifest.revision) {
-          applyReferenceData(client, held ? withConstructionOf({ ...content, constructionBundle: held.constructionBundle }, held) : content)
-          warmDownloadSearch()
-        }
-        const next =
-          held?.constructionBundle === constructionUrl
-            ? withConstructionOf({ ...content, constructionBundle: constructionUrl }, held)
-            : { ...content, construction: await constructionBundle(constructionUrl, abort.signal), constructionBundle: constructionUrl }
-        abort.signal.throwIfAborted()
-        const pack = await offlineApplication(next, version, abort.signal)
+        const pack = await downloadInBackground(
+          {
+            manifest,
+            version,
+            constructionUrl,
+            allRulesVersions: otherVersions,
+            held: held
+              ? {
+                  revision: held.revision,
+                  ...(held.revision === manifest.revision ? { parts: partsOf(held) } : {}),
+                  construction: held.constructionBundle === constructionUrl ? packedConstructionOf(held) : undefined,
+                }
+              : null,
+            origin: location.origin,
+          },
+          abort.signal,
+          // Pages and search answer from a new reference while its construction data downloads. The held construction
+          // data stays for offline use meanwhile; the device answers from it only while the service still publishes it.
+          (reference) => {
+            applyReferenceData(
+              client,
+              held ? withConstructionOf({ ...reference, constructionBundle: held.constructionBundle }, held) : reference,
+            )
+            warmDownloadSearch()
+          },
+        )
         abort.signal.throwIfAborted()
         if (supportsNativeOffline()) {
           if (!(await requestNativeOfflineSave({ html: pack.html, savedAt: pack.savedAt })))
