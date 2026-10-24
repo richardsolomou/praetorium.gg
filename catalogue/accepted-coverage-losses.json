@@ -1,1 +1,21 @@
-[]
+[
+  {
+    "reason": "Invulnerable-save wording is no longer read as a granted ability. Each of these was an undescribed duplicate: the datasheet still lists its own described invulnerable save ability and the model profile still carries the InSv value.",
+    "entries": [
+      "black-templars / Astraeus abilities: A 5+ Invulnerable Save Against Ranged Attacks",
+      "blood-angels / Astraeus abilities: A 5+ Invulnerable Save Against Ranged Attacks",
+      "dark-angels / Astraeus abilities: A 5+ Invulnerable Save Against Ranged Attacks",
+      "deathwatch / Astraeus abilities: A 5+ Invulnerable Save Against Ranged Attacks",
+      "imperial-fists / Astraeus abilities: A 5+ Invulnerable Save Against Ranged Attacks",
+      "iron-hands / Astraeus abilities: A 5+ Invulnerable Save Against Ranged Attacks",
+      "raven-guard / Astraeus abilities: A 5+ Invulnerable Save Against Ranged Attacks",
+      "salamanders / Astraeus abilities: A 5+ Invulnerable Save Against Ranged Attacks",
+      "space-marines / Astraeus abilities: A 5+ Invulnerable Save Against Ranged Attacks",
+      "space-wolves / Astraeus abilities: A 5+ Invulnerable Save Against Ranged Attacks",
+      "space-wolves / Hounds of Morkai [Legends] abilities: A 6+ Invulnerable Save",
+      "ultramarines / Astraeus abilities: A 5+ Invulnerable Save Against Ranged Attacks",
+      "white-scars / Astraeus abilities: A 5+ Invulnerable Save Against Ranged Attacks",
+      "world-eaters / Bloodcult Champion [Crucible] abilities: An Invulnerable Save Characteristic Of 5+"
+    ]
+  }
+]
