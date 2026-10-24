@@ -271,9 +271,9 @@ const ITEM = 'text-xs font-semibold uppercase'
 /** A row naming who a unit is joined to or riding with, and the button undoing it while the roster can be edited. */
 export function JoinedRow({ row, editable }: { row: Joined; editable: boolean }) {
   return (
-    <div className={`${ROW} pointer-events-none relative z-10 gap-2 [&_button]:pointer-events-auto`}>
+    <div className={`${ROW} pointer-events-none relative z-10 flex-wrap gap-2 [&_button]:pointer-events-auto`}>
       <span className="chip shrink-0">{row.label}</span>
-      <span className="min-w-0 flex-1 text-xs">{row.name}</span>
+      <span className="min-w-24 flex-1 text-xs break-words">{row.name}</span>
       {row.detail ? <span className="readout shrink-0 text-2xs text-dim">{row.detail}</span> : null}
       {editable && row.action ? (
         <Button
