@@ -31,11 +31,11 @@ import { Section } from './Section'
 import { canAddCopy, requestedUnit, unitLimitMessage } from './usePicks'
 import { Problem } from '../../../components/Problem'
 import { ConfirmDialog } from '../../../components/ConfirmDialog'
-import { loadoutPick } from '../../../../core/rosterCopies'
+import { loadoutPicks } from '../../../../core/rosterCopies'
 import type { priceQuery } from '../../../queries'
 import { LoadoutNameDialog } from './LoadoutNameDialog'
 import { LoadoutRow } from './LoadoutRow'
-import { type PickerLoadout, pickerRows } from './pickerRows'
+import { isAttachedUnit, loadoutNoun, type PickerLoadout, pickerRows } from './pickerRows'
 import { useUnitLoadouts } from './useUnitLoadouts'
 
 type Props = {
@@ -43,7 +43,7 @@ type Props = {
   catalogueId: string
   detachmentIds: readonly string[]
   onAdd: (entryId: string) => void
-  onApplyLoadout: (pick: RosterPick) => void
+  onApplyLoadout: (picks: readonly RosterPick[]) => void
   /** The roster's own price request for other units, so a saved loadout shows what it would cost here. */
   priceLoadouts: (picks: readonly RosterPick[]) => ReturnType<typeof priceQuery>
   onPreview: (entryId: string, name: string) => void
@@ -123,18 +123,43 @@ export const Picker = memo(function Picker({
   const [renaming, setRenaming] = useState<PickerLoadout | null>(null)
   const [deleting, setDeleting] = useState<PickerLoadout | null>(null)
   const offered = useMemo(() => new Set((unitsResult.data ?? []).map((unit) => unit.id)), [unitsResult.data])
+  const datasheetNames = useMemo(() => new Map((unitsResult.data ?? []).map((unit) => [unit.id, unit.name])), [unitsResult.data])
+  const fits = (picks: readonly RosterPick[]) =>
+    picks.every((pick, at) =>
+      canAddCopy(
+        pick.entryId,
+        (inRoster[pick.entryId] ?? 0) + picks.slice(0, at).filter((earlier) => earlier.entryId === pick.entryId).length,
+        limits,
+      ),
+    )
   const applicable = useMemo(
     () =>
       (savedLoadouts.data ?? []).flatMap((loadout) => {
-        const pick = loadoutPick(loadout, catalogueId)
-        return pick ? [{ id: loadout.id, name: loadout.name, pick }] : []
+        const [pick, ...joined] = loadoutPicks(loadout, catalogueId) ?? []
+        return pick ? [{ id: loadout.id, name: loadout.name, picks: [pick, ...joined] as const }] : []
       }),
     [savedLoadouts.data, catalogueId],
   )
-  const priceable = useMemo(() => applicable.filter((loadout) => offered.has(loadout.pick.entryId)), [applicable, offered])
-  const loadoutPrices = useQuery({ ...priceLoadouts(priceable.map((loadout) => loadout.pick)), enabled: enabled && priceable.length > 0 })
+  const priceable = useMemo(
+    () => applicable.filter((loadout) => loadout.picks.every((pick) => offered.has(pick.entryId))),
+    [applicable, offered],
+  )
+  // Priced as separate units, so one loadout's attachments cannot be checked against another's.
+  const pricedPicks = useMemo(
+    () => priceable.flatMap((loadout) => loadout.picks.map(({ attachedTo: _attachedTo, ...pick }) => pick)),
+    [priceable],
+  )
+  const loadoutPrices = useQuery({ ...priceLoadouts(pricedPicks), enabled: enabled && priceable.length > 0 })
   const loadouts = useMemo<PickerLoadout[]>(() => {
-    const points = new Map(priceable.map((loadout, key) => [loadout, loadoutPrices.data?.units.find((unit) => unit.key === key)?.points]))
+    const units = loadoutPrices.data?.units
+    let next = 0
+    const points = new Map(
+      priceable.map((loadout) => {
+        const keys = loadout.picks.map(() => next++)
+        const prices = keys.map((key) => units?.find((unit) => unit.key === key)?.points)
+        return [loadout, prices.some((price) => price == null) ? undefined : prices.reduce((sum: number, price) => sum + (price ?? 0), 0)]
+      }),
+    )
     return applicable.map((loadout) => ({
       ...loadout,
       points: !points.has(loadout) || loadoutPrices.isError ? null : loadoutPrices.data ? (points.get(loadout) ?? null) : undefined,
@@ -254,10 +279,11 @@ export const Picker = memo(function Picker({
               const group = shown
                 .filter((unit) => (alliedFaction ? unit.alliedFaction === alliedFaction : !unit.allied && unit.group === id))
                 .toSorted((left, right) => Number(favourites.has(right.id)) - Number(favourites.has(left.id)))
+              const attached = group.flatMap((unit) => rows.loadouts.get(unit.id)?.filter(isAttachedUnit) ?? [])
               return group.length ? (
                 <Fragment key={id}>
                   {alliedFaction === alliedFactions[0] ? <h2 className="rubric pt-1.5">Allied units</h2> : null}
-                  <Section title={plural} count={group.length} defaultOpen={!alliedFaction}>
+                  <Section title={plural} count={group.length + attached.length} defaultOpen={!alliedFaction}>
                     {group.map((unit) => {
                       const held = inRoster[unit.id] ?? 0
                       const full = !canAddCopy(unit.id, held, limits)
@@ -275,22 +301,39 @@ export const Picker = memo(function Picker({
                             onFavourite={signedIn ? toggleFavourite : undefined}
                             onAdd={onAdd}
                           />
-                          {rows.loadouts.get(unit.id)?.map((loadout) => (
-                            <LoadoutRow
-                              key={loadout.id}
-                              loadout={loadout}
-                              datasheet={unit.name}
-                              addable={!full}
-                              unavailableReason={null}
-                              onPreview={onPreview}
-                              onApply={onApplyLoadout}
-                              onRename={setRenaming}
-                              onDelete={setDeleting}
-                            />
-                          ))}
+                          {rows.loadouts
+                            .get(unit.id)
+                            ?.filter((loadout) => !isAttachedUnit(loadout))
+                            .map((loadout) => (
+                              <LoadoutRow
+                                key={loadout.id}
+                                loadout={loadout}
+                                datasheet={unit.name}
+                                addable={!full}
+                                unavailableReason={null}
+                                onPreview={onPreview}
+                                onApply={onApplyLoadout}
+                                onRename={setRenaming}
+                                onDelete={setDeleting}
+                              />
+                            ))}
                         </Fragment>
                       )
                     })}
+                    {attached.map((loadout) => (
+                      <LoadoutRow
+                        key={loadout.id}
+                        loadout={loadout}
+                        datasheet={datasheetNames.get(loadout.picks[0].entryId) ?? null}
+                        members={loadout.picks.map((pick) => datasheetNames.get(pick.entryId) ?? pick.entryId)}
+                        addable={fits(loadout.picks)}
+                        unavailableReason={null}
+                        onPreview={onPreview}
+                        onApply={onApplyLoadout}
+                        onRename={setRenaming}
+                        onDelete={setDeleting}
+                      />
+                    ))}
                   </Section>
                 </Fragment>
               ) : null
@@ -298,7 +341,8 @@ export const Picker = memo(function Picker({
             {rows.unavailable.length ? (
               <Section title="Unavailable loadouts" count={rows.unavailable.length}>
                 {rows.unavailable.map((loadout) => {
-                  const outcome = requestedUnit(loadout.pick.entryId, inRoster[loadout.pick.entryId] ?? 0, limits)
+                  const { entryId } = loadout.picks.find((pick) => !offered.has(pick.entryId)) ?? loadout.picks[0]
+                  const outcome = requestedUnit(entryId, inRoster[entryId] ?? 0, limits)
                   return (
                     <LoadoutRow
                       key={loadout.id}
@@ -324,7 +368,7 @@ export const Picker = memo(function Picker({
       </ScrollArea>
       {renaming ? (
         <LoadoutNameDialog
-          title="Rename loadout"
+          title={`Rename ${loadoutNoun(renaming)}`}
           initialName={renaming.name}
           submit="Rename"
           pendingLabel="Renaming…"
@@ -340,10 +384,10 @@ export const Picker = memo(function Picker({
       ) : null}
       <ConfirmDialog
         open={deleting !== null}
-        title="Delete saved loadout?"
-        description={`${deleting?.name ?? 'This loadout'} leaves your saved loadouts. Rosters that already use it keep their units.`}
-        cancel="Keep loadout"
-        confirm="Delete loadout"
+        title={`Delete saved ${loadoutNoun(deleting)}?`}
+        description={`${deleting?.name ?? `This ${loadoutNoun(deleting)}`} leaves your saved loadouts. Rosters that already use it keep their units.`}
+        cancel={`Keep ${loadoutNoun(deleting)}`}
+        confirm={`Delete ${loadoutNoun(deleting)}`}
         pendingLabel="Deleting…"
         destructive
         pending={remove.isPending}

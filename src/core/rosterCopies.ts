@@ -8,15 +8,16 @@ export const copiedPicks = (picks: readonly RosterPick[], catalogueId: string): 
   picksForRulesVersion(withoutUnitNotes(picks), catalogueId)
 
 /**
- * A loadout as a new unit of a roster, or nothing when the roster is another army's.
+ * A loadout as new units of a roster, its own unit first, or nothing when the roster is another army's.
+ * A joined unit's `attachedTo` is the position of the unit it joins within the result.
  *
  * Choices the destination does not offer stay in the pick, so the roster's own pricing reports
  * them for reselection rather than the copy dropping them unseen.
  */
-export function loadoutPick(loadout: Pick<UnitLoadout, 'catalogueId' | 'pick'>, catalogueId: string): RosterPick | null {
+export function loadoutPicks(loadout: Pick<UnitLoadout, 'catalogueId' | 'pick' | 'joined'>, catalogueId: string): RosterPick[] | null {
   if (currentCatalogueFamilyId(loadout.catalogueId) !== currentCatalogueFamilyId(catalogueId)) return null
-  const [copy] = copiedPicks([{ ...loadout.pick, catalogueId: loadout.catalogueId }], catalogueId)
-  return copy ? { ...copy, catalogueId } : null
+  const saved = [loadout.pick, ...(loadout.joined ?? [])].map((pick) => ({ ...pick, catalogueId: loadout.catalogueId }))
+  return copiedPicks(saved, catalogueId).map((copy) => ({ ...copy, catalogueId }))
 }
 
 /**

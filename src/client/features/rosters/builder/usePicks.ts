@@ -215,16 +215,24 @@ export function pickEditor(
       })
     },
 
-    /** A saved loadout joins as a unit of its own, priced and checked like any other. */
-    apply: (loadout: RosterPick) => {
-      const key = allocateKey()
+    /**
+     * A saved loadout joins as units of its own, priced and checked like any other, its attached
+     * units already joined. It is added whole or not at all.
+     */
+    apply: (loadout: readonly RosterPick[]) => {
+      const keys = loadout.map(() => allocateKey())
       setPicks((current) => {
-        if (
-          !context.limits ||
-          !canAddCopy(loadout.entryId, current.filter((pick) => pick.entryId === loadout.entryId).length, context.limits)
+        const { limits } = context
+        if (!limits) return current
+        const added = loadout.map((pick, at) => ({
+          ...pick,
+          key: keys[at] as number,
+          attachedTo: at === 0 || pick.attachedTo === undefined ? undefined : keys[pick.attachedTo],
+        }))
+        const fits = added.every((pick, at) =>
+          canAddCopy(pick.entryId, [...current, ...added.slice(0, at)].filter((held) => held.entryId === pick.entryId).length, limits),
         )
-          return current
-        return [...current, { ...loadout, attachedTo: undefined, key }]
+        return fits ? [...current, ...added] : current
       })
     },
 

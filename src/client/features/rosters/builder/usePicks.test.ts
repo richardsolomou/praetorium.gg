@@ -272,27 +272,41 @@ describe('datasheet roster caps', () => {
 
   it('rejects a saved loadout at the cap', () => {
     const { edit, count } = editWithLimit(2, 2)
-    edit.apply({ entryId: 'squad', catalogueId: 'imperium' })
+    edit.apply([{ entryId: 'squad', catalogueId: 'imperium' }])
     expect(count()).toBe(2)
   })
 })
 
 describe('applying a saved loadout', () => {
-  const applied = (loadout: Parameters<ReturnType<typeof pickEditor>['apply']>[0]) => {
+  const applied = (
+    loadout: Parameters<ReturnType<typeof pickEditor>['apply']>[0],
+    limits: ReadonlyMap<string, number | null> = new Map([['squad', null]]),
+  ) => {
     let picks: KeyedPick[] = [{ key: 0, entryId: 'captain', catalogueId: 'imperium' }]
+    let next = 1
     const edit = pickEditor(
       (update) => {
         picks = typeof update === 'function' ? update(picks) : update
       },
-      { catalogueId: 'imperium', units: [], limits: new Map([['squad', null]]) },
-      () => 1,
+      { catalogueId: 'imperium', units: [], limits },
+      () => next++,
     )
     edit.apply(loadout)
-    return picks[1]
+    return picks.slice(1)
   }
+  const attached = [
+    { entryId: 'squad', catalogueId: 'imperium' },
+    { entryId: 'lieutenant', catalogueId: 'imperium', attachedTo: 0 },
+    { entryId: 'ancient', catalogueId: 'imperium', attachedTo: 1 },
+  ]
+  const unlimited = new Map<string, number | null>([
+    ['squad', null],
+    ['lieutenant', null],
+    ['ancient', null],
+  ])
 
   it('adds the configured unit with its wargear', () => {
-    expect(applied({ entryId: 'squad', catalogueId: 'imperium', models: 10, choices: { weapon: 'plasma' } })).toEqual({
+    expect(applied([{ entryId: 'squad', catalogueId: 'imperium', models: 10, choices: { weapon: 'plasma' } }])[0]).toEqual({
       key: 1,
       entryId: 'squad',
       catalogueId: 'imperium',
@@ -303,11 +317,19 @@ describe('applying a saved loadout', () => {
   })
 
   it('keeps the saved nickname', () => {
-    expect(applied({ entryId: 'squad', catalogueId: 'imperium', nickname: 'Tesla Wall' })?.nickname).toBe('Tesla Wall')
+    expect(applied([{ entryId: 'squad', catalogueId: 'imperium', nickname: 'Tesla Wall' }])[0]?.nickname).toBe('Tesla Wall')
   })
 
-  it('never joins it to the unit at the saved attachment position', () => {
-    expect(applied({ entryId: 'squad', catalogueId: 'imperium', attachedTo: 0 })?.attachedTo).toBeUndefined()
+  it('never joins its own unit to the unit at the saved attachment position', () => {
+    expect(applied([{ entryId: 'squad', catalogueId: 'imperium', attachedTo: 0 }])[0]?.attachedTo).toBeUndefined()
+  })
+
+  it('joins each attached unit to the new unit it was saved against', () => {
+    expect(applied(attached, unlimited).map((pick) => pick.attachedTo)).toEqual([undefined, 1, 2])
+  })
+
+  it('adds nothing of a group when one of its units is at its cap', () => {
+    expect(applied(attached, new Map([...unlimited, ['ancient', 0]]))).toEqual([])
   })
 })
 

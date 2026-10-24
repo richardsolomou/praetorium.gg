@@ -2091,7 +2091,14 @@ export const unitLoadoutsByUser = spacetime.procedure({ userId: t.string() }, t.
     return productJson(
       Array.from(tx.db.unitLoadouts.userId.filter(userId))
         .toSorted((left, right) => Number(right.createdAt - left.createdAt) || left.id.localeCompare(right.id))
-        .map(({ id, name, catalogueId, pick, createdAt }) => ({ id, name, catalogueId, pick: JSON.parse(pick) as unknown, createdAt })),
+        .map(({ id, name, catalogueId, pick, joined, createdAt }) => ({
+          id,
+          name,
+          catalogueId,
+          pick: JSON.parse(pick) as unknown,
+          ...(joined ? { joined: JSON.parse(joined) as unknown } : {}),
+          createdAt,
+        })),
     )
   }),
 )
@@ -2115,6 +2122,7 @@ export const saveUnitLoadout = spacetime.procedure(
         catalogueId: loadout.catalogueId,
         pick: JSON.stringify(loadout.pick),
         createdAt: at,
+        joined: loadout.joined && JSON.stringify(loadout.joined),
       })
       touchProduct(tx, userId, 'rosters')
       return 'saved'
