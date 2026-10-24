@@ -22,12 +22,10 @@ type Props = {
 export function Section({ title, count, children, defaultOpen = true, points }: Props) {
   return (
     <Collapsible render={<section />} defaultOpen={defaultOpen}>
-      <div className="flex w-full items-center justify-between py-1.5">
-        <span className="flex items-baseline gap-2">
-          <h2 className="rubric">{title}</h2>
-          {points === undefined ? null : <span className="readout text-xs text-dim">{points} pts</span>}
-        </span>
-        <span className="flex items-center gap-1.5">
+      <div className="flex w-full items-center gap-2 py-1.5">
+        <h2 className="rubric">{title}</h2>
+        {points === undefined ? null : <span className="readout text-xs text-dim">{points} pts</span>}
+        <span className="ml-auto flex items-center gap-1.5">
           <span className="readout text-sm text-dim">{count}</span>
           <CollapsibleTrigger
             render={<Button variant="ghost" size="icon-xs" aria-label={`Toggle ${title}`} className="group text-faint" />}

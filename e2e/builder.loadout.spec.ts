@@ -310,7 +310,7 @@ test("attached units are drawn together on their bodyguard's shelf by default", 
   // Drawn together until the player chooses role shelves.
   const characters = page.locator('[data-slot="roster-units"]').getByRole('heading', { name: 'Characters' })
   const block = page.getByRole('region', { name: 'Immortals', exact: true })
-  const battleline = page.locator('[data-slot="roster-units"]').getByRole('heading', { name: 'Battleline' }).locator('../..')
+  const battleline = page.locator('[data-slot="roster-units"]').getByRole('heading', { name: 'Battleline' }).locator('..')
   // The attached unit is drawn on its bodyguard's shelf, the bodyguard's card first.
   await expect(block.locator('[data-unit]').first()).toHaveAttribute('data-unit', 'Immortals')
   await expect(block.locator('[data-unit]')).toHaveCount(3)
