@@ -3,6 +3,7 @@ import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/
 import { formatDatasheetLimit, isKotcLimit, kotcDatasheetRepeatable, kotcUnitExclusions } from '../core/battle'
 import { battleSizeSelection, keywordNames, keywordsBySelection, type ModifierCache, rosterLimit, type Selection } from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
+import { isNonMatchedPlayName, nonMatchedPlayKind } from '../core/name'
 import type { UnitGroup } from '../core/unitGroups'
 import type { UnitSummary } from '../contracts/catalogue'
 import { datasheetSearchFieldsIn, datasheetIn, keywordsIn, toughnessOf } from './catalogue'
@@ -12,7 +13,7 @@ import { type FactionRestrictions, restrictedBy } from './datacards'
 import { datacardOf } from './datasheetJoin'
 import { factionContentOf } from './factionNames'
 import { rosterDetachments } from './rosterDetachments'
-import { isMatchedPlayDatasheet, priceOf } from './catalogueUnit'
+import { isOfferedDatasheet, priceOf } from './catalogueUnit'
 import { type Steps, type Stepwise, stepwise } from './steps'
 
 export { isMatchedPlayDatasheet } from './catalogueUnit'
@@ -123,13 +124,15 @@ type UnitListOptions = {
   battleSize?: number
   waivedRules?: readonly string[]
   detachmentIds?: readonly string[]
+  /** Also list Legends and Crucible datasheets, as the roster picker does. */
+  nonMatchedPlay?: boolean
 }
 
 /** The complete priced list `unitsIn` searches, built a datasheet per step and shared by every reader of the same list. */
 export function unitSummaries(
   loaded: LoadedCatalogue,
   catalogueId: string,
-  { restrictions, factionCards, battleSize, waivedRules = [], detachmentIds = [] }: UnitListOptions = {},
+  { restrictions, factionCards, battleSize, waivedRules = [], detachmentIds = [], nonMatchedPlay = false }: UnitListOptions = {},
 ): Stepwise<UnitSummary[]> {
   // A faction page lists what its cards list, where it has cards at all.
   const book = loaded.index.catalogues.get(catalogueId)
@@ -137,9 +140,9 @@ export function unitSummaries(
   // The complete, priced list is cached so each search filters in memory. Waived rules
   // change which datasheets the book offers and how many of each, so they belong in the key.
   const detachments = rosterDetachments(loaded, catalogueId, detachmentIds)
-  const cacheKey = `${JSON.stringify(detachments.chosen.map((option) => option.id))}:${catalogueId}:${included ? 'included' : 'all'}:${battleSize ?? 'all'}:${[...waivedRules].toSorted().join(',')}:${restrictionsKey(restrictions)}`
+  const cacheKey = `${JSON.stringify(detachments.chosen.map((option) => option.id))}:${catalogueId}:${included ? 'included' : 'all'}:${battleSize ?? 'all'}:${[...waivedRules].toSorted().join(',')}:${restrictionsKey(restrictions)}:${nonMatchedPlay}`
   return cachedIn(unitSummaryCache, loaded, cacheKey, () =>
-    stepwise(() => summarizeUnits(loaded, catalogueId, { restrictions, included, battleSize, waivedRules, detachments })),
+    stepwise(() => summarizeUnits(loaded, catalogueId, { restrictions, included, battleSize, waivedRules, detachments, nonMatchedPlay })),
   )
 }
 
@@ -152,12 +155,14 @@ function* summarizeUnits(
     battleSize,
     waivedRules,
     detachments,
+    nonMatchedPlay,
   }: {
     restrictions?: FactionRestrictions
     included: boolean
     battleSize?: number
     waivedRules: readonly string[]
     detachments: ReturnType<typeof rosterDetachments>
+    nonMatchedPlay: boolean
   },
 ): Steps<UnitSummary[]> {
   const found: {
@@ -173,7 +178,7 @@ function* summarizeUnits(
   for (const id of datasheetsOf(loaded.index, catalogueId)) {
     const entry = loaded.index.definitions.get(id)
     if (!entry) continue
-    if (!isMatchedPlayDatasheet(loaded.index, entry)) continue
+    if (!isOfferedDatasheet(loaded.index, entry, nonMatchedPlay)) continue
     const target = targetOf(entry, loaded.index.definitions)
     const name = nameOf(entry, loaded.index.definitions)
     if (included && !datacardOf(loaded, catalogueId, id)?.own) continue
@@ -185,7 +190,7 @@ function* summarizeUnits(
     // mission-only battlefield assets. A few assets (including Sentry Gun) lack
     // the suffix even though they are not matched-play roster choices.
     const ally = allied.get(id)
-    if (ally?.name === 'Unaligned Forces') continue
+    if (ally?.name === 'Unaligned Forces' && !isNonMatchedPlayName(name)) continue
     found.push({
       id,
       name,
@@ -206,6 +211,7 @@ function* summarizeUnits(
   const summaries: UnitSummary[] = []
   for (const unit of [...primary, ...allies]) {
     yield
+    const kind = nonMatchedPlayKind(unit.name)
     const sheet = battleSize !== undefined && isKotcLimit(battleSize) ? datasheetIn(loaded, catalogueId, unit.id) : null
     const facts = sheet ? { keywords: unit.keywords ?? sheet.keywords, toughness: toughnessOf(sheet.profiles) } : null
     if (facts && kotcUnitExclusions(facts, waivedRules).length) continue
@@ -217,6 +223,7 @@ function* summarizeUnits(
       group: unit.group,
       allied: Boolean(unit.alliedFaction),
       alliedFaction: unit.alliedFaction,
+      ...(kind ? { nonMatchedPlay: kind } : {}),
       points: priceOf(loaded, catalogueId, unit.id, roster),
       limit: minimumLimit(limitOf(loaded, catalogueId, unit.id, size), formatLimit),
     })

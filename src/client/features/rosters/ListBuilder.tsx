@@ -263,7 +263,7 @@ export function ListBuilder({
   const resetAbilityAlert = abilityAlerts.reset
   const [combatRoster, setCombatRoster] = useState<CombatRoster | null>(null)
   const [compareTargets, setCompareTargets] = useState(false)
-  const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] } | null>(null)
+  const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] | undefined } | null>(null)
   const [readOnly, setReadOnly] = useState(!editable)
   const [exportText, setExportText] = useState<RosterTextExport | null>(null)
   const [exchangeCode, setExchangeCode] = useState<RosterExchangeCode | null>(null)
@@ -1244,7 +1244,7 @@ export function ListBuilder({
     unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.required && toggle.selected),
   )
   const inspectedEntryId = preview?.entryId ?? optimisticUnit?.entryId ?? null
-  const referenceRoute = reference?.entryId === inspectedEntryId ? reference.route : null
+  const referenceRoute = reference?.entryId === inspectedEntryId ? reference.route : undefined
   const limitFailure = priceFailed ? (
     <div role="alert" className="border-b border-edge px-3 py-2 text-xs text-discarded">
       Could not check unit limits.{' '}
@@ -1988,7 +1988,13 @@ export function ListBuilder({
                     </TooltipContent>
                   </Tooltip>
                 ) : null}
-                {inspectedEntryId ? referenceRoute ? <FullDatasheetLink route={referenceRoute} /> : <FullDatasheetLinkLoading /> : null}
+                {inspectedEntryId && referenceRoute !== null ? (
+                  referenceRoute ? (
+                    <FullDatasheetLink route={referenceRoute} />
+                  ) : (
+                    <FullDatasheetLinkLoading />
+                  )
+                ) : null}
               </>
             }
           >

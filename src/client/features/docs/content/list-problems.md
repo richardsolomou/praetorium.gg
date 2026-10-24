@@ -6,7 +6,7 @@ You've reached that datasheet's limit, shown as "Limit reached: 3 of 3 permitted
 
 ### A unit isn't in the picker
 
-Check the filters ("Everything is filtered out." means they hide every match), your detachments, and whether it's a Legends datasheet.
+Check the filters ("Everything is filtered out." means they hide every match), your detachments, and, for a Legends or Crucible datasheet, whether **Legends** or **Crucible** is on.
 
 ### I can't select a detachment
 

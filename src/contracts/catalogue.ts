@@ -2,6 +2,7 @@ import type { Attachment, AttachmentLimits } from '../core/attach'
 import type { UnitGroup } from '../core/unitGroups'
 import type { Datasheet, StructuredDatasheetProfile } from '../core/datasheet'
 import type { DatasheetSearchFields, DatasheetSearchReason } from '../core/datasheetSearch'
+import type { NonMatchedPlayKind } from '../core/name'
 import type { RuleDocument } from './rules'
 
 export type {
@@ -25,6 +26,8 @@ export type UnitSummary = {
   limit: number | null
   allied: boolean
   alliedFaction: string | null
+  /** Set on a Legends or Crucible datasheet, which a list offers only when asked for. */
+  nonMatchedPlay?: NonMatchedPlayKind
   matchReasons?: DatasheetSearchReason[]
   fuzzy?: boolean
 }

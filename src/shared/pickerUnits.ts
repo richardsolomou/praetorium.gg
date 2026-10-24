@@ -53,18 +53,22 @@ export function pickerUnitsFor(
   const names = rules?.factionNames
   const restrictions = pickerRestrictions(loaded, rules, catalogueId)
   const detachments = rosterDetachments(loaded, catalogueId, detachmentIds).selections
-  return unitsIn(loaded, catalogueId, query, { restrictions, battleSize, waivedRules, detachmentIds }).map((unit) => ({
-    ...unit,
-    ...pickerAttachments(loaded, catalogueId, unit.id),
-    alliedFaction: unit.alliedFaction ? factionDisplayName(unit.alliedFaction, names) : null,
-    search: pickerSearchFields(loaded, catalogueId, unit.id, detachments),
-  }))
+  return unitsIn(loaded, catalogueId, query, { restrictions, battleSize, waivedRules, detachmentIds, nonMatchedPlay: true }).map(
+    (unit) => ({
+      ...unit,
+      ...pickerAttachments(loaded, catalogueId, unit.id),
+      alliedFaction: unit.alliedFaction ? factionDisplayName(unit.alliedFaction, names) : null,
+      search: pickerSearchFields(loaded, catalogueId, unit.id, detachments),
+    }),
+  )
 }
 
 /** Prepares what a faction's unpriced picker and reference list read, a datasheet per step. */
 export function* pickerConstruction(loaded: LoadedCatalogue, rules: LoadedRules | null, catalogueId: string): Steps<void> {
   yield* stepThrough(unitSummaries(loaded, catalogueId, { factionCards: true }))
-  const units = yield* stepThrough(unitSummaries(loaded, catalogueId, { restrictions: pickerRestrictions(loaded, rules, catalogueId) }))
+  const units = yield* stepThrough(
+    unitSummaries(loaded, catalogueId, { restrictions: pickerRestrictions(loaded, rules, catalogueId), nonMatchedPlay: true }),
+  )
   for (const unit of units) {
     pickerAttachments(loaded, catalogueId, unit.id)
     datasheetSearchFieldsIn(loaded, catalogueId, unit.id)
@@ -75,6 +79,8 @@ export function* pickerConstruction(loaded: LoadedCatalogue, rules: LoadedRules 
 /** The books whose picker lists a datasheet, which are the rosters a reference page can add it to. */
 export function booksOffering(loaded: LoadedCatalogue, rules: LoadedRules | null, entryId: string, catalogueIds: readonly string[]) {
   return catalogueIds.filter((catalogueId) =>
-    unitsIn(loaded, catalogueId, '', { restrictions: pickerRestrictions(loaded, rules, catalogueId) }).some((unit) => unit.id === entryId),
+    unitsIn(loaded, catalogueId, '', { restrictions: pickerRestrictions(loaded, rules, catalogueId), nonMatchedPlay: true }).some(
+      (unit) => unit.id === entryId && !unit.nonMatchedPlay,
+    ),
   )
 }

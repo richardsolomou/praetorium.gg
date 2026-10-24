@@ -28,7 +28,8 @@ type Props = {
   providedSheet?: Datasheet | null
   showRelationships?: boolean
   onRelationshipSelect?: (entryId: string, name: string) => void
-  onReferenceRoute?: (reference: { entryId: string; route: Datasheet['referenceRoute'] } | null) => void
+  /** `route` is undefined while the sheet loads and null when the datasheet has no reference page. */
+  onReferenceRoute?: (reference: { entryId: string; route: Datasheet['referenceRoute'] | undefined } | null) => void
   abilityReminders?: ReminderControls
   detachmentRules?: readonly ReminderSubject[]
 }
@@ -63,7 +64,7 @@ export function DatasheetPanel({
     placeholderData: (previous, previousQuery) => (previousQuery?.queryKey[2] === entryId ? previous : undefined),
   })
   const sheet = providedSheet === undefined ? fetchedSheet : providedSheet
-  const referenceRoute = sheet?.referenceRoute ?? null
+  const referenceRoute = sheet ? sheet.referenceRoute : undefined
 
   useEffect(() => {
     onReferenceRoute?.(entryId ? { entryId, route: referenceRoute } : null)
