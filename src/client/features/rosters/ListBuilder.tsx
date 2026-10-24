@@ -36,7 +36,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { MenuSection } from '../../components/MenuSection'
+import { MENU_ITEM, MenuSection } from '../../components/MenuSection'
 import { attachedUnitCount, attachmentHost } from '../../../core/attachedUnits'
 import { joiningKind } from '../../../core/attachmentRows'
 import type { FormatRuleId, Roster, Secondary, Stratagem } from '../../../core/battle'
@@ -699,7 +699,7 @@ export function ListBuilder({
   }, [resetShare, share.isSuccess])
   const nativeShare = useNativeShare()
   const shareItem = (
-    <DropdownMenuItem disabled={share.isPending} onClick={() => share.mutate()}>
+    <DropdownMenuItem className={MENU_ITEM} disabled={share.isPending} onClick={() => share.mutate()}>
       <Link2 /> {nativeShare ? 'Share link' : 'Copy link'}
     </DropdownMenuItem>
   )
@@ -1180,6 +1180,7 @@ export function ListBuilder({
       <DropdownMenuSeparator />
       <MenuSection label="Display">
         <DropdownMenuCheckboxItem
+          className={MENU_ITEM}
           checked={arrangement === 'attached'}
           closeOnClick
           onCheckedChange={(checked) => {
@@ -1383,7 +1384,11 @@ export function ListBuilder({
   }
 
   const testTargets = !frozen ? (
-    <DropdownMenuItem disabled={!positioned.length || pricePending || priceLoading} onClick={() => openCombat(0, true)}>
+    <DropdownMenuItem
+      className={MENU_ITEM}
+      disabled={!positioned.length || pricePending || priceLoading}
+      onClick={() => openCombat(0, true)}
+    >
       <Calculator /> Test targets
     </DropdownMenuItem>
   ) : null
@@ -1432,11 +1437,15 @@ export function ListBuilder({
                 <DropdownMenuContent align="end" className="min-w-52">
                   <MenuSection label="Play">
                     {savedId && !guest ? (
-                      <DropdownMenuItem disabled={saving || !positioned.length} onClick={() => setStartingBattle(true)}>
+                      <DropdownMenuItem
+                        className={MENU_ITEM}
+                        disabled={saving || !positioned.length}
+                        onClick={() => setStartingBattle(true)}
+                      >
                         <Swords /> Start a battle
                       </DropdownMenuItem>
                     ) : guest ? (
-                      <DropdownMenuItem onClick={() => account.ask('battle')}>
+                      <DropdownMenuItem className={MENU_ITEM} onClick={() => account.ask('battle')}>
                         <Swords /> Start a battle
                       </DropdownMenuItem>
                     ) : null}
@@ -1444,16 +1453,8 @@ export function ListBuilder({
                   </MenuSection>
                   <DropdownMenuSeparator />
                   <MenuSection label="Setup">
-                    <DropdownMenuItem onClick={openSetup}>
+                    <DropdownMenuItem className={MENU_ITEM} onClick={openSetup}>
                       <Pencil /> Edit roster setup
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        openSetup()
-                        setSetupMode('convert')
-                      }}
-                    >
-                      <SlidersHorizontal /> Convert rules version
                     </DropdownMenuItem>
                   </MenuSection>
                   {savedId || guest ? (
@@ -1462,26 +1463,34 @@ export function ListBuilder({
                       <MenuSection label="Copies and access">
                         {savedId && !guest ? (
                           <>
-                            <DropdownMenuItem disabled={saving || createVariant.isPending} onClick={() => createVariant.mutate(savedId)}>
+                            <DropdownMenuItem
+                              className={MENU_ITEM}
+                              disabled={saving || createVariant.isPending}
+                              onClick={() => createVariant.mutate(savedId)}
+                            >
                               <GitBranchPlus /> Create variant
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setLending(true)}>
+                            <DropdownMenuItem className={MENU_ITEM} onClick={() => setLending(true)}>
                               <HandHelping /> Lend to a friend
                             </DropdownMenuItem>
-                            <DropdownMenuItem disabled={saving || lockRoster.isPending} onClick={() => lockRoster.mutate(true)}>
+                            <DropdownMenuItem
+                              className={MENU_ITEM}
+                              disabled={saving || lockRoster.isPending}
+                              onClick={() => lockRoster.mutate(true)}
+                            >
                               <Lock /> Lock roster
                             </DropdownMenuItem>
                           </>
                         ) : guest ? (
                           // Offered as an account offers them, so a visitor finds out what signing up adds.
                           <>
-                            <DropdownMenuItem onClick={() => account.ask('variant')}>
+                            <DropdownMenuItem className={MENU_ITEM} onClick={() => account.ask('variant')}>
                               <GitBranchPlus /> Create variant
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => account.ask('lend')}>
+                            <DropdownMenuItem className={MENU_ITEM} onClick={() => account.ask('lend')}>
                               <HandHelping /> Lend to a friend
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => account.ask('lock')}>
+                            <DropdownMenuItem className={MENU_ITEM} onClick={() => account.ask('lock')}>
                               <Lock /> Lock roster
                             </DropdownMenuItem>
                           </>
@@ -1492,13 +1501,17 @@ export function ListBuilder({
                   <DropdownMenuSeparator />
                   <MenuSection label="Share">
                     {visibility !== 'private' ? shareItem : null}
-                    <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
+                    <DropdownMenuItem className={MENU_ITEM} disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
                       <Download /> Export text
                     </DropdownMenuItem>
-                    <DropdownMenuItem disabled={exchange.isPending || !positioned.length} onClick={() => exchange.mutate()}>
+                    <DropdownMenuItem
+                      className={MENU_ITEM}
+                      disabled={exchange.isPending || !positioned.length}
+                      onClick={() => exchange.mutate()}
+                    >
                       <QrCode /> Exchange code
                     </DropdownMenuItem>
-                    <DropdownMenuItem disabled={!priced || pricePending || priceLoading} onClick={preparePrint}>
+                    <DropdownMenuItem className={MENU_ITEM} disabled={!priced || pricePending || priceLoading} onClick={preparePrint}>
                       <Printer /> Print
                     </DropdownMenuItem>
                   </MenuSection>
@@ -1550,7 +1563,7 @@ export function ListBuilder({
                     <>
                       <MenuSection label="Play">
                         {locked ? (
-                          <DropdownMenuItem disabled={!positioned.length} onClick={() => setStartingBattle(true)}>
+                          <DropdownMenuItem className={MENU_ITEM} disabled={!positioned.length} onClick={() => setStartingBattle(true)}>
                             <Swords /> Start a battle
                           </DropdownMenuItem>
                         ) : null}
@@ -1562,25 +1575,38 @@ export function ListBuilder({
                   <MenuSection label={locked ? 'Copies and access' : 'Copies'}>
                     {locked ? (
                       <>
-                        <DropdownMenuItem disabled={lockRoster.isPending} onClick={() => lockRoster.mutate(false)}>
+                        <DropdownMenuItem className={MENU_ITEM} disabled={lockRoster.isPending} onClick={() => lockRoster.mutate(false)}>
                           <LockOpen /> Unlock roster
                         </DropdownMenuItem>
-                        <DropdownMenuItem disabled={createVariant.isPending} onClick={() => createVariant.mutate(savedId)}>
+                        <DropdownMenuItem
+                          className={MENU_ITEM}
+                          disabled={createVariant.isPending}
+                          onClick={() => createVariant.mutate(savedId)}
+                        >
                           <GitBranchPlus /> Create variant
                         </DropdownMenuItem>
-                        <DropdownMenuItem disabled={duplicateRoster.isPending} onClick={() => duplicateRoster.mutate()}>
+                        <DropdownMenuItem
+                          className={MENU_ITEM}
+                          disabled={duplicateRoster.isPending}
+                          onClick={() => duplicateRoster.mutate()}
+                        >
                           <Copy /> Duplicate
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setLending(true)}>
+                        <DropdownMenuItem className={MENU_ITEM} onClick={() => setLending(true)}>
                           <HandHelping /> Lend to a friend
                         </DropdownMenuItem>
                       </>
                     ) : me ? (
-                      <DropdownMenuItem disabled={duplicateRoster.isPending || !positioned.length} onClick={() => duplicateRoster.mutate()}>
+                      <DropdownMenuItem
+                        className={MENU_ITEM}
+                        disabled={duplicateRoster.isPending || !positioned.length}
+                        onClick={() => duplicateRoster.mutate()}
+                      >
                         <Copy /> Duplicate to my rosters
                       </DropdownMenuItem>
                     ) : (
                       <DropdownMenuItem
+                        className={MENU_ITEM}
                         disabled={duplicateRoster.isPending || !positioned.length}
                         onClick={() => (peekGuestDraft() ? account.ask('another-roster') : duplicateRoster.mutate())}
                       >
@@ -1591,13 +1617,18 @@ export function ListBuilder({
                   <DropdownMenuSeparator />
                   <MenuSection label="Share">
                     {visibility !== 'private' && !battle ? shareItem : null}
-                    <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
+                    <DropdownMenuItem className={MENU_ITEM} disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
                       <Download /> Export text
                     </DropdownMenuItem>
-                    <DropdownMenuItem disabled={exchange.isPending || !positioned.length} onClick={() => exchange.mutate()}>
+                    <DropdownMenuItem
+                      className={MENU_ITEM}
+                      disabled={exchange.isPending || !positioned.length}
+                      onClick={() => exchange.mutate()}
+                    >
                       <QrCode /> Exchange code
                     </DropdownMenuItem>
                     <DropdownMenuItem
+                      className={MENU_ITEM}
                       disabled={!frozenReference && (!priced || pricePending || priceLoading)}
                       onClick={frozenReference ? () => window.print() : preparePrint}
                     >

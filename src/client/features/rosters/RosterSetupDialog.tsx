@@ -174,6 +174,8 @@ export function RosterSetupDialog({
   const [review, setReview] = useState<SetupReview | null>(null)
   const [keepOriginal, setKeepOriginal] = useState(false)
   const keepOriginalId = useId()
+  // Changing the rules version can leave the original as it was, from either the setup or the out-of-date notice.
+  const offerKeepOriginal = canKeepOriginal && mode !== 'create' && draft.catalogueId !== (sourceCatalogueId ?? value.catalogueId)
   const reviewing = useMutation({ mutationFn: (setup: RosterSetup) => reviewRosterSetup(reviewSource!, setup), onSuccess: setReview })
   const confirming = useMutation({
     mutationFn: async () => {
@@ -189,7 +191,7 @@ export function RosterSetupDialog({
           visibility: review.candidate.visibility ?? 'private',
         },
         review,
-        { keepOriginal: canKeepOriginal && mode === 'convert' && keepOriginal },
+        { keepOriginal: offerKeepOriginal && keepOriginal },
       )
     },
   })
@@ -797,7 +799,7 @@ export function RosterSetupDialog({
             {review ? (
               <>
                 <SetupConsequences review={review} guest={guest} />
-                {canKeepOriginal && mode === 'convert' ? (
+                {offerKeepOriginal ? (
                   <label htmlFor={keepOriginalId} className="mt-5 flex items-start justify-between gap-3 border-t border-edge pt-4">
                     <span>
                       <span className="block text-sm font-semibold">Keep the original</span>

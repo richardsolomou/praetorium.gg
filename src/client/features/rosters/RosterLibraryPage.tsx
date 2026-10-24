@@ -59,7 +59,7 @@ import { countLabel } from '../../text'
 
 export type RosterLibrarySearch = { limit?: number; faction?: string; visibility?: RosterVisibility; updates?: RosterUpdateFilter }
 /** An unsaved setup edit, kept per tab so a refresh does not lose it. */
-type EditingSession = { rosterId: string; draft: RosterSetup; mode?: 'edit' | 'convert' }
+type EditingSession = { rosterId: string; draft: RosterSetup }
 
 const WORKSPACE_PATH = '/rosters/'
 const EDITING_STATE = 'roster-setup'
@@ -230,7 +230,6 @@ export function RosterLibraryPage({
         actions={actions}
         origin={origin}
         onEdit={() => setEditing({ rosterId: roster.id, draft: setupOf(roster) })}
-        onConvert={() => setEditing({ rosterId: roster.id, draft: setupOf(roster), mode: 'convert' })}
         onDelete={() => setDeleting(roster)}
         onNeedsAccount={guest ? account.ask : undefined}
       />
@@ -468,7 +467,7 @@ export function RosterLibraryPage({
 
       {editing ? (
         <RosterSetupDialog
-          mode={session?.mode ?? 'edit'}
+          mode="edit"
           sourceCatalogueId={editing.catalogueId}
           open
           onOpenChange={(open) => {
@@ -479,7 +478,7 @@ export function RosterLibraryPage({
           }}
           factionOptions={available?.factions ?? []}
           value={session?.draft ?? setupOf(editing)}
-          onDraftChange={(draft) => setEditing({ rosterId: editing.id, draft, mode: session?.mode })}
+          onDraftChange={(draft) => setEditing({ rosterId: editing.id, draft })}
           hasUnits={Boolean(editing.unitCount)}
           reviewSource={guest ? claimInput(guest) : editing.id}
           guest={Boolean(guest)}
@@ -491,7 +490,7 @@ export function RosterLibraryPage({
             const id = options?.keepOriginal ? (await actions.convertAsVariant.mutateAsync(review)).id : editing.id
             if (!options?.keepOriginal) await actions.update.mutateAsync(review)
             setEditing(null)
-            if (session?.mode === 'convert') void navigate({ to: '/rosters/$id', params: { id } })
+            if (options?.keepOriginal) void navigate({ to: '/rosters/$id', params: { id } })
           }}
         />
       ) : null}

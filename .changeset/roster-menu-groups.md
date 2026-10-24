@@ -2,4 +2,4 @@
 'praetorium.gg': patch
 ---
 
-A roster's action menu groups its actions, with Delete set apart at the bottom.
+Roster action menus match the unit card's style and group their actions, with Delete set apart at the bottom.
