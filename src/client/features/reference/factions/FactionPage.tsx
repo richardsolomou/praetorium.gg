@@ -146,7 +146,7 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-bold uppercase">{detachment.name}</span>
                     {detachment.reference ? (
-                      <span className="text-xs text-dim">
+                      <span className="block text-xs text-dim">
                         {[
                           [detachment.reference.stratagems, 'stratagems'],
                           [detachment.reference.enhancements, 'enhancements'],
@@ -156,19 +156,19 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
                           .join(' · ')}
                       </span>
                     ) : (
-                      <span className="text-xs text-dim">Reference details unavailable</span>
+                      <span className="block text-xs text-dim">Reference details unavailable</span>
                     )}
+                    {detachment.reference?.dispositions.length || detachment.points !== null ? (
+                      <span className="mt-1.5 flex flex-wrap gap-1">
+                        {detachment.reference?.dispositions.map((disposition) => (
+                          <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
+                            {disposition}
+                          </span>
+                        ))}
+                        {detachment.points == null ? null : <span className="chip text-info">{detachment.points} DP</span>}
+                      </span>
+                    ) : null}
                   </span>
-                  {detachment.reference?.dispositions.length || detachment.points !== null ? (
-                    <span className="order-last flex basis-full flex-wrap gap-1">
-                      {detachment.reference?.dispositions.map((disposition) => (
-                        <span key={disposition} className={`chip ${dispositionTone(disposition)}`}>
-                          {disposition}
-                        </span>
-                      ))}
-                      {detachment.points == null ? null : <span className="chip text-info">{detachment.points} DP</span>}
-                    </span>
-                  ) : null}
                   {detachment.reference ? <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden /> : null}
                 </>
               )
@@ -177,7 +177,7 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
                   <FactionReferenceLink
                     to="/factions/$catalogueId/detachments/$detachmentId"
                     params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
-                    className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-1.5"
+                    className="flex min-w-0 flex-1 items-center gap-3"
                   >
                     {content}
                   </FactionReferenceLink>
@@ -185,7 +185,7 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
                 </div>
               ) : (
                 <div key={detachment.id} className="flex items-center gap-1 bg-panel px-3 py-2.5 ring-1 ring-edge">
-                  <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-4 gap-y-1.5">{content}</div>
+                  <div className="flex min-w-0 flex-1 items-center gap-3">{content}</div>
                   <FavouriteDetachmentToggle catalogueId={faction.id} detachmentId={detachment.id} name={detachment.name} />
                 </div>
               )
