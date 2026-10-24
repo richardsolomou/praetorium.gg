@@ -63,6 +63,7 @@ it('freezes unit wounds, reserve exemptions, and transport capability into a ros
           formationOptions: ['battlefield'],
           prebattleRules: [],
           strategicReserveExempt: true,
+          embarksWithBodyguard: true,
           transport: true,
         },
       ],
@@ -76,6 +77,7 @@ it('freezes unit wounds, reserve exemptions, and transport capability into a ros
       expect.objectContaining({
         wounds: 3,
         strategicReserveExempt: true,
+        embarksWithBodyguard: true,
         transport: true,
         transportRule: 'This model has a transport capacity of 12 models.',
         keywords: ['Infantry'],

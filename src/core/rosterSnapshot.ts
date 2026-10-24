@@ -50,6 +50,7 @@ type PricedRoster = {
     formationOptions: readonly ('battlefield' | 'strategic-reserves' | 'deep-strike' | 'embarked')[]
     prebattleRules: readonly ('infiltrators' | 'scouts')[]
     strategicReserveExempt?: boolean
+    embarksWithBodyguard?: boolean
     transport?: boolean
   }[]
 }
@@ -172,6 +173,7 @@ export function frozenUnits(picks: readonly RosterPick[], units: PricedRoster['u
       formationOptions: [...unit.formationOptions],
       prebattleRules: [...unit.prebattleRules],
       ...(unit.strategicReserveExempt ? { strategicReserveExempt: true } : {}),
+      ...(unit.embarksWithBodyguard ? { embarksWithBodyguard: true } : {}),
       ...(unit.transport ? { transport: true } : {}),
       ...(transportsByPick.has(unit.key) ? { startsEmbarkedIn: transportsByPick.get(unit.key) } : {}),
     }

@@ -6,5 +6,6 @@ export function deploymentRules(abilityNames: readonly string[]) {
       ...(abilities.some((ability) => ability.includes('infiltrator')) ? (['infiltrators'] as const) : []),
       ...(abilities.some((ability) => ability.startsWith('scouts')) ? (['scouts'] as const) : []),
     ],
+    ...(abilities.includes('authority of the inquisition') ? { embarksWithBodyguard: true } : {}),
   }
 }
