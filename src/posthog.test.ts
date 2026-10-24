@@ -1,7 +1,17 @@
+import type { PostHog } from 'posthog-js'
 import { afterEach, expect, it, vi } from 'vitest'
-import { POSTHOG_BROWSER_OPTIONS, browserEventContext, telemetryFeature } from './posthog'
 
-afterEach(() => vi.unstubAllGlobals())
+const client = vi.hoisted(() => ({ __loaded: false, capture: vi.fn() }))
+vi.mock('posthog-js', () => ({ posthog: client }))
+
+import { POSTHOG_BROWSER_OPTIONS, browserEventContext, captureWhenLoaded, telemetryFeature } from './posthog'
+
+afterEach(() => {
+  vi.unstubAllGlobals()
+  POSTHOG_BROWSER_OPTIONS.loaded(client as unknown as PostHog)
+  client.__loaded = false
+  client.capture.mockReset()
+})
 
 it.each([
   ['/', 'home'],
@@ -78,4 +88,22 @@ it('leaves server rendering alone', () => {
 
 it('installs context on the SDK send boundary', () => {
   expect(POSTHOG_BROWSER_OPTIONS.before_send).toBe(browserEventContext)
+})
+
+it('captures at once when the SDK has loaded', () => {
+  client.__loaded = true
+  captureWhenLoaded('page_not_found', { path: '/:id' })
+  expect(client.capture).toHaveBeenCalledWith('page_not_found', { path: '/:id' })
+})
+
+it('holds a capture made before the SDK loads', () => {
+  captureWhenLoaded('page_not_found', { path: '/:id' })
+  expect(client.capture).not.toHaveBeenCalled()
+})
+
+it('sends a held capture once when the SDK loads', () => {
+  captureWhenLoaded('page_not_found', { path: '/:id' })
+  POSTHOG_BROWSER_OPTIONS.loaded(client as unknown as PostHog)
+  POSTHOG_BROWSER_OPTIONS.loaded(client as unknown as PostHog)
+  expect(client.capture.mock.calls).toEqual([['page_not_found', { path: '/:id' }]])
 })

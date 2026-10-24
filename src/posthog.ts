@@ -1,4 +1,4 @@
-import type { BeforeSendFn, PostHogConfig } from 'posthog-js'
+import { posthog, type BeforeSendFn, type PostHogConfig, type Properties } from 'posthog-js'
 import { nativeBridgeVersion } from './client/nativeBridge'
 
 const FEATURES = {
@@ -58,6 +58,14 @@ export const browserEventContext: BeforeSendFn = (event) => {
   }
 }
 
+const held: [event: string, properties: Properties][] = []
+
+/** Captures now or once the SDK loads: the provider initialises it in an effect, after its children's effects on the first render. */
+export function captureWhenLoaded(event: string, properties: Properties) {
+  if (posthog.__loaded) posthog.capture(event, properties)
+  else held.push([event, properties])
+}
+
 export const POSTHOG_BROWSER_OPTIONS = {
   capture_exceptions: true,
   capture_performance: true,
@@ -66,4 +74,7 @@ export const POSTHOG_BROWSER_OPTIONS = {
   custom_personal_data_properties: ['token'],
   session_recording: { maskAllInputs: true },
   before_send: browserEventContext,
+  loaded: (client) => {
+    for (const [event, properties] of held.splice(0)) client.capture(event, properties)
+  },
 } satisfies Partial<PostHogConfig>
