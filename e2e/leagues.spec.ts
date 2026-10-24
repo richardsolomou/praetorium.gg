@@ -444,38 +444,37 @@ async function sealDoublesEventRosters(leagueToken: string, invalidWarlords = fa
     team_id: [number, string | []]
   }>`SELECT user_id, team_id FROM league_event_entries WHERE event_id = ${event.id} AND status = 'accepted'`
   if (entries.length !== 4 || entries.some((entry) => option(entry.team_id) === null)) throw new Error('The doubles teams are incomplete.')
-  const warlords = new Set<string>()
-  let teammate: (typeof entries)[number] | undefined
+  const seen = new Set<string>()
   for (const entry of entries) {
     const teamId = option(entry.team_id)!
-    const warlord = !warlords.has(teamId)
-    if (!warlord) teammate = entry
-    warlords.add(teamId)
+    const first = !seen.has(teamId)
+    seen.add(teamId)
+    // Every doubles list names its own Warlord; the pair chooses whose leads it.
     const outcome = await submitFixtureRoster(
       leagueToken,
       event.id,
       entry.user_id,
       1_000,
-      warlord,
+      true,
       '1,000-point doubles roster',
       'Test character',
-      TEAM_EVENT_CARDS[warlord ? 0 : 1],
+      TEAM_EVENT_CARDS[first ? 0 : 1],
     )
     if (outcome !== 'sealed') {
       throw new Error(`The doubles league fixture roster returned ${outcome}.`)
     }
   }
-  if (invalidWarlords && teammate) {
+  if (invalidWarlords) {
     const outcome = await submitFixtureRoster(
       leagueToken,
       event.id,
-      teammate.user_id,
+      entries[0].user_id,
       1_000,
-      true,
+      false,
       '1,000-point doubles roster',
       'Test character',
     )
-    if (outcome !== 'invalid-warlords') throw new Error(`A doubles team accepted two Warlords: ${outcome}.`)
+    if (outcome !== 'invalid-warlords') throw new Error(`A doubles list without a Warlord was sealed: ${outcome}.`)
   }
 }
 
@@ -1624,6 +1623,11 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await priorityAssets.click()
   await expect(priorityAssets).toHaveAttribute('aria-pressed', 'true')
   await expect(alliedSide).toContainText('plays Priority Assets')
+  // Each allied list names its own Warlord, so the pair also chooses whose leads it.
+  await expect(allied.getByRole('heading', { name: 'Choose your team’s Warlord' })).toBeVisible()
+  const partnerWarlord = allied.locator('[data-team-warlord]').getByRole('button', { name: `${secondAlliedLabel}’s Warlord` })
+  await partnerWarlord.click()
+  await expect(partnerWarlord).toHaveAttribute('aria-pressed', 'true')
   await expect(allied.getByRole('heading', { name: 'Your roster is sealed' })).toBeVisible()
   await expectNoHorizontalOverflow(allied, teamCard)
   // A 2v1 seats the allied rosters together and never against each other, so each ally reads the other's
@@ -1871,6 +1875,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expect(teamCard.getByRole('button', { name: 'Priority Assets' })).toHaveAttribute('aria-pressed', 'true')
   await expect(teammate.locator('[data-group="team-1"]')).toContainText('plays Priority Assets')
   await expectNoHorizontalOverflow(teammate, teamCard)
+  await expect(teammate.locator('[data-team-warlord]').getByRole('button')).toHaveCount(2)
   const opponent = pages[2]
   await opponent.setViewportSize({ width: 1440, height: 900 })
   await opponent.reload()

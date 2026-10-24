@@ -16,12 +16,14 @@ const entrant = (
   disposition: string,
   teamId: string | null = null,
   teamDisposition: string | null = null,
+  teamWarlord: string | null = null,
 ) => ({
   userId,
   requiredLimit: limit,
   snapshot: roster(limit, disposition),
   teamId,
   teamDisposition,
+  teamWarlord,
 })
 
 const trial = (entries: LeagueBattleSetup['entries']): LeagueBattleSetup => ({
@@ -58,6 +60,19 @@ describe('2v1 league battles', () => {
 
   it('seals the pair’s card into the league lock', () => {
     expect(lock(build(paired, 'solo', 'ally'))).toMatchObject({ dispositions: [{ side: 1, disposition: 'priority-assets' }] })
+  })
+
+  it('seals whose Warlord leads the allied side', () => {
+    const led = trial([
+      entrant('solo', 2_000, 'take-and-hold'),
+      entrant('ally', 1_000, 'take-and-hold', 'pair', 'take-and-hold', 'partner'),
+      entrant('partner', 1_000, 'take-and-hold', 'pair', 'take-and-hold', 'partner'),
+    ])
+    expect(lock(build(led, 'solo', 'ally'))).toMatchObject({ warlords: [{ side: 1, playerId: 'partner' }] })
+  })
+
+  it('leaves the Warlord to setup for an event revealed before pairs sealed one', () => {
+    expect(lock(build(paired, 'solo', 'ally'))).not.toHaveProperty('warlords')
   })
 
   it('leaves the card to setup for an event revealed before pairs sealed one', () => {

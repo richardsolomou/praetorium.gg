@@ -8,13 +8,17 @@ export type LeagueBattleSetup = {
   format: TableShape | null
   rosterLimit: number | null
   revealedAt: number | null
-  /** `teamDisposition` is the card the entrant's fixed pair sealed, absent from events revealed before pairs sealed one. */
+  /**
+   * `teamDisposition` is the card the entrant's fixed pair sealed and `teamWarlord` the entrant whose Warlord leads it,
+   * each absent from events revealed before pairs sealed one.
+   */
   entries: {
     userId: string
     requiredLimit: number | null
     snapshot: string | null
     teamId: string | null
     teamDisposition: string | null
+    teamWarlord: string | null
   }[]
 }
 export class LeagueBattleSetupError extends Error {
@@ -33,6 +37,15 @@ function sealedDispositions(league: LeagueBattleSetup, ...sides: string[][]) {
   })
   if (!dispositions.length || dispositions.some((entry) => !entry.disposition)) return {}
   return { dispositions: dispositions.map(({ side, disposition }) => ({ side, disposition: disposition! })) }
+}
+
+/** Whose Warlord leads each allied side, as its pair sealed it; a side whose pair never sealed one is left to setup. */
+function sealedWarlords(league: LeagueBattleSetup, ...sides: string[][]) {
+  const warlords = sides.flatMap((playerIds, side) => {
+    const playerId = league.entries.find((entry) => entry.userId === playerIds[0])?.teamWarlord
+    return playerIds.length > 1 && playerId && playerIds.includes(playerId) ? [{ side, playerId }] : []
+  })
+  return warlords.length ? { warlords } : {}
 }
 
 export function buildLeagueBattle(
@@ -159,6 +172,7 @@ export function buildLeagueBattle(
       leagueToken,
       eventToken: league.eventToken,
       ...sealedDispositions(league, [userId, ...allyIds], opponentIds),
+      ...sealedWarlords(league, [userId, ...allyIds], opponentIds),
     },
   ]
   return {

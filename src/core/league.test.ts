@@ -5,6 +5,7 @@ import {
   leagueMinimumPlaces,
   leaguePlacesSeat,
   leagueWarlordRefusal,
+  leagueWarlordValid,
   leagueWarlords,
   leagueRegistrationFull,
   leagueRevealChecklist,
@@ -87,6 +88,7 @@ const entries: LeagueEntryView[] = [
     sealedLimit: 2_000,
     teamId: null,
     dispositionOwed: false,
+    warlordOwed: false,
   },
   {
     userId: 'pending',
@@ -100,6 +102,7 @@ const entries: LeagueEntryView[] = [
     sealedLimit: null,
     teamId: null,
     dispositionOwed: false,
+    warlordOwed: false,
   },
   {
     userId: 'rejected',
@@ -113,6 +116,7 @@ const entries: LeagueEntryView[] = [
     sealedLimit: null,
     teamId: null,
     dispositionOwed: false,
+    warlordOwed: false,
   },
 ]
 
@@ -301,6 +305,7 @@ describe('leagueRevealChecklist', () => {
     requiredLimit: null,
     teamId: null,
     dispositionOwed: false,
+    warlordOwed: false,
     ...over,
   })
   const ready = (checks: ReturnType<typeof leagueRevealChecklist>) => checks.every((check) => check.done)
@@ -430,6 +435,7 @@ describe('leagueStage', () => {
     requiredLimit: null,
     teamId: null,
     dispositionOwed: false,
+    warlordOwed: false,
     ...over,
   })
   const open = { format: '1v1' as const, rosterLimit: 2_000, revealedAt: null }
@@ -560,6 +566,51 @@ describe('leagueTeams', () => {
   })
 })
 
+describe('a pair’s Warlord', () => {
+  const led: Roster = {
+    ...sealedLeagueRoster,
+    built: {
+      ...sealedLeagueRoster.built!,
+      units: [{ key: 'lord', entryId: 'lord', name: 'Lord', models: 1, points: 0, warlord: true, group: 'character' }],
+    },
+  }
+  const pair = (other: Roster | null, pick?: string) =>
+    leagueTeams(
+      [
+        { userId: 'a', status: 'accepted', teamId: 'pair', roster: led },
+        { userId: 'b', status: 'accepted', teamId: 'pair', roster: other },
+      ],
+      new Map(),
+      new Map(pick ? [['pair', pick]] : []),
+    )[0]!
+
+  it('is owed while both sealed lists name one', () => {
+    expect(pair(led)).toMatchObject({ warlordChoices: ['a', 'b'], warlord: null, warlordOwed: true })
+  })
+
+  it('is the entrant the pair picks', () => {
+    expect(pair(led, 'b')).toMatchObject({ warlord: 'b', warlordOwed: false })
+  })
+
+  it('is not asked until both lists are sealed', () => {
+    expect(pair(null).warlordOwed).toBe(false)
+  })
+
+  it('holds the reveal back while owed', () => {
+    const owing = (userId: string) => ({
+      userId,
+      status: 'accepted' as const,
+      submitted: true,
+      requiredLimit: 1_000,
+      teamId: 'pair',
+      dispositionOwed: false,
+      warlordOwed: true,
+    })
+    const checks = leagueRevealChecklist({ format: '2v2', rosterLimit: 2_000 }, [owing('a'), owing('b')])
+    expect(checks.find((check) => check.step === 'warlords')).toMatchObject({ done: false, waiting: ['a', 'b'] })
+  })
+})
+
 describe('sealed Warlords', () => {
   const roster = (units: NonNullable<Roster['built']>['units']): Roster => ({
     ...sealedLeagueRoster,
@@ -579,25 +630,23 @@ describe('sealed Warlords', () => {
     expect(leagueWarlords([roster([{ ...unit, warlordEligible: false }])])).toEqual({ count: 1, eligible: false })
   })
   it('asks a list with no Warlord to choose one', () => {
-    expect(leagueWarlordRefusal(roster([]), false)).toBe('Choose a Warlord: this list has none')
+    expect(leagueWarlordRefusal(roster([]))).toBe('Choose a Warlord: this list has none')
   })
   it('names every Warlord when a list marks several', () => {
-    expect(leagueWarlordRefusal(roster([unit, { ...unit, key: 'second', name: 'Lieutenant' }]), false)).toBe(
+    expect(leagueWarlordRefusal(roster([unit, { ...unit, key: 'second', name: 'Lieutenant' }]))).toBe(
       'Choose one Warlord: Leader and Lieutenant are marked',
     )
   })
   it('names a Warlord that is not a Character or Epic Hero', () => {
-    expect(leagueWarlordRefusal(roster([{ ...unit, name: 'Intercessor Squad', group: 'battleline' as const }]), false)).toBe(
+    expect(leagueWarlordRefusal(roster([{ ...unit, name: 'Intercessor Squad', group: 'battleline' as const }]))).toBe(
       'Intercessor Squad can’t be your Warlord — only a Character or Epic Hero can',
     )
   })
-  it('tells a doubles list with a Warlord that its teammate already has one', () => {
-    expect(leagueWarlordRefusal(roster([unit]), true)).toBe(
-      'Your teammate’s sealed list already has your team’s Warlord: remove this list’s Warlord',
-    )
+  it('holds a doubles list to one Warlord of its own, since its pair chooses whose leads', () => {
+    expect(leagueWarlordValid(roster([unit]))).toBe(true)
   })
-  it('tells a doubles list without a Warlord that the team has none', () => {
-    expect(leagueWarlordRefusal(roster([]), true)).toBe('Neither of your team’s lists has a Warlord: choose one in this list')
+  it('refuses a list without a Warlord', () => {
+    expect(leagueWarlordValid(roster([]))).toBe(false)
   })
 })
 

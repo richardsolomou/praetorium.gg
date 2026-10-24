@@ -188,6 +188,14 @@ export const LeagueEventEntries = __t.object('LeagueEventEntries', {
 })
 export type LeagueEventEntries = __Infer<typeof LeagueEventEntries>
 
+export const LeagueEventTeamWarlords = __t.object('LeagueEventTeamWarlords', {
+  key: __t.string(),
+  eventId: __t.string(),
+  teamId: __t.string(),
+  userId: __t.string(),
+})
+export type LeagueEventTeamWarlords = __Infer<typeof LeagueEventTeamWarlords>
+
 export const LeagueEventTeams = __t.object('LeagueEventTeams', {
   key: __t.string(),
   eventId: __t.string(),
