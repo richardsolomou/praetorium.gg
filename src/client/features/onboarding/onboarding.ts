@@ -886,7 +886,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     href: '/leagues',
     title: 'Run a league',
     description:
-      'Everyone seals a roster in secret, the rosters open together, then you play each other and the results build up. A public league below can be joined instead.',
+      'Everyone seals a roster in secret, the rosters open together, then you play each other and the results build up. See a sample league beside it shows one from start to finish, and a public league below can be joined instead.',
     placement: 'bottom-end',
     next: 'league-name',
   },
@@ -1435,6 +1435,8 @@ export function onboardingPage(pathname: string): OnboardingPage | undefined {
   if (/^\/rosters\/[^/]+\/?$/.test(pathname)) return 'roster'
   if (pathname === '/battles' || pathname === '/battles/') return 'battles'
   if (pathname === '/leagues' || pathname === '/leagues/') return 'leagues'
+  // The sample is not a league the tour can run on.
+  if (pathname === '/leagues/sample' || pathname === '/leagues/sample/') return undefined
   if (/^\/leagues\/[^/]+\/?$/.test(pathname)) return 'league'
   if (pathname === '/factions') return 'factions'
   if (/^\/factions\/[^/]+\/detachments\/[^/]+\/?$/.test(pathname)) return 'detachment'

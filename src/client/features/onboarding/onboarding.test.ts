@@ -57,6 +57,10 @@ describe('onboarding page', () => {
   it.each(PAGE_ADDRESSES)('maps %s to %s', (path, page) => {
     expect(onboardingPage(path)).toBe(page)
   })
+
+  it('keeps the sample league off the league tour', () => {
+    expect(onboardingPage('/leagues/sample')).toBeUndefined()
+  })
 })
 
 describe('onboarding tasks', () => {

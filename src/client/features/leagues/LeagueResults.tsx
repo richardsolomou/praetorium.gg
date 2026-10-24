@@ -14,11 +14,14 @@ export function LeagueResults({
   partial,
   entries,
   label,
+  sample = false,
 }: {
   rows: readonly LeagueResult[]
   partial: boolean
   entries: readonly LeagueEntryView[]
   label: (entry: LeagueEntryView) => string
+  /** A sample league's made-up players, who have no profiles to link to. */
+  sample?: boolean
 }) {
   const people = new Map(entries.map((entry) => [entry.userId, entry]))
   return (
@@ -47,16 +50,25 @@ export function LeagueResults({
             {rows.map((row, place) => {
               const entry = people.get(row.userId)
               if (!entry) return null
+              const player = (
+                <>
+                  <PlayerAvatar name={entry.name} image={entry.image} className="size-7 text-3xs max-sm:hidden" />
+                  <span className="truncate font-bold uppercase">{label(entry)}</span>
+                </>
+              )
               return (
                 <tr key={row.userId} data-result={entry.name} className="border-b border-edge last:border-0">
                   <td className={`readout px-2 py-3 sm:px-3 ${place === 0 && row.played ? 'font-bold text-parchment' : 'text-faint'}`}>
                     {place + 1}
                   </td>
                   <td className="overflow-hidden px-2 py-3 sm:px-3">
-                    <Link to="/users/$userId" params={{ userId: row.userId }} className="flex min-w-0 items-center gap-2 hover:text-info">
-                      <PlayerAvatar name={entry.name} image={entry.image} className="size-7 text-3xs max-sm:hidden" />
-                      <span className="truncate font-bold uppercase">{label(entry)}</span>
-                    </Link>
+                    {sample ? (
+                      <div className="flex min-w-0 items-center gap-2">{player}</div>
+                    ) : (
+                      <Link to="/users/$userId" params={{ userId: row.userId }} className="flex min-w-0 items-center gap-2 hover:text-info">
+                        {player}
+                      </Link>
+                    )}
                   </td>
                   {COLUMNS.map((column) => (
                     <td key={column.key} className={`readout px-1 py-3 text-right sm:px-3 ${row[column.key] ? column.tint : 'text-faint'}`}>

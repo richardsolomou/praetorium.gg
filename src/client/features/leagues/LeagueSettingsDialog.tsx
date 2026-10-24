@@ -14,8 +14,9 @@ import { Problem } from '../../components/Problem'
 /**
  * `create` opens a league with its first event, `edit` changes the league and its current event, and
  * `next` starts the event after a revealed one. All three are the same form, so every setting lives in one place.
+ * A `create` with `source: 'sample'` was opened from the sample league.
  */
-type LeagueSettingsMode = { kind: 'create' } | { kind: 'edit'; token: string } | { kind: 'next'; token: string }
+type LeagueSettingsMode = { kind: 'create'; source?: 'sample' } | { kind: 'edit'; token: string } | { kind: 'next'; token: string }
 
 const SAVE = ['league-settings']
 
@@ -102,10 +103,10 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
   const save = useMutation({
     mutationKey: SAVE,
     onMutate: () => {
-      if (mode.kind === 'create') posthog.capture('league_creation_submitted', { format: value.format })
+      if (mode.kind === 'create') posthog.capture('league_creation_submitted', { format: value.format, source: mode.source })
     },
     onError: () => {
-      if (mode.kind === 'create') posthog.capture('league_creation_failed', { reason: 'request' })
+      if (mode.kind === 'create') posthog.capture('league_creation_failed', { reason: 'request', source: mode.source })
     },
     mutationFn: async () => {
       const { format, rosterLimit, ...details } = value

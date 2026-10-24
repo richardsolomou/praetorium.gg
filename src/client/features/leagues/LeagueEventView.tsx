@@ -187,18 +187,10 @@ export function LeagueEventView({
       : []
   const met = new Set(results?.met.flatMap(([one, other]) => (one === viewerId ? [other] : other === viewerId ? [one] : [])))
   const opponents = oneOnOneEntrants.filter((entry) => entry.userId !== viewerId)
-  const yetToPlay = opponents.filter((entry) => !met.has(entry.userId)).map(label)
-  // A duel entrant hears who is left to play; a blank line holds its height while results load, so the page does not jump.
   const playDetail =
     battleFormat !== '1v1' || !ownEntry?.submitted || !league.revealedAt
       ? undefined
-      : !opponents.length
-        ? 'Nobody else is playing in this event.'
-        : !results
-          ? '\u00a0'
-          : yetToPlay.length
-            ? `Still to play: ${namesPhrase(yetToPlay)}.`
-            : 'You have played everyone. Rematches count too.'
+      : duelPlayDetail(opponents.length, results ? opponents.filter((entry) => !met.has(entry.userId)).map(label) : null)
   const registrationFull = leagueRegistrationFull(league, accepted.length, league.occupiedCount)
   const latest = league.events[0]?.token === league.eventToken
   const entryCard = entryStatus({
@@ -482,8 +474,15 @@ export function LeagueEventView({
   )
 }
 
+/** Who a revealed duel entrant has left to play; a blank line holds its height while results load, so the page does not jump. */
+export function duelPlayDetail(opponents: number, yetToPlay: string[] | null) {
+  if (!opponents) return 'Nobody else is playing in this event.'
+  if (!yetToPlay) return '\u00a0'
+  return yetToPlay.length ? `Still to play: ${namesPhrase(yetToPlay)}.` : 'You have played everyone. Rematches count too.'
+}
+
 /** The one thing a reader can do in this event right now, and what they are waiting for when it is nothing. */
-function entryStatus({
+export function entryStatus({
   league,
   ownEntry,
   signedIn,
@@ -607,7 +606,7 @@ function entryStatus({
   }
 }
 
-function EntryStatusCard({ status, problem, token }: { status: Status; problem: Error | null; token: string }) {
+export function EntryStatusCard({ status, problem, token }: { status: Status; problem: Error | null; token: string }) {
   const { action } = status
   const current = status.steps?.findIndex((step) => step.state === 'current') ?? -1
   return (

@@ -697,6 +697,45 @@ test('a full league keeps its lists sealed until someone reveals them', async ({
   await Promise.all([ownerContext.close(), opponentContext.close()])
 })
 
+test('the sample league walks an event from registration to results, then starts a real league', async ({ page }) => {
+  await signUp(page, uniqueName('Sample reader'))
+  await page.goto('/leagues')
+  await page.waitForLoadState('networkidle')
+  const events = await recordEvents(page)
+  await page.getByRole('link', { name: 'See a sample league' }).click()
+  await expect(page.getByRole('heading', { name: 'Join this league' })).toBeVisible()
+  await expect
+    .poll(() => events.filter((event) => event.name === 'league_sample_opened'))
+    .toEqual([{ name: 'league_sample_opened', properties: {} }])
+  await expect(page.getByRole('heading', { name: '2 of 3 rosters sealed' })).toBeVisible()
+  // Made-up players have no profiles, and nothing on the sample can join, seal or reveal.
+  await expect(page.locator('main a[href^="/users/"]')).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Join league' })).toHaveCount(0)
+
+  await page.getByRole('link', { name: 'Next: Sealed rosters' }).click()
+  await expect(page.getByRole('heading', { name: 'Your roster is sealed' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: '3 of 4 rosters sealed' })).toBeVisible()
+
+  await page.getByRole('link', { name: 'Next: Reveal' }).click()
+  await expect(page.locator('[data-army]')).toHaveCount(4)
+  await expect(page.locator('[data-army="Cassia"]')).toContainText('Tyranids')
+  await expect(page.locator('main a[href^="/rosters/"]')).toHaveCount(0)
+
+  await page.getByRole('link', { name: 'Next: Results' }).click()
+  await expect(page.locator('[data-result]').first()).toHaveAttribute('data-result', 'Cassia')
+  await expect(page.getByText('Still to play: Cassia.')).toBeVisible()
+
+  const create = await openLeagueCreation(page)
+  await create.getByLabel('Name').fill(uniqueName('League after the sample'))
+  await submitLeagueCreation(page, create)
+  await expect
+    .poll(() => events.filter((event) => event.name.startsWith('league_creation_')))
+    .toEqual([
+      { name: 'league_creation_started', properties: { source: 'sample' } },
+      { name: 'league_creation_submitted', properties: { format: '1v1', source: 'sample' } },
+    ])
+})
+
 test('a new league starts with its first event and can seal a roster', async ({ page }) => {
   const ownerName = uniqueName('LeagueOwner')
   const leagueName = uniqueName('Home League')
