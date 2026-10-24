@@ -168,10 +168,17 @@ const nextTurn = () => yieldToEventLoop(undefined, { ref: false })
 
 /**
  * Loads the projections every page needs, then resolves and builds each faction's construction
- * index in the background. A faction costs seconds on a production replica, so the background
- * build runs in slices that let requests in between, until a sync swap replaces these loaders.
+ * index. A faction costs seconds on a production replica, so the build runs in slices that let
+ * requests in between, until a sync swap replaces these loaders.
+ *
+ * With `untilBuilt`, readiness waits for the build, so a new replica takes traffic only once its
+ * reads are warm; a live swap must not, because its replica is already serving and the health
+ * check would fail for the length of the build.
  */
-export async function warm(instance: Pick<App, 'searchIndexFor' | 'canonicalCatalogue' | 'combatUnits' | 'catalogue' | 'construction'>) {
+export async function warm(
+  instance: Pick<App, 'searchIndexFor' | 'canonicalCatalogue' | 'combatUnits' | 'catalogue' | 'construction'>,
+  untilBuilt = false,
+) {
   await nextTurn()
   try {
     await instance.searchIndexFor()
@@ -186,9 +193,10 @@ export async function warm(instance: Pick<App, 'searchIndexFor' | 'canonicalCata
   // A browser-test stack opens a few factions, and building all of them starves the browsers sharing its runner.
   if (process.env.LOCAL_TEST_MODE === 'true') return
   const { construction } = instance
-  void inBackground(construction(), () => instance.construction === construction).catch((error: unknown) => {
+  const built = inBackground(construction(), () => instance.construction === construction).catch((error: unknown) => {
     console.error({ event: 'catalogue_construction_failed', error })
   })
+  if (untilBuilt) await built
 }
 
 async function inBackground(steps: Steps<void>, current: () => boolean) {
@@ -424,7 +432,7 @@ export function app(): App {
         instance: os.hostname(),
         host: deploymentHost() ?? 'unknown',
       })
-    if (sync.state.status === 'ready') ready = warm(instance)
+    if (sync.state.status === 'ready') ready = warm(instance, process.env.NODE_ENV === 'production')
     void ready.then(maintainPhotos).catch((error: unknown) => console.error({ event: 'collection_photo_maintenance_failed', error }))
     return instance
   }
