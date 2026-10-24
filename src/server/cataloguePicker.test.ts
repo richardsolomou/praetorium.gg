@@ -363,6 +363,28 @@ describe('the picker', () => {
     expect(datasheetInBySlug(book, 'cat', units[0]?.slug ?? '')?.id).toBe('first-sheet')
   })
 
+  describe('a datasheet imported beside a same-named one of its own', () => {
+    const shelf = shelfOf(
+      {
+        selectionEntries: [{ id: 'own-master', name: 'Watch Master', type: 'model', costs: points(100) }],
+        catalogueLinks: [{ targetId: 'cat-1', importRootEntries: true }],
+      },
+      { selectionEntries: [{ id: 'agents-master', name: 'Watch Master', type: 'model', costs: points(105) }] },
+    )
+
+    it('keeps the page its unsuffixed slug', () => {
+      expect(unitsIn(shelf, 'cat', '').find((unit) => unit.id === 'own-master')?.slug).toBe('watch-master')
+    })
+
+    it('still opens the page from its suffixed slug', () => {
+      expect(datasheetInBySlug(shelf, 'cat', 'watch-master-own-mast')?.id).toBe('own-master')
+    })
+
+    it('opens no page from the imported copy’s slug', () => {
+      expect(datasheetInBySlug(shelf, 'cat', 'watch-master-agents-m')).toBeNull()
+    })
+  })
+
   it('keeps generic Adeptus Astartes datasheets off chapter reference pages', () => {
     const shelf = shelfOf(
       {

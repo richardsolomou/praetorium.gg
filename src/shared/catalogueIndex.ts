@@ -170,11 +170,14 @@ function datasheetSlugsOf(loaded: LoadedCatalogue, catalogueId: string): Datashe
   const ids = [...datasheetsOf(loaded.index, catalogueId)]
   const pageIds = new Set(ids.filter((id) => isReferenceDatasheet(loaded, catalogueId, id)))
   const nameSlugOf = (id: string) => routeSlug(nameOf(loaded.index.definitions.get(id) ?? { id }, loaded.index.definitions))
+  // A page shares its name only with other pages, so an imported copy of it cannot move its address.
+  const pageNameCounts = countBy([...pageIds], nameSlugOf)
   const nameCounts = countBy(ids, nameSlugOf)
   const byEntry = new Map<string, string>()
   const pages: DatasheetPage[] = []
   for (const id of ids) {
-    const slug = datasheetSlugFor(routeSlug(loaded.index.definitions.get(id)?.name ?? id), id, (nameCounts.get(nameSlugOf(id)) ?? 0) > 1)
+    const counts = pageIds.has(id) ? pageNameCounts : nameCounts
+    const slug = datasheetSlugFor(routeSlug(loaded.index.definitions.get(id)?.name ?? id), id, (counts.get(nameSlugOf(id)) ?? 0) > 1)
     byEntry.set(id, slug)
     if (pageIds.has(id)) pages.push({ id, slug })
   }
