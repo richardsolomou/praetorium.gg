@@ -22,7 +22,7 @@ export function McpConsentPage({
     setError(null)
     const result = await authClient.oauth2.consent({ accept })
     if (result.error) {
-      setError('Could not finish connecting. Start the connection again from your app.')
+      setError('Could not finish connecting. Start the connection again from your assistant.')
       setPending(false)
       return
     }
