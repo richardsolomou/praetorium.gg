@@ -75,7 +75,6 @@ export function unitBattleDetailsIn(loaded: LoadedCatalogue, catalogueId: string
         ...(wounds === null ? {} : { wounds }),
         ...(sheet.transport ? { transportRule: sheet.transport } : {}),
         ...(sheet.transportCapacity ? { transportCapacity: sheet.transportCapacity } : {}),
-        keywords: sheet.keywords,
       },
     ]
   })

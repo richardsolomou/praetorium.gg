@@ -16,6 +16,7 @@ import {
   waivedFormatRules,
   reduceBattle,
   sideDisposition,
+  sideWarlord,
   sideDispositionChoices,
   validate,
 } from './battle'
@@ -343,6 +344,84 @@ describe('setup', () => {
     expect(short.players.filter((player) => player.side === 1).map((player) => player.paintedPoints)).toEqual([0, 0])
   })
 
+  describe('the Warlord a side of allies fields', () => {
+    const teamBattle: Command = {
+      kind: 'configure-battle',
+      limit: 2000,
+      missionPackId: null,
+      terrainLayoutId: null,
+      twistId: null,
+      teamBattle: true,
+      clockLimitMinutes: null,
+    }
+    const army = (name: string, limit: number): Command => ({
+      kind: 'attach-roster',
+      roster: {
+        name,
+        text: name,
+        built: {
+          catalogueId: 'cat',
+          revision: 'rev',
+          limit,
+          detachment: null,
+          disposition: null,
+          units: [{ key: `${name}-lord`, name: `${name} Lord`, points: 100, models: 1, warlord: true }],
+        },
+      },
+    })
+    const seats = [ALICE, BOB, CAROL]
+    const sideOfEach = [0, 1, 1]
+    const seated = log([ALICE, teamBattle], [ALICE, army('Knights', 2000)], [BOB, army('Marines', 1000)], [CAROL, army('Guard', 1000)])
+    const undecided = reduceBattle(seats, seated, sideOfEach)
+    const chosen = (by: string, playerId: string) =>
+      reduceBattle(
+        seats,
+        [...seated, { seq: seated.length + 1, by, at: 4, command: { kind: 'set-side-warlord', side: 1, playerId } }],
+        sideOfEach,
+      )
+
+    it('is owed by allies whose lists each name one', () => {
+      expect(sideWarlord(undecided, 1)).toBeNull()
+    })
+
+    it('is the lone army’s own across the table', () => {
+      expect(sideWarlord(undecided, 0)).toBe(ALICE)
+    })
+
+    it('is the ally the side names', () => {
+      expect(sideWarlord(chosen(BOB, CAROL), 1)).toBe(CAROL)
+    })
+
+    it('refuses an army from the other side', () => {
+      expect(validate(undecided, BOB, { kind: 'set-side-warlord', side: 1, playerId: ALICE })).toBe(
+        'that army is not on this side or names no Warlord',
+      )
+    })
+
+    it('holds the battle until allies have chosen', () => {
+      expect(validate(undecided, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe(
+        'each side of allies must choose whose Warlord leads it',
+      )
+    })
+
+    it('lets the battle begin once chosen', () => {
+      expect(validate(chosen(CAROL, BOB), ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBeNull()
+    })
+
+    it('is asked again when the chosen army leaves the table', () => {
+      const left = [
+        ...seated,
+        { seq: seated.length + 1, by: BOB, at: 4, command: { kind: 'set-side-warlord', side: 1, playerId: CAROL } as Command },
+      ]
+      const gone = reduceBattle(
+        seats,
+        [...left, { seq: left.length + 1, by: CAROL, at: 5, command: { kind: 'detach-roster' } }],
+        sideOfEach,
+      )
+      expect(gone.sideWarlords).toEqual({})
+    })
+  })
+
   /**
    * A side fields one army between them, so it plays one Force Disposition. Two allies
    * who wrote down different cards are asked which; nothing picks one for them.
@@ -637,8 +716,8 @@ describe('setup', () => {
       'kotc-toughness',
       'kotc-datasheet-copies',
     ])
-    expect(formatRules(2000).map((rule) => rule.id)).toEqual(['points-limit', 'detachment-points'])
-    expect(formatRules(3000).map((rule) => rule.id)).toEqual(['points-limit'])
+    expect(formatRules(2000).map((rule) => rule.id)).toEqual(['points-limit', 'detachment-points', 'warlord'])
+    expect(formatRules(3000).map((rule) => rule.id)).toEqual(['points-limit', 'warlord'])
     expect(formatRules(null)).toEqual([])
   })
 
@@ -662,6 +741,7 @@ describe('setup', () => {
     expect(formatRules(2000, 1500).map((rule) => rule.hint)).toEqual([
       'The roster costs at most 1,500 points',
       'Detachments cost at most 3 DP together',
+      'Exactly one Character unit is named as the Warlord',
     ])
   })
 

@@ -13,6 +13,8 @@ function player(overrides: Partial<ViewPlayer> & Pick<ViewPlayer, 'id' | 'side'>
     isActive: false,
     disposition: null,
     dispositionChoices: [],
+    warlord: null,
+    warlordChoices: [],
     cp: 0,
     cpGained: 0,
     cpSpent: 0,

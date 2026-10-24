@@ -1,5 +1,5 @@
 import { boundedProgress, countsAsList, type CollectionProgress } from '../../core/collection'
-import { leagueWarlordRefusal, leagueWarlords } from '../../core/league'
+import { leagueWarlordRefusal, leagueWarlordValid } from '../../core/league'
 import { attemptLocalSync } from './localRuntime'
 import { rosterSnapshot } from '../../core/rosterSnapshot'
 import { calculateRosterPrice, savedRosterPriceInput } from '../../shared/pricing'
@@ -531,7 +531,6 @@ export async function submitLeagueRoster(
     if (navigator.onLine) return server.submitLeagueRoster(args)
     throw new Error('Save this roster and army data on this device before sealing it offline.')
   }
-  const league = await openLeague({ data: { token: args.data.token, eventToken: args.data.eventToken } })
   const priced = calculateRosterPrice(savedRosterPriceInput(roster), construction.catalogue, construction.rules)
   if (!priced) throw new Error('Army data is unavailable.')
   const snapshot = rosterSnapshot(
@@ -543,9 +542,7 @@ export async function submitLeagueRoster(
       roster.picks.map((pick) => pick.entryId),
     ),
   )
-  const doubles = league?.format === '2v2'
-  const warlords = leagueWarlords([snapshot])
-  if (!warlords.eligible || (doubles ? warlords.count > 1 : warlords.count !== 1)) throw new Error(leagueWarlordRefusal(snapshot, doubles))
+  if (!leagueWarlordValid(snapshot)) throw new Error(leagueWarlordRefusal(snapshot))
   await defer(
     'submitLeagueRoster',
     { ...args.data, capturedRoster: saveRosterSchema.parse(roster), catalogueRevision: construction.catalogue.index.revision },
@@ -554,6 +551,15 @@ export async function submitLeagueRoster(
     {},
     [`roster:${args.data.rosterId}`],
   )
+  return null
+}
+
+export async function setLeagueTeamWarlord(
+  args: Parameters<typeof server.setLeagueTeamWarlord>[0],
+): ReturnType<typeof server.setLeagueTeamWarlord> {
+  const defer = deferredForAccount()
+  if (!localEngine()) return server.setLeagueTeamWarlord(args)
+  await defer('setLeagueTeamWarlord', args.data, `league:${args.data.token}`)
   return null
 }
 

@@ -149,11 +149,16 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
       .array(z.object({ side: z.number().int().min(0).max(1), disposition: id }))
       .max(2)
       .optional(),
+    warlords: z
+      .array(z.object({ side: z.number().int().min(0).max(1), playerId: id }))
+      .max(2)
+      .optional(),
   }),
   z.object({ kind: z.literal('set-setup-step'), step: z.number().int().min(0).max(SETUP_STEP_MAX) }),
   z.object({ kind: z.literal('set-attacker'), attackerId: id }),
   z.object({ kind: z.literal('set-first-turn'), firstPlayerId: id }),
   z.object({ kind: z.literal('set-side-disposition'), side: z.number().int().min(0).max(1), disposition: id }),
+  z.object({ kind: z.literal('set-side-warlord'), side: z.number().int().min(0).max(1), playerId: id }),
   z.object({
     kind: z.literal('attach-roster'),
     playerId: id.optional(),

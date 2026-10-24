@@ -14,7 +14,7 @@ import { recentMatchupSchema, type RecentMatchup } from '../core/recentMatchups'
 import { abilityReminderSchema, type AbilityReminder } from '../core/reminders'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
 import { TABLE_SHAPES } from '../core/tableShape'
-import { unitLoadoutPickSchema, type UnitLoadout } from '../core/unitLoadouts'
+import { unitLoadoutSchema, type UnitLoadout } from '../core/unitLoadouts'
 import { leagueRosterSharingSchema } from '../contracts/leagueRosterSharing'
 
 // Module results drop fields this build does not know, so a replica still on the previous build keeps
@@ -73,13 +73,7 @@ const favouriteDetachmentRow = z.object({
   detachmentId: z.string(),
   at: z.number().int(),
 })
-const unitLoadoutRow = z.object({
-  id: z.string(),
-  name: z.string(),
-  catalogueId: z.string(),
-  pick: unitLoadoutPickSchema,
-  createdAt: z.number().int(),
-})
+const unitLoadoutRow = unitLoadoutSchema.extend({ id: z.string(), name: z.string(), catalogueId: z.string(), createdAt: z.number().int() })
 const pushTarget = z.object({ userId: z.string(), token: z.string() })
 const battleSnapshot = z.object({
   battle: z.object({ id: z.string(), token: z.string(), createdAt: z.number().int() }),
@@ -177,6 +171,8 @@ const leagueRecord = z.object({
   eventCount: z.number().int(),
   entries: z.array(leagueEntry),
   teams: z.array(z.object({ teamId: z.string(), disposition: z.string() })),
+  // Absent from a module deployed before team Warlords, which recorded none.
+  teamWarlords: z.array(z.object({ teamId: z.string(), userId: z.string() })).default([]),
   adminIds: z.array(z.string()),
   latestEntryCount: z.number().int(),
   latestAcceptedCount: z.number().int(),

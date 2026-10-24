@@ -130,6 +130,8 @@ function describe(
       return `${who} records that ${named.get(command.firstPlayerId) ?? 'someone'} takes the first turn`
     case 'set-side-disposition':
       return `${who} sets their side to play ${command.disposition.replaceAll('-', ' ')}`
+    case 'set-side-warlord':
+      return `${who} names ${named.get(command.playerId) ?? 'someone'}’s Warlord to lead their side`
     case 'attach-roster': {
       const detachment = command.roster.built?.detachment
       return `${who} brought ${command.roster.name}${detachment && !command.roster.name.includes(detachment) ? ` (${detachment})` : ''}${forTarget}`

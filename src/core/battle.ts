@@ -20,6 +20,7 @@ import type { RosterPick } from './roster'
 import type { RosterReminder } from './reminders'
 import { correctStratagemTiming } from './stratagemCorrections'
 import { teamDisposition, teamDispositionChoices } from './teamDisposition'
+import { teamWarlord, teamWarlordChoices } from './teamWarlord'
 import { type Passenger, type PrintedTransport, type TransportLoad, transportLoad, transportRule } from './transport'
 import type { CatalogueEdition } from './catalogueEdition'
 import type { MissionSelection, MissionSelectionKind } from './missionSelections'
@@ -680,6 +681,7 @@ export const FORMAT_RULE_IDS = [
   'points-limit',
   'detachments',
   'detachment-points',
+  'warlord',
   'kotc-infantry',
   'kotc-warlord',
   'kotc-epic-heroes',
@@ -729,10 +731,15 @@ export function formatRules(limit: number | null, pointsBudget?: number | null):
       },
     ]
   }
+  const warlord: FormatRule = { id: 'warlord', label: 'Warlord', hint: 'Exactly one Character unit is named as the Warlord' }
   const budget = detachmentPointBudget(limit)
   return budget === null
-    ? [pointsLimit]
-    : [pointsLimit, { id: 'detachment-points', label: 'Detachment points', hint: `Detachments cost at most ${budget} DP together` }]
+    ? [pointsLimit, warlord]
+    : [
+        pointsLimit,
+        { id: 'detachment-points', label: 'Detachment points', hint: `Detachments cost at most ${budget} DP together` },
+        warlord,
+      ]
 }
 
 /**
@@ -859,6 +866,7 @@ export type Command =
   | { kind: 'set-attacker'; attackerId: PlayerId }
   | { kind: 'set-first-turn'; firstPlayerId: PlayerId }
   | { kind: 'set-side-disposition'; side: number; disposition: string }
+  | { kind: 'set-side-warlord'; side: number; playerId: PlayerId }
   | ({ kind: 'attach-roster'; roster: Roster; prep?: BattlePrep | null; painted?: boolean } & OnBehalfOf)
   | ({ kind: 'detach-roster' } & OnBehalfOf)
   | {
@@ -867,6 +875,8 @@ export type Command =
       eventToken?: string
       /** Each allied side's card, sealed with the event's rosters so it cannot be chosen after seeing the opponent's list. */
       dispositions?: { side: number; disposition: string }[]
+      /** Each allied side's Warlord, by player, sealed with the event's rosters for the same reason. */
+      warlords?: { side: number; playerId: PlayerId }[]
     }
   | ({ kind: 'set-unit'; unitKey: string; destroyed: boolean } & OnBehalfOf)
   | ({ kind: 'wound-unit'; unitKey: string; delta: number } & OnBehalfOf)
@@ -980,6 +990,7 @@ export type RefusalCode =
   | 'cp-gain-limit'
   | 'deployment-mismatch'
   | 'disposition-not-brought'
+  | 'warlord-not-brought'
   | 'draw-limit'
   | 'draw-unreviewed'
   | 'formation-unsupported'
@@ -1008,6 +1019,7 @@ export type RefusalCode =
   | 'matchup-not-in-pack'
   | 'missing-deployment'
   | 'missing-disposition'
+  | 'missing-warlord'
   | 'missing-player'
   | 'missing-roster'
   | 'missing-terrain'
@@ -1166,6 +1178,15 @@ export type BattleState = {
   sideDispositions: Record<number, string>
   /** Set when a league lock sealed every side's card, which setup can then no longer change. */
   dispositionsSealed: boolean
+  /**
+   * The army whose Warlord leads each side of allies, by player.
+   *
+   * Every list names its own Warlord so it can be played alone or alongside another,
+   * and allies who combine theirs field one Warlord between them.
+   */
+  sideWarlords: Record<number, PlayerId>
+  /** Set when a league lock sealed every side's Warlord, which setup can then no longer change. */
+  warlordsSealed: boolean
   resumePlayerId: PlayerId | null
   pendingSettlement: { playerId: PlayerId; round: number } | null
   completionPending: boolean
@@ -1305,6 +1326,8 @@ export function emptyBattle(
     attackerId: null,
     sideDispositions: {},
     dispositionsSealed: false,
+    sideWarlords: {},
+    warlordsSealed: false,
     resumePlayerId: null,
     pendingSettlement: null,
     completionPending: false,
@@ -1429,6 +1452,13 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
         ? null
         : refuse('disposition-not-brought', 'that force disposition is not one this side brought')
     }
+    case 'set-side-warlord': {
+      if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
+      if (state.warlordsSealed) return refuse('league-sealed', 'the league sealed each side’s Warlord')
+      return sideWarlordChoices(state, command.side).includes(command.playerId)
+        ? null
+        : refuse('warlord-not-brought', 'that army is not on this side or names no Warlord')
+    }
     case 'attach-roster': {
       if (state.leagueToken) return refuse('league-sealed', 'league rosters are sealed')
       if (state.status === 'finished') return refuse('battle-over', 'the battle is over')
@@ -1470,8 +1500,10 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
       if (state.leagueToken) return refuse('league-sealed', 'league rosters are already sealed')
       if (!state.players.every((candidate) => candidate.roster)) return refuse('missing-roster', 'every player needs a sealed roster')
-      return command.dispositions?.every(({ side, disposition }) => sideDispositionChoices(state, side).includes(disposition)) === false
-        ? refuse('disposition-not-brought', 'that force disposition is not one this side brought')
+      if (command.dispositions?.every(({ side, disposition }) => sideDispositionChoices(state, side).includes(disposition)) === false)
+        return refuse('disposition-not-brought', 'that force disposition is not one this side brought')
+      return command.warlords?.every(({ side, playerId }) => sideWarlordChoices(state, side).includes(playerId)) === false
+        ? refuse('warlord-not-brought', 'that army is not on this side or names no Warlord')
         : null
     case 'begin-battle': {
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
@@ -1504,6 +1536,8 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
         )
       )
         return refuse('missing-disposition', 'each side must choose the force disposition it plays')
+      if (state.players.some((candidate) => sideWarlordChoices(state, candidate.side).length > 1 && !sideWarlord(state, candidate.side)))
+        return refuse('missing-warlord', 'each side of allies must choose whose Warlord leads it')
       if (command.attackerId && !state.players.some((candidate) => candidate.id === command.attackerId))
         return refuse('unknown-player', 'that attacker is not in this battle')
       if (
@@ -1947,6 +1981,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       state.attackerId = null
       state.firstPlayerId = null
       state.sideDispositions = {}
+      state.sideWarlords = {}
       state.deploymentId = null
       state.settings = { ...state.settings, terrainLayoutId: null, twistId: null }
       state.players.forEach(resetPlayer)
@@ -1981,6 +2016,10 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       state.sideDispositions[command.side] = command.disposition
       return
     }
+    case 'set-side-warlord': {
+      state.sideWarlords[command.side] = command.playerId
+      return
+    }
     case 'attach-roster': {
       if (state.status === 'setup') state.firstPlayerId = null
       player.roster = { ...command.roster, name: command.roster.name.trim() }
@@ -2012,6 +2051,10 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       if (command.dispositions) {
         for (const { side, disposition } of command.dispositions) state.sideDispositions[side] = disposition
         state.dispositionsSealed = true
+      }
+      if (command.warlords) {
+        for (const { side, playerId } of command.warlords) state.sideWarlords[side] = playerId
+        state.warlordsSealed = true
       }
       return
     }
@@ -2337,6 +2380,7 @@ function detachRoster(state: BattleState, player: PlayerState) {
   state.deploymentId = null
   state.settings.terrainLayoutId = null
   delete state.sideDispositions[player.side]
+  delete state.sideWarlords[player.side]
   player.roster = null
   player.units = []
   player.painted = false
@@ -2630,6 +2674,18 @@ export function sideDisposition(state: BattleState, side: number): string | null
 export function sideDispositionChoices(state: BattleState, side: number): string[] {
   return teamDispositionChoices(sideRosters(state, side))
 }
+
+/** The player whose Warlord leads a side; null while allies have not said which of their Warlords it is. */
+export function sideWarlord(state: BattleState, side: number): PlayerId | null {
+  return teamWarlord(sidePlayers(state, side), state.sideWarlords[side] ?? null)
+}
+
+/** The players on a side whose lists name a Warlord, which allies choose between. */
+export function sideWarlordChoices(state: BattleState, side: number): PlayerId[] {
+  return teamWarlordChoices(sidePlayers(state, side))
+}
+
+const sidePlayers = (state: BattleState, side: number) => state.players.filter((player) => player.side === side)
 
 function sideRosters(state: BattleState, side: number) {
   return state.players.filter((player) => player.side === side).map((player) => player.roster)

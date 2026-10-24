@@ -1,4 +1,4 @@
-import { BellRing, BookmarkPlus, Copy, Crown, EllipsisVertical, Plus, Unlink, X } from 'lucide-react'
+import { BellRing, BookmarkPlus, Copy, Crown, EllipsisVertical, Plus, Unlink, Users, X } from 'lucide-react'
 import { type ReactNode, useId } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -64,6 +64,8 @@ type Editing = {
   canDuplicate: boolean
   /** Absent for a visitor, who has no account to keep a loadout in. */
   onSaveLoadout?: () => void
+  /** Absent for a unit standing alone, which has nothing to save with it. */
+  onSaveAttachedUnit?: () => void
   /** Present while this unit leads or supports another. */
   onDetach?: () => void
   /** Units this one may join. */
@@ -96,6 +98,7 @@ export function UnitCard({
   onDuplicate = noop,
   canDuplicate = true,
   onSaveLoadout,
+  onSaveAttachedUnit,
   onDetach,
   joined = NONE,
   canJoin = NONE,
@@ -113,7 +116,7 @@ export function UnitCard({
   const cardClassName = `relative min-w-0 max-w-full overflow-hidden border bg-card transition-colors [contain:layout_style] ${
     selected ? 'border-parchment' : 'border-edge hover:border-info'
   }`
-  const actions = { onDuplicate, canDuplicate, onSaveLoadout, onDetach, onRemove }
+  const actions = { onDuplicate, canDuplicate, onSaveLoadout, onSaveAttachedUnit, onDetach, onRemove }
 
   // One target over the whole card, under everything on it. An enhancement, an
   // upgrade and who a unit is standing with are all things a player reads on the
@@ -456,6 +459,7 @@ function UnitActions({
   onDuplicate,
   canDuplicate,
   onSaveLoadout,
+  onSaveAttachedUnit,
   onDetach,
   onRemove,
 }: {
@@ -463,6 +467,7 @@ function UnitActions({
   onDuplicate: () => void
   canDuplicate: boolean
   onSaveLoadout?: () => void
+  onSaveAttachedUnit?: () => void
   onDetach?: () => void
   onRemove: () => void
 }) {
@@ -474,6 +479,11 @@ function UnitActions({
       {onSaveLoadout ? (
         <Item className={ITEM} onClick={onSaveLoadout}>
           <BookmarkPlus className="size-3.5" /> Save loadout
+        </Item>
+      ) : null}
+      {onSaveAttachedUnit ? (
+        <Item className={ITEM} onClick={onSaveAttachedUnit}>
+          <Users className="size-3.5" /> Save attached unit
         </Item>
       ) : null}
       {onDetach ? (

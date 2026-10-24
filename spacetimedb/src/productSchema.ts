@@ -218,6 +218,17 @@ const leagueEventTeams = table(
   },
 )
 
+/** Whose Warlord leads a fixed pair, chosen before reveal, keyed by event and team; a pick for an entrant no longer on the team counts for nothing. */
+const leagueEventTeamWarlords = table(
+  { name: 'league_event_team_warlords' },
+  {
+    key: t.string().primaryKey(),
+    eventId: t.string().index('btree'),
+    teamId: t.string(),
+    userId: t.string(),
+  },
+)
+
 const leagueRosterSharing = table(
   { name: 'league_roster_sharing' },
   {
@@ -364,6 +375,7 @@ const unitLoadouts = table(
     catalogueId: t.string(),
     pick: t.string(),
     createdAt: t.u64(),
+    joined: t.option(t.string()).default(undefined),
   },
 )
 
@@ -452,6 +464,7 @@ export const productTables = {
   leagueEvents,
   leagueEventEntries,
   leagueEventTeams,
+  leagueEventTeamWarlords,
   leagueRosterSharing,
   leagueEventBattles,
   leagueAdmins,

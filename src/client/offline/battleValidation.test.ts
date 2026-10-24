@@ -69,7 +69,7 @@ function prepare(cost: number, copies = 1, alerts?: AbilityReminder[]) {
     disposition: null,
     limit: 1_000,
     picks: Array.from({ length: copies }, () => ({ entryId: 'lord' })),
-    waivedRules: [],
+    waivedRules: ['warlord'],
     optionalRules: [],
     prep: null,
   })

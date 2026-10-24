@@ -1,12 +1,14 @@
 import { cachedIn } from '../core/collections'
 import { attachmentOf, attachmentLimitsOf, attachmentCategoriesOf } from '../core/attach'
+import type { Selection } from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
 import { routeSlug } from '../core/slug'
 import type { PickerUnit } from '../contracts/catalogue'
 import { datasheetSearchFieldsIn } from './catalogue'
-import { unitSummaries, unitsIn } from './cataloguePicker'
+import { detachmentUnitFacts, unitSummaries, unitsIn } from './cataloguePicker'
 import { factionDisplayName } from './factionNames'
 import type { LoadedCatalogue } from './catalogueIndex'
+import { rosterDetachments } from './rosterDetachments'
 import type { LoadedRules } from './rules'
 import { type Steps, stepThrough } from './steps'
 
@@ -30,6 +32,13 @@ function pickerAttachments(loaded: LoadedCatalogue, catalogueId: string, entryId
   })
 }
 
+/** Search reads the keywords the chosen detachments grant, as Abhuman Auxiliaries makes Ratlings ABHUMAN. */
+function pickerSearchFields(loaded: LoadedCatalogue, catalogueId: string, entryId: string, detachments: readonly Selection[]) {
+  const fields = datasheetSearchFieldsIn(loaded, catalogueId, entryId)
+  const granted = detachmentUnitFacts(loaded, catalogueId, entryId, detachments)?.keywords
+  return fields && granted ? { ...fields, keywords: [...new Set([...fields.keywords, ...granted])] } : fields
+}
+
 function pickerRestrictions(loaded: LoadedCatalogue, rules: LoadedRules | null, catalogueId: string) {
   const book = loaded.factions.find((entry) => entry.id === catalogueId)
   const displayName = book ? factionDisplayName(book.name, rules?.factionNames) : ''
@@ -47,11 +56,12 @@ export function pickerUnitsFor(
 ): PickerUnit[] {
   const names = rules?.factionNames
   const restrictions = pickerRestrictions(loaded, rules, catalogueId)
+  const detachments = rosterDetachments(loaded, catalogueId, detachmentIds).selections
   return unitsIn(loaded, catalogueId, query, { restrictions, battleSize, waivedRules, detachmentIds }).map((unit) => ({
     ...unit,
     ...pickerAttachments(loaded, catalogueId, unit.id),
     alliedFaction: unit.alliedFaction ? factionDisplayName(unit.alliedFaction, names) : null,
-    search: datasheetSearchFieldsIn(loaded, catalogueId, unit.id),
+    search: pickerSearchFields(loaded, catalogueId, unit.id, detachments),
   }))
 }
 

@@ -5,6 +5,7 @@ import type { TableShape } from './tableShape'
 import type { FormatRuleId, Roster } from './battle'
 import type { RosterPick } from './roster'
 import { teamDisposition, teamDispositionChoices } from './teamDisposition'
+import { teamWarlord, teamWarlordChoices } from './teamWarlord'
 import { formatList } from './text'
 
 export const LEAGUE_VISIBILITIES = ['public', 'private'] as const
@@ -70,6 +71,7 @@ export type LeagueEntryView = {
   sealedLimit: number | null
   teamId: string | null
   dispositionOwed: boolean
+  warlordOwed: boolean
 }
 
 /** The fewest places each table shape can seat. */
@@ -109,6 +111,8 @@ export type LeagueRevealEntry = {
   teamId: string | null
   /** Whether this entrant's team has sealed both lists without settling the one Force Disposition it plays. */
   dispositionOwed: boolean
+  /** Whether this entrant's team has sealed both lists without settling whose Warlord leads it. */
+  warlordOwed: boolean
 }
 
 /**
@@ -126,6 +130,7 @@ export type LeagueRevealCheck =
   | { step: 'teams'; done: boolean; waiting: string[]; short: boolean }
   | { step: 'lists'; done: boolean; waiting: string[] }
   | { step: 'dispositions'; done: boolean; waiting: string[] }
+  | { step: 'warlords'; done: boolean; waiting: string[] }
 
 export function leagueRevealChecklist(
   event: { format: TableShape | null; rosterLimit: number | null },
@@ -161,6 +166,8 @@ export function leagueRevealChecklist(
   if (event.format === '2v1' || event.format === '2v2') {
     const owing = accepted.filter((entry) => entry.dispositionOwed).map((entry) => entry.userId)
     checks.push({ step: 'dispositions', done: owing.length === 0, waiting: owing })
+    const leaderless = accepted.filter((entry) => entry.warlordOwed).map((entry) => entry.userId)
+    checks.push({ step: 'warlords', done: leaderless.length === 0, waiting: leaderless })
   }
   return checks
 }
@@ -188,6 +195,7 @@ const STAGE_FOR_CHECK = {
   teams: 'pairing',
   lists: 'sealing',
   dispositions: 'choosing',
+  warlords: 'choosing',
 } as const satisfies Record<LeagueRevealCheck['step'], LeagueStage>
 
 export function leagueStage(
@@ -285,19 +293,33 @@ export function readsSealedLeagueRoster(
   return reader?.userId === sealed.userId || readsAlliedLeagueRoster(format, eventLimit, reader, sealed)
 }
 
-/** A fixed pair's sealed Force Disposition: what its lists offer, and the card it plays or null while it still owes the choice. */
-export type LeagueTeam = { id: string; userIds: string[]; choices: string[]; disposition: string | null; owed: boolean }
+/**
+ * A fixed pair's sealed choices: the Force Disposition its lists offer and the card it plays, and the entrants whose
+ * lists name a Warlord and whose leads it. Each is null while the pair still owes it.
+ */
+export type LeagueTeam = {
+  id: string
+  userIds: string[]
+  choices: string[]
+  disposition: string | null
+  owed: boolean
+  warlordChoices: string[]
+  warlord: string | null
+  warlordOwed: boolean
+}
 
 /**
- * Every fixed pair in an event, with the one Force Disposition it plays.
+ * Every fixed pair in an event, with the one Force Disposition it plays and the one Warlord it fields.
  *
- * A pair chooses only once both lists are sealed, from every card either list's detachments offered,
- * so the choice is made before reveal shows them the other side. A pick the sealed lists no longer
- * offer counts for nothing, so replacing a list cannot leave a card neither list brings.
+ * A pair chooses only once both lists are sealed, from every card either list's detachments offered
+ * and from the Warlord each list names, so the choices are made before reveal shows them the other
+ * side. A pick the sealed lists no longer offer counts for nothing, so replacing a list cannot leave
+ * a card neither list brings.
  */
 export function leagueTeams(
   entries: readonly { userId: string; status: LeagueEntryStatus; teamId: string | null; roster: Roster | null }[],
   picks: ReadonlyMap<string, string>,
+  warlordPicks: ReadonlyMap<string, string> = new Map(),
 ): LeagueTeam[] {
   const members = groupBy(
     entries.filter((entry) => entry.status === 'accepted' && entry.teamId),
@@ -308,7 +330,19 @@ export function leagueTeams(
     const rosters = team.map((entry) => entry.roster)
     const choices = sealed ? teamDispositionChoices(rosters) : []
     const disposition = sealed ? teamDisposition(rosters, picks.get(id) ?? null) : null
-    return { id, userIds: team.map((entry) => entry.userId), choices, disposition, owed: choices.length > 1 && disposition === null }
+    const armies = team.map((entry) => ({ id: entry.userId, roster: entry.roster }))
+    const warlordChoices = sealed ? teamWarlordChoices(armies) : []
+    const warlord = sealed ? teamWarlord(armies, warlordPicks.get(id) ?? null) : null
+    return {
+      id,
+      userIds: team.map((entry) => entry.userId),
+      choices,
+      disposition,
+      owed: choices.length > 1 && disposition === null,
+      warlordChoices,
+      warlord,
+      warlordOwed: warlordChoices.length > 1 && warlord === null,
+    }
   })
 }
 
@@ -323,18 +357,21 @@ export function leagueWarlords(snapshots: readonly Roster[], legacy = false) {
 }
 
 /**
- * Explains why a roster's Warlords were refused at seal. Only call it after a refusal: a doubles list that passes alone was
- * refused for its team, so its own count says whether the teammate's sealed list also has a Warlord or neither does.
+ * Whether a sealed list names the one eligible Warlord every list needs. Allies each bring their own and choose whose
+ * leads their side, so a doubles list is held to the same rule as any other.
  */
-export function leagueWarlordRefusal(roster: Roster, doubles: boolean) {
+export function leagueWarlordValid(roster: Roster, legacy = false) {
+  const selected = leagueWarlords([roster], legacy)
+  return selected.eligible && selected.count === 1
+}
+
+/** Explains why a roster's Warlords were refused at seal. Only call it after a refusal. */
+export function leagueWarlordRefusal(roster: Roster) {
   const selected = sealedWarlords([roster])
   const ineligible = selected.find((unit) => !warlordEligible(unit))
   if (ineligible) return `${ineligible.name} can’t be your Warlord — only a Character or Epic Hero can`
   if (selected.length > 1) return `Choose one Warlord: ${formatList(selected.map((unit) => unit.name))} are marked`
-  if (!doubles) return 'Choose a Warlord: this list has none'
-  return selected.length
-    ? 'Your teammate’s sealed list already has your team’s Warlord: remove this list’s Warlord'
-    : 'Neither of your team’s lists has a Warlord: choose one in this list'
+  return 'Choose a Warlord: this list has none'
 }
 
 /** What a roster card shows of a revealed list. */

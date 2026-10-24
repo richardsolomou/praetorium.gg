@@ -410,6 +410,7 @@ export async function createLeagueBattle(
         ...entry,
         snapshot: entry.snapshot ? JSON.stringify(entry.snapshot) : null,
         teamDisposition: entry.team?.disposition ?? null,
+        teamWarlord: entry.team?.warlord ?? null,
       })),
     },
     owner.id,

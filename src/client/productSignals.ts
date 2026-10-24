@@ -96,6 +96,7 @@ const operationScopes = {
   moderateLeagueEntry: ['leagues'],
   submitLeagueRoster: ['leagues'],
   setLeagueTeamDisposition: ['leagues'],
+  setLeagueTeamWarlord: ['leagues'],
   revealLeague: ['leagues'],
   unsealLeagueRoster: ['leagues'],
   assignLeagueRosterRequirement: ['leagues'],

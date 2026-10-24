@@ -18,7 +18,7 @@ import { onboardingTaskIds, tourTaskIds } from '../../src/core/onboarding'
 import {
   alliedLeagueRosterLimit,
   leaguePlacesSeat,
-  leagueWarlords,
+  leagueWarlordValid,
   leagueRegistrationFull,
   leagueRevealChecklist,
   leagueTeams,
@@ -40,7 +40,6 @@ import {
   rosterReminderSchema,
 } from '../../src/core/reminders'
 import { boundedProgress, countsAsList, MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS, MAX_COUNTS_AS } from '../../src/core/collection'
-import { groupBy } from '../../src/core/collections'
 import { TABLE_SHAPES, type TableShape } from '../../src/core/tableShape'
 import { guestSeatId, isGuestSeat } from '../../src/core/newBattle'
 import { claimedLog, guestClaimRefusal, guestDeviceSubject, guestSessionCurrent } from '../../src/core/guestSession'
@@ -2169,7 +2168,14 @@ export const unitLoadoutsByUser = spacetime.procedure({ userId: t.string() }, t.
     return productJson(
       Array.from(tx.db.unitLoadouts.userId.filter(userId))
         .toSorted((left, right) => Number(right.createdAt - left.createdAt) || left.id.localeCompare(right.id))
-        .map(({ id, name, catalogueId, pick, createdAt }) => ({ id, name, catalogueId, pick: JSON.parse(pick) as unknown, createdAt })),
+        .map(({ id, name, catalogueId, pick, joined, createdAt }) => ({
+          id,
+          name,
+          catalogueId,
+          pick: JSON.parse(pick) as unknown,
+          ...(joined ? { joined: JSON.parse(joined) as unknown } : {}),
+          createdAt,
+        })),
     )
   }),
 )
@@ -2193,6 +2199,7 @@ export const saveUnitLoadout = spacetime.procedure(
         catalogueId: loadout.catalogueId,
         pick: JSON.stringify(loadout.pick),
         createdAt: at,
+        joined: loadout.joined && JSON.stringify(loadout.joined),
       })
       touchProduct(tx, userId, 'rosters')
       return 'saved'
@@ -2390,6 +2397,7 @@ function leagueRecord(ctx: Context, token: string, eventToken: string | null) {
     eventCount: events.length,
     entries,
     teams: Array.from(ctx.db.leagueEventTeams.eventId.filter(selected.id), ({ teamId, disposition }) => ({ teamId, disposition })),
+    teamWarlords: Array.from(ctx.db.leagueEventTeamWarlords.eventId.filter(selected.id), ({ teamId, userId }) => ({ teamId, userId })),
     adminIds: leagueAdminIds(ctx, league.id),
     latestEntryCount: latestEntries.length,
     latestAcceptedCount: latestEntries.filter((entry) => entry.status === 'accepted').length,
@@ -2704,25 +2712,8 @@ function revealLeagueEvent(tx: Context, event: LeagueEventRow, now: number, acto
       return { outcome: 'not-ready' as const }
     }
   }
-  if (
-    event.format !== undefined &&
-    event.format !== '2v2' &&
-    snapshots.some((snapshot) => {
-      const selected = leagueWarlords([snapshot], true)
-      return !selected.eligible || selected.count !== 1
-    })
-  )
+  if (event.format !== undefined && snapshots.some((snapshot) => !leagueWarlordValid(snapshot, true)))
     return { outcome: 'invalid-warlords' as const, format: event.format }
-  if (event.format === '2v2') {
-    const teams = groupBy(entries.keys(), (index) => entries[index]!.teamId)
-    if (
-      [...teams.values()].some((team) => {
-        const selected = leagueWarlords(team.map((index) => snapshots[index]!))
-        return !selected.eligible || selected.count !== 1
-      })
-    )
-      return { outcome: 'invalid-warlords' as const, format: '2v2' }
-  }
   if (
     event.format !== undefined &&
     entries.some((entry, index) => {
@@ -2738,13 +2729,18 @@ function revealLeagueEvent(tx: Context, event: LeagueEventRow, now: number, acto
     return { outcome: 'not-ready' as const }
   for (const entry of all.filter((row) => row.status === 'pending')) tx.db.leagueEventEntries.key.update({ ...entry, status: 'rejected' })
   // Recorded outright, so the card a pair agreed on by default survives one of its lists being unsealed.
-  for (const team of eventTeams(tx, event.id, all)) if (team.disposition) setTeamPick(tx, event.id, team.id, team.disposition)
+  for (const team of eventTeams(tx, event.id, all)) {
+    if (team.disposition) setTeamPick(tx, event.id, team.id, team.disposition)
+    if (team.warlord) setTeamWarlord(tx, event.id, team.id, team.warlord)
+  }
   tx.db.leagueEvents.id.update({ ...event, revealedAt: BigInt(now), revealedBy: actorId })
   return { outcome: 'revealed' as const, entrantIds: entries.map((entry) => entry.userId) }
 }
 
 function leagueRevealEntries(ctx: Context, eventId: string, entries: LeagueEntryRow[]) {
-  const owing = new Set(eventTeams(ctx, eventId, entries).flatMap((team) => (team.owed ? team.userIds : [])))
+  const teams = eventTeams(ctx, eventId, entries)
+  const owing = new Set(teams.flatMap((team) => (team.owed ? team.userIds : [])))
+  const leaderless = new Set(teams.flatMap((team) => (team.warlordOwed ? team.userIds : [])))
   return entries.map((entry) => ({
     userId: entry.userId,
     status: entry.status as LeagueEntryStatus,
@@ -2752,12 +2748,14 @@ function leagueRevealEntries(ctx: Context, eventId: string, entries: LeagueEntry
     requiredLimit: entry.requiredLimit ?? null,
     teamId: entry.teamId ?? null,
     dispositionOwed: owing.has(entry.userId),
+    warlordOwed: leaderless.has(entry.userId),
   }))
 }
 
 /** An event's fixed pairs with the card each plays, from their sealed lists and the picks recorded for them. */
 function eventTeams(ctx: Context, eventId: string, entries: LeagueEntryRow[]) {
   const picks = new Map(Array.from(ctx.db.leagueEventTeams.eventId.filter(eventId), (row) => [row.teamId, row.disposition]))
+  const warlords = new Map(Array.from(ctx.db.leagueEventTeamWarlords.eventId.filter(eventId), (row) => [row.teamId, row.userId]))
   return leagueTeams(
     entries.map((entry) => ({
       userId: entry.userId,
@@ -2766,6 +2764,7 @@ function eventTeams(ctx: Context, eventId: string, entries: LeagueEntryRow[]) {
       roster: entry.teamId ? sealedRoster(entry) : null,
     })),
     picks,
+    warlords,
   )
 }
 
@@ -2785,9 +2784,18 @@ function setTeamPick(ctx: Context, eventId: string, teamId: string, disposition:
   else ctx.db.leagueEventTeams.insert(row)
 }
 
+function setTeamWarlord(ctx: Context, eventId: string, teamId: string, userId: string) {
+  const key = JSON.stringify([eventId, teamId])
+  const row = { key, eventId, teamId, userId }
+  if (ctx.db.leagueEventTeamWarlords.key.find(key)) ctx.db.leagueEventTeamWarlords.key.update(row)
+  else ctx.db.leagueEventTeamWarlords.insert(row)
+}
+
 function clearTeamPicks(ctx: Context, eventId: string, teamIds?: ReadonlySet<string>) {
   for (const row of Array.from(ctx.db.leagueEventTeams.eventId.filter(eventId)))
     if (!teamIds || teamIds.has(row.teamId)) ctx.db.leagueEventTeams.key.delete(row.key)
+  for (const row of Array.from(ctx.db.leagueEventTeamWarlords.eventId.filter(eventId)))
+    if (!teamIds || teamIds.has(row.teamId)) ctx.db.leagueEventTeamWarlords.key.delete(row.key)
 }
 
 export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
@@ -3302,8 +3310,15 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
   if (
     ownerOnly
       ? league.ownerId !== ownerId
-      : !['submit', 'set-team-disposition', 'create-battle', 'reveal', 'share-roster', 'dismiss-roster-sharing'].includes(operation) &&
-        !organizer
+      : ![
+          'submit',
+          'set-team-disposition',
+          'set-team-warlord',
+          'create-battle',
+          'reveal',
+          'share-roster',
+          'dismiss-roster-sharing',
+        ].includes(operation) && !organizer
   )
     return productJson('forbidden')
 
@@ -3677,26 +3692,12 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     } catch {
       return productJson({ outcome: 'missing' })
     }
-    const selected = leagueWarlords([submitted])
-    if (event.format !== '2v2' && (!selected.eligible || selected.count !== 1))
-      return productJson({ outcome: 'invalid-warlords', format: event.format ?? null })
-    if (event.format === '2v2') {
-      const teammate = leagueEntriesFor(tx, event.id).find(
-        (row) => row.userId !== input.userId && row.teamId === entry.teamId && row.status === 'accepted',
-      )
-      if (!teammate) return productJson({ outcome: 'unassigned' })
-      if (!selected.eligible || selected.count > 1) return productJson({ outcome: 'invalid-warlords', format: '2v2' })
-      if (teammate.rosterSnapshot !== undefined) {
-        let teammateRoster: Roster
-        try {
-          teammateRoster = parseRosterSnapshot(teammate.rosterSnapshot)
-        } catch {
-          return productJson({ outcome: 'missing' })
-        }
-        const team = leagueWarlords([submitted, teammateRoster])
-        if (!team.eligible || team.count !== 1) return productJson({ outcome: 'invalid-warlords', format: '2v2' })
-      }
-    }
+    if (!leagueWarlordValid(submitted)) return productJson({ outcome: 'invalid-warlords', format: event.format ?? null })
+    if (
+      event.format === '2v2' &&
+      !leagueEntriesFor(tx, event.id).some((row) => row.userId !== input.userId && row.teamId === entry.teamId && row.status === 'accepted')
+    )
+      return productJson({ outcome: 'unassigned' })
     // After reveal the pair's card is fixed, so a replacement list must leave it one the pair still offers.
     const pick =
       event.revealedAt !== undefined && entry.teamId ? tx.db.leagueEventTeams.key.find(JSON.stringify([event.id, entry.teamId])) : undefined
@@ -3738,6 +3739,18 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const team = eventTeams(tx, event.id, entries).find((candidate) => candidate.id === entry.teamId)
     if (!team?.choices.includes(input.disposition)) return productJson({ outcome: 'not-offered' })
     setTeamPick(tx, event.id, team.id, input.disposition)
+    touchLeague(tx, league.id, event.id)
+    return productJson({ outcome: 'chosen' })
+  }
+  if (operation === 'set-team-warlord') {
+    const input = leagueCommandInput(z.object({ op: z.literal('set-team-warlord'), userId: idInput, now: leagueTimeInput }), value)
+    if (event.revealedAt !== undefined) return productJson({ outcome: 'closed' })
+    const entry = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, ownerId]))
+    if (!entry || entry.status !== 'accepted' || !entry.teamId) return productJson({ outcome: 'missing' })
+    const entries = leagueEntriesFor(tx, event.id)
+    const team = eventTeams(tx, event.id, entries).find((candidate) => candidate.id === entry.teamId)
+    if (!team?.warlordChoices.includes(input.userId)) return productJson({ outcome: 'not-offered' })
+    setTeamWarlord(tx, event.id, team.id, input.userId)
     touchLeague(tx, league.id, event.id)
     return productJson({ outcome: 'chosen' })
   }

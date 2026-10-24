@@ -54,6 +54,7 @@ it('freezes unit wounds, reserve exemptions, and transport capability into a ros
           name: 'Unit',
           points: 80,
           group: 'infantry',
+          keywords: ['Infantry'],
           toggles: [],
           size: { models: 5, resizable: false },
           attachment: null,
@@ -69,7 +70,7 @@ it('freezes unit wounds, reserve exemptions, and transport capability into a ros
         },
       ],
     },
-    [{ entryId: 'unit', wounds: 3, transportRule: 'This model has a transport capacity of 12 models.', keywords: ['Infantry'] }],
+    [{ entryId: 'unit', wounds: 3, transportRule: 'This model has a transport capacity of 12 models.' }],
   )
 
   expect(roster.built).toMatchObject({
@@ -158,6 +159,7 @@ it('maps unit alerts from roster picks to the battle units they produced', () =>
           name: 'Unit',
           points: 80,
           group: 'infantry',
+          keywords: [],
           toggles: [],
           size: { models: 5, resizable: false },
           attachment: null,
@@ -203,6 +205,7 @@ it('freezes catalogue-derived Warlord eligibility into a roster snapshot', () =>
           name: 'Captain',
           points: 80,
           group: 'vehicle',
+          keywords: [],
           toggles: [{ name: 'Warlord', selected: true }],
           size: { models: 1, resizable: false },
           attachment: null,
@@ -253,6 +256,7 @@ it('does not freeze a reserve limit from incomplete rules facts', () => {
 it('freezes the unit a character joined into a roster snapshot', () => {
   const unit = {
     points: 80,
+    keywords: [],
     toggles: [],
     size: { models: 5, resizable: false },
     attachment: null,
@@ -321,6 +325,7 @@ it('leaves a character the list joined to nothing unattached', () => {
           name: 'Lord of Contagion',
           points: 80,
           group: 'character',
+          keywords: [],
           toggles: [],
           size: { models: 1, resizable: false },
           attachment: null,
@@ -366,6 +371,7 @@ it('fields a list nobody named under the label it had when it was fielded', () =
           name: 'Unit',
           points: 80,
           group: 'infantry',
+          keywords: [],
           toggles: [],
           size: { models: 5, resizable: false },
           attachment: null,
@@ -425,6 +431,7 @@ it('freezes two identical units with their own nicknames and notes, unaffected b
     name: 'Intercessor Squad',
     points: 80,
     group: 'battleline' as const,
+    keywords: [],
     toggles: [],
     size: { models: 5, resizable: false },
     attachment: null,
@@ -483,6 +490,7 @@ it('freezes two identical units with their own nicknames and notes, unaffected b
 describe('starting embarks', () => {
   const unit = {
     points: 80,
+    keywords: [],
     toggles: [],
     size: { models: 5, resizable: false },
     attachment: null,

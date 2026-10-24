@@ -34,7 +34,7 @@ function roster(): LocalRoster {
     locked: false,
     archived: false,
     prep: null,
-    waivedRules: [],
+    waivedRules: ['warlord'],
     optionalRules: [],
     pointsBudget: null,
   }

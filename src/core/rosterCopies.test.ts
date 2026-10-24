@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { copiedPicks, loadoutPick } from './rosterCopies'
+import { copiedPicks, loadoutPicks } from './rosterCopies'
 
 const pick = {
   entryId: 'captain',
@@ -12,23 +12,36 @@ const pick = {
   note: 'Deep strike turn two',
 }
 
-describe('loadoutPick', () => {
+describe('loadoutPicks', () => {
   const loadout = { catalogueId: 'sm', pick: { entryId: 'captain', models: 1, choices: { pistol: 'plasma-pistol' } } }
+  const group = { ...loadout, joined: [{ entryId: 'lieutenant', attachedTo: 0 }] }
 
   it('is offered only to a roster of the same army', () => {
-    expect(loadoutPick(loadout, 'orks')).toBeNull()
+    expect(loadoutPicks(loadout, 'orks')).toBeNull()
   })
 
   it('moves into the destination rules version', () => {
-    expect(loadoutPick(loadout, 'preview-x~sm')?.catalogueId).toBe('preview-x~sm')
+    expect(loadoutPicks(loadout, 'preview-x~sm')?.[0]?.catalogueId).toBe('preview-x~sm')
   })
 
   it('moves from an older rules version into current rules', () => {
-    expect(loadoutPick({ ...loadout, catalogueId: 'preview-x~sm' }, 'sm')?.catalogueId).toBe('sm')
+    expect(loadoutPicks({ ...loadout, catalogueId: 'preview-x~sm' }, 'sm')?.[0]?.catalogueId).toBe('sm')
   })
 
   it('keeps a choice the destination may lack, so pricing reports it instead of dropping it', () => {
-    expect(loadoutPick(loadout, 'preview-x~sm')?.choices).toEqual({ pistol: 'plasma-pistol' })
+    expect(loadoutPicks(loadout, 'preview-x~sm')?.[0]?.choices).toEqual({ pistol: 'plasma-pistol' })
+  })
+
+  it('lists joined units after the unit they join', () => {
+    expect(loadoutPicks(group, 'sm')?.map((copy) => copy.entryId)).toEqual(['captain', 'lieutenant'])
+  })
+
+  it('keeps each joined unit pointing at its position in the result', () => {
+    expect(loadoutPicks(group, 'sm')?.[1]?.attachedTo).toBe(0)
+  })
+
+  it('moves joined units into the destination rules version', () => {
+    expect(loadoutPicks(group, 'preview-x~sm')?.[1]?.catalogueId).toBe('preview-x~sm')
   })
 })
 

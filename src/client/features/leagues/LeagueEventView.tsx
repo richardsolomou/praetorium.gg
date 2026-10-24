@@ -52,6 +52,7 @@ import { LeagueBattleSkeleton, RosterChooser } from './LeagueRosterChooser'
 import { LeagueCombatDialog } from './LeagueCombatDialog'
 import { LeagueResults } from './LeagueResults'
 import { TeamDispositionPanel } from './LeagueTeamDisposition'
+import { TeamWarlordPanel } from './LeagueTeamWarlord'
 import { LeagueRosterSharing } from './LeagueRosterSharing'
 import { Problem } from '../../components/Problem'
 import { formatList } from '../../text'
@@ -336,6 +337,20 @@ export function LeagueEventView({
               <TeamDispositionPanel token={token} eventToken={league.eventToken} team={ownEntry.team} />
             </div>
           ) : null}
+          {!revealed && viewerId && ownEntry?.team && ownEntry.team.warlordChoices.length > 1 ? (
+            <div className="mt-3">
+              <TeamWarlordPanel
+                token={token}
+                eventToken={league.eventToken}
+                viewerId={viewerId}
+                team={ownEntry.team}
+                nameOf={(userId) => {
+                  const entry = league.entries.find((candidate) => candidate.userId === userId)
+                  return entry ? label(entry) : 'Your teammate'
+                }}
+              />
+            </div>
+          ) : null}
         </div>
         <div className="min-w-0 space-y-6 lg:col-start-1 lg:row-span-2 lg:row-start-1">
           {nextStep ? (
@@ -605,6 +620,14 @@ function entryStatus({
     return {
       title: 'Choose your team’s Force Disposition',
       detail: 'Your team plays one card. Choose it below before the rosters are revealed.',
+      tone: 'waiting',
+      action: { label: 'Swap roster', variant: 'outline', onClick: choose },
+      steps: steps('reveal'),
+    }
+  if (!revealed && ownEntry.team && ownEntry.team.warlordChoices.length > 1 && !ownEntry.team.warlord)
+    return {
+      title: 'Choose your team’s Warlord',
+      detail: 'Each roster names its own Warlord and your team fields one. Choose whose below before the rosters are revealed.',
       tone: 'waiting',
       action: { label: 'Swap roster', variant: 'outline', onClick: choose },
       steps: steps('reveal'),
