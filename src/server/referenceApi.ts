@@ -3,7 +3,7 @@ import { withTextPointers, withoutText } from '../shared/sourceText'
 import { publishedTextLocations } from './publishedTextFiles'
 import { REFERENCE_KINDS, type ReferenceDocument, type ReferenceKind } from '../contracts/reference'
 import { app } from './app'
-import { referenceCorpusFor, referenceDocumentMarkdown, type ReferenceCorpus } from './referenceCorpus'
+import { datasheetRoute, referenceCorpusFor, referenceDocumentMarkdown, type ReferenceCorpus } from './referenceCorpus'
 import { PRAETORIUM_GUIDE, praetoriumGuideMarkdown } from './referenceGuide'
 import { REFERENCE_QUERY_MAX_LENGTH, REFERENCE_RESULT_MAX, searchReference, validReferenceCursor } from './referenceSearch'
 import {
@@ -172,7 +172,7 @@ export async function referenceDatasheetResponse(request: Request, catalogueId: 
     slug,
   )
   if (!data) return problem('datasheet not found', 404)
-  const route = data.referenceRoute ?? { catalogueId: data.catalogueId, slug: data.slug }
+  const route = datasheetRoute(data)
   const document = corpus.byId.get(`datasheet:${route.catalogueId}:${route.slug}`)
   return recordResponse(request, corpus, document, {
     kind: 'datasheet',

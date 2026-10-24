@@ -241,3 +241,27 @@ it('reads a datasheet record from an id its slug has since moved from', () => {
 
   expect(referenceRecord(corpus, null, 'datasheet:cat:watch-master-d7e1-13b')?.document.id).toBe('datasheet:cat:watch-master')
 })
+
+it('reads a datasheet record by the page another faction files it under', () => {
+  const sheet = {
+    id: 'captain-entry',
+    slug: 'captain-captain-',
+    catalogueId: 'chapter',
+    name: 'Captain',
+    referenceRoute: { catalogueId: 'space-marines', slug: 'captain' },
+  } as CanonicalDatasheet
+  const catalogue = { datasheets: [sheet], detachments: [] } as unknown as CanonicalCatalogue
+  const document = {
+    id: 'datasheet:space-marines:captain',
+    kind: 'datasheet' as const,
+    title: 'Captain',
+    faction: 'Space Marines',
+    url: '/factions/space-marines/datasheets/captain',
+    sections: [],
+    revisions: {},
+    attribution: [],
+  }
+  const corpus: ReferenceCorpus = { catalogue, documents: [document], byId: new Map([[document.id, document]]), revision: 'snapshot' }
+
+  expect(referenceRecord(corpus, null, 'datasheet:space-marines:captain')?.document.id).toBe('datasheet:space-marines:captain')
+})
