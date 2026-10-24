@@ -56,11 +56,30 @@ function datasheetClient(slug: string, sheet: Awaited<ReturnType<typeof datashee
   return client
 }
 
-it('moves an earlier address of a datasheet to its current page', async () => {
-  const sheet = { id: 'azrael-sheet', slug: 'azrael' } as NonNullable<Awaited<ReturnType<typeof datasheetBySlug>>>
-  const client = datasheetClient('azrael-azrael-s', sheet)
+const azrael = { id: 'azrael-sheet', slug: 'azrael' } as NonNullable<Awaited<ReturnType<typeof datasheetBySlug>>>
+
+it('moves an earlier slug of a datasheet to its current page for now only', async () => {
+  const client = datasheetClient('azrael-azrael-s', azrael)
 
   await expect(loadFactionDatasheet(client, 'dark-angels', 'azrael-azrael-s')).rejects.toMatchObject({
+    options: { href: '/factions/dark-angels/datasheets/azrael', statusCode: 307 },
+  })
+  client.clear()
+})
+
+it('keeps no copy of a temporary datasheet redirect', async () => {
+  const client = datasheetClient('azrael-azrael-s', azrael)
+
+  await expect(loadFactionDatasheet(client, 'dark-angels', 'azrael-azrael-s')).rejects.toSatisfy(
+    (redirect: Response) => redirect.headers.get('cache-control') === 'no-store',
+  )
+  client.clear()
+})
+
+it('moves a datasheet entry id to its page for good', async () => {
+  const client = datasheetClient('azrael-sheet', azrael)
+
+  await expect(loadFactionDatasheet(client, 'dark-angels', 'azrael-sheet')).rejects.toMatchObject({
     options: { href: '/factions/dark-angels/datasheets/azrael', statusCode: 301 },
   })
   client.clear()
@@ -70,5 +89,14 @@ it('finds no page for an unknown datasheet address', async () => {
   const client = datasheetClient('nobody', null)
 
   await expect(loadFactionDatasheet(client, 'dark-angels', 'nobody')).rejects.toMatchObject({ isNotFound: true })
+  client.clear()
+})
+
+it('lets a permanent datasheet redirect be cached for an hour', async () => {
+  const client = datasheetClient('azrael-sheet', azrael)
+
+  await expect(loadFactionDatasheet(client, 'dark-angels', 'azrael-sheet')).rejects.toSatisfy(
+    (redirect: Response) => redirect.headers.get('cache-control') === 'public, max-age=3600',
+  )
   client.clear()
 })

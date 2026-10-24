@@ -10,12 +10,13 @@ const baseOf = (page: DatasheetPage) => (page.slug.endsWith(idSuffix(page.id)) ?
 /**
  * The page a published datasheet address names. A slug gains or loses its id suffix as same-named
  * datasheets come and go between catalogue updates, so either form keeps resolving; a plain name
- * shared by several pages resolves to the first by id.
+ * several pages share names none of them.
  */
 export function datasheetPageBySlug<T extends DatasheetPage>(pages: readonly T[], slug: string): T | null {
   const exact = pages.find((page) => page.slug === slug || page.id === slug)
   if (exact) return exact
   const suffixed = pages.find((page) => `${baseOf(page)}${idSuffix(page.id)}` === slug)
   if (suffixed) return suffixed
-  return pages.filter((page) => baseOf(page) === slug).toSorted((left, right) => (left.id < right.id ? -1 : 1))[0] ?? null
+  const named = pages.filter((page) => baseOf(page) === slug)
+  return new Set(named.map((page) => page.id)).size === 1 ? named[0]! : null
 }

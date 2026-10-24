@@ -28,8 +28,8 @@ it('finds a page by its plain slug after its name becomes shared', () => {
   expect(datasheetPageBySlug([suffixedMaster], 'watch-master')).toBe(suffixedMaster)
 })
 
-it('resolves a plain slug shared by several pages to the first by id', () => {
-  expect(datasheetPageBySlug([suffixedMaster, otherMaster], 'watch-master')).toBe(otherMaster)
+it('finds nothing for a plain slug several pages share', () => {
+  expect(datasheetPageBySlug([suffixedMaster, otherMaster], 'watch-master')).toBeNull()
 })
 
 it('does not take an id suffix from another datasheet name', () => {
@@ -38,4 +38,8 @@ it('does not take an id suffix from another datasheet name', () => {
 
 it('finds nothing for an unknown slug', () => {
   expect(datasheetPageBySlug([master], 'watch-captain')).toBeNull()
+})
+
+it('finds a page by its plain slug when only copies of it share the name', () => {
+  expect(datasheetPageBySlug([suffixedMaster, { ...suffixedMaster }], 'watch-master')).toBe(suffixedMaster)
 })
