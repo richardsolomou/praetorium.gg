@@ -1,10 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query'
 import {
   alliedLeagueRosterLimit,
+  leagueAllowanceOptions,
   leagueTableShape,
   leagueRegistrationFull,
   leagueRosterSplit,
   type LeagueAdmission,
+  type LeagueAllowance,
   type LeagueEntryView,
   type LeagueStage,
 } from '../../../core/league'
@@ -134,6 +136,21 @@ export function leagueFormat(league: Pick<LeagueFacts, 'format' | 'rosterLimit'>
   return league.format && league.rosterLimit
     ? `${TABLE_SHAPE_LABELS[league.format].name} · ${leagueRosterSplit(league.format, league.rosterLimit) ?? pointsLabel(league.rosterLimit)}`
     : null
+}
+
+/** Legends and Crucible read as what a list may bring; a battle-size rule as one it may switch off. */
+export const allowanceLabel = (option: { id: LeagueAllowance; label: string }) =>
+  option.id === 'legends' || option.id === 'crucible' ? option.label : `${option.label} off`
+
+/**
+ * What an event lets lists do beyond matched play, such as "Legends, Warlord off", or "Matched play" for none. Null for
+ * an event that fixed no format, or that predates allowances and so accepts whatever a list waives.
+ */
+export function leagueAllowances(league: { format: TableShape | null; rosterLimit: number | null; allowances: readonly string[] | null }) {
+  if (!league.format || !league.rosterLimit || !league.allowances) return null
+  const allowed = league.allowances
+  const chosen = leagueAllowanceOptions(league.format, league.rosterLimit).filter((option) => allowed.includes(option.id))
+  return chosen.length ? chosen.map(allowanceLabel).join(', ') : 'Matched play'
 }
 
 /** How many players are in, against the limit when there is one. */

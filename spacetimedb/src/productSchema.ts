@@ -187,6 +187,8 @@ const leagueEvents = table(
     createdAt: t.u64(),
     revealedAt: t.option(t.u64()),
     revealedBy: t.option(t.string()).default(undefined),
+    /** JSON `LeagueAllowance[]`; absent on events created before organizers chose them, which accept any waiver. */
+    allowances: t.option(t.string()).default(undefined),
   },
 )
 

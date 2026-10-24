@@ -2,7 +2,8 @@ import { countBy, groupBy } from './collections'
 import { migratedEditionId, migratedEditionPick } from './editionMigrations'
 import { attachedUnitCount } from './attachedUnits'
 import type { TableShape } from './tableShape'
-import type { FormatRuleId, Roster } from './battle'
+import { FORMAT_RULE_IDS, formatRules, waivedFormatRules, type FormatRule, type FormatRuleId, type Roster } from './battle'
+import { nonMatchedPlayKind } from './name'
 import type { RosterPick } from './roster'
 import { teamDisposition, teamDispositionChoices } from './teamDisposition'
 import { teamWarlord, teamWarlordChoices } from './teamWarlord'
@@ -363,6 +364,49 @@ export function leagueWarlords(snapshots: readonly Roster[], legacy = false) {
 export function leagueWarlordValid(roster: Roster, legacy = false) {
   const selected = leagueWarlords([roster], legacy)
   return selected.eligible && selected.count === 1
+}
+
+/**
+ * What an event lets a sealed list do beyond matched play: switch off one of its battle size's restrictions, or bring
+ * Legends or Crucible datasheets. An event created before organizers chose this has none recorded and accepts what
+ * a list waives, as it always did, while a new one starts from strict matched play.
+ */
+export const LEAGUE_ALLOWANCES = [...FORMAT_RULE_IDS, 'legends', 'crucible'] as const
+export type LeagueAllowance = (typeof LEAGUE_ALLOWANCES)[number]
+export type LeagueAllowanceOption = Omit<FormatRule, 'id'> & { id: LeagueAllowance }
+
+const WARLORD_RULES: ReadonlySet<string> = new Set<LeagueAllowance>(['warlord', 'kotc-warlord'])
+
+/** The allowances an organizer can choose for this rule, in reading order. Allies choose whose Warlord leads, so a team event always needs one. */
+export function leagueAllowanceOptions(format: TableShape, rosterLimit: number): LeagueAllowanceOption[] {
+  const limits = format === '1v1' ? [rosterLimit] : [rosterLimit, alliedLeagueRosterLimit(rosterLimit)]
+  const rules = new Map(limits.flatMap((limit) => formatRules(limit)).map((rule) => [rule.id, rule]))
+  return [
+    ...[...rules.values()].filter((rule) => format === '1v1' || !WARLORD_RULES.has(rule.id)),
+    { id: 'legends', label: 'Legends', hint: 'Lists may include Legends datasheets' },
+    { id: 'crucible', label: 'Crucible', hint: 'Lists may include Crucible datasheets' },
+  ]
+}
+
+/** The Warlord rules this list switched off, which an event may allow it to go without. */
+export const waivedWarlordRules = (roster: Roster) => (roster.built?.waivedRules ?? []).filter((rule) => WARLORD_RULES.has(rule))
+
+/** Whether the event lets this list go without the Warlord a league otherwise asks of every list. */
+export const leagueWarlordWaived = (roster: Roster, allowances: readonly string[] | null) =>
+  allowances !== null && waivedWarlordRules(roster).some((rule) => allowances.includes(rule))
+
+/** Why this event refuses a list it would otherwise seal, or null; an event with no allowances recorded refuses nothing here. */
+export function leagueAllowanceRefusal(roster: Roster, allowances: readonly string[] | null): string | null {
+  const built = roster.built
+  if (allowances === null || !built) return null
+  const waived = waivedFormatRules(built.limit, built.waivedRules).filter((rule) => !allowances.includes(rule.id))
+  if (waived.length) return `This event doesn’t let lists switch off ${formatList(waived.map((rule) => rule.label))}`
+  const unit = built.units.find((candidate) => {
+    const kind = nonMatchedPlayKind(candidate.name)
+    return kind !== null && !allowances.includes(kind)
+  })
+  if (!unit) return null
+  return `This event doesn’t allow ${nonMatchedPlayKind(unit.name) === 'legends' ? 'Legends' : 'Crucible'} datasheets such as ${unit.name}`
 }
 
 /** Explains why a roster's Warlords were refused at seal. Only call it after a refusal. */

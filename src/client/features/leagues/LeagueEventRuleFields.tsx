@@ -1,11 +1,25 @@
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { battleSizeOptionLabel, GAME_SIZES, pointsLabel } from '../../../core/battle'
-import { leagueRosterSplit, LEAGUE_DEFAULT_ROSTER_LIMIT, LEAGUE_TEAM_ROSTER_LIMITS } from '../../../core/league'
+import {
+  leagueAllowanceOptions,
+  leagueRosterSplit,
+  LEAGUE_DEFAULT_ROSTER_LIMIT,
+  LEAGUE_TEAM_ROSTER_LIMITS,
+  type LeagueAllowance,
+} from '../../../core/league'
 import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { Choice } from '../../components/Choice'
+import { allowanceLabel } from './leagueEvent'
 
-type LeagueEventRuleValue = { format: TableShape; rosterLimit: number }
+type LeagueEventRuleValue = { format: TableShape; rosterLimit: number; allowances: LeagueAllowance[] }
+
+/** Drops what a new format or size no longer offers, so the form never holds an allowance it does not show. */
+const offeredAllowances = (rule: LeagueEventRuleValue): LeagueEventRuleValue => {
+  const offered = new Set(leagueAllowanceOptions(rule.format, rule.rosterLimit).map((option) => option.id))
+  return { ...rule, allowances: rule.allowances.filter((id) => offered.has(id)) }
+}
 
 /** What a team shape asks of an entrant's roster; a duel's points say it all. */
 export const ROSTER_RULE: Partial<Record<TableShape, string>> = {
@@ -39,13 +53,16 @@ export function LeagueEventRuleFields({
         columns={3}
         disabled={disabled}
         onChange={(format) =>
-          onChange({
-            format,
-            rosterLimit:
-              format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)
-                ? LEAGUE_DEFAULT_ROSTER_LIMIT
-                : value.rosterLimit,
-          })
+          onChange(
+            offeredAllowances({
+              ...value,
+              format,
+              rosterLimit:
+                format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)
+                  ? LEAGUE_DEFAULT_ROSTER_LIMIT
+                  : value.rosterLimit,
+            }),
+          )
         }
       />
       <div className="space-y-1.5">
@@ -55,7 +72,7 @@ export function LeagueEventRuleFields({
             <Select
               value={String(value.rosterLimit)}
               disabled={disabled}
-              onValueChange={(limit) => limit && onChange({ ...value, rosterLimit: Number(limit) })}
+              onValueChange={(limit) => limit && onChange(offeredAllowances({ ...value, rosterLimit: Number(limit) }))}
             >
               <SelectTrigger id="league-event-roster-limit" className="h-11 w-full">
                 <SelectValue>{() => label(value.rosterLimit)}</SelectValue>
@@ -78,6 +95,37 @@ export function LeagueEventRuleFields({
         )}
         {ROSTER_RULE[value.format] ? <p className="text-xs text-dim">{ROSTER_RULE[value.format]}</p> : null}
       </div>
+      <fieldset className="space-y-2">
+        <legend className="text-sm leading-none font-medium">Allow in lists</legend>
+        <p className="text-xs text-dim">Off is matched play. A list that needs anything left off can’t be sealed.</p>
+        {leagueAllowanceOptions(value.format, value.rosterLimit).map((option) => {
+          const id = `league-allowance-${option.id}`
+          return (
+            <div key={option.id} className="flex items-start gap-3">
+              <Switch
+                id={id}
+                aria-describedby={`${id}-hint`}
+                checked={value.allowances.includes(option.id)}
+                disabled={disabled}
+                onCheckedChange={(checked) =>
+                  onChange({
+                    ...value,
+                    allowances: checked ? [...value.allowances, option.id] : value.allowances.filter((allowed) => allowed !== option.id),
+                  })
+                }
+              />
+              <div>
+                <Label htmlFor={id} className="cursor-pointer text-sm font-semibold">
+                  {allowanceLabel(option)}
+                </Label>
+                <p id={`${id}-hint`} className="text-xs text-dim">
+                  {option.hint}
+                </p>
+              </div>
+            </div>
+          )
+        })}
+      </fieldset>
     </>
   )
 }

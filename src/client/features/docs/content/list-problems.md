@@ -24,6 +24,10 @@ Press **Try again** once you're back online.
 
 Unlock it from the roster menu, or create a variant.
 
+### "This event doesn't let lists switch off…" or "This event doesn't allow Legends datasheets…"
+
+A league event seals matched-play lists unless its organizer allows more. The league page lists what the event allows beside its format, such as **Legends, Warlord off**. Switch the restriction back on, or remove the Legends or Crucible unit, then seal again. Events created before organizers could choose this accept whatever a list switches off.
+
 ## Limits
 
 - A roster holds at most 100 entries, and roster names are up to 80 characters.

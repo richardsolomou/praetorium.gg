@@ -632,6 +632,39 @@ function leagueHeader(page: Page) {
   return page.locator('main header')
 }
 
+test('an event seals Legends only once its organizer allows them', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1440, height: 1000 })
+  await signUp(page, uniqueName('LegendsOrganizer'))
+  const rosterName = uniqueName('Legends list')
+  await sealableRoster(page, rosterName)
+  await page.getByRole('button', { name: 'Legends', exact: true }).click()
+  await page.getByLabel('Add a unit').fill('Tesseract Ark')
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Tesseract Ark [Legends]', exact: true }).click())
+  await page.goto('/leagues')
+  const create = await openLeagueCreation(page, { ownerPlays: true })
+  await create.getByLabel('Name').fill(uniqueName('Matched play league'))
+  await expect(create.getByRole('switch', { name: /^Legends/ })).not.toBeChecked()
+  await create.screenshot({ path: testInfo.outputPath('league-allowances.png') })
+  await submitLeagueCreation(page, create)
+  await expect(leagueHeader(page)).toContainText('Matched play')
+
+  const chooser = page.getByRole('dialog', { name: 'Seal a roster' })
+  const choose = page.getByRole('button', { name: /^(?:Choose a roster|Swap roster)$/ })
+  await expect(chooser.or(choose)).toBeVisible()
+  if (!(await chooser.isVisible())) await choose.click()
+  await chooseRosterToSeal(page, rosterName)
+  await expect(chooser).toContainText('This event doesn’t allow Legends datasheets such as Tesseract Ark [Legends]')
+  await page.keyboard.press('Escape')
+  await expect(chooser).toBeHidden()
+
+  const settings = await openEventSettings(page)
+  await settings.getByRole('switch', { name: /^Legends/ }).click()
+  await settings.getByRole('button', { name: 'Save changes' }).click()
+  await expect(settings).toBeHidden()
+  await expect(leagueHeader(page)).toContainText('Legends')
+  await sealOwnRoster(page, rosterName)
+})
+
 test('an admin the owner chooses runs the league but cannot delete it', async ({ browser }) => {
   const [ownerContext, adminContext] = await Promise.all([browser.newContext(), browser.newContext()])
   const [owner, admin] = await Promise.all([ownerContext.newPage(), adminContext.newPage()])

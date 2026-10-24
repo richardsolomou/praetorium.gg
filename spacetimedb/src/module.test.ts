@@ -81,6 +81,7 @@ describe('sharing a revealed league roster', () => {
         createdAt: 1n,
         revealedAt: revealed ? 10n : undefined,
         revealedBy: 'organizer',
+        allowances: undefined,
       })
       ctx.db.leagueEventEntries.insert({
         key: '["event","entrant"]',

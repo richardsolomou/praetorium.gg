@@ -3,7 +3,13 @@ import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
-import { leagueMinimumPlaces, leaguePlacesSeat, leagueTableShape, LEAGUE_DEFAULT_ROSTER_LIMIT } from '../../../core/league'
+import {
+  leagueAllowanceOptions,
+  leagueMinimumPlaces,
+  leaguePlacesSeat,
+  leagueTableShape,
+  LEAGUE_DEFAULT_ROSTER_LIMIT,
+} from '../../../core/league'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { createLeague, createLeagueEvent, setLeagueAdmins, updateLeague } from '../../functions'
 import { leagueQuery, leagueReadsKey, leaguesQuery, meQuery } from '../../queries'
@@ -55,6 +61,15 @@ function CurrentSettings({ mode, token, onClose }: { mode: LeagueSettingsMode; t
   )
 }
 
+/** An event from before allowances accepts any waiver, so its form starts with everything on and saving it unchanged keeps that. */
+function currentAllowances(league: League) {
+  const format = leagueTableShape(league.format)
+  return league.allowances ?? leagueAllowanceOptions(format, league.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT).map((option) => option.id)
+}
+
+const sameAllowances = (left: readonly string[], right: readonly string[]) =>
+  left.length === right.length && left.every((id) => right.includes(id))
+
 function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; league: League | null; onClose: () => void }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -71,6 +86,7 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
         : (league?.playerLimit ?? null),
     format: current,
     rosterLimit: league?.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT,
+    allowances: league ? currentAllowances(league) : [],
   }))
   const { data: me } = useQuery(meQuery())
   // Whoever opens the form, owner or admin, is the organizer it asks about.
@@ -94,9 +110,14 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
           : null
   // A revealed event no longer holds the limit to its shape; the limit only governs the events after it.
   const limitFormat = mode.kind === 'edit' && league?.revealedAt ? null : value.format
-  const ruleChanged = value.format !== current || value.rosterLimit !== league?.rosterLimit
+  const ruleChanged =
+    value.format !== current ||
+    value.rosterLimit !== league?.rosterLimit ||
+    (league !== null && !sameAllowances(value.allowances, currentAllowances(league)))
   const clearsAssignments =
-    mode.kind === 'edit' && ruleChanged && league?.entries.some((entry) => entry.teamId || (league.format === '2v1' && entry.requiredLimit))
+    mode.kind === 'edit' &&
+    (value.format !== current || value.rosterLimit !== league?.rosterLimit) &&
+    league?.entries.some((entry) => entry.teamId || (league.format === '2v1' && entry.requiredLimit))
   const next = (league?.eventCount ?? 0) + 1
 
   const save = useMutation({
@@ -108,13 +129,15 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
       if (mode.kind === 'create') posthog.capture('league_creation_failed', { reason: 'request' })
     },
     mutationFn: async () => {
-      const { format, rosterLimit, ...details } = value
-      if (mode.kind === 'create') return createLeague({ data: { ...details, format, rosterLimit, ownerPlays } })
+      const { format, rosterLimit, allowances, ...details } = value
+      if (mode.kind === 'create') return createLeague({ data: { ...details, format, rosterLimit, allowances, ownerPlays } })
       if (mode.kind === 'next') {
-        const created = await createLeagueEvent({ data: { token: mode.token, ...details, format, rosterLimit, ownerPlays } })
+        const created = await createLeagueEvent({ data: { token: mode.token, ...details, format, rosterLimit, allowances, ownerPlays } })
         return { token: mode.token, eventToken: created.eventToken }
       }
-      await updateLeague({ data: { token: mode.token, ...details, ...(ruleLock ? {} : { rule: { format, rosterLimit } }) } })
+      await updateLeague({
+        data: { token: mode.token, ...details, ...(ruleLock || !ruleChanged ? {} : { rule: { format, rosterLimit, allowances } }) },
+      })
       if (isOwner && adminsChanged) await setLeagueAdmins({ data: { token: mode.token, userIds: adminIds } })
       return null
     },

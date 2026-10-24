@@ -424,7 +424,8 @@ export function LeagueEventView({
         }}
         onChoose={(roster) => {
           submit.reset()
-          if (rosterWaivers(roster).length) setSealing(roster)
+          // An event that records its allowances answers for every waiver itself: it seals the allowed ones and refuses the rest.
+          if (league.allowances === null && rosterWaivers(roster).length) setSealing(roster)
           else submit.mutate(roster.id)
         }}
       />

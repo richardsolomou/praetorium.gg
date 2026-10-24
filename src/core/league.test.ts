@@ -2,10 +2,13 @@ import { describe, expect, it } from 'vitest'
 import type { Roster } from './battle'
 import {
   alliedLeagueRosterLimit,
+  leagueAllowanceOptions,
+  leagueAllowanceRefusal,
   leagueMinimumPlaces,
   leaguePlacesSeat,
   leagueWarlordRefusal,
   leagueWarlordValid,
+  leagueWarlordWaived,
   leagueWarlords,
   leagueRegistrationFull,
   leagueRevealChecklist,
@@ -647,6 +650,51 @@ describe('sealed Warlords', () => {
   })
   it('refuses a list without a Warlord', () => {
     expect(leagueWarlordValid(roster([]))).toBe(false)
+  })
+})
+
+describe('what an event allows', () => {
+  const roster = (built: Partial<NonNullable<Roster['built']>>): Roster => ({
+    ...sealedLeagueRoster,
+    built: { ...sealedLeagueRoster.built!, ...built },
+  })
+  const unit = { key: 'old', entryId: 'old', name: 'Land Speeder Typhoon [Legends]', models: 1, points: 100 }
+
+  it('refuses nothing at an event from before allowances were recorded', () => {
+    expect(leagueAllowanceRefusal(roster({ waivedRules: ['points-limit'], units: [unit] }), null)).toBeNull()
+  })
+
+  it('refuses a switched-off restriction the event does not allow', () => {
+    expect(leagueAllowanceRefusal(roster({ waivedRules: ['points-limit'] }), [])).toBe(
+      'This event doesn’t let lists switch off Points limit',
+    )
+  })
+
+  it('seals a switched-off restriction the event allows', () => {
+    expect(leagueAllowanceRefusal(roster({ waivedRules: ['points-limit'] }), ['points-limit'])).toBeNull()
+  })
+
+  it('refuses a Legends datasheet the event does not allow', () => {
+    expect(leagueAllowanceRefusal(roster({ units: [unit] }), ['crucible'])).toBe(
+      'This event doesn’t allow Legends datasheets such as Land Speeder Typhoon [Legends]',
+    )
+  })
+
+  it('seals a Legends datasheet the event allows', () => {
+    expect(leagueAllowanceRefusal(roster({ units: [unit] }), ['legends'])).toBeNull()
+  })
+
+  it('lets a list go without a Warlord only where the event allows it', () => {
+    const leaderless = roster({ waivedRules: ['warlord'] })
+    expect([
+      leagueWarlordWaived(leaderless, ['warlord']),
+      leagueWarlordWaived(leaderless, []),
+      leagueWarlordWaived(leaderless, null),
+    ]).toEqual([true, false, false])
+  })
+
+  it('never offers a team event lists without a Warlord, since allies choose whose leads', () => {
+    expect(leagueAllowanceOptions('2v2', 2_000).map((option) => option.id)).not.toContain('warlord')
   })
 })
 

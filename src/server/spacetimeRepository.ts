@@ -1,7 +1,14 @@
 import { isAdminUserCountSort, type AdminUser, type AdminUserCountSort, type AdminUserPage, type AdminUsersRequest } from '../admin'
 import type { BattlesCursor } from '../contracts/battles'
 import { parseRosterSnapshot } from '../core/commands'
-import { leagueArmy, leagueTeams, requiredLeagueRosterLimit, type LeagueAdmission, type LeagueVisibility } from '../core/league'
+import {
+  leagueArmy,
+  leagueTeams,
+  requiredLeagueRosterLimit,
+  type LeagueAdmission,
+  type LeagueAllowance,
+  type LeagueVisibility,
+} from '../core/league'
 import { TABLE_SHAPES, type TableShape } from '../core/tableShape'
 import type { Command } from '../core/battle'
 import { z } from 'zod'
@@ -277,6 +284,7 @@ export class SpacetimeRepository {
     recurring?: boolean
     format?: TableShape
     rosterLimit?: number
+    allowances?: readonly LeagueAllowance[]
     ownerPlays?: boolean
     now: number
   }) {
@@ -307,6 +315,7 @@ export class SpacetimeRepository {
     playerLimit: number | null
     format?: TableShape
     rosterLimit?: number
+    allowances?: readonly LeagueAllowance[]
     ownerPlays?: boolean
     now: number
   }) {
@@ -332,7 +341,7 @@ export class SpacetimeRepository {
       visibility: LeagueVisibility
       admission: LeagueAdmission
       playerLimit: number | null
-      rule?: { format: TableShape; rosterLimit: number }
+      rule?: { format: TableShape; rosterLimit: number; allowances: readonly LeagueAllowance[] }
     },
   ) {
     return this.product.leagueCommand(
@@ -468,6 +477,7 @@ export class SpacetimeRepository {
       eventCreatedAt: selected.createdAt,
       format: selected.format,
       rosterLimit: selected.rosterLimit,
+      allowances: selected.allowances,
       revealedAt: selected.revealedAt,
       revealedByName: selected.revealedBy ? (profiles.get(selected.revealedBy)?.name ?? null) : null,
       eventCount,
@@ -587,6 +597,7 @@ export class SpacetimeRepository {
         z.object({ outcome: z.enum(['missing', 'unassigned', 'wrong-limit']) }),
         z.object({ outcome: z.literal('invalid-warlords'), format: z.enum(TABLE_SHAPES).nullable() }),
         z.object({ outcome: z.literal('disposition-dropped'), disposition: z.string() }),
+        z.object({ outcome: z.literal('disallowed'), message: z.string() }),
       ]),
     )
   }

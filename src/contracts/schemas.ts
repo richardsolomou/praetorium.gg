@@ -40,6 +40,7 @@ import { recentMatchupSchema } from '../core/recentMatchups'
 import { simulatorPairing } from './simulatorState'
 import {
   LEAGUE_ADMISSIONS,
+  LEAGUE_ALLOWANCES,
   LEAGUE_DESCRIPTION_MAX_LENGTH,
   LEAGUE_DEFAULT_ROSTER_LIMIT,
   LEAGUE_ADMIN_MAX,
@@ -87,6 +88,7 @@ const leagueEventRuleFields = {
     .int()
     .refine((value) => GAME_SIZES.some((size) => size.limit === value))
     .default(LEAGUE_DEFAULT_ROSTER_LIMIT),
+  allowances: z.array(z.enum(LEAGUE_ALLOWANCES)).max(LEAGUE_ALLOWANCES.length).default([]),
 }
 function validateLeagueEventRule(value: { format: TableShape; rosterLimit: number }, context: z.RefinementCtx) {
   if ((value.format === '2v1' || value.format === '2v2') && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)) {

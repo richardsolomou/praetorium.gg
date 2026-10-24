@@ -10,6 +10,7 @@ import {
   leagueRosterSplit,
   LEAGUE_MEMBER_MAX,
   type LeagueAdmission,
+  type LeagueAllowance,
   type LeagueVisibility,
 } from '../../../core/league'
 import { pointsLabel } from '../../../core/battle'
@@ -17,6 +18,7 @@ import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { Choice } from '../../components/Choice'
 import { LeagueEventRuleFields, ROSTER_RULE } from './LeagueEventRuleFields'
 import { LeagueAdminsField, type AdminChoice } from './LeagueAdminsField'
+import { leagueAllowances } from './leagueEvent'
 
 export type LeagueFormValue = {
   name: string
@@ -26,6 +28,7 @@ export type LeagueFormValue = {
   playerLimit: number | null
   format: TableShape
   rosterLimit: number
+  allowances: LeagueAllowance[]
 }
 
 /**
@@ -95,6 +98,7 @@ export function LeagueFormFields({
               {TABLE_SHAPE_LABELS[value.format].name} ·{' '}
               {leagueRosterSplit(value.format, value.rosterLimit) ?? pointsLabel(value.rosterLimit)}
             </p>
+            <p className="text-sm text-dim">Allowed: {leagueAllowances(value)}</p>
             <p className="text-xs text-dim">{[ROSTER_RULE[value.format], ruleLock].filter(Boolean).join(' ')}</p>
           </div>
         ) : (
