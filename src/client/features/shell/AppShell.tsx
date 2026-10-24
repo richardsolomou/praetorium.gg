@@ -220,7 +220,7 @@ export function AppShell() {
                 <Impersonation />
                 <NativePushRegistration />
                 <ReleaseUpdateNotice />
-                <Toaster theme="dark" position="top-center" />
+                <Toaster theme="dark" position="top-center" containerAriaLabel="Messages" />
                 {/*
                  * Said plainly and on every page, because the name is drawn from Games
                  * Workshop's setting and nothing about this is theirs or endorsed by them.

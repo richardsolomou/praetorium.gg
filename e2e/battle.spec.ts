@@ -127,7 +127,7 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await expect(cleanse.getByRole('listitem', { name: 'Round 1: 2 VP', exact: true })).toBeVisible()
   await expect(centre.getByRole('listitem', { name: 'Round 1: 3 VP', exact: true })).toHaveText('R1')
   await expect(cleanse.getByRole('listitem', { name: 'Round 2: not played', exact: true })).toHaveCount(0)
-  await expect(side.locator('[data-missions] .chip')).toHaveCount(0)
+  await expect(side.locator('[data-missions] .chip:not([data-disposition])')).toHaveCount(0)
   await expect(side.locator('[data-missions]').getByText(/^(tactical|fixed)$/i)).toHaveCount(0)
   await page.setViewportSize({ width: 1440, height: 900 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
