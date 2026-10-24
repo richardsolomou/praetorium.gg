@@ -68,19 +68,21 @@ function seatOptions(
 /**
  * Battle creation seats named players; setup chooses size and mission pack. Practice opponents occupy ordinary seats.
  *
- * Started from a saved roster, the battle opens with that roster already on the creator's seat; `open` lets a menu
- * that cannot hold the dialog's own button open it instead.
+ * Started from a saved roster, the battle opens with that roster already on the creator's seat; started from a
+ * friend, it opens as a 1v1 with them already across the table. `open` lets a menu that cannot hold the dialog's own
+ * button open it instead.
  */
 export function CreateBattle({
   rosterId,
+  opponentId,
   open: shown,
   onOpenChange,
-}: { rosterId?: string; open?: boolean; onOpenChange?: (open: boolean) => void } = {}) {
+}: { rosterId?: string; opponentId?: string; open?: boolean; onOpenChange?: (open: boolean) => void } = {}) {
   const [ownOpen, setOwnOpen] = useState(false)
   const controlled = shown !== undefined
   const open = controlled ? shown : ownOpen
   const setOpen = (next: boolean) => (controlled ? onOpenChange?.(next) : setOwnOpen(next))
-  const source = rosterId ? { source: 'roster' as const } : {}
+  const source = rosterId ? { source: 'roster' as const } : opponentId ? { source: 'friend' as const } : {}
   const opponentQuery = useQuery({ ...opponentsQuery(), enabled: open })
   const opponents = opponentQuery.data ?? []
   // A chair apiece rather than a list, so filling the second before the first cannot
@@ -175,7 +177,11 @@ export function CreateBattle({
     posthog.capture('battle_creation_started', source)
     create.reset()
     setLeagueMatches([])
-    // Only the opening matters; `source` and the mutation are stable for one dialog.
+    if (opponentId) {
+      setShape('1v1')
+      setTheirIds([opponentId, null])
+    }
+    // Only the opening matters; `source`, `opponentId` and the mutation are stable for one dialog.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
   const labels = disambiguatedPlayerLabels(opponents)

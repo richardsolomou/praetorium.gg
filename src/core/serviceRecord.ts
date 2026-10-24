@@ -481,7 +481,8 @@ function sideTotal(appearance: Appearance, values: readonly number[]) {
 }
 
 /** One value a reader can filter by, and how many of their battles carry it. */
-export type Facet = { value: string; label: string; battles: number; image?: string | null }
+/** `latest` is when the most recent of those battles was last played. */
+export type Facet = { value: string; label: string; battles: number; latest: number; image?: string | null }
 
 /** Every dimension of the record a reader can narrow, with the values they have played. */
 export type RecordFacets = {
@@ -504,6 +505,7 @@ export type RecordFacets = {
 export function recordFacets(battles: readonly RecordBattle[], playerId: string): RecordFacets {
   const taken = appearances(battles, playerId)
   const tally = new Map<keyof RecordFacets, Map<string, Facet>>()
+  let playedAt = 0
   const add = (dimension: keyof RecordFacets, value: string | null | undefined, label: string, image?: string | null) => {
     if (value === null || value === undefined || value === '') return
     const dimensionTally = tally.get(dimension) ?? new Map<string, Facet>()
@@ -512,12 +514,14 @@ export function recordFacets(battles: readonly RecordBattle[], playerId: string)
       value,
       label,
       battles: (seen?.battles ?? 0) + 1,
+      latest: Math.max(seen?.latest ?? 0, playedAt),
       ...(image !== undefined ? { image } : seen?.image !== undefined ? { image: seen.image } : {}),
     })
     tally.set(dimension, dimensionTally)
   }
   for (const one of taken) {
     const { battle, seat } = one
+    playedAt = battle.lastActivity
     add('factions', battle.factions[seat]?.slug, battle.factions[seat]?.displayName ?? '')
     for (const detachment of battle.detachments[seat] ?? []) add('detachments', detachment, detachment)
     add('missionPacks', battle.settings.missionPackId, battle.settings.missionPackId ?? '')

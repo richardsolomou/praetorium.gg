@@ -800,6 +800,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     title: 'Requests waiting for you',
     description: 'Anyone who asked to play with you waits here. Accepting one makes the friendship mutual.',
     placement: 'top',
+    optional: true,
     next: 'friend-list',
     nextLabel: 'Next',
   },

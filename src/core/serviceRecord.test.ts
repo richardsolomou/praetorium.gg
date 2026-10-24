@@ -280,6 +280,12 @@ describe('recordFacets', () => {
     ])
   })
 
+  it('dates each opponent by the last battle against them', () => {
+    const battles = [duel({ lastActivity: 30 }), duel({ lastActivity: 20 })]
+
+    expect(recordFacets(battles, 'alice').opponents.map((facet) => facet.latest)).toEqual([30])
+  })
+
   it('offers the opponents they have faced rather than themselves', () => {
     expect(recordFacets([duel()], 'alice').opponents.map((facet) => facet.value)).toEqual(['bob'])
   })
@@ -297,7 +303,7 @@ describe('recordFacets', () => {
       'alice',
     ).opponents
 
-    expect(opponents).toEqual([{ value: 'bob', label: 'Bob', image: 'https://example.test/bob.webp', battles: 1 }])
+    expect(opponents).toEqual([{ value: 'bob', label: 'Bob', image: 'https://example.test/bob.webp', battles: 1, latest: 10 }])
   })
 
   it('counts a 2v2 once for a faction both opponents brought', () => {
@@ -312,7 +318,7 @@ describe('recordFacets', () => {
       detachments: [[], [], [], []],
     })
 
-    expect(recordFacets([teamed], 'alice').opponentFactions).toEqual([{ value: 'orks', label: 'orks', battles: 1 }])
+    expect(recordFacets([teamed], 'alice').opponentFactions).toEqual([{ value: 'orks', label: 'orks', battles: 1, latest: 10 }])
   })
 
   it('offers nothing for a battle whose armies were pasted in as text', () => {
@@ -320,7 +326,7 @@ describe('recordFacets', () => {
   })
 
   it('offers the battle sizes they have played, labelled for a reader', () => {
-    expect(recordFacets([duel()], 'alice').limits).toEqual([{ value: '2000', label: '2,000 points', battles: 1 }])
+    expect(recordFacets([duel()], 'alice').limits).toEqual([{ value: '2000', label: '2,000 points', battles: 1, latest: 10 }])
   })
 })
 
