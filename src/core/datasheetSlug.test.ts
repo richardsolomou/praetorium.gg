@@ -43,3 +43,23 @@ it('finds nothing for an unknown slug', () => {
 it('finds a page by its plain slug when only copies of it share the name', () => {
   expect(datasheetPageBySlug([suffixedMaster, { ...suffixedMaster }], 'watch-master')).toBe(suffixedMaster)
 })
+
+it('finds a page by the name in a suffixed slug whose id has since changed', () => {
+  expect(datasheetPageBySlug([{ id: 'c2f2-66e0-1a2b-3c4d', slug: 'watch-master' }], 'watch-master-d7e1-13b')?.id).toBe(
+    'c2f2-66e0-1a2b-3c4d',
+  )
+})
+
+it('finds nothing for a suffixed slug whose id has changed when several pages share its name', () => {
+  expect(datasheetPageBySlug([suffixedMaster, otherMaster], 'watch-master-aaaa-bbb')).toBeNull()
+})
+
+it('keeps a name that only looks like it ends in an id suffix', () => {
+  expect(datasheetPageBySlug([{ id: 'beef-0000-0000-0000', slug: 'squad' }], 'squad-dead-beef')).toBeNull()
+})
+
+it('finds a page by the name in a suffixed slug taken from a shorter id group', () => {
+  expect(datasheetPageBySlug([{ id: '9a1-0c2d-3e4f-5a6b', slug: 'tactical-squad' }], 'tactical-squad-48b-3ef7')?.id).toBe(
+    '9a1-0c2d-3e4f-5a6b',
+  )
+})
