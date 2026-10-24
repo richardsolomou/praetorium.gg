@@ -71,6 +71,7 @@ function usePendingCasualties(units: readonly UnitState[], send: SendCommand) {
 export function ArmyRoster({ army, side, actionable, pending, blocked = false, send, onSimulate }: Props) {
   const [open, setOpen] = useState(false)
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
+  const [destroyedOpen, setDestroyedOpen] = useState(false)
   const { units, press } = usePendingCasualties(army.units, send)
   const roster = army.roster
   if (!roster) return null
@@ -107,7 +108,7 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
        * taken back.
        */}
       {lost.length ? (
-        <Section title="Destroyed" count={lost.length} defaultOpen={false}>
+        <Section title="Destroyed" count={lost.length} open={destroyedOpen} onOpenChange={setDestroyedOpen}>
           {lost.map(card)}
         </Section>
       ) : null}
