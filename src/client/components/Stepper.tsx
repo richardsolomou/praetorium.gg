@@ -1,10 +1,12 @@
 import { Minus, Plus } from 'lucide-react'
+import { type PointerEvent, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Select as SelectPrimitive } from '@base-ui/react/select'
 import { Select, SelectContent, SelectItem, SelectValue } from '@/components/ui/select'
 import type { OnboardingTarget } from '../onboardingTargets'
+import { holdRepeat } from './holdRepeat'
 
-/** Minus, the number, plus; given choices, the number also picks a count directly. */
+/** Minus, the number, plus, each held to repeat; given choices, the number also picks a count directly. */
 export function Stepper({
   label,
   count,
@@ -31,7 +33,7 @@ export function Stepper({
 }) {
   return (
     <span data-onboarding={onboarding} className="grid shrink-0 grid-cols-[1.5rem_2rem_1.5rem] items-center gap-1">
-      <CountButton label={`Fewer ${label}`} decrease onClick={onRemove} />
+      <CountButton label={`Fewer ${label}`} decrease repeat onClick={onRemove} />
       {count !== null && !loading && choices?.length && onChoose ? (
         <Select value={count} onValueChange={(chosen) => chosen !== null && chosen !== count && onChoose(chosen)}>
           {/* The generated trigger always appends a chevron, which leaves no room in the stepper's narrow middle cell. */}
@@ -50,11 +52,11 @@ export function Stepper({
           </SelectContent>
         </Select>
       ) : (
-        <span className="readout text-center text-sm leading-6" aria-label={countLabel} aria-busy={loading}>
+        <span className="readout text-center text-sm leading-6 select-none" aria-label={countLabel} aria-busy={loading}>
           {loading ? <span aria-hidden className="inline-block h-4 w-5 animate-pulse bg-muted align-middle" /> : (count ?? '—')}
         </span>
       )}
-      <CountButton label={`More ${label}`} onClick={onAdd} describedBy={addDescribedBy} />
+      <CountButton label={`More ${label}`} repeat onClick={onAdd} describedBy={addDescribedBy} />
     </span>
   )
 }
@@ -62,14 +64,43 @@ export function Stepper({
 export function CountButton({
   label,
   decrease = false,
+  repeat = false,
   onClick,
   describedBy,
 }: {
   label: string
   decrease?: boolean
+  /** Holding the button keeps stepping until it is released or the step runs out. */
+  repeat?: boolean
   onClick?: () => void
   describedBy?: string
 }) {
+  const latest = useRef(onClick)
+  const stop = useRef<(() => void) | null>(null)
+  // A held press already stepped, so the click its release fires must not step again.
+  const repeated = useRef(false)
+  useEffect(() => {
+    latest.current = onClick
+  })
+  useEffect(() => () => stop.current?.(), [])
+  const release = () => {
+    stop.current?.()
+    stop.current = null
+  }
+  const hold = (event: PointerEvent) => {
+    repeated.current = false
+    if (!repeat || event.button !== 0) return
+    release()
+    stop.current = holdRepeat(() => {
+      if (!latest.current) return false
+      repeated.current = true
+      latest.current()
+      return true
+    })
+    // The button disables itself at its limit and then hears no pointer events.
+    window.addEventListener('pointerup', release, { once: true })
+    window.addEventListener('pointercancel', release, { once: true })
+  }
   const color = decrease
     ? 'border-destructive/60 bg-destructive/15 text-destructive hover:bg-destructive/25 hover:text-destructive dark:border-destructive/60 dark:bg-destructive/15 dark:hover:bg-destructive/25'
     : 'border-primary/60 bg-primary/15 text-primary hover:bg-primary/25 hover:text-primary dark:border-primary/60 dark:bg-primary/15 dark:hover:bg-primary/25'
@@ -77,11 +108,20 @@ export function CountButton({
     <Button
       variant="outline"
       size="icon-sm"
-      className={`size-6 ${onClick ? color : ''}`}
+      className={`size-6 ${repeat ? 'touch-manipulation [-webkit-touch-callout:none]' : ''} ${onClick ? color : ''}`}
       aria-label={label}
       aria-describedby={describedBy}
       disabled={!onClick}
-      onClick={onClick}
+      onPointerDown={hold}
+      onPointerLeave={release}
+      onContextMenu={repeat ? (event) => event.preventDefault() : undefined}
+      onKeyDown={() => {
+        repeated.current = false
+      }}
+      onClick={() => {
+        if (repeated.current) repeated.current = false
+        else onClick?.()
+      }}
     >
       {decrease ? <Minus strokeWidth={2.5} /> : <Plus strokeWidth={2.5} />}
     </Button>
