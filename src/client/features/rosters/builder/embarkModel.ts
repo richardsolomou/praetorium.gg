@@ -9,6 +9,7 @@ import {
   type UnitState,
 } from '../../../../core/battle'
 import { attachedUnitList, attachedUnits } from '../../../../core/attachedUnits'
+import type { KeyedPick } from '../rosterPicks'
 
 /** A card's line saying where its unit rides, or who rides in it; `passenger` is the card whose choice it shows. */
 export type EmbarkRow = { label: string; name: string; detail?: string; action: string; passenger: number }
@@ -22,6 +23,8 @@ export type EmbarkCard = {
   canBoard: EmbarkChoice[]
   /** Units that could start in this transport. */
   canCarry: EmbarkChoice[]
+  /** Why this unit was put back on the battlefield by the player's last edit to it. */
+  notice?: string
 }
 
 export const NO_EMBARK: EmbarkCard = { rows: [], canBoard: [], canCarry: [] }
@@ -32,13 +35,21 @@ export const NO_EMBARK: EmbarkCard = { rows: [], canBoard: [], canCarry: [] }
  * `cardOf` names the card for a unit by its position in `submitted`. An attached unit
  * boards as one, offered and listed by its bodyguard; its characters' cards say where it rides.
  * A pairing the transport can never carry is left out rather than greyed out, so a tank
- * is not offered every Rhino in the list.
+ * is not offered every Rhino in the list. The cards in `edited` are judged last, so
+ * an edit that overfills a transport puts back the unit it changed.
  */
-export function embarkCards(submitted: readonly SubmittedUnit[], cardOf: (at: number) => number = (at) => at) {
+export function embarkCards(
+  submitted: readonly SubmittedUnit[],
+  cardOf: (at: number) => number = (at) => at,
+  edited: readonly number[] = [],
+) {
   const fielded = fieldedUnits(submitted)
   const cardOfKey = new Map(fielded.map((unit, at) => [unit.key, cardOf(at)]))
   const card = (unit: UnitState) => cardOfKey.get(unit.key)!
-  const started = startingEmbarks(fielded)
+  const started = startingEmbarks(
+    fielded,
+    fielded.flatMap((unit) => (edited.includes(card(unit)) ? [unit.key] : [])),
+  )
   const named = (unit: UnitState) => transportLabel(fielded, unit.key) ?? unit.name
   const transports = fielded.filter((unit) => canTransport(unit) && !unit.attachedTo)
   const passengers = attachedUnitList(started).filter(({ host, joined }) => ![host, ...joined].some(canTransport))
@@ -85,7 +96,19 @@ export function embarkCards(submitted: readonly SubmittedUnit[], cardOf: (at: nu
 
   return {
     cards,
-    /** Cards whose starting embark the list can no longer hold. */
-    dropped: started.flatMap((unit) => (unit.startingEmbarkRefused ? [card(unit)] : [])),
+    /** Cards whose starting embark the list can no longer hold, with the transport each was in. */
+    dropped: started.flatMap((unit) =>
+      unit.startingEmbarkRefused && unit.startsEmbarkedIn
+        ? [{ card: card(unit), transport: transportLabel(fielded, unit.startsEmbarkedIn) ?? 'its transport' }]
+        : [],
+    ),
   }
+}
+
+const withoutEmbark = ({ embarkedIn: _embarkedIn, ...pick }: KeyedPick) => JSON.stringify(pick)
+
+/** The keys of the picks an edit added or changed, leaving out starting embarks, which only move units. */
+export function editedPicks(before: readonly KeyedPick[], after: readonly KeyedPick[]) {
+  const was = new Map(before.map((pick) => [pick.key, withoutEmbark(pick)]))
+  return after.flatMap((pick) => (was.get(pick.key) === withoutEmbark(pick) ? [] : [pick.key]))
 }

@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { type Command, fieldedUnits, reduceBattle, startingEmbarkRefusal, startingEmbarks } from './battle'
+import {
+  type Command,
+  fieldedUnits,
+  reduceBattle,
+  startingEmbarkRefusal,
+  startingEmbarks,
+  type SubmittedUnit,
+  type UnitState,
+} from './battle'
 import { ALICE, PLAYERS, attachedRoster, builtRoster, log, started } from './battle.fixtures'
 
 type Built = NonNullable<Extract<Command, { kind: 'attach-roster' }>['roster']['built']>
@@ -87,6 +95,50 @@ describe('starting embarks', () => {
       ),
     )
     expect([state.players[0]?.units[0]?.formation, state.players[0]?.units[0]?.embarkedIn]).toEqual(['strategic-reserves', undefined])
+  })
+})
+
+describe('starting embarks after an edit', () => {
+  /** Two five-model squads starting in a ten-model Rhino. */
+  const squads = (edit: (units: SubmittedUnit[]) => void) => {
+    const command = rosterWithRhino(10, { u0: 'rhino', u1: 'rhino' })
+    if (command.kind !== 'attach-roster') throw new Error('expected attach-roster')
+    const units = structuredClone(command.roster.built.units)
+    edit(units)
+    return fieldedUnits(units)
+  }
+  const refused = (units: UnitState[]) => units.flatMap((unit) => (unit.startingEmbarkRefused ? [unit.key] : []))
+
+  it('disembarks the first squad when it grows', () => {
+    expect(
+      refused(
+        startingEmbarks(
+          squads((units) => (units[0]!.models = 6)),
+          ['u0'],
+        ),
+      ),
+    ).toEqual(['u0'])
+  })
+
+  it('disembarks the second squad when it grows', () => {
+    expect(
+      refused(
+        startingEmbarks(
+          squads((units) => (units[1]!.models = 6)),
+          ['u1'],
+        ),
+      ),
+    ).toEqual(['u1'])
+  })
+
+  it('disembarks the unit a character joins when it no longer fits', () => {
+    const army = squads((units) => units.push({ key: 'lord', name: 'Captain', points: 80, models: 1, attachedTo: 'u0' }))
+    expect(refused(startingEmbarks(army, ['lord']))).toEqual(['u0'])
+  })
+
+  it('judges in list order when the transport itself changes', () => {
+    const army = squads((units) => (units[2]!.transportRule = 'This model has a transport capacity of 8 INFANTRY models.'))
+    expect(refused(startingEmbarks(army, ['rhino']))).toEqual(['u1'])
   })
 })
 

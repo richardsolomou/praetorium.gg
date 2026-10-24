@@ -348,11 +348,17 @@ export const fieldedUnits = (submitted: readonly SubmittedUnit[]): UnitState[] =
  *
  * Judged against the frozen army rather than trusted from the builder: the rules
  * version, a transport's wargear or an attached character can change what fits.
+ * The builder names the units an edit just changed in `edited`; their attached units
+ * are judged last, so the unit that grew is the one left out rather than another passenger.
  */
-export function startingEmbarks(fielded: readonly UnitState[]): UnitState[] {
+export function startingEmbarks(fielded: readonly UnitState[], edited: readonly string[] = []): UnitState[] {
   const units = fielded.map((unit) => ({ ...unit }))
   const table = settingUp(units)
-  for (const { host } of attachedUnitList(units)) {
+  const changed = new Set(edited)
+  const wasEdited = ({ host, joined }: { host: UnitState; joined: readonly UnitState[] }) =>
+    [host, ...joined].some((unit) => changed.has(unit.key))
+  const attached = attachedUnitList(units)
+  for (const { host } of [...attached.filter((unit) => !wasEdited(unit)), ...attached.filter(wasEdited)]) {
     const transportKey = host.startsEmbarkedIn
     if (!transportKey) continue
     const refusal = unitFormationRefusal(table, table.players[0], { unitKey: host.key, formation: 'embarked', transportKey })

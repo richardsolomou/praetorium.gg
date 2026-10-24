@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RosterPick } from '../../../../core/roster'
 import { frozenUnits } from '../../../../core/rosterSnapshot'
-import { embarkCards } from './embarkModel'
+import { editedPicks, embarkCards } from './embarkModel'
 
 const unit = (key: number, entryId: string, models: number, transport = false) => ({
   key,
@@ -112,6 +112,30 @@ it('names cards as the caller numbers them', () => {
   })
 })
 
-it('reports the starting embarks the list can no longer hold', () => {
-  expect(cards([{ embarkedIn: 3 }, { attachedTo: 0 }, { embarkedIn: 3 }]).dropped).toEqual([2])
+describe('starting embarks the list can no longer hold', () => {
+  const OVERFULL = [{ embarkedIn: 3 }, { attachedTo: 0 }, { embarkedIn: 3 }]
+
+  it('names the passenger that no longer fits and its transport', () => {
+    expect(cards(OVERFULL).dropped).toEqual([{ card: 2, transport: 'Rhino' }])
+  })
+
+  it('puts back the unit an edit changed rather than another passenger', () => {
+    expect(embarkCards(frozenUnits(picks(OVERFULL), units, details), undefined, [1]).dropped).toEqual([{ card: 0, transport: 'Rhino' }])
+  })
+})
+
+describe('edited picks', () => {
+  const pick = (key: number, choices: Partial<RosterPick> = {}) => ({ key, entryId: 'Intercessors', ...choices })
+
+  it('names a pick whose choices changed', () => {
+    expect(editedPicks([pick(0), pick(1)], [pick(0), pick(1, { models: 10 })])).toEqual([1])
+  })
+
+  it('names a pick the edit added', () => {
+    expect(editedPicks([pick(0)], [pick(0), pick(1, { attachedTo: 0 })])).toEqual([1])
+  })
+
+  it('does not count a changed starting embark as an edit', () => {
+    expect(editedPicks([pick(0, { embarkedIn: 1 })], [pick(0)])).toEqual([])
+  })
 })

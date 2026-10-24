@@ -79,6 +79,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
       onBoard={(choice) => onEmbark(choice.passenger, choice.transport)}
       canCarry={embark.canCarry}
       onCarry={(choice) => onEmbark(choice.passenger, choice.transport)}
+      status={embark.notice ? <output className="text-xs">{embark.notice}</output> : undefined}
       alertCount={alertCount}
       editable={editable}
     />
