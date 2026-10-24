@@ -1,7 +1,16 @@
 import { expect, test } from './test'
 import { recordEvents, stubSupport } from './telemetry.harness'
-import { retryUntilVisible, signInAsPreview, signUp, uniqueName, visitorSetup, waitForRosterSave } from './account'
-import { add } from './builder.harness'
+import {
+  addUnit,
+  createRoster as newRoster,
+  retryUntilVisible,
+  signInAsPreview,
+  signUp,
+  uniqueName,
+  visitorSetup,
+  waitForRosterSave,
+} from './account'
+import { add, attach } from './builder.harness'
 import { chooseCombatUnit } from './combat'
 
 test.use({ serviceWorkers: 'block' })
@@ -206,6 +215,34 @@ Exported with BattleBase, Data Version: v20260812`)
   await expect
     .poll(() => events.filter((event) => event.name === 'roster_import_review_required'))
     .toEqual([{ name: 'roster_import_review_required', properties: { missing_count: 1, unplaced_count: 0 } }])
+})
+
+test('building reports embarks and the roster arrangement without naming units', async ({ page }) => {
+  test.setTimeout(240_000)
+  await signUp(page, uniqueName('Embark telemetry'))
+  await newRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/ })
+  for (const name of ['Intercessor Squad', 'Rhino', 'Captain']) await addUnit(page, name)
+  await attach(page, 'Captain', 'Intercessor Squad')
+  const events = await recordEvents(page)
+
+  const bar = page.getByRole('region', { name: 'Intercessor Squad', exact: true }).locator('[data-unit-actions]')
+  await bar.getByRole('button', { name: 'Embark Intercessor Squad in transport', exact: true }).click()
+  await waitForRosterSave(
+    page,
+    () => page.getByRole('menuitem', { name: 'Embark Intercessor Squad in Rhino', exact: true }).click(),
+    'embarkedIn',
+  )
+  await waitForRosterSave(page, () => bar.getByRole('button', { name: 'Remove', exact: true }).click(), 'embarkedIn')
+  await page.getByRole('button', { name: 'Roster actions' }).click()
+  await page.getByRole('menuitemcheckbox', { name: 'Group attached units' }).click()
+
+  await expect
+    .poll(() => events.filter((event) => ['roster_embark_updated', 'roster_arrangement_changed'].includes(event.name)))
+    .toEqual([
+      { name: 'roster_embark_updated', properties: { embarked: true } },
+      { name: 'roster_embark_updated', properties: { embarked: false } },
+      { name: 'roster_arrangement_changed', properties: { arrangement: 'role' } },
+    ])
 })
 
 test('cancelled creation forms report intent without submissions, and opening the simulator reports its source', async ({ page }) => {

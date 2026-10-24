@@ -286,7 +286,7 @@ test('attached units are shelved together by default, each named by the unit it 
   }
   // Shelved together until the player chooses role shelves.
   const characters = page.locator('[data-slot="roster-units"]').getByRole('heading', { name: 'Characters' })
-  const block = page.getByRole('region', { name: 'Attached unit' })
+  const block = page.getByRole('region', { name: 'Immortals', exact: true })
   // Attached datasheets leave their role shelves for one shelf counting all of them, each unit with the unit it joined last.
   await expect(page.locator('[data-slot="roster-units"]').getByRole('heading', { name: 'Attached units' }).locator('..')).toContainText('3')
   await expect(block.locator('[data-unit]').last()).toHaveAttribute('data-unit', 'Immortals')

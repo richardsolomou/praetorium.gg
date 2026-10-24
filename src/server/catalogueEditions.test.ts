@@ -11,8 +11,19 @@ import { ALICE, BOB, builtRoster, log } from '../core/battle.fixtures'
 import { reduceBattle } from '../core/battle'
 import { battleSummary } from '../shared/battleSummary'
 import { completeSteps } from '../shared/steps'
+import type { CatalogueRuntime } from './catalogueRuntime'
 
-const mocks = vi.hoisted(() => ({ loadCatalogue: vi.fn(), compile: vi.fn(), packaged: vi.fn(() => new Map()) }))
+const mocks = vi.hoisted(() => ({ loadCatalogue: vi.fn(), compile: vi.fn(), packaged: vi.fn(() => new Map()), built: [] as string[] }))
+vi.mock('../shared/cataloguePicker', async (original) => {
+  const picker = await original<typeof import('../shared/cataloguePicker')>()
+  return {
+    ...picker,
+    unitSummaries: (...args: Parameters<typeof picker.unitSummaries>) => {
+      mocks.built.push(`${args[2]?.factionCards ? 'reference' : 'picker'} ${args[1]}`)
+      return picker.unitSummaries(...args)
+    },
+  }
+})
 vi.mock('./catalogueIndex', async (original) => ({
   ...(await original<typeof import('./catalogueIndex')>()),
   loadCatalogue: mocks.loadCatalogue,
@@ -80,7 +91,7 @@ const books = (prefix = '') => {
   return loaded
 }
 
-function versions(catalogueIds: string[], promoted = false) {
+function versions(catalogueIds: string[], promoted = false, runtime: CatalogueRuntime | null = null) {
   const edition: CatalogueEdition = {
     id: 'codex',
     name: 'Codex',
@@ -103,6 +114,7 @@ function versions(catalogueIds: string[], promoted = false) {
     directory,
     () => base,
     () => null,
+    runtime,
   )
 }
 
@@ -209,6 +221,18 @@ it('shares an edition load in progress with a request for it', () => {
   loaded.catalogueFor('codex~child')
   completeSteps(construction)
   expect(mocks.loadCatalogue).toHaveBeenCalledTimes(1)
+})
+
+it('loads every rules version, then every reference list, before building pickers', () => {
+  const loaded = versions(['child'], false, {} as CatalogueRuntime)
+  const edition = mocks.loadCatalogue()
+  mocks.loadCatalogue.mockReset().mockImplementation(() => {
+    mocks.built.push('edition codex')
+    return edition
+  })
+  mocks.built.length = 0
+  completeSteps(loaded.construction())
+  expect(mocks.built.slice(0, 4)).toEqual(['edition codex', 'reference child', 'reference parent', 'reference codex~child'])
 })
 
 it('keeps saved catalogue IDs on their rules when another version becomes the default', () => {

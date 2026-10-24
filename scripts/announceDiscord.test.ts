@@ -55,7 +55,7 @@ function services({ liveRevision = revision, liveVersion = version, healthStatus
 it('uses only this version’s player-facing notes', () => {
   expect(discordAnnouncement(changelog, version)).toEqual({
     content:
-      '────────────────────────\n\n## Praetorium v1.2.3 is live\n[Full update notes](https://praetorium.gg/whats-new?utm_source=discord&utm_medium=community&utm_campaign=release-1-2-3#release-1.2.3) · [GitHub release](https://github.com/richardsolomou/praetorium.gg/releases/tag/v1.2.3)\n\n- Saved armies keep their custom names.',
+      '## 📜 Praetorium v1.2.3 is live\n[Full update notes](https://praetorium.gg/whats-new?utm_source=discord&utm_medium=community&utm_campaign=release-1-2-3#release-1.2.3) · [GitHub release](https://github.com/richardsolomou/praetorium.gg/releases/tag/v1.2.3)\n\n- Saved armies keep their custom names.\n\n\u200b',
     allowed_mentions: { parse: [] },
     flags: 4,
   })
@@ -71,12 +71,12 @@ it('keeps long announcements within Discord’s limit and retains the full-notes
     fits: message.content.length <= 2000,
     hasNotesLink: message.content.includes('#release-1.2.3)'),
     hasReleaseLink: message.content.includes('/releases/tag/v1.2.3)'),
-    dividers: message.content.match(/─{24}/g)?.length,
+    ending: message.content.slice(-4),
   }).toEqual({
     fits: true,
     hasNotesLink: true,
     hasReleaseLink: true,
-    dividers: 1,
+    ending: '…\n\n\u200b',
   })
 })
 

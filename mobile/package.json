@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@posthog/react-native-plugin": "^2.12.5",
+    "@posthog/react-native-plugin": "^2.12.6",
     "expo": "~58.0.12",
     "expo-application": "~58.1.1",
     "expo-device": "~58.0.5",

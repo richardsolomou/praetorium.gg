@@ -51,7 +51,7 @@ jobs:
       checks: write
       issues: write
       pull-requests: write
-    uses: richardsolomou/ras-stack/.github/workflows/deploy-dokploy-preview.yml@e4485fd0eddf67b197a5c2095012a956c784ff6e
+    uses: richardsolomou/ras-stack/.github/workflows/deploy-dokploy-preview.yml@3d0023d576a6b8de6574d0c2dcc0b7fe150ac7fb
     with:
       package: praetorium.gg
       # Pulls the arm64 preview image and extracts its database module natively.
@@ -65,6 +65,7 @@ jobs:
       marker: <!-- praetorium-vm-preview -->
       note: Test battles with `preview@praetorium.gg` / `preview-preview-preview` and `opponent@praetorium.gg` / `opponent-opponent-opponent`. Preview data is disposable and resets on every deployment.
       deploy-script: scripts/dokployPreview.ts
+      dependabot-environment: ''
     secrets:
       DOKPLOY_URL: ${{ secrets.DOKPLOY_URL }}
       DOKPLOY_API_KEY: ${{ secrets.DOKPLOY_API_KEY }}

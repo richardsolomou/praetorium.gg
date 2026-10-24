@@ -55,6 +55,19 @@ describe('how a variant differs from its base', () => {
     expect(rosterDifferences(before, after).loadouts).toBe(1)
   })
 
+  it('compares an embarked unit by the transport it starts in rather than its position', () => {
+    const ghostArk = { entryId: 'ghost-ark' }
+    const before = list([{ ...warriors, embarkedIn: 1 }, ghostArk, immortals])
+    const after = list([ghostArk, immortals, { ...warriors, embarkedIn: 0 }])
+    expect(sameRoster(rosterDifferences(before, after))).toBe(true)
+  })
+
+  it('counts a unit moved to another transport as a changed loadout', () => {
+    const before = list([{ ...warriors, embarkedIn: 1 }, { entryId: 'ghost-ark' }, { entryId: 'night-scythe' }])
+    const after = list([{ ...warriors, embarkedIn: 1 }, { entryId: 'night-scythe' }, { entryId: 'ghost-ark' }])
+    expect(rosterDifferences(before, after).loadouts).toBe(1)
+  })
+
   it('keeps an allied datasheet apart from the same entry in the primary force', () => {
     const allied = { entryId: 'warriors', catalogueId: 'ally', models: 10 }
     expect(rosterDifferences(list([warriors]), list([allied]))).toMatchObject({
