@@ -43,7 +43,7 @@ Open pages poll the uncached `/api/release` and offer a manual Refresh for a new
 
 Pull requests receive disposable Dokploy previews at `pr-<number>.praetorium.gg`; the PR's status comment links readiness and failures. Ready means `/api/health` reports the expected commit, not merely that a container started.
 
-`.github/workflows/dokploy-preview-image.yml` builds a digest-pinned image without deployment credentials; the trusted `dokploy-preview-deploy.yml` job and `scripts/dokployPreview.ts` deploy it. Fork artifacts require maintainer approval before trusted deployment.
+`.github/workflows/dokploy-preview-image.yml` builds a digest-pinned image without deployment credentials; the trusted `dokploy-preview-deploy.yml` job and `scripts/dokployPreview.ts` deploy it. Only fork artifacts need maintainer approval before trusted deployment.
 
 Each preview has its own SQLite accounts, SpacetimeDB database, secret, operator identity, auth issuer, and audience. Redeployment resets both stores and ends old sessions; deterministic seed IDs retain cross-store links. Previews share one runtime catalogue cache (`scripts/dokployPreview.ts`), so an approved fork preview can alter what other previews serve, never production. Sign in with `preview@praetorium.gg` / `preview-preview-preview` or `opponent@praetorium.gg` / `opponent-opponent-opponent`. Previews are public; keep sensitive data out. Closing or merging removes preview resources, and scheduled pruning recovers missed cleanup.
 
