@@ -48,7 +48,7 @@ Only browser events carry `feature` and `surface`; server and native-shell event
 
 Signed-in browsers identify with the account ID, and `PostHogBetterAuthIdentity` in `AppShell.tsx` sets the account's `name` and `email` as person properties for support. Event properties never carry names, emails, images, opaque tokens or IDs, search text, unit/list contents, command payloads, rules prose, or error messages; use bounded enums, booleans, counts, durations, and outcomes. Source-normalized faction/detachment labels are allowed; catalogue IDs are not.
 
-The one exception is the automatic import report. When `roster_import_failed` fires, or `roster_import_review_required` has unmatched or unplaced entries, `RosterImport.tsx` files an App feedback response (`importFailureReport` in `src/client/features/feedback/feedback.ts`) whose message deliberately carries the unmatched and unplaced lines and the exact pasted text or exchange code, so the failure can be reproduced. The `roster_import_*` events stay free of list contents.
+The one exception is the automatic import report. When `roster_import_failed` fires (except `reason: share_link`, a New Recruit link), or `roster_import_review_required` has unmatched or unplaced entries, `RosterImport.tsx` files an App feedback response (`importFailureReport` in `src/client/features/feedback/feedback.ts`) whose message carries the unmatched and unplaced lines and the exact input, so the failure can be reproduced. The `roster_import_*` events stay free of list contents.
 
 Exception tracking may carry stack traces; manual captures add only an operation label. `src/client/networkErrors.ts`, `src/client/realtimeErrors.ts`, and their callers decide which failures are expected and excluded.
 
