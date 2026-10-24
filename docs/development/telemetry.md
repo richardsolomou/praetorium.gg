@@ -54,9 +54,7 @@ Exception tracking may carry stack traces; manual captures add only an operation
 
 ## Feedback
 
-Feedback opens a PostHog Support ticket through `posthog.conversations` (`src/client/features/feedback/support.ts`); reply from the Support inbox. `POSTHOG_SUPPORT_IDENTITY_SECRET` is production-only.
-
-Import reports stay on the App feedback survey; changing its questions means updating the ids in `feedback.ts`. Dev servers fake Support (`devSupport.ts`); tests stub both (`e2e/telemetry.harness.ts`).
+Feedback opens a Support ticket (`src/client/features/feedback/support.ts`); reply from the Support inbox. Import reports stay on the App feedback survey, whose question ids `feedback.ts` pins. Dev servers fake Support (`devSupport.ts`); `e2e/telemetry.harness.ts` stubs both.
 
 Screenshots go to the private `praetorium-private` R2 bucket (production reaches it with the backup credentials) and only administrators can open their links.
 
