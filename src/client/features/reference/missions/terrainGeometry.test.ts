@@ -256,6 +256,16 @@ describe('joining footprints into one terrain area', () => {
     expect(terrainAreaJoins(geometry)).toEqual([{ x: 14, y: 13 }])
   })
 
+  it('slides a join along the shared edge out from under an objective marker', () => {
+    const objective = { position: { x: 6, y: 3 }, group: 'a' }
+    const areas = [
+      { ...footprint('a', square(0, 0, 6), 'a'), objective },
+      { ...footprint('b', square(6, 0, 6), 'a'), objective },
+    ]
+    const [join] = terrainAreaJoins({ board, areas })
+    expect(join!.x === 6 && Math.abs(join!.y - 3) >= 2.4).toBe(true)
+  })
+
   it('marks the shared diagonal of two triangles', () => {
     const left = [
       { x: 0, y: 0 },

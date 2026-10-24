@@ -1,9 +1,8 @@
 diff --git a/battlemaster/terrain-areas.json b/battlemaster/terrain-areas.json
 new file mode 100644
-index 0000000..6ab2d77
+index 0000000..66046fa
 --- /dev/null
-+++ b/battlemaster/terrain-areas.json
-@@ -0,0 +1,574 @@
+@@ -0,0 +1,683 @@
 +{
 +  "format": "praetorium.terrain-area-groups.v1",
 +  "battlemasterRevision": "4ac21244c7bde9a3be8ee2faa6dc44d639606c32788570e3b244d93291997a82",
@@ -11,7 +10,16 @@ index 0000000..6ab2d77
 +    {
 +      "layoutId": "terrain-033922b5-6a26-4dda-853d-b0ae5ef18612",
 +      "layoutKey": "fd10ad8d7907d4d6",
-+      "groups": []
++      "groups": [
++        [
++          { "id": "area-6", "name": "SmallRect Generator" },
++          { "id": "area-7", "name": "ShortLine Barrier" }
++        ],
++        [
++          { "id": "area-12", "name": "SmallRect Generator" },
++          { "id": "area-13", "name": "ShortLine Barrier" }
++        ]
++      ]
 +    },
 +    {
 +      "layoutId": "terrain-06b95dbd-1397-4fc9-8baa-e6a31e52c8ba",
@@ -20,6 +28,14 @@ index 0000000..6ab2d77
 +        [
 +          { "id": "area-2", "name": "Triangle AB Corner 02" },
 +          { "id": "area-6", "name": "Triangle AB Corner 02" }
++        ],
++        [
++          { "id": "area-8", "name": "ShortLine Barrier" },
++          { "id": "area-9", "name": "ShortLine Pipe Flip" }
++        ],
++        [
++          { "id": "area-14", "name": "ShortLine Barrier" },
++          { "id": "area-15", "name": "ShortLine Pipe Flip" }
 +        ]
 +      ]
 +    },
@@ -52,13 +68,30 @@ index 0000000..6ab2d77
 +        [
 +          { "id": "area-2", "name": "ShortLine Pipe" },
 +          { "id": "area-10", "name": "SmallRect L" }
++        ],
++        [
++          { "id": "area-1", "name": "LongLine Tower" },
++          { "id": "area-8", "name": "ShortLine Barrier flip" }
++        ],
++        [
++          { "id": "area-14", "name": "ShortLine Barrier flip" },
++          { "id": "area-15", "name": "LongLine Tower" }
 +        ]
 +      ]
 +    },
 +    {
 +      "layoutId": "terrain-1329605d-068b-40da-85dc-926705447940",
 +      "layoutKey": "66778003f0ef784d",
-+      "groups": []
++      "groups": [
++        [
++          { "id": "area-3", "name": "ShortLine Barrier flip" },
++          { "id": "area-4", "name": "LongLine Tower" }
++        ],
++        [
++          { "id": "area-7", "name": "ShortLine Barrier flip" },
++          { "id": "area-8", "name": "LongLine Tower" }
++        ]
++      ]
 +    },
 +    {
 +      "layoutId": "terrain-138c87bc-3005-40c4-963d-0fe3df391b75",
@@ -270,7 +303,16 @@ index 0000000..6ab2d77
 +    {
 +      "layoutId": "terrain-5b546aa7-2aa0-4c5a-ac4b-cff49542007b",
 +      "layoutKey": "7d8c87f75a2bb86f",
-+      "groups": []
++      "groups": [
++        [
++          { "id": "area-1", "name": "ShortLine Barrier" },
++          { "id": "area-2", "name": "SmallRect Generator" }
++        ],
++        [
++          { "id": "area-9", "name": "ShortLine Barrier" },
++          { "id": "area-10", "name": "SmallRect Generator" }
++        ]
++      ]
 +    },
 +    {
 +      "layoutId": "terrain-60ec7ff5-daf0-458a-b57e-ee69a1724d27",
@@ -307,7 +349,16 @@ index 0000000..6ab2d77
 +    {
 +      "layoutId": "terrain-667a701a-a4d7-477f-abcc-a95356c8416c",
 +      "layoutKey": "cf83cbd1454360b6",
-+      "groups": []
++      "groups": [
++        [
++          { "id": "area-1", "name": "SmallRect Generator" },
++          { "id": "area-16", "name": "ShortLine Barrier" }
++        ],
++        [
++          { "id": "area-8", "name": "ShortLine Barrier" },
++          { "id": "area-9", "name": "SmallRect Generator" }
++        ]
++      ]
 +    },
 +    {
 +      "layoutId": "terrain-6cfa3e02-70b6-4797-85e6-d8bae59fb0a8",
@@ -371,13 +422,30 @@ index 0000000..6ab2d77
 +        [
 +          { "id": "area-3", "name": "SmallRect L" },
 +          { "id": "area-4", "name": "ShortLine Pipe" }
++        ],
++        [
++          { "id": "area-1", "name": "LongLine Tower" },
++          { "id": "area-2", "name": "ShortLine Barrier flip" }
++        ],
++        [
++          { "id": "area-7", "name": "ShortLine Barrier flip" },
++          { "id": "area-8", "name": "LongLine Tower" }
 +        ]
 +      ]
 +    },
 +    {
 +      "layoutId": "terrain-8df54370-0b62-436f-a3a0-cf1536cdb0fe",
 +      "layoutKey": "1724b37cb770d320",
-+      "groups": []
++      "groups": [
++        [
++          { "id": "area-3", "name": "ShortLine Pipe" },
++          { "id": "area-13", "name": "SmallRect L" }
++        ],
++        [
++          { "id": "area-8", "name": "SmallRect L" },
++          { "id": "area-9", "name": "ShortLine Pipe" }
++        ]
++      ]
 +    },
 +    {
 +      "layoutId": "terrain-9b3e700e-85da-465b-8c3e-70828ff13687",
@@ -404,6 +472,14 @@ index 0000000..6ab2d77
 +        [
 +          { "id": "area-13", "name": "SmallRect L" },
 +          { "id": "area-14", "name": "ShortLine Pipe" }
++        ],
++        [
++          { "id": "area-2", "name": "SmallRect Generator" },
++          { "id": "area-3", "name": "ShortLine Barrier" }
++        ],
++        [
++          { "id": "area-10", "name": "SmallRect Generator" },
++          { "id": "area-11", "name": "ShortLine Barrier" }
 +        ]
 +      ]
 +    },
@@ -428,6 +504,14 @@ index 0000000..6ab2d77
 +        [
 +          { "id": "area-5", "name": "ShortLine Pipe" },
 +          { "id": "area-6", "name": "SmallRect L" }
++        ],
++        [
++          { "id": "area-4", "name": "ShortLine Barrier" },
++          { "id": "area-8", "name": "SmallRect Generator" }
++        ],
++        [
++          { "id": "area-12", "name": "ShortLine Barrier" },
++          { "id": "area-16", "name": "SmallRect Generator" }
 +        ]
 +      ]
 +    },
@@ -461,6 +545,14 @@ index 0000000..6ab2d77
 +        [
 +          { "id": "area-12", "name": "SmallRect L" },
 +          { "id": "area-13", "name": "ShortLine Pipe" }
++        ],
++        [
++          { "id": "area-1", "name": "ShortLine Barrier" },
++          { "id": "area-16", "name": "LongLine Tower" }
++        ],
++        [
++          { "id": "area-8", "name": "LongLine Tower" },
++          { "id": "area-9", "name": "ShortLine Barrier" }
 +        ]
 +      ]
 +    },
@@ -495,6 +587,22 @@ index 0000000..6ab2d77
 +        [
 +          { "id": "area-8", "name": "Triangle AB Corner 02" },
 +          { "id": "area-16", "name": "Triangle AB Corner 02" }
++        ],
++        [
++          { "id": "area-2", "name": "LongLine Tower" },
++          { "id": "area-3", "name": "ShortLine Barrier flip" }
++        ],
++        [
++          { "id": "area-4", "name": "SmallRect L" },
++          { "id": "area-5", "name": "ShortLine Pipe" }
++        ],
++        [
++          { "id": "area-10", "name": "LongLine Tower" },
++          { "id": "area-11", "name": "ShortLine Barrier flip" }
++        ],
++        [
++          { "id": "area-12", "name": "SmallRect L" },
++          { "id": "area-13", "name": "ShortLine Pipe" }
 +        ]
 +      ]
 +    },

@@ -11,6 +11,9 @@ import { groupBy } from '../../../../core/collections'
 
 export type { Point, TerrainGeometry, TerrainPiece, TerrainTemplate } from '../../../../contracts/terrain'
 
+/** How far a marker's centre keeps from an objective marker's so neither covers the other. */
+const objectiveClearance = 2.4
+
 const markerOffsets = Array.from({ length: 17 }, (_, x) => x - 8)
   .flatMap((x) => Array.from({ length: 17 }, (_, y) => ({ x: x / 2, y: (y - 8) / 2 })))
   .sort((left, right) => left.x * left.x + left.y * left.y - right.x * right.x - right.y * right.y)
@@ -33,8 +36,12 @@ export function objectiveTerrainMarkers(geometry: TerrainGeometry) {
   })
 }
 
-/** Where footprints of one terrain area meet: the middle of each shared edge, or between centres for a footprint touching none. */
+/**
+ * Where footprints of one terrain area meet: the point of each shared edge nearest its middle that an objective marker
+ * does not cover, or between centres for a footprint touching none.
+ */
 export function terrainAreaJoins(geometry: TerrainGeometry) {
+  const objectives = objectiveTerrainMarkers(geometry).map((objective) => objective.position)
   const groups = groupBy(
     geometry.areas.filter((area) => area.group),
     (area) => area.group,
@@ -45,7 +52,7 @@ export function terrainAreaJoins(geometry: TerrainGeometry) {
     const touching = new Set<string>()
     footprints.forEach((one, index) => {
       for (const two of footprints.slice(index + 1)) {
-        const join = sharedEdgeMiddle(one.points, two.points)
+        const join = sharedEdgeJoin(one.points, two.points, objectives)
         if (!join) continue
         add(join)
         touching.add(one.id).add(two.id)
@@ -63,10 +70,10 @@ export function terrainAreaJoins(geometry: TerrainGeometry) {
   return [...joins.values()]
 }
 
-/** The middle of the longest stretch of edge two polygons share, or null when they only touch at a point or not at all. */
-function sharedEdgeMiddle(one: Point[], two: Point[]): Point | null {
+/** The point nearest the middle of the longest edge two polygons share that clears every objective marker, or null when they share no edge. */
+function sharedEdgeJoin(one: Point[], two: Point[], objectives: Point[]): Point | null {
   const tolerance = 0.05
-  let best: { length: number; middle: Point } | null = null
+  let best: { length: number; start: Point; direction: Point; from: number; to: number } | null = null
   for (const [start, end] of polygonEdges(one)) {
     const length = Math.hypot(end.x - start.x, end.y - start.y)
     if (!length) continue
@@ -78,11 +85,18 @@ function sharedEdgeMiddle(one: Point[], two: Point[]): Point | null {
         .sort((left, right) => left - right) as [number, number]
       const overlap = Math.min(length, to) - Math.max(0, from)
       if (overlap <= tolerance || (best && best.length >= overlap)) continue
-      const along = (Math.max(0, from) + Math.min(length, to)) / 2
-      best = { length: overlap, middle: { x: round(start.x + direction.x * along), y: round(start.y + direction.y * along) } }
+      best = { length: overlap, start, direction, from: Math.max(0, from), to: Math.min(length, to) }
     }
   }
-  return best?.middle ?? null
+  if (!best) return null
+  const { start, direction, from, to } = best
+  const at = (along: number) => ({ x: round(start.x + direction.x * along), y: round(start.y + direction.y * along) })
+  const middle = (from + to) / 2
+  const steps = Array.from({ length: Math.floor((to - from) / 0.25) + 1 }, (_, index) => (index % 2 ? 1 : -1) * Math.ceil(index / 2) * 0.25)
+  const open = steps
+    .map((step) => at(middle + step))
+    .find((point) => objectives.every((objective) => Math.hypot(point.x - objective.x, point.y - objective.y) >= objectiveClearance))
+  return open ?? at(middle)
 }
 
 function polygonEdges(points: Point[]) {
@@ -128,7 +142,7 @@ function markerPositionIsOpen(
   if (!pointInPolygon(candidate, area.points)) return false
   if (
     [...objectives, ...(area.objective ? [area.objective.position] : [])].some(
-      (objective) => Math.hypot(candidate.x - objective.x, candidate.y - objective.y) < 2.4,
+      (objective) => Math.hypot(candidate.x - objective.x, candidate.y - objective.y) < objectiveClearance,
     )
   )
     return false
