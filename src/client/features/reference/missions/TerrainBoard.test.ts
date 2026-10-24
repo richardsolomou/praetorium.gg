@@ -92,6 +92,24 @@ describe('terrain areas', () => {
   it('outlines touching terrain areas separately', () => {
     expect(outlines([footprint('area-1', 10, null), footprint('area-2', 14, null)])).toBe(2)
   })
+
+  it.each([
+    [true, 1],
+    [false, 0],
+  ])('marks joined footprints with an eye on the detailed board (detailed: %s)', (detailed, eyes) => {
+    const markup = renderToStaticMarkup(
+      createElement(TerrainBoard, {
+        layout: {
+          name: 'Test layout',
+          pieces: [],
+          geometry: { board, areas: [footprint('area-1', 10, 'area-1'), footprint('area-2', 14, 'area-1')] },
+        },
+        templates: [],
+        detailed,
+      }),
+    )
+    expect(markup.match(/<title>Footprints of one terrain area<\/title>/g)?.length ?? 0).toBe(eyes)
+  })
 })
 
 it('draws a square board upright at its own size', () => {

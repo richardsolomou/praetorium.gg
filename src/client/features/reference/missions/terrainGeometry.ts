@@ -6,7 +6,8 @@
  * of it draws anything, which is what makes it checkable.
  */
 
-import type { TerrainGeometry } from '../../../../contracts/terrain'
+import type { Point, TerrainGeometry } from '../../../../contracts/terrain'
+import { groupBy } from '../../../../core/collections'
 
 export type { Point, TerrainGeometry, TerrainPiece, TerrainTemplate } from '../../../../contracts/terrain'
 
@@ -30,6 +31,70 @@ export function objectiveTerrainMarkers(geometry: TerrainGeometry) {
       },
     ]
   })
+}
+
+/** Where footprints of one terrain area meet: the middle of each shared edge, or between centres for a footprint touching none. */
+export function terrainAreaJoins(geometry: TerrainGeometry) {
+  const groups = groupBy(
+    geometry.areas.filter((area) => area.group),
+    (area) => area.group,
+  )
+  const joins = new Map<string, Point>()
+  const add = (point: Point) => joins.set(`${point.x}-${point.y}`, point)
+  for (const footprints of groups.values()) {
+    const touching = new Set<string>()
+    footprints.forEach((one, index) => {
+      for (const two of footprints.slice(index + 1)) {
+        const join = sharedEdgeMiddle(one.points, two.points)
+        if (!join) continue
+        add(join)
+        touching.add(one.id).add(two.id)
+      }
+    })
+    for (const lone of footprints.filter((footprint) => !touching.has(footprint.id))) {
+      const centre = polygonCentroid(lone.points)
+      const nearest = footprints
+        .filter((footprint) => footprint !== lone)
+        .map((footprint) => polygonCentroid(footprint.points))
+        .sort((left, right) => Math.hypot(left.x - centre.x, left.y - centre.y) - Math.hypot(right.x - centre.x, right.y - centre.y))[0]
+      if (nearest) add({ x: (centre.x + nearest.x) / 2, y: (centre.y + nearest.y) / 2 })
+    }
+  }
+  return [...joins.values()]
+}
+
+/** The middle of the longest stretch of edge two polygons share, or null when they only touch at a point or not at all. */
+function sharedEdgeMiddle(one: Point[], two: Point[]): Point | null {
+  const tolerance = 0.05
+  let best: { length: number; middle: Point } | null = null
+  for (const [start, end] of polygonEdges(one)) {
+    const length = Math.hypot(end.x - start.x, end.y - start.y)
+    if (!length) continue
+    const direction = { x: (end.x - start.x) / length, y: (end.y - start.y) / length }
+    for (const edge of polygonEdges(two)) {
+      if (edge.some((point) => lineDistance(point, start, direction) > tolerance)) continue
+      const [from, to] = edge
+        .map((point) => (point.x - start.x) * direction.x + (point.y - start.y) * direction.y)
+        .sort((left, right) => left - right) as [number, number]
+      const overlap = Math.min(length, to) - Math.max(0, from)
+      if (overlap <= tolerance || (best && best.length >= overlap)) continue
+      const along = (Math.max(0, from) + Math.min(length, to)) / 2
+      best = { length: overlap, middle: { x: round(start.x + direction.x * along), y: round(start.y + direction.y * along) } }
+    }
+  }
+  return best?.middle ?? null
+}
+
+function polygonEdges(points: Point[]) {
+  return points.map((point, index) => [point, points[(index + 1) % points.length]!] as const)
+}
+
+function lineDistance(point: Point, start: Point, direction: Point) {
+  return Math.abs((point.x - start.x) * direction.y - (point.y - start.y) * direction.x)
+}
+
+function round(value: number) {
+  return Math.round(value * 1000) / 1000
 }
 
 export function deploymentObjectiveMarkers(geometry: TerrainGeometry | null, objectives: { x: number; y: number }[]) {
