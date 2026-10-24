@@ -14,6 +14,7 @@ import {
   portraitPoint,
   type LabelBox,
   svgPoints,
+  terrainAreaJoins,
   type TerrainGeometry,
   type TerrainPiece,
   type TerrainTemplate,
@@ -272,6 +273,18 @@ function TerrainAnnotations({
             }),
           )
         : null}
+      {detailed
+        ? terrainAreaJoins(geometry).map((join) => (
+            <g key={`${join.x}-${join.y}`} transform={`translate(${join.x} ${join.y}) rotate(${flipped ? -90 : 90})`}>
+              <circle r=".8" className="fill-raised stroke-azure" strokeWidth=".14" />
+              <g transform="scale(.05) translate(-12 -12)" fill="none" className="stroke-bone" strokeWidth="2.4" strokeLinecap="round">
+                <path d={eyePath} />
+                <circle cx="12" cy="12" r="3" />
+              </g>
+              <title>Footprints of one terrain area</title>
+            </g>
+          ))
+        : null}
       {objectiveTerrainMarkers(geometry).map((objective) => (
         <ObjectiveTerrainMarker
           key={objective.key}
@@ -284,6 +297,9 @@ function TerrainAnnotations({
     </>
   )
 }
+
+/** Lucide's eye, matching the mark the publisher's layouts print across joined footprints. */
+const eyePath = 'M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0'
 
 function ObjectiveTerrainMarker({
   position,
