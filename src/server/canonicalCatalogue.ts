@@ -31,7 +31,7 @@ import { readSharedJson } from './sharedJson'
 import { mfmUnitFor } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
-export const CANONICAL_CATALOGUE_COMPILER_VERSION = 16 as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 17 as const
 
 const characteristicSchema = z.object({
   name: z.string(),
@@ -244,6 +244,7 @@ const canonicalCatalogueSchema = z.object({
     z.literal(13),
     z.literal(14),
     z.literal(15),
+    z.literal(16),
     z.literal(CANONICAL_CATALOGUE_COMPILER_VERSION),
   ]),
   revisions: z.record(z.string(), z.string()),

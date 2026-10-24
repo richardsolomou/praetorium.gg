@@ -20,7 +20,7 @@ const ruleDocument = {
 }
 
 function referenceSources() {
-  const sheet = { catalogueId: 'canonical-catalogue', slug: 'canonical-sheet', name: 'Canonical sheet' }
+  const sheet = { catalogueId: 'canonical-catalogue', id: 'canonical-sheet-id', slug: 'canonical-sheet', name: 'Canonical sheet' }
   return {
     sheet,
     sources: {

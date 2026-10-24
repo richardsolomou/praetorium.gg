@@ -18,7 +18,17 @@ const { service } = vi.hoisted(() => ({
 const loaded: { rules: object | null } = { rules: null }
 const factions = { factions: [{ id: 'necrons-catalogue', slug: 'necrons', displayName: 'Necrons' }] }
 const canonical = {
-  datasheets: [{ catalogueId: 'necrons-catalogue', slug: 'warriors', name: 'Necron Warriors', points: 90, costs: [], baseSize: null }],
+  datasheets: [
+    {
+      catalogueId: 'necrons-catalogue',
+      id: 'warriors-id',
+      slug: 'warriors',
+      name: 'Necron Warriors',
+      points: 90,
+      costs: [],
+      baseSize: null,
+    },
+  ],
 }
 vi.mock('./app', () => ({
   app: () => ({

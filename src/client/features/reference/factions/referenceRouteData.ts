@@ -38,6 +38,14 @@ export async function loadFactionDatasheet(queryClient: QueryClient, catalogueId
   if (!faction) throw notFound()
   const sheet = await queryClient.query({ ...datasheetSlugQuery(faction.id, entryId), staleTime: 'static' })
   if (!sheet) throw notFound()
+  // A slug gains and loses its id suffix between catalogue updates, so a cached permanent redirect from one form could bounce back from the other.
+  if (sheet.slug !== entryId)
+    throw redirect({
+      href: factionReferenceHref(faction, `/datasheets/${sheet.slug}`),
+      ...(entryId === sheet.id
+        ? { statusCode: 301, headers: { 'Cache-Control': 'public, max-age=3600' } }
+        : { statusCode: 307, headers: { 'Cache-Control': 'no-store' } }),
+    })
   await queryClient.query({
     ...referenceChangesQuery({ kind: 'datasheet', faction: faction.slug, slug: sheet.slug }),
     staleTime: 'static',
