@@ -1756,16 +1756,15 @@ export function ListBuilder({
           {cards.length ? (
             <>
               {rosterShelves<(typeof cards)[number]>(cards, arrangement).map(({ id, plural, count, entries }) => (
-                <Section key={id} title={plural} count={count} snug={id === 'attached'}>
+                <Section key={id} title={plural} count={count} points={entries.flat().reduce((total, card) => total + card.unit.points, 0)}>
                   {entries.map((members) => {
-                    const host = members.at(-1)!
+                    const host = members[0]!
                     return members.length > 1 ? (
                       <AttachedUnitBlock
                         key={host.key}
                         name={host.name}
                         nickname={(frozen ? frozen.units[host.index] : picks[host.index])?.nickname}
-                        points={members.reduce((total, card) => total + card.unit.points, 0)}
-                        editable={!frozen && building}
+                        bodyguard={renderCard(host, true)}
                         actions={
                           frozen ? (
                             <AttachedUnitActions
@@ -1788,7 +1787,7 @@ export function ListBuilder({
                           )
                         }
                       >
-                        {members.map((member) => renderCard(member, true))}
+                        {members.slice(1).map((member) => renderCard(member, true))}
                       </AttachedUnitBlock>
                     ) : (
                       renderCard(host)

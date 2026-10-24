@@ -18,7 +18,7 @@ type BuilderUnitCardProps = {
   canJoin: AttachChoice[]
   canHost: AttachChoice[]
   embark: EmbarkCard
-  /** Drawn inside an attached unit's outline, which offers the unit's own joiners and embark instead. */
+  /** Drawn in an attached unit, which offers the unit's own joiners and embark instead. */
   inAttachedUnit: boolean
   alliedFaction: ComponentProps<typeof UnitCard>['alliedFaction']
   selected: boolean
@@ -71,6 +71,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
       onDuplicate={() => onDuplicate(index)}
       canDuplicate={canDuplicate}
       onSaveLoadout={onSaveLoadout && (() => onSaveLoadout(index))}
+      onDetach={joined.some((row) => row.detach === index) ? () => onDetach(index) : undefined}
       joined={[
         ...joined.map((row) => ({ ...row, onAct: () => onDetach(row.detach) })),
         ...embarkRows(embark).map((row) => ({ ...row, onAct: () => onEmbark(row.passenger, undefined) })),
@@ -91,7 +92,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
 })
 
 /**
- * What an attached unit does as one, drawn once on its outline rather than on each of its cards: who else may join it,
+ * What an attached unit does as one, drawn once below its cards rather than on each of its cards: who else may join it,
  * and where it starts embarked. `host` is the bodyguard, whose card the unit's embark is told on.
  */
 export function AttachedUnitActions({
