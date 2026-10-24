@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 import path from 'node:path'
-import { baseURL, catalogue, inspectPort, internalPort, port, readyPort, root, spacetimePort } from './e2e/stackEnv'
+import { baseURL, catalogue, inspectPort, internalPort, port, processCoverage, readyPort, root, spacetimePort } from './e2e/stackEnv'
 
 delete process.env.NO_COLOR
 
@@ -47,6 +47,7 @@ export default defineConfig({
       EXPO_PUSH_ACCESS_TOKEN: 'unused-e2e-token',
       CATALOGUE_DIR: catalogue,
       ...(inspectPort ? { LOCAL_SERVER_INSPECT_PORT: String(inspectPort) } : {}),
+      ...(processCoverage ? { LOCAL_SERVER_V8_COVERAGE: processCoverage } : {}),
     },
     url: `http://127.0.0.1:${readyPort}/ready`,
     reuseExistingServer: false,

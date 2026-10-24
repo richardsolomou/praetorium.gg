@@ -3,7 +3,7 @@ import path from 'node:path'
 import { test as base, type BrowserContext, type Page, type Response } from '@playwright/test'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { retainedSnapshots, upstreamUrl } from '../src/server/sourceTexts'
-import { catalogue, inspectPort } from './stackEnv'
+import { catalogue, inspectPort, processCoverage } from './stackEnv'
 
 /**
  * Resolves a page load once the app has hydrated, as `AppShell` marks the document,
@@ -163,6 +163,15 @@ function serverCoverage() {
         )
         socket.send(JSON.stringify({ id, method, params }))
       })
+    // Startup ran before any test, so it counts for every spec: `NODE_V8_COVERAGE` writes it now,
+    // moved apart from the exit coverage `scripts/e2eMap.ts` skips, and the counts start over.
+    const written = (await send('Runtime.evaluate', { expression: "process.getBuiltinModule('node:v8').takeCoverage()" })) as unknown as {
+      exceptionDetails?: unknown
+    }
+    if (written.exceptionDetails || !processCoverage) throw new Error('the app server did not write its startup coverage')
+    fs.mkdirSync(path.join(processCoverage, 'startup'), { recursive: true })
+    for (const file of fs.readdirSync(path.join(processCoverage, 'server')))
+      if (file.endsWith('-0.json')) fs.renameSync(path.join(processCoverage, 'server', file), path.join(processCoverage, 'startup', file))
     await send('Profiler.enable')
     await send('Profiler.startPreciseCoverage', { callCount: true, detailed: false })
     return send

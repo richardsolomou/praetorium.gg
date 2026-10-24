@@ -1,8 +1,8 @@
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { afterEach, beforeEach, expect, it } from 'vitest'
-import { buildE2eMap, scriptReader, workerSources } from './e2eMap'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { buildE2eMap, builtCatalogue, scriptReader, workerSources } from './e2eMap'
 
 let root: string
 let build: string
@@ -156,4 +156,34 @@ it('counts a file bundled by glob or as raw text as loaded wherever its importer
     { loaded: [0, 1], functions: [] },
     { loaded: [0, 1], functions: [] },
   ])
+})
+
+it('records what the harness called and compiled without calling, by source file', () => {
+  fs.mkdirSync(path.join(build, 'server/chunks'), { recursive: true })
+  fs.copyFileSync(path.join(build, 'public/assets/chunk.js'), path.join(build, 'server/chunks/seed.mjs'))
+  fs.copyFileSync(path.join(build, 'public/assets/chunk.js.map'), path.join(build, 'server/chunks/seed.mjs.map'))
+  const range = (name: string, count: number) => ({ ranges: [{ startOffset: offsetOf(name), endOffset: offsetOf(name) + 22, count }] })
+  const map = buildE2eMap([], scriptReader(build, root), root, 'abc', {
+    processes: [
+      { result: [{ url: 'file:///tmp/praetorium-e2e-x/build/server/chunks/seed.mjs', functions: [range('a', 1), range('b', 0)] }] },
+    ],
+  })
+  expect(map.harness).toEqual({ 'src/a.ts': { called: [[1, 1]], uncalled: [] }, 'src/b.ts': { called: [], uncalled: [[3, 3]] } })
+})
+
+describe('the compiled catalogue', () => {
+  const write = (files: Record<string, unknown>, fingerprint = 'inputs') => {
+    fs.mkdirSync(path.join(build, 'server/catalogue-runtime'), { recursive: true })
+    fs.writeFileSync(path.join(build, 'server/catalogue-runtime/manifest.json'), JSON.stringify({ fingerprint, files }))
+    fs.writeFileSync(path.join(build, 'public/offline-reference-version.json'), '{"revision":"r1"}')
+    return builtCatalogue(build)
+  }
+
+  it('is the same when only the compiler that produced it changed', () => {
+    expect(write({ startup: { sha256: 'a' } }, 'old compiler')).toBe(write({ startup: { sha256: 'a' } }, 'new compiler'))
+  })
+
+  it('differs when a compiled file differs', () => {
+    expect(write({ startup: { sha256: 'a' } })).not.toBe(write({ startup: { sha256: 'b' } }))
+  })
 })

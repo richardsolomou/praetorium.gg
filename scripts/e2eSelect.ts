@@ -2,15 +2,16 @@
  * Chooses the end-to-end specs a pull request needs from the latest coverage map and the checked-out
  * head's import graph.
  *
- * Reads BASE_SHA, HEAD_SHA and E2E_MAP (a path, possibly missing) and writes `specs`, either
- * `all` or a JSON array of spec files, and `reason` to GITHUB_OUTPUT. Without a usable map, or
- * when the map's revision is not part of the base's history, every spec runs.
+ * Reads BASE_SHA, HEAD_SHA, E2E_MAP (a path, possibly missing) and the head's browser-test build in
+ * `data-dev/e2e-build`, and writes `specs`, either `all` or a JSON array of spec files, and `reason`
+ * to GITHUB_OUTPUT. Without a usable map, or when the map's revision is not part of the base's
+ * history, every spec runs.
  */
 import { execFileSync } from 'node:child_process'
 import { appendFileSync, existsSync, readdirSync, readFileSync } from 'node:fs'
 import { harnessFiles } from './lib/e2eHarness.ts'
 import { importClosures } from './lib/moduleGraph.ts'
-import type { E2eMap } from './lib/e2eMap.ts'
+import { builtCatalogue, type E2eMap } from './lib/e2eMap.ts'
 import { changedHunks, lineMoves, selectSpecs, type Graph, type Selection } from './lib/e2eSelection.ts'
 
 const git = (...args: string[]) => execFileSync('git', args, { encoding: 'utf8', maxBuffer: 256_000_000 })
@@ -23,7 +24,7 @@ async function graph(): Promise<Graph> {
   const imports = new Map<string, string[]>()
   for (const [spec, closure] of await importClosures(process.cwd(), specs))
     for (const file of closure) imports.set(file, [...(imports.get(file) ?? []), spec])
-  return { harness: new Set(await harnessFiles()), imports }
+  return { harness: new Set(await harnessFiles()), imports, catalogue: builtCatalogue('data-dev/e2e-build') }
 }
 
 async function selection(): Promise<Selection> {

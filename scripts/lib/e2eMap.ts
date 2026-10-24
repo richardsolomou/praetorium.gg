@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
 import { TraceMap, originalPositionFor } from '@jridgewell/trace-mapping'
@@ -6,9 +7,13 @@ import { TraceMap, originalPositionFor } from '@jridgewell/trace-mapping'
 export type ExecutedFunction = { url: string; start: number; end: number }
 /** What `e2e/test.ts` writes for each test in a coverage run. */
 export type CoverageRecord = { spec: string; client: ExecutedFunction[]; server: ExecutedFunction[] }
+/** What `NODE_V8_COVERAGE` writes for each process or worker thread when it exits. */
+export type ProcessCoverage = {
+  result: { url: string; functions: { ranges: { startOffset: number; endOffset: number; count: number }[] }[] }[]
+}
 
 /** Bumped whenever selection reads the map differently, so an older cached map runs every spec. */
-export const E2E_MAP_VERSION = 2
+export const E2E_MAP_VERSION = 3
 
 /**
  * Which specs exercise each source file, at one revision.
@@ -24,6 +29,14 @@ export type E2eMap = {
   files: Record<string, { loaded: number[]; functions: [start: number, end: number, specs: number[]][] }>
   /** Source the build's web workers run, which page coverage never sees into. */
   whole: string[]
+  /**
+   * Source that ran for every test at once: in the preview seed, in the app server's startup, and
+   * in its combat worker threads. Each file lists the 1-based line spans of the functions these
+   * called and of those they compiled but never called.
+   */
+  harness: Record<string, { called: [start: number, end: number][]; uncalled: [start: number, end: number][] }>
+  /** `builtCatalogue` of the coverage run's build. */
+  catalogue: string
 }
 
 type Script = { trace: TraceMap; length: number; lineStarts: number[]; sources: (string | null)[] }
@@ -35,6 +48,20 @@ function sourcePath(source: string | null, root: string) {
   const absolute = path.isAbsolute(source) ? source : source.replace(/^(\.\.\/)+/, '/')
   const file = path.relative(root, absolute).replace(/\?.*$/, '')
   return file.startsWith('src/') ? file : null
+}
+
+/**
+ * Identifies what a build compiled from the catalogue, the runtime and the offline reference, by
+ * content, so compiler code that leaves both unchanged cannot change what a test sees.
+ */
+export function builtCatalogue(buildDirectory: string) {
+  const runtime = JSON.parse(fs.readFileSync(path.join(buildDirectory, 'server/catalogue-runtime/manifest.json'), 'utf8')) as {
+    files: Record<string, unknown>
+  }
+  return createHash('sha256')
+    .update(JSON.stringify(Object.entries(runtime.files).toSorted(([left], [right]) => left.localeCompare(right))))
+    .update(fs.readFileSync(path.join(buildDirectory, 'public/offline-reference-version.json')))
+    .digest('hex')
 }
 
 /** Source files in the build's web worker chunks, which page coverage cannot see into. */
@@ -124,13 +151,52 @@ function lastMappedLine(script: Script, start: number, end: number, source: stri
   return firstLine
 }
 
+/** A function's source file and 1-based line span, or null for dependencies and generated code. */
+function sourceSpan(script: Script, start: number, end: number, root: string) {
+  const first = originalAt(script, start)
+  const file = sourcePath(first.source, root)
+  if (!file || first.line === null) return null
+  return { file, span: [first.line, lastMappedLine(script, start, end, first.source!, first.line)] as [number, number] }
+}
+
+/** What the harness loaded, called and left uncalled, from `NODE_V8_COVERAGE` output. */
+function harnessCoverage(processes: Iterable<ProcessCoverage>, readScript: ReturnType<typeof scriptReader>, root: string) {
+  const files = new Map<string, { called: Set<string>; uncalled: Set<string> }>()
+  const entry = (file: string) => files.get(file) ?? files.set(file, { called: new Set(), uncalled: new Set() }).get(file)!
+  for (const { result } of processes)
+    for (const { url, functions } of result) {
+      const script = url.startsWith('file:') ? readScript(url) : null
+      if (!script) continue
+      for (const source of script.sources) if (source) entry(source)
+      for (const { ranges } of functions) {
+        const range = ranges[0]
+        if (!range || (range.startOffset === 0 && range.endOffset >= script.length)) continue
+        const located = sourceSpan(script, range.startOffset, range.endOffset, root)
+        if (located) entry(located.file)[range.count > 0 ? 'called' : 'uncalled'].add(located.span.join(':'))
+      }
+    }
+  const spans = (keys: Set<string>) =>
+    [...keys]
+      .map((key) => key.split(':').map(Number) as [number, number])
+      .toSorted((left, right) => left[0] - right[0] || left[1] - right[1])
+  return Object.fromEntries(
+    [...files]
+      .toSorted(([left], [right]) => left.localeCompare(right))
+      .map(([file, { called, uncalled }]) => [file, { called: spans(called), uncalled: spans(uncalled) }]),
+  )
+}
+
 /** Folds every test's coverage into one map; tests of the same spec file count as that spec. */
 export function buildE2eMap(
   records: Iterable<CoverageRecord>,
   readScript: ReturnType<typeof scriptReader>,
   root: string,
   revision: string,
-  whole: readonly string[] = [],
+  {
+    whole = [],
+    processes = [],
+    catalogue = '',
+  }: { whole?: readonly string[]; processes?: Iterable<ProcessCoverage>; catalogue?: string } = {},
 ): E2eMap {
   const specs: string[] = []
   const loaded = new Map<string, Set<number>>()
@@ -153,14 +219,12 @@ export function buildE2eMap(
       for (const source of script.sources) if (source) loaded.set(source, (loaded.get(source) ?? new Set()).add(spec))
       // V8 reports a loaded script's top level as a function spanning it; `loaded` already records it.
       if (start === 0 && end >= script.length) continue
-      const first = originalAt(script, start)
-      const file = sourcePath(first.source, root)
-      if (!file || first.line === null) continue
-      const lastLine = lastMappedLine(script, start, end, first.source!, first.line)
-      const spans = functions.get(file) ?? new Map<string, Set<number>>()
-      const key = `${first.line}:${lastLine}`
+      const located = sourceSpan(script, start, end, root)
+      if (!located) continue
+      const spans = functions.get(located.file) ?? new Map<string, Set<number>>()
+      const key = located.span.join(':')
       spans.set(key, (spans.get(key) ?? new Set()).add(spec))
-      functions.set(file, spans)
+      functions.set(located.file, spans)
     }
   }
   const sorted = (values: Iterable<number>) => [...values].toSorted((left, right) => left - right)
@@ -176,5 +240,13 @@ export function buildE2eMap(
   // An asset is part of its importer's top level, so it loads wherever the importer does.
   for (const [file, entry] of Object.entries(files))
     for (const asset of assetImports(root, file)) files[asset] ??= { loaded: entry.loaded, functions: [] }
-  return { version: E2E_MAP_VERSION, revision, specs, files, whole: [...new Set(whole)].toSorted() }
+  return {
+    version: E2E_MAP_VERSION,
+    revision,
+    specs,
+    files,
+    whole: [...new Set(whole)].toSorted(),
+    harness: harnessCoverage(processes, readScript, root),
+    catalogue,
+  }
 }

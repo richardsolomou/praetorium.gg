@@ -164,6 +164,34 @@ jobs:
           path: e2e-map.json
           key: e2e-map-${{ github.sha }}
           restore-keys: e2e-map-
+      - run: pnpm catalogue:sync
+        # Catalogue snapshots are private, read with these on this step alone.
+        env:
+          R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+      - name: Require the terrain geometry
+        run: pnpm catalogue:terrain
+      - name: Fingerprint the browser-test build
+        id: browser-build
+        run: echo "key=$(pnpm exec tsx scripts/browserTestBuildKey.ts)" >> "$GITHUB_OUTPUT"
+      - name: Restore the browser-test build
+        uses: actions/cache@v6
+        with:
+          path: data-dev/e2e-build
+          key: ${{ runner.os }}-${{ runner.arch }}-browser-build-${{ steps.browser-build.outputs.key }}
+      - name: Fingerprint the catalogue runtime
+        id: runtime
+        run: echo "key=$(pnpm exec tsx scripts/catalogueRuntimeKey.ts)" >> "$GITHUB_OUTPUT"
+      - name: Restore the compiled catalogue runtime
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/praetorium/runtime
+          key: catalogue-runtime-${{ steps.runtime.outputs.key }}
+      - name: Build or restore the browser-test build
+        run: pnpm exec tsx scripts/browserTestBuild.ts
+      - uses: ./.github/actions/verify-browser-build
+      # Selection compares the build's compiled catalogue with the coverage run's.
       - name: Choose the end-to-end specs
         id: select
         env:
@@ -200,33 +228,6 @@ jobs:
             echo "$REASON; this run uses $(node -p 'JSON.parse(process.argv[1]).length' "$runners") of $MAX runners."
             if [ "$SELECTED" != all ]; then node -p 'JSON.parse(process.argv[1]).map((spec) => "- " + spec).join("\n")' "$SELECTED"; fi
           } >> "$GITHUB_STEP_SUMMARY"
-      - run: pnpm catalogue:sync
-        # Catalogue snapshots are private, read with these on this step alone.
-        env:
-          R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
-      - name: Require the terrain geometry
-        run: pnpm catalogue:terrain
-      - name: Fingerprint the browser-test build
-        id: browser-build
-        run: echo "key=$(pnpm exec tsx scripts/browserTestBuildKey.ts)" >> "$GITHUB_OUTPUT"
-      - name: Restore the browser-test build
-        uses: actions/cache@v6
-        with:
-          path: data-dev/e2e-build
-          key: ${{ runner.os }}-${{ runner.arch }}-browser-build-${{ steps.browser-build.outputs.key }}
-      - name: Fingerprint the catalogue runtime
-        id: runtime
-        run: echo "key=$(pnpm exec tsx scripts/catalogueRuntimeKey.ts)" >> "$GITHUB_OUTPUT"
-      - name: Restore the compiled catalogue runtime
-        uses: actions/cache@v6
-        with:
-          path: ~/.cache/praetorium/runtime
-          key: catalogue-runtime-${{ steps.runtime.outputs.key }}
-      - name: Build or restore the browser-test build
-        run: pnpm exec tsx scripts/browserTestBuild.ts
-      - uses: ./.github/actions/verify-browser-build
       - uses: actions/upload-artifact@v7
         with:
           name: browser-test-build
