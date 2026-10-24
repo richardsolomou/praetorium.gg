@@ -47,7 +47,7 @@ export default defineConfig({
       EXPO_PUSH_ACCESS_TOKEN: 'unused-e2e-token',
       CATALOGUE_DIR: catalogue,
       ...(inspectPort ? { LOCAL_SERVER_INSPECT_PORT: String(inspectPort) } : {}),
-      ...(processCoverage ? { LOCAL_SERVER_V8_COVERAGE: processCoverage } : {}),
+      ...(processCoverage ? { LOCAL_COVERAGE_DIR: processCoverage } : {}),
     },
     url: `http://127.0.0.1:${readyPort}/ready`,
     reuseExistingServer: false,

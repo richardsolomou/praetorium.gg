@@ -5,8 +5,15 @@ import { TraceMap, originalPositionFor } from '@jridgewell/trace-mapping'
 
 /** A function V8 counted at least once in one test, by its byte offsets in a built script. */
 export type ExecutedFunction = { url: string; start: number; end: number }
-/** What `e2e/test.ts` writes for each test in a coverage run. */
-export type CoverageRecord = { spec: string; client: ExecutedFunction[]; server: ExecutedFunction[] }
+/** What `e2e/test.ts` writes for each test in a coverage run, with its stack and when it ran. */
+export type CoverageRecord = {
+  spec: string
+  client: ExecutedFunction[]
+  server: ExecutedFunction[]
+  stack?: string
+  started?: number
+  ended?: number
+}
 /** What `NODE_V8_COVERAGE` writes for each process or worker thread when it exits. */
 export type ProcessCoverage = {
   result: { url: string; functions: { ranges: { startOffset: number; endOffset: number; count: number }[] }[] }[]

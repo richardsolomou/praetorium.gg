@@ -19,12 +19,14 @@ const roots = [
 ]
 /**
  * Modules whose application source selection accounts for another way. Coverage records what the
- * seed, the combat workers and the server's startup plugins run; the build's catalogue fingerprint
+ * seed, the combat workers, the server's startup plugins and the SpacetimeDB module (through
+ * `scripts/lib/moduleCoverage.ts`) run; the build's catalogue fingerprint
  * covers the tools that compile the catalogue runtime and the offline reference; and the terrain
  * check only reads, so it can fail the build but not change what a test sees.
  */
 export const accountedEntries = [
   'scripts/seedPreview.ts',
+  'spacetimedb/src/index.ts',
   'src/server/combatCalculation.worker.ts',
   'src/server/warmPlugin.ts',
   'src/server/cspPlugin.ts',

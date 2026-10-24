@@ -13,8 +13,9 @@ export const readyPort = Number(process.env.PLAYWRIGHT_READY_PORT)
 export const inspectPort = process.env.PLAYWRIGHT_INSPECT_PORT ? Number(process.env.PLAYWRIGHT_INSPECT_PORT) : null
 export const root = process.env.PLAYWRIGHT_DATA_ROOT!
 /**
- * Where a coverage run's stack writes the exit coverage of the processes and threads no test owns:
- * `seed/` for the preview seed, `server/` for the app server, and `startup/` for its startup.
+ * Where a coverage run's stack records what runs outside the browser and the app server's
+ * per-test coverage: `seed/` for the preview seed, `server/` for the app server's threads,
+ * `startup/` for its startup, and `spacetime/` for the SpacetimeDB module's calls.
  */
 export const processCoverage = process.env.E2E_COVERAGE_DIR
   ? path.join(process.env.E2E_COVERAGE_DIR, 'processes', path.basename(root))

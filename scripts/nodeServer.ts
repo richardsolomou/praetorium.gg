@@ -22,7 +22,7 @@ const execFile = promisify(execFileCallback)
 
 /** In a browser-test coverage run, where a child writes what it executed, which no single test owns. */
 const v8Coverage = (child: 'seed' | 'server') =>
-  process.env.LOCAL_SERVER_V8_COVERAGE ? { NODE_V8_COVERAGE: path.join(process.env.LOCAL_SERVER_V8_COVERAGE, child) } : {}
+  process.env.LOCAL_COVERAGE_DIR ? { NODE_V8_COVERAGE: path.join(process.env.LOCAL_COVERAGE_DIR, child) } : {}
 
 export function nodeBuildDirectory(environment: NodeJS.ProcessEnv = process.env) {
   return environment.LOCAL_BUILD_DIR ? path.resolve(environment.LOCAL_BUILD_DIR) : fileURLToPath(new URL('../.output', import.meta.url))
