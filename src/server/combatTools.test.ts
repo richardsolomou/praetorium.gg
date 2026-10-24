@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import { decodeSimulatorState } from '../contracts/simulatorState'
 import { bookOf, categories } from './catalogue.fixtures'
@@ -47,6 +47,17 @@ const loaded = bookOf({
       ],
     },
     {
+      id: 'protector',
+      name: 'Protector',
+      type: 'model',
+      categoryLinks: categories('Character'),
+      profiles: [
+        profile('protector-stats', 'Protector', 'Unit', { T: '6', Sv: '4+', W: '6' }),
+        profile('cleaver', 'Cleaver', 'Melee Weapons', { A: '4', WS: '3+', S: '6', AP: '-1', D: '2' }),
+        profile('protector-rule', 'Loyal', 'Abilities', { Description: 'This model can be attached to the following unit:\n■ Leader' }),
+      ],
+    },
+    {
       id: 'beast',
       name: 'Beast',
       type: 'model',
@@ -75,13 +86,18 @@ const document = (name: string) => ({
   revisions: { datacards: 'revision' },
   attribution: ['Community data'],
 })
-const documents = ['Squad', 'Leader', 'Beast'].map(document)
+const documents = ['Squad', 'Leader', 'Protector', 'Beast'].map(document)
 const corpus: ReferenceCorpus = {
   catalogue: {
     format: 'praetorium.canonical-catalogue.v1',
     compilerVersion: 1,
     revisions: { datacards: 'revision' },
-    datasheets: [canonical('squad', 'Squad'), canonical('leader', 'Leader'), canonical('beast', 'Beast')],
+    datasheets: [
+      canonical('squad', 'Squad'),
+      canonical('leader', 'Leader'),
+      canonical('protector', 'Protector'),
+      canonical('beast', 'Beast'),
+    ],
     detachments: [],
     ruleDocuments: [],
     issues: [],
@@ -130,6 +146,25 @@ it('estimates each phase and the sequence for an attached unit and cites both da
     melee: { status: 'estimated' },
     shootingThenMelee: { status: 'estimated' },
     attribution: ['Community data'],
+  })
+})
+
+describe('a unit joined to an attached unit', () => {
+  const chained = () => simulateCombat({ attacker: { ...squad, attached: [{ unit: 'Leader' }, { unit: 'Protector' }] }, defender: beast })
+
+  it('estimates the whole unit', async () => {
+    expect((await chained()).structuredContent).toMatchObject({
+      attacker: { units: [{ name: 'Squad' }, { name: 'Leader' }, { name: 'Protector' }] },
+      melee: { status: 'estimated', weapons: [{ name: 'Knife' }, { name: 'Cleaver' }] },
+    })
+  })
+
+  it('links to the simulator with the unit it joined', async () => {
+    const url = ((await chained()).structuredContent as { simulatorUrl: string }).simulatorUrl
+    expect(decodeSimulatorState(new URL(url, 'https://praetorium.gg').searchParams.get('s') ?? undefined)?.sides[0]?.attached).toEqual([
+      { entryId: 'leader', catalogueId: 'cat' },
+      { entryId: 'protector', catalogueId: 'cat', attachedTo: 1 },
+    ])
   })
 })
 

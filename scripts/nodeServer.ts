@@ -20,6 +20,10 @@ import { serveLiveCatalogueAsset } from './lib/liveCatalogueAssets.ts'
 
 const execFile = promisify(execFileCallback)
 
+/** In a browser-test coverage run, where a child writes what it executed, which no single test owns. */
+const v8Coverage = (child: 'seed' | 'server') =>
+  process.env.LOCAL_COVERAGE_DIR ? { NODE_V8_COVERAGE: path.join(process.env.LOCAL_COVERAGE_DIR, child) } : {}
+
 export function nodeBuildDirectory(environment: NodeJS.ProcessEnv = process.env) {
   return environment.LOCAL_BUILD_DIR ? path.resolve(environment.LOCAL_BUILD_DIR) : fileURLToPath(new URL('../.output', import.meta.url))
 }
@@ -158,7 +162,7 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
       try {
         await importAuthSqlite(migration, temporary)
         await execFile(process.execPath, [path.join(nodeBuildDirectory(), 'server/seed-preview.mjs')], {
-          env: { ...process.env, AUTH_SQLITE_PATH: temporary },
+          env: { ...process.env, AUTH_SQLITE_PATH: temporary, ...v8Coverage('seed') },
           maxBuffer: 4_000_000,
           timeout: 180_000,
         })
@@ -205,7 +209,7 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
           path.join(nodeBuildDirectory(), 'server/index.mjs'),
         ],
         {
-          env: { ...process.env, NITRO_PORT: String(internalPort), NITRO_HOST: '127.0.0.1' },
+          env: { ...process.env, NITRO_PORT: String(internalPort), NITRO_HOST: '127.0.0.1', ...v8Coverage('server') },
           stdio: 'inherit',
         },
       ),

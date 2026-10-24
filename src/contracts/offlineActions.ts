@@ -5,6 +5,7 @@ export const offlineActionSchemas = {
   setOwned: schemas.ownedSchema,
   setCollectionModels: schemas.collectionModelsSchema,
   setCollectionProgress: schemas.collectionProgressSchema,
+  setCollectionCountsAs: schemas.collectionCountsAsSchema,
   setCollectionWanted: schemas.collectionWantedSchema,
   setFavouriteFaction: schemas.favouriteFactionSchema,
   setFavouriteDetachment: schemas.favouriteDetachmentSchema,

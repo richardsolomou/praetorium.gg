@@ -8,6 +8,7 @@ import {
   polygonCentroid,
   portraitPoint,
   svgPoints,
+  terrainAreaJoins,
   terrainMarkerPosition,
   territoryBoundary,
 } from './terrainGeometry'
@@ -26,7 +27,7 @@ const openArea = (points: { x: number; y: number }[], markers: { label: string; 
   points,
   markers,
   objective: null,
-  objectiveGroup: null,
+  group: null,
   measurements: [],
   parts: [],
 })
@@ -243,6 +244,57 @@ describe('dividing the board into territories', () => {
         { x: 0, y: 0 },
         { x: 60, y: 44 },
       ],
+    ])
+  })
+})
+
+describe('joining footprints into one terrain area', () => {
+  const footprint = (id: string, points: { x: number; y: number }[], group: string | null) => ({ ...openArea(points), id, group })
+
+  it('marks the middle of the edge two footprints share', () => {
+    const geometry = { board, areas: [footprint('a', square(10, 10, 4), 'a'), footprint('b', square(14, 12, 4), 'a')] }
+    expect(terrainAreaJoins(geometry)).toEqual([{ x: 14, y: 13 }])
+  })
+
+  it('slides a join along the shared edge out from under an objective marker', () => {
+    const objective = { position: { x: 6, y: 3 }, group: 'a' }
+    const areas = [
+      { ...footprint('a', square(0, 0, 6), 'a'), objective },
+      { ...footprint('b', square(6, 0, 6), 'a'), objective },
+    ]
+    const [join] = terrainAreaJoins({ board, areas })
+    expect(join!.x === 6 && Math.abs(join!.y - 3) >= 2.4).toBe(true)
+  })
+
+  it('marks the shared diagonal of two triangles', () => {
+    const left = [
+      { x: 0, y: 0 },
+      { x: 6, y: 0 },
+      { x: 0, y: 4 },
+    ]
+    const right = [
+      { x: 6, y: 4 },
+      { x: 0, y: 4 },
+      { x: 6, y: 0 },
+    ]
+    expect(terrainAreaJoins({ board, areas: [footprint('a', left, 'a'), footprint('b', right, 'a')] })).toEqual([{ x: 3, y: 2 }])
+  })
+
+  it('marks each touching pair in a chain once', () => {
+    const areas = [footprint('a', square(0, 0, 4), 'a'), footprint('b', square(4, 0, 4), 'a'), footprint('c', square(8, 0, 4), 'a')]
+    expect(terrainAreaJoins({ board, areas })).toEqual([
+      { x: 4, y: 2 },
+      { x: 8, y: 2 },
+    ])
+  })
+
+  it('does not mark touching footprints of separate terrain areas', () => {
+    expect(terrainAreaJoins({ board, areas: [footprint('a', square(0, 0, 4), null), footprint('b', square(4, 0, 4), null)] })).toEqual([])
+  })
+
+  it('marks between grouped footprints that do not touch', () => {
+    expect(terrainAreaJoins({ board, areas: [footprint('a', square(0, 0, 4), 'a'), footprint('b', square(6, 0, 4), 'a')] })).toEqual([
+      { x: 5, y: 2 },
     ])
   })
 })

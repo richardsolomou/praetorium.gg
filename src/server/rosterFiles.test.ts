@@ -2041,7 +2041,7 @@ Created with newrecruit.eu v35.51`,
   })
 })
 
-describe('unit notes and retired nicknames in text', () => {
+describe('custom unit names in text', () => {
   const immortals = (key: number) => ({
     key,
     size: { models: 5 },
@@ -2059,31 +2059,33 @@ describe('unit notes and retired nicknames in text', () => {
       detachmentIds: [],
       disposition: null,
       limit: 2000,
-      name: 'Noted squads',
-      units: [{ entryId: 'immortals', note: 'Private plan' }, { entryId: 'immortals' }],
+      name: 'Named squads',
+      units: [
+        { entryId: 'immortals', nickname: 'Alpha', note: 'Private plan' },
+        { entryId: 'immortals', nickname: 'Bravo' },
+      ],
     },
     loaded,
     { points: 400, disposition: null, detachments: [], units: [immortals(0), immortals(1)] },
     [],
   )
-  const nicknameLine = '    • Nickname: Alpha'
-  const withNickname = exported.text.replace(/^(.*Immortals \(200 Points\).*)$/m, `$1\n${nicknameLine}`)
+
+  it('reads back each repeated unit’s custom name', () => {
+    expect(importRosterFile({ file: exported.text }, loaded).units.map((unit) => unit.nickname)).toEqual(['Alpha', 'Bravo'])
+  })
+
+  it('reads back a custom name written as an older Nickname line', () => {
+    const older = exported.text.replaceAll('• Custom name:', '• Nickname:')
+    expect(importRosterFile({ file: older }, loaded).units.map((unit) => unit.nickname)).toEqual(['Alpha', 'Bravo'])
+  })
+
+  it('reports nothing unread for the custom name lines', () => {
+    const imported = importRosterFile({ file: exported.text }, loaded)
+    expect([imported.unknown, imported.unplaced]).toEqual([[], []])
+  })
 
   it('leaves unit notes out of readable text', () => {
     expect(exported.text).not.toContain('Private plan')
-  })
-
-  it('still matches every unit exported with a nickname line', () => {
-    expect(importRosterFile({ file: withNickname }, loaded).units.map((unit) => unit.entryId)).toEqual(['immortals', 'immortals'])
-  })
-
-  it('reports a nickname line as a line the importer does not understand', () => {
-    expect(importRosterFile({ file: withNickname }, loaded).unplaced).toEqual([
-      {
-        unit: 'Immortals (entry 1)',
-        choices: [{ name: nicknameLine.trim(), reason: 'this line is not understood by the text importer' }],
-      },
-    ])
   })
 })
 
@@ -2120,6 +2122,15 @@ describe('roster exchange import', () => {
       limit: exchange.limit,
       pointsBudget: 1500,
     })
+  })
+
+  it('keeps nicknames on the entries it imports', () => {
+    const named = { ...exchange, picks: exchange.picks.map((pick, at) => ({ ...pick, nickname: `Unit ${at + 1}` })) }
+    expect(importRosterExchange(named, loaded, null, 'Xenos - Necrons').units.map((unit) => unit.nickname)).toEqual([
+      'Unit 1',
+      'Unit 2',
+      'Unit 3',
+    ])
   })
 
   it('prices the imported entries under the selected rules', () => {

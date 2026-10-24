@@ -3,7 +3,7 @@ import { Download, FileUp } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useId, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import type { CollectionCounts, CollectionImportRow } from '../../../core/collection'
+import { countsAsList, type CollectionEntry, type CollectionImportRow } from '../../../core/collection'
 import {
   collectionCsv,
   importChange,
@@ -18,11 +18,12 @@ import { nativeBridgeVersion } from '../../nativeBridge'
 import { Problem } from '../../components/Problem'
 import { useCopyText } from '../../useCopyText'
 import { downloadFile } from '../../downloadFile'
+import { countLabel } from '../../text'
 
 type Sheet = { id: string; name: string; faction: string }
 
 /** A collection file's export and its reviewed import; importing adds what is missing and changes saved counts only when asked. */
-export function CollectionExchange({ sheets, current }: { sheets: readonly Sheet[]; current: ReadonlyMap<string, CollectionCounts> }) {
+export function CollectionExchange({ sheets, current }: { sheets: readonly Sheet[]; current: ReadonlyMap<string, CollectionEntry> }) {
   const [reading, setReading] = useState<{ rows: ImportedRow[] } | { error: string } | null>(null)
   const { copy, copied, problem } = useCopyText()
   const byId = new Map(sheets.map((sheet) => [sheet.id, sheet]))
@@ -80,7 +81,7 @@ function ImportReview({
   onClose,
 }: {
   reading: { rows: ImportedRow[] } | { error: string } | null
-  current: ReadonlyMap<string, CollectionCounts>
+  current: ReadonlyMap<string, CollectionEntry>
   onClose: () => void
 }) {
   const queryClient = useQueryClient()
@@ -90,7 +91,14 @@ function ImportReview({
   const save = useMutation({
     mutationFn: (rows: CollectionImportRow[]) => importCollection({ data: { rows, replace } }),
     onSuccess: () => {
-      for (const key of ['collection', 'collection-counts', 'collection-progress', 'collection-wishes', 'collection-profile'])
+      for (const key of [
+        'collection',
+        'collection-counts',
+        'collection-progress',
+        'collection-counts-as',
+        'collection-wishes',
+        'collection-profile',
+      ])
         void queryClient.invalidateQueries({ queryKey: [key] })
     },
   })
@@ -113,6 +121,7 @@ function ImportReview({
         built: row.built,
         painted: row.painted,
         wanted: row.wanted,
+        ...(row.countsAs ? { countsAs: countsAsList(choices[row.line]!, row.countsAs) } : {}),
       },
     ]
   })
@@ -151,6 +160,7 @@ function ImportReview({
                     {row.status === 'recognised' || row.status === 'ambiguous' ? (
                       <span className="readout text-xs text-dim">
                         {row.models} owned · {row.built} built · {row.painted} painted · {row.wanted} wanted
+                        {row.countsAs?.length ? ` · counts as ${countLabel(row.countsAs.length, 'other datasheet')}` : ''}
                       </span>
                     ) : null}
                     {row.status === 'ambiguous' ? (
@@ -217,6 +227,7 @@ function ImportReview({
                     built: row.built,
                     painted: row.painted,
                     wanted: row.wanted,
+                    countsAs: row.countsAs,
                   })),
                 )
               }

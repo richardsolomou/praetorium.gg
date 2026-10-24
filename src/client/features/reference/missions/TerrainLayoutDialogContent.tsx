@@ -1,6 +1,13 @@
+import { Eye } from 'lucide-react'
 import { DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../../components/Dialog'
 import { TerrainBoard } from './TerrainBoard'
-import { deploymentObjectiveMarkers, type TerrainGeometry, type TerrainPiece, type TerrainTemplate } from './terrainGeometry'
+import {
+  deploymentObjectiveMarkers,
+  terrainAreaJoins,
+  type TerrainGeometry,
+  type TerrainPiece,
+  type TerrainTemplate,
+} from './terrainGeometry'
 
 type Props = {
   title: string
@@ -30,6 +37,7 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
   const objectiveTerrain = terrainObjectives || deploymentObjectives.some((objective) => objective.kind === 'terrain')
   const objectiveMarkers = deploymentObjectives.some((objective) => objective.kind !== 'terrain')
   const measurements = layout.geometry?.areas.flatMap((area) => area.measurements) ?? []
+  const joinedFootprints = layout.geometry ? terrainAreaJoins(layout.geometry).length > 0 : false
   return (
     <DialogContent size="lg">
       <DialogHeader>
@@ -41,6 +49,11 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
           <span className="flex items-center gap-2">
             <span className="size-3 border border-azure bg-raised" /> Terrain area footprint
           </span>
+          {joinedFootprints ? (
+            <span className="flex items-center gap-2">
+              <Eye className="size-3 text-bone" aria-hidden /> Footprints joined into one terrain area
+            </span>
+          ) : null}
           <span className="flex items-center gap-2">
             <span className="flex size-3 overflow-hidden border border-edge">
               <span className="w-1/2 bg-side-a/60" />

@@ -30,6 +30,12 @@ function without<T>(entries: Record<string, T> | undefined, key: string) {
   return rest
 }
 
+function withoutEmbark<T extends RosterPick>(pick: T): T {
+  if (pick.embarkedIn === undefined) return pick
+  const { embarkedIn: _embarkedIn, ...rest } = pick
+  return rest as T
+}
+
 /** Only what an edit needs to read back off the priced list. */
 type SizedUnit = {
   size: { models: number; min: number; max: number; options?: number[] }
@@ -38,6 +44,7 @@ type SizedUnit = {
     key: string
     name?: string
     optional?: boolean
+    room?: number
     options: { id: string; name?: string; count: number; min?: number; default?: boolean }[]
   }[]
   models?: { members: { choiceKey: string | null }[] }[]
@@ -116,7 +123,7 @@ export function requestedUnit(entryId: string, held: number, limits: ReadonlyMap
  * key is the only thing that tells two of them apart while they are being moved
  * around. Everything the picks are sent to counts positions instead, which is what
  * `positioned` is for — the price and the datasheet — and `annotated` adds the
- * notes a saved row keeps.
+ * nicknames and notes a saved row keeps.
  */
 export function usePicks(initial: readonly RosterPick[]) {
   const [picks, setPicks] = useState<KeyedPick[]>(() => initial.map((pick, key) => ({ ...pick, key })))
@@ -201,7 +208,9 @@ export function pickEditor(
           ...(link && 'joins' in link ? { attachedTo: link.joins } : {}),
         }
         const rest =
-          link && 'joinedBy' in link ? current.map((pick) => (pick.key === link.joinedBy ? { ...pick, attachedTo: key } : pick)) : current
+          link && 'joinedBy' in link
+            ? current.map((pick) => (pick.key === link.joinedBy ? { ...withoutEmbark(pick), attachedTo: key } : pick))
+            : current
         return [...rest, added]
       })
     },
@@ -219,7 +228,7 @@ export function pickEditor(
       })
     },
 
-    /** A copy takes the loadout; the note belongs to the unit it was copied from. */
+    /** A copy takes the loadout; the nickname, note and seat in a transport belong to the unit it was copied from. */
     duplicate: (index: number) =>
       insert((current) => {
         const pick = current[index]
@@ -229,7 +238,7 @@ export function pickEditor(
           !canAddCopy(pick.entryId, current.filter((unit) => unit.entryId === pick.entryId).length, context.limits)
         )
           return null
-        const { note: _note, ...copy } = pick
+        const { nickname: _nickname, note: _note, embarkedIn: _embarkedIn, ...copy } = pick
         return { pick: copy, after: index }
       }),
 
@@ -237,7 +246,11 @@ export function pickEditor(
     drop: (index: number) =>
       setPicks((current) => {
         const going = current[index]?.key
-        return current.flatMap((pick, at) => (at === index ? [] : [pick.attachedTo === going ? { ...pick, attachedTo: undefined } : pick]))
+        return current.flatMap((pick, at) => {
+          if (at === index) return []
+          const standing = pick.attachedTo === going ? { ...pick, attachedTo: undefined } : pick
+          return [standing.embarkedIn === going ? withoutEmbark(standing) : standing]
+        })
       }),
 
     resize: (index: number, step: (models: number) => number) =>
@@ -309,13 +322,27 @@ export function pickEditor(
         }),
       ),
 
-    join: (index: number, targetKey: number | undefined) => editAt(index, (pick) => ({ ...pick, attachedTo: targetKey })),
+    /** A character embarks with the unit it joins, so its own starting embark goes. */
+    join: (index: number, targetKey: number | undefined) =>
+      editAt(index, (pick) => ({ ...(targetKey === undefined ? pick : withoutEmbark(pick)), attachedTo: targetKey })),
+
+    /** Where the unit with this key starts: in the transport with that key, or on the battlefield. */
+    embark: (key: number, transportKey: number | undefined) =>
+      setPicks((current) =>
+        current.map((pick) =>
+          pick.key !== key ? pick : transportKey === undefined ? withoutEmbark(pick) : { ...pick, embarkedIn: transportKey },
+        ),
+      ),
+
+    /** Starting embarks the list can no longer hold, put back on the battlefield together. */
+    disembark: (keys: readonly number[]) =>
+      setPicks((current) => current.map((pick) => (keys.includes(pick.key) ? withoutEmbark(pick) : pick))),
 
     /** An emptied field is removed rather than saved blank. */
-    annotate: (index: number, note: string) =>
+    annotate: (index: number, field: 'nickname' | 'note', value: string) =>
       editAt(index, (pick) => {
-        const { note: _previous, ...rest } = pick
-        return note.trim() ? { ...rest, note } : rest
+        const { [field]: _previous, ...rest } = pick
+        return value.trim() ? { ...rest, [field]: value } : rest
       }),
 
     /** Selections pricing reported unavailable, which the editor offers no option to clear. */

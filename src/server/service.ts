@@ -392,7 +392,7 @@ export class PraetoriumService {
     const shown = filterBattles(summaries, userId, filter)
     return {
       record: serviceRecord(summaries, userId, filter),
-      performance: viewerId === userId ? personalPerformance(summaries, userId, filter) : null,
+      performance: personalPerformance(summaries, userId, filter),
       facets,
       // What each side did is the record's to count, not the battle list's to carry.
       battles: shown.slice(0, PROFILE_BATTLE_PAGE).map(({ plays: _plays, ...battle }) => battle),

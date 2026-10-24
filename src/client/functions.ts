@@ -119,6 +119,7 @@ export const combatantDatasheet = read('combatantDatasheet', (args) => server.co
 export const combatantDatasheets = read('combatantDatasheets', (args) => server.combatantDatasheets(args))
 export const combatLoadouts = read('combatLoadouts', (args) => server.combatLoadouts(args))
 export const unitWounds = read('unitWounds', (args) => server.unitWounds(args))
+export const unitBattleDetails = read('unitBattleDetails', (args) => server.unitBattleDetails(args))
 export const detachmentRules = read('detachmentRules', (args) => server.detachmentRules(args))
 export const exportRoster = read('exportRoster', (args) => server.exportRoster(args))
 export const importRoster = async (args: Parameters<typeof server.importRoster>[0]) => {
@@ -802,6 +803,7 @@ export {
   collectionCounts,
   collectionProgress,
   collectionWishes,
+  collectionCountsAs,
   fieldedDatasheets,
   wishlistSuggestions,
   updateOnboardingProgress,
@@ -842,6 +844,7 @@ export {
   setCollectionModels,
   setCollectionProgress,
   setCollectionWanted,
+  setCollectionCountsAs,
   setFavouriteFaction,
   setFavouriteDetachment,
   setFavouriteDatasheet,

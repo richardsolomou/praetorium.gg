@@ -82,10 +82,10 @@ it('records no copy source on a variant, which already names its base', async ()
   expect(saved()).toMatchObject({ baseRosterId: 'base', copiedFromRosterId: null })
 })
 
-it.each([false, true])('keeps unit notes in a copy (variant: %s)', async (variant) => {
+it.each([false, true])('keeps unit nicknames and notes in a copy (variant: %s)', async (variant) => {
   const picks = [
-    { entryId: 'intercessors', note: 'Hold home.' },
-    { entryId: 'intercessors', note: 'Push midfield.' },
+    { entryId: 'intercessors', nickname: 'Alpha', note: 'Hold home.' },
+    { entryId: 'intercessors', nickname: 'Bravo', note: 'Push midfield.' },
   ]
   library([{ ...base, picks }])
   await copySavedRoster('player', 'base', variant)

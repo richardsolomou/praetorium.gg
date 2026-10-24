@@ -1,5 +1,6 @@
 import { useId } from 'react'
 import { cn } from '@/lib/utils'
+import { groupBy } from '../../../../core/collections'
 
 import {
   deploymentObjectiveMarkers,
@@ -13,6 +14,7 @@ import {
   portraitPoint,
   type LabelBox,
   svgPoints,
+  terrainAreaJoins,
   type TerrainGeometry,
   type TerrainPiece,
   type TerrainTemplate,
@@ -189,13 +191,24 @@ export function TerrainBoard({
 }
 
 function ExactTerrainGeometry({ geometry, detailed }: { geometry: TerrainGeometry; detailed: boolean }) {
+  const terrainAreas = groupBy(geometry.areas, (area) => area.group ?? area.id)
   return (
     <>
+      {/* Each footprint's fill covers the inner half of its doubled outline, so footprints of one area show only their shared perimeter. */}
+      {[...terrainAreas].map(([key, footprints]) => (
+        <g key={key} className="stroke-azure" opacity=".9">
+          {footprints.map((area) => (
+            <polygon key={area.id} points={svgPoints(area.points)} fill="none" strokeWidth={detailed ? '.36' : '.5'} />
+          ))}
+          {footprints.map((area) => (
+            <polygon key={area.id} points={svgPoints(area.points)} className="fill-raised" stroke="none">
+              <title>{area.name}</title>
+            </polygon>
+          ))}
+        </g>
+      ))}
       {geometry.areas.map((area) => (
         <g key={area.id}>
-          <polygon points={svgPoints(area.points)} className="fill-raised/90 stroke-azure" strokeWidth={detailed ? '.18' : '.25'}>
-            <title>{area.name}</title>
-          </polygon>
           {area.parts.map((part) => {
             const colour =
               part.material === 'dense'
@@ -260,6 +273,18 @@ function TerrainAnnotations({
             }),
           )
         : null}
+      {detailed
+        ? terrainAreaJoins(geometry).map((join) => (
+            <g key={`${join.x}-${join.y}`} transform={`translate(${join.x} ${join.y}) rotate(${flipped ? -90 : 90})`}>
+              <circle r=".8" className="fill-raised stroke-azure" strokeWidth=".14" />
+              <g transform="scale(.05) translate(-12 -12)" fill="none" className="stroke-bone" strokeWidth="2.4" strokeLinecap="round">
+                <path d={eyePath} />
+                <circle cx="12" cy="12" r="3" />
+              </g>
+              <title>Footprints of one terrain area</title>
+            </g>
+          ))
+        : null}
       {objectiveTerrainMarkers(geometry).map((objective) => (
         <ObjectiveTerrainMarker
           key={objective.key}
@@ -272,6 +297,9 @@ function TerrainAnnotations({
     </>
   )
 }
+
+/** Lucide's eye, matching the mark the publisher's layouts print across joined footprints. */
+const eyePath = 'M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0'
 
 function ObjectiveTerrainMarker({
   position,

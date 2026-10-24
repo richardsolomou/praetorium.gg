@@ -1,4 +1,5 @@
 import { expect, test } from './test'
+import { arrangeByRole } from './builder.harness'
 import {
   chooseRosterAction,
   confirmRosterSetup,
@@ -476,6 +477,7 @@ test('a failed roster library read is not shown as an empty library', async ({ p
 test('a list is saved and loaded into another battle', async ({ browser }) => {
   const context = await browser.newContext()
   const page = await context.newPage()
+  await arrangeByRole(page)
   await page.setViewportSize({ width: 1600, height: 900 })
 
   await signUp(page, 'Alice')
@@ -628,6 +630,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
 
   const guestContext = await browser.newContext({ viewport: { width: 1600, height: 900 } })
   const guest = await guestContext.newPage()
+  await arrangeByRole(guest)
   await guest.goto(sharedUrl)
   await expect(guest.getByLabel('List name')).toHaveValue('Copy of Nurgle 2k')
   await expect(guest.getByLabel('List name')).toHaveAttribute('readonly', '')

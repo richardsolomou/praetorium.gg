@@ -23,6 +23,12 @@ export function combatUnitSequenceError(unit: CombatMember, groups?: CombatInput
     : undefined
 }
 
+/** The Feel No Pain other members give a group, leaving out grants limited to models with a keyword the group lacks. */
+function grantedFeelNoPain(grants: readonly { unit: string; value: number; models?: string }[], keywords: readonly string[]) {
+  const reaching = grants.filter((grant) => !grant.models || keywords.includes(grant.models))
+  return reaching.length ? { feelNoPainSources: reaching.map(({ unit, value }) => ({ unit, value })) } : {}
+}
+
 export function combatUnitKeywords(unit: CombatAttacker) {
   return [...new Set([unit, ...(unit.companions ?? [])].flatMap((member) => member.sheet.keywords))]
 }
@@ -40,12 +46,13 @@ export function combatUnitTarget(unit: CombatMember, phase?: CombatOptions['phas
       const owners = members.filter((source) => source !== member && source.sheet.abilities.some((rule) => rule.name === ability.source))
       if (owners.length > 1 || owners.some((owner) => members.filter((candidate) => candidate.sheet.name === owner.sheet.name).length > 1))
         ambiguous = true
-      return owners.map((source) => ({ id: ability.id, unit: source.sheet.name, value: Number(value) }))
+      return owners.map((source) => ({ id: ability.id, unit: source.sheet.name, value: Number(value), models: ability.models }))
     })
     const sheet = grants.length
       ? { ...member.sheet, abilities: member.sheet.abilities.filter((ability) => !grants.some((grant) => grant.id === ability.id)) }
       : member.sheet
-    const printed = combatTarget(sheet, member.models, member.startingModels, member.carriers)
+    const splitKeywords = grants.flatMap((grant) => (grant.models ? [grant.models] : []))
+    const printed = combatTarget(sheet, member.models, member.startingModels, member.carriers, splitKeywords)
     return {
       ...printed,
       error: ambiguous ? 'The source of a shared Feel No Pain ability could not be identified.' : printed.error,
@@ -66,7 +73,7 @@ export function combatUnitTarget(unit: CombatMember, phase?: CombatOptions['phas
       psychicFeelNoPain: part.target!.psychicFeelNoPain ?? null,
       mortalFeelNoPain: part.target!.mortalFeelNoPain ?? null,
       unit: members[index]!.sheet.name,
-      ...(part.grants.length ? { feelNoPainSources: part.grants.map(({ unit: source, value }) => ({ unit: source, value })) } : {}),
+      ...grantedFeelNoPain(part.grants, part.keywords[at] ?? []),
       damageReduction: part.target!.damageReduction ?? 0,
       damageDivisor: part.target!.damageDivisor ?? 1,
     })),

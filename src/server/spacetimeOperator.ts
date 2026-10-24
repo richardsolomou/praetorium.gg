@@ -59,7 +59,9 @@ const collectionRow = z.object({
   models: z.number().int(),
   built: z.number().int().default(0),
   painted: z.number().int().default(0),
+  countsAs: z.array(z.string()).default([]),
   photoIds: z.array(z.uuid()).optional(),
+  photoShows: z.record(z.uuid(), z.string()).default({}),
 })
 const recentMatchupRow = recentMatchupSchema.extend({ at: z.number().int() })
 const favouriteDatasheetRow = z.object({ userId: z.string(), entryId: z.string(), at: z.number().int() })
@@ -641,6 +643,10 @@ export class SpacetimeOperator {
     await this.call('set_collection_progress', [input.userId, input.entryId, input.built, input.painted])
   }
 
+  async setCollectionCountsAs(input: { userId: string; entryId: string; countsAs: string[] }) {
+    await this.call('set_collection_counts_as', [input.userId, input.entryId, input.countsAs])
+  }
+
   async collectionWishesByUser(userId: string) {
     return this.read('collection_wishes_by_user', [userId], z.array(z.object({ entryId: z.string(), wanted: z.number().int().positive() })))
   }
@@ -657,8 +663,11 @@ export class SpacetimeOperator {
     )
   }
 
-  async setCollectionPhoto(input: { userId: string; entryId: string; photoId: string; now: number }) {
-    await this.call('set_collection_photo', [input.userId, input.entryId, input.photoId, input.now])
+  /** `shows` files the photo under another datasheet the row's models count as. */
+  async setCollectionPhoto(input: { userId: string; entryId: string; shows?: string; photoId: string; now: number }) {
+    if (input.shows && input.shows !== input.entryId)
+      await this.call('set_collection_photo_as', [input.userId, input.entryId, input.shows, input.photoId, input.now])
+    else await this.call('set_collection_photo', [input.userId, input.entryId, input.photoId, input.now])
   }
 
   async removeCollectionPhoto(userId: string, photoId: string) {

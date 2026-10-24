@@ -1,3 +1,4 @@
+import { attachedHost, attachedUnits } from './attachedUnits'
 import { uniqueBy } from './collections'
 import {
   type Association,
@@ -15,7 +16,13 @@ import { normalizedName } from './name'
 import { sameText } from './text'
 
 /** Only an ability titled "Leader" establishes that role; other attachments default to support. */
-export type Attachment = { kind: 'leader' | 'support'; targets: string[]; requiresLeader?: true }
+export type Attachment = {
+  kind: 'leader' | 'support'
+  targets: string[]
+  /** Keyword phrases the text names, which a list's own rules can hand to other units. */
+  keywords?: string[]
+  requiresLeader?: true
+}
 export type AttachmentLimits = Record<Attachment['kind'], number> & {
   categories: Record<string, { name: string; maximum: number }>
 }
@@ -35,6 +42,7 @@ const attachmentCache = new WeakMap<CatalogueIndex, WeakMap<Definition, Attachme
 const substitutionCache = new WeakMap<CatalogueIndex, ReadonlyMap<string, readonly string[]>>()
 const categoryTargetCache = new WeakMap<CatalogueIndex, readonly string[]>()
 const associationCandidateCache = new WeakMap<CatalogueIndex, readonly Definition[]>()
+const modelCategoryCache = new WeakMap<CatalogueIndex, WeakMap<Definition, ReadonlySet<string>>>()
 /** An association's targets by its answers about the unit's own selection, the only input that varies between calls. */
 const associationTargetCache = new WeakMap<CatalogueIndex, WeakMap<Association, Map<string, string[]>>>()
 
@@ -105,9 +113,17 @@ export function attachmentOf(definition: Definition, index: CatalogueIndex, sele
   return {
     kind: attachment?.kind ?? associated.kind,
     targets: uniqueNormalizedNames([...(attachment?.targets ?? []), ...associated.targets]),
+    ...(attachment?.keywords ? { keywords: attachment.keywords } : {}),
     ...(attachment?.requiresLeader ? { requiresLeader: true as const } : {}),
   }
 }
+
+/**
+ * The attachment a datasheet page shows: its ability text, or failing that its unselected associations.
+ * Association targets are not shown alongside text because many name Legends and Crucible units the printed datasheet does not.
+ */
+export const referenceAttachmentOf = (definition: Definition, index: CatalogueIndex) =>
+  attachmentOf(definition, index) ?? attachmentOf(definition, index, { id: definition.id })
 
 function attachmentFromAssociations(definition: Definition, selection: Selection, index: CatalogueIndex): Attachment | null {
   const sources = [...new Set([definition, targetOf(definition, index.definitions)])]
@@ -135,7 +151,9 @@ function attachmentFromAssociations(definition: Definition, selection: Selection
     let targets = byAnswers.get(answers)
     if (!targets) {
       targets = candidates
-        .filter((candidate) => associationHolds(association, selection, candidate, index))
+        .filter(
+          (candidate) => definitionHas(candidate, association.childId, index) && associationHolds(association, selection, candidate, index),
+        )
         .map((candidate) => nameOf(candidate, index.definitions))
       byAnswers.set(answers, targets)
     }
@@ -145,10 +163,11 @@ function attachmentFromAssociations(definition: Definition, selection: Selection
   return { kind: found[0]!.kind, targets: uniqueNormalizedNames(found.flatMap((attachment) => attachment.targets)) }
 }
 
+/** A required join under its own name (Loyal Protector) acts as a Support unit; optional retinue joins depend on who leads the host, which this does not model. */
 const associationKind = (association: Association): Attachment['kind'] | null => {
   const name = association.name?.trim().toLowerCase()
   if (name === 'leading') return 'leader'
-  if (name === 'supporting') return 'support'
+  if (name === 'supporting' || (association.min ?? 0) >= 1) return 'support'
   return null
 }
 
@@ -216,10 +235,38 @@ function definitionHas(definition: Definition, childId: string | undefined, inde
   const target = targetOf(definition, index.definitions)
   if (childId === 'model-or-unit') return target.type === 'model' || target.type === 'unit'
   if (childId === 'model' || childId === 'unit' || childId === 'upgrade') return target.type === childId
-  return [definition, target].some(
-    (source) => source.id === childId || source.categoryLinks?.some((category) => category.targetId === childId),
+  return (
+    [definition, target].some(
+      (source) => source.id === childId || source.categoryLinks?.some((category) => category.targetId === childId),
+    ) || modelCategoriesOf(target, index).has(childId)
   )
 }
+
+/** Core rules 02.05.01: a unit has all the keywords of all its models, so a unit is matched by any model it can include. */
+function modelCategoriesOf(unit: Definition, index: CatalogueIndex): ReadonlySet<string> {
+  let byUnit = modelCategoryCache.get(index)
+  if (!byUnit) modelCategoryCache.set(index, (byUnit = new WeakMap()))
+  const cached = byUnit.get(unit)
+  if (cached) return cached
+  const found = new Set<string>()
+  const visit = (entries: readonly Definition[]) => {
+    for (const entry of entries) {
+      const target = targetOf(entry, index.definitions)
+      if (target.type === 'model') {
+        for (const source of [entry, target]) for (const category of source.categoryLinks ?? []) found.add(category.targetId)
+      } else if (target.type !== 'upgrade' && target.type !== 'unit') visit(childrenOf(target))
+    }
+  }
+  if (unit.type === 'unit') visit(childrenOf(unit))
+  byUnit.set(unit, found)
+  return found
+}
+
+const childrenOf = (definition: Definition): Definition[] => [
+  ...(definition.selectionEntries ?? []),
+  ...(definition.selectionEntryGroups ?? []),
+  ...(definition.entryLinks ?? []),
+]
 
 function findAttachment(definition: Definition, index: CatalogueIndex): Attachment | null {
   for (const [title, text] of statements(definition, index)) {
@@ -228,12 +275,14 @@ function findAttachment(definition: Definition, index: CatalogueIndex): Attachme
     const named = names(text)
     if (!named.length) continue
     const categorized = named.flatMap((name) => [name, ...categoryTargets(name, index)])
+    const keywords = named.filter(isKeywordTarget).map(normalizedName)
     const substitutions = attachmentSubstitutions(index)
     const targets = categorized.flatMap((name) => [name, ...(substitutions.get(normalizedName(name)) ?? [])])
     const afterClaim = text.slice(claim.index + claim[0].length)
     return {
       kind: title.trim().toLowerCase() === 'leader' ? 'leader' : 'support',
       targets: uniqueNormalizedNames(targets),
+      ...(keywords.length ? { keywords } : {}),
       ...(REQUIRES_LEADER.test(afterClaim) ? { requiresLeader: true as const } : {}),
     }
   }
@@ -264,9 +313,11 @@ function attachmentSubstitutions(index: CatalogueIndex) {
   return found
 }
 
+const isKeywordTarget = (name: string) => normalizedName(name).split(' ').toSorted().join(' ') === 'battleline imperium infantry'
+
 function categoryTargets(name: string, index: CatalogueIndex) {
-  const required = normalizedName(name).split(' ').toSorted()
-  if (required.join(' ') !== 'battleline imperium infantry') return []
+  if (!isKeywordTarget(name)) return []
+  const required = normalizedName(name).split(' ')
 
   const cached = categoryTargetCache.get(index)
   if (cached) return cached
@@ -290,6 +341,17 @@ function categoryTargets(name: string, index: CatalogueIndex) {
 const uniqueNormalizedNames = (values: readonly string[]) => uniqueBy(values, normalizedName)
 
 /**
+ * Whether a unit may take this attachment: by name, or by the keywords it holds in
+ * this list. A Tempestus Scions unit is Battleline only while Bridgehead Strike and
+ * its Warlord say so, which no datasheet link records.
+ */
+export function admitsHost(attachment: Attachment, hostName: string, hostKeywords: readonly string[] = []): boolean {
+  if (attachment.targets.some((target) => sameText(target, hostName))) return true
+  const held = new Set(hostKeywords.map((keyword) => normalizedName(keyword).replace(/^faction:\s*/, '')))
+  return (attachment.keywords ?? []).some((phrase) => phrase.split(' ').every((word) => held.has(word)))
+}
+
+/**
  * The other units in the list that are the same unit as this one, by position.
  *
  * An Attached unit is one unit however many entries the list keeps it in: the
@@ -300,9 +362,16 @@ const uniqueNormalizedNames = (values: readonly string[]) => uniqueBy(values, no
  * that speaks of the bearer's unit means every model in it.
  */
 export function attachedUnit(units: readonly { attachedTo?: number }[], position: number): number[] {
-  const host = units[position]?.attachedTo ?? position
-  return units.flatMap((unit, at) => (at !== position && (at === host || unit.attachedTo === host) ? [at] : []))
+  return attachedUnits(units.map(byPosition), position).flatMap(({ key }) => (key === position ? [] : [key]))
 }
+
+/** The position of the bodyguard unit a list entry is part of, following a Loyal Protector through its Command Squad. */
+export function attachmentHost(units: readonly { attachedTo?: number }[], position: number): number {
+  const positioned = units.map(byPosition)
+  return positioned[position] ? attachedHost(positioned, positioned[position]).key : position
+}
+
+const byPosition = ({ attachedTo }: { attachedTo?: number }, key: number) => ({ key, attachedTo })
 
 /**
  * Why a unit standing on its own is illegal, when the data insists it joins one.
@@ -331,6 +400,8 @@ export function attachmentErrors(
   units: readonly { entryId: string; attachedTo?: number }[],
   index: CatalogueIndex,
   selections: readonly (Selection | undefined)[] = [],
+  /** Each unit's keyword names in this list, by position. */
+  keywords: readonly (readonly string[] | undefined)[] = [],
 ): EvaluationError[] {
   const errors: EvaluationError[] = []
   const occupied = { leader: new Map<number, number[]>(), support: new Map<number, number[]>() }
@@ -363,7 +434,8 @@ export function attachmentErrors(
       return
     }
     const hostName = index.definitions.get(host.entryId)?.name ?? host.entryId
-    if (!attachment.targets.some((target) => sameText(target, hostName))) {
+    const hostKeywords = keywords[unit.attachedTo]
+    if (!admitsHost(attachment, hostName, hostKeywords)) {
       error(`cannot be attached to ${hostName}`)
     }
     if (
@@ -372,7 +444,7 @@ export function attachmentErrors(
         if (at === position || candidate.attachedTo !== unit.attachedTo) return false
         const leader = index.definitions.get(candidate.entryId)
         const rule = leader && attachmentOf(leader, index, selections[at])
-        return rule?.kind === 'leader' && rule.targets.some((target) => sameText(target, hostName))
+        return rule?.kind === 'leader' && admitsHost(rule, hostName, hostKeywords)
       })
     ) {
       error(`cannot support ${hostName} without an attached Leader`)

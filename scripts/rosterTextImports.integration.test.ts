@@ -147,6 +147,35 @@ Sanctifiers (100 pts)
     expect(wargear(alliedSanctifiers, 'Sanctifiers')).toContain('1x simulacrum imperialis')
   })
 
+  // Skitarii Rangers hold their specialists in a group beside the galvanic-rifle Rangers they replace.
+  const skitariiRangers = `Adeptus Mechanicus
+Lords of the Forge (3 Detachment Points)
+Strike Force (2,000 Points)
+
+BATTLELINE
+
+Skitarii Rangers (85 Points)
+• 1x Skitarii Ranger Alpha
+◦ 1x Alpha combat weapon
+◦ 1x Close combat weapon
+◦ 1x Galvanic rifle
+• 9x Skitarii Ranger
+◦ 1x Arc rifle
+◦ 9x Close combat weapon
+◦ 6x Galvanic rifle
+◦ 1x Omnispex
+◦ 1x Plasma caliver
+◦ 1x Transuranic arquebus
+`
+
+  it('places every Skitarii Rangers specialist', () => {
+    expect(summary(skitariiRangers).mismatches).toEqual([])
+  })
+
+  it('takes the galvanic rifles of the Skitarii Rangers each specialist replaces', () => {
+    expect(wargear(skitariiRangers, 'Skitarii Rangers')).toContain('7x galvanic rifle')
+  })
+
   it('imports the reported official-app Custodes roster without mismatches', () => {
     expect(summary(custodesOfficial)).toEqual({
       format: 'roster-file',

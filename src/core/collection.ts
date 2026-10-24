@@ -3,17 +3,38 @@ export const MAX_COLLECTION_MODELS = 10_000
 
 export const MAX_COLLECTION_DATASHEETS = 5_000
 
+/** How many other datasheets one entry's models can count as, enough for every variant of a magnetised hull. */
+export const MAX_COUNTS_AS = 32
+
 /** Owned models, how many of them are built and painted, and how many more the player wants; zero models means not owned. */
 export type CollectionCounts = { models: number; built: number; painted: number; wanted: number }
 
 export type CollectionProgress = { built: number; painted: number }
 
-export type CollectionImportRow = { entryId: string } & CollectionCounts
+/** Counts with the other datasheets the owned models also count as, which a row without links leaves out. */
+export type CollectionEntry = CollectionCounts & { countsAs?: string[] }
+
+export type CollectionImportRow = { entryId: string } & CollectionEntry
 
 /** Painted models are built and built models are owned, so lowering one count lowers the counts it bounds rather than refusing an edit another device may have made stale. */
 export function boundedProgress(models: number, progress: CollectionProgress): CollectionProgress {
   const built = Math.min(progress.built, models)
   return { built, painted: Math.min(progress.painted, built) }
+}
+
+/** Owned datasheets and every datasheet their models also count as; the player declares those links, Praetorium never infers them. */
+export function usableDatasheets(owned: Iterable<string>, countsAs: Readonly<Record<string, readonly string[]>>) {
+  const usable = new Set<string>()
+  for (const entryId of owned) {
+    usable.add(entryId)
+    for (const other of countsAs[entryId] ?? []) usable.add(other)
+  }
+  return usable
+}
+
+/** A datasheet's links without itself or repeats, in a stable order so equal choices compare equal. */
+export function countsAsList(entryId: string, countsAs: readonly string[]) {
+  return [...new Set(countsAs)].filter((id) => id !== entryId).toSorted()
 }
 
 type CollectionFaction = { catalogueId: string; name: string; units: readonly { id: string; slug: string; name: string }[] }
@@ -27,7 +48,14 @@ export function collectionDatasheets(factions: readonly CollectionFaction[]) {
 }
 
 export function groupCollection(
-  entries: readonly { entryId: string; models: number; built?: number; painted?: number; photoIds?: string[] }[],
+  entries: readonly {
+    entryId: string
+    models: number
+    built?: number
+    painted?: number
+    photoIds?: string[]
+    photoShows?: Record<string, string>
+  }[],
   factions: readonly CollectionFaction[],
 ) {
   const sheets = collectionDatasheets(factions)
@@ -45,6 +73,8 @@ export function groupCollection(
         built?: number
         painted?: number
         photoIds?: string[]
+        /** The datasheet each photo of another build shows, by photo id. */
+        photoShows?: Record<string, { entryId: string; name: string }>
       }[]
     }
   >()
@@ -53,7 +83,20 @@ export function groupCollection(
     const id = sheet?.catalogueId ?? null
     const group = groups.get(id) ?? { catalogueId: id, name: sheet?.faction ?? 'Earlier rules', models: 0, entries: [] }
     group.models += entry.models
-    group.entries.push({ ...entry, slug: sheet?.slug ?? null, name: sheet?.name ?? 'A datasheet from earlier rules' })
+    const { photoShows, ...rest } = entry
+    group.entries.push({
+      ...rest,
+      slug: sheet?.slug ?? null,
+      name: sheet?.name ?? 'A datasheet from earlier rules',
+      ...(photoShows && {
+        photoShows: Object.fromEntries(
+          Object.entries(photoShows).map(([photoId, shown]) => [
+            photoId,
+            { entryId: shown, name: sheets.get(shown)?.name ?? 'A datasheet from earlier rules' },
+          ]),
+        ),
+      }),
+    })
     groups.set(id, group)
   }
   return [...groups.values()]

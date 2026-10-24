@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { build, type Rolldown } from 'vite'
 
-const compilerEntries = ['scripts/catalogueRefresh.ts', 'scripts/compileCatalogueRuntime.ts']
+export const compilerEntries = ['scripts/catalogueRefresh.ts', 'scripts/compileCatalogueRuntime.ts']
 // The compiler reads catalogue configuration from disk; the seed build config bundles the production worker.
 const compilerFiles = ['catalogue', 'vite.seed.config.ts']
 
@@ -68,12 +68,4 @@ export async function compilerFingerprint(root = process.cwd(), entries = compil
       .update(output.type === 'chunk' ? output.code.replace(/^\/\/#(?:end)?region\b.*$/gm, '') : output.source)
       .update('\0')
   return hash.update(treeFingerprint(root, compilerFiles)).digest('hex')
-}
-
-/** The application source files the compiler's bundle reaches, relative to `root`. */
-export async function compilerModules(root = process.cwd(), entries = compilerEntries) {
-  const modules = (await compilerBundle(root, entries)).flatMap((output) => (output.type === 'chunk' ? output.moduleIds : []))
-  return [
-    ...new Set(modules.map((id) => path.relative(root, id.replace(/\?.*$/, ''))).filter((file) => file.startsWith('src/'))),
-  ].toSorted()
 }

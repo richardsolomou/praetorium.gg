@@ -19,6 +19,8 @@ export default defineConfig({
     ssr: true,
     outDir: path.join(process.env.LOCAL_BUILD_DIR ?? '.output', 'server'),
     emptyOutDir: false,
+    // Coverage runs map what the seed and the combat workers execute back to source.
+    sourcemap: Boolean(process.env.LOCAL_BUILD_DIR),
     rolldownOptions: {
       input: {
         'seed-preview': 'scripts/seedPreview.ts',

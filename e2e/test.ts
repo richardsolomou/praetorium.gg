@@ -3,7 +3,7 @@ import path from 'node:path'
 import { test as base, type BrowserContext, type Page, type Response } from '@playwright/test'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { retainedSnapshots, upstreamUrl } from '../src/server/sourceTexts'
-import { catalogue, inspectPort } from './stackEnv'
+import { catalogue, inspectPort, processCoverage, root as stackRoot } from './stackEnv'
 
 /**
  * Resolves a page load once the app has hydrated, as `AppShell` marks the document,
@@ -139,7 +139,7 @@ const executedFunctions = (result: CoverageResult) =>
   )
 
 /** Asks the app server's inspector for precise coverage; each read resets the counts, so it covers one test. */
-let inspector: Promise<(method: string) => Promise<{ result?: CoverageResult }>> | undefined
+let inspector: Promise<(method: string, params?: object) => Promise<{ result?: CoverageResult }>> | undefined
 function serverCoverage() {
   inspector ??= (async () => {
     const targets: { webSocketDebuggerUrl: string }[] = await (await fetch(`http://127.0.0.1:${inspectPort}/json/list`)).json()
@@ -163,6 +163,15 @@ function serverCoverage() {
         )
         socket.send(JSON.stringify({ id, method, params }))
       })
+    // Startup ran before any test, so it counts for every spec: `NODE_V8_COVERAGE` writes it now,
+    // moved apart from the exit coverage `scripts/e2eMap.ts` skips, and the counts start over.
+    const written = (await send('Runtime.evaluate', { expression: "process.getBuiltinModule('node:v8').takeCoverage()" })) as unknown as {
+      exceptionDetails?: unknown
+    }
+    if (written.exceptionDetails || !processCoverage) throw new Error('the app server did not write its startup coverage')
+    fs.mkdirSync(path.join(processCoverage, 'startup'), { recursive: true })
+    for (const file of fs.readdirSync(path.join(processCoverage, 'server')))
+      if (file.endsWith('-0.json')) fs.renameSync(path.join(processCoverage, 'server', file), path.join(processCoverage, 'startup', file))
     await send('Profiler.enable')
     await send('Profiler.startPreciseCoverage', { callCount: true, detailed: false })
     return send
@@ -174,7 +183,25 @@ async function collectPage(page: Page) {
   executed.push(...executedFunctions(await page.coverage.stopJSCoverage()))
 }
 
-export const test = base.extend<{ closeOpenedContexts: void; recordCoverage: void; rulesText: boolean }>({
+export const test = base.extend<{ closeOpenedContexts: void; recordCoverage: void; rulesText: boolean }, { stopCombatWorkers: void }>({
+  /**
+   * Worker threads write their coverage only when they exit, and the stack may be killed before
+   * the server stops its own, so a coverage run stops them once this worker's tests are done.
+   */
+  stopCombatWorkers: [
+    // Playwright reads a fixture's dependencies from this pattern, and this one has none.
+    // eslint-disable-next-line no-empty-pattern
+    async ({}, use) => {
+      await use()
+      const server = coverageDirectory && inspectPort ? await serverCoverage() : null
+      const stopped = (await server?.('Runtime.evaluate', {
+        expression: "globalThis[Symbol.for('ras-stack.server.singletons')]?.get('praetorium.combatCalculationPool')?.value.close()",
+        awaitPromise: true,
+      })) as unknown as { exceptionDetails?: unknown } | undefined
+      if (stopped?.exceptionDetails) throw new Error('the app server could not stop its combat workers')
+    },
+    { scope: 'worker', auto: true },
+  ],
   /** Whether the reader has chosen to load rules text; specs about the unloaded state turn it off. */
   rulesText: [true, { option: true }],
   context: async ({ context, javaScriptEnabled, rulesText }, use) => {
@@ -214,7 +241,10 @@ export const test = base.extend<{ closeOpenedContexts: void; recordCoverage: voi
     async ({ context: _context, closeOpenedContexts: _contexts }, use, testInfo) => {
       const server = coverageDirectory && inspectPort ? await serverCoverage() : null
       await server?.('Profiler.takePreciseCoverage')
+      // The SpacetimeDB module's calls are logged with their time, so the test's window claims them.
+      const started = Date.now()
       await use()
+      const ended = Date.now()
       if (!coverageDirectory) return
       await Promise.all([...coveredPages].map(collectPage))
       const spec = path.relative(process.cwd(), testInfo.file)
@@ -225,6 +255,9 @@ export const test = base.extend<{ closeOpenedContexts: void; recordCoverage: voi
         JSON.stringify({
           spec,
           title: testInfo.title,
+          stack: path.basename(stackRoot),
+          started,
+          ended,
           client: executed,
           server: serverExecuted.filter(({ url }) => url.includes('/server/')),
         }),

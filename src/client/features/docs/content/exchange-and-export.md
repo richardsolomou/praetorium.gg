@@ -6,13 +6,13 @@ To make one, open a roster's menu (in the builder or on its row in [Rosters](/ro
 
 ![The Exchange code dialog with its QR code and the code text.](screenshot:import-a-roster-exchange-code 'Copy code')
 
-An exchange code carries units, model counts, equipment, attachments, the Warlord, enhancements, setup (including any custom points budget and rule waivers) and the rules version. It never carries unit notes, preparation, reminders, visibility or the sender's account. Importing makes your own copy; the sender's roster is unchanged.
+An exchange code carries units, custom names, model counts, equipment, attachments, units that start embarked, the Warlord, enhancements, setup (including any custom points budget and rule waivers) and the rules version. It never carries unit notes, preparation, reminders, visibility or the sender's account. Importing makes your own copy; the sender's roster is unchanged.
 
 Text and codes keep the rules version they were made with. Praetorium's own text export also names its rules version, so it imports back onto the same one. Text from other apps imports onto the current rules.
 
 ## Exporting a list
 
-Open a roster's menu and choose **Export text**. The dialog has **Copy text** and, in the browser, **Download text**. The text includes model counts, equipment, enhancements, the Warlord, attachments, setup and rules version, in a layout other builders can read and Praetorium can import back.
+Open a roster's menu and choose **Export text**. The dialog has **Copy text** and, in the browser, **Download text**. The text includes custom unit names, model counts, equipment, enhancements, the Warlord, attachments, setup and rules version, in a layout other builders can read and Praetorium can import back.
 
 ![The Export roster dialog showing the roster as text, with Download text and Copy text.](screenshot:import-a-roster-export-text 'Copy text')
 

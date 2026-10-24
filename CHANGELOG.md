@@ -1,5 +1,189 @@
 # praetorium
 
+## 0.188.3
+
+### Patch Changes
+
+- 855bafa: Long unit names, such as Militarum Tempestus Command Squad, now wrap in the unit editor on small phones instead of running off the screen.
+
+## 0.188.2
+
+### Patch Changes
+
+- 43ad719: The email telling you we replied now looks like Praetorium, with a button that opens the conversation.
+- de203c6: The email telling you we replied now says who replied and which of your messages it is about, and that replying to the email itself does not reach us.
+
+## 0.188.1
+
+### Patch Changes
+
+- f4a096e: Twelve Chapter Approved terrain layouts now join the footprints the publisher's diagrams mark as one terrain area, including Purge the Foe / Reconnaissance Layout B.
+- 07bd36b: The eye marking two footprints joined into one terrain area no longer hides under the objective marker on central objective terrain.
+
+## 0.188.0
+
+### Minor Changes
+
+- a536821: When we reply to your feedback, we email you a link to the conversation, once per run of replies.
+
+### Patch Changes
+
+- e60e18f: A link to one of your feedback conversations opens it over the Support page.
+- c761fc3: A reply you send no longer shows twice for a moment while it is delivered.
+- e60e18f: The account button now marks a reply to your feedback when you are signed in, rather than only after you opened the conversation.
+
+## 0.187.0
+
+### Minor Changes
+
+- 5d266fb: Photos of the other builds your models can also be, such as a magnetised Leman Russ set up as a Demolisher, are filed under that build and show on its datasheet, while staying with the one collection entry.
+- 51e0ba6: Mark what else your collection's models can be, such as every build of a magnetised Leman Russ, and a roster's Your collection section counts each model once wherever it goes.
+- 6ea1cc4: Terrain layouts mark footprints that join into one terrain area with an eye, as the publisher's diagrams do, and explain it in the legend.
+
+## 0.186.0
+
+### Minor Changes
+
+- 6bd9051: Feedback now opens a support panel over the page you are on, where our replies appear and you can answer them. Open it again from the account menu, the More tab or the Support page. Signed in, your conversations follow you to every device.
+
+## 0.185.0
+
+### Minor Changes
+
+- 34b6bf9: Embark units in transports from the roster cards; each transport lists who starts inside it, and battle setup starts them there, which you can still change. An attached unit embarks, and takes another Leader or Support unit, from the foot of its outline. A change that stops a unit fitting takes that unit out, and its card or outline says why.
+
+## 0.184.5
+
+### Patch Changes
+
+- a87cc47: Nork Deddog, Ogryn Bodyguard and Regimental Attachés can embark in any transport their Command Squad can, with a Loyal Protector taking up the space of 3 models.
+
+## 0.184.4
+
+### Patch Changes
+
+- 6d3e8b8: The agent combat tool and simulator links can field a unit that joins an attached unit, such as Nork Deddog with the Cadian Command Squad leading Cadian Shock Troops.
+
+## 0.184.3
+
+### Patch Changes
+
+- f6fc73c: An Inquisitor leading a unit can embark in any transport its bodyguard can, as Authority of the Inquisition allows.
+
+## 0.184.2
+
+### Patch Changes
+
+- 2617042: An invulnerable save no longer shows as a granted ability.
+- 2617042: Abilities a datasheet links from its army's shared list now apply, such as Psychic Hood, Fulgrim's Daemonic Speed and the Norn Emissary's Unnatural Resistance.
+- 2617042: Nork Deddog and Ogryn Bodyguard give Feel No Pain 4+ to the Officer in their Command Squad while they stand.
+
+## 0.184.1
+
+### Patch Changes
+
+- 1ece916: Discord announcements show what's changed once an update is live.
+- 1ece916: The Discord invite opens the welcome channel when you join the community.
+
+## 0.184.0
+
+### Minor Changes
+
+- 68c83e8: Shelve attached units together in the roster builder, each outlined with its total points and the bodyguard's custom name. Untick Group attached units in the roster menu to keep role shelves.
+
+### Patch Changes
+
+- 68c83e8: Group the roster menu's actions under Play, Setup, Copies and access, Share and Display headings.
+
+## 0.183.3
+
+### Patch Changes
+
+- 19a5750: Leaders whose attachment data names unit types no longer offer single-model characters as bodyguards, such as a Runtherd leading Grotmas Gitz.
+
+## 0.183.2
+
+### Patch Changes
+
+- 58df806: Nork Deddog and Ogryn Bodyguard count as part of the unit their Command Squad leads, so the simulator and reserves see one unit.
+
+## 0.183.1
+
+### Patch Changes
+
+- a0579d7: The combat simulator accepts an Inquisitor leading Tempestus Scions in Bridgehead Strike.
+
+## 0.183.0
+
+### Minor Changes
+
+- 68a78e5: Terrain layouts outline the pieces of one terrain area together, so they are no longer confused with separate pieces that touch.
+
+## 0.182.4
+
+### Patch Changes
+
+- 4db3c94: A unit now has every keyword of its models, so datasheets such as Chaplain Grimaldus, Marneus Calgar and Canis Rex show Character, Vehicle and other model keywords, and keyword rules and attachments respect them.
+
+## 0.182.3
+
+### Patch Changes
+
+- 8bdecc7: Let a Skitarii Rangers or Vanguard specialist take the place of a galvanic-rifle or radium-carbine squadmate, so the squad stays at ten models, each specialist can be added or removed on its own, and lists with a transuranic arquebus or omnispex import.
+
+## 0.182.2
+
+### Patch Changes
+
+- 091533e: A Militarum Tempestus Command Squad can take its regimental standard and master vox again.
+- 091533e: Weapon buttons for a group a specialist has shrunk change the weapon pressed instead of another one.
+- 091533e: A specialist taking a squadmate's place, such as a Tempestus Scion with a medi-pack or regimental standard, takes that squadmate's weapon with it, so a Militarum Tempestus Command Squad with a plasma gun and meltagun stays legal.
+
+## 0.182.1
+
+### Patch Changes
+
+- 86f7e86: Crucible Champion of the Chapter and Librarius Adept no longer offer Character units as bodyguards.
+
+## 0.182.0
+
+### Minor Changes
+
+- 218332d: Give units in a roster an optional custom name, shown above the datasheet name to everyone who can read the roster.
+
+## 0.181.3
+
+### Patch Changes
+
+- 81fd67d: Datasheet pages list the Command Squads an Ogryn Bodyguard or Nork Deddog can join, and other attachments that only the catalogue's unit links record.
+
+## 0.181.2
+
+### Patch Changes
+
+- 4999dc2: Inquisitors can lead units that a detachment makes Imperium Battleline Infantry, such as Tempestus Scions under Bridgehead Strike.
+- 4999dc2: Bridgehead Strike makes Tempestus Scions Battleline when a Militarum Tempestus Officer is the Warlord.
+- 4999dc2: Detachments that double a unit limit, such as Bridgehead Strike for Tempestus Scions, double it in the builder.
+
+## 0.181.1
+
+### Patch Changes
+
+- 39298a4: Ogryn Bodyguard and Nork Deddog can join a Command Squad.
+
+## 0.181.0
+
+### Minor Changes
+
+- ca5f8b3: Profiles show results against each opponent.
+- ca5f8b3: Profiles show each stratagem's win rate and name the best and worst stratagems used in three or more battles.
+- ca5f8b3: Anyone can see a player's performance over time on their profile.
+- ca5f8b3: Profile stratagem and secondary mission tables show the top ten, with Show all for the rest.
+
+### Patch Changes
+
+- ca5f8b3: A stratagem or secondary mission no longer appears twice on a profile after a data update renamed it.
+
 ## 0.180.0
 
 ### Minor Changes

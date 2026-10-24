@@ -23,6 +23,21 @@ it('counts an attached unit once and keeps repeated squads separate', () => {
   ).toEqual([0, 2])
 })
 
+it('counts a character joined to an attached character with the whole unit', () => {
+  expect(
+    rosterCombatIndices([{ entryId: 'squad' }, { entryId: 'command', attachedTo: 0 }, { entryId: 'protector', attachedTo: 1 }]),
+  ).toEqual([0])
+})
+
+it('refuses attachments in a loop rather than omitting units', () => {
+  expect(() =>
+    rosterCombatIndices([
+      { entryId: 'a', attachedTo: 1 },
+      { entryId: 'b', attachedTo: 0 },
+    ]),
+  ).toThrow('attachment')
+})
+
 it('refuses malformed attachments rather than omitting units', () => {
   expect(() => rosterCombatIndices([{ entryId: 'leader', attachedTo: 2 }])).toThrow('attachment')
 })

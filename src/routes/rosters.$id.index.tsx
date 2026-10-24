@@ -9,6 +9,9 @@ import { loadRoster } from '../client/features/rosters/rosterRouteData'
 import { RosterLoading } from '../client/features/rosters/RosterLoading'
 import { requestedDatasheetSearch, useRequestedDatasheet } from '../client/features/rosters/requestedDatasheet'
 import { searchFlag } from '../client/searchParams'
+import { keptRosterArrangement } from '../client/features/rosters/rosterArrangement'
+import { ROSTER_ARRANGEMENT_COOKIE } from '../contracts/rosterCookies'
+import { requestCookie } from '../server/requestCookie'
 
 export const Route = createFileRoute('/rosters/$id/')({
   pendingComponent: RosterLoading,
@@ -23,7 +26,11 @@ export const Route = createFileRoute('/rosters/$id/')({
     ...(searchFlag(search.print) ? { print: true } : {}),
   }),
   loaderDeps: ({ search }) => ({ battle: search.battle, league: search.league, event: search.event }),
-  loader: ({ context, params, deps }) => loadRoster(context.queryClient, params.id, deps),
+  loader: async ({ context, params, deps }) => ({
+    ...(await loadRoster(context.queryClient, params.id, deps)),
+    // Read by the server too, so the first frame is already arranged the way the player left it.
+    arrangement: keptRosterArrangement(requestCookie(ROSTER_ARRANGEMENT_COOKIE)),
+  }),
   head: ({ loaderData, match, params }) => {
     const preview = loaderData?.preview
     const exposure = loaderData?.exposure

@@ -1,4 +1,5 @@
-import { expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
+import type { RosterPick } from './roster'
 import { rosterSnapshot } from './rosterSnapshot'
 
 it('freezes the preview label when the same codex is later released', () => {
@@ -62,6 +63,8 @@ it('freezes unit wounds, reserve exemptions, and transport capability into a ros
           formationOptions: ['battlefield'],
           prebattleRules: [],
           strategicReserveExempt: true,
+          embarksWithBodyguard: true,
+          embarkedSpace: 3,
           transport: true,
         },
       ],
@@ -75,6 +78,8 @@ it('freezes unit wounds, reserve exemptions, and transport capability into a ros
       expect.objectContaining({
         wounds: 3,
         strategicReserveExempt: true,
+        embarksWithBodyguard: true,
+        embarkedSpace: 3,
         transport: true,
         transportRule: 'This model has a transport capacity of 12 models.',
         keywords: ['Infantry'],
@@ -445,7 +450,7 @@ it('freezes a custom points budget and halves it for the strategic reserve limit
   ])
 })
 
-it('freezes two identical units with their own notes, unaffected by later edits to the saved list', () => {
+it('freezes two identical units with their own nicknames and notes, unaffected by later edits to the saved list', () => {
   const unit = (key: number) => ({
     key,
     entryId: 'intercessors',
@@ -470,8 +475,8 @@ it('freezes two identical units with their own notes, unaffected by later edits 
     limit: 2_000,
     waivedRules: [],
     picks: [
-      { entryId: 'intercessors', note: 'Hold home.' },
-      { entryId: 'intercessors', note: 'Push midfield.' },
+      { entryId: 'intercessors', nickname: 'Alpha', note: 'Hold home.' },
+      { entryId: 'intercessors', nickname: 'Bravo', note: 'Push midfield.' },
     ],
   }
   const snapshot = rosterSnapshot(
@@ -489,13 +494,65 @@ it('freezes two identical units with their own notes, unaffected by later edits 
     },
     [],
   )
+  saved.picks[0]!.nickname = 'Renamed'
   saved.picks[1]!.note = 'Changed plan.'
 
   expect({
-    units: snapshot.built?.units.map((frozen) => frozen.note),
-    picks: snapshot.built?.picks?.map((pick) => pick.note),
+    units: snapshot.built?.units.map(({ name, nickname, note }) => ({ name, nickname, note })),
+    picks: snapshot.built?.picks?.map(({ nickname, note }) => ({ nickname, note })),
   }).toEqual({
-    units: ['Hold home.', 'Push midfield.'],
-    picks: ['Hold home.', 'Push midfield.'],
+    units: [
+      { name: 'Intercessor Squad', nickname: 'Alpha', note: 'Hold home.' },
+      { name: 'Intercessor Squad', nickname: 'Bravo', note: 'Push midfield.' },
+    ],
+    picks: [
+      { nickname: 'Alpha', note: 'Hold home.' },
+      { nickname: 'Bravo', note: 'Push midfield.' },
+    ],
+  })
+})
+
+describe('starting embarks', () => {
+  const unit = {
+    points: 80,
+    toggles: [],
+    size: { models: 5, resizable: false },
+    attachment: null,
+    wargear: [],
+    enhancements: [],
+    upgrades: [],
+    formationOptions: [] as const,
+    prebattleRules: [] as const,
+  }
+  const snapshot = (picks: RosterPick[], built: number[]) =>
+    rosterSnapshot(
+      { id: 'roster', name: 'Army', catalogueId: 'catalogue', detachmentIds: [], disposition: null, limit: 2_000, waivedRules: [], picks },
+      {
+        points: 240,
+        revision: 'revision',
+        label: 'GTF 2K',
+        detachment: null,
+        detachments: [],
+        detachmentPointBudget: null,
+        disposition: null,
+        dispositions: [],
+        units: built.map((key) => ({ ...unit, key, entryId: picks[key]!.entryId, name: picks[key]!.entryId, group: 'other' as const })),
+      },
+      [],
+    )
+
+  it('freezes the transport a unit starts in by the key the snapshot gives it', () => {
+    const roster = snapshot([{ entryId: 'marines', embarkedIn: 1 }, { entryId: 'rhino' }], [0, 1])
+    expect(roster.built?.units[0]?.startsEmbarkedIn).toBe(roster.built?.units[1]?.key)
+  })
+
+  it('leaves out a starting embark in a transport the catalogue could not build', () => {
+    const roster = snapshot([{ entryId: 'marines', embarkedIn: 1 }, { entryId: 'gone' }], [0])
+    expect(roster.built?.units[0]).not.toHaveProperty('startsEmbarkedIn')
+  })
+
+  it('leaves the starting embark of a character to the unit it joined', () => {
+    const roster = snapshot([{ entryId: 'marines' }, { entryId: 'lord', attachedTo: 0, embarkedIn: 2 }, { entryId: 'rhino' }], [0, 1, 2])
+    expect(roster.built?.units[1]).not.toHaveProperty('startsEmbarkedIn')
   })
 })

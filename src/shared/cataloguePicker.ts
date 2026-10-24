@@ -59,17 +59,19 @@ function groupOf(entry: Definition, target: Definition): UnitGroup {
   const categories = [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])]
   for (const link of categories) {
     if (!link.primary) continue
-    const shelf = GROUP_BY_CATEGORY.get((link.name ?? '').trim().toLowerCase())
+    const shelf = shelfOfCategory(link.name)
     if (shelf) return shelf
   }
   if (entry.id.startsWith('profile-unit-')) {
-    const shelves = categories.flatMap((link) => GROUP_BY_CATEGORY.get((link.name ?? '').trim().toLowerCase()) ?? [])
+    const shelves = categories.flatMap((link) => shelfOfCategory(link.name) ?? [])
     return (
       (['epic-hero', 'character', 'battleline', 'transport'] as const).find((shelf) => shelves.includes(shelf)) ?? shelves[0] ?? 'other'
     )
   }
   return 'other'
 }
+
+export const shelfOfCategory = (name: string | undefined) => GROUP_BY_CATEGORY.get((name ?? '').trim().toLowerCase())
 
 /** The same shelf by entry id, so a roster and the picker cannot sort a unit differently. */
 export function groupOfEntry(index: CatalogueIndex, entryId: string): UnitGroup {

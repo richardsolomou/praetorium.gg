@@ -17,7 +17,7 @@ const status = (rows: ImportedRow[]) => rows.map((row) => row.status)
 
 describe('collection CSV', () => {
   it('writes only the header for an empty collection', () => {
-    expect(collectionCsv([])).toBe('faction,datasheet,datasheet_id,models,built,painted,wanted\r\n')
+    expect(collectionCsv([])).toBe('faction,datasheet,datasheet_id,models,built,painted,wanted,counts_as_ids\r\n')
   })
 
   it('round-trips several datasheets through their ids', () => {
@@ -29,6 +29,37 @@ describe('collection CSV', () => {
       { line: 2, name: 'Necron Warriors', status: 'recognised', entryId: 'warriors', models: 20, built: 10, painted: 5, wanted: 0 },
       { line: 3, name: 'Rhino', status: 'recognised', entryId: 'rhino-sm', models: 0, built: 0, painted: 0, wanted: 1 },
     ])
+  })
+
+  it('round-trips what the models also count as', () => {
+    expect(
+      read(
+        collectionCsv([
+          {
+            entryId: 'warriors',
+            name: 'Necron Warriors',
+            faction: 'Necrons',
+            models: 2,
+            built: 0,
+            painted: 0,
+            wanted: 0,
+            countsAs: ['overlord'],
+          },
+        ]),
+      )[0],
+    ).toMatchObject({ status: 'recognised', countsAs: ['overlord'] })
+  })
+
+  it('drops links to datasheets the current rules lack', () => {
+    expect(read('datasheet_id,models,counts_as_ids\nwarriors,2,overlord;retired\n')[0]).toMatchObject({ countsAs: ['overlord'] })
+  })
+
+  it('drops a link to the datasheet itself', () => {
+    expect(read('datasheet_id,models,counts_as_ids\nwarriors,2,warriors\n')[0]).not.toHaveProperty('countsAs')
+  })
+
+  it('refuses links on a row without owned models', () => {
+    expect(status(read('datasheet_id,wanted,counts_as_ids\nwarriors,2,overlord\n'))).toEqual(['invalid'])
   })
 
   it('quotes cells holding commas and quotes', () => {
@@ -118,6 +149,18 @@ describe('import change', () => {
 
   it('flags a different wish as a conflict', () => {
     expect(importChange({ models: 0, built: 0, painted: 0, wanted: 4 }, { ...counts, wanted: 2 })).toBe('conflict')
+  })
+
+  it('adds links to a datasheet without any', () => {
+    expect(importChange({ ...counts, countsAs: ['overlord'] }, counts)).toBe('new')
+  })
+
+  it('flags different links as a conflict', () => {
+    expect(importChange({ ...counts, countsAs: ['overlord'] }, { ...counts, countsAs: ['lord'] })).toBe('conflict')
+  })
+
+  it('treats no links as leaving saved links alone', () => {
+    expect(importChange(counts, { ...counts, countsAs: ['lord'] })).toBe('same')
   })
 
   it('treats a zero count as leaving the saved count alone', () => {

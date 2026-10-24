@@ -11,7 +11,9 @@ import {
   collectionCounts,
   collectionProgress,
   collectionWishes,
+  collectionCountsAs,
   collectionPhotos,
+  collectionPhotoShows,
   datasheetPhotos,
   fieldedDatasheets,
   wishlistSuggestions,
@@ -23,6 +25,7 @@ import {
   homeRosters,
   loadoutDatasheets,
   priceRoster,
+  unitBattleDetails,
   rosterAccess,
   rosterBootstrap,
   rosterLoans,
@@ -42,6 +45,7 @@ import {
   collectionKey,
   collectionProgressKey,
   collectionWishesKey,
+  collectionCountsAsKey,
   datasheetPhotosKey,
   factionDatasheetsKey,
   fieldedDatasheetsKey,
@@ -89,6 +93,8 @@ export const collectionCountsQuery = () =>
 /** Only datasheets with built models appear; the rest have none built or painted. */
 export const collectionProgressQuery = () =>
   queryOptions({ queryKey: collectionProgressKey(), queryFn: () => collectionProgress(), staleTime: SSR_STALE_TIME })
+export const collectionCountsAsQuery = () =>
+  queryOptions({ queryKey: collectionCountsAsKey(), queryFn: () => collectionCountsAs(), staleTime: SSR_STALE_TIME })
 export const collectionWishesQuery = () =>
   queryOptions({ queryKey: collectionWishesKey(), queryFn: () => collectionWishes(), staleTime: SSR_STALE_TIME })
 /** Never saved for offline reading: a photo whose owner stops sharing must leave the page on the next read. */
@@ -100,6 +106,8 @@ export const datasheetPhotosQuery = (entryId: string) =>
   })
 export const collectionPhotosQuery = () =>
   queryOptions({ queryKey: ['collection-photos'], queryFn: () => collectionPhotos(), staleTime: SSR_STALE_TIME })
+export const collectionPhotoShowsQuery = () =>
+  queryOptions({ queryKey: ['collection-photo-shows'], queryFn: () => collectionPhotoShows(), staleTime: SSR_STALE_TIME })
 
 export const unitsQuery = (
   catalogueId: string,
@@ -235,6 +243,17 @@ export const priceQuery = (
     queryFn: ({ signal }) => priceRoster({ data, signal }),
     enabled: Boolean(catalogueId),
     staleTime: SSR_STALE_TIME,
+  })
+}
+
+/** What a battle freezes of each datasheet in a list, for judging embarks as setup will. */
+export const unitBattleDetailsQuery = (catalogueId: string, entryIds: readonly string[]) => {
+  const data = { catalogueId, entryIds: [...new Set(entryIds)].toSorted() }
+  return queryOptions({
+    queryKey: ['unit-battle-details', data.catalogueId, data.entryIds],
+    queryFn: ({ signal }) => unitBattleDetails({ data, signal }),
+    enabled: Boolean(catalogueId) && data.entryIds.length > 0,
+    staleTime: referenceStaleTime,
   })
 }
 

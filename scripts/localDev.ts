@@ -14,6 +14,7 @@ import { moduleEnvironment } from './lib/spacetimeEnvironment.ts'
 import { installedSpacetimeCli, SPACETIME_VERSION } from './lib/spacetimeCli.ts'
 import { callSpacetime, publishSpacetimeModule } from 'ras-stack/spacetime'
 import { browserTestBuildEnvironment, ensureBrowserTestBuild } from './lib/browserTestBuild.ts'
+import { prepareModuleCoverage } from './lib/moduleCoverage.ts'
 
 const testMode = process.env.LOCAL_TEST_MODE === 'true'
 const worktree = await realpath(process.cwd())
@@ -38,6 +39,9 @@ let publicUrl = ''
 let spacetimeUrl = ''
 let database = ''
 const credentialsPath = path.join(root, 'credentials.json')
+// A browser-test coverage run records what the SpacetimeDB module runs here (see `e2e/stackEnv.ts`).
+const moduleCoverage = testMode && process.env.LOCAL_COVERAGE_DIR ? path.join(process.env.LOCAL_COVERAGE_DIR, 'spacetime') : null
+let ownerToken = ''
 const cli = process.env.SPACETIME_BIN ?? (existsSync(installedSpacetimeCli) ? installedSpacetimeCli : 'spacetime')
 const buildDir = path.join(root, 'build')
 const environment: NodeJS.ProcessEnv = { ...process.env, LOCAL_BUILD_DIR: buildDir, LOCAL_TEST_MODE: String(testMode) }
@@ -137,7 +141,19 @@ async function credentials(): Promise<Credentials> {
   return value
 }
 
+/** Writes the module's logs, where its coverage build recorded each call, before SpacetimeDB stops. */
+async function saveModuleLogs() {
+  if (!moduleCoverage || !ownerToken) return
+  const response = await fetch(`${spacetimeUrl}/v1/database/${database}/logs?num_lines=100000000`, {
+    headers: { authorization: `Bearer ${ownerToken}` },
+    signal: AbortSignal.timeout(30_000),
+  })
+  if (!response.ok) throw new Error(`Local SpacetimeDB logs failed with HTTP ${response.status}`)
+  await writeFile(path.join(moduleCoverage, 'logs.jsonl'), await response.text())
+}
+
 async function configure(value: Credentials) {
+  ownerToken = value.owner.token
   const bundle = await readFile(path.join(root, 'module/spacetimedb/dist/bundle.js'))
   await publishSpacetimeModule({ url: spacetimeUrl, database, token: value.owner.token }, bundle, {
     environment: moduleEnvironment({ issuer: `${publicUrl}/api/auth`, audience: database, operator: value.operator.identity }),
@@ -230,6 +246,7 @@ async function main() {
   await symlink(path.join(worktree, 'node_modules'), path.join(moduleRoot, 'node_modules'), 'dir')
   await symlink(path.join(worktree, 'spacetimedb/node_modules'), path.join(moduleRoot, 'spacetimedb/node_modules'), 'dir')
   await run(cli, ['build', '-p', path.join(moduleRoot, 'spacetimedb')])
+  if (moduleCoverage) prepareModuleCoverage(path.join(moduleRoot, 'spacetimedb/dist/bundle.js'), moduleCoverage, worktree)
   await configure(value)
   timings.productSetupSeconds = (performance.now() - startedAt) / 1_000
   Object.assign(environment, {
@@ -325,7 +342,11 @@ const stopping = new Promise<void>((resolve, reject) =>
     'abort',
     () => {
       if (preview) preview.ready = false
-      void stopLocalChildren([...children]).then(resolve, reject)
+      // A failure leaves the coverage run without the module's calls, which `scripts/e2eMap.ts` refuses.
+      void saveModuleLogs()
+        .catch((error: unknown) => console.error('Saving the SpacetimeDB module logs failed', error))
+        .then(() => stopLocalChildren([...children]))
+        .then(resolve, reject)
     },
     { once: true },
   ),

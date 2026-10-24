@@ -1,8 +1,9 @@
 name: Release
 
 on:
-  push:
-    branches: [main]
+  # Scheduled after CI's daily full suite so its result is in before the day's merges deploy; dispatch to release sooner.
+  schedule:
+    - cron: '3 14 * * *'
   workflow_dispatch:
 
 concurrency:
@@ -13,7 +14,53 @@ permissions:
   contents: read
 
 jobs:
+  pending:
+    runs-on: ubuntu-latest
+    # Long enough to run the full suite when main moved since the daily run.
+    timeout-minutes: 45
+    permissions:
+      actions: write
+    outputs:
+      deploy: ${{ steps.live.outputs.deploy }}
+    steps:
+      - name: Compare production with main
+        id: live
+        run: |
+          live="$(curl --silent --show-error --max-time 30 --head https://praetorium.gg/api/health | tr -d '\r' | sed -n 's/^x-praetorium-revision: //Ip')" || true
+          if [[ "$live" == "$GITHUB_SHA" ]]; then
+            echo "Production already runs $GITHUB_SHA"
+            echo deploy=false >> "$GITHUB_OUTPUT"
+          else
+            echo deploy=true >> "$GITHUB_OUTPUT"
+          fi
+      # Pull requests run only the browser specs they affect, so the full suite is the check that
+      # catches a missed one; a dispatched release ships without waiting for it.
+      - name: Require the full suite to pass on this commit
+        if: steps.live.outputs.deploy == 'true' && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          full_suite() {
+            gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch main --commit "$GITHUB_SHA" --json databaseId,event \
+              --jq '[.[] | select(.event != "pull_request")][0].databaseId // empty'
+          }
+          run="$(full_suite)"
+          if [[ -z "$run" ]]; then
+            echo "No full suite has run on $GITHUB_SHA, so this release runs one"
+            gh workflow run ci.yml --repo "$GITHUB_REPOSITORY" --ref main
+            for _ in $(seq 30); do
+              sleep 10
+              run="$(full_suite)"
+              if [[ -n "$run" ]]; then break; fi
+            done
+          fi
+          : "${run:?main moved past $GITHUB_SHA before its full suite started}"
+          gh run watch "$run" --repo "$GITHUB_REPOSITORY" --interval 30 --exit-status > /dev/null
+
   release:
+    needs: [pending]
+    if: needs.pending.outputs.deploy == 'true'
     permissions:
       actions: write
       contents: write
@@ -32,6 +79,26 @@ jobs:
       environment: production
       revision: ${{ needs.release.outputs.sha || github.sha }}
     secrets: inherit
+
+  announce-discord:
+    needs: [release, dokploy-production]
+    if: needs.release.outputs.created == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.sha }}
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Announce the live release to players
+        env:
+          DEPLOY_SHA: ${{ needs.release.outputs.sha }}
+          DISCORD_ANNOUNCEMENTS_WEBHOOK_URL: ${{ secrets.DISCORD_ANNOUNCEMENTS_WEBHOOK_URL }}
+          DISCORD_ANNOUNCEMENTS_CHANNEL_ID: ${{ vars.DISCORD_ANNOUNCEMENTS_CHANNEL_ID }}
+          R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+        run: pnpm exec tsx scripts/announceDiscord.ts
 
   after-release:
     needs: [release]

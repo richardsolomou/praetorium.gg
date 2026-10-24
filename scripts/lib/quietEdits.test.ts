@@ -80,3 +80,18 @@ it('does not treat a top-level value as quiet', () => {
 it('does not treat an edit as quiet without both versions of the file', () => {
   expect(quietHunk(edit(1, ["import { score, undo } from './battle'"], ["import { score } from './battle'"]), base, null)).toBe(false)
 })
+
+it('does not treat importing from a module the file did not import before as quiet', () => {
+  const head = base.replace("import './polyfill'", "import './polyfill'\nimport { clock } from './clock'")
+  expect(quietHunk(edit(6, [], ["import { clock } from './clock'"], 7), base, head)).toBe(false)
+})
+
+it('does not treat dropping the last import from a module as quiet', () => {
+  const head = base.replace("import { score, undo } from './battle'\n", '')
+  expect(quietHunk(edit(1, ["import { score, undo } from './battle'"], []), base, head)).toBe(false)
+})
+
+it('does not read a column-0 `import.meta` expression as an import declaration', () => {
+  const text = "import.meta.hot?.accept(\n  'x',\n)\nexport const limit = 'a'"
+  expect(declarations(text)).toEqual([])
+})
