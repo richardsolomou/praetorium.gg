@@ -6,21 +6,14 @@ import { dispositionTone } from '../../../components/rosterSetup'
 import { dispositionDetachmentsQuery, gameReferencesQuery } from '../../../queries'
 import { FactionMark } from '../../../components/FactionMark'
 import { PageContent, PageHeader } from '../../../components/Page'
+import { dispositionMatchups } from './dispositionMatchups'
 
 export function ForceDispositionPage({ dispositionId }: { dispositionId: string }) {
   const { data } = useQuery(gameReferencesQuery())
   const { data: factions } = useQuery(dispositionDetachmentsQuery(dispositionId))
   const disposition = data?.dispositions.find((entry) => entry.id === dispositionId)
   if (!data || !disposition) return null
-  const packs = data.packs.flatMap((pack) => {
-    const matchups = data.dispositions.flatMap((opponent) => {
-      const mission = pack.missions.find((candidate) =>
-        candidate.matchups.some((pair) => pair[0]?.id === dispositionId && pair[1]?.id === opponent.id),
-      )
-      return mission ? [{ opponent, mission }] : []
-    })
-    return matchups.length ? [{ pack, matchups }] : []
-  })
+  const packs = dispositionMatchups(data, dispositionId)
   const detachmentCount = factions?.reduce((total, faction) => total + faction.detachments.length, 0) ?? 0
 
   return (
