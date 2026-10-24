@@ -8,7 +8,7 @@ import type { Datasheet, DatasheetRelationship } from '../../../../contracts/cat
 import { datasheetQuery } from '../../../queries'
 import { useSettled } from '../../../useSettled'
 import { UnitProfile, WeaponSummary } from '../../../components/DatasheetProfiles'
-import { Keyword, KEYWORD_TAG_CLASS } from '../../../components/Keyword'
+import { Keyword, KEYWORD_TAG_CLASS, UnitKeywords } from '../../../components/Keyword'
 import { abilitySections, attachmentGroups, primaryUnitProfile, referenceAbilities } from '../../../datasheet'
 import { RuleText } from '../../../components/RuleText'
 import { ProfileRules } from '../ProfileRules'
@@ -109,11 +109,7 @@ export function DatasheetPanel({
       <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} compact />
       {sheet.referenceRoute ? (
         <div className="border-t border-edge pt-3">
-          <div className="flex min-w-0 flex-wrap gap-1">
-            {sheet.keywords.map((keyword) => (
-              <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
-            ))}
-          </div>
+          <UnitKeywords className="min-w-0" sheet={sheet} />
         </div>
       ) : null}
       {showRelationships ? <RelationshipSummary sheet={sheet} onSelect={onRelationshipSelect} /> : null}

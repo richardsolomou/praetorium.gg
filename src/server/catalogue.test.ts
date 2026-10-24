@@ -224,6 +224,31 @@ describe('a datasheet', () => {
     expect(datasheetIn(book, 'cat', 'captain')?.keywords).toEqual(['Infantry'])
   })
 
+  it('gives a keyword only to the models that link it, even when the unit links it too', () => {
+    const link = (id: string, name: string) => ({ id: `${id}-${name}`, targetId: name.toLowerCase(), name })
+    const model = (id: string, name: string, keywords: string[]) => ({
+      id,
+      name,
+      type: 'model' as const,
+      constraints: [{ id: `${id}-min`, type: 'min' as const, value: 1, field: 'selections', scope: 'parent' }],
+      categoryLinks: keywords.map((keyword) => link(id, keyword)),
+    })
+    const book = bookOf({
+      categoryEntries: ['Infantry', 'Character', 'Officer'].map((name) => ({ id: name.toLowerCase(), name })),
+      selectionEntries: [
+        {
+          id: 'squad',
+          name: 'Command Squad',
+          type: 'unit',
+          categoryLinks: [link('squad', 'Infantry'), link('squad', 'Character')],
+          selectionEntries: [model('commander', 'Commander', ['Character', 'Officer']), model('veteran', 'Veteran', [])],
+        },
+      ],
+    })
+
+    expect(datasheetIn(book, 'cat', 'squad')?.modelKeywords).toEqual([{ models: ['Commander'], keywords: ['Character', 'Officer'] }])
+  })
+
   it('shows duplicate available profiles once', () => {
     const profile = (id: string, name = 'Storm bolter') => ({
       id,

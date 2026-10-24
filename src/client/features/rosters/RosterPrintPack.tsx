@@ -18,6 +18,7 @@ import { Loadout } from './builder/Loadout'
 import { ProfileRules } from './ProfileRules'
 import { normalisePicks } from './rosterPicks'
 import { countLabel } from '../../text'
+import { unitKeywordsText } from '../../components/Keyword'
 
 type Price = NonNullable<Awaited<ReturnType<typeof priceRoster>>>
 
@@ -306,7 +307,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
                   </p>
                 ) : null}
                 <ProfileRules profiles={unit.sheets.selected!.profiles} rules={[]} compact />
-                <p>Keywords: {unit.sheets.selected!.keywords.join(', ')}</p>
+                <p>Keywords: {unitKeywordsText(unit.sheets.selected!)}</p>
               </div>
             ))}
           </section>

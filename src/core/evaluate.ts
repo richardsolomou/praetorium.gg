@@ -465,19 +465,57 @@ export function keywordsBySelection(
     const node = positioned?.id === wanted.id ? positioned : built.find((child) => child.id === wanted.id)
     if (!node) return { keywords: [], primaries: [] }
     // Core rules 02.05.01: a unit has all the keywords of all its models.
-    const members = [node, ...descendants(node).filter((member) => member !== node && member.target.type === 'model' && member.fielded > 0)]
-    const held = new Set(
-      members.flatMap((member) => {
-        const own = linkedCategories(member)
-        for (const [categoryId, present] of grants.get(member) ?? []) {
-          if (present) own.add(categoryId)
-          else own.delete(categoryId)
-        }
-        return [...own]
-      }),
-    )
+    const held = new Set([node, ...fieldedModels(node)].flatMap((member) => [...heldBy(member, grants)]))
     return { keywords: [...held], primaries: (root.primaries?.get(node) ?? []).filter((id) => held.has(id)) }
   })
+}
+
+/**
+ * One of a roster's selections' keywords, and each fielded model's by model name.
+ *
+ * A keyword the datasheet links on the unit counts for every model, unless some of
+ * its models link it themselves: a Cadian Command Squad links CHARACTER on the unit
+ * and on its Commander, and only the Commander is printed with it.
+ */
+export function unitKeywordIds(
+  selections: readonly Selection[],
+  at: number,
+  index: CatalogueIndex,
+  options: EvaluateOptions = {},
+): { keywords: string[]; models: { name: string; keywords: string[] }[] } {
+  const census = new Census(0, options.modifierCache)
+  const { root, forces } = rosterContext([selections], index, census, options)
+  const built = forces[0]?.children ?? []
+  const wanted = selections[at]
+  const node = built[at]?.id === wanted?.id ? built[at] : built.find((child) => child.id === wanted?.id)
+  if (!node) return { keywords: [], models: [] }
+  const grants = grantsOf(root, index, census)
+  const models = new Map<string, Set<string>>()
+  for (const member of fieldedModels(node)) {
+    const name = member.link?.name ?? member.target.name ?? member.target.id
+    const held = models.get(name) ?? new Set()
+    for (const id of heldBy(member, grants)) held.add(id)
+    models.set(name, held)
+  }
+  const own = [...heldBy(node, grants)]
+  const linkedBySome = new Set([...models.values()].flatMap((held) => [...held]))
+  const everyModel = own.filter((id) => !linkedBySome.has(id))
+  return {
+    keywords: [...new Set([...own, ...linkedBySome])],
+    models: [...models].map(([name, held]) => ({ name, keywords: [...new Set([...everyModel, ...held])] })),
+  }
+}
+
+const fieldedModels = (node: Node) =>
+  descendants(node).filter((member) => member !== node && member.target.type === 'model' && member.fielded > 0)
+
+function heldBy(member: Node, grants: Map<Node, Map<string, boolean>>): Set<string> {
+  const own = linkedCategories(member)
+  for (const [categoryId, present] of grants.get(member) ?? []) {
+    if (present) own.add(categoryId)
+    else own.delete(categoryId)
+  }
+  return own
 }
 
 /** Evaluate each force independently while retaining roster-scoped conditions across all of them. */
