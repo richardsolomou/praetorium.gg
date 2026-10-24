@@ -82,7 +82,7 @@ export function OfflineReference() {
               ? {
                   revision: held.revision,
                   ...(held.revision === manifest.revision ? { parts: partsOf(held) } : {}),
-                  construction: held.constructionBundle === constructionUrl ? packedConstructionOf(held) : undefined,
+                  construction: held.constructionBundle === constructionUrl ? (packedConstructionOf(held) ?? held.construction) : undefined,
                 }
               : null,
             origin: location.origin,

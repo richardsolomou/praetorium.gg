@@ -2,7 +2,7 @@ import { gzipSync } from 'node:zlib'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { downloadReference, partsOf, type DownloadMessage, type DownloadRequest } from './referenceDownload'
 import { restoredReference } from './referenceRestore'
-import type { OfflineReferenceData } from '../../contracts/offlineReference'
+import type { OfflineConstructionData, OfflineReferenceData } from '../../contracts/offlineReference'
 
 const revision = 'a'.repeat(64)
 const manifest = {
@@ -78,6 +78,18 @@ it('does not report a reference the page already holds', async () => {
 it('reuses the held reference for an application-only update without downloading it', async () => {
   await download({ revision, parts: partsOf(reference), construction: 'packed' })
   expect(fetched).not.toContain(manifest.bundle)
+})
+
+it('packs held construction data that was saved decoded without downloading it again', async () => {
+  const { saved } = await download({
+    revision,
+    parts: partsOf(reference),
+    construction: construction as unknown as OfflineConstructionData,
+  })
+  expect({ fetched: fetched.includes(manifest.construction.current), construction: restoredReference(saved.parts).construction }).toEqual({
+    fetched: false,
+    construction,
+  })
 })
 
 it('saves an application whose reference the page restores', async () => {

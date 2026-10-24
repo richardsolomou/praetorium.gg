@@ -9,10 +9,10 @@ export type DownloadRequest = {
   constructionUrl: string
   allRulesVersions: boolean
   /**
-   * The download the page holds: its reference when this download keeps it, and its construction data still packed
-   * when this download keeps that.
+   * The download the page holds: its reference when this download keeps it, and its construction data when this
+   * download keeps that, still packed unless it was saved by a release that did not pack it apart.
    */
-  held: { revision: string; parts?: NonNullable<RestoredParts>; construction?: string } | null
+  held: { revision: string; parts?: NonNullable<RestoredParts>; construction?: string | OfflineReferenceData['construction'] } | null
   /** Absolute, because an inline worker resolves relative addresses against its `blob:` URL. */
   origin: string
 }
@@ -47,7 +47,10 @@ export async function downloadReference(request: DownloadRequest, post: (message
     allRulesVersions: request.allRulesVersions,
   }
   if (!kept) post({ kind: 'reference', parts: partsOf(content) })
-  const construction = held?.construction ?? (await pack(await constructionBundle(at(request.constructionUrl), signal), signal))
+  const construction =
+    typeof held?.construction === 'string'
+      ? held.construction
+      : await pack(held?.construction ?? (await constructionBundle(at(request.constructionUrl), signal)), signal)
   const application = await offlineApplication(
     withConstruction({ ...content, constructionBundle: request.constructionUrl }, construction),
     version,
