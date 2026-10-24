@@ -6,13 +6,15 @@ import { Button } from '@/components/ui/button'
 import { FullPageState } from './client/components/PageState'
 import { createQueryClient } from './client/queryClient'
 import { isModuleLoadFailure } from './client/networkErrors'
+import { checkedStaleBuildRelease, staleBuildRelease } from './client/releaseUpdate'
 import {
-  completedModuleRecovery,
+  completedRouteRecovery,
   mayReloadCancelledLoad,
-  moduleRecoveryAttempt,
   reloadModuleRoute,
+  reloadStaleBuild,
   reportRouteError,
   routeErrorExplanation,
+  routeRecoveryPending,
 } from './client/routeErrors'
 import { siteOrigin } from './server/requestOrigin'
 import { routeTree } from './routeTree.gen'
@@ -20,13 +22,25 @@ import { routeTree } from './routeTree.gen'
 /**
  * A loader that joined a read whose last viewer unmounted mid-flight sees it cancelled, not failed, so the route loads
  * again instead of showing an error. Signing in in the mobile app does this: the refetch it starts loses its screen.
+ * A page built before the deployed release can fail on the newer server's responses, which only its code can fix.
  */
 function RouteError({ error }: ErrorComponentProps) {
   const router = useRouter()
+  const { queryClient } = router.options.context
   const [reload] = useState(() => error instanceof CancelledError && mayReloadCancelledLoad())
   useEffect(() => {
-    if (reload) void router.invalidate()
-  }, [reload, router])
+    if (reload) {
+      void router.invalidate()
+      return
+    }
+    let mounted = true
+    void checkedStaleBuildRelease(queryClient).then((release) => {
+      if (mounted && release) reloadStaleBuild(release, 'route_error', { saving: queryClient.isMutating() > 0 })
+    })
+    return () => {
+      mounted = false
+    }
+  }, [reload, router, queryClient])
   if (reload) return null
   return (
     <FullPageState
@@ -38,7 +52,15 @@ function RouteError({ error }: ErrorComponentProps) {
             Reload
           </Button>
         ) : (
-          <Button data-route-error onClick={() => void router.invalidate()}>
+          <Button
+            data-route-error
+            onClick={() =>
+              void checkedStaleBuildRelease(queryClient).then((release) => {
+                if (release) reloadStaleBuild(release, 'try_again')
+                else void router.invalidate()
+              })
+            }
+          >
             Try again
           </Button>
         )
@@ -58,8 +80,17 @@ export function getRouter() {
     defaultOnCatch: reportRouteError,
   })
   if (typeof window !== 'undefined') {
+    // A route change discards the screen's unsaved state anyway, so a full load costs nothing a client navigation keeps.
+    router.subscribe('onBeforeNavigate', ({ pathChanged, toLocation }) => {
+      const release = pathChanged && staleBuildRelease(queryClient)
+      if (release)
+        reloadStaleBuild(release, 'navigation', {
+          href: new URL(toLocation.href, window.location.origin).href,
+          saving: queryClient.isMutating() > 0,
+        })
+    })
     router.subscribe('onRendered', () => {
-      if (!moduleRecoveryAttempt(window.location.href)) return
+      if (!routeRecoveryPending(window.location.href)) return
       const location = router.state.location.href
       const matches = router.state.matches
       const components = matches.map((match) => router.routesById[match.routeId]?.options.component)
@@ -74,7 +105,7 @@ export function getRouter() {
               components.some((component) => component?.preload)
             )
               return
-            const recovered = completedModuleRecovery(window.location.href)
+            const recovered = completedRouteRecovery(window.location.href)
             if (recovered) router.history.replace(recovered)
           })
         },

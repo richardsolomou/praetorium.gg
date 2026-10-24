@@ -1,4 +1,6 @@
+import type { Page } from '@playwright/test'
 import { expect, test } from './test'
+import { retryUntilVisible } from './account'
 import manifest from '../package.json' with { type: 'json' }
 const { version } = manifest
 
@@ -67,4 +69,64 @@ test("an update shows no what's new notice", async ({ page }) => {
   await page.reload()
   await expect(page.getByRole('link', { name: 'Rosters', exact: true }).first()).toBeVisible()
   await expect(page.getByRole('complementary', { name: "What's new" })).toHaveCount(0)
+})
+
+const staleBuildMarker = /[?&]__build_retry=\d+\.(\d)\.99\.0\.0(?:&|#|$)/
+
+/** Serves a factions route module that fails the way an older build's code fails on a newer server's response. */
+async function failFactionsModule(page: Page, failing: (document: URL) => boolean) {
+  let broken = failing(new URL(page.url()))
+  await page.route('**/*', async (route) => {
+    const request = route.request()
+    const url = new URL(request.url())
+    if (request.isNavigationRequest()) broken = failing(url)
+    if (broken && /\/assets\/factions-[^/]+\.js$/.test(url.pathname))
+      await route.fulfill({
+        body: `throw new TypeError("Cannot read properties of undefined (reading 'flatMap')")`,
+        headers: { 'content-type': 'text/javascript', 'cache-control': 'no-store' },
+      })
+    else await route.fallback()
+  })
+}
+
+test('a page built before the deployed release loads its next route from the new release', async ({ page }) => {
+  await page.route('**/api/release', (route) => route.fulfill({ json: { version: '99.0.0' }, headers: { 'cache-control': 'no-store' } }))
+  await page.goto('/')
+  await expect(page.getByRole('complementary', { name: 'Release update' })).toBeVisible()
+  await page.evaluate(() => Object.assign(window, { previousDocument: true }))
+  await page.getByRole('link', { name: 'Rosters', exact: true }).first().click()
+  await expect(page).toHaveURL(staleBuildMarker)
+  await expect(page.getByRole('heading', { name: 'Rosters', exact: true }).first()).toBeVisible()
+  expect(await page.evaluate(() => 'previousDocument' in window)).toBe(false)
+})
+
+test('a route error in a page built before the deployed release reloads into the new release', async ({ page }) => {
+  let served = version
+  await page.route('**/api/release', (route) => route.fulfill({ json: { version: served }, headers: { 'cache-control': 'no-store' } }))
+  await page.goto('/')
+  await expect(page.getByRole('link', { name: 'Rosters', exact: true }).first()).toBeVisible()
+  await failFactionsModule(page, (document) => !document.searchParams.has('__build_retry'))
+  // The release changes between checks, so only the error page's own check can notice it.
+  served = '99.0.0'
+  await retryUntilVisible(page.getByRole('combobox'), () =>
+    page.getByRole('button', { name: 'Search Praetorium', exact: true }).filter({ visible: true }).click(),
+  )
+  await page.getByRole('combobox').fill('Factions')
+  await page.getByRole('option', { name: /^Factions / }).click()
+  await expect(page.getByRole('heading', { name: 'Factions', exact: true })).toBeVisible()
+  await expect(page).toHaveURL(staleBuildMarker)
+})
+
+test('try again reloads a stale page that has stopped reloading itself', async ({ page }, testInfo) => {
+  let recovering = false
+  await page.route('**/api/release', (route) => route.fulfill({ json: { version: '99.0.0' }, headers: { 'cache-control': 'no-store' } }))
+  await failFactionsModule(page, () => !recovering)
+  await page.goto('/factions?__build_retry=1234.3.99.0.0')
+  const tryAgain = page.getByRole('button', { name: 'Try again', exact: true })
+  await expect(tryAgain).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('stale-build-error.png') })
+  recovering = true
+  await tryAgain.click()
+  await expect(page.getByRole('heading', { name: 'Factions', exact: true })).toBeVisible()
+  expect(staleBuildMarker.exec(page.url())?.[1]).toBe('3')
 })
