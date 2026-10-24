@@ -7,7 +7,8 @@ import { isEntryPoint } from './lib/entryPoint'
 import { requiredEnv } from './lib/requiredEnv'
 
 const SUPPRESS_EMBEDS = 1 << 2
-const DIVIDER = '────────────────────────'
+// Discord trims trailing whitespace; the invisible character preserves the final blank line.
+const SPACER = '\n\n\u200b'
 const snowflake = z.string().regex(/^\d{17,20}$/)
 const receiptSchema = z.discriminatedUnion('status', [
   z.object({ status: z.literal('pending'), revision: z.string() }),
@@ -35,11 +36,11 @@ export function discordAnnouncement(changelog: string, version: string) {
     utm_campaign: `release-${version.replaceAll('.', '-')}`,
   }).toString()
   link.hash = `release-${version}`
-  const heading = `${DIVIDER}\n\n## Praetorium v${version} is live\n[Full update notes](${link.href}) · [GitHub release](https://github.com/richardsolomou/praetorium.gg/releases/tag/v${version})\n\n`
+  const heading = `## 📜 Praetorium v${version} is live\n[Full update notes](${link.href}) · [GitHub release](https://github.com/richardsolomou/praetorium.gg/releases/tag/v${version})\n\n`
   const changes = release.changes.map((change) => `- ${change}`).join('\n')
-  const budget = 2000 - heading.length
+  const budget = 2000 - heading.length - SPACER.length
   const summary = changes.length <= budget ? changes : `${changes.slice(0, budget - 1).trimEnd()}…`
-  return { content: `${heading}${summary}`, allowed_mentions: { parse: [] }, flags: SUPPRESS_EMBEDS }
+  return { content: `${heading}${summary}${SPACER}`, allowed_mentions: { parse: [] }, flags: SUPPRESS_EMBEDS }
 }
 
 export async function announceDiscord({
