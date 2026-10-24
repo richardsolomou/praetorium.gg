@@ -168,7 +168,12 @@ const cases: Case[] = [
     events: [['league_updated', { visibility: 'private', admission: 'approval', player_limit_set: false }]],
   },
   { kind: 'deleteLeague', input: { token: league.token }, events: [['league_deleted']] },
-  { kind: 'deleteBattle', input: { token: 'private-battle' }, events: [['battle_deleted']] },
+  {
+    kind: 'deleteBattle',
+    input: { token: 'private-battle' },
+    result: 'battle-id',
+    events: [['battle_deleted', { battle_id: 'battle-id' }]],
+  },
   {
     kind: 'createBattle',
     input: { limit: 2000, opponentId: 'private-opponent' },
