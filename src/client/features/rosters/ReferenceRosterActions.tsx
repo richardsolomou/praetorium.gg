@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, Plus } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { useState, type ReactNode } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -102,18 +102,7 @@ export function StartRoster({ faction, detachmentId }: { faction: RosterSetupFac
  * Space Marines datasheet offers a Blood Angels list too. The builder then adds the
  * unit under that roster's own limits, and says so when it cannot.
  */
-export function AddToRoster({
-  faction,
-  entryId,
-  name,
-  renderTrigger,
-}: {
-  faction: RosterSetupFaction
-  entryId: string
-  name: string
-  /** Draws whatever opens the flow; the dialogs stay here so the trigger may live in a menu that closes. */
-  renderTrigger: (open: () => void) => ReactNode
-}) {
+export function AddToRoster({ faction, entryId, name }: { faction: RosterSetupFaction; entryId: string; name: string }) {
   const [step, setStep] = useState<'closed' | 'choose' | 'create'>('closed')
   const [guestDraft, setGuestDraft] = useState<GuestDraft | null>(null)
   const { data: me } = useQuery(meQuery())
@@ -140,12 +129,17 @@ export function AddToRoster({
     return book ? rulesVersionLabel(book) : 'Loading rules version…'
   }
 
+  const create = () => {
+    posthog.capture('roster_creation_started', { reference: 'datasheet' })
+    setStep('create')
+  }
   const open = () => {
     posthog.capture('roster_add_started', { reference: 'datasheet' })
     const draft = me ? null : readGuestDraft()
     setGuestDraft(draft)
     // A visitor with nothing built yet has only one place to go.
-    setStep(!me && !draft && canStart ? 'create' : 'choose')
+    if (!me && !draft && canStart) create()
+    else setStep('choose')
   }
   const account = useAccountPrompt()
   const startNew = () => {
@@ -153,13 +147,14 @@ export function AddToRoster({
       setStep('closed')
       return account.ask('another-roster')
     }
-    posthog.capture('roster_creation_started', { reference: 'datasheet' })
-    setStep('create')
+    create()
   }
 
   return (
     <>
-      {renderTrigger(open)}
+      <Button size="sm" onClick={open}>
+        <Plus /> Add to roster
+      </Button>
       <Dialog open={choosing} onOpenChange={(next) => !next && setStep('closed')}>
         <DialogContent>
           <DialogHeader>

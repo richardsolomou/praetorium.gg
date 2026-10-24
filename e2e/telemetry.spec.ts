@@ -293,16 +293,20 @@ test('a datasheet reader who starts a roster or the simulator is attributed to t
   await page.goto('/factions/necrons/datasheets/imotekh-the-stormlord')
   await page.waitForLoadState('networkidle')
   const events = await recordEvents(page)
-  await page.getByRole('button', { name: 'Add to', exact: true }).click()
-  await page.getByRole('button', { name: 'Roster…' }).click()
+  await page.getByRole('button', { name: 'Add to roster', exact: true }).click()
   const setup = page.getByRole('dialog', { name: 'Create roster' })
   await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await setup.getByRole('button', { name: 'Create roster' }).click()
   await expect
-    .poll(() => events.filter((event) => ['roster_add_started', 'guest_roster_started', 'roster_unit_added'].includes(event.name)))
+    .poll(() =>
+      events.filter((event) =>
+        ['roster_add_started', 'roster_creation_started', 'guest_roster_started', 'roster_unit_added'].includes(event.name),
+      ),
+    )
     .toEqual([
       { name: 'roster_add_started', properties: { reference: 'datasheet' } },
+      { name: 'roster_creation_started', properties: { reference: 'datasheet' } },
       { name: 'guest_roster_started', properties: { limit: 2000, detachment_count: 1, reference: 'datasheet' } },
       { name: 'roster_unit_added', properties: { unit_count: 1, reference: 'datasheet' } },
     ])
