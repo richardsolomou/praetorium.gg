@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { setGlobalLogLevel } from 'spacetimedb'
 import { z } from 'zod'
 import { DbConnection, tables } from '../spacetime/generated'
 import { battleQuery, battlesQuery } from './queries'
@@ -69,6 +70,8 @@ type Ticket = { token: string; database: string; uri: string }
 
 /** The SDK rides out a dropped socket on its own; the loop replaces the connection only once it gives up. */
 function connection<T extends Ticket>(issued: T, link: SpacetimeLink<T>) {
+  // The SDK logs every connect at info through console.log, which console capture records; failures reach report().
+  setGlobalLogLevel('warn')
   return DbConnection.builder()
     .withUri(issued.uri)
     .withDatabaseName(issued.database)
