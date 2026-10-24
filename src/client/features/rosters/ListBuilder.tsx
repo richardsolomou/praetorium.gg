@@ -96,7 +96,7 @@ import { cardEmbark, editedPicks, embarkCards, embarkRows, NO_EMBARK } from './b
 import { UnitPhoto } from './builder/UnitPhoto'
 import { useDetachmentRules } from './builder/useDetachmentRules'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
-import { type AttachLink, canAddCopy, defaultWarlord, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
+import { type AttachLink, canAddCopy, settledWarlord, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog, type RosterTextExport } from './RosterExportDialog'
 import { RosterExchangeDialog, type RosterExchangeCode } from './RosterExchangeDialog'
@@ -605,10 +605,13 @@ export function ListBuilder({
     const regrouped = picks.length !== evaluatedPicks.current.size || picks.some((pick) => !evaluatedPicks.current.has(pick.key))
     evaluatedAt.current = pricedAt
     evaluatedPicks.current = new Map(picks.map((pick) => [pick.key, pick]))
-    const warlord = editable && regrouped ? defaultWarlord(picks, priced.units) : null
+    const warlord = editable ? settledWarlord(picks, priced.units, regrouped) : null
     if (warlord)
       setPicks((current) =>
-        current.map((pick, at) => (at === warlord.index ? { ...pick, toggles: { ...pick.toggles, [warlord.toggle]: 1 } } : pick)),
+        current.map((pick, at) => {
+          const toggle = priced.units[at]?.toggles.find((candidate) => candidate.name === 'Warlord')
+          return toggle ? { ...pick, toggles: { ...pick.toggles, [toggle.key]: at === warlord.index ? 1 : 0 } } : pick
+        }),
       )
   }, [editable, picks, pricePending, priced, pricedAt, setPicks])
 
@@ -1093,6 +1096,7 @@ export function ListBuilder({
         attaches: unit.joined?.some((row) => row.label === 'Supporting') ? ('support' as const) : undefined,
         name: unit.name,
         group: unit.group ?? ('other' as const),
+        warlord: unit.warlord,
         joined: unit.joined ?? [],
         unit: {
           entryId: unit.entryId ?? unit.key,
@@ -1112,14 +1116,16 @@ export function ListBuilder({
         attaches: unit.attachment?.kind,
         name: unit.name,
         group: unit.group,
+        warlord: unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected),
         joined: NO_JOINED,
         unit,
       }))
-  const renderCard = ({ unit, index, joined }: (typeof cards)[number], inUnit = false) =>
+  const renderCard = ({ unit, index, joined, warlord }: (typeof cards)[number], inUnit = false) =>
     frozen ? (
       <UnitCard
         key={unit.entryId + index}
         unit={unit}
+        warlord={warlord}
         nickname={frozen.units[index]?.nickname}
         note={frozen.units[index]?.note}
         joined={[
@@ -1134,6 +1140,7 @@ export function ListBuilder({
       <BuilderUnitCard
         key={picks[index]?.key ?? unit.entryId}
         unit={unit}
+        warlord={warlord}
         nickname={picks[index]?.nickname}
         note={picks[index]?.note}
         index={index}
@@ -1228,6 +1235,10 @@ export function ListBuilder({
   const waiverKey = waivers.map((rule) => rule.id).join(',')
   const inspectorView = building ? 'edit' : 'readonly'
   const warlord = optimisticUnit?.toggles.find((toggle) => toggle.name === 'Warlord')
+  // A unit the data requires as Warlord holds the crown, so no other unit can claim it and it cannot be given up.
+  const requiredWarlord = units.find((unit) =>
+    unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.required && toggle.selected),
+  )
   const inspectedEntryId = preview?.entryId ?? optimisticUnit?.entryId ?? null
   const referenceRoute = reference?.entryId === inspectedEntryId ? reference.route : null
   const limitFailure = priceFailed ? (
@@ -1863,10 +1874,15 @@ export function ListBuilder({
                       <button
                         type="button"
                         data-onboarding="unit-warlord"
-                        title={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
+                        title={
+                          requiredWarlord
+                            ? `${requiredWarlord.name} must be your Warlord`
+                            : `${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`
+                        }
                         aria-label={`${warlord.selected ? 'Remove' : 'Make'} ${optimisticUnit.name} Warlord`}
                         aria-pressed={warlord.selected}
-                        className={`chip gap-1 ${warlord.selected ? 'text-info' : 'hover:border-info hover:text-bone'}`}
+                        disabled={Boolean(requiredWarlord)}
+                        className={`chip gap-1 ${warlord.selected ? 'text-info' : requiredWarlord ? 'cursor-not-allowed text-faint' : 'hover:border-info hover:text-bone'}`}
                         onClick={() => selected !== null && edit.toggle(selected, warlord.key, warlord.name, !warlord.selected)}
                       >
                         <Crown className={`size-3.5 ${warlord.selected ? 'fill-current' : ''}`} />
