@@ -1757,6 +1757,7 @@ export function ListBuilder({
                     return members.length > 1 ? (
                       <AttachedUnitBlock
                         key={host.key}
+                        name={host.name}
                         nickname={(frozen ? frozen.units[host.index] : picks[host.index])?.nickname}
                         points={members.reduce((total, card) => total + card.unit.points, 0)}
                         editable={!frozen && building}

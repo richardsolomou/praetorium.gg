@@ -110,7 +110,7 @@ test('an exchange code carries a roster to another account and to a visitor', as
   await draft.getByRole('button', { name: 'Open imported draft', exact: true }).click()
   await expect(visitor.locator('[data-unit="Immortals"]')).toHaveCount(1)
   // The attachment arrives too: the Overlord is outlined with the Immortals it leads.
-  const attached = visitor.getByRole('region', { name: 'Attached unit' })
+  const attached = visitor.getByRole('region', { name: 'Immortals', exact: true })
   await expect(attached.locator('[data-unit]')).toHaveCount(2)
   await expect(attached.locator('[data-unit="Immortals"]')).toBeVisible()
   await expect(attached.locator('[data-unit="Overlord"]')).toBeVisible()
