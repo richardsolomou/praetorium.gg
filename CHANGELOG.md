@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.184.5
+
+### Patch Changes
+
+- a87cc47: Nork Deddog, Ogryn Bodyguard and Regimental Attachés can embark in any transport their Command Squad can, with a Loyal Protector taking up the space of 3 models.
+
 ## 0.184.4
 
 ### Patch Changes
