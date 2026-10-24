@@ -18,6 +18,7 @@ import { DATACARDS_ATTRIBUTION } from './datacards'
 import { ifNoneMatch } from './ifNoneMatch'
 import { fixedWindowRateLimit } from './rateLimit'
 import { catalogueEditionId } from '../core/catalogueEdition'
+import { datasheetPageBySlug } from '../core/datasheetSlug'
 
 type ReferenceRecord = {
   kind: ReferenceKind
@@ -166,8 +167,9 @@ export async function referenceDatasheetResponse(request: Request, catalogueId: 
   if (limited) return limited
   const corpus = await activeReferenceCorpus(catalogueId)
   if (!corpus) return referenceUnavailable()
-  const data = corpus.catalogue.datasheets.find(
-    (sheet) => sheet.slug === slug && (sheet.catalogueId === catalogueId || sheet.referenceRoute?.catalogueId === catalogueId),
+  const data = datasheetPageBySlug(
+    corpus.catalogue.datasheets.filter((sheet) => sheet.catalogueId === catalogueId || sheet.referenceRoute?.catalogueId === catalogueId),
+    slug,
   )
   if (!data) return problem('datasheet not found', 404)
   const route = data.referenceRoute ?? { catalogueId: data.catalogueId, slug: data.slug }

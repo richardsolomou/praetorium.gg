@@ -20,14 +20,7 @@ import { combatCarriers, referenceOnlyWeapon } from '../core/combatLoadout'
 import { ruleReferenceMatches, splitWeaponKeywords } from '../core/ruleReference'
 import { routeSlug } from '../core/slug'
 import { matchesKeywordSelector, normalizeKeywordSelector } from '../core/keywords'
-import {
-  datasheetIdBySlug,
-  datasheetSlug,
-  datasheetsOf,
-  isReferenceDatasheet,
-  referenceDatasheetRoute,
-  type LoadedCatalogue,
-} from './catalogueIndex'
+import { datasheetIdBySlug, datasheetSlug, datasheetsOf, referenceDatasheetRoute, type LoadedCatalogue } from './catalogueIndex'
 import { type DatasheetSearchFields, dedupeWeapons } from '../core/datasheetSearch'
 import { priceOf } from './catalogueUnit'
 import { datacardOf } from './datasheetJoin'
@@ -1074,5 +1067,5 @@ function uniqueAbilities(abilities: Datasheet['abilities']) {
 
 export function datasheetInBySlug(loaded: LoadedCatalogue, catalogueId: string, slug: string) {
   const entryId = datasheetIdBySlug(loaded, catalogueId, slug)
-  return entryId && isReferenceDatasheet(loaded, catalogueId, entryId) ? datasheetIn(loaded, catalogueId, entryId) : null
+  return entryId ? datasheetIn(loaded, catalogueId, entryId) : null
 }

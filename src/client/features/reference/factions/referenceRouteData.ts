@@ -38,6 +38,7 @@ export async function loadFactionDatasheet(queryClient: QueryClient, catalogueId
   if (!faction) throw notFound()
   const sheet = await queryClient.query({ ...datasheetSlugQuery(faction.id, entryId), staleTime: 'static' })
   if (!sheet) throw notFound()
+  if (sheet.slug !== entryId) throw redirect({ href: factionReferenceHref(faction, `/datasheets/${sheet.slug}`), statusCode: 301 })
   await queryClient.query({
     ...referenceChangesQuery({ kind: 'datasheet', faction: faction.slug, slug: sheet.slug }),
     staleTime: 'static',

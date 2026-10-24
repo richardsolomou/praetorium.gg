@@ -5,6 +5,7 @@ import { isReferenceDatasheet } from '../shared/catalogueIndex'
 import { coreRulesFirst } from './rulesCore'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import { datasheetInBySlug } from '../shared/catalogue'
+import { datasheetPageBySlug } from '../core/datasheetSlug'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { describeDatasheetAbilities } from '../shared/datasheetDescriptions'
 import { detachmentReference } from '../shared/detachmentReference'
@@ -29,7 +30,10 @@ type ReferenceSources = {
 export function referenceDatasheetBySlug(sources: ReferenceSources, data: { catalogueId: string; slug: string }) {
   const canonical = sources.canonicalCatalogue()
   if (canonical) {
-    return canonical.datasheets.find((sheet) => sheet.catalogueId === data.catalogueId && sheet.slug === data.slug) ?? null
+    return datasheetPageBySlug(
+      canonical.datasheets.filter((sheet) => sheet.catalogueId === data.catalogueId),
+      data.slug,
+    )
   }
   const loaded = sources.catalogue()
   return loaded
