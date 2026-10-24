@@ -7,6 +7,7 @@ const UNIT = 'Immortals'
 const LOADOUT = 'Six Immortals'
 const RENAMED = 'Tesla Immortals'
 const NOTE = 'Loadout note stays in its roster'
+const NICKNAME = 'Tesla Wall'
 const RETIRED = 'Retired guard'
 
 const rosterId = (page: Page) => new URL(page.url()).pathname.split('/').at(-1)!
@@ -38,6 +39,7 @@ for (const [width, label] of [
     await expect(page.getByLabel(`${UNIT} models`)).toHaveText('6')
     const fields = page.getByRole('region', { name: 'Note' })
     await waitForRosterSave(page, () => fields.getByRole('textbox', { name: 'Note', exact: true }).fill(NOTE), NOTE)
+    await waitForRosterSave(page, () => fields.getByRole('textbox', { name: 'Custom name', exact: true }).fill(NICKNAME), NICKNAME)
     const back = page.getByRole('button', { name: 'Back to roster' })
     if (await back.isVisible()) await back.click()
 
@@ -101,7 +103,10 @@ for (const [width, label] of [
     await expect(retired).toHaveCount(0)
     await waitForRosterSave(page, () => renamed.getByRole('button', { name: `Add saved loadout ${RENAMED}` }).click())
     await closePicker(page)
-    await page.locator(`[data-unit="${UNIT}"]`).getByRole('button', { name: UNIT, exact: true }).click()
+    await page
+      .locator(`[data-unit="${UNIT}"]`)
+      .getByRole('button', { name: `${NICKNAME} · ${UNIT}`, exact: true })
+      .click()
     await expect(page.getByLabel(`${UNIT} models`)).toHaveText('6')
     const destination = await operator.roster(rosterId(page))
     expect(destination?.picks).not.toContain(NOTE)

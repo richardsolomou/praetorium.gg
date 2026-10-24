@@ -302,6 +302,10 @@ describe('applying a saved loadout', () => {
     })
   })
 
+  it('keeps the saved nickname', () => {
+    expect(applied({ entryId: 'squad', catalogueId: 'imperium', nickname: 'Tesla Wall' })?.nickname).toBe('Tesla Wall')
+  })
+
   it('never joins it to the unit at the saved attachment position', () => {
     expect(applied({ entryId: 'squad', catalogueId: 'imperium', attachedTo: 0 })?.attachedTo).toBeUndefined()
   })
