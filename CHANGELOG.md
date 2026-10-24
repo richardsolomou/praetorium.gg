@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.184.4
+
+### Patch Changes
+
+- 6d3e8b8: The agent combat tool and simulator links can field a unit that joins an attached unit, such as Nork Deddog with the Cadian Command Squad leading Cadian Shock Troops.
+
 ## 0.184.3
 
 ### Patch Changes
