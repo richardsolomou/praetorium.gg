@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from './test'
-import { retryUntilVisible } from './account'
+import { createBattle, retryUntilVisible, signUp, uniqueName } from './account'
 import manifest from '../package.json' with { type: 'json' }
 const { version } = manifest
 
@@ -129,4 +129,41 @@ test('try again reloads a stale page that has stopped reloading itself', async (
   await tryAgain.click()
   await expect(page.getByRole('heading', { name: 'Factions', exact: true })).toBeVisible()
   expect(staleBuildMarker.exec(page.url())?.[1]).toBe('3')
+})
+
+test('a stale page sends a queued battle command before a route change reloads it', async ({ page }) => {
+  await signUp(page, uniqueName('Stale commander'))
+  await createBattle(page, { practice: true })
+  await page.route('**/api/release', (route) => route.fulfill({ json: { version: '99.0.0' }, headers: { 'cache-control': 'no-store' } }))
+  let holding = false
+  let release!: () => void
+  const released = new Promise<void>((resolve) => (release = resolve))
+  let held!: () => void
+  const sent = new Promise<void>((resolve) => (held = resolve))
+  await page.route('**/_serverFn/**', async (route) => {
+    if (holding && route.request().method() === 'POST') {
+      held()
+      await released
+    }
+    await route.fallback()
+  })
+  await page.reload()
+  await expect(page.getByRole('complementary', { name: 'Release update' })).toBeVisible()
+  await page.getByRole('button', { name: 'Change battle size and mission pack' }).click()
+  holding = true
+  await page.getByRole('button', { name: /^Manual/ }).click()
+  await sent
+  await page.evaluate(() => Object.assign(window, { previousDocument: true }))
+  await page.getByRole('link', { name: 'Rosters', exact: true }).first().click()
+  await expect(page.getByRole('heading', { name: 'Rosters', exact: true }).first()).toBeVisible()
+  expect(await page.evaluate(() => 'previousDocument' in window)).toBe(true)
+  holding = false
+  release()
+  // Once the command lands, the next route change reloads; alternate destinations so each click changes route.
+  let destination = 'Battles'
+  await expect(async () => {
+    destination = destination === 'Battles' ? 'Leagues' : 'Battles'
+    await page.getByRole('link', { name: destination, exact: true }).first().click({ timeout: 1_000 })
+    await expect(page).toHaveURL(staleBuildMarker, { timeout: 1_000 })
+  }).toPass({ timeout: 20_000 })
 })

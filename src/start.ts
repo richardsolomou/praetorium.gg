@@ -3,6 +3,7 @@ import { canonicalHostMiddleware, serverFunctionIdentityMiddleware } from 'ras-s
 import { serverTelemetry } from './adapters/posthog'
 import { crawlerRequestEvent } from './server/crawlerRequests'
 import { sharedPageCache } from './server/sharedPageCache'
+import { holdingReload } from './client/pendingWrites'
 
 /** Records public page reads as `$http_log`, after the response is ready so the capture never delays it. */
 const crawlerRequestMiddleware = createMiddleware({ type: 'request' }).server(async ({ request, next }) => {
@@ -23,9 +24,14 @@ const sharedPageCacheMiddleware = createMiddleware({ type: 'request' }).server(a
   return result
 })
 
+/** Server function writes post, so a stale page waits for them before it reloads. */
+const pendingWriteMiddleware = createMiddleware({ type: 'function' }).client(({ method, next }) =>
+  method === 'POST' ? holdingReload(next()) : next(),
+)
+
 export const startInstance = createStart(() => ({
   // Names each server function on its trace span and request metrics.
-  functionMiddleware: [serverFunctionIdentityMiddleware()],
+  functionMiddleware: [serverFunctionIdentityMiddleware(), pendingWriteMiddleware],
   requestMiddleware: [
     canonicalHostMiddleware(() => ({
       canonicalUrl: process.env.APP_URL,

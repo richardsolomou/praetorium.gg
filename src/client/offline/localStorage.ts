@@ -2,6 +2,7 @@ import { createStore, get, update } from 'idb-keyval'
 import { emptyLocalState, parseLocalState, type LocalState } from '../../contracts/localState'
 import { requestNativeLocalState, supportsNativeLocalState } from '../nativeBridge'
 import type { LocalStateStorage } from './syncEngine'
+import { holdingReload } from '../pendingWrites'
 
 declare global {
   interface Window {
@@ -84,53 +85,55 @@ export function localStateStorage(owner: string): LocalStateStorage {
   }
   return {
     read: async () => verify(await readStoredState(owner, true)),
-    change: async (change) => {
-      if (supportsNativeLocalState())
-        return nativeWrite(owner, async () => {
-          for (let attempt = 0; attempt < 5; attempt++) {
-            // The shell refuses a write made against a stale revision, so only a retry needs the shell's copy.
-            const saved = await readStoredState(owner, attempt === 0)
-            const current = verify(saved)
-            const changed = change(current)
-            if (changed === current) return current
-            const next = { ...changed, revision: current.revision + 1 }
-            if (!parseLocalState(next)) throw new Error('Saved work exceeds this device’s storage limit.')
-            const answer = await requestNativeLocalState(owner, {
-              state: next,
-              epoch: saved.epoch,
-              expectedRevision: saved.state?.revision ?? 0,
-            })
-            if (answer.saved) {
-              notify(owner, answer)
-              return next
-            }
-            verify(answer)
-          }
-          throw new Error('Another window is saving changes. Try again.')
-        })
-      let result!: StoredState
-      let kept: LocalState | undefined
-      await update<StoredState>(
-        `work:${owner}`,
-        (saved) => {
-          const previous = saved ?? { epoch: crypto.randomUUID(), state: null }
-          const current = verify(previous)
+    change: (change) => holdingReload(write(change)),
+  }
+
+  async function write(change: Parameters<LocalStateStorage['change']>[0]): Promise<LocalState> {
+    if (supportsNativeLocalState())
+      return nativeWrite(owner, async () => {
+        for (let attempt = 0; attempt < 5; attempt++) {
+          // The shell refuses a write made against a stale revision, so only a retry needs the shell's copy.
+          const saved = await readStoredState(owner, attempt === 0)
+          const current = verify(saved)
           const changed = change(current)
-          if (changed === current) {
-            kept = current
-            return previous
-          }
+          if (changed === current) return current
           const next = { ...changed, revision: current.revision + 1 }
           if (!parseLocalState(next)) throw new Error('Saved work exceeds this device’s storage limit.')
-          result = { epoch: previous.epoch, state: next }
-          return result
-        },
-        store,
-      )
-      if (kept) return kept
-      notify(owner, result)
-      return result.state!
-    },
+          const answer = await requestNativeLocalState(owner, {
+            state: next,
+            epoch: saved.epoch,
+            expectedRevision: saved.state?.revision ?? 0,
+          })
+          if (answer.saved) {
+            notify(owner, answer)
+            return next
+          }
+          verify(answer)
+        }
+        throw new Error('Another window is saving changes. Try again.')
+      })
+    let result!: StoredState
+    let kept: LocalState | undefined
+    await update<StoredState>(
+      `work:${owner}`,
+      (saved) => {
+        const previous = saved ?? { epoch: crypto.randomUUID(), state: null }
+        const current = verify(previous)
+        const changed = change(current)
+        if (changed === current) {
+          kept = current
+          return previous
+        }
+        const next = { ...changed, revision: current.revision + 1 }
+        if (!parseLocalState(next)) throw new Error('Saved work exceeds this device’s storage limit.')
+        result = { epoch: previous.epoch, state: next }
+        return result
+      },
+      store,
+    )
+    if (kept) return kept
+    notify(owner, result)
+    return result.state!
   }
 }
 

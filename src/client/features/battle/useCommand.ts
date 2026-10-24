@@ -12,6 +12,7 @@ import { errorMessage } from '../../queryClient'
 import { requestNativeHaptic } from '../../nativeBridge'
 import { captureAppSnapshot } from '../../offline/appSnapshot'
 import { writeAppSnapshot } from '../../offline/appStorage'
+import { holdingReload } from '../../pendingWrites'
 
 /** A list the server prices and freezes before it is attached: a saved one, or the draft a guest built on this device. */
 export type RosterAttachment =
@@ -152,7 +153,8 @@ export function useCommand(token: string, seq: number) {
   }, [seq])
 
   const drain = useCallback(
-    () => drainCommands({ token, queryClient, seen, queued, draining, setPending, setProblem }),
+    // Queued commands live only in this page, so the drain holds reloads until it has sent them all.
+    () => holdingReload(drainCommands({ token, queryClient, seen, queued, draining, setPending, setProblem })),
     [queryClient, token],
   )
 

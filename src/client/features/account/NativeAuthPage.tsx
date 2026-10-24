@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { posthog } from 'posthog-js'
 import type { SocialAuthProvider } from '../../../authConfig'
 import { authClient } from '../../authClient'
+import { holdingReload } from '../../pendingWrites'
 import type { NativeAuthAction } from '../../nativeAuth'
 
 const NATIVE_AUTH_CALLBACK = 'praetorium://auth'
@@ -76,12 +77,14 @@ export function NativeAuthPage({ search }: { search: NativeAuthSearch }) {
       }
       const exchange =
         bridge >= 2
-          ? await fetch('/api/auth/native-auth-token/generate', {
-              method: 'POST',
-              credentials: 'same-origin',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ action, challenge, provider, next }),
-            }).then(async (response) => (response.ok ? ((await response.json()) as { id: string; token: string }) : null))
+          ? await holdingReload(
+              fetch('/api/auth/native-auth-token/generate', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ action, challenge, provider, next }),
+              }),
+            ).then(async (response) => (response.ok ? ((await response.json()) as { id: string; token: string }) : null))
           : await authClient.oneTimeToken
               .generate()
               .then((result) => (result.error || !result.data?.token ? null : { token: result.data.token }))

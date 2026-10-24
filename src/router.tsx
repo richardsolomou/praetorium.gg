@@ -7,6 +7,7 @@ import { FullPageState } from './client/components/PageState'
 import { createQueryClient } from './client/queryClient'
 import { isModuleLoadFailure } from './client/networkErrors'
 import { checkedStaleBuildRelease, staleBuildRelease } from './client/releaseUpdate'
+import { writesPending } from './client/pendingWrites'
 import {
   completedRouteRecovery,
   mayReloadCancelledLoad,
@@ -35,7 +36,7 @@ function RouteError({ error }: ErrorComponentProps) {
     }
     let mounted = true
     void checkedStaleBuildRelease(queryClient).then((release) => {
-      if (mounted && release) reloadStaleBuild(release, 'route_error', { saving: queryClient.isMutating() > 0 })
+      if (mounted && release) reloadStaleBuild(release, 'route_error', { saving: writesPending(queryClient) })
     })
     return () => {
       mounted = false
@@ -86,7 +87,7 @@ export function getRouter() {
       if (release)
         reloadStaleBuild(release, 'navigation', {
           href: new URL(toLocation.href, window.location.origin).href,
-          saving: queryClient.isMutating() > 0,
+          saving: writesPending(queryClient),
         })
     })
     router.subscribe('onRendered', () => {
