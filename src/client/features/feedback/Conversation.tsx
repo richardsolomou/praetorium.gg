@@ -18,6 +18,8 @@ import { StatusChip } from './YourFeedback'
 
 /** Messages by one author this close together read as one turn, under a single name. */
 const TURN_MS = 5 * 60_000
+/** How far this device's clock may differ from Support's. */
+const CLOCK_SKEW_MS = 5 * 60_000
 /** How close to the newest message the player must be for an arriving one to scroll into view. */
 const FOLLOW_PX = 160
 
@@ -107,7 +109,17 @@ function Thread({ ticketId, messages, status, notice }: { ticketId: string; mess
     send.isPending && send.variables
       ? { id: 'pending', content: send.variables.text, author_type: 'customer', created_at: send.variables.at, is_private: false }
       : undefined
-  const shown = pending ? [...messages, pending] : messages
+  // The reply stays pending until the thread has been reread, which by then already holds it as sent. Only a message
+  // from around the time of sending counts, allowing for this device's clock, so an earlier identical one does not.
+  const delivered =
+    pending &&
+    messages.some(
+      (message) =>
+        message.author_type === 'customer' &&
+        message.content === pending.content &&
+        Date.parse(message.created_at) > Date.parse(pending.created_at) - CLOCK_SKEW_MS,
+    )
+  const shown = pending && !delivered ? [...messages, pending] : messages
   const sameDay = (a: Message, b: Message) => dates.date(a.created_at) === dates.date(b.created_at)
   const oneTurn = (a: Message | undefined, b: Message | undefined) =>
     Boolean(
