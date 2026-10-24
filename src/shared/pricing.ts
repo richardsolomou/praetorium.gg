@@ -186,9 +186,12 @@ function legalReplacementPairs(
  */
 const hasWarlordToggle = (toggles: BuiltUnit['toggles']) => toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected)
 
-/** An empty list only keeps score, so the Warlord is asked of a list once it fields something. */
+/**
+ * The Warlord is asked of a list once something in it could be one. A list of squads alone, or an empty one kept to
+ * track a game, has nothing the Warlord choice could fix.
+ */
 function armyWarlordErrors(picked: readonly { toggles: BuiltUnit['toggles'] }[]) {
-  if (!picked.length) return []
+  if (!picked.some((unit) => unit.toggles.some((toggle) => toggle.name === 'Warlord'))) return []
   const problem = warlordCountProblem(picked.filter((unit) => hasWarlordToggle(unit.toggles)).length)
   return problem ? [{ entryId: 'warlord', entryName: 'Army', message: problem }] : []
 }

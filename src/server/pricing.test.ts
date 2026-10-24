@@ -282,11 +282,12 @@ describe('the army Warlord', () => {
     expect(errorsFor([1])).toEqual([])
   })
 
-  it('is not asked of an empty list, which only keeps score', () => {
+  it('is not asked of a list with nothing that could be one', () => {
+    const squads = bookOf({ selectionEntries: [{ id: 'squad', name: 'Squad', type: 'unit', costs: pointsCost(80) }] })
     expect(
       calculateRosterPrice(
-        { catalogueId: 'cat', detachmentIds: [], disposition: null, waivedRules: [], limit: 2_000, units: [] },
-        loaded,
+        { catalogueId: 'cat', detachmentIds: [], disposition: null, waivedRules: [], limit: 2_000, units: [{ entryId: 'squad' }] },
+        squads,
         rulesWithout,
       )?.errors,
     ).toEqual([])
