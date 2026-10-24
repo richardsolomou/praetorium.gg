@@ -33,7 +33,7 @@ const response = (attacker: number, defender: number) =>
     usage: { input_tokens: 123, output_tokens: 10 },
   })
 const client = (fetch: (input: string, init?: RequestInit) => Promise<Response>) =>
-  new TypeSafeClient({ apiKey: 'test-key', fetch, retry: { maxRetries: 0 }, logLevel: 'off' })
+  new TypeSafeClient({ apiKey: 'test-key', fetch, compression: false, retry: { maxRetries: 0 }, logLevel: 'off' })
 
 describe('Jev combat rule shortlisting', () => {
   it('keeps fluff with two negative judgments out of both the shortlist and review queue', async () => {
@@ -203,7 +203,7 @@ describe('Jev combat rule shortlisting', () => {
       .mockResolvedValueOnce(response(0.9, 0.1))
     const report = await classifyCombatRules([rule()], {
       cacheDirectory: await cacheDirectory(),
-      client: new TypeSafeClient({ apiKey: 'test-key', fetch, retry: { maxRetries: 1 }, logLevel: 'off' }),
+      client: new TypeSafeClient({ apiKey: 'test-key', fetch, compression: false, retry: { maxRetries: 1 }, logLevel: 'off' }),
     })
     expect({ attempts: fetch.mock.calls.length, complete: report.complete, inputTokens: report.summary.inputTokens }).toEqual({
       attempts: 2,
