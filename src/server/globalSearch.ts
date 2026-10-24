@@ -14,7 +14,7 @@ import { nameOf, targetOf } from '../core/catalogue'
 import { datasheetSearchFieldsIn } from '../shared/catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { datasheetSlug, datasheetsOf, isReferenceDatasheet } from './catalogueIndex'
-import { isMatchedPlayDatasheet } from '../shared/cataloguePicker'
+import { isOfferedDatasheet } from '../shared/catalogueUnit'
 import { factionsFor } from '../shared/factionReferences'
 import { detachmentReference } from '../shared/detachmentReference'
 import { gameReferencesFor } from '../shared/gameReferences'
@@ -92,7 +92,7 @@ function globalSearchIndexFor(loaded: LoadedCatalogue, rules: LoadedRules | null
     }
     for (const entryId of datasheetsOf(loaded.index, faction.id)) {
       const entry = loaded.index.definitions.get(entryId)
-      if (!entry || !isMatchedPlayDatasheet(loaded.index, entry) || !isReferenceDatasheet(loaded, faction.id, entryId)) continue
+      if (!entry || !isOfferedDatasheet(loaded.index, entry, true) || !isReferenceDatasheet(loaded, faction.id, entryId)) continue
       const fields = datasheetSearchFieldsIn(loaded, faction.id, entryId)
       if (!fields) continue
       const name = nameOf(entry, loaded.index.definitions)

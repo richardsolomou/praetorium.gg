@@ -4,7 +4,7 @@ import { nameOf } from '../core/catalogue'
 import { sameText } from '../core/text'
 import type { DatasheetRelationship } from '../core/datasheet'
 import { datasheetsOf, referenceDatasheetRoute, type LoadedCatalogue } from './catalogueIndex'
-import { isMatchedPlayDatasheet } from './catalogueUnit'
+import { isOfferedDatasheet } from './catalogueUnit'
 
 type RelatedDatasheet = { entryId: string; name: string }
 
@@ -21,7 +21,7 @@ export function relationshipFor(
     ? [knownEntryId]
     : [...datasheetsOf(loaded.index, catalogueId)].filter((entryId) => {
         const entry = loaded.index.definitions.get(entryId)
-        return entry && isMatchedPlayDatasheet(loaded.index, entry) && sameText(nameOf(entry, loaded.index.definitions), name)
+        return entry && isOfferedDatasheet(loaded.index, entry, true) && sameText(nameOf(entry, loaded.index.definitions), name)
       })
   const resolved = matches.length === 1 ? matches[0]! : null
   const entry = resolved ? loaded.index.definitions.get(resolved) : undefined
@@ -43,7 +43,7 @@ function relationshipsOf(loaded: LoadedCatalogue, catalogueId: string, entryId: 
   for (const candidateId of datasheetsOf(loaded.index, catalogueId)) {
     if (candidateId === entryId) continue
     const candidate = loaded.index.definitions.get(candidateId)
-    if (!candidate || !isMatchedPlayDatasheet(loaded.index, candidate)) continue
+    if (!candidate || !isOfferedDatasheet(loaded.index, candidate, true)) continue
     const attachment = referenceAttachmentOf(candidate, loaded.index)
     if (!attachment?.targets.some((target) => sameText(target, name))) continue
     const found = attachment.kind === 'leader' ? leaders : supporters

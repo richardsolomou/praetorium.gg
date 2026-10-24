@@ -241,7 +241,7 @@ describe('canonical catalogue', () => {
                   characteristics: [
                     {
                       name: 'Description',
-                      $text: 'This model can be attached to the following units:\n■ OLD GUARD [LEGENDS]\n■ CURRENT\u00a0GUARD',
+                      $text: 'This model can be attached to the following units:\n■ RETIRED GUARD\n■ CURRENT\u00a0GUARD',
                     },
                   ],
                 },
@@ -250,9 +250,10 @@ describe('canonical catalogue', () => {
           ],
         },
         {
-          id: 'old-guard',
-          name: 'Old Guard [Legends]',
+          id: 'retired-guard',
+          name: 'Retired Guard',
           type: 'unit',
+          hidden: true,
           costs: points(100),
           categoryLinks: categories('Faction: Test catalogue'),
         },
@@ -267,10 +268,44 @@ describe('canonical catalogue', () => {
     })
 
     const attachments = compileCanonicalCatalogue(loaded, revisions).datasheets.find((sheet) => sheet.id === 'leader')?.attachments
-    expect(attachments).toContainEqual(expect.objectContaining({ name: 'OLD GUARD [LEGENDS]', route: null }))
+    expect(attachments).toContainEqual(expect.objectContaining({ name: 'RETIRED GUARD', route: null }))
     expect(attachments).toContainEqual(
       expect.objectContaining({ name: 'Current Guard', route: { catalogueId: 'test-catalogue', slug: 'current-guard' } }),
     )
+  })
+
+  it('gives Legends and Crucible datasheets reference pages', () => {
+    const loaded = bookOf({
+      name: 'Test catalogue',
+      selectionEntries: [
+        {
+          id: 'old-guard',
+          name: 'Old Guard [Legends]',
+          type: 'unit',
+          costs: points(100),
+          categoryLinks: categories('Faction: Test catalogue'),
+        },
+      ],
+    })
+    expect(compileCanonicalCatalogue(loaded, revisions).datasheets.map((sheet) => sheet.slug)).toEqual(['old-guard-legends'])
+  })
+
+  it('prices a datasheet no field manual or card prices from the catalogue, at its smallest size', () => {
+    const loaded = bookOf({
+      name: 'Test catalogue',
+      selectionEntries: [
+        {
+          id: 'old-guard',
+          name: 'Old Guard [Legends]',
+          type: 'unit',
+          costs: points(100),
+          categoryLinks: categories('Faction: Test catalogue'),
+        },
+      ],
+    })
+    expect(compileCanonicalCatalogue(loaded, revisions).datasheets[0]?.costs).toEqual([
+      { models: '1', cost: '100', keyword: null, faction: null, detachment: null },
+    ])
   })
 
   it('reports a source-specific profile type while preserving it for generic rendering', () => {

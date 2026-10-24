@@ -1072,7 +1072,8 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByLabel('Find a datasheet')).toBeVisible()
   await page.getByLabel('Find a datasheet').fill('Overlord')
   await expect(page.getByRole('link', { name: /Overlord/ }).first()).toBeVisible()
-  await expect(page.locator('main h2.rubric').filter({ hasText: 'Datasheets' })).toContainText('2')
+  // Both Overlord datasheets, and the Catacomb Command Barge through its Overlord's blade.
+  await expect(page.locator('main h2.rubric').filter({ hasText: /^Datasheets\s*\d+$/ })).toHaveText(/^Datasheets\s*3$/)
   await page.screenshot({ path: 'test-results/faction-datasheets.png', fullPage: true })
   await page
     .getByRole('link', { name: /Overlord/ })
@@ -1184,7 +1185,6 @@ test('a dense squad datasheet remains readable at desktop and phone widths', asy
   await expect(page.getByRole('heading', { name: 'Melee weapons 3', exact: true })).toBeVisible()
   await expect(page.getByText('Captain in Terminator Armour', { exact: true })).toBeVisible()
   await expect(page.getByText(/^Ancient in Terminator Armou?r$/)).toBeVisible()
-  await expect(page.getByText(/Legends/)).toHaveCount(0)
   await page.screenshot({ path: 'test-results/deathwing-terminator-datasheet.png', fullPage: true })
 
   await page.setViewportSize({ width: 390, height: 844 })

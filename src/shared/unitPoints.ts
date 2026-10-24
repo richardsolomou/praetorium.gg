@@ -2,7 +2,7 @@ import { plainQuotes } from '../core/text'
 import { cachedIn } from '../core/collections'
 import { evaluate } from '../core/evaluate'
 import { nameOf } from '../core/catalogue'
-import { isNonMatchedPlayName, normalizedName, normalizedNameVariants } from '../core/name'
+import { isNonMatchedPlayName, matchedPlayName, normalizedName, normalizedNameVariants } from '../core/name'
 import { routeSlug } from '../core/slug'
 import { buildUnit } from '../core/roster'
 import { isResizable } from '../core/unitSize'
@@ -20,13 +20,15 @@ export function mfmUnitFor(loaded: LoadedCatalogue, primaryCatalogueId: string, 
   const entry = loaded.index.definitions.get(entryId)
   if (!book || !entry) return null
   const factionSlug = routeSlug(factionDisplayName(book.name))
-  const names = normalizedNameVariants(comparable(nameOf(entry, loaded.index.definitions)))
+  const name = nameOf(entry, loaded.index.definitions)
+  // The field manual names a Legends unit without the suffix and flags it instead.
+  const names = normalizedNameVariants(comparable(matchedPlayName(name)))
   for (const slug of mfmSlugs(book.name)) {
     const faction = loaded.mfm?.get(slug)
     const matched =
       faction?.units.filter(
         (unit) =>
-          Boolean(unit.legends) === isNonMatchedPlayName(nameOf(entry, loaded.index.definitions)) &&
+          Boolean(unit.legends) === isNonMatchedPlayName(name) &&
           names.includes(comparable(unit.name)) &&
           (!unit.groupTitle || slug !== 'space-marines' || ['space-marines', factionSlug].includes(routeSlug(unit.groupTitle))),
       ) ?? []

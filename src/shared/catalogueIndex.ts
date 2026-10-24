@@ -2,7 +2,6 @@ import { cachedIn, countBy } from '../core/collections'
 import { type Catalogue, type CatalogueFile, type CatalogueIndex, type Definition, importsOf, nameOf, targetOf } from '../core/catalogue'
 import { hiddenByRules } from '../core/evaluate'
 import { routeSlug } from '../core/slug'
-import { isNonMatchedPlayName } from '../core/name'
 import { type DatasheetPage, datasheetPageBySlug, datasheetSlugFor } from '../core/datasheetSlug'
 import { compareText, sameText } from '../core/text'
 import type { FactionContent, LoadedDatacards } from './datacards'
@@ -193,8 +192,6 @@ export function datasheetIdBySlug(loaded: LoadedCatalogue, catalogueId: string, 
 }
 /** Prefer the datasheet's own reference page; imported entries fall back to an unambiguous named match. */
 export function referenceDatasheetRoute(loaded: LoadedCatalogue, name: string, preferred?: { catalogueId: string; entryId: string }) {
-  // Reference pages cover matched play only.
-  if (isNonMatchedPlayName(name)) return null
   const preferredFaction = preferred ? loaded.factions.find((candidate) => candidate.id === preferred.catalogueId) : undefined
   if (preferred && preferredFaction && isReferenceDatasheet(loaded, preferred.catalogueId, preferred.entryId)) {
     return {

@@ -60,8 +60,9 @@ export function referenceRuleSection(sources: ReferenceSources, data: { document
 }
 
 export async function referenceFactionDatasheets(catalogue: LoadedCatalogue, data: { catalogueId: string; query: string }) {
-  await completeStepsCooperatively(stepThrough(unitSummaries(catalogue, data.catalogueId, { factionCards: true })))
-  return unitsIn(catalogue, data.catalogueId, data.query, { factionCards: true }).filter((unit) =>
+  const options = { factionCards: true, nonMatchedPlay: true }
+  await completeStepsCooperatively(stepThrough(unitSummaries(catalogue, data.catalogueId, options)))
+  return unitsIn(catalogue, data.catalogueId, data.query, options).filter((unit) =>
     isReferenceDatasheet(catalogue, data.catalogueId, unit.id),
   )
 }

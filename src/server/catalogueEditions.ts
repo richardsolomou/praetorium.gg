@@ -225,7 +225,7 @@ export function catalogueEditionLoaders(
       const { catalogue, rules } = yield* stepThrough(contextLoad(edition.id)!)
       if (runtime) for (const id of edition.catalogueIds) books.push([catalogue, rules, editionCatalogueId(edition.id, id)])
     }
-    for (const [catalogue, , id] of books) yield* stepThrough(unitSummaries(catalogue, id, { factionCards: true }))
+    for (const [catalogue, , id] of books) yield* stepThrough(unitSummaries(catalogue, id, { factionCards: true, nonMatchedPlay: true }))
     for (const [catalogue, rules, id] of books) yield* pickerConstruction(catalogue, rules, id)
   }
   return {

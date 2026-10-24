@@ -9,7 +9,10 @@ export function combatUnitsFor(loaded: LoadedCatalogue, rules: LoadedRules | nul
   const { factions } = factionIndexFor(loaded, rules, catalogueIds)
   const shelves = factions.map((book) => ({
     book,
-    units: unitsIn(loaded, book.id, '', { restrictions: rules?.factionRestrictions.get(routeSlug(book.displayName)) }),
+    units: unitsIn(loaded, book.id, '', {
+      restrictions: rules?.factionRestrictions.get(routeSlug(book.displayName)),
+      nonMatchedPlay: true,
+    }),
   }))
   return shelves.map(({ book, units }) => ({
     catalogueId: book.id,
