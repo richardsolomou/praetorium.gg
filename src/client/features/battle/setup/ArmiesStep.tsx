@@ -63,6 +63,11 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
   const [confirming, setConfirming] = useState<SavedRoster | null>(null)
   /** A chosen list the library already prices over its limit, held back instead of sent for the server to refuse. */
   const [overLimit, setOverLimit] = useState<SavedRoster | null>(null)
+  // Both answer the chooser, so Back past its history entry dismisses them with it.
+  if (choosing === null && (confirming || overLimit)) {
+    setConfirming(null)
+    setOverLimit(null)
+  }
   /** A guest has no account, so no saved or lent lists: their army comes from this device's builder. */
   const guest = isGuestSeat(view.viewerId)
   const rosterQuery = useQuery({ ...savedRosterSummariesQuery(), enabled: !guest })

@@ -98,10 +98,10 @@ test('a battle started from a saved roster opens with that roster on the playerâ
   await expect(seat.getByText(name, { exact: true })).toBeVisible()
 })
 
-test('going back on a phone closes the roster chooser and stays on the battle', async ({ page }) => {
+/** Opens a battle on a phone, one history entry after another page, with one saved list for the battle size. */
+const phoneBattle = async (page: Page, name: string, pointsBudget: number | null = null) => {
   await page.setViewportSize({ width: 390, height: 844 })
-  const name = 'Back gesture army'
-  const { userId, operator } = await savedArmy(page, 'Roster chooser back', { name, limit: 2000, pointsBudget: null })
+  const { userId, operator } = await savedArmy(page, 'Roster chooser back', { name, limit: 2000, pointsBudget })
   const token = `chooser-back-${crypto.randomUUID()}`
   await operator.createBattle({
     id: token,
@@ -120,7 +120,12 @@ test('going back on a phone closes the roster chooser and stays on the battle', 
   })
   await page.goto('/support')
   await page.goto(`/battles/${token}`)
-  const battle = new RegExp(`/battles/${token}$`)
+  return new RegExp(`/battles/${token}$`)
+}
+
+test('going back on a phone closes the roster chooser and stays on the battle', async ({ page }) => {
+  const name = 'Back gesture army'
+  const battle = await phoneBattle(page, name)
 
   await openChooser(page)
   await page.goBack()
@@ -134,6 +139,38 @@ test('going back on a phone closes the roster chooser and stays on the battle', 
   const seat = page.getByRole('region', { name: 'Armies' }).locator('article').first()
   await (await openChooser(page)).locator(`[data-roster="${name}"]`).click()
   await expect(seat.getByText(name, { exact: true })).toBeVisible()
+  await expect(page).toHaveURL(battle)
+
+  await page.goBack()
+  await expect(page).toHaveURL(/\/support$/)
+})
+
+test('going back on a phone from a rosterâ€™s confirmation closes it with the chooser', async ({ page }) => {
+  const name = 'Back from refusal army'
+  const battle = await phoneBattle(page, name, 500)
+
+  const row = (await openChooser(page)).locator(`[data-roster="${name}"]`)
+  await expect(row).toContainText('Over limit')
+  await row.click()
+  const refusal = page.getByRole('alertdialog', { name: 'This list is over its points limit' })
+  await expect(refusal).toBeVisible()
+  await page.goBack()
+  await expect(page).toHaveURL(battle)
+  await expect(page.getByRole('dialog', { name: 'Choose your roster' })).toBeHidden()
+  await expect(refusal).toBeHidden()
+})
+
+test('closing a roster chooser restored by a reload leaves no history entry behind', async ({ page }) => {
+  const battle = await phoneBattle(page, 'Reloaded chooser army')
+
+  await openChooser(page)
+  await page.reload()
+  const chooser = page.getByRole('dialog', { name: 'Choose your roster' })
+  // A press before hydration does nothing, so close until the chooser goes.
+  await expect(async () => {
+    await chooser.getByRole('button', { name: 'Close' }).click()
+    await expect(chooser).toBeHidden({ timeout: 1000 })
+  }).toPass()
   await expect(page).toHaveURL(battle)
 
   await page.goBack()

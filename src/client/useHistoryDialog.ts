@@ -7,8 +7,8 @@ type DialogLocationState = { historyDialog?: { hash: string; value: string } }
  * A dialog held in its own history entry, so the system Back gesture closes it instead of leaving the page.
  *
  * The open dialog's value lives in the entry's state behind `#hash`; closing steps back over that
- * entry, as `useRosterPanes` does for compact roster panes. A reload or restored tab mounts straight
- * onto the entry, and stepping back from there would leave the page, so that entry is replaced instead.
+ * entry, as `useRosterPanes` does for compact roster panes. Only `open` pushes that entry, so the one
+ * behind it is this page even after a reload; it is replaced only when nothing of this tab's is behind it.
  * Dialogs opt in: one that closes by navigating, or that the address opens, would leave a stale entry behind.
  */
 export function useHistoryDialog(hash: string) {
@@ -20,8 +20,6 @@ export function useHistoryDialog(hash: string) {
       return state.location.hash === hash && dialog?.hash === hash ? dialog.value : null
     },
   })
-  /** The history entry this dialog was mounted on, which closing may not step behind. */
-  const openedAt = useRef(router.history.location.state.__TSR_index)
   /** The entry a close already stepped back from, so a second close before the step lands does not leave the page. */
   const leaving = useRef<string | undefined>(undefined)
 
@@ -45,7 +43,7 @@ export function useHistoryDialog(hash: string) {
     const entry = router.history.location.state as DialogLocationState & { __TSR_index: number; __TSR_key?: string }
     if (entry.historyDialog?.hash !== hash || leaving.current === entry.__TSR_key) return
     leaving.current = entry.__TSR_key
-    if (entry.__TSR_index > openedAt.current) router.history.back()
+    if (entry.__TSR_index > 0) router.history.back()
     else
       void navigate({
         to: '.',
