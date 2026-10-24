@@ -35,6 +35,10 @@ export function captureLeagueCreated(userId: string, data: z.output<typeof creat
   })
 }
 
-export function captureLeagueBattleCreated(userId: string, result: { format: string | null; requiredLimit: number }) {
-  return captureMutation(userId, 'league_battle_created', { format: result.format, required_limit: result.requiredLimit })
+export function captureLeagueBattleCreated(userId: string, result: { battleId: string; format: string | null; requiredLimit: number }) {
+  return captureMutation(userId, 'league_battle_created', {
+    battle_id: result.battleId,
+    format: result.format,
+    required_limit: result.requiredLimit,
+  })
 }

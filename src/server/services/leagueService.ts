@@ -408,7 +408,7 @@ export class LeagueService {
     this.notifier.notify([
       { kind: 'battle-created', actorId: userId, recipientIds: result.participantIds, battleToken: token, league: true },
     ])
-    return result
+    return { ...result, battleId: id }
   }
 }
 

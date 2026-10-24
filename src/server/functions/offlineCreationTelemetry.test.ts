@@ -50,9 +50,9 @@ const cases = [
   {
     kind: 'createLeagueBattle' as const,
     input: { token: 'private-league', opponentId: 'private-opponent' },
-    result: { token: 'private-battle', format: '1v1', requiredLimit: 2000 },
+    result: { battleId: 'battle-id', token: 'private-battle', format: '1v1', requiredLimit: 2000 },
     event: 'league_battle_created',
-    properties: { delivery: 'sync', format: '1v1', required_limit: 2000 },
+    properties: { delivery: 'sync', battle_id: 'battle-id', format: '1v1', required_limit: 2000 },
   },
 ]
 

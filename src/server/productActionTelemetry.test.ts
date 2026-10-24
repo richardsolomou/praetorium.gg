@@ -183,8 +183,8 @@ const cases: Case[] = [
   {
     kind: 'createLeagueBattle',
     input: { token: league.token, opponentId: 'private-person' },
-    result: { token: 'private-battle', format: '1v1', requiredLimit: 2000 },
-    events: [['league_battle_created', { format: '1v1', required_limit: 2000 }]],
+    result: { battleId: 'battle-id', token: 'private-battle', format: '1v1', requiredLimit: 2000 },
+    events: [['league_battle_created', { battle_id: 'battle-id', format: '1v1', required_limit: 2000 }]],
   },
 ]
 
