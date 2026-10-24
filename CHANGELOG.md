@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.184.3
+
+### Patch Changes
+
+- f6fc73c: An Inquisitor leading a unit can embark in any transport its bodyguard can, as Authority of the Inquisition allows.
+
 ## 0.184.2
 
 ### Patch Changes
