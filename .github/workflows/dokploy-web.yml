@@ -34,10 +34,15 @@ permissions:
   contents: read
 
 jobs:
-  # A replica serves only once its catalogue is prepared for its compiler; preparing the live catalogue here, beside the image build, lets it download that instead of compiling it.
+  # A replica serves only once its catalogue is prepared for its compiler; preparing it here, beside the image build, lets it download that instead of compiling it.
+  # A replica on a new compiler starts from the pinned snapshot and then refreshes to the live catalogue, so both are prepared, side by side.
   catalogue:
-    name: Prepare the live catalogue
+    name: Prepare the ${{ matrix.catalogue }} catalogue
     if: inputs.environment == 'production'
+    strategy:
+      fail-fast: false
+      matrix:
+        catalogue: [live, pinned]
     # The replica compiles its own catalogue without it, so a failure here never fails the deploy.
     continue-on-error: true
     runs-on: ubuntu-latest
@@ -54,9 +59,9 @@ jobs:
         with:
           ref: ${{ inputs.revision || github.sha }}
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - run: pnpm exec tsx scripts/prepareLiveCatalogue.ts "$TARGET"
+      - run: pnpm exec tsx scripts/prepareLiveCatalogue.ts "$SOURCE"
         env:
-          TARGET: ${{ inputs.environment }}
+          SOURCE: ${{ matrix.catalogue == 'pinned' && '--pinned' || inputs.environment }}
 
   deploy:
     runs-on: ubuntu-latest
@@ -207,18 +212,18 @@ jobs:
         continue-on-error: true
         run: curl --fail --silent --show-error --max-time 30 --output "$RUNNER_TEMP/sitemap-before.xml" "https://praetorium.gg/sitemap.xml?before=${DEPLOY_SHA}"
       # A failed or slow preparation leaves the replica to compile its own catalogue, as it would without one.
-      - name: Wait for the live catalogue
+      - name: Wait for the prepared catalogues
         if: inputs.environment == 'production'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           for _ in $(seq 120); do
-            status="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" --jq '[.jobs[] | select(.name | endswith("Prepare the live catalogue")) | .status] | first // "absent"')"
-            if [[ "$status" == completed || "$status" == absent ]]; then exit 0; fi
+            pending="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?per_page=100" --jq '[.jobs[] | select(.name | test("Prepare the (live|pinned) catalogue$")) | select(.status != "completed")] | length')"
+            if [[ "$pending" == 0 ]]; then exit 0; fi
             sleep 10
           done
-          echo '::warning::The live catalogue is still being prepared; the replica prepares its own'
+          echo '::warning::A catalogue is still being prepared; the replica prepares its own'
       - name: Deploy the pinned image
         uses: richardsolomou/ras-stack/actions/deploy-dokploy-image@v1
         with:
