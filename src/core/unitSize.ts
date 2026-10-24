@@ -95,6 +95,12 @@ function survey(selection: Selection, index: CatalogueIndex, trail: string[]): {
 
     const inside = nested.models + nested.groups.reduce((sum, group) => sum + group.total, 0)
     if (target.type === undefined && inside > 0) {
+      // A group of specialists taking squadmates' places, as a Skitarii Rangers' options
+      // lower the galvanic-rifle Rangers', fields the same squad whatever it holds.
+      if (replacesSquadmate(definition, squadmatesIn(selection, index), index)) {
+        models += inside
+        continue
+      }
       const stated = maximumCount(definition, index)
       // A group of models fixed at a size fields that many, whatever range each occupant
       // could take within it; its default body is still what a specialist swaps out.

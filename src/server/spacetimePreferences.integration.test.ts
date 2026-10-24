@@ -6,15 +6,12 @@ const url = process.env.SPACETIME_TEST_URL
 const database = process.env.SPACETIME_TEST_DATABASE
 const token = process.env.SPACETIME_TEST_OPERATOR_TOKEN
 
-it.skipIf(!url || !database || !token)('stores battle sharing and derives onboarding from product facts', async () => {
+it.skipIf(!url || !database || !token)('derives onboarding from product facts', async () => {
   const operator = new SpacetimeOperator(url!, database!, token!)
   const userId = randomUUID()
   const friendId = randomUUID()
   const now = Date.now()
   try {
-    expect(await operator.battleAudience(userId)).toBe('public')
-    expect(await operator.setBattleAudience(userId, 'friends', now)).toBe('friends')
-    expect(await operator.battleAudience(userId)).toBe('friends')
     expect(await operator.onboardingProgress(userId)).toEqual({ completedTasks: [], skippedTasks: [], welcomed: false })
     expect((await operator.updateOnboardingProgress(userId, { operation: 'welcome' })).welcomed).toBe(true)
     expect((await operator.updateOnboardingProgress(userId, { operation: 'skip', task: 'league' })).skippedTasks).toEqual(['league'])

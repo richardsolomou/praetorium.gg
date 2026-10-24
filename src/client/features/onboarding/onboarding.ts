@@ -37,7 +37,7 @@ export const onboardingTasks: readonly { id: OnboardingTaskId; title: string; de
   {
     id: 'community',
     title: 'Follow games and players',
-    description: 'Watch shared battles, check the standings, read a player, and choose who can see your own games.',
+    description: 'Watch battles, check the standings, and read a player.',
   },
   {
     id: 'simulator',
@@ -192,7 +192,6 @@ export const onboardingStepIds = [
   'community-profile-tabs',
   'community-profile-rankings',
   'community-profile-record',
-  'community-sharing',
 ] as const
 
 export type OnboardingStepId = (typeof onboardingStepIds)[number]
@@ -1354,18 +1353,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     page: 'player',
     href: '/leaderboard',
     title: 'Their record',
-    description: 'Wins, win rate by who took the first turn, victory points and streaks, narrowed to the battles you may watch.',
-    placement: 'top',
-    next: 'community-sharing',
-    nextLabel: 'Choose who can watch',
-  },
-  'community-sharing': {
-    task: 'community',
-    target: 'battle-sharing',
-    page: 'profile',
-    href: '/profile',
-    title: 'Who can watch yours',
-    description: 'Anyone, your friends, or only the players at the table. The strictest answer at a table applies to everybody in it.',
+    description: 'Wins, win rate by who took the first turn, victory points and streaks.',
     placement: 'top',
     final: true,
   },

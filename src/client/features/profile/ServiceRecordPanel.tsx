@@ -1,10 +1,17 @@
 import { FactionReferenceLink } from '../../components/FactionReferenceLink'
 import { Link } from '@tanstack/react-router'
 import { ListFilter } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { CARD_SAMPLE, type CardRecord, type RecordFacets, type ServiceRecord, type Split } from '../../../core/serviceRecord'
+import {
+  type CardRecord,
+  RECORD_SAMPLE,
+  type RecordFacets,
+  type ServiceRecord,
+  type Split,
+  type StratagemRecord,
+} from '../../../core/serviceRecord'
 import { routeSlug } from '../../../core/slug'
 import type { PlayerProfileFilter } from '../../queries'
 import {
@@ -293,32 +300,34 @@ function CareerTables({ record }: { record: ServiceRecord }) {
     <>
       {missing.length ? <p className="text-xs text-faint">Not recorded in these battles: {missing.join(', ')}.</p> : null}
       <div className="grid gap-3 lg:grid-cols-2">
-        <RecordTable
-          label="Stratagems"
-          note={
-            record.stratagemsUsed > record.stratagems.length ? `Top ${record.stratagems.length} of ${record.stratagemsUsed}` : undefined
-          }
-          rows={record.stratagems}
-          rowKey={(row) => row.key}
-          renderName={(row) =>
-            row.reference ? (
-              <FactionReferenceLink
-                to="/factions/$catalogueId/detachments/$detachmentId"
-                params={row.reference}
-                hash={`stratagem-${routeSlug(row.name)}`}
-                className={NAME_LINK}
-              >
-                {row.name}
-              </FactionReferenceLink>
-            ) : (
-              <span className="font-bold break-words uppercase">{row.name}</span>
-            )
-          }
-          columns={[
-            { label: 'Uses', cell: (row) => row.uses, tint: 'text-bone' },
-            { label: 'CP', cell: (row) => row.cp },
-          ]}
-        />
+        <div className="space-y-2">
+          <RecordTable
+            label="Stratagems"
+            rows={record.stratagems}
+            rowKey={(row) => row.key}
+            renderName={(row) => <StratagemName stratagem={row} />}
+            columns={[
+              { label: 'Uses', cell: (row) => row.uses, tint: 'text-bone' },
+              { label: 'CP', cell: (row) => row.cp },
+              { label: 'Win', cell: (row) => percentLabel(row.rate), tint: 'text-info' },
+            ]}
+          />
+          {record.bestStratagem && record.worstStratagem ? (
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: 'Best', stratagem: record.bestStratagem },
+                { label: 'Worst', stratagem: record.worstStratagem },
+              ].map(({ label, stratagem }) => (
+                <Highlight
+                  key={label}
+                  label={`${label} · used in ${RECORD_SAMPLE}+`}
+                  name={<StratagemName stratagem={stratagem} />}
+                  detail={`${percentLabel(stratagem.rate)} won of ${countLabel(stratagem.battles, 'battle')}`}
+                />
+              ))}
+            </div>
+          ) : null}
+        </div>
         {record.cards.length ? (
           <div className="space-y-2">
             <RecordTable
@@ -334,8 +343,17 @@ function CareerTables({ record }: { record: ServiceRecord }) {
             />
             {record.bestCard && record.worstCard ? (
               <div className="flex flex-wrap gap-2">
-                <CardHighlight label="Best" card={record.bestCard} />
-                <CardHighlight label="Worst" card={record.worstCard} />
+                {[
+                  { label: 'Best', card: record.bestCard },
+                  { label: 'Worst', card: record.worstCard },
+                ].map(({ label, card }) => (
+                  <Highlight
+                    key={label}
+                    label={`${label} · held ${RECORD_SAMPLE}+`}
+                    name={<CardName card={card} />}
+                    detail={`${oneDecimal(card.average)} VP per battle held`}
+                  />
+                ))}
               </div>
             ) : null}
           </div>
@@ -385,6 +403,24 @@ function CareerTables({ record }: { record: ServiceRecord }) {
             { label: 'Rate', cell: (row) => percentLabel(row.rate) },
           ]}
         />
+        {record.opponents.length ? (
+          <RecordTable
+            label="Against players"
+            rows={record.opponents}
+            rowKey={(row) => row.id}
+            renderName={(row) => (
+              <Link to="/users/$userId" params={{ userId: row.id }} className="flex min-w-0 items-center gap-2 hover:text-info">
+                <PlayerAvatar name={row.name} image={row.image} className="size-6 text-3xs" />
+                <span className="font-bold break-words uppercase">{row.name}</span>
+              </Link>
+            )}
+            columns={[
+              { label: 'Played', cell: (row) => row.battles, tint: 'text-bone' },
+              ...results,
+              { label: 'Rate', cell: (row) => percentLabel(row.rate) },
+            ]}
+          />
+        ) : null}
       </div>
     </>
   )
@@ -399,28 +435,28 @@ const results: Column<{ won: number; drawn: number; lost: number }>[] = [
 ]
 
 /** A compact table: a name that wraps, then narrow right-aligned counts. */
+/** How many rows a table shows before the reader asks for the rest. */
+const TABLE_ROWS = 10
+
 function RecordTable<T>({
   label,
-  note,
   rows,
   rowKey,
   renderName,
   columns,
 }: {
   label: string
-  note?: string
   rows: readonly T[]
   rowKey: (row: T) => string
   renderName: (row: T) => ReactNode
   columns: readonly Column<T>[]
 }) {
+  const [all, setAll] = useState(false)
   if (!rows.length) return null
+  const shown = all ? rows : rows.slice(0, TABLE_ROWS)
   return (
     <section data-record-table={label}>
-      <p className="eyebrow flex items-baseline justify-between gap-2">
-        <span>{label}</span>
-        {note ? <span className="normal-case">{note}</span> : null}
-      </p>
+      <p className="eyebrow">{label}</p>
       {
         <table className="mt-1 w-full table-fixed border-collapse border border-edge bg-panel text-sm">
           <thead>
@@ -440,7 +476,7 @@ function RecordTable<T>({
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {shown.map((row) => (
               <tr key={rowKey(row)} className="border-b border-edge last:border-0">
                 <td className="px-2 py-1.5">{renderName(row)}</td>
                 {columns.map((column) => (
@@ -453,6 +489,11 @@ function RecordTable<T>({
           </tbody>
         </table>
       }
+      {rows.length > TABLE_ROWS ? (
+        <Button variant="link" size="sm" className="mt-1 px-0 text-info" onClick={() => setAll((open) => !open)}>
+          {all ? 'Show fewer' : `Show all ${rows.length}`}
+        </Button>
+      ) : null}
     </section>
   )
 }
@@ -467,17 +508,28 @@ function CardName({ card }: { card: CardRecord }) {
   )
 }
 
-/** The best or worst card, which only exist once enough cards have been held often enough to compare. */
-function CardHighlight({ label, card }: { label: string; card: CardRecord }) {
+function StratagemName({ stratagem }: { stratagem: StratagemRecord }) {
+  return stratagem.reference ? (
+    <FactionReferenceLink
+      to="/factions/$catalogueId/detachments/$detachmentId"
+      params={stratagem.reference}
+      hash={`stratagem-${routeSlug(stratagem.name)}`}
+      className={NAME_LINK}
+    >
+      {stratagem.name}
+    </FactionReferenceLink>
+  ) : (
+    <span className="font-bold break-words uppercase">{stratagem.name}</span>
+  )
+}
+
+/** The best or worst card or stratagem, which only exist once enough of them have been seen often enough to compare. */
+function Highlight({ label, name, detail }: { label: string; name: ReactNode; detail: string }) {
   return (
     <div className="min-w-40 flex-1 border border-edge bg-panel p-3">
-      <p className="eyebrow">
-        {label} · held {CARD_SAMPLE}+
-      </p>
-      <p className="mt-1 text-sm">
-        <CardName card={card} />
-      </p>
-      <p className="readout mt-1 text-xs text-dim">{oneDecimal(card.average)} VP per battle held</p>
+      <p className="eyebrow">{label}</p>
+      <p className="mt-1 text-sm">{name}</p>
+      <p className="readout mt-1 text-xs text-dim">{detail}</p>
     </div>
   )
 }

@@ -7,6 +7,7 @@ import {
   evaluateForces,
   hiddenByRules,
   keywordIds,
+  keywordsBySelection,
   rosterLimit,
   selectionCountBounds,
   type Selection,
@@ -949,6 +950,43 @@ describe('a keyword the data grants', () => {
     })
   })
 
+  describe('of a unit whose models carry different keywords', () => {
+    const index = indexOf({
+      categoryEntries: [
+        { id: 'character', name: 'Character' },
+        { id: 'infantry', name: 'Infantry' },
+      ],
+      sharedSelectionEntries: [
+        {
+          id: 'grimaldus-unit',
+          name: 'Chaplain Grimaldus',
+          type: 'unit',
+          categoryLinks: [{ id: 'unit-infantry', targetId: 'infantry', name: 'Infantry' }],
+          selectionEntries: [
+            {
+              id: 'grimaldus',
+              name: 'Chaplain Grimaldus',
+              type: 'model',
+              categoryLinks: [{ id: 'model-character', targetId: 'character', name: 'Character' }],
+            },
+            { id: 'servitor', name: 'Cenobyte Servitor', type: 'model' },
+          ],
+        },
+      ],
+    })
+
+    it('include every keyword of its models', () => {
+      expect(keywordIds([{ id: 'grimaldus-unit', selections: [{ id: 'grimaldus' }, { id: 'servitor' }] }], 0, index)).toEqual([
+        'infantry',
+        'character',
+      ])
+    })
+
+    it('exclude the keywords of a model it does not field', () => {
+      expect(keywordIds([{ id: 'grimaldus-unit', selections: [{ id: 'servitor' }] }], 0, index)).toEqual(['infantry'])
+    })
+  })
+
   it('can be withdrawn, and the withdrawal is what the list carries', () => {
     const index = indexOf({
       categoryEntries: [{ id: 'battleline', name: 'Battleline' }],
@@ -965,7 +1003,36 @@ describe('a keyword the data grants', () => {
     expect(keywordIds([{ id: 'squad' }], 0, index)).not.toContain('battleline')
   })
 
-  it.each(['set-primary', 'unset-primary'] as const)('recognises %s as irrelevant to the keywords a selection carries', (type) => {
+  const shelvedSquad = (type: 'set-primary' | 'unset-primary') =>
+    indexOf({
+      categoryEntries: [
+        { id: 'battleline', name: 'Battleline' },
+        { id: 'infantry', name: 'Infantry' },
+      ],
+      sharedSelectionEntries: [
+        {
+          id: 'squad',
+          name: 'Squad',
+          type: 'unit',
+          categoryLinks: [{ id: 'link', targetId: 'infantry', name: 'Infantry', primary: true }],
+          modifiers: [{ type, field: 'category', value: type === 'set-primary' ? 'battleline' : 'infantry' }],
+        },
+      ],
+    })
+
+  it('is granted by set-primary, as Bridgehead Strike makes Tempestus Scions Battleline', () => {
+    expect(keywordIds([{ id: 'squad' }], 0, shelvedSquad('set-primary'))).toContain('battleline')
+  })
+
+  it('shelves a selection under the keyword set-primary names', () => {
+    expect(keywordsBySelection([{ id: 'squad' }], shelvedSquad('set-primary'))[0]?.primaries).toEqual(['battleline'])
+  })
+
+  it('stays with a selection that unset-primary only unshelves', () => {
+    expect(keywordIds([{ id: 'squad' }], 0, shelvedSquad('unset-primary'))).toContain('infantry')
+  })
+
+  it.each(['set-primary', 'unset-primary'] as const)('recognises %s as a keyword rule this evaluator acts on', (type) => {
     const index = indexOf({
       categoryEntries: [{ id: 'deathwing', name: 'Deathwing' }],
       sharedSelectionEntries: [
@@ -1239,6 +1306,29 @@ describe('the limit on how many of a datasheet a roster may hold', () => {
     expect(evaluate([{ id: 'hero' }, { id: 'hero' }], parentCapped()).errors.map((error) => error.message)).toContain(
       'allows at most 1, has 2',
     )
+  })
+
+  it('follows a modifier that multiplies it, as Bridgehead Strike doubles Tempestus Scions', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'scions',
+          name: 'Scions',
+          type: 'unit',
+          constraints: [{ id: 'scions-max', type: 'max', value: 3, field: 'selections', scope: 'roster', includeChildSelections: true }],
+          modifiers: [
+            {
+              type: 'multiply',
+              field: 'scions-max',
+              value: 2,
+              conditions: [{ type: 'atLeast', value: 1, field: 'selections', scope: 'roster', childId: 'bridgehead', shared: true }],
+            },
+          ],
+        },
+        { id: 'bridgehead', name: 'Bridgehead Strike', type: 'upgrade' },
+      ],
+    })
+    expect(rosterLimit(index.definitions.get('scions')!, index, { roster: [{ id: 'bridgehead' }] })).toBe(6)
   })
 
   it('follows a modifier that lowers it for a smaller game', () => {

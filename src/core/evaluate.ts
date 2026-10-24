@@ -60,6 +60,8 @@ type Node = {
   force?: boolean
   /** Only the root carries this: the keywords the data grants and withdraws across the whole tree. */
   grants?: Map<Node, Map<string, boolean>>
+  /** The keywords `set-primary` shelves each selection under, in written order. */
+  primaries?: Map<Node, string[]>
   /*
    * Answers kept because every pass over the tree asks for them again, and a tree
    * is finished being built before anything reads it. Anything that came to add a
@@ -438,6 +440,22 @@ export function keywordIds(selections: readonly Selection[], at: number, index: 
 }
 
 export function keywordIdsBySelection(selections: readonly Selection[], index: CatalogueIndex, options: EvaluateOptions = {}): string[][] {
+  return keywordsBySelection(selections, index, options).map(({ keywords }) => keywords)
+}
+
+/** The printed names of keyword category ids, without the hidden categories the data uses for bookkeeping. */
+export const keywordNames = (ids: readonly string[], index: CatalogueIndex): string[] =>
+  ids.flatMap((id) => {
+    const category = index.categories.get(id)
+    return category?.hidden || !category?.name ? [] : [category.name.replace(/^Faction:\s*/iu, '')]
+  })
+
+/** Each selection's keywords, and the ones the list's own rules shelve it under ahead of its datasheet's. */
+export function keywordsBySelection(
+  selections: readonly Selection[],
+  index: CatalogueIndex,
+  options: EvaluateOptions = {},
+): { keywords: string[]; primaries: string[] }[] {
   const census = new Census(0, options.modifierCache)
   const { root, forces } = rosterContext([selections], index, census, options)
   const built = forces[0]?.children ?? []
@@ -445,13 +463,20 @@ export function keywordIdsBySelection(selections: readonly Selection[], index: C
   return selections.map((wanted, at) => {
     const positioned = built[at]
     const node = positioned?.id === wanted.id ? positioned : built.find((child) => child.id === wanted.id)
-    if (!node) return []
-    const held = linkedCategories(node)
-    for (const [categoryId, present] of grants.get(node) ?? []) {
-      if (present) held.add(categoryId)
-      else held.delete(categoryId)
-    }
-    return [...held]
+    if (!node) return { keywords: [], primaries: [] }
+    // Core rules 02.05.01: a unit has all the keywords of all its models.
+    const members = [node, ...descendants(node).filter((member) => member !== node && member.target.type === 'model' && member.fielded > 0)]
+    const held = new Set(
+      members.flatMap((member) => {
+        const own = linkedCategories(member)
+        for (const [categoryId, present] of grants.get(member) ?? []) {
+          if (present) own.add(categoryId)
+          else own.delete(categoryId)
+        }
+        return [...own]
+      }),
+    )
+    return { keywords: [...held], primaries: (root.primaries?.get(node) ?? []).filter((id) => held.has(id)) }
   })
 }
 
@@ -1154,14 +1179,15 @@ function grantsOf(root: Node, index: CatalogueIndex, census: Census): Map<Node, 
    * depend on what the data writes down, never on another grant.
    */
   root.grants = grants
-  const decided: { target: Node; categoryId: string; present: boolean }[] = []
+  root.primaries = new Map()
+  const decided: { target: Node; categoryId: string; present: boolean; primary: boolean }[] = []
   for (const node of descendants(root)) {
     for (const modifier of modifiersOf(node, census)) {
       if (modifier.field !== 'category') continue
-      // `set-primary` and `unset-primary` change which keyword shelves a datasheet,
-      // not which keywords it carries. They are understood but irrelevant here.
-      if (modifier.type === 'set-primary' || modifier.type === 'unset-primary') continue
-      if (modifier.type !== 'add' && modifier.type !== 'remove') {
+      // `set-primary` links the keyword as well as shelving the datasheet under it, as
+      // Bridgehead Strike makes Tempestus Scions Battleline; `unset-primary` only unshelves.
+      if (modifier.type === 'unset-primary') continue
+      if (modifier.type !== 'add' && modifier.type !== 'remove' && modifier.type !== 'set-primary') {
         census.note(`category modifier ${modifier.type}`)
         continue
       }
@@ -1171,17 +1197,18 @@ function grantsOf(root: Node, index: CatalogueIndex, census: Census): Map<Node, 
       }
       if (repeatCount(modifier, node, root, index, census) === 0) continue
       for (const target of aimedAt(modifier, node, root, index, census)) {
-        decided.push({ target, categoryId: modifier.value, present: modifier.type === 'add' })
+        decided.push({ target, categoryId: modifier.value, present: modifier.type !== 'remove', primary: modifier.type === 'set-primary' })
       }
     }
   }
   // Written order decides between a grant and a withdrawal of the same keyword — the
   // Adepta Sororitas give Saint Potentia hers and take it away again on one entry —
   // so these are applied in the order they were read, after every one has been read.
-  for (const { target, categoryId, present } of decided) {
+  for (const { target, categoryId, present, primary } of decided) {
     const held = grants.get(target) ?? new Map<string, boolean>()
     held.set(categoryId, present)
     grants.set(target, held)
+    if (primary) root.primaries.set(target, [...(root.primaries.get(target) ?? []), categoryId])
   }
   return grants
 }
@@ -1379,6 +1406,8 @@ function constraintValue(
     if (modifier.type === 'set') value = amount
     else if (modifier.type === 'increment') value += amount * times
     else if (modifier.type === 'decrement') value -= amount * times
+    else if (modifier.type === 'multiply') value *= amount ** times
+    else if (modifier.type === 'divide') value = amount === 0 ? 0 : value / amount ** times
   }
   return value
 }

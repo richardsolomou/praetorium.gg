@@ -13,6 +13,12 @@ it('resolves nested citation URLs without changing source data or stable identif
   ])
 })
 
+it('resolves named page links such as the simulator link', () => {
+  expect(absoluteAgentLinks({ simulatorUrl: '/simulator?s=abc' }, 'https://praetorium.gg')).toEqual({
+    simulatorUrl: 'https://praetorium.gg/simulator?s=abc',
+  })
+})
+
 it('preserves external source URLs and non-URL strings', () => {
   const input = { textSources: [{ url: 'https://upstream.example/rules.json' }], text: '/rules is a route', name: 'Praetorium' }
 

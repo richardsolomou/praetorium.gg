@@ -18,6 +18,16 @@ Preserve canonical URLs, source revisions, attribution, and unavailable fields; 
 
 [Telemetry](telemetry.md#runtime-boundaries) owns MCP telemetry. Publish with `mcp-publisher login github` and `mcp-publisher publish` from the root, keeping registry and server versions aligned.
 
+## Assistant directories
+
+The same `/mcp` server is listed in the ChatGPT plugin directory and Claude's Connectors Directory. Every tool needs a `title` and explicit `readOnlyHint`, `destructiveHint`, and `openWorldHint` annotations; `AgentTools` copies the title into `annotations.title`, which Claude's directory reads. Write tools are open-world because rosters and battles can be public, and OpenAI's scan flags writes that can publish but aren't marked open-world. Both directories scan the live server, so tool changes reach the listings without resubmission.
+
+[`plugin/`](../../plugin) is one plugin folder for both directories. `skills/` holds task skills that both load; keep them to workflow steps and decisions, since the server instructions already carry the general tool guidance. For ChatGPT, `plugin.json` holds the listing and review test cases, and `mcp.json` the server with `mixed` auth, so users can install without signing in and ChatGPT offers to connect an account when a roster or battle tool needs one. The published Agent Plugins schema rejects that `extensions.com.openai` block, but OpenAI's portal reads it. `just plugin-zip` writes `dist/praetorium-plugin.zip` for upload at [OpenAI's plugin portal](https://platform.openai.com/plugins); listing, skill, or test-case edits need a new upload. The portal's domain challenge is served from `/.well-known/openai-apps-challenge`. For Claude, `.claude-plugin/plugin.json` makes the folder a plugin bundle, which the directory rescans on each commit to the branch it follows, paired with the MCP connector listing at [claude.ai/directory/manage](https://claude.ai/directory/manage); raise its `version` with each change and run `claude plugin validate ./plugin`. Claude's validator flags symbolic links in a bundle, so `plugin/assets/logo.png` is a copy of `mobile/assets/icon.png`; replace both together. Claude takes the listing icon only from the bundle's first submission.
+
+Gemini has no directory for third-party MCP servers; [Connect an assistant](../../src/client/features/docs/content/connect-an-assistant.md) covers adding the server as a Gemini custom app. When a listing is published or moves, update that assistant's steps there.
+
+Reviewers sign in to production as the [review account](mobile-release.md#review-access), so keep its rosters and battles intact while a review is open.
+
 ## WebMCP
 
 [`WebMcp`](../../src/client/features/agents/WebMcp.tsx) registers the [`AgentTools`](../../src/server/agentTools.ts) surface through `document.modelContext`; MCP OAuth stays separate from browser sessions. Saved-roster tools never edit an unsaved draft.

@@ -22,7 +22,7 @@ Onboarding opens only by player choice and stays nonmodal. Domain-backed progres
 
 Docs screenshots are captured by the `e2e/docs-screenshots.*.spec.ts` specs (`DOCS_SCREENSHOTS=1`), which outline the control a doc points at, and are referenced from the docs as `screenshot:<name>`; Vite emits them as hashed assets. Regenerate a doc's screenshots after changing the screens it shows.
 
-Session tokens never reach the browser. Administrator status is not permission to view private battles; battle access uses the ordinary audience check. Account cleanup protects administrators from deletion.
+Session tokens never reach the browser. Account cleanup protects administrators from deletion.
 
 Profile fields keep unsaved edits across account refreshes. A successful save clears only drafts that still match its submitted values, including a picture replaced or removed while the save was pending. Verify name and picture changes during a delayed save, a second save, and reload in `e2e/account.spec.ts`.
 

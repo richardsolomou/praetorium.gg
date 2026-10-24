@@ -1,7 +1,8 @@
 {
-  "account-battle-privacy": [2232, 536],
   "account-recovery-codes": [1152, 816],
-  "account-two-factor": [1090, 500],
+  "account-two-factor": [2232, 386],
+  "assistant-connected-apps": [1280, 450],
+  "assistant-consent": [1152, 646],
   "build-an-army-attach": [1278, 1202],
   "build-an-army-format-restrictions": [1124, 1148],
   "build-an-army-loadout": [1278, 522],

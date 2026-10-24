@@ -2,7 +2,7 @@ import { hasLocalChanges, stopLocalRuntime } from '../../offline/localRuntime'
 import { clearLocalState } from '../../offline/localStorage'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate } from '@tanstack/react-router'
-import { Boxes, CircleUserRound, LogIn, LogOut, Map, MessageSquareWarning, ShieldCheck, UserRound, UserRoundPen, Users } from 'lucide-react'
+import { Boxes, CircleUserRound, LogIn, LogOut, Map, MessageSquareWarning, ShieldCheck, UserRoundPen, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { onboardingComplete, resolvedOnboardingTasks } from '../../../core/onboarding'
@@ -23,8 +23,9 @@ import { setNativeAccountMenuOpen } from '../../nativeBridge'
 import { onboardingTasks, openOnboarding } from '../onboarding/onboarding'
 import { forgetThisDevice } from '../../pushNotifications'
 import { meQuery, onboardingQuery } from '../../queries'
+import { MenuSection } from '../../components/MenuSection'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
-import { openFeedback } from '../feedback/FeedbackDialog'
+import { openConversations, unreadReplies, useSupportTickets } from '../feedback/support'
 import { errorMessage } from '../../queryClient'
 import { OPEN_SYNC_EVENT } from '../../offline/SyncStatus'
 
@@ -68,10 +69,26 @@ function AccountMenuItems() {
   const { me, onboarding, signOut } = useAccountControls()
   const onboardingResolved = onboarding ? resolvedOnboardingTasks(onboarding).size : 0
   const showOnboarding = onboarding && !onboardingComplete(onboarding)
-  const feedback = (
-    <DropdownMenuItem onClick={openFeedback}>
-      <MessageSquareWarning /> Send feedback
-    </DropdownMenuItem>
+  const { tickets } = useSupportTickets()
+  const unread = unreadReplies(tickets)
+  const help = (
+    <MenuSection label="Help">
+      {showOnboarding ? (
+        <DropdownMenuItem onClick={openOnboarding}>
+          <Map />
+          <span>Getting started</span>
+          <span className="readout ml-auto text-xs text-dim">
+            {onboardingResolved}/{onboardingTasks.length}
+          </span>
+          {!onboarding.welcomed ? <span className="chip border-discarded/50 bg-discarded/10 text-discarded">New</span> : null}
+        </DropdownMenuItem>
+      ) : null}
+      <DropdownMenuItem onClick={openConversations}>
+        <MessageSquareWarning />
+        <span>Feedback</span>
+        {unread ? <span className="chip ml-auto border-discarded/50 bg-discarded/10 text-discarded">{unread} new</span> : null}
+      </DropdownMenuItem>
+    </MenuSection>
   )
 
   return (
@@ -80,50 +97,49 @@ function AccountMenuItems() {
         <DropdownMenuItem
           render={<Link to="/users/$userId" params={{ userId: me.id }} search={{}} />}
           aria-label="My profile"
-          className="items-start px-2 py-2"
+          className="gap-2.5 px-2 py-2"
         >
-          <UserRound className="mt-0.5" />
+          <PlayerAvatar name={me.name} image={me.image} className="size-9 shrink-0 text-sm" />
           <span className="min-w-0">
-            <span className="eyebrow block">Profile</span>
-            <span className="mt-0.5 block truncate text-sm font-semibold text-bone">{me.name}</span>
+            <span className="block truncate text-sm font-semibold text-bone">{me.name}</span>
+            <span className="block text-xs text-dim">View profile</span>
           </span>
         </DropdownMenuItem>
       ) : (
-        <DropdownMenuLabel className="px-2 py-2">
-          <span className="eyebrow block">Account</span>
-          <span className="mt-0.5 block truncate text-sm font-semibold text-bone">Not signed in</span>
-        </DropdownMenuLabel>
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="flex items-center gap-2.5 px-2 py-2 font-normal">
+            <CircleUserRound className="size-9 shrink-0 stroke-1 text-dim" aria-hidden />
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-bone">Not signed in</span>
+              <span className="block text-xs text-dim">Sign in to keep your lists</span>
+            </span>
+          </DropdownMenuLabel>
+        </DropdownMenuGroup>
       )}
       <DropdownMenuSeparator />
       {me ? (
         <>
-          <DropdownMenuItem render={<Link to="/profile" />}>
-            <UserRoundPen /> Account settings
-          </DropdownMenuItem>
-          {showOnboarding ? (
-            <DropdownMenuItem onClick={openOnboarding}>
-              <Map />
-              <span>Getting started</span>
-              <span className="ml-auto text-xs text-dim">
-                {onboardingResolved}/{onboardingTasks.length}
-              </span>
-              {!onboarding.welcomed ? (
-                <span className="chip border border-discarded/50 bg-discarded/10 px-1.5 py-0.5 text-discarded">New</span>
-              ) : null}
+          <MenuSection label="Yours">
+            <DropdownMenuItem render={<Link to="/collection" />}>
+              <Boxes /> Collection
             </DropdownMenuItem>
-          ) : null}
-          <DropdownMenuItem render={<Link to="/collection" />}>
-            <Boxes /> Collection
-          </DropdownMenuItem>
-          <DropdownMenuItem render={<Link to="/friends" />}>
-            <Users /> Friends
-          </DropdownMenuItem>
-          {me.role === 'admin' ? (
-            <DropdownMenuItem render={<Link to="/admin" />}>
-              <ShieldCheck /> Admin
+            <DropdownMenuItem render={<Link to="/friends" />}>
+              <Users /> Friends
             </DropdownMenuItem>
-          ) : null}
-          {feedback}
+          </MenuSection>
+          <DropdownMenuSeparator />
+          <MenuSection label="Account">
+            <DropdownMenuItem render={<Link to="/profile" />}>
+              <UserRoundPen /> Account settings
+            </DropdownMenuItem>
+            {me.role === 'admin' ? (
+              <DropdownMenuItem render={<Link to="/admin" />}>
+                <ShieldCheck /> Admin
+              </DropdownMenuItem>
+            ) : null}
+          </MenuSection>
+          <DropdownMenuSeparator />
+          {help}
           <DropdownMenuSeparator />
           <DropdownMenuItem onClick={signOut}>
             <LogOut /> Sign out
@@ -134,7 +150,8 @@ function AccountMenuItems() {
           <DropdownMenuItem render={<Link to="/sign-in" search={{ next: path === '/sign-in' ? undefined : href }} />}>
             <LogIn /> Sign in
           </DropdownMenuItem>
-          {feedback}
+          <DropdownMenuSeparator />
+          {help}
         </>
       )}
     </>
@@ -145,6 +162,8 @@ export function Account({ native = false, className = '' }: { native?: boolean; 
   const { me, onboarding } = useAccountControls()
   const [nativeOpen, setNativeOpen] = useState(false)
   const onboardingNew = Boolean(onboarding && !onboarding.welcomed && !onboardingComplete(onboarding))
+  const { tickets } = useSupportTickets()
+  const unread = unreadReplies(tickets)
 
   useEffect(() => {
     if (!native) return
@@ -171,29 +190,24 @@ export function Account({ native = false, className = '' }: { native?: boolean; 
             variant="ghost"
             size={native ? 'icon' : 'icon-sm'}
             className={`${native ? 'size-12' : ''} shrink-0 text-dim hover:bg-raised hover:text-info ${className}`}
-            aria-label={me ? `Account menu for ${me.name}` : 'Account menu'}
+            aria-label={`${me ? `Account menu for ${me.name}` : 'Account menu'}${unread ? `, ${unread} unread feedback ${unread === 1 ? 'reply' : 'replies'}` : ''}`}
           />
         }
       >
-        {me ? (
-          <span className="relative">
-            <PlayerAvatar name={me.name} image={me.image} className="size-7 text-xs" />
-            {onboardingNew ? (
-              <span
-                data-onboarding-new
-                aria-hidden
-                className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full border-2 border-panel bg-discarded"
-              />
-            ) : null}
-          </span>
-        ) : (
-          <CircleUserRound className="size-5" />
-        )}
+        <span className="relative">
+          {me ? <PlayerAvatar name={me.name} image={me.image} className="size-7 text-xs" /> : <CircleUserRound className="size-5" />}
+          {onboardingNew || unread ? (
+            <span
+              data-onboarding-new={onboardingNew || undefined}
+              data-feedback-unread={unread || undefined}
+              aria-hidden
+              className="absolute -top-0.5 -right-0.5 size-2.5 rounded-full border-2 border-panel bg-discarded"
+            />
+          ) : null}
+        </span>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-52">
-        <DropdownMenuGroup>
-          <AccountMenuItems />
-        </DropdownMenuGroup>
+        <AccountMenuItems />
       </DropdownMenuContent>
     </DropdownMenu>
   )

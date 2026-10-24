@@ -1,5 +1,6 @@
-import { attachedUnit, attachmentErrors } from '../core/attach'
+import { attachedUnit, attachmentErrors, attachmentHost } from '../core/attach'
 import { hasTextTokens } from './sourceText'
+import { parsedAbilityGrants } from './catalogueAbilityGrants'
 import { type CombatRule, type CombatRuleJudge, judgedCombatRule } from '../core/combatRules'
 import { datasheetCharacteristicKind, datasheetProfileKind } from '../core/datasheetStructure'
 import { routeSlug } from '../core/slug'
@@ -13,7 +14,7 @@ import { buildRosterPick, rosterDatasheetContext } from './rosterDatasheetContex
 import { type LoadedRules, rulesFaction } from './rules'
 import { selectedDetachmentRules } from './selectedDetachmentRules'
 import type { UnitChoiceCache } from '../core/unitChoices'
-import type { ModifierCache } from '../core/evaluate'
+import { keywordIdsBySelection, keywordNames, type ModifierCache } from '../core/evaluate'
 
 /**
  * What projections of one built roster can share: unit choices and modifiers are keyed by value, and each unit's
@@ -122,7 +123,20 @@ export function rosterCombatant(
     const unit = context.unitSelections.find((candidate) => candidate.pickIndex === index)
     return unit ? context.selections[unit.selectionIndex] : undefined
   })
-  const hostIndex = selectedPick.attachedTo ?? data.pickIndex
+  const keywordIds = new Map<string, string[][]>()
+  // A unit can take an attachment by a keyword the list gives it, as Bridgehead Strike makes Tempestus Scions Battleline.
+  const keywords = data.picks.map((pick, index) => {
+    const unit = context.unitSelections.find((candidate) => candidate.pickIndex === index)
+    if (!unit) return undefined
+    const catalogueId = pick.catalogueId ?? data.catalogueId
+    let ids = keywordIds.get(catalogueId)
+    if (!ids) {
+      ids = keywordIdsBySelection(context.selections, loaded.index, { primaryCatalogueId: catalogueId, modifierCache: cache.modifierCache })
+      keywordIds.set(catalogueId, ids)
+    }
+    return keywordNames(ids[unit.selectionIndex] ?? [], loaded.index)
+  })
+  const hostIndex = attachmentHost(data.picks, data.pickIndex)
   const hostPick = data.picks[hostIndex]!
   const hostSheet = hostIndex === data.pickIndex ? sheet : companions.find((member) => member.pickIndex === hostIndex)?.selected
   const optionsFor = (replaceIndex?: number) =>
@@ -151,10 +165,8 @@ export function rosterCombatant(
         replaceIndex === undefined
           ? [...selections, built.selection]
           : selections.map((selection, index) => (index === replaceIndex ? built.selection : selection))
-      const groupIds = new Set(
-        proposed.flatMap((pick, index) => (index === hostIndex || pick.attachedTo === hostIndex ? [pick.entryId] : [])),
-      )
-      if (attachmentErrors(proposed, loaded.index, proposedSelections).some((error) => groupIds.has(error.entryId))) return []
+      const groupIds = new Set(proposed.flatMap((pick, index) => (attachmentHost(proposed, index) === hostIndex ? [pick.entryId] : [])))
+      if (attachmentErrors(proposed, loaded.index, proposedSelections, keywords).some((error) => groupIds.has(error.entryId))) return []
       return [
         {
           entryId: candidate.entryId,
@@ -202,7 +214,7 @@ export function rosterCombatant(
     attachmentReplacements,
     attachmentErrors: [
       ...projectionErrors,
-      ...attachmentErrors(data.picks, loaded.index, selections).filter((error) =>
+      ...attachmentErrors(data.picks, loaded.index, selections, keywords).filter((error) =>
         members.some((index) => data.picks[index]?.entryId === error.entryId),
       ),
     ],
@@ -273,7 +285,12 @@ function rosterCombatRules(
         source: sheet.name,
         description: ability.description,
         scope: 'unit',
-        included: ability.kind === 'core' && /^Feel No Pain [2-6]\+$/.test(ability.name),
+        // Projection applies a Feel No Pain as a core ability, and one limited to models with a keyword to those models alone.
+        included:
+          (ability.kind === 'core' && /^Feel No Pain [2-6]\+$/.test(ability.name)) ||
+          parsedAbilityGrants(ability.description, true, [], true).some(
+            (grant) => grant.recipient === 'models' && /^Feel No Pain [2-6]\+$/.test(grant.name),
+          ),
       },
       { origin: 'own', attached: selectedPick.attachedTo !== undefined },
     )

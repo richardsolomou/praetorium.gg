@@ -33,6 +33,7 @@ export const collectionKey = () => ['collection']
 export const collectionCountsKey = () => ['collection-counts']
 export const collectionProgressKey = () => ['collection-progress']
 export const collectionWishesKey = () => ['collection-wishes']
+export const collectionCountsAsKey = () => ['collection-counts-as']
 export const fieldedDatasheetsKey = () => ['fielded-datasheets']
 export const wishlistSuggestionsKey = () => ['wishlist-suggestions']
 /** Without an entry, every datasheet's photos. */
@@ -40,7 +41,6 @@ export const datasheetPhotosKey = (entryId?: string) => (entryId === undefined ?
 /** Without a player, every player's collection. */
 export const collectionProfileKey = (userId?: string) => (userId === undefined ? ['collection-profile'] : ['collection-profile', userId])
 export const playerDefaultsKey = () => ['player-defaults']
-export const battleAudienceKey = () => ['battle-audience']
 export const notificationSettingsKey = () => ['notification-settings']
 export const friendshipsKey = () => ['friendships']
 export const opponentsKey = () => ['opponents']

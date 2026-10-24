@@ -155,7 +155,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
                 onFilter={(next) => void navigate({ to: '/users/$userId', params: { userId }, search: { ...next, tab: 'record' } })}
               />
             ) : null}
-            {yourself && data?.performance && data.record.battles ? <PersonalPerformancePanel performance={data.performance} /> : null}
+            {data?.record.battles ? <PersonalPerformancePanel performance={data.performance} /> : null}
           </TabsContent>
 
           <TabsContent value="battles" className="mt-4">

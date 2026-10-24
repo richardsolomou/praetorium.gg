@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { attachedUnit, attachmentErrors, attachmentLimitsOf, attachmentOf } from './attach'
+import { attachedUnit, attachmentErrors, attachmentLimitsOf, attachmentOf, referenceAttachmentOf } from './attach'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
 
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: 'pts', name: 'pts' }] } }
@@ -189,6 +189,41 @@ describe('a character that can join a unit', () => {
     ])
   })
 
+  const inquisitorAndScions = () =>
+    indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'inquisitor',
+          name: 'Inquisitor',
+          type: 'model',
+          profiles: [ability('Leader', 'This model can be attached to the following units: IMPERIUM BATTLELINE INFANTRY')],
+        },
+        { id: 'scions', name: 'Tempestus Scions', type: 'unit' },
+      ],
+    })
+
+  it('joins a unit that holds the named keywords in this list', () => {
+    expect(
+      attachmentErrors(
+        [{ entryId: 'inquisitor', attachedTo: 1 }, { entryId: 'scions' }],
+        inquisitorAndScions(),
+        [],
+        [[], ['Faction: Imperium', 'Battleline', 'Infantry']],
+      ),
+    ).toEqual([])
+  })
+
+  it('refuses a unit missing one of the named keywords in this list', () => {
+    expect(
+      attachmentErrors(
+        [{ entryId: 'inquisitor', attachedTo: 1 }, { entryId: 'scions' }],
+        inquisitorAndScions(),
+        [],
+        [[], ['Imperium', 'Infantry']],
+      ),
+    ).toEqual([{ entryId: 'inquisitor', entryName: 'Inquisitor', message: 'cannot be attached to Tempestus Scions' }])
+  })
+
   it('reads an ability the entry links to rather than holds', () => {
     const index = indexOf({
       sharedInfoGroups: [
@@ -295,6 +330,179 @@ describe('a character that can join a unit', () => {
       'IMMORTALS',
       'Lokhust Heavy Destroyers',
     ])
+  })
+
+  it('shows a datasheet page its ability text rather than wider association targets', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'chronomancer',
+          name: 'Chronomancer',
+          type: 'model',
+          profiles: [ability('Support', 'This model can be attached to the following units:\n■ IMMORTALS')],
+          associations: [
+            {
+              name: 'Supporting',
+              childId: 'unit',
+              action: 'group',
+              conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'self', childId: 'heavy-destroyers' }],
+            },
+          ],
+        },
+        { id: 'heavy-destroyers', name: 'Lokhust Heavy Destroyers', type: 'unit' },
+      ],
+      entryLinks: [{ id: 'heavy-link', name: 'Lokhust Heavy Destroyers', type: 'selectionEntry', targetId: 'heavy-destroyers' }],
+    })
+
+    expect(referenceAttachmentOf(index.definitions.get('chronomancer')!, index)?.targets).toEqual(['IMMORTALS'])
+  })
+
+  it('offers a unit association only datasheets that are units', () => {
+    const index = indexOf({
+      categoryEntries: [{ id: 'tacticus', name: 'Tacticus' }],
+      sharedSelectionEntries: [
+        {
+          id: 'champion',
+          name: 'Champion of the Chapter',
+          type: 'model',
+          associations: [
+            {
+              name: 'Leading',
+              childId: 'unit',
+              action: 'group',
+              conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'self', childId: 'tacticus' }],
+            },
+          ],
+        },
+        {
+          id: 'captain',
+          name: 'Captain',
+          type: 'model',
+          categoryLinks: [{ id: 'captain-tacticus', name: 'Tacticus', targetId: 'tacticus' }],
+        },
+        {
+          id: 'intercessors',
+          name: 'Intercessor Squad',
+          type: 'unit',
+          categoryLinks: [{ id: 'intercessor-tacticus', name: 'Tacticus', targetId: 'tacticus' }],
+        },
+      ],
+      entryLinks: [
+        { id: 'captain-link', name: 'Captain', type: 'selectionEntry', targetId: 'captain' },
+        { id: 'intercessors-link', name: 'Intercessor Squad', type: 'selectionEntry', targetId: 'intercessors' },
+      ],
+    })
+
+    expect(attachmentOf(index.definitions.get('champion')!, index, { id: 'champion' })?.targets).toEqual(['Intercessor Squad'])
+  })
+
+  it("reads a candidate unit's keywords from its models too", () => {
+    const index = indexOf({
+      categoryEntries: [
+        { id: 'tacticus', name: 'Tacticus' },
+        { id: 'character', name: 'Character' },
+      ],
+      sharedSelectionEntries: [
+        {
+          id: 'champion',
+          name: 'Champion of the Chapter',
+          type: 'model',
+          associations: [
+            {
+              name: 'Leading',
+              childId: 'unit',
+              action: 'group',
+              conditionGroups: [
+                {
+                  type: 'and',
+                  conditions: [
+                    { type: 'instanceOf', value: 1, field: 'selections', scope: 'self', childId: 'tacticus' },
+                    { type: 'notInstanceOf', value: 1, field: 'selections', scope: 'self', childId: 'character' },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: 'grimaldus',
+          name: 'Chaplain Grimaldus',
+          type: 'unit',
+          categoryLinks: [{ id: 'grimaldus-tacticus', name: 'Tacticus', targetId: 'tacticus' }],
+          selectionEntries: [
+            {
+              id: 'grimaldus-model',
+              name: 'Chaplain Grimaldus',
+              type: 'model',
+              categoryLinks: [{ id: 'grimaldus-character', name: 'Character', targetId: 'character' }],
+            },
+          ],
+        },
+        {
+          id: 'intercessors',
+          name: 'Intercessor Squad',
+          type: 'unit',
+          categoryLinks: [{ id: 'intercessor-tacticus', name: 'Tacticus', targetId: 'tacticus' }],
+          selectionEntries: [{ id: 'intercessor', name: 'Intercessor', type: 'model' }],
+        },
+      ],
+      entryLinks: [
+        { id: 'grimaldus-link', name: 'Chaplain Grimaldus', type: 'selectionEntry', targetId: 'grimaldus' },
+        { id: 'intercessors-link', name: 'Intercessor Squad', type: 'selectionEntry', targetId: 'intercessors' },
+      ],
+    })
+
+    expect(attachmentOf(index.definitions.get('champion')!, index, { id: 'champion' })?.targets).toEqual(['Intercessor Squad'])
+  })
+
+  describe('through an association named after its own ability', () => {
+    const indexWithJoin = (min: number) =>
+      indexOf({
+        categoryEntries: [{ id: 'command-squad-category', name: 'Command Squad' }],
+        sharedSelectionEntries: [
+          {
+            id: 'ogryn-bodyguard',
+            name: 'Ogryn Bodyguard',
+            type: 'model',
+            associations: [
+              {
+                name: 'Loyal Protector',
+                childId: 'unit',
+                action: 'group',
+                min,
+                conditionGroups: [
+                  {
+                    type: 'or',
+                    conditions: [{ type: 'instanceOf', value: 1, field: 'selections', scope: 'self', childId: 'command-squad-category' }],
+                  },
+                ],
+              },
+            ],
+          },
+          {
+            id: 'cadian-command-squad',
+            name: 'Cadian Command Squad',
+            type: 'unit',
+            categoryLinks: [{ id: 'command-link', name: 'Command Squad', targetId: 'command-squad-category' }],
+          },
+        ],
+        entryLinks: [{ id: 'command-squad-link', name: 'Cadian Command Squad', type: 'selectionEntry', targetId: 'cadian-command-squad' }],
+      })
+
+    it('supports the matching units when the join is required', () => {
+      const index = indexWithJoin(1)
+
+      expect(attachmentOf(index.definitions.get('ogryn-bodyguard')!, index, { id: 'ogryn-bodyguard' })).toEqual({
+        kind: 'support',
+        targets: ['Cadian Command Squad'],
+      })
+    })
+
+    it('stays unattachable when the join is optional', () => {
+      const index = indexWithJoin(0)
+
+      expect(attachmentOf(index.definitions.get('ogryn-bodyguard')!, index, { id: 'ogryn-bodyguard' })).toBeNull()
+    })
   })
 
   it('does not broaden substitutions limited to a named kind of character', () => {
@@ -637,5 +845,16 @@ describe('the unit an attachment makes', () => {
 
   it('leaves a unit standing on its own alone', () => {
     expect(attachedUnit([{}, { attachedTo: 0 }, {}], 2)).toEqual([])
+  })
+
+  // A Loyal Protector joins a Command Squad, which can then lead its bodyguard unit.
+  const protected_ = [{}, { attachedTo: 0 }, { attachedTo: 1 }]
+
+  it('counts a character joined to an attached character with the whole unit', () => {
+    expect(attachedUnit(protected_, 2)).toEqual([0, 1])
+  })
+
+  it('counts a character joined to an attached character from the bodyguard', () => {
+    expect(attachedUnit(protected_, 0)).toEqual([1, 2])
   })
 })

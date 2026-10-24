@@ -25,6 +25,6 @@ jobs:
       - name: Classify changed paths
         id: scope
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.sha }}
-        run: node scripts/ciScope.ts
+        # The event's base SHA goes stale once the base branch moves; the merge commit's first parent is what it merged into.
+        run: BASE_SHA="$(git rev-parse "$HEAD_SHA^1")" node scripts/ciScope.ts

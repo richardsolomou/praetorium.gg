@@ -3,7 +3,14 @@ import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 
-type Props = { title: string; count: number; children: ReactNode; defaultOpen?: boolean }
+type Props = {
+  title: string
+  count: number
+  children: ReactNode
+  defaultOpen?: boolean
+  /** Sits the heading on its first entry, for entries whose outline carries a label above it. */
+  snug?: boolean
+}
 
 /**
  * A titled shelf with its count on the right, collapsible.
@@ -12,10 +19,10 @@ type Props = { title: string; count: number; children: ReactNode; defaultOpen?: 
  * right number of units in each category, not by scrolling to the bottom to find
  * out.
  */
-export function Section({ title, count, children, defaultOpen = true }: Props) {
+export function Section({ title, count, children, defaultOpen = true, snug = false }: Props) {
   return (
     <Collapsible render={<section />} defaultOpen={defaultOpen}>
-      <div className="flex w-full items-center justify-between py-1.5">
+      <div className={`flex w-full items-center justify-between ${snug ? 'pt-2.5 pb-0.5' : 'py-1.5'}`}>
         <h2 className="rubric">{title}</h2>
         <span className="flex items-center gap-1.5">
           <span className="readout text-sm text-dim">{count}</span>

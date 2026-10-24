@@ -68,6 +68,27 @@ it('fails without emitting a skip when the PR base is missing', () => {
   expect({ status: result.status, output: result.stdout }).toEqual({ status: 1, output: '' })
 })
 
+const scope = parse(fs.readFileSync(new URL('../.github/workflows/ci-scope.yml', import.meta.url), 'utf8')) as {
+  jobs: { changes: { steps: { id?: string; run: string }[] } }
+}
+
+it('compares a pull request with the base its merge commit was built on, not the stale event base', () => {
+  git('checkout', '--quiet', '-b', 'feature')
+  fs.writeFileSync(path.join(root, 'docs/guide.md'), '# Edited\n')
+  commit()
+  git('checkout', '--quiet', '-')
+  fs.writeFileSync(path.join(root, 'runtime.ts'), 'export const runtime = false\n')
+  commit()
+  git('-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'merge', '--quiet', '--no-ff', '--no-edit', 'feature')
+  const step = scope.jobs.changes.steps.find((candidate) => candidate.id === 'scope')!
+  const result = spawnSync('bash', ['-c', step.run.replace('scripts/ciScope.ts', script)], {
+    cwd: root,
+    encoding: 'utf8',
+    env: { ...process.env, GITHUB_EVENT_NAME: 'pull_request', HEAD_SHA: git('rev-parse', 'HEAD'), BASE_SHA: base, GITHUB_OUTPUT: '' },
+  })
+  expect(result.stdout).toBe('runtime=false\n')
+})
+
 const deploy = parse(fs.readFileSync(new URL('../.github/workflows/dokploy-preview-deploy.yml', import.meta.url), 'utf8')) as {
   jobs: { image: { steps: { run: string }[] } }
 }

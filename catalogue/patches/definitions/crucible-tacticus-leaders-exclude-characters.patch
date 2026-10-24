@@ -1,0 +1,23 @@
+diff --git a/definitions/Imperium - Space Marines.json b/definitions/Imperium - Space Marines.json
+--- a/definitions/Imperium - Space Marines.json
++++ b/definitions/Imperium - Space Marines.json
+@@ -72192,7 +72192,8 @@
+                             "type": "and",
+                             "conditions": [
+                               {"childId": "5179-8ede-45e3-49a2", "childName": "Tacticus", "field": "selections", "scope": "self", "shared": true, "type": "instanceOf", "value": 1},
+-                              {"childId": "c619-2086-bbcf-69c9", "childName": "Fly", "field": "selections", "scope": "self", "shared": true, "type": "notInstanceOf", "value": 1}
++                              {"childId": "c619-2086-bbcf-69c9", "childName": "Fly", "field": "selections", "scope": "self", "shared": true, "type": "notInstanceOf", "value": 1},
++                              {"childId": "9cfd-1c32-585f-7d5c", "childName": "Character", "field": "selections", "scope": "self", "shared": true, "type": "notInstanceOf", "value": 1}
+                             ]
+                           }
+                         ],
+@@ -73205,7 +73206,8 @@
+                             "type": "and",
+                             "conditions": [
+                               {"childId": "5179-8ede-45e3-49a2", "childName": "Tacticus", "field": "selections", "scope": "self", "shared": true, "type": "instanceOf", "value": 1},
+-                              {"childId": "c619-2086-bbcf-69c9", "childName": "Fly", "field": "selections", "scope": "self", "shared": true, "type": "notInstanceOf", "value": 1}
++                              {"childId": "c619-2086-bbcf-69c9", "childName": "Fly", "field": "selections", "scope": "self", "shared": true, "type": "notInstanceOf", "value": 1},
++                              {"childId": "9cfd-1c32-585f-7d5c", "childName": "Character", "field": "selections", "scope": "self", "shared": true, "type": "notInstanceOf", "value": 1}
+                             ]
+                           }
+                         ],

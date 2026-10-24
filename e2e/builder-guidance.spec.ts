@@ -1,9 +1,11 @@
 import type { Locator } from '@playwright/test'
 import { expect, type Page, test } from './test'
 import { createRoster, signUp, waitForRosterSave } from './account'
-import { add, expectNoHorizontalOverflow, openBuilder, shot } from './builder.harness'
+import { add, arrangeByRole, expectNoHorizontalOverflow, openBuilder, shot } from './builder.harness'
 
 test.use({ hasTouch: true })
+// These tests read the rows on each card that name the unit it joined.
+test.beforeEach(({ page }) => arrangeByRole(page))
 
 const attachMenu = (page: Page) => page.getByRole('menu')
 
@@ -110,6 +112,23 @@ test(`a character's attach menu adds and joins a new bodyguard`, async ({ page }
     await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
     await expect(overlord).toContainText('Immortals')
   }
+})
+
+test('a Loyal Protector joins a Command Squad', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await openBuilder(page, 'Astra Militarum', /Combined Arms/)
+  await waitForRosterSave(page, () => add(page, 'Ogryn Bodyguard'))
+
+  const ogryn = page.locator('[data-unit="Ogryn Bodyguard"]')
+  await ogryn.getByRole('button', { name: 'Attach Ogryn Bodyguard to unit', exact: true }).click()
+  const squad = attachMenu(page)
+    .getByRole('group', { name: 'Add a new unit' })
+    .getByRole('menuitem', { name: 'Add new Cadian Command Squad and attach', exact: true })
+  await shot(attachMenu(page), 'test-results/attach-menu-loyal-protector.png')
+  await waitForRosterSave(page, () => squad.click())
+
+  await expect(ogryn).toContainText('Cadian Command Squad')
+  await page.screenshot({ path: 'test-results/attach-loyal-protector-roster.png' })
 })
 
 test('a unit attaches a character already in the roster from its own card', async ({ page }) => {

@@ -24,9 +24,9 @@ The message under it tells you why, usually unfinished scoring from the previous
 
 Another device took the seat. Take the seat back and send the new link.
 
-### "This battle is not open to you."
+### "This battle is not open."
 
-A seated player's privacy setting keeps you out.
+Nobody is seated at the battle any more, so there is nothing to watch.
 
 ## Limits
 

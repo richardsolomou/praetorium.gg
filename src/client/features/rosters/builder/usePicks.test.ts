@@ -396,9 +396,9 @@ it('explains a requested unit blocked by current construction prerequisites', ()
   })
 })
 
-describe('unit notes', () => {
+describe('unit nicknames and notes', () => {
   function annotated(run: (edit: ReturnType<typeof pickEditor>) => void) {
-    let picks: KeyedPick[] = [{ key: 0, entryId: 'squad', catalogueId: 'imperium', note: 'Hold home.' }]
+    let picks: KeyedPick[] = [{ key: 0, entryId: 'squad', catalogueId: 'imperium', nickname: 'Alpha', note: 'Hold home.' }]
     let next = 1
     const edit = pickEditor(
       (update) => {
@@ -411,16 +411,64 @@ describe('unit notes', () => {
     return picks
   }
 
-  it('rewrites one unit’s note', () => {
-    expect(annotated((edit) => edit.annotate(0, 'Push midfield.'))[0]?.note).toBe('Push midfield.')
+  it('renames one unit', () => {
+    expect(annotated((edit) => edit.annotate(0, 'nickname', 'Bravo'))[0]?.nickname).toBe('Bravo')
   })
 
   it('removes a note the player emptied', () => {
-    expect(annotated((edit) => edit.annotate(0, '  '))[0]).not.toHaveProperty('note')
+    expect(annotated((edit) => edit.annotate(0, 'note', '  '))[0]).not.toHaveProperty('note')
   })
 
-  it('duplicates a unit without its note', () => {
+  it('duplicates a unit without its nickname or note', () => {
     expect(annotated((edit) => edit.duplicate(0))[1]).toEqual({ key: 1, entryId: 'squad', catalogueId: 'imperium' })
+  })
+})
+
+describe('starting embarks', () => {
+  function embarked(run: (edit: ReturnType<typeof pickEditor>) => void, start: Partial<KeyedPick>[] = [{}, {}, {}]) {
+    let picks: KeyedPick[] = [
+      { key: 10, entryId: 'squad', catalogueId: 'imperium', ...start[0] },
+      { key: 11, entryId: 'captain', catalogueId: 'imperium', ...start[1] },
+      { key: 12, entryId: 'rhino', catalogueId: 'imperium', ...start[2] },
+    ]
+    const edit = pickEditor(
+      (update) => {
+        picks = typeof update === 'function' ? update(picks) : update
+      },
+      { catalogueId: 'imperium', units: [], limits: new Map([['squad', null]]) },
+      () => 13,
+    )
+    run(edit)
+    return picks
+  }
+
+  it('starts a unit in a transport', () => {
+    expect(embarked((edit) => edit.embark(10, 12))[0]?.embarkedIn).toBe(12)
+  })
+
+  it('puts a unit back on the battlefield', () => {
+    expect(embarked((edit) => edit.embark(10, undefined), [{ embarkedIn: 12 }])[0]).not.toHaveProperty('embarkedIn')
+  })
+
+  it('leaves passengers on the battlefield when their transport is removed', () => {
+    expect(embarked((edit) => edit.drop(2), [{ embarkedIn: 12 }])[0]).not.toHaveProperty('embarkedIn')
+  })
+
+  it('clears several starting embarks at once', () => {
+    const picks = embarked((edit) => edit.disembark([10, 11]), [{ embarkedIn: 12 }, { embarkedIn: 12 }])
+    expect(picks.map((pick) => pick.embarkedIn)).toEqual([undefined, undefined, undefined])
+  })
+
+  it('duplicates a unit without its starting embark', () => {
+    expect(embarked((edit) => edit.duplicate(0), [{ embarkedIn: 12 }])[1]).not.toHaveProperty('embarkedIn')
+  })
+
+  it('leaves a character’s starting embark to the unit it joins', () => {
+    expect(embarked((edit) => edit.join(1, 10), [{}, { embarkedIn: 12 }])[1]).not.toHaveProperty('embarkedIn')
+  })
+
+  it('leaves a starting embark to the unit a newly added character joins', () => {
+    expect(embarked((edit) => edit.add('squad', { joinedBy: 11 }), [{}, { embarkedIn: 12 }])[1]).not.toHaveProperty('embarkedIn')
   })
 })
 

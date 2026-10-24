@@ -867,6 +867,94 @@ describe('the profile modifiers on a datasheet', () => {
     })
   })
 
+  it('does not read an invulnerable save as a granted ability', () => {
+    const book = bookOf({
+      sharedRules: [{ id: 'power-from-pain', name: 'Power From Pain', description: 'Grow stronger.' }],
+      selectionEntries: [
+        {
+          id: 'wyches',
+          name: 'Wyches',
+          type: 'unit',
+          profiles: [
+            {
+              id: 'invulnerable',
+              name: 'Invulnerable Save (4+*)',
+              typeName: 'Abilities',
+              characteristics: [{ name: 'Description', $text: 'Models in this unit have a 4+ invulnerable save against melee attacks.' }],
+            },
+          ],
+          infoLinks: [{ id: 'power-link', targetId: 'power-from-pain', name: 'Power From Pain', type: 'rule' }],
+        },
+      ],
+    })
+    expect(
+      datasheetIn(book, 'cat', 'wyches', { selections: [{ id: 'wyches' }], unitSelectionIndex: 0 })?.abilities.filter((ability) =>
+        ability.id.startsWith('granted:'),
+      ),
+    ).toEqual([])
+  })
+
+  describe('a Feel No Pain a joined model links from the shared library for models with a keyword', () => {
+    const book = () =>
+      bookOf({
+        categoryEntries: [{ id: 'officer', name: 'Officer' }],
+        sharedProfiles: [
+          {
+            id: 'ogryn-bodyguard',
+            name: 'Ogryn Bodyguard',
+            typeName: 'Abilities',
+            characteristics: [
+              {
+                name: 'Description',
+                $text:
+                  'While one or more **^^Officer^^** models are in the same unit as this model, those **^^Officer^^** models have the Feel No Pain 4+ ability',
+              },
+            ],
+          },
+        ],
+        selectionEntries: [
+          {
+            id: 'protector',
+            name: 'Protector',
+            type: 'model',
+            infoLinks: [{ id: 'bodyguard-link', targetId: 'ogryn-bodyguard', name: 'Ogryn Bodyguard', type: 'profile' }],
+          },
+          {
+            id: 'command',
+            name: 'Command Squad',
+            type: 'unit',
+            categoryLinks: [{ id: 'command-officer', targetId: 'officer', name: 'Officer' }],
+          },
+          { id: 'squad', name: 'Squad', type: 'unit' },
+        ],
+      })
+    const selections = [{ id: 'command' }, { id: 'protector' }]
+
+    it('gives it to the unit it joined, for those models only', () => {
+      expect(datasheetIn(book(), 'cat', 'command', { selections, unitSelectionIndex: 0, companions: [1] })?.abilities).toContainEqual({
+        id: 'granted:ogryn-bodyguard',
+        name: 'Feel No Pain 4+',
+        source: 'Ogryn Bodyguard',
+        description: null,
+        kind: 'core',
+        models: 'Officer',
+      })
+    })
+
+    it('does not give it to a unit without that keyword', () => {
+      expect(
+        datasheetIn(book(), 'cat', 'squad', { selections: [{ id: 'squad' }, { id: 'protector' }], unitSelectionIndex: 0, companions: [1] })
+          ?.abilities,
+      ).not.toContainEqual(expect.objectContaining({ name: 'Feel No Pain 4+' }))
+    })
+
+    it('does not give it to the model that grants it', () => {
+      expect(datasheetIn(book(), 'cat', 'protector', { selections, unitSelectionIndex: 1, companions: [0] })?.abilities).not.toContainEqual(
+        expect.objectContaining({ name: 'Feel No Pain 4+' }),
+      )
+    })
+  })
+
   it('grants Stealth from a companion whose own unit has Stealth', () => {
     const book = bookOf({
       selectionEntries: [

@@ -9,11 +9,11 @@
 ## Share, export and print
 
 - **Copy link** (or **Share link** on a phone) appears once the list is Unlisted or Public. To share a private list, change **Access** in **Edit roster setup**, or use **Make unlisted and copy link** in the library.
-- **Export text** shows readable text to **Copy text** or **Download text**. It includes model counts, equipment, enhancements, Warlord, attachments, setup and rules version, but no notes, waived restrictions or optional rules. [Import a list](/docs/import-a-list) reads it back.
+- **Export text** shows readable text to **Copy text** or **Download text**. It includes custom unit names, model counts, equipment, enhancements, Warlord, attachments, setup and rules version, but no notes, waived restrictions or optional rules. [Import a list](/docs/import-a-list) reads it back.
 - **Print** prepares a battle reference pack: the army summary, army and detachment rules, stratagems, and the abilities and weapon rules your units use.
 
 The **Build**/**View** switch in the header hides editing controls for reading at the table. **Start a battle** takes the list into a [battle](/docs/start-a-battle).
 
 ## Your collection
 
-If you're signed in, **Your collection** below the units compares the list with the models you've counted on [Collection](/collection): models short, to build or to paint, or **Ready to field**, with **Add to wishlist** for what's missing. It never affects points or legality.
+If you're signed in, **Your collection** below the units compares the list with the models you've counted on [Collection](/collection): models short, to build or to paint, or **Ready to field**, with **Add to wishlist** for what's missing. Models you've marked on Collection as able to be another datasheet, such as the other builds of a magnetised tank, can fill it too, and each model is counted once. It never affects points or legality.

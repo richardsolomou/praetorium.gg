@@ -1,12 +1,13 @@
+import { createHmac } from 'node:crypto'
 import { createServerFn } from '@tanstack/react-start'
 import { getRequest } from '@tanstack/react-start/server'
 import { feedbackEmailSchema, feedbackScreenshotSchema } from '../../contracts/feedback'
 import { app } from '../app'
 import { feedbackEmail } from '../feedbackEmail'
 import { storeFeedbackScreenshot } from '../feedbackScreenshots'
-import { currentUser } from '../playerSession'
+import { currentUser, currentUserId } from '../playerSession'
 import { fixedWindowRateLimit } from '../rateLimit'
-import { mutationRpc } from '../rpc'
+import { mutationRpc, rpc } from '../rpc'
 
 const screenshotRateLimit = fixedWindowRateLimit('too many screenshot uploads')
 const emailRateLimit = fixedWindowRateLimit('too many feedback emails')
@@ -21,7 +22,7 @@ export const uploadFeedbackScreenshot = createServerFn({ method: 'POST' })
     }),
   )
 
-/** Emails every administrator a feedback response PostHog has already accepted; a no-op where this instance sends no email. */
+/** Emails every administrator an import report PostHog has already accepted; a no-op where this instance sends no email. */
 export const emailFeedback = createServerFn({ method: 'POST' })
   .validator(feedbackEmailSchema)
   .handler(({ data }) =>
@@ -31,8 +32,21 @@ export const emailFeedback = createServerFn({ method: 'POST' })
       const delivery = app().email
       if (!delivery) return null
       const [sender, recipients] = await Promise.all([currentUser(), app().service.adminEmails()])
-      const email = feedbackEmail(data, sender, process.env.APP_URL)
+      const email = feedbackEmail(data, sender)
       await Promise.all(recipients.map((to) => delivery.send({ to, ...email })))
       return null
     }),
   )
+
+/**
+ * Proves to PostHog Support that this browser belongs to the signed-in account, so its feedback conversations follow
+ * the player to every device; null for a guest or where this instance has no support secret.
+ */
+export const supportIdentity = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const secret = process.env.POSTHOG_SUPPORT_IDENTITY_SECRET
+    if (!secret) return null
+    const id = await currentUserId()
+    return id ? { distinctId: id, hash: createHmac('sha256', secret).update(id).digest('hex') } : null
+  }),
+)

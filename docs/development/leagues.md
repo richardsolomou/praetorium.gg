@@ -40,12 +40,12 @@ After reveal, `LeagueRosterSharing` offers each entrant the publication [Product
 
 ## Battles
 
-The server derives fixed teammates and pairs and verifies sealed sizes; no friendship is required. A 2v1 event revealed before allies were paired lets an entrant name both allies. Creation copies snapshots and appends `lock-league-rosters` in one transaction. Event battles keep battle audience and field visibility; reveal never widens access to a private battle. Ordinary creation detects exact event matchups and needs explicit confirmation to proceed unlinked.
+The server derives fixed teammates and pairs and verifies sealed sizes; no friendship is required. A 2v1 event revealed before allies were paired lets an entrant name both allies. Creation copies snapshots and appends `lock-league-rosters` in one transaction. Event battles keep field visibility. Ordinary creation detects exact event matchups and needs explicit confirmation to proceed unlinked.
 
 ## Results
 
-Results fold only battles the reader may watch, so a private battle stays out of other tables. Finished battles count, including manual ones. The table folds the feed's largest page and says when there are more.
+Finished battles count, including manual ones. The table folds the feed's largest page and says when there are more.
 
 ## Verification
 
-Use adjacent tests and `e2e/leagues.spec.ts`, covering admission races, access across reassignment, Force Dispositions across reveal, unseal/reseal, admin-less saved data, and private battles in results. Inspect open and revealed event layouts on phones.
+Use adjacent tests and `e2e/leagues.spec.ts`, covering admission races, access across reassignment, Force Dispositions across reveal, unseal/reseal, and admin-less saved data. Inspect open and revealed event layouts on phones.

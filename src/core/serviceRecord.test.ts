@@ -3,13 +3,12 @@ import { type Command, reduceBattle } from './battle'
 import { ALICE, BOB, log, PLAYERS, started } from './battle.fixtures'
 import { guestSeatId } from './newBattle'
 import {
-  CARD_SAMPLE,
   type CardPlay,
   type RecordBattle,
   recordFacets,
   personalPerformance,
   type SeatPlay,
-  STRATAGEM_ROWS,
+  RECORD_SAMPLE,
   seatPlays,
   serviceRecord,
   type StratagemPlay,
@@ -364,17 +363,19 @@ describe('stratagems in a record', () => {
     ).toEqual([['grenade'], ['smoke']])
   })
 
-  it('lists only the most used, and says how many different ones were used', () => {
-    const keys = Array.from({ length: STRATAGEM_ROWS + 2 }, (_, at) => `s${String(at).padStart(2, '0')}`)
-    const record = serviceRecord([duel({ plays: [play({ stratagems: keys.map((key) => used(key)) }), idle()] })], 'alice')
+  it('counts a stratagem once when catalogue revisions gave it different keys', () => {
+    const battles = [
+      duel({ plays: [play({ stratagems: [{ key: 'command-re-roll', name: 'Command Re-roll', cp: 1 }] }), idle()] }),
+      duel({ lastActivity: 20, plays: [play({ stratagems: [{ key: 'db2db16d', name: 'Command Re-Roll', cp: 1 }] }), idle()] }),
+    ]
 
-    expect({ rows: record.stratagems.length, used: record.stratagemsUsed }).toEqual({ rows: STRATAGEM_ROWS, used: STRATAGEM_ROWS + 2 })
+    expect(serviceRecord(battles, 'alice').stratagems.map(({ key, uses }) => ({ key, uses }))).toEqual([{ key: 'db2db16d', uses: 2 }])
   })
 
   it('does not count a stratagem whose use was undone', () => {
     const plays = folded(ALICE, ...armed([ALICE, { kind: 'use-stratagem', key: 'grenade' }], [ALICE, { kind: 'undo', target: 6 }]))
 
-    expect(serviceRecord([duel({ plays })], 'alice').stratagemsUsed).toBe(0)
+    expect(serviceRecord([duel({ plays })], 'alice').stratagems).toEqual([])
   })
 
   it('counts what the board made a stratagem cost rather than its printed price', () => {
@@ -432,6 +433,37 @@ describe('command points in a record', () => {
   })
 })
 
+describe('best and worst stratagems in a record', () => {
+  const lost = { scores: [41, 55] }
+  const using = (key: string, over: Partial<RecordBattle>, at: number) =>
+    duel({ ...over, lastActivity: at, plays: [play({ stratagems: [used(key)] }), idle()] })
+  const sample = (key: string, over: Partial<RecordBattle>) => Array.from({ length: RECORD_SAMPLE }, (_, at) => using(key, over, at))
+
+  it('counts the battles each stratagem was used in and the share of them won', () => {
+    const battles = [using('grenade', {}, 1), using('grenade', lost, 2)]
+
+    expect(serviceRecord(battles, 'alice').stratagems[0]).toMatchObject({ battles: 2, rate: 0.5 })
+  })
+
+  it('names the stratagem used in the most-won battles as the best', () => {
+    const battles = [...sample('grenade', {}), ...sample('smoke', lost)]
+
+    expect(serviceRecord(battles, 'alice').bestStratagem?.key).toBe('grenade')
+  })
+
+  it('names the stratagem used in the most-lost battles as the worst', () => {
+    const battles = [...sample('grenade', {}), ...sample('smoke', lost)]
+
+    expect(serviceRecord(battles, 'alice').worstStratagem?.key).toBe('smoke')
+  })
+
+  it('names neither when only one stratagem was used in enough battles', () => {
+    const battles = [...sample('grenade', {}), using('smoke', lost, 99)]
+
+    expect(serviceRecord(battles, 'alice').bestStratagem).toBeNull()
+  })
+})
+
 describe('secondary cards in a record', () => {
   it('counts how often each card was held, how often it scored, and what it earned per battle held', () => {
     const battles = [
@@ -453,6 +485,15 @@ describe('secondary cards in a record', () => {
     ])
   })
 
+  it('counts a card once when catalogue revisions gave it different keys', () => {
+    const battles = [
+      duel({ plays: [play({ cards: [{ key: 'assassination', name: 'Assassination', points: 4 }] }), idle()] }),
+      duel({ lastActivity: 20, plays: [play({ cards: [{ key: '9c1e', name: 'Assassination', points: 2 }] }), idle()] }),
+    ]
+
+    expect(serviceRecord(battles, 'alice').cards.map(({ key, held: count }) => ({ key, count }))).toEqual([{ key: '9c1e', count: 2 }])
+  })
+
   it('credits an ally with the cards their side held', () => {
     const battle = allied({ plays: [play({ cards: [held('assassination', 5)] }), idle(), idle()] })
 
@@ -460,7 +501,7 @@ describe('secondary cards in a record', () => {
   })
 
   it('names the best and worst cards among those held often enough', () => {
-    const battles = Array.from({ length: CARD_SAMPLE }, (_, at) =>
+    const battles = Array.from({ length: RECORD_SAMPLE }, (_, at) =>
       duel({ lastActivity: at, plays: [play({ cards: [held('steady', 5), held('poor', 1)] }), idle()] }),
     )
 
@@ -471,7 +512,7 @@ describe('secondary cards in a record', () => {
 
   it('does not let a card held fewer times than the sample top the table', () => {
     const battles = [
-      ...Array.from({ length: CARD_SAMPLE }, (_, at) =>
+      ...Array.from({ length: RECORD_SAMPLE }, (_, at) =>
         duel({ lastActivity: at, plays: [play({ cards: [held('steady', 5), held('poor', 1)] }), idle()] }),
       ),
       duel({ lastActivity: 99, plays: [play({ cards: [held('lucky', 20)] }), idle()] }),
@@ -482,7 +523,9 @@ describe('secondary cards in a record', () => {
 
   it('names no best or worst card while fewer than two cards reach the sample', () => {
     const battles = [
-      ...Array.from({ length: CARD_SAMPLE }, (_, at) => duel({ lastActivity: at, plays: [play({ cards: [held('steady', 5)] }), idle()] })),
+      ...Array.from({ length: RECORD_SAMPLE }, (_, at) =>
+        duel({ lastActivity: at, plays: [play({ cards: [held('steady', 5)] }), idle()] }),
+      ),
       duel({ lastActivity: 99, plays: [play({ cards: [held('rare', 1)] }), idle()] }),
     ]
 
@@ -586,6 +629,37 @@ describe('primary missions in a record', () => {
   })
 })
 
+describe('results against each opponent', () => {
+  it('counts the results against each player on the other side, most played first', () => {
+    const battles = [
+      duel(),
+      duel({ lastActivity: 20, scores: [41, 55] }),
+      duel({ lastActivity: 30, playerIds: ['alice', 'carol'], players: ['Alice', 'Carol'] }),
+    ]
+
+    expect(serviceRecord(battles, 'alice').opponents.map(({ id, battles: played, won, lost }) => ({ id, played, won, lost }))).toEqual([
+      { id: 'bob', played: 2, won: 1, lost: 1 },
+      { id: 'carol', played: 1, won: 1, lost: 0 },
+    ])
+  })
+
+  it('does not count an ally as an opponent', () => {
+    expect(serviceRecord([allied()], 'alice').opponents.map((row) => row.id)).toEqual(['bob'])
+  })
+
+  it('leaves guests out, since a guest is a different seat in every battle', () => {
+    const battle = duel({ playerIds: ['alice', guestSeatId('battle', 1)] })
+
+    expect(serviceRecord([battle], 'alice').opponents).toEqual([])
+  })
+
+  it('names an opponent by the name their most recent battle gave them', () => {
+    const battles = [duel(), duel({ lastActivity: 20, players: ['Alice', 'Robert'] })]
+
+    expect(serviceRecord(battles, 'alice').opponents[0]?.name).toBe('Robert')
+  })
+})
+
 describe('results against each faction', () => {
   const doubles = (factions: RecordBattle['factions']) =>
     duel({
@@ -661,14 +735,28 @@ describe('a record with no battles in it', () => {
 
     expect({
       stratagems: record.stratagems,
-      used: record.stratagemsUsed,
       spent: record.averageCpSpent,
       perCp: record.pointsPerCp,
       cards: record.cards,
       best: record.bestCard,
       worst: record.worstCard,
+      bestStratagem: record.bestStratagem,
+      worstStratagem: record.worstStratagem,
       missions: record.primaryMissions,
       factions: record.opposingFactions,
-    }).toEqual({ stratagems: [], used: 0, spent: 0, perCp: null, cards: [], best: null, worst: null, missions: [], factions: [] })
+      opponents: record.opponents,
+    }).toEqual({
+      stratagems: [],
+      spent: 0,
+      perCp: null,
+      cards: [],
+      best: null,
+      worst: null,
+      bestStratagem: null,
+      worstStratagem: null,
+      missions: [],
+      factions: [],
+      opponents: [],
+    })
   })
 })
