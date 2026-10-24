@@ -1,4 +1,6 @@
 import { attachedUnitList, type AttachedUnit } from '../../../../core/attachedUnits'
+import { transportLabel } from '../../../../core/battle'
+import { nicknamedUnit } from '../../../../core/unitNotes'
 import type { Army } from '../../../sides'
 import { GROUPS } from '../../../unitGroups'
 
@@ -23,7 +25,10 @@ export function reserveSections(units: Army['units']) {
 }
 
 export function reserveUnitLabel(units: AttachedUnit<Army['units'][number]>[], unit: AttachedUnit<Army['units'][number]>): string {
-  const named = units.filter((entry) => entry.host.name === unit.host.name)
-  const name = named.length > 1 ? `${unit.host.name} #${named.findIndex((entry) => entry.host.key === unit.host.key) + 1}` : unit.host.name
-  return unit.joined.length ? `${name} with ${unit.joined.map((entry) => entry.name).join(', ')}` : name
+  const name =
+    transportLabel(
+      units.map((entry) => entry.host),
+      unit.host.key,
+    ) ?? unit.host.name
+  return unit.joined.length ? `${name} with ${unit.joined.map((entry) => nicknamedUnit(entry.name, entry.nickname)).join(', ')}` : name
 }

@@ -10,6 +10,7 @@
  */
 
 import { groupBy } from './collections'
+import { nicknamedUnit } from './unitNotes'
 import { attachedUnitList, attachedHost, attachedUnits } from './attachedUnits'
 import { refuse, sameSide } from './battlePrimitives'
 import { isPracticeSeat } from './newBattle'
@@ -206,11 +207,12 @@ export function strategicReservePoints(units: readonly ReserveUnit[]): number {
   }, 0)
 }
 
-export function transportLabel(units: readonly Pick<UnitState, 'key' | 'name'>[], key: string): string | null {
+export function transportLabel(units: readonly Pick<UnitState, 'key' | 'name' | 'nickname'>[], key: string): string | null {
   const transport = units.find((unit) => unit.key === key)
   if (!transport) return null
   const matching = units.filter((unit) => unit.name === transport.name)
-  return matching.length > 1 ? `${transport.name} #${matching.findIndex((unit) => unit.key === key) + 1}` : transport.name
+  const name = matching.length > 1 ? `${transport.name} #${matching.findIndex((unit) => unit.key === key) + 1}` : transport.name
+  return nicknamedUnit(name, transport.nickname)
 }
 
 /** What a transport holds if these passengers ride in it, or why they cannot. */

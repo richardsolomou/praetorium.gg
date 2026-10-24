@@ -3,7 +3,6 @@ import { loadedWords, useSourceTexts } from '../../sourceText'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
-import type { Command } from '../../../core/battle'
 import { nextDraw } from '../../scoring'
 import { type Side, sideName } from '../../sides'
 import { redrawOffer, type WhenDrawn } from './drawOffer'
@@ -12,6 +11,7 @@ import { CARD } from './battleTints'
 import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { countLabel } from '../../text'
+import type { SendCommand } from './useCommand'
 
 export type { WhenDrawn } from './drawOffer'
 
@@ -21,7 +21,7 @@ type Props = {
   undoable: number | null
   confirmUndo: boolean
   pending: boolean
-  send: (command: Command) => void
+  send: SendCommand
   referenceFor: (key: string) => ReferenceCard | undefined
   whenDrawnFor: (key: string) => WhenDrawn | undefined
   onDone: () => void
@@ -116,7 +116,7 @@ export function DrawDialog({
   useEffect(() => {
     if (paused) return
     const requested = new Set(asked.current)
-    const secondaries = []
+    const secondaries: Side['remainingSecondaries'] = []
     while (true) {
       const card = nextDraw(
         side.secondariesDrawnThisTurn.length,
@@ -131,8 +131,16 @@ export function DrawDialog({
     }
     if (!secondaries.length) return
     for (const card of secondaries) asked.current.add(card.key)
-    // Named, because the table may be dealing a practice opponent's hand rather than its own.
-    send({ kind: 'draw-secondaries', secondaries, playerId: side.captain.id })
+    send(
+      { kind: 'draw-secondaries', secondaries, playerId: side.captain.id },
+      {
+        complete: (appended) => {
+          if (appended) return
+          for (const card of secondaries) asked.current.delete(card.key)
+          setPaused(true)
+        },
+      },
+    )
   }, [side.secondariesDrawnThisTurn, side.secondaryDrawTarget, paused, side.captain.id, side.secondaries, side.remainingSecondaries, send])
 
   // A card that leaves the deck leaves the selection.

@@ -1,4 +1,4 @@
-import { BellRing, BookmarkPlus, Copy, EllipsisVertical, Plus, Unlink, X } from 'lucide-react'
+import { BellRing, BookmarkPlus, Copy, Crown, EllipsisVertical, Plus, Unlink, X } from 'lucide-react'
 import { type ReactNode, useId } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -40,6 +40,7 @@ export type Joined = { label: string; name: string; detail?: string; action?: st
 
 type Props = {
   unit: BuiltUnit
+  warlord?: boolean
   /** The player's name for the unit, shown above the datasheet name. */
   nickname?: string
   /** Only present for readers allowed to see it. */
@@ -85,6 +86,7 @@ type Editing = {
  */
 export function UnitCard({
   unit,
+  warlord,
   nickname,
   note,
   alliedFaction,
@@ -148,6 +150,11 @@ export function UnitCard({
         <div className="pointer-events-none text-left">
           <span className="w-full min-w-0">
             <span className="rubric block leading-tight text-bone">
+              {warlord ? (
+                <span className="mr-1 inline-flex align-middle text-info" title="Warlord">
+                  <Crown className="size-3.5 fill-current" aria-label="Warlord" />
+                </span>
+              ) : null}
               {nickname ?? unit.name}
               {alertCount ? <UnitAlertMarker count={alertCount} unitName={unit.name} /> : null}
             </span>
@@ -271,9 +278,9 @@ const ITEM = 'text-xs font-semibold uppercase'
 /** A row naming who a unit is joined to or riding with, and the button undoing it while the roster can be edited. */
 export function JoinedRow({ row, editable }: { row: Joined; editable: boolean }) {
   return (
-    <div className={`${ROW} pointer-events-none relative z-10 gap-2 [&_button]:pointer-events-auto`}>
+    <div className={`${ROW} pointer-events-none relative z-10 flex-wrap gap-2 [&_button]:pointer-events-auto`}>
       <span className="chip shrink-0">{row.label}</span>
-      <span className="min-w-0 flex-1 text-xs">{row.name}</span>
+      <span className="min-w-24 flex-1 text-xs break-words">{row.name}</span>
       {row.detail ? <span className="readout shrink-0 text-2xs text-dim">{row.detail}</span> : null}
       {editable && row.action ? (
         <Button

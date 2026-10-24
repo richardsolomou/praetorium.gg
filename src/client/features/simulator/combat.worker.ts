@@ -1,3 +1,4 @@
+import '../../polyfills'
 import { loadoutOdds, optimizeLoadout } from '../../../core/combatLoadouts'
 import { resolveCombatRequest, type CombatRequest } from '../../../core/combatMatchup'
 import type { LoadoutOdds, LoadoutOddsRequest } from './useLoadoutOdds'

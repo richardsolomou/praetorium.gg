@@ -12,6 +12,7 @@ import { errorMessage } from '../../queryClient'
 import { requestNativeHaptic } from '../../nativeBridge'
 import { captureAppSnapshot } from '../../offline/appSnapshot'
 import { writeAppSnapshot } from '../../offline/appStorage'
+import { isFetchNetworkFailure } from '../../networkErrors'
 import { holdingReload } from '../../pendingWrites'
 import type { AbilityReminder } from '../../../core/reminders'
 
@@ -128,6 +129,8 @@ async function sendQueued({
           setProblem(null)
           void queryClient.invalidateQueries({ queryKey: meQuery().queryKey })
           void queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey })
+        } else if (isFetchNetworkFailure(error)) {
+          setProblem('Check your connection and try again.')
         } else {
           if (!isRosterNotUsable(error)) posthog.captureException(error, { operation: 'battle_command' })
           setProblem(errorMessage(error))

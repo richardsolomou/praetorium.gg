@@ -24,6 +24,16 @@ const unit = (
 })
 
 describe('reserve sections', () => {
+  it('includes custom names when listing an attached passenger unit', () => {
+    const units = reserveSections([
+      { ...unit('first', 'Intercessor Squad', 'battleline'), nickname: 'Alpha' },
+      unit('second', 'Intercessor Squad', 'battleline'),
+      { ...unit('captain', 'Captain', 'character', false, 'first'), nickname: 'Commander' },
+    ]).flatMap((section) => section.units)
+
+    expect(reserveUnitLabel(units, units[0]!)).toBe('Alpha · Intercessor Squad #1 with Commander · Captain')
+  })
+
   it('distinguishes identical units and names the leader who embarks with one', () => {
     const sections = reserveSections([
       unit('first', 'Intercessor Squad', 'battleline'),

@@ -12,16 +12,18 @@ const pick = {
   spreads: { squad: { bolter: 4 } },
   toggles: { warlord: 1 },
   attachedTo: 2,
+  nickname: 'Brother Cato',
   note: 'Deep strike turn two',
 }
 
 describe('loadoutOf', () => {
-  it('keeps the datasheet, squad size and wargear', () => {
+  it('keeps the datasheet, squad size, wargear and nickname', () => {
     expect(loadoutOf(pick, 'sm', unit)?.pick).toEqual({
       entryId: 'captain',
       models: 1,
       choices: { pistol: 'plasma-pistol' },
       spreads: { squad: { bolter: 4 } },
+      nickname: 'Brother Cato',
     })
   })
 

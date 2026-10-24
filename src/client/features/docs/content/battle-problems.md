@@ -20,6 +20,10 @@ The roster skips a rule of its battle size. You can **Bring it anyway**, and eve
 
 The message under it tells you why, usually unfinished scoring from the previous turn, or secondary missions that still need drawing or reviewing.
 
+### "Check your connection and try again."
+
+The battle action could not reach the server. Check your connection, then try the action again. If drawing secondary missions failed, choose **Draw at random** again.
+
 ### The guest link says someone already joined
 
 Another device took the seat. Take the seat back and send the new link.

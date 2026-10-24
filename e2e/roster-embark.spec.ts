@@ -10,7 +10,7 @@ import {
   uniqueName,
   waitForRosterSave,
 } from './account'
-import { attach, shot } from './builder.harness'
+import { attach, expectNoHorizontalOverflow, shot } from './builder.harness'
 
 const phone = { viewport: { width: 390, height: 844 } }
 const desktop = { viewport: { width: 1440, height: 900 } }
@@ -30,6 +30,61 @@ for (const [size, label] of [
   [phone, 'phone'],
   [desktop, 'desktop'],
 ] as const) {
+  test(`custom names distinguish embarked squads and attached units (${label})`, async ({ browser }) => {
+    const page = await (await browser.newContext(size)).newPage()
+    await signUp(page, uniqueName('Named passengers'))
+    const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Named Marines' })
+    for (const name of [SQUAD, SQUAD, 'Rhino', 'Captain']) await addUnit(page, name)
+    const { squad, rhino } = await cards(page)
+
+    for (const [card, name, nickname] of [
+      [squad.first(), SQUAD, 'Alpha'],
+      [squad.nth(1), SQUAD, 'Bravo'],
+      [rhino, 'Rhino', 'Ironclad'],
+      [page.locator('[data-unit="Captain"]'), 'Captain', 'Commander'],
+    ] as const) {
+      await card.getByRole('button', { name, exact: true }).click()
+      await waitForRosterSave(page, () => page.getByRole('textbox', { name: 'Custom name', exact: true }).fill(nickname), nickname)
+      await cards(page)
+    }
+    await page.locator('[data-unit="Captain"]').getByRole('button', { name: 'Attach Captain to unit', exact: true }).click()
+    await waitForRosterSave(page, () => page.getByRole('menu').getByRole('menuitem', { name: SQUAD, exact: true }).first().click())
+    const carry = rhino.getByRole('button', { name: 'Embark a unit in Rhino', exact: true })
+    await carry.click()
+    const alpha = page.getByRole('menuitem', { name: `Embark Alpha · ${SQUAD} #1 in Rhino`, exact: true })
+    await expect(alpha).toContainText('With Commander · Captain')
+    await expect(page.getByRole('menuitem', { name: `Embark Bravo · ${SQUAD} #2 in Rhino`, exact: true })).toBeVisible()
+    await shot(page.getByRole('menu'), `test-results/roster-embark-custom-menu-${label}.png`)
+    await waitForRosterSave(page, () => alpha.click(), 'embarkedIn')
+    await expect(rhino).toContainText(`EmbarkedAlpha · ${SQUAD} #16/12 models`)
+    const led = page.locator('section[aria-label]').filter({ has: page.locator('[data-unit="Captain"]') })
+    await expect(led.locator('[data-unit-actions]')).toContainText('Unit embarked inIronclad · Rhino')
+
+    await page.reload()
+    await cards(page)
+    await page.getByRole('button', { name: 'View', exact: true }).click()
+    await expect(rhino).toContainText(`EmbarkedAlpha · ${SQUAD} #16/12 models`)
+    await expectNoHorizontalOverflow(rhino)
+    await shot(rhino, `test-results/roster-embark-custom-transport-${label}.png`)
+    await shot(led, `test-results/roster-embark-custom-attached-${label}.png`)
+    if (label === 'phone') {
+      await page.evaluate(() => (document.documentElement.style.fontSize = '200%'))
+      await expectNoHorizontalOverflow(rhino)
+      await expectNoHorizontalOverflow(rhino.getByText(`Alpha · ${SQUAD} #1`, { exact: true }))
+      await shot(rhino, 'test-results/roster-embark-custom-large-text.png')
+      await page.evaluate(() => (document.documentElement.style.fontSize = ''))
+    }
+
+    await createBattle(page, { practice: true })
+    await attachRoster(page, roster)
+    await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+    await setupStep(page, 'Reserves')
+    const reserves = page.getByRole('region', { name: 'Reserves', exact: true })
+    await expect(reserves.getByText(`Embarked: Alpha · ${SQUAD} #1 with Commander · Captain`, { exact: true })).toHaveCount(2)
+    await expect(reserves.getByText('Embarked in Ironclad · Rhino', { exact: true })).toHaveCount(2)
+    await shot(reserves, `test-results/roster-embark-custom-setup-${label}.png`)
+  })
+
   test(`a unit embarked in the builder starts in its transport at battle setup (${label})`, async ({ browser }) => {
     test.setTimeout(240_000)
     const page = await (await browser.newContext(size)).newPage()

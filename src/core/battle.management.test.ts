@@ -438,6 +438,18 @@ describe('battle management', () => {
     ).toBe('Rhino #2')
   })
 
+  it('keeps custom names and numbering when transports share a datasheet', () => {
+    expect(
+      transportLabel(
+        [
+          { key: 'u0', name: 'Rhino', nickname: 'Ironclad' },
+          { key: 'u1', name: 'Rhino', nickname: 'Ironclad' },
+        ],
+        'u1',
+      ),
+    ).toBe('Ironclad · Rhino #2')
+  })
+
   it('lets one participant arrange another army after the battle starts', () => {
     const history = log(
       [ALICE, builtRoster('Ultramarines', ['Intercessors'])],

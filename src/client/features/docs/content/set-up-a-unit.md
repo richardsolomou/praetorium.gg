@@ -2,7 +2,7 @@ Select a unit card to open its loadout. Along the top are:
 
 - **Points** for the unit as built.
 - **Model count**: use the minus and plus buttons, or pick a count from the number between them. Only sizes the datasheet allows are listed.
-- **Warlord**: the first eligible unit you add becomes your Warlord automatically. Press **Warlord** on another character to move it; if you remove it on purpose, it stays removed.
+- **Warlord**: the first eligible unit you add becomes your Warlord automatically. Press **Warlord** on another character to move it; if you remove it on purpose, it stays removed. A unit whose datasheet says it must be your Warlord, such as Trajann Valoris, takes it as soon as you add it and keeps it. Your Warlord has a crown beside its name in the roster list.
 - **Simulate combat**, which opens the [simulator](/docs/set-up-a-matchup) with this unit and never changes the list.
 
 ![An Intercessor Squad loadout with its points, model count and buttons along the top.](screenshot:build-an-army-loadout 'The loadout header: points, model count, Simulate combat and the full datasheet link')
@@ -23,7 +23,7 @@ Signed in, your account keeps your alerts; otherwise this browser does, and savi
 
 ## Unit actions
 
-Each card's menu (or a right-click) offers **Duplicate unit**, **Save loadout** and **Delete unit**. **Save loadout** keeps the model count and wargear under a name, up to 100 per account. It then appears beneath its datasheet in the picker for any roster of the same army; enhancements, upgrades, Warlord and attachments aren't kept.
+Each card's menu (or a right-click) offers **Duplicate unit**, **Save loadout** and **Delete unit**. **Save loadout** keeps the model count, wargear and custom name under a name, up to 100 per account. It then appears beneath its datasheet in the picker for any roster of the same army; enhancements, upgrades, Warlord and attachments aren't kept.
 
 ## Attach Leaders and Support units
 
