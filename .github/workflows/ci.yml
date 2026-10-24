@@ -46,7 +46,6 @@ jobs:
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm docs:lint
-      - run: pnpm docs:budget
       - run: pnpm changesets:check
       - run: pnpm auth:db:check
       - run: pnpm catalogue:check

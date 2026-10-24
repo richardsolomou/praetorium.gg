@@ -1,56 +1,20 @@
 # Product design
 
-Praetorium is a Warhammer 40,000 army builder, combat simulator, battle tracker, and rules reference. This document owns product scope and the privacy contract; the development guides own implementation.
+## Privacy contract
 
-## Scope
+Publication is named sharing; there is no anonymous archive of private game statistics. The [privacy policy](../src/client/features/legal/PrivacyPolicy.tsx) and the publish and delete controls state these boundaries before acting.
 
-Praetorium covers catalogue-backed lists, combat comparisons, friend, guest and practice battles tracked with mission guidance or by hand, leagues with sealed rosters and a results table, and a public rules reference drawn from community data. Praetorium publishes rule names, numbers, costs, and other facts; Game Datacards rules text loads in the reader's browser from its community source only when the reader chooses to load it on that device. Players control who may watch their battles.
+- Battles (screen, replay, feed, metadata) and profiles are public. Spectators never see a face-down Secret Mission or a control.
+- Rosters start public. Sharing a private roster makes it unlisted; private revokes every shared read.
+- Discovery shows only public rosters and drops them on the next read after a privacy change or deletion. The Played tab shows frozen armies from finished non-practice battles.
+- Lent rosters go to chosen friends, read-only, without notes or preparation; revoking, unfriending, or deletion ends the loan.
+- Seated players read each other's battle rosters without personal reminders.
+- Saved loadouts and unit notes are owner-only: never in exports, exchange codes, discovery, or copies.
+- Frozen battle armies and sealed league rosters are never rewritten by saved edits, privacy changes, or deletion. Sealed rosters are visible to assigned allies before reveal and event readers after.
+- League reveal never publishes; an entrant may publish the original roster, never a copy.
+- A guest seat belongs to one device by HTTP-only cookie, stored as a hash, and ends after 30 days, on reclaim, claim, or battle deletion.
+- A reported collection photo is visible only to its owner and administrators until reviewed.
+- Account deletion removes rosters, loadouts, friendships, entries, organized leagues, and every battle played. League deletion keeps battles.
+- Revocable player-content images are `no-store`. Screenshots with roster or battle data stay out of Git.
 
-It does not include pairings, brackets, schedules, locations, chat, matchmaking, rules this project wrote itself, model positions, or battle photos. Players talk on the [Praetorium Discord](https://discord.gg/RFUMZNFwMu), which the header on every page, the Support page and the README link to; the app itself has no chat.
-
-## Watching a battle
-
-Every battle is public and listed on the home page. Watching is read-only: a spectator sees the score, both armies, the public mission and stratagem state, and the visibility-filtered report, never a face-down Secret Mission or a control. A read never claims a seat.
-
-A profile is public, with its battle record, leaderboard place, and the collection tab with its owned, built and painted counts and the wishlist. Each collection datasheet can carry up to six photos of the player's own models, shown in the collection, the datasheet page's gallery and the roster loadout pane, which prefers the reader's own photos. Players add them from the collection, the datasheet page or the loadout pane; adding one puts the datasheet in the collection. Removing a photo asks for confirmation. Signed-in players can like and report other players' photos; only like counts are shown, never who liked a photo. A report hides the photo from everyone but its owner until an administrator reviews it; a report on a photo an administrator kept leaves it shown and asks for another review. Administrators also see the newest unreported photos, so they can remove one nobody has reported.
-
-The leaderboard counts finished public battles over the last 90 days, rated by who each player beat, with allies rated as one side and per-faction tables ranking players rather than factions. A concession is a loss whatever the score, allies share their side's points, and a battle with a practice opponent counts for nobody. A manually tracked battle counts in each player's record, labelled as manual, but not on the leaderboard: its score never passed through a mission's scoring rules. A battle against a guest, an opponent without an account whom the host names, counts in the host's record but not on the leaderboard, since nothing verifies who the guest is. A guest can play their own side from their device through a link the host shares, or leave it to the host. Once the game is over, a guest who signs up can claim it: it then counts like any battle between two accounts, in both records and, when public and guided, on the leaderboard, because the host agreed by sharing the link and the guest by claiming.
-
-## Publication and retained copies
-
-Publication is named sharing. There is no separate anonymous archive of private game statistics. The [privacy policy](../src/client/features/legal/PrivacyPolicy.tsx) and the controls that publish or delete content must describe these boundaries before the action takes effect.
-
-New saved rosters, copies, and imports start public unless the player chooses another default in settings or another access level for that roster. Sharing a private roster from the library first makes it unlisted and states that anyone holding the link can read it. Private access descriptions include read-only access for seated players through a named battle using that list.
-
-After a league reveals, each entrant can choose to make their original saved roster public. Reveal never publishes a saved roster automatically. The invitation is an info banner above the rosters. It disappears after either choice, stays absent for already public or deleted rosters, and remembers dismissal across devices for the event. Publication changes only the original saved roster's visibility, including edits since sealing and future edits, which the banner discloses. It never creates a copy or changes the frozen league submission. Personal notes and preparation stay private, and ordinary roster visibility and deletion controls still apply.
-
-| Content                                         | Who can read it                                                                                                     | What revocation or deletion changes                                                                                                      |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Guest seat                                      | The one device that opened the host's link, through an HTTP-only cookie; the server keeps only a hash of its secret | Lapses 30 days after joining; the host taking the seat back, a claim, or battle deletion ends it                                         |
-| Guest draft                                     | Browser storage on that device, shared by its tabs                                                                  | Reloads keep it; explicit discard removes it; account saving claims it                                                                   |
-| Saved roster                                    | Owner; unlisted link holders; public profile and discovery readers                                                  | Returning to private revokes shared reads; deletion removes the saved list                                                               |
-| Public roster discovery                         | Anyone, and the owner's accepted friends on their Friends tab; only rosters the owner made public, named for them   | Private, unlisted, deletion, or account deletion removes it on the next read; readers' duplicates are their own                          |
-| Played army discovery                           | Anyone, from finished battles; never practice battles or the reader's own                                           | Battle deletion or account deletion removes it on the next read; copies are the reader's own                                             |
-| Lent roster                                     | Owner; accepted friends the owner lent it to, read-only and without unit notes or preparation                       | The owner revoking, the borrower returning it, unfriending, or deletion ends the loan; battles keep the army as it was fielded           |
-| Named battle roster access                      | Seated players in the named battle                                                                                  | The saved-roster access exception is read-only and strips personal reminders; the battle UI reads the frozen army                        |
-| Saved loadout                                   | Owner only; never another reader, profile, export or discovery                                                      | Deleting it leaves units already added to rosters; account deletion removes every loadout                                                |
-| Custom unit names                               | Anyone who can read the roster or its battle and league copies                                                      | Follow the roster's visibility; text exports and exchange codes carry them                                                               |
-| Unit notes                                      | Owner only; never another reader of a saved roster, battle or league copy                                           | Copies keep them for their owner; text exports and exchange codes never include notes                                                    |
-| Frozen battle army                              | Anyone who can open the battle                                                                                      | Saved edits, privacy changes, and deletion do not rewrite it; battle deletion removes the log and copies                                 |
-| Sealed league roster                            | Accepted assigned allies before reveal; event readers after reveal                                                  | Saved edits or deletion do not rewrite it; replacement, unsealing, league deletion, or account deletion removes the relevant sealed copy |
-| Battle screen, replay, event feed, and metadata | Anyone                                                                                                              | Deletion removes the record                                                                                                              |
-| Collection photo                                | Anyone on the profile, the datasheet page and rosters; a held photo only to its owner and administrators            | Removing the datasheet or photo, administrator removal, and account deletion stop serving it on the next read                            |
-| Profile                                         | Public name, image, collection, wishlist and battle record                                                          | Account deletion removes the profile                                                                                                     |
-| Leaderboard                                     | Finished, guided battles without practice or unclaimed guest seats from the bounded 90-day window                   | Reopening and deletion invalidate derived rankings                                                                                       |
-
-The Public and Friends tabs of Rosters keep no copy or ranking of their own and never list frozen battle armies. The Played tab reads frozen armies from the public battle feed, so making the saved roster private does not hide the army it fielded. Copying an army changes nothing in its battle and records no link to it; the card names the player, the date it was played and the result for its side, and links to the battle. Administrators remove abusive accounts through account cleanup.
-
-Deleting a league removes its events and sealed rosters while battles keep their independent command-log copies and voluntarily published saved rosters remain under their owners’ control. Account deletion removes the player's saved rosters, saved loadouts, friendships, event entries, organized leagues, and every battle they played, including shared games. Downloaded or captured copies cannot be recalled. Revocable player-content preview images use `no-store`; public rules reference images may remain cached.
-
-The authorities are [`RosterService.rosterAccess`](../src/server/services/rosterService.ts), [`rosterDiscovery.ts`](../src/core/rosterDiscovery.ts), [`PraetoriumService`](../src/server/service.ts), [`league.ts`](../src/core/league.ts), and the transactional deletion procedures in [`spacetimedb/src/index.ts`](../spacetimedb/src/index.ts). [Battles](development/battles.md), [Leagues](development/leagues.md), and [Catalogue data](development/catalogue-data.md) own the implementation and verification requirements; [Interface](development/interface.md) owns presentation.
-
-Screenshots containing roster or battle data stay outside version control.
-
-## Known data limits
-
-The sources do not structure every restriction or replacement rule. Praetorium reports missing semantics and does not reconstruct rules from memory. Transport capacity and passenger restrictions exist only in prose: the app reads the printed capacity, keywords, exclusions, and space costs, enforces them, and refuses a transport whose rule it cannot read in full.
+Authorities: [`rosterAccess`](../src/server/services/rosterService.ts), [`rosterDiscovery.ts`](../src/core/rosterDiscovery.ts), [`PraetoriumService`](../src/server/service.ts), [`league.ts`](../src/core/league.ts), and deletion in [`spacetimedb/src/index.ts`](../spacetimedb/src/index.ts).
