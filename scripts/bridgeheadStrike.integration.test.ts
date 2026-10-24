@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
+import { joinableUnits } from '../src/core/attachmentOptions'
 import { nameOf } from '../src/core/catalogue'
 import type { RosterPick } from '../src/core/roster'
 import type { LoadedCatalogue } from '../src/server/catalogueIndex'
@@ -48,8 +49,15 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('Bridgehead
     expect(priced(true).units[1]?.group).toBe('battleline')
   })
 
-  it('lets Inquisitor Coteaz lead Tempestus Scions', () => {
-    expect(priced(true).units[2]?.attachment?.targets).toContain('Tempestus Scions')
+  it('offers Inquisitor Coteaz Tempestus Scions to lead', () => {
+    const { units } = priced(true)
+    expect(
+      joinableUnits(
+        units.map(({ key }) => ({ key })),
+        units,
+        2,
+      ).map(({ name }) => name),
+    ).toContain('Tempestus Scions')
   })
 
   it('accepts Inquisitor Coteaz leading Tempestus Scions', () => {
