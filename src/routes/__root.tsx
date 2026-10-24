@@ -1,6 +1,7 @@
 import { offlineData } from '../client/offline/runtime'
 import type { QueryClient } from '@tanstack/react-query'
-import { createRootRouteWithContext } from '@tanstack/react-router'
+import { createRootRouteWithContext, useLocation, useRouter } from '@tanstack/react-router'
+import { useEffect } from 'react'
 import sofiaSans from '@fontsource-variable/sofia-sans-semi-condensed/files/sofia-sans-semi-condensed-latin-wght-normal.woff2?url'
 import chakraPetch from '@fontsource/chakra-petch/files/chakra-petch-latin-700-normal.woff2?url'
 import martianMono from '@fontsource-variable/martian-mono/files/martian-mono-latin-wdth-normal.woff2?url'
@@ -8,6 +9,7 @@ import { FullPageState } from '../client/components/PageState'
 import { siteMeta } from '../client/linkPreview'
 import { AppShell } from '../client/features/shell/AppShell'
 import { meQuery } from '../client/queries'
+import { notFoundPage } from '../client/routeErrors'
 import { TEXT_SOURCES_SCRIPT } from '../client/rulesText'
 import appCss from '../styles.css?url'
 
@@ -45,11 +47,18 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient; orig
         ],
   }),
   component: AppShell,
-  notFoundComponent: () => (
+  notFoundComponent: NotFound,
+})
+
+function NotFound() {
+  const router = useRouter()
+  const pathname = useLocation({ select: (location) => location.pathname })
+  useEffect(() => notFoundPage(pathname, Object.keys(router.routesByPath)), [pathname, router])
+  return (
     <FullPageState
       eyebrow="404"
       title="Nothing here"
       explanation="This page does not exist or its current data is unavailable. Check the link and try again."
     />
-  ),
-})
+  )
+}

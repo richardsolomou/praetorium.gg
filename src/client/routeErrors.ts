@@ -59,3 +59,13 @@ export function completedModuleRecovery(href: string) {
   posthog.capture('route_recovery_completed', { failure_kind: 'module_load', recovery_attempt: attempt })
   return url.pathname + url.search + url.hash
 }
+
+/**
+ * Records a not-found page by its address, keeping only words some route spells out so no id, slug or typed text leaves the browser.
+ * Crawlers that run no JavaScript appear only in the server's `$http_log`.
+ */
+export function notFoundPage(pathname: string, routePaths: readonly string[]) {
+  const words = new Set(routePaths.flatMap((path) => path.split('/').filter((segment) => segment && !/[${]/.test(segment))))
+  const segments = pathname.split('/').filter(Boolean)
+  posthog.capture('page_not_found', { path: `/${segments.map((segment) => (words.has(segment) ? segment : ':id')).join('/')}` })
+}

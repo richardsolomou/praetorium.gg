@@ -5,7 +5,14 @@ const captureException = vi.hoisted(() => vi.fn())
 const capture = vi.hoisted(() => vi.fn())
 vi.mock('posthog-js', () => ({ posthog: { captureException, capture } }))
 
-import { completedModuleRecovery, mayReloadCancelledLoad, moduleRecoveryUrl, reportRouteError, routeErrorExplanation } from './routeErrors'
+import {
+  completedModuleRecovery,
+  mayReloadCancelledLoad,
+  moduleRecoveryUrl,
+  notFoundPage,
+  reportRouteError,
+  routeErrorExplanation,
+} from './routeErrors'
 
 beforeEach(() => {
   captureException.mockClear()
@@ -92,4 +99,19 @@ it('reports recovery completion with bounded metadata', () => {
 it('keeps invalid recovery keys out of completion telemetry', () => {
   completedModuleRecovery('https://praetorium.gg/factions?__route_retry=arbitrary-text')
   expect(capture).not.toHaveBeenCalled()
+})
+
+it('reports a not-found page with its address reduced to route words', () => {
+  notFoundPage('/factions/space-marines/datasheets/abc123', ['/factions/$catalogueId/datasheets/$datasheetId'])
+  expect(capture).toHaveBeenCalledWith('page_not_found', { path: '/factions/:id/datasheets/:id' })
+})
+
+it('keeps unknown words out of a not-found address', () => {
+  notFoundPage('/Jane.Doe@example.com/battles', ['/battles'])
+  expect(capture).toHaveBeenCalledWith('page_not_found', { path: '/:id/battles' })
+})
+
+it('reports the home page address of a not-found page as itself', () => {
+  notFoundPage('/', ['/'])
+  expect(capture).toHaveBeenCalledWith('page_not_found', { path: '/' })
 })
