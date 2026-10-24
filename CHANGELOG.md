@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.184.1
+
+### Patch Changes
+
+- 1ece916: Discord announcements show what's changed once an update is live.
+- 1ece916: The Discord invite opens the welcome channel when you join the community.
+
 ## 0.184.0
 
 ### Minor Changes
