@@ -6,7 +6,9 @@ const ticketSchema = z.object({
 })
 const messageSchema = z.object({ author_type: z.string(), is_private: z.boolean(), created_at: z.string() })
 // Results drop fields this build does not read, so PostHog adding one changes nothing here.
-const messagesSchema = z.union([z.array(messageSchema), z.object({ results: z.array(messageSchema) }).transform(({ results }) => results)])
+const messagePageSchema = z.object({ next: z.string().nullish(), results: z.array(messageSchema) })
+/** Bounds the read of one conversation's messages, whose pages run oldest first. */
+const MAX_MESSAGE_PAGES = 20
 
 export type SupportTicket = z.infer<typeof ticketSchema>
 export type SupportTicketMessage = z.infer<typeof messageSchema>
@@ -18,20 +20,26 @@ export function posthogSupportTickets(environment: NodeJS.ProcessEnv = process.e
   const project = environment.POSTHOG_PROJECT_ID
   if (!key || !host || !project) return undefined
 
-  async function read(path: string) {
-    const response = await fetch(new URL(`/api/projects/${project}/conversations/tickets/${path}`, host), {
-      headers: { Authorization: `Bearer ${key}` },
-      signal: AbortSignal.timeout(10_000),
-    })
+  async function read(url: URL) {
+    const response = await fetch(url, { headers: { Authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(10_000) })
     if (response.status === 404) return null
     if (!response.ok) throw new Error(`PostHog Support answered ${response.status}`)
-    return response.json()
+    return response.json() as Promise<unknown>
   }
+  const ticketUrl = (path: string) => new URL(`/api/projects/${project}/conversations/tickets/${path}`, host)
 
   return async (ticketId: string) => {
     const id = encodeURIComponent(ticketId)
-    const ticket = await read(`${id}/`)
+    const ticket = await read(ticketUrl(`${id}/`))
     if (!ticket) return null
-    return { ticket: ticketSchema.parse(ticket), messages: messagesSchema.parse(await read(`${id}/messages/`)) }
+    // The newest messages, which decide whether to email, come on the last page.
+    const messages: SupportTicketMessage[] = []
+    let next: URL | undefined = ticketUrl(`${id}/messages/`)
+    for (let page = 0; next && page < MAX_MESSAGE_PAGES; page++) {
+      const body = messagePageSchema.parse(await read(next))
+      messages.push(...body.results)
+      next = body.next ? new URL(body.next) : undefined
+    }
+    return { ticket: ticketSchema.parse(ticket), messages }
   }
 }
