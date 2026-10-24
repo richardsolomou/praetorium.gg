@@ -1,9 +1,21 @@
-import { MAX_COLLECTION_DATASHEETS, MAX_COLLECTION_MODELS, type CollectionCounts } from './collection'
+import { countsAsList, MAX_COLLECTION_DATASHEETS, MAX_COLLECTION_MODELS, MAX_COUNTS_AS, type CollectionEntry } from './collection'
 
 /** A collection file is a few hundred kilobytes at the datasheet limit; anything far larger is not one. */
 export const MAX_COLLECTION_CSV_BYTES = 1_000_000
 
-export const COLLECTION_CSV_COLUMNS = ['faction', 'datasheet', 'datasheet_id', 'models', 'built', 'painted', 'wanted'] as const
+export const COLLECTION_CSV_COLUMNS = [
+  'faction',
+  'datasheet',
+  'datasheet_id',
+  'models',
+  'built',
+  'painted',
+  'wanted',
+  'counts_as_ids',
+] as const
+
+/** Separates the datasheet ids in `counts_as_ids`, which a comma would split into cells. */
+const LINK_SEPARATOR = ';'
 
 type Sheet = { id: string; name: string; faction: string }
 
@@ -11,7 +23,7 @@ export type CollectionCsvRow = {
   entryId: string
   name: string
   faction: string
-} & CollectionCounts
+} & CollectionEntry
 
 /** Spreadsheet applications run a cell that starts with one of these as a formula. */
 const FORMULA = /^[=+\-@\t\r]/
@@ -24,7 +36,11 @@ function cell(value: string | number) {
 export function collectionCsv(rows: readonly CollectionCsvRow[]) {
   const lines = rows
     .toSorted((a, b) => a.faction.localeCompare(b.faction) || a.name.localeCompare(b.name))
-    .map((row) => [row.faction, row.name, row.entryId, row.models, row.built, row.painted, row.wanted].map(cell).join(','))
+    .map((row) =>
+      [row.faction, row.name, row.entryId, row.models, row.built, row.painted, row.wanted, (row.countsAs ?? []).join(LINK_SEPARATOR)]
+        .map(cell)
+        .join(','),
+    )
   return [COLLECTION_CSV_COLUMNS.join(','), ...lines].join('\r\n') + '\r\n'
 }
 
@@ -62,8 +78,8 @@ export function parseCsv(text: string) {
 const normalise = (value: string) => value.trim().replace(/^'/, '').replaceAll(/\s+/g, ' ').toLocaleLowerCase('en')
 
 export type ImportedRow = { line: number; name: string } & (
-  | ({ status: 'recognised'; entryId: string } & CollectionCounts)
-  | ({ status: 'ambiguous'; candidates: Sheet[] } & CollectionCounts)
+  | ({ status: 'recognised'; entryId: string } & CollectionEntry)
+  | ({ status: 'ambiguous'; candidates: Sheet[] } & CollectionEntry)
   | { status: 'unmatched' | 'duplicate' | 'invalid'; reason: string }
 )
 
@@ -116,6 +132,14 @@ export function readCollectionCsv(text: string, sheets: readonly Sheet[]): Colle
     if (valid.built > valid.models || valid.painted > valid.built)
       return { line, name, status: 'invalid', reason: 'Painted cannot exceed built, and built cannot exceed models.' }
     if (!valid.models && !valid.wanted) return { line, name, status: 'invalid', reason: 'Neither models nor wanted is above zero.' }
+    // Links name current datasheets by id; one the current rules lack is dropped, as an unmatched row is.
+    const links = (value(record, 'counts_as_ids') ?? '')
+      .split(LINK_SEPARATOR)
+      .map((link) => link.trim())
+      .filter((link) => byId.has(link))
+    if (links.length > MAX_COUNTS_AS)
+      return { line, name, status: 'invalid', reason: `A datasheet's models can be up to ${MAX_COUNTS_AS} other datasheets.` }
+    if (links.length && !valid.models) return { line, name, status: 'invalid', reason: 'Only owned models can also be other datasheets.' }
     const faction = normalise(value(record, 'faction') ?? '')
     const named = byName.get(normalise(name)) ?? []
     const candidates = byId.has(id)
@@ -124,23 +148,27 @@ export function readCollectionCsv(text: string, sheets: readonly Sheet[]): Colle
         ? named.filter((sheet) => normalise(sheet.faction) === faction)
         : named
     if (!candidates.length) return { line, name, status: 'unmatched', reason: 'No current datasheet has this name.' }
-    if (candidates.length > 1) return { line, name, status: 'ambiguous', candidates, ...valid }
+    const linked = links.length ? { countsAs: links } : {}
+    if (candidates.length > 1) return { line, name, status: 'ambiguous', candidates, ...valid, ...linked }
     const entryId = candidates[0]!.id
     if (seen.has(entryId)) return { line, name, status: 'duplicate', reason: 'An earlier row already lists this datasheet.' }
     seen.add(entryId)
-    return { line, name: candidates[0]!.name, status: 'recognised', entryId, ...valid }
+    const countsAs = countsAsList(entryId, links)
+    return { line, name: candidates[0]!.name, status: 'recognised', entryId, ...valid, ...(countsAs.length ? { countsAs } : {}) }
   })
   return { rows }
 }
 
 export type ImportChange = 'new' | 'same' | 'conflict'
 
-/** Import only adds or raises what a row lists: a zero leaves the saved count alone, and nothing is removed. */
-export function importChange(row: CollectionCounts, current: CollectionCounts | undefined): ImportChange {
+/** Import only adds or raises what a row lists: a zero or no links leaves the saved value alone, and nothing is removed. */
+export function importChange(row: CollectionEntry, current: CollectionEntry | undefined): ImportChange {
   if (!current || (!current.models && !current.wanted)) return 'new'
-  const owned = row.models > 0 && (row.models !== current.models || row.built !== current.built || row.painted !== current.painted)
+  const links = row.models ? (row.countsAs ?? []) : []
+  const relinked = links.length > 0 && JSON.stringify(links) !== JSON.stringify(current.countsAs ?? [])
+  const counted = row.models > 0 && (row.models !== current.models || row.built !== current.built || row.painted !== current.painted)
   const wanted = row.wanted > 0 && row.wanted !== current.wanted
-  if (owned && current.models) return 'conflict'
+  if (current.models && (counted || (relinked && current.countsAs?.length))) return 'conflict'
   if (wanted && current.wanted) return 'conflict'
-  return owned || wanted ? 'new' : 'same'
+  return counted || relinked || wanted ? 'new' : 'same'
 }

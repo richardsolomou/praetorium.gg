@@ -54,7 +54,7 @@ Exception tracking may carry stack traces; manual captures add only an operation
 
 ## Feedback
 
-Changing the PostHog App feedback survey's questions means updating the ids pinned in `src/client/features/feedback/feedback.ts`. Local and browser-test stacks cannot capture, so their feedback dialog always falls back to the issue tracker unless a test stubs capture.
+Feedback opens a Support ticket (`src/client/features/feedback/support.ts`); reply in the Support inbox; a Workflow on `$conversation_message_sent` calls `/api/support-replies`, which emails the player. Dev servers fake Support (`devSupport.ts`); e2e stubs it.
 
 Screenshots go to the private `praetorium-private` R2 bucket (production reaches it with the backup credentials) and only administrators can open their links.
 

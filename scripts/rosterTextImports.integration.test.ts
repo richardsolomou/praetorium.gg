@@ -14,7 +14,7 @@ import {
 } from '../src/core/rosterText.fixtures'
 import type { LoadedCatalogue } from '../src/server/catalogueIndex'
 import { custodesOfficial } from '../src/core/rosterText.custodes.fixture'
-import { kriegGermanOfficial } from '../src/core/rosterText.krieg.fixture'
+import { astraMilitarumNewRecruit, kriegGermanOfficial } from '../src/core/rosterText.krieg.fixture'
 import { necronsOfficial } from '../src/core/rosterText.necrons.fixture'
 import { blackTemplarsNewRecruit } from '../src/core/rosterText.blackTemplars.fixture'
 import { salamandersOfficial } from '../src/core/rosterText.salamanders.fixture'
@@ -147,6 +147,35 @@ Sanctifiers (100 pts)
     expect(wargear(alliedSanctifiers, 'Sanctifiers')).toContain('1x simulacrum imperialis')
   })
 
+  // Skitarii Rangers hold their specialists in a group beside the galvanic-rifle Rangers they replace.
+  const skitariiRangers = `Adeptus Mechanicus
+Lords of the Forge (3 Detachment Points)
+Strike Force (2,000 Points)
+
+BATTLELINE
+
+Skitarii Rangers (85 Points)
+• 1x Skitarii Ranger Alpha
+◦ 1x Alpha combat weapon
+◦ 1x Close combat weapon
+◦ 1x Galvanic rifle
+• 9x Skitarii Ranger
+◦ 1x Arc rifle
+◦ 9x Close combat weapon
+◦ 6x Galvanic rifle
+◦ 1x Omnispex
+◦ 1x Plasma caliver
+◦ 1x Transuranic arquebus
+`
+
+  it('places every Skitarii Rangers specialist', () => {
+    expect(summary(skitariiRangers).mismatches).toEqual([])
+  })
+
+  it('takes the galvanic rifles of the Skitarii Rangers each specialist replaces', () => {
+    expect(wargear(skitariiRangers, 'Skitarii Rangers')).toContain('7x galvanic rifle')
+  })
+
   it('imports the reported official-app Custodes roster without mismatches', () => {
     expect(summary(custodesOfficial)).toEqual({
       format: 'roster-file',
@@ -242,6 +271,36 @@ Sanctifiers (100 pts)
       attached: 2,
       points: '1995 for 1995',
     })
+  })
+
+  it('imports the New Recruit Astra Militarum list without a mismatch', () => {
+    expect(summary(astraMilitarumNewRecruit)).toEqual({
+      format: 'roster-file',
+      faction: 'Imperium - Astra Militarum',
+      detachments: 1,
+      units: '11 of 11',
+      attached: 3,
+      mismatches: [],
+      points: '1000 for 1000',
+    })
+  })
+
+  // Their pistol and melee swaps sit inside the loadout their wargear group picks, seven containers below the datasheet.
+  it.each(['2x plasma pistol', '2x power weapon'])("keeps the Death Korps Watchmasters' %s", (equipment) => {
+    expect(wargear(astraMilitarumNewRecruit, 'Death Korps of Krieg')).toContain(equipment)
+  })
+
+  // The Lord Commissar's default power weapon, swapped for the stated power fist, is not the one the list states.
+  it("gives a Krieg veteran the list's power weapon", () => {
+    expect(wargear(astraMilitarumNewRecruit, 'Krieg Command Squad')).toContain('1x power weapon')
+  })
+
+  it('reports a stated weapon its unit lost though a group bears its name', () => {
+    const both = astraMilitarumNewRecruit.replace(
+      '◦ 1x Power weapon\n◦ 1x Regimental',
+      '◦ 1x Power weapon\n◦ 1x Trench club\n◦ 1x Regimental',
+    )
+    expect(imported(both).unplaced.flatMap((unit) => unit.choices.map((choice) => choice.name))).toEqual(['Power weapon'])
   })
 
   it('takes the German Krieg force disposition from its detachment', () => {

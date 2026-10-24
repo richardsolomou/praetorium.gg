@@ -23,7 +23,15 @@ export type Datasheet = {
     equipmentName?: string
     values: { name: string; value: string; baseValue?: string; modifiers?: string[] }[]
   }[]
-  abilities: { id: string; name: string; source?: string; description: string | null; kind: AbilityKind }[]
+  abilities: {
+    id: string
+    name: string
+    source?: string
+    description: string | null
+    kind: AbilityKind
+    /** The keyword a granted ability is limited to, when only some models in the unit have it. */
+    models?: string
+  }[]
   composition: string[]
   loadout: string | null
   wargearOptions: string[]

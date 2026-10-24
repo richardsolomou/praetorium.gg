@@ -1,0 +1,189 @@
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { buildE2eMap, builtCatalogue, scriptReader, workerSources } from './e2eMap'
+
+let root: string
+let build: string
+// Two modules bundled into one chunk: `a` from src/a.ts line 1, `b` from src/b.ts line 3.
+const code = 'function a(){return 1}\nfunction b(){return 2}\n'
+const offsetOf = (name: string) => code.indexOf(`function ${name}`)
+
+beforeEach(() => {
+  root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-e2e-map-'))
+  build = path.join(root, 'build')
+  fs.mkdirSync(path.join(build, 'public/assets'), { recursive: true })
+  fs.writeFileSync(path.join(build, 'public/assets/chunk.js'), code)
+  fs.writeFileSync(
+    path.join(build, 'public/assets/chunk.js.map'),
+    JSON.stringify({
+      version: 3,
+      // Written as the build does: relative to a temporary directory, then absolute.
+      sources: [`../../../..${root}/src/a.ts`, `../../../..${root}/src/b.ts`, '../../node_modules/react/index.js'],
+      names: [],
+      mappings: 'AAAA;ACEA',
+    }),
+  )
+})
+
+afterEach(() => fs.rmSync(root, { recursive: true, force: true }))
+
+const url = 'http://127.0.0.1:4171/assets/chunk.js'
+const call = (name: string) => ({ url, start: offsetOf(name), end: offsetOf(name) + 22 })
+
+it('records the source line of each executed function and the specs that called it', () => {
+  const map = buildE2eMap(
+    [
+      { spec: 'e2e/one.spec.ts', client: [call('a')], server: [] },
+      { spec: 'e2e/two.spec.ts', client: [call('a'), call('b')], server: [] },
+    ],
+    scriptReader(build, root),
+    root,
+    'abc',
+  )
+  expect(map.files).toEqual({
+    'src/a.ts': { loaded: [0, 1], functions: [[1, 1, [0, 1]]] },
+    'src/b.ts': { loaded: [0, 1], functions: [[3, 3, [1]]] },
+  })
+})
+
+it('counts a loaded script for every module in it, without inventing a function for its top level', () => {
+  const map = buildE2eMap(
+    [{ spec: 'e2e/one.spec.ts', client: [{ url, start: 0, end: code.length }], server: [] }],
+    scriptReader(build, root),
+    root,
+    'abc',
+  )
+  expect(map.files).toEqual({ 'src/a.ts': { loaded: [0], functions: [] }, 'src/b.ts': { loaded: [0], functions: [] } })
+})
+
+it('treats tests of one spec file as one spec', () => {
+  const map = buildE2eMap(
+    [
+      { spec: 'e2e/one.spec.ts', client: [call('a')], server: [] },
+      { spec: 'e2e/one.spec.ts', client: [call('b')], server: [] },
+    ],
+    scriptReader(build, root),
+    root,
+    'abc',
+  )
+  expect(map.specs).toEqual(['e2e/one.spec.ts'])
+})
+
+it('reads a server script from the build by its path under a stack’s copy', () => {
+  fs.mkdirSync(path.join(build, 'server/chunks'), { recursive: true })
+  fs.copyFileSync(path.join(build, 'public/assets/chunk.js'), path.join(build, 'server/chunks/chunk.mjs'))
+  fs.copyFileSync(path.join(build, 'public/assets/chunk.js.map'), path.join(build, 'server/chunks/chunk.mjs.map'))
+  const server = { url: 'file:///tmp/praetorium-e2e-x/build/server/chunks/chunk.mjs', start: offsetOf('b'), end: offsetOf('b') + 22 }
+  const map = buildE2eMap([{ spec: 'e2e/one.spec.ts', client: [], server: [server] }], scriptReader(build, root), root, 'abc')
+  expect(map.files['src/b.ts']?.functions).toEqual([[3, 3, [0]]])
+})
+
+it('ignores scripts without a source map', () => {
+  const map = buildE2eMap(
+    [{ spec: 'e2e/one.spec.ts', client: [{ url: 'http://127.0.0.1:4171/assets/runtime.js', start: 5, end: 9 }], server: [] }],
+    scriptReader(build, root),
+    root,
+    'abc',
+  )
+  expect(map.files).toEqual({})
+})
+
+it('spans a function to the last line its body maps to when its closing brace has no mapping', () => {
+  // Server bundles keep each statement on its own line; this one maps lines 1–2 to src/a.ts 5–6.
+  const body = 'function c(){\nreturn 3\n}\n'
+  fs.mkdirSync(path.join(build, 'server'), { recursive: true })
+  fs.writeFileSync(path.join(build, 'server/c.mjs'), body)
+  fs.writeFileSync(
+    path.join(build, 'server/c.mjs.map'),
+    JSON.stringify({ version: 3, sources: [`../../../..${root}/src/a.ts`], names: [], mappings: 'AAIA;AACA' }),
+  )
+  const server = { url: 'file:///tmp/praetorium-e2e-x/build/server/c.mjs', start: 0, end: body.length - 1 }
+  const map = buildE2eMap([{ spec: 'e2e/one.spec.ts', client: [], server: [server] }], scriptReader(build, root), root, 'abc')
+  expect(map.files['src/a.ts']?.functions).toEqual([[5, 6, [0]]])
+})
+
+it('lists the application source in web worker chunks', () => {
+  fs.copyFileSync(path.join(build, 'public/assets/chunk.js.map'), path.join(build, 'public/assets/sim.worker-Ab1_c.js.map'))
+  expect(workerSources(build, root)).toEqual(['src/a.ts', 'src/b.ts'])
+})
+
+it('counts every spec the server served as loading each server module, since the server loads them before any test', () => {
+  fs.mkdirSync(path.join(build, 'server/chunks'), { recursive: true })
+  fs.copyFileSync(path.join(build, 'public/assets/chunk.js'), path.join(build, 'server/chunks/chunk.mjs'))
+  fs.copyFileSync(path.join(build, 'public/assets/chunk.js.map'), path.join(build, 'server/chunks/chunk.mjs.map'))
+  fs.writeFileSync(path.join(build, 'server/chunks/other.mjs'), code)
+  fs.writeFileSync(
+    path.join(build, 'server/chunks/other.mjs.map'),
+    JSON.stringify({ version: 3, sources: [`../../../..${root}/src/c.ts`], names: [], mappings: 'AAAA' }),
+  )
+  const server = (chunk: string) => ({
+    url: `file:///tmp/praetorium-e2e-x/build/server/chunks/${chunk}`,
+    start: offsetOf('b'),
+    end: offsetOf('b') + 22,
+  })
+  const map = buildE2eMap(
+    [
+      { spec: 'e2e/one.spec.ts', client: [], server: [server('chunk.mjs')] },
+      { spec: 'e2e/two.spec.ts', client: [], server: [server('other.mjs')] },
+    ],
+    scriptReader(build, root),
+    root,
+    'abc',
+  )
+  expect(map.files['src/a.ts']?.loaded).toEqual([0, 1])
+})
+
+it('counts a file bundled by glob or as raw text as loaded wherever its importer loads', () => {
+  fs.mkdirSync(path.join(root, 'src/content'), { recursive: true })
+  fs.writeFileSync(path.join(root, 'src/content/guide.md'), '# Guide\n')
+  fs.writeFileSync(path.join(root, 'src/notes.md'), '# Notes\n')
+  fs.writeFileSync(
+    path.join(root, 'src/b.ts'),
+    "import notes from './notes.md?raw'\nconst bodies = import.meta.glob<string>('./content/*.md', { query: '?raw', eager: true })\n",
+  )
+  const map = buildE2eMap(
+    [
+      { spec: 'e2e/one.spec.ts', client: [call('a')], server: [] },
+      { spec: 'e2e/two.spec.ts', client: [call('b')], server: [] },
+    ],
+    scriptReader(build, root),
+    root,
+    'abc',
+  )
+  expect([map.files['src/content/guide.md'], map.files['src/notes.md']]).toEqual([
+    { loaded: [0, 1], functions: [] },
+    { loaded: [0, 1], functions: [] },
+  ])
+})
+
+it('records what the harness called and compiled without calling, by source file', () => {
+  fs.mkdirSync(path.join(build, 'server/chunks'), { recursive: true })
+  fs.copyFileSync(path.join(build, 'public/assets/chunk.js'), path.join(build, 'server/chunks/seed.mjs'))
+  fs.copyFileSync(path.join(build, 'public/assets/chunk.js.map'), path.join(build, 'server/chunks/seed.mjs.map'))
+  const range = (name: string, count: number) => ({ ranges: [{ startOffset: offsetOf(name), endOffset: offsetOf(name) + 22, count }] })
+  const map = buildE2eMap([], scriptReader(build, root), root, 'abc', {
+    processes: [
+      { result: [{ url: 'file:///tmp/praetorium-e2e-x/build/server/chunks/seed.mjs', functions: [range('a', 1), range('b', 0)] }] },
+    ],
+  })
+  expect(map.harness).toEqual({ 'src/a.ts': { called: [[1, 1]], uncalled: [] }, 'src/b.ts': { called: [], uncalled: [[3, 3]] } })
+})
+
+describe('the compiled catalogue', () => {
+  const write = (files: Record<string, unknown>, fingerprint = 'inputs') => {
+    fs.mkdirSync(path.join(build, 'server/catalogue-runtime'), { recursive: true })
+    fs.writeFileSync(path.join(build, 'server/catalogue-runtime/manifest.json'), JSON.stringify({ fingerprint, files }))
+    fs.writeFileSync(path.join(build, 'public/offline-reference-version.json'), '{"revision":"r1"}')
+    return builtCatalogue(build)
+  }
+
+  it('is the same when only the compiler that produced it changed', () => {
+    expect(write({ startup: { sha256: 'a' } }, 'old compiler')).toBe(write({ startup: { sha256: 'a' } }, 'new compiler'))
+  })
+
+  it('differs when a compiled file differs', () => {
+    expect(write({ startup: { sha256: 'a' } })).not.toBe(write({ startup: { sha256: 'b' } }))
+  })
+})

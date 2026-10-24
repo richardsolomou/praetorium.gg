@@ -148,9 +148,9 @@ export function Pane({
         } ${CLOSERS[variant]}`}
       >
         {drawer ? (
-          <DrawerTitle className="min-w-max flex-1 text-base">{title}</DrawerTitle>
+          <DrawerTitle className="min-w-[min(100%,12rem)] flex-1 text-base wrap-anywhere">{title}</DrawerTitle>
         ) : (
-          <h2 className="min-w-max flex-1 text-base">{title}</h2>
+          <h2 className="min-w-[min(100%,12rem)] flex-1 text-base wrap-anywhere">{title}</h2>
         )}
         {actions ? (
           <div data-pane-actions className="flex min-w-0 max-w-full flex-wrap items-center justify-start gap-1">

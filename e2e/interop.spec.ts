@@ -1,4 +1,5 @@
 import { expect, test } from './test'
+import { arrangeByRole } from './builder.harness'
 import { readFile } from 'node:fs/promises'
 import { listForgeDetailed } from '../src/core/rosterText.fixtures'
 import { custodesOfficial } from '../src/core/rosterText.custodes.fixture'
@@ -133,6 +134,7 @@ test('an official Custodes roster keeps all units and choices after import and r
 })
 
 test('an official Necrons roster keeps leaders and support after import and reload', async ({ page }, testInfo) => {
+  await arrangeByRole(page)
   await signUp(page, 'Necrons importer')
   await page.goto('/rosters')
   const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
@@ -177,6 +179,7 @@ test('an official Necrons roster keeps leaders and support after import and relo
 })
 
 test('a New Recruit chapter roster keeps its allies and attachments after import and reload', async ({ page }, testInfo) => {
+  await arrangeByRole(page)
   await signUp(page, 'Chapter importer')
   await page.goto('/rosters')
   const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
@@ -222,6 +225,7 @@ test('a New Recruit chapter roster keeps its allies and attachments after import
 })
 
 test('a visitor imports the reported Salamanders detachments and keeps them after reload', async ({ page }, testInfo) => {
+  await arrangeByRole(page)
   await page.goto('/rosters')
   const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
   await retryUntilVisible(review, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())

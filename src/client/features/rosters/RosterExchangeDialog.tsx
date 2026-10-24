@@ -52,8 +52,8 @@ export function RosterExchangeDialog({ exchange, onClose }: { exchange: RosterEx
             <output className="text-sm text-dim">Preparing the QR code…</output>
           )}
           <p className="text-xs text-dim">
-            Carries units, model counts, equipment, attachments, Warlord, enhancements, setup and rules version. Unit notes, preparation,
-            reminders, visibility and your account are not included.
+            Carries units, custom names, model counts, equipment, attachments, starting embarks, Warlord, enhancements, setup and rules
+            version. Unit notes, preparation, reminders, visibility and your account are not included.
           </p>
           <pre
             aria-label="Exchange code"

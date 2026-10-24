@@ -172,6 +172,24 @@ it('serves search and faction discovery through the shared corpus', async () => 
   })
 })
 
+it('repeats each tool title in its annotations for directory listings', async () => {
+  const response = await handleReferenceMcp(rpcRequest('tools/list'))
+  const { tools } = ((await response.json()) as { result: { tools: { title: string; annotations: { title?: string } }[] } }).result
+
+  expect(tools.filter((tool) => tool.annotations.title !== tool.title)).toEqual([])
+})
+
+it('marks every write tool open-world because its results can be visible to other players', async () => {
+  const response = await handleReferenceMcp(rpcRequest('tools/list'))
+  const { tools } = (
+    (await response.json()) as { result: { tools: { name: string; annotations: { readOnlyHint?: boolean; openWorldHint?: boolean } }[] } }
+  ).result
+
+  expect(
+    tools.filter((tool) => !tool.annotations.readOnlyHint && tool.annotations.openWorldHint !== true).map((tool) => tool.name),
+  ).toEqual([])
+})
+
 it('advertises product instructions, read-only tools, resources, and prompts', async () => {
   const initialized = await handleReferenceMcp(
     rpcRequest('initialize', {
@@ -190,7 +208,13 @@ it('advertises product instructions, read-only tools, resources, and prompts', a
       tools: expect.arrayContaining([
         expect.objectContaining({
           name: 'list_units',
-          annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+          annotations: {
+            title: 'List compact faction units for roster planning',
+            readOnlyHint: true,
+            destructiveHint: false,
+            idempotentHint: true,
+            openWorldHint: false,
+          },
           outputSchema: expect.any(Object),
         }),
         expect.objectContaining({ name: 'get_reference_record' }),

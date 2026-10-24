@@ -20,7 +20,16 @@ export type TransportRule = {
   space: { keywords?: string; moreWoundsThan?: number; size: number }[]
 }
 
-export type Passenger = { name: string; alive: number; keywords?: readonly string[]; wounds?: number }
+export type Passenger = {
+  name: string
+  alive: number
+  keywords?: readonly string[]
+  wounds?: number
+  /** Whose keywords decide whether this passenger may ride, when an ability lets it embark wherever another unit can. */
+  ridesAs?: readonly string[]
+  /** The space each model takes when an ability fixes it, whatever the transport prints. */
+  space?: number
+}
 
 export type TransportLoad = (Pool & { used: number })[]
 
@@ -194,16 +203,18 @@ export function transportLoad(rule: TransportRule, passengers: readonly Passenge
       continue
     }
     const matches = (selector: string) => matchesKeywordSelector(selector, keywords)
+    const ridesAs = passenger.ridesAs && spelled(passenger.ridesAs)
+    const admits = ridesAs ? (selector: string) => matchesKeywordSelector(selector, ridesAs) : matches
     const { wounds } = passenger
-    if (rule.excluded.some((exclusion) => matches(exclusion.keywords) && !(exclusion.except && matches(exclusion.except))))
+    if (rule.excluded.some((exclusion) => admits(exclusion.keywords) && !(exclusion.except && admits(exclusion.except))))
       return refuse('transport-ineligible', `this transport cannot carry ${passenger.name}`)
     const space = rule.space.filter((entry) => !entry.keywords || matches(entry.keywords))
-    if (wounds === undefined && space.some((entry) => entry.moreWoundsThan !== undefined))
+    if (passenger.space === undefined && wounds === undefined && space.some((entry) => entry.moreWoundsThan !== undefined))
       return refuse('transport-capacity-unknown', `${passenger.name} has no single Wounds characteristic for this transport to measure`)
-    const size = space.find((entry) => entry.moreWoundsThan === undefined || wounds! > entry.moreWoundsThan)?.size ?? 1
+    const size = passenger.space ?? space.find((entry) => entry.moreWoundsThan === undefined || wounds! > entry.moreWoundsThan)?.size ?? 1
     const eligible = rule.loads.map((load) =>
       load.flatMap((pool, at) =>
-        matches(pool.carries) && (pool.maxWounds === undefined || (wounds !== undefined && wounds <= pool.maxWounds)) ? [at] : [],
+        admits(pool.carries) && (pool.maxWounds === undefined || (wounds !== undefined && wounds <= pool.maxWounds)) ? [at] : [],
       ),
     )
     if (eligible.every((pools) => !pools.length)) return refuse('transport-ineligible', `this transport cannot carry ${passenger.name}`)

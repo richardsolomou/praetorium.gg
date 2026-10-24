@@ -106,7 +106,7 @@ it.each(['browser', 'native'])('upgrades retired roster fields in %s storage whi
     revision: 1,
     documents: {
       'roster:list': {
-        data: { ...roster, picks: [{ entryId: 'unit', note: 'Hold home' }], prep: { remindersEnabled: false } },
+        data: { ...roster, prep: { remindersEnabled: false } },
         serverVersion: 7,
       },
     },

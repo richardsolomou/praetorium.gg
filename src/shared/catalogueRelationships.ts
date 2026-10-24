@@ -1,5 +1,5 @@
 import { cachedIn } from '../core/collections'
-import { attachmentOf } from '../core/attach'
+import { referenceAttachmentOf } from '../core/attach'
 import { nameOf } from '../core/catalogue'
 import { sameText } from '../core/text'
 import type { DatasheetRelationship } from '../core/datasheet'
@@ -44,7 +44,7 @@ function relationshipsOf(loaded: LoadedCatalogue, catalogueId: string, entryId: 
     if (candidateId === entryId) continue
     const candidate = loaded.index.definitions.get(candidateId)
     if (!candidate || !isMatchedPlayDatasheet(loaded.index, candidate)) continue
-    const attachment = attachmentOf(candidate, loaded.index)
+    const attachment = referenceAttachmentOf(candidate, loaded.index)
     if (!attachment?.targets.some((target) => sameText(target, name))) continue
     const found = attachment.kind === 'leader' ? leaders : supporters
     found.set(candidateId, { entryId: candidateId, name: nameOf(candidate, loaded.index.definitions) })

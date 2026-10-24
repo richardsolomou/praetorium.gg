@@ -11,13 +11,12 @@ const row = {
   updatedAt: 2n,
 }
 
-it('upgrades stored roster fields without changing selections, private notes or timestamps', () => {
+it('upgrades stored roster fields without changing selections, nicknames, private notes or timestamps', () => {
   expect(migrateStoredRoster(row)).toEqual({
     ...row,
     automaticName: true,
     locked: false,
     detachmentId: '["awakened-dynasty"]',
-    picks: '[{"entryId":"overlord","note":"Hold home","choices":{"weapon":"staff"}}]',
     prep: '{"stratagems":[],"secondaries":[],"remindersEnabled":false}',
   })
 })
@@ -56,7 +55,7 @@ it.each([
 it('removes retired fields from a saved device document without altering its current content', () => {
   expect(migrateSavedRoster({ name: 'List', picks: JSON.parse(row.picks), prep: JSON.parse(row.prep), updatedAt: 2 })).toEqual({
     name: 'List',
-    picks: [{ entryId: 'overlord', note: 'Hold home', choices: { weapon: 'staff' } }],
+    picks: [{ entryId: 'overlord', nickname: 'Leader', note: 'Hold home', choices: { weapon: 'staff' } }],
     prep: { stratagems: [], secondaries: [], remindersEnabled: false },
     updatedAt: 2,
   })

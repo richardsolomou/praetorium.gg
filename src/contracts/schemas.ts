@@ -3,8 +3,7 @@ import { z } from 'zod'
 import { REPLAY_BATCH_SIZE } from '../contracts/battles'
 import { onboardingTaskIds, tourTaskIds } from '../core/onboarding'
 import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
-import { MAX_COLLECTION_DATASHEETS, MAX_COLLECTION_MODELS } from '../core/collection'
-import { BATTLE_AUDIENCES } from '../core/battleAudience'
+import { MAX_COLLECTION_DATASHEETS, MAX_COLLECTION_MODELS, MAX_COUNTS_AS } from '../core/collection'
 import { PUSH_PLATFORMS } from '../core/notificationConfig'
 import { unitLoadoutNameSchema, unitLoadoutSchema } from '../core/unitLoadouts'
 import { pushTokenSchema } from '../core/notifications'
@@ -197,7 +196,6 @@ export const deleteBattleSchema = z.object({ token })
 export const battlesPageSchema = z.object({
   before: battlesCursor.nullable().default(null),
 })
-export const battleAudienceSchema = z.object({ audience: z.enum(BATTLE_AUDIENCES) })
 export const playerDefaultsSchema = z
   .object({ rosterVisibility: z.enum(ROSTER_VISIBILITIES), battleSize: z.number().int() })
   .refine(isPlayerDefaults, 'choose a supported battle size')
@@ -404,9 +402,20 @@ export const collectionProgressSchema = z
   .object({ entryId: id, built: collectionCount, painted: collectionCount })
   .refine((input) => input.painted <= input.built, 'Painted models must be built')
 export const collectionWantedSchema = z.object({ entryId: id, wanted: collectionCount })
+const countsAs = z.array(id).max(MAX_COUNTS_AS)
+export const collectionCountsAsSchema = z.object({ entryId: id, countsAs })
 export const collectionImportSchema = z.object({
   rows: z
-    .array(z.object({ entryId: id, models: collectionCount, built: collectionCount, painted: collectionCount, wanted: collectionCount }))
+    .array(
+      z.object({
+        entryId: id,
+        models: collectionCount,
+        built: collectionCount,
+        painted: collectionCount,
+        wanted: collectionCount,
+        countsAs: countsAs.optional(),
+      }),
+    )
     .min(1)
     .max(MAX_COLLECTION_DATASHEETS),
   replace: z.boolean(),
@@ -418,7 +427,7 @@ export const forgetMatchupSchema = recentMatchupSchema.pick({ shared: true })
 export const favouriteDetachmentSchema = z.object({ catalogueId: id, detachmentId: detachmentIdSchema, favourite: z.boolean() })
 export const terrainReferencesSchema = z.object({
   matchupIds: z.array(slug).min(1).max(2),
-  geometryVersion: z.union([z.literal(2), z.literal(3), z.literal(6), z.literal(7)]).optional(),
+  geometryVersion: z.union([z.literal(2), z.literal(3), z.literal(6), z.literal(7), z.literal(8)]).optional(),
 })
 /** One section of one rules document, which is as much as a rules page reads. */
 export const ruleSectionSchema = z.object({ documentId: slug, sectionId: slug })
@@ -452,5 +461,3 @@ export const exportRosterSchema = priceSchema
   .superRefine(validatePointsBudget)
   .overwrite(withStandardBudget)
 export type ExportRosterInput = z.infer<typeof exportRosterSchema>
-
-export const collectionPublishedSchema = z.object({ published: z.boolean() })

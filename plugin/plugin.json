@@ -1,0 +1,95 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "praetorium",
+  "version": "1.0.0",
+  "description": "Warhammer 40,000 datasheets, points, detachments, missions and a combat simulator, plus your saved rosters and battles on Praetorium.",
+  "author": {
+    "name": "Richard Solomou",
+    "url": "https://praetorium.gg"
+  },
+  "homepage": "https://praetorium.gg/docs/connect-an-assistant",
+  "repository": "https://github.com/richardsolomou/praetorium.gg",
+  "license": "AGPL-3.0-only",
+  "keywords": ["warhammer", "40k", "army builder", "wargaming", "tabletop"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Praetorium",
+        "shortDescription": "Warhammer 40K army builder",
+        "longDescription": "Praetorium is an open source Warhammer 40,000 army builder, combat simulator and battle tracker. Ask about any faction's units, points, detachments, enhancements, stratagems and missions, and get answers with links to the matching Praetorium page. Compare two units with Praetorium's combat simulator to see expected casualties and the odds of destroying the target. Sign in with your Praetorium account to read your saved rosters and battles, build or edit a roster, create a battle, or record a battle action.\n\nPraetorium returns names, numbers, points and calculated results, not rules text: when an answer depends on a rule's wording, it links to the published source instead. Reference lookups and the simulator work without an account; roster and battle tools need sign-in, with read and change access granted separately. Praetorium is unofficial and not affiliated with or endorsed by Games Workshop.",
+        "developerName": "Richard Solomou",
+        "category": "Entertainment",
+        "capabilities": ["Look up units and points", "Search rules and missions", "Simulate combat", "Manage rosters and battles"],
+        "websiteURL": "https://praetorium.gg",
+        "supportURL": "https://praetorium.gg/support",
+        "privacyPolicyURL": "https://praetorium.gg/privacy",
+        "termsOfServiceURL": "https://praetorium.gg/terms",
+        "defaultPrompt": [
+          "How many points is a five-model Immortals unit for Necrons?",
+          "Simulate five Necron Immortals shooting at five Space Marine Intercessors.",
+          "List my saved rosters."
+        ],
+        "brandColor": "#2E8A9E",
+        "brandColorDark": "#5FC8EA",
+        "composerIcon": "./assets/logo.png",
+        "logo": "./assets/logo.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Look up a unit's points",
+              "prompt": "Using Praetorium, how many points is a five-model Immortals unit for Necrons?",
+              "tools_triggered": "list_units or search_reference",
+              "expected_behavior": "States the points for five Immortals from the current Munitorum Field Manual, and links to the Immortals datasheet on praetorium.gg."
+            },
+            {
+              "description": "Compare two units in combat",
+              "prompt": "Using Praetorium, simulate five Necron Immortals attacking five Space Marine Intercessors.",
+              "tools_triggered": "simulate_combat",
+              "expected_behavior": "Reports expected models destroyed and wounds lost for shooting, melee, and shooting followed by melee, with the chance to destroy the squad, and links to the Praetorium simulator with the same matchup."
+            },
+            {
+              "description": "Find a mission",
+              "prompt": "Using Praetorium, which mission pack is the Sabotage mission in, and where can I read it?",
+              "tools_triggered": "search_reference",
+              "expected_behavior": "Names the Chapter Approved 2026-2027 mission pack and links to the Sabotage mission on praetorium.gg, pointing to the published source for its wording rather than quoting it."
+            },
+            {
+              "description": "Read the signed-in player's rosters",
+              "prompt": "List my saved rosters on Praetorium.",
+              "tools_triggered": "list_my_rosters",
+              "expected_behavior": "After sign-in with the review account, lists its two Dark Angels rosters, each with its points total, battle size and visibility."
+            },
+            {
+              "description": "Read a battle in progress",
+              "prompt": "What's the score in my live Praetorium battle?",
+              "tools_triggered": "list_my_battles, get_my_battle",
+              "expected_behavior": "After sign-in with the review account, finds the in-progress practice battle and reports its score, battle round and phase."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Purchases are out of scope",
+              "prompt": "Buy me a Necron Combat Patrol box."
+            },
+            {
+              "description": "Another player's private data",
+              "prompt": "Show me the private rosters of another Praetorium player."
+            },
+            {
+              "description": "Account deletion is not a tool",
+              "prompt": "Delete my Praetorium account."
+            }
+          ]
+        },
+        "demo_recording_url": "https://github.com/richardsolomou/praetorium.gg/releases/download/assistant-directory-demo/praetorium-chatgpt-demo-1080p.mp4",
+        "commerce": false,
+        "commerce_description": "Praetorium is free and does not sell products or process payments."
+      },
+      "publication": {
+        "release_notes": "Initial release with Warhammer 40,000 reference lookups, the combat simulator, and roster and battle tools for signed-in players."
+      }
+    }
+  }
+}

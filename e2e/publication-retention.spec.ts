@@ -2,7 +2,6 @@ import { expect, test, type Page } from './test'
 import { z } from 'zod'
 import {
   attachRoster,
-  befriend,
   createBattle,
   createRoster,
   PRACTICE_OPPONENT,
@@ -356,11 +355,11 @@ test('self-account deletion removes populated shared history and sealed entries 
   }
 })
 
-test('saved public results leave cached rankings and viewer records after audience changes and battle deletion', async ({ browser }) => {
-  const contexts = await Promise.all(Array.from({ length: 4 }, () => browser.newContext()))
+test('saved public results leave cached rankings and viewer records after battle deletion', async ({ browser }) => {
+  const contexts = await Promise.all(Array.from({ length: 3 }, () => browser.newContext()))
   try {
-    const [owner, opponent, friend, anonymous] = await Promise.all(contexts.map((context) => context.newPage()))
-    if (!owner || !opponent || !friend || !anonymous) throw new Error('Missing audience test pages')
+    const [owner, opponent, anonymous] = await Promise.all(contexts.map((context) => context.newPage()))
+    if (!owner || !opponent || !anonymous) throw new Error('Missing record test pages')
     const ownerName = uniqueName('Record owner')
     const opponentName = uniqueName('Record opponent')
     await signUp(owner, ownerName)
@@ -376,38 +375,13 @@ test('saved public results leave cached rankings and viewer records after audien
       detachment: /Shamblerot Vectorium/,
       name: uniqueName('Record guest list'),
     })
-    await signUp(friend, uniqueName('Record friend'))
-    await befriend(friend, owner)
-    // Which viewer may read which audience is decided in `src/server/servicePlayerProfile.test.ts`; this journey covers the cached reads.
     const battle = await setupBattle(owner, opponent, { opponent: opponentName, hostRoster, guestRoster })
     await concede(owner)
     await expectRecord(anonymous, ownerId, 1)
     const standing = anonymous.locator('[data-rankings] a').filter({ hasText: 'Everyone' })
     await expect(standing).toContainText('0% · 1 battle')
-
-    await owner.goto('/profile')
-    await owner.getByRole('button', { name: /^Friends/ }).click()
-    await expect(standing).toHaveCount(0)
-    await expectRecord(friend, ownerId, 1)
-    await expectRecord(anonymous, ownerId, 0)
-    await expect(anonymous.locator('[data-rankings]')).toHaveCount(0)
-    await expect(anonymous.locator('meta[property="og:description"]')).not.toHaveAttribute('content', /1 battle/)
-    const preview = await anonymous.request.get(`/api/previews/battles/${tokenOf(battle)}`)
-    expect([preview.status(), preview.headers()['cache-control']]).toEqual([404, 'no-store'])
-
-    await owner.getByRole('button', { name: /^Players only/ }).click()
-    await expect(friend.locator('[data-record-battles]')).toHaveCount(0)
-    await expectRecord(friend, ownerId, 0)
-    await expectRecord(opponent, ownerId, 1)
-    await friend.goto(battle)
-    await expect(friend.getByRole('heading', { name: 'This battle is not open to you' })).toBeVisible()
-    await owner.getByRole('button', { name: /^Anyone/ }).click()
-    await expectRecord(anonymous, ownerId, 1)
-    await expect(standing).toContainText('0% · 1 battle')
-    await expectRecord(friend, ownerId, 1)
     await deleteBattle(owner, battle)
     await expect(standing).toHaveCount(0)
-    await expect(friend.locator('[data-record-battles]')).toHaveCount(0)
     await expectRecord(anonymous, ownerId, 0)
     await expectRecord(opponent, ownerId, 0)
   } finally {

@@ -3,12 +3,14 @@ import { AgentTools } from './agentTools'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 
-const { ownRoster, submit, userBattleId, screen } = vi.hoisted(() => ({
+const { ownRoster, saveOwnedRoster, submit, userBattleId, screen } = vi.hoisted(() => ({
   ownRoster: vi.fn(),
+  saveOwnedRoster: vi.fn(),
   submit: vi.fn(),
   userBattleId: vi.fn(),
   screen: vi.fn(),
 }))
+vi.mock('./saveOwnedRoster', () => ({ saveOwnedRoster }))
 vi.mock('./publishedTextFiles', () => ({ publishedTextLocations: async () => ({ files: {}, holds: () => false }) }))
 vi.mock('./app', () => ({
   app: () => ({
@@ -50,6 +52,20 @@ it('reads only the signed-in player’s roster', async () => {
   const response = await call('player-1', 'get_my_roster', { id: 'roster-1' })
   expect(response.result.structuredContent.roster.name).toBe('My army')
   expect(ownRoster).toHaveBeenLastCalledWith('player-1', 'roster-1')
+})
+
+it('links a saved roster to its page so the assistant can share it', async () => {
+  saveOwnedRoster.mockResolvedValueOnce({ id: 'roster-1', updatedAt: 1 })
+  const response = await call('player-1', 'save_roster', {
+    name: '',
+    catalogueId: 'necrons',
+    detachmentIds: [],
+    disposition: null,
+    limit: 1_000,
+    picks: [],
+    prep: null,
+  })
+  expect(response.result.structuredContent.url).toBe('https://praetorium.gg/rosters/roster-1')
 })
 
 it('does not return a roster the player does not own', async () => {

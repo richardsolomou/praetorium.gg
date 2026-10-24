@@ -115,7 +115,7 @@ export type CanonicalCatalogueIssue = {
 
 export type CanonicalCatalogue = {
   format: 'praetorium.canonical-catalogue.v1'
-  compilerVersion: 1 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13
+  compilerVersion: 1 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16
   revisions: Record<string, string>
   datasheets: CanonicalDatasheet[]
   detachments: CanonicalDetachment[]

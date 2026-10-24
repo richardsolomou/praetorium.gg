@@ -23,7 +23,7 @@ type PricedUnit = { choices: readonly { key: string; kind?: 'enhancement' | 'upg
 /**
  * A roster unit as a saved loadout.
  *
- * The note, Warlord, attachment, enhancements and detachment upgrades belong to the army the
+ * The nickname, note, Warlord, attachment, enhancements and detachment upgrades belong to the army the
  * unit stood in, so a loadout never carries them into another. Only a priced unit says which
  * choices are enhancements, so an unpriced one cannot be saved.
  */

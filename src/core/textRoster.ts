@@ -1,3 +1,5 @@
+import { UNIT_NICKNAME_MAX_LENGTH } from './unitNotes'
+
 export type TextRoster = {
   name: string
   faction: string
@@ -20,6 +22,7 @@ export type TextRosterUnit = {
   models?: number | null
   entry?: number
   attachedToEntry?: number
+  nickname?: string
   unread?: string[]
   warlord: boolean
 }
@@ -44,3 +47,6 @@ export function attachGroups(
 /** A section heading in the unit lists of WTC-style text. */
 export const WTC_SECTION =
   /^(?:ATTACHED UNITS?|CHARACTERS?|EPIC HER(?:O|OES)|BATTLELINE|DEDICATED TRANSPORTS?|OTHER DATASHEETS|ALLIED UNITS)$/i
+
+/** A nickname as one bounded line, whether it is being written into text or read back out. */
+export const textNickname = (value: string) => value.replace(/\s+/g, ' ').trim().slice(0, UNIT_NICKNAME_MAX_LENGTH) || undefined

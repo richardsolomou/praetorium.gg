@@ -6,7 +6,7 @@
 
 Warhammer 40,000 army building and game tracking, from setup to final score.
 
-[praetorium.gg](https://praetorium.gg/?utm_source=github&utm_medium=profile&utm_campaign=readme) · [Discord](https://discord.gg/kgDnqFSDV2)
+[praetorium.gg](https://praetorium.gg/?utm_source=github&utm_medium=profile&utm_campaign=readme) · [Discord](https://discord.gg/7M3sDHEXJU)
 
 [![Build](https://img.shields.io/github/actions/workflow/status/richardsolomou/praetorium.gg/ci.yml?branch=main)](https://github.com/richardsolomou/praetorium.gg/actions/workflows/ci.yml) [![License](https://img.shields.io/github/license/richardsolomou/praetorium.gg)](LICENSE)
 

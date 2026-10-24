@@ -1,8 +1,15 @@
-import { boundedProgress, collectionDatasheets, type CollectionCounts } from '../../../core/collection'
+import { boundedProgress, collectionDatasheets, usableDatasheets, type CollectionEntry } from '../../../core/collection'
 import { useQuery } from '@tanstack/react-query'
-import { Boxes, Plus, Swords, Trash2 } from 'lucide-react'
+import { Boxes, EllipsisVertical, Plus, Shuffle, Swords, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
 import { FactionMark, type FactionPresentation } from '../../components/FactionMark'
 import { PageContent, PageHeader } from '../../components/Page'
@@ -11,6 +18,7 @@ import { SignInRequired } from '../../components/SignInRequired'
 import { UnitPicker } from '../../components/UnitPicker'
 import {
   collectionCountsQuery,
+  collectionCountsAsQuery,
   collectionProgressQuery,
   collectionQuery,
   collectionWishesQuery,
@@ -23,6 +31,7 @@ import { useCollectionMutation } from '../../useCollection'
 import { CollectionCard, CollectionCardGrid } from './CollectionCard'
 import { CollectionEntryCounts } from './CollectionEntryCounts'
 import { CollectionExchange } from './CollectionExchange'
+import { CollectionCountsAs, CountsAsDialog } from './CollectionCountsAs'
 import { CollectionPhoto } from './CollectionPhoto'
 import { CollectionWishlist } from './CollectionWishlist'
 import { RemoveFromCollection } from './RemoveFromCollection'
@@ -39,11 +48,13 @@ export function CollectionPage() {
   const counts = useQuery({ ...collectionCountsQuery(), enabled: Boolean(me) })
   const progress = useQuery({ ...collectionProgressQuery(), enabled: Boolean(me) })
   const wishes = useQuery({ ...collectionWishesQuery(), enabled: Boolean(me) })
+  const countsAs = useQuery({ ...collectionCountsAsQuery(), enabled: Boolean(me) })
   const fielded = useQuery({ ...fieldedDatasheetsQuery(), enabled: Boolean(me) })
   const units = useQuery(combatUnitsQuery())
   const factions = useQuery(factionIndexQuery())
   const { mutate: setOwned } = useCollectionMutation()
   const [removing, setRemoving] = useState<Datasheet | null>(null)
+  const [linking, setLinking] = useState<Datasheet | null>(null)
   const [allSuggestions, setAllSuggestions] = useState(false)
   if (!me) return <SignInRequired title="Your collection" explanation="Sign in to keep track of the models you own." next="/collection" />
 
@@ -62,19 +73,25 @@ export function CollectionPage() {
   const armies = [...byFaction.values()]
     .map((sheets) => ({ sheets: sheets.toSorted((a, b) => a.name.localeCompare(b.name)), first: sheets[0]! }))
     .toSorted((a, b) => a.first.faction.localeCompare(b.first.faction))
+  const armySheets = groupBy(
+    [...datasheets.values()].toSorted((a, b) => a.name.localeCompare(b.name)),
+    (sheet) => sheet.catalogueId,
+  )
   const retired = [...owned].filter((id) => !datasheets.has(id))
+  const usable = usableDatasheets(owned, countsAs.data ?? {})
   const suggestions = (fielded.data ?? []).flatMap(({ entryId, battles }) => {
     const sheet = datasheets.get(entryId)
-    return sheet && !owned.has(entryId) ? [{ ...sheet, battles }] : []
+    return sheet && !usable.has(entryId) ? [{ ...sheet, battles }] : []
   })
   const models = [...owned].reduce((total, id) => total + countOf(id), 0)
-  const exchanged = new Map<string, CollectionCounts>()
+  const exchanged = new Map<string, CollectionEntry>()
   for (const id of new Set([...owned, ...Object.keys(wishes.data ?? {})]))
     exchanged.set(id, {
       models: owned.has(id) ? countOf(id) : 0,
       built: progress.data?.[id]?.built ?? 0,
       painted: progress.data?.[id]?.painted ?? 0,
       wanted: wishes.data?.[id] ?? 0,
+      countsAs: countsAs.data?.[id],
     })
   const pending = collection.isPending || units.isPending
   const add = (entryId: string) => setOwned({ entryId, owned: true })
@@ -205,10 +222,11 @@ export function CollectionPage() {
                         data-unit={sheet.name}
                         name={sheet.name}
                         sheet={sheet}
-                        photo={<CollectionPhoto entryId={sheet.id} name={sheet.name} />}
-                        action={<RemoveButton name={sheet.name} onRemove={() => setRemoving(sheet)} />}
+                        photo={<CollectionPhoto entryId={sheet.id} name={sheet.name} army={armySheets.get(sheet.catalogueId)} />}
+                        action={<EntryMenu name={sheet.name} onCountsAs={() => setLinking(sheet)} onRemove={() => setRemoving(sheet)} />}
                       >
                         <CollectionEntryCounts entryId={sheet.id} name={sheet.name} />
+                        <CollectionCountsAs entryId={sheet.id} candidates={armySheets.get(sheet.catalogueId) ?? []} />
                       </CollectionCard>
                     ))}
                   </CollectionCardGrid>
@@ -239,6 +257,11 @@ export function CollectionPage() {
         <CollectionWishlist datasheets={datasheets} />
       </PageContent>
       <RemoveFromCollection datasheet={removing} onClose={() => setRemoving(null)} />
+      <CountsAsDialog
+        datasheet={linking}
+        candidates={linking ? (armySheets.get(linking.catalogueId) ?? []).filter((other) => other.id !== linking.id) : []}
+        onClose={() => setLinking(null)}
+      />
     </main>
   )
 }
@@ -257,6 +280,25 @@ function Tally({ label, value }: { label: string; value: number | null }) {
       )}
       {label}
     </span>
+  )
+}
+
+function EntryMenu({ name, onCountsAs, onRemove }: { name: string; onCountsAs: () => void; onRemove: () => void }) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="text-faint" aria-label={`Actions for ${name}`} />}>
+        <EllipsisVertical />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        <DropdownMenuItem onClick={onCountsAs}>
+          <Shuffle /> Can also be…
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onClick={onRemove}>
+          <Trash2 /> Remove
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 

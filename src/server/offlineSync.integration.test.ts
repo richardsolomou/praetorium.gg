@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { expect, it } from 'vitest'
 import { SpacetimeOperator } from './spacetimeOperator'
 import { offlineContext } from './offlineContext'
+import { DEFAULT_PLAYER_DEFAULTS, type PlayerDefaults } from '../core/playerDefaults'
 import { z } from 'zod'
 
 const url = process.env.SPACETIME_TEST_URL
@@ -28,25 +29,7 @@ const rowFor = (owner: string, id = randomUUID()) => ({
   now: Date.now(),
 })
 const fingerprint = 'a'.repeat(64)
-
-it.skipIf(!url || !database || !token)('acknowledges a plain-string battle audience and replays its receipt', async () => {
-  const operator = store()
-  const owner = randomUUID()
-  const id = randomUUID()
-  const context = () => ({ id, owner, fingerprint, createdAt: Date.now(), identifiers: {}, wrote: false })
-  try {
-    const first = await offlineContext.run(context(), () => operator.setBattleAudience(owner, 'friends', Date.now()))
-    const retry = await offlineContext.run(context(), () => operator.setBattleAudience(owner, 'friends', Date.now()))
-    expect({
-      first,
-      retry,
-      audience: await operator.battleAudience(owner),
-      receipt: (await operator.syncReceipt(id, owner, fingerprint))?.outcome,
-    }).toEqual({ first: 'friends', retry: 'friends', audience: 'friends', receipt: 'applied' })
-  } finally {
-    await operator.deleteUserData(owner)
-  }
-})
+const LARGER_GAMES: PlayerDefaults = { rosterVisibility: 'public', battleSize: 3000 }
 
 it.skipIf(!url || !database || !token)('reports one newly applied transaction across concurrent saved-action retries', async () => {
   const operator = store()
@@ -55,7 +38,7 @@ it.skipIf(!url || !database || !token)('reports one newly applied transaction ac
   const contexts = Array.from({ length: 2 }, () => ({ id, owner, fingerprint, createdAt: Date.now(), identifiers: {}, wrote: false }))
   try {
     await Promise.all(
-      contexts.map((context) => offlineContext.run(context, () => operator.setBattleAudience(owner, 'friends', Date.now()))),
+      contexts.map((context) => offlineContext.run(context, () => operator.setPlayerDefaults(owner, LARGER_GAMES, Date.now()))),
     )
     expect(contexts.map((context) => offlineContext.run(context, () => offlineContext.getStore()?.applied))).toEqual(
       expect.arrayContaining([false, true]),
@@ -342,10 +325,10 @@ it.skipIf(!url || !database || !token)('records expired deferred actions as a de
     await expect(
       offlineContext.run(
         { id: randomUUID(), owner, fingerprint, createdAt: Date.now() - 91 * 24 * 60 * 60_000, identifiers: {}, wrote: false },
-        () => operator.setBattleAudience(owner, 'private', Date.now()),
+        () => operator.setPlayerDefaults(owner, LARGER_GAMES, Date.now()),
       ),
     ).rejects.toThrow('expired')
-    expect(await operator.battleAudience(owner)).toBe('public')
+    expect(await operator.playerDefaults(owner)).toEqual(DEFAULT_PLAYER_DEFAULTS)
   } finally {
     await operator.deleteUserData(owner)
   }

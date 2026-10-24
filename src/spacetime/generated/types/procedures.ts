@@ -9,7 +9,6 @@ import { type Infer as __Infer } from 'spacetimedb'
 import * as AcceptFriendProcedure from '../accept_friend_procedure'
 import * as AcceptFriendInviteProcedure from '../accept_friend_invite_procedure'
 import * as AdminCollectionPhotosProcedure from '../admin_collection_photos_procedure'
-import * as BattleAudiencesProcedure from '../battle_audiences_procedure'
 import * as BattleByTokenProcedure from '../battle_by_token_procedure'
 import * as BattleFeedProcedure from '../battle_feed_procedure'
 import * as BattleForOperatorProcedure from '../battle_for_operator_procedure'
@@ -76,8 +75,6 @@ import * as RostersByUserProcedure from '../rosters_by_user_procedure'
 import * as RostersLentToProcedure from '../rosters_lent_to_procedure'
 import * as SaveRosterProcedure from '../save_roster_procedure'
 import * as SaveUnitLoadoutProcedure from '../save_unit_loadout_procedure'
-import * as SetBattleAudienceProcedure from '../set_battle_audience_procedure'
-import * as SetCollectionPublishedProcedure from '../set_collection_published_procedure'
 import * as SetPlayerDefaultsProcedure from '../set_player_defaults_procedure'
 import * as SetPushEnabledProcedure from '../set_push_enabled_procedure'
 import * as SetRosterArchivedProcedure from '../set_roster_archived_procedure'
@@ -98,8 +95,6 @@ export type AcceptFriendInviteArgs = __Infer<typeof AcceptFriendInviteProcedure.
 export type AcceptFriendInviteResult = __Infer<typeof AcceptFriendInviteProcedure.returnType>
 export type AdminCollectionPhotosArgs = __Infer<typeof AdminCollectionPhotosProcedure.params>
 export type AdminCollectionPhotosResult = __Infer<typeof AdminCollectionPhotosProcedure.returnType>
-export type BattleAudiencesArgs = __Infer<typeof BattleAudiencesProcedure.params>
-export type BattleAudiencesResult = __Infer<typeof BattleAudiencesProcedure.returnType>
 export type BattleByTokenArgs = __Infer<typeof BattleByTokenProcedure.params>
 export type BattleByTokenResult = __Infer<typeof BattleByTokenProcedure.returnType>
 export type BattleFeedArgs = __Infer<typeof BattleFeedProcedure.params>
@@ -232,10 +227,6 @@ export type SaveRosterArgs = __Infer<typeof SaveRosterProcedure.params>
 export type SaveRosterResult = __Infer<typeof SaveRosterProcedure.returnType>
 export type SaveUnitLoadoutArgs = __Infer<typeof SaveUnitLoadoutProcedure.params>
 export type SaveUnitLoadoutResult = __Infer<typeof SaveUnitLoadoutProcedure.returnType>
-export type SetBattleAudienceArgs = __Infer<typeof SetBattleAudienceProcedure.params>
-export type SetBattleAudienceResult = __Infer<typeof SetBattleAudienceProcedure.returnType>
-export type SetCollectionPublishedArgs = __Infer<typeof SetCollectionPublishedProcedure.params>
-export type SetCollectionPublishedResult = __Infer<typeof SetCollectionPublishedProcedure.returnType>
 export type SetPlayerDefaultsArgs = __Infer<typeof SetPlayerDefaultsProcedure.params>
 export type SetPlayerDefaultsResult = __Infer<typeof SetPlayerDefaultsProcedure.returnType>
 export type SetPushEnabledArgs = __Infer<typeof SetPushEnabledProcedure.params>

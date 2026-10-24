@@ -2,7 +2,7 @@ import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage eyebrow="Legal" title="Privacy policy" updated="23 October 2026">
+    <LegalPage eyebrow="Legal" title="Privacy policy" updated="24 October 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
@@ -56,9 +56,10 @@ export function PrivacyPolicy() {
           we can see who ran into a problem and reach them about it.
         </p>
         <p>
-          Feedback you send is stored in PostHog with its message, any email address you add for a reply, and the page and replay of the
-          visit you sent it from. A screenshot you attach is stored privately and only administrators can open it. When a list fails to
-          import, its text is sent to us in an automatic report so we can fix the importer.
+          Feedback you send, and our replies to it, are stored in PostHog with any email address you add, and the page and replay of the
+          visit you sent it from. The conversation belongs to the browser you sent it from or, when you are signed in, to your account. A
+          screenshot you attach is stored privately and only administrators can open it. When a list fails to import, its text is sent to us
+          in an automatic report so we can fix the importer.
         </p>
       </LegalSection>
 
@@ -81,19 +82,17 @@ export function PrivacyPolicy() {
           </li>
           <li>Your name, profile picture and profile page are public.</li>
           <li>
-            Your collection's datasheets, model counts, photos and wishlist are shown on your profile by default, and its photos on their
-            datasheet pages. Turn off Show collection on profile in your account settings to hide them; turning it back on shows them again.
-            A photo another player reports is hidden from everyone but you until an administrator reviews it.
+            Your collection's datasheets, model counts, photos and wishlist are shown on your profile, and its photos on their datasheet
+            pages. A photo another player reports is hidden from everyone but you until an administrator reviews it.
           </li>
           <li>
-            Battles are public by default. You choose whether anyone, confirmed friends of any seated player, or only the seated players can
-            watch. The most private choice at the table applies to past and live battles, including league battles. Spectators cannot change
-            a battle or see a face-down Secret Mission.
+            Battles are public: anyone can watch past and live battles, including league battles. Spectators cannot change a battle or see a
+            face-down Secret Mission.
           </li>
-          <li>Public battles may appear on the home page. Your profile's battle record includes only games its reader can watch.</li>
+          <li>Battles may appear on the home page and in your profile's battle record.</li>
           <li>
-            The leaderboard counts finished public games from the last 90 days. Games with a practice opponent, or with a guest who has not
-            claimed the game with an account, do not count.
+            The leaderboard counts finished games from the last 90 days. Games with a practice opponent, or with a guest who has not claimed
+            the game with an account, do not count.
           </li>
           <li>
             Sealing a league roster makes a separate frozen copy. Before reveal, only its assigned allies who are accepted entrants can read

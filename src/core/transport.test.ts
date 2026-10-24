@@ -16,6 +16,8 @@ const TYRANNOCYTE =
   'This model has a transport capacity of 20 **TYRANIDS INFANTRY** models, or 1 **TYRANIDS MONSTER** model with a Wounds characteristic of 12 or less. Each Infantry model with a Wounds characteristic of more than 1 takes up the space of 3 models.'
 const YNNARI_VENOM =
   'This model has a transport capacity of 6 models from the following units: **THE VISARCH**, **YNNARI ARCHON**, **YNNARI INCUBI**, **YNNARI KABALITE WARRIORS**, **YNNARI SUCCUBUS**, **YNNARI WYCHES**, **YVRAINE**'
+const CHIMERA =
+  'This model has a transport capacity of 12 **ASTRA MILITARUM INFANTRY** models. Each **OGRYN** model takes up the space of 3 models. It cannot transport **ARTILLERY** models.'
 const BATTLEWAGON =
   'This model has a transport capacity of 20 **ORKS INFANTRY** models. If this model is equipped with a supa-kannon, it has a transport capacity of 15 **ORKS INFANTRY** models.'
 
@@ -175,6 +177,35 @@ describe('transport loads', () => {
 
   it('refuses a unit whose datasheet prints no keywords', () => {
     expect(used(loadIn(RHINO, [{ name: 'Sentry Gun', alive: 1, keywords: [] }]))).toBe('this transport cannot carry Sentry Gun')
+  })
+
+  it('carries a passenger that rides as another unit', () => {
+    const scions = { name: 'Tempestus Scions', alive: 10, keywords: ['Faction: Astra Militarum', 'Infantry', 'Militarum Tempestus'] }
+    const inquisitor = {
+      name: 'Inquisitor',
+      alive: 1,
+      keywords: ['Faction: Agents of the Imperium', 'Infantry', 'Character'],
+      ridesAs: scions.keywords,
+    }
+    expect(used(loadIn(CHIMERA, [scions, inquisitor]))).toEqual([11])
+  })
+
+  it('counts the space a passenger that rides as another unit takes by its own keywords', () => {
+    const bullgryns = { name: 'Bullgryn Squad', alive: 3, keywords: ['Faction: Astra Militarum', 'Infantry', 'Ogryn'] }
+    const inquisitor = {
+      name: 'Inquisitor',
+      alive: 1,
+      keywords: ['Faction: Agents of the Imperium', 'Infantry', 'Character'],
+      ridesAs: bullgryns.keywords,
+    }
+    expect(used(loadIn(CHIMERA, [bullgryns, inquisitor]))).toEqual([10])
+  })
+
+  it('counts the space an ability fixes over the space the transport prints', () => {
+    const valkyrie =
+      'This model has a transport capacity of 12 **ASTRA MILITARUM INFANTRY** models. Each **OGRYN** model takes up the space of 2 models.'
+    const bodyguard = { name: 'Ogryn Bodyguard', alive: 1, keywords: ['Faction: Astra Militarum', 'Infantry', 'Ogryn'], space: 3 }
+    expect(used(loadIn(valkyrie, [bodyguard]))).toEqual([3])
   })
 
   it('counts a passenger frozen without keywords one space per model', () => {

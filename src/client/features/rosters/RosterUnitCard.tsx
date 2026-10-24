@@ -3,18 +3,23 @@ import type { PickerUnit } from '../../../contracts/catalogue'
 import { availableChoices, newHosts, newJoiners, rosterJoiners } from '../../../core/attachmentOptions'
 import type { KeyedPick } from './rosterPicks'
 import { attachmentRows, joinableUnits } from './builder/attachments'
-import { type AttachChoice, UnitCard } from './builder/UnitCard'
+import { AttachMenu, type AttachChoice, EmbarkMenu, JoinedRow, ROW, UnitCard } from './builder/UnitCard'
+import { cardEmbark, type EmbarkCard, embarkRows, NO_EMBARK } from './builder/embarkModel'
 import { unitLimitMessage } from './builder/usePicks'
 
 export type AttachDirection = 'join' | 'host'
 
 type BuilderUnitCardProps = {
   unit: ComponentProps<typeof UnitCard>['unit']
+  nickname?: string
   note?: string
   index: number
   joined: ReturnType<typeof attachmentRows>
   canJoin: AttachChoice[]
   canHost: AttachChoice[]
+  embark: EmbarkCard
+  /** Drawn inside an attached unit's outline, which offers the unit's own joiners and embark instead. */
+  inAttachedUnit: boolean
   alliedFaction: ComponentProps<typeof UnitCard>['alliedFaction']
   selected: boolean
   editable: boolean
@@ -26,15 +31,20 @@ type BuilderUnitCardProps = {
   onSaveLoadout?: (index: number) => void
   onDetach: (index: number) => void
   onAttach: (index: number, direction: AttachDirection, choice: AttachChoice) => void
+  /** Starts the unit picked under `passengerKey` in the transport picked under `transportKey`, or on the battlefield. */
+  onEmbark: (passengerKey: number, transportKey: number | undefined) => void
 }
 
 export const BuilderUnitCard = memo(function BuilderUnitCard({
   unit,
+  nickname,
   note,
   index,
   joined,
   canJoin,
   canHost,
+  embark: unitEmbark,
+  inAttachedUnit,
   alliedFaction,
   selected,
   editable,
@@ -46,10 +56,13 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
   onSaveLoadout,
   onDetach,
   onAttach,
+  onEmbark,
 }: BuilderUnitCardProps) {
+  const embark = cardEmbark(unitEmbark, inAttachedUnit)
   return (
     <UnitCard
       unit={unit}
+      nickname={nickname}
       note={note}
       alliedFaction={alliedFaction}
       selected={selected}
@@ -58,21 +71,86 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
       onDuplicate={() => onDuplicate(index)}
       canDuplicate={canDuplicate}
       onSaveLoadout={onSaveLoadout && (() => onSaveLoadout(index))}
-      joined={joined.map((row) => ({ ...row, onAct: () => onDetach(row.detach) }))}
+      joined={[
+        ...joined.map((row) => ({ ...row, onAct: () => onDetach(row.detach) })),
+        ...embarkRows(embark).map((row) => ({ ...row, onAct: () => onEmbark(row.passenger, undefined) })),
+      ]}
       canJoin={canJoin}
       onJoin={(choice) => onAttach(index, 'join', choice)}
-      canHost={canHost}
+      canHost={inAttachedUnit ? [] : canHost}
       onHost={(choice) => onAttach(index, 'host', choice)}
+      canBoard={embark.canBoard}
+      onBoard={(choice) => onEmbark(choice.passenger, choice.transport)}
+      canCarry={embark.canCarry}
+      onCarry={(choice) => onEmbark(choice.passenger, choice.transport)}
+      status={embark.notice ? <output className="text-xs">{embark.notice}</output> : undefined}
       alertCount={alertCount}
       editable={editable}
     />
   )
 })
 
+/**
+ * What an attached unit does as one, drawn once on its outline rather than on each of its cards: who else may join it,
+ * and where it starts embarked. `host` is the bodyguard, whose card the unit's embark is told on.
+ */
+export function AttachedUnitActions({
+  host,
+  name,
+  embark,
+  canHost,
+  editable,
+  onAttach,
+  onEmbark,
+}: {
+  host: number
+  name: string
+  embark: EmbarkCard
+  canHost: AttachChoice[]
+  editable: boolean
+  onAttach?: (index: number, direction: AttachDirection, choice: AttachChoice) => void
+  onEmbark?: (passengerKey: number, transportKey: number | undefined) => void
+}) {
+  const { ridesIn, notice } = embark
+  return (
+    <>
+      {editable && canHost.length ? (
+        <AttachMenu
+          label="Attach unit"
+          ariaLabel={`Attach a unit to ${name}`}
+          choices={canHost}
+          onChoose={(choice) => onAttach?.(host, 'host', choice)}
+        />
+      ) : null}
+      {ridesIn ? (
+        <JoinedRow
+          row={{ ...ridesIn, label: 'Unit embarked in', onAct: () => onEmbark?.(ridesIn.passenger, undefined) }}
+          editable={editable}
+        />
+      ) : null}
+      {editable && embark.canBoard.length ? (
+        <EmbarkMenu
+          label="Embark unit in transport"
+          ariaLabel={`Embark ${name} in transport`}
+          choiceLabel={(choice) => `Embark ${name} in ${choice.name}`}
+          choices={embark.canBoard}
+          onChoose={(choice) => onEmbark?.(choice.passenger, choice.transport)}
+        />
+      ) : null}
+      {notice ? (
+        <div data-unit-status className={ROW}>
+          <output className="text-xs">{notice}</output>
+        </div>
+      ) : null}
+    </>
+  )
+}
+
 type CardRelationships = {
   joined: ReturnType<typeof attachmentRows>
   canJoin: AttachChoice[]
   canHost: AttachChoice[]
+  embark: EmbarkCard
 }
 
 /** The book's datasheets and the roster's copy limits, which decide whether a new unit can be added to attach. */
@@ -86,6 +164,8 @@ export function useCardRelationships(
   picks: readonly KeyedPick[],
   units: Parameters<typeof attachmentRows>[1],
   discovery: AttachDiscovery | null,
+  /** Each card's starting embarks, by pick key. */
+  embarks: ReadonlyMap<number, EmbarkCard> | null,
 ) {
   const computed = useMemo(() => {
     const next = new Map<number, CardRelationships>()
@@ -111,11 +191,12 @@ export function useCardRelationships(
           ...rosterJoiners(picks, units, index).map((joiner) => ({ kind: 'roster' as const, ...joiner })),
           ...added(newJoiners(candidates, picks, units, index)),
         ]),
+        embark: embarks?.get(pick.key) ?? NO_EMBARK,
       }
       next.set(pick.key, candidate)
     }
     return next
-  }, [picks, units, discovery])
+  }, [picks, units, discovery, embarks])
   // A card whose relationships read the same keeps the same object, so it does not redraw; this is React's pattern for
   // keeping information from the previous render in state.
   const [kept, setKept] = useState({ from: computed, relationships: computed })

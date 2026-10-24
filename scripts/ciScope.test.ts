@@ -8,9 +8,25 @@ it('skips runtime checks for contributor documentation', () => {
 })
 
 it.each([
-  'src/rules.md',
-  'catalogue/patches/rules.md',
+  'DESIGN.md',
+  'PRODUCT.md',
   '.changeset/fix.md',
+  'plugin/skills/build-a-roster/SKILL.md',
+  'plugin/.claude-plugin/plugin.json',
+  'plugin/assets/logo.png',
+  'justfile',
+  '.github/pull_request_template.md',
+])('skips runtime checks for %s, which no runtime lane, build or deploy reads', (file) => {
+  expect(needsRuntimeChecks(['docs/development/battles.md', file])).toBe(false)
+})
+
+it.each([
+  'src/rules.md',
+  'src/client/features/docs/content/search.md',
+  'catalogue/patches/rules.md',
+  'CHANGELOG.md',
+  'mobile/CHANGELOG.md',
+  '.changeset/config.json',
   'docs/example.ts',
   'docs/image.svg',
   '.github/workflows/ci.yml',

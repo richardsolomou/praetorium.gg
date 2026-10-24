@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { build, type Rolldown } from 'vite'
 
-const compilerEntries = ['scripts/catalogueRefresh.ts', 'scripts/compileCatalogueRuntime.ts']
+export const compilerEntries = ['scripts/catalogueRefresh.ts', 'scripts/compileCatalogueRuntime.ts']
 // The compiler reads catalogue configuration from disk; the seed build config bundles the production worker.
 const compilerFiles = ['catalogue', 'vite.seed.config.ts']
 
@@ -29,12 +29,8 @@ export function treeFingerprint(root: string, inputs: readonly string[]) {
   return hash.digest('hex')
 }
 
-/**
- * Identifies the catalogue compiler by its entry points bundled with every dependency they
- * reach, so only a change to code the compiler runs invalidates prepared catalogues. Comments,
- * formatting, unused exports and unrelated modules or packages never reach the bundle.
- */
-export async function compilerFingerprint(root = process.cwd(), entries = compilerEntries) {
+/** The compiler's entry points bundled with every dependency they reach. */
+async function compilerBundle(root: string, entries: readonly string[]) {
   const result = (await build({
     configFile: false,
     envDir: false,
@@ -53,8 +49,17 @@ export async function compilerFingerprint(root = process.cwd(), entries = compil
       },
     },
   })) as Rolldown.RolldownOutput | Rolldown.RolldownOutput[]
+  return [result].flat().flatMap(({ output }) => output)
+}
+
+/**
+ * Identifies the catalogue compiler by its bundle, so only a change to code the compiler runs
+ * invalidates prepared catalogues. Comments, formatting, unused exports and unrelated modules or
+ * packages never reach the bundle.
+ */
+export async function compilerFingerprint(root = process.cwd(), entries = compilerEntries) {
   const hash = createHash('sha256')
-  const outputs = [result].flat().flatMap(({ output }) => output)
+  const outputs = await compilerBundle(root, entries)
   for (const output of outputs.toSorted((left, right) => left.fileName.localeCompare(right.fileName)))
     hash
       .update(output.fileName)

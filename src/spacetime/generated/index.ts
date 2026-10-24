@@ -58,8 +58,10 @@ import ReplaceFriendInviteReducer from './replace_friend_invite_reducer'
 import ReportCollectionPhotoReducer from './report_collection_photo_reducer'
 import RevokeOwnAccessReducer from './revoke_own_access_reducer'
 import RevokeSessionReducer from './revoke_session_reducer'
+import SetCollectionCountsAsReducer from './set_collection_counts_as_reducer'
 import SetCollectionModelsReducer from './set_collection_models_reducer'
 import SetCollectionPhotoReducer from './set_collection_photo_reducer'
+import SetCollectionPhotoAsReducer from './set_collection_photo_as_reducer'
 import SetCollectionPhotoLikeReducer from './set_collection_photo_like_reducer'
 import SetCollectionProgressReducer from './set_collection_progress_reducer'
 import SetCollectionWantedReducer from './set_collection_wanted_reducer'
@@ -71,7 +73,6 @@ import WatchBattleReducer from './watch_battle_reducer'
 import * as AcceptFriendProcedure from './accept_friend_procedure'
 import * as AcceptFriendInviteProcedure from './accept_friend_invite_procedure'
 import * as AdminCollectionPhotosProcedure from './admin_collection_photos_procedure'
-import * as BattleAudiencesProcedure from './battle_audiences_procedure'
 import * as BattleByTokenProcedure from './battle_by_token_procedure'
 import * as BattleFeedProcedure from './battle_feed_procedure'
 import * as BattleForOperatorProcedure from './battle_for_operator_procedure'
@@ -138,8 +139,6 @@ import * as RostersByUserProcedure from './rosters_by_user_procedure'
 import * as RostersLentToProcedure from './rosters_lent_to_procedure'
 import * as SaveRosterProcedure from './save_roster_procedure'
 import * as SaveUnitLoadoutProcedure from './save_unit_loadout_procedure'
-import * as SetBattleAudienceProcedure from './set_battle_audience_procedure'
-import * as SetCollectionPublishedProcedure from './set_collection_published_procedure'
 import * as SetPlayerDefaultsProcedure from './set_player_defaults_procedure'
 import * as SetPushEnabledProcedure from './set_push_enabled_procedure'
 import * as SetRosterArchivedProcedure from './set_roster_archived_procedure'
@@ -242,8 +241,10 @@ const reducersSchema = __reducers(
   __reducerSchema('report_collection_photo', ReportCollectionPhotoReducer),
   __reducerSchema('revoke_own_access', RevokeOwnAccessReducer),
   __reducerSchema('revoke_session', RevokeSessionReducer),
+  __reducerSchema('set_collection_counts_as', SetCollectionCountsAsReducer),
   __reducerSchema('set_collection_models', SetCollectionModelsReducer),
   __reducerSchema('set_collection_photo', SetCollectionPhotoReducer),
+  __reducerSchema('set_collection_photo_as', SetCollectionPhotoAsReducer),
   __reducerSchema('set_collection_photo_like', SetCollectionPhotoLikeReducer),
   __reducerSchema('set_collection_progress', SetCollectionProgressReducer),
   __reducerSchema('set_collection_wanted', SetCollectionWantedReducer),
@@ -257,7 +258,6 @@ const proceduresSchema = __procedures(
   __procedureSchema('accept_friend', AcceptFriendProcedure.params, AcceptFriendProcedure.returnType),
   __procedureSchema('accept_friend_invite', AcceptFriendInviteProcedure.params, AcceptFriendInviteProcedure.returnType),
   __procedureSchema('admin_collection_photos', AdminCollectionPhotosProcedure.params, AdminCollectionPhotosProcedure.returnType),
-  __procedureSchema('battle_audiences', BattleAudiencesProcedure.params, BattleAudiencesProcedure.returnType),
   __procedureSchema('battle_by_token', BattleByTokenProcedure.params, BattleByTokenProcedure.returnType),
   __procedureSchema('battle_feed', BattleFeedProcedure.params, BattleFeedProcedure.returnType),
   __procedureSchema('battle_for_operator', BattleForOperatorProcedure.params, BattleForOperatorProcedure.returnType),
@@ -336,8 +336,6 @@ const proceduresSchema = __procedures(
   __procedureSchema('rosters_lent_to', RostersLentToProcedure.params, RostersLentToProcedure.returnType),
   __procedureSchema('save_roster', SaveRosterProcedure.params, SaveRosterProcedure.returnType),
   __procedureSchema('save_unit_loadout', SaveUnitLoadoutProcedure.params, SaveUnitLoadoutProcedure.returnType),
-  __procedureSchema('set_battle_audience', SetBattleAudienceProcedure.params, SetBattleAudienceProcedure.returnType),
-  __procedureSchema('set_collection_published', SetCollectionPublishedProcedure.params, SetCollectionPublishedProcedure.returnType),
   __procedureSchema('set_player_defaults', SetPlayerDefaultsProcedure.params, SetPlayerDefaultsProcedure.returnType),
   __procedureSchema('set_push_enabled', SetPushEnabledProcedure.params, SetPushEnabledProcedure.returnType),
   __procedureSchema('set_roster_archived', SetRosterArchivedProcedure.params, SetRosterArchivedProcedure.returnType),

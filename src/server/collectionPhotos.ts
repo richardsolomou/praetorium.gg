@@ -79,7 +79,7 @@ export function collectionPhotoStore(
   }
 
   return {
-    async upload(userId: string, entryId: string, image: string) {
+    async upload(userId: string, entryId: string, image: string, shows?: string) {
       const objects = privateObjects()
       if (!objects) throw new Response('image uploads are not available', { status: 503 })
       const parsed = parseImageDataUrl(image)
@@ -92,7 +92,7 @@ export function collectionPhotoStore(
       try {
         await objects.put(`${PREFIX}${photoId}`, parsed.bytes, parsed.contentType)
         await objects.put(collectionPhotoThumbnailKey(photoId), thumbnail, 'image/webp')
-        await repository.setCollectionPhoto({ userId, entryId, photoId, now: clock() })
+        await repository.setCollectionPhoto({ userId, entryId, shows, photoId, now: clock() })
       } catch (error) {
         try {
           await deleteObjects(objects, photoId)

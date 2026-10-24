@@ -1,14 +1,23 @@
 name: CI
 
 on:
+  # A pull request runs only the browser specs its change exercises, and that run is the required
+  # `e2e` check; the daily run is the full suite that catches a spec the selection missed.
   pull_request:
+  # The daily run also records the source each spec executes, which pull requests choose their specs from.
+  schedule:
+    - cron: '17 13 * * *'
   workflow_dispatch:
     inputs:
       e2e-runners:
         description: Browser runners for a timing comparison
         type: choice
-        options: ['16', '8']
-        default: '16'
+        options: ['14', '16', '8']
+        default: '14'
+      coverage:
+        description: Record the coverage map that pull requests choose specs from
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -16,6 +25,9 @@ concurrency:
 
 permissions:
   contents: read
+
+env:
+  FULL_E2E: ${{ github.event_name != 'pull_request' }}
 
 # `just check` runs these lanes in sequence locally; CI runs them side by side so the fast ones answer first.
 jobs:
@@ -129,10 +141,14 @@ jobs:
       ASSETS_R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
     outputs:
       node-version: ${{ steps.node.outputs.version }}
-      runner-count: ${{ inputs.e2e-runners || '16' }}
-      runners: ${{ inputs.e2e-runners == '8' && '[1,2,3,4,5,6,7,8]' || '[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]' }}
+      runner-count: ${{ steps.runners.outputs.count }}
+      runners: ${{ steps.runners.outputs.runners }}
+      specs: ${{ steps.runners.outputs.specs }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Selection compares the change with the coverage map's revision.
+          fetch-depth: ${{ env.FULL_E2E == 'true' && 1 || 0 }}
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
         with:
           install: 'false'
@@ -140,6 +156,14 @@ jobs:
         id: node
         run: node -p "'version=' + process.version" >> "$GITHUB_OUTPUT"
       - uses: ./.github/actions/e2e-dependencies
+      # The daily coverage run saves the map under its revision; the newest one is restored.
+      - name: Restore the latest coverage map
+        if: env.FULL_E2E != 'true'
+        uses: actions/cache/restore@v6
+        with:
+          path: e2e-map.json
+          key: e2e-map-${{ github.sha }}
+          restore-keys: e2e-map-
       - run: pnpm catalogue:sync
         # Catalogue snapshots are private, read with these on this step alone.
         env:
@@ -167,6 +191,43 @@ jobs:
       - name: Build or restore the browser-test build
         run: pnpm exec tsx scripts/browserTestBuild.ts
       - uses: ./.github/actions/verify-browser-build
+      # Selection compares the build's compiled catalogue with the coverage run's.
+      - name: Choose the end-to-end specs
+        id: select
+        env:
+          HEAD_SHA: ${{ github.sha }}
+          E2E_MAP: e2e-map.json
+        run: |
+          if [ "$FULL_E2E" = true ]; then
+            printf 'specs=all\nreason=every spec runs outside pull requests\n' >> "$GITHUB_OUTPUT"
+          else
+            # As in `ci-scope.yml`, the merge commit's first parent is the base it merged into.
+            BASE_SHA="$(git rev-parse "$HEAD_SHA^1")" node scripts/e2eSelect.ts
+          fi
+      - name: Choose the browser runners
+        id: runners
+        env:
+          SELECTED: ${{ steps.select.outputs.specs }}
+          REASON: ${{ steps.select.outputs.reason }}
+          FULL: ${{ env.FULL_E2E }}
+          # The account runs 20 jobs at once and the other lanes hold about six while the runners
+          # start, so a 16th runner waits for a slot instead of finishing sooner.
+          MAX: ${{ inputs.e2e-runners || '14' }}
+        run: |
+          set -euo pipefail
+          specs="$SELECTED"
+          if [ "$FULL" = true ]; then specs=all; fi
+          runners="$(node scripts/e2eShard.ts --runners "$specs" "$MAX")"
+          {
+            echo "specs=$specs"
+            echo "runners=$runners"
+            echo "count=$(node -p 'JSON.parse(process.argv[1]).length' "$runners")"
+          } >> "$GITHUB_OUTPUT"
+          {
+            if [ "$FULL" = true ]; then echo '### Every end-to-end spec runs'; else echo '### Only the affected end-to-end specs run'; fi
+            echo "$REASON; this run uses $(node -p 'JSON.parse(process.argv[1]).length' "$runners") of $MAX runners."
+            if [ "$SELECTED" != all ]; then node -p 'JSON.parse(process.argv[1]).map((spec) => "- " + spec).join("\n")' "$SELECTED"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7
         with:
           name: browser-test-build
@@ -177,6 +238,7 @@ jobs:
   e2e-shard:
     name: E2E runner ${{ matrix.runner }} of ${{ needs.browser-build.outputs.runner-count }}
     needs: [browser-build]
+    if: needs.browser-build.outputs.runner-count != '0'
     strategy:
       fail-fast: false
       matrix:
@@ -196,6 +258,8 @@ jobs:
         env:
           E2E_SHARD: ${{ matrix.runner }}
           E2E_RUNNERS: ${{ needs.browser-build.outputs.runner-count }}
+          E2E_SPECS: ${{ needs.browser-build.outputs.specs != 'all' && needs.browser-build.outputs.specs || '' }}
+          E2E_COVERAGE_DIR: ${{ (github.event_name == 'schedule' || inputs.coverage) && format('{0}/e2e-coverage', runner.temp) || '' }}
           SPACETIME_BIN: ${{ steps.stack.outputs.spacetime-bin }}
           PLAYWRIGHT_STARTUP_REPORT: e2e-startup-${{ matrix.runner }}.json
         run: |
@@ -213,6 +277,13 @@ jobs:
             echo 'Browser-test startup (seconds):' >> "$GITHUB_STEP_SUMMARY"
             cat "e2e-startup-${{ matrix.runner }}.json" >> "$GITHUB_STEP_SUMMARY"
           fi
+      - if: github.event_name == 'schedule' || inputs.coverage
+        uses: actions/upload-artifact@v7
+        with:
+          name: e2e-coverage-${{ matrix.runner }}
+          path: ${{ runner.temp }}/e2e-coverage
+          retention-days: 2
+          if-no-files-found: error
       # `just e2e-durations <run id>` rebalances the runners from these reports.
       - if: success() || failure()
         uses: actions/upload-artifact@v7
@@ -233,15 +304,38 @@ jobs:
           retention-days: 7
 
   e2e:
-    if: always() && needs.changes.outputs.runtime != 'false'
+    if: always()
     needs: [changes, browser-build, e2e-shard]
     runs-on: ubuntu-latest
     steps:
       - name: Require every E2E runner
+        if: needs.changes.outputs.runtime != 'false'
         run: |
           test '${{ needs.changes.result }}' = success
           test '${{ needs.browser-build.result }}' = success
-          test '${{ needs.e2e-shard.result }}' = success
+          # A change no spec exercises runs no browser runner.
+          test '${{ needs.e2e-shard.result }}' = success || { test '${{ needs.browser-build.outputs.runner-count }}' = 0 && test '${{ needs.e2e-shard.result }}' = skipped; }
+
+  e2e-map:
+    if: github.event_name == 'schedule' || inputs.coverage
+    needs: [browser-build, e2e-shard]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - uses: actions/download-artifact@v8
+        with:
+          name: browser-test-build
+          path: data-dev/e2e-build
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: e2e-coverage-*
+          path: e2e-coverage
+      - run: pnpm exec tsx scripts/e2eMap.ts data-dev/e2e-build "$GITHUB_SHA" e2e-map.json e2e-coverage/*
+      - uses: actions/cache/save@v6
+        with:
+          path: e2e-map.json
+          key: e2e-map-${{ github.sha }}
 
   points:
     needs: changes
@@ -321,6 +415,7 @@ jobs:
     outputs:
       base-sha: ${{ steps.revisions.outputs.base-sha }}
       head-sha: ${{ steps.revisions.outputs.head-sha }}
+      needed: ${{ steps.scope.outputs.needed }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -341,7 +436,19 @@ jobs:
             echo "head-sha=$GITHUB_SHA"
           } >> "$GITHUB_OUTPUT"
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - run: pnpm catalogue:sync
+      - name: Decide whether the change can move the snapshot
+        id: scope
+        env:
+          BASE_SHA: ${{ steps.revisions.outputs.base-sha }}
+          HEAD_SHA: ${{ steps.revisions.outputs.head-sha }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            node scripts/catalogueCoverageScope.ts
+          else
+            echo needed=true >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.scope.outputs.needed == 'true'
+        run: pnpm catalogue:sync
         # Catalogue snapshots are private, read with these on this step alone.
         env:
           R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
@@ -349,7 +456,8 @@ jobs:
           R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
       # Both snapshots must read one revision.json, or an upstream change between
       # the runs reads back as a phantom loss.
-      - uses: actions/upload-artifact@v7
+      - if: steps.scope.outputs.needed == 'true'
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-catalogue
           path: catalogue-data
@@ -360,21 +468,17 @@ jobs:
 
   coverage-snapshot:
     needs: [coverage-data]
+    if: needs.coverage-data.outputs.needed == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
+      # Coverage finishes minutes before the browser runners, so two at a time leaves their
+      # starting slots free; the head parts come first because the base ones are usually cached.
+      max-parallel: 2
       matrix:
         # Main's snapshot usually restores from the cache that `coverage-baseline.yml` fills
         # part by part, but a pull request pushed just after main moved computes it here.
         include:
-          - revision: base
-            sha: ${{ needs.coverage-data.outputs.base-sha }}
-            file: base-0.json
-            part: 0/2
-          - revision: base
-            sha: ${{ needs.coverage-data.outputs.base-sha }}
-            file: base-1.json
-            part: 1/2
           - revision: head
             sha: ${{ needs.coverage-data.outputs.head-sha }}
             file: head-0.json
@@ -382,6 +486,14 @@ jobs:
           - revision: head
             sha: ${{ needs.coverage-data.outputs.head-sha }}
             file: head-1.json
+            part: 1/2
+          - revision: base
+            sha: ${{ needs.coverage-data.outputs.base-sha }}
+            file: base-0.json
+            part: 0/2
+          - revision: base
+            sha: ${{ needs.coverage-data.outputs.base-sha }}
+            file: base-1.json
             part: 1/2
     steps:
       # Each snapshot installs the dependencies of the revision it measures, so a
@@ -413,7 +525,8 @@ jobs:
           if-no-files-found: error
 
   coverage:
-    if: always() && needs.changes.outputs.runtime != 'false'
+    # A failed scope decision still fails here, because no snapshot ran.
+    if: always() && needs.changes.outputs.runtime != 'false' && needs.coverage-data.outputs.needed != 'false'
     needs: [changes, coverage-data, coverage-snapshot]
     runs-on: ubuntu-latest
     env:

@@ -9,7 +9,7 @@ import { combatLoadoutSpace } from '../../shared/combatLoadouts'
 import { exportRosterFile, importRosterFile, importRosterExchange } from '../../shared/rosterFiles'
 import { ROSTER_EXCHANGE_RULES_UNAVAILABLE, type decodeRosterExchange } from '../../core/rosterExchange'
 import { battleDetachmentData, selectedBattleDetachmentData } from '../../shared/battleDetachmentData'
-import { unitWoundsIn } from '../../shared/catalogue'
+import { unitBattleDetailsIn, unitWoundsIn } from '../../shared/catalogue'
 import { rosterCombatantsSchema } from '../../contracts/combatCalculation'
 import { rosterCombatants } from '../../shared/rosterCombatants'
 import type { LoadedCatalogue } from '../../shared/catalogueIndex'
@@ -42,6 +42,8 @@ export const constructionReads = {
     combatLoadoutSpace(catalogue, combatLoadoutSchema.parse(data)),
   unitWounds: ({ catalogue }: Construction, data: Data<typeof server.unitWounds>) =>
     unitWoundsIn(catalogue, data.catalogueId, data.entryIds),
+  unitBattleDetails: ({ catalogue }: Construction, data: Data<typeof server.unitBattleDetails>) =>
+    unitBattleDetailsIn(catalogue, data.catalogueId, data.entryIds),
   detachmentRules: ({ catalogue, rules }: Construction, data: Data<typeof server.detachmentRules>) => {
     const selected = battleDetachmentData(catalogue, rules, data.catalogueId)
     return selected ? selectedBattleDetachmentData(selected, data.detachmentNames) : null
@@ -113,6 +115,7 @@ type ServerAnswers = {
   combatantDatasheets: Awaited<ReturnType<typeof server.combatantDatasheets>>
   combatLoadouts: Awaited<ReturnType<typeof server.combatLoadouts>>
   unitWounds: Awaited<ReturnType<typeof server.unitWounds>>
+  unitBattleDetails: Awaited<ReturnType<typeof server.unitBattleDetails>>
   detachmentRules: Awaited<ReturnType<typeof server.detachmentRules>>
   exportRoster: Awaited<ReturnType<typeof server.exportRoster>>
   importExchange: Awaited<ReturnType<typeof server.importRoster>>

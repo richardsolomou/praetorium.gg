@@ -77,6 +77,50 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
     }).toEqual({ local, beyondBound: local })
   })
 
+  describe('a Loyal Protector joined to a Command Squad leading Cadian Shock Troops', () => {
+    const roster = () => {
+      const book = index.find((candidate) => candidate.name === 'Astra Militarum')!
+      const id = (name: string) => book.units.find((candidate) => candidate.name === name)!.id
+      return {
+        catalogueId: book.catalogueId,
+        detachmentIds: [],
+        picks: [
+          { entryId: id('Cadian Shock Troops') },
+          { entryId: id('Cadian Command Squad'), attachedTo: 0 },
+          { entryId: id('Nork Deddog'), attachedTo: 1 },
+        ],
+      }
+    }
+    const members = (pickIndex: number) => {
+      const projected = rosterCombatant(snapshot.catalogue, snapshot.rules, { ...roster(), pickIndex })!
+      return [projected.selected, ...projected.companions.map((member) => member.selected)].map((sheet) => sheet.name).sort()
+    }
+
+    it.each([0, 2])('simulates all three from position %i as one unit', (pickIndex) => {
+      expect(members(pickIndex)).toEqual(['Cadian Command Squad', 'Cadian Shock Troops', 'Nork Deddog'])
+    })
+
+    it('gives Feel No Pain 4+ to the Cadian Commander alone while Nork stands', () => {
+      const projected = rosterCombatant(snapshot.catalogue, snapshot.rules, { ...roster(), pickIndex: 0 })!
+      const groups = combatUnitTarget({
+        sheet: projected.selected,
+        carriers: projected.carriers,
+        models: projected.models,
+        companions: projected.companions.map((member) => ({ sheet: member.selected, carriers: member.carriers, models: member.models })),
+      }).target!.groups
+      expect(
+        groups.flatMap((group) =>
+          group.feelNoPainSources?.length ? [[group.unit, group.models, group.wounds, group.feelNoPainSources]] : [],
+        ),
+      ).toEqual([['Cadian Command Squad', 1, 3, [{ unit: 'Nork Deddog', value: 4 }]]])
+    })
+
+    it('counts Ogryn Bodyguard as calculated', () => {
+      const projected = rosterCombatant(snapshot.catalogue, snapshot.rules, { ...roster(), pickIndex: 2 })!
+      expect(projected.rules.find((rule) => rule.name === 'Ogryn Bodyguard')?.included).toBe(true)
+    })
+  })
+
   it.each([
     ['Intercessor Squad', ['Space Marines']],
     ['Assault Intercessor Squad', ['Space Marines']],

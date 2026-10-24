@@ -8,3 +8,6 @@ export const GUEST_DRAFT_COOKIE = 'praetorium_guest_draft'
 
 /** The order a player keeps their library in, read by the server so the first frame is already sorted. */
 export const ROSTER_SORT_COOKIE = 'praetorium_roster_sort'
+
+/** Whether the builder shelves attached units together, read by the server so the first frame is already arranged. */
+export const ROSTER_ARRANGEMENT_COOKIE = 'praetorium_roster_arrangement'

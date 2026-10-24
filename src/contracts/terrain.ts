@@ -22,7 +22,8 @@ export type TerrainGeometry = {
     points: Point[]
     markers: { label: string; position: Point }[]
     objective: { position: Point; group: string | null } | null
-    objectiveGroup: string | null
+    /** Footprints sharing a group form one terrain area; null when the footprint is a terrain area on its own. */
+    group: string | null
     measurements: { from: Point; to: Point; approximate?: boolean }[]
     parts: {
       id: string

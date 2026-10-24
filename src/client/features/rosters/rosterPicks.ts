@@ -14,7 +14,7 @@ export type KeyedPick = RosterPick & { key: number }
  * Written out field by field rather than spread, because the shape is also the
  * pricing cache key: a route prefetching a saved list and the builder editing it
  * have to produce the same object or the page refetches what it was just given.
- * Notes change nothing a price reads, so typing one must not reprice.
+ * Nicknames, notes and starting embarks change nothing a price reads, so editing one must not reprice.
  */
 export const normalisePicks = (picks: readonly RosterPick[]): RosterPick[] =>
   picks.map(({ entryId, catalogueId, models, choices, spreads, toggles, attachedTo }) => ({
@@ -27,17 +27,27 @@ export const normalisePicks = (picks: readonly RosterPick[]): RosterPick[] =>
     attachedTo,
   }))
 
-/** The construction shape with the player's note, as a saved row keeps it. */
+/** The construction shape with the player's nickname, note and starting embark, as a saved row keeps it. */
 export const annotatedPicks = (picks: readonly RosterPick[]): RosterPick[] =>
-  normalisePicks(picks).map((pick, at) => ({ ...pick, note: picks[at]?.note }))
+  normalisePicks(picks).map((pick, at) => ({
+    ...pick,
+    embarkedIn: picks[at]?.embarkedIn,
+    nickname: picks[at]?.nickname,
+    note: picks[at]?.note,
+  }))
 
 /** Session keys resolved to the positions a saved list counts in. */
-const withPositions = (picks: readonly KeyedPick[]): RosterPick[] =>
-  picks.map((pick) => {
-    if (pick.attachedTo === undefined) return pick
-    const at = picks.findIndex((candidate) => candidate.key === pick.attachedTo)
-    return { ...pick, attachedTo: at < 0 ? undefined : at }
-  })
+const withPositions = (picks: readonly KeyedPick[]): RosterPick[] => {
+  const position = (key: number | undefined) => {
+    const at = key === undefined ? -1 : picks.findIndex((candidate) => candidate.key === key)
+    return at < 0 ? undefined : at
+  }
+  return picks.map((pick) =>
+    pick.attachedTo === undefined && pick.embarkedIn === undefined
+      ? pick
+      : { ...pick, attachedTo: position(pick.attachedTo), embarkedIn: position(pick.embarkedIn) },
+  )
+}
 
 export const positionedPicks = (picks: readonly KeyedPick[]): RosterPick[] => normalisePicks(withPositions(picks))
 export const positionedAnnotatedPicks = (picks: readonly KeyedPick[]): RosterPick[] => annotatedPicks(withPositions(picks))

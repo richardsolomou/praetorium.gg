@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm'
 import type { Command, Roster } from '../src/core/battle'
 import type { RosterPick } from '../src/core/roster'
 import { rosterSnapshot } from '../src/core/rosterSnapshot'
+import { routeSlug } from '../src/core/slug'
 import { account as authAccount, user } from '../src/db/authSchema'
 import { createSqliteAuth } from '../src/server/sqliteAuth'
 import { SqliteAccountRepository } from '../src/server/accountRepository'
@@ -267,6 +268,7 @@ export const PREVIEW_ALLY_ROSTERS: readonly PreviewRoster[] = [
 export const PREVIEW_RIVAL_ROSTERS: readonly PreviewRoster[] = [
   rosterCopy(PREVIEW_OPPONENT_ROSTERS[3]!, 'preview-rival-world-eaters'),
   rosterCopy(PREVIEW_OPPONENT_ROSTERS[1]!, 'preview-rival-tyranids', false),
+  rosterCopy(PREVIEW_OPPONENT_ROSTERS[0]!, 'preview-rival-orks', false),
 ]
 
 /** Two players who know each other but not the preview login, so its public feed has strangers in it. */
@@ -484,6 +486,78 @@ async function seedInto(
         { kind: 'score', category: 'primary', delta: samScore - Math.round(samCp / 2), playerId: wandererUserId },
         { kind: 'score', category: 'secondary', delta: Math.round(samCp / 2), playerId: wandererUserId },
         { kind: 'end-battle', reason: 'conceded', concededBy: kieranScore > samScore ? wandererUserId : strangerUserId },
+      ],
+    })
+  }
+  // Kieran's service record: secondaries past the table's ten rows, cards and stratagems
+  // seen often enough to rank, and core stratagems under both the slug keys older
+  // catalogues used and the source ids newer ones use.
+  const card = (name: string) => ({ key: routeSlug(name), name })
+  const core = (name: string, renamed: boolean) => ({
+    key: renamed ? `core-${routeSlug(name)}` : routeSlug(name),
+    name,
+    cp: 1,
+    limit: 'phase' as const,
+  })
+  const record = [
+    {
+      cards: ['Assassination', 'Behind Enemy Lines'],
+      won: true,
+      points: [6, 4],
+      used: ['Command Re-roll', 'Fire Overwatch', 'Insane Bravery'],
+    },
+    { cards: ['Assassination', 'Cleanse'], won: true, points: [8, 5], used: ['Command Re-roll', 'Smokescreen', 'Counter-Offensive'] },
+    { cards: ['Assassination', 'Bring It Down'], won: false, points: [5, 2], used: ['Smokescreen', 'Explosives', 'Crushing Impact'] },
+    {
+      cards: ['Behind Enemy Lines', 'Engage on All Fronts'],
+      won: true,
+      points: [3, 6],
+      used: ['Command Re-roll', 'Fire Overwatch', 'Grenade'],
+    },
+    { cards: ['Behind Enemy Lines', 'Centre Ground'], won: false, points: [2, 4], used: ['Smokescreen', 'Rapid Ingress', 'Tank Shock'] },
+    { cards: ['Cleanse', 'Display of Might'], won: true, points: [4, 3], used: ['Command Re-roll', 'Fire Overwatch', 'Grenade'] },
+    { cards: ['Cleanse', 'Forward Position'], won: false, points: [1, 5], used: ['Smokescreen', 'Explosives', 'Counter-Offensive'] },
+    {
+      cards: ['No Prisoners', 'Overwhelming Force'],
+      won: true,
+      points: [5, 7],
+      used: ['Command Re-roll', 'Heroic Intervention', 'Tank Shock'],
+    },
+    { cards: ['Plunder', 'A Tempting Target'], won: false, points: [3, 0], used: ['Epic Challenge', 'Smokescreen', 'Insane Bravery'] },
+  ]
+  for (const [index, battle] of record.entries()) {
+    const opponentId = index % 3 ? wandererUserId : rivalUserId
+    const renamed = index >= 4
+    await createCasualBattle({
+      id: `preview-kieran-record-${index}`,
+      token: `preview-kieran-record-${index}`,
+      creatorId: strangerUserId,
+      opponentIds: [opponentId],
+      limit: 2_000,
+      rosters: [
+        [strangerUserId, index % 2 ? 'preview-stranger-necrons' : 'preview-stranger-aeldari'],
+        [opponentId, index % 3 ? 'preview-wanderer-orks' : 'preview-rival-orks'],
+      ],
+      tail: [
+        {
+          kind: 'set-prep',
+          playerId: strangerUserId,
+          stratagems: battle.used.map((name) => core(name, renamed)),
+          secondaries: battle.cards.map(card),
+          primary: null,
+          secondaryMode: 'fixed',
+        },
+        { kind: 'begin-battle', firstPlayerId: index % 2 ? opponentId : strangerUserId },
+        { kind: 'correct-player', playerId: strangerUserId, resource: 'cp', delta: battle.used.length },
+        ...battle.used.map((name) => ({ kind: 'use-stratagem' as const, key: core(name, renamed).key, playerId: strangerUserId })),
+        { kind: 'score', category: 'primary', delta: battle.won ? 40 : 25, playerId: strangerUserId },
+        ...battle.cards.flatMap((name, at) =>
+          battle.points[at]
+            ? [{ kind: 'score-secondary' as const, key: card(name).key, delta: battle.points[at], playerId: strangerUserId }]
+            : [],
+        ),
+        { kind: 'score', category: 'primary', delta: battle.won ? 30 : 45, playerId: opponentId },
+        { kind: 'end-battle', reason: 'conceded', concededBy: battle.won ? opponentId : strangerUserId },
       ],
     })
   }
