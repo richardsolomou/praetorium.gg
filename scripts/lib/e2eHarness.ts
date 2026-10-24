@@ -17,6 +17,25 @@ const roots = [
   '.github/actions',
   ...compilerEntries,
 ]
+/**
+ * Modules whose application source selection accounts for another way. Coverage records what the
+ * seed, the combat workers, the server's startup plugins and the SpacetimeDB module (through
+ * `scripts/lib/moduleCoverage.ts`) run; the build's catalogue fingerprint
+ * covers the tools that compile the catalogue runtime and the offline reference; and the terrain
+ * check only reads, so it can fail the build but not change what a test sees.
+ */
+export const accountedEntries = [
+  'scripts/seedPreview.ts',
+  'spacetimedb/src/index.ts',
+  'src/server/combatCalculation.worker.ts',
+  'src/server/warmPlugin.ts',
+  'src/server/cspPlugin.ts',
+  ...compilerEntries,
+  'scripts/catalogueRuntimeKey.ts',
+  'scripts/lib/offlineReferenceCache.ts',
+  'scripts/lib/checkoutReferenceKey.ts',
+  'scripts/checkTerrain.ts',
+]
 const workflow = '.github/workflows/ci.yml'
 // `changes` chooses the specs, so a change to how it scopes or selects needs every spec.
 const browserJobs = ['changes', 'browser-build', 'e2e-shard']
@@ -38,8 +57,16 @@ function* files(root: string, relative: string): Generator<string> {
  * Every repository file a browser-test run executes outside the processes coverage records:
  * everything the roots import, and every module or workflow that CI's browser jobs or a file
  * among them names by path or runs as a package script, followed until nothing new turns up.
+ * Application source only `accounted` modules reach is left out; their other files stay.
  */
-export async function harnessFiles(root = process.cwd()) {
+export async function harnessFiles(root = process.cwd(), accounted: readonly string[] = accountedEntries) {
+  const everything = await reachedFiles(root, new Set())
+  const reached = await reachedFiles(root, new Set(accounted))
+  return [...new Set([...reached, ...everything.filter((file) => !file.startsWith('src/'))])].toSorted()
+}
+
+/** The harness traversal, neither following nor listing `stop`. */
+async function reachedFiles(root: string, stop: ReadonlySet<string>) {
   const scripts = (JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as { scripts: Record<string, string> }).scripts
   const commands = (text: string, seen = new Set<string>()): string[] =>
     [...text.matchAll(pnpmScript)].flatMap(([, name]) => {
@@ -50,7 +77,7 @@ export async function harnessFiles(root = process.cwd()) {
     })
   const jobs = (parse(fs.readFileSync(path.join(root, workflow), 'utf8')) as { jobs: Record<string, unknown> }).jobs
   const found = new Set([workflow])
-  let pending = roots.flatMap((entry) => [...files(root, entry)])
+  let pending = roots.flatMap((entry) => [...files(root, entry)]).filter((file) => !stop.has(file))
   let texts = browserJobs.map((job) => {
     if (!jobs[job]) throw new Error(`${workflow} has no ${job} job; update the browser jobs the harness reads`)
     return JSON.stringify(jobs[job])
@@ -58,7 +85,7 @@ export async function harnessFiles(root = process.cwd()) {
   while (pending.length > 0) {
     for (const file of pending) found.add(file)
     const modules = pending.filter((file) => /\.(?:ts|tsx|mts|mjs)$/.test(file))
-    const reached = [...(await importClosures(root, modules)).values()].flat().filter((file) => !found.has(file))
+    const reached = [...(await importClosures(root, modules, stop)).values()].flat().filter((file) => !found.has(file))
     for (const file of reached) found.add(file)
     const named = new Set<string>()
     // Package scripts count only when something runs them, so `package.json` itself is not read.
@@ -71,10 +98,10 @@ export async function harnessFiles(root = process.cwd()) {
       const siblings = [...text.matchAll(siblingPath)].map(([, name]) => path.join(directory, name!))
       for (const source of [text, ...commands(text)])
         for (const [match] of [...source.matchAll(modulePath), ...source.matchAll(workflowPath)]) siblings.push(match)
-      for (const match of siblings) if (!found.has(match) && fs.existsSync(path.join(root, match))) named.add(match)
+      for (const match of siblings) if (!found.has(match) && !stop.has(match) && fs.existsSync(path.join(root, match))) named.add(match)
     }
     pending = [...named]
     texts = []
   }
-  return [...found].toSorted()
+  return [...found]
 }

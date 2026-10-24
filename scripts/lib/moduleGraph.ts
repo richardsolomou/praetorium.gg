@@ -5,8 +5,9 @@ import { build } from 'vite'
 /**
  * The repository files each of `entries` imports, directly or through other repository files,
  * relative to `root`. Packages are left out, so only the repository's own graph is resolved.
+ * A file in `stop` is left out along with whatever only it imports.
  */
-export async function importClosures(directory: string, entries: readonly string[]) {
+export async function importClosures(directory: string, entries: readonly string[], stop: ReadonlySet<string> = new Set()) {
   // Resolved ids follow symlinks, as from `/tmp` to `/private/tmp`.
   const root = fs.realpathSync(directory)
   const imports = new Map<string, string[]>()
@@ -50,7 +51,8 @@ export async function importClosures(directory: string, entries: readonly string
   return new Map(
     entries.map((entry) => {
       const seen = new Set([entry])
-      for (const file of seen) for (const target of imports.get(file) ?? []) if (!target.includes('node_modules')) seen.add(target)
+      for (const file of seen)
+        for (const target of imports.get(file) ?? []) if (!target.includes('node_modules') && !stop.has(target)) seen.add(target)
       return [entry, [...seen].toSorted()]
     }),
   )

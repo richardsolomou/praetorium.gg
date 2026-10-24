@@ -14,7 +14,13 @@ beforeEach(() => {
   root = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-e2e-harness-'))
   write(
     'package.json',
-    JSON.stringify({ scripts: { prepare: 'pnpm build-stack', 'build-stack': 'tsx scripts/buildStack.ts', lint: 'tsx scripts/lint.ts' } }),
+    JSON.stringify({
+      scripts: {
+        prepare: 'pnpm build-stack && tsx scripts/seed.ts',
+        'build-stack': 'tsx scripts/buildStack.ts',
+        lint: 'tsx scripts/lint.ts',
+      },
+    }),
   )
   write(
     '.github/workflows/ci.yml',
@@ -31,23 +37,36 @@ beforeEach(() => {
   write('scripts/buildWorker.ts', 'export {}\n')
   write('scripts/lint.ts', 'export {}\n')
   write('scripts/deploy.ts', 'export {}\n')
+  write('scripts/seed.ts', "import './lib/seedData.ts'\nimport '@/core/seeded.ts'\nimport '@/server/app.ts'\n")
+  write('scripts/lib/seedData.ts', 'export {}\n')
+  write('src/core/seeded.ts', 'export {}\n')
 })
 
 afterEach(() => fs.rmSync(root, { recursive: true, force: true }))
 
 it('follows imports, named scripts, sibling workers and chained package scripts from the browser jobs', async () => {
-  expect(await harnessFiles(root)).toEqual([
+  expect(await harnessFiles(root, [])).toEqual([
     '.github/actions/stack/action.yml',
     '.github/workflows/ci.yml',
     '.github/workflows/scope.yml',
     'playwright.config.ts',
     'scripts/buildStack.ts',
     'scripts/buildWorker.ts',
+    'scripts/lib/seedData.ts',
     'scripts/lib/stack.ts',
     'scripts/scope.ts',
+    'scripts/seed.ts',
     'scripts/server.ts',
+    'src/core/seeded.ts',
     'src/server/app.ts',
   ])
+})
+
+it('leaves out application source only an accounted module reaches, keeping its other files', async () => {
+  const files = await harnessFiles(root, ['scripts/seed.ts'])
+  expect(
+    ['scripts/seed.ts', 'scripts/lib/seedData.ts', 'src/core/seeded.ts', 'src/server/app.ts'].map((file) => files.includes(file)),
+  ).toEqual([true, true, false, true])
 })
 
 it('refuses a workflow without the jobs it reads', async () => {

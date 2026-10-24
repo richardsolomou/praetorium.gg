@@ -12,13 +12,21 @@ const map: E2eMap = {
     'src/core/battle.ts': { loaded: [0, 1], functions: [[10, 20, [0]]] },
     'src/client/home.md': { loaded: [2], functions: [] },
     'src/shared/catalogue.ts': { loaded: [0], functions: [] },
+    'src/core/roster.ts': { loaded: [1], functions: [[50, 60, [1]]] },
   },
   whole: ['src/client/simulator.worker.ts'],
+  // The seed calls `seedRoster` on lines 10–20 of `roster.ts` and loads it without calling `price` on lines 50–60.
+  harness: {
+    'src/core/roster.ts': { called: [[10, 20]], uncalled: [[50, 60]] },
+    'src/core/seedOnly.ts': { called: [], uncalled: [[5, 9]] },
+  },
+  catalogue: 'compiled',
 }
 // The harness runs the seed and the catalogue; the roster spec's helper imports `roster.ts`.
 const graph: Graph = {
   harness: new Set(['src/shared/catalogue.ts', 'scripts/seedPreview.ts']),
   imports: new Map([['e2e/roster.ts', ['e2e/roster.spec.ts']]]),
+  catalogue: 'compiled',
 }
 const none: Moves = new Map()
 const unread: Contents = () => ({ base: null, head: null })
@@ -123,7 +131,44 @@ it('runs every spec for a new source file, which may run before any test or be f
 it('runs every spec for a map from an older version of the selection', () => {
   expect(selectSpecs({ ...map, version: 1 }, [], none, unread, graph)).toEqual({
     all: true,
-    reason: 'the coverage map is version 1, not 2',
+    reason: 'the coverage map is version 1, not 3',
+  })
+})
+
+it('runs every spec when the build compiled a different catalogue from the coverage run', () => {
+  expect(selectSpecs(map, [], none, unread, { ...graph, catalogue: 'recompiled' })).toEqual({
+    all: true,
+    reason: "the build compiled a different catalogue from the coverage run's",
+  })
+})
+
+it('runs every spec for an edit inside a function the seed called', () => {
+  expect(select([{ file: 'src/core/roster.ts', hunks: [hunk(12, 14)] }])).toEqual({
+    all: true,
+    reason: 'src/core/roster.ts runs in the seed or a combat worker',
+  })
+})
+
+it('runs every spec for a top-level edit to a file the seed loaded', () => {
+  expect(select([{ file: 'src/core/roster.ts', hunks: [hunk(2, 3)] }])).toEqual({
+    all: true,
+    reason: 'src/core/roster.ts runs in the seed or a combat worker',
+  })
+})
+
+it('runs only the specs that called a function the seed loaded but never called', () => {
+  expect(select([{ file: 'src/core/roster.ts', hunks: [hunk(52, 54)] }])).toEqual({ all: false, specs: ['e2e/roster.spec.ts'] })
+})
+
+it('runs nothing for an edit to a function only the seed loaded and never called', () => {
+  expect(select([{ file: 'src/core/seedOnly.ts', hunks: [hunk(6, 7)] }])).toEqual({ all: false, specs: [] })
+})
+
+it('runs every spec when another harness process called the function the seed left uncalled', () => {
+  const called: E2eMap = { ...map, harness: { 'src/core/roster.ts': { called: [[50, 60]], uncalled: [[50, 60]] } } }
+  expect(selectSpecs(called, [{ file: 'src/core/roster.ts', hunks: [hunk(52, 54)] }], none, unread, graph)).toEqual({
+    all: true,
+    reason: 'src/core/roster.ts runs in the seed or a combat worker',
   })
 })
 

@@ -15,10 +15,11 @@ export type Move = { oldCount: number; newStart: number; newCount: number }
 export type Moves = ReadonlyMap<string, Move[] | null>
 
 /**
- * Files browser tests run outside the processes coverage records, and the specs whose own modules
- * import each file, both read from the change's head so they are never staler than it.
+ * Files browser tests run outside the processes coverage records, the specs whose own modules
+ * import each file, and `builtCatalogue` of the head's build, all read from the change's head so
+ * they are never staler than it.
  */
-export type Graph = { harness: ReadonlySet<string>; imports: ReadonlyMap<string, readonly string[]> }
+export type Graph = { harness: ReadonlySet<string>; imports: ReadonlyMap<string, readonly string[]>; catalogue: string }
 
 const unitTest = /\.test\.tsx?$/
 const moduleFile = /\.(?:ts|tsx|mts|mjs)$/
@@ -46,10 +47,15 @@ function unreached(file: string) {
  * `moves`; an edit to lines that themselves changed since counts as the whole file. Edits that
  * cannot change what runs, such as comments, types and added imports, need no spec. Anything else,
  * such as configuration, needs every spec.
+ *
+ * The seed and the combat workers run for every test at once, so an edit to a file they loaded
+ * needs every spec unless it falls inside a function they never called. A catalogue compiled
+ * differently from the coverage run's may change what any test sees, so it needs every spec.
  */
 export function selectSpecs(map: E2eMap, changes: readonly Change[], moves: Moves, contents: Contents, graph: Graph): Selection {
   if (map.version !== E2E_MAP_VERSION)
     return { all: true, reason: `the coverage map is version ${map.version ?? 1}, not ${E2E_MAP_VERSION}` }
+  if (map.catalogue !== graph.catalogue) return { all: true, reason: "the build compiled a different catalogue from the coverage run's" }
   const whole = new Set(map.whole)
   const specs = new Set<string>()
   const add = (indexes: readonly number[]) => indexes.forEach((index) => specs.add(map.specs[index]!))
@@ -69,11 +75,14 @@ export function selectSpecs(map: E2eMap, changes: readonly Change[], moves: Move
       if (graph.imports.has(file) || unreached(file)) continue
       return { all: true, reason: `${file} is outside the application source` }
     }
-    const entry = map.files[file]
-    // A unit-test fixture no spec loaded serves the unit tests alone; one the harness runs was caught above.
-    if (!entry && /\.fixtures?\.ts$/.test(file)) continue
-    if (!entry) return { all: true, reason: `${file} is not in the map` }
     const translated = edits?.map(({ start, end }) => mapSpan([start, end], moves.get(file)))
+    const ran = map.harness[file]
+    if (ran && !translated?.every((span) => span !== null && uncalledByHarness(ran, span)))
+      return { all: true, reason: `${file} runs in the seed or a combat worker` }
+    const entry = map.files[file]
+    // A unit-test fixture no spec loaded serves the unit tests alone; a file only the harness loaded was edited where it never ran.
+    if (!entry && (ran || /\.fixtures?\.ts$/.test(file))) continue
+    if (!entry) return { all: true, reason: `${file} is not in the map` }
     if (!translated || translated.some((span) => span === null)) {
       add(entry.loaded)
       for (const [, , users] of entry.functions) add(users)
@@ -86,6 +95,14 @@ export function selectSpecs(map: E2eMap, changes: readonly Change[], moves: Move
     }
   }
   return { all: false, specs: [...specs].toSorted() }
+}
+
+/** Whether a span lies in a function the harness compiled but never called, rather than one it ran or at the top level. */
+function uncalledByHarness({ called, uncalled }: E2eMap['harness'][string], [start, end]: [number, number]) {
+  const within = ([first, last]: [number, number]) => first <= start && end <= last
+  const innermost = uncalled.filter(within).toSorted((left, right) => left[1] - left[0] - (right[1] - right[0]))[0]
+  // A called function nested in it, or the same function called in another process, ran the edit.
+  return innermost !== undefined && !called.some((span) => within(span) && innermost[0] <= span[0] && span[1] <= innermost[1])
 }
 
 /** A base-side span in the map's numbering, or null when any of its lines changed since the map. */
