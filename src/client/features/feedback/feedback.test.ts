@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { IMPORT_REPORT_MAX_LENGTH, readTicketMessage, ticketSubject } from '../../../contracts/feedback'
+import { IMPORT_REPORT_MAX_LENGTH, messagePreview, readTicketMessage, ticketSubject } from '../../../contracts/feedback'
 import { version } from '../../../../package.json'
 import { FEEDBACK_SURVEY, feedbackSurveyEvent, feedbackTicketMessage, importFailureReport } from './feedback'
 
@@ -68,6 +68,16 @@ describe('readTicketMessage', () => {
 
   it('leaves a message the app did not compose as it is', () => {
     expect(readTicketMessage('Thanks!\n\nIdea · elsewhere')).toEqual({ body: 'Thanks!\n\nIdea · elsewhere', screenshot: false })
+  })
+})
+
+describe('messagePreview', () => {
+  it('reads an image the team sent as a word', () => {
+    expect(messagePreview('Something like this? ![image.png](https://us-media.posthog.com/a.png)')).toBe('Something like this? Image')
+  })
+
+  it('keeps a link’s text and drops its address', () => {
+    expect(messagePreview('See [the docs](https://praetorium.gg/docs)\nthanks')).toBe('See the docs thanks')
   })
 })
 

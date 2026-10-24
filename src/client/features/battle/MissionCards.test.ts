@@ -1,3 +1,4 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
@@ -8,7 +9,7 @@ import { sides } from '../../sides'
 import { PrimaryMission, SecondaryMissions } from './MissionCards'
 
 function primaryMarkup(input = props()) {
-  return renderToStaticMarkup(createElement(PrimaryMission, input))
+  return renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(PrimaryMission, input)))
 }
 
 function props() {

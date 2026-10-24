@@ -90,7 +90,11 @@ export function useDispositionNames() {
 /** A disposition in the colour the roster builder gave it, or nothing at all. */
 export function DispositionChip({ disposition, className = '' }: { disposition: { id: string; name: string } | null; className?: string }) {
   if (!disposition) return null
-  return <span className={cn('chip', dispositionTone(disposition.id), className)}>{disposition.name}</span>
+  return (
+    <span data-disposition={disposition.id} className={cn('chip', dispositionTone(disposition.id), className)}>
+      {disposition.name}
+    </span>
+  )
 }
 
 /**

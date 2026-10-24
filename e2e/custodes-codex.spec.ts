@@ -133,7 +133,7 @@ test('converts the saved roster in place and restores its current choices', asyn
   const id = new URL(page.url()).pathname.split('/').at(-1)!
   const operator = await productOperator()
   async function destination(label: string, detachment: string) {
-    const dialog = page.getByRole('dialog', { name: 'Convert rules version' })
+    const dialog = page.getByRole('dialog', { name: 'Edit roster setup' })
     await dialog.getByRole('combobox', { name: 'Rules version' }).click()
     await page.getByRole('option', { name: label, exact: true }).click()
     await expect(dialog.getByRole('button', { name: `Select ${detachment}`, exact: true })).toBeVisible()
@@ -143,7 +143,7 @@ test('converts the saved roster in place and restores its current choices', asyn
     if (!(await chosen.isVisible())) await dialog.getByRole('button', { name: `Select ${detachment}`, exact: true }).click()
     const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
     if ((await dispositions.count()) > 1) await dispositions.first().click()
-    await expect(dialog.getByRole('button', { name: 'Convert roster', exact: true })).toBeEnabled()
+    await expect(dialog.getByRole('button', { name: 'Review changes', exact: true })).toBeEnabled()
     return dialog
   }
   await waitForRosterSave(page, () => add(page, 'Allarus Custodians'))
@@ -157,9 +157,8 @@ test('converts the saved roster in place and restores its current choices', asyn
   await expect(row).toContainText('180/2000')
   await expect(row.locator('[data-rules-version]')).toHaveCount(0)
   await row.getByRole('button', { name: 'Actions for Conversion roster', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Convert rules version', exact: true }).click()
-  await expect(page.getByRole('button', { name: 'Convert roster', exact: true })).toBeDisabled()
-  const versions = page.getByRole('dialog', { name: 'Convert rules version' }).getByRole('combobox', { name: 'Rules version' })
+  await page.getByRole('menuitem', { name: 'Edit roster setup', exact: true }).click()
+  const versions = page.getByRole('dialog', { name: 'Edit roster setup' }).getByRole('combobox', { name: 'Rules version' })
   await versions.click()
   await expect(page.getByRole('option', { name: 'MFM 1.5 · Archived', exact: true })).toBeVisible()
   // The preview folded into the codex, so a roster saved on it would read as current rules.
@@ -169,11 +168,10 @@ test('converts the saved roster in place and restores its current choices', asyn
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
   expect((await operator.roster(id))?.catalogueId).toBe(original.catalogueId)
   await row.getByRole('button', { name: 'Actions for Conversion roster', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Convert rules version', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Edit roster setup', exact: true }).click()
   dialog = await destination('MFM 1.5 · Archived', 'Shield Host')
   await dialog.screenshot({ path: 'test-results/custodes-convert-dialog.png' })
   await confirmRosterSetup(dialog)
-  await expect(page).toHaveURL(new RegExp(`/rosters/${id}$`))
   await expect.poll(async () => (await operator.roster(id))?.catalogueId).toContain('marine-points-1013~')
   const converted = (await operator.roster(id))!
   const originalPicks = JSON.parse(original.picks)
@@ -185,11 +183,11 @@ test('converts the saved roster in place and restores its current choices', asyn
   expect(converted.name).toBe(original.name)
   expect(converted.visibility).toBe(original.visibility)
   expect(converted.prep).toBe(original.prep)
-  await page.reload()
+  await page.goto(`/rosters/${id}`)
   await expect(page.getByLabel('List name')).toHaveValue('Conversion roster')
   await expect(page.locator('[data-rules-version]')).toHaveAttribute('aria-label', 'Rules version: MFM 1.5 · Archived')
   await page.getByRole('button', { name: 'Roster actions', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Convert rules version', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Edit roster setup', exact: true }).click()
   dialog = await destination('MFM 1.6 · Current', 'Aquilan Shield')
   await confirmRosterSetup(dialog)
   await expect(dialog).not.toBeVisible()

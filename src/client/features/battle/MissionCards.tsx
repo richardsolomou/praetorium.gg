@@ -9,6 +9,7 @@ import type { Side } from '../../sides'
 import { MissionActions } from '../../components/MissionActions'
 import { MissionCardReference } from '../../components/MissionCardReference'
 import { CARD, CARD_NAME } from './battleTints'
+import { DispositionChip, useDispositionNames } from './setup/chrome'
 import { MissionSelectionRecords } from './MissionSelectionRecord'
 import { MissionSelectionDialog } from './MissionSelectionDialog'
 import type { MissionSelectionKind } from '../../../core/missionSelections'
@@ -38,10 +39,14 @@ type Props = {
 }
 
 export function PrimaryMission({ view, side, pending, send, referenceFor, guides }: Props) {
+  const nameDisposition = useDispositionNames()
   if (!side.primaryCard) return null
   return (
     <section className="space-y-1.5">
-      <p className="eyebrow">Primary mission</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="eyebrow">Primary mission</p>
+        <DispositionChip disposition={nameDisposition(side.disposition)} />
+      </div>
       <div className={`${CARD} space-y-2`}>
         <MissionName name={side.primaryCard.name} card={referenceFor(side.primaryCard.key)} type="Primary mission" />
         <MissionSelectionRecords records={side.captain.missionSelections ?? []} cardKey={side.primaryCard.key} />

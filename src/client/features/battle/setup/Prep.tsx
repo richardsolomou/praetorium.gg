@@ -227,6 +227,9 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
           ))}
         </div>
         {tacticalOnly ? <p className="mt-1.5 text-xs text-dim">King of the Colosseum requires tactical secondaries.</p> : null}
+        {side.armies.length > 1 ? (
+          <p className="mt-1.5 text-xs text-dim">Allies share one hand of mission cards and one set of stratagems.</p>
+        ) : null}
       </fieldset>
 
       {mode === 'fixed' ? (

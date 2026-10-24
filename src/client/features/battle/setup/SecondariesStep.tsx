@@ -35,9 +35,6 @@ export function SecondariesStep({ view, sides, send, pending }: Props) {
                   Need {FIXED_SECONDARIES}, selected {side.secondaries.length}
                 </p>
               ) : null}
-              {side.armies.length > 1 ? (
-                <p className="text-xs text-dim">Allies share one hand of mission cards and one set of stratagems.</p>
-              ) : null}
               {/* Each side's primary follows from its own matchup, which the fold already put on it. */}
               <Prep view={view} side={side} missionId={side.mission?.id ?? null} send={send} pending={pending} />
             </SetupSidePanel>

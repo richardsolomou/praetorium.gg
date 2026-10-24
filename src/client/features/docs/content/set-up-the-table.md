@@ -2,7 +2,7 @@ The setup page follows the order the rules play it. The bar at the bottom counts
 
 ![The setup bar reading 2 left, Defender and First turn, beside a greyed-out Start battle button.](screenshot:track-a-battle-setup-bar 'Start battle, locked until nothing is left')
 
-1. **Armies.** Choose **Choose roster** on each seat. You see your saved rosters built for the battle size, plus any **Lent by friends**. For a practice opponent you pick from your own lists. Mark each army **Battle ready** with **Add bonus** to get +10 VP at the start of the battle; allies only get it once every army on their side is battle ready. Each list names its own Warlord, so a side of allies chooses whose leads it under **Warlord**.
+1. **Armies.** Choose **Choose roster** on each seat. You see your saved rosters built for the battle size, plus any **Lent by friends**. For a practice opponent you pick from your own lists. Press **Battle ready** under an army to get +10 VP at the start of the battle; allies only get it once every army on their side is battle ready. Each list names its own Warlord, so a side of allies presses the crowned Warlord under the army whose Warlord leads it.
 2. **Battle size.** This follows your rosters' formats once every army is in. Both sides need the same points, and allies split them evenly. Imported text-only armies need you to choose the size yourself.
 3. **Mission.** Each side's primary comes from its Force Disposition against its opponent's. An allied side with more than one disposition on offer picks one. The mission pack is chosen alongside the battle size.
 4. **Battlefield.** Pick one of the layouts shown for the matchup. It sets the deployment zones and the terrain for both sides.

@@ -310,7 +310,6 @@ for (const width of [1440, 390]) {
       'Start a battle',
       'Test targets',
       'Edit roster setup',
-      'Convert rules version',
       'Create variant',
       'Lend to a friend',
       'Lock roster',
@@ -330,24 +329,23 @@ for (const width of [1440, 390]) {
     await expect(menu.getByRole('menuitem')).toHaveText([
       'View',
       'Edit roster setup',
-      'Convert rules version',
       'Create variant',
       'Duplicate',
-      'Lock roster',
-      'Archive',
       'Copy link',
       'Make private',
       'Export text',
       'Exchange code',
       'Print',
+      'Lock roster',
+      'Archive',
       'Delete',
     ])
-    await expect(menu.getByRole('separator')).toHaveCount(2)
+    await expect(menu.getByRole('separator')).toHaveCount(4)
     await page.screenshot({ path: test.info().outputPath(`library-menu-${width}.png`) })
     await page.keyboard.press('Escape')
     await page.getByRole('link', { name: /Menu roster/ }).click({ button: 'right' })
     await expect(menu.getByRole('menuitem').first()).toHaveText('Edit roster setup')
     await expect(menu.getByRole('menuitem').last()).toHaveText('Delete')
-    await expect(menu.getByRole('separator')).toHaveCount(2)
+    await expect(menu.getByRole('separator')).toHaveCount(4)
   })
 }

@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { useVirtualRows } from '../../components/useVirtualRows'
 import { Problem } from '../../components/Problem'
 import { formatAgo } from '../../dates'
-import { readTicketMessage, ticketSubject } from '../../../contracts/feedback'
+import { messagePreview, ticketSubject } from '../../../contracts/feedback'
 import { openConversation, openingMessageQuery, TICKET_STATUS, unreadReplies, useSupportTickets } from './support'
 
 /** The player's feedback conversations, newest activity first; hidden until they have one. */
@@ -87,7 +87,7 @@ function TicketRow({ ticket, onOpen }: { ticket: Ticket; onOpen: (ticketId: stri
   const { data: opening } = useQuery(openingMessageQuery(ticket.id))
   const unread = ticket.unread_count ?? 0
   const at = ticket.last_message_at ?? ticket.created_at
-  const latest = ticket.last_message ? readTicketMessage(ticket.last_message).body.replace(/\s+/g, ' ').trim() : ''
+  const latest = ticket.last_message ? messagePreview(ticket.last_message) : ''
   const subject = opening ? ticketSubject(opening) : undefined
   return (
     <button

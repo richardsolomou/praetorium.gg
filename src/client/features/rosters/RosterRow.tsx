@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { MENU_ITEM } from '../../components/MenuSection'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from '@/components/ui/context-menu'
 import {
   DropdownMenu,
@@ -61,7 +62,6 @@ export function RosterRow({
   actions,
   origin,
   onEdit,
-  onConvert,
   onDelete,
   points,
   label,
@@ -84,7 +84,6 @@ export function RosterRow({
   actions: RosterActions
   origin: string
   onEdit: () => void
-  onConvert: () => void
   onDelete: () => void
   /** Priced with every other list in the library, so a row asks for nothing of its own. */
   points?: number | null
@@ -101,7 +100,7 @@ export function RosterRow({
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const title = rosterTitle(roster, faction, label)
-  const items = { roster, title, actions, origin, onEdit, onConvert, onDelete, onNeedsAccount }
+  const items = { roster, title, actions, origin, onEdit, onDelete, onNeedsAccount }
 
   return (
     <ContextMenu>
@@ -153,7 +152,7 @@ export function RosterRow({
             <EllipsisVertical />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
-            <DropdownMenuItem render={<Link to="/rosters/$id" params={{ id: roster.id }} target="_blank" />}>
+            <DropdownMenuItem className={MENU_ITEM} render={<Link to="/rosters/$id" params={{ id: roster.id }} target="_blank" />}>
               <Eye /> View
             </DropdownMenuItem>
             <RosterActionItems Item={DropdownMenuItem} Separator={DropdownMenuSeparator} showPrivacy {...items} />
@@ -176,7 +175,6 @@ function RosterActionItems({
   actions,
   origin,
   onEdit,
-  onConvert,
   onDelete,
   onNeedsAccount,
   showPrivacy = false,
@@ -189,7 +187,6 @@ function RosterActionItems({
   actions: RosterActions
   origin: string
   onEdit: () => void
-  onConvert: () => void
   onDelete: () => void
   onNeedsAccount?: (reason: AccountReason) => void
   /** Only the overflow menu offers making a list private again; the row menu is shorter. */
@@ -200,19 +197,59 @@ function RosterActionItems({
   const orAccount = (reason: AccountReason, action: () => void) => (onNeedsAccount ? () => onNeedsAccount(reason) : action)
   return (
     <>
-      <Item disabled={roster.locked} onClick={onEdit}>
+      <Item className={MENU_ITEM} disabled={roster.locked} onClick={onEdit}>
         <Pencil /> Edit roster setup
       </Item>
-      <Item disabled={roster.locked} onClick={onConvert}>
-        <Pencil /> Convert rules version
-      </Item>
-      <Item disabled={actions.variant.isPending} onClick={orAccount('variant', () => actions.variant.mutate(roster))}>
+      <Separator />
+      <Item className={MENU_ITEM} disabled={actions.variant.isPending} onClick={orAccount('variant', () => actions.variant.mutate(roster))}>
         <GitBranchPlus /> Create variant
       </Item>
-      <Item disabled={actions.duplicate.isPending} onClick={orAccount('another-roster', () => actions.duplicate.mutate(roster))}>
+      <Item
+        className={MENU_ITEM}
+        disabled={actions.duplicate.isPending}
+        onClick={orAccount('another-roster', () => actions.duplicate.mutate(roster))}
+      >
         <Copy /> Duplicate
       </Item>
+      <Separator />
       <Item
+        className={MENU_ITEM}
+        disabled={!origin || actions.access.isPending}
+        onClick={orAccount('share', () => void actions.share(roster, title))}
+      >
+        <Link2 />
+        {roster.visibility === 'private' ? (
+          <span>
+            <span className="block">{nativeShare ? 'Make unlisted and share' : 'Make unlisted and copy link'}</span>
+            <span className="block text-xs text-dim">Anyone with the link can read this roster.</span>
+          </span>
+        ) : (
+          <span>
+            {feedback === 'shared' ? 'Link shared' : feedback === 'copied' ? 'Link copied' : nativeShare ? 'Share link' : 'Copy link'}
+          </span>
+        )}
+      </Item>
+      {showPrivacy && roster.visibility !== 'private' ? (
+        <Item
+          className={MENU_ITEM}
+          disabled={actions.access.isPending}
+          onClick={() => actions.access.mutate({ id: roster.id, visibility: 'private' })}
+        >
+          <EyeOff /> Make private
+        </Item>
+      ) : null}
+      <Item className={MENU_ITEM} disabled={actions.take.isPending} onClick={() => actions.take.mutate({ roster, title })}>
+        <Download /> Export text
+      </Item>
+      <Item className={MENU_ITEM} disabled={actions.exchange.isPending} onClick={() => actions.exchange.mutate({ roster, title })}>
+        <QrCode /> Exchange code
+      </Item>
+      <Item className={MENU_ITEM} onClick={() => actions.print(roster.id)}>
+        <Printer /> Print
+      </Item>
+      <Separator />
+      <Item
+        className={MENU_ITEM}
         disabled={actions.lock.isPending}
         onClick={orAccount('lock', () => actions.lock.mutate({ id: roster.id, locked: !roster.locked }))}
       >
@@ -227,6 +264,7 @@ function RosterActionItems({
         )}
       </Item>
       <Item
+        className={MENU_ITEM}
         disabled={actions.archive.isPending}
         onClick={orAccount('archive', () => actions.archive.mutate({ id: roster.id, archived: !roster.archived }))}
       >
@@ -241,35 +279,7 @@ function RosterActionItems({
         )}
       </Item>
       <Separator />
-      <Item disabled={!origin || actions.access.isPending} onClick={orAccount('share', () => void actions.share(roster, title))}>
-        <Link2 />
-        {roster.visibility === 'private' ? (
-          <span>
-            <span className="block">{nativeShare ? 'Make unlisted and share' : 'Make unlisted and copy link'}</span>
-            <span className="block text-xs text-dim">Anyone with the link can read this roster.</span>
-          </span>
-        ) : (
-          <span>
-            {feedback === 'shared' ? 'Link shared' : feedback === 'copied' ? 'Link copied' : nativeShare ? 'Share link' : 'Copy link'}
-          </span>
-        )}
-      </Item>
-      {showPrivacy && roster.visibility !== 'private' ? (
-        <Item disabled={actions.access.isPending} onClick={() => actions.access.mutate({ id: roster.id, visibility: 'private' })}>
-          <EyeOff /> Make private
-        </Item>
-      ) : null}
-      <Item disabled={actions.take.isPending} onClick={() => actions.take.mutate({ roster, title })}>
-        <Download /> Export text
-      </Item>
-      <Item disabled={actions.exchange.isPending} onClick={() => actions.exchange.mutate({ roster, title })}>
-        <QrCode /> Exchange code
-      </Item>
-      <Item onClick={() => actions.print(roster.id)}>
-        <Printer /> Print
-      </Item>
-      <Separator />
-      <Item variant="destructive" disabled={actions.remove.isPending} onClick={onDelete}>
+      <Item className={MENU_ITEM} variant="destructive" disabled={actions.remove.isPending} onClick={onDelete}>
         <Trash2 /> Delete
       </Item>
     </>

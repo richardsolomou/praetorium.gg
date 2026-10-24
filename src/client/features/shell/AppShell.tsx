@@ -19,6 +19,7 @@ import { Account } from './Account'
 import { GlobalSearch, GlobalSearchProvider } from './GlobalSearch'
 import { TextSourcesDialog } from '../../components/TextSourcesDialog'
 import { ReleaseUpdateNotice } from './ReleaseUpdateNotice'
+import { Toaster } from '@/components/ui/sonner'
 import { ImpersonationBanner } from './ImpersonationBanner'
 import { NativeAppNavigation } from './NativeAppNavigation'
 import { NativePushRegistration } from './NativePushRegistration'
@@ -219,6 +220,7 @@ export function AppShell() {
                 <Impersonation />
                 <NativePushRegistration />
                 <ReleaseUpdateNotice />
+                <Toaster theme="dark" position="top-center" containerAriaLabel="Messages" />
                 {/*
                  * Said plainly and on every page, because the name is drawn from Games
                  * Workshop's setting and nothing about this is theirs or endorsed by them.

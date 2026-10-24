@@ -41,7 +41,6 @@ test('a locked roster stays read-only until unlocked while its copies stay edita
     await page.screenshot({ path: test.info().outputPath(`locked-library-${width}.png`) })
     await row.getByRole('button', { name: `Actions for ${name}` }).click()
     await expect(page.getByRole('menuitem', { name: 'Edit roster setup' })).toBeDisabled()
-    await expect(page.getByRole('menuitem', { name: 'Convert rules version' })).toBeDisabled()
     await expect(page.getByRole('menuitem', { name: 'Unlock roster' })).toBeEnabled()
     await page.screenshot({ path: test.info().outputPath(`locked-row-menu-${width}.png`) })
     if (width === 390) {

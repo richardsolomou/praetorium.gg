@@ -56,21 +56,21 @@ for (const [size, label] of [
     await expect(page.getByRole('menuitem', { name: `Embark Bravo · ${SQUAD} #2 in Rhino`, exact: true })).toBeVisible()
     await shot(page.getByRole('menu'), `test-results/roster-embark-custom-menu-${label}.png`)
     await waitForRosterSave(page, () => alpha.click(), 'embarkedIn')
-    await expect(rhino).toContainText(`EmbarkedAlpha · ${SQUAD} #16/12 models`)
+    await expect(rhino).toContainText(`EmbarkedAlpha · ${SQUAD} #1 + Commander · Captain`)
     const led = page.locator('section[aria-label]').filter({ has: page.locator('[data-unit="Captain"]') })
     await expect(led.locator('[data-unit-actions]')).toContainText('Unit embarked inIronclad · Rhino')
 
     await page.reload()
     await cards(page)
     await page.getByRole('button', { name: 'View', exact: true }).click()
-    await expect(rhino).toContainText(`EmbarkedAlpha · ${SQUAD} #16/12 models`)
+    await expect(rhino).toContainText(`EmbarkedAlpha · ${SQUAD} #1 + Commander · Captain`)
     await expectNoHorizontalOverflow(rhino)
     await shot(rhino, `test-results/roster-embark-custom-transport-${label}.png`)
     await shot(led, `test-results/roster-embark-custom-attached-${label}.png`)
     if (label === 'phone') {
       await page.evaluate(() => (document.documentElement.style.fontSize = '200%'))
       await expectNoHorizontalOverflow(rhino)
-      await expectNoHorizontalOverflow(rhino.getByText(`Alpha · ${SQUAD} #1`, { exact: true }))
+      await expectNoHorizontalOverflow(rhino.getByText(`Alpha · ${SQUAD} #1 + Commander · Captain`, { exact: true }))
       await shot(rhino, 'test-results/roster-embark-custom-large-text.png')
       await page.evaluate(() => (document.documentElement.style.fontSize = ''))
     }
@@ -99,7 +99,7 @@ for (const [size, label] of [
     await shot(page.getByRole('menu'), `test-results/roster-embark-board-menu-${label}.png`)
     await waitForRosterSave(page, () => boarding.click(), 'embarkedIn')
     await expect(squad).toContainText('Embarked inRhino')
-    await expect(rhino).toContainText(`Embarked${SQUAD}5/12 models`)
+    await expect(rhino).toContainText(`Embarked${SQUAD}Disembark`)
     await shot(squad, `test-results/roster-embark-passenger-${label}.png`)
     await shot(rhino, `test-results/roster-embark-transport-${label}.png`)
 
@@ -123,7 +123,7 @@ for (const [size, label] of [
   })
 }
 
-const PUT_BACK = 'No longer fits in Rhino, so it starts on the battlefield'
+const putBack = (squad: string) => `${squad} no longer fits in Rhino, so it starts on the battlefield.`
 
 /** Both squads of a fresh list started in its Rhino, five models each. */
 async function mountedSquads(page: Page, name: string, extra: string[] = []) {
@@ -157,17 +157,14 @@ test('the squad an edit grows past its transport’s room is the one put back on
   const { squad, rhino, carry } = await mountedSquads(page, 'Overfilled Marines')
 
   await resize(page, squad.first(), 'More', 3)
-  await expect(squad.first()).toContainText(PUT_BACK)
+  await expect(page.getByText(putBack(`${SQUAD} #1`), { exact: true })).toBeVisible()
   await expect(squad.nth(1)).toContainText('Embarked inRhino')
-  await expect(rhino).toContainText(`${SQUAD} #25/12 models`)
+  await expect(rhino).toContainText(`Embarked${SQUAD} #2Disembark`)
   await carry.click()
   await expect(page.getByRole('menuitem', { name: `Embark ${SQUAD} #1 in Rhino`, exact: true })).toContainText(
     'This transport can carry at most 12 models.',
   )
   await page.keyboard.press('Escape')
-
-  await waitForRosterSave(page, () => page.getByRole('button', { name: `Fewer models in ${SQUAD}`, exact: true }).click())
-  await expect(squad.first()).not.toContainText(PUT_BACK)
 })
 
 for (const [size, label] of [
@@ -179,7 +176,7 @@ for (const [size, label] of [
     const page = await (await browser.newContext(size)).newPage()
     const { squad, rhino, carry } = await mountedSquads(page, 'Led Marines', ['Captain'])
     await resize(page, squad.nth(1), 'More', 2)
-    await expect(rhino).toContainText(`${SQUAD} #27/12 models`)
+    await expect(rhino).toContainText(`Embarked${SQUAD} #2Disembark`)
     await cards(page)
 
     const captain = page.locator('[data-unit="Captain"]')
@@ -187,9 +184,9 @@ for (const [size, label] of [
     await waitForRosterSave(page, () => page.getByRole('menu').getByRole('menuitem', { name: SQUAD, exact: true }).first().click())
     const led = page.locator('section[aria-label]').filter({ has: captain })
     const bar = led.locator('[data-unit-actions]')
-    await expect(bar).toContainText(PUT_BACK)
-    await expect(led.locator(`[data-unit="${SQUAD}"]`)).not.toContainText(PUT_BACK)
-    await expect(rhino).toContainText(`${SQUAD} #27/12 models`)
+    await expect(page.getByText(putBack(`${SQUAD} #1`), { exact: true })).toBeVisible()
+    await expect(bar).not.toContainText('Unit embarked in')
+    await expect(rhino).toContainText(`Embarked${SQUAD} #2Disembark`)
     await expect(rhino.getByRole('button', { name: 'Disembark', exact: true })).toHaveCount(1)
     await shot(led, `test-results/roster-embark-put-back-${label}.png`)
 
@@ -201,9 +198,8 @@ for (const [size, label] of [
       () => page.getByRole('menuitem', { name: `Embark ${SQUAD} #1 in Rhino`, exact: true }).click(),
       'embarkedIn',
     )
-    await expect(bar).not.toContainText(PUT_BACK)
     await expect(bar).toContainText('Unit embarked inRhino')
-    await expect(rhino).toContainText(`${SQUAD} #16/12 models`)
+    await expect(rhino).toContainText(`Embarked${SQUAD} #1 + CaptainDisembark`)
     await shot(led, `test-results/roster-embark-led-aboard-${label}.png`)
     await shot(rhino, `test-results/roster-embark-led-transport-${label}.png`)
   })

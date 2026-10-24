@@ -36,7 +36,3 @@ it('offers no boarding when read only', () => {
 it('offers a free attachment slot', () => {
   expect(outline({ canHost: [CAPTAIN] })).toContain('Attach unit')
 })
-
-it('tells why the unit was put back on the battlefield', () => {
-  expect(outline({ embark: { ...NO_EMBARK, notice: 'No longer fits in Rhino' } })).toContain('No longer fits in Rhino')
-})

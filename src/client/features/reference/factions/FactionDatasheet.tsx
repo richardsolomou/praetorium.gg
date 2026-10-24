@@ -11,6 +11,7 @@ import {
   profileTableColumns,
   profileTableValue,
   referenceAbilities,
+  separateTransport,
   weaponProfileGroupName,
   weaponProfileGroups,
   weaponProfileMode,
@@ -478,14 +479,14 @@ export function TransportReference({
 }) {
   if (!transport) return null
   const anchors = <ReferenceAnchors prefix="profile" ids={profiles.map((profile) => profile.id)} />
-  // Some sources print the rule as a TRANSPORT ability as well, which the abilities section already shows.
-  if (abilities.some((ability) => ability.name.toUpperCase() === 'TRANSPORT')) return anchors
+  const shown = separateTransport({ transport, abilities })
+  if (!shown) return anchors
   return (
     <section>
       {anchors}
       <h2 className="rubric border-b border-edge pb-2">Transport</h2>
       <div className="mt-2 border border-edge bg-panel p-3">
-        <RuleText text={transport} rules={rules} className="mt-0" />
+        <RuleText text={shown} rules={rules} className="mt-0" />
       </div>
     </section>
   )

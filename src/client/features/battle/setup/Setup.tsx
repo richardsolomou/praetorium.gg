@@ -29,7 +29,6 @@ import { FirstTurnStep } from './FirstTurnStep'
 import { DeployStep } from './DeployStep'
 import { PreBattleRulesStep } from './PreBattleRulesStep'
 import { SideDispositionChoice } from './SideDispositionChoice'
-import { SideWarlordChoice } from './SideWarlordChoice'
 import { ReservesStep } from './ReservesStep'
 import { SecondariesStep } from './SecondariesStep'
 import { MissionDetailsDialog, type MissionDetails } from '../MissionCards'
@@ -273,7 +272,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
           needed={Boolean(owed.length || sizeProblem || leaderless.length)}
         >
           <ArmiesStep view={view} sides={table} send={send} attachRoster={attachRoster} pending={busy} problem={problem} />
-          <SideWarlordChoice sides={table} send={send} />
           <div data-onboarding="battle-setup-size">
             {formatOpen ? (
               <SetupPanel className="grid gap-4 sm:grid-cols-2">
@@ -379,12 +377,11 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
         >
           {youHaveAnArmy ? (
             <>
-              <SideDispositionChoice sides={table} nameDisposition={nameDisposition} send={send} />
               <div data-onboarding="battle-setup-mission" className="grid items-start gap-6 sm:grid-cols-2">
                 {table.map((side) => {
                   const card = side.mission ? primaryCardFor(side.mission.id) : undefined
                   return (
-                    <div key={side.index} className={`min-w-0 border-t-[3px] pt-3 ${tint(side.index).edge}`}>
+                    <div key={side.index} className={`min-w-0 space-y-3 border-t-[3px] pt-3 ${tint(side.index).edge}`}>
                       <p className="sr-only">{sideName(side)}</p>
                       {side.mission ? (
                         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -403,6 +400,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                       ) : (
                         <p className="py-2 text-sm text-dim">No mission for this matchup.</p>
                       )}
+                      <SideDispositionChoice side={side} nameDisposition={nameDisposition} send={send} />
                     </div>
                   )
                 })}

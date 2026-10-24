@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Pencil, Trash2, TriangleAlert } from 'lucide-react'
+import { Check, Crown, Pencil, Trash2, TriangleAlert } from 'lucide-react'
 import { useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { Button } from '@/components/ui/button'
@@ -19,7 +19,7 @@ import { PAINTED_ARMY_POINTS, pointsBudgetOf, pointsLabel, pointsSize, type Comm
 import { type BattleView } from '../../../../core/battleView'
 import { errorMessage } from '../../../queryClient'
 import { rostersLentToMeQuery, savedRosterSummariesQuery } from '../../../queries'
-import type { Army, Side } from '../../../sides'
+import { type Army, type Side, sideName } from '../../../sides'
 import { ArmyIdentity } from '../ArmyIdentity'
 import { RosterChoices } from '../../rosters/RosterChoices'
 import type { RosterProblem } from '../../rosters/RosterSummary'
@@ -110,7 +110,10 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
         {sides.map((side) => (
           <SetupSidePanel key={side.index} side={side} named>
             {side.armies.map((army) => (
-              <article key={army.playerId} className="space-y-2">
+              <article
+                key={army.playerId}
+                className="space-y-2 not-first-of-type:border-t not-first-of-type:border-edge not-first-of-type:pt-3"
+              >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   <div className="min-w-0 flex-1">
                     {side.armies.length > 1 ? <span className="eyebrow block">{army.playerName}</span> : null}
@@ -134,9 +137,6 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                      * mission this side plays, so it belongs beside the army. Allies who have
                      * settled one card show it once for the side instead of each list's own.
                      */}
-                    {side.armies.length === 1 || !side.disposition ? (
-                      <DispositionChip disposition={nameDisposition(army.roster?.built?.disposition)} className="mt-1" />
-                    ) : null}
                     {/* Said under every army rather than only under your own: an opponent
                         deciding whether to play this game needs the same fact its owner has. */}
                     <WaiverNote rules={rosterWaivers(army.roster?.built)} className="mt-1" />
@@ -181,29 +181,33 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                   )}
                 </div>
                 {/*
-                 * Whether the army is painted is a fact about the army, so it is said
-                 * where the army is chosen. Anyone at the table may set it for any seat,
-                 * because one device often stands in for all of them.
+                 * What the army brings to its side, in one row of chips: its disposition until
+                 * allies settle one, whose Warlord leads an allied side, and whether it is
+                 * painted. Anyone at the table may set either, because one device often stands
+                 * in for all of them.
                  */}
-                {army.roster && !view.settings.manual ? (
-                  <div className="flex items-center justify-between gap-2 border-t border-edge pt-2 text-xs">
-                    <span className={army.painted ? 'text-achieved' : 'text-dim'}>
-                      {army.painted
-                        ? side.armies.length === 1 && side.paintedPoints
-                          ? `Battle ready · +${side.paintedPoints} VP at the start of the battle`
-                          : 'Battle ready'
-                        : 'Not battle ready'}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="xs"
-                      disabled={pending}
-                      className={army.painted ? CHOSEN : CHOOSABLE}
-                      aria-label={`${army.painted ? 'Remove' : 'Add'} the battle ready bonus for ${army.playerName}`}
-                      onClick={() => send({ kind: 'set-painted', painted: !army.painted, playerId: army.playerId })}
-                    >
-                      {army.painted ? 'Remove' : 'Add'} bonus
-                    </Button>
+                {army.roster ? (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {side.armies.length === 1 || !side.disposition ? (
+                      <DispositionChip disposition={nameDisposition(army.roster.built?.disposition)} />
+                    ) : null}
+                    {side.warlordChoices.length > 1 && side.warlordChoices.includes(army.playerId) ? (
+                      <WarlordToggle side={side} army={army} send={send} />
+                    ) : null}
+                    {view.settings.manual ? null : (
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        disabled={pending}
+                        aria-pressed={army.painted}
+                        className={`gap-1 ${army.painted ? CHOSEN : CHOOSABLE}`}
+                        aria-label={`${army.painted ? 'Remove' : 'Add'} the battle ready bonus for ${army.playerName}`}
+                        onClick={() => send({ kind: 'set-painted', painted: !army.painted, playerId: army.playerId })}
+                      >
+                        {army.painted ? <Check className="size-3" aria-hidden /> : null}
+                        Battle ready
+                      </Button>
+                    )}
                   </div>
                 ) : null}
               </article>
@@ -213,16 +217,12 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                 Side plays <DispositionChip disposition={nameDisposition(side.disposition)} />
               </p>
             ) : null}
-            {/*
-             * The bonus is the side's and pays once, so an allied pair hears it under the
-             * side rather than beside each list: an unpainted half costs the whole side
-             * the bonus. A lone army says it on its own line above.
-             */}
-            {view.settings.manual || side.armies.length === 1 ? null : (
+            {/* The bonus is the side's and pays once, so an unpainted ally costs the whole side the bonus. */}
+            {view.settings.manual || !side.armies.some((army) => army.roster) ? null : (
               <p className={`text-xs ${side.paintedPoints ? 'text-achieved' : 'text-dim'}`}>
                 {side.paintedPoints
                   ? `Battle ready · +${side.paintedPoints} VP at the start of the battle`
-                  : `+${PAINTED_ARMY_POINTS} VP at the start of the battle once every army on this side is battle ready`}
+                  : `+${PAINTED_ARMY_POINTS} VP at the start of the battle once ${side.armies.length > 1 ? 'every army on this side is' : 'this army is'} battle ready`}
               </p>
             )}
           </SetupSidePanel>
@@ -436,5 +436,25 @@ function RosterChooser({
         </DialogBody>
       </DialogContent>
     </Dialog>
+  )
+}
+
+/** Allies field one Warlord between them, so each list's own offers to lead the side. */
+function WarlordToggle({ side, army, send }: { side: Side; army: Army; send: (command: Command) => void }) {
+  const unit = army.units.find((candidate) => candidate.warlord)?.name ?? 'Warlord'
+  const leads = side.warlord === army.playerId
+  return (
+    <Button
+      variant="outline"
+      size="xs"
+      aria-pressed={leads}
+      aria-label={`Make ${army.playerName}’s ${unit} the Warlord for ${sideName(side)}`}
+      title={leads ? 'This Warlord leads the side' : 'Lead the side with this Warlord'}
+      className={`gap-1 ${leads ? CHOSEN : CHOOSABLE}`}
+      onClick={() => send({ kind: 'set-side-warlord', side: side.index, playerId: army.playerId })}
+    >
+      <Crown className={`size-3 ${leads ? 'fill-current' : ''}`} aria-hidden />
+      {unit}
+    </Button>
   )
 }
