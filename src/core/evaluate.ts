@@ -443,6 +443,13 @@ export function keywordIdsBySelection(selections: readonly Selection[], index: C
   return keywordsBySelection(selections, index, options).map(({ keywords }) => keywords)
 }
 
+/** The printed names of keyword category ids, without the hidden categories the data uses for bookkeeping. */
+export const keywordNames = (ids: readonly string[], index: CatalogueIndex): string[] =>
+  ids.flatMap((id) => {
+    const category = index.categories.get(id)
+    return category?.hidden || !category?.name ? [] : [category.name.replace(/^Faction:\s*/iu, '')]
+  })
+
 /** Each selection's keywords, and the ones the list's own rules shelve it under ahead of its datasheet's. */
 export function keywordsBySelection(
   selections: readonly Selection[],
@@ -457,11 +464,18 @@ export function keywordsBySelection(
     const positioned = built[at]
     const node = positioned?.id === wanted.id ? positioned : built.find((child) => child.id === wanted.id)
     if (!node) return { keywords: [], primaries: [] }
-    const held = linkedCategories(node)
-    for (const [categoryId, present] of grants.get(node) ?? []) {
-      if (present) held.add(categoryId)
-      else held.delete(categoryId)
-    }
+    // Core rules 02.05.01: a unit has all the keywords of all its models.
+    const members = [node, ...descendants(node).filter((member) => member !== node && member.target.type === 'model' && member.fielded > 0)]
+    const held = new Set(
+      members.flatMap((member) => {
+        const own = linkedCategories(member)
+        for (const [categoryId, present] of grants.get(member) ?? []) {
+          if (present) own.add(categoryId)
+          else own.delete(categoryId)
+        }
+        return [...own]
+      }),
+    )
     return { keywords: [...held], primaries: (root.primaries?.get(node) ?? []).filter((id) => held.has(id)) }
   })
 }

@@ -1,5 +1,59 @@
 # praetorium
 
+## 0.184.0
+
+### Minor Changes
+
+- 68c83e8: Shelve attached units together in the roster builder, each outlined with its total points and the bodyguard's custom name. Untick Group attached units in the roster menu to keep role shelves.
+
+### Patch Changes
+
+- 68c83e8: Group the roster menu's actions under Play, Setup, Copies and access, Share and Display headings.
+
+## 0.183.3
+
+### Patch Changes
+
+- 19a5750: Leaders whose attachment data names unit types no longer offer single-model characters as bodyguards, such as a Runtherd leading Grotmas Gitz.
+
+## 0.183.2
+
+### Patch Changes
+
+- 58df806: Nork Deddog and Ogryn Bodyguard count as part of the unit their Command Squad leads, so the simulator and reserves see one unit.
+
+## 0.183.1
+
+### Patch Changes
+
+- a0579d7: The combat simulator accepts an Inquisitor leading Tempestus Scions in Bridgehead Strike.
+
+## 0.183.0
+
+### Minor Changes
+
+- 68a78e5: Terrain layouts outline the pieces of one terrain area together, so they are no longer confused with separate pieces that touch.
+
+## 0.182.4
+
+### Patch Changes
+
+- 4db3c94: A unit now has every keyword of its models, so datasheets such as Chaplain Grimaldus, Marneus Calgar and Canis Rex show Character, Vehicle and other model keywords, and keyword rules and attachments respect them.
+
+## 0.182.3
+
+### Patch Changes
+
+- 8bdecc7: Let a Skitarii Rangers or Vanguard specialist take the place of a galvanic-rifle or radium-carbine squadmate, so the squad stays at ten models, each specialist can be added or removed on its own, and lists with a transuranic arquebus or omnispex import.
+
+## 0.182.2
+
+### Patch Changes
+
+- 091533e: A Militarum Tempestus Command Squad can take its regimental standard and master vox again.
+- 091533e: Weapon buttons for a group a specialist has shrunk change the weapon pressed instead of another one.
+- 091533e: A specialist taking a squadmate's place, such as a Tempestus Scion with a medi-pack or regimental standard, takes that squadmate's weapon with it, so a Militarum Tempestus Command Squad with a plasma gun and meltagun stays legal.
+
 ## 0.182.1
 
 ### Patch Changes

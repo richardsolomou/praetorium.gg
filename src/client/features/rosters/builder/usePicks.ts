@@ -44,6 +44,7 @@ type SizedUnit = {
     key: string
     name?: string
     optional?: boolean
+    room?: number
     options: { id: string; name?: string; count: number; min?: number; default?: boolean }[]
   }[]
   models?: { members: { choiceKey: string | null }[] }[]

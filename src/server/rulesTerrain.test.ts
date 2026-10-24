@@ -253,6 +253,62 @@ it('rejects a terrain label correction from another Battlemaster revision', () =
   expect(() => battlemasterGeometry(directory, id)).toThrow('terrain label corrections do not match the Battlemaster source')
 })
 
+function writeTerrainAreas(groups: { id: string; name: string }[][], revision = createHash('sha256').update('catalog-key').digest('hex')) {
+  const file = path.join(directory, 'layouts', `${id}.json`)
+  const layout = JSON.parse(fs.readFileSync(file, 'utf8'))
+  layout.layout.layoutKey = 'layout-key'
+  layout.terrain.push({ ...structuredClone(layout.terrain[0]), name: 'Barrier' }, { ...structuredClone(layout.terrain[0]), name: 'Pipe' })
+  fs.writeFileSync(file, JSON.stringify(layout))
+  fs.writeFileSync(path.join(directory, 'catalog.json'), JSON.stringify({ catalogKey: 'catalog-key' }))
+  fs.writeFileSync(
+    path.join(directory, 'terrain-areas.json'),
+    JSON.stringify({
+      format: 'praetorium.terrain-area-groups.v1',
+      battlemasterRevision: revision,
+      layouts: [{ layoutId: id, layoutKey: 'layout-key', groups }],
+    }),
+  )
+}
+
+it('marks footprints that form one terrain area with a shared group', () => {
+  writeTerrainAreas([
+    [
+      { id: 'area-1', name: 'Area AB' },
+      { id: 'area-2', name: 'Barrier' },
+    ],
+  ])
+  expect(battlemasterGeometry(directory, id)?.areas.map((area) => area.group)).toEqual(['area-1', 'area-1', null])
+})
+
+it('rejects a terrain area group whose footprint no longer matches', () => {
+  writeTerrainAreas([
+    [
+      { id: 'area-1', name: 'Area AB' },
+      { id: 'area-3', name: 'Barrier' },
+    ],
+  ])
+  expect(() => battlemasterGeometry(directory, id)).toThrow(`terrain area groups do not match ${id}`)
+})
+
+it('rejects a footprint in two terrain area groups', () => {
+  writeTerrainAreas([
+    [
+      { id: 'area-1', name: 'Area AB' },
+      { id: 'area-2', name: 'Barrier' },
+    ],
+    [
+      { id: 'area-2', name: 'Barrier' },
+      { id: 'area-3', name: 'Pipe' },
+    ],
+  ])
+  expect(() => battlemasterGeometry(directory, id)).toThrow(`terrain area groups do not match ${id}`)
+})
+
+it('rejects terrain area groups from another Battlemaster revision', () => {
+  writeTerrainAreas([], 'stale')
+  expect(() => battlemasterGeometry(directory, id)).toThrow('terrain area groups do not match the Battlemaster source')
+})
+
 it('shares one geometry between reads of unchanged sources', () => {
   expect(battlemasterGeometry(directory, id)).toBe(battlemasterGeometry(directory, id))
 })

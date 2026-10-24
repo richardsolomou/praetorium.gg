@@ -30,8 +30,25 @@ export type AttachedUnit<T> = {
 export function attachedUnits<T extends Attached<UnitKey>>(units: readonly T[], key: T['key']): T[] {
   const unit = units.find((candidate) => candidate.key === key)
   if (!unit) return []
-  const host = units.find((candidate) => candidate.key === unit.attachedTo) ?? unit
-  return [host, ...units.filter((candidate) => candidate.key !== host.key && candidate.attachedTo === host.key)]
+  const host = attachedHost(units, unit)
+  return [host, ...units.filter((candidate) => candidate !== host && attachedHost(units, candidate) === host)]
+}
+
+/**
+ * The bodyguard unit at the bottom of a chain of attachments. A Loyal Protector joins a
+ * Command Squad before that squad leads its bodyguard unit, so all three are one unit.
+ * A loop has no bottom, so each unit in it stands alone.
+ */
+export function attachedHost<T extends Attached<UnitKey>>(units: readonly T[], unit: T): T {
+  const seen = new Set<T>([unit])
+  let host = unit
+  for (;;) {
+    const next = host.attachedTo === undefined ? undefined : units.find((candidate) => candidate.key === host.attachedTo)
+    if (!next) return host
+    if (seen.has(next)) return unit
+    seen.add(next)
+    host = next
+  }
 }
 
 /** An army folded into the units it is actually played as, in list order. */

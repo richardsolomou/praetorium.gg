@@ -10,7 +10,7 @@
  */
 
 import { groupBy } from './collections'
-import { attachedUnitList, attachedUnits } from './attachedUnits'
+import { attachedUnitList, attachedHost, attachedUnits } from './attachedUnits'
 import { refuse, sameSide } from './battlePrimitives'
 import { isPracticeSeat } from './newBattle'
 import { appliesInMode, cardsDue, cardsDueFromTheirTurn, finalAwardTotal, type MissionAward } from './scoring'
@@ -191,7 +191,7 @@ type ReserveUnit = Pick<
 /** Deep Strike changes an ingress move; the unit still starts in Strategic Reserves. */
 export function strategicReservePoints(units: readonly ReserveUnit[]): number {
   const byKey = new Map(units.map((unit) => [unit.key, unit]))
-  return [...groupBy(units, (unit) => unit.attachedTo ?? unit.key).values()].reduce((total, attached) => {
+  return [...groupBy(units, (unit) => attachedHost(units, unit).key).values()].reduce((total, attached) => {
     const reserved = attached.filter(
       (unit) =>
         startsInStrategicReserves(unit.formation) ||

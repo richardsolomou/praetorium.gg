@@ -1,5 +1,5 @@
 import { groupBy, RecentlyUsed, uniqueBy } from '../core/collections'
-import { admitsHost, attachmentCategoriesOf, attachmentErrors, attachmentLimitsOf, attachmentOf } from '../core/attach'
+import { admitsHost, attachmentCategoriesOf, attachmentErrors, attachmentHost, attachmentLimitsOf, attachmentOf } from '../core/attach'
 import { routeSlug } from '../core/slug'
 import { borrowedDispositionError, detachmentPointBudget, detachmentPointsError, isKotcLimit } from '../core/battle'
 import { type CatalogueIndex, targetOf } from '../core/catalogue'
@@ -9,6 +9,7 @@ import {
   enhancementLimit,
   evaluate,
   evaluateForces,
+  keywordNames,
   keywordsBySelection,
   type Selection,
 } from '../core/evaluate'
@@ -518,10 +519,7 @@ function calculateRoster(
     data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
   const keywordNamesOf = (unit: (typeof picked)[number]) => {
     const at = selectionIndex.get(unit.selection)
-    return (at === undefined ? [] : keywordsFor(catalogueOfUnit(unit), at)).flatMap((id) => {
-      const category = loaded.index.categories.get(id)
-      return category?.hidden || !category?.name ? [] : [category.name.replace(/^Faction:\s*/iu, '')]
-    })
+    return keywordNames(at === undefined ? [] : keywordsFor(catalogueOfUnit(unit), at), loaded.index)
   }
   // Model kinds are the dear part of a unit's projection, and the price reads them
   // twice: once to find units the catalogue composes itself, and once to draw each
@@ -591,7 +589,7 @@ function calculateRoster(
   const selfContradictory = new Set(whole.errors.filter((error) => isCatalogueSelfContradiction(error, composedByCatalogue)))
   const pickedSelections = data.units.map((_, key) => picked.find((unit) => unit.key === key)?.selection)
   const pickedIndexByKey = new Map(picked.map((unit, at) => [unit.key, at]))
-  const attachedByHost = groupBy(data.units.keys(), (key) => data.units[key]!.attachedTo ?? key)
+  const attachedByHost = groupBy(data.units.keys(), (key) => attachmentHost(data.units, key))
 
   /*
    * The enhancements an army may hold, which its battle size sets for the whole army
@@ -686,8 +684,8 @@ function calculateRoster(
       const mfmUnit = mfmUnitFor(loaded, data.units[unit.key]?.catalogueId ?? data.catalogueId, unit.entryId)
       const definition = loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }
       const unitSelectionIndex = selectionIndex.get(unit.selection)
-      const keywordNames = keywordNamesOf(unit)
-      const host = data.units[unit.key]?.attachedTo ?? unit.key
+      const unitKeywords = keywordNamesOf(unit)
+      const host = attachmentHost(data.units, unit.key)
       const companions = (attachedByHost.get(host) ?? []).flatMap((key) => {
         const index = pickedIndexByKey.get(key)
         const companion = index === undefined ? undefined : picked[index]
@@ -741,7 +739,7 @@ function calculateRoster(
         }),
       }))
       const strategicReserveExempt =
-        reserveExemptionSelectors.some((selector) => matchesKeywordSelector(selector, keywordNames)) ||
+        reserveExemptionSelectors.some((selector) => matchesKeywordSelector(selector, unitKeywords)) ||
         selectedEnhancements.some((enhancement) =>
           grantsReserveExemptionIn(findEnhancementDescription(enhancementDescriptions, chosen, enhancement), loaded.datacards.textFacts),
         )
@@ -783,7 +781,7 @@ function calculateRoster(
         },
         ...deployment,
         ...(strategicReserveExempt ? { strategicReserveExempt: true } : {}),
-        ...(keywordNames.some((keyword) => keyword.toLowerCase() === 'transport') ? { transport: true } : {}),
+        ...(unitKeywords.some((keyword) => keyword.toLowerCase() === 'transport') ? { transport: true } : {}),
         choices,
         models,
         toggles: unit.toggles,

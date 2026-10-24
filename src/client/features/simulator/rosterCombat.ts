@@ -1,4 +1,5 @@
 import type { RosterPick } from '../../../core/roster'
+import { attachmentHost } from '../../../core/attach'
 import { readableCombatant } from './readableRules'
 import { combatRuleSelections } from '../../../core/combatRules'
 import { combatMatchup, type CombatAnswer, type CombatantSnapshot, type CombatRequest } from '../../../core/combatMatchup'
@@ -47,10 +48,7 @@ export function sealedCombatRoster(roster: Roster | null | undefined): CombatRos
 
 export function rosterCombatIndices(picks: readonly RosterPick[]) {
   for (const [index, pick] of picks.entries()) {
-    if (
-      pick.attachedTo !== undefined &&
-      (!picks[pick.attachedTo] || pick.attachedTo === index || picks[pick.attachedTo]!.attachedTo !== undefined)
-    )
+    if (pick.attachedTo !== undefined && (!picks[pick.attachedTo] || picks[attachmentHost(picks, index)]!.attachedTo !== undefined))
       throw new Error('Fix the roster’s invalid attachment before comparing it.')
   }
   return picks.flatMap((pick, index) => (pick.attachedTo === undefined ? [index] : []))
