@@ -4,7 +4,13 @@ const ticketSchema = z.object({
   distinct_id: z.string().nullish(),
   anonymous_traits: z.object({ name: z.string().nullish(), email: z.string().nullish() }).nullish(),
 })
-const messageSchema = z.object({ author_type: z.string(), is_private: z.boolean(), created_at: z.string() })
+const messageSchema = z.object({
+  author_type: z.string(),
+  author_name: z.string().nullish(),
+  is_private: z.boolean(),
+  created_at: z.string(),
+  content: z.string().nullish(),
+})
 // Results drop fields this build does not read, so PostHog adding one changes nothing here.
 const messagePageSchema = z.object({ next: z.string().nullish(), results: z.array(messageSchema) })
 /** Bounds the read of one conversation's messages, whose pages run oldest first. */

@@ -1,6 +1,6 @@
 import { SurveyEventName, SurveyEventProperties } from 'posthog-js'
 import { version } from '../../../../package.json'
-import { FEEDBACK_KINDS, IMPORT_REPORT_MAX_LENGTH, type FeedbackKind } from '../../../contracts/feedback'
+import { IMPORT_REPORT_MAX_LENGTH, type FeedbackKind } from '../../../contracts/feedback'
 
 /** The launched API survey “App feedback” in PostHog, which keeps automatic import reports; question ids key its stored responses. */
 export const FEEDBACK_SURVEY = {
@@ -17,23 +17,6 @@ export const FEEDBACK_MESSAGE_MAX_LENGTH = 2000
 /** The opening message of a feedback conversation; Support records the page and replay itself. */
 export function feedbackTicketMessage({ kind, message, screenshotUrl }: { kind: FeedbackKind; message: string; screenshotUrl?: string }) {
   return [message.trim(), '', `${kind} · Praetorium ${version}`, ...(screenshotUrl ? [`Screenshot: ${screenshotUrl}`] : [])].join('\n')
-}
-
-const DETAILS = new RegExp(`\\n\\n(${FEEDBACK_KINDS.join('|')}) · Praetorium (\\S+)(\\nScreenshot: \\S+)?$`)
-
-/** What the player wrote in an opening message, apart from the details `feedbackTicketMessage` appended. */
-export function readTicketMessage(content: string): { body: string; kind?: FeedbackKind; version?: string; screenshot: boolean } {
-  const details = DETAILS.exec(content)
-  if (!details) return { body: content, screenshot: false }
-  return { body: content.slice(0, details.index), kind: details[1] as FeedbackKind, version: details[2], screenshot: Boolean(details[3]) }
-}
-
-const SUBJECT_LENGTH = 72
-
-/** The first line of what the player wrote, which names a conversation the way a subject line would. */
-export function ticketSubject(content: string) {
-  const line = readTicketMessage(content).body.trim().split('\n')[0]!.trim()
-  return line.length > SUBJECT_LENGTH ? `${line.slice(0, SUBJECT_LENGTH - 1).trimEnd()}…` : line
 }
 
 export function feedbackSurveyEvent({ kind, message }: { kind: FeedbackKind; message: string }) {

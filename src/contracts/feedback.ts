@@ -4,6 +4,23 @@ import { z } from 'zod'
 export const FEEDBACK_KINDS = ['Problem', 'Idea', 'Other'] as const
 export type FeedbackKind = (typeof FEEDBACK_KINDS)[number]
 
+const DETAILS = new RegExp(`\\n\\n(${FEEDBACK_KINDS.join('|')}) · Praetorium (\\S+)(\\nScreenshot: \\S+)?$`)
+
+/** What the player wrote in an opening message, apart from the details `feedbackTicketMessage` appended. */
+export function readTicketMessage(content: string): { body: string; kind?: FeedbackKind; version?: string; screenshot: boolean } {
+  const details = DETAILS.exec(content)
+  if (!details) return { body: content, screenshot: false }
+  return { body: content.slice(0, details.index), kind: details[1] as FeedbackKind, version: details[2], screenshot: Boolean(details[3]) }
+}
+
+const SUBJECT_LENGTH = 72
+
+/** The first line of what the player wrote, which names a conversation the way a subject line would. */
+export function ticketSubject(content: string) {
+  const line = readTicketMessage(content).body.trim().split('\n')[0]!.trim()
+  return line.length > SUBJECT_LENGTH ? `${line.slice(0, SUBJECT_LENGTH - 1).trimEnd()}…` : line
+}
+
 /** The SDK cuts any string property at 65,535 characters; the message is sent twice, well inside the 1 MB event limit. */
 export const IMPORT_REPORT_MAX_LENGTH = 60_000
 

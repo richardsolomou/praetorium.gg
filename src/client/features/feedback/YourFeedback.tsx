@@ -6,7 +6,7 @@ import { cn } from '@/lib/utils'
 import { useVirtualRows } from '../../components/useVirtualRows'
 import { Problem } from '../../components/Problem'
 import { formatAgo } from '../../dates'
-import { readTicketMessage, ticketSubject } from './feedback'
+import { readTicketMessage, ticketSubject } from '../../../contracts/feedback'
 import { openConversation, openingMessageQuery, TICKET_STATUS, unreadReplies, useSupportTickets } from './support'
 
 /** The player's feedback conversations, newest activity first; hidden until they have one. */

@@ -1,14 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { IMPORT_REPORT_MAX_LENGTH } from '../../../contracts/feedback'
+import { IMPORT_REPORT_MAX_LENGTH, readTicketMessage, ticketSubject } from '../../../contracts/feedback'
 import { version } from '../../../../package.json'
-import {
-  FEEDBACK_SURVEY,
-  feedbackSurveyEvent,
-  feedbackTicketMessage,
-  importFailureReport,
-  readTicketMessage,
-  ticketSubject,
-} from './feedback'
+import { FEEDBACK_SURVEY, feedbackSurveyEvent, feedbackTicketMessage, importFailureReport } from './feedback'
 
 const { kind, message } = FEEDBACK_SURVEY.questions
 
