@@ -201,6 +201,13 @@ describe('transport loads', () => {
     expect(used(loadIn(CHIMERA, [bullgryns, inquisitor]))).toEqual([10])
   })
 
+  it('counts the space an ability fixes over the space the transport prints', () => {
+    const valkyrie =
+      'This model has a transport capacity of 12 **ASTRA MILITARUM INFANTRY** models. Each **OGRYN** model takes up the space of 2 models.'
+    const bodyguard = { name: 'Ogryn Bodyguard', alive: 1, keywords: ['Faction: Astra Militarum', 'Infantry', 'Ogryn'], space: 3 }
+    expect(used(loadIn(valkyrie, [bodyguard]))).toEqual([3])
+  })
+
   it('counts a passenger frozen without keywords one space per model', () => {
     expect(used(loadIn(RHINO, [{ name: 'Terminator Squad', alive: 5 }]))).toEqual([5])
   })

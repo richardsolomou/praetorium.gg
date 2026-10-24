@@ -236,6 +236,31 @@ describe('battle management', () => {
     expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'embarked', transportKey: 'u2' })).toBe(expected)
   })
 
+  it.each([
+    ['takes the space its ability fixes', 9, null],
+    ['refuses a load its fixed space overfills', 8, 'this transport can carry at most 8 models'],
+  ])('a Loyal Protector joined to a Command Squad %s', (_scenario, capacity, expected) => {
+    const armyRoster = builtRoster('Astra Militarum', ['Tempestus Scions', 'Command Squad', 'Ogryn Bodyguard', 'Taurox Prime'], {
+      models: 3,
+    })
+    if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
+    const [scions, command, ogryn, taurox] = armyRoster.roster.built.units
+    scions!.keywords = ['Faction: Astra Militarum', 'Infantry', 'Militarum Tempestus']
+    Object.assign(command!, { keywords: ['Faction: Astra Militarum', 'Infantry', 'Militarum Tempestus'], attachedTo: 'u0' })
+    Object.assign(ogryn!, {
+      models: 1,
+      keywords: ['Faction: Astra Militarum', 'Infantry', 'Ogryn'],
+      attachedTo: 'u1',
+      embarksWithBodyguard: true,
+      embarkedSpace: 3,
+    })
+    taurox!.transport = true
+    taurox!.transportRule = `This model has a transport capacity of ${capacity} MILITARUM TEMPESTUS INFANTRY models.`
+    const state = reduceBattle(PLAYERS, log([ALICE, armyRoster]))
+
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'embarked', transportKey: 'u3' })).toBe(expected)
+  })
+
   it('counts passengers already aboard before accepting another unit', () => {
     const armyRoster = builtRoster('Ultramarines', ['Intercessors', 'Scouts', 'Rhino'], { models: 5 })
     if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
