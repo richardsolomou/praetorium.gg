@@ -98,7 +98,7 @@ export function LeagueFormFields({
               {TABLE_SHAPE_LABELS[value.format].name} ·{' '}
               {leagueRosterSplit(value.format, value.rosterLimit) ?? pointsLabel(value.rosterLimit)}
             </p>
-            <p className="text-sm text-dim">Allowed: {leagueAllowances(value)}</p>
+            <p className="text-sm text-dim">House rules: {leagueAllowances(value)}</p>
             <p className="text-xs text-dim">{[ROSTER_RULE[value.format], ruleLock].filter(Boolean).join(' ')}</p>
           </div>
         ) : (

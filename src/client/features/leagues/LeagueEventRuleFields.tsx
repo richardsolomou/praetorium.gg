@@ -96,32 +96,44 @@ export function LeagueEventRuleFields({
         {ROSTER_RULE[value.format] ? <p className="text-xs text-dim">{ROSTER_RULE[value.format]}</p> : null}
       </div>
       <fieldset className="space-y-2">
-        <legend className="text-sm leading-none font-medium">Allow in lists</legend>
-        <p className="text-xs text-dim">Off is matched play. A list that needs anything left off can’t be sealed.</p>
-        {leagueAllowanceOptions(value.format, value.rosterLimit).map((option) => {
-          const id = `league-allowance-${option.id}`
+        <legend className="text-sm leading-none font-medium">House rules</legend>
+        <p className="text-xs text-dim">All off is matched play. A list that needs anything left off can’t be sealed.</p>
+        {/* Rules the battle size imposes come first, then the datasheets matched play leaves out on rows of their own. */}
+        {[false, true].map((datasheets) => {
+          const options = leagueAllowanceOptions(value.format, value.rosterLimit).filter(
+            (option) => (option.id === 'legends' || option.id === 'crucible') === datasheets,
+          )
           return (
-            <div key={option.id} className="flex items-start gap-3">
-              <Switch
-                id={id}
-                aria-describedby={`${id}-hint`}
-                checked={value.allowances.includes(option.id)}
-                disabled={disabled}
-                onCheckedChange={(checked) =>
-                  onChange({
-                    ...value,
-                    allowances: checked ? [...value.allowances, option.id] : value.allowances.filter((allowed) => allowed !== option.id),
-                  })
-                }
-              />
-              <div>
-                <Label htmlFor={id} className="cursor-pointer text-sm font-semibold">
-                  {allowanceLabel(option)}
-                </Label>
-                <p id={`${id}-hint`} className="text-xs text-dim">
-                  {option.hint}
-                </p>
-              </div>
+            <div key={String(datasheets)} className="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+              {options.map((option) => {
+                const id = `league-allowance-${option.id}`
+                return (
+                  <div key={option.id} className="flex items-start gap-3">
+                    <Switch
+                      id={id}
+                      aria-describedby={`${id}-hint`}
+                      checked={value.allowances.includes(option.id)}
+                      disabled={disabled}
+                      onCheckedChange={(checked) =>
+                        onChange({
+                          ...value,
+                          allowances: checked
+                            ? [...value.allowances, option.id]
+                            : value.allowances.filter((allowed) => allowed !== option.id),
+                        })
+                      }
+                    />
+                    <div>
+                      <Label htmlFor={id} className="cursor-pointer text-sm font-semibold">
+                        {allowanceLabel(option)}
+                      </Label>
+                      <p id={`${id}-hint`} className="text-xs text-dim">
+                        {option.hint}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )
         })}
