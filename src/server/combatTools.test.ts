@@ -67,6 +67,12 @@ const loaded = bookOf({
       ],
     },
     {
+      id: 'wraith',
+      name: 'Wraith',
+      type: 'model',
+      profiles: [profile('wraith-stats', 'Wraith', 'Unit', { T: 'X', Sv: '4+', W: '3' })],
+    },
+    {
       id: 'oddity',
       name: 'Oddity',
       type: 'model',
@@ -96,7 +102,7 @@ const document = (name: string) => ({
   revisions: { datacards: 'revision' },
   attribution: ['Community data'],
 })
-const documents = ['Squad', 'Leader', 'Protector', 'Beast', 'Oddity'].map(document)
+const documents = ['Squad', 'Leader', 'Protector', 'Beast', 'Oddity', 'Wraith'].map(document)
 const corpus: ReferenceCorpus = {
   catalogue: {
     format: 'praetorium.canonical-catalogue.v1',
@@ -108,6 +114,7 @@ const corpus: ReferenceCorpus = {
       canonical('protector', 'Protector'),
       canonical('beast', 'Beast'),
       canonical('oddity', 'Oddity'),
+      canonical('wraith', 'Wraith'),
     ],
     detachments: [],
     ruleDocuments: [],
@@ -235,6 +242,22 @@ describe('a weapon ability the simulator cannot calculate', () => {
   })
 })
 
+describe('a defender the simulator cannot build', () => {
+  const unbuildable = () => simulateCombat({ attacker: squad, defender: { faction: 'test', unit: 'Wraith' } })
+  const reason = 'This unit has missing or unsupported defensive characteristics.'
+
+  it('is not a tool error', async () => {
+    expect(await unbuildable()).not.toHaveProperty('isError')
+  })
+
+  it('names the defence problem in each phase', async () => {
+    expect((await unbuildable()).structuredContent).toMatchObject({
+      shooting: { status: 'refused', reasons: [reason] },
+      melee: { status: 'refused', reasons: [reason] },
+    })
+  })
+})
+
 describe('an attack larger than the server calculation bound', () => {
   const oversized = () =>
     simulateCombat({
@@ -251,6 +274,12 @@ describe('an attack larger than the server calculation bound', () => {
     expect((await oversized()).structuredContent).toMatchObject({
       shooting: { status: 'refused', reasons: ['This attack is too large to simulate. Select fewer weapons or models.'] },
       melee: { status: 'refused', reasons: ['This attack is too large to simulate. Select fewer weapons or models.'] },
+    })
+  })
+
+  it('explains why shooting then melee has no estimate', async () => {
+    expect((await oversized()).structuredContent).toMatchObject({
+      shootingThenMelee: { status: 'refused', reasons: ['This attack is too large to simulate. Select fewer weapons or models.'] },
     })
   })
 

@@ -294,6 +294,7 @@ export async function simulateCombat(input: SimulateCombatInput) {
   }
   const shooting = phase('ranged')
   const fight = phase('melee')
+  const phaseRefusals = [...new Set([shooting, fight].flatMap((part) => (part.status === 'refused' ? part.reasons : [])))]
   const citations = [...attacker.units, ...defender.units]
   const documents = citations.flatMap((unit) => (unit.referenceId && corpus.byId.get(unit.referenceId)) || [])
   const result = {
@@ -309,7 +310,9 @@ export async function simulateCombat(input: SimulateCombatInput) {
       ? { status: 'estimated' as const, ...outcome(answer.combined.result) }
       : answer.combined?.error
         ? { status: 'refused' as const, reasons: [answer.combined.error] }
-        : { status: 'not applicable' as const },
+        : phaseRefusals.length
+          ? { status: 'refused' as const, reasons: phaseRefusals }
+          : { status: 'not applicable' as const },
     simulatorUrl: `/simulator?s=${encodeSimulatorState({
       v: 1,
       sides: [sharedSide(attacker, input.attacker.rules), sharedSide(defender, input.defender.rules)],
