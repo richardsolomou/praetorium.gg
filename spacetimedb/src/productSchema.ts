@@ -267,6 +267,8 @@ const collection = table(
     models: t.option(t.u32()).default(undefined),
     built: t.option(t.u32()).default(undefined),
     painted: t.option(t.u32()).default(undefined),
+    /** Other datasheets the player says these models also count as, such as a magnetised hull's variants. */
+    countsAs: t.option(t.array(t.string())).default(undefined),
   },
 )
 

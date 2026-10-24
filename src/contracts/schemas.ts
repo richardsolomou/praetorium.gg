@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { REPLAY_BATCH_SIZE } from '../contracts/battles'
 import { onboardingTaskIds, tourTaskIds } from '../core/onboarding'
 import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
-import { MAX_COLLECTION_DATASHEETS, MAX_COLLECTION_MODELS } from '../core/collection'
+import { MAX_COLLECTION_DATASHEETS, MAX_COLLECTION_MODELS, MAX_COUNTS_AS } from '../core/collection'
 import { PUSH_PLATFORMS } from '../core/notificationConfig'
 import { unitLoadoutNameSchema, unitLoadoutSchema } from '../core/unitLoadouts'
 import { pushTokenSchema } from '../core/notifications'
@@ -402,9 +402,20 @@ export const collectionProgressSchema = z
   .object({ entryId: id, built: collectionCount, painted: collectionCount })
   .refine((input) => input.painted <= input.built, 'Painted models must be built')
 export const collectionWantedSchema = z.object({ entryId: id, wanted: collectionCount })
+const countsAs = z.array(id).max(MAX_COUNTS_AS)
+export const collectionCountsAsSchema = z.object({ entryId: id, countsAs })
 export const collectionImportSchema = z.object({
   rows: z
-    .array(z.object({ entryId: id, models: collectionCount, built: collectionCount, painted: collectionCount, wanted: collectionCount }))
+    .array(
+      z.object({
+        entryId: id,
+        models: collectionCount,
+        built: collectionCount,
+        painted: collectionCount,
+        wanted: collectionCount,
+        countsAs: countsAs.optional(),
+      }),
+    )
     .min(1)
     .max(MAX_COLLECTION_DATASHEETS),
   replace: z.boolean(),

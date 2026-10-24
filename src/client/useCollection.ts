@@ -1,15 +1,23 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { prepareCollectionPhoto } from './features/collection/preparePhoto'
-import type { CollectionProgress } from '../core/collection'
+import { countsAsList, type CollectionProgress } from '../core/collection'
 import {
   removeCollectionPhoto,
   setCollectionModels,
+  setCollectionCountsAs,
   setCollectionProgress,
   setCollectionWanted,
   setOwned,
   uploadCollectionPhoto,
 } from './functions'
-import { collectionCountsQuery, collectionPhotosQuery, collectionProgressQuery, collectionQuery, collectionWishesQuery } from './queries'
+import {
+  collectionCountsQuery,
+  collectionCountsAsQuery,
+  collectionPhotosQuery,
+  collectionProgressQuery,
+  collectionQuery,
+  collectionWishesQuery,
+} from './queries'
 import { collectionProfileKey, datasheetPhotosKey } from './queries/queryKeys'
 import { localEngine } from './offline/localRuntime'
 
@@ -46,6 +54,7 @@ export function useCollectionMutation() {
         queryClient.invalidateQueries({ queryKey }),
         queryClient.invalidateQueries({ queryKey: collectionCountsQuery().queryKey }),
         queryClient.invalidateQueries({ queryKey: collectionProgressQuery().queryKey }),
+        queryClient.invalidateQueries({ queryKey: collectionCountsAsQuery().queryKey }),
       ])
     },
   })
@@ -113,6 +122,16 @@ export const useCollectionProgressMutation = () =>
     collectionProgressQuery().queryKey,
     (data) => setCollectionProgress({ data }),
     ({ built, painted }) => (built ? { built, painted } : undefined),
+  )
+
+export const useCollectionCountsAsMutation = () =>
+  useEntryMutation<string[], { entryId: string; countsAs: string[] }>(
+    collectionCountsAsQuery().queryKey,
+    (data) => setCollectionCountsAs({ data }),
+    ({ entryId, countsAs }) => {
+      const links = countsAsList(entryId, countsAs)
+      return links.length ? links : undefined
+    },
   )
 
 export const useCollectionWantedMutation = () =>

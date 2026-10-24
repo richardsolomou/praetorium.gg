@@ -1107,6 +1107,82 @@ describe('collection counts', () => {
     expect(() => imported(setup, [...rows, ...rows])).toThrow()
   })
 
+  const linked = (setup: ReturnType<typeof harness>, countsAs: string[]) =>
+    setup.call(setup.operator, (ctx) => module.setCollectionCountsAs(ctx, { userId: 'owner', entryId: 'warriors', countsAs }))
+  const links = ({ test }: ReturnType<typeof harness>) => test.db.collection.key.find(key)?.countsAs
+
+  it('saves what the models also count as without repeats or the datasheet itself', () => {
+    const setup = owned(2, 0, 0)
+    linked(setup, ['immortals', 'warriors', 'deathmarks', 'immortals'])
+    expect(links(setup)).toEqual(['deathmarks', 'immortals'])
+  })
+
+  it('clears links set to none', () => {
+    const setup = owned(2, 0, 0)
+    linked(setup, ['immortals'])
+    linked(setup, [])
+    expect(links(setup)).toBeUndefined()
+  })
+
+  it('refuses links for a datasheet that is not in the collection', () => {
+    expect(() => linked(harness(), ['immortals'])).toThrow('Add this datasheet')
+  })
+
+  it('refuses more links than a datasheet holds', () => {
+    expect(() =>
+      linked(
+        owned(2, 0, 0),
+        Array.from({ length: 33 }, (_, index) => `sheet-${index}`),
+      ),
+    ).toThrow()
+  })
+
+  it('keeps links when the count changes', () => {
+    const setup = owned(2, 0, 0)
+    linked(setup, ['immortals'])
+    setup.call(setup.operator, (ctx) =>
+      module.setCollectionModels(ctx, { userId: 'owner', entryId: 'warriors', models: 3, at: BigInt(NOW) }),
+    )
+    expect(links(setup)).toEqual(['immortals'])
+  })
+
+  it('imports links with a new datasheet', () => {
+    const setup = harness()
+    imported(setup, [{ entryId: 'warriors', models: 2, built: 0, painted: 0, wanted: 0, countsAs: ['immortals'] }])
+    expect(links(setup)).toEqual(['immortals'])
+  })
+
+  it('adds imported links to a datasheet without any', () => {
+    const setup = owned(2, 0, 0)
+    expect([
+      imported(setup, [{ entryId: 'warriors', models: 2, built: 0, painted: 0, wanted: 0, countsAs: ['immortals'] }]),
+      links(setup),
+    ]).toEqual([{ added: 1, replaced: 0, kept: 0 }, ['immortals']])
+  })
+
+  it('keeps saved links an import differs from', () => {
+    const setup = owned(2, 0, 0)
+    linked(setup, ['deathmarks'])
+    expect([
+      imported(setup, [{ entryId: 'warriors', models: 2, built: 0, painted: 0, wanted: 0, countsAs: ['immortals'] }]),
+      links(setup),
+    ]).toEqual([{ added: 0, replaced: 0, kept: 1 }, ['deathmarks']])
+  })
+
+  it('replaces saved links when asked', () => {
+    const setup = owned(2, 0, 0)
+    linked(setup, ['deathmarks'])
+    imported(setup, [{ entryId: 'warriors', models: 2, built: 0, painted: 0, wanted: 0, countsAs: ['immortals'] }], true)
+    expect(links(setup)).toEqual(['immortals'])
+  })
+
+  it('keeps saved links when an import lists none', () => {
+    const setup = owned(2, 0, 0)
+    linked(setup, ['deathmarks'])
+    imported(setup, [{ entryId: 'warriors', models: 4, built: 0, painted: 0, wanted: 0 }], true)
+    expect(links(setup)).toEqual(['deathmarks'])
+  })
+
   it('deletes wishes with the account', () => {
     const { test, call, operator } = harness()
     call(operator, (ctx) => module.setCollectionWanted(ctx, { userId: 'owner', entryId: 'warriors', wanted: 5, at: BigInt(NOW) }))

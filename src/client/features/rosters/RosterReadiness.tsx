@@ -3,8 +3,15 @@ import { Link } from '@tanstack/react-router'
 import { ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { collectionDatasheets } from '../../../core/collection'
 import { rosterReadiness, type RosterReadiness as Readiness } from '../../../core/collectionReadiness'
-import { collectionCountsQuery, collectionProgressQuery, collectionWishesQuery } from '../../queries'
+import {
+  collectionCountsQuery,
+  collectionCountsAsQuery,
+  collectionProgressQuery,
+  collectionWishesQuery,
+  combatUnitsQuery,
+} from '../../queries'
 import { useCollectionWantedMutation } from '../../useCollection'
 import { useHydrated } from '../../useClientValue'
 import { countLabel } from '../../text'
@@ -14,10 +21,14 @@ export function RosterReadiness({ units }: { units: readonly { entryId: string; 
   const counts = useQuery(collectionCountsQuery())
   const progress = useQuery(collectionProgressQuery())
   const wishes = useQuery(collectionWishesQuery())
+  const countsAs = useQuery(collectionCountsAsQuery())
+  const linked = Object.keys(countsAs.data ?? {}).length > 0
+  // Only borrowed models need names from outside the roster.
+  const sheets = useQuery({ ...combatUnitsQuery(), enabled: linked, select: collectionDatasheets })
   // A launch from saved state has these before the server's page does, so the section waits for hydration.
   const hydrated = useHydrated()
-  if (!hydrated || !counts.data || !progress.data || !wishes.data) return null
-  const readiness = rosterReadiness(units, { counts: counts.data, progress: progress.data, wishes: wishes.data })
+  if (!hydrated || !counts.data || !progress.data || !wishes.data || !countsAs.data) return null
+  const readiness = rosterReadiness(units, { counts: counts.data, progress: progress.data, wishes: wishes.data, countsAs: countsAs.data })
   const empty = !Object.keys(counts.data).length
   return (
     <Collapsible render={<section aria-label="Your collection" data-roster-readiness />} className="border-t border-edge pt-1.5">
@@ -37,15 +48,15 @@ export function RosterReadiness({ units }: { units: readonly { entryId: string; 
       <CollapsibleContent>
         <div className="space-y-2 pb-3">
           <p className="text-xs text-dim">
-            Each datasheet’s models are counted once, so units of the same datasheet share them. Equipment is not counted. This never
-            changes points or legality.{' '}
+            Each model is counted once: units of the same datasheet share them, and so do the datasheets your models also count as.
+            Equipment is not counted. This never changes points or legality.{' '}
             <Link to="/collection" className="text-info underline">
               Count your models
             </Link>
           </p>
           <ul className="divide-y divide-edge border border-edge">
             {readiness.datasheets.map((row) => (
-              <ReadinessRow key={row.entryId} row={row} />
+              <ReadinessRow key={row.entryId} row={row} nameOf={(entryId) => sheets.data?.get(entryId)?.name} />
             ))}
           </ul>
         </div>
@@ -61,7 +72,7 @@ function summary(readiness: Readiness) {
   return 'Ready to field'
 }
 
-function ReadinessRow({ row }: { row: Readiness['datasheets'][number] }) {
+function ReadinessRow({ row, nameOf }: { row: Readiness['datasheets'][number]; nameOf: (entryId: string) => string | undefined }) {
   const wanted = useCollectionWantedMutation()
   const remaining = [
     row.short ? `${row.short} short` : null,
@@ -77,6 +88,11 @@ function ReadinessRow({ row }: { row: Readiness['datasheets'][number] }) {
       <span className="readout text-xs text-dim">
         {row.needed} needed · {row.owned} owned · {row.built} built · {row.painted} painted
       </span>
+      {row.from.length ? (
+        <span data-readiness-from className="w-full text-xs text-dim">
+          {row.from.map(({ entryId, models }) => `${models} from your ${nameOf(entryId) ?? 'other datasheets'}`).join(' · ')}
+        </span>
+      ) : null}
       <span className={`w-full text-xs ${remaining.length ? 'text-discarded' : 'text-achieved'}`}>
         {remaining.length ? remaining.join(' · ') : 'Ready'}
         {row.wanted ? <span className="text-dim"> · {row.wanted} on your wishlist</span> : null}

@@ -11,6 +11,7 @@ import {
   collectionCounts,
   collectionProgress,
   collectionWishes,
+  collectionCountsAs,
   collectionPhotos,
   datasheetPhotos,
   fieldedDatasheets,
@@ -43,6 +44,7 @@ import {
   collectionKey,
   collectionProgressKey,
   collectionWishesKey,
+  collectionCountsAsKey,
   datasheetPhotosKey,
   factionDatasheetsKey,
   fieldedDatasheetsKey,
@@ -90,6 +92,8 @@ export const collectionCountsQuery = () =>
 /** Only datasheets with built models appear; the rest have none built or painted. */
 export const collectionProgressQuery = () =>
   queryOptions({ queryKey: collectionProgressKey(), queryFn: () => collectionProgress(), staleTime: SSR_STALE_TIME })
+export const collectionCountsAsQuery = () =>
+  queryOptions({ queryKey: collectionCountsAsKey(), queryFn: () => collectionCountsAs(), staleTime: SSR_STALE_TIME })
 export const collectionWishesQuery = () =>
   queryOptions({ queryKey: collectionWishesKey(), queryFn: () => collectionWishes(), staleTime: SSR_STALE_TIME })
 /** Never saved for offline reading: a photo whose owner stops sharing must leave the page on the next read. */

@@ -291,6 +291,15 @@ export class RosterService {
     await this.repository.setCollectionProgress({ userId, entryId, ...progress })
   }
 
+  async collectionCountsAs(userId: string): Promise<Record<string, string[]>> {
+    const rows = await this.repository.collectionByUser(userId)
+    return Object.fromEntries(rows.flatMap((row) => (row.countsAs.length ? [[row.entryId, row.countsAs]] : [])))
+  }
+
+  async setCollectionCountsAs(userId: string, entryId: string, countsAs: string[]) {
+    await this.repository.setCollectionCountsAs({ userId, entryId, countsAs })
+  }
+
   async collectionWishes(userId: string): Promise<Record<string, number>> {
     const rows = await this.repository.collectionWishesByUser(userId)
     return Object.fromEntries(rows.map((row) => [row.entryId, row.wanted]))

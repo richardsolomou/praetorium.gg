@@ -59,6 +59,7 @@ const collectionRow = z.object({
   models: z.number().int(),
   built: z.number().int().default(0),
   painted: z.number().int().default(0),
+  countsAs: z.array(z.string()).default([]),
   photoIds: z.array(z.uuid()).optional(),
 })
 const recentMatchupRow = recentMatchupSchema.extend({ at: z.number().int() })
@@ -639,6 +640,10 @@ export class SpacetimeOperator {
 
   async setCollectionProgress(input: { userId: string; entryId: string; built: number; painted: number }) {
     await this.call('set_collection_progress', [input.userId, input.entryId, input.built, input.painted])
+  }
+
+  async setCollectionCountsAs(input: { userId: string; entryId: string; countsAs: string[] }) {
+    await this.call('set_collection_counts_as', [input.userId, input.entryId, input.countsAs])
   }
 
   async collectionWishesByUser(userId: string) {

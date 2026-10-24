@@ -1,4 +1,4 @@
-import { boundedProgress, type CollectionProgress } from '../../core/collection'
+import { boundedProgress, countsAsList, type CollectionProgress } from '../../core/collection'
 import { leagueWarlordRefusal, leagueWarlords } from '../../core/league'
 import { attemptLocalSync } from './localRuntime'
 import { rosterSnapshot } from '../../core/rosterSnapshot'
@@ -19,6 +19,7 @@ import {
   collectionKey,
   collectionProgressKey,
   collectionWishesKey,
+  collectionCountsAsKey,
   favouriteDatasheetsKey,
   favouriteDetachmentsKey,
   favouriteFactionsKey,
@@ -59,6 +60,7 @@ export const collection = () => accountRead(collectionKey(), () => server.collec
 export const collectionCounts = () => accountRead(collectionCountsKey(), () => server.collectionCounts())
 export const collectionProgress = () => accountRead(collectionProgressKey(), () => server.collectionProgress())
 export const collectionWishes = () => accountRead(collectionWishesKey(), () => server.collectionWishes())
+export const collectionCountsAs = () => accountRead(collectionCountsAsKey(), () => server.collectionCountsAs())
 export const fieldedDatasheets = () => cachedRead(fieldedDatasheetsKey(), () => server.fieldedDatasheets())
 export const wishlistSuggestions = () => cachedRead(wishlistSuggestionsKey(), () => server.wishlistSuggestions())
 export const favouriteFactions = () => accountRead(favouriteFactionsKey(), () => server.favouriteFactions())
@@ -170,6 +172,7 @@ export async function setOwned(args: Parameters<typeof server.setOwned>[0]): Ret
       : {
           [queryResource(collectionCountsKey())]: (current) => withoutEntry(current, input.entryId),
           [queryResource(collectionProgressKey())]: (current) => withoutEntry(current, input.entryId),
+          [queryResource(collectionCountsAsKey())]: (current) => withoutEntry(current, input.entryId),
         },
   )
   return undefined
@@ -215,6 +218,18 @@ export async function setCollectionProgress(
   const { entryId, built, painted } = args.data
   await defer('setCollectionProgress', args.data, queryResource(collectionProgressKey()), undefined, {}, undefined, (current) =>
     built ? { ...(current ?? progress), [entryId]: { built, painted } } : withoutEntry(current ?? progress, entryId),
+  )
+}
+export async function setCollectionCountsAs(
+  args: Parameters<typeof server.setCollectionCountsAs>[0],
+): ReturnType<typeof server.setCollectionCountsAs> {
+  const defer = deferredForAccount(false)
+  if (!localEngine()) return server.setCollectionCountsAs(args)
+  const saved = (await localDocument<Record<string, string[]>>(queryResource(collectionCountsAsKey()))) ?? (await collectionCountsAs())
+  const { entryId } = args.data
+  const countsAs = countsAsList(entryId, args.data.countsAs)
+  await defer('setCollectionCountsAs', args.data, queryResource(collectionCountsAsKey()), undefined, {}, undefined, (current) =>
+    countsAs.length ? { ...(current ?? saved), [entryId]: countsAs } : withoutEntry(current ?? saved, entryId),
   )
 }
 export async function setCollectionWanted(

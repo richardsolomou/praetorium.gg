@@ -28,6 +28,11 @@ async function addDatasheet(page: Page, name: string, faction: string) {
   await expect(page.locator(`[data-unit="${name}"]`)).toBeVisible()
 }
 
+async function removeFromCollection(page: Page, name: string) {
+  await page.getByRole('button', { name: `Actions for ${name}`, exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Remove', exact: true }).click()
+}
+
 const PIXEL = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64')
 
 const png = (name: string) => ({ name, mimeType: 'image/png', buffer: PIXEL })
@@ -130,11 +135,11 @@ test('totals models across datasheets and drops a removed datasheet', async ({ p
   await expect(owned(page, 'Intercessor Squad')).toHaveValue('1')
   await expect(page.locator('[data-tally="models"]')).toHaveText('3models')
   const removal = page.getByRole('alertdialog')
-  await page.getByRole('button', { name: 'Remove Intercessor Squad from your collection', exact: true }).click()
+  await removeFromCollection(page, 'Intercessor Squad')
   await expect(removal).toContainText('Your count of 1 model will be lost.')
   await removal.getByRole('button', { name: 'Keep', exact: true }).click()
   await expect(owned(page, 'Intercessor Squad')).toHaveValue('1')
-  await page.getByRole('button', { name: 'Remove Intercessor Squad from your collection', exact: true }).click()
+  await removeFromCollection(page, 'Intercessor Squad')
   await removal.getByRole('button', { name: 'Remove', exact: true }).click()
   await expect(page.locator('[data-unit="Intercessor Squad"]')).toHaveCount(0)
   await expect(page.locator('[data-tally="models"]')).toHaveText('2models')
@@ -710,6 +715,50 @@ test('a saved roster shows shortages its units share and adds them to the wishli
   await expect(page.getByRole('spinbutton', { name: 'Necron Warriors models wanted', exact: true })).toHaveValue('5')
 })
 
+test('models that also count as another datasheet fill it in a roster and show as owned in the picker', async ({ page }) => {
+  await signUp(page, uniqueName('Counts as'))
+  await page.goto('/collection')
+  await addDatasheet(page, 'Necron Warriors', 'Necrons')
+  await setOwned(page, 'Necron Warriors', '20')
+  const card = page.locator('[data-unit="Necron Warriors"]')
+  await expect(card.locator('[data-counts-as]')).toHaveCount(0)
+  await card.getByRole('button', { name: 'Actions for Necron Warriors', exact: true }).click()
+  await page.screenshot({ path: test.info().outputPath('counts-as-menu.png') })
+  await page.getByRole('menuitem', { name: 'Counts as…', exact: true }).click()
+  const dialog = page.getByRole('dialog', { name: 'What else can these Necron Warriors models count as?' })
+  await dialog.getByLabel('Search this army’s datasheets').fill('immortals')
+  await dialog.getByRole('checkbox', { name: 'Immortals', exact: true }).check()
+  await page.screenshot({ path: test.info().outputPath('counts-as-dialog.png') })
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(dialog).toBeHidden()
+  await expect(card.locator('[data-counts-as]')).toContainText('Also counts as Immortals')
+  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await page.reload()
+  await expect(card.locator('[data-counts-as]')).toContainText('Also counts as Immortals')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expectNoHorizontalOverflow(page.locator('main'))
+  await card.screenshot({ path: test.info().outputPath('counts-as-card-phone.png') })
+  await page.setViewportSize({ width: 1440, height: 900 })
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Export CSV', exact: true }).click(),
+  ])
+  const exported = await download.path().then((path) => import('node:fs/promises').then((fs) => fs.readFile(path, 'utf8')))
+  expect(exported).toMatch(/Necrons,Necron Warriors,[^,]+,20,0,0,0,[^,\r\n]+/)
+
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Counts as' })
+  await page.getByRole('button', { name: 'Owned', exact: true }).click()
+  await page.getByLabel('Add a unit').fill('Immortals')
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
+  const panel = page.locator('[data-roster-readiness]')
+  await expect(panel.locator('[data-readiness-summary]')).not.toContainText('short')
+  await panel.getByRole('button', { name: 'Toggle Your collection', exact: true }).click()
+  await expect(panel.locator('[data-readiness-unit="Immortals"] [data-readiness-from]')).toHaveText(/^\d+ from your Necron Warriors$/)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expectNoHorizontalOverflow(page.locator('main'))
+  await page.screenshot({ path: test.info().outputPath('counts-as-readiness-phone.png'), fullPage: true })
+})
+
 test('the wishlist suggests unowned datasheets other players field that none of the player’s rosters use', async ({ page, browser }) => {
   const publisher = await browser.newPage()
   await savedArmy(publisher, 'Wishlist publisher', { name: 'Published', visibility: 'public' })
@@ -734,7 +783,7 @@ test('the wishlist suggests unowned datasheets other players field that none of 
   await expect(suggestion).toBeHidden()
   await expectNoHorizontalOverflow(page.locator('main'))
   await page.screenshot({ path: test.info().outputPath('owned-wishlist-phone.png'), fullPage: true })
-  await page.getByRole('button', { name: 'Remove Immortals from your collection', exact: true }).click()
+  await removeFromCollection(page, 'Immortals')
   await page.getByRole('alertdialog').getByRole('button', { name: 'Remove', exact: true }).click()
   await expect(suggestion).toBeVisible()
   await suggestion.getByRole('button', { name: 'Add Immortals to your wishlist', exact: true }).click()

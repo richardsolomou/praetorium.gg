@@ -30,6 +30,7 @@ import ReplaceFriendInviteReducer from '../replace_friend_invite_reducer'
 import ReportCollectionPhotoReducer from '../report_collection_photo_reducer'
 import RevokeOwnAccessReducer from '../revoke_own_access_reducer'
 import RevokeSessionReducer from '../revoke_session_reducer'
+import SetCollectionCountsAsReducer from '../set_collection_counts_as_reducer'
 import SetCollectionModelsReducer from '../set_collection_models_reducer'
 import SetCollectionPhotoReducer from '../set_collection_photo_reducer'
 import SetCollectionPhotoLikeReducer from '../set_collection_photo_like_reducer'
@@ -63,6 +64,7 @@ export type ReplaceFriendInviteParams = __Infer<typeof ReplaceFriendInviteReduce
 export type ReportCollectionPhotoParams = __Infer<typeof ReportCollectionPhotoReducer>
 export type RevokeOwnAccessParams = __Infer<typeof RevokeOwnAccessReducer>
 export type RevokeSessionParams = __Infer<typeof RevokeSessionReducer>
+export type SetCollectionCountsAsParams = __Infer<typeof SetCollectionCountsAsReducer>
 export type SetCollectionModelsParams = __Infer<typeof SetCollectionModelsReducer>
 export type SetCollectionPhotoParams = __Infer<typeof SetCollectionPhotoReducer>
 export type SetCollectionPhotoLikeParams = __Infer<typeof SetCollectionPhotoLikeReducer>

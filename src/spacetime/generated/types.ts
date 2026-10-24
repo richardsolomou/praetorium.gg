@@ -55,6 +55,7 @@ export const Collection = __t.object('Collection', {
   models: __t.option(__t.u32()),
   built: __t.option(__t.u32()),
   painted: __t.option(__t.u32()),
+  countsAs: __t.option(__t.array(__t.string())),
 })
 export type Collection = __Infer<typeof Collection>
 

@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { Plus, Star, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { MAX_COLLECTION_MODELS } from '../../../core/collection'
+import { usableDatasheets, MAX_COLLECTION_MODELS } from '../../../core/collection'
 import { type FactionPresentation } from '../../components/FactionMark'
 import { ModelCounter } from '../../components/ModelCounter'
 import { UnitPicker } from '../../components/UnitPicker'
-import { collectionQuery, collectionWishesQuery, combatUnitsQuery, wishlistSuggestionsQuery } from '../../queries'
+import { collectionCountsAsQuery, collectionQuery, collectionWishesQuery, combatUnitsQuery, wishlistSuggestionsQuery } from '../../queries'
 import { useCollectionWantedMutation } from '../../useCollection'
 import { countLabel } from '../../text'
 import { CollectionCard, CollectionCardGrid } from './CollectionCard'
@@ -18,6 +18,7 @@ type Datasheet = { id: string; slug: string; name: string; catalogueId: string; 
 export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<string, Datasheet> }) {
   const collection = useQuery(collectionQuery())
   const wishes = useQuery(collectionWishesQuery())
+  const countsAs = useQuery(collectionCountsAsQuery())
   const units = useQuery(combatUnitsQuery())
   const suggested = useQuery(wishlistSuggestionsQuery())
   const mutation = useCollectionWantedMutation()
@@ -26,7 +27,7 @@ export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<str
     .toSorted((a, b) => (a.sheet?.name ?? '').localeCompare(b.sheet?.name ?? ''))
   const total = wanted.reduce((sum, wish) => sum + wish.count, 0)
   const set = (entryId: string, count: number) => mutation.mutateAsync({ entryId, wanted: count })
-  const owned = new Set(collection.data ?? [])
+  const owned = usableDatasheets(collection.data ?? [], countsAs.data ?? {})
   const suggestions = (suggested.data ?? [])
     .flatMap((suggestion) => {
       const sheet = datasheets.get(suggestion.entryId)

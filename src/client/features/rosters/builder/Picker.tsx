@@ -23,7 +23,8 @@ import { SearchField } from '../../../components/SearchField'
 import { DatasheetMatchReasons } from '../../../components/DatasheetMatchReasons'
 import { useFavouriteDatasheets } from '../../../favouriteDatasheets'
 import { searchDatasheetEntries } from '../../../../core/datasheetSearch'
-import { collectionQuery, meQuery, unitsQuery } from '../../../queries'
+import { collectionCountsAsQuery, collectionQuery, meQuery, unitsQuery } from '../../../queries'
+import { usableDatasheets } from '../../../../core/collection'
 import { shortName } from './factions'
 import { GROUPS } from '../../../unitGroups'
 import { Section } from './Section'
@@ -112,8 +113,10 @@ export const Picker = memo(function Picker({
   const { data: me } = useQuery(meQuery())
   const signedIn = Boolean(me)
   const collectionResult = useQuery({ ...collectionQuery(), enabled: enabled && signedIn })
+  const countsAsResult = useQuery({ ...collectionCountsAsQuery(), enabled: enabled && signedIn })
   const found = useMemo(() => searchDatasheetEntries(unitsResult.data ?? [], query, (unit) => unit.search), [unitsResult.data, query])
   const owned = collectionResult.data
+  const countsAs = countsAsResult.data
   const { favourites, loading: favouritesLoading, toggleFavourite, pending: favouriting } = useFavouriteDatasheets(enabled && signedIn)
 
   const { loadouts: savedLoadouts, rename, remove } = useUnitLoadouts(enabled && signedIn)
@@ -138,7 +141,7 @@ export const Picker = memo(function Picker({
     }))
   }, [applicable, priceable, loadoutPrices.data, loadoutPrices.isError])
 
-  const collection = useMemo(() => new Set(owned ?? []), [owned])
+  const collection = useMemo(() => usableDatasheets(owned ?? [], countsAs ?? {}), [owned, countsAs])
   const rows = useMemo(
     () =>
       pickerRows({

@@ -29,6 +29,7 @@ import {
   collectionImportSchema,
   collectionProgressSchema,
   collectionWantedSchema,
+  collectionCountsAsSchema,
   favouriteDatasheetSchema,
   userSchema,
   setOwnPasswordSchema,
@@ -291,6 +292,23 @@ export const setCollectionProgress = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       return productActions.setCollectionProgress(player.id, data)
+    }),
+  )
+
+export const collectionCountsAs = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    const countsAs: Record<string, string[]> = id ? await app().service.rosterService.collectionCountsAs(id) : {}
+    return countsAs
+  }),
+)
+
+export const setCollectionCountsAs = createServerFn({ method: 'POST' })
+  .validator(collectionCountsAsSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      return productActions.setCollectionCountsAs(player.id, data)
     }),
   )
 
