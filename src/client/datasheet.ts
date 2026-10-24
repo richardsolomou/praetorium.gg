@@ -124,6 +124,10 @@ export function referenceAbilities<T extends Ability>(abilities: readonly T[], a
   return abilities.filter((ability) => !roles.has(attachmentRole(ability)) || !['datasheet', 'rule'].includes(ability.kind))
 }
 
+/** The printed transport rule, unless a TRANSPORT ability already shows it among the abilities. */
+export const separateTransport = ({ transport, abilities }: { transport: string | null; abilities: readonly Pick<Ability, 'name'>[] }) =>
+  abilities.some((ability) => ability.name.toUpperCase() === 'TRANSPORT') ? null : transport
+
 type AttachmentSheet = Pick<Datasheet, 'attachments' | 'leaders' | 'supporters'>
 
 export function attachmentGroups(sheet: AttachmentSheet) {

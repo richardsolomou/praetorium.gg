@@ -9,7 +9,7 @@ import { datasheetQuery } from '../../../queries'
 import { useSettled } from '../../../useSettled'
 import { UnitProfile, WeaponSummary } from '../../../components/DatasheetProfiles'
 import { Keyword, KEYWORD_TAG_CLASS, UnitKeywords } from '../../../components/Keyword'
-import { abilitySections, attachmentGroups, primaryUnitProfile, referenceAbilities } from '../../../datasheet'
+import { abilitySections, attachmentGroups, primaryUnitProfile, referenceAbilities, separateTransport } from '../../../datasheet'
 import { RuleText } from '../../../components/RuleText'
 import { ProfileRules } from '../ProfileRules'
 import { ReminderButton, type ReminderControls } from '../ReminderButton'
@@ -91,6 +91,7 @@ export function DatasheetPanel({
   const structured = datasheetProfilesByKind(sheet)
   const ranged = structured.ranged
   const melee = structured.melee
+  const transport = separateTransport(sheet)
   const content = (
     <div data-slot="datasheet-content" className="w-full min-w-0 space-y-4">
       {!hideSummary && model ? <UnitProfile profile={model} /> : null}
@@ -107,6 +108,14 @@ export function DatasheetPanel({
         detachmentRules={detachmentRules}
       />
       <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} compact />
+      {transport ? (
+        <section>
+          <h2 className="rubric">Transport</h2>
+          <div className="mt-2 border border-edge bg-card px-2 py-1.5">
+            <RuleText text={transport} rules={sheet.keywordRules} />
+          </div>
+        </section>
+      ) : null}
       {sheet.referenceRoute ? (
         <div className="border-t border-edge pt-3">
           <UnitKeywords className="min-w-0" sheet={sheet} />
