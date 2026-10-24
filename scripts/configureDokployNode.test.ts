@@ -104,6 +104,15 @@ it('passes the photo screening key to production only', () => {
   ).toEqual([true, false])
 })
 
+it('passes the support identity secret to production only', () => {
+  expect(
+    [
+      nodeEnvironment({ ...environment, ...apple, POSTHOG_SUPPORT_IDENTITY_SECRET: 'support-secret' }, 'production'),
+      nodeEnvironment({ ...environment, POSTHOG_SUPPORT_IDENTITY_SECRET: 'support-secret' }, 'staging'),
+    ].map((config) => config.includes('POSTHOG_SUPPORT_IDENTITY_SECRET=support-secret')),
+  ).toEqual([true, false])
+})
+
 it('leaves the IndexNow key out of staging, whose pages search engines should not be told about', () => {
   expect(nodeEnvironment({ ...environment, INDEXNOW_KEY: 'index-key' }, 'staging')).not.toContain('INDEXNOW_KEY')
 })

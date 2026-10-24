@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-/** The App feedback survey's choices, in its order. */
+/** What a player says their feedback is, in the order the dialog offers. */
 export const FEEDBACK_KINDS = ['Problem', 'Idea', 'Other'] as const
 export type FeedbackKind = (typeof FEEDBACK_KINDS)[number]
 
@@ -22,14 +22,10 @@ export const feedbackScreenshotPath = (id: string) => `/api/feedback-screenshots
 
 const link = z.url({ protocol: /^https?$/ }).max(2000)
 
-/** What the client knows about a sent feedback response; who sent it comes from the server's session. */
+/** What the client knows about an automatic import report; who sent it comes from the server's session. */
 export const feedbackEmailSchema = z.object({
-  kind: z.enum(FEEDBACK_KINDS),
   message: z.string().trim().min(1).max(IMPORT_REPORT_MAX_LENGTH),
-  automatic: z.boolean(),
-  replyEmail: z.email().max(254).optional(),
   pageUrl: link,
-  screenshotId: z.string().regex(FEEDBACK_SCREENSHOT_ID).optional(),
   sessionId: z
     .string()
     .regex(/^[0-9A-Za-z-]{1,64}$/)

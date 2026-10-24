@@ -1,32 +1,43 @@
 import { SurveyEventName, SurveyEventProperties } from 'posthog-js'
-import { IMPORT_REPORT_MAX_LENGTH, type FeedbackKind } from '../../../contracts/feedback'
+import { version } from '../../../../package.json'
+import { FEEDBACK_KINDS, IMPORT_REPORT_MAX_LENGTH, type FeedbackKind } from '../../../contracts/feedback'
 
-/** The launched API survey “App feedback” in PostHog; question ids key its stored responses. */
+/** The launched API survey “App feedback” in PostHog, which keeps automatic import reports; question ids key its stored responses. */
 export const FEEDBACK_SURVEY = {
   id: '01a14042-306c-0000-f070-c4fc0aadccf2',
   name: 'App feedback',
   questions: {
     kind: { id: '38c2962f-d6ad-4daf-95b9-1a7b540d24ed', question: 'What kind of feedback?' },
     message: { id: '1e9261de-1a9e-4465-b2a6-cc43acd873f4', question: 'Message' },
-    email: { id: '70a4cb45-54cf-44c4-aabf-bbdb555b9caf', question: 'Email for a reply' },
-    screenshot: { id: 'c743390b-5aff-42e4-976a-d2d28d0ea1ee', question: 'Screenshot' },
   },
 } as const
 
 export const FEEDBACK_MESSAGE_MAX_LENGTH = 2000
 
-export function feedbackSurveyEvent({
-  kind,
-  message,
-  email,
-  screenshotUrl,
-}: {
-  kind: FeedbackKind
-  message: string
-  email?: string
-  screenshotUrl?: string
-}) {
-  const answers = { kind, message: message.trim(), email: email?.trim() || undefined, screenshot: screenshotUrl }
+/** The opening message of a feedback conversation; Support records the page and replay itself. */
+export function feedbackTicketMessage({ kind, message, screenshotUrl }: { kind: FeedbackKind; message: string; screenshotUrl?: string }) {
+  return [message.trim(), '', `${kind} · Praetorium ${version}`, ...(screenshotUrl ? [`Screenshot: ${screenshotUrl}`] : [])].join('\n')
+}
+
+const DETAILS = new RegExp(`\\n\\n(${FEEDBACK_KINDS.join('|')}) · Praetorium (\\S+)(\\nScreenshot: \\S+)?$`)
+
+/** What the player wrote in an opening message, apart from the details `feedbackTicketMessage` appended. */
+export function readTicketMessage(content: string): { body: string; kind?: FeedbackKind; version?: string; screenshot: boolean } {
+  const details = DETAILS.exec(content)
+  if (!details) return { body: content, screenshot: false }
+  return { body: content.slice(0, details.index), kind: details[1] as FeedbackKind, version: details[2], screenshot: Boolean(details[3]) }
+}
+
+const SUBJECT_LENGTH = 72
+
+/** The first line of what the player wrote, which names a conversation the way a subject line would. */
+export function ticketSubject(content: string) {
+  const line = readTicketMessage(content).body.trim().split('\n')[0]!.trim()
+  return line.length > SUBJECT_LENGTH ? `${line.slice(0, SUBJECT_LENGTH - 1).trimEnd()}…` : line
+}
+
+export function feedbackSurveyEvent({ kind, message }: { kind: FeedbackKind; message: string }) {
+  const answers = { kind, message: message.trim() }
   const questions = Object.entries(FEEDBACK_SURVEY.questions) as [keyof typeof answers, { id: string; question: string }][]
   return {
     event: SurveyEventName.SENT,
@@ -35,11 +46,7 @@ export function feedbackSurveyEvent({
       [SurveyEventProperties.SURVEY_NAME]: FEEDBACK_SURVEY.name,
       [SurveyEventProperties.SURVEY_COMPLETED]: true,
       [SurveyEventProperties.SURVEY_QUESTIONS]: questions.map(([key, { id, question }]) => ({ id, question, response: answers[key] })),
-      ...Object.fromEntries(
-        questions.flatMap(([key, { id }]) =>
-          answers[key] === undefined ? [] : [[`${SurveyEventProperties.SURVEY_RESPONSE}_${id}`, answers[key]]],
-        ),
-      ),
+      ...Object.fromEntries(questions.map(([key, { id }]) => [`${SurveyEventProperties.SURVEY_RESPONSE}_${id}`, answers[key]])),
     },
   }
 }

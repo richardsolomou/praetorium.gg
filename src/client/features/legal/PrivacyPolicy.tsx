@@ -2,7 +2,7 @@ import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage eyebrow="Legal" title="Privacy policy" updated="23 October 2026">
+    <LegalPage eyebrow="Legal" title="Privacy policy" updated="24 October 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
@@ -56,9 +56,10 @@ export function PrivacyPolicy() {
           we can see who ran into a problem and reach them about it.
         </p>
         <p>
-          Feedback you send is stored in PostHog with its message, any email address you add for a reply, and the page and replay of the
-          visit you sent it from. A screenshot you attach is stored privately and only administrators can open it. When a list fails to
-          import, its text is sent to us in an automatic report so we can fix the importer.
+          Feedback you send, and our replies to it, are stored in PostHog with any email address you add, and the page and replay of the
+          visit you sent it from. The conversation belongs to the browser you sent it from or, when you are signed in, to your account. A
+          screenshot you attach is stored privately and only administrators can open it. When a list fails to import, its text is sent to us
+          in an automatic report so we can fix the importer.
         </p>
       </LegalSection>
 

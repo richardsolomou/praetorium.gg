@@ -22,7 +22,7 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -31,12 +31,11 @@ import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { MenuSection } from '../../components/MenuSection'
 import { attachmentHost } from '../../../core/attach'
 import { attachedUnitCount } from '../../../core/attachedUnits'
 import type { FormatRuleId, Roster, Secondary, Stratagem } from '../../../core/battle'
@@ -199,16 +198,6 @@ export type FrozenRoster = {
   units: NonNullable<Roster['built']>['units']
   points: number
   detachments: readonly { id?: string; name: string; points?: number | null }[]
-}
-
-/** A titled group of roster actions, so a long menu reads by what each part is for. */
-function MenuSection({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <DropdownMenuGroup>
-      <DropdownMenuLabel className="eyebrow text-faint">{label}</DropdownMenuLabel>
-      {children}
-    </DropdownMenuGroup>
-  )
 }
 
 const READ_ONLY_PREFERENCE = 'praetorium.roster-read-only'

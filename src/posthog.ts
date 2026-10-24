@@ -26,6 +26,7 @@ const FEATURES = {
   admin: 'admin',
   'data-updates': 'data-updates',
   support: 'support',
+  feedback: 'support',
   privacy: 'legal',
   terms: 'legal',
   sources: 'legal',
