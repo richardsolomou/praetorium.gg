@@ -9,6 +9,18 @@ import { joinKey } from '../core/text'
 import { DATACARDS_ATTRIBUTION } from './datacards'
 import { factionContentOf } from './factionNames'
 
+/** The names, as route slugs, of the unit upgrades a faction's detachments offer. */
+export function detachmentUpgradeNames(loaded: LoadedCatalogue, catalogueId: string, loadedRules: LoadedRules | null | undefined) {
+  const faction = loaded.index.catalogues.get(catalogueId)
+  const factionSlug = faction ? rulesFaction(loadedRules, routeSlug(faction.name)) : null
+  const detachments = factionSlug ? [...(loadedRules?.detachmentDetails.get(factionSlug)?.values() ?? [])] : []
+  return new Set(detachments.flatMap((detachment) => detachment.upgrades.map((upgrade) => routeSlug(upgrade.name))))
+}
+
+/** A datasheet shows wargear named after a detachment upgrade as that upgrade. */
+export const describedAbilityKind = <Kind extends string>(ability: { kind: Kind; name: string }, upgradeNames: ReadonlySet<string>) =>
+  ability.kind === 'wargear' && upgradeNames.has(routeSlug(ability.name)) ? ('upgrade' as const) : ability.kind
+
 export function describeDatasheetAbilities(
   loaded: LoadedCatalogue,
   catalogueId: string,
@@ -35,7 +47,7 @@ export function describeDatasheetAbilitiesWithContributions(
   const factionAbilityNames = factionContent
     ? new Set([...factionContent.armyRules.map((rule) => routeSlug(rule.name)), ...[...factionContent.factionAbilityNames].map(routeSlug)])
     : null
-  const upgradeNames = new Set(detachmentDetails.flatMap((detachment) => detachment.upgrades.map((upgrade) => routeSlug(upgrade.name))))
+  const upgradeNames = detachmentUpgradeNames(loaded, catalogueId, loadedRules)
   const referenceAbilities = options.reference ? detachmentAbilitiesIn(loaded, catalogueId, sheet.id) : null
   const sourceAbilities = referenceAbilities?.abilities ?? sheet.abilities
   const visibleAbilities = sourceAbilities.filter(
@@ -49,12 +61,10 @@ export function describeDatasheetAbilitiesWithContributions(
     descriptions?.get(routeSlug(name)) ??
     null
   const supplied = visibleAbilities.some((ability) => !ability.description && armyRule(ability.name))
-  const rulesContributeAbilities = visibleAbilities.some(
-    (ability) => ability.kind === 'wargear' && upgradeNames.has(routeSlug(ability.name)),
-  )
+  const rulesContributeAbilities = visibleAbilities.some((ability) => describedAbilityKind(ability, upgradeNames) === 'upgrade')
   const describeAbility = (ability: (typeof visibleAbilities)[number]) => ({
     ...ability,
-    kind: ability.kind === 'wargear' && upgradeNames.has(routeSlug(ability.name)) ? ('upgrade' as const) : ability.kind,
+    kind: describedAbilityKind(ability, upgradeNames),
     description:
       ability.description ??
       armyRule(ability.name) ??

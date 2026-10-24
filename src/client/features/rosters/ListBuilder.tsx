@@ -46,15 +46,14 @@ import { frozenUnits } from '../../../core/rosterSnapshot'
 import { withoutUnitNotes } from '../../../core/unitNotes'
 import {
   armyReminder,
+  fieldedReminders,
   reminderKey,
   reminderTimingCountsByUnit,
-  remindersAfterUnitInserted,
-  remindersAfterUnitRemoved,
   suggestReminderTimings,
   suggestReminderWhileDestroyed,
   type ReminderSubject,
-  type RosterReminder,
 } from '../../../core/reminders'
+import { useAbilityReminders } from './useAbilityReminders'
 import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
 import { modelCountChoices } from '../../../core/unitSize'
 import type { Datasheet } from '../../../contracts/catalogue'
@@ -68,6 +67,7 @@ import {
   meQuery,
   playerDefaultsQuery,
   priceQuery,
+  reminderAbilitiesQuery,
   rostersLentToMeQuery,
   unitBattleDetailsQuery,
   unitsQuery,
@@ -145,7 +145,7 @@ import { guestDraftOf, peekGuestDraft, writeGuestDraft } from './guestDraft'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
-  prep: { stratagems: Stratagem[]; secondaries: Secondary[]; reminders?: RosterReminder[]; remindersEnabled?: boolean }
+  prep: { stratagems: Stratagem[]; secondaries: Secondary[]; remindersEnabled?: boolean }
   initial: {
     id: string
     name: string
@@ -266,9 +266,10 @@ export function ListBuilder({
   const [borrowedDetachmentId, setBorrowedDetachmentId] = useState<string | null>(initial.borrowedDetachmentId ?? null)
   const [name, setName] = useState(initial.automaticName ? '' : initial.name)
   const [visibility, setVisibility] = useState<RosterVisibility>(initial.visibility)
-  const [reminders, setReminders] = useState<RosterReminder[]>(prep.reminders ?? [])
   const [savedPrep, setSavedPrep] = useState(prep)
   const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(null)
+  const abilityAlerts = useAbilityReminders(Boolean(guest))
+  const resetAbilityAlert = abilityAlerts.reset
   const [combatRoster, setCombatRoster] = useState<CombatRoster | null>(null)
   const [compareTargets, setCompareTargets] = useState(false)
   const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] } | null>(null)
@@ -361,8 +362,8 @@ export function ListBuilder({
   // A name the player typed, which may be nothing at all.
   const listName = name.trim()
   const storedPrep = useMemo(
-    () => ({ stratagems: savedPrep.stratagems, secondaries: savedPrep.secondaries, reminders, remindersEnabled: true }),
-    [savedPrep, reminders],
+    () => ({ stratagems: savedPrep.stratagems, secondaries: savedPrep.secondaries, remindersEnabled: true }),
+    [savedPrep],
   )
   const draft: RosterDraft = {
     id: savedId || undefined,
@@ -432,7 +433,6 @@ export function ListBuilder({
     setName(initial.automaticName ? '' : initial.name)
     setVisibility(initial.visibility)
     setSavedPrep(prep)
-    setReminders(prep.reminders ?? [])
   }, [annotated, currentDraftKey, initial, listName, prep, resetPicks, save.isPending, savedId, settledListName, settledPicks])
   useEffect(() => {
     if (!editable || !catalogueId) return
@@ -561,7 +561,11 @@ export function ListBuilder({
   // unconfirmed draft counts as saving too; otherwise the page reads saved for a render.
   const saving =
     !guest &&
-    (save.isPending || settledPicks !== annotated || settledListName !== listName || (editable && currentDraftKey !== lastApplied.current))
+    (save.isPending ||
+      abilityAlerts.pending ||
+      settledPicks !== annotated ||
+      settledListName !== listName ||
+      (editable && currentDraftKey !== lastApplied.current))
   const variantDisposition = faction?.detachments.flatMap((entry) => entry.dispositions).find((entry) => entry.id === disposition)
 
   const priceRequest = priceQuery(
@@ -782,7 +786,6 @@ export function ListBuilder({
   const drop = useCallback(
     (index: number) => {
       editor.current.drop(index)
-      setReminders((current) => remindersAfterUnitRemoved(current, index))
       reporting.current = { event: 'roster_unit_removed' }
       setSelected(null)
     },
@@ -883,7 +886,6 @@ export function ListBuilder({
   const previewUnit = useCallback((entryId: string, unitName: string) => inspect(catalogueId, entryId, unitName), [catalogueId, inspect])
   const duplicate = useCallback((index: number) => {
     editor.current.duplicate(index)
-    setReminders((current) => remindersAfterUnitInserted(current, index + 1))
     reporting.current = { event: 'roster_unit_duplicated' }
   }, [])
   const [savingLoadout, setSavingLoadout] = useState<{ index: number; whole: boolean } | null>(null)
@@ -935,38 +937,37 @@ export function ListBuilder({
     [setPreview, setSelected, setShowing],
   )
   const editReminder = useCallback(
-    (subject: ReminderSubject, unitName: string) => {
-      if (!armyReminder(subject) && selected === null) return
-      const key = reminderKey(subject, armyReminder(subject) ? null : selected)
-      const existing = reminders.find((reminder) => reminder.key === key)
+    (subject: ReminderSubject) => {
+      const key = reminderKey(subject)
+      const description = loadedWords(subject.description ?? '') ?? ''
+      resetAbilityAlert()
       setReminderDraft(
-        existing ?? {
+        abilityAlerts.settings.find((reminder) => reminder.key === key) ?? {
           key,
           ability: subject.name,
           description: subject.description ?? '',
-          ...(armyReminder(subject) || selected === null ? {} : { unit: { index: selected, name: unitName } }),
-          timings: suggestReminderTimings(loadedWords(subject.description ?? '') ?? ''),
-          ...(!armyReminder(subject) && suggestReminderWhileDestroyed(loadedWords(subject.description ?? '') ?? '')
-            ? { whileDestroyed: true }
-            : {}),
+          timings: suggestReminderTimings(description),
+          ...(!armyReminder(subject) && suggestReminderWhileDestroyed(description) ? { whileDestroyed: true } : {}),
         },
       )
     },
-    [reminders, selected],
+    [abilityAlerts.settings, resetAbilityAlert],
   )
   const reminderControls = useMemo(
     () => ({
-      active: (subject: ReminderSubject) =>
-        reminders.some((reminder) => reminder.key === reminderKey(subject, armyReminder(subject) ? null : selected)),
+      active: (subject: ReminderSubject) => abilityAlerts.settings.some((reminder) => reminder.key === reminderKey(subject)),
       onSelect: editReminder,
-      onRemove: (subject: ReminderSubject) => {
-        const key = reminderKey(subject, armyReminder(subject) ? null : selected)
-        setReminders((current) => current.filter((reminder) => reminder.key !== key))
-      },
     }),
-    [editReminder, reminders, selected],
+    [abilityAlerts.settings, editReminder],
   )
-  const reminderCountsByUnit = useMemo(() => reminderTimingCountsByUnit(reminders), [reminders])
+  const { data: reminderAbilities } = useQuery({
+    ...reminderAbilitiesQuery(catalogueId, detachmentIds, positioned),
+    enabled: editable && abilityAlerts.settings.length > 0 && Boolean(catalogueId && positioned.length),
+  })
+  const reminderCountsByUnit = useMemo(
+    () => reminderTimingCountsByUnit(fieldedReminders(abilityAlerts.settings, { detachmentIds, units }, reminderAbilities ?? [])),
+    [abilityAlerts.settings, detachmentIds, reminderAbilities, units],
+  )
   const { data: attachCandidates } = useQuery({
     ...unitsQuery(catalogueId, limit, waivedRules, detachmentIds),
     enabled: building && workspaceMeasured && Boolean(catalogueId),
@@ -1030,11 +1031,7 @@ export function ListBuilder({
     setBorrowedDetachmentId(setup.borrowedDetachmentId)
     setVisibility(setup.visibility)
     setSavedPrep(review.candidate.prep ?? { stratagems: [], secondaries: [] })
-    setReminders(review.candidate.prep?.reminders ?? [])
-    if (changedFaction) {
-      setReminders([])
-      setSelected(null)
-    }
+    if (changedFaction) setSelected(null)
     setSetupDraft(null)
     await invalidateSavedRosters(queryClient)
   }
@@ -2063,17 +2060,22 @@ export function ListBuilder({
         <ReminderEditorDialog
           key={reminderDraft.key}
           draft={reminderDraft}
+          full={!abilityAlerts.fits(reminderDraft.key)}
+          error={abilityAlerts.error}
           onClose={() => setReminderDraft(null)}
-          onSave={(reminder) => {
-            setReminders((current) => [...current.filter((candidate) => candidate.key !== reminder.key), reminder])
-            setReminderDraft(null)
-          }}
+          onSave={(reminder) =>
+            void abilityAlerts.save(reminder).then(
+              () => setReminderDraft(null),
+              () => {},
+            )
+          }
           onRemove={
-            reminders.some((reminder) => reminder.key === reminderDraft.key)
-              ? () => {
-                  setReminders((current) => current.filter((reminder) => reminder.key !== reminderDraft.key))
-                  setReminderDraft(null)
-                }
+            abilityAlerts.settings.some((reminder) => reminder.key === reminderDraft.key)
+              ? () =>
+                  void abilityAlerts.remove(reminderDraft.key).then(
+                    () => setReminderDraft(null),
+                    () => {},
+                  )
               : undefined
           }
         />

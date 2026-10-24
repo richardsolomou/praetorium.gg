@@ -15,6 +15,10 @@ function action<S extends z.ZodType, R>(schema: S, work: (owner: string, data: z
   return (owner: string, input: unknown) => work(owner, schema.parse(input))
 }
 
+/** A roster as a seal compares it: alerts belong to the player, so a device's older copy of them never conflicts. */
+const sealedContent = (roster: z.infer<typeof saveRosterSchema>) =>
+  JSON.stringify({ ...roster, prep: roster.prep && { ...roster.prep, reminders: undefined } })
+
 export const productActions = {
   setOwned: action(schemas.setOwned, async (owner, data) => {
     const result = await app().service.rosterService.setOwned(owner, data.entryId, data.owned)
@@ -58,6 +62,16 @@ export const productActions = {
   }),
   forgetMatchup: action(schemas.forgetMatchup, async (owner, data) => {
     await app().service.forgetMatchup(owner, data.shared)
+    return null
+  }),
+  setAbilityReminder: action(schemas.setAbilityReminder, async (owner, data) => {
+    await app().service.setAbilityReminder(owner, data)
+    await captureMutation(owner, 'ability_reminder_set', { timings: data.timings.length })
+    return null
+  }),
+  removeAbilityReminder: action(schemas.removeAbilityReminder, async (owner, data) => {
+    await app().service.removeAbilityReminder(owner, data.key)
+    await captureMutation(owner, 'ability_reminder_removed', {})
     return null
   }),
   setPlayerDefaults: action(schemas.setPlayerDefaults, async (owner, data) => {
@@ -154,7 +168,7 @@ export const productActions = {
     const { saved, snapshot } = await rosterForUse(owner, data.rosterId)
     if (
       data.capturedRoster !== undefined &&
-      (JSON.stringify(saveRosterSchema.parse(saved)) !== JSON.stringify(data.capturedRoster) ||
+      (sealedContent(saveRosterSchema.parse(saved)) !== sealedContent(data.capturedRoster) ||
         (await app().catalogueFor(saved.catalogueId))?.index.revision !== data.catalogueRevision)
     )
       throw new Response('This roster or its army data changed after you chose to seal it. Review the saved action before sealing again.', {

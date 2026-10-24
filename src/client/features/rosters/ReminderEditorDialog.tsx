@@ -12,10 +12,13 @@ import {
   type ReminderMoment,
   type ReminderPhase,
   type ReminderTiming,
-  type RosterReminder,
+  ABILITY_REMINDERS_FULL,
+  armyReminderKey,
+  type AbilityReminder,
 } from '../../../core/reminders'
 import { TURN_SCOPES, type TurnScope } from '../../../core/battle'
 import { RuleText } from '../../components/RuleText'
+import { Problem } from '../../components/Problem'
 
 const MOMENTS: { value: ReminderMoment; label: string }[] = [
   { value: 'phase-start', label: 'Start of phase' },
@@ -42,7 +45,7 @@ type TimingDraft = {
   firstRoundOnly?: boolean
 }
 
-export type ReminderDraft = Omit<RosterReminder, 'timings'> & { timings: ReminderTiming[] }
+export type ReminderDraft = AbilityReminder
 
 const blankTiming = (id: string): TimingDraft => ({ id, moment: null, phase: null, turn: null })
 
@@ -61,16 +64,22 @@ const completeTiming = (draft: TimingDraft): ReminderTiming | null => {
 
 export function ReminderEditorDialog({
   draft,
+  full,
+  error,
   onClose,
   onSave,
   onRemove,
 }: {
   draft: ReminderDraft
+  /** The player holds as many alerts as they may and this would be a new one. */
+  full: boolean
+  error: unknown
   onClose: () => void
-  onSave: (reminder: RosterReminder) => void
+  onSave: (reminder: AbilityReminder) => void
   onRemove?: () => void
 }) {
   const id = useId()
+  const unitAbility = !armyReminderKey(draft.key)
   const nextTimingId = useRef(draft.timings.length || 1)
   const [whileDestroyed, setWhileDestroyed] = useState(draft.whileDestroyed === true)
   const [timings, setTimings] = useState<TimingDraft[]>(() => timingDrafts(draft.timings, id))
@@ -86,7 +95,10 @@ export function ReminderEditorDialog({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{draft.ability}</DialogTitle>
-          <DialogDescription>{draft.unit ? `${draft.unit.name} · ` : ''}Choose when this alert appears during a battle.</DialogDescription>
+          <DialogDescription>
+            Choose when this alert appears during a battle. It applies to{' '}
+            {unitAbility ? 'every unit with this ability' : 'every army with this rule'} in all your rosters.
+          </DialogDescription>
         </DialogHeader>
 
         <DialogBody>
@@ -215,7 +227,7 @@ export function ReminderEditorDialog({
             ) : null}
           </div>
 
-          {draft.unit ? (
+          {unitAbility ? (
             <label className="flex min-h-11 items-center gap-2 text-xs">
               <input
                 type="checkbox"
@@ -226,6 +238,7 @@ export function ReminderEditorDialog({
               Show while unit is destroyed
             </label>
           ) : null}
+          {full ? <Problem>{ABILITY_REMINDERS_FULL}</Problem> : error ? <Problem error={error} /> : null}
         </DialogBody>
 
         <DialogFooter>
@@ -238,12 +251,12 @@ export function ReminderEditorDialog({
             Cancel
           </Button>
           <Button
-            disabled={!valid}
+            disabled={!valid || full}
             onClick={() =>
               valid &&
               onSave({
                 ...draft,
-                ...(draft.unit ? { whileDestroyed } : {}),
+                ...(unitAbility ? { whileDestroyed } : {}),
                 timings: completed.filter((timing): timing is ReminderTiming => timing !== null),
               })
             }

@@ -29,6 +29,7 @@ import {
 import { playedArmies } from '../core/playedArmies'
 import type { PlayerDefaults } from '../core/playerDefaults'
 import type { RecentMatchup } from '../core/recentMatchups'
+import { ABILITY_REMINDERS_FULL, type AbilityReminder } from '../core/reminders'
 import { simulatorPairing } from '../contracts/simulatorState'
 import { type BattleView, battleView } from '../core/battleView'
 import { battleReport, type ReportEntry } from '../core/battleReport'
@@ -453,6 +454,20 @@ export class PraetoriumService {
   async forgetMatchup(userId: string, shared: string) {
     const pairing = simulatorPairing(shared)
     if (pairing) await this.repository.forgetMatchup(userId, pairing)
+  }
+
+  /** The alerts this player set for abilities, which every roster they field applies to its units. */
+  abilityReminders(userId: string) {
+    return this.repository.abilityRemindersByUser(userId)
+  }
+
+  async setAbilityReminder(userId: string, reminder: AbilityReminder) {
+    if ((await this.repository.saveAbilityReminder(userId, reminder, this.clock())) === 'full')
+      throw new Response(ABILITY_REMINDERS_FULL, { status: 409 })
+  }
+
+  async removeAbilityReminder(userId: string, key: string) {
+    await this.repository.deleteAbilityReminder(userId, key)
   }
 
   registerPushDevice(userId: string, device: { token: string; platform: 'ios' | 'android' }) {

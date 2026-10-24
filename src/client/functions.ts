@@ -120,6 +120,7 @@ export const combatantDatasheets = read('combatantDatasheets', (args) => server.
 export const combatLoadouts = read('combatLoadouts', (args) => server.combatLoadouts(args))
 export const unitWounds = read('unitWounds', (args) => server.unitWounds(args))
 export const unitBattleDetails = read('unitBattleDetails', (args) => server.unitBattleDetails(args))
+export const reminderAbilities = read('reminderAbilities', (args) => server.reminderAbilities(args))
 export const detachmentRules = read('detachmentRules', (args) => server.detachmentRules(args))
 export const exportRoster = read('exportRoster', (args) => server.exportRoster(args))
 export const importRoster = async (args: Parameters<typeof server.importRoster>[0]) => {
@@ -355,10 +356,7 @@ export async function saveRoster(
       previous?.copiedFromRosterId ?? (input as RosterInput & { copiedFromRosterId?: string | null }).copiedFromRosterId ?? null,
     visibility: input.visibility ?? 'private',
     source: input.source ?? 'editable',
-    prep: input.prep
-      ? { ...input.prep, reminders: input.prep.reminders ?? [], remindersEnabled: input.prep.remindersEnabled ?? true }
-      : null,
-    reminders: input.prep?.reminders ?? [],
+    prep: input.prep ? { ...input.prep, remindersEnabled: input.prep.remindersEnabled ?? true } : null,
     remindersEnabled: input.prep?.remindersEnabled ?? true,
     locked: previous?.locked ?? false,
     archived: previous?.archived ?? false,
@@ -850,6 +848,9 @@ export {
   setFavouriteDatasheet,
   rememberMatchup,
   forgetMatchup,
+  abilityReminders,
+  setAbilityReminder,
+  removeAbilityReminder,
   setPlayerDefaults,
   setPushNotifications,
   createFriendInvite,

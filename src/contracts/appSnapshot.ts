@@ -51,6 +51,7 @@ export const APP_SNAPSHOT_QUERIES = new Set([
   'favourite-datasheets',
   'unit-loadouts',
   'recent-matchups',
+  'ability-reminders',
   'onboarding',
   'player-defaults',
   'opponents',

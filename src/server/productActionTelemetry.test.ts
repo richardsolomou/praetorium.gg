@@ -11,7 +11,13 @@ const mocks = vi.hoisted(() => ({ capture: vi.fn(), service: {} as Record<string
 const seal = leagueRosterFixture('released')
 vi.mock('./app', () => ({
   app: () => ({
-    service: { ...mocks.service, rosterService: mocks.service, socialService: mocks.service, leagueService: mocks.service },
+    service: {
+      abilityReminders: async () => [],
+      ...mocks.service,
+      rosterService: mocks.service,
+      socialService: mocks.service,
+      leagueService: mocks.service,
+    },
     telemetry: { capture: mocks.capture },
     catalogueFor: async () => seal.catalogue,
     rulesFor: async () => seal.rules,
@@ -73,6 +79,17 @@ const cases: Case[] = [
   },
   { kind: 'rememberMatchup', input: { shared: matchup, attacker: 'Private unit', defender: 'Private target' }, events: [] },
   { kind: 'forgetMatchup', input: { shared: matchup }, events: [] },
+  {
+    kind: 'setAbilityReminder',
+    input: {
+      key: 'datasheet:private',
+      ability: 'Private',
+      description: '',
+      timings: [{ moment: 'turn-start', phase: null, turn: 'your-turn' }],
+    },
+    events: [['ability_reminder_set', { timings: 1 }]],
+  },
+  { kind: 'removeAbilityReminder', input: { key: 'datasheet:private' }, events: [['ability_reminder_removed', {}]] },
   { kind: 'updateOnboardingProgress', input: { operation: 'welcome' }, events: [['onboarding_welcomed']] },
   {
     kind: 'updateOnboardingProgress',

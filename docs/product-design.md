@@ -9,12 +9,12 @@ Publication is named sharing; there is no anonymous archive of private game stat
 - Discovery shows only public rosters and drops them on the next read after a privacy change or deletion. The Played tab shows frozen armies from finished non-practice battles.
 - Lent rosters go to chosen friends, read-only, without notes or preparation; revoking, unfriending, or deletion ends the loan.
 - Seated players read each other's battle rosters without personal reminders.
-- Saved loadouts and unit notes are owner-only: never in exports, exchange codes, discovery, or copies.
+- Saved loadouts, ability alerts, and unit notes are owner-only: never in exports, exchange codes, discovery, or copies.
 - Frozen battle armies and sealed league rosters are never rewritten by saved edits, privacy changes, or deletion. Sealed rosters are visible to assigned allies before reveal and event readers after.
 - League reveal never publishes; an entrant may publish the original roster, never a copy.
 - A guest seat belongs to one device by HTTP-only cookie, stored as a hash, and ends after 30 days, on reclaim, claim, or battle deletion.
 - A reported collection photo is visible only to its owner and administrators until reviewed.
-- Account deletion removes rosters, loadouts, friendships, entries, organized leagues, and every battle played. League deletion keeps battles.
+- Account deletion removes rosters, loadouts, ability alerts, friendships, entries, organized leagues, and every battle played. League deletion keeps battles.
 - Revocable player-content images are `no-store`. Screenshots with roster or battle data stay out of Git.
 
 Authorities: [`rosterAccess`](../src/server/services/rosterService.ts), [`rosterDiscovery.ts`](../src/core/rosterDiscovery.ts), [`PraetoriumService`](../src/server/service.ts), [`league.ts`](../src/core/league.ts), and deletion in [`spacetimedb/src/index.ts`](../spacetimedb/src/index.ts).

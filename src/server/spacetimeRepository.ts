@@ -215,6 +215,18 @@ export class SpacetimeRepository {
     return this.product.forgetMatchup(...args)
   }
 
+  abilityRemindersByUser(...args: Parameters<SpacetimeOperator['abilityRemindersByUser']>) {
+    return this.product.abilityRemindersByUser(...args)
+  }
+
+  saveAbilityReminder(...args: Parameters<SpacetimeOperator['saveAbilityReminder']>) {
+    return this.product.saveAbilityReminder(...args)
+  }
+
+  deleteAbilityReminder(...args: Parameters<SpacetimeOperator['deleteAbilityReminder']>) {
+    return this.product.deleteAbilityReminder(...args)
+  }
+
   pushEnabled(...args: Parameters<SpacetimeOperator['pushEnabled']>) {
     return this.product.pushEnabled(...args)
   }

@@ -262,7 +262,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     href: '/rosters',
     title: 'Remember an ability',
     description:
-      'The bell sets a personal battle alert. Choose the start or end of a phase or turn, whose turn it applies to, and add more triggers if needed. Save it before bringing the army to battle.',
+      'The bell sets a personal battle alert for this ability in all your rosters. Choose the start or end of a phase or turn, whose turn it applies to, and add more triggers if needed. Save it before bringing the army to battle.',
     placement: 'bottom',
     next: 'roster-unit-points',
     nextLabel: 'Next',

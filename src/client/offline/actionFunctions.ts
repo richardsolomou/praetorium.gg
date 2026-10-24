@@ -38,8 +38,10 @@ import {
   outdatedLeagueEntriesKey,
   playerDefaultsKey,
   recentMatchupsKey,
+  abilityRemindersKey,
 } from '../queries/queryKeys'
 import type { RecentMatchup } from '../../core/recentMatchups'
+import { withAbilityReminder, type AbilityReminder } from '../../core/reminders'
 import { withoutRecentMatchup, withRecentMatchup } from '../../contracts/recentMatchups'
 
 export const queryResource = (key: readonly unknown[]) => `query:${JSON.stringify(key)}`
@@ -67,6 +69,9 @@ export const favouriteFactions = () => accountRead(favouriteFactionsKey(), () =>
 export const favouriteDetachments = () => accountRead(favouriteDetachmentsKey(), () => server.favouriteDetachments())
 export const favouriteDatasheets = () => accountRead(favouriteDatasheetsKey(), () => server.favouriteDatasheets())
 export const recentMatchups = () => accountRead(recentMatchupsKey(), () => server.recentMatchups())
+export const abilityReminders = () => accountRead(abilityRemindersKey(), () => server.abilityReminders())
+/** The alerts a list fielded on this device carries: the ones it last read or set, and none if it never read them. */
+export const savedAbilityReminders = async () => (await localDocument<AbilityReminder[]>(queryResource(abilityRemindersKey()))) ?? []
 export const playerDefaults = () => accountRead(playerDefaultsKey(), () => server.playerDefaults())
 export const onboardingProgress = () => accountRead(onboardingKey(), () => server.onboardingProgress())
 export const notificationSettings = () => cachedRead(notificationSettingsKey(), () => server.notificationSettings())
@@ -298,6 +303,29 @@ export async function forgetMatchup(args: Parameters<typeof server.forgetMatchup
   const recent = (await localDocument<RecentMatchup[]>(queryResource(recentMatchupsKey()))) ?? (await recentMatchups())
   await defer('forgetMatchup', args.data, queryResource(recentMatchupsKey()), undefined, {}, undefined, (current) =>
     withoutRecentMatchup((current as RecentMatchup[] | undefined) ?? recent, args.data.shared),
+  )
+  return null
+}
+export async function setAbilityReminder(
+  args: Parameters<typeof server.setAbilityReminder>[0],
+): ReturnType<typeof server.setAbilityReminder> {
+  const defer = deferredForAccount()
+  if (!localEngine()) return server.setAbilityReminder(args)
+  const input = offlineActionSchemas.setAbilityReminder.parse(args.data)
+  const saved = (await localDocument<AbilityReminder[]>(queryResource(abilityRemindersKey()))) ?? (await abilityReminders())
+  await defer('setAbilityReminder', input, queryResource(abilityRemindersKey()), undefined, {}, undefined, (current) =>
+    withAbilityReminder((current as AbilityReminder[] | undefined) ?? saved, input),
+  )
+  return null
+}
+export async function removeAbilityReminder(
+  args: Parameters<typeof server.removeAbilityReminder>[0],
+): ReturnType<typeof server.removeAbilityReminder> {
+  const defer = deferredForAccount()
+  if (!localEngine()) return server.removeAbilityReminder(args)
+  const saved = (await localDocument<AbilityReminder[]>(queryResource(abilityRemindersKey()))) ?? (await abilityReminders())
+  await defer('removeAbilityReminder', args.data, queryResource(abilityRemindersKey()), undefined, {}, undefined, (current) =>
+    ((current as AbilityReminder[] | undefined) ?? saved).filter((reminder) => reminder.key !== args.data.key),
   )
   return null
 }

@@ -15,6 +15,12 @@ Enhancements and detachment **Unit upgrades** are chosen here too, with **No enh
 
 The **Note** box holds up to 500 characters that only you can see. Exports and other readers never get it.
 
+## Ability alerts
+
+The bell beside an ability, rule or chosen enhancement sets an alert for it. Choose when it appears, such as the start of your Shooting phase; the alert suggests a time from the rule's wording for you to check. An alert belongs to you rather than the roster: it covers every unit with that ability in all your rosters, and each unit holding it gets its own alert in battle. An army or detachment rule alerts once for the whole army. The unit's card counts the alerts it will give. You can keep up to 200 alerts.
+
+Signed in, your account keeps your alerts; otherwise this browser does, and saving your list to an account brings them along. A battle keeps the alerts its armies started with, so changing one later doesn't change a battle already under way. An ability whose catalogue entry differs between rules versions may need its alert set again.
+
 ## Unit actions
 
 Each card's menu (or a right-click) offers **Duplicate unit**, **Save loadout** and **Delete unit**. **Save loadout** keeps the model count, wargear and custom name under a name, up to 100 per account. It then appears beneath its datasheet in the picker for any roster of the same army; enhancements, upgrades, Warlord and attachments aren't kept. A unit with characters attached also offers **Save attached unit**, which keeps every unit in it. The picker lists it as its own row in its bodyguard's section, and adding it brings the units back already attached.

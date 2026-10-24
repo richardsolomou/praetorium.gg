@@ -39,6 +39,7 @@ import AddFavouriteDetachmentReducer from './add_favourite_detachment_reducer'
 import AddFavouriteFactionReducer from './add_favourite_faction_reducer'
 import AddToCollectionReducer from './add_to_collection_reducer'
 import ClearCollectionPhotoDeletionsReducer from './clear_collection_photo_deletions_reducer'
+import DeleteAbilityReminderReducer from './delete_ability_reminder_reducer'
 import DeletePushTokensReducer from './delete_push_tokens_reducer'
 import DeleteRosterReducer from './delete_roster_reducer'
 import DeleteUserDataReducer from './delete_user_data_reducer'
@@ -70,6 +71,7 @@ import UnwatchBattleReducer from './unwatch_battle_reducer'
 import WatchBattleReducer from './watch_battle_reducer'
 
 // Import all procedure arg schemas
+import * as AbilityRemindersByUserProcedure from './ability_reminders_by_user_procedure'
 import * as AcceptFriendProcedure from './accept_friend_procedure'
 import * as AcceptFriendInviteProcedure from './accept_friend_invite_procedure'
 import * as AdminCollectionPhotosProcedure from './admin_collection_photos_procedure'
@@ -137,6 +139,7 @@ import * as RosterSummariesByUserProcedure from './roster_summaries_by_user_proc
 import * as RostersByIdsProcedure from './rosters_by_ids_procedure'
 import * as RostersByUserProcedure from './rosters_by_user_procedure'
 import * as RostersLentToProcedure from './rosters_lent_to_procedure'
+import * as SaveAbilityReminderProcedure from './save_ability_reminder_procedure'
 import * as SaveRosterProcedure from './save_roster_procedure'
 import * as SaveUnitLoadoutProcedure from './save_unit_loadout_procedure'
 import * as SetPlayerDefaultsProcedure from './set_player_defaults_procedure'
@@ -222,6 +225,7 @@ const reducersSchema = __reducers(
   __reducerSchema('add_favourite_faction', AddFavouriteFactionReducer),
   __reducerSchema('add_to_collection', AddToCollectionReducer),
   __reducerSchema('clear_collection_photo_deletions', ClearCollectionPhotoDeletionsReducer),
+  __reducerSchema('delete_ability_reminder', DeleteAbilityReminderReducer),
   __reducerSchema('delete_push_tokens', DeletePushTokensReducer),
   __reducerSchema('delete_roster', DeleteRosterReducer),
   __reducerSchema('delete_user_data', DeleteUserDataReducer),
@@ -255,6 +259,7 @@ const reducersSchema = __reducers(
 
 /** The schema information for all procedures in this module. This is defined the same way as the procedures would have been defined in the server. */
 const proceduresSchema = __procedures(
+  __procedureSchema('ability_reminders_by_user', AbilityRemindersByUserProcedure.params, AbilityRemindersByUserProcedure.returnType),
   __procedureSchema('accept_friend', AcceptFriendProcedure.params, AcceptFriendProcedure.returnType),
   __procedureSchema('accept_friend_invite', AcceptFriendInviteProcedure.params, AcceptFriendInviteProcedure.returnType),
   __procedureSchema('admin_collection_photos', AdminCollectionPhotosProcedure.params, AdminCollectionPhotosProcedure.returnType),
@@ -334,6 +339,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('rosters_by_ids', RostersByIdsProcedure.params, RostersByIdsProcedure.returnType),
   __procedureSchema('rosters_by_user', RostersByUserProcedure.params, RostersByUserProcedure.returnType),
   __procedureSchema('rosters_lent_to', RostersLentToProcedure.params, RostersLentToProcedure.returnType),
+  __procedureSchema('save_ability_reminder', SaveAbilityReminderProcedure.params, SaveAbilityReminderProcedure.returnType),
   __procedureSchema('save_roster', SaveRosterProcedure.params, SaveRosterProcedure.returnType),
   __procedureSchema('save_unit_loadout', SaveUnitLoadoutProcedure.params, SaveUnitLoadoutProcedure.returnType),
   __procedureSchema('set_player_defaults', SetPlayerDefaultsProcedure.params, SetPlayerDefaultsProcedure.returnType),

@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { bookOf, points } from '../../server/catalogue.fixtures'
+import { ability, bookOf, points } from '../../server/catalogue.fixtures'
+import type { AbilityReminder } from '../../core/reminders'
+import { queryResource } from './actionFunctions'
+import { abilityRemindersKey } from '../queries/queryKeys'
 import { saveRosterSchema } from '../../contracts/schemas'
 import type { BattleWorkspace } from '../../contracts/battleWorkspace'
 import { openBattle, submit } from './battleFunctions'
@@ -45,7 +48,7 @@ const workspace: BattleWorkspace = {
   serverNow: 0,
 }
 
-function prepare(cost: number, copies = 1) {
+function prepare(cost: number, copies = 1, alerts?: AbilityReminder[]) {
   const catalogue = bookOf({
     selectionEntries: [
       {
@@ -53,6 +56,7 @@ function prepare(cost: number, copies = 1) {
         name: 'Unit',
         type: 'model',
         costs: points(cost),
+        profiles: [ability('charge', 'Charge')],
         constraints: [{ id: 'lord-max', type: 'max', value: 1, field: 'selections', scope: 'force', includeChildSelections: true }],
       },
     ],
@@ -81,7 +85,12 @@ function prepare(cost: number, copies = 1) {
       deployments: [],
     },
   })
-  mocks.document.mockImplementation(async (resource: string) => (resource === 'battle:battle' ? workspace : roster))
+  const documents: Record<string, unknown> = {
+    'battle:battle': workspace,
+    'roster:roster': roster,
+    [queryResource(abilityRemindersKey())]: alerts,
+  }
+  mocks.document.mockImplementation(async (resource: string) => documents[resource])
 }
 
 const attach = () => submit({ data: { token: 'battle', expectedSeq: 0, command: { kind: 'attach-saved-roster', rosterId: 'roster' } } })
@@ -96,6 +105,22 @@ it('freezes an offline roster from real pricing and records the validation revis
     command: { kind: 'attach-roster', roster: { built: { revision: 'test-revision', units: [{ points: 80 }] } } },
     capturedRoster: { id: 'roster', picks: [{ entryId: 'lord' }] },
   })
+})
+
+it('freezes the alerts this device last read on the offline roster’s unit holding their ability', async () => {
+  prepare(80, 1, [
+    { key: 'datasheet:charge', ability: 'Charge', description: '', timings: [{ moment: 'turn-start', phase: null, turn: 'your-turn' }] },
+  ])
+  await attach()
+  expect(mocks.queue.mock.calls[0]?.[1].command.roster.reminders.map((reminder: { key: string }) => reminder.key)).toEqual([
+    'datasheet:charge:0',
+  ])
+})
+
+it('freezes no alerts on a device that never read them', async () => {
+  prepare(80)
+  await attach()
+  expect(mocks.queue.mock.calls[0]?.[1].command.roster.reminders).toEqual([])
 })
 
 it('refuses an over-points roster offline before saving a battle command', async () => {

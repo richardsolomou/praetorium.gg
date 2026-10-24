@@ -4,7 +4,6 @@ import type { FormatRuleId, OptionalRuleId, Secondary, Stratagem } from '../../c
 import type { CollectionImportRow, CollectionProgress } from '../../core/collection'
 import type { RosterPick } from '../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../core/savedRoster'
-import type { RosterReminder } from '../../core/reminders'
 import type { RepositoryPort } from '../spacetimeRepository'
 import { picksSchema } from '../../contracts/schemas'
 import { optionalRulesFrom, readerRosterFromRow, rosterFromRow, rosterRow, waivedRulesFrom } from '../rosterPersistence'
@@ -17,7 +16,6 @@ import { UNIT_LOADOUTS_MAX, type UnitLoadout } from '../../core/unitLoadouts'
 type SavedPrep = {
   stratagems: Stratagem[]
   secondaries: Secondary[]
-  reminders?: RosterReminder[]
   remindersEnabled?: boolean
 }
 const PROFILE_ROSTER_LIMIT = 50

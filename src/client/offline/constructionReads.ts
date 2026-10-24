@@ -1,5 +1,6 @@
 import type * as server from '../../server/functions'
-import { priceSchema, datasheetSchema, combatLoadoutSchema } from '../../contracts/schemas'
+import { priceSchema, datasheetSchema, combatLoadoutSchema, reminderAbilitiesSchema } from '../../contracts/schemas'
+import { datasheetReminderAbilities } from '../../shared/reminderAbilities'
 import { calculateRosterPrice } from '../../shared/pricing'
 import { pickerUnitsFor, booksOffering } from '../../shared/pickerUnits'
 import { rosterDatasheetContext } from '../../shared/rosterDatasheetContext'
@@ -42,6 +43,8 @@ export const constructionReads = {
     combatLoadoutSpace(catalogue, combatLoadoutSchema.parse(data)),
   unitWounds: ({ catalogue }: Construction, data: Data<typeof server.unitWounds>) =>
     unitWoundsIn(catalogue, data.catalogueId, data.entryIds),
+  reminderAbilities: ({ catalogue, rules }: Construction, data: Data<typeof server.reminderAbilities>) =>
+    datasheetReminderAbilities(catalogue, rules, reminderAbilitiesSchema.parse(data)),
   unitBattleDetails: ({ catalogue }: Construction, data: Data<typeof server.unitBattleDetails>) =>
     unitBattleDetailsIn(catalogue, data.catalogueId, data.entryIds),
   detachmentRules: ({ catalogue, rules }: Construction, data: Data<typeof server.detachmentRules>) => {
@@ -115,6 +118,7 @@ type ServerAnswers = {
   combatantDatasheets: Awaited<ReturnType<typeof server.combatantDatasheets>>
   combatLoadouts: Awaited<ReturnType<typeof server.combatLoadouts>>
   unitWounds: Awaited<ReturnType<typeof server.unitWounds>>
+  reminderAbilities: Awaited<ReturnType<typeof server.reminderAbilities>>
   unitBattleDetails: Awaited<ReturnType<typeof server.unitBattleDetails>>
   detachmentRules: Awaited<ReturnType<typeof server.detachmentRules>>
   exportRoster: Awaited<ReturnType<typeof server.exportRoster>>

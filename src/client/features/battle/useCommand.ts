@@ -14,11 +14,12 @@ import { captureAppSnapshot } from '../../offline/appSnapshot'
 import { writeAppSnapshot } from '../../offline/appStorage'
 import { isFetchNetworkFailure } from '../../networkErrors'
 import { holdingReload } from '../../pendingWrites'
+import type { AbilityReminder } from '../../../core/reminders'
 
 /** A list the server prices and freezes before it is attached: a saved one, or the draft a guest built on this device. */
 export type RosterAttachment =
   | { kind: 'attach-saved-roster'; rosterId: string; playerId?: string }
-  | { kind: 'attach-draft-roster'; draft: RosterDraftInput }
+  | { kind: 'attach-draft-roster'; draft: RosterDraftInput; reminders: AbilityReminder[] | undefined }
 type SubmittedCommand = Command | RosterAttachment
 export type SendCommand = (
   command: Command,

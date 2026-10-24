@@ -5,7 +5,8 @@ import { routeSlug } from './slug'
 
 const REMINDER_MOMENTS = ['phase-start', 'phase-end', 'turn-start', 'turn-end', 'round-start', 'round-end'] as const
 export const REMINDER_PHASES = ['command', 'movement', 'shooting', 'charge', 'fight'] as const
-export const ROSTER_REMINDERS_MAX = 100
+export const ROSTER_REMINDERS_MAX = 200
+export const ABILITY_REMINDERS_MAX = 200
 export const REMINDER_TIMINGS_MAX = 10
 const REMINDER_ABILITY_MAX_LENGTH = 80
 const REMINDER_DESCRIPTION_MAX_LENGTH = 10_000
@@ -44,6 +45,10 @@ export const rosterReminderSchema = z.object({
 })
 export type RosterReminder = z.infer<typeof rosterReminderSchema>
 
+/** A player's alert for an ability, wherever they field a unit with it; a battle freezes it per unit through `fieldedReminders`. */
+export const abilityReminderSchema = rosterReminderSchema.omit({ unit: true })
+export type AbilityReminder = z.infer<typeof abilityReminderSchema>
+
 export type ReminderSubject = { id?: string; kind: string; name: string; description?: string | null }
 
 /** Army and detachment rules apply to the whole army, so one alert covers every unit that shows them. */
@@ -51,10 +56,84 @@ export function armyReminder(ability: ReminderSubject): boolean {
   return ability.kind === 'faction' || ability.kind === 'detachment'
 }
 
-export function reminderKey(ability: ReminderSubject, unitIndex: number | null): string {
-  const owner = armyReminder(ability) ? 'army' : (unitIndex ?? 'reference')
-  const abilityKey = ability.kind === 'faction' ? routeSlug(ability.name) : (ability.id ?? routeSlug(ability.name))
-  return `${ability.kind}:${abilityKey}:${owner}`
+/**
+ * An ability's identity across units and rosters. Core and faction rules go by name: each datasheet links them under
+ * its own id.
+ */
+export function reminderKey(ability: ReminderSubject): string {
+  const abilityKey =
+    ability.kind === 'faction' || ability.kind === 'core' ? routeSlug(ability.name) : (ability.id ?? routeSlug(ability.name))
+  return `${ability.kind}:${abilityKey}`
+}
+
+const reminderKind = (key: string) => key.slice(0, key.indexOf(':'))
+
+/** Whether an alert names an army rule, which alerts once for the whole army rather than for each unit. */
+export const armyReminderKey = (key: string) => armyReminder({ kind: reminderKind(key), name: '' })
+
+type ChosenOption = { kind?: 'enhancement' | 'upgrade'; chosen: string }
+
+/**
+ * The alerts a battle fields from a player's settings: one per unit holding each unit ability, one per army rule the
+ * roster fields. `shown` lists, by unit key, the abilities each unit's datasheet shows.
+ */
+export function fieldedReminders(
+  settings: readonly AbilityReminder[],
+  roster: { detachmentIds: readonly string[]; units: readonly { key: number; name: string; choices: readonly ChosenOption[] }[] },
+  shown: readonly (readonly [number, readonly string[]])[],
+): RosterReminder[] {
+  const sheets = new Map(shown)
+  const units = roster.units.map((unit) => ({
+    ...unit,
+    abilities: [...(sheets.get(unit.key) ?? []), ...chosenReminderAbilities(unit.choices)],
+  }))
+  return remindersForDetachments(settings, roster.detachmentIds)
+    .flatMap((setting) => {
+      const holders = units.filter((unit) => unit.abilities.includes(setting.key))
+      const kind = reminderKind(setting.key)
+      if (kind === 'detachment' || (kind === 'faction' && holders.length)) return [{ ...setting, key: `${setting.key}:army` }]
+      if (kind === 'faction') return []
+      return holders.map((unit) => ({ ...setting, key: `${setting.key}:${unit.key}`, unit: { index: unit.key, name: unit.name } }))
+    })
+    .slice(0, ROSTER_REMINDERS_MAX)
+}
+
+export const ABILITY_REMINDERS_FULL = `You can keep up to ${ABILITY_REMINDERS_MAX} ability alerts. Remove one first.`
+
+/** Whether a player may set this alert: changing one they hold never counts against the limit. */
+export const abilityReminderFits = (settings: readonly { key: string }[], key: string) =>
+  settings.length < ABILITY_REMINDERS_MAX || settings.some((setting) => setting.key === key)
+
+/** A player's alerts with one set for its ability, in the order the account lists them. */
+export const withAbilityReminder = (settings: readonly AbilityReminder[], reminder: AbilityReminder) =>
+  [...settings.filter((setting) => setting.key !== reminder.key), reminder].toSorted((left, right) => left.key.localeCompare(right.key))
+
+/** The enhancement and upgrade alerts a unit's chosen options carry, keyed as their loadout offers them. */
+export const chosenReminderAbilities = (choices: readonly ChosenOption[]) =>
+  choices.flatMap((choice) => (choice.kind && choice.chosen ? [`${choice.kind}:${choice.chosen}`] : []))
+
+/** The ability a per-unit alert kept by an older build's roster is for, keyed as an account keeps it. */
+export function legacyAbilityKey(reminder: Pick<RosterReminder, 'key' | 'ability'>) {
+  const kind = reminderKind(reminder.key)
+  return kind === 'faction' || kind === 'core'
+    ? `${kind}:${routeSlug(reminder.ability)}`
+    : reminder.key.slice(0, reminder.key.lastIndexOf(':'))
+}
+
+/**
+ * Account settings from alerts rosters kept per unit: one per ability, timed as the most recently saved roster timed it.
+ */
+export function abilityRemindersFromRosters(
+  rosters: readonly { updatedAt: number; reminders: readonly RosterReminder[] }[],
+): AbilityReminder[] {
+  const settings = new Map<string, AbilityReminder>()
+  for (const roster of rosters.toSorted((left, right) => right.updatedAt - left.updatedAt)) {
+    for (const { unit: _unit, ...reminder } of roster.reminders) {
+      const key = legacyAbilityKey(reminder)
+      if (!settings.has(key)) settings.set(key, { ...reminder, key })
+    }
+  }
+  return [...settings.values()].slice(0, ABILITY_REMINDERS_MAX)
 }
 
 export function detachmentRuleSubject(
@@ -64,8 +143,11 @@ export function detachmentRuleSubject(
   return { id: `${detachmentId}/${routeSlug(rule.name)}`, kind: 'detachment', name: rule.name, description: rule.description }
 }
 
-/** Drops alerts for detachment rules the roster no longer fields. */
-export function remindersForDetachments(reminders: readonly RosterReminder[], detachmentIds: readonly string[]): RosterReminder[] {
+/** Drops alerts for detachment rules the roster does not field. */
+export function remindersForDetachments<Reminder extends { key: string }>(
+  reminders: readonly Reminder[],
+  detachmentIds: readonly string[],
+) {
   return reminders.filter((reminder) => {
     const [kind, ability = ''] = reminder.key.split(':')
     return kind !== 'detachment' || detachmentIds.includes(ability.split('/')[0] ?? '')
@@ -200,24 +282,3 @@ function reminderTimingLabelWithoutRestriction(timing: ReminderTiming): string {
 
 /** "Shooting" for `shooting`. */
 export const phaseName = (phase: string) => `${phase.charAt(0).toLocaleUpperCase()}${phase.slice(1)}`
-
-export function remindersAfterUnitRemoved(reminders: readonly RosterReminder[], removedIndex: number): RosterReminder[] {
-  return reminders.flatMap((reminder) => {
-    if (!reminder.unit) return [reminder]
-    if (reminder.unit.index === removedIndex) return []
-    return [reminder.unit.index > removedIndex ? reminderAtUnitIndex(reminder, reminder.unit.index - 1) : reminder]
-  })
-}
-
-export function remindersAfterUnitInserted(reminders: readonly RosterReminder[], insertedIndex: number): RosterReminder[] {
-  return reminders.map((reminder) =>
-    reminder.unit && reminder.unit.index >= insertedIndex ? reminderAtUnitIndex(reminder, reminder.unit.index + 1) : reminder,
-  )
-}
-
-function reminderAtUnitIndex(reminder: RosterReminder, index: number): RosterReminder {
-  if (!reminder.unit) return reminder
-  const separator = reminder.key.lastIndexOf(':')
-  const key = separator < 0 ? reminder.key : `${reminder.key.slice(0, separator + 1)}${index}`
-  return { ...reminder, key, unit: { ...reminder.unit, index } }
-}

@@ -1,5 +1,5 @@
 import { currentReference, offlineDatasheets, referenceData } from '../offline/runtime'
-import { infiniteQueryOptions, type QueryClient, queryOptions } from '@tanstack/react-query'
+import { infiniteQueryOptions, keepPreviousData, type QueryClient, queryOptions } from '@tanstack/react-query'
 import type { FormatRuleId, OptionalRuleId } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
 import type { UnitSummary } from '../../contracts/catalogue'
@@ -34,6 +34,7 @@ import {
   savedRosterSummaries,
   savedRosterPage,
   sharedRoster,
+  reminderAbilities,
   unitLoadouts,
   units,
 } from '../functions'
@@ -183,6 +184,15 @@ const datasheetLoads = new WeakMap<object, { request: number; resolvedAt: number
 
 /** How long a loadout's datasheets took to arrive and when they did, for measuring how long they then take to draw. */
 export const datasheetLoad = (sheets: object) => datasheetLoads.get(sheets)
+
+/** The abilities each unit of a list holds, so the builder can count the alerts a battle would give it. */
+export const reminderAbilitiesQuery = (catalogueId: string, detachmentIds: readonly string[], picks: readonly RosterPick[]) =>
+  queryOptions({
+    queryKey: ['reminder-abilities', catalogueId, detachmentIds, picks],
+    queryFn: ({ signal }) => reminderAbilities({ data: { catalogueId, detachmentIds: [...detachmentIds], picks: [...picks] }, signal }),
+    enabled: Boolean(catalogueId && picks.length),
+    placeholderData: keepPreviousData,
+  })
 
 export const loadoutDatasheetsQuery = (
   catalogueId: string,

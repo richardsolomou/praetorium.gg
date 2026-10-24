@@ -5,19 +5,10 @@ import type { ReminderSubject } from '../../../core/reminders'
 
 export type ReminderControls = {
   active: (subject: ReminderSubject) => boolean
-  onSelect: (subject: ReminderSubject, unitName: string) => void
-  onRemove: (subject: ReminderSubject) => void
+  onSelect: (subject: ReminderSubject) => void
 }
 
-export function ReminderButton({
-  subject,
-  unitName,
-  controls,
-}: {
-  subject: ReminderSubject
-  unitName: string
-  controls: ReminderControls
-}) {
+export function ReminderButton({ subject, controls }: { subject: ReminderSubject; controls: ReminderControls }) {
   const active = controls.active(subject)
   const label = `${active ? 'Edit' : 'Set'} alert for ${subject.name}`
   return (
@@ -31,7 +22,7 @@ export function ReminderButton({
             className={active ? 'text-parchment' : 'text-faint hover:text-bone'}
             data-onboarding="unit-reminder"
             aria-label={label}
-            onClick={() => controls.onSelect(subject, unitName)}
+            onClick={() => controls.onSelect(subject)}
           />
         }
       >

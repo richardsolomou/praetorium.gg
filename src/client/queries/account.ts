@@ -4,6 +4,7 @@ import { infiniteQueryOptions, keepPreviousData, queryOptions, type QueryClient 
 import type { AdminUsersRequest } from '../../admin'
 import type { AdminCollectionPhotosCursor } from '../../contracts/collection'
 import {
+  abilityReminders,
   accountMethods,
   activeFriendInvite,
   adminPlayerBattles,
@@ -26,6 +27,7 @@ import {
 import { SSR_STALE_TIME } from './shared'
 import { anySignal } from '../abortSignals'
 import {
+  abilityRemindersKey,
   collectionProfileKey,
   friendInviteKey,
   meKey,
@@ -57,6 +59,9 @@ export const notificationSettingsQuery = () =>
   queryOptions({ queryKey: notificationSettingsKey(), queryFn: () => notificationSettings(), staleTime: SSR_STALE_TIME })
 export const playerDefaultsQuery = () =>
   queryOptions({ queryKey: playerDefaultsKey(), queryFn: () => playerDefaults(), staleTime: SSR_STALE_TIME })
+/** The player's ability alerts, which every roster they build and field applies. */
+export const abilityRemindersQuery = () =>
+  queryOptions({ queryKey: abilityRemindersKey(), queryFn: () => abilityReminders(), staleTime: SSR_STALE_TIME })
 export const mcpConnectionsQuery = () => queryOptions({ queryKey: ['mcp-connections'], queryFn: () => mcpConnections() })
 export const onboardingQuery = () =>
   queryOptions({ queryKey: onboardingKey(), queryFn: () => onboardingProgress(), staleTime: SSR_STALE_TIME })

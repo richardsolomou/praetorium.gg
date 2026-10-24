@@ -391,6 +391,16 @@ const recentMatchups = table(
   },
 )
 
+const abilityReminders = table(
+  { name: 'ability_reminders' },
+  {
+    key: t.string().primaryKey(),
+    userId: t.string().index('btree'),
+    reminder: t.string(),
+    updatedAt: t.u64(),
+  },
+)
+
 const productRevisions = table(
   { name: 'product_revisions' },
   {
@@ -470,6 +480,7 @@ export const productTables = {
   favouriteDatasheets,
   unitLoadouts,
   recentMatchups,
+  abilityReminders,
   productRevisions,
   publicRevisions,
 }

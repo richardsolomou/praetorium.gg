@@ -400,6 +400,28 @@ it.skipIf(!url || !database || !token)('keeps saved loadouts to their owner and 
   }
 })
 
+it.skipIf(!url || !database || !token)('keeps ability alerts to their owner and removes them with the account', async () => {
+  const store = new SpacetimeOperator(url!, database!, token!)
+  const userId = randomUUID()
+  const alert = {
+    key: 'datasheet:lightning',
+    ability: 'Living Lightning',
+    description: '',
+    timings: [{ moment: 'turn-start' as const, phase: null, turn: 'your-turn' as const }],
+  }
+  try {
+    expect(await store.saveAbilityReminder(userId, alert, 1)).toBe('saved')
+    expect(await store.abilityRemindersByUser(userId)).toEqual([alert])
+    expect(await store.abilityRemindersByUser('other')).toEqual([])
+    await store.deleteAbilityReminder('other', alert.key)
+    expect(await store.abilityRemindersByUser(userId)).toEqual([alert])
+    await store.deleteUserData(userId)
+    expect(await store.abilityRemindersByUser(userId)).toEqual([])
+  } finally {
+    await store.deleteAbilityReminder(userId, alert.key)
+  }
+})
+
 it.skipIf(!url || !database || !token)('records a model count without duplicating the collection entry', async () => {
   const store = new SpacetimeOperator(url!, database!, token!)
   const userId = randomUUID()

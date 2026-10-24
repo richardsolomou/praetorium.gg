@@ -34,10 +34,18 @@ describe('a save to a locked roster', () => {
     ['switching to an automatic name', { name: '', automaticName: true }],
     ['nicknaming a unit', { picks: [{ entryId: 'overlord', choices: { weapon: 'staff' }, nickname: 'Szarekh' }] }],
     ['writing a unit note', { picks: [{ entryId: 'overlord', choices: { weapon: 'staff' }, note: 'Hold home.' }] }],
-    ['editing reminders', { prep: { stratagems: [], secondaries: [], reminders: [{ key: 'r' }], remindersEnabled: true } }],
     ['replacing everything from an import', { ...saved, catalogueId: 'aeldari', detachmentIds: [], picks: [] }],
   ])('is refused when %s', (_change, change) => {
     expect(lockedRosterRefusal(locked, { ...saved, ...change })).toBe(LOCKED_ROSTER_MESSAGE)
+  })
+
+  it('applies when an older build sends the alerts that moved to the player', () => {
+    expect(
+      lockedRosterRefusal(locked, {
+        ...saved,
+        prep: { stratagems: [], secondaries: [], reminders: [{ key: 'r' }], remindersEnabled: true },
+      }),
+    ).toBeNull()
   })
 
   it('applies when it leaves the content as it was, such as a visibility change', () => {

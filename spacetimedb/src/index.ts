@@ -31,7 +31,14 @@ import {
 } from '../../src/core/league'
 import { parseRosterSnapshot, rosterPickSchema } from '../../src/core/commands'
 import { admitConnection, authConfiguration } from './admission'
-import { rosterReminderSchema } from '../../src/core/reminders'
+import {
+  ABILITY_REMINDERS_MAX,
+  abilityReminderSchema,
+  abilityRemindersFromRosters,
+  legacyAbilityKey,
+  ROSTER_REMINDERS_MAX,
+  rosterReminderSchema,
+} from '../../src/core/reminders'
 import { boundedProgress, countsAsList, MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS, MAX_COUNTS_AS } from '../../src/core/collection'
 import { TABLE_SHAPES, type TableShape } from '../../src/core/tableShape'
 import { guestSeatId, isGuestSeat } from '../../src/core/newBattle'
@@ -419,6 +426,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   for (const row of Array.from(ctx.db.favouriteDatasheets.userId.filter(userId))) ctx.db.favouriteDatasheets.key.delete(row.key)
   for (const row of Array.from(ctx.db.unitLoadouts.userId.filter(userId))) ctx.db.unitLoadouts.id.delete(row.id)
   for (const row of Array.from(ctx.db.recentMatchups.userId.filter(userId))) ctx.db.recentMatchups.key.delete(row.key)
+  for (const row of Array.from(ctx.db.abilityReminders.userId.filter(userId))) ctx.db.abilityReminders.key.delete(row.key)
   if (ctx.db.practiceOpponents.userId.delete(userId)) {
     touchPublic(ctx, 'opponents')
     touchAdmin(ctx)
@@ -1117,7 +1125,8 @@ export const migrateProductData = spacetime.procedure({ table: t.string(), keys:
       if (entity === 'rosters') {
         const row = tx.db.rosters.id.find(key)
         if (!row) continue
-        const migrated = migrateStoredRoster(row)
+        const stored = migrateStoredRoster(row)
+        const migrated = { ...stored, prep: adoptRosterReminders(tx, row.userId, stored.prep, row.updatedAt, 'migrate') }
         if (productJson(migrated) === productJson(row)) continue
         tx.db.rosters.id.update(migrated)
         touchProduct(tx, row.userId, 'rosters')
@@ -1345,6 +1354,7 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
   const current = tx.db.rosters.id.find(input.id)
   if (current?.userId !== undefined && current.userId !== input.userId) return 'forbidden'
   if (lockedEdit(current, input)) return 'locked'
+  const now = BigInt(input.now)
   const fields = {
     name: input.name,
     automaticName: input.automaticName,
@@ -1354,14 +1364,14 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
     limit: input.limit,
     pointsBudget: savedPointsBudget(current, input) ?? undefined,
     picks: input.picks,
-    prep: input.prep ?? undefined,
+    prep: adoptRosterReminders(tx, input.userId, input.prep, now, 'save') ?? undefined,
     tags: input.tags,
     waivedRules: input.waivedRules,
     optionalRules: input.optionalRules,
     borrowedDetachmentId: input.borrowedDetachmentId ?? undefined,
     visibility: input.visibility,
     source: input.source,
-    updatedAt: current && current.updatedAt >= BigInt(input.now) ? current.updatedAt + 1n : BigInt(input.now),
+    updatedAt: current && current.updatedAt >= now ? current.updatedAt + 1n : now,
   }
   if (current) {
     tx.db.rosters.id.update({ ...current, ...fields })
@@ -2076,6 +2086,74 @@ export const forgetMatchup = spacetime.reducer({ userId: t.string(), pairing: t.
   forgetMatchupIn(ctx, [input.userId, input.pairing])
 })
 
+export const abilityRemindersByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    return productJson(
+      Array.from(tx.db.abilityReminders.userId.filter(userId))
+        .toSorted((left, right) => left.key.localeCompare(right.key))
+        .map((row) => JSON.parse(row.reminder) as unknown),
+    )
+  }),
+)
+
+/** `full` changes nothing; replacing an alert the player already has never counts against the limit. */
+export const saveAbilityReminder = spacetime.procedure({ userId: t.string(), payload: t.string(), at: t.u64() }, t.string(), (ctx, input) =>
+  ctx.withTx((tx) => saveAbilityReminderIn(tx, [input.userId, input.payload, input.at])),
+)
+
+export const deleteAbilityReminder = spacetime.reducer({ userId: t.string(), key: t.string() }, (ctx, input) => {
+  deleteAbilityReminderIn(ctx, [input.userId, input.key])
+})
+
+function saveAbilityReminderIn(tx: Context, args: unknown[]) {
+  const [userId, payload, at] = z.tuple([idInput, z.string().max(20_000), timestampArg]).parse(args)
+
+  requireOperator(tx)
+  const reminder = decodePayload(abilityReminderSchema.strict(), payload, 'Invalid reminder')
+  return productJson(writeAbilityReminder(tx, userId, reminder, at) ? 'saved' : 'full')
+}
+
+function deleteAbilityReminderIn(tx: Context, args: unknown[]) {
+  const [userId, key] = z.tuple([idInput, z.string().max(240)]).parse(args)
+
+  requireOperator(tx)
+  if (tx.db.abilityReminders.key.delete(JSON.stringify([userId, key]))) touchProduct(tx, userId, 'settings')
+}
+
+function writeAbilityReminder(tx: Context, userId: string, reminder: z.infer<typeof abilityReminderSchema>, at: bigint) {
+  const key = JSON.stringify([userId, reminder.key])
+  const current = tx.db.abilityReminders.key.find(key)
+  const row = { key, userId, reminder: JSON.stringify(reminder), updatedAt: at }
+  if (current) tx.db.abilityReminders.key.update(row)
+  else if (Array.from(tx.db.abilityReminders.userId.filter(userId)).length >= ABILITY_REMINDERS_MAX) return false
+  else tx.db.abilityReminders.insert(row)
+  touchProduct(tx, userId, 'settings')
+  return true
+}
+
+/**
+ * A roster's prep without the per-unit alerts older builds kept in it, which become the owner's ability alerts. A
+ * migration also replaces an account alert set before the roster was saved at `savedAt`; a save only adds alerts the
+ * account lacks, since an older tab or a queued offline save can carry alerts the player has since changed. Alerts the
+ * full account refuses stay in the prep for a later save or migration to adopt.
+ */
+function adoptRosterReminders(tx: Context, userId: string, prep: string | null | undefined, savedAt: bigint, mode: 'migrate' | 'save') {
+  if (!prep) return undefined
+  const { reminders, ...rest } = z.record(z.string(), z.unknown()).parse(JSON.parse(prep))
+  if (reminders === undefined) return prep
+  const kept = rosterReminderSchema.array().max(ROSTER_REMINDERS_MAX).safeParse(reminders)
+  if (!kept.success) return JSON.stringify(rest)
+  const refused = new Set<string>()
+  for (const reminder of abilityRemindersFromRosters([{ updatedAt: 0, reminders: kept.data }])) {
+    const current = tx.db.abilityReminders.key.find(JSON.stringify([userId, reminder.key]))
+    if (current && (mode === 'save' || current.updatedAt >= savedAt)) continue
+    if (!writeAbilityReminder(tx, userId, reminder, savedAt)) refused.add(reminder.key)
+  }
+  const left = kept.data.filter((reminder) => refused.has(legacyAbilityKey(reminder)))
+  return JSON.stringify(left.length ? { ...rest, reminders: left } : rest)
+}
+
 export const addFavouriteFaction = spacetime.reducer({ userId: t.string(), catalogueId: t.string(), at: t.u64() }, (ctx, input) => {
   addFavouriteFactionIn(ctx, [input.userId, input.catalogueId, input.at])
 })
@@ -2389,7 +2467,7 @@ export const outdatedLeagueEntriesForRoster = spacetime.procedure(
       if (!validId(userId) || !validId(rosterId)) throw new SenderError('Invalid roster lookup')
       const saved = tx.db.rosters.id.find(rosterId)
       if (!saved || saved.userId !== userId) return productJson([])
-      const prep = saved.prep ? (JSON.parse(saved.prep) as { reminders?: unknown; remindersEnabled?: boolean }) : null
+      const prep = saved.prep ? (JSON.parse(saved.prep) as { remindersEnabled?: boolean }) : null
       const current = {
         name: saved.name,
         catalogueId: saved.catalogueId,
@@ -2398,7 +2476,6 @@ export const outdatedLeagueEntriesForRoster = spacetime.procedure(
         limit: saved.limit,
         picks: rosterPickSchema.array().parse(JSON.parse(saved.picks)),
         waivedRules: JSON.parse(saved.waivedRules) as FormatRuleId[],
-        reminders: rosterReminderSchema.array().parse(prep?.reminders ?? []),
         remindersEnabled: prep?.remindersEnabled ?? true,
       }
       const matches = []
@@ -3802,6 +3879,8 @@ const syncProductActions = {
   remove_favourite_datasheet: removeFavouriteDatasheetIn,
   remember_matchup: rememberMatchupIn,
   forget_matchup: forgetMatchupIn,
+  save_ability_reminder: saveAbilityReminderIn,
+  delete_ability_reminder: deleteAbilityReminderIn,
   set_push_enabled: setPushEnabledIn,
   set_player_defaults: setPlayerDefaultsIn,
   league_command: leagueCommandIn,
