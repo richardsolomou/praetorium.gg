@@ -178,3 +178,27 @@ it('removes the stale-build key once the page runs the release it reloaded for',
 it('keeps the stale-build key while the page still runs an older build, so the reload cap holds', () => {
   expect(completedRouteRecovery('https://praetorium.gg/rosters/1?__build_retry=1234.2.0.177.0', '0.176.0')).toBeNull()
 })
+
+it('asks the native shell to open the hosted release instead of loading it inside the saved application', () => {
+  const postMessage = vi.fn()
+  vi.stubGlobal('window', {
+    location: { href: 'https://praetorium.gg/rosters/1', replace },
+    PraetoriumOfflineStart: '/rosters/1',
+    ReactNativeWebView: { postMessage },
+  })
+  reloadStaleBuild('0.177.0', 'navigation', { href: 'https://praetorium.gg/battles?tab=live#top' })
+  expect(JSON.parse(postMessage.mock.calls[0]![0])).toEqual({
+    type: 'offline-retry',
+    path: expect.stringMatching(/^\/battles\?tab=live&__build_retry=\d+\.1\.0\.177\.0#top$/),
+  })
+})
+
+it('leaves the saved application in place when the native shell opens the hosted release', () => {
+  vi.stubGlobal('window', {
+    location: { href: 'https://praetorium.gg/rosters/1', replace },
+    PraetoriumOfflineStart: '/rosters/1',
+    ReactNativeWebView: { postMessage: vi.fn() },
+  })
+  reloadStaleBuild('0.177.0', 'try_again')
+  expect(replace).not.toHaveBeenCalled()
+})

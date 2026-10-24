@@ -49,7 +49,7 @@ Send feedback opens one dialog over the current page. Do not add another entry p
 
 ## Route recovery
 
-`src/client/routeErrors.ts` reloads after a failed route import, or from a build older than `/api/release` reports, with a cache-busting key `src/router.tsx` removes once the route renders on that release. Stale builds reload on route change or error, never mid-save or offline, at most thrice per release. [Telemetry](telemetry.md) owns the recovery events; `e2e/reliability.spec.ts` and `e2e/release-update.spec.ts` verify them.
+`src/client/routeErrors.ts` reloads after a failed route import, or on a build older than `/api/release`, with a cache-busting key `src/router.tsx` drops once the route renders on that release. Stale builds reload on navigation or error, never mid-save or offline, at most thrice in a row per page and release. [Telemetry](telemetry.md) owns recovery events; `e2e/reliability.spec.ts` and `e2e/release-update.spec.ts` verify them.
 
 ## Verification
 
