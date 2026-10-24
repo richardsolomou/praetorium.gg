@@ -71,12 +71,15 @@ export function LeagueReadiness({
     .filter(Boolean)
     .join(' ')
   // The organizer sees only what still stands in the way, in words; the bar and the entrant list already say who has sealed.
-  const organizerChecks = isOrganizer
+  const unmet = isOrganizer
     ? checks.filter(
         (check): check is Exclude<LeagueRevealCheck, { step: 'lists' | 'dispositions' }> =>
           check.step !== 'lists' && check.step !== 'dispositions' && !check.done,
       )
     : []
+  // Once only more players can help, sizing or pairing the ones already in leads nowhere, so the list stops there.
+  const short = unmet.findIndex((check) => 'short' in check && check.short)
+  const organizerChecks = short < 0 ? unmet : unmet.slice(0, short + 1)
 
   return (
     <section
@@ -104,7 +107,7 @@ export function LeagueReadiness({
           {organizerChecks.map((check) => (
             <li key={check.step} data-check={check.step} className="flex min-w-0 items-start gap-2 text-sm text-discarded">
               <Circle className="mt-1 size-3 shrink-0" aria-hidden />
-              <span className="min-w-0 break-words">{checkDetail(check, league.format, accepted.length, nameOf)}</span>
+              <span className="min-w-0 break-words">{checkDetail(check, league.format, nameOf)}</span>
             </li>
           ))}
         </ul>
@@ -164,10 +167,9 @@ export function RevealRostersDialog({
 }
 
 /** What the organizer still has to do for one unmet check. */
-function checkDetail(
+export function checkDetail(
   check: Exclude<LeagueRevealCheck, { step: 'lists' | 'dispositions' }>,
   format: League['format'],
-  accepted: number,
   nameOf: (userId: string) => string,
 ) {
   const names = (userIds: string[]) => namesPhrase(userIds.map(nameOf))
@@ -177,12 +179,12 @@ function checkDetail(
     case 'requests':
       return `Answer ${names(check.waiting)}.`
     case 'sizes':
+      if (check.short) return 'Invite more players: a solo player and two allies need three.'
       if (check.waiting.length) return `Give ${names(check.waiting)} a size.`
       return check.solo === 0 ? 'Make one player solo.' : 'Make two players allied.'
     case 'teams':
+      if (check.short) return 'Invite more players: doubles needs an even number, at least four.'
       if (format === '2v1') return `Pair ${names(check.waiting)} with another ally.`
-      if (accepted < 4) return 'Doubles needs four players.'
-      if (accepted % 2) return 'Doubles needs an even number of players.'
       return `Pair ${names(check.waiting)}.`
   }
 }

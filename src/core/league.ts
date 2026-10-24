@@ -122,8 +122,9 @@ export type LeagueRevealEntry = {
 export type LeagueRevealCheck =
   | { step: 'places'; done: boolean; accepted: number }
   | { step: 'requests'; done: boolean; waiting: string[] }
-  | { step: 'sizes'; done: boolean; waiting: string[]; solo: number; allied: number }
-  | { step: 'teams'; done: boolean; waiting: string[] }
+  /** `short` marks a size or pairing check that only more players can satisfy, whatever the organizer assigns. */
+  | { step: 'sizes'; done: boolean; waiting: string[]; solo: number; allied: number; short: boolean }
+  | { step: 'teams'; done: boolean; waiting: string[]; short: boolean }
   | { step: 'lists'; done: boolean; waiting: string[] }
   | { step: 'dispositions'; done: boolean; waiting: string[] }
 
@@ -141,17 +142,20 @@ export function leagueRevealChecklist(
       (teamId) => teamId,
     )
     const unpaired = accepted.filter((entry) => !entry.teamId || teamSizes.get(entry.teamId) !== 2).map((entry) => entry.userId)
-    checks.push({ step: 'teams', done: accepted.length >= 4 && unpaired.length === 0, waiting: unpaired })
+    const short = accepted.length < 4 || accepted.length % 2 === 1
+    checks.push({ step: 'teams', done: !short && unpaired.length === 0, waiting: unpaired, short })
   }
   if (event.format === '2v1') {
     const alliedLimit = alliedLeagueRosterLimit(event.rosterLimit ?? 0)
     const solo = accepted.filter((entry) => entry.requiredLimit !== null && entry.requiredLimit === event.rosterLimit).length
     const allied = accepted.filter((entry) => entry.requiredLimit !== null && entry.requiredLimit === alliedLimit).length
     const unsized = accepted.filter((entry) => entry.requiredLimit === null).map((entry) => entry.userId)
-    checks.push({ step: 'sizes', done: unsized.length === 0 && solo > 0 && allied >= 2, waiting: unsized, solo, allied })
+    // One solo player and two allies are the fewest a 2v1 seats.
+    const short = accepted.length < 3
+    checks.push({ step: 'sizes', done: unsized.length === 0 && solo > 0 && allied >= 2, waiting: unsized, solo, allied, short })
     const allies = accepted.filter((entry) => entry.requiredLimit !== null && entry.requiredLimit === alliedLimit)
     const unpaired = allies.filter((entry) => !entry.teamId || allies.filter((ally) => ally.teamId === entry.teamId).length !== 2)
-    checks.push({ step: 'teams', done: unpaired.length === 0, waiting: unpaired.map((entry) => entry.userId) })
+    checks.push({ step: 'teams', done: unpaired.length === 0, waiting: unpaired.map((entry) => entry.userId), short })
   }
   const unsealed = accepted.filter((entry) => !entry.submitted).map((entry) => entry.userId)
   checks.push({ step: 'lists', done: unsealed.length === 0, waiting: unsealed })
@@ -195,13 +199,9 @@ export function leagueStage(
   if (event.revealedAt) return played ? 'results' : 'playing'
   // The reveal would turn waiting requests down, so answering them comes first even when nothing else holds it up.
   if (entries.some((entry) => entry.status === 'pending')) return 'approving'
-  const checks = leagueRevealChecklist(event, entries)
-  const held = checks.find((check) => !check.done)
+  const held = leagueRevealChecklist(event, entries).find((check) => !check.done)
   if (!held) return 'ready'
-  const accepted = checks[0]?.step === 'places' ? checks[0].accepted : 0
-  // A size or pairing that only more players can satisfy: fewer than one solo and two allies sized, or doubles short of even pairs.
-  if (held.step === 'sizes' && !held.waiting.length && held.solo + held.allied < 3) return 'recruiting'
-  if (held.step === 'teams' && event.format === '2v2' && (accepted < 4 || accepted % 2)) return 'recruiting'
+  if ((held.step === 'sizes' || held.step === 'teams') && held.short) return 'recruiting'
   return STAGE_FOR_CHECK[held.step]
 }
 

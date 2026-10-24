@@ -348,7 +348,7 @@ describe('leagueRevealChecklist', () => {
         entry('b', { requiredLimit: 1_000, teamId: 'pair' }),
         entry('c', { requiredLimit: 1_000 }),
       ]).find((check) => check.step === 'teams')
-      expect(teams).toEqual({ step: 'teams', done: false, waiting: ['b', 'c'] })
+      expect(teams).toEqual({ step: 'teams', done: false, waiting: ['b', 'c'], short: false })
     })
 
     it('names the entrants still waiting for a size', () => {
@@ -357,6 +357,21 @@ describe('leagueRevealChecklist', () => {
 
     it('needs a solo entrant', () => {
       expect(sizes([1, 2, 3].map((index) => entry(`${index}`, { requiredLimit: 1_000 })))).toMatchObject({ done: false, solo: 0 })
+    })
+
+    it('is short of players with fewer than a solo and two allies in', () => {
+      expect(sizes([entry('a', { requiredLimit: 2_000 }), entry('b', { requiredLimit: 1_000 })])?.short).toBe(true)
+    })
+
+    it('is short of players to pair an ally when only two are in', () => {
+      const teams = leagueRevealChecklist(trial, [entry('a', { requiredLimit: 2_000 }), entry('b', { requiredLimit: 1_000 })]).find(
+        (check) => check.step === 'teams',
+      )
+      expect(teams).toMatchObject({ done: false, short: true })
+    })
+
+    it('is not short when three players can be resized', () => {
+      expect(sizes([1, 2, 3].map((index) => entry(`${index}`, { requiredLimit: 1_000 })))?.short).toBe(false)
     })
 
     it('needs two allied entrants', () => {
@@ -385,15 +400,15 @@ describe('leagueRevealChecklist', () => {
     })
 
     it('names the entrants without a full team', () => {
-      expect(check([...paired.slice(0, 3), entry('d')], 'teams')).toEqual({ step: 'teams', done: false, waiting: ['c', 'd'] })
+      expect(check([...paired.slice(0, 3), entry('d')], 'teams')).toEqual({ step: 'teams', done: false, waiting: ['c', 'd'], short: false })
     })
 
-    it('holds up an odd entrant out of every team', () => {
-      expect(check([...paired, entry('e')], 'teams')).toEqual({ step: 'teams', done: false, waiting: ['e'] })
+    it('holds up an odd entrant out of every team, which only another player can pair', () => {
+      expect(check([...paired, entry('e')], 'teams')).toEqual({ step: 'teams', done: false, waiting: ['e'], short: true })
     })
 
     it('needs two teams even when everyone is paired', () => {
-      expect(check(paired.slice(0, 2), 'teams')?.done).toBe(false)
+      expect(check(paired.slice(0, 2), 'teams')).toMatchObject({ done: false, short: true })
     })
 
     it('names a team that has not settled its Force Disposition', () => {
@@ -463,6 +478,10 @@ describe('leagueStage', () => {
     expect(
       leagueStage({ ...open, format: '2v2' }, [team('a', 't1'), team('b', 't1'), team('c', 't2'), team('d', 't2'), entry('e')], false),
     ).toBe('recruiting')
+  })
+
+  it('is recruiting a 2v1 of two players with one unsized, since no size unblocks it', () => {
+    expect(leagueStage({ ...open, format: '2v1' }, [entry('a', { requiredLimit: 2_000 }), entry('b')], false)).toBe('recruiting')
   })
 
   it('is recruiting a 2v1 whose sized players are too few for a solo and two allies', () => {
