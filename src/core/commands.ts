@@ -220,6 +220,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
                   .max(2)
                   .optional(),
                 strategicReserveExempt: z.boolean().optional(),
+                embarksWithBodyguard: z.boolean().optional(),
                 transport: z.boolean().optional(),
                 transportRule: z.string().max(4_000).optional(),
                 transportCapacity: printedTransportSchema.optional(),

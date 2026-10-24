@@ -747,6 +747,10 @@ describe('catalogue-backed deployment rules', () => {
     })
   })
 
+  it('lets an Inquisitor embark wherever its bodyguard can', () => {
+    expect(deploymentRules(['Authority of the Inquisition'])).toHaveProperty('embarksWithBodyguard', true)
+  })
+
   it('does not invent deployment options without matching abilities', () => {
     expect(deploymentRules(['Leader', 'Stealth'])).toEqual({ formationOptions: [], prebattleRules: [] })
   })

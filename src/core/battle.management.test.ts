@@ -216,6 +216,26 @@ describe('battle management', () => {
     expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'embarked', transportKey: 'u2' })).toBe(expected)
   })
 
+  it.each([
+    ['embarks a leader whose ability lets it ride with its bodyguard', true, null],
+    ['refuses a leader the transport does not carry', false, 'this transport cannot carry Inquisitor'],
+  ])('%s', (_scenario, embarksWithBodyguard, expected) => {
+    const armyRoster = builtRoster('Astra Militarum', ['Tempestus Scions', 'Inquisitor', 'Chimera'])
+    if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
+    const [scions, inquisitor, chimera] = armyRoster.roster.built.units
+    scions!.keywords = ['Faction: Astra Militarum', 'Infantry', 'Militarum Tempestus']
+    Object.assign(inquisitor!, {
+      keywords: ['Faction: Agents of the Imperium', 'Infantry', 'Character'],
+      attachedTo: 'u0',
+      ...(embarksWithBodyguard ? { embarksWithBodyguard } : {}),
+    })
+    chimera!.transport = true
+    chimera!.transportRule = 'This model has a transport capacity of 12 ASTRA MILITARUM INFANTRY models.'
+    const state = reduceBattle(PLAYERS, log([ALICE, armyRoster]))
+
+    expect(validate(state, ALICE, { kind: 'set-unit-formation', unitKey: 'u0', formation: 'embarked', transportKey: 'u2' })).toBe(expected)
+  })
+
   it('counts passengers already aboard before accepting another unit', () => {
     const armyRoster = builtRoster('Ultramarines', ['Intercessors', 'Scouts', 'Rhino'], { models: 5 })
     if (armyRoster.kind !== 'attach-roster' || !armyRoster.roster.built) throw new Error('expected built roster')
