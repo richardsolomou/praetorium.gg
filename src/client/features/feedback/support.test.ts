@@ -1,6 +1,7 @@
 import { posthog } from 'posthog-js'
 import { afterEach, expect, it, vi } from 'vitest'
-import { replyToConversation } from './support'
+import { QueryClient } from '@tanstack/react-query'
+import { replyToConversation, supportMessagesQuery } from './support'
 
 vi.mock('../../functions', () => ({ supportIdentity: vi.fn() }))
 
@@ -32,4 +33,24 @@ it('sends a reply to its own conversation even when another one is read before t
   await reply
 
   expect(sentTo).toEqual(['mine'])
+})
+
+it('reads a long conversation to its newest message, a page at a time', async () => {
+  const messages = Array.from({ length: 120 }, (_, index) => ({
+    id: `m${index}`,
+    content: `Message ${index}`,
+    author_type: index % 2 ? 'human' : 'customer',
+    created_at: new Date(Date.UTC(2026, 9, 1, 0, index)).toISOString(),
+    is_private: false,
+  }))
+  // As the API does: fifty at a time, oldest first, from just after the given moment.
+  const getMessages = async (ticketId: string, after?: string) => {
+    const rest = after ? messages.filter((message) => message.created_at > after) : messages
+    return { ticket_id: ticketId, ticket_status: 'open', messages: rest.slice(0, 50), has_more: rest.length > 50, unread_count: 0 }
+  }
+  ;(posthog as unknown as { conversations: unknown }).conversations = { getMessages }
+
+  const read = await new QueryClient().query(supportMessagesQuery('ticket'))
+
+  expect(read.messages.map((message) => message.id)).toEqual(messages.map((message) => message.id))
 })

@@ -61,6 +61,8 @@ export async function replyToConversation(ticketId: string, message: string) {
 }
 
 const TICKET_PAGE = 20
+/** Bounds a read of one conversation at a thousand messages, twenty reads of fifty. */
+const MAX_MESSAGE_PAGES = 20
 
 export const TICKET_STATUS: Record<TicketStatus, string> = {
   new: 'Sent',
@@ -97,12 +99,20 @@ export const supportMessagesQuery = (ticketId: string, enabled = true) =>
   queryOptions({
     queryKey: messagesKey(ticketId),
     queryFn: async ({ client }) => {
-      const response = await posthog.conversations?.getMessages(ticketId)
-      if (response?.unread_count) {
-        await posthog.conversations?.markAsRead(ticketId)
+      const conversations = posthog.conversations
+      const first = await conversations?.getMessages(ticketId)
+      // A read returns fifty messages, oldest first, so a long conversation is read forward from its newest one so far.
+      const messages = [...(first?.messages ?? [])]
+      for (let page = 1, more = first?.has_more; more && page < MAX_MESSAGE_PAGES; page++) {
+        const next = await conversations?.getMessages(ticketId, messages.at(-1)?.created_at)
+        messages.push(...(next?.messages ?? []).filter((message) => !messages.some((seen) => seen.id === message.id)))
+        more = next?.has_more && Boolean(next.messages.length)
+      }
+      if (first?.unread_count) {
+        await conversations?.markAsRead(ticketId)
         void client.invalidateQueries({ queryKey: ticketsKey() })
       }
-      return { status: response?.ticket_status, messages: response?.messages.filter((message) => !message.is_private) ?? [] }
+      return { status: first?.ticket_status, messages: messages.filter((message) => !message.is_private) }
     },
     enabled,
     refetchInterval: 10_000,
