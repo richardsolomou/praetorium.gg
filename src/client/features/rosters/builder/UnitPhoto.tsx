@@ -1,14 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { collectionPhotoPath } from '../../../../contracts/collection'
-import { collectionPhotosQuery, datasheetPhotosQuery, meQuery } from '../../../queries'
+import { collectionPhotoShowsQuery, collectionPhotosQuery, datasheetPhotosQuery, meQuery } from '../../../queries'
+import { photosShowing } from '../../../../core/collectionPhotos'
 import { OwnPhotos } from '../../collection/CollectionPhoto'
 import { PhotoViewer } from '../../collection/PhotoViewer'
 
 /** The reader's own photos of a datasheet, or else the first one players share, and space for a signed-in reader to add theirs. */
 export function UnitPhoto({ entryId, name }: { entryId: string; name: string }) {
   const { data: me } = useQuery(meQuery())
-  const own = useQuery({ ...collectionPhotosQuery(), enabled: Boolean(me) }).data?.[entryId]
+  const photos = useQuery({ ...collectionPhotosQuery(), enabled: Boolean(me) }).data
+  const shows = useQuery({ ...collectionPhotoShowsQuery(), enabled: Boolean(me) }).data
+  const own = photos && shows && photosShowing(photos, shows, entryId).length > 0
   const shared = useQuery({ ...datasheetPhotosQuery(entryId), enabled: !own }).data?.[0]
   const [viewing, setViewing] = useState(false)
   if (!me && !shared) return null

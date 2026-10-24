@@ -33,6 +33,7 @@ export const SYNC_PRODUCT_ACTIONS = new Set([
   'remove_from_collection',
   'set_collection_models',
   'set_collection_progress',
+  'set_collection_counts_as',
   'set_collection_wanted',
   'add_favourite_faction',
   'remove_favourite_faction',

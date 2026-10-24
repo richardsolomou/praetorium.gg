@@ -2,22 +2,30 @@ import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
 import { ImagePlus } from 'lucide-react'
 import { useState, type DragEvent } from 'react'
-import { MAX_DATASHEET_PHOTOS } from '../../../core/collectionPhotos'
-import { collectionPhotosQuery } from '../../queries'
+import { MAX_DATASHEET_PHOTOS, photoRow } from '../../../core/collectionPhotos'
+import { collectionCountsAsQuery, collectionPhotosQuery, collectionQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { useCollectionPhotoUpload } from '../../useCollection'
 import { Problem } from '../../components/Problem'
 
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp']
 
-/** Drop photos of a datasheet's models here, or click to choose them; each uploads in turn until the datasheet holds its most. */
+/**
+ * Drop photos of a datasheet's models here, or click to choose them; each uploads in turn until the collection row holds its most.
+ *
+ * A datasheet the player's models count as keeps its photos with that row, so the models are not added to the collection twice.
+ */
 export function PhotoDropZone({ entryId, name, className = '' }: { entryId: string; name: string; className?: string }) {
   const { data: photos } = useQuery(collectionPhotosQuery())
+  const { data: owned } = useQuery(collectionQuery())
+  const { data: countsAs } = useQuery(collectionCountsAsQuery())
   const upload = useCollectionPhotoUpload()
   const [dragging, setDragging] = useState(false)
   const [adding, setAdding] = useState<{ current: number; total: number } | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
-  const room = MAX_DATASHEET_PHOTOS - (photos?.[entryId]?.length ?? 0)
+  if (!owned || !countsAs) return null
+  const row = photoRow(entryId, owned, countsAs)
+  const room = MAX_DATASHEET_PHOTOS - (photos?.[row.entryId]?.length ?? 0)
   if (room <= 0) return null
 
   const add = async (files: File[]) => {
@@ -33,7 +41,7 @@ export function PhotoDropZone({ entryId, name, className = '' }: { entryId: stri
     for (const [index, file] of chosen.entries()) {
       setAdding({ current: index + 1, total: chosen.length })
       try {
-        await upload.mutateAsync({ entryId, file })
+        await upload.mutateAsync({ ...row, file })
       } catch (error) {
         setProblem(errorMessage(error, 'The photo could not be saved.'))
         break

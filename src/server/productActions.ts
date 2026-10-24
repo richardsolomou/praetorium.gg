@@ -29,6 +29,10 @@ export const productActions = {
     await app().service.rosterService.setCollectionProgress(owner, data.entryId, { built: data.built, painted: data.painted })
     await captureMutation(owner, 'player_collection_progressed', { built: data.built, painted: data.painted })
   }),
+  setCollectionCountsAs: action(schemas.setCollectionCountsAs, async (owner, data) => {
+    await app().service.rosterService.setCollectionCountsAs(owner, data.entryId, data.countsAs)
+    await captureMutation(owner, 'player_collection_linked', { datasheets: data.countsAs.length })
+  }),
   setCollectionWanted: action(schemas.setCollectionWanted, async (owner, data) => {
     await app().service.rosterService.setCollectionWanted(owner, data.entryId, data.wanted)
     await captureMutation(owner, 'player_collection_wished', { wanted: data.wanted })

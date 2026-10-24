@@ -789,6 +789,10 @@ export class SpacetimeRepository {
     return this.product.setCollectionProgress(...args)
   }
 
+  setCollectionCountsAs(...args: Parameters<SpacetimeOperator['setCollectionCountsAs']>) {
+    return this.product.setCollectionCountsAs(...args)
+  }
+
   collectionWishesByUser(...args: Parameters<SpacetimeOperator['collectionWishesByUser']>) {
     return this.product.collectionWishesByUser(...args)
   }

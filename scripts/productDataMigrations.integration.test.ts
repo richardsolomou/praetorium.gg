@@ -33,7 +33,7 @@ export const seedMigrationFixture = spacetime.reducer({ broken: t.bool() }, (ctx
   for (const [entryId, models] of [['heart', undefined], ['duplicate', undefined], ['models', 12]] as const) {
     const key = JSON.stringify([base.userId, entryId])
     ctx.db.collection.key.delete(key)
-    ctx.db.collection.insert({ key, userId: base.userId, entryId, at: 3n, models, built: undefined, painted: undefined })
+    ctx.db.collection.insert({ key, userId: base.userId, entryId, at: 3n, models, built: undefined, painted: undefined, countsAs: undefined })
   }
   const key = JSON.stringify([base.userId, 'duplicate'])
   ctx.db.favouriteDatasheets.key.delete(key)

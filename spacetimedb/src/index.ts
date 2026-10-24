@@ -32,7 +32,7 @@ import {
 import { parseRosterSnapshot, rosterPickSchema } from '../../src/core/commands'
 import { admitConnection, authConfiguration } from './admission'
 import { rosterReminderSchema } from '../../src/core/reminders'
-import { boundedProgress, MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS } from '../../src/core/collection'
+import { boundedProgress, countsAsList, MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS, MAX_COUNTS_AS } from '../../src/core/collection'
 import { groupBy } from '../../src/core/collections'
 import { TABLE_SHAPES, type TableShape } from '../../src/core/tableShape'
 import { guestSeatId, isGuestSeat } from '../../src/core/newBattle'
@@ -1598,14 +1598,15 @@ export const collectionByUser = spacetime.procedure({ userId: t.string() }, t.st
     requireOperator(tx)
     moveHeartsToFavourites(tx, userId)
     return productJson(
-      Array.from(tx.db.collection.userId.filter(userId)).map(({ key, userId: ownerId, entryId, at, models, built, painted }) => ({
+      Array.from(tx.db.collection.userId.filter(userId)).map(({ key, userId: ownerId, entryId, at, models, built, painted, countsAs }) => ({
         userId: ownerId,
         entryId,
         at,
         models,
         built: built ?? 0,
         painted: painted ?? 0,
-        ...collectionPhotoField(tx, key),
+        countsAs: countsAs ?? [],
+        ...collectionPhotoField(tx, { key, entryId }),
       })),
     )
   }),
@@ -1637,7 +1638,7 @@ export const collectionProfile = spacetime.procedure(
           models: row.models,
           built: row.built ?? 0,
           painted: row.painted ?? 0,
-          ...collectionPhotoField(tx, row.key, viewerId === userId),
+          ...collectionPhotoField(tx, row, viewerId === userId),
         })
       }
       return productJson({ entries, wishes: collectionWishes(tx, userId) })
@@ -1671,6 +1672,13 @@ export const setCollectionProgress = spacetime.reducer(
   },
 )
 
+export const setCollectionCountsAs = spacetime.reducer(
+  { userId: t.string(), entryId: t.string(), countsAs: t.array(t.string()) },
+  (ctx, input) => {
+    setCollectionCountsAsIn(ctx, [input.userId, input.entryId, input.countsAs])
+  },
+)
+
 export const setCollectionWanted = spacetime.reducer(
   { userId: t.string(), entryId: t.string(), wanted: t.u32(), at: t.u64() },
   (ctx, input) => {
@@ -1678,12 +1686,14 @@ export const setCollectionWanted = spacetime.reducer(
   },
 )
 
+const countsAsId = z.string().min(1).max(64)
 const importedCollectionRow = z.object({
-  entryId: z.string().min(1).max(64),
+  entryId: countsAsId,
   models: z.number().int().min(0).max(MAX_COLLECTION_MODELS),
   built: z.number().int().min(0).max(MAX_COLLECTION_MODELS),
   painted: z.number().int().min(0).max(MAX_COLLECTION_MODELS),
   wanted: z.number().int().min(0).max(MAX_COLLECTION_MODELS),
+  countsAs: z.array(countsAsId).max(MAX_COUNTS_AS).optional(),
 })
 
 /** Adds what each row lists; saved counts change only when `replace` is set, and nothing is removed. */
@@ -1704,20 +1714,37 @@ export const importCollection = spacetime.procedure(
         if (row.models) {
           const current = tx.db.collection.key.find(key)
           const progress = boundedProgress(row.models, row)
+          const links = countsAsList(row.entryId, row.countsAs ?? [])
+          const countsAs = links.length ? links : undefined
           if (!current) {
             if (++owned > MAX_COLLECTION_DATASHEETS)
               throw new SenderError(`A collection holds up to ${MAX_COLLECTION_DATASHEETS} datasheets`)
-            tx.db.collection.insert({ key, userId: input.userId, entryId: row.entryId, at: input.at, models: row.models, ...progress })
+            tx.db.collection.insert({
+              key,
+              userId: input.userId,
+              entryId: row.entryId,
+              at: input.at,
+              models: row.models,
+              ...progress,
+              countsAs,
+            })
             result.added++
-          } else if (
-            current.models !== row.models ||
-            (current.built ?? 0) !== progress.built ||
-            (current.painted ?? 0) !== progress.painted
-          ) {
-            if (input.replace) {
-              tx.db.collection.key.update({ ...current, models: row.models, ...progress })
-              result.replaced++
-            } else result.kept++
+          } else {
+            const relinked = links.length > 0 && JSON.stringify(links) !== JSON.stringify(current.countsAs ?? [])
+            if (
+              current.models !== row.models ||
+              (current.built ?? 0) !== progress.built ||
+              (current.painted ?? 0) !== progress.painted ||
+              (relinked && current.countsAs?.length)
+            ) {
+              if (input.replace) {
+                tx.db.collection.key.update({ ...current, models: row.models, ...progress, countsAs: countsAs ?? current.countsAs })
+                result.replaced++
+              } else result.kept++
+            } else if (relinked) {
+              tx.db.collection.key.update({ ...current, countsAs })
+              result.added++
+            }
           }
         }
         if (row.wanted) {
@@ -1740,20 +1767,30 @@ export const importCollection = spacetime.procedure(
 
 export const setCollectionPhoto = spacetime.reducer(
   { userId: t.string(), entryId: t.string(), photoId: t.string(), at: t.u64() },
-  (ctx, input) => {
-    requireOperator(ctx)
-    const { userId, entryId, photoId } = z
-      .object({ userId: idInput, entryId: z.string().min(1).max(2_000_000), photoId: z.uuid() })
-      .parse(input)
-    addToCollectionIn(ctx, [userId, entryId, input.at])
-    const key = JSON.stringify([userId, entryId])
-    if (Array.from(ctx.db.collectionPhotos.row.filter(key)).length >= MAX_DATASHEET_PHOTOS)
-      throw new SenderError(`You can add up to ${MAX_DATASHEET_PHOTOS} photos of a datasheet`)
-    ctx.db.collectionPhotos.insert({ photoId, key, userId, entryId, at: input.at, likes: 0, review: undefined })
-    touchCollection(ctx, userId)
-    touchAdmin(ctx)
-  },
+  (ctx, input) => addCollectionPhoto(ctx, { ...input, shows: input.entryId }),
 )
+
+/** A photo kept with one collection row but filed under a datasheet its models also count as, so that datasheet's gallery shows it. */
+export const setCollectionPhotoAs = spacetime.reducer(
+  { userId: t.string(), entryId: t.string(), shows: t.string(), photoId: t.string(), at: t.u64() },
+  (ctx, input) => addCollectionPhoto(ctx, input),
+)
+
+function addCollectionPhoto(ctx: Context, input: { userId: string; entryId: string; shows: string; photoId: string; at: bigint }) {
+  requireOperator(ctx)
+  const { userId, entryId, shows, photoId } = z
+    .object({ userId: idInput, entryId: z.string().min(1).max(2_000_000), shows: z.string().min(1).max(64), photoId: z.uuid() })
+    .parse(input)
+  const key = JSON.stringify([userId, entryId])
+  if (shows !== entryId && !ctx.db.collection.key.find(key)?.countsAs?.includes(shows))
+    throw new SenderError('Choose a datasheet these models can also be')
+  addToCollectionIn(ctx, [userId, entryId, input.at])
+  if (Array.from(ctx.db.collectionPhotos.row.filter(key)).length >= MAX_DATASHEET_PHOTOS)
+    throw new SenderError(`You can add up to ${MAX_DATASHEET_PHOTOS} photos of a datasheet`)
+  ctx.db.collectionPhotos.insert({ photoId, key, userId, entryId: shows, at: input.at, likes: 0, review: undefined })
+  touchCollection(ctx, userId)
+  touchAdmin(ctx)
+}
 
 /** The owner's removal of one of their photos; another player's photo is left alone. */
 export const removeCollectionPhoto = spacetime.reducer({ userId: t.string(), photoId: t.string() }, (ctx, { userId, photoId }) => {
@@ -1965,11 +2002,14 @@ export const clearCollectionPhotoDeletions = spacetime.reducer({ photoIds: t.arr
  * A collection row's photos, oldest first; absent rather than empty when there are none, because `productJson` writes
  * undefined fields as null. Only the owner sees a held photo.
  */
-function collectionPhotoField(ctx: Context, key: string, owner = true) {
-  const photos = Array.from(ctx.db.collectionPhotos.row.filter(key))
+function collectionPhotoField(ctx: Context, row: { key: string; entryId: string }, owner = true) {
+  const photos = Array.from(ctx.db.collectionPhotos.row.filter(row.key))
     .filter((photo) => owner || photo.review !== 'held')
     .toSorted((left, right) => Number(left.at - right.at) || left.photoId.localeCompare(right.photoId))
-  return photos.length ? { photoIds: photos.map((photo) => photo.photoId) } : {}
+  const shows = photos.filter((photo) => photo.entryId !== row.entryId).map((photo) => [photo.photoId, photo.entryId])
+  return photos.length
+    ? { photoIds: photos.map((photo) => photo.photoId), ...(shows.length ? { photoShows: Object.fromEntries(shows) } : {}) }
+    : {}
 }
 
 /** Drops a photo and its likes, leaving its id for the web server to delete the stored object. */
@@ -2903,7 +2943,7 @@ function addToCollectionIn(ctx: Context, args: unknown[]) {
   moveHeartsToFavourites(ctx, userId)
   const key = JSON.stringify([userId, entryId])
   if (!ctx.db.collection.key.find(key)) {
-    ctx.db.collection.insert({ key, userId, entryId, at, models: 1, built: undefined, painted: undefined })
+    ctx.db.collection.insert({ key, userId, entryId, at, models: 1, built: undefined, painted: undefined, countsAs: undefined })
     touchCollection(ctx, userId)
   }
 }
@@ -2933,7 +2973,7 @@ function setCollectionModelsIn(ctx: Context, args: unknown[]) {
       models,
       ...boundedProgress(models, { built: current.built ?? 0, painted: current.painted ?? 0 }),
     })
-  else ctx.db.collection.insert({ key, userId, entryId, at, models, built: undefined, painted: undefined })
+  else ctx.db.collection.insert({ key, userId, entryId, at, models, built: undefined, painted: undefined, countsAs: undefined })
   touchCollection(ctx, userId)
 }
 
@@ -2948,6 +2988,18 @@ function setCollectionProgressIn(ctx: Context, args: unknown[]) {
   const current = ctx.db.collection.key.find(JSON.stringify([userId, entryId]))
   if (!current) throw new SenderError('Add this datasheet to your collection before counting built or painted models')
   ctx.db.collection.key.update({ ...current, ...boundedProgress(current.models ?? 1, { built, painted }) })
+  touchCollection(ctx, userId)
+}
+
+function setCollectionCountsAsIn(ctx: Context, args: unknown[]) {
+  const [userId, entryId, countsAs] = z.tuple([textArg, textArg, z.array(countsAsId).max(MAX_COUNTS_AS)]).parse(args)
+
+  requireOperator(ctx)
+  moveHeartsToFavourites(ctx, userId)
+  const current = ctx.db.collection.key.find(JSON.stringify([userId, entryId]))
+  if (!current) throw new SenderError('Add this datasheet to your collection before choosing what else its models can be')
+  const links = countsAsList(entryId, countsAs)
+  ctx.db.collection.key.update({ ...current, countsAs: links.length ? links : undefined })
   touchCollection(ctx, userId)
 }
 
@@ -3727,6 +3779,7 @@ const syncProductActions = {
   remove_from_collection: removeFromCollectionIn,
   set_collection_models: setCollectionModelsIn,
   set_collection_progress: setCollectionProgressIn,
+  set_collection_counts_as: setCollectionCountsAsIn,
   set_collection_wanted: setCollectionWantedIn,
   add_favourite_faction: addFavouriteFactionIn,
   remove_favourite_faction: removeFavouriteFactionIn,
