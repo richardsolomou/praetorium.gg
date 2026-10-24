@@ -10,7 +10,11 @@ Start your prompt with "Using Praetorium" or ask it to cite the Praetorium page.
 
 ### "This connection request has expired"
 
-Connection requests time out. Go back to your assistant and start the connection again. The same applies to **Could not finish connecting. Start the connection again from your app.**
+Connection requests time out. Go back to your assistant and start the connection again. The same applies to **Could not finish connecting. Start the connection again from your assistant.**
+
+### "This app is no longer registered"
+
+The app's registration was removed after it asked to connect. Start the connection again from your assistant, which registers it again.
 
 ### Signing in keeps sending me back
 
