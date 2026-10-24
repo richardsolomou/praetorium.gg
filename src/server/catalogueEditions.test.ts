@@ -232,15 +232,7 @@ it('loads every rules version, then every reference list, before building picker
   })
   mocks.built.length = 0
   completeSteps(loaded.construction())
-  const firstPicker = mocks.built.findIndex((entry) => entry.startsWith('picker'))
-  const before = mocks.built.slice(0, firstPicker)
-  expect({
-    edition: before.indexOf('edition codex'),
-    references: new Set(before.filter((entry) => entry.startsWith('reference'))),
-  }).toEqual({
-    edition: 0,
-    references: new Set(['reference parent', 'reference child', 'reference codex~child']),
-  })
+  expect(mocks.built.slice(0, 4)).toEqual(['edition codex', 'reference child', 'reference parent', 'reference codex~child'])
 })
 
 it('keeps saved catalogue IDs on their rules when another version becomes the default', () => {
