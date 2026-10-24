@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.184.5
+
+### Patch Changes
+
+- a87cc47: Nork Deddog, Ogryn Bodyguard and Regimental Attachés can embark in any transport their Command Squad can, with a Loyal Protector taking up the space of 3 models.
+
+## 0.184.4
+
+### Patch Changes
+
+- 6d3e8b8: The agent combat tool and simulator links can field a unit that joins an attached unit, such as Nork Deddog with the Cadian Command Squad leading Cadian Shock Troops.
+
 ## 0.184.3
 
 ### Patch Changes

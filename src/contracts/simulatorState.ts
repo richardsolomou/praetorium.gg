@@ -26,9 +26,11 @@ const sideSchema = z.object({
   pick: rosterPickSchema.omit({ attachedTo: true }),
   rules: z.record(key, z.int().min(0).max(20)),
   preferences: weaponPreferencesSchema.optional(),
+  /** Units joined to the main unit, or with `attachedTo` to an earlier one in `[pick, ...attached]`, as a Loyal Protector joins a Command Squad. */
   attached: z
-    .array(rosterPickSchema.omit({ attachedTo: true }))
+    .array(rosterPickSchema.omit({ attachedTo: true }).extend({ attachedTo: z.int().min(1).max(6).optional() }))
     .max(7)
+    .refine((units) => units.every((unit, at) => (unit.attachedTo ?? 0) <= at), 'An attached unit joins the main unit or an earlier one.')
     .optional(),
   /** A unit from a saved roster or a revealed league list, simulated with its detachment, enhancements, and attachments. */
   roster: z

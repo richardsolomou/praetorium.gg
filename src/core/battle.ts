@@ -175,8 +175,10 @@ export type SubmittedUnit = {
   keywords?: string[]
   /** The transport the list starts this unit in, by key; setup judges it again through `startingEmbarks`. */
   startsEmbarkedIn?: string
-  /** While leading a unit, this character can embark within any transport its Bodyguard unit can. */
+  /** While joined to a unit, this one can embark within any transport that unit can. */
   embarksWithBodyguard?: boolean
+  /** The space each model takes in a transport it rides by `embarksWithBodyguard`, when its ability fixes one. */
+  embarkedSpace?: number
 }
 
 export const UNIT_FORMATIONS = ['battlefield', 'strategic-reserves', 'deep-strike', 'embarked'] as const
@@ -214,7 +216,7 @@ export function transportLabel(units: readonly Pick<UnitState, 'key' | 'name'>[]
 /** What a transport holds if these passengers ride in it, or why they cannot. */
 export function transportLoadOf(
   transport: Pick<UnitState, 'transportRule' | 'transportCapacity' | 'wargear'> | undefined,
-  passengers: readonly (Passenger & Partial<Pick<UnitState, 'key' | 'attachedTo' | 'embarksWithBodyguard'>>)[],
+  passengers: readonly (Passenger & Partial<Pick<UnitState, 'key' | 'attachedTo' | 'embarksWithBodyguard' | 'embarkedSpace'>>)[],
 ): TransportLoad | Refusal {
   const rule = transportRule(transport?.transportCapacity ?? transport?.transportRule, transport?.wargear)
   if (!rule) return refuse('transport-capacity-unknown', 'this transport has no known model capacity')
@@ -222,7 +224,8 @@ export function transportLoadOf(
     rule,
     passengers.map((passenger) => {
       const bodyguard = passenger.embarksWithBodyguard && passengers.find((candidate) => candidate.key === passenger.attachedTo)
-      return bodyguard && bodyguard.keywords ? { ...passenger, ridesAs: bodyguard.keywords } : passenger
+      if (!bodyguard || !bodyguard.keywords) return passenger
+      return { ...passenger, ridesAs: bodyguard.keywords, ...(passenger.embarkedSpace ? { space: passenger.embarkedSpace } : {}) }
     }),
   )
 }
