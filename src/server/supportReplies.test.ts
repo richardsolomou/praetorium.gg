@@ -31,8 +31,12 @@ describe('supportReplyEmail', () => {
   it('links the conversation and keeps the reply itself out', () => {
     const email = supportReplyEmail({ name: 'Tronic', url: 'https://praetorium.gg/support?conversation=t-1' })
     expect(email.text).toBe(
-      'Hi Tronic,\n\nWe replied to the feedback you sent Praetorium. Read our reply and answer it here:\nhttps://praetorium.gg/support?conversation=t-1\n\nYou are getting this because you sent us feedback.',
+      'Hi Tronic,\n\nWe replied to your message on Praetorium. Read our reply and answer it here:\nhttps://praetorium.gg/support?conversation=t-1\n\nYou are getting this because you contacted us through Praetorium.',
     )
+  })
+
+  it('names a message, as players write in with questions and problems as well as feedback', () => {
+    expect(supportReplyEmail({ name: 'Tronic', url: 'https://praetorium.gg/support' }).subject).toBe('We replied to your message')
   })
 
   it('escapes the name in the HTML part', () => {

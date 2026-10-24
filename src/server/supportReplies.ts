@@ -44,16 +44,16 @@ export function supportReplyEmail({ name, url }: { name: string; url: string }) 
   const lines = [
     name ? `Hi ${name},` : 'Hi,',
     '',
-    'We replied to the feedback you sent Praetorium. Read our reply and answer it here:',
+    'We replied to your message on Praetorium. Read our reply and answer it here:',
     url,
     '',
-    'You are getting this because you sent us feedback.',
+    'You are getting this because you contacted us through Praetorium.',
   ]
   const html = lines.map((line) => (line === url ? `<a href="${escape(url)}">${escape(url)}</a>` : escape(line))).join('<br>')
-  return { subject: 'We replied to your feedback', text: lines.join('\n'), html: `<div>${html}</div>` }
+  return { subject: 'We replied to your message', text: lines.join('\n'), html: `<div>${html}</div>` }
 }
 
-/** Emails the player when we reply to their feedback, at most once per run of replies. */
+/** Emails the player when we reply to their message, at most once per run of replies. */
 export async function supportReplyResponse(request: Request, deps: SupportReplyDeps) {
   if (!deps.secret) return new Response(null, { status: 404 })
   if (!sameSecret(request.headers.get('x-praetorium-webhook-secret') ?? '', deps.secret)) return new Response(null, { status: 401 })
