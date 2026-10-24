@@ -168,8 +168,7 @@ export const submit = createServerFn({ method: 'POST' })
         data.workspace ? 'submitWithWorkspace' : 'submit'
       ](data.token, actorId, data.expectedSeq, command, await app().rulesFor())
       // A guest is nobody's person in analytics; their browser reports its own anonymous events.
-      if (!isGuestSeat(actorId))
-        await captureBattleCommand(actorId, battleId, command, answer.result, performance.now() - startedAt, 'direct')
+      if (!isGuestSeat(actorId)) await captureBattleCommand(actorId, battleId, command, answer, performance.now() - startedAt, 'direct')
       return answer
     }),
   )
