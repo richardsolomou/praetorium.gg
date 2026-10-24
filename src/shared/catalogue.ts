@@ -12,6 +12,7 @@ import {
   profileModifiers,
   type ProfileModifier,
   type Selection,
+  unitKeywordIds,
 } from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
 import { unitChoices, type UnitChoiceCache } from '../core/unitChoices'
@@ -249,6 +250,7 @@ function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string,
     name,
     points: cachedIn(priceCache, loaded, `${catalogueId}:${entryId}`, () => priceOf(loaded, catalogueId, entryId)),
     keywords: walked.keywords,
+    ...(walked.modelKeywords.length ? { modelKeywords: walked.modelKeywords } : {}),
     profiles: walked.profiles,
     abilities: walked.abilities,
     composition: details?.composition ?? [],
@@ -502,9 +504,9 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
 
   const name = nameOf(root, loaded.index.definitions)
   const characteristicNames = loaded.characteristicNames
-  const keywords = selection
-    ? keywordsIn(loaded, catalogueId, entryId, { selection, roster: selectedUnit ? context?.selections : undefined })
-    : keywordsIn(loaded, catalogueId, entryId)
+  const { keywords, modelKeywords } = selection
+    ? unitKeywordsIn(loaded, catalogueId, entryId, { selection, roster: selectedUnit ? context?.selections : undefined })
+    : unitKeywordsIn(loaded, catalogueId, entryId)
   const catalogueOptions = choices.map((choice) => ({
     name: choice.name,
     options: choice.options.map((option) => option.name).join('; '),
@@ -591,6 +593,7 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     selection,
     choices,
     keywords,
+    modelKeywords,
     catalogueOptions,
     profiles: uniqueProfiles(displayProfiles),
     abilities: uniqueAbilities([...abilities.values(), ...grantedAbilities]),
@@ -598,7 +601,9 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
   }
 }
 
-const keywordCache = new WeakMap<LoadedCatalogue, Map<string, string[]>>()
+type Keywords = { keywords: string[]; modelKeywords: NonNullable<Datasheet['modelKeywords']> }
+
+const keywordCache = new WeakMap<LoadedCatalogue, Map<string, Keywords>>()
 
 /** Read selected and granted keywords, not only linked profiles. Cache the default-selection answer per immutable snapshot, but not roster-context answers. */
 export function keywordsIn(
@@ -607,8 +612,17 @@ export function keywordsIn(
   entryId: string,
   context?: { selection: Selection; roster?: readonly Selection[] },
 ): string[] {
+  return unitKeywordsIn(loaded, catalogueId, entryId, context).keywords
+}
+
+function unitKeywordsIn(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  entryId: string,
+  context?: { selection: Selection; roster?: readonly Selection[] },
+): Keywords {
   const root = loaded.index.definitions.get(entryId)
-  if (!root) return []
+  if (!root) return { keywords: [], modelKeywords: [] }
   if (context) {
     return keywordsOf(loaded, catalogueId, root, context.selection, context.roster)
   }
@@ -623,7 +637,7 @@ function keywordsOf(
   root: Definition,
   selection: Selection | null | undefined,
   roster: readonly Selection[] | undefined,
-): string[] {
+): Keywords {
   const sheet = targetOf(root, loaded.index.definitions)
   const links = [...(root.categoryLinks ?? []), ...(sheet === root ? [] : (sheet.categoryLinks ?? []))]
   const written = new Map(links.flatMap((link) => (link.name ? [[link.targetId, link.name] as const] : [])))
@@ -643,10 +657,34 @@ function keywordsOf(
     const printed = written.get(id) ?? category?.name
     return printed ? [printed] : []
   }
-  if (!selection) return [...new Set([...written.keys()].flatMap(wording))].toSorted()
+  const printed = (ids: readonly string[]) => [...new Set(ids.flatMap(wording))].toSorted()
+  if (!selection) return { keywords: printed([...written.keys()]), modelKeywords: [] }
   const selections = roster?.includes(selection) ? roster : [selection]
-  const held = keywordIds(selections, selections.indexOf(selection), loaded.index, { primaryCatalogueId: catalogueId })
-  return [...new Set(held.flatMap(wording))].toSorted()
+  const held = unitKeywordIds(selections, selections.indexOf(selection), loaded.index, { primaryCatalogueId: catalogueId })
+  return {
+    keywords: printed(held.keywords),
+    modelKeywords: modelOnlyKeywords(held.models.map((model) => ({ ...model, keywords: printed(model.keywords) }))),
+  }
+}
+
+/** The keywords only some of a unit's models have, with the models that have each set. */
+function modelOnlyKeywords(models: readonly { name: string; keywords: string[] }[]): Keywords['modelKeywords'] {
+  // Faction keywords are the unit's, though the data links them only on Marneus Calgar and not his Victrix Honour Guard.
+  const everyModel = new Set(
+    models
+      .flatMap((model) => model.keywords)
+      .filter((keyword) => /^faction:/iu.test(keyword) || models.every((model) => model.keywords.includes(keyword))),
+  )
+  const groups = new Map<string, { models: string[]; keywords: string[] }>()
+  for (const model of models) {
+    const keywords = model.keywords.filter((keyword) => !everyModel.has(keyword))
+    if (!keywords.length) continue
+    const key = keywords.join('\0')
+    const group = groups.get(key) ?? { models: [], keywords }
+    group.models.push(model.name)
+    groups.set(key, group)
+  }
+  return [...groups.values()]
 }
 
 /** Selected and offered-weapon views sharing the expensive roster modifier fold. */

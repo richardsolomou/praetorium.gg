@@ -15,6 +15,8 @@ export type Datasheet = {
   name: string
   points: number | null
   keywords: string[]
+  /** Keywords only some models have, such as a command squad's CHARACTER officer; `keywords` also lists them. */
+  modelKeywords?: { models: string[]; keywords: string[] }[]
   profiles: {
     id: string
     name: string

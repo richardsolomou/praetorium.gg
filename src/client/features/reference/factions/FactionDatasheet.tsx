@@ -23,7 +23,7 @@ import { DatasheetAddMenu } from './DatasheetAddMenu'
 import { AddToRoster } from '../../rosters/ReferenceRosterActions'
 import { DatasheetPhotos } from './DatasheetPhotos'
 import { SimulateDatasheet } from '../../simulator/SimulateDatasheet'
-import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule } from '../../../components/Keyword'
+import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule, UnitKeywords } from '../../../components/Keyword'
 import { ProfileRules } from '../../rosters/ProfileRules'
 import { RuleText } from '../../../components/RuleText'
 import { PageContent, PageHeader } from '../../../components/Page'
@@ -70,11 +70,7 @@ export function FactionDatasheet() {
             {sheet.points === null ? null : <span className="chip text-info">{sheet.points} pts</span>}
           </div>
         ) : null}
-        <div id="keyword-rules" data-onboarding="datasheet-keywords" className="mt-2 flex flex-wrap gap-1">
-          {sheet.keywords.map((keyword) => (
-            <Keyword key={keyword} name={keyword} rules={sheet.keywordRules} className={KEYWORD_TAG_CLASS} />
-          ))}
-        </div>
+        <UnitKeywords id="keyword-rules" data-onboarding="datasheet-keywords" className="mt-2" sheet={sheet} />
       </PageHeader>
       <PageContent className="space-y-6">
         <Breadcrumb>
