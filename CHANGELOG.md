@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.188.0
+
+### Minor Changes
+
+- a536821: When we reply to your feedback, we email you a link to the conversation, once per run of replies.
+
+### Patch Changes
+
+- e60e18f: A link to one of your feedback conversations opens it over the Support page.
+- c761fc3: A reply you send no longer shows twice for a moment while it is delivered.
+- e60e18f: The account button now marks a reply to your feedback when you are signed in, rather than only after you opened the conversation.
+
 ## 0.187.0
 
 ### Minor Changes
