@@ -792,6 +792,16 @@ test('photos of another build stay with the models they show and appear on that 
   await page.goto('/collection')
   await expect(page.locator('[data-unit]')).toHaveCount(1)
   await expect(card.getByRole('button', { name: 'Photos of your Necron Warriors', exact: true })).toHaveText('2')
+
+  await card.getByRole('button', { name: 'Actions for Necron Warriors', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Can also be…', exact: true }).click()
+  await linking.getByRole('checkbox', { name: 'Immortals', exact: true }).uncheck()
+  await linking.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(card.locator('[data-counts-as]')).toHaveCount(0)
+  await card.getByRole('button', { name: 'Photos of your Necron Warriors', exact: true }).click()
+  const unlinked = dialog.getByRole('region', { name: 'Immortals', exact: true })
+  await expect(unlinked.getByRole('button', { name: /^Your photo \d of Immortals$/ })).toHaveCount(2)
+  await expect(unlinked.getByLabel('Choose photos of your Immortals')).toHaveCount(0)
 })
 
 test('the wishlist suggests unowned datasheets other players field that none of the player’s rosters use', async ({ page, browser }) => {
