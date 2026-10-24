@@ -10,6 +10,7 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, Dia
 import { importRoster, saveRoster } from '../../functions'
 import { invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
 import { isRosterExchangeCode } from '../../../core/rosterExchange'
+import { isNewRecruitLink } from '../../../core/newRecruit'
 import { importRosterFormat } from '../../../shared/rosterFiles'
 import { battleSizeLabel } from '../../../core/battle'
 import { importFailureReport } from '../feedback/feedback'
@@ -121,6 +122,12 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
   const bring = useMutation({
     onMutate: (file) => posthog.capture('roster_import_submitted', { input: inputOf(file) }),
     mutationFn: async (file: string): Promise<MatchedImport> => {
+      if (isNewRecruitLink(file)) {
+        posthog.capture('roster_import_failed', { reason: 'share_link', input: inputOf(file), format: 'newrecruit' })
+        throw new Error(
+          'That is a New Recruit link, and Praetorium cannot open New Recruit lists from a link. In New Recruit, export the list as text, then paste the text here.',
+        )
+      }
       const imported = await importRoster({ data: { file } }).catch((error: unknown) => {
         posthog.capture('roster_import_failed', { reason: 'request', input: inputOf(file), format: formatOf(file) })
         reportImportFailure({ reason: 'request', inputKind: inputOf(file), unknown: [], unplaced: [], input: file })

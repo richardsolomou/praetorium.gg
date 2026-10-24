@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fromNewRecruitText } from './newRecruit'
+import { fromNewRecruitText, isNewRecruitLink } from './newRecruit'
 
 const exportText = `+++++++++++++++++++++++++++++++++++++++++++++++
 + FACTION KEYWORD: Xenos - Test Faction
@@ -172,5 +172,23 @@ Roster entry: 1`)
         selections: [{ name: 'Test weapon: with a colon', count: 1 }],
       },
     ])
+  })
+})
+
+describe('New Recruit share links', () => {
+  it('recognises a pasted list link', () => {
+    expect(isNewRecruitLink(' https://www.newrecruit.eu/app/list/AbC123xyz \n')).toBe(true)
+  })
+
+  it('recognises a link pasted without its scheme', () => {
+    expect(isNewRecruitLink('newrecruit.eu/app/list/AbC123xyz')).toBe(true)
+  })
+
+  it('does not take an exported text for a link', () => {
+    expect(isNewRecruitLink(exportText)).toBe(false)
+  })
+
+  it('does not take another site for a link', () => {
+    expect(isNewRecruitLink('https://newrecruit.eu.example.com/app/list/AbC123xyz')).toBe(false)
   })
 })
