@@ -171,6 +171,10 @@ export const productActions = {
     await app().service.leagueService.setLeagueTeamDisposition(data.token, owner, data.disposition, data.eventToken)
     return null
   }),
+  setLeagueTeamWarlord: action(schemas.setLeagueTeamWarlord, async (owner, data) => {
+    await app().service.leagueService.setLeagueTeamWarlord(data.token, owner, data.userId, data.eventToken)
+    return null
+  }),
   revealLeague: action(schemas.revealLeague, async (owner, data) => {
     await app().service.leagueService.revealLeague(data.token, owner, data.eventToken)
     await captureMutation(owner, 'league_rosters_revealed')

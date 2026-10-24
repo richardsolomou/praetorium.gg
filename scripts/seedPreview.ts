@@ -45,7 +45,6 @@ export type PreviewRoster = {
   disposition: string
   limit: number
   picks: readonly RosterPick[]
-  warlord: boolean
 }
 
 /** Four distinct factions split between Strike Force and Incursion rosters. */
@@ -57,7 +56,6 @@ const PREVIEW_PLAYER_ROSTERS: readonly PreviewRoster[] = [
     detachmentIds: ['c4ee-83c7-812c-5ff0', '51c2-e233-ea51-14df'],
     disposition: 'purge-the-foe',
     limit: 2000,
-    warlord: true,
     picks: [
       { entryId: '166f-78e9-3ef-63a0' },
       { entryId: '166f-78e9-3ef-63a0' },
@@ -81,7 +79,6 @@ const PREVIEW_PLAYER_ROSTERS: readonly PreviewRoster[] = [
     detachmentIds: ['d2dc-693e-b491-b16d'],
     disposition: 'priority-assets',
     limit: 1000,
-    warlord: true,
     picks: [
       { entryId: '91e3-a419-8c58-98f5', toggles: { 'a89c-b01e-ffab-8ebb': 1 } },
       { entryId: '9770-3a56-619e-f390', attachedTo: 3 },
@@ -101,7 +98,6 @@ const PREVIEW_PLAYER_ROSTERS: readonly PreviewRoster[] = [
     detachmentIds: ['67ce-ebd5-b428-e4f7'],
     disposition: 'take-and-hold',
     limit: 2000,
-    warlord: true,
     picks: [
       { entryId: 'd2de-6903-46a-f02c' },
       { entryId: 'c43b-26b5-4c4-521c' },
@@ -132,7 +128,6 @@ const PREVIEW_PLAYER_ROSTERS: readonly PreviewRoster[] = [
     detachmentIds: ['e2ff-ece0-6cbb-be05'],
     disposition: 'take-and-hold',
     limit: 1000,
-    warlord: true,
     picks: [
       { entryId: '10a1-5896-98da-8c7c', toggles: { '222-fc2-845f-6aa2': 1 } },
       { entryId: '7ff5-9b50-8c58-b32e' },
@@ -156,7 +151,6 @@ export const PREVIEW_OPPONENT_ROSTERS: readonly PreviewRoster[] = [
     detachmentIds: ['fdd5-9868-a9ee-e9f1'],
     disposition: 'reconnaissance',
     limit: 2000,
-    warlord: true,
     picks: [
       { entryId: '4dc0-5822-5cfb-6a02' },
       { entryId: '473e-73f9-493d-6a0a', toggles: { 'b963-64cd-ff80-9cb5': 1 } },
@@ -174,7 +168,6 @@ export const PREVIEW_OPPONENT_ROSTERS: readonly PreviewRoster[] = [
     detachmentIds: ['c2fe-bf23-bf24-aa43'],
     disposition: 'take-and-hold',
     limit: 1000,
-    warlord: true,
     picks: [
       { entryId: 'd160-2a74-7d96-5e9f', toggles: { 'a2d3-5a18-5a14-26ac': 1 } },
       { entryId: '16f9-9c76-2e0e-dc49' },
@@ -197,7 +190,6 @@ export const PREVIEW_OPPONENT_ROSTERS: readonly PreviewRoster[] = [
     detachmentIds: ['3c31-6fac-9914-827a'],
     disposition: 'reconnaissance',
     limit: 2000,
-    warlord: true,
     picks: [
       { entryId: '115d-8239-dc6c-9e5d' },
       { entryId: 'bc16-e600-5fe4-92e8', toggles: { '1f60-2b04-63dc-bf59': 1 } },
@@ -227,7 +219,6 @@ export const PREVIEW_OPPONENT_ROSTERS: readonly PreviewRoster[] = [
     detachmentIds: ['3490-ec82-70b3-c5cf'],
     disposition: 'purge-the-foe',
     limit: 1000,
-    warlord: true,
     picks: [
       { entryId: '1cfc-2dc0-2a7a-28fe', toggles: { '3578-501d-c196-f54d': 1 } },
       { entryId: 'b250-a2f9-7098-353d' },
@@ -242,17 +233,8 @@ export const PREVIEW_OPPONENT_ROSTERS: readonly PreviewRoster[] = [
   },
 ]
 
-function rosterCopy(source: PreviewRoster, id: string, warlord = source.warlord): PreviewRoster {
-  return {
-    ...source,
-    id,
-    warlord,
-    picks: source.picks.map((pick) => {
-      if (warlord || !pick.toggles) return { ...pick }
-      const { toggles: _toggles, ...withoutToggles } = pick
-      return withoutToggles
-    }),
-  }
+function rosterCopy(source: PreviewRoster, id: string): PreviewRoster {
+  return { ...source, id, picks: source.picks.map((pick) => ({ ...pick })) }
 }
 
 export const PREVIEW_ROSTERS: readonly PreviewRoster[] = [
@@ -262,13 +244,13 @@ export const PREVIEW_ROSTERS: readonly PreviewRoster[] = [
 
 export const PREVIEW_ALLY_ROSTERS: readonly PreviewRoster[] = [
   rosterCopy(PREVIEW_PLAYER_ROSTERS[3]!, 'preview-ally-death-guard'),
-  rosterCopy(PREVIEW_PLAYER_ROSTERS[1]!, 'preview-ally-space-marines', false),
+  rosterCopy(PREVIEW_PLAYER_ROSTERS[1]!, 'preview-ally-space-marines'),
 ]
 
 export const PREVIEW_RIVAL_ROSTERS: readonly PreviewRoster[] = [
   rosterCopy(PREVIEW_OPPONENT_ROSTERS[3]!, 'preview-rival-world-eaters'),
-  rosterCopy(PREVIEW_OPPONENT_ROSTERS[1]!, 'preview-rival-tyranids', false),
-  rosterCopy(PREVIEW_OPPONENT_ROSTERS[0]!, 'preview-rival-orks', false),
+  rosterCopy(PREVIEW_OPPONENT_ROSTERS[1]!, 'preview-rival-tyranids'),
+  rosterCopy(PREVIEW_OPPONENT_ROSTERS[0]!, 'preview-rival-orks'),
 ]
 
 /** Two players who know each other but not the preview login, so its public feed has strangers in it. */
@@ -405,8 +387,6 @@ async function verifiedSnapshots(): Promise<PreviewSnapshots> {
           saved.picks.map((pick) => pick.entryId),
         ),
       )
-      const warlords = snapshot.built?.units.filter((unit) => unit.warlord).length ?? 0
-      if (warlords !== Number(saved.warlord)) throw new Error(`${saved.name} has ${warlords} Warlords, expected ${Number(saved.warlord)}`)
       return [saved.id, snapshot] as const
     }),
   )
@@ -858,9 +838,19 @@ async function seedInto(
       userId: input.creatorId,
       allyIds: input.allyIds ?? [],
       opponentIds: input.opponentIds,
-      initialCommands: battleCommands(input.limit, input.rosters, input.tail),
+      initialCommands: battleCommands(input.limit, input.rosters, [
+        ...sideWarlords([[input.creatorId, ...(input.allyIds ?? [])], input.opponentIds]),
+        ...input.tail,
+      ]),
       now: now(),
     })
+  }
+
+  /** Allies each bring a Warlord, so a seeded side of allies names its first seat's to lead it. */
+  function sideWarlords(sides: readonly (readonly string[])[]): Command[] {
+    return sides.flatMap((playerIds, side) =>
+      playerIds.length > 1 ? [{ kind: 'set-side-warlord' as const, side, playerId: playerIds[0]! }] : [],
+    )
   }
 
   async function createRevealedLeague(input: {
@@ -948,9 +938,15 @@ async function seedInto(
         const team = (await repository.leagueByToken(input.token, entry.userId, input.eventToken))?.entries.find(
           (candidate) => candidate.userId === entry.userId,
         )?.team
-        if (!team || team.disposition || !team.choices[0]) continue
-        const result = await repository.setLeagueTeamDisposition(input.token, entry.userId, team.choices[0], now(), input.eventToken)
-        if (result.outcome !== 'chosen') throw new Error(`${input.name} could not settle a Force Disposition: ${result.outcome}`)
+        if (!team) continue
+        if (!team.disposition && team.choices[0]) {
+          const result = await repository.setLeagueTeamDisposition(input.token, entry.userId, team.choices[0], now(), input.eventToken)
+          if (result.outcome !== 'chosen') throw new Error(`${input.name} could not settle a Force Disposition: ${result.outcome}`)
+        }
+        if (!team.warlord && team.warlordChoices[0]) {
+          const result = await repository.setLeagueTeamWarlord(input.token, entry.userId, team.warlordChoices[0], now(), input.eventToken)
+          if (result.outcome !== 'chosen') throw new Error(`${input.name} could not settle a Warlord: ${result.outcome}`)
+        }
       }
       const reveal = await repository.revealLeague(input.token, input.ownerId, now(), input.eventToken)
       if (reveal.outcome !== 'revealed') throw new Error(`${input.name} could not be revealed: ${reveal.outcome}`)
@@ -962,6 +958,10 @@ async function seedInto(
     const dispositions = sides.flatMap((playerIds, side) => {
       const disposition = playerIds.length > 1 ? revealedEntries.find((entry) => entry.userId === playerIds[0])?.team?.disposition : null
       return disposition ? [{ side, disposition }] : []
+    })
+    const warlords = sides.flatMap((playerIds, side) => {
+      const playerId = playerIds.length > 1 ? revealedEntries.find((entry) => entry.userId === playerIds[0])?.team?.warlord : null
+      return playerId ? [{ side, playerId }] : []
     })
     await repository.createLeagueBattle(
       {
@@ -983,6 +983,7 @@ async function seedInto(
             leagueToken: input.token,
             eventToken: input.eventToken,
             ...(dispositions.length ? { dispositions } : {}),
+            ...(warlords.length ? { warlords } : {}),
           },
           ...input.battle.tail,
         ],

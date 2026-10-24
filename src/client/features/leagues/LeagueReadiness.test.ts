@@ -9,6 +9,7 @@ const entry = (userId: string, requiredLimit: number | null): LeagueRevealEntry 
   requiredLimit,
   teamId: null,
   dispositionOwed: false,
+  warlordOwed: false,
 })
 
 describe('checkDetail', () => {

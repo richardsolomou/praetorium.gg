@@ -93,6 +93,10 @@ export type Side = {
   disposition: string | null
   /** The cards the side could play, where its allies brought more than one. */
   dispositionChoices: string[]
+  /** The player whose Warlord leads the side, or nothing while allies have not chosen. */
+  warlord: string | null
+  /** The allies whose lists each name a Warlord, where the side fields more than one. */
+  warlordChoices: string[]
   /** The score as it stands. The battle-ready bonus joins it when the battle ends. */
   total: number
   rounds: ViewPlayer['rounds']
@@ -146,6 +150,8 @@ export function sides(view: BattleView, missions: readonly { side: number; missi
         // it, and a side with no card to play is a question this screen already asks.
         disposition: captain.disposition ?? null,
         dispositionChoices: captain.dispositionChoices ?? [],
+        warlord: captain.warlord ?? null,
+        warlordChoices: captain.warlordChoices ?? [],
         paintedPoints,
         total: captain.primary + captain.secondary + (view.status === 'setup' ? 0 : paintedPoints),
         rounds: captain.rounds,

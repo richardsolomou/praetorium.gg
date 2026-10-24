@@ -8,6 +8,6 @@ The footer shows your points against the limit and how many are left or over. Ch
 
 ## Switching restrictions off
 
-The menu at the end of the picker's filter row, **Format restrictions**, lists what your battle size imposes: **Points limit** and **Detachment points**, plus the King of the Colosseum rules at that size. Untick one to stop checking it for a house-rules game; everyone you play can see what your list waives.
+The menu at the end of the picker's filter row, **Format restrictions**, lists what your battle size imposes: **Points limit**, **Detachment points** and **Warlord** (exactly one Character unit is your Warlord), plus the King of the Colosseum rules at that size. Untick one to stop checking it for a house-rules game; everyone you play can see what your list waives.
 
 ![The Format restrictions menu open over the unit picker, with Points limit and Detachment points ticked.](screenshot:build-an-army-format-restrictions 'Detachment points in the Format restrictions menu')

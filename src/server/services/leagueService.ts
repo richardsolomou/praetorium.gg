@@ -279,7 +279,7 @@ export class LeagueService {
         },
       )
     if (result.outcome === 'wrong-limit') throw new Response('choose a roster built for your assigned size', { status: 409 })
-    if (result.outcome === 'invalid-warlords') throw new Response(leagueWarlordRefusal(snapshot, result.format === '2v2'), { status: 409 })
+    if (result.outcome === 'invalid-warlords') throw new Response(leagueWarlordRefusal(snapshot), { status: 409 })
     throw new Response('the roster could not be sealed; check your entry and roster, then try again', { status: 409 })
   }
 
@@ -294,6 +294,16 @@ export class LeagueService {
     throw new Response('you are not on a team in this event', { status: 404 })
   }
 
+  /** Records whose Warlord leads a fixed pair, before reveal shows them the other side. */
+  async setLeagueTeamWarlord(token: string, userId: string, warlordId: string, eventToken?: string) {
+    const result = await this.repository.setLeagueTeamWarlord(token, userId, warlordId, this.clock(), eventToken)
+    if (result.outcome === 'chosen') return
+    if (result.outcome === 'closed') throw new Response('the lists are already out, so your team’s Warlord is settled', { status: 409 })
+    if (result.outcome === 'not-offered')
+      throw new Response('choose a teammate whose sealed list names a Warlord, once both lists are sealed', { status: 409 })
+    throw new Response('you are not on a team in this event', { status: 404 })
+  }
+
   async revealLeague(token: string, ownerId: string, eventToken?: string) {
     const result = await this.repository.revealLeague(token, ownerId, this.clock(), eventToken)
     if (result.outcome === 'revealed') {
@@ -301,13 +311,8 @@ export class LeagueService {
       return
     }
     if (result.outcome === 'invalid-warlords')
-      throw new Response(
-        result.format === '2v2'
-          ? 'each doubles team must select exactly one eligible Warlord before reveal'
-          : 'each league roster must select exactly one eligible Warlord before reveal',
-        { status: 409 },
-      )
-    throw new Response('wait for every accepted list and every pair’s Force Disposition before reveal', { status: 409 })
+      throw new Response('each league roster must select exactly one eligible Warlord before reveal', { status: 409 })
+    throw new Response('wait for every accepted list and every pair’s Force Disposition and Warlord before reveal', { status: 409 })
   }
 
   /** Send one revealed list back to its owner so a mistake can be corrected in place. */

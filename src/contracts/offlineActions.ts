@@ -33,6 +33,7 @@ export const offlineActionSchemas = {
     catalogueRevision: z.string().min(1).max(128),
   }),
   setLeagueTeamDisposition: schemas.setLeagueTeamDispositionSchema,
+  setLeagueTeamWarlord: schemas.setLeagueTeamWarlordSchema,
   revealLeague: schemas.leagueEventSchema,
   unsealLeagueRoster: schemas.leagueRosterSchema,
   assignLeagueRosterRequirement: schemas.assignLeagueRosterRequirementSchema,

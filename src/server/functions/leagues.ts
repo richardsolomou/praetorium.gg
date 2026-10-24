@@ -21,6 +21,7 @@ import {
   openLeagueSchema,
   setLeagueAdminsSchema,
   setLeagueTeamDispositionSchema,
+  setLeagueTeamWarlordSchema,
   submitLeagueRosterSchema,
   tokenSchema,
   updateLeagueSchema,
@@ -136,6 +137,15 @@ export const setLeagueTeamDisposition = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       return productActions.setLeagueTeamDisposition(player.id, data)
+    }),
+  )
+
+export const setLeagueTeamWarlord = createServerFn({ method: 'POST' })
+  .validator(setLeagueTeamWarlordSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      return productActions.setLeagueTeamWarlord(player.id, data)
     }),
   )
 

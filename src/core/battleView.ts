@@ -7,6 +7,8 @@ import {
   mayNameCard,
   sideDisposition,
   sideDispositionChoices,
+  sideWarlord,
+  sideWarlordChoices,
   sidePaintedPoints,
   type PlayerId,
   PRIMARY_GUIDE,
@@ -123,6 +125,10 @@ export type BattleView = {
     disposition: string | null
     /** The cards the side could still choose between, where its allies offered more than one and no league sealed its card. */
     dispositionChoices: string[]
+    /** The player whose Warlord leads this player's side; null while allies have not chosen. */
+    warlord: PlayerId | null
+    /** The allies the side could still choose between, where each list names a Warlord and no league sealed the choice. */
+    warlordChoices: PlayerId[]
     cp: number
     cpGained: number
     cpSpent: number
@@ -284,6 +290,8 @@ export function battleView(
          */
         disposition: sideDisposition(state, player.side),
         dispositionChoices: state.dispositionsSealed ? [] : sideDispositionChoices(state, player.side),
+        warlord: sideWarlord(state, player.side),
+        warlordChoices: state.warlordsSealed ? [] : sideWarlordChoices(state, player.side),
         cp: resources.cp,
         cpGained: resources.cpGained,
         cpSpent: resources.cpSpent,
