@@ -6,7 +6,7 @@ Praetorium is a Warhammer 40,000 army builder, combat simulator, battle tracker,
 
 Praetorium covers catalogue-backed lists, combat comparisons, friend, guest and practice battles tracked with mission guidance or by hand, leagues with sealed rosters and a results table, and a public rules reference drawn from community data. Praetorium publishes rule names, numbers, costs, and other facts; Game Datacards rules text loads in the reader's browser from its community source only when the reader chooses to load it on that device. Players control who may watch their battles.
 
-It does not include pairings, brackets, schedules, locations, chat, matchmaking, rules this project wrote itself, model positions, or battle photos. Players talk on the [Praetorium Discord](https://discord.gg/7M3sDHEXJU), which the header on every page, the Support page and the README link to; the app itself has no chat.
+It does not include pairings, brackets, schedules, locations, chat, matchmaking, rules this project wrote itself, model positions, or battle photos. Players talk on the [Praetorium Discord](https://discord.gg/RFUMZNFwMu), which the header on every page, the Support page and the README link to; the app itself has no chat.
 
 ## Watching a battle
 

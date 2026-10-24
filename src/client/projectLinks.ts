@@ -3,4 +3,4 @@ export const SOURCE = 'https://github.com/richardsolomou/praetorium.gg'
 
 export const SPONSOR = 'https://github.com/sponsors/richardsolomou'
 
-export const DISCORD = 'https://discord.gg/7M3sDHEXJU'
+export const DISCORD = 'https://discord.gg/RFUMZNFwMu'
