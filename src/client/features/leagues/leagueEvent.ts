@@ -150,35 +150,26 @@ export function leaguePhase(league: LeagueFacts, accepted: number, occupied: num
 }
 
 /**
- * What happens next at an event's stage, said to the reader by what they owe: the organizer the step the reveal waits
- * on, a player what the organizer or the group still has to do. A revealed event asks a player to play only once
- * their side can start a battle; until then the status card says why not.
+ * What happens next at an event's stage. The organizer reads the step the reveal waits on; a player's own step before
+ * the reveal is already on the status card and the readiness panel, so a player reads one only once their side can
+ * start a battle.
  */
 export function leagueNextStep(stage: LeagueStage, viewer: { organizer: boolean; canPlay: boolean }, format: League['format']) {
   const shape = leagueTableShape(format)
-  const pairs = shape === '2v1' ? 'the allies' : 'players into teams'
   if (viewer.organizer)
     return {
       empty: 'Copy the invite link and send it to your group.',
       approving: 'Answer the requests waiting below.',
-      sizing: 'Give each player a solo or allied size below.',
-      pairing: `Pair ${pairs} below.`,
+      recruiting: 'Share the invite link. This format needs more players before you can reveal.',
+      sizing: 'Size players below: at least one solo and two allied.',
+      pairing: `Pair ${shape === '2v1' ? 'the allies' : 'players into teams'} below.`,
       sealing: 'Players seal their rosters. Nobody sees another list, you included, until the reveal.',
       choosing: 'Each team chooses its Force Disposition. Then you can reveal the rosters.',
       ready: 'Reveal the rosters. That opens every list at once and closes entry.',
       playing: 'Players start their league battles from this page. Finished ones fill the results table.',
       results: 'Start the next event once this one’s games are done.',
     }[stage]
-  const play = `Start a ${TABLE_SHAPE_LABELS[shape].count} battle from your card. Finished battles fill the results table.`
-  return {
-    empty: null,
-    approving: 'The organizer answers the waiting requests next.',
-    sizing: 'The organizer gives each player a solo or allied size.',
-    pairing: `The organizer pairs ${pairs}.`,
-    sealing: 'Rosters stay hidden until everyone has sealed and someone reveals them.',
-    choosing: 'Each team chooses its Force Disposition before anyone reveals the rosters.',
-    ready: 'Anyone playing can reveal the rosters now. Then the battles start.',
-    playing: viewer.canPlay ? play : null,
-    results: viewer.canPlay ? play : null,
-  }[stage]
+  return (stage === 'playing' || stage === 'results') && viewer.canPlay
+    ? `Start a ${TABLE_SHAPE_LABELS[shape].count} battle from your card. Finished battles fill the results table.`
+    : null
 }

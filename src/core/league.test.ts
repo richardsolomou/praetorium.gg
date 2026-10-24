@@ -449,6 +449,33 @@ describe('leagueStage', () => {
     expect(leagueStage({ ...open, format: '2v2' }, [entry('a'), entry('b'), entry('c'), entry('d')], false)).toBe('pairing')
   })
 
+  it('is approving an approval duel whose one sealed entrant could otherwise be revealed', () => {
+    expect(leagueStage(open, [entry('a'), entry('b', { status: 'pending', submitted: false })], false)).toBe('approving')
+  })
+
+  it('is recruiting doubles whose only two players are already paired', () => {
+    const team = (userId: string) => entry(userId, { teamId: 't1' })
+    expect(leagueStage({ ...open, format: '2v2' }, [team('a'), team('b')], false)).toBe('recruiting')
+  })
+
+  it('is recruiting doubles with an odd number of players', () => {
+    const team = (userId: string, teamId: string) => entry(userId, { teamId })
+    expect(
+      leagueStage({ ...open, format: '2v2' }, [team('a', 't1'), team('b', 't1'), team('c', 't2'), team('d', 't2'), entry('e')], false),
+    ).toBe('recruiting')
+  })
+
+  it('is recruiting a 2v1 whose sized players are too few for a solo and two allies', () => {
+    expect(
+      leagueStage({ ...open, format: '2v1' }, [entry('a', { requiredLimit: 2_000 }), entry('b', { requiredLimit: 1_000 })], false),
+    ).toBe('recruiting')
+  })
+
+  it('is sizing a 2v1 whose players all have a size but none plays solo', () => {
+    const allied = (userId: string) => entry(userId, { requiredLimit: 1_000 })
+    expect(leagueStage({ ...open, format: '2v1' }, [allied('a'), allied('b'), allied('c')], false)).toBe('sizing')
+  })
+
   it('is sealing while a roster is still owed', () => {
     expect(leagueStage(open, [entry('a'), entry('b', { submitted: false })], false)).toBe('sealing')
   })

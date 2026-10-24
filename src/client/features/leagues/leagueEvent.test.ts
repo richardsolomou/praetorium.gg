@@ -2,7 +2,18 @@ import { describe, expect, it } from 'vitest'
 import type { LeagueStage } from '../../../core/league'
 import { leagueNextStep } from './leagueEvent'
 
-const STAGES: LeagueStage[] = ['empty', 'approving', 'sizing', 'pairing', 'sealing', 'choosing', 'ready', 'playing', 'results']
+const STAGES: LeagueStage[] = [
+  'empty',
+  'approving',
+  'recruiting',
+  'sizing',
+  'pairing',
+  'sealing',
+  'choosing',
+  'ready',
+  'playing',
+  'results',
+]
 const organizer = { organizer: true, canPlay: false }
 const player = { organizer: false, canPlay: true }
 
@@ -20,7 +31,11 @@ describe('leagueNextStep', () => {
   })
 
   it('asks a 2v1 organizer to size players rather than wait for seals', () => {
-    expect(leagueNextStep('sizing', organizer, '2v1')).toMatch(/^Give each player a solo or allied size/)
+    expect(leagueNextStep('sizing', organizer, '2v1')).toMatch(/^Size players below/)
+  })
+
+  it('asks the organizer for more players when only headcount holds the reveal', () => {
+    expect(leagueNextStep('recruiting', organizer, '2v2')).toMatch(/^Share the invite link/)
   })
 
   it('asks a 2v1 organizer to pair the allies', () => {
@@ -31,12 +46,8 @@ describe('leagueNextStep', () => {
     expect(leagueNextStep('pairing', organizer, '2v2')).toBe('Pair players into teams below.')
   })
 
-  it('has nothing for a player before anyone is in', () => {
-    expect(leagueNextStep('empty', player, '1v1')).toBeNull()
-  })
-
-  it('tells a sealing player someone reveals the rosters', () => {
-    expect(leagueNextStep('sealing', player, '1v1')).toContain('someone reveals them')
+  it.each(STAGES.slice(0, -2))('leaves a player to the status card when the event is %s', (stage) => {
+    expect(leagueNextStep(stage, player, '1v1')).toBeNull()
   })
 
   it('names the battle a 2v1 player starts', () => {

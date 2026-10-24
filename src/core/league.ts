@@ -166,7 +166,17 @@ export function leagueRevealChecklist(
  * Where an event stands, from no players to a results table. Before the reveal it is the first reveal check still
  * holding the event up, so the page names the same step the reveal command would refuse on.
  */
-export type LeagueStage = 'empty' | 'approving' | 'sizing' | 'pairing' | 'sealing' | 'choosing' | 'ready' | 'playing' | 'results'
+export type LeagueStage =
+  | 'empty'
+  | 'approving'
+  | 'recruiting'
+  | 'sizing'
+  | 'pairing'
+  | 'sealing'
+  | 'choosing'
+  | 'ready'
+  | 'playing'
+  | 'results'
 
 const STAGE_FOR_CHECK = {
   places: 'empty',
@@ -183,10 +193,15 @@ export function leagueStage(
   played: boolean,
 ): LeagueStage {
   if (event.revealedAt) return played ? 'results' : 'playing'
-  const held = leagueRevealChecklist(event, entries).find((check) => !check.done)
+  // The reveal would turn waiting requests down, so answering them comes first even when nothing else holds it up.
+  if (entries.some((entry) => entry.status === 'pending')) return 'approving'
+  const checks = leagueRevealChecklist(event, entries)
+  const held = checks.find((check) => !check.done)
   if (!held) return 'ready'
-  // Nobody is in yet, but an approval league may already have requests to answer.
-  if (held.step === 'places' && entries.some((entry) => entry.status === 'pending')) return 'approving'
+  const accepted = checks[0]?.step === 'places' ? checks[0].accepted : 0
+  // A size or pairing that only more players can satisfy: fewer than one solo and two allies sized, or doubles short of even pairs.
+  if (held.step === 'sizes' && !held.waiting.length && held.solo + held.allied < 3) return 'recruiting'
+  if (held.step === 'teams' && event.format === '2v2' && (accepted < 4 || accepted % 2)) return 'recruiting'
   return STAGE_FOR_CHECK[held.step]
 }
 
