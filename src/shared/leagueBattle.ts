@@ -39,13 +39,17 @@ function sealedDispositions(league: LeagueBattleSetup, ...sides: string[][]) {
   return { dispositions: dispositions.map(({ side, disposition }) => ({ side, disposition: disposition! })) }
 }
 
-/** Whose Warlord leads each allied side, as its pair sealed it; a side whose pair never sealed one is left to setup. */
+/**
+ * Whose Warlord leads each allied side, as its pair sealed it. Sealing locks every side's choice, so unless every allied
+ * side's pair sealed one, all of them are left to setup.
+ */
 function sealedWarlords(league: LeagueBattleSetup, ...sides: string[][]) {
   const warlords = sides.flatMap((playerIds, side) => {
     const playerId = league.entries.find((entry) => entry.userId === playerIds[0])?.teamWarlord
-    return playerIds.length > 1 && playerId && playerIds.includes(playerId) ? [{ side, playerId }] : []
+    return playerIds.length > 1 ? [{ side, playerId: playerId && playerIds.includes(playerId) ? playerId : null }] : []
   })
-  return warlords.length ? { warlords } : {}
+  if (!warlords.length || warlords.some((entry) => !entry.playerId)) return {}
+  return { warlords: warlords.map(({ side, playerId }) => ({ side, playerId: playerId! })) }
 }
 
 export function buildLeagueBattle(

@@ -71,6 +71,19 @@ describe('2v1 league battles', () => {
     expect(lock(build(led, 'solo', 'ally'))).toMatchObject({ warlords: [{ side: 1, playerId: 'partner' }] })
   })
 
+  it('leaves every Warlord to setup unless each allied side sealed one', () => {
+    const doubles: LeagueBattleSetup = {
+      ...trial([
+        entrant('a', 1_000, 'take-and-hold', 'one', 'take-and-hold', 'b'),
+        entrant('b', 1_000, 'take-and-hold', 'one', 'take-and-hold', 'b'),
+        entrant('c', 1_000, 'take-and-hold', 'two', 'take-and-hold'),
+        entrant('d', 1_000, 'take-and-hold', 'two', 'take-and-hold'),
+      ]),
+      format: '2v2',
+    }
+    expect(lock(build(doubles, 'a', 'c'))).not.toHaveProperty('warlords')
+  })
+
   it('leaves the Warlord to setup for an event revealed before pairs sealed one', () => {
     expect(lock(build(paired, 'solo', 'ally'))).not.toHaveProperty('warlords')
   })
