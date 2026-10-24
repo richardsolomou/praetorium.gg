@@ -17,7 +17,8 @@ import { matchupPairingSchema, RECENT_MATCHUP_LIMIT, recentMatchupSchema } from 
 import { onboardingTaskIds, tourTaskIds } from '../../src/core/onboarding'
 import {
   alliedLeagueRosterLimit,
-  LEAGUE_ALLOWANCES,
+  leagueAllowancesSchema,
+  parseLeagueAllowances,
   leagueAllowanceRefusal,
   leaguePlacesSeat,
   leagueWarlordValid,
@@ -2689,19 +2690,15 @@ function leagueCommandInput<S extends z.ZodType>(inputSchema: S, value: unknown)
 
 const leagueTimeInput = z.number().int().nonnegative()
 const leagueFormatInput = z.enum(TABLE_SHAPES)
-const leagueAllowancesInput = z.array(z.enum(LEAGUE_ALLOWANCES)).max(LEAGUE_ALLOWANCES.length)
+// Absent on an update from an older client, which leaves the event's allowances as they stand.
 const leagueRuleInput = z.object({
   format: leagueFormatInput,
   rosterLimit: z.number().int().positive().max(10_000),
-  allowances: leagueAllowancesInput.default([]),
+  allowances: leagueAllowancesSchema.optional(),
 })
 
 /** Null for an event created before allowances were recorded. */
-const leagueEventAllowances = (event: LeagueEventRow): string[] | null => {
-  if (event.allowances === undefined) return null
-  const parsed = leagueAllowancesInput.safeParse(JSON.parse(event.allowances))
-  return parsed.success ? parsed.data : []
-}
+const leagueEventAllowances = (event: LeagueEventRow) => (event.allowances === undefined ? null : parseLeagueAllowances(event.allowances))
 const leagueDetailsInput = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(2_000),
@@ -3247,7 +3244,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         recurring: z.boolean(),
         format: leagueFormatInput.nullable(),
         rosterLimit: z.number().int().positive().max(10_000).nullable(),
-        allowances: leagueAllowancesInput.default([]),
+        allowances: leagueAllowancesSchema.default([]),
         ownerPlays: z.boolean().default(false),
         now: leagueTimeInput,
       }),
@@ -3370,7 +3367,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         eventToken: idInput,
         format: leagueFormatInput.nullable(),
         rosterLimit: z.number().int().positive().max(10_000).nullable(),
-        allowances: leagueAllowancesInput.default([]),
+        allowances: leagueAllowancesSchema.default([]),
         ownerPlays: z.boolean().default(false),
         now: leagueTimeInput,
       }),
@@ -3417,7 +3414,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       input.rule &&
       (input.rule.format !== current.format ||
         input.rule.rosterLimit !== current.rosterLimit ||
-        JSON.stringify(input.rule.allowances) !== JSON.stringify(leagueEventAllowances(current)))
+        (input.rule.allowances !== undefined && JSON.stringify(input.rule.allowances) !== JSON.stringify(leagueEventAllowances(current))))
         ? input.rule
         : null
     if (rule) {
@@ -3434,7 +3431,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         ...current,
         format: rule.format,
         rosterLimit: rule.rosterLimit,
-        allowances: JSON.stringify(rule.allowances),
+        allowances: rule.allowances === undefined ? current.allowances : JSON.stringify(rule.allowances),
       })
       // Sizes and pairs follow the format and points; what lists may waive leaves them standing.
       if (rule.format !== current.format || rule.rosterLimit !== current.rosterLimit) {

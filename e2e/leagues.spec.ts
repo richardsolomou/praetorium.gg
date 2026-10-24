@@ -634,7 +634,7 @@ function leagueHeader(page: Page) {
 
 test('an event seals Legends only once its organizer allows them', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await signUp(page, uniqueName('LegendsOrganizer'))
+  await signUp(page, uniqueName('Organizer'))
   const rosterName = uniqueName('Legends list')
   await sealableRoster(page, rosterName)
   await page.getByRole('button', { name: 'Legends', exact: true }).click()
@@ -642,8 +642,8 @@ test('an event seals Legends only once its organizer allows them', async ({ page
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Tesseract Ark [Legends]', exact: true }).click())
   await page.goto('/leagues')
   const create = await openLeagueCreation(page, { ownerPlays: true })
-  await create.getByLabel('Name').fill(uniqueName('Matched play league'))
-  await expect(create.getByRole('button', { name: 'House rules' })).toHaveText('Matched play')
+  await create.getByLabel('Name').fill(uniqueName('Tuesday league'))
+  await expect(create.getByRole('button', { name: 'House rules' })).toHaveAccessibleDescription('Matched play')
   await create.screenshot({ path: testInfo.outputPath('league-allowances.png') })
   await submitLeagueCreation(page, create)
   await expect(leagueHeader(page)).toContainText('Matched play')
@@ -653,7 +653,7 @@ test('an event seals Legends only once its organizer allows them', async ({ page
   await expect(chooser.or(choose)).toBeVisible()
   if (!(await chooser.isVisible())) await choose.click()
   await chooseRosterToSeal(page, rosterName)
-  await expect(chooser).toContainText('This event doesn’t allow Legends datasheets such as Tesseract Ark [Legends]')
+  await expect(chooser).toContainText('This event doesn’t allow Legends datasheets, such as Tesseract Ark.')
   await page.keyboard.press('Escape')
   await expect(chooser).toBeHidden()
 
@@ -661,10 +661,10 @@ test('an event seals Legends only once its organizer allows them', async ({ page
   await settings.getByRole('button', { name: 'House rules' }).click()
   await page.getByRole('menuitemcheckbox', { name: /^Legends/ }).click()
   await page.keyboard.press('Escape')
-  await expect(settings.getByRole('button', { name: 'House rules' })).toHaveText('Legends')
+  await expect(settings.getByRole('button', { name: 'House rules' })).toHaveAccessibleDescription('Legends allowed')
   await settings.getByRole('button', { name: 'Save changes' }).click()
   await expect(settings).toBeHidden()
-  await expect(leagueHeader(page)).toContainText('Legends')
+  await expect(leagueHeader(page)).toContainText('Legends allowed')
   await sealOwnRoster(page, rosterName)
 })
 

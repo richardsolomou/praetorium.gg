@@ -341,7 +341,7 @@ export class SpacetimeRepository {
       visibility: LeagueVisibility
       admission: LeagueAdmission
       playerLimit: number | null
-      rule?: { format: TableShape; rosterLimit: number; allowances: readonly LeagueAllowance[] }
+      rule?: { format: TableShape; rosterLimit: number; allowances?: readonly LeagueAllowance[] }
     },
   ) {
     return this.product.leagueCommand(

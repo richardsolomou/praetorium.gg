@@ -13,8 +13,10 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { battleSizeOptionLabel, GAME_SIZES, pointsLabel } from '../../../core/battle'
 import {
+  isNonMatchedPlayAllowance,
   leagueAllowanceOptions,
   leagueRosterSplit,
+  offeredLeagueAllowances,
   LEAGUE_DEFAULT_ROSTER_LIMIT,
   LEAGUE_TEAM_ROSTER_LIMITS,
   type LeagueAllowance,
@@ -27,10 +29,10 @@ import { leagueAllowances } from './leagueEvent'
 type LeagueEventRuleValue = { format: TableShape; rosterLimit: number; allowances: LeagueAllowance[] }
 
 /** Drops what a new format or size no longer offers, so the form never holds an allowance it does not show. */
-const offeredAllowances = (rule: LeagueEventRuleValue): LeagueEventRuleValue => {
-  const offered = new Set(leagueAllowanceOptions(rule.format, rule.rosterLimit).map((option) => option.id))
-  return { ...rule, allowances: rule.allowances.filter((id) => offered.has(id)) }
-}
+const offeredAllowances = (rule: LeagueEventRuleValue): LeagueEventRuleValue => ({
+  ...rule,
+  allowances: offeredLeagueAllowances(rule.format, rule.rosterLimit, rule.allowances),
+})
 
 /** What a team shape asks of an entrant's roster; a duel's points say it all. */
 export const ROSTER_RULE: Partial<Record<TableShape, string>> = {
@@ -111,8 +113,6 @@ export function LeagueEventRuleFields({
   )
 }
 
-const isDatasheetAllowance = (id: LeagueAllowance) => id === 'legends' || id === 'crucible'
-
 /**
  * The event's restrictions read as the roster picker's menu does, ticked while enforced, so an organizer unticks what
  * lists may switch off. Legends and Crucible are the other way round: ticked is what lists may bring.
@@ -146,24 +146,27 @@ function HouseRules({
           render={
             <Button
               id="league-event-house-rules"
+              aria-describedby="league-event-house-rules-summary"
               variant="outline"
               disabled={disabled}
               className="h-11 w-full justify-between font-normal"
             />
           }
         >
-          {leagueAllowances(value)}
+          <span id="league-event-house-rules-summary" className="min-w-0 truncate">
+            {leagueAllowances(value)}
+          </span>
           <ChevronDown className="text-dim" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuGroup>
             <DropdownMenuLabel className="eyebrow text-faint">Format restrictions</DropdownMenuLabel>
-            {options.filter((option) => !isDatasheetAllowance(option.id)).map((option) => item(option, !allowed(option.id)))}
+            {options.filter((option) => !isNonMatchedPlayAllowance(option.id)).map((option) => item(option, !allowed(option.id)))}
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
             <DropdownMenuLabel className="eyebrow text-faint">Lists may include</DropdownMenuLabel>
-            {options.filter((option) => isDatasheetAllowance(option.id)).map((option) => item(option, allowed(option.id)))}
+            {options.filter((option) => isNonMatchedPlayAllowance(option.id)).map((option) => item(option, allowed(option.id)))}
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>

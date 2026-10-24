@@ -4,8 +4,7 @@ import { randomId, randomToken } from 'ras-stack/auth'
 import { type Roster } from '../../core/battle'
 import { commandSchema, parseRosterSnapshot } from '../../core/commands'
 import {
-  LEAGUE_ALLOWANCES,
-  leagueAllowanceOptions,
+  offeredLeagueAllowances,
   leagueTableShape,
   LEAGUE_DEFAULT_ROSTER_LIMIT,
   LEAGUE_MEMBER_MAX,
@@ -74,7 +73,11 @@ export class LeagueService {
   }
 
   /** Saves the league's details and, when given, the open event's rule, together or not at all. */
-  async updateLeague(token: string, ownerId: string, input: LeagueDetails & { rule?: Required<EventRuleInput> }) {
+  async updateLeague(
+    token: string,
+    ownerId: string,
+    input: LeagueDetails & { rule?: EventRuleInput & { format: TableShape; rosterLimit: number } },
+  ) {
     const result = await this.repository.updateLeague(token, ownerId, { ...input, rule: input.rule && eventRule(input.rule) })
     if (typeof result === 'object') {
       if (result.admitted.length)
@@ -427,15 +430,14 @@ type LeagueDetails = {
 
 type EventRuleInput = { format?: TableShape; rosterLimit?: number; allowances?: readonly LeagueAllowance[] }
 
-/** An allowance this format and size do not offer is dropped, so a rule never records one nobody can see. */
+/** Missing allowances stay missing, which an update reads as "leave them as they are". */
 function eventRule(rule: EventRuleInput) {
   const format = leagueTableShape(rule.format)
   const rosterLimit = rule.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT
   if (format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === rosterLimit)) {
     throw new Response(`choose a supported ${format} roster size`, { status: 400 })
   }
-  const offered = new Set(leagueAllowanceOptions(format, rosterLimit).map((option) => option.id))
-  return { format, rosterLimit, allowances: LEAGUE_ALLOWANCES.filter((id) => offered.has(id) && rule.allowances?.includes(id)) }
+  return { format, rosterLimit, allowances: rule.allowances && offeredLeagueAllowances(format, rosterLimit, rule.allowances) }
 }
 
 function tooFewPlaces(format: TableShape) {

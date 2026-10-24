@@ -3,7 +3,8 @@ import { migratedEditionId, migratedEditionPick } from './editionMigrations'
 import { attachedUnitCount } from './attachedUnits'
 import type { TableShape } from './tableShape'
 import { FORMAT_RULE_IDS, formatRules, waivedFormatRules, type FormatRule, type FormatRuleId, type Roster } from './battle'
-import { nonMatchedPlayKind } from './name'
+import { z } from 'zod'
+import { matchedPlayName, NON_MATCHED_PLAY_KINDS, nonMatchedPlayKind, type NonMatchedPlayKind } from './name'
 import type { RosterPick } from './roster'
 import { teamDisposition, teamDispositionChoices } from './teamDisposition'
 import { teamWarlord, teamWarlordChoices } from './teamWarlord'
@@ -368,24 +369,53 @@ export function leagueWarlordValid(roster: Roster, legacy = false) {
 
 /**
  * What an event lets a sealed list do beyond matched play: switch off one of its battle size's restrictions, or bring
- * Legends or Crucible datasheets. An event created before organizers chose this has none recorded and accepts what
- * a list waives, as it always did, while a new one starts from strict matched play.
+ * Legends or Crucible datasheets. An event created before organizers chose this records none (null) and keeps sealing
+ * whatever a list switches off, as it always did; a new one starts from strict matched play.
  */
-export const LEAGUE_ALLOWANCES = [...FORMAT_RULE_IDS, 'legends', 'crucible'] as const
+export const LEAGUE_ALLOWANCES = [...FORMAT_RULE_IDS, ...NON_MATCHED_PLAY_KINDS] as const
 export type LeagueAllowance = (typeof LEAGUE_ALLOWANCES)[number]
 export type LeagueAllowanceOption = Omit<FormatRule, 'id'> & { id: LeagueAllowance }
+export const leagueAllowancesSchema = z.array(z.enum(LEAGUE_ALLOWANCES)).max(LEAGUE_ALLOWANCES.length)
+
+/** A stored rule that no longer parses reads as strict matched play, never as allowing everything. */
+export function parseLeagueAllowances(stored: string): LeagueAllowance[] {
+  try {
+    return leagueAllowancesSchema.catch([]).parse(JSON.parse(stored))
+  } catch {
+    return []
+  }
+}
 
 const WARLORD_RULES: ReadonlySet<string> = new Set<LeagueAllowance>(['warlord', 'kotc-warlord'])
+const NON_MATCHED_PLAY: ReadonlySet<string> = new Set(NON_MATCHED_PLAY_KINDS)
+const NON_MATCHED_PLAY_LABELS: Record<NonMatchedPlayKind, string> = { legends: 'Legends', crucible: 'Crucible' }
 
-/** The allowances an organizer can choose for this rule, in reading order. Allies choose whose Warlord leads, so a team event always needs one. */
+export const isNonMatchedPlayAllowance = (id: LeagueAllowance): id is NonMatchedPlayKind => NON_MATCHED_PLAY.has(id)
+
+/**
+ * The allowances an organizer can choose for this rule, in reading order, described at the size the lists are built
+ * to: a 2v1 at its solo size, a doubles event at its half size. Allies choose whose Warlord leads, so a team event
+ * always needs one.
+ */
 export function leagueAllowanceOptions(format: TableShape, rosterLimit: number): LeagueAllowanceOption[] {
-  const limits = format === '1v1' ? [rosterLimit] : [rosterLimit, alliedLeagueRosterLimit(rosterLimit)]
-  const rules = new Map(limits.flatMap((limit) => formatRules(limit)).map((rule) => [rule.id, rule]))
+  const allied = alliedLeagueRosterLimit(rosterLimit)
+  const limits = format === '1v1' ? [rosterLimit] : format === '2v1' ? [rosterLimit, allied] : [allied]
+  const rules = new Map<LeagueAllowance, FormatRule>()
+  for (const rule of limits.flatMap((limit) => formatRules(limit))) if (!rules.has(rule.id)) rules.set(rule.id, rule)
   return [
     ...[...rules.values()].filter((rule) => format === '1v1' || !WARLORD_RULES.has(rule.id)),
-    { id: 'legends', label: 'Legends', hint: 'Datasheets matched play leaves out' },
-    { id: 'crucible', label: 'Crucible', hint: 'Datasheets matched play leaves out' },
+    ...NON_MATCHED_PLAY_KINDS.map((id) => ({ id, label: NON_MATCHED_PLAY_LABELS[id], hint: 'Datasheets matched play leaves out' })),
   ]
+}
+
+/** The given allowances this format and size offer, in reading order, so a rule never records one nobody can see. */
+export function offeredLeagueAllowances(format: TableShape, rosterLimit: number, allowances: readonly string[]): LeagueAllowance[] {
+  return leagueAllowanceOptions(format, rosterLimit).flatMap((option) => (allowances.includes(option.id) ? [option.id] : []))
+}
+
+/** What an event allows in effect: its recorded allowances, or for an older event every waiver but the Warlord a league always asked for. */
+export function effectiveLeagueAllowances(format: TableShape, rosterLimit: number, allowances: readonly LeagueAllowance[] | null) {
+  return allowances ?? leagueAllowanceOptions(format, rosterLimit).flatMap((option) => (WARLORD_RULES.has(option.id) ? [] : [option.id]))
 }
 
 /** The Warlord rules this list switched off, which an event may allow it to go without. */
@@ -400,13 +430,14 @@ export function leagueAllowanceRefusal(roster: Roster, allowances: readonly stri
   const built = roster.built
   if (allowances === null || !built) return null
   const waived = waivedFormatRules(built.limit, built.waivedRules).filter((rule) => !allowances.includes(rule.id))
-  if (waived.length) return `This event doesn’t let lists switch off ${formatList(waived.map((rule) => rule.label))}`
-  const unit = built.units.find((candidate) => {
-    const kind = nonMatchedPlayKind(candidate.name)
-    return kind !== null && !allowances.includes(kind)
-  })
-  if (!unit) return null
-  return `This event doesn’t allow ${nonMatchedPlayKind(unit.name) === 'legends' ? 'Legends' : 'Crucible'} datasheets such as ${unit.name}`
+  if (waived.length)
+    return `This event keeps ${formatList(waived.map((rule) => rule.label))} on. Switch ${waived.length === 1 ? 'it' : 'them'} back on in the picker’s Format restrictions, then seal again.`
+  for (const unit of built.units) {
+    const kind = nonMatchedPlayKind(unit.name)
+    if (kind && !allowances.includes(kind))
+      return `This event doesn’t allow ${NON_MATCHED_PLAY_LABELS[kind]} datasheets, such as ${matchedPlayName(unit.name)}. Remove them, then seal again.`
+  }
+  return null
 }
 
 /** Explains why a roster's Warlords were refused at seal. Only call it after a refusal. */
