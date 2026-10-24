@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.187.0
+
+### Minor Changes
+
+- 5d266fb: Photos of the other builds your models can also be, such as a magnetised Leman Russ set up as a Demolisher, are filed under that build and show on its datasheet, while staying with the one collection entry.
+- 51e0ba6: Mark what else your collection's models can be, such as every build of a magnetised Leman Russ, and a roster's Your collection section counts each model once wherever it goes.
+- 6ea1cc4: Terrain layouts mark footprints that join into one terrain area with an eye, as the publisher's diagrams do, and explain it in the legend.
+
 ## 0.186.0
 
 ### Minor Changes
