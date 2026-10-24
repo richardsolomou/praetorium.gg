@@ -1,3 +1,4 @@
+import '../polyfills'
 import { bundleAt } from './download'
 import { unpackConstruction } from './compressedReference'
 import { buildConstruction, constructionSource, runConstructionRead } from './constructionSource'
