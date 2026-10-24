@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import type { Attachment, AttachmentLimits } from '../../../../core/attach'
-import type { KeyedPick } from '../rosterPicks'
-import { attachmentRows, joinableUnits } from './attachments'
+import type { Attachment, AttachmentLimits } from './attach'
+import { joinableUnits } from './attachmentOptions'
+import { attachmentRows } from './attachmentRows'
 
 const leader = (targets: string[]): Attachment => ({ kind: 'leader', targets })
 const support = (targets: string[]): Attachment => ({ kind: 'support', targets })
 
-const pick = (key: number, entryId: string, attachedTo?: number): KeyedPick => ({ key, entryId, attachedTo })
+const pick = (key: number, _entryId: string, attachedTo?: number) => ({ key, attachedTo })
 const unit = (
   name: string,
   attachment: Attachment | null = null,

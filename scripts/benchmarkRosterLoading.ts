@@ -1,6 +1,6 @@
 import { rosterCombatant } from '../src/shared/rosterCombatRules'
 import { performance } from 'node:perf_hooks'
-import { attachedUnit } from '../src/core/attach'
+import { attachedUnit } from '../src/core/attachedUnits'
 import { buildUnit, type RosterPick } from '../src/core/roster'
 import { abilityNamesIn, datasheetIn, datasheetViewsIn } from '../src/shared/catalogue'
 import { describeDatasheetAbilities } from '../src/shared/datasheetDescriptions'

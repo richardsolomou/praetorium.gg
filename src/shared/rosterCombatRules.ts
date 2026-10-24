@@ -1,4 +1,5 @@
-import { attachedUnit, attachmentErrors, attachmentHost } from '../core/attach'
+import { attachmentErrors } from '../core/attach'
+import { attachedUnit, attachmentHost } from '../core/attachedUnits'
 import { hasTextTokens } from './sourceText'
 import { parsedAbilityGrants } from './catalogueAbilityGrants'
 import { type CombatRule, type CombatRuleJudge, judgedCombatRule } from '../core/combatRules'

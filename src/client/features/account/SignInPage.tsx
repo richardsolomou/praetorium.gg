@@ -5,7 +5,7 @@ import { useAuthAction } from 'ras-stack/auth/react'
 import { posthog } from 'posthog-js'
 import { useEffect, useRef, useState } from 'react'
 import { peekGuestDraft, GUEST_PATH, requestGuestSave } from '../rosters/guestDraft'
-import { attachedUnitCount } from '../../../core/attachedUnits'
+import { listUnitCount } from '../../../core/attachedUnits'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -58,7 +58,7 @@ export function SignInPage({
     gateViewed.current = true
     posthog.capture('guest_roster_save_gate_viewed', {
       action: join ? 'create' : 'sign_in',
-      unit_count: attachedUnitCount(guest!.draft.picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
+      unit_count: listUnitCount(guest!.draft.picks),
     })
   }, [savingRoster, guest, join])
   const [joining, setJoining] = useState(Boolean(join))

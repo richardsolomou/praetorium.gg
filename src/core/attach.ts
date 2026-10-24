@@ -1,4 +1,3 @@
-import { attachedHost, attachedUnits } from './attachedUnits'
 import { uniqueBy } from './collections'
 import {
   type Association,
@@ -352,28 +351,6 @@ export function admitsHost(attachment: Attachment, hostName: string, hostKeyword
 }
 
 /**
- * The other units in the list that are the same unit as this one, by position.
- *
- * An Attached unit is one unit however many entries the list keeps it in: the
- * bodyguard unit, its Leader, and its Support unit. So a
- * character reaches its siblings through the unit they all joined rather than
- * through each other — asking only what this entry is attached to would tell a
- * Chronomancer nothing about the Overlord standing beside it, and an enhancement
- * that speaks of the bearer's unit means every model in it.
- */
-export function attachedUnit(units: readonly { attachedTo?: number }[], position: number): number[] {
-  return attachedUnits(units.map(byPosition), position).flatMap(({ key }) => (key === position ? [] : [key]))
-}
-
-/** The position of the bodyguard unit a list entry is part of, following a Loyal Protector through its Command Squad. */
-export function attachmentHost(units: readonly { attachedTo?: number }[], position: number): number {
-  const positioned = units.map(byPosition)
-  return positioned[position] ? attachedHost(positioned, positioned[position]).key : position
-}
-
-const byPosition = ({ attachedTo }: { attachedTo?: number }, key: number) => ({ key, attachedTo })
-
-/**
  * Why a unit standing on its own is illegal, when the data insists it joins one.
  *
  * A minimum on `associations` is the catalogue saying this datasheet is never
@@ -396,6 +373,74 @@ function attachmentRequirement(definition: Definition, index: CatalogueIndex): s
   )
 }
 
+/** What judging an attachment reads of one unit in a list. */
+export type AttachmentParty = {
+  name: string
+  attachment: Attachment | null
+  attachmentLimits?: AttachmentLimits
+  attachmentCategories?: readonly string[]
+  /** The unit's keyword names in this list. */
+  keywords?: readonly string[]
+  /** A maximum of zero on `associations`: the datasheet joins nothing. */
+  unattachable?: true
+}
+
+export type AttachmentRefusal<T> =
+  | { rule: 'host' }
+  | { rule: 'leaderless' }
+  | { rule: 'unattachable' }
+  | { rule: 'full'; limit: number; holder: T }
+  | { rule: 'category'; name: string; maximum: number }
+
+/** The attachment facts of a datasheet in a list, read once for both judging and the client. */
+export function attachmentPartyOf(definition: Definition, index: CatalogueIndex, selection?: Selection) {
+  const attachment = attachmentOf(definition, index, selection)
+  const associationMax = definition.constraints
+    ?.filter((constraint) => constraint.type === 'max' && constraint.field === 'associations')
+    .map((constraint) => constraint.value)
+  return {
+    attachment,
+    attachmentLimits: attachmentLimitsOf(definition, index),
+    attachmentCategories: attachment ? attachmentCategoriesOf(definition, index) : [],
+    ...(associationMax?.length && Math.min(...associationMax) < 1 ? { unattachable: true as const } : {}),
+  }
+}
+
+/**
+ * Every rule that stops `joiner` joining `host`, beside the units already counted against its limits.
+ *
+ * The attach menus and the list's errors both ask this, so a menu never offers a
+ * pairing the list then calls illegal. A full host or category ends the judgement,
+ * since the joiner is then not counted among the host's occupants. A Leader may be
+ * listed after the Support unit that needs it, so `companions` is everything attached.
+ */
+export function attachmentRefusals<T extends AttachmentParty>(
+  joiner: AttachmentParty & { attachment: Attachment },
+  host: AttachmentParty,
+  occupants: readonly T[],
+  companions: readonly AttachmentParty[] = occupants,
+): AttachmentRefusal<T>[] {
+  const { attachment } = joiner
+  const refusals: AttachmentRefusal<T>[] = []
+  if (!admitsHost(attachment, host.name, host.keywords)) refusals.push({ rule: 'host' })
+  if (
+    attachment.requiresLeader &&
+    !companions.some((other) => other.attachment?.kind === 'leader' && admitsHost(other.attachment, host.name, host.keywords))
+  ) {
+    refusals.push({ rule: 'leaderless' })
+  }
+  if (joiner.unattachable) refusals.push({ rule: 'unattachable' })
+  const limits = host.attachmentLimits ?? { leader: 1, support: 1, categories: {} }
+  const same = occupants.filter((other) => other.attachment?.kind === attachment.kind)
+  if (same.length >= limits[attachment.kind]) return [...refusals, { rule: 'full', limit: limits[attachment.kind], holder: same[0]! }]
+  const fullCategory = (joiner.attachmentCategories ?? []).flatMap((category) => {
+    const limit = limits.categories[category]
+    return limit && occupants.filter((other) => other.attachmentCategories?.includes(category)).length >= limit.maximum ? [limit] : []
+  })[0]
+  if (fullCategory) refusals.push({ rule: 'category', ...fullCategory })
+  return refusals
+}
+
 export function attachmentErrors(
   units: readonly { entryId: string; attachedTo?: number }[],
   index: CatalogueIndex,
@@ -404,18 +449,24 @@ export function attachmentErrors(
   keywords: readonly (readonly string[] | undefined)[] = [],
 ): EvaluationError[] {
   const errors: EvaluationError[] = []
-  const occupied = { leader: new Map<number, number[]>(), support: new Map<number, number[]>() }
-  const occupiedCategories = new Map<number, Map<string, number[]>>()
-  units.forEach((unit, position) => {
+  const parties = units.map((unit, position): AttachmentParty & { definition?: Definition } => {
     const definition = index.definitions.get(unit.entryId)
-    const name = definition?.name ?? unit.entryId
+    return {
+      definition,
+      name: definition?.name ?? unit.entryId,
+      keywords: keywords[position],
+      ...(definition ? attachmentPartyOf(definition, index, selections[position]) : { attachment: null }),
+    }
+  })
+  const occupants = new Map<number, typeof parties>()
+  units.forEach((unit, position) => {
+    const { definition, name, attachment } = parties[position]!
     const error = (message: string) => errors.push({ entryId: unit.entryId, entryName: name, message })
     if (unit.attachedTo === undefined) {
       // Core rules: each Support unit in a roster must be attached to a Bodyguard unit; a Leader may stand alone.
       const required =
         definition &&
-        (attachmentRequirement(definition, index) ??
-          (attachmentOf(definition, index, selections[position])?.kind === 'support' ? 'must be attached to a Bodyguard unit' : null))
+        (attachmentRequirement(definition, index) ?? (attachment?.kind === 'support' ? 'must be attached to a Bodyguard unit' : null))
       if (required) error(required)
       return
     }
@@ -423,70 +474,53 @@ export function attachmentErrors(
       error('cannot be attached to itself')
       return
     }
-    const host = units[unit.attachedTo]
+    const host = parties[unit.attachedTo]
     if (!host) {
       error('names a missing attachment target')
       return
     }
-    const attachment = definition && attachmentOf(definition, index, selections[position])
     if (!attachment) {
       error('cannot be attached to another unit')
       return
     }
-    const hostName = index.definitions.get(host.entryId)?.name ?? host.entryId
-    const hostKeywords = keywords[unit.attachedTo]
-    if (!admitsHost(attachment, hostName, hostKeywords)) {
-      error(`cannot be attached to ${hostName}`)
-    }
-    if (
-      attachment.requiresLeader &&
-      !units.some((candidate, at) => {
-        if (at === position || candidate.attachedTo !== unit.attachedTo) return false
-        const leader = index.definitions.get(candidate.entryId)
-        const rule = leader && attachmentOf(leader, index, selections[at])
-        return rule?.kind === 'leader' && admitsHost(rule, hostName, hostKeywords)
-      })
-    ) {
-      error(`cannot support ${hostName} without an attached Leader`)
-    }
-    const associationMax = definition?.constraints
-      ?.filter((constraint) => constraint.type === 'max' && constraint.field === 'associations')
-      .map((constraint) => constraint.value)
-    if (associationMax?.length && Math.min(...associationMax) < 1) error('allows no attachments')
-    if (!attachment) return
-    const already = occupied[attachment.kind].get(unit.attachedTo) ?? []
-    const hostDefinition = index.definitions.get(host.entryId)
-    const limits = hostDefinition ? attachmentLimitsOf(hostDefinition, index) : { leader: 1, support: 1, categories: {} }
-    const limit = limits[attachment.kind]
-    if (already.length >= limit) {
-      const other = nameOf(index.definitions.get(units[already[0]!]?.entryId ?? '') ?? { id: '' }, index.definitions)
-      error(
-        attachment.kind === 'leader'
-          ? limit === 1
-            ? `cannot lead ${hostName}, which is already led by ${other}`
-            : `cannot lead ${hostName}, which already has ${limit} Leaders`
-          : limit === 1
-            ? `cannot support ${hostName}, which is already supported by ${other}`
-            : `cannot support ${hostName}, which already has ${limit} Support units`,
-      )
-      return
-    }
-    const categories = attachmentCategoriesOf(definition, index)
-    const categoryCounts = occupiedCategories.get(unit.attachedTo) ?? new Map<string, number[]>()
-    const fullCategory = categories.flatMap((category) => {
-      const categoryLimit = limits.categories[category]
-      const occupants = categoryCounts.get(category) ?? []
-      return categoryLimit && occupants.length >= categoryLimit.maximum ? [categoryLimit] : []
-    })[0]
-    if (fullCategory) {
-      error(`cannot be attached to ${hostName}, which already has ${fullCategory.maximum} ${fullCategory.name}`)
-      return
-    }
-    occupied[attachment.kind].set(unit.attachedTo, [...already, position])
-    for (const category of categories) categoryCounts.set(category, [...(categoryCounts.get(category) ?? []), position])
-    occupiedCategories.set(unit.attachedTo, categoryCounts)
+    const joiner = { ...parties[position]!, attachment }
+    const already = occupants.get(unit.attachedTo) ?? []
+    const companions = parties.filter((_, at) => at !== position && units[at]!.attachedTo === unit.attachedTo)
+    const refusals = attachmentRefusals(joiner, host, already, companions)
+    for (const refusal of refusals) error(errorMessage(refusal, attachment.kind, host.name, index))
+    if (refusals.some((refusal) => refusal.rule === 'full' || refusal.rule === 'category')) return
+    occupants.set(unit.attachedTo, [...already, joiner])
   })
   return errors
+}
+
+function errorMessage(
+  refusal: AttachmentRefusal<{ definition?: Definition }>,
+  kind: Attachment['kind'],
+  hostName: string,
+  index: CatalogueIndex,
+): string {
+  switch (refusal.rule) {
+    case 'host':
+      return `cannot be attached to ${hostName}`
+    case 'leaderless':
+      return `cannot support ${hostName} without an attached Leader`
+    case 'unattachable':
+      return 'allows no attachments'
+    case 'category':
+      return `cannot be attached to ${hostName}, which already has ${refusal.maximum} ${refusal.name}`
+    case 'full': {
+      const other = nameOf(refusal.holder.definition ?? { id: '' }, index.definitions)
+      if (kind === 'leader') {
+        return refusal.limit === 1
+          ? `cannot lead ${hostName}, which is already led by ${other}`
+          : `cannot lead ${hostName}, which already has ${refusal.limit} Leaders`
+      }
+      return refusal.limit === 1
+        ? `cannot support ${hostName}, which is already supported by ${other}`
+        : `cannot support ${hostName}, which already has ${refusal.limit} Support units`
+    }
+  }
 }
 
 /**

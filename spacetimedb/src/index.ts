@@ -3,7 +3,7 @@ import { SenderError, schema, table, t, type InferSchema, type ReducerCtx } from
 import { detachmentIds, ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../../src/core/savedRoster'
 import { migrateStoredRoster } from '../../src/core/savedRosterMigrations'
 import { LOCKED_ROSTER_MESSAGE, lockedRosterRefusal, storedRosterContent } from '../../src/core/rosterLock'
-import { attachedUnitCount } from '../../src/core/attachedUnits'
+import { listUnitCount } from '../../src/core/attachedUnits'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../src/core/rosterLibrary'
 import { orderVariantGroup } from '../../src/core/rosterVariants'
 import { discoveryPage, rosterDiscoveryQuerySchema } from '../../src/core/rosterDiscovery'
@@ -1237,7 +1237,7 @@ function rosterSummary(row: StoredRoster) {
     source: row.source,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-    unitCount: attachedUnitCount(picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
+    unitCount: listUnitCount(picks),
   }
 }
 

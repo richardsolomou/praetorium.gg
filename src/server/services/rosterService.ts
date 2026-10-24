@@ -1,5 +1,5 @@
 import { randomId } from 'ras-stack/auth'
-import { attachedUnitCount } from '../../core/attachedUnits'
+import { listUnitCount } from '../../core/attachedUnits'
 import type { FormatRuleId, OptionalRuleId, Secondary, Stratagem } from '../../core/battle'
 import type { CollectionImportRow, CollectionProgress } from '../../core/collection'
 import type { RosterPick } from '../../core/roster'
@@ -27,10 +27,7 @@ type FullRow = Awaited<ReturnType<RepositoryPort['rostersByUser']>>[number]
 
 function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
   return rows.map((row) => {
-    const unitCount =
-      'unitCount' in row
-        ? row.unitCount
-        : attachedUnitCount(picksSchema.parse(JSON.parse(row.picks)).map((unit, key) => ({ key, attachedTo: unit.attachedTo })))
+    const unitCount = 'unitCount' in row ? row.unitCount : listUnitCount(picksSchema.parse(JSON.parse(row.picks)))
     const identities = currentRosterIds({
       catalogueId: row.catalogueId,
       detachmentIds: detachmentIds(row.detachmentId),

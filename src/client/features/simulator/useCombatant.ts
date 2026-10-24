@@ -14,8 +14,7 @@ import { useSettled } from '../../useSettled'
 import { survivingUnits } from '../rosters/builder/pricePlaceholder'
 import type { KeyedPick } from '../rosters/rosterPicks'
 import { pickEditor, usePicks } from '../rosters/builder/usePicks'
-import { attachedUnit } from '../../../core/attach'
-import { attachedHost } from '../../../core/attachedUnits'
+import { attachedHost, attachedUnit, withoutUnit } from '../../../core/attachedUnits'
 import { restoreWeaponPreferences, storeWeaponPreferences, type PreferenceMember, type StoredWeaponPreferences } from './combatPreferences'
 
 export type CombatRoster = {
@@ -286,12 +285,12 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
       picks.setPicks((current) => {
         const removed = current[index]
         if (current.length < 2 || !removed) return current
-        const remaining = current.filter((member) => member.key !== removed.key)
-        const host = remaining[0]!
-        return remaining.map((member) => ({
-          ...member,
-          attachedTo: member.key === host.key ? undefined : host.key,
-        }))
+        // A combatant is one unit, so whatever the removal leaves standing alone joins the unit that remains.
+        const remaining = withoutUnit(current, removed.key)
+        const host = remaining.find((member) => member.attachedTo === undefined) ?? remaining[0]!
+        return remaining.map((member) =>
+          member.attachedTo === undefined && member !== host ? { ...member, attachedTo: host.key } : member,
+        )
       })
     },
     /** What a shared link needs to restore this standalone side. */

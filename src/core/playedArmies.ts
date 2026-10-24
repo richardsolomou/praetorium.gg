@@ -1,5 +1,5 @@
 import type { BattleState, Roster } from './battle'
-import { attachedUnitCount } from './attachedUnits'
+import { listUnitCount } from './attachedUnits'
 import type { RosterPick } from './roster'
 import { battleOutcome, sideScore, type StandingBattle, type StandingFaction } from './standings'
 
@@ -73,7 +73,7 @@ export function playedArmies(
         pointsBudget: built.pointsBudget ?? null,
         waivedRules: built.waivedRules ?? [],
         picks: built.picks,
-        unitCount: attachedUnitCount(built.picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
+        unitCount: listUnitCount(built.picks),
         playedAt,
         outcome: outcome(summary, seat.side),
       },

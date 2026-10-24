@@ -1,4 +1,5 @@
 import { type Dispatch, type SetStateAction, useCallback, useMemo, useRef, useState } from 'react'
+import { withoutUnit } from '../../../../core/attachedUnits'
 import type { RosterPick } from '../../../../core/roster'
 import { type UnavailableSelection, withoutUnavailableSelections } from '../../../../core/rosterSelections'
 import { isUnitCompositionChoice } from '../../../../core/unitChoices'
@@ -35,6 +36,9 @@ function withoutEmbark<T extends RosterPick>(pick: T): T {
   const { embarkedIn: _embarkedIn, ...rest } = pick
   return rest as T
 }
+
+/** A character embarks with the unit it joins, so its own starting embark goes. */
+const joining = <T extends RosterPick>(pick: T, host: number): T => ({ ...withoutEmbark(pick), attachedTo: host })
 
 /** Only what an edit needs to read back off the priced list. */
 type SizedUnit = {
@@ -215,10 +219,7 @@ export function pickEditor(
           key,
           ...(link && 'joins' in link ? { attachedTo: link.joins } : {}),
         }
-        const rest =
-          link && 'joinedBy' in link
-            ? current.map((pick) => (pick.key === link.joinedBy ? { ...withoutEmbark(pick), attachedTo: key } : pick))
-            : current
+        const rest = link && 'joinedBy' in link ? current.map((pick) => (pick.key === link.joinedBy ? joining(pick, key) : pick)) : current
         return [...rest, added]
       })
     },
@@ -262,11 +263,8 @@ export function pickEditor(
     drop: (index: number) =>
       setPicks((current) => {
         const going = current[index]?.key
-        return current.flatMap((pick, at) => {
-          if (at === index) return []
-          const standing = pick.attachedTo === going ? { ...pick, attachedTo: undefined } : pick
-          return [standing.embarkedIn === going ? withoutEmbark(standing) : standing]
-        })
+        if (going === undefined) return current
+        return withoutUnit(current, going).map((standing) => (standing.embarkedIn === going ? withoutEmbark(standing) : standing))
       }),
 
     resize: (index: number, step: (models: number) => number) =>
@@ -338,9 +336,8 @@ export function pickEditor(
         }),
       ),
 
-    /** A character embarks with the unit it joins, so its own starting embark goes. */
     join: (index: number, targetKey: number | undefined) =>
-      editAt(index, (pick) => ({ ...(targetKey === undefined ? pick : withoutEmbark(pick)), attachedTo: targetKey })),
+      editAt(index, (pick) => (targetKey === undefined ? { ...pick, attachedTo: undefined } : joining(pick, targetKey))),
 
     /** Where the unit with this key starts: in the transport with that key, or on the battlefield. */
     embark: (key: number, transportKey: number | undefined) =>

@@ -1,5 +1,6 @@
 import { groupBy, RecentlyUsed, uniqueBy } from '../core/collections'
-import { admitsHost, attachmentCategoriesOf, attachmentErrors, attachmentHost, attachmentLimitsOf, attachmentOf } from '../core/attach'
+import { attachmentErrors, attachmentPartyOf } from '../core/attach'
+import { attachmentHost } from '../core/attachedUnits'
 import { routeSlug } from '../core/slug'
 import { borrowedDispositionError, detachmentPointBudget, detachmentPointsError, enforces, isKotcLimit } from '../core/battle'
 import { type CatalogueIndex, targetOf } from '../core/catalogue'
@@ -53,7 +54,7 @@ function sharedBuiltUnitsFor(loaded: LoadedCatalogue) {
 
 /** Projections of one built unit, kept for as long as the unit itself is. */
 const builtModelKinds = new WeakMap<BuiltUnit, ModelKind[]>()
-const builtAttachments = new WeakMap<BuiltUnit, ReturnType<typeof attachmentOf>>()
+const builtAttachments = new WeakMap<BuiltUnit, ReturnType<typeof attachmentPartyOf>>()
 
 /**
  * A list as the catalogue reads it: every pick expanded, grouped by the book it
@@ -768,13 +769,9 @@ function calculateRoster(
       )
       let attachment = builtAttachments.get(unit.source)
       if (attachment === undefined) {
-        attachment = attachmentOf(definition, loaded.index, unit.selection)
+        attachment = attachmentPartyOf(definition, loaded.index, unit.selection)
         builtAttachments.set(unit.source, attachment)
       }
-      const listed = attachment
-      const hosts = listed?.keywords
-        ? picked.filter((other) => other !== unit && admitsHost(listed, other.name, keywordNamesOf(other))).map((other) => other.name)
-        : []
       return {
         key: unit.key,
         entryId: unit.entryId,
@@ -801,10 +798,8 @@ function calculateRoster(
           unit.entryId,
           unitSelectionIndex === undefined ? [] : (rosterKeywordsFor(catalogueId)[unitSelectionIndex]?.primaries ?? []),
         ),
+        ...attachment,
         keywords: unitKeywords,
-        attachment: listed && hosts.length ? { ...listed, targets: uniqueNames([...listed.targets, ...hosts]) } : listed,
-        attachmentLimits: attachmentLimitsOf(definition, loaded.index),
-        attachmentCategories: attachment ? attachmentCategoriesOf(definition, loaded.index) : [],
       }
     }),
   }

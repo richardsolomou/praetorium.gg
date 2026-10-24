@@ -12,7 +12,7 @@ import { SimulationMode } from './CombatControls'
 import { RosterPicker } from './RosterPicker'
 import { RosterCombatComparison } from './RosterCombatComparison'
 import { type Combatant, type CombatRoster, useCombatant } from './useCombatant'
-import { attachedUnit } from '../../../core/attach'
+import { attachedUnit } from '../../../core/attachedUnits'
 import {
   decodeSimulatorState,
   encodeSimulatorState,

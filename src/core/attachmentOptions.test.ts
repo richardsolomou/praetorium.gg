@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { availableChoices, newHosts, newJoiners, rosterJoiners, type AttachableUnit } from './attachmentOptions'
+import {
+  attachmentOptions,
+  availableChoices,
+  joinableUnits,
+  newHosts,
+  newJoiners,
+  rosterJoiners,
+  type AttachableUnit,
+} from './attachmentOptions'
 
 const host: AttachableUnit = { name: 'Bodyguard', attachment: null }
 const leader = { id: 'leader', name: 'Captain', attachment: { kind: 'leader' as const, targets: ['Bodyguard'] } }
@@ -105,5 +113,27 @@ describe('whether an attach menu is offered', () => {
 
   it('offers a roster unit, which carries no reason', () => {
     expect(availableChoices([{ name: 'Captain' }])).toEqual([{ name: 'Captain' }])
+  })
+})
+
+describe('the rules a menu shares with the list errors', () => {
+  const scions = { name: 'Tempestus Scions', attachment: null, keywords: ['Battleline', 'Infantry'] }
+  const captain = { name: 'Captain', attachment: { kind: 'leader' as const, targets: ['Bodyguard'] } }
+  const commander = { name: 'Commander', attachment: { kind: 'leader' as const, targets: [], keywords: ['battleline'] } }
+
+  it('offers a host the joiner admits by a keyword it holds in the list', () => {
+    expect(joinableUnits([{ key: 1 }, { key: 2 }], [commander, scions], 0)).toEqual([{ key: 2, name: 'Tempestus Scions' }])
+  })
+
+  it('offers nothing to a datasheet that allows no attachments', () => {
+    expect(joinableUnits([{ key: 1 }, { key: 2 }], [{ ...captain, unattachable: true }, host], 0)).toEqual([])
+  })
+
+  it('wants a Leader that may lead the host before a Support unit needing one', () => {
+    const stranger = { name: 'Stranger', attachment: { kind: 'leader' as const, targets: ['Elsewhere'] } }
+    const servitor = { name: 'Servitor', attachment: { kind: 'support' as const, targets: ['Bodyguard'], requiresLeader: true as const } }
+    expect(attachmentOptions([{ key: 1 }, { key: 2, attachedTo: 1 }, { key: 3 }], [host, stranger, servitor], 2)[0]?.reason).toBe(
+      'Requires an attached Leader.',
+    )
   })
 })

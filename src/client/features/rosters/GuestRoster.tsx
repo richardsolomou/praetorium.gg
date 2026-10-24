@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { posthog } from 'posthog-js'
-import { attachedUnitCount } from '../../../core/attachedUnits'
+import { listUnitCount } from '../../../core/attachedUnits'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { saveRoster } from '../../functions'
@@ -177,7 +177,7 @@ export function GuestRoster({
   )
 }
 
-const unitCount = (guest: GuestDraft) => attachedUnitCount(guest.draft.picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo })))
+const unitCount = (guest: GuestDraft) => listUnitCount(guest.draft.picks)
 
 /**
  * Saving a visitor's list to the account they have just signed in to.

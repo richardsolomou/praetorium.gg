@@ -1,5 +1,5 @@
 import type { RosterPick } from '../../../core/roster'
-import { attachmentHost } from '../../../core/attach'
+import { attachmentHost } from '../../../core/attachedUnits'
 import { readableCombatant } from './readableRules'
 import { combatRuleSelections } from '../../../core/combatRules'
 import { combatMatchup, type CombatAnswer, type CombatantSnapshot, type CombatRequest } from '../../../core/combatMatchup'
