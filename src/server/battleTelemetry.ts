@@ -10,12 +10,14 @@ const lifecycleEvents: Partial<Record<Command['kind'], string>> = {
 
 export async function captureBattleCommand(
   userId: string,
+  battleId: string,
   command: Command,
   result: SubmitResult,
   duration: number,
   delivery: 'direct' | 'sync',
 ) {
   await app().telemetry.capture(userId, 'battle_command_submitted', {
+    battle_id: battleId,
     command: command.kind,
     outcome: result.outcome,
     ...(result.outcome === 'refused' ? { reason: result.code } : {}),
@@ -30,5 +32,5 @@ export async function captureBattleCommand(
   })
   if (result.outcome !== 'appended') return
   const event = lifecycleEvents[command.kind]
-  if (event) await app().telemetry.capture(userId, event, { delivery })
+  if (event) await app().telemetry.capture(userId, event, { battle_id: battleId, delivery })
 }

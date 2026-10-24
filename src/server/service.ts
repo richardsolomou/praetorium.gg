@@ -142,7 +142,7 @@ const PROFILE_BATTLE_PAGE = 25
  * round trip later, a page acts on a view it has already changed — sending a seq
  * from before its own command, or naming the wrong command to undo.
  */
-type SubmitAnswer = { result: SubmitResult; screen: SeatedScreen; applied?: boolean }
+type SubmitAnswer = { result: SubmitResult; screen: SeatedScreen; battleId: string; applied?: boolean }
 type SubmitArgs = [
   token: string,
   userId: string,
@@ -617,7 +617,7 @@ export class PraetoriumService {
       now: offlineContext.getStore()?.createdAt ?? this.clock(),
     })
     this.notifier.notify([{ kind: 'battle-created', actorId: userId, recipientIds: invited, battleToken: token, league: false }])
-    return { token, practice }
+    return { battleId: id, token, practice }
   }
 
   async leagueBattleOptions(userId: string, input?: string | NewBattlePlayers) {
@@ -781,14 +781,20 @@ export class PraetoriumService {
   async submit(...args: SubmitArgs): Promise<SubmitAnswer> {
     const [, userId, , , rules] = args
     const { result, history, application } = await this.append(...args)
-    return { result, screen: this.seatedScreen(history, userId, rules), ...application }
+    return { result, screen: this.seatedScreen(history, userId, rules), battleId: history.battle.id, ...application }
   }
 
   /** The answer with the submitting device's copy of the history, so it is saved without a second download. */
   async submitWithWorkspace(...args: SubmitArgs): Promise<SubmitAnswer & { workspace?: BattleWorkspace }> {
     const [, userId, , , rules] = args
     const { result, history, application } = await this.append(...args)
-    return { result, screen: this.seatedScreen(history, userId, rules), workspace: this.workspace(history, userId), ...application }
+    return {
+      result,
+      screen: this.seatedScreen(history, userId, rules),
+      workspace: this.workspace(history, userId),
+      battleId: history.battle.id,
+      ...application,
+    }
   }
 
   private async append(...[token, userId, expectedSeq, command, rules, sync]: SubmitArgs) {

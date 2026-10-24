@@ -9,8 +9,13 @@ export function captureMutation(userId: string, event: string, properties?: Reco
   return app().telemetry.capture(userId, event, { ...properties, delivery: sync ? 'sync' : 'direct' })
 }
 
-export function captureBattleCreated(userId: string, data: z.output<typeof createBattleSchema>, result: { practice: boolean }) {
+export function captureBattleCreated(
+  userId: string,
+  data: z.output<typeof createBattleSchema>,
+  result: { battleId: string; practice: boolean },
+) {
   return captureMutation(userId, 'battle_created', {
+    battle_id: result.battleId,
     practice: result.practice,
     limit: data.limit,
     player_count: 1 + (data.allyId ? 1 : 0) + (data.opponentIds?.length ?? (data.opponentId ? 1 : 0)) + (data.guestNames?.length ?? 0),

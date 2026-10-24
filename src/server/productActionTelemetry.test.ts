@@ -172,8 +172,13 @@ const cases: Case[] = [
   {
     kind: 'createBattle',
     input: { limit: 2000, opponentId: 'private-opponent' },
-    result: { token: 'private-battle', practice: false },
-    events: [['battle_created', { limit: 2000, player_count: 2, practice: false, casual: false, manual: false, guests: 0 }]],
+    result: { battleId: 'battle-id', token: 'private-battle', practice: false },
+    events: [
+      [
+        'battle_created',
+        { battle_id: 'battle-id', limit: 2000, player_count: 2, practice: false, casual: false, manual: false, guests: 0 },
+      ],
+    ],
   },
   {
     kind: 'createLeagueBattle',

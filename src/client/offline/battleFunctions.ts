@@ -352,7 +352,7 @@ export async function createBattle(args: Parameters<typeof server.createBattle>[
     serverNow: now,
   }
   await queueLocal('createBattle', { input, identifiers }, `battle:${identifiers.battleToken}`, workspace, undefined, undefined, owner.id)
-  return { token: identifiers.battleToken, practice: players.some(isPracticeSeat) }
+  return { battleId: identifiers.battleId, token: identifiers.battleToken, practice: players.some(isPracticeSeat) }
 }
 
 const projectedBattles = new Map<string, string>()
