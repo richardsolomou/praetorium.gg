@@ -13,7 +13,8 @@ import type { SpacetimeOperator } from './spacetimeOperator'
 import { SpacetimeRepository } from './spacetimeRepository'
 import { createSqliteAuth } from './sqliteAuth'
 import { localAuthDatabase } from './localAuthDatabase'
-import { validConsentQuery } from './mcpConsent'
+import { MCP_CONSENT_REFUSALS } from '../shared/mcpConsent'
+import { consentClientName, validConsentQuery } from './mcpConsent'
 
 const secret = 'praetorium-sqlite-auth-integration-secret'
 let directory: string
@@ -853,4 +854,15 @@ it.each(['github', 'google'])('captures actual %s account creation once, then si
   } finally {
     vi.unstubAllGlobals()
   }
+})
+
+it('refuses consent for an app that is no longer registered as an expected refusal', async () => {
+  const auth = authFor({ APP_URL: 'https://praetorium.gg', AUTH_RATE_LIMIT: 'off', SPACETIME_AUDIENCE: 'praetorium-test' })
+  const signup = await auth.api.signUpEmail({
+    body: { email: 'mcp-unknown@example.com', password: 'password1234', name: 'MCP player' },
+    returnHeaders: true,
+  })
+  const cookie = signup.headers.get('set-cookie')?.split(';')[0] ?? ''
+  const refusal = await consentClientName(auth, 'unregistered-client', new Headers({ cookie })).catch((error: unknown) => error)
+  expect(refusal instanceof Response && [refusal.status, await refusal.text()]).toEqual([400, MCP_CONSENT_REFUSALS.unknown_client])
 })

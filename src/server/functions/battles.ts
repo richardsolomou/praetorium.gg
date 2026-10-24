@@ -164,12 +164,13 @@ export const submit = createServerFn({ method: 'POST' })
       const actorId = await requireBattleActor(data.token)
       const startedAt = performance.now()
       const command = await submittedBattleCommand(actorId, data.command)
-      const result: Awaited<ReturnType<PraetoriumService['submitWithWorkspace']>> = await app().service[
+      const { battleId, ...answer }: Awaited<ReturnType<PraetoriumService['submitWithWorkspace']>> = await app().service[
         data.workspace ? 'submitWithWorkspace' : 'submit'
       ](data.token, actorId, data.expectedSeq, command, await app().rulesFor())
       // A guest is nobody's person in analytics; their browser reports its own anonymous events.
-      if (!isGuestSeat(actorId)) await captureBattleCommand(actorId, command, result.result, performance.now() - startedAt, 'direct')
-      return result
+      if (!isGuestSeat(actorId))
+        await captureBattleCommand(actorId, battleId, command, answer.result, performance.now() - startedAt, 'direct')
+      return answer
     }),
   )
 

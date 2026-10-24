@@ -1,10 +1,10 @@
 import { attachGroups, textNickname, type TextRoster, type TextRosterUnit } from './textRoster'
 
 /**
- * A points figure grouped in any locale's style, read as "(1 995 Punkte)" or "(2 Detachment Points)":
+ * A points figure grouped in any locale's style, read as "(1 995 Punkte)", "(1'995 Punkte)" or "(2 Detachment Points)":
  * the name before it, the number, and the first word of its unit.
  */
-const pricePattern = /^(.+?)\s*\((\d{1,3}(?:[\s.,]\d{3})+|\d+)\s+([^\s;)]+)[^)]*\)$/
+const pricePattern = /^(.+?)\s*\((\d{1,3}(?:[\s.,'’]\d{3})+|\d+)\s+([^\s;)]+)[^)]*\)$/
 // The app lists each further piece of a model's wargear under the same bullet, on an unbulleted counted line.
 const selection = /^(?=[•◦]|\d+x\s)(?:[•◦]\s*)?(?:(\d+)x\s+)?(.+?)$/
 const labelled = /^([^:]+):\s*(.+)$/

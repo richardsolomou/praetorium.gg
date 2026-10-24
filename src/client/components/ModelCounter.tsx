@@ -63,6 +63,7 @@ export function ModelCounter({
       <CountButton
         label={`Fewer ${label} models`}
         decrease
+        repeat
         onClick={!unavailable && current !== null && current > min ? () => void save(current - 1) : undefined}
       />
       <input
@@ -94,6 +95,7 @@ export function ModelCounter({
       />
       <CountButton
         label={`More ${label} models`}
+        repeat
         onClick={!unavailable && current !== null && current < max ? () => void save(current + 1) : undefined}
       />
     </span>

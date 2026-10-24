@@ -1,74 +1,12 @@
-import { CancelledError } from '@tanstack/react-query'
-import { createRouter, type ErrorComponentProps, useRouter } from '@tanstack/react-router'
-import { useEffect, useState } from 'react'
+import { createRouter } from '@tanstack/react-router'
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
-import { Button } from '@/components/ui/button'
-import { FullPageState } from './client/components/PageState'
+import { RouteError } from './client/components/RouteError'
 import { createQueryClient } from './client/queryClient'
-import { isModuleLoadFailure } from './client/networkErrors'
-import { checkedStaleBuildRelease, staleBuildRelease } from './client/releaseUpdate'
 import { writesPending } from './client/pendingWrites'
-import {
-  completedRouteRecovery,
-  mayReloadCancelledLoad,
-  reloadModuleRoute,
-  reloadStaleBuild,
-  reportRouteError,
-  routeErrorExplanation,
-  routeRecoveryPending,
-} from './client/routeErrors'
+import { staleBuildRelease } from './client/releaseUpdate'
+import { completedRouteRecovery, reloadStaleBuild, reportRouteError, routeRecoveryPending } from './client/routeErrors'
 import { siteOrigin } from './server/requestOrigin'
 import { routeTree } from './routeTree.gen'
-
-/**
- * A loader that joined a read whose last viewer unmounted mid-flight sees it cancelled, not failed, so the route loads
- * again instead of showing an error. Signing in in the mobile app does this: the refetch it starts loses its screen.
- * A page built before the deployed release can fail on the newer server's responses, which only its code can fix.
- */
-function RouteError({ error }: ErrorComponentProps) {
-  const router = useRouter()
-  const { queryClient } = router.options.context
-  const [reload] = useState(() => error instanceof CancelledError && mayReloadCancelledLoad())
-  useEffect(() => {
-    if (reload) {
-      void router.invalidate()
-      return
-    }
-    let mounted = true
-    void checkedStaleBuildRelease(queryClient).then((release) => {
-      if (mounted && release) reloadStaleBuild(release, 'route_error', { saving: writesPending(queryClient) })
-    })
-    return () => {
-      mounted = false
-    }
-  }, [reload, router, queryClient])
-  if (reload) return null
-  return (
-    <FullPageState
-      title="Something went wrong"
-      explanation={routeErrorExplanation(error)}
-      action={
-        isModuleLoadFailure(error) ? (
-          <Button data-route-error onClick={reloadModuleRoute}>
-            Reload
-          </Button>
-        ) : (
-          <Button
-            data-route-error
-            onClick={() =>
-              void checkedStaleBuildRelease(queryClient).then((release) => {
-                if (release) reloadStaleBuild(release, 'try_again')
-                else void router.invalidate()
-              })
-            }
-          >
-            Try again
-          </Button>
-        )
-      }
-    />
-  )
-}
 
 export function getRouter() {
   const queryClient = createQueryClient()

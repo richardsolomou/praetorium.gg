@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { combatSurvivorWeaponBounds, validCombatSurvivors } from '../../../core/combatSurvivors'
 import type { CombatCarrier } from '../../../core/combatLoadout'
+import { modelCountChoices } from '../../../core/unitSize'
 import { Stepper } from '../../components/Stepper'
 
 export function CombatSurvivorControls({
@@ -55,6 +56,8 @@ export function CombatSurvivorControls({
                 count={carrier.models}
                 onRemove={carrier.models > 0 ? () => resize(index, carrier.models - 1) : undefined}
                 onAdd={carrier.models < original[index]!.models ? () => resize(index, carrier.models + 1) : undefined}
+                choices={modelCountChoices({ min: 0, max: original[index]!.models })}
+                onChoose={(remaining) => resize(index, remaining)}
               />
             )}
           </div>
@@ -78,6 +81,8 @@ export function CombatSurvivorControls({
                   count={weapon.count}
                   onRemove={weapon.count > min ? () => change(weapon.count - 1) : undefined}
                   onAdd={weapon.count < max ? () => change(weapon.count + 1) : undefined}
+                  choices={modelCountChoices({ min, max })}
+                  onChoose={change}
                 />
               </div>
             )

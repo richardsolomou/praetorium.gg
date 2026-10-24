@@ -11,6 +11,6 @@ Open [Rosters](/rosters) and choose **New roster**. The setup dialog asks for:
 
 Choose **Create roster**. While something is missing, the dialog says what, such as **Choose a detachment.** or **Choose a Force disposition.**
 
-You can also start from a faction or detachment page with **Start a roster**, or from a datasheet's **Add to** menu.
+You can also start from a faction or detachment page with **Start a roster**, or from a datasheet's **Add to roster**.
 
 ![The Create roster dialog for Space Marines with Strike Force, Gladius Task Force and the Take and Hold Force disposition chosen.](screenshot:build-an-army-setup 'The Force disposition choice in the Create roster dialog')

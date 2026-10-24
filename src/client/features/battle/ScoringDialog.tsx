@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Stepper } from '../../components/Stepper'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
+import { modelCountChoices } from '../../../core/unitSize'
 import type { Command } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
 import {
@@ -391,6 +392,8 @@ function AwardRow({
             countLabel={`${card.name}: scored ${times} times`}
             onRemove={pending || times === 0 ? undefined : () => onAnswer(times - 1)}
             onAdd={pending || (limit !== null && times >= limit) ? undefined : () => onAnswer(times + 1)}
+            choices={limit === null ? undefined : modelCountChoices({ min: 0, max: limit })}
+            onChoose={(chosen) => !pending && onAnswer(chosen)}
           />
           <span className={`chip shrink-0 ${times > 0 ? tone.mark : 'border-edge-strong'}`}>{awardTotal(award, times)} VP</span>
         </>

@@ -218,8 +218,8 @@ export const productActions = {
     return null
   }),
   deleteBattle: action(schemas.deleteBattle, async (owner, data) => {
-    await app().service.deleteBattle(data.token, owner)
-    await captureMutation(owner, 'battle_deleted')
+    const battleId = await app().service.deleteBattle(data.token, owner)
+    await captureMutation(owner, 'battle_deleted', { battle_id: battleId })
     return null
   }),
   createBattle: action(schemas.createBattle, async (owner, data) => {

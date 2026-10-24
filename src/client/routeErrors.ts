@@ -1,6 +1,7 @@
 import { CancelledError } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
 import { version } from '../../package.json'
+import { captureWhenLoaded } from '../posthog'
 import { isFetchNetworkFailure, isModuleLoadFailure } from './networkErrors'
 import { newerRelease } from './releaseUpdate'
 
@@ -108,4 +109,14 @@ export function completedRouteRecovery(href: string, current = version) {
     posthog.capture('route_recovery_completed', { failure_kind: 'stale_build', recovery_attempt: stale.attempt })
   }
   return moduleAttempt || staleResolved ? url.pathname + url.search + url.hash : null
+}
+
+/**
+ * Records a not-found page. `path` is a grouping key that keeps only words some route spells out; the SDK's own URL
+ * properties still carry the address, as on any pageview. Crawlers that run no JavaScript appear only in the server's `$http_log`.
+ */
+export function notFoundPage(pathname: string, routePaths: readonly string[]) {
+  const words = new Set(routePaths.flatMap((path) => path.split('/').filter((segment) => segment && !/[${]/.test(segment))))
+  const segments = pathname.split('/').filter(Boolean)
+  captureWhenLoaded('page_not_found', { path: `/${segments.map((segment) => (words.has(segment) ? segment : ':id')).join('/')}` })
 }
