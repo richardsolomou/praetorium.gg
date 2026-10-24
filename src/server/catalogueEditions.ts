@@ -21,6 +21,7 @@ import { compiledGlobalSearchIndex } from './globalSearch'
 import { combatUnitsFor } from './combatUnits'
 import type { CatalogueRuntime, RuntimeStartup } from './catalogueRuntime'
 import { pickerConstruction } from '../shared/pickerUnits'
+import { unitSummaries } from '../shared/cataloguePicker'
 import { completeSteps, type Steps, type Stepwise, stepThrough, stepwise } from '../shared/steps'
 
 export function catalogueEditionLoaders(
@@ -208,16 +209,24 @@ export function catalogueEditionLoaders(
         ?.factions.filter((faction) => faction.isDefault)
         .map((faction) => faction.id),
     )
-  /** Loads every edition and, from a compiled runtime, each faction's picker and reference list, a step at a time. */
+  /**
+   * Loads every edition and, from a compiled runtime, each faction's reference list and then its picker, a step at a time.
+   *
+   * Editions load first because a request for one still loading finishes it at once, holding every other request.
+   * Reference lists come next because every faction and datasheet page reads one.
+   */
   function* construction(): Steps<void> {
     const original = base()
     const originalRules = baseRules()
     yield
-    if (runtime && original) for (const faction of original.factions) yield* pickerConstruction(original, originalRules, faction.id)
+    const books: [LoadedCatalogue, LoadedRules | null, string][] =
+      runtime && original ? original.factions.map((faction) => [original, originalRules, faction.id]) : []
     for (const { edition } of composition?.editions ?? []) {
       const { catalogue, rules } = yield* stepThrough(contextLoad(edition.id)!)
-      if (runtime) for (const id of edition.catalogueIds) yield* pickerConstruction(catalogue, rules, editionCatalogueId(edition.id, id))
+      if (runtime) for (const id of edition.catalogueIds) books.push([catalogue, rules, editionCatalogueId(edition.id, id)])
     }
+    for (const [catalogue, , id] of books) yield* stepThrough(unitSummaries(catalogue, id, { factionCards: true }))
+    for (const [catalogue, rules, id] of books) yield* pickerConstruction(catalogue, rules, id)
   }
   return {
     /** Builds every construction index ahead of requests; benchmarks and audits measure a fully built instance. */
