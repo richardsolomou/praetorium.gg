@@ -8,7 +8,7 @@ import { BattleShelf } from '../battles/BattleShelf'
 import type { OnboardingProgress } from '../../../core/onboarding'
 import type { Standing } from '../../../core/standings'
 import { type ArmyUpdate, HomeArmyUpdates } from './HomeArmyUpdates'
-import { FriendTables, PublicTables, watchedTables } from './HomeFeed'
+import { FriendTables, PublicTables, SHOWN, watchedTables } from './HomeFeed'
 import { HomeHero } from './HomeHero'
 import { HomeIntro } from './HomeIntro'
 import { HomeLeaders } from './HomeLeaders'
@@ -44,7 +44,8 @@ export type HomeData = {
   onDelete?: (battle: Battle) => void
 }
 
-const PLAYED = 3
+/** A visitor's public shelf, longer because it is the evidence that games are played here. */
+const VISITOR_GAMES = 3
 
 /** Keep one page width and show the player’s own pending games before friends’ and public games; visitors share the layout but see the public entry points. */
 export function HomeView({
@@ -67,7 +68,7 @@ export function HomeView({
   onDelete,
 }: HomeData) {
   const going = mine.filter((battle) => battle.status !== 'finished')
-  const played = mine.filter((battle) => battle.status === 'finished' && !battle.playerDetails?.some(isPracticeSeat)).slice(0, PLAYED)
+  const played = mine.filter((battle) => battle.status === 'finished' && !battle.playerDetails?.some(isPracticeSeat)).slice(0, SHOWN)
   // A visitor's hero is the most recent public battle, so the shelf below must not
   // print it again two inches further down.
   const hero = me ? undefined : open[0]
@@ -90,7 +91,15 @@ export function HomeView({
           <Columns
             lead={
               going.length ? (
-                <BattleShelf title={going.length === 1 ? 'Your game' : 'Your games'} battles={going} viewerId={me.id} onDelete={onDelete} />
+                <div>
+                  <BattleShelf
+                    title={going.length === 1 ? 'Your game' : 'Your games'}
+                    battles={going.slice(0, SHOWN)}
+                    viewerId={me.id}
+                    onDelete={onDelete}
+                  />
+                  {going.length > SHOWN ? <AllMyBattles /> : null}
+                </div>
               ) : listsFirst ? (
                 rosterShelf
               ) : null
@@ -108,13 +117,11 @@ export function HomeView({
                 {played.length ? (
                   <div>
                     <BattleShelf title="Games you have played" battles={played} viewerId={me.id} onDelete={onDelete} />
-                    <Link to="/battles" className="eyebrow mt-2 inline-flex items-center gap-1 text-info hover:text-parchment">
-                      All my battles <ChevronRight className="size-3.5" />
-                    </Link>
+                    <AllMyBattles />
                   </div>
                 ) : null}
                 <FriendTables battles={shownFriends} />
-                <PublicTables battles={rest} signedIn />
+                <PublicTables battles={rest.slice(0, SHOWN)} signedIn />
               </>
             }
           />
@@ -133,12 +140,20 @@ export function HomeView({
         <Columns
           // A hero holding the only public battle is the shelf; an empty one under it would contradict it.
           // A visitor is shown that games are played here, not the archive of them.
-          lead={rest.length || !hero ? <PublicTables battles={rest} signedIn={false} /> : null}
+          lead={rest.length || !hero ? <PublicTables battles={rest.slice(0, VISITOR_GAMES)} signedIn={false} /> : null}
           aside={leaders ? <HomeLeaders rows={leaders.rows} days={leaders.days} /> : null}
         />
       </div>
       <HomeClosing />
     </main>
+  )
+}
+
+function AllMyBattles() {
+  return (
+    <Link to="/battles" className="eyebrow mt-2 inline-flex items-center gap-1 text-info hover:text-parchment">
+      All my battles <ChevronRight className="size-3.5" />
+    </Link>
   )
 }
 

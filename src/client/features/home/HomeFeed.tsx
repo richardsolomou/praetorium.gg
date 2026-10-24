@@ -4,7 +4,8 @@ import { buttonClass } from '../../components/buttonClass'
 import type { Battle } from '../battles/battle'
 import { BattleShelf } from '../battles/BattleShelf'
 
-const RECENT = 3
+/** How many games each signed-in home shelf shows before its link to the full list. */
+export const SHOWN = 2
 
 /**
  * Friends' and public games with each battle named once.
@@ -15,7 +16,7 @@ const RECENT = 3
  * the page already shows elsewhere.
  */
 export function watchedTables(friends: readonly Battle[], open: readonly Battle[], shownElsewhere?: Battle) {
-  const shownFriends = friends.slice(0, RECENT)
+  const shownFriends = friends.slice(0, SHOWN)
   const shown = new Set([...shownFriends, ...(shownElsewhere ? [shownElsewhere] : [])].map((battle) => battle.token))
   return { friends: shownFriends, open: open.filter((battle) => !shown.has(battle.token)) }
 }
@@ -62,7 +63,7 @@ export function PublicTables({ battles, signedIn }: { battles: readonly Battle[]
   }
   return (
     <div>
-      <BattleShelf onboarding="home-public" title="Public games" battles={battles.slice(0, RECENT)} />
+      <BattleShelf onboarding="home-public" title="Public games" battles={battles} />
       <AllGames view="public">All public games</AllGames>
     </div>
   )
