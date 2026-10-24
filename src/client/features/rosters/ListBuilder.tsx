@@ -1,6 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { loadedWords } from '../../sourceText'
-import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
+import { Link, useMatch, useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   Calculator,
   Copy,
@@ -9,6 +9,7 @@ import {
   Download,
   EllipsisVertical,
   GitBranchPlus,
+  Group,
   Link2,
   Lock,
   LockOpen,
@@ -21,15 +22,18 @@ import {
   TriangleAlert,
 } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
@@ -74,13 +78,15 @@ import { localEngine } from '../../offline/localRuntime'
 import { useSettled } from '../../useSettled'
 import { readStoredValue, writeStoredValue } from '../../storedValue'
 import { DatasheetPanel } from './builder/DatasheetPanel'
-import { GROUPS } from '../../unitGroups'
 import { Loadout } from './builder/Loadout'
 import { Stepper } from '../../components/Stepper'
 import { changedDraftSpreadCounts, withDraftSpreadCounts } from './builder/loadoutModel'
 import { Picker, type PickerFilter } from './builder/Picker'
 import { SaveLoadoutDialog } from './builder/SaveLoadoutDialog'
 import { Section } from './builder/Section'
+import { AttachedUnitBlock } from './builder/AttachedUnitBlock'
+import { rosterShelves, unitRoleRows } from './builder/shelves'
+import { keepRosterArrangement } from './rosterArrangement'
 import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
@@ -195,6 +201,16 @@ export type FrozenRoster = {
   detachments: readonly { id?: string; name: string; points?: number | null }[]
 }
 
+/** A titled group of roster actions, so a long menu reads by what each part is for. */
+function MenuSection({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <DropdownMenuGroup>
+      <DropdownMenuLabel className="eyebrow text-faint">{label}</DropdownMenuLabel>
+      {children}
+    </DropdownMenuGroup>
+  )
+}
+
 const READ_ONLY_PREFERENCE = 'praetorium.roster-read-only'
 /** Which set of waived restrictions this workspace has already been told about. */
 const WAIVERS_DISMISSED = 'waivers-dismissed'
@@ -293,6 +309,8 @@ export function ListBuilder({
   // View mode simplifies the owner's roster cards and loadouts without taking away
   // their unit picker. Other readers still get the roster without builder controls.
   const building = editable && !readOnly
+  const keptArrangement = useMatch({ from: '/rosters/$id/', shouldThrow: false })?.loaderData?.arrangement
+  const [arrangement, setArrangement] = useState(keptArrangement ?? 'attached')
   const frozenReference = Boolean(frozen) || (!editable && !resolvePersistedRoster)
   const pickerOpen = editable && (wideWorkspace || showing === 'picker')
   const pickerEnabled = workspaceMeasured && pickerOpen
@@ -1003,6 +1021,11 @@ export function ListBuilder({
   const cards = frozen
     ? frozen.units.map((unit, index) => ({
         index,
+        key: unit.key,
+        attachedTo: unit.attachedTo,
+        // A frozen unit keeps how it joined only in the row naming the unit it joined.
+        attaches: unit.joined?.some((row) => row.label === 'Supporting') ? ('support' as const) : undefined,
+        name: unit.name,
         group: unit.group ?? ('other' as const),
         joined: unit.joined ?? [],
         unit: {
@@ -1016,7 +1039,79 @@ export function ListBuilder({
           upgrades: unit.upgrades ?? [],
         },
       }))
-    : units.map((unit, index) => ({ index, group: unit.group, joined: NO_JOINED, unit }))
+    : units.map((unit, index) => ({
+        index,
+        key: picks[index]?.key ?? index,
+        attachedTo: picks[index]?.attachedTo,
+        attaches: unit.attachment?.kind,
+        name: unit.name,
+        group: unit.group,
+        joined: NO_JOINED,
+        unit,
+      }))
+  const renderCard = ({ unit, index, joined }: (typeof cards)[number]) =>
+    frozen ? (
+      <UnitCard
+        key={unit.entryId + index}
+        unit={unit}
+        nickname={frozen.units[index]?.nickname}
+        note={frozen.units[index]?.note}
+        joined={arrangement === 'attached' ? unitRoleRows(joined) : joined}
+        selected={selected === index}
+        onSelect={loadoutAvailable ? () => selectUnit(index) : undefined}
+        editable={false}
+      />
+    ) : (
+      <BuilderUnitCard
+        key={picks[index]?.key ?? unit.entryId}
+        unit={unit}
+        nickname={picks[index]?.nickname}
+        note={picks[index]?.note}
+        index={index}
+        joined={
+          arrangement === 'attached'
+            ? unitRoleRows(cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? [])
+            : (cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? [])
+        }
+        canJoin={cardRelationships.get(picks[index]?.key ?? -1)?.canJoin ?? []}
+        canHost={cardRelationships.get(picks[index]?.key ?? -1)?.canHost ?? []}
+        alliedFaction={
+          picks[index]?.catalogueId === catalogueId
+            ? undefined
+            : factionIndex?.factions.find((entry) => entry.id === picks[index]?.catalogueId)
+        }
+        selected={selected === index}
+        alertCount={editable ? reminderCountsByUnit.get(index) : undefined}
+        onSelect={selectUnit}
+        onRemove={drop}
+        onDuplicate={duplicate}
+        canDuplicate={!pricePending && canAddCopy(unit.entryId, held[unit.entryId] ?? 0, unitLimits)}
+        onSaveLoadout={pricePending ? undefined : guest ? askForLoadoutAccount : me ? openSaveLoadout : undefined}
+        onDetach={detach}
+        onAttach={attach}
+        editable={building}
+      />
+    )
+
+  const displaySection = cards.some((card) => card.attachedTo !== undefined) ? (
+    <>
+      <DropdownMenuSeparator />
+      <MenuSection label="Display">
+        <DropdownMenuCheckboxItem
+          checked={arrangement === 'attached'}
+          closeOnClick
+          onCheckedChange={(checked) => {
+            const next = checked ? 'attached' : 'role'
+            setArrangement(next)
+            keepRosterArrangement(next)
+          }}
+        >
+          <Group /> Group attached units
+        </DropdownMenuCheckboxItem>
+      </MenuSection>
+    </>
+  ) : null
+
   // The shelves draw a card per datasheet; the header says how many units the list
   // brings, which is the same fold the library and the battle count it by.
   const fieldedUnitCount = frozen ? attachedUnitCount(frozen.units) : attachedUnitCount(picks)
@@ -1247,66 +1342,80 @@ export function ListBuilder({
                 >
                   <EllipsisVertical />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="min-w-48">
-                  {savedId && !guest ? (
-                    <DropdownMenuItem disabled={saving || !positioned.length} onClick={() => setStartingBattle(true)}>
-                      <Swords /> Start a battle
+                <DropdownMenuContent align="end" className="min-w-52">
+                  <MenuSection label="Play">
+                    {savedId && !guest ? (
+                      <DropdownMenuItem disabled={saving || !positioned.length} onClick={() => setStartingBattle(true)}>
+                        <Swords /> Start a battle
+                      </DropdownMenuItem>
+                    ) : guest ? (
+                      <DropdownMenuItem onClick={() => account.ask('battle')}>
+                        <Swords /> Start a battle
+                      </DropdownMenuItem>
+                    ) : null}
+                    {testTargets}
+                  </MenuSection>
+                  <DropdownMenuSeparator />
+                  <MenuSection label="Setup">
+                    <DropdownMenuItem onClick={openSetup}>
+                      <Pencil /> Edit roster setup
                     </DropdownMenuItem>
-                  ) : guest ? (
-                    <DropdownMenuItem onClick={() => account.ask('battle')}>
-                      <Swords /> Start a battle
+                    <DropdownMenuItem
+                      onClick={() => {
+                        openSetup()
+                        setSetupMode('convert')
+                      }}
+                    >
+                      <SlidersHorizontal /> Convert rules version
                     </DropdownMenuItem>
-                  ) : null}
-                  <DropdownMenuItem onClick={openSetup}>
-                    <Pencil /> Edit roster setup
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() => {
-                      openSetup()
-                      setSetupMode('convert')
-                    }}
-                  >
-                    <SlidersHorizontal /> Convert rules version
-                  </DropdownMenuItem>
-                  {savedId && !guest ? (
+                  </MenuSection>
+                  {savedId || guest ? (
                     <>
-                      <DropdownMenuItem disabled={saving || createVariant.isPending} onClick={() => createVariant.mutate(savedId)}>
-                        <GitBranchPlus /> Create variant
-                      </DropdownMenuItem>
-                      <DropdownMenuItem disabled={saving || lockRoster.isPending} onClick={() => lockRoster.mutate(true)}>
-                        <Lock /> Lock roster
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setLending(true)}>
-                        <HandHelping /> Lend to a friend
-                      </DropdownMenuItem>
-                    </>
-                  ) : guest ? (
-                    // Offered as an account offers them, so a visitor finds out what signing up adds.
-                    <>
-                      <DropdownMenuItem onClick={() => account.ask('variant')}>
-                        <GitBranchPlus /> Create variant
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => account.ask('lock')}>
-                        <Lock /> Lock roster
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => account.ask('lend')}>
-                        <HandHelping /> Lend to a friend
-                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <MenuSection label="Copies and access">
+                        {savedId && !guest ? (
+                          <>
+                            <DropdownMenuItem disabled={saving || createVariant.isPending} onClick={() => createVariant.mutate(savedId)}>
+                              <GitBranchPlus /> Create variant
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setLending(true)}>
+                              <HandHelping /> Lend to a friend
+                            </DropdownMenuItem>
+                            <DropdownMenuItem disabled={saving || lockRoster.isPending} onClick={() => lockRoster.mutate(true)}>
+                              <Lock /> Lock roster
+                            </DropdownMenuItem>
+                          </>
+                        ) : guest ? (
+                          // Offered as an account offers them, so a visitor finds out what signing up adds.
+                          <>
+                            <DropdownMenuItem onClick={() => account.ask('variant')}>
+                              <GitBranchPlus /> Create variant
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => account.ask('lend')}>
+                              <HandHelping /> Lend to a friend
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => account.ask('lock')}>
+                              <Lock /> Lock roster
+                            </DropdownMenuItem>
+                          </>
+                        ) : null}
+                      </MenuSection>
                     </>
                   ) : null}
                   <DropdownMenuSeparator />
-                  {testTargets}
-                  <DropdownMenuSeparator />
-                  {visibility !== 'private' ? shareItem : null}
-                  <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
-                    <Download /> Export text
-                  </DropdownMenuItem>
-                  <DropdownMenuItem disabled={exchange.isPending || !positioned.length} onClick={() => exchange.mutate()}>
-                    <QrCode /> Exchange code
-                  </DropdownMenuItem>
-                  <DropdownMenuItem disabled={!priced || pricePending || priceLoading} onClick={preparePrint}>
-                    <Printer /> Print
-                  </DropdownMenuItem>
+                  <MenuSection label="Share">
+                    {visibility !== 'private' ? shareItem : null}
+                    <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
+                      <Download /> Export text
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={exchange.isPending || !positioned.length} onClick={() => exchange.mutate()}>
+                      <QrCode /> Exchange code
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={!priced || pricePending || priceLoading} onClick={preparePrint}>
+                      <Printer /> Print
+                    </DropdownMenuItem>
+                  </MenuSection>
+                  {displaySection}
                 </DropdownMenuContent>
               </DropdownMenu>
               <Tooltip>
@@ -1350,52 +1459,65 @@ export function ListBuilder({
                   <EllipsisVertical />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-52">
-                  {locked ? (
+                  {locked || testTargets ? (
                     <>
-                      <DropdownMenuItem disabled={!positioned.length} onClick={() => setStartingBattle(true)}>
-                        <Swords /> Start a battle
-                      </DropdownMenuItem>
-                      <DropdownMenuItem disabled={lockRoster.isPending} onClick={() => lockRoster.mutate(false)}>
-                        <LockOpen /> Unlock roster
-                      </DropdownMenuItem>
-                      <DropdownMenuItem disabled={createVariant.isPending} onClick={() => createVariant.mutate(savedId)}>
-                        <GitBranchPlus /> Create variant
-                      </DropdownMenuItem>
-                      <DropdownMenuItem disabled={duplicateRoster.isPending} onClick={() => duplicateRoster.mutate()}>
-                        <Copy /> Duplicate
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setLending(true)}>
-                        <HandHelping /> Lend to a friend
-                      </DropdownMenuItem>
+                      <MenuSection label="Play">
+                        {locked ? (
+                          <DropdownMenuItem disabled={!positioned.length} onClick={() => setStartingBattle(true)}>
+                            <Swords /> Start a battle
+                          </DropdownMenuItem>
+                        ) : null}
+                        {testTargets}
+                      </MenuSection>
+                      <DropdownMenuSeparator />
                     </>
-                  ) : me ? (
-                    <DropdownMenuItem disabled={duplicateRoster.isPending || !positioned.length} onClick={() => duplicateRoster.mutate()}>
-                      <Copy /> Duplicate to my rosters
-                    </DropdownMenuItem>
-                  ) : (
-                    <DropdownMenuItem
-                      disabled={duplicateRoster.isPending || !positioned.length}
-                      onClick={() => (peekGuestDraft() ? account.ask('another-roster') : duplicateRoster.mutate())}
-                    >
-                      <Copy /> Duplicate to this device
-                    </DropdownMenuItem>
-                  )}
-                  {!frozen ? <DropdownMenuSeparator /> : null}
-                  {testTargets}
+                  ) : null}
+                  <MenuSection label={locked ? 'Copies and access' : 'Copies'}>
+                    {locked ? (
+                      <>
+                        <DropdownMenuItem disabled={lockRoster.isPending} onClick={() => lockRoster.mutate(false)}>
+                          <LockOpen /> Unlock roster
+                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled={createVariant.isPending} onClick={() => createVariant.mutate(savedId)}>
+                          <GitBranchPlus /> Create variant
+                        </DropdownMenuItem>
+                        <DropdownMenuItem disabled={duplicateRoster.isPending} onClick={() => duplicateRoster.mutate()}>
+                          <Copy /> Duplicate
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setLending(true)}>
+                          <HandHelping /> Lend to a friend
+                        </DropdownMenuItem>
+                      </>
+                    ) : me ? (
+                      <DropdownMenuItem disabled={duplicateRoster.isPending || !positioned.length} onClick={() => duplicateRoster.mutate()}>
+                        <Copy /> Duplicate to my rosters
+                      </DropdownMenuItem>
+                    ) : (
+                      <DropdownMenuItem
+                        disabled={duplicateRoster.isPending || !positioned.length}
+                        onClick={() => (peekGuestDraft() ? account.ask('another-roster') : duplicateRoster.mutate())}
+                      >
+                        <Copy /> Duplicate to this device
+                      </DropdownMenuItem>
+                    )}
+                  </MenuSection>
                   <DropdownMenuSeparator />
-                  {visibility !== 'private' && !battle ? shareItem : null}
-                  <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
-                    <Download /> Export text
-                  </DropdownMenuItem>
-                  <DropdownMenuItem disabled={exchange.isPending || !positioned.length} onClick={() => exchange.mutate()}>
-                    <QrCode /> Exchange code
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    disabled={!frozenReference && (!priced || pricePending || priceLoading)}
-                    onClick={frozenReference ? () => window.print() : preparePrint}
-                  >
-                    <Printer /> Print
-                  </DropdownMenuItem>
+                  <MenuSection label="Share">
+                    {visibility !== 'private' && !battle ? shareItem : null}
+                    <DropdownMenuItem disabled={take.isPending || !positioned.length} onClick={() => take.mutate()}>
+                      <Download /> Export text
+                    </DropdownMenuItem>
+                    <DropdownMenuItem disabled={exchange.isPending || !positioned.length} onClick={() => exchange.mutate()}>
+                      <QrCode /> Exchange code
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={!frozenReference && (!priced || pricePending || priceLoading)}
+                      onClick={frozenReference ? () => window.print() : preparePrint}
+                    >
+                      <Printer /> Print
+                    </DropdownMenuItem>
+                  </MenuSection>
+                  {displaySection}
                 </DropdownMenuContent>
               </DropdownMenu>
             </>
@@ -1559,55 +1681,27 @@ export function ListBuilder({
 
         <RosterUnits onboarding="roster-list">
           {cards.length ? (
-            GROUPS.map(({ id, plural }) => {
-              const rows = cards
-                .filter((card) => card.group === id)
-                .toSorted((left, right) => left.unit.name.localeCompare(right.unit.name))
-              return rows.length ? (
-                <Section key={id} title={plural} count={rows.length}>
-                  {rows.map(({ unit, index, joined }) =>
-                    frozen ? (
-                      <UnitCard
-                        key={unit.entryId + index}
-                        unit={unit}
-                        nickname={frozen.units[index]?.nickname}
-                        note={frozen.units[index]?.note}
-                        joined={joined}
-                        selected={selected === index}
-                        onSelect={loadoutAvailable ? () => selectUnit(index) : undefined}
-                        editable={false}
-                      />
+            <>
+              {rosterShelves<(typeof cards)[number]>(cards, arrangement).map(({ id, plural, count, entries }) => (
+                <Section key={id} title={plural} count={count} snug={id === 'attached'}>
+                  {entries.map((members) => {
+                    const host = members.at(-1)!
+                    return members.length > 1 ? (
+                      <AttachedUnitBlock
+                        key={host.key}
+                        nickname={(frozen ? frozen.units[host.index] : picks[host.index])?.nickname}
+                        points={members.reduce((total, card) => total + card.unit.points, 0)}
+                        editable={!frozen && building}
+                      >
+                        {members.map(renderCard)}
+                      </AttachedUnitBlock>
                     ) : (
-                      <BuilderUnitCard
-                        key={picks[index]?.key ?? unit.entryId}
-                        unit={unit}
-                        nickname={picks[index]?.nickname}
-                        note={picks[index]?.note}
-                        index={index}
-                        joined={cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? []}
-                        canJoin={cardRelationships.get(picks[index]?.key ?? -1)?.canJoin ?? []}
-                        canHost={cardRelationships.get(picks[index]?.key ?? -1)?.canHost ?? []}
-                        alliedFaction={
-                          picks[index]?.catalogueId === catalogueId
-                            ? undefined
-                            : factionIndex?.factions.find((entry) => entry.id === picks[index]?.catalogueId)
-                        }
-                        selected={selected === index}
-                        alertCount={editable ? reminderCountsByUnit.get(index) : undefined}
-                        onSelect={selectUnit}
-                        onRemove={drop}
-                        onDuplicate={duplicate}
-                        canDuplicate={!pricePending && canAddCopy(unit.entryId, held[unit.entryId] ?? 0, unitLimits)}
-                        onSaveLoadout={pricePending ? undefined : guest ? askForLoadoutAccount : me ? openSaveLoadout : undefined}
-                        onDetach={detach}
-                        onAttach={attach}
-                        editable={building}
-                      />
-                    ),
-                  )}
+                      renderCard(host)
+                    )
+                  })}
                 </Section>
-              ) : null
-            })
+              ))}
+            </>
           ) : rosterLoading ? (
             <output className="block py-3" aria-label="Loading roster units">
               <span className="sr-only">Loading roster units…</span>

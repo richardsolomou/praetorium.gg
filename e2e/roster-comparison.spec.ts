@@ -294,19 +294,21 @@ for (const width of [1440, 390]) {
     const menu = page.getByRole('menu')
     await expect(menu.getByRole('menuitem')).toHaveText([
       'Start a battle',
+      'Test targets',
       'Edit roster setup',
       'Convert rules version',
       'Create variant',
-      'Lock roster',
       'Lend to a friend',
-      'Test targets',
+      'Lock roster',
       'Copy link',
       'Export text',
       'Exchange code',
       'Print',
     ])
     await expect(menu.getByRole('menuitem', { name: 'Test targets', exact: true })).toHaveAttribute('aria-disabled', 'true')
-    await expect(menu.getByRole('separator')).toHaveCount(2)
+    // Grouped under headings; a list with no attached unit has nothing to display differently.
+    await expect(menu.getByRole('group')).toHaveText([/^Play/, /^Setup/, /^Copies and access/, /^Share/])
+    await expect(menu.getByRole('separator')).toHaveCount(3)
     await page.screenshot({ path: test.info().outputPath(`builder-menu-${width}.png`) })
     await page.keyboard.press('Escape')
     await page.goto('/rosters')

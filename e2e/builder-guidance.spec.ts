@@ -1,9 +1,11 @@
 import type { Locator } from '@playwright/test'
 import { expect, type Page, test } from './test'
 import { createRoster, signUp, waitForRosterSave } from './account'
-import { add, expectNoHorizontalOverflow, openBuilder, shot } from './builder.harness'
+import { add, arrangeByRole, expectNoHorizontalOverflow, openBuilder, shot } from './builder.harness'
 
 test.use({ hasTouch: true })
+// These tests read the rows on each card that name the unit it joined.
+test.beforeEach(({ page }) => arrangeByRole(page))
 
 const attachMenu = (page: Page) => page.getByRole('menu')
 

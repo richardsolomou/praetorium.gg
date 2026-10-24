@@ -1,7 +1,7 @@
 import { expect, test, type Page } from './test'
 import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
 import { savedWork } from './storage'
-import { expectNoHorizontalOverflow, expectNotAttachable, openBuilder, add, attach } from './builder.harness'
+import { expectNoHorizontalOverflow, expectNotAttachable, openBuilder, add, arrangeByRole, attach } from './builder.harness'
 
 test('a squad grows from its unit editor', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
@@ -225,6 +225,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
 })
 
 test('a character joins the unit it leads, and both cards say so', async ({ page }) => {
+  await arrangeByRole(page)
   await openBuilder(page)
   await add(page, 'Overlord')
   await add(page, 'Plasmancer')
@@ -260,7 +261,64 @@ test('a character joins the unit it leads, and both cards say so', async ({ page
   await expect(page.locator('[data-unit="Overlord"]')).toBeVisible()
 })
 
+test('attached units are shelved together by default, each named by the unit it joined', async ({ page }) => {
+  await openBuilder(page)
+  await add(page, 'Overlord')
+  await add(page, 'Plasmancer')
+  await add(page, 'Immortals')
+  await attach(page, 'Overlord', 'Immortals')
+  await attach(page, 'Plasmancer', 'Immortals')
+
+  const toggleTogether = async (checked: boolean) => {
+    await page.getByRole('button', { name: 'Roster actions' }).click()
+    const item = page.getByRole('menuitemcheckbox', { name: 'Group attached units' })
+    await expect(item).toHaveAttribute('aria-checked', String(!checked))
+    await item.click()
+    await expect(page.getByRole('menu')).toBeHidden()
+  }
+  // Shelved together until the player chooses role shelves.
+  const characters = page.locator('[data-slot="roster-units"]').getByRole('heading', { name: 'Characters' })
+  const block = page.getByRole('region', { name: 'Attached unit' })
+  // Attached datasheets leave their role shelves for one shelf counting all of them, each unit with the unit it joined last.
+  await expect(page.locator('[data-slot="roster-units"]').getByRole('heading', { name: 'Attached units' }).locator('..')).toContainText('3')
+  await expect(block.locator('[data-unit]').last()).toHaveAttribute('data-unit', 'Immortals')
+  await expect(block.locator('[data-unit]').first()).toHaveAttribute('data-unit', 'Overlord')
+  await expect(characters).toBeHidden()
+  await expect(page.locator('[data-slot="roster-units"]').getByRole('heading', { name: 'Battleline' })).toBeHidden()
+  // The unit is drawn together, so its cards name only the role each datasheet plays.
+  await expect(block.locator('[data-unit="Overlord"]')).toContainText('Leader')
+  await expect(block).not.toContainText('Leading')
+  const cardPoints = await block.locator('[data-unit] .chip.text-info').allInnerTexts()
+  const total = cardPoints.reduce((sum, text) => sum + Number.parseInt(text, 10), 0)
+  await expect(block.locator(':scope > p')).toHaveText(`${total} pts`)
+
+  await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
+  await waitForRosterSave(
+    page,
+    () =>
+      page
+        .getByRole('region', { name: 'Custom name and note' })
+        .getByRole('textbox', { name: 'Custom name', exact: true })
+        .fill('Tomb Guard'),
+    'Tomb Guard',
+  )
+  await expect(page.getByRole('region', { name: 'Tomb Guard' }).locator('[data-unit]')).toHaveCount(3)
+
+  await toggleTogether(false)
+  await expect(page.getByRole('region', { name: 'Tomb Guard' })).toBeHidden()
+  await expect(characters).toBeVisible()
+
+  // The arrangement is the player's, kept for every roster on the device and drawn by the
+  // server, so a refresh never shows the other arrangement first.
+  expect(await (await page.request.get(page.url())).text()).not.toContain('Attached units')
+  await page.reload()
+  await expect(characters).toBeVisible()
+  await toggleTogether(true)
+  await expect(page.getByRole('region', { name: 'Tomb Guard' })).toBeVisible()
+})
+
 test('Murdermind lets a Chronomancer support Destroyer Cult units', async ({ page }) => {
+  await arrangeByRole(page)
   await openBuilder(page, 'Necrons', /Cursed Legion/)
   await add(page, 'Chronomancer')
   await add(page, 'Lokhust Heavy Destroyers')
@@ -470,6 +528,7 @@ test('attachment relationships stay inside the two-column unit pane', async ({ p
 })
 
 test('the attachment menu stays inside the unopened three-column roster', async ({ page }) => {
+  await arrangeByRole(page)
   await page.setViewportSize({ width: 1512, height: 774 })
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)
   for (const name of ['Captain', 'Ancient', 'Intercessor Squad', 'Assault Intercessor Squad', 'Hellblaster Squad']) await add(page, name)
