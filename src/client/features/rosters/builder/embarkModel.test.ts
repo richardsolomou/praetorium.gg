@@ -3,12 +3,13 @@ import type { RosterPick } from '../../../../core/roster'
 import { frozenUnits } from '../../../../core/rosterSnapshot'
 import { cardEmbark, editedPicks, embarkCards } from './embarkModel'
 
-const unit = (key: number, entryId: string, models: number, transport = false) => ({
+const unit = (key: number, entryId: string, models: number, keywords: string[], transport = false) => ({
   key,
   entryId,
   name: entryId,
   points: 80,
   group: transport ? ('transport' as const) : ('battleline' as const),
+  keywords,
   toggles: [],
   size: { models, resizable: false },
   attachment: null,
@@ -20,14 +21,14 @@ const unit = (key: number, entryId: string, models: number, transport = false) =
   ...(transport ? { transport: true } : {}),
 })
 
-const units = [unit(0, 'Intercessors', 5), unit(1, 'Captain', 1), unit(2, 'Scouts', 5), unit(3, 'Rhino', 1, true), unit(4, 'Predator', 1)]
-const details = [
-  { entryId: 'Intercessors', keywords: ['Infantry'] },
-  { entryId: 'Captain', keywords: ['Infantry', 'Character'] },
-  { entryId: 'Scouts', keywords: ['Infantry'] },
-  { entryId: 'Rhino', keywords: ['Vehicle', 'Transport'], transportRule: 'This model has a transport capacity of 10 INFANTRY models.' },
-  { entryId: 'Predator', keywords: ['Vehicle'] },
+const units = [
+  unit(0, 'Intercessors', 5, ['Infantry']),
+  unit(1, 'Captain', 1, ['Infantry', 'Character']),
+  unit(2, 'Scouts', 5, ['Infantry']),
+  unit(3, 'Rhino', 1, ['Vehicle', 'Transport'], true),
+  unit(4, 'Predator', 1, ['Vehicle']),
 ]
+const details = [{ entryId: 'Rhino', transportRule: 'This model has a transport capacity of 10 INFANTRY models.' }]
 const picks = (choices: Partial<RosterPick>[] = []): RosterPick[] => units.map((entry, at) => ({ ...choices[at], entryId: entry.entryId }))
 const cards = (choices?: Partial<RosterPick>[], from = details) => embarkCards(frozenUnits(picks(choices), units, from))
 const card = (at: number, choices?: Partial<RosterPick>[]) => cards(choices).cards.get(at)!

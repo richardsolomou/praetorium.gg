@@ -41,6 +41,7 @@ type PricedRoster = {
     name: string
     points: number
     group: UnitGroup
+    keywords: readonly string[]
     toggles: readonly { name: string; selected: boolean }[]
     size: { models: number; resizable: boolean }
     attachment: Attachment | null
@@ -61,7 +62,6 @@ type UnitDetails = readonly {
   wounds?: number
   transportRule?: string
   transportCapacity?: PrintedTransport
-  keywords?: readonly string[]
 }[]
 
 export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, details: UnitDetails): Roster {
@@ -162,7 +162,7 @@ export function frozenUnits(picks: readonly RosterPick[], units: PricedRoster['u
       ...(detail?.wounds ? { wounds: detail.wounds } : {}),
       ...(detail?.transportRule ? { transportRule: detail.transportRule } : {}),
       ...(detail?.transportCapacity ? { transportCapacity: detail.transportCapacity } : {}),
-      ...(detail?.keywords ? { keywords: [...detail.keywords] } : {}),
+      keywords: [...unit.keywords],
       group: unit.group,
       warlord: unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected),
       warlordEligible: unit.toggles.some((toggle) => toggle.name === 'Warlord'),

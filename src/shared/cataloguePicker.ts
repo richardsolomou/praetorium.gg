@@ -1,7 +1,8 @@
 import { cachedIn } from '../core/collections'
 import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/catalogue'
 import { formatDatasheetLimit, isKotcLimit, kotcDatasheetRepeatable, kotcUnitExclusions } from '../core/battle'
-import { battleSizeSelection, type ModifierCache, rosterLimit, type Selection } from '../core/evaluate'
+import { battleSizeSelection, keywordNames, keywordsBySelection, type ModifierCache, rosterLimit, type Selection } from '../core/evaluate'
+import { defaultSelection } from '../core/expand'
 import type { UnitGroup } from '../core/unitGroups'
 import type { UnitSummary } from '../contracts/catalogue'
 import { datasheetSearchFieldsIn, datasheetIn, keywordsIn, toughnessOf } from './catalogue'
@@ -79,6 +80,28 @@ export function groupOfEntry(index: CatalogueIndex, entryId: string): UnitGroup 
   return entry ? groupOf(entry, targetOf(entry, index.definitions)) : 'other'
 }
 
+/** The shelf a list's rules move a unit to, as Bridgehead Strike makes Tempestus Scions Battleline, or its datasheet's own. */
+export const shelfIn = (index: CatalogueIndex, entryId: string, primaries: readonly string[]): UnitGroup =>
+  primaries.map((id) => shelfOfCategory(index.categories.get(id)?.name)).find(Boolean) ?? groupOfEntry(index, entryId)
+
+/** A datasheet's keywords and shelf as one more copy of it in the roster would have them, which its detachments can change. */
+export function listedUnitFacts(loaded: LoadedCatalogue, catalogueId: string, entryId: string, roster: readonly Selection[]) {
+  const selection = defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId })
+  if (!selection) return null
+  const held = keywordsBySelection([...roster, selection], loaded.index, { primaryCatalogueId: catalogueId }).at(-1)!
+  return { keywords: keywordNames(held.keywords, loaded.index), group: shelfIn(loaded.index, entryId, held.primaries) }
+}
+
+const detachmentFactsCache = new WeakMap<LoadedCatalogue, Map<string, ReturnType<typeof listedUnitFacts>>>()
+
+/** `listedUnitFacts` for a roster of just its detachments, which is what the picker offers from; null with none chosen. */
+export function detachmentUnitFacts(loaded: LoadedCatalogue, catalogueId: string, entryId: string, detachments: readonly Selection[]) {
+  if (!detachments.length) return null
+  return cachedIn(detachmentFactsCache, loaded, `${JSON.stringify(detachments)}:${catalogueId}:${entryId}`, () =>
+    listedUnitFacts(loaded, catalogueId, entryId, detachments),
+  )
+}
+
 /**
  * The pickable datasheets in a book, with the price of the smallest legal version
  * of each. Points are derived here and never stored: the data revision is what a
@@ -137,7 +160,14 @@ function* summarizeUnits(
     detachments: ReturnType<typeof rosterDetachments>
   },
 ): Steps<UnitSummary[]> {
-  const found: { id: string; name: string; group: UnitGroup; alliedFaction: string | null; alliedOrder: number }[] = []
+  const found: {
+    id: string
+    name: string
+    group: UnitGroup
+    keywords: string[] | undefined
+    alliedFaction: string | null
+    alliedOrder: number
+  }[] = []
   const allied = loaded.index.alliedDatasheets.get(catalogueId) ?? new Map<string, { name: string; order: number }>()
 
   for (const id of datasheetsOf(loaded.index, catalogueId)) {
@@ -147,15 +177,23 @@ function* summarizeUnits(
     const target = targetOf(entry, loaded.index.definitions)
     const name = nameOf(entry, loaded.index.definitions)
     if (included && !datacardOf(loaded, catalogueId, id)?.own) continue
+    const listed = detachmentUnitFacts(loaded, catalogueId, id, detachments.selections)
     // Asked only where a restriction can act on the answer: folding the keywords a
     // datasheet carries costs a default build of it, and most books exclude nothing.
-    if (restrictions && restrictedBy(restrictions, name, keywordsIn(loaded, catalogueId, id))) continue
+    if (restrictions && restrictedBy(restrictions, name, listed?.keywords ?? keywordsIn(loaded, catalogueId, id))) continue
     // Unaligned Forces is the shared shelf for Legends fortifications and
     // mission-only battlefield assets. A few assets (including Sentry Gun) lack
     // the suffix even though they are not matched-play roster choices.
     const ally = allied.get(id)
     if (ally?.name === 'Unaligned Forces') continue
-    found.push({ id, name, group: groupOf(entry, target), alliedFaction: ally?.name ?? null, alliedOrder: ally?.order ?? -1 })
+    found.push({
+      id,
+      name,
+      group: listed?.group ?? groupOf(entry, target),
+      keywords: listed?.keywords,
+      alliedFaction: ally?.name ?? null,
+      alliedOrder: ally?.order ?? -1,
+    })
     yield
   }
 
@@ -169,7 +207,7 @@ function* summarizeUnits(
   for (const unit of [...primary, ...allies]) {
     yield
     const sheet = battleSize !== undefined && isKotcLimit(battleSize) ? datasheetIn(loaded, catalogueId, unit.id) : null
-    const facts = sheet ? { keywords: sheet.keywords, toughness: toughnessOf(sheet.profiles) } : null
+    const facts = sheet ? { keywords: unit.keywords ?? sheet.keywords, toughness: toughnessOf(sheet.profiles) } : null
     if (facts && kotcUnitExclusions(facts, waivedRules).length) continue
     const formatLimit = facts ? formatDatasheetLimit(battleSize!, kotcDatasheetRepeatable(facts.keywords), waivedRules) : null
     summaries.push({
@@ -220,8 +258,8 @@ export function contextualUnitLimit(
   if (!modifierCache) modifierCaches.set(loaded, (modifierCache = new WeakMap()))
   const limit = rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster, modifierCache })
   if (!isKotcLimit(battleSize)) return limit
-  const sheet = datasheetIn(loaded, catalogueId, entryId)
-  return minimumLimit(limit, sheet ? formatDatasheetLimit(battleSize, kotcDatasheetRepeatable(sheet.keywords), waivedRules) : null)
+  const listed = listedUnitFacts(loaded, catalogueId, entryId, roster)
+  return minimumLimit(limit, listed ? formatDatasheetLimit(battleSize, kotcDatasheetRepeatable(listed.keywords), waivedRules) : null)
 }
 
 function minimumLimit(left: number | null, right: number | null) {
