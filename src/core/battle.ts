@@ -173,6 +173,8 @@ type SubmittedUnit = {
   transportCapacity?: PrintedTransport
   /** The datasheet's keywords, which a transport's rule names to say who may ride; absent from older logs. */
   keywords?: string[]
+  /** While leading a unit, this character can embark within any transport its Bodyguard unit can. */
+  embarksWithBodyguard?: boolean
 }
 
 export const UNIT_FORMATIONS = ['battlefield', 'strategic-reserves', 'deep-strike', 'embarked'] as const
@@ -210,10 +212,17 @@ export function transportLabel(units: readonly Pick<UnitState, 'key' | 'name'>[]
 /** What a transport holds if these passengers ride in it, or why they cannot. */
 export function transportLoadOf(
   transport: Pick<UnitState, 'transportRule' | 'transportCapacity' | 'wargear'> | undefined,
-  passengers: readonly Passenger[],
+  passengers: readonly (Passenger & Partial<Pick<UnitState, 'key' | 'attachedTo' | 'embarksWithBodyguard'>>)[],
 ): TransportLoad | Refusal {
   const rule = transportRule(transport?.transportCapacity ?? transport?.transportRule, transport?.wargear)
-  return rule ? transportLoad(rule, passengers) : refuse('transport-capacity-unknown', 'this transport has no known model capacity')
+  if (!rule) return refuse('transport-capacity-unknown', 'this transport has no known model capacity')
+  return transportLoad(
+    rule,
+    passengers.map((passenger) => {
+      const bodyguard = passenger.embarksWithBodyguard && passengers.find((candidate) => candidate.key === passenger.attachedTo)
+      return bodyguard && bodyguard.keywords ? { ...passenger, ridesAs: bodyguard.keywords } : passenger
+    }),
+  )
 }
 
 const loadRefusal = (load: TransportLoad | Refusal): Refusal | null => (Array.isArray(load) ? null : load)
