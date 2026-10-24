@@ -1,4 +1,5 @@
 import { attachedUnitList } from '../../../../core/attachedUnits'
+import { ATTACHMENT_LABELS, joiningKind } from '../../../../core/attachmentRows'
 import type { UnitGroup } from '../../../../core/unitGroups'
 import { GROUPS } from '../../../unitGroups'
 
@@ -32,13 +33,14 @@ export function rosterShelves<C extends ShelfCard>(cards: readonly C[], arrangem
   })
 }
 
-const JOINED_AS: Record<string, string> = { Leading: 'Leader', Supporting: 'Support' }
-
 /**
  * A card's attachment rows inside an attached unit's block: just the role each joined
  * datasheet plays, with its Remove. The unit it joined is drawn beside it, and the
  * bodyguard's own rows would repeat its leaders' Remove as Detach.
  */
 export function unitRoleRows<R extends { label: string; name: string }>(rows: readonly R[]): R[] {
-  return rows.flatMap((row) => (JOINED_AS[row.label] ? [{ ...row, label: JOINED_AS[row.label]!, name: '' }] : []))
+  return rows.flatMap((row) => {
+    const kind = joiningKind(row.label)
+    return kind ? [{ ...row, label: ATTACHMENT_LABELS[kind].hosting, name: '' }] : []
+  })
 }

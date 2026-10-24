@@ -34,6 +34,7 @@ export type PickerUnit = UnitSummary & {
   attachment?: Attachment | null
   attachmentLimits?: AttachmentLimits
   attachmentCategories?: string[]
+  unattachable?: true
 }
 
 export type CanonicalSourceName = 'definitions' | 'points' | 'rules' | 'datacards' | 'battlemaster'

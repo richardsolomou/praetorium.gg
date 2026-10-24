@@ -69,6 +69,37 @@ export function attachedUnitList<T extends Deployable<UnitKey>>(units: readonly 
 
 export const attachedUnitCount = (units: readonly Attached<UnitKey>[]) => attachedUnitList(units).length
 
+/** A list's picks in the space their `attachedTo` is written in: each one's position. */
+export const byPosition = (picks: readonly { attachedTo?: number }[]) => picks.map(({ attachedTo }, key) => ({ key, attachedTo }))
+
+/** How many units a list fields, its picks named by position. */
+export const listUnitCount = (picks: readonly { attachedTo?: number }[]) => attachedUnitCount(byPosition(picks))
+
+/**
+ * The other units in the list that are the same unit as this one, by position.
+ *
+ * An Attached unit is one unit however many entries the list keeps it in: the
+ * bodyguard unit, its Leader, and its Support unit. So a
+ * character reaches its siblings through the unit they all joined rather than
+ * through each other — asking only what this entry is attached to would tell a
+ * Chronomancer nothing about the Overlord standing beside it, and an enhancement
+ * that speaks of the bearer's unit means every model in it.
+ */
+export function attachedUnit(units: readonly { attachedTo?: number }[], position: number): number[] {
+  return attachedUnits(byPosition(units), position).flatMap(({ key }) => (key === position ? [] : [key]))
+}
+
+/** The position of the bodyguard unit a list entry is part of, following a Loyal Protector through its Command Squad. */
+export function attachmentHost(units: readonly { attachedTo?: number }[], position: number): number {
+  const positioned = byPosition(units)
+  return positioned[position] ? attachedHost(positioned, positioned[position]).key : position
+}
+
+/** The list without one unit; anything attached to it stands alone rather than pointing at a gap. */
+export function withoutUnit<T extends Attached<UnitKey>>(units: readonly T[], key: T['key']): T[] {
+  return units.flatMap((unit) => (unit.key === key ? [] : [unit.attachedTo === key ? { ...unit, attachedTo: undefined } : unit]))
+}
+
 /** Counts the units an army plays after attached datasheets have formed one unit. */
 export function battleUnitCounts<T extends Deployable<UnitKey> & { destroyed: boolean; deployed: boolean }>(units: readonly T[]) {
   return {

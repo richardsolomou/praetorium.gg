@@ -2,6 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { attachedUnitList } from '../../../core/attachedUnits'
+import { ATTACHMENT_LABELS } from '../../../core/attachmentRows'
 import { rulesVersionLabel } from '../../../core/catalogueEdition'
 import { datasheetProfilesByKind } from '../../../core/datasheetStructure'
 import type { RosterPick } from '../../../core/roster'
@@ -254,7 +255,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
                 ) : null}
                 {unit !== host ? (
                   <p>
-                    {unit.attachment?.kind === 'leader' ? 'Leading' : 'Supporting'} {title(host)} (Unit {index + 1})
+                    {ATTACHMENT_LABELS[unit.attachment?.kind ?? 'support'].joining} {title(host)} (Unit {index + 1})
                   </p>
                 ) : null}
                 <p>

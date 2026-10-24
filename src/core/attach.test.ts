@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { attachedUnit, attachmentErrors, attachmentLimitsOf, attachmentOf, referenceAttachmentOf } from './attach'
+import { attachmentErrors, attachmentLimitsOf, attachmentOf, referenceAttachmentOf } from './attach'
+import { attachedUnit } from './attachedUnits'
 import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
 
 const system: CatalogueFile = { gameSystem: { id: 'gs', name: 'Test', costTypes: [{ id: 'pts', name: 'pts' }] } }

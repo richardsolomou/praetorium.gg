@@ -5,7 +5,7 @@ import type { RosterDraft } from './rosterDraft'
 import type { RosterSetup } from './RosterSetupDialog'
 import { parseWorkspaceState, readStoredWorkspaceState, readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { currentRosterIds } from '../../../core/retiredCatalogueIds'
-import { attachedUnitCount } from '../../../core/attachedUnits'
+import { listUnitCount } from '../../../core/attachedUnits'
 import { requireReviewedRoster } from '../../offline/reviewedRoster'
 
 /** The rosters page, where a visitor's list is listed and where signing in saves it to the account. */
@@ -86,7 +86,7 @@ export function guestRosterSummary(guest: GuestDraft) {
     source: draft.source ?? 'editable',
     createdAt: updatedAt,
     updatedAt,
-    unitCount: attachedUnitCount(draft.picks.map((pick, key) => ({ key, attachedTo: pick.attachedTo }))),
+    unitCount: listUnitCount(draft.picks),
   }
 }
 

@@ -122,3 +122,31 @@ export function editedPicks(before: readonly KeyedPick[], after: readonly KeyedP
   const was = new Map(before.map((pick) => [pick.key, withoutEmbark(pick)]))
   return after.flatMap((pick) => (was.get(pick.key) === withoutEmbark(pick) ? [] : [pick.key]))
 }
+
+/** A unit an edit put back on the battlefield, and the pick as the edit left it. */
+export type PutBack = { transport: string; pick: KeyedPick }
+
+/** The dropped embarks the picks still hold, which the builder puts back. */
+export const putBacks = (dropped: readonly { card: number; transport: string }[], picks: readonly KeyedPick[]): PutBack[] =>
+  dropped.flatMap(({ card, transport }) => {
+    const pick = picks.find((each) => each.key === card && each.embarkedIn !== undefined)
+    return pick ? [{ transport, pick }] : []
+  })
+
+/** The put-back units still as the edit left them; embarking or changing one again forgets it for good. */
+export const standingPutBacks = (putBack: Iterable<PutBack>, picks: readonly KeyedPick[]): PutBack[] =>
+  [...putBack].filter(({ pick }) => {
+    const now = picks.find((each) => each.key === pick.key)
+    return now?.embarkedIn === undefined && now && !editedPicks([pick], [now]).length
+  })
+
+/** The cards with a notice on each unit still standing where an edit put it. */
+export function withPutBackNotices(cards: ReadonlyMap<number, EmbarkCard>, standing: readonly PutBack[]): ReadonlyMap<number, EmbarkCard> {
+  if (!standing.length) return cards
+  const noticed = new Map(cards)
+  for (const { transport, pick } of standing) {
+    const card = noticed.get(pick.key)
+    if (card) noticed.set(pick.key, { ...card, notice: `No longer fits in ${transport}, so it starts on the battlefield` })
+  }
+  return noticed
+}

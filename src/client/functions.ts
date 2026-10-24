@@ -27,7 +27,7 @@ import { calculateRosterPrice, savedRosterPriceInput } from '../shared/pricing'
 import { rosterLoadoutDatasheets } from '../shared/rosterReads'
 import { matchesImportFaction, importRosterFaction, importRosterCatalogueId } from '../shared/rosterFiles'
 import { decodeRosterExchange, isRosterExchangeCode } from '../core/rosterExchange'
-import { attachedUnitCount } from '../core/attachedUnits'
+import { listUnitCount } from '../core/attachedUnits'
 import { rosterUseProblem } from '../core/rosterLegality'
 import { referenceData, savedQuery } from './offline/runtime'
 import { orderVariantGroup, variantName } from '../core/rosterVariants'
@@ -421,7 +421,7 @@ export async function copyRoster(args: Parameters<typeof server.copyRoster>[0]):
 }
 
 function summaryFor(roster: LocalRoster) {
-  return { ...roster, unitCount: attachedUnitCount(roster.picks.map((unit, key) => ({ key, attachedTo: unit.attachedTo }))) }
+  return { ...roster, unitCount: listUnitCount(roster.picks) }
 }
 function overlaySummaries(
   summaries: Awaited<ReturnType<typeof server.savedRosterSummaries>>,

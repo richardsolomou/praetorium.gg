@@ -1,5 +1,5 @@
 import { cachedIn } from '../core/collections'
-import { attachmentOf, attachmentLimitsOf, attachmentCategoriesOf } from '../core/attach'
+import { attachmentPartyOf } from '../core/attach'
 import { defaultSelection } from '../core/expand'
 import { routeSlug } from '../core/slug'
 import type { PickerUnit } from '../contracts/catalogue'
@@ -12,21 +12,17 @@ import { type Steps, stepThrough } from './steps'
 
 const attachmentCache = new WeakMap<
   LoadedCatalogue,
-  Map<string, Pick<PickerUnit, 'attachment' | 'attachmentLimits' | 'attachmentCategories'>>
+  Map<string, Pick<PickerUnit, 'attachment' | 'attachmentLimits' | 'attachmentCategories' | 'unattachable'>>
 >()
 
 function pickerAttachments(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
   return cachedIn(attachmentCache, loaded, `${catalogueId}:${entryId}`, () => {
     const definition = loaded.index.definitions.get(entryId)!
-    return {
-      attachment: attachmentOf(
-        definition,
-        loaded.index,
-        defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId }) ?? undefined,
-      ),
-      attachmentLimits: attachmentLimitsOf(definition, loaded.index),
-      attachmentCategories: attachmentCategoriesOf(definition, loaded.index),
-    }
+    return attachmentPartyOf(
+      definition,
+      loaded.index,
+      defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId }) ?? undefined,
+    )
   })
 }
 

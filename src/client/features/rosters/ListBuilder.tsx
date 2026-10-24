@@ -36,8 +36,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { MenuSection } from '../../components/MenuSection'
-import { attachmentHost } from '../../../core/attach'
-import { attachedUnitCount } from '../../../core/attachedUnits'
+import { attachedUnitCount, attachmentHost } from '../../../core/attachedUnits'
+import { joiningKind } from '../../../core/attachmentRows'
 import type { FormatRuleId, Roster, Secondary, Stratagem } from '../../../core/battle'
 import { canTransport, enforces, type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
@@ -93,7 +93,17 @@ import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
 import { UnitAnnotations } from './builder/UnitAnnotations'
-import { cardEmbark, editedPicks, embarkCards, embarkRows, NO_EMBARK } from './builder/embarkModel'
+import {
+  cardEmbark,
+  editedPicks,
+  embarkCards,
+  embarkRows,
+  NO_EMBARK,
+  type PutBack,
+  putBacks,
+  standingPutBacks,
+  withPutBackNotices,
+} from './builder/embarkModel'
 import { UnitPhoto } from './builder/UnitPhoto'
 import { useDetachmentRules } from './builder/useDetachmentRules'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
@@ -109,7 +119,6 @@ import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink'
 import { type AttachDirection, AttachedUnitActions, BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
 import type { AttachChoice } from './builder/UnitCard'
-import type { KeyedPick } from './rosterPicks'
 import { RosterDataChanges } from './RosterDataChanges'
 import { RosterRulesNotice } from './RosterRulesNotice'
 import { RosterReadiness } from './RosterReadiness'
@@ -735,44 +744,23 @@ export function ListBuilder({
   const frozenEmbarks = useMemo(() => (frozen ? embarkCards(frozen.units).cards : null), [frozen])
   // An edit that leaves a unit unable to start in its transport, such as a larger squad, puts it back on the battlefield.
   // No details at all means the army data could not be read, which says nothing about what fits.
-  const droppedEmbarks = useMemo(
-    () => (currentEmbarks && battleDetails?.length ? currentEmbarks.dropped : []),
-    [battleDetails?.length, currentEmbarks],
+  const going = useMemo(
+    () => (currentEmbarks && battleDetails?.length ? putBacks(currentEmbarks.dropped, picks) : []),
+    [battleDetails?.length, currentEmbarks, picks],
   )
-  // Each unit an edit put back, told on its card until the player embarks or changes it again.
-  const [putBack, setPutBack] = useState<ReadonlyMap<number, { transport: string; pick: KeyedPick }>>(new Map())
+  const [putBack, setPutBack] = useState<ReadonlyMap<number, PutBack>>(new Map())
   useEffect(() => {
-    const going = droppedEmbarks.flatMap(({ card, transport }) => {
-      const pick = picks.find((each) => each.key === card && each.embarkedIn !== undefined)
-      return pick ? [{ transport, pick }] : []
-    })
     if (!building || !going.length) return
     edit.disembark(going.map(({ pick }) => pick.key))
     setPutBack((current) => new Map([...current, ...going.map((entry) => [entry.pick.key, entry] as const)]))
-  }, [building, droppedEmbarks, edit, picks])
-  const standing = useMemo(
-    () =>
-      [...putBack.values()].filter(({ pick }) => {
-        const now = picks.find((each) => each.key === pick.key)
-        return now?.embarkedIn === undefined && now && !editedPicks([pick], [now]).length
-      }),
-    [picks, putBack],
-  )
+  }, [building, edit, going])
+  const standing = useMemo(() => standingPutBacks(putBack.values(), picks), [picks, putBack])
   // Forgotten once cleared, so changing the unit back to how it was does not bring the notice back.
   useEffect(() => {
     if (standing.length !== putBack.size) setPutBack(new Map(standing.map((entry) => [entry.pick.key, entry])))
   }, [putBack.size, standing])
   const judged = shownEmbarks.current
-  const embarks = useMemo(() => {
-    if (!carried || !judged) return null
-    if (!standing.length) return judged.cards
-    const cards = new Map(judged.cards)
-    for (const { transport, pick } of standing) {
-      const card = cards.get(pick.key)
-      if (card) cards.set(pick.key, { ...card, notice: `No longer fits in ${transport}, so it starts on the battlefield` })
-    }
-    return cards
-  }, [carried, judged, standing])
+  const embarks = useMemo(() => (carried && judged ? withPutBackNotices(judged.cards, standing) : null), [carried, judged, standing])
   const editor = useRef(edit)
   /**
    * What an edit reports is the list it leaves behind, read once the edit has landed.
@@ -1114,7 +1102,7 @@ export function ListBuilder({
         key: unit.key,
         attachedTo: unit.attachedTo,
         // A frozen unit keeps how it joined only in the row naming the unit it joined.
-        attaches: unit.joined?.some((row) => row.label === 'Supporting') ? ('support' as const) : undefined,
+        attaches: unit.joined?.some((row) => joiningKind(row.label) === 'support') ? ('support' as const) : undefined,
         name: unit.name,
         group: unit.group ?? ('other' as const),
         warlord: unit.warlord,

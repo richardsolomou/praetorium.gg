@@ -1,15 +1,10 @@
-import type { Attachment, AttachmentLimits } from './attach'
-import { normalizedName } from './name'
+import { type Attachment, type AttachmentParty, type AttachmentRefusal, attachmentRefusals } from './attach'
 
-export type AttachableUnit = {
-  name: string
-  attachment: Attachment | null
-  attachmentLimits?: AttachmentLimits
-  attachmentCategories?: readonly string[]
-}
+export type AttachableUnit = AttachmentParty
 
 type AttachmentPick = { key: number; attachedTo?: number }
 
+/** Each unit the one at `index` could join, with why it cannot now; a unit it may never join is left out. */
 export function attachmentOptions(
   picks: readonly AttachmentPick[],
   units: readonly (AttachableUnit | undefined)[],
@@ -17,43 +12,50 @@ export function attachmentOptions(
 ): { key: number; name: string; reason: string | null }[] {
   const pick = picks[index]
   const unit = units[index]
-  if (!pick || !unit?.attachment) return []
-  const attachment = unit.attachment
-  const kind = attachment.kind
-  const wanted = new Set(attachment.targets.map(normalizedName))
+  if (!pick || !unit?.attachment || unit.unattachable) return []
+  const joiner = { ...unit, attachment: unit.attachment }
   return picks.flatMap((candidate, at) => {
     const host = units[at]
-    if (at === index || !host || !wanted.has(normalizedName(host.name))) return []
-    const occupants = picks.flatMap((other, position) => (other.attachedTo === candidate.key ? [units[position]] : []))
-    const limits = host.attachmentLimits
-    const categoryFull = (unit.attachmentCategories ?? []).flatMap((category) => {
-      const limit = limits?.categories[category]
-      return limit && occupants.filter((other) => other?.attachmentCategories?.includes(category)).length >= limit.maximum ? [limit] : []
-    })[0]
+    if (at === index || !host) return []
+    const occupants = picks.flatMap((other, position) => (other.attachedTo === candidate.key && units[position] ? [units[position]] : []))
+    const refusals = attachmentRefusals(joiner, host, occupants)
+    if (refusals.some((refusal) => refusal.rule === 'host')) return []
     const reason =
       pick.attachedTo !== undefined
         ? 'Already attached; detach before choosing another bodyguard.'
-        : attachment.requiresLeader && !occupants.some((other) => other?.attachment?.kind === 'leader')
-          ? 'Requires an attached Leader.'
-          : occupants.filter((other) => other?.attachment?.kind === kind).length >= (limits?.[kind] ?? 1)
-            ? `${kind === 'leader' ? 'Leader' : 'Support'} limit reached on ${host.name}.`
-            : categoryFull
-              ? `${categoryFull.name} limit reached on ${host.name}.`
-              : null
+        : optionReason(refusals[0], joiner.attachment.kind, host.name)
     return [{ key: candidate.key, name: host.name, reason }]
   })
+}
+
+function optionReason(refusal: AttachmentRefusal<AttachmentParty> | undefined, kind: Attachment['kind'], hostName: string) {
+  switch (refusal?.rule) {
+    case 'leaderless':
+      return 'Requires an attached Leader.'
+    case 'full':
+      return `${kind === 'leader' ? 'Leader' : 'Support'} limit reached on ${hostName}.`
+    case 'category':
+      return `${refusal.name} limit reached on ${hostName}.`
+    default:
+      return null
+  }
 }
 
 export function joinableUnits(picks: readonly AttachmentPick[], units: readonly (AttachableUnit | undefined)[], index: number) {
   return attachmentOptions(picks, units, index).flatMap(({ key, name, reason }) => (reason ? [] : [{ key, name }]))
 }
 
-type Candidate = {
-  name: string
+type Candidate = Omit<AttachmentParty, 'attachment'> & {
   attachment?: Attachment | null
-  attachmentLimits?: AttachmentLimits
-  attachmentCategories?: readonly string[]
+  /** A picker datasheet's own keywords, standing in for the ones it would hold in the list. */
+  search?: { keywords: readonly string[] } | null
 }
+
+const asParty = <T extends Candidate>(candidate: T): AttachableUnit => ({
+  ...candidate,
+  attachment: candidate.attachment ?? null,
+  keywords: candidate.keywords ?? candidate.search?.keywords,
+})
 
 const NEW = -1
 
@@ -77,9 +79,7 @@ export function newHosts<T extends Candidate>(
 ): T[] {
   if (!units[index]?.attachment || picks[index]?.attachedTo !== undefined) return []
   return candidates.filter((candidate) =>
-    attachmentOptions([...picks, { key: NEW }], [...units, { ...candidate, attachment: candidate.attachment ?? null }], index).some(
-      ({ key, reason }) => key === NEW && !reason,
-    ),
+    attachmentOptions([...picks, { key: NEW }], [...units, asParty(candidate)], index).some(({ key, reason }) => key === NEW && !reason),
   )
 }
 
@@ -95,7 +95,7 @@ export function newJoiners<T extends Candidate>(
   return candidates.filter(
     (candidate) =>
       candidate.attachment &&
-      attachmentOptions([...picks, { key: NEW }], [...units, { ...candidate, attachment: candidate.attachment }], picks.length).some(
+      attachmentOptions([...picks, { key: NEW }], [...units, asParty(candidate)], picks.length).some(
         ({ key, reason }) => key === host.key && !reason,
       ),
   )

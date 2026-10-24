@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RosterPick } from '../../../../core/roster'
 import { frozenUnits } from '../../../../core/rosterSnapshot'
-import { cardEmbark, editedPicks, embarkCards } from './embarkModel'
+import { cardEmbark, editedPicks, embarkCards, NO_EMBARK, putBacks, standingPutBacks, withPutBackNotices } from './embarkModel'
 
 const unit = (key: number, entryId: string, models: number, transport = false) => ({
   key,
@@ -175,5 +175,27 @@ describe('edited picks', () => {
 
   it('does not count a changed starting embark as an edit', () => {
     expect(editedPicks([pick(0, { embarkedIn: 1 })], [pick(0)])).toEqual([])
+  })
+})
+
+describe('units an edit put back on the battlefield', () => {
+  const rhino = { key: 1, entryId: 'rhino' }
+  const squad = { key: 2, entryId: 'squad', embarkedIn: 1, models: 10 }
+
+  it('puts back only a unit the picks still hold embarked', () => {
+    expect(putBacks([{ card: 2, transport: 'Rhino' }], [rhino, { ...squad, embarkedIn: undefined }])).toEqual([])
+  })
+
+  it('keeps the notice while the unit stands as the edit left it', () => {
+    expect(standingPutBacks([{ transport: 'Rhino', pick: squad }], [rhino, { ...squad, embarkedIn: undefined }])).toHaveLength(1)
+  })
+
+  it('forgets the notice once the unit is changed again', () => {
+    expect(standingPutBacks([{ transport: 'Rhino', pick: squad }], [rhino, { ...squad, embarkedIn: undefined, models: 5 }])).toEqual([])
+  })
+
+  it('says on the card why the unit left its transport', () => {
+    const noticed = withPutBackNotices(new Map([[2, NO_EMBARK]]), [{ transport: 'Rhino', pick: squad }])
+    expect(noticed.get(2)?.notice).toBe('No longer fits in Rhino, so it starts on the battlefield')
   })
 })

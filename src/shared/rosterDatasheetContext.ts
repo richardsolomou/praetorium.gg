@@ -1,4 +1,4 @@
-import { attachedUnit } from '../core/attach'
+import { attachedUnit } from '../core/attachedUnits'
 import type { ModifierCache, Selection } from '../core/evaluate'
 import { buildUnit, type RosterPick } from '../core/roster'
 import type { UnitChoiceCache } from '../core/unitChoices'
