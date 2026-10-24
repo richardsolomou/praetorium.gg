@@ -11,5 +11,5 @@
 <!-- Commands actually run, with their result counts. Anything rendered: say that you looked at it. -->
 
 - [ ] `just check`
-- [ ] `just e2e`
+- [ ] `just e2e <affected specs>`
 - [ ] `just points` (points or roster validation changed — state the percentage)
