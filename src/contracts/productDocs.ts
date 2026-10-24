@@ -11,7 +11,7 @@ export const PRODUCT_DOCS = [
     slug: 'add-units',
     section: 'Army lists',
     title: 'Add units',
-    description: 'Find units in the picker and filter by points, limits, favourites or your collection.',
+    description: 'Find units in the picker, filter by points, limits, favourites or your collection, and show Legends or Crucible.',
   },
   {
     slug: 'set-up-a-unit',

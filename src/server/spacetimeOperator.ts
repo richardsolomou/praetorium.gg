@@ -14,6 +14,7 @@ import { recentMatchupSchema, type RecentMatchup } from '../core/recentMatchups'
 import { abilityReminderSchema, type AbilityReminder } from '../core/reminders'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
 import { TABLE_SHAPES } from '../core/tableShape'
+import { parseLeagueAllowances } from '../core/league'
 import { unitLoadoutSchema, type UnitLoadout } from '../core/unitLoadouts'
 import { leagueRosterSharingSchema } from '../contracts/leagueRosterSharing'
 
@@ -149,6 +150,10 @@ const leagueEvent = z.object({
   createdAt: z.number().int(),
   revealedAt: z.number().int().nullable(),
   revealedBy: z.string().nullable(),
+  allowances: z
+    .string()
+    .nullable()
+    .transform((value) => (value === null ? null : parseLeagueAllowances(value))),
 })
 const leagueEntry = z.object({
   key: z.string(),

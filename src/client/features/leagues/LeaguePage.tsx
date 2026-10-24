@@ -9,7 +9,7 @@ import { leagueQuery, meQuery } from '../../queries'
 import { isLeagueOrganizer } from '../../../core/league'
 import { LeaguePageActions, useLeagueActions } from './LeagueActions'
 import { LeagueEventView } from './LeagueEventView'
-import { leagueFormat, leaguePhase, leaguePlayers, type League } from './leagueEvent'
+import { leagueAllowances, leagueFormat, leaguePhase, leaguePlayers, type League } from './leagueEvent'
 
 export function LeaguePage({
   token,
@@ -67,7 +67,7 @@ function LeagueScreen({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <span className={`chip ${phase.tint}`}>{phase.label}</span>
           <span className="flex flex-wrap items-center gap-x-1.5 text-sm text-dim">
-            {[leagueFormat(league), leaguePlayers(league, accepted)].filter(Boolean).join(' · ')} ·
+            {[leagueFormat(league), leagueAllowances(league), leaguePlayers(league, accepted)].filter(Boolean).join(' · ')} ·
             {league.visibility === 'private' ? <LockKeyhole className="size-3.5" aria-hidden /> : <Eye className="size-3.5" aria-hidden />}
             {league.visibility === 'private' ? 'Private link' : 'Public'} ·{' '}
             {league.admission === 'approval' ? 'Approval required' : 'Anyone can join'}

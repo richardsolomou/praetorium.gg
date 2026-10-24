@@ -1,5 +1,5 @@
 import { boundedProgress, countsAsList, type CollectionProgress } from '../../core/collection'
-import { leagueWarlordRefusal, leagueWarlordValid } from '../../core/league'
+import { leagueWarlordRefusal, leagueWarlordValid, waivedWarlordRules } from '../../core/league'
 import { attemptLocalSync } from './localRuntime'
 import { rosterSnapshot } from '../../core/rosterSnapshot'
 import { calculateRosterPrice, savedRosterPriceInput } from '../../shared/pricing'
@@ -399,6 +399,7 @@ export async function createLeague(args: Parameters<typeof server.createLeague>[
         number: 1,
         format: input.format,
         rosterLimit: input.rosterLimit,
+        allowances: input.allowances,
         createdAt: now,
         revealedAt: null,
         revealedBy: null,
@@ -542,7 +543,8 @@ export async function submitLeagueRoster(
       roster.picks.map((pick) => pick.entryId),
     ),
   )
-  if (!leagueWarlordValid(snapshot)) throw new Error(leagueWarlordRefusal(snapshot))
+  // The event decides whether a waived Warlord is allowed; the server answers that once the seal syncs.
+  if (!waivedWarlordRules(snapshot).length && !leagueWarlordValid(snapshot)) throw new Error(leagueWarlordRefusal(snapshot))
   await defer(
     'submitLeagueRoster',
     { ...args.data, capturedRoster: saveRosterSchema.parse(roster), catalogueRevision: construction.catalogue.index.revision },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { datasheetInBySlug } from '../shared/catalogue'
+import { datasheetIn, datasheetInBySlug } from '../shared/catalogue'
 import { calculateRosterPrice } from '../shared/pricing'
 import { pickerConstruction, pickerUnitsFor } from '../shared/pickerUnits'
 import { groupOfEntry, unitsIn } from '../shared/cataloguePicker'
@@ -940,7 +940,7 @@ describe('the picker', () => {
     expect(offered(shelf)).toEqual(['Squad'])
   })
 
-  it('never offers Legends datasheets', () => {
+  describe('Legends and Crucible datasheets', () => {
     const book = bookOf({
       selectionEntries: [
         { id: 'squad', name: 'Squad', type: 'unit', costs: points(70) },
@@ -948,9 +948,36 @@ describe('the picker', () => {
         { id: 'crucible', name: 'Champion [Crucible]', type: 'unit', costs: points(60) },
       ],
     })
-    expect(offered(book)).toEqual(['Squad'])
-    expect(unitsIn(book, 'cat', 'Land Speeder')).toEqual([])
-    expect(unitsIn(book, 'cat', 'Crucible')).toEqual([])
+
+    it('are left out of matched-play lists', () => {
+      expect(offered(book)).toEqual(['Squad'])
+    })
+
+    it('are offered to the roster picker marked by kind', () => {
+      expect(unitsIn(book, 'cat', '', { nonMatchedPlay: true }).map((unit) => [unit.name, unit.nonMatchedPlay])).toEqual([
+        ['Champion [Crucible]', 'crucible'],
+        ['Land Speeder [Legends]', 'legends'],
+        ['Squad', undefined],
+      ])
+    })
+
+    it('link to no reference page, since reference covers matched play only', () => {
+      expect(datasheetIn(book, 'cat', 'old')?.referenceRoute).toBeNull()
+    })
+  })
+
+  it('offers Legends fortifications from the Unaligned Forces shelf to the roster picker', () => {
+    const shelf = shelfOf(
+      { catalogueLinks: [{ targetId: 'cat-1', importRootEntries: true }] },
+      {
+        selectionEntries: [
+          { id: 'sentry', name: 'Sentry Gun', type: 'model', costs: points(40) },
+          { id: 'bastion', name: 'Bastion [Legends]', type: 'model', costs: points(150) },
+        ],
+        name: 'Unaligned Forces',
+      },
+    )
+    expect(unitsIn(shelf, 'cat', '', { nonMatchedPlay: true }).map((unit) => unit.name)).toEqual(['Bastion [Legends]'])
   })
 
   it('does not offer reference-only spawned units as roster choices', () => {

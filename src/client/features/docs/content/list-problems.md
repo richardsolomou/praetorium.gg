@@ -6,7 +6,7 @@ You've reached that datasheet's limit, shown as "Limit reached: 3 of 3 permitted
 
 ### A unit isn't in the picker
 
-Check the filters ("Everything is filtered out." means they hide every match), your detachments, and whether it's a Legends datasheet.
+Check the filters ("Everything is filtered out." means they hide every match), your detachments, and, for a Legends or Crucible datasheet, whether **Legends** or **Crucible** is on.
 
 ### I can't select a detachment
 
@@ -23,6 +23,10 @@ Press **Try again** once you're back online.
 ### "This roster is locked. Unlock it to add units."
 
 Unlock it from the roster menu, or create a variant.
+
+### "This event keeps … on" or "This event doesn't allow Legends datasheets…"
+
+A league event seals matched-play lists unless its organizer allows more under **House rules** in the event settings. The league page shows what the event allows beside its format, such as **Legends allowed · Restrictions off: Warlord**. Switch the restriction back on in the picker's **Format restrictions**, or remove the Legends or Crucible unit, then seal again. Events created before organizers could choose this accept every restriction a list switches off except the Warlord, plus Legends and Crucible.
 
 ## Limits
 

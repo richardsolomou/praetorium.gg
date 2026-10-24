@@ -2,10 +2,15 @@ import { describe, expect, it } from 'vitest'
 import type { Roster } from './battle'
 import {
   alliedLeagueRosterLimit,
+  effectiveLeagueAllowances,
+  leagueAllowanceOptions,
+  leagueAllowanceRefusal,
+  parseLeagueAllowances,
   leagueMinimumPlaces,
   leaguePlacesSeat,
   leagueWarlordRefusal,
   leagueWarlordValid,
+  leagueWarlordWaived,
   leagueWarlords,
   leagueRegistrationFull,
   leagueRevealChecklist,
@@ -647,6 +652,64 @@ describe('sealed Warlords', () => {
   })
   it('refuses a list without a Warlord', () => {
     expect(leagueWarlordValid(roster([]))).toBe(false)
+  })
+})
+
+describe('what an event allows', () => {
+  const roster = (built: Partial<NonNullable<Roster['built']>>): Roster => ({
+    ...sealedLeagueRoster,
+    built: { ...sealedLeagueRoster.built!, ...built },
+  })
+  const unit = { key: 'old', entryId: 'old', name: 'Land Speeder Typhoon [Legends]', models: 1, points: 100 }
+
+  it('refuses nothing at an event from before allowances were recorded', () => {
+    expect(leagueAllowanceRefusal(roster({ waivedRules: ['points-limit'], units: [unit] }), null)).toBeNull()
+  })
+
+  it('refuses a switched-off restriction the event does not allow', () => {
+    expect(leagueAllowanceRefusal(roster({ waivedRules: ['points-limit'] }), [])).toBe(
+      'This event keeps Points limit on. Switch it back on in the picker’s Format restrictions, then seal again.',
+    )
+  })
+
+  it('seals a switched-off restriction the event allows', () => {
+    expect(leagueAllowanceRefusal(roster({ waivedRules: ['points-limit'] }), ['points-limit'])).toBeNull()
+  })
+
+  it('refuses a Legends datasheet the event does not allow', () => {
+    expect(leagueAllowanceRefusal(roster({ units: [unit] }), ['crucible'])).toBe(
+      'This event doesn’t allow Legends datasheets, such as Land Speeder Typhoon. Remove them, then seal again.',
+    )
+  })
+
+  it('seals a Legends datasheet the event allows', () => {
+    expect(leagueAllowanceRefusal(roster({ units: [unit] }), ['legends'])).toBeNull()
+  })
+
+  it('lets a list go without a Warlord where the event allows it', () => {
+    expect(leagueWarlordWaived(roster({ waivedRules: ['warlord'] }), ['warlord'])).toBe(true)
+  })
+
+  it('still asks a list at an event from before allowances for its Warlord', () => {
+    expect(leagueWarlordWaived(roster({ waivedRules: ['warlord'] }), null)).toBe(false)
+  })
+
+  it('reads an event from before allowances as allowing every waiver but the Warlord', () => {
+    expect(effectiveLeagueAllowances('1v1', 2_000, null)).toEqual(['points-limit', 'detachment-points', 'legends', 'crucible'])
+  })
+
+  it('describes a 2v1 restriction at the solo size its single player builds to', () => {
+    expect(leagueAllowanceOptions('2v1', 2_000).find((option) => option.id === 'points-limit')?.hint).toBe(
+      'The roster costs at most 2,000 points',
+    )
+  })
+
+  it('reads a stored rule that no longer parses as strict matched play', () => {
+    expect(parseLeagueAllowances('["legends", "retired-rule"]')).toEqual([])
+  })
+
+  it('never offers a team event lists without a Warlord, since allies choose whose leads', () => {
+    expect(leagueAllowanceOptions('2v2', 2_000).map((option) => option.id)).not.toContain('warlord')
   })
 })
 

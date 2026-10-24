@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { Boxes, EllipsisVertical, Heart, ListFilter, Plus, type LucideIcon } from 'lucide-react'
+import { Boxes, EllipsisVertical, Heart, Plus, type LucideIcon } from 'lucide-react'
 import { Fragment, memo, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
@@ -18,6 +18,7 @@ import {
 import type { FormatRuleId } from '../../../../core/battle'
 import { enforces, formatRules } from '../../../../core/battle'
 import type { UnitSummary } from '../../../../contracts/catalogue'
+import type { NonMatchedPlayKind } from '../../../../core/name'
 import type { RosterPick } from '../../../../core/roster'
 import { SearchField } from '../../../components/SearchField'
 import { DatasheetMatchReasons } from '../../../components/DatasheetMatchReasons'
@@ -35,7 +36,7 @@ import { loadoutPicks } from '../../../../core/rosterCopies'
 import type { priceQuery } from '../../../queries'
 import { LoadoutNameDialog } from './LoadoutNameDialog'
 import { LoadoutRow } from './LoadoutRow'
-import { isAttachedUnit, loadoutNoun, type PickerLoadout, pickerRows } from './pickerRows'
+import { isAttachedUnit, loadoutNoun, type PickerLoadout, pickerRows, shownKind } from './pickerRows'
 import { useUnitLoadouts } from './useUnitLoadouts'
 
 type Props = {
@@ -61,7 +62,7 @@ type Props = {
   onFilterToggle: (filter: PickerFilter) => void
 }
 
-export type PickerFilter = 'fit' | 'limit' | 'owned' | 'favourite'
+export type PickerFilter = 'fit' | 'limit' | 'owned' | 'favourite' | NonMatchedPlayKind
 
 /** Account filters are icons, matching the row hearts and the Collection page, so the row fits a phone. */
 const FILTERS: { id: PickerFilter; label: string; hint: string; icon?: LucideIcon }[] = [
@@ -69,6 +70,8 @@ const FILTERS: { id: PickerFilter; label: string; hint: string; icon?: LucideIco
   { id: 'limit', label: 'Unit limit', hint: 'Hide anything the roster already holds as many of as it may' },
   { id: 'favourite', label: 'Favourites', hint: 'Show only your favourite datasheets', icon: Heart },
   { id: 'owned', label: 'Owned', hint: 'Show only datasheets in your collection', icon: Boxes },
+  { id: 'legends', label: 'Legends', hint: 'Show Legends datasheets' },
+  { id: 'crucible', label: 'Crucible', hint: 'Show Crucible datasheets' },
 ]
 
 /** Why an account filter cannot narrow anything yet. */
@@ -83,7 +86,8 @@ const EMPTY_FILTER: Partial<Record<PickerFilter, string>> = {
  * Every row states what it costs before it is taken and how many of it the roster
  * already holds, because both are the questions being asked at this point. The
  * filters narrow by the reasons a datasheet is not a real option today: it does not
- * fit, you may not take another, or you do not own it.
+ * fit, you may not take another, or you do not own it. Legends and Crucible are the
+ * exception, hidden until asked for, because most lists never want them.
  */
 export const Picker = memo(function Picker({
   enabled,
@@ -124,6 +128,10 @@ export const Picker = memo(function Picker({
   const [deleting, setDeleting] = useState<PickerLoadout | null>(null)
   const offered = useMemo(() => new Set((unitsResult.data ?? []).map((unit) => unit.id)), [unitsResult.data])
   const datasheetNames = useMemo(() => new Map((unitsResult.data ?? []).map((unit) => [unit.id, unit.name])), [unitsResult.data])
+  const nonMatchedPlay = useMemo(
+    () => new Map((unitsResult.data ?? []).flatMap((unit) => (unit.nonMatchedPlay ? [[unit.id, unit.nonMatchedPlay] as const] : []))),
+    [unitsResult.data],
+  )
   const fits = (picks: readonly RosterPick[]) =>
     picks.every((pick, at) =>
       canAddCopy(
@@ -175,6 +183,7 @@ export const Picker = memo(function Picker({
         loadouts,
         query,
         keeps: (entryId, points) => {
+          if (!shownKind(nonMatchedPlay.get(entryId), active)) return false
           if (active.has('fit') && room !== null && points != null && points > room) return false
           if (active.has('limit') && limits.has(entryId) && !canAddCopy(entryId, inRoster[entryId] ?? 0, limits)) return false
           if (active.has('owned') && collection.size && !collection.has(entryId)) return false
@@ -182,7 +191,7 @@ export const Picker = memo(function Picker({
           return true
         },
       }),
-    [unitsResult.data, found, loadouts, query, active, room, inRoster, collection, favourites, limits],
+    [unitsResult.data, found, loadouts, query, active, room, inRoster, collection, favourites, limits, nonMatchedPlay],
   )
   const shown = rows.units
   const rules = formatRules(battleSize, pointsBudget)
@@ -196,31 +205,18 @@ export const Picker = memo(function Picker({
   return (
     <div data-onboarding="roster-picker" className="flex h-full flex-col">
       <div className="space-y-2 border-b border-edge p-2.5">
-        <SearchField
-          onboarding="picker-search"
-          value={query}
-          onChange={onQueryChange}
-          placeholder="Search units, keywords, abilities…"
-          label="Add a unit"
-          clearLabel="Empty the picker filter"
-          maxLength={80}
-          inputClassName="h-9"
-        />
-        <div className="flex flex-wrap items-center gap-1.5">
-          <ListFilter className="size-3.5 shrink-0 text-faint" aria-hidden />
-          {FILTERS.filter((filter) => signedIn || !filter.icon).map((filter) => (
-            <FilterChip
-              key={filter.id}
-              {...filter}
-              pressed={active.has(filter.id)}
-              onToggle={() => onFilterToggle(filter.id)}
-              unavailable={
-                (filter.id === 'owned' && (!enabled || !collection.size)) || (filter.id === 'favourite' && (!enabled || !favourites.size))
-                  ? EMPTY_FILTER[filter.id]
-                  : undefined
-              }
-            />
-          ))}
+        <div className="flex items-center gap-1.5">
+          <SearchField
+            onboarding="picker-search"
+            value={query}
+            onChange={onQueryChange}
+            placeholder="Search units, keywords, abilities…"
+            label="Add a unit"
+            clearLabel="Empty the picker filter"
+            maxLength={80}
+            className="min-w-0 flex-1"
+            inputClassName="h-9"
+          />
           {/*
            * The restrictions the battle size imposes, switched off over the book they
            * act on: unchecking one is what puts the datasheets it was hiding back in
@@ -232,9 +228,9 @@ export const Picker = memo(function Picker({
               render={
                 <Button
                   variant="ghost"
-                  size="icon-xs"
+                  size="icon-sm"
                   aria-label="Format restrictions"
-                  className={`ml-auto shrink-0 ${waived.length ? 'text-discarded' : 'text-faint hover:text-bone'}`}
+                  className={`shrink-0 ${waived.length ? 'text-discarded' : 'text-faint hover:text-bone'}`}
                 />
               }
             >
@@ -265,6 +261,21 @@ export const Picker = memo(function Picker({
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
+        </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          {FILTERS.filter((filter) => signedIn || !filter.icon).map((filter) => (
+            <FilterChip
+              key={filter.id}
+              {...filter}
+              pressed={active.has(filter.id)}
+              onToggle={() => onFilterToggle(filter.id)}
+              unavailable={
+                (filter.id === 'owned' && (!enabled || !collection.size)) || (filter.id === 'favourite' && (!enabled || !favourites.size))
+                  ? EMPTY_FILTER[filter.id]
+                  : undefined
+              }
+            />
+          ))}
         </div>
       </div>
       <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]]:px-2.5">

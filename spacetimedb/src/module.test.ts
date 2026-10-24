@@ -81,6 +81,7 @@ describe('sharing a revealed league roster', () => {
         createdAt: 1n,
         revealedAt: revealed ? 10n : undefined,
         revealedBy: 'organizer',
+        allowances: undefined,
       })
       ctx.db.leagueEventEntries.insert({
         key: '["event","entrant"]',
@@ -279,6 +280,139 @@ describe('sharing a revealed league roster', () => {
     fixture.command('dismiss-roster-sharing')
     fixture.command('delete', { ownerId: 'organizer' })
     expect(fixture.test.db.leagueRosterSharing.count()).toBe(0n)
+  })
+})
+
+describe('what a league event allows', () => {
+  function setup(allowances: string | undefined, format = '1v1') {
+    const host = harness()
+    host.call(host.operator, (ctx) => {
+      ctx.db.leagues.insert({
+        id: 'league',
+        token: 'league',
+        ownerId: 'organizer',
+        name: 'League',
+        description: '',
+        visibility: 'private',
+        admission: 'automatic',
+        playerLimit: undefined,
+        recurring: true,
+        createdAt: 1n,
+      })
+      ctx.db.leagueEvents.insert({
+        id: 'event',
+        token: 'event',
+        leagueId: 'league',
+        number: 1,
+        format,
+        rosterLimit: 2000,
+        createdAt: 1n,
+        revealedAt: undefined,
+        revealedBy: undefined,
+        allowances,
+      })
+      for (const userId of ['entrant', 'ally'])
+        ctx.db.leagueEventEntries.insert({
+          key: JSON.stringify(['event', userId]),
+          eventId: 'event',
+          userId,
+          status: 'accepted',
+          joinedAt: 1n,
+          rosterId: undefined,
+          rosterName: undefined,
+          rosterSnapshot: undefined,
+          submittedAt: undefined,
+          requiredLimit: undefined,
+          teamId: format === '2v2' ? 'team' : undefined,
+        })
+    })
+    const command = (payload: Record<string, unknown>) =>
+      JSON.parse(
+        module.leagueCommand(host.procedure(host.operator), {
+          payload: JSON.stringify({ token: 'league', eventToken: 'event', ...payload }),
+        }),
+      ) as unknown
+    const seal = (waivedRules: string[]) => {
+      module.saveRoster(host.procedure(host.operator), {
+        payload: JSON.stringify({
+          id: 'saved',
+          userId: 'entrant',
+          name: 'League army',
+          automaticName: false,
+          catalogueId: 'catalogue',
+          detachmentId: '[]',
+          disposition: null,
+          limit: 2000,
+          picks: '[]',
+          prep: '{"reminders":[]}',
+          tags: '[]',
+          waivedRules: JSON.stringify(waivedRules),
+          optionalRules: '[]',
+          borrowedDetachmentId: null,
+          visibility: 'private',
+          source: 'editable',
+          now: NOW,
+        }),
+      })
+      const captain = { key: 'captain', entryId: 'captain', name: 'Captain', models: 1, points: 80, warlord: true, group: 'character' }
+      return command({
+        op: 'submit',
+        ownerId: 'entrant',
+        userId: 'entrant',
+        rosterId: 'saved',
+        rosterName: 'League army',
+        rosterLimit: 2000,
+        rosterUpdatedAt: NOW,
+        snapshot: JSON.stringify({
+          name: 'League army',
+          text: 'League army',
+          built: {
+            catalogueId: 'catalogue',
+            revision: 'revision',
+            limit: 2000,
+            detachment: null,
+            disposition: null,
+            waivedRules,
+            units: [captain],
+          },
+        }),
+        now: NOW,
+      })
+    }
+    const update = (rule: Record<string, unknown>) =>
+      command({
+        op: 'update',
+        ownerId: 'organizer',
+        name: 'League',
+        description: '',
+        visibility: 'private',
+        admission: 'automatic',
+        playerLimit: null,
+        rule: { format, rosterLimit: 2000, ...rule },
+      })
+    const event = () => host.call(host.operator, (ctx) => ctx.db.leagueEvents.id.find('event'))
+    const entry = () => host.call(host.operator, (ctx) => ctx.db.leagueEventEntries.key.find('["event","entrant"]'))
+    return { seal, update, event, entry }
+  }
+
+  it('seals a list with a restriction switched off at an event from before allowances', () => {
+    expect(setup(undefined).seal(['points-limit'])).toMatchObject({ outcome: 'sealed' })
+  })
+
+  it('refuses a list with a restriction switched off at a strict event', () => {
+    expect(setup('[]').seal(['points-limit'])).toMatchObject({ outcome: 'disallowed' })
+  })
+
+  it('leaves an older event unrecorded when an update carries no allowances', () => {
+    const league = setup(undefined)
+    league.update({})
+    expect(league.event()?.allowances).toBeUndefined()
+  })
+
+  it('keeps doubles pairs when only the allowances change', () => {
+    const league = setup('[]', '2v2')
+    league.update({ allowances: ['legends'] })
+    expect(league.entry()?.teamId).toBe('team')
   })
 })
 

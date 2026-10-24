@@ -1,5 +1,9 @@
 import { matchSearchText } from '../../../../core/datasheetSearch'
+import type { NonMatchedPlayKind } from '../../../../core/name'
 import type { RosterPick } from '../../../../core/roster'
+
+/** Legends and Crucible datasheets stay out of every new-unit offer until the picker's chip for them is on. */
+export const shownKind = (kind: NonMatchedPlayKind | undefined, active: ReadonlySet<string>) => !kind || active.has(kind)
 
 /**
  * A saved loadout as this roster would take it, its own unit first and any attached units after;

@@ -1,10 +1,14 @@
 import { useQueryClient } from '@tanstack/react-query'
 import {
   alliedLeagueRosterLimit,
+  effectiveLeagueAllowances,
+  isNonMatchedPlayAllowance,
+  leagueAllowanceOptions,
   leagueTableShape,
   leagueRegistrationFull,
   leagueRosterSplit,
   type LeagueAdmission,
+  type LeagueAllowance,
   type LeagueEntryView,
   type LeagueStage,
 } from '../../../core/league'
@@ -134,6 +138,27 @@ export function leagueFormat(league: Pick<LeagueFacts, 'format' | 'rosterLimit'>
   return league.format && league.rosterLimit
     ? `${TABLE_SHAPE_LABELS[league.format].name} · ${leagueRosterSplit(league.format, league.rosterLimit) ?? pointsLabel(league.rosterLimit)}`
     : null
+}
+
+/**
+ * What an event lets lists do beyond matched play, such as "Legends allowed · Restrictions off: Warlord", or "Matched
+ * play" for none. An older event reads as what it accepts in effect. Null for an event that fixed no format.
+ */
+export function leagueAllowances(league: {
+  format: TableShape | null
+  rosterLimit: number | null
+  allowances: readonly LeagueAllowance[] | null
+}) {
+  if (!league.format || !league.rosterLimit) return null
+  const allowed = effectiveLeagueAllowances(league.format, league.rosterLimit, league.allowances)
+  const chosen = leagueAllowanceOptions(league.format, league.rosterLimit).filter((option) => allowed.includes(option.id))
+  const datasheets = chosen.filter((option) => isNonMatchedPlayAllowance(option.id)).map((option) => option.label)
+  const off = chosen.filter((option) => !isNonMatchedPlayAllowance(option.id)).map((option) => option.label)
+  return (
+    [datasheets.length ? `${formatList(datasheets)} allowed` : null, off.length ? `Restrictions off: ${off.join(', ')}` : null]
+      .filter(Boolean)
+      .join(' · ') || 'Matched play'
+  )
 }
 
 /** How many players are in, against the limit when there is one. */

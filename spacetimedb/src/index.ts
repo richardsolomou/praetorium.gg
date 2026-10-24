@@ -17,8 +17,12 @@ import { matchupPairingSchema, RECENT_MATCHUP_LIMIT, recentMatchupSchema } from 
 import { onboardingTaskIds, tourTaskIds } from '../../src/core/onboarding'
 import {
   alliedLeagueRosterLimit,
+  leagueAllowancesSchema,
+  parseLeagueAllowances,
+  leagueAllowanceRefusal,
   leaguePlacesSeat,
   leagueWarlordValid,
+  leagueWarlordWaived,
   leagueRegistrationFull,
   leagueRevealChecklist,
   leagueTeams,
@@ -2686,7 +2690,15 @@ function leagueCommandInput<S extends z.ZodType>(inputSchema: S, value: unknown)
 
 const leagueTimeInput = z.number().int().nonnegative()
 const leagueFormatInput = z.enum(TABLE_SHAPES)
-const leagueRuleInput = z.object({ format: leagueFormatInput, rosterLimit: z.number().int().positive().max(10_000) })
+// Absent on an update from an older client, which leaves the event's allowances as they stand.
+const leagueRuleInput = z.object({
+  format: leagueFormatInput,
+  rosterLimit: z.number().int().positive().max(10_000),
+  allowances: leagueAllowancesSchema.optional(),
+})
+
+/** Null for an event created before allowances were recorded. */
+const leagueEventAllowances = (event: LeagueEventRow) => (event.allowances === undefined ? null : parseLeagueAllowances(event.allowances))
 const leagueDetailsInput = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(2_000),
@@ -2712,7 +2724,11 @@ function revealLeagueEvent(tx: Context, event: LeagueEventRow, now: number, acto
       return { outcome: 'not-ready' as const }
     }
   }
-  if (event.format !== undefined && snapshots.some((snapshot) => !leagueWarlordValid(snapshot, true)))
+  const allowances = leagueEventAllowances(event)
+  if (
+    event.format !== undefined &&
+    snapshots.some((snapshot) => !leagueWarlordWaived(snapshot, allowances) && !leagueWarlordValid(snapshot, true))
+  )
     return { outcome: 'invalid-warlords' as const, format: event.format }
   if (
     event.format !== undefined &&
@@ -3228,6 +3244,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         recurring: z.boolean(),
         format: leagueFormatInput.nullable(),
         rosterLimit: z.number().int().positive().max(10_000).nullable(),
+        allowances: leagueAllowancesSchema.default([]),
         ownerPlays: z.boolean().default(false),
         now: leagueTimeInput,
       }),
@@ -3256,6 +3273,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       createdAt: BigInt(input.now),
       revealedAt: undefined,
       revealedBy: undefined,
+      allowances: JSON.stringify(input.allowances),
     })
     if (input.ownerPlays) insertLeagueEntry(tx, input.eventId, input.ownerId, 'accepted', input.now)
     touchProduct(tx, input.ownerId, 'leagues', 'onboarding')
@@ -3349,6 +3367,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         eventToken: idInput,
         format: leagueFormatInput.nullable(),
         rosterLimit: z.number().int().positive().max(10_000).nullable(),
+        allowances: leagueAllowancesSchema.default([]),
         ownerPlays: z.boolean().default(false),
         now: leagueTimeInput,
       }),
@@ -3373,6 +3392,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       number: latest.number + 1,
       format: input.format ?? undefined,
       rosterLimit: input.rosterLimit ?? undefined,
+      allowances: JSON.stringify(input.allowances),
       createdAt: BigInt(input.now),
       revealedAt: undefined,
       revealedBy: undefined,
@@ -3390,7 +3410,13 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     if (!current) return productJson('missing')
     const entries = leagueEntriesFor(tx, current.id)
     const accepted = entries.filter((entry) => entry.status === 'accepted').length
-    const rule = input.rule && (input.rule.format !== current.format || input.rule.rosterLimit !== current.rosterLimit) ? input.rule : null
+    const rule =
+      input.rule &&
+      (input.rule.format !== current.format ||
+        input.rule.rosterLimit !== current.rosterLimit ||
+        (input.rule.allowances !== undefined && JSON.stringify(input.rule.allowances) !== JSON.stringify(leagueEventAllowances(current))))
+        ? input.rule
+        : null
     if (rule) {
       if (current.revealedAt !== undefined) return productJson('closed')
       if (entries.some((entry) => entry.rosterSnapshot !== undefined)) return productJson('sealed')
@@ -3401,9 +3427,17 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       if (input.playerLimit !== null && input.playerLimit < accepted) return productJson('below-accepted')
     }
     if (rule) {
-      tx.db.leagueEvents.id.update({ ...current, format: rule.format, rosterLimit: rule.rosterLimit })
-      for (const entry of entries) tx.db.leagueEventEntries.key.update({ ...entry, requiredLimit: undefined, teamId: undefined })
-      clearTeamPicks(tx, current.id)
+      tx.db.leagueEvents.id.update({
+        ...current,
+        format: rule.format,
+        rosterLimit: rule.rosterLimit,
+        allowances: rule.allowances === undefined ? current.allowances : JSON.stringify(rule.allowances),
+      })
+      // Sizes and pairs follow the format and points; what lists may waive leaves them standing.
+      if (rule.format !== current.format || rule.rosterLimit !== current.rosterLimit) {
+        for (const entry of entries) tx.db.leagueEventEntries.key.update({ ...entry, requiredLimit: undefined, teamId: undefined })
+        clearTeamPicks(tx, current.id)
+      }
     }
     tx.db.leagues.id.update({
       ...league,
@@ -3692,7 +3726,11 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     } catch {
       return productJson({ outcome: 'missing' })
     }
-    if (!leagueWarlordValid(submitted)) return productJson({ outcome: 'invalid-warlords', format: event.format ?? null })
+    const allowances = leagueEventAllowances(event)
+    if (!leagueWarlordWaived(submitted, allowances) && !leagueWarlordValid(submitted))
+      return productJson({ outcome: 'invalid-warlords', format: event.format ?? null })
+    const refusal = leagueAllowanceRefusal(submitted, allowances)
+    if (refusal) return productJson({ outcome: 'disallowed', message: refusal })
     if (
       event.format === '2v2' &&
       !leagueEntriesFor(tx, event.id).some((row) => row.userId !== input.userId && row.teamId === entry.teamId && row.status === 'accepted')

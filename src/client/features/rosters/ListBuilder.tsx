@@ -85,6 +85,7 @@ import { Loadout } from './builder/Loadout'
 import { Stepper } from '../../components/Stepper'
 import { changedDraftSpreadCounts, withDraftSpreadCounts } from './builder/loadoutModel'
 import { Picker, type PickerFilter } from './builder/Picker'
+import { shownKind } from './builder/pickerRows'
 import { SaveLoadoutDialog } from './builder/SaveLoadoutDialog'
 import { Section } from './builder/Section'
 import { AttachedUnitBlock } from './builder/AttachedUnitBlock'
@@ -263,7 +264,7 @@ export function ListBuilder({
   const resetAbilityAlert = abilityAlerts.reset
   const [combatRoster, setCombatRoster] = useState<CombatRoster | null>(null)
   const [compareTargets, setCompareTargets] = useState(false)
-  const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] } | null>(null)
+  const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] | undefined } | null>(null)
   const [readOnly, setReadOnly] = useState(!editable)
   const [exportText, setExportText] = useState<RosterTextExport | null>(null)
   const [exchangeCode, setExchangeCode] = useState<RosterExchangeCode | null>(null)
@@ -962,8 +963,11 @@ export function ListBuilder({
     placeholderData: keepPreviousData,
   })
   const attachDiscovery = useMemo(
-    () => (attachCandidates ? { candidates: attachCandidates, held, limits: unitLimits } : null),
-    [attachCandidates, held, unitLimits],
+    () =>
+      attachCandidates
+        ? { candidates: attachCandidates.filter((unit) => shownKind(unit.nonMatchedPlay, pickerFilters)), held, limits: unitLimits }
+        : null,
+    [attachCandidates, pickerFilters, held, unitLimits],
   )
   const cardRelationships = useCardRelationships(picks, units, attachDiscovery, embarks)
   const openSetup = () => {
@@ -1244,7 +1248,7 @@ export function ListBuilder({
     unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.required && toggle.selected),
   )
   const inspectedEntryId = preview?.entryId ?? optimisticUnit?.entryId ?? null
-  const referenceRoute = reference?.entryId === inspectedEntryId ? reference.route : null
+  const referenceRoute = reference?.entryId === inspectedEntryId ? reference.route : undefined
   const limitFailure = priceFailed ? (
     <div role="alert" className="border-b border-edge px-3 py-2 text-xs text-discarded">
       Could not check unit limits.{' '}
@@ -1988,7 +1992,13 @@ export function ListBuilder({
                     </TooltipContent>
                   </Tooltip>
                 ) : null}
-                {inspectedEntryId ? referenceRoute ? <FullDatasheetLink route={referenceRoute} /> : <FullDatasheetLinkLoading /> : null}
+                {inspectedEntryId && referenceRoute !== null ? (
+                  referenceRoute ? (
+                    <FullDatasheetLink route={referenceRoute} />
+                  ) : (
+                    <FullDatasheetLinkLoading />
+                  )
+                ) : null}
               </>
             }
           >

@@ -657,10 +657,12 @@ function calculateRoster(
   return {
     kind: 'full' as const,
     unitLimits: data.includeUnitLimits
-      ? unitsIn(loaded, data.catalogueId, '', { battleSize: data.limit, waivedRules: data.waivedRules }).map((unit) => ({
-          id: unit.id,
-          limit: contextualUnitLimit(loaded, data.catalogueId, unit.id, data.limit, data.waivedRules ?? [], selections),
-        }))
+      ? unitsIn(loaded, data.catalogueId, '', { battleSize: data.limit, waivedRules: data.waivedRules, nonMatchedPlay: true }).map(
+          (unit) => ({
+            id: unit.id,
+            limit: contextualUnitLimit(loaded, data.catalogueId, unit.id, data.limit, data.waivedRules ?? [], selections),
+          }),
+        )
       : undefined,
     revision: loaded.index.revision,
     edition: loaded.edition ? { id: loaded.edition.id, name: loaded.edition.name, status: loaded.edition.status } : undefined,

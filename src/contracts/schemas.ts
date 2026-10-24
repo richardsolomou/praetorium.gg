@@ -40,6 +40,7 @@ import { recentMatchupSchema } from '../core/recentMatchups'
 import { simulatorPairing } from './simulatorState'
 import {
   LEAGUE_ADMISSIONS,
+  leagueAllowancesSchema,
   LEAGUE_DESCRIPTION_MAX_LENGTH,
   LEAGUE_DEFAULT_ROSTER_LIMIT,
   LEAGUE_ADMIN_MAX,
@@ -87,6 +88,7 @@ const leagueEventRuleFields = {
     .int()
     .refine((value) => GAME_SIZES.some((size) => size.limit === value))
     .default(LEAGUE_DEFAULT_ROSTER_LIMIT),
+  allowances: leagueAllowancesSchema.default([]),
 }
 function validateLeagueEventRule(value: { format: TableShape; rosterLimit: number }, context: z.RefinementCtx) {
   if ((value.format === '2v1' || value.format === '2v2') && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)) {
@@ -105,7 +107,11 @@ export const createLeagueSchema = z
 export const updateLeagueSchema = z.object({
   token,
   ...leagueFields,
-  rule: z.object(leagueEventRuleFields).superRefine(validateLeagueEventRule).optional(),
+  // An older client omits allowances, which must leave the event's house rules as they stand.
+  rule: z
+    .object({ ...leagueEventRuleFields, allowances: leagueAllowancesSchema.optional() })
+    .superRefine(validateLeagueEventRule)
+    .optional(),
 })
 export const leagueEventSchema = z.object({ token, eventToken: token.optional() })
 export const createLeagueEventSchema = z

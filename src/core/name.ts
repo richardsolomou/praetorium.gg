@@ -14,8 +14,13 @@ export function normalizedNameVariants(name: string): string[] {
 }
 
 /** Non-matched-play variants are marked only by a suffix in the community data. */
-const NON_MATCHED_PLAY = /\s*\[(?:legends|crucible)\]/i
+export const NON_MATCHED_PLAY_KINDS = ['legends', 'crucible'] as const
+export type NonMatchedPlayKind = (typeof NON_MATCHED_PLAY_KINDS)[number]
 
-export const isNonMatchedPlayName = (name: string) => NON_MATCHED_PLAY.test(name)
+const NON_MATCHED_PLAY = new RegExp(`\\s*\\[(${NON_MATCHED_PLAY_KINDS.join('|')})\\]`, 'i')
+
+export const nonMatchedPlayKind = (name: string) => (name.match(NON_MATCHED_PLAY)?.[1]?.toLowerCase() as NonMatchedPlayKind) ?? null
+
+export const isNonMatchedPlayName = (name: string) => nonMatchedPlayKind(name) !== null
 
 export const matchedPlayName = (name: string) => name.replace(NON_MATCHED_PLAY, '')

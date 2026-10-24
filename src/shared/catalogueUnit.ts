@@ -7,13 +7,18 @@ import type { LoadedCatalogue } from './catalogueIndex'
 import { mfmUnitFor, unitPointAdjustment } from './unitPoints'
 import { mfmWargearOptionPoints } from './mfm'
 
-export function isMatchedPlayDatasheet(index: CatalogueIndex, entry: Definition) {
+export const isMatchedPlayDatasheet = (index: CatalogueIndex, entry: Definition) => isOfferedDatasheet(index, entry, false)
+
+/** Whether a roster may take the datasheet, counting Legends and Crucible ones only when `nonMatchedPlay` asks for them. */
+export function isOfferedDatasheet(index: CatalogueIndex, entry: Definition, nonMatchedPlay: boolean) {
   const target = targetOf(entry, index.definitions)
-  if (entry.hidden || target.hidden || isNonMatchedPlayName(nameOf(entry, index.definitions))) return false
+  const marked = isNonMatchedPlayName(nameOf(entry, index.definitions))
+  if (entry.hidden || target.hidden || (marked && !nonMatchedPlay)) return false
   if ([...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])].some((link) => link.primary && link.name === 'Reference'))
     return false
+  // Unaligned Forces also holds mission-only battlefield assets, some without the Legends suffix.
   const ownerId = index.catalogueOf.get(target.id)
-  return !ownerId || index.catalogues.get(ownerId)?.name !== 'Unaligned Forces'
+  return !ownerId || index.catalogues.get(ownerId)?.name !== 'Unaligned Forces' || marked
 }
 
 /** What the smallest legal version of one datasheet costs, or null if it cannot be built. */

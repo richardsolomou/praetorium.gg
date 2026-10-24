@@ -4,6 +4,7 @@ import { randomId, randomToken } from 'ras-stack/auth'
 import { type Roster } from '../../core/battle'
 import { commandSchema, parseRosterSnapshot } from '../../core/commands'
 import {
+  offeredLeagueAllowances,
   leagueTableShape,
   LEAGUE_DEFAULT_ROSTER_LIMIT,
   LEAGUE_MEMBER_MAX,
@@ -13,6 +14,7 @@ import {
   isLeagueOrganizer,
   visibleLeagueEntries,
   type LeagueAdmission,
+  type LeagueAllowance,
   type LeagueEntryStatus,
   type LeagueVisibility,
 } from '../../core/league'
@@ -30,8 +32,8 @@ export class LeagueService {
     private readonly notifier: Notifier,
   ) {}
 
-  async createLeague(ownerId: string, input: LeagueDetails & { format?: TableShape; rosterLimit?: number; ownerPlays: boolean }) {
-    const { format, rosterLimit, ...details } = input
+  async createLeague(ownerId: string, input: LeagueDetails & EventRuleInput & { ownerPlays: boolean }) {
+    const { format, rosterLimit, allowances, ...details } = input
     const token = offlineIdentifier('leagueToken', randomToken)
     const eventToken = offlineIdentifier('eventToken', randomToken)
     const result = await this.repository.createLeague({
@@ -41,7 +43,7 @@ export class LeagueService {
       eventToken,
       ownerId,
       ...details,
-      ...eventRule({ format, rosterLimit }),
+      ...eventRule({ format, rosterLimit, allowances }),
       recurring: true,
       now: this.clock(),
     })
@@ -50,14 +52,10 @@ export class LeagueService {
   }
 
   /** Opens the event after a revealed one with the league's details as they should now stand, together or not at all. */
-  async createLeagueEvent(
-    token: string,
-    ownerId: string,
-    input: LeagueDetails & { format?: TableShape; rosterLimit?: number; ownerPlays: boolean },
-  ) {
-    const { format, rosterLimit, ...details } = input
+  async createLeagueEvent(token: string, ownerId: string, input: LeagueDetails & EventRuleInput & { ownerPlays: boolean }) {
+    const { format, rosterLimit, allowances, ...details } = input
     const eventToken = offlineIdentifier('eventToken', randomToken)
-    const rule = eventRule({ format, rosterLimit })
+    const rule = eventRule({ format, rosterLimit, allowances })
     const result = await this.repository.createLeagueEvent({
       id: offlineIdentifier('eventId', randomId),
       token: eventToken,
@@ -74,8 +72,12 @@ export class LeagueService {
     throw new Response('reveal this event’s lists before starting another', { status: 409 })
   }
 
-  /** Saves the league's details and, when given, the open event's format and points, together or not at all. */
-  async updateLeague(token: string, ownerId: string, input: LeagueDetails & { rule?: { format: TableShape; rosterLimit: number } }) {
+  /** Saves the league's details and, when given, the open event's rule, together or not at all. */
+  async updateLeague(
+    token: string,
+    ownerId: string,
+    input: LeagueDetails & { rule?: EventRuleInput & { format: TableShape; rosterLimit: number } },
+  ) {
     const result = await this.repository.updateLeague(token, ownerId, { ...input, rule: input.rule && eventRule(input.rule) })
     if (typeof result === 'object') {
       if (result.admitted.length)
@@ -84,8 +86,8 @@ export class LeagueService {
     }
     if (result === 'missing') throw new Response('no such league', { status: 404 })
     if (result === 'forbidden') throw new Response('only the organizer can edit this league', { status: 403 })
-    if (result === 'closed') throw new Response('the event’s format cannot change after reveal', { status: 409 })
-    if (result === 'sealed') throw new Response('the event’s format cannot change once a list is sealed', { status: 409 })
+    if (result === 'closed') throw new Response('the event’s rules cannot change after reveal', { status: 409 })
+    if (result === 'sealed') throw new Response('the event’s rules cannot change once a list is sealed', { status: 409 })
     if (result === 'team-minimum') throw new Response('the open team event needs a supported number of places', { status: 409 })
     throw new Response('the player limit cannot be lower than the accepted entrant count', { status: 409 })
   }
@@ -280,6 +282,7 @@ export class LeagueService {
       )
     if (result.outcome === 'wrong-limit') throw new Response('choose a roster built for your assigned size', { status: 409 })
     if (result.outcome === 'invalid-warlords') throw new Response(leagueWarlordRefusal(snapshot), { status: 409 })
+    if (result.outcome === 'disallowed') throw new Response(result.message, { status: 409 })
     throw new Response('the roster could not be sealed; check your entry and roster, then try again', { status: 409 })
   }
 
@@ -425,13 +428,16 @@ type LeagueDetails = {
   playerLimit: number | null
 }
 
-function eventRule(rule: { format?: TableShape; rosterLimit?: number }) {
+type EventRuleInput = { format?: TableShape; rosterLimit?: number; allowances?: readonly LeagueAllowance[] }
+
+/** Missing allowances stay missing, which an update reads as "leave them as they are". */
+function eventRule(rule: EventRuleInput) {
   const format = leagueTableShape(rule.format)
   const rosterLimit = rule.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT
   if (format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === rosterLimit)) {
     throw new Response(`choose a supported ${format} roster size`, { status: 400 })
   }
-  return { format, rosterLimit }
+  return { format, rosterLimit, allowances: rule.allowances && offeredLeagueAllowances(format, rosterLimit, rule.allowances) }
 }
 
 function tooFewPlaces(format: TableShape) {
