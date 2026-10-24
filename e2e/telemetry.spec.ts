@@ -289,6 +289,20 @@ test('cancelled creation forms report intent without submissions, and opening th
     ])
 })
 
+test('a wrong password reports invalid credentials without the email', async ({ page }) => {
+  const { email } = await signUp(page, uniqueName('Wrong password'))
+  await page.context().clearCookies()
+  await page.goto('/sign-in')
+  await page.waitForLoadState('networkidle')
+  const events = await recordEvents(page)
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Password').fill('a-wrong-password')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect
+    .poll(() => events.filter((event) => event.name === 'account_authentication_failed'))
+    .toEqual([{ name: 'account_authentication_failed', properties: { method: 'email', action: 'sign_in', reason: 'invalid_credentials' } }])
+})
+
 test('a page that fails to load reports one exception from the error page', async ({ page }) => {
   await page.route(/\/assets\/simulator-[^/]+\.js$/, (route) =>
     route.fulfill({ contentType: 'text/javascript', body: "throw new Error('Simulator failed to load')" }),
