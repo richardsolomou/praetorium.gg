@@ -223,3 +223,45 @@ it('resolves an ordinary faction name to current rules even when an archive is l
   } as unknown as CanonicalCatalogue
   expect(referenceFaction({ catalogue } as ReferenceCorpus, 'marines')?.id).toBe('current~book')
 })
+
+it('reads a datasheet record from an id its slug has since moved from', () => {
+  const sheet = { id: 'd7e1-13bb-2177-b6bc', slug: 'watch-master', catalogueId: 'cat', name: 'Watch Master' } as CanonicalDatasheet
+  const catalogue = { datasheets: [sheet], detachments: [] } as unknown as CanonicalCatalogue
+  const document = {
+    id: 'datasheet:cat:watch-master',
+    kind: 'datasheet' as const,
+    title: 'Watch Master',
+    faction: 'Deathwatch',
+    url: '/factions/deathwatch/datasheets/watch-master',
+    sections: [],
+    revisions: {},
+    attribution: [],
+  }
+  const corpus: ReferenceCorpus = { catalogue, documents: [document], byId: new Map([[document.id, document]]), revision: 'snapshot' }
+
+  expect(referenceRecord(corpus, null, 'datasheet:cat:watch-master-d7e1-13b')?.document.id).toBe('datasheet:cat:watch-master')
+})
+
+it('reads a datasheet record by the page another faction files it under', () => {
+  const sheet = {
+    id: 'captain-entry',
+    slug: 'captain-captain-',
+    catalogueId: 'chapter',
+    name: 'Captain',
+    referenceRoute: { catalogueId: 'space-marines', slug: 'captain' },
+  } as CanonicalDatasheet
+  const catalogue = { datasheets: [sheet], detachments: [] } as unknown as CanonicalCatalogue
+  const document = {
+    id: 'datasheet:space-marines:captain',
+    kind: 'datasheet' as const,
+    title: 'Captain',
+    faction: 'Space Marines',
+    url: '/factions/space-marines/datasheets/captain',
+    sections: [],
+    revisions: {},
+    attribution: [],
+  }
+  const corpus: ReferenceCorpus = { catalogue, documents: [document], byId: new Map([[document.id, document]]), revision: 'snapshot' }
+
+  expect(referenceRecord(corpus, null, 'datasheet:space-marines:captain')?.document.id).toBe('datasheet:space-marines:captain')
+})

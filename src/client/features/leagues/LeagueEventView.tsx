@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Check, Eye, FileLock2, Pencil, ShieldCheck, Swords, TriangleAlert, UserPlus } from 'lucide-react'
+import { ArrowRight, Check, Eye, FileLock2, Pencil, ShieldCheck, Swords, TriangleAlert, UserPlus } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useEffect, useState, type ReactNode } from 'react'
 import {
@@ -19,6 +19,7 @@ import { GAME_SIZES, pointsSize } from '../../../core/battle'
 import {
   leagueRegistrationFull,
   leagueRevealChecklist,
+  leagueStage,
   leagueTableShape,
   mayRevealLeague,
   readsAlliedLeagueRoster,
@@ -37,6 +38,7 @@ import {
   doublesTeams,
   entrantGroups,
   entryProgress,
+  leagueNextStep,
   namesPhrase,
   useLeagueRefresh,
   type EntryStage,
@@ -199,6 +201,7 @@ export function LeagueEventView({
           : yetToPlay.length
             ? `Still to play: ${namesPhrase(yetToPlay)}.`
             : 'You have played everyone. Rematches count too.'
+  const alone = battleFormat === '1v1' && !opponents.length
   const registrationFull = leagueRegistrationFull(league, accepted.length, league.occupiedCount)
   const latest = league.events[0]?.token === league.eventToken
   const entryCard = entryStatus({
@@ -210,7 +213,7 @@ export function LeagueEventView({
     ownSideSealed,
     allies: allies.map(label),
     playDetail,
-    alone: battleFormat === '1v1' && !opponents.length,
+    alone,
     latest,
     join: () => join.mutate(),
     joining: join.isPending,
@@ -275,6 +278,16 @@ export function LeagueEventView({
       )}
     </section>
   )
+  // A past event has no next step; whoever moves the open one on, the organizer or a player in it, reads its one.
+  const nextStep =
+    latest && (isOrganizer || ownEntry?.status === 'accepted')
+      ? leagueNextStep(
+          leagueStage(league, league.entries, Boolean(results?.rows.some((result) => result.played))),
+          // The same facts that give the status card its start-battle action.
+          { organizer: isOrganizer, canPlay: Boolean(ownEntry?.submitted) && ownSideSealed && !alone },
+          league.format,
+        )
+      : null
   const aside = isOrganizer ? (
     <aside className="space-y-3">
       {latest && !revealed ? <InvitePanel league={league} /> : null}
@@ -325,6 +338,15 @@ export function LeagueEventView({
           ) : null}
         </div>
         <div className="min-w-0 space-y-6 lg:col-start-1 lg:row-span-2 lg:row-start-1">
+          {nextStep ? (
+            <p data-league-next-step className="flex items-start gap-2 text-sm text-dim">
+              <ArrowRight className="mt-0.5 size-4 shrink-0 text-parchment" aria-hidden />
+              <span>
+                <span className="font-semibold text-bone">Next: </span>
+                {nextStep}
+              </span>
+            </p>
+          ) : null}
           {!revealed && (isOrganizer || accepted.length) ? (
             <LeagueReadiness league={league} viewerId={viewerId} isOrganizer={isOrganizer} label={label} />
           ) : null}

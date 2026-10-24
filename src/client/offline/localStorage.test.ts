@@ -31,6 +31,8 @@ vi.mock('../nativeBridge', () => ({
     return structuredClone({ ...next, saved: true })
   },
 }))
+import { QueryClient } from '@tanstack/react-query'
+import { writesPending } from '../pendingWrites'
 import { clearLocalState, localStateStorage, LOCAL_STATE_EVENT } from './localStorage'
 let owner: string
 beforeEach(() => {
@@ -197,4 +199,10 @@ it("keeps the browser's saved state unchanged for a change that keeps it", async
   const storage = localStateStorage(owner)
   const saved = await storage.change((state) => ({ ...state, documents: { roster: { data: 'Saved army', serverVersion: 1 } } }))
   expect((await storage.change((state) => state)).revision).toBe(saved.revision)
+})
+
+it('holds automatic reloads while a change is being saved', async () => {
+  const saving = localStateStorage(owner).change((state) => ({ ...state }))
+  expect(writesPending(new QueryClient())).toBe(true)
+  await saving
 })

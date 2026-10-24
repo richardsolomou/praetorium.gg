@@ -378,8 +378,11 @@ const section = (
 const present = (sections: (ReferenceSection | null)[]) => sections.filter((entry): entry is ReferenceSection => Boolean(entry))
 const attribution = (value: string | null) => (value ? [value] : [])
 
+/** The page a datasheet is read on, which also keys its reference record. */
+export const datasheetRoute = (sheet: CanonicalDatasheet) => sheet.referenceRoute ?? { catalogueId: sheet.catalogueId, slug: sheet.slug }
+
 function datasheetDocument(files: TextLocations, sheet: CanonicalDatasheet, factionPaths: ReadonlyMap<string, string>): ReferenceDocument {
-  const route = sheet.referenceRoute ?? { catalogueId: sheet.catalogueId, slug: sheet.slug }
+  const route = datasheetRoute(sheet)
   const url = `${factionPaths.get(route.catalogueId) ?? `/factions/${route.catalogueId}`}/datasheets/${route.slug}`
   const relationships = [...sheet.attachments, ...sheet.leaders, ...sheet.supporters].map((entry) => entry.name)
   const { entryId } = sheet.provenance.definitions

@@ -12,9 +12,12 @@ export type CompressedReference =
 
 export type SerializedQuery = { key: readonly unknown[]; json: string }
 
-const serializeQuery = (entry: OfflineReferenceData['queries'][number]): SerializedQuery => ({
+/** The JSON a lazily parsed query was restored from, so serializing it again needs no parse. */
+const restoredJson = new WeakMap<object, string>()
+
+export const serializeQuery = (entry: OfflineReferenceData['queries'][number]): SerializedQuery => ({
   key: entry.key,
-  json: JSON.stringify(entry.data),
+  json: restoredJson.get(entry) ?? JSON.stringify(entry.data),
 })
 
 const isSerializedQuery = (entry: unknown): entry is SerializedQuery =>
@@ -25,7 +28,7 @@ export function lazyQueries(queries: readonly SerializedQuery[]): OfflineReferen
   return queries.map(({ key, json }) => {
     let data: unknown
     let parsed = false
-    return {
+    const entry = {
       key,
       get data() {
         if (!parsed) {
@@ -35,10 +38,12 @@ export function lazyQueries(queries: readonly SerializedQuery[]): OfflineReferen
         return data
       },
     }
+    restoredJson.set(entry, json)
+    return entry
   })
 }
 
-async function pack(value: unknown, signal?: AbortSignal) {
+export async function pack(value: unknown, signal?: AbortSignal) {
   signal?.throwIfAborted()
   const blob = new Blob([JSON.stringify(value)])
   if (blob.size > MAX_OFFLINE_BYTES) throw new Error('The reference exceeds this device’s download limit.')
@@ -54,7 +59,7 @@ const packedConstructions = new WeakMap<OfflineReferenceData, string>()
 export const packedConstructionOf = (data: OfflineReferenceData) => packedConstructions.get(data)
 
 /** Every field but `construction`, read without decoding construction data that is still packed. */
-function referenceFields(data: OfflineReferenceData) {
+export function referenceFields(data: OfflineReferenceData) {
   return Object.fromEntries(
     Object.keys(data)
       .filter((key) => key !== 'construction')

@@ -1,13 +1,10 @@
-import { captureBattleCommand } from '../battleTelemetry'
 import { productActions } from '../productActions'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { app } from '../app'
-import type { PraetoriumService } from '../service'
 import { currentUserId, requireUser } from '../playerSession'
 import { battleViewerId, requireBattleActor } from '../guestSession'
-import { isGuestSeat } from '../../core/newBattle'
-import { submittedBattleCommand } from '../battleSubmission'
+import { submitBattleCommand } from '../battleSubmission'
 import { mutationRpc, rpc } from '../rpc'
 import {
   battlesPageSchema,
@@ -159,19 +156,7 @@ export const deleteBattle = createServerFn({ method: 'POST' })
 
 export const submit = createServerFn({ method: 'POST' })
   .validator(submitSchema.extend({ workspace: z.boolean().optional() }))
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const actorId = await requireBattleActor(data.token)
-      const startedAt = performance.now()
-      const command = await submittedBattleCommand(actorId, data.command)
-      const result: Awaited<ReturnType<PraetoriumService['submitWithWorkspace']>> = await app().service[
-        data.workspace ? 'submitWithWorkspace' : 'submit'
-      ](data.token, actorId, data.expectedSeq, command, await app().rulesFor())
-      // A guest is nobody's person in analytics; their browser reports its own anonymous events.
-      if (!isGuestSeat(actorId)) await captureBattleCommand(actorId, command, result.result, performance.now() - startedAt, 'direct')
-      return result
-    }),
-  )
+  .handler(({ data }) => mutationRpc(async () => submitBattleCommand(await requireBattleActor(data.token), data)))
 
 export const battleReport = createServerFn({ method: 'GET' })
   .validator(tokenSchema)

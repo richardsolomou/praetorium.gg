@@ -32,26 +32,28 @@ describe('rosterShelves', () => {
     ])
   })
 
-  it('lists an attached unit leaders first, then support, then the unit they joined', () => {
-    const attached = rosterShelves(roster, 'attached').find((shelf) => shelf.plural === 'Attached units')
+  it('lists an attached unit with the unit they joined first, then leaders, then support', () => {
+    const battleline = rosterShelves(roster, 'attached').find((shelf) => shelf.plural === 'Battleline')
 
-    expect(attached?.entries[0]?.map((unit) => unit.name)).toEqual([
+    expect(battleline?.entries.find((members) => members.length > 1)?.map((unit) => unit.name)).toEqual([
+      'Tempestus Scions',
       'Commissar Yarrick',
       'Militarum Tempestus Command Squad',
       'Nork Deddog',
-      'Tempestus Scions',
     ])
   })
 
-  it('shelves attached units together after the characters, and everything else by role', () => {
+  it('shelves each attached unit by the role of the unit its leaders and support joined', () => {
     expect(names(rosterShelves(roster, 'attached'))).toEqual([
       ['Epic heroes', [['Inquisitor Coteaz']]],
-      ['Attached units', [['Commissar Yarrick', 'Militarum Tempestus Command Squad', 'Nork Deddog', 'Tempestus Scions']]],
-      ['Battleline', [['Cadian Shock Troops']]],
+      [
+        'Battleline',
+        [['Cadian Shock Troops'], ['Tempestus Scions', 'Commissar Yarrick', 'Militarum Tempestus Command Squad', 'Nork Deddog']],
+      ],
     ])
   })
 
-  it('counts every datasheet on the attached units shelf', () => {
+  it('counts an attached unit once on its shelf', () => {
     const shelves = rosterShelves(
       [
         card(0, 'Immortals', 'battleline'),
@@ -62,7 +64,7 @@ describe('rosterShelves', () => {
       'attached',
     )
 
-    expect(shelves.map((shelf) => [shelf.plural, shelf.count])).toEqual([['Attached units', 4]])
+    expect(shelves.map((shelf) => [shelf.plural, shelf.count])).toEqual([['Battleline', 2]])
   })
 
   it('counts a role shelf by its datasheets', () => {

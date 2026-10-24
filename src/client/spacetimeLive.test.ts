@@ -64,6 +64,7 @@ vi.mock('../spacetime/generated', () => ({
   },
 }))
 
+import { stdbLogger } from 'spacetimedb'
 import { useRealtimeConfig, useSpacetimeLiveBattle, useSpacetimeLiveProduct } from './spacetimeLive'
 
 let cleanups: (() => void)[] = []
@@ -392,6 +393,29 @@ it('retains the anonymous identity when the SDK requests a reconnect token', asy
   await vi.advanceTimersByTimeAsync(0)
   const renewed = await mocks.sockets[0]!.renew!()
   expect([renewed, fetch.mock.calls.length]).toEqual(['anonymous-1', 1])
+})
+
+it('keeps one anonymous connection and identity past the signed-in token refresh', async () => {
+  const fetch = vi.fn(async () => Response.json({ token: 'anonymous' }))
+  vi.stubGlobal('fetch', fetch)
+  useSpacetimeLiveProduct(product, false)
+  mount()
+  await vi.advanceTimersByTimeAsync(60 * 60_000)
+  expect([fetch.mock.calls.length, mocks.sockets.length]).toEqual([1, 1])
+})
+
+it('keeps SDK info logs out of the console while passing its warnings through', async () => {
+  const log = vi.spyOn(console, 'log').mockImplementation(() => {})
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => Response.json({ token: 'anonymous' })),
+  )
+  useSpacetimeLiveProduct(product, false)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  stdbLogger('info', 'Connecting to SpacetimeDB WS...')
+  stdbLogger('warn', 'Deleting a row that was not present in the cache')
+  expect(log.mock.calls.map(([message]) => message)).toEqual(['%c⚠️ WARN%c Deleting a row that was not present in the cache'])
 })
 
 it('renews a seated battle token instead of reusing its expiring credential', async () => {

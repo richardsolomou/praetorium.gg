@@ -269,7 +269,30 @@ test('a character joins the unit it leads, and both cards say so', async ({ page
   await expect(page.locator('[data-unit="Overlord"]')).toBeVisible()
 })
 
-test('attached units are shelved together by default, each named by the unit it joined', async ({ page }) => {
+test('a leader detaches from its unit through its own menus', async ({ page }) => {
+  await openBuilder(page)
+  await add(page, 'Overlord')
+  await add(page, 'Plasmancer')
+  await add(page, 'Immortals')
+  await attach(page, 'Overlord', 'Immortals')
+  await attach(page, 'Plasmancer', 'Immortals')
+  const block = page.getByRole('region', { name: 'Immortals', exact: true })
+  // The unit the others joined has nothing to detach from.
+  await block.getByRole('button', { name: 'Unit actions for Immortals' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Delete unit' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Detach from unit' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
+
+  await block.getByRole('button', { name: 'Unit actions for Overlord' }).click()
+  await page.getByRole('menuitem', { name: 'Detach from unit' }).click()
+  await expect(block.locator('[data-unit="Overlord"]')).toHaveCount(0)
+
+  await block.locator('[data-unit="Plasmancer"]').click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Detach from unit' }).click()
+  await expect(block).toBeHidden()
+})
+
+test("attached units are drawn together on their bodyguard's shelf by default", async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Overlord')
   await add(page, 'Plasmancer')
@@ -284,21 +307,21 @@ test('attached units are shelved together by default, each named by the unit it 
     await item.click()
     await expect(page.getByRole('menu')).toBeHidden()
   }
-  // Shelved together until the player chooses role shelves.
+  // Drawn together until the player chooses role shelves.
   const characters = page.locator('[data-slot="roster-units"]').getByRole('heading', { name: 'Characters' })
   const block = page.getByRole('region', { name: 'Immortals', exact: true })
-  // Attached datasheets leave their role shelves for one shelf counting all of them, each unit with the unit it joined last.
-  await expect(page.locator('[data-slot="roster-units"]').getByRole('heading', { name: 'Attached units' }).locator('..')).toContainText('3')
-  await expect(block.locator('[data-unit]').last()).toHaveAttribute('data-unit', 'Immortals')
-  await expect(block.locator('[data-unit]').first()).toHaveAttribute('data-unit', 'Overlord')
+  const battleline = page.locator('[data-slot="roster-units"]').getByRole('heading', { name: 'Battleline' }).locator('..')
+  // The attached unit is drawn on its bodyguard's shelf, the bodyguard's card first.
+  await expect(block.locator('[data-unit]').first()).toHaveAttribute('data-unit', 'Immortals')
+  await expect(block.locator('[data-unit]')).toHaveCount(3)
   await expect(characters).toBeHidden()
-  await expect(page.locator('[data-slot="roster-units"]').getByRole('heading', { name: 'Battleline' })).toBeHidden()
   // The unit is drawn together, so its cards name only the role each datasheet plays.
   await expect(block.locator('[data-unit="Overlord"]')).toContainText('Leader')
   await expect(block).not.toContainText('Leading')
+  // The shelf counts the attached unit once and costs every datasheet in it.
   const cardPoints = await block.locator('[data-unit] .chip.text-info').allInnerTexts()
   const total = cardPoints.reduce((sum, text) => sum + Number.parseInt(text, 10), 0)
-  await expect(block.locator(':scope > p')).toHaveText(`${total} pts`)
+  await expect(battleline.locator('.readout')).toHaveText([`${total} pts`, '1'])
 
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await waitForRosterSave(
@@ -318,7 +341,7 @@ test('attached units are shelved together by default, each named by the unit it 
 
   // The arrangement is the player's, kept for every roster on the device and drawn by the
   // server, so a refresh never shows the other arrangement first.
-  expect(await (await page.request.get(page.url())).text()).not.toContain('Attached units')
+  expect(await (await page.request.get(page.url())).text()).not.toContain('aria-label="Tomb Guard"')
   await page.reload()
   await expect(characters).toBeVisible()
   await toggleTogether(true)

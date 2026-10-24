@@ -2,6 +2,7 @@ import { cachedIn, countBy } from '../core/collections'
 import { type Catalogue, type CatalogueFile, type CatalogueIndex, type Definition, importsOf, nameOf, targetOf } from '../core/catalogue'
 import { hiddenByRules } from '../core/evaluate'
 import { routeSlug } from '../core/slug'
+import { type DatasheetPage, datasheetPageBySlug, datasheetSlugFor } from '../core/datasheetSlug'
 import { compareText, sameText } from '../core/text'
 import type { FactionContent, LoadedDatacards } from './datacards'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
@@ -159,7 +160,7 @@ function referenceFactionsOf(loaded: LoadedCatalogue, categories: readonly (stri
   )
   return candidates
 }
-type DatasheetSlugs = { byEntry: Map<string, string>; entryBySlug: Map<string, string> }
+type DatasheetSlugs = { byEntry: Map<string, string>; pages: DatasheetPage[] }
 const datasheetSlugCache = new WeakMap<LoadedCatalogue, Map<string, DatasheetSlugs>>()
 /** Slugs for a whole book at once: collision detection is per book, not per entry. */
 function datasheetSlugsFor(loaded: LoadedCatalogue, catalogueId: string): DatasheetSlugs {
@@ -167,25 +168,27 @@ function datasheetSlugsFor(loaded: LoadedCatalogue, catalogueId: string): Datash
 }
 function datasheetSlugsOf(loaded: LoadedCatalogue, catalogueId: string): DatasheetSlugs {
   const ids = [...datasheetsOf(loaded.index, catalogueId)]
-  const nameSlugCounts = countBy(ids, (id) => routeSlug(nameOf(loaded.index.definitions.get(id) ?? { id }, loaded.index.definitions)))
+  const pageIds = new Set(ids.filter((id) => isReferenceDatasheet(loaded, catalogueId, id)))
+  const nameSlugOf = (id: string) => routeSlug(nameOf(loaded.index.definitions.get(id) ?? { id }, loaded.index.definitions))
+  // A page shares its name only with other pages, so an imported copy of it cannot move its address.
+  const pageNameCounts = countBy([...pageIds], nameSlugOf)
+  const nameCounts = countBy(ids, nameSlugOf)
   const byEntry = new Map<string, string>()
-  const entryBySlug = new Map<string, string>()
+  const pages: DatasheetPage[] = []
   for (const id of ids) {
-    const base = routeSlug(loaded.index.definitions.get(id)?.name ?? id)
-    const slug = (nameSlugCounts.get(base) ?? 0) > 1 ? `${base}-${id.slice(0, 8)}` : base
+    const counts = pageIds.has(id) ? pageNameCounts : nameCounts
+    const slug = datasheetSlugFor(routeSlug(loaded.index.definitions.get(id)?.name ?? id), id, (counts.get(nameSlugOf(id)) ?? 0) > 1)
     byEntry.set(id, slug)
-    // A slug resolves to the first entry claiming it, by its own id or its slug.
-    if (!entryBySlug.has(id)) entryBySlug.set(id, id)
-    if (!entryBySlug.has(slug)) entryBySlug.set(slug, id)
+    if (pageIds.has(id)) pages.push({ id, slug })
   }
-  return { byEntry, entryBySlug }
+  return { byEntry, pages }
 }
 export function datasheetSlug(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
   return datasheetSlugsFor(loaded, catalogueId).byEntry.get(entryId) ?? routeSlug(loaded.index.definitions.get(entryId)?.name ?? entryId)
 }
-/** The datasheet a reference-page slug names, accepting a raw entry id too. */
+/** The reference datasheet a page slug names, as `datasheetPageBySlug` resolves it. */
 export function datasheetIdBySlug(loaded: LoadedCatalogue, catalogueId: string, slug: string) {
-  return datasheetSlugsFor(loaded, catalogueId).entryBySlug.get(slug) ?? null
+  return datasheetPageBySlug(datasheetSlugsFor(loaded, catalogueId).pages, slug)?.id ?? null
 }
 /** Prefer the datasheet's own reference page; imported entries fall back to an unambiguous named match. */
 export function referenceDatasheetRoute(loaded: LoadedCatalogue, name: string, preferred?: { catalogueId: string; entryId: string }) {

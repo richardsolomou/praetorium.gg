@@ -1,5 +1,41 @@
 # praetorium
 
+## 0.189.0
+
+### Minor Changes
+
+- a56ca27: Attached units sit on their bodyguard's shelf, with the bodyguard first and its leaders and support indented under it, instead of together on an Attached units shelf. Each shelf's heading shows what its units cost.
+
+### Patch Changes
+
+- b90a70b: Rosters, battles, battle actions and visibility changes made through an AI assistant are now counted the same way as those made on the site.
+- fa4c778: Imports read official-app points grouped with an apostrophe, as Swiss German exports write them.
+- 8a55c07: Screen readers name each attached unit's outline after the unit the others joined, instead of calling every one "Attached unit".
+- 5033dad: Failed sign-ins and sign-ups record why they failed, such as a wrong password, rate limiting, or a dropped connection, so those problems can be told apart.
+- 3ff8c88: Battles that finish by playing out their final round are now counted as finished, not only those ended early.
+- a821bd2: Battle analytics identify each battle by its internal id, so a battle's start and finish can be matched up.
+- 99d4f05: Datasheet pages offer Add to roster as its own button, beside the Add to menu for favourites and the collection.
+- b1a3e56: An earlier address of a datasheet page, with or without the id suffix a same-named datasheet adds, now redirects to its current page instead of showing not found.
+- e767992: A datasheet page keeps its address when its book also lists another faction's copy of a datasheet with the same name, such as Deathwatch's Watch Master beside the Agents of the Imperium one.
+- 703b537: Keep a battle army's Destroyed shelf open while you bring units back and lose them again, instead of closing it each time it empties.
+- a56ca27: A leader or support unit's menu offers Detach from unit.
+- 13968b5: The Discord links point to the new invite.
+- fb794e1: Holding a More or Fewer count button keeps stepping until you let go or reach the limit.
+- d834ba9: A league page now says what happens next at each stage, from sharing the invite link to revealing rosters and starting the next event, for the organizer and for players in it.
+- 14b34a9: The assistant help page explains "This app is no longer registered", and the connection pages all point back to your assistant.
+- 02d3875: When an AI app's connection request has expired or the app is no longer registered, the consent page says so and asks you to start again from the app, and other loading failures show the usual error page instead of claiming the request expired.
+- bdd2c65: Pasting a New Recruit share link explains that the list's exported text is needed instead.
+- 0e7e914: Count visits to missing pages, including links opened straight to one, grouped by the kind of address.
+- 7819354: Keep pages responsive while the offline reference downloads in the background: the download is now unpacked and saved off the main thread, so taps and typing no longer wait up to a second behind it.
+- 44c1622: Simulator survivor, weapon and wound counts, and counted mission scores, can be picked directly from the number between their buttons.
+- b861bb0: The browser console no longer logs a message on every live-update connection.
+- 1928ca4: Going back while choosing a roster for a battle closes the roster list instead of leaving the battle.
+- 30be48d: The `simulate_combat` assistant tool now answers matchups it cannot estimate with a normal result that names each refused phase and why, keeping errors for unknown units, illegal sizes or attachments, and unavailable data.
+- 41c92fb: A tab left open across an update now loads the new version when you move to another page or when a page fails, instead of showing an error that Try again could not clear.
+- eb29a60: Signed-out tabs keep one live-update connection instead of reconnecting with a new identity every four minutes.
+- 80c4c21: Comparing a variant with its base no longer counts a unit as changed just because units before its transport moved, and does count a unit that now starts in a different transport.
+- ac969bf: Pages and the army builder stay fast right after an update, instead of loading slowly for the first few minutes.
+
 ## 0.188.3
 
 ### Patch Changes

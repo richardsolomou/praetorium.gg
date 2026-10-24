@@ -11,7 +11,6 @@ vi.mock('@tanstack/react-start', () => {
 vi.mock('../rpc', () => ({ rpc: (work: () => unknown) => work(), mutationRpc: (work: () => unknown) => work() }))
 vi.mock('../playerSession', () => ({ requireUser: async () => ({ id: 'actor' }) }))
 vi.mock('../guestSession', () => ({ requireBattleActor: async () => mocks.actor() }))
-vi.mock('../battleSubmission', () => ({ submittedBattleCommand: async (_actor: string, command: unknown) => command }))
 vi.mock('../app', () => ({
   app: () => ({ service: mocks, telemetry: { capture: mocks.capture }, rulesFor: async () => null }),
 }))
@@ -23,8 +22,8 @@ const invokeSubmit = submit as unknown as (input: {
 
 beforeEach(() => {
   vi.resetAllMocks()
-  mocks.createBattle.mockResolvedValue({ token: 'private-battle', practice: false })
-  mocks.submit.mockResolvedValue({ result: { outcome: 'appended' } })
+  mocks.createBattle.mockResolvedValue({ battleId: 'battle-id', token: 'private-battle', practice: false })
+  mocks.submit.mockResolvedValue({ result: { outcome: 'appended' }, battleId: 'battle-id' })
   mocks.actor.mockReturnValue('actor')
 })
 
@@ -41,7 +40,16 @@ it.each([
     [
       'actor',
       'battle_created',
-      { delivery: 'direct', practice: false, limit: 2000, player_count: count, casual: true, manual: false, guests: expect.any(Number) },
+      {
+        delivery: 'direct',
+        battle_id: 'battle-id',
+        practice: false,
+        limit: 2000,
+        player_count: count,
+        casual: true,
+        manual: false,
+        guests: expect.any(Number),
+      },
     ],
   ])
 })
@@ -53,7 +61,7 @@ it('does not report a battle created when the write fails', async () => {
 })
 
 it.each(['appended', 'rejected'])('records the attempted setup step and its %s outcome without a battle token', async (outcome) => {
-  mocks.submit.mockResolvedValue({ result: { outcome } })
+  mocks.submit.mockResolvedValue({ result: { outcome }, battleId: 'battle-id' })
   await invokeSubmit({
     data: submitSchema.parse({ token: 'private-battle', expectedSeq: 0, command: { kind: 'set-setup-step', step: 3 } }),
   })
@@ -61,7 +69,7 @@ it.each(['appended', 'rejected'])('records the attempted setup step and its %s o
     [
       'actor',
       'battle_command_submitted',
-      { command: 'set-setup-step', outcome, setup_step: 3, delivery: 'direct', duration_ms: expect.any(Number) },
+      { battle_id: 'battle-id', command: 'set-setup-step', outcome, setup_step: 3, delivery: 'direct', duration_ms: expect.any(Number) },
     ],
   ])
 })
@@ -72,19 +80,29 @@ it('keeps ordinary battle command payloads out of telemetry', async () => {
     [
       'actor',
       'battle_command_submitted',
-      { command: 'reset-setup', outcome: 'appended', delivery: 'direct', duration_ms: expect.any(Number) },
+      { battle_id: 'battle-id', command: 'reset-setup', outcome: 'appended', delivery: 'direct', duration_ms: expect.any(Number) },
     ],
   ])
 })
 
 it('records the refusal code but not its message for a refused command', async () => {
-  mocks.submit.mockResolvedValue({ result: { outcome: 'refused', code: 'stratagem-limit', reason: 'Grenade has been used this turn' } })
+  mocks.submit.mockResolvedValue({
+    result: { outcome: 'refused', code: 'stratagem-limit', reason: 'Grenade has been used this turn' },
+    battleId: 'battle-id',
+  })
   await invokeSubmit({ data: submitSchema.parse({ token: 'private-battle', expectedSeq: 0, command: { kind: 'reset-setup' } }) })
   expect(mocks.capture.mock.calls).toEqual([
     [
       'actor',
       'battle_command_submitted',
-      { command: 'reset-setup', outcome: 'refused', reason: 'stratagem-limit', delivery: 'direct', duration_ms: expect.any(Number) },
+      {
+        battle_id: 'battle-id',
+        command: 'reset-setup',
+        outcome: 'refused',
+        reason: 'stratagem-limit',
+        delivery: 'direct',
+        duration_ms: expect.any(Number),
+      },
     ],
   ])
 })
@@ -95,7 +113,7 @@ it('reports no preset size for an automatically configured battle', async () => 
     [
       'actor',
       'battle_created',
-      { delivery: 'direct', practice: false, limit: null, player_count: 2, casual: true, manual: false, guests: 0 },
+      { delivery: 'direct', battle_id: 'battle-id', practice: false, limit: null, player_count: 2, casual: true, manual: false, guests: 0 },
     ],
   ])
 })
@@ -131,4 +149,11 @@ it('submits a guest command as the guest seat', async () => {
     data: submitSchema.parse({ token: 'private-battle', expectedSeq: 0, command: { kind: 'set-setup-step', step: 3 } }),
   })
   expect(mocks.submit.mock.calls[0]?.[1]).toBe('guest:battle:0')
+})
+
+it('keeps the battle id it reports out of the submission answer', async () => {
+  const answer = await invokeSubmit({
+    data: submitSchema.parse({ token: 'private-battle', expectedSeq: 0, command: { kind: 'reset-setup' } }),
+  })
+  expect(answer).toEqual({ result: { outcome: 'appended' } })
 })

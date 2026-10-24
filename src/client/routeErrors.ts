@@ -1,6 +1,9 @@
 import { CancelledError } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
+import { version } from '../../package.json'
+import { captureWhenLoaded } from '../posthog'
 import { isFetchNetworkFailure, isModuleLoadFailure } from './networkErrors'
+import { newerRelease } from './releaseUpdate'
 
 /** React passes errors caught by a route's error page only to console.error, so report them here. */
 export function reportRouteError(error: unknown) {
@@ -51,11 +54,69 @@ export function reloadModuleRoute() {
   window.location.replace(url)
 }
 
-export function completedModuleRecovery(href: string) {
-  const attempt = moduleRecoveryAttempt(href)
-  if (!attempt) return null
+const STALE_BUILD_PARAM = '__build_retry'
+
+function staleBuildMarker(href: string) {
+  const match = new URL(href).searchParams.get(STALE_BUILD_PARAM)?.match(/^\d+\.([1-3])\.(\d+\.\d+\.\d+)$/)
+  return match ? { attempt: Number(match[1]), release: match[2]! } : null
+}
+
+const staleBuildAttempt = (href: string, release: string) => {
+  const marker = staleBuildMarker(href)
+  return marker?.release === release ? marker.attempt : 0
+}
+
+export function staleBuildRecoveryUrl(href: string, release: string, now = Date.now()) {
   const url = new URL(href)
-  url.searchParams.delete(RECOVERY_PARAM)
-  posthog.capture('route_recovery_completed', { failure_kind: 'module_load', recovery_attempt: attempt })
-  return url.pathname + url.search + url.hash
+  url.searchParams.set(STALE_BUILD_PARAM, `${now}.${Math.min(staleBuildAttempt(href, release) + 1, 3)}.${release}`)
+  return url.href
+}
+
+/**
+ * Loads `href` from the deployed `release` instead of this page's older build, whose code can misread newer responses.
+ * Automatic reloads wait out saves, need a connection to reach the release, and stop after three in a row of one page
+ * for one release. The native saved application asks its shell to open the hosted page, which only the shell can set up.
+ */
+export function reloadStaleBuild(
+  release: string,
+  trigger: 'navigation' | 'route_error' | 'try_again',
+  { href = window.location.href, saving = false } = {},
+) {
+  if (trigger !== 'try_again' && (saving || !navigator.onLine || staleBuildAttempt(href, release) >= 3)) return false
+  const url = staleBuildRecoveryUrl(href, release)
+  posthog.capture('route_recovery_started', { failure_kind: 'stale_build', recovery_attempt: staleBuildAttempt(url, release), trigger })
+  if (window.ReactNativeWebView && window.PraetoriumOfflineStart !== undefined) {
+    const { pathname, search, hash } = new URL(url)
+    window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'offline-retry', path: pathname + search + hash }))
+  } else window.location.replace(url)
+  return true
+}
+
+export const routeRecoveryPending = (href: string) => moduleRecoveryAttempt(href) > 0 || staleBuildMarker(href) !== null
+
+/** Removes the recovery keys a rendered route resolves; a reload that still runs an older build keeps its key, so the cap holds. */
+export function completedRouteRecovery(href: string, current = version) {
+  const url = new URL(href)
+  const moduleAttempt = moduleRecoveryAttempt(href)
+  if (moduleAttempt) {
+    url.searchParams.delete(RECOVERY_PARAM)
+    posthog.capture('route_recovery_completed', { failure_kind: 'module_load', recovery_attempt: moduleAttempt })
+  }
+  const stale = staleBuildMarker(href)
+  const staleResolved = stale !== null && !newerRelease(current, stale.release)
+  if (staleResolved) {
+    url.searchParams.delete(STALE_BUILD_PARAM)
+    posthog.capture('route_recovery_completed', { failure_kind: 'stale_build', recovery_attempt: stale.attempt })
+  }
+  return moduleAttempt || staleResolved ? url.pathname + url.search + url.hash : null
+}
+
+/**
+ * Records a not-found page. `path` is a grouping key that keeps only words some route spells out; the SDK's own URL
+ * properties still carry the address, as on any pageview. Crawlers that run no JavaScript appear only in the server's `$http_log`.
+ */
+export function notFoundPage(pathname: string, routePaths: readonly string[]) {
+  const words = new Set(routePaths.flatMap((path) => path.split('/').filter((segment) => segment && !/[${]/.test(segment))))
+  const segments = pathname.split('/').filter(Boolean)
+  captureWhenLoaded('page_not_found', { path: `/${segments.map((segment) => (words.has(segment) ? segment : ':id')).join('/')}` })
 }

@@ -15,8 +15,7 @@ test('roster creation and loadout odds work without native array-copy methods', 
     }
   })
   await page.goto('/factions/necrons/datasheets/imotekh-the-stormlord')
-  await page.getByRole('button', { name: 'Add to', exact: true }).click()
-  await page.getByRole('button', { name: 'Roster…' }).click()
+  await page.getByRole('button', { name: 'Add to roster', exact: true }).click()
   const setup = page.getByRole('dialog', { name: 'Create roster' })
   await setup.getByRole('button', { name: 'Select Awakened Dynasty', exact: true }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()

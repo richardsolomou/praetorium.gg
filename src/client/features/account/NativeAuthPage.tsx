@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { posthog } from 'posthog-js'
 import type { SocialAuthProvider } from '../../../authConfig'
 import { authClient } from '../../authClient'
-import type { NativeAuthAction } from '../../nativeAuth'
+import { nativeAuthExchange, type NativeAuthAction } from '../../nativeAuth'
+import { authFailureReason } from './authFailureReason'
 
 const NATIVE_AUTH_CALLBACK = 'praetorium://auth'
 
@@ -70,18 +71,18 @@ export function NativeAuthPage({ search }: { search: NativeAuthSearch }) {
 
     const finish = async () => {
       if (search.error) {
-        posthog.capture('account_authentication_failed', { action, method: provider, native: true })
+        posthog.capture('account_authentication_failed', {
+          action,
+          method: provider,
+          native: true,
+          reason: authFailureReason(search.error),
+        })
         returnToApplication({ action, bridge, next, provider }, undefined, challenge)
         return
       }
       const exchange =
         bridge >= 2
-          ? await fetch('/api/auth/native-auth-token/generate', {
-              method: 'POST',
-              credentials: 'same-origin',
-              headers: { 'content-type': 'application/json' },
-              body: JSON.stringify({ action, challenge, provider, next }),
-            }).then(async (response) => (response.ok ? ((await response.json()) as { id: string; token: string }) : null))
+          ? await nativeAuthExchange({ action, challenge, provider, next })
           : await authClient.oneTimeToken
               .generate()
               .then((result) => (result.error || !result.data?.token ? null : { token: result.data.token }))

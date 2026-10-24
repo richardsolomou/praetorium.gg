@@ -515,8 +515,8 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   expect(editorBounds?.x).toBe(0)
   expect(editorBounds?.width).toBe(1600)
   const rosterUnits = page.locator('[data-slot="roster-units"]')
-  await expect(rosterUnits.getByText('Characters', { exact: true }).locator('..')).toContainText(/Characters\s*1/)
-  await expect(rosterUnits.getByText('Battleline', { exact: true }).locator('..')).toContainText(/Battleline\s*1/)
+  await expect(rosterUnits.getByText('Characters', { exact: true }).locator('..')).toContainText(/Characters\s*\d+ pts\s*1/)
+  await expect(rosterUnits.getByText('Battleline', { exact: true }).locator('..')).toContainText(/Battleline\s*\d+ pts\s*1/)
   await expect(rosterUnits.getByText('Infantry', { exact: true })).toHaveCount(0)
   await expect(total).toHaveText(priced)
   await page.reload()
@@ -642,8 +642,8 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await guest.keyboard.press('Escape')
   await expect(guest.getByLabel('Add units')).toHaveCount(0)
   const guestUnits = guest.locator('[data-slot="roster-units"]')
-  await expect(guestUnits.getByText('Characters', { exact: true }).locator('..')).toContainText(/Characters\s*1/)
-  await expect(guestUnits.getByText('Battleline', { exact: true }).locator('..')).toContainText(/Battleline\s*1/)
+  await expect(guestUnits.getByText('Characters', { exact: true }).locator('..')).toContainText(/Characters\s*\d+ pts\s*1/)
+  await expect(guestUnits.getByText('Battleline', { exact: true }).locator('..')).toContainText(/Battleline\s*\d+ pts\s*1/)
   await expect(guest.getByLabel('Unit actions for Immortals')).toHaveCount(0)
   let releaseLoadout: () => void = () => {}
   const loadoutHeld = new Promise<void>((resolve) => {

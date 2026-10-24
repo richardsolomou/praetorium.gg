@@ -1,5 +1,15 @@
-import { describe, expect, it } from 'vitest'
-import { afterFailedCommand, asSentence } from './useCommand'
+import { QueryClient } from '@tanstack/react-query'
+import { describe, expect, it, vi } from 'vitest'
+import { writesPending } from '../../pendingWrites'
+
+const submit = vi.hoisted(() => vi.fn())
+const writeAppSnapshot = vi.hoisted(() => vi.fn())
+vi.mock('../../functions', () => ({ submit }))
+vi.mock('../../offline/appStorage', () => ({ writeAppSnapshot }))
+vi.mock('../../offline/appSnapshot', () => ({ captureAppSnapshot: () => null }))
+vi.mock('../../nativeBridge', () => ({ requestNativeHaptic: () => {} }))
+
+import { afterFailedCommand, asSentence, drainCommands } from './useCommand'
 
 const queued = (basedOn: number, background = false) => ({ basedOn, background })
 
@@ -32,5 +42,28 @@ describe('a refusal shown to the player', () => {
 
   it('keeps a sentence that already ends', () => {
     expect(asSentence('Choose a roster first.')).toBe('Choose a roster first.')
+  })
+})
+
+describe('automatic reloads while commands are queued', () => {
+  it('stay held after one command lands while the next is still queued', async () => {
+    const appended = { result: { outcome: 'appended' }, screen: null }
+    submit.mockResolvedValue(appended)
+    let saved!: () => void
+    writeAppSnapshot.mockImplementationOnce(() => new Promise<void>((resolve) => (saved = resolve))).mockResolvedValue(undefined)
+    const client = new QueryClient()
+    const drained = drainCommands({
+      token: 'battle',
+      queryClient: client,
+      seen: { current: 0 },
+      queued: { current: [0, 1].map(() => ({ command: { kind: 'begin-battle' } as never, basedOn: 0 })) },
+      draining: { current: false },
+      setPending: () => {},
+      setProblem: () => {},
+    })
+    await vi.waitFor(() => expect(writeAppSnapshot).toHaveBeenCalledOnce())
+    expect(writesPending(client)).toBe(true)
+    saved()
+    await drained
   })
 })

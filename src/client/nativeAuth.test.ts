@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createElement } from 'react'
 import { renderToString } from 'react-dom/server'
-import { canUseGithubAuth, hasNativeAuthBridge, requestNativeAuth, useGithubAuthAvailability } from './nativeAuth'
+import { QueryClient } from '@tanstack/react-query'
+import { writesPending } from './pendingWrites'
+import { canUseGithubAuth, hasNativeAuthBridge, nativeAuthExchange, requestNativeAuth, useGithubAuthAvailability } from './nativeAuth'
 
 describe('native auth web bridge', () => {
   afterEach(() => vi.unstubAllGlobals())
@@ -68,4 +70,14 @@ describe('native auth web bridge', () => {
     expect(message.challenge).toHaveLength(43)
     expect(message.verifier).toHaveLength(43)
   })
+})
+
+it('holds automatic reloads while the native sign-in token is requested', async () => {
+  let answer!: () => void
+  vi.stubGlobal('fetch', () => new Promise<Response>((resolve) => (answer = () => resolve(Response.json({ id: 'id', token: 'token' })))))
+  const exchanging = nativeAuthExchange({ action: 'sign-in', challenge: 'challenge', provider: 'google', next: '/rosters' })
+  expect(writesPending(new QueryClient())).toBe(true)
+  answer()
+  await exchanging
+  vi.unstubAllGlobals()
 })

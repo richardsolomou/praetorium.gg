@@ -98,6 +98,26 @@ describe('a transport’s card', () => {
     ])
   })
 
+  it('names an embarked attached unit by its custom name', () => {
+    expect(
+      card(3, [
+        { embarkedIn: 3, nickname: 'Alpha' },
+        { attachedTo: 0, nickname: 'Commander' },
+      ]).carries[0]?.name,
+    ).toBe('Alpha · Intercessors')
+  })
+
+  it('includes custom names in boarding choices and their attached characters', () => {
+    expect(card(3, [{ nickname: 'Alpha' }, { attachedTo: 0, nickname: 'Commander' }]).canCarry[0]).toMatchObject({
+      name: 'Alpha · Intercessors',
+      detail: 'With Commander · Captain',
+    })
+  })
+
+  it('includes the transport’s custom name in its passengers’ embark rows', () => {
+    expect(card(0, [{ embarkedIn: 3 }, {}, {}, { nickname: 'Ironclad' }]).ridesIn?.name).toBe('Ironclad · Rhino')
+  })
+
   it('greys out a unit there is no room left for', () => {
     expect(card(3, LED_SQUAD_ABOARD).canCarry).toEqual([
       { passenger: 2, transport: 3, name: 'Scouts', detail: null, reason: 'this transport can carry at most 10 models' },

@@ -1,6 +1,13 @@
 import { gunzipSync, gzipSync, strFromU8, strToU8 } from 'fflate'
 import { expect, it } from 'vitest'
-import { compressReference, decompressReference, restoreReferenceParts, withConstructionOf } from './compressedReference'
+import {
+  compressReference,
+  decompressReference,
+  lazyQueries,
+  restoreReferenceParts,
+  serializeQuery,
+  withConstructionOf,
+} from './compressedReference'
 import type { OfflineReferenceData } from '../../contracts/offlineReference'
 
 const data: OfflineReferenceData = {
@@ -116,4 +123,9 @@ it('saves construction data that was restored packed without decoding it', async
 
 it('carries construction data a fresh download holds', () => {
   expect(withConstructionOf({ ...data }, withConstruction).construction).toEqual(construction)
+})
+
+it('serializes a restored query again without parsing it', () => {
+  const [entry] = lazyQueries([{ key: ['rule-index'], json: 'not parsed' }])
+  expect(serializeQuery(entry!)).toEqual({ key: ['rule-index'], json: 'not parsed' })
 })

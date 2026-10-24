@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label'
 import { PASSWORD_MIN_LENGTH } from '../../../authConfig'
 import { authClient, authRedirectUrl } from '../../authClient'
 import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES } from './AuthMethodIcon'
+import { authFailureReason } from './authFailureReason'
 import { TwoFactorSignIn } from './TwoFactorSignIn'
 import { requestNativeAuth, useGithubAuthAvailability } from '../../nativeAuth'
 import { signInOptionsQuery } from '../../queries'
@@ -117,7 +118,11 @@ export function SignInPage({
       if (next) window.location.replace(next)
       else await navigate({ to: '/', replace: true })
     } else {
-      posthog.capture('account_authentication_failed', { method: 'email', action: joining ? 'create' : 'sign_in' })
+      posthog.capture('account_authentication_failed', {
+        method: 'email',
+        action: joining ? 'create' : 'sign_in',
+        reason: authFailureReason(result.error),
+      })
     }
   }
 

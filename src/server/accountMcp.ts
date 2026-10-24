@@ -1,7 +1,8 @@
 import type { AgentTools } from './agentTools'
 import { app } from './app'
-import { submittedBattleCommand } from './battleSubmission'
-import { saveOwnedRoster } from './saveOwnedRoster'
+import { submitBattleCommand } from './battleSubmission'
+import { productActions } from './productActions'
+import { rosterActions } from './rosterActions'
 import {
   battlesPageSchema,
   createBattleSchema,
@@ -114,7 +115,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
     },
     (data) =>
       resultOf(async () => {
-        const { id, updatedAt } = await saveOwnedRoster(owner(), data)
+        const { id, updatedAt } = await rosterActions.save(owner(), data)
         return { id, updatedAt, url: `/rosters/${encodeURIComponent(id)}` }
       }),
   )
@@ -128,7 +129,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
     },
     ({ id, visibility }) =>
       resultOf(async () => {
-        await app().service.rosterService.setRosterVisibility(owner(), id, visibility)
+        await rosterActions.setVisibility(owner(), { id, visibility })
         return { id, visibility }
       }),
   )
@@ -140,7 +141,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
       inputSchema: createBattleSchema,
       annotations: WRITE,
     },
-    (data) => resultOf(async () => ({ battle: await app().service.createBattle(owner(), data) })),
+    (data) => resultOf(async () => ({ battle: await productActions.createBattle(owner(), data) })),
   )
   server.registerTool(
     'submit_battle_action',
@@ -150,11 +151,6 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
       inputSchema: submitSchema.shape,
       annotations: WRITE,
     },
-    ({ token, expectedSeq, command: submitted }) =>
-      resultOf(async () => {
-        const command = await submittedBattleCommand(owner(), submitted)
-        const instance = app()
-        return instance.service.submit(token, owner(), expectedSeq, command, await instance.rulesFor())
-      }),
+    ({ token, expectedSeq, command }) => resultOf(async () => submitBattleCommand(owner(), { token, expectedSeq, command })),
   )
 }

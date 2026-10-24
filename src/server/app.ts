@@ -168,10 +168,15 @@ const nextTurn = () => yieldToEventLoop(undefined, { ref: false })
 
 /**
  * Loads the projections every page needs, then resolves and builds each faction's construction
- * index in the background. A faction costs seconds on a production replica, so the background
- * build runs in slices that let requests in between, until a sync swap replaces these loaders.
+ * index. A faction costs seconds on a production replica, so the build runs in slices that let
+ * requests in between, until a sync swap replaces these loaders.
+ *
+ * With `untilBuilt`, the returned promise waits for the build as well; `readiness` decides when.
  */
-export async function warm(instance: Pick<App, 'searchIndexFor' | 'canonicalCatalogue' | 'combatUnits' | 'catalogue' | 'construction'>) {
+export async function warm(
+  instance: Pick<App, 'searchIndexFor' | 'canonicalCatalogue' | 'combatUnits' | 'catalogue' | 'construction'>,
+  untilBuilt = false,
+) {
   await nextTurn()
   try {
     await instance.searchIndexFor()
@@ -186,9 +191,36 @@ export async function warm(instance: Pick<App, 'searchIndexFor' | 'canonicalCata
   // A browser-test stack opens a few factions, and building all of them starves the browsers sharing its runner.
   if (process.env.LOCAL_TEST_MODE === 'true') return
   const { construction } = instance
-  void inBackground(construction(), () => instance.construction === construction).catch((error: unknown) => {
+  const built = inBackground(construction(), () => instance.construction === construction).catch((error: unknown) => {
     console.error({ event: 'catalogue_construction_failed', error })
   })
+  if (untilBuilt) await built
+}
+
+/**
+ * When the warm-up holds readiness: in production, until the first warm-up a replica answers readiness after
+ * finishes its build, including one a live swap restarts mid-startup, so a new replica takes traffic only warm.
+ * A swap on a replica already serving does not, because the health check would fail for the length of the build.
+ */
+export function readiness(start: (untilBuilt: boolean) => Promise<void>) {
+  let current = Promise.resolve()
+  let answered = false
+  return {
+    warm: () => {
+      const next = (current = start(process.env.NODE_ENV === 'production' && !answered))
+      void next.then(() => {
+        if (current === next) answered = true
+      })
+    },
+    /** Settles once the latest warm-up has, even if a swap replaced the one in progress while waiting. */
+    ready: async () => {
+      let awaited
+      do {
+        awaited = current
+        await awaited
+      } while (awaited !== current)
+    },
+  }
 }
 
 async function inBackground(steps: Steps<void>, current: () => boolean) {
@@ -324,7 +356,7 @@ export function app(): App {
     const push = pushSenderFromEnvironment((tokens) => repository.deletePushTokens(tokens))
     const collectionPhotos = collectionPhotoStore(repository, () => privateObjects())
     const screening = process.env.TYPESAFE_API_KEY?.trim() ? photoScreening(process.env.TYPESAFE_API_KEY.trim()) : null
-    let ready = Promise.resolve()
+    const startup = readiness((untilBuilt) => warm(instance, untilBuilt))
     const loaded = catalogueLoaders(catalogueDataDirectory)
     const authOptions = {
       environment: process.env,
@@ -346,7 +378,7 @@ export function app(): App {
       hotReloadToken,
       health: async () => {
         try {
-          await ready
+          await startup.ready()
           if (sync.state.status !== 'ready') throw new Error(`Catalogue ${sync.state.status}`)
           await Promise.all([localAuth.client.execute('select 1'), operator.health()])
         } catch (error) {
@@ -367,7 +399,7 @@ export function app(): App {
         if (next === catalogueDataDirectory) return
         useCatalogueLoaders(instance, next)
         catalogueDataDirectory = next
-        ready = warm(instance)
+        startup.warm()
       },
       canonicalCatalogue: loaded.canonical,
       rules: loaded.rules,
@@ -381,12 +413,12 @@ export function app(): App {
       sync: () => sync.state,
       telemetry,
       githubSponsors,
-      ready: () => ready,
+      ready: startup.ready,
     }
     // Everything read from the snapshot is read again from the one now on disk.
     const swap = () => {
       useCatalogueLoaders(instance, catalogueDataDirectory)
-      ready = warm(instance)
+      startup.warm()
     }
     sync.begin(catalogueDataDirectory, swap, instance.catalogue)
     const catalogueRefresh = setInterval(() => sync.begin(catalogueDataDirectory, swap, instance.catalogue), 60 * 60 * 1000)
@@ -424,8 +456,11 @@ export function app(): App {
         instance: os.hostname(),
         host: deploymentHost() ?? 'unknown',
       })
-    if (sync.state.status === 'ready') ready = warm(instance)
-    void ready.then(maintainPhotos).catch((error: unknown) => console.error({ event: 'collection_photo_maintenance_failed', error }))
+    if (sync.state.status === 'ready') startup.warm()
+    void startup
+      .ready()
+      .then(maintainPhotos)
+      .catch((error: unknown) => console.error({ event: 'collection_photo_maintenance_failed', error }))
     return instance
   }
   const instance = globalSingleton('praetorium.app', createApp)

@@ -147,6 +147,25 @@ test('an unmatched import reports one failed attempt and no completed save', asy
   )
 })
 
+test('a pasted New Recruit link asks for the exported text and reports no list contents', async ({ page }) => {
+  await signUp(page, uniqueName('Import link analytics'))
+  await page.goto('/rosters')
+  await page.waitForLoadState('networkidle')
+  await page.getByRole('button', { name: 'Import roster', exact: true }).waitFor()
+  const events = await recordEvents(page)
+  await page.getByRole('button', { name: 'Import roster', exact: true }).click()
+  await page.getByLabel('Roster text').fill('https://www.newrecruit.eu/app/list/AbC123xyz')
+  await page.getByRole('button', { name: 'Import pasted roster' }).click()
+  await expect(page.getByText('In New Recruit, export the list as text, then paste the text here.')).toBeVisible()
+  await expect
+    .poll(() => events)
+    .toEqual([
+      { name: 'roster_import_started', properties: { input: 'text' } },
+      { name: 'roster_import_submitted', properties: { input: 'text' } },
+      { name: 'roster_import_failed', properties: { reason: 'share_link', input: 'text', format: 'newrecruit' } },
+    ])
+})
+
 test('a connected legacy shell import reports saving only after the write succeeds, including a retry', async ({ page }) => {
   await page.addInitScript(() => {
     window.PraetoriumNative = { bridgeVersion: 3, capabilities: [] }
@@ -270,6 +289,20 @@ test('cancelled creation forms report intent without submissions, and opening th
     ])
 })
 
+test('a wrong password reports invalid credentials without the email', async ({ page }) => {
+  const { email } = await signUp(page, uniqueName('Wrong password'))
+  await page.context().clearCookies()
+  await page.goto('/sign-in')
+  await page.waitForLoadState('networkidle')
+  const events = await recordEvents(page)
+  await page.getByLabel('Email').fill(email)
+  await page.getByLabel('Password').fill('a-wrong-password')
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click()
+  await expect
+    .poll(() => events.filter((event) => event.name === 'account_authentication_failed'))
+    .toEqual([{ name: 'account_authentication_failed', properties: { method: 'email', action: 'sign_in', reason: 'invalid_credentials' } }])
+})
+
 test('a page that fails to load reports one exception from the error page', async ({ page }) => {
   await page.route(/\/assets\/simulator-[^/]+\.js$/, (route) =>
     route.fulfill({ contentType: 'text/javascript', body: "throw new Error('Simulator failed to load')" }),
@@ -293,16 +326,20 @@ test('a datasheet reader who starts a roster or the simulator is attributed to t
   await page.goto('/factions/necrons/datasheets/imotekh-the-stormlord')
   await page.waitForLoadState('networkidle')
   const events = await recordEvents(page)
-  await page.getByRole('button', { name: 'Add to', exact: true }).click()
-  await page.getByRole('button', { name: 'Roster…' }).click()
+  await page.getByRole('button', { name: 'Add to roster', exact: true }).click()
   const setup = page.getByRole('dialog', { name: 'Create roster' })
   await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await setup.getByRole('button', { name: 'Create roster' }).click()
   await expect
-    .poll(() => events.filter((event) => ['roster_add_started', 'guest_roster_started', 'roster_unit_added'].includes(event.name)))
+    .poll(() =>
+      events.filter((event) =>
+        ['roster_add_started', 'roster_creation_started', 'guest_roster_started', 'roster_unit_added'].includes(event.name),
+      ),
+    )
     .toEqual([
       { name: 'roster_add_started', properties: { reference: 'datasheet' } },
+      { name: 'roster_creation_started', properties: { reference: 'datasheet' } },
       { name: 'guest_roster_started', properties: { limit: 2000, detachment_count: 1, reference: 'datasheet' } },
       { name: 'roster_unit_added', properties: { unit_count: 1, reference: 'datasheet' } },
     ])
