@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.184.0
+
+### Minor Changes
+
+- 68c83e8: Shelve attached units together in the roster builder, each outlined with its total points and the bodyguard's custom name. Untick Group attached units in the roster menu to keep role shelves.
+
+### Patch Changes
+
+- 68c83e8: Group the roster menu's actions under Play, Setup, Copies and access, Share and Display headings.
+
 ## 0.183.3
 
 ### Patch Changes
