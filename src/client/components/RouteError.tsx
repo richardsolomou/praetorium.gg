@@ -15,13 +15,13 @@ import { FullPageState } from './PageState'
  */
 export function RouteError({ error }: ErrorComponentProps) {
   const router = useRouter()
-  const { queryClient } = router.options.context
   const [reload] = useState(() => error instanceof CancelledError && mayReloadCancelledLoad())
   useEffect(() => {
     if (reload) {
       void router.invalidate()
       return
     }
+    const { queryClient } = router.options.context
     let mounted = true
     void checkedStaleBuildRelease(queryClient).then((release) => {
       if (mounted && release) reloadStaleBuild(release, 'route_error', { saving: writesPending(queryClient) })
@@ -29,7 +29,7 @@ export function RouteError({ error }: ErrorComponentProps) {
     return () => {
       mounted = false
     }
-  }, [reload, router, queryClient])
+  }, [reload, router])
   if (reload) return null
   return (
     <FullPageState
@@ -44,7 +44,7 @@ export function RouteError({ error }: ErrorComponentProps) {
           <Button
             data-route-error
             onClick={() =>
-              void checkedStaleBuildRelease(queryClient).then((release) => {
+              void checkedStaleBuildRelease(router.options.context.queryClient).then((release) => {
                 if (release) reloadStaleBuild(release, 'try_again')
                 else void router.invalidate()
               })
