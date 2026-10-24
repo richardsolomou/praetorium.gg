@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import type { FormatRuleId } from '../core/battle'
 import { catalogueChanges, changesTouching } from '../core/catalogueChanges'
 import { bookOf, points } from './catalogue.fixtures'
 import { calculateRosterAssessment, calculateRosterPrice, savedRosterPriceInput } from '../shared/pricing'
@@ -32,7 +33,7 @@ const saved = (entryIds: string[], limit = 1_000) => ({
   limit,
   picks: entryIds.map((entryId) => ({ entryId })),
   updatedAt: 100,
-  waivedRules: ['warlord'],
+  waivedRules: ['warlord'] as FormatRuleId[],
 })
 
 const judged = (roster: ReturnType<typeof saved>) =>
@@ -82,7 +83,7 @@ describe('the verdict on a saved list', () => {
   })
 
   it('does not mark a list over points when it waived the points limit', () => {
-    const roster = { ...saved(['lord', 'squad'], 150), waivedRules: ['warlord', 'points-limit'] }
+    const roster = { ...saved(['lord', 'squad'], 150), waivedRules: ['warlord', 'points-limit'] as FormatRuleId[] }
     expect(judged(roster).problem).toBeNull()
   })
 

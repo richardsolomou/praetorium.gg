@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { grantsReserveExemptionIn, reserveSelectorsIn } from '../shared/textFacts'
-import type { OptionalRuleId } from '../core/battle'
+import type { FormatRuleId, OptionalRuleId } from '../core/battle'
 import type { SelectionEntry } from '../core/catalogue'
 import {
   calculateRosterAssessment,
@@ -256,7 +256,7 @@ describe('the army Warlord', () => {
       },
     ],
   })
-  const errorsFor = (warlords: number[], waivedRules: string[] = []) =>
+  const errorsFor = (warlords: number[], waivedRules: FormatRuleId[] = []) =>
     calculateRosterPrice(
       {
         catalogueId: 'cat',
