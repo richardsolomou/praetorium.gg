@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import {
   Archive,
   ArchiveRestore,
+  ArrowRightLeft,
   Copy,
   Download,
   EllipsisVertical,
@@ -204,41 +205,14 @@ function RosterActionItems({
         <Pencil /> Edit roster setup
       </Item>
       <Item disabled={roster.locked} onClick={onConvert}>
-        <Pencil /> Convert rules version
+        <ArrowRightLeft /> Convert rules version
       </Item>
+      <Separator />
       <Item disabled={actions.variant.isPending} onClick={orAccount('variant', () => actions.variant.mutate(roster))}>
         <GitBranchPlus /> Create variant
       </Item>
       <Item disabled={actions.duplicate.isPending} onClick={orAccount('another-roster', () => actions.duplicate.mutate(roster))}>
         <Copy /> Duplicate
-      </Item>
-      <Item
-        disabled={actions.lock.isPending}
-        onClick={orAccount('lock', () => actions.lock.mutate({ id: roster.id, locked: !roster.locked }))}
-      >
-        {roster.locked ? (
-          <>
-            <LockOpen /> Unlock roster
-          </>
-        ) : (
-          <>
-            <Lock /> Lock roster
-          </>
-        )}
-      </Item>
-      <Item
-        disabled={actions.archive.isPending}
-        onClick={orAccount('archive', () => actions.archive.mutate({ id: roster.id, archived: !roster.archived }))}
-      >
-        {roster.archived ? (
-          <>
-            <ArchiveRestore /> Unarchive
-          </>
-        ) : (
-          <>
-            <Archive /> Archive
-          </>
-        )}
       </Item>
       <Separator />
       <Item disabled={!origin || actions.access.isPending} onClick={orAccount('share', () => void actions.share(roster, title))}>
@@ -267,6 +241,35 @@ function RosterActionItems({
       </Item>
       <Item onClick={() => actions.print(roster.id)}>
         <Printer /> Print
+      </Item>
+      <Separator />
+      <Item
+        disabled={actions.lock.isPending}
+        onClick={orAccount('lock', () => actions.lock.mutate({ id: roster.id, locked: !roster.locked }))}
+      >
+        {roster.locked ? (
+          <>
+            <LockOpen /> Unlock roster
+          </>
+        ) : (
+          <>
+            <Lock /> Lock roster
+          </>
+        )}
+      </Item>
+      <Item
+        disabled={actions.archive.isPending}
+        onClick={orAccount('archive', () => actions.archive.mutate({ id: roster.id, archived: !roster.archived }))}
+      >
+        {roster.archived ? (
+          <>
+            <ArchiveRestore /> Unarchive
+          </>
+        ) : (
+          <>
+            <Archive /> Archive
+          </>
+        )}
       </Item>
       <Separator />
       <Item variant="destructive" disabled={actions.remove.isPending} onClick={onDelete}>
