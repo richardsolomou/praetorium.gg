@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { DEFAULT_COMBAT_OPTIONS, calculateCombat, calculateCombatSequence, type CombatInput } from './combat'
 import { attackSequence, sampleCombat } from './combatReference'
 import { combatUnitTarget, combatUnitSequenceError, type CombatMember } from './combatUnit'
@@ -99,6 +99,55 @@ it('keeps a leader’s damage reduction on its defence group', () => {
     [5, 0],
     [1, 1],
   ])
+})
+
+describe('a Feel No Pain a joined model gives to models with a keyword', () => {
+  const command = () => {
+    const squad = member('Command', 3)
+    squad.sheet.profiles.unshift({
+      id: 'Command:officer',
+      name: 'Officer',
+      type: 'Unit',
+      values: Object.entries({ T: '4', Sv: '7+', W: '3' }).map(([characteristic, value]) => ({ name: characteristic, value })),
+    })
+    squad.sheet.abilities.push({
+      id: 'granted:bodyguard',
+      name: 'Feel No Pain 4+',
+      source: 'Ogryn Bodyguard',
+      description: null,
+      kind: 'core',
+      models: 'Officer',
+    })
+    squad.carriers = [
+      { name: 'Officer', models: 1, weapons: [], modelProfileIds: ['Command:officer'], keywords: ['Character', 'Officer'] },
+      { name: 'Command', models: 2, weapons: [], modelProfileIds: ['Command:model'] },
+    ]
+    const protector = member('Protector')
+    protector.sheet.abilities.push({ id: 'bodyguard', name: 'Ogryn Bodyguard', description: '', kind: 'datasheet' })
+    return { squad, protector }
+  }
+  const sources = (unit: CombatMember) =>
+    combatUnitTarget(unit).target?.groups.map((group) => [group.unit, group.models, group.feelNoPainSources ?? []])
+
+  it('protects only the models with that keyword, while its source stands', () => {
+    const { squad, protector } = command()
+    squad.companions = [protector]
+    expect(sources(squad)).toEqual([
+      ['Command', 1, [{ unit: 'Protector', value: 4 }]],
+      ['Command', 2, []],
+      ['Protector', 1, []],
+    ])
+  })
+
+  it('protects nobody without its source in the unit', () => {
+    const { squad } = command()
+    squad.companions = [member('Other')]
+    expect(sources(squad)).toEqual([
+      ['Command', 1, []],
+      ['Command', 2, []],
+      ['Other', 1, []],
+    ])
+  })
 })
 
 it('refuses an attached member whose surviving weapons need allocation', () => {

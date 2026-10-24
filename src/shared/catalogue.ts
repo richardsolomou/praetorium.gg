@@ -166,29 +166,37 @@ export function contextualAbilityNamesIn(
 
 function abilityProfileNames(definition: Definition, index: LoadedCatalogue['index']): string[] {
   const names = new Set<string>()
-  const addProfile = (profile: Profile) => {
+  for (const profile of abilityProfilesOf(definition, index)) {
     const name = profile.name
-    if (profile.typeName !== 'Abilities' || !name || profile.hidden) return
     const description = normalizedAbilityDescription(profile)
     if (deploymentAbilities(name).length && description) {
       const parsed = parseAbilityGrants(description, false, [name], true)
-      if (parsed.matched && !parsed.grants.some((grant) => ruleReferenceMatches(grant.name, name))) return
+      if (parsed.matched && !parsed.grants.some((grant) => ruleReferenceMatches(grant.name, name))) continue
     }
     names.add(name)
   }
-  definition.profiles?.forEach(addProfile)
+  return [...names]
+}
+
+/** A definition's visible ability profiles: its own, its info groups', and those it links from the shared library. */
+function abilityProfilesOf(definition: Definition, index: LoadedCatalogue['index']): (Profile & { name: string })[] {
+  const found: (Profile & { name: string })[] = []
+  const add = (profile: Profile) => {
+    if (profile.typeName === 'Abilities' && profile.name && !profile.hidden) found.push({ ...profile, name: profile.name })
+  }
+  definition.profiles?.forEach(add)
   for (const group of definition.infoGroups ?? []) {
-    if (!group.hidden) group.profiles?.forEach(addProfile)
+    if (!group.hidden) group.profiles?.forEach(add)
   }
   for (const link of definition.infoLinks ?? []) {
     if (link.hidden || link.type === 'rule') continue
     const shared = index.shared.get(link.targetId)
     if (!shared) continue
     if ('profiles' in shared) {
-      if (!shared.hidden) shared.profiles?.forEach(addProfile)
-    } else addProfile({ ...shared, name: link.name ?? shared.name })
+      if (!shared.hidden) shared.profiles?.forEach(add)
+    } else add({ ...shared, name: link.name ?? shared.name })
   }
-  return [...names]
+  return found
 }
 
 /** Ability names alone: roster pricing only needs to recognise deployment abilities. */
@@ -780,13 +788,17 @@ function grantedAbilitiesInAttachedUnit(
   rosterKeywordIds?: readonly (readonly string[])[],
 ): Datasheet['abilities'] {
   if (unitSelectionIndex === undefined) return []
-  const found = new Map<string, { name: string; sources: Set<string>; ids: Set<string> }>()
+  const found = new Map<string, { name: string; models?: string; sources: Set<string>; ids: Set<string> }>()
   const keywordsBySelection = companionIndexes.length
     ? (rosterKeywordIds ?? keywordIdsBySelection(selections, index, { primaryCatalogueId: catalogueId }))
     : []
-  const character = (selectedKeywordIds ?? keywordsBySelection[unitSelectionIndex] ?? []).some(
-    (id) => index.categories.get(id)?.name?.trim().toLowerCase() === 'character',
+  const selectedKeywords = new Set(
+    (selectedKeywordIds ?? keywordsBySelection[unitSelectionIndex] ?? []).flatMap((id) => {
+      const name = index.categories.get(id)?.name?.trim().toLowerCase()
+      return name ? [name] : []
+    }),
   )
+  const character = selectedKeywords.has('character')
   const referencesAt = (at: number, keywordIdsAt: readonly string[]) => {
     const selection = selections[at]
     const definition = selection ? index.definitions.get(selection.id) : undefined
@@ -813,8 +825,7 @@ function grantedAbilitiesInAttachedUnit(
     for (const definition of definitions) {
       for (const source of [definition, targetOf(definition, index.definitions)]) {
         const linkedAbilities = linkedAbilityNames(source, index, catalogueId, selections)
-        for (const profile of source.profiles ?? []) {
-          if (profile.typeName !== 'Abilities' || !profile.name) continue
+        for (const profile of abilityProfilesOf(source, index)) {
           const hasConditionalAbilityLink = flattenedModifiers([source]).some(
             (modifier) =>
               modifier.type === 'add' &&
@@ -831,8 +842,9 @@ function grantedAbilitiesInAttachedUnit(
           for (const grant of grants) {
             if (grant.recipient === 'bearer' && origin !== 'self') continue
             if (grant.recipient === 'leader' && (origin !== 'companion' || !character)) continue
-            const key = grant.name.toLowerCase()
-            const granted = found.get(key) ?? { name: grant.name, sources: new Set(), ids: new Set() }
+            if (grant.recipient === 'models' && (origin !== 'companion' || !selectedKeywords.has(grant.models!.toLowerCase()))) continue
+            const key = `${grant.name.toLowerCase()}:${grant.models?.toLowerCase() ?? ''}`
+            const granted = found.get(key) ?? { name: grant.name, models: grant.models, sources: new Set(), ids: new Set() }
             granted.sources.add(profile.name)
             granted.ids.add(profile.id)
             found.set(key, granted)
@@ -843,12 +855,13 @@ function grantedAbilitiesInAttachedUnit(
   }
   collect(definitionsInSelections(selections, [unitSelectionIndex], index), 'self')
   collect(definitionsInSelections(selections, companionIndexes, index), 'companion')
-  return [...found.values()].map(({ name, sources, ids }) => ({
+  return [...found.values()].map(({ name, models, sources, ids }) => ({
     id: `granted:${[...ids].toSorted().join(':')}`,
     name,
     source: [...sources].toSorted().join(', '),
     description: null,
     kind: 'core',
+    ...(models ? { models } : {}),
   }))
 }
 
@@ -910,8 +923,7 @@ function weaponAbilitiesInSelectedUnit(
   const found = new Map<string, GrantedWeaponAbility>()
   for (const definition of definitionsInSelections(selections, [unitSelectionIndex], index)) {
     for (const source of new Set([definition, targetOf(definition, index.definitions)])) {
-      for (const profile of source.profiles ?? []) {
-        if (profile.typeName !== 'Abilities' || !profile.name) continue
+      for (const profile of abilityProfilesOf(source, index)) {
         const description = normalizedAbilityDescription(profile)
         const match = description?.match(
           /^(Ranged|Melee) weapons equipped by (?:the bearer|models in this unit) have (?:the )?\[([^\]]+)\] ability\.$/iu,
@@ -946,8 +958,7 @@ function weaponAbilitiesInAttachedUnit(
   const found = new Map<string, GrantedWeaponAbility>()
   for (const definition of definitionsInSelections(selections, [unitSelectionIndex, ...companionIndexes], index)) {
     for (const source of [definition, targetOf(definition, index.definitions)]) {
-      for (const profile of source.profiles ?? []) {
-        if (profile.typeName !== 'Abilities' || !profile.name) continue
+      for (const profile of abilityProfilesOf(source, index)) {
         const description = normalizedAbilityDescription(profile)
         const match = description?.match(
           /^While this model is leading a unit, (?:(melee|ranged) )?weapons equipped by models in that unit have the \[([\p{L}\p{N} +'’\p{Pd}]+)\] ability\.$/iu,
@@ -973,8 +984,7 @@ function invulnerableSavesInSelectedUnit(
   const found = new Map<string, GrantedInvulnerableSave>()
   for (const definition of definitionsInSelections(selections, [unitSelectionIndex], index)) {
     for (const source of [definition, targetOf(definition, index.definitions)]) {
-      for (const profile of source.profiles ?? []) {
-        if (profile.typeName !== 'Abilities' || !profile.name) continue
+      for (const profile of abilityProfilesOf(source, index)) {
         const value = normalizedAbilityDescription(profile)?.match(/^This model has an? (\d+\+) invulnerable save\.$/i)?.[1]
         if (!value) continue
         const granted = { value, source: profile.name, originIds: definitionTokens(definition) }
