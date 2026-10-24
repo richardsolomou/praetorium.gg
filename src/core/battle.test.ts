@@ -637,8 +637,8 @@ describe('setup', () => {
       'kotc-toughness',
       'kotc-datasheet-copies',
     ])
-    expect(formatRules(2000).map((rule) => rule.id)).toEqual(['points-limit', 'detachment-points'])
-    expect(formatRules(3000).map((rule) => rule.id)).toEqual(['points-limit'])
+    expect(formatRules(2000).map((rule) => rule.id)).toEqual(['points-limit', 'detachment-points', 'warlord'])
+    expect(formatRules(3000).map((rule) => rule.id)).toEqual(['points-limit', 'warlord'])
     expect(formatRules(null)).toEqual([])
   })
 
@@ -662,6 +662,7 @@ describe('setup', () => {
     expect(formatRules(2000, 1500).map((rule) => rule.hint)).toEqual([
       'The roster costs at most 1,500 points',
       'Detachments cost at most 3 DP together',
+      'Exactly one Character unit is named as the Warlord',
     ])
   })
 

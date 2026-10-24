@@ -32,6 +32,7 @@ const saved = (entryIds: string[], limit = 1_000) => ({
   limit,
   picks: entryIds.map((entryId) => ({ entryId })),
   updatedAt: 100,
+  waivedRules: ['warlord'],
 })
 
 const judged = (roster: ReturnType<typeof saved>) =>
@@ -81,7 +82,7 @@ describe('the verdict on a saved list', () => {
   })
 
   it('does not mark a list over points when it waived the points limit', () => {
-    const roster = { ...saved(['lord', 'squad'], 150), waivedRules: ['points-limit'] }
+    const roster = { ...saved(['lord', 'squad'], 150), waivedRules: ['warlord', 'points-limit'] }
     expect(judged(roster).problem).toBeNull()
   })
 

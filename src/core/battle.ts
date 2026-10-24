@@ -680,6 +680,7 @@ export const FORMAT_RULE_IDS = [
   'points-limit',
   'detachments',
   'detachment-points',
+  'warlord',
   'kotc-infantry',
   'kotc-warlord',
   'kotc-epic-heroes',
@@ -729,10 +730,15 @@ export function formatRules(limit: number | null, pointsBudget?: number | null):
       },
     ]
   }
+  const warlord: FormatRule = { id: 'warlord', label: 'Warlord', hint: 'Exactly one Character unit is named as the Warlord' }
   const budget = detachmentPointBudget(limit)
   return budget === null
-    ? [pointsLimit]
-    : [pointsLimit, { id: 'detachment-points', label: 'Detachment points', hint: `Detachments cost at most ${budget} DP together` }]
+    ? [pointsLimit, warlord]
+    : [
+        pointsLimit,
+        { id: 'detachment-points', label: 'Detachment points', hint: `Detachments cost at most ${budget} DP together` },
+        warlord,
+      ]
 }
 
 /**
