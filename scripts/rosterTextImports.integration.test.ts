@@ -17,6 +17,7 @@ import { custodesOfficial } from '../src/core/rosterText.custodes.fixture'
 import { astraMilitarumNewRecruit, kriegGermanOfficial } from '../src/core/rosterText.krieg.fixture'
 import { necronsOfficial } from '../src/core/rosterText.necrons.fixture'
 import { blackTemplarsNewRecruit } from '../src/core/rosterText.blackTemplars.fixture'
+import { bloodAngelsOfficial } from '../src/core/rosterText.bloodAngels.fixture'
 import { salamandersOfficial } from '../src/core/rosterText.salamanders.fixture'
 import { spaceWolvesOfficial } from '../src/core/rosterText.spaceWolves.fixture'
 import type { LoadedRules } from '../src/shared/rules'
@@ -200,6 +201,19 @@ Skitarii Rangers (85 Points)
     })
   })
 
+  // The official app writes "Chainsword" where the catalogue writes "Astartes Chainsword".
+  it('imports the reported official-app Blood Angels roster without mismatches', () => {
+    expect(summary(bloodAngelsOfficial)).toEqual({
+      format: 'roster-file',
+      faction: 'Imperium - Adeptus Astartes - Blood Angels',
+      detachments: 3,
+      units: '12 of 12',
+      attached: 3,
+      mismatches: [],
+      points: '2000 for 2000',
+    })
+  })
+
   it('arms the Wolf Guard Pack Leader with the Relic Greataxe the catalogue spells Relic Great Axe', () => {
     expect(wargear(spaceWolvesOfficial, 'Wolf Guard Terminators')).toContain('1x relic great axe')
   })
@@ -262,13 +276,14 @@ Skitarii Rangers (85 Points)
     })
   })
 
-  it('imports the reported German official-app Krieg roster with every unit and attachment', () => {
-    expect(summary(kriegGermanOfficial)).toMatchObject({
+  it('imports the reported German official-app Krieg roster without mismatches', () => {
+    expect(summary(kriegGermanOfficial)).toEqual({
       format: 'roster-file',
       faction: 'Imperium - Astra Militarum',
       detachments: 1,
       units: '20 of 20',
       attached: 2,
+      mismatches: [],
       points: '1995 for 1995',
     })
   })
