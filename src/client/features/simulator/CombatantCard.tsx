@@ -431,6 +431,8 @@ export function CombatantCard({
             count={battleUnit.wounds - combatant.damage}
             onRemove={combatant.damage < battleUnit.wounds - 1 ? () => combatant.setHealth({ damage: combatant.damage + 1 }) : undefined}
             onAdd={combatant.damage > 0 ? () => combatant.setHealth({ damage: combatant.damage - 1 }) : undefined}
+            choices={modelCountChoices({ min: 1, max: battleUnit.wounds })}
+            onChoose={(left) => battleUnit.wounds && combatant.setHealth({ damage: battleUnit.wounds - left })}
           />
         </div>
       ) : null}
