@@ -4,7 +4,7 @@ import type { ReactNode } from 'react'
 import { PRODUCT_DOCS } from '../../../contracts/productDocs'
 import { SearchField } from '../../components/SearchField'
 import { cn } from '@/lib/utils'
-import { openFeedback } from '../feedback/FeedbackDialog'
+import { openFeedback } from '../feedback/support'
 import { AREAS, docsMatching, proseLink, troubleshooting } from './docsLibrary'
 
 export function FeedbackLink({ children }: { children: ReactNode }) {

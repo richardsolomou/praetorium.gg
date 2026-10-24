@@ -22,7 +22,7 @@ import {
 import type { ReactNode } from 'react'
 import { meQuery } from '../../queries'
 import { PageContent } from '../../components/Page'
-import { openFeedback } from '../feedback/FeedbackDialog'
+import { openConversations, unreadReplies, useSupportTickets } from '../feedback/support'
 
 type MoreLink = { description: string; icon: LucideIcon; label: string; to: LinkProps['to'] }
 
@@ -107,6 +107,8 @@ function Tools() {
 
 export function NativeMorePage() {
   const { data: me } = useQuery(meQuery())
+  const { tickets } = useSupportTickets()
+  const unread = unreadReplies(tickets)
 
   return (
     <main className="w-full bg-sunken">
@@ -132,8 +134,16 @@ export function NativeMorePage() {
           ) : null}
           <Group id="more-help-heading" title="Help">
             <Links links={HELP} />
-            <button type="button" onClick={openFeedback} className={rowClass}>
-              <Row icon={MessageSquareWarning} label="Send feedback" description="Report a problem or suggest a change" />
+            <button type="button" onClick={openConversations} className={rowClass}>
+              <Row
+                icon={MessageSquareWarning}
+                label="Feedback"
+                description={
+                  unread
+                    ? `${unread} new ${unread === 1 ? 'reply' : 'replies'} to read`
+                    : 'Report a problem, suggest a change or read our replies'
+                }
+              />
             </button>
             <Link to="/support" className={rowClass}>
               <Row icon={CircleHelp} label="Support" description="Get help or recover your account" />

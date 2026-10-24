@@ -1,26 +1,31 @@
 import { describe, expect, it } from 'vitest'
 import { IMPORT_REPORT_MAX_LENGTH } from '../../../contracts/feedback'
-import { FEEDBACK_SURVEY, feedbackSurveyEvent, importFailureReport } from './feedback'
+import { version } from '../../../../package.json'
+import {
+  FEEDBACK_SURVEY,
+  feedbackSurveyEvent,
+  feedbackTicketMessage,
+  importFailureReport,
+  readTicketMessage,
+  ticketSubject,
+} from './feedback'
 
-const { kind, message, email, screenshot } = FEEDBACK_SURVEY.questions
+const { kind, message } = FEEDBACK_SURVEY.questions
 
 describe('feedbackSurveyEvent', () => {
   it('sends a survey response PostHog attributes to the feedback survey', () => {
-    expect(feedbackSurveyEvent({ kind: 'Idea', message: 'More factions', email: 'player@example.com' })).toEqual({
+    expect(feedbackSurveyEvent({ kind: 'Problem', message: 'Import failed' })).toEqual({
       event: 'survey sent',
       properties: {
         $survey_id: FEEDBACK_SURVEY.id,
         $survey_name: 'App feedback',
         $survey_completed: true,
         $survey_questions: [
-          { id: kind.id, question: kind.question, response: 'Idea' },
-          { id: message.id, question: message.question, response: 'More factions' },
-          { id: email.id, question: email.question, response: 'player@example.com' },
-          { id: screenshot.id, question: screenshot.question, response: undefined },
+          { id: kind.id, question: kind.question, response: 'Problem' },
+          { id: message.id, question: message.question, response: 'Import failed' },
         ],
-        [`$survey_response_${kind.id}`]: 'Idea',
-        [`$survey_response_${message.id}`]: 'More factions',
-        [`$survey_response_${email.id}`]: 'player@example.com',
+        [`$survey_response_${kind.id}`]: 'Problem',
+        [`$survey_response_${message.id}`]: 'Import failed',
       },
     })
   })
@@ -31,28 +36,57 @@ describe('feedbackSurveyEvent', () => {
       'Broken',
     )
   })
+})
 
-  it('leaves a blank email unanswered', () => {
-    expect(feedbackSurveyEvent({ kind: 'Other', message: 'Hi', email: '   ' }).properties).not.toHaveProperty(
-      `$survey_response_${email.id}`,
+describe('feedbackTicketMessage', () => {
+  it('follows the trimmed message with its kind and the running version', () => {
+    expect(feedbackTicketMessage({ kind: 'Idea', message: '  Group factions by alliance  ' })).toBe(
+      `Group factions by alliance\n\nIdea · Praetorium ${version}`,
     )
   })
 
-  it('leaves the email unanswered for a signed-in player', () => {
+  it('links an attached screenshot last', () => {
     expect(
-      feedbackSurveyEvent({ kind: 'Other', message: 'Hi' }).properties.$survey_questions.find((question) => question.id === email.id),
-    ).toEqual({
-      id: email.id,
-      question: email.question,
-      response: undefined,
+      feedbackTicketMessage({ kind: 'Problem', message: 'Hi', screenshotUrl: 'https://praetorium.gg/api/feedback-screenshots/a' })
+        .split('\n')
+        .at(-1),
+    ).toBe('Screenshot: https://praetorium.gg/api/feedback-screenshots/a')
+  })
+})
+
+describe('readTicketMessage', () => {
+  it('separates what the player wrote from the details the app added', () => {
+    expect(readTicketMessage(feedbackTicketMessage({ kind: 'Idea', message: 'Group factions\n\nby alliance' }))).toEqual({
+      body: 'Group factions\n\nby alliance',
+      kind: 'Idea',
+      version,
+      screenshot: false,
     })
   })
 
-  it('answers the screenshot question with the attached screenshot’s link', () => {
-    expect(
-      feedbackSurveyEvent({ kind: 'Problem', message: 'Hi', screenshotUrl: 'https://praetorium.gg/api/feedback-screenshots/a.png' })
-        .properties,
-    ).toHaveProperty([`$survey_response_${screenshot.id}`], 'https://praetorium.gg/api/feedback-screenshots/a.png')
+  it('notes an attached screenshot without exposing its link', () => {
+    const content = feedbackTicketMessage({
+      kind: 'Problem',
+      message: 'Hi',
+      screenshotUrl: 'https://praetorium.gg/api/feedback-screenshots/a',
+    })
+    expect(readTicketMessage(content)).toEqual({ body: 'Hi', kind: 'Problem', version, screenshot: true })
+  })
+
+  it('leaves a message the app did not compose as it is', () => {
+    expect(readTicketMessage('Thanks!\n\nIdea · elsewhere')).toEqual({ body: 'Thanks!\n\nIdea · elsewhere', screenshot: false })
+  })
+})
+
+describe('ticketSubject', () => {
+  it('names a conversation by the first line the player wrote', () => {
+    expect(ticketSubject(feedbackTicketMessage({ kind: 'Problem', message: 'Picker will not scroll\n\nOn my iPad' }))).toBe(
+      'Picker will not scroll',
+    )
+  })
+
+  it('shortens a long first line with an ellipsis', () => {
+    expect(ticketSubject('a'.repeat(100))).toBe(`${'a'.repeat(71)}…`)
   })
 })
 
@@ -64,7 +98,7 @@ describe('importFailureReport', () => {
       unknown: [{ name: 'Gretchin', reason: 'no such datasheet' }],
       unplaced: [{ unit: 'Boyz', choices: [{ name: 'Big shoota', reason: 'no slot left' }] }],
       input,
-    }).properties.$survey_questions[1]!.response!
+    }).properties.$survey_questions[1]!.response
 
   it('files a problem led by what went wrong and followed by the exact input', () => {
     expect(report('++ Orks ++\nBoyz')).toBe(

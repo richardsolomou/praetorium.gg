@@ -71,6 +71,9 @@ export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging
     if (environment.INDEXNOW_KEY) entries.INDEXNOW_KEY = requiredEnv('INDEXNOW_KEY', environment)
     // Only real uploads are worth screening.
     if (environment.TYPESAFE_API_KEY) entries.TYPESAFE_API_KEY = requiredEnv('TYPESAFE_API_KEY', environment)
+    // Previews' seeded accounts must not prove themselves to the production Support inbox.
+    if (environment.POSTHOG_SUPPORT_IDENTITY_SECRET)
+      entries.POSTHOG_SUPPORT_IDENTITY_SECRET = requiredEnv('POSTHOG_SUPPORT_IDENTITY_SECRET', environment)
   }
   return Object.entries(entries)
     .map(([name, value]) => `${name}=${value}`)

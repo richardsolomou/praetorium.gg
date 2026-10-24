@@ -486,7 +486,7 @@ test('onboarding waits in the profile menu and disappears when complete', async 
   await expect(page.getByRole('menuitem', { name: 'My profile' })).toContainText(name)
   await expect(gettingStarted).toContainText('0/8')
   await expect(gettingStarted).not.toContainText('New')
-  await expect(page.getByRole('menuitem', { name: 'Send feedback' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Feedback' })).toBeVisible()
   await page.screenshot({ path: 'test-results/account-menu-desktop.png', fullPage: true })
 
   await account.click()

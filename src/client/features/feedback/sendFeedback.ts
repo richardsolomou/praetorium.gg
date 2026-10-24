@@ -3,7 +3,7 @@ import type { FeedbackEmailInput } from '../../../contracts/feedback'
 import { emailFeedback } from '../../functions'
 
 /**
- * Captures a feedback response, then asks the server to email it to the administrators. Capture is the
+ * Captures an automatic import report, then asks the server to email it to the administrators. Capture is the
  * record; false means it was not taken, as when analytics is blocked.
  */
 export function sendFeedback(
