@@ -2984,7 +2984,7 @@ function setCollectionCountsAsIn(ctx: Context, args: unknown[]) {
   requireOperator(ctx)
   moveHeartsToFavourites(ctx, userId)
   const current = ctx.db.collection.key.find(JSON.stringify([userId, entryId]))
-  if (!current) throw new SenderError('Add this datasheet to your collection before choosing what else its models count as')
+  if (!current) throw new SenderError('Add this datasheet to your collection before choosing what else its models can be')
   const links = countsAsList(entryId, countsAs)
   ctx.db.collection.key.update({ ...current, countsAs: links.length ? links : undefined })
   touchCollection(ctx, userId)

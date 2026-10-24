@@ -138,8 +138,8 @@ export function readCollectionCsv(text: string, sheets: readonly Sheet[]): Colle
       .map((link) => link.trim())
       .filter((link) => byId.has(link))
     if (links.length > MAX_COUNTS_AS)
-      return { line, name, status: 'invalid', reason: `A datasheet's models can count as up to ${MAX_COUNTS_AS} other datasheets.` }
-    if (links.length && !valid.models) return { line, name, status: 'invalid', reason: 'Only owned models can count as other datasheets.' }
+      return { line, name, status: 'invalid', reason: `A datasheet's models can be up to ${MAX_COUNTS_AS} other datasheets.` }
+    if (links.length && !valid.models) return { line, name, status: 'invalid', reason: 'Only owned models can also be other datasheets.' }
     const faction = normalise(value(record, 'faction') ?? '')
     const named = byName.get(normalise(name)) ?? []
     const candidates = byId.has(id)

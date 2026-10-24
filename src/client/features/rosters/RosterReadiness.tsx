@@ -48,8 +48,8 @@ export function RosterReadiness({ units }: { units: readonly { entryId: string; 
       <CollapsibleContent>
         <div className="space-y-2 pb-3">
           <p className="text-xs text-dim">
-            Each model is counted once: units of the same datasheet share them, and so do the datasheets your models also count as.
-            Equipment is not counted. This never changes points or legality.{' '}
+            Each model is counted once: units of the same datasheet share them, and so do the datasheets your models can also be. Equipment
+            is not counted. This never changes points or legality.{' '}
             <Link to="/collection" className="text-info underline">
               Count your models
             </Link>

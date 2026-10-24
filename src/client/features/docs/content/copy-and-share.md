@@ -16,4 +16,4 @@ The **Build**/**View** switch in the header hides editing controls for reading a
 
 ## Your collection
 
-If you're signed in, **Your collection** below the units compares the list with the models you've counted on [Collection](/collection): models short, to build or to paint, or **Ready to field**, with **Add to wishlist** for what's missing. Models you've marked on Collection as also counting as another datasheet, such as the other builds of a magnetised tank, can fill it too, and each model is counted once. It never affects points or legality.
+If you're signed in, **Your collection** below the units compares the list with the models you've counted on [Collection](/collection): models short, to build or to paint, or **Ready to field**, with **Add to wishlist** for what's missing. Models you've marked on Collection as able to be another datasheet, such as the other builds of a magnetised tank, can fill it too, and each model is counted once. It never affects points or legality.

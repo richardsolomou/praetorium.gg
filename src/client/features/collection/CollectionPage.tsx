@@ -291,7 +291,7 @@ function EntryMenu({ name, onCountsAs, onRemove }: { name: string; onCountsAs: (
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
         <DropdownMenuItem onClick={onCountsAs}>
-          <Shuffle /> Counts as…
+          <Shuffle /> Can also be…
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onClick={onRemove}>

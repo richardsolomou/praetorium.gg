@@ -17,7 +17,7 @@ export function CollectionCountsAs({ entryId, candidates }: { entryId: string; c
   const names = candidates.filter((sheet) => saved.includes(sheet.id)).map((sheet) => sheet.name)
   return names.length ? (
     <p data-counts-as className="text-xs break-words text-dim">
-      Also counts as <span className="text-bone">{names.join(', ')}</span>
+      Can also be <span className="text-bone">{names.join(', ')}</span>
     </p>
   ) : null
 }
@@ -76,7 +76,7 @@ function CountsAsChoice({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent size="sm">
         <DialogHeader>
-          <DialogTitle>What else can these {name} models count as?</DialogTitle>
+          <DialogTitle>What else can these {name} models be?</DialogTitle>
           <DialogDescription>
             Tick the datasheets these models can stand in for, such as the other builds of a magnetised kit. Your rosters count each model
             once, wherever it goes. This never changes points or legality.
