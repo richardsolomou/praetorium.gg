@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { warm } from './app'
+import { readiness, warm } from './app'
 import type { Steps } from '../shared/steps'
 
 afterEach(() => {
@@ -97,4 +97,59 @@ it('stops building construction indexes for loaders a sync swap replaced', async
   const stepsAtSwap = replaced.progress.steps
   await turns(5)
   expect(replaced.progress.steps).toBe(stepsAtSwap)
+})
+
+/** A readiness whose warm-ups resolve only when the test says, recording whether each held for the build. */
+function startups() {
+  const held: boolean[] = []
+  const finish: (() => void)[] = []
+  const startup = readiness((untilBuilt) => {
+    held.push(untilBuilt)
+    return new Promise<void>((resolve) => finish.push(resolve))
+  })
+  return { held, finish, startup }
+}
+
+it('holds production startup readiness for the build', () => {
+  vi.stubEnv('NODE_ENV', 'production')
+  const { held, startup } = startups()
+  startup.warm()
+  expect(held).toEqual([true])
+})
+
+it('answers readiness before the build outside production', () => {
+  vi.stubEnv('NODE_ENV', 'development')
+  const { held, startup } = startups()
+  startup.warm()
+  expect(held).toEqual([false])
+})
+
+it('holds readiness for the build of a swap that lands during startup', () => {
+  vi.stubEnv('NODE_ENV', 'production')
+  const { held, startup } = startups()
+  startup.warm()
+  startup.warm()
+  expect(held).toEqual([true, true])
+})
+
+it('waits for the warm-up a swap started while readiness was waiting', async () => {
+  vi.stubEnv('NODE_ENV', 'production')
+  const { finish, startup } = startups()
+  startup.warm()
+  let answered = false
+  void startup.ready().then(() => (answered = true))
+  startup.warm()
+  finish[0]!()
+  await turns(2)
+  expect(answered).toBe(false)
+})
+
+it('answers readiness during a swap on a replica already serving', async () => {
+  vi.stubEnv('NODE_ENV', 'production')
+  const { held, finish, startup } = startups()
+  startup.warm()
+  finish[0]!()
+  await startup.ready()
+  startup.warm()
+  expect(held).toEqual([true, false])
 })
