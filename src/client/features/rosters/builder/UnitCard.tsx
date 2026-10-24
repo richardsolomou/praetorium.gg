@@ -1,4 +1,4 @@
-import { BellRing, BookmarkPlus, Copy, EllipsisVertical, Plus, X } from 'lucide-react'
+import { BellRing, BookmarkPlus, Copy, EllipsisVertical, Plus, Unlink, X } from 'lucide-react'
 import { type ReactNode, useId } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -63,6 +63,8 @@ type Editing = {
   canDuplicate: boolean
   /** Absent for a visitor, who has no account to keep a loadout in. */
   onSaveLoadout?: () => void
+  /** Present while this unit leads or supports another. */
+  onDetach?: () => void
   /** Units this one may join. */
   canJoin: AttachChoice[]
   onJoin: (choice: AttachChoice) => void
@@ -92,6 +94,7 @@ export function UnitCard({
   onDuplicate = noop,
   canDuplicate = true,
   onSaveLoadout,
+  onDetach,
   joined = NONE,
   canJoin = NONE,
   onJoin = noop,
@@ -108,7 +111,7 @@ export function UnitCard({
   const cardClassName = `relative min-w-0 max-w-full overflow-hidden border bg-card transition-colors [contain:layout_style] ${
     selected ? 'border-parchment' : 'border-edge hover:border-info'
   }`
-  const actions = { onDuplicate, canDuplicate, onSaveLoadout, onRemove }
+  const actions = { onDuplicate, canDuplicate, onSaveLoadout, onDetach, onRemove }
 
   // One target over the whole card, under everything on it. An enhancement, an
   // upgrade and who a unit is standing with are all things a player reads on the
@@ -446,12 +449,14 @@ function UnitActions({
   onDuplicate,
   canDuplicate,
   onSaveLoadout,
+  onDetach,
   onRemove,
 }: {
   Item: typeof DropdownMenuItem | typeof ContextMenuItem
   onDuplicate: () => void
   canDuplicate: boolean
   onSaveLoadout?: () => void
+  onDetach?: () => void
   onRemove: () => void
 }) {
   return (
@@ -462,6 +467,11 @@ function UnitActions({
       {onSaveLoadout ? (
         <Item className={ITEM} onClick={onSaveLoadout}>
           <BookmarkPlus className="size-3.5" /> Save loadout
+        </Item>
+      ) : null}
+      {onDetach ? (
+        <Item className={ITEM} onClick={onDetach}>
+          <Unlink className="size-3.5" /> Detach from unit
         </Item>
       ) : null}
       <Item variant="destructive" className={ITEM} onClick={onRemove}>

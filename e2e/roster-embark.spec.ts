@@ -149,7 +149,7 @@ for (const [size, label] of [
     await expect(bar).not.toContainText(PUT_BACK)
     await expect(bar).toContainText('Unit embarked inRhino')
     await expect(rhino).toContainText(`${SQUAD} #16/12 models`)
-    await shot(page.getByRole('region', { name: 'Attached units' }).or(led).first(), `test-results/roster-embark-led-aboard-${label}.png`)
+    await shot(led, `test-results/roster-embark-led-aboard-${label}.png`)
     await shot(rhino, `test-results/roster-embark-led-transport-${label}.png`)
   })
 }
