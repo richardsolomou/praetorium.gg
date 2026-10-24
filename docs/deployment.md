@@ -37,6 +37,8 @@ The offline reference and app manifests (`offline-reference-version.json`, `offl
 
 Open pages poll the uncached `/api/release` and offer a manual Refresh for a newer version. `/whats-new` reads `CHANGELOG.md`, so changeset summaries are player-facing copy; [Contributing](../CONTRIBUTING.md#pull-requests-and-releases) sets what they may say, and an entry players should not see is deleted from `CHANGELOG.md` directly. `INDEXNOW_KEY` is production-only; the release keeps its before/after sitemaps in the `production-sitemaps` artifact. `TYPESAFE_API_KEY` is production-only too, so only real uploads are screened.
 
+Discord delivery (`scripts/announceDiscord.ts`) needs Actions secret `DISCORD_ANNOUNCEMENTS_WEBHOOK_URL` and variable `DISCORD_ANNOUNCEMENTS_CHANNEL_ID`. Keep private R2 receipts at `discord-announcements/<channel-id>/<version>.json` when rotating webhooks. For a pending receipt, inspect Discord: if delivered, set `{"status":"sent","messageId":"<id>"}`; otherwise delete it. Rerun only the failed announcement job.
+
 ## Pull request previews
 
 Pull requests receive disposable Dokploy previews at `pr-<number>.praetorium.gg`; the PR's status comment links readiness and failures. Ready means `/api/health` reports the expected commit, not merely that a container started.
