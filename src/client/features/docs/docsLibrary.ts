@@ -1,5 +1,5 @@
 import type { LinkProps } from '@tanstack/react-router'
-import { Bot, Calculator, FileInput, type LucideIcon, ScrollText, Swords, UserRound } from 'lucide-react'
+import { Bot, Calculator, FileInput, type LucideIcon, ScrollText, Swords, Trophy, UserRound } from 'lucide-react'
 import { DOC_SECTIONS, PRODUCT_DOCS, type ProductDoc } from '../../../contracts/productDocs'
 import { headings } from './docsOutline'
 
@@ -33,6 +33,11 @@ export const AREAS: Record<
     icon: Swords,
     summary: 'Track a game from setup to the final score.',
     action: { to: '/battles', label: 'Open Battles' },
+  },
+  Leagues: {
+    icon: Trophy,
+    summary: 'Seal rosters in secret, reveal them together, then play the event.',
+    action: { to: '/leagues', label: 'Open Leagues' },
   },
   'AI assistants': {
     icon: Bot,

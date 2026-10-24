@@ -1,4 +1,4 @@
-export const DOC_SECTIONS = ['Army lists', 'Imports', 'Combat simulator', 'Battles', 'AI assistants', 'Account and app'] as const
+export const DOC_SECTIONS = ['Army lists', 'Imports', 'Combat simulator', 'Battles', 'Leagues', 'AI assistants', 'Account and app'] as const
 
 export const PRODUCT_DOCS = [
   {
@@ -151,6 +151,24 @@ export const PRODUCT_DOCS = [
     section: 'Battles',
     title: 'Battle problems',
     description: 'Greyed-out Start battle, blocked phases and other battle messages.',
+  },
+  {
+    slug: 'run-a-league',
+    section: 'Leagues',
+    title: 'Run a league',
+    description: 'Format, points and house rules, filling an event, the reveal and the next event.',
+  },
+  {
+    slug: 'play-in-a-league',
+    section: 'Leagues',
+    title: 'Play in a league',
+    description: 'Join, seal a roster in secret, then play the other entrants after the reveal.',
+  },
+  {
+    slug: 'league-problems',
+    section: 'Leagues',
+    title: 'League problems',
+    description: 'Refused seals, locked rules, a greyed-out reveal and other league messages.',
   },
   {
     slug: 'connect-an-assistant',
