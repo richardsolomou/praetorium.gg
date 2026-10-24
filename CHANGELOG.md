@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.184.2
+
+### Patch Changes
+
+- 2617042: An invulnerable save no longer shows as a granted ability.
+- 2617042: Abilities a datasheet links from its army's shared list now apply, such as Psychic Hood, Fulgrim's Daemonic Speed and the Norn Emissary's Unnatural Resistance.
+- 2617042: Nork Deddog and Ogryn Bodyguard give Feel No Pain 4+ to the Officer in their Command Squad while they stand.
+
 ## 0.184.1
 
 ### Patch Changes
