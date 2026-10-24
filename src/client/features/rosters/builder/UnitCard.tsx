@@ -1,4 +1,4 @@
-import { BellRing, BookmarkPlus, Copy, EllipsisVertical, Plus, Unlink, X } from 'lucide-react'
+import { BellRing, BookmarkPlus, Copy, Crown, EllipsisVertical, Plus, Unlink, X } from 'lucide-react'
 import { type ReactNode, useId } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -40,6 +40,7 @@ export type Joined = { label: string; name: string; detail?: string; action?: st
 
 type Props = {
   unit: BuiltUnit
+  warlord?: boolean
   /** The player's name for the unit, shown above the datasheet name. */
   nickname?: string
   /** Only present for readers allowed to see it. */
@@ -85,6 +86,7 @@ type Editing = {
  */
 export function UnitCard({
   unit,
+  warlord,
   nickname,
   note,
   alliedFaction,
@@ -148,6 +150,11 @@ export function UnitCard({
         <div className="pointer-events-none text-left">
           <span className="w-full min-w-0">
             <span className="rubric block leading-tight text-bone">
+              {warlord ? (
+                <span className="mr-1 inline-flex align-middle text-info" title="Warlord">
+                  <Crown className="size-3.5 fill-current" aria-label="Warlord" />
+                </span>
+              ) : null}
               {nickname ?? unit.name}
               {alertCount ? <UnitAlertMarker count={alertCount} unitName={unit.name} /> : null}
             </span>

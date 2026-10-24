@@ -102,7 +102,8 @@ export type UnitChoice = {
   owner: { id: string; name: string; profile: string | null } | null
 }
 
-export type UnitToggle = { key: string; name: string; selected: boolean }
+/** `required` marks a Warlord the data insists on: a unit that must be the army's Warlord whenever it is taken. */
+export type UnitToggle = { key: string; name: string; selected: boolean; required?: true }
 
 export type UnitChoiceCache = WeakMap<CatalogueIndex, { choices: Map<string, UnitChoice[]>; forbidden: Map<string, string[][]> }>
 export type ChoiceOptions = EvaluateOptions & { depth?: number; choiceCache?: UnitChoiceCache }
@@ -488,7 +489,13 @@ export function unitToggles(entryId: string, selection: Selection, index: Catalo
       const inner = resolve(child.definition, index)
       const here = [...trail, child.id]
       if (isRosterToggle(inner.name ?? child.definition.name)) {
-        found.push({ key: here.join('/'), name: 'Warlord', selected: (at(selection, here)?.count ?? 0) > 0 })
+        const required = (selectionCountBoundsAt(selection, here, index, options)?.minimum ?? 0) > 0
+        found.push({
+          key: here.join('/'),
+          name: 'Warlord',
+          selected: (at(selection, here)?.count ?? 0) > 0,
+          ...(required ? { required: true as const } : {}),
+        })
       } else if (inner.type !== 'upgrade' || (at(selection, here)?.count ?? 0) > 0) walk(child.definition, here, visited, enclosing)
     }
   }

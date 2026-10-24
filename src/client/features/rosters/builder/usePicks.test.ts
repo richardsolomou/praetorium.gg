@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { KeyedPick } from '../rosterPicks'
-import { defaultWarlord, pickEditor, requestedUnit } from './usePicks'
+import { pickEditor, requestedUnit, settledWarlord } from './usePicks'
 
 /** The group a model's heavy weapon is chosen from, and a choice nested under it. */
 const group = 'members/heavy-terminator/heavy-weapon'
@@ -515,21 +515,39 @@ describe('adding a unit to attach', () => {
   })
 })
 
-describe('a default Warlord', () => {
-  const character = (selected = false) => ({ toggles: [{ key: 'warlord', name: 'Warlord', selected }] })
+describe('the one Warlord', () => {
+  const character = (selected = false, required = false) => ({
+    toggles: [{ key: 'warlord', name: 'Warlord', selected, ...(required ? { required } : {}) }],
+  })
   const squad = { toggles: [] }
   const picks = (...keys: number[]) => keys.map((key) => ({ key, entryId: `unit-${key}` }))
 
   it('is the eligible unit added first, wherever it sits in the list', () => {
-    expect(defaultWarlord(picks(4, 2, 7), [character(), squad, character()])).toEqual({ index: 0, toggle: 'warlord' })
-    expect(defaultWarlord(picks(4, 1, 7), [character(), character(), squad])).toEqual({ index: 1, toggle: 'warlord' })
+    expect(settledWarlord(picks(4, 2, 7), [character(), squad, character()], true)).toEqual({ index: 0, toggle: 'warlord' })
+    expect(settledWarlord(picks(4, 1, 7), [character(), character(), squad], true)).toEqual({ index: 1, toggle: 'warlord' })
   })
 
   it('is not chosen while the list already has one', () => {
-    expect(defaultWarlord(picks(0, 1), [character(), character(true)])).toBeNull()
+    expect(settledWarlord(picks(0, 1), [character(), character(true)], true)).toBeNull()
   })
 
   it('is not chosen when no unit can be Warlord', () => {
-    expect(defaultWarlord(picks(0, 1), [squad, squad])).toBeNull()
+    expect(settledWarlord(picks(0, 1), [squad, squad], true)).toBeNull()
+  })
+
+  it('stays away once the player removes it', () => {
+    expect(settledWarlord(picks(0, 1), [character(), character()], false)).toBeNull()
+  })
+
+  it('goes to a unit that must be Warlord, from the one already crowned', () => {
+    expect(settledWarlord(picks(0, 1), [character(true), character(true, true)], false)).toEqual({ index: 1, toggle: 'warlord' })
+  })
+
+  it('stays with a unit that must be Warlord when another claims it', () => {
+    expect(settledWarlord(picks(0, 1), [character(false, true), character(true)], false)).toEqual({ index: 0, toggle: 'warlord' })
+  })
+
+  it('keeps the first of two crowns', () => {
+    expect(settledWarlord(picks(3, 1), [character(true), character(true)], false)).toEqual({ index: 1, toggle: 'warlord' })
   })
 })
