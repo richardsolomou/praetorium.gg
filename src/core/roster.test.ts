@@ -1713,8 +1713,9 @@ describe('a wargear group holding only optional extras', () => {
     expect({ room: choice?.room, maximums: choice?.options.map((option) => option.max) }).toEqual({ room: 2, maximums: [1, 1] })
   })
 
-  it('offers no extra the squad size has closed', () => {
-    expect(buildUnit('ratlings', index, 5)?.choices.find((candidate) => candidate.key === 'wargear')).toBeUndefined()
+  it('closes every extra the squad size rules out', () => {
+    const choice = buildUnit('ratlings', index, 5)?.choices.find((candidate) => candidate.key === 'wargear')
+    expect(choice?.options.map((option) => option.max)).toEqual([0, 0])
   })
 })
 

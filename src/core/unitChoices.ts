@@ -336,8 +336,10 @@ function collectUnitChoices(
           ((!fixed && target.type !== undefined && choosable.every((option) => resolve(option.definition, index).type === 'upgrade')) ||
             choosable.every((option) => /^This model can be equipped with 1 .+\.$/i.test(resolve(option.definition, index).name ?? '')) ||
             replacesSquadmate(child.definition, childrenOf(target, index), index, options.modifierCache))
-        // An option's own cap as the unit stands, since a squad can open or close it by size.
-        const roomFor = (option: Option) =>
+        const roomFor = (option: Option) => scaled(maximumCount(option.definition, index), scale)
+        // An option's own cap as the unit stands, since a squad size can open or close it.
+        // The group keeps its full room, so the datasheet still names what a closed option is.
+        const capFor = (option: Option) =>
           scaled(
             selectionCountBoundsAt(selection, [...here, option.id], index, options)?.maximum ?? maximumCount(option.definition, index),
             scale,
@@ -406,7 +408,7 @@ function collectUnitChoices(
                 ? heldRoom(adjustable, countOf)
                 : room
         const maximumFor = (option: Option) => {
-          if (independent) return roomFor(option)
+          if (independent) return capFor(option)
           if (sized && !repeating) {
             return replacingMaximum(selection, here, option, countOf(option.id) + spare, sizePath, index, options)
           }
