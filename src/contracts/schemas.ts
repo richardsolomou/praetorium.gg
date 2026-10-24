@@ -21,7 +21,7 @@ import {
   SECONDARIES_MAX,
   STRATAGEMS_MAX,
 } from '../core/battle'
-import { rosterReminderSchema, ROSTER_REMINDERS_MAX } from '../core/reminders'
+import { ABILITY_REMINDERS_MAX, abilityReminderSchema, rosterReminderSchema, ROSTER_REMINDERS_MAX } from '../core/reminders'
 import {
   commandSchema,
   detachmentIdSchema,
@@ -303,6 +303,14 @@ export const datasheetSchema = z
     const roster = currentRosterIds(data)
     return { ...roster, entryId: currentEntryId(data.entryId, roster.catalogueId) }
   })
+/** A roster whose units' abilities its alerts are matched against. */
+export const reminderAbilitiesSchema = z
+  .object({
+    catalogueId: id,
+    detachmentIds: z.array(detachmentIdSchema).max(DETACHMENTS_MAX).default([]),
+    picks: z.array(rosterPickSchema).max(100),
+  })
+  .overwrite(currentRosterIds)
 /** A roster pick whose weapon options the simulator compares. */
 export const combatLoadoutSchema = z
   .object({
@@ -324,7 +332,12 @@ export const unitWoundsSchema = z
 const prepSchema = z.object({
   stratagems: z.array(stratagemSchema).max(STRATAGEMS_MAX),
   secondaries: z.array(z.object({ key: id, name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH) })).max(SECONDARIES_MAX),
-  reminders: z.array(rosterReminderSchema).max(ROSTER_REMINDERS_MAX).default([]),
+  /** Per-unit alerts from older builds, which the product module moves to the owner's account on save; none is no field. */
+  reminders: z
+    .array(rosterReminderSchema)
+    .max(ROSTER_REMINDERS_MAX)
+    .transform((reminders) => (reminders.length ? reminders : undefined))
+    .optional(),
   remindersEnabled: z.boolean().default(true),
 })
 
@@ -350,8 +363,14 @@ export const saveRosterSchema = z
   .overwrite((value) => withStandardBudget(currentRosterIds(value)))
 
 const attachSavedRosterSchema = z.object({ kind: z.literal('attach-saved-roster'), rosterId: id, playerId: id.optional() }).strict()
-/** A guest has no saved lists, so they field the one this device is building, priced and frozen by the server. */
-const attachDraftRosterSchema = z.object({ kind: z.literal('attach-draft-roster'), draft: saveRosterSchema }).strict()
+/** A guest has no saved lists, so they field the one this device is building, priced and frozen by the server, with this browser's alerts. */
+const attachDraftRosterSchema = z
+  .object({
+    kind: z.literal('attach-draft-roster'),
+    draft: saveRosterSchema,
+    reminders: z.array(abilityReminderSchema).max(ABILITY_REMINDERS_MAX).optional(),
+  })
+  .strict()
 export const submitSchema = z.object({
   token,
   expectedSeq: z.number().int().min(0),
@@ -424,6 +443,8 @@ export const favouriteFactionSchema = z.object({ catalogueId: id, favourite: z.b
 export const favouriteDatasheetSchema = z.object({ entryId: id, favourite: z.boolean() })
 export const rememberMatchupSchema = recentMatchupSchema.refine((entry) => simulatorPairing(entry.shared) !== null, 'choose both units')
 export const forgetMatchupSchema = recentMatchupSchema.pick({ shared: true })
+export const setAbilityReminderSchema = abilityReminderSchema
+export const removeAbilityReminderSchema = abilityReminderSchema.pick({ key: true })
 export const favouriteDetachmentSchema = z.object({ catalogueId: id, detachmentId: detachmentIdSchema, favourite: z.boolean() })
 export const terrainReferencesSchema = z.object({
   matchupIds: z.array(slug).min(1).max(2),

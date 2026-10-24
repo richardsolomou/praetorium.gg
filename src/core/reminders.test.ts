@@ -1,13 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import {
+  ABILITY_REMINDERS_MAX,
+  abilityReminderFits,
+  abilityRemindersFromRosters,
+  chosenReminderAbilities,
+  fieldedReminders,
   reminderTimingCountsByUnit,
   reminderDue,
   detachmentRuleSubject,
   reminderKey,
   remindersForDetachments,
-  remindersAfterUnitInserted,
-  remindersAfterUnitRemoved,
   remindersDueAt,
+  ROSTER_REMINDERS_MAX,
+  withAbilityReminder,
   reminderTimingLabel,
   reminderTimingSchema,
   roundReminderMoment,
@@ -152,15 +157,164 @@ describe('reminderDue', () => {
   })
 })
 
-it('keys faction abilities once for the army and datasheet abilities by unit', () => {
-  expect(reminderKey({ id: 'faction-copy', kind: 'faction', name: 'Oath of Moment' }, 4)).toBe('faction:oath-of-moment:army')
-  expect(reminderKey({ id: 'living-lightning-id', kind: 'datasheet', name: 'Living Lightning' }, 4)).toBe('datasheet:living-lightning-id:4')
+it('keys a datasheet ability by its id, whichever unit shows it', () => {
+  expect(reminderKey({ id: 'living-lightning-id', kind: 'datasheet', name: 'Living Lightning' })).toBe('datasheet:living-lightning-id')
 })
 
-it('keys a detachment rule once for the army by its detachment', () => {
-  expect(reminderKey(detachmentRuleSubject('c4ee-83c7', { name: 'Cold Fervour', description: null }), 4)).toBe(
-    'detachment:c4ee-83c7/cold-fervour:army',
+it('keys a faction ability by its name', () => {
+  expect(reminderKey({ id: 'faction-copy', kind: 'faction', name: 'Oath of Moment' })).toBe('faction:oath-of-moment')
+})
+
+it('keys a core ability by its name, since every datasheet links it under its own id', () => {
+  expect(reminderKey({ id: 'per-datasheet-link', kind: 'core', name: 'Deep Strike' })).toBe('core:deep-strike')
+})
+
+it('keys a detachment rule by its detachment', () => {
+  expect(reminderKey(detachmentRuleSubject('c4ee-83c7', { name: 'Cold Fervour', description: null }))).toBe(
+    'detachment:c4ee-83c7/cold-fervour',
   )
+})
+
+describe('fieldedReminders', () => {
+  const timings = [{ moment: 'turn-start' as const, phase: null, turn: 'your-turn' as const }]
+  const setting = (key: string) => ({ key, ability: key, description: '', timings })
+  const unit = (key: number, choices: { kind?: 'enhancement' | 'upgrade'; chosen: string }[] = []) => ({
+    key,
+    name: `Unit ${key}`,
+    choices,
+  })
+  const field = (settings: ReturnType<typeof setting>[], shown: [number, string[]][], detachmentIds: string[] = []) =>
+    fieldedReminders(settings, { detachmentIds, units: shown.map(([key]) => unit(key)) }, shown)
+
+  it('alerts once for each unit holding the ability', () => {
+    expect(
+      field(
+        [setting('datasheet:shared')],
+        [
+          [0, ['datasheet:shared']],
+          [3, ['datasheet:shared']],
+        ],
+      ),
+    ).toEqual([
+      { ...setting('datasheet:shared'), key: 'datasheet:shared:0', unit: { index: 0, name: 'Unit 0' } },
+      { ...setting('datasheet:shared'), key: 'datasheet:shared:3', unit: { index: 3, name: 'Unit 3' } },
+    ])
+  })
+
+  it('leaves out a unit ability no unit holds', () => {
+    expect(field([setting('datasheet:elsewhere')], [[0, ['datasheet:shared']]])).toEqual([])
+  })
+
+  it('alerts for an enhancement a unit has chosen', () => {
+    expect(
+      fieldedReminders(
+        [setting('enhancement:casket')],
+        { detachmentIds: [], units: [unit(1, [{ kind: 'enhancement', chosen: 'casket' }])] },
+        [],
+      ).map((reminder) => reminder.key),
+    ).toEqual(['enhancement:casket:1'])
+  })
+
+  it('alerts once for a faction ability any unit holds', () => {
+    expect(
+      field(
+        [setting('faction:oath')],
+        [
+          [0, ['faction:oath']],
+          [1, ['faction:oath']],
+        ],
+      ),
+    ).toEqual([{ ...setting('faction:oath'), key: 'faction:oath:army' }])
+  })
+
+  it('leaves out a faction ability of another army', () => {
+    expect(field([setting('faction:oath')], [[0, ['faction:reanimation']]])).toEqual([])
+  })
+
+  it('keeps a rule of a detachment the roster fields', () => {
+    expect(field([setting('detachment:kept/rule')], [], ['kept'])).toEqual([
+      { ...setting('detachment:kept/rule'), key: 'detachment:kept/rule:army' },
+    ])
+  })
+
+  it('leaves out a rule of a detachment the roster does not field', () => {
+    expect(field([setting('detachment:other/rule')], [], ['kept'])).toEqual([])
+  })
+
+  it('keeps a battle within the roster reminder limit', () => {
+    const shown = Array.from({ length: ROSTER_REMINDERS_MAX + 1 }, (_, key): [number, string[]] => [key, ['datasheet:shared']])
+    expect(field([setting('datasheet:shared')], shown)).toHaveLength(ROSTER_REMINDERS_MAX)
+  })
+
+  it('never lets another army’s detachment rule take a place within the limit', () => {
+    const shown = Array.from({ length: ROSTER_REMINDERS_MAX }, (_, key): [number, string[]] => [key, ['datasheet:shared']])
+    expect(
+      field([setting('detachment:other/rule'), setting('datasheet:shared')], shown, ['kept']).filter((reminder) => reminder.unit),
+    ).toHaveLength(ROSTER_REMINDERS_MAX)
+  })
+})
+
+describe('abilityReminderFits', () => {
+  const held = Array.from({ length: ABILITY_REMINDERS_MAX }, (_, at) => ({ key: `datasheet:${at}` }))
+
+  it('refuses a new alert once a player holds the limit', () => {
+    expect(abilityReminderFits(held, 'datasheet:new')).toBe(false)
+  })
+
+  it('lets a player at the limit change an alert they hold', () => {
+    expect(abilityReminderFits(held, 'datasheet:0')).toBe(true)
+  })
+})
+
+describe('chosenReminderAbilities', () => {
+  it('names a chosen enhancement', () => {
+    expect(chosenReminderAbilities([{ kind: 'enhancement', chosen: 'casket' }])).toEqual(['enhancement:casket'])
+  })
+
+  it('ignores a declined upgrade', () => {
+    expect(chosenReminderAbilities([{ kind: 'upgrade', chosen: '' }])).toEqual([])
+  })
+})
+
+describe('abilityRemindersFromRosters', () => {
+  const timing = (turn: 'your-turn' | 'opponent-turn') => [{ moment: 'turn-start' as const, phase: null, turn }]
+  const unitReminder = (key: string, turn: 'your-turn' | 'opponent-turn' = 'your-turn') => ({
+    key,
+    ability: 'Living Lightning',
+    description: 'Text',
+    unit: { index: 2, name: 'Plasmancer' },
+    timings: timing(turn),
+  })
+
+  it('keys a unit alert by its ability alone', () => {
+    expect(abilityRemindersFromRosters([{ updatedAt: 1, reminders: [unitReminder('datasheet:lightning:2')] }])).toEqual([
+      { key: 'datasheet:lightning', ability: 'Living Lightning', description: 'Text', timings: timing('your-turn') },
+    ])
+  })
+
+  it('keeps the timings of the most recently saved roster', () => {
+    expect(
+      abilityRemindersFromRosters([
+        { updatedAt: 1, reminders: [unitReminder('datasheet:lightning:2', 'your-turn')] },
+        { updatedAt: 5, reminders: [unitReminder('datasheet:lightning:0', 'opponent-turn')] },
+      ]).map((reminder) => reminder.timings),
+    ).toEqual([timing('opponent-turn')])
+  })
+
+  it('rekeys a core ability alert by its name', () => {
+    expect(
+      abilityRemindersFromRosters([{ updatedAt: 1, reminders: [{ ...unitReminder('core:link-id:2'), ability: 'Deep Strike' }] }]).map(
+        (reminder) => reminder.key,
+      ),
+    ).toEqual(['core:deep-strike'])
+  })
+
+  it('keys an army alert without its owner', () => {
+    const { unit: _unit, ...army } = unitReminder('detachment:kept/cold-fervour:army')
+    expect(abilityRemindersFromRosters([{ updatedAt: 1, reminders: [army] }]).map((reminder) => reminder.key)).toEqual([
+      'detachment:kept/cold-fervour',
+    ])
+  })
 })
 
 describe('remindersForDetachments', () => {
@@ -189,35 +343,6 @@ describe('remindersForDetachments', () => {
 it('describes configured timing in player-facing words', () => {
   expect(reminderTimingLabel({ moment: 'turn-end', phase: null, turn: 'opponent-turn' })).toBe("End of opponent's turn")
   expect(reminderTimingLabel({ moment: 'phase-start', phase: 'command', turn: 'your-turn' })).toBe('Start of your Command phase')
-})
-
-it('removes a deleted units reminders and rekeys the units after it', () => {
-  const reminder = (ability: string, index?: number) => ({
-    key: index === undefined ? `faction:${ability}:army` : `datasheet:${ability}:${index}`,
-    ability,
-    description: '',
-    ...(index === undefined ? {} : { unit: { index, name: `Unit ${index}` } }),
-    timings: [{ moment: 'turn-start' as const, phase: null, turn: 'your-turn' as const }],
-  })
-
-  expect(remindersAfterUnitRemoved([reminder('army'), reminder('deleted', 1), reminder('kept', 2)], 1)).toEqual([
-    reminder('army'),
-    { ...reminder('kept', 1), unit: { index: 1, name: 'Unit 2' } },
-  ])
-})
-
-it('rekeys reminders when a preceding unit is inserted', () => {
-  const reminder = {
-    key: 'upgrade:dimensional-overseer:1',
-    ability: 'Dimensional Overseer',
-    description: '',
-    unit: { index: 1, name: 'Hexmark Destroyer' },
-    timings: [{ moment: 'turn-start' as const, phase: null, turn: 'your-turn' as const }],
-  }
-
-  expect(remindersAfterUnitInserted([reminder], 1)).toEqual([
-    { ...reminder, key: 'upgrade:dimensional-overseer:2', unit: { ...reminder.unit, index: 2 } },
-  ])
 })
 
 describe('round reminder timings', () => {
@@ -346,5 +471,20 @@ describe('restricted and broad reminders', () => {
     expect(suggestReminderWhileDestroyed('At the end of each phase, if this model has lost wounds but is not destroyed, heal it.')).toBe(
       false,
     )
+  })
+})
+
+describe('withAbilityReminder', () => {
+  const setting = (key: string, turn: 'your-turn' | 'opponent-turn' = 'your-turn') => ({
+    key,
+    ability: key,
+    description: '',
+    timings: [{ moment: 'turn-start' as const, phase: null, turn }],
+  })
+
+  it('replaces the alert already set for an ability', () => {
+    expect(withAbilityReminder([setting('datasheet:a')], setting('datasheet:a', 'opponent-turn'))).toEqual([
+      setting('datasheet:a', 'opponent-turn'),
+    ])
   })
 })

@@ -6,6 +6,7 @@
 import { type Infer as __Infer } from 'spacetimedb'
 
 // Import all procedure arg schemas
+import * as AbilityRemindersByUserProcedure from '../ability_reminders_by_user_procedure'
 import * as AcceptFriendProcedure from '../accept_friend_procedure'
 import * as AcceptFriendInviteProcedure from '../accept_friend_invite_procedure'
 import * as AdminCollectionPhotosProcedure from '../admin_collection_photos_procedure'
@@ -73,6 +74,7 @@ import * as RosterSummariesByUserProcedure from '../roster_summaries_by_user_pro
 import * as RostersByIdsProcedure from '../rosters_by_ids_procedure'
 import * as RostersByUserProcedure from '../rosters_by_user_procedure'
 import * as RostersLentToProcedure from '../rosters_lent_to_procedure'
+import * as SaveAbilityReminderProcedure from '../save_ability_reminder_procedure'
 import * as SaveRosterProcedure from '../save_roster_procedure'
 import * as SaveUnitLoadoutProcedure from '../save_unit_loadout_procedure'
 import * as SetPlayerDefaultsProcedure from '../set_player_defaults_procedure'
@@ -89,6 +91,8 @@ import * as UnitLoadoutsByUserProcedure from '../unit_loadouts_by_user_procedure
 import * as UpdateOnboardingProcedure from '../update_onboarding_procedure'
 import * as UsableRosterProcedure from '../usable_roster_procedure'
 
+export type AbilityRemindersByUserArgs = __Infer<typeof AbilityRemindersByUserProcedure.params>
+export type AbilityRemindersByUserResult = __Infer<typeof AbilityRemindersByUserProcedure.returnType>
 export type AcceptFriendArgs = __Infer<typeof AcceptFriendProcedure.params>
 export type AcceptFriendResult = __Infer<typeof AcceptFriendProcedure.returnType>
 export type AcceptFriendInviteArgs = __Infer<typeof AcceptFriendInviteProcedure.params>
@@ -223,6 +227,8 @@ export type RostersByUserArgs = __Infer<typeof RostersByUserProcedure.params>
 export type RostersByUserResult = __Infer<typeof RostersByUserProcedure.returnType>
 export type RostersLentToArgs = __Infer<typeof RostersLentToProcedure.params>
 export type RostersLentToResult = __Infer<typeof RostersLentToProcedure.returnType>
+export type SaveAbilityReminderArgs = __Infer<typeof SaveAbilityReminderProcedure.params>
+export type SaveAbilityReminderResult = __Infer<typeof SaveAbilityReminderProcedure.returnType>
 export type SaveRosterArgs = __Infer<typeof SaveRosterProcedure.params>
 export type SaveRosterResult = __Infer<typeof SaveRosterProcedure.returnType>
 export type SaveUnitLoadoutArgs = __Infer<typeof SaveUnitLoadoutProcedure.params>

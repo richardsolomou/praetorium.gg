@@ -10,7 +10,7 @@ export { detachmentIds }
 type RosterColumns = {
   detachmentIds: readonly string[]
   picks: readonly unknown[]
-  prep: { reminders?: readonly unknown[]; remindersEnabled?: boolean } | null
+  prep: { remindersEnabled?: boolean } | null
   waivedRules?: readonly string[]
   optionalRules?: readonly string[]
   borrowedDetachmentId?: string | null
@@ -24,9 +24,7 @@ export function rosterRow<R extends RosterColumns>(roster: R) {
     ...roster,
     detachmentId: JSON.stringify(roster.detachmentIds),
     picks: JSON.stringify(roster.picks),
-    prep: roster.prep
-      ? JSON.stringify({ ...roster.prep, reminders: roster.prep.reminders ?? [], remindersEnabled: roster.prep.remindersEnabled ?? true })
-      : null,
+    prep: roster.prep ? JSON.stringify({ ...roster.prep, remindersEnabled: roster.prep.remindersEnabled ?? true }) : null,
     tags: '[]',
     waivedRules: JSON.stringify(roster.waivedRules ?? []),
     optionalRules: JSON.stringify(roster.optionalRules ?? []),
@@ -53,7 +51,6 @@ export function rosterFromRow(row: NonNullable<Awaited<ReturnType<SpacetimeOpera
     ...(includePrep
       ? {
           prep,
-          reminders: prep?.reminders ?? [],
           remindersEnabled: prep?.remindersEnabled ?? true,
         }
       : { prep: null }),

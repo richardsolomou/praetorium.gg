@@ -12,6 +12,8 @@ export const offlineActionSchemas = {
   setFavouriteDatasheet: schemas.favouriteDatasheetSchema,
   rememberMatchup: schemas.rememberMatchupSchema,
   forgetMatchup: schemas.forgetMatchupSchema,
+  setAbilityReminder: schemas.setAbilityReminderSchema,
+  removeAbilityReminder: schemas.removeAbilityReminderSchema,
   setPlayerDefaults: schemas.playerDefaultsSchema,
   setPushNotifications: schemas.pushPreferenceSchema,
   updateOnboardingProgress: schemas.onboardingUpdateSchema,

@@ -63,7 +63,9 @@ export function lockedRosterRefusal(current: (RosterContent & { locked?: boolean
 }
 
 function comparable(content: RosterContent) {
-  const prep = content.prep && typeof content.prep === 'object' ? (content.prep as Record<string, unknown>) : {}
+  // Alerts belong to the player rather than the list, so a lock never covers them.
+  const { reminders: _reminders, ...prep } =
+    content.prep && typeof content.prep === 'object' ? (content.prep as Record<string, unknown>) : {}
   return canonicalJson({
     name: content.automaticName ? '' : content.name,
     automaticName: content.automaticName,
@@ -77,7 +79,6 @@ function comparable(content: RosterContent) {
       ...prep,
       stratagems: prep.stratagems ?? [],
       secondaries: prep.secondaries ?? [],
-      reminders: prep.reminders ?? [],
       remindersEnabled: prep.remindersEnabled ?? true,
     },
     waivedRules: content.waivedRules ?? [],

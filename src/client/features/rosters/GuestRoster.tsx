@@ -29,9 +29,10 @@ import { saveFailureReason } from './saveFailure'
 import { countLabel } from '../../text'
 import { readGuestBattle } from '../battles/guestBattle'
 import { normalisePicks } from './rosterPicks'
+import { adoptVisitorReminders, claimVisitorReminders } from './visitorReminders'
 import { rosterUseProblem } from '../../../core/rosterLegality'
 
-const NO_PREP = { stratagems: [], secondaries: [], reminders: [], remindersEnabled: true }
+const NO_PREP = { stratagems: [], secondaries: [], remindersEnabled: true }
 
 /**
  * A visitor's list, read once the page is in the browser, the only place it lives.
@@ -106,6 +107,8 @@ export function GuestRoster({
   const [unkept, setUnkept] = useState(false)
   const factionResult = useQuery(factionQuery(guest.draft.catalogueId))
   const faction = factionResult.data
+  const legacyReminders = guest.draft.prep?.reminders
+  useEffect(() => adoptVisitorReminders(legacyReminders), [legacyReminders])
 
   if (factionResult.isPending) return <BuilderFrame />
   // The draft names a faction the army data does not hold now, or none has loaded yet.
@@ -199,7 +202,9 @@ export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDi
     onError: (error) => posthog.capture('guest_roster_save_failed', { reason: saveFailureReason(error) }),
     mutationFn: async (draft: GuestDraft) => {
       const defaults = await queryClient.query({ ...playerDefaultsQuery(), staleTime: 'static' })
-      return saveRoster({ data: { ...claimInput(draft), visibility: defaults.rosterVisibility } })
+      const saved = await saveRoster({ data: { ...claimInput(draft), visibility: defaults.rosterVisibility } })
+      await claimVisitorReminders()
+      return saved
     },
     onSuccess: async ({ id }, draft) => {
       posthog.capture('guest_roster_saved', { unit_count: unitCount(draft) })

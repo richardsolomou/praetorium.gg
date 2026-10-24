@@ -38,7 +38,7 @@ const queryFamilies = {
   friends: ['friendships', 'friend-battles', 'opponents', 'player-profile', 'player-search'],
   invites: ['friend-invite'],
   onboarding: ['onboarding'],
-  settings: ['notification-settings', 'player-defaults', 'public-battles', 'friend-battles', 'played-armies'],
+  settings: ['notification-settings', 'player-defaults', 'ability-reminders', 'public-battles', 'friend-battles', 'played-armies'],
   leagues: ['leagues', 'league', 'league-roster', 'league-roster-sharing', 'league-battles', 'opponents'],
   // Standings and rankings change only when a battle finishes, which the public standings signal reports.
   battles: ['battles', 'public-battles', 'friend-battles', 'player-profile', 'league-battles', 'played-armies'],
@@ -76,6 +76,8 @@ const operationScopes = {
   setFavouriteDatasheet: ['favourites'],
   rememberMatchup: ['simulator'],
   forgetMatchup: ['simulator'],
+  setAbilityReminder: ['settings'],
+  removeAbilityReminder: ['settings'],
   setPlayerDefaults: ['settings'],
   setPushNotifications: ['settings'],
   updateOnboardingProgress: ['onboarding'],

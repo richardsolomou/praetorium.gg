@@ -5,6 +5,14 @@
 /* tslint:disable */
 import { TypeBuilder as __TypeBuilder, t as __t, type AlgebraicTypeType as __AlgebraicTypeType, type Infer as __Infer } from 'spacetimedb'
 
+export const AbilityReminders = __t.object('AbilityReminders', {
+  key: __t.string(),
+  userId: __t.string(),
+  reminder: __t.string(),
+  updatedAt: __t.u64(),
+})
+export type AbilityReminders = __Infer<typeof AbilityReminders>
+
 export const AccessExpiry = __t.object('AccessExpiry', {
   scheduledId: __t.u64(),
   subject: __t.string(),

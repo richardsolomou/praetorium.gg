@@ -38,7 +38,7 @@ type Props = {
   requested?: ListBuilderProps['requested']
 }
 
-const NO_PREP = { stratagems: [], secondaries: [], reminders: [], remindersEnabled: true }
+const NO_PREP = { stratagems: [], secondaries: [], remindersEnabled: true }
 
 export function RosterEditor({
   roster,

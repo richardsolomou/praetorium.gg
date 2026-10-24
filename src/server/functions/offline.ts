@@ -5,6 +5,7 @@ import { offlineActions } from '../offlineActions'
 import { offlineContext } from '../offlineContext'
 import { commandSchema } from '../../core/commands'
 import { rosterSnapshot } from '../../core/rosterSnapshot'
+import { fieldingReminders } from '../../shared/reminderAbilities'
 import { rosterUseError } from '../../core/rosterLegality'
 import { unitBattleDetailsIn } from '../../shared/catalogue'
 import { calculateRosterPrice } from '../../shared/pricing'
@@ -183,7 +184,13 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
               {
                 ...draft,
                 waivedRules: draft.waivedRules ?? [],
-                reminders: draft.prep?.reminders,
+                reminders: fieldingReminders(
+                  catalogue,
+                  rosterRules,
+                  draft,
+                  priced.units,
+                  await instance.service.abilityReminders(player.id),
+                ),
                 remindersEnabled: draft.prep?.remindersEnabled,
               },
               priced,

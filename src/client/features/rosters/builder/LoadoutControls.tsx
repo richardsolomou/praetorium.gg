@@ -320,17 +320,13 @@ export function SpecialChoice({
 }) {
   const heading = choice.kind === 'upgrade' ? 'Unit upgrades' : choice.name
   const options = showOptions ? defaultFirst(choice.options) : choice.options.filter((option) => choice.chosen === option.id)
-  const selectedOption = choice.options.find((option) => option.id === choice.chosen)
   const subject = (option: LoadoutOption) => ({
     id: option.id,
     kind: choice.kind ?? 'upgrade',
     name: option.name,
     description: option.description,
   })
-  const choose = (optionId: string) => {
-    if (selectedOption && selectedOption.id !== optionId) reminders?.onRemove(subject(selectedOption))
-    onChoose(choice.key, optionId)
-  }
+  const choose = (optionId: string) => onChoose(choice.key, optionId)
   if (!showOptions && !choice.chosen) return null
   return (
     <fieldset data-onboarding="loadout-enhancement" aria-label={`${unitName} ${heading}`} className="m-0 min-w-0 border-0">
@@ -355,9 +351,7 @@ export function SpecialChoice({
             disabled={controlsDisabled}
             onSelect={editable ? () => choose(option.id) : undefined}
             action={
-              reminders && choice.chosen === option.id ? (
-                <ReminderButton subject={subject(option)} unitName={unitName} controls={reminders} />
-              ) : undefined
+              reminders && choice.chosen === option.id ? <ReminderButton subject={subject(option)} controls={reminders} /> : undefined
             }
           >
             {option.description ? (

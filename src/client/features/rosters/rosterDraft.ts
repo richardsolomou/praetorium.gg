@@ -1,5 +1,4 @@
 import type { FormatRuleId, OptionalRuleId, Secondary, Stratagem } from '../../../core/battle'
-import type { RosterReminder } from '../../../core/reminders'
 import type { RosterPick } from '../../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
 import type { saveRoster } from '../../functions'
@@ -28,7 +27,6 @@ type SavedRoster = {
 type SavedPrep = {
   stratagems: Stratagem[]
   secondaries: Secondary[]
-  reminders?: RosterReminder[]
   remindersEnabled?: boolean
 }
 
@@ -56,7 +54,6 @@ export function savedDraft(roster: SavedRoster, prep: SavedPrep): RosterDraft {
     prep: {
       stratagems: prep.stratagems,
       secondaries: prep.secondaries,
-      reminders: prep.reminders ?? [],
       remindersEnabled: prep.remindersEnabled ?? true,
     },
     waivedRules: roster.waivedRules,

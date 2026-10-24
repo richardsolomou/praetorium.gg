@@ -11,6 +11,7 @@ import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, rosterDiscoveryCursorSchema, type Roste
 import type { PlayerDefaults } from '../core/playerDefaults'
 import { playerDefaultsSchema } from '../contracts/schemas'
 import { recentMatchupSchema, type RecentMatchup } from '../core/recentMatchups'
+import { abilityReminderSchema, type AbilityReminder } from '../core/reminders'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
 import { TABLE_SHAPES } from '../core/tableShape'
 import { unitLoadoutPickSchema, type UnitLoadout } from '../core/unitLoadouts'
@@ -828,6 +829,18 @@ export class SpacetimeOperator {
 
   async forgetMatchup(userId: string, pairing: string) {
     await this.call('forget_matchup', [userId, pairing])
+  }
+
+  async abilityRemindersByUser(userId: string) {
+    return this.read('ability_reminders_by_user', [userId], z.array(abilityReminderSchema))
+  }
+
+  async saveAbilityReminder(userId: string, reminder: AbilityReminder, now: number) {
+    return this.read('save_ability_reminder', [userId, JSON.stringify(reminder), now], z.enum(['saved', 'full']))
+  }
+
+  async deleteAbilityReminder(userId: string, key: string) {
+    await this.call('delete_ability_reminder', [userId, key])
   }
 
   async pushEnabled(userId: string) {

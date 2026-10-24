@@ -16,6 +16,7 @@ import {
   uniqueName,
   waitForRosterSave,
   makeWarlord,
+  saveAlert,
 } from './account'
 
 test('roster reminders cover selected rules and advances from another device', async ({ browser }) => {
@@ -63,7 +64,7 @@ test('roster reminders cover selected rules and advances from another device', a
   const editor = page.getByRole('dialog', { name: 'Living Lightning' })
   await expect(editor).toBeVisible()
   await expect(editor.getByText('Alert: Start of your Shooting phase')).toBeVisible()
-  await waitForRosterSave(page, () => editor.getByRole('button', { name: 'Save alert' }).click(), 'Living Lightning')
+  await saveAlert(editor, 'Living Lightning')
   await expect(plasmancer.getByLabel('1 alert set for Plasmancer')).toBeVisible()
   await page.getByLabel('Edit alert for Living Lightning').click()
   await editor.getByRole('button', { name: 'Add trigger' }).click()
@@ -74,7 +75,7 @@ test('roster reminders cover selected rules and advances from another device', a
   await editor.getByRole('combobox', { name: 'Whose turn' }).nth(1).click()
   await page.getByRole('option', { name: 'Either turn' }).click()
   await expect(editor.getByText('Alert: Start of either Fight phase')).toBeVisible()
-  await waitForRosterSave(page, () => editor.getByRole('button', { name: 'Save alert' }).click(), 'Living Lightning')
+  await saveAlert(editor, 'Living Lightning')
   await expect(plasmancer.getByLabel('2 alerts set for Plasmancer')).toBeVisible()
   await page.getByLabel('Edit alert for Living Lightning').click()
   await editor.getByRole('button', { name: 'Add trigger' }).click()
@@ -94,7 +95,7 @@ test('roster reminders cover selected rules and advances from another device', a
   await expect(editor.getByRole('button', { name: 'Save alert' })).toBeVisible()
   await page.setViewportSize(desktopContext.viewport)
 
-  await waitForRosterSave(page, () => editor.getByRole('button', { name: 'Save alert' }).click(), 'Living Lightning')
+  await saveAlert(editor, 'Living Lightning')
   await expect(plasmancer.getByLabel('3 alerts set for Plasmancer')).toBeVisible()
   await expect(page.getByRole('button', { name: /all alerts/i })).toHaveCount(0)
   await page.reload()
@@ -199,7 +200,7 @@ test('round alerts fire once at both boundaries when your opponent takes the fir
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   }
   await page.setViewportSize(desktopContext.viewport)
-  await waitForRosterSave(page, () => editor.getByRole('button', { name: 'Save alert' }).click(), 'Battle Focus')
+  await saveAlert(editor, 'Battle Focus')
   await page.reload()
   await page.locator('[data-unit="Asurmen"]').getByRole('button', { name: 'Asurmen', exact: true }).click()
   await page.getByLabel('Edit alert for Battle Focus').click()
@@ -262,7 +263,7 @@ test('a detachment rule alert covers the whole army and fires in battle', async 
   const editor = page.getByRole('dialog', { name: 'Cold Fervour', exact: true })
   await editor.getByRole('combobox', { name: 'When' }).first().click()
   await page.getByRole('option', { name: 'Start of round', exact: true }).click()
-  await waitForRosterSave(page, () => editor.getByRole('button', { name: 'Save alert' }).click(), 'Cold Fervour')
+  await saveAlert(editor, 'Cold Fervour')
   await page.reload()
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await expect(page.getByLabel('Edit alert for Cold Fervour')).toBeVisible()
@@ -335,8 +336,10 @@ for (const scenario of [
       await page.setViewportSize({ width, height: 900 })
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
     }
-    await waitForRosterSave(page, () => editor.getByRole('button', { name: 'Save alert' }).click(), scenario.ability)
+    await saveAlert(editor, scenario.ability)
     await page.setViewportSize(desktopContext.viewport)
+    // The phone layout's pane leaves the address once the page is wide again; reloading first races that navigation.
+    await expect(page).not.toHaveURL(/#roster-pane$/)
     await page.reload()
     await page.locator(`[data-unit="${scenario.unit}"]`).getByRole('button', { name: scenario.unit, exact: true }).click()
     await page.getByLabel(`Edit alert for ${scenario.ability}`).click()
@@ -368,3 +371,47 @@ for (const scenario of [
     }
   })
 }
+
+test('an alert set in one roster follows the player into another and fires in battle', async ({ page }) => {
+  await signUp(page, uniqueName('Shared alerts'))
+  const unit = 'Catacomb Command Barge'
+  const addBarge = async (name: string) => {
+    const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name })
+    await page.getByLabel('Add a unit').fill(unit)
+    await waitForRosterSave(page, () =>
+      page
+        .getByRole('button', { name: `Add ${unit}`, exact: true })
+        .first()
+        .click(),
+    )
+    await page.locator(`[data-unit="${unit}"]`).getByRole('button', { name: unit, exact: true }).click()
+    await waitForRosterSave(page, () => page.getByRole('button', { name: 'Select Resurrection orb', exact: true }).click())
+    return roster
+  }
+  await addBarge('First alerts')
+  await page.getByLabel('Set alert for Resurrection orb').click()
+  const editor = page.getByRole('dialog', { name: 'Resurrection orb', exact: true })
+  await expect(editor).toContainText('every unit with this ability in all your rosters')
+  await saveAlert(editor, 'Resurrection orb')
+  await expect(page.locator(`[data-unit="${unit}"]`).getByLabel(`1 alert set for ${unit}`)).toBeVisible()
+
+  const second = await addBarge('Second alerts')
+  await expect(page.getByLabel('Edit alert for Resurrection orb')).toBeVisible()
+  await expect(page.locator(`[data-unit="${unit}"]`).getByLabel(`1 alert set for ${unit}`)).toBeVisible()
+
+  await createBattle(page, { practice: true })
+  await attachRoster(page, second)
+  await attachRoster(page, second, { forPlayer: PRACTICE_OPPONENT })
+  await chooseBattlefield(page)
+  await setupStep(page, 'Secondaries')
+  await expect(page.locator('[data-secondary-deck-ready="false"]')).toHaveCount(0)
+  await recordFirstTurn(page)
+  await page.getByRole('button', { name: 'Start battle' }).click()
+  await takeTheTurn(page)
+  await page.getByRole('button', { name: 'Battle options' }).click()
+  await page.getByRole('menuitemcheckbox', { name: 'Action reminders' }).click()
+  await page.keyboard.press('Escape')
+  await page.getByRole('button', { name: 'End the command phase', exact: true }).click()
+  const reminder = page.getByRole('dialog', { name: 'Battle reminder', exact: true })
+  await expect(reminder.getByRole('heading', { name: 'Resurrection orb', exact: true })).toBeVisible()
+})

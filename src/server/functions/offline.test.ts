@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import { syncAction, syncBattleCommand } from './offline'
 import { builtRoster } from '../../core/battle.fixtures'
-import { bookOf, points } from '../catalogue.fixtures'
+import { ability, bookOf, points } from '../catalogue.fixtures'
 import { saveRosterSchema } from '../../contracts/schemas'
 import { emptyLocalState } from '../../contracts/localState'
 import { SyncEngine } from '../../client/offline/syncEngine'
@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   syncReceipt: vi.fn(),
   createAction: vi.fn(),
   capture: vi.fn(),
+  abilityReminders: vi.fn(),
 }))
 vi.mock('@tanstack/react-start', () => {
   const builder = () => ({ validator: () => builder(), handler: (handler: unknown) => handler })
@@ -324,4 +325,46 @@ it('rejects an over-points captured roster even when its submitted snapshot clai
     result: { outcome: 'refused', message: 'roster has 1001 points, over its 1000-point limit' },
     writes: 0,
   })
+})
+
+it('fields the syncing player’s alert on the captured roster’s unit holding its ability', async () => {
+  const catalogue = bookOf({
+    selectionEntries: [{ id: 'unit', name: 'Unit', type: 'model', costs: points(100), profiles: [ability('charge', 'Charge')] }],
+  })
+  mocks.catalogue.mockReturnValue(catalogue)
+  mocks.catalogueFor.mockResolvedValue(catalogue)
+  mocks.ownRoster.mockResolvedValue({ id: 'roster' })
+  mocks.rulesFor.mockResolvedValue({
+    factionKeys: new Map(),
+    detachmentReferences: new Map(),
+    detachmentDetails: new Map(),
+    factionRestrictions: new Map(),
+  })
+  const alert = {
+    key: 'datasheet:charge',
+    ability: 'Charge',
+    description: '',
+    timings: [{ moment: 'turn-start', phase: null, turn: 'your-turn' }],
+  }
+  mocks.abilityReminders.mockImplementation(async (userId: string) => (userId === 'actor' ? [alert] : []))
+  const data = input()
+  data.catalogueRevision = catalogue.index.revision
+  data.command.roster.built!.revision = catalogue.index.revision
+  const capturedRoster = {
+    ...saveRosterSchema.parse({
+      id: 'roster',
+      name: 'Army',
+      catalogueId: 'cat',
+      detachmentIds: [],
+      disposition: null,
+      limit: 1_000,
+      picks: [{ entryId: 'unit' }],
+      prep: null,
+    }),
+    id: 'roster',
+  }
+  await invoke({ data: { ...data, capturedRoster } })
+  expect(mocks.submitWithWorkspace.mock.lastCall?.[3].roster.reminders.map((reminder: { unit?: object }) => reminder.unit)).toEqual([
+    { index: 0, name: 'Unit' },
+  ])
 })

@@ -172,6 +172,20 @@ export async function waitForRosterSave(page: Page, action: () => Promise<unknow
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
 }
 
+/** Saves an ability alert and waits for the account to accept it, so a battle fielded next carries it. */
+export async function saveAlert(editor: Locator, ability: string) {
+  const saved = editor
+    .page()
+    .context()
+    .waitForEvent('response', (response) => {
+      const postData = response.request().postData()
+      return response.ok() && Boolean(postData?.includes('"timings"') && postData.includes(ability))
+    })
+  await editor.getByRole('button', { name: 'Save alert' }).click()
+  await saved
+  await expect(editor.page().locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
+}
+
 /** Adds a unit by name from the roster's search and waits for the save to leave the device. */
 export async function addUnit(page: Page, name: string) {
   await page.getByLabel('Add a unit').fill(name)

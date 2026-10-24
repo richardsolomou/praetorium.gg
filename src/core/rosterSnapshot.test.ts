@@ -125,38 +125,6 @@ it('freezes enabled reminders into a roster snapshot', () => {
   expect(roster).toMatchObject({ reminders: [reminder], remindersEnabled: true })
 })
 
-it('freezes detachment rule alerts only for the detachments the roster fields', () => {
-  const timing = { moment: 'phase-start' as const, phase: 'command' as const, turn: 'your-turn' as const }
-  const alert = (key: string) => ({ key, ability: 'Rule', description: '', timings: [timing] })
-  const roster = rosterSnapshot(
-    {
-      id: 'roster',
-      name: 'Army',
-      catalogueId: 'catalogue',
-      detachmentIds: ['fielded'],
-      disposition: null,
-      limit: 2_000,
-      waivedRules: [],
-      picks: [],
-      reminders: [alert('detachment:fielded/kept:army'), alert('detachment:removed/dropped:army')],
-    },
-    {
-      points: 0,
-      revision: 'revision',
-      label: 'GTF 2K',
-      detachment: null,
-      detachments: [],
-      detachmentPointBudget: null,
-      disposition: null,
-      dispositions: [],
-      units: [],
-    },
-    [],
-  )
-
-  expect(roster.reminders?.map((reminder) => reminder.key)).toEqual(['detachment:fielded/kept:army'])
-})
-
 it('maps unit alerts from roster picks to the battle units they produced', () => {
   const timing = { moment: 'phase-start' as const, phase: 'command' as const, turn: 'your-turn' as const }
   const roster = rosterSnapshot(

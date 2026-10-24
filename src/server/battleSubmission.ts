@@ -3,6 +3,7 @@ import type { z } from 'zod'
 import type { submitSchema } from '../contracts/schemas'
 import { randomUUID } from 'node:crypto'
 import { isGuestSeat } from '../core/newBattle'
+import { abilityRemindersFromRosters } from '../core/reminders'
 import { app } from './app'
 import type { PraetoriumService } from './service'
 import { captureBattleCommand } from './battleTelemetry'
@@ -43,13 +44,11 @@ export async function submittedBattleCommand(userId: string, submitted: z.infer<
     // An account fields what it saved, so the list it played stays in its library.
     if (!isGuestSeat(userId)) throw new Response('save the roster before fielding it', { status: 400 })
     const { draft } = submitted
-    const roster = await frozenRoster({
-      ...draft,
-      id: draft.id ?? randomUUID(),
-      waivedRules: draft.waivedRules ?? [],
-      reminders: draft.prep?.reminders,
-      remindersEnabled: draft.prep?.remindersEnabled,
-    })
+    const roster = await frozenRoster(
+      { ...draft, id: draft.id ?? randomUUID(), waivedRules: draft.waivedRules ?? [], remindersEnabled: draft.prep?.remindersEnabled },
+      // A device on an older build still sends the per-unit alerts it kept in the draft.
+      submitted.reminders ?? abilityRemindersFromRosters([{ updatedAt: 0, reminders: draft.prep?.reminders ?? [] }]),
+    )
     return { kind: 'attach-roster', roster, prep: null, painted: true }
   }
   if (submitted.kind === 'attach-roster' && submitted.roster.built) {

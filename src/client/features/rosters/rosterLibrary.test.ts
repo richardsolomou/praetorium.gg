@@ -93,7 +93,7 @@ it('removes units when library setup chooses another faction', async () => {
 })
 
 it('converts the existing roster ID with its preparation and source intact', async () => {
-  const prep = { stratagems: [], secondaries: [], reminders: [], remindersEnabled: true }
+  const prep = { stratagems: [], secondaries: [], remindersEnabled: true }
   reads.sharedRoster.mockResolvedValue({ ...source, picks: [{ entryId: 'guard' }], prep })
   const review = await reviewRosterSetup('saved', { ...setup, catalogueId: 'preview~custodes' })
   await action().mutationFn(review)

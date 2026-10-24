@@ -12,6 +12,7 @@ it.each(['preview', 'released', 'retired'] as const)('submits a queued %s league
   vi.mocked(app).mockReturnValue({
     telemetry: { capture: vi.fn() },
     service: {
+      abilityReminders: async () => [],
       rosterService: { usableRoster: async () => ({ roster: saved, lentBy: null }) },
       leagueService: { submitLeagueRoster: submit },
     },
@@ -31,4 +32,34 @@ it.each(['preview', 'released', 'retired'] as const)('submits a queued %s league
     expect.objectContaining({ built: expect.objectContaining({ edition }) }),
     undefined,
   )
+})
+
+it('seals a roster a device captured before its alerts moved to the account', async () => {
+  const { saved, catalogue, rules } = leagueRosterFixture('released')
+  const submit = vi.fn().mockResolvedValue({ format: '1v1', requiredLimit: 1000 })
+  const prep = { stratagems: [], secondaries: [], remindersEnabled: true }
+  vi.mocked(app).mockReturnValue({
+    telemetry: { capture: vi.fn() },
+    service: {
+      abilityReminders: async () => [],
+      rosterService: { usableRoster: async () => ({ roster: { ...saved, prep }, lentBy: null }) },
+      leagueService: { submitLeagueRoster: submit },
+    },
+    catalogueFor: async () => catalogue,
+    rulesFor: async () => rules,
+  } as never)
+  const reminder = {
+    key: 'datasheet:charge:0',
+    ability: 'Charge',
+    description: '',
+    unit: { index: 0, name: 'Squad' },
+    timings: [{ moment: 'turn-start', phase: null, turn: 'your-turn' }],
+  }
+  await offlineActions.submitLeagueRoster('player', {
+    token: 'league',
+    rosterId: saved.id,
+    capturedRoster: saveRosterSchema.parse({ ...saved, prep: { ...prep, reminders: [reminder] } }),
+    catalogueRevision: catalogue.index.revision,
+  })
+  expect(submit).toHaveBeenCalled()
 })

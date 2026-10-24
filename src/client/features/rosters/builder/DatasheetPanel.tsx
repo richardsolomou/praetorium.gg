@@ -103,7 +103,6 @@ export function DatasheetPanel({
       <AbilitySummary
         abilities={referenceAbilities(sheet.abilities, sheet.attachments)}
         rules={sheet.keywordRules}
-        unitName={sheet.name}
         reminders={abilityReminders}
         detachmentRules={detachmentRules}
       />
@@ -200,13 +199,11 @@ function DatasheetLoading() {
 function AbilitySummary({
   abilities,
   rules,
-  unitName,
   reminders,
   detachmentRules,
 }: {
   abilities: Datasheet['abilities']
   rules: Datasheet['keywordRules']
-  unitName: string
   reminders?: ReminderControls
   detachmentRules?: readonly ReminderSubject[]
 }) {
@@ -237,7 +234,7 @@ function AbilitySummary({
                   note={ability.source ? `Added by ${ability.source}` : undefined}
                   highlightNote={false}
                 />
-                {reminders ? <ReminderButton subject={ability} unitName={unitName} controls={reminders} /> : null}
+                {reminders ? <ReminderButton subject={ability} controls={reminders} /> : null}
               </span>
             ))}
           </div>
@@ -254,7 +251,7 @@ function AbilitySummary({
             <article key={ability.id} className="relative border border-edge bg-card px-2 py-1.5">
               <div className="flex items-start justify-between gap-2">
                 <h3 className="text-xs">{ability.source ?? ability.name}</h3>
-                {reminders ? <ReminderButton subject={ability} unitName={unitName} controls={reminders} /> : null}
+                {reminders ? <ReminderButton subject={ability} controls={reminders} /> : null}
               </div>
               {ability.source ? <p className="eyebrow mt-1">{ability.name}</p> : null}
               {ability.description ? <RuleText text={ability.description} rules={rules} /> : null}
@@ -277,7 +274,7 @@ function AbilitySummary({
         {detachmentRules.map((rule) => (
           <span key={rule.id} className="inline-flex items-center gap-0.5">
             <Keyword name={rule.name} rules={described} className={KEYWORD_TAG_CLASS} />
-            {reminders ? <ReminderButton subject={rule} unitName={unitName} controls={reminders} /> : null}
+            {reminders ? <ReminderButton subject={rule} controls={reminders} /> : null}
           </span>
         ))}
       </div>

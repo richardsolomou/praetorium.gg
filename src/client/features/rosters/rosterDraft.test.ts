@@ -102,7 +102,7 @@ it('prices the same picks whatever their nicknames and notes say', () => {
 })
 
 it('sees a list with no prep stored as the empty prep the builder sends', () => {
-  const sent = { ...untouched(picks), prep: { stratagems: [], secondaries: [], reminders: [], remindersEnabled: true } }
+  const sent = { ...untouched(picks), prep: { stratagems: [], secondaries: [], remindersEnabled: true } }
 
   expect(draftKey(sent)).toBe(draftKey(savedDraft(roster(picks), prep)))
 })

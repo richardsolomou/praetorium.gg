@@ -4,7 +4,6 @@ import { attachedUnitCount } from './attachedUnits'
 import type { TableShape } from './tableShape'
 import type { FormatRuleId, Roster } from './battle'
 import type { RosterPick } from './roster'
-import type { RosterReminder } from './reminders'
 import { teamDisposition, teamDispositionChoices } from './teamDisposition'
 import { formatList } from './text'
 
@@ -231,7 +230,6 @@ export function matchesSealedLeagueRoster(
     limit: number
     picks: readonly RosterPick[]
     waivedRules: readonly FormatRuleId[]
-    reminders?: readonly RosterReminder[]
     remindersEnabled?: boolean
   },
   sealed: Roster,
@@ -247,7 +245,6 @@ export function matchesSealedLeagueRoster(
     JSON.stringify(saved.detachmentIds) === JSON.stringify(built.detachmentIds ?? []) &&
     JSON.stringify(saved.picks) === JSON.stringify(built.picks.map((pick) => migratedEditionPick(pick, built.catalogueId))) &&
     JSON.stringify(saved.waivedRules) === JSON.stringify(built.waivedRules ?? []) &&
-    JSON.stringify(saved.reminders ?? []) === JSON.stringify(sealed.reminders ?? []) &&
     (saved.remindersEnabled ?? true) === (sealed.remindersEnabled ?? true)
   )
 }

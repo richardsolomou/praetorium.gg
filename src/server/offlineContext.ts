@@ -43,6 +43,8 @@ export const SYNC_PRODUCT_ACTIONS = new Set([
   'remove_favourite_datasheet',
   'remember_matchup',
   'forget_matchup',
+  'save_ability_reminder',
+  'delete_ability_reminder',
   'set_push_enabled',
   'set_player_defaults',
   'league_command',

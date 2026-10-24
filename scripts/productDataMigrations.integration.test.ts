@@ -25,8 +25,9 @@ export const seedMigrationFixture = spacetime.reducer({ broken: t.bool() }, (ctx
     picks: '[{"entryId":"unit","nickname":"Leader","note":"Hold home"}]',
     prep: '{"stratagems":[],"secondaries":[],"shareNotes":true,"remindersEnabled":false}',
   }
-  for (const id of ['old', 'locked', 'current', 'bad']) ctx.db.rosters.id.delete(id)
+  for (const id of ['old', 'locked', 'current', 'bad', 'reminded']) ctx.db.rosters.id.delete(id)
   ctx.db.rosters.insert({ ...base, id: 'old' })
+  ctx.db.rosters.insert({ ...base, id: 'reminded', automaticName: false, locked: false, detachmentId: '[]', prep: '{"stratagems":[],"secondaries":[],"reminders":[{"key":"datasheet:lightning:0","ability":"Living Lightning","description":"","unit":{"index":0,"name":"Plasmancer"},"timings":[{"moment":"turn-start","phase":null,"turn":"your-turn"}]}],"remindersEnabled":true}' })
   ctx.db.rosters.insert({ ...base, id: 'locked', name: 'Locked', automaticName: false, locked: true })
   ctx.db.rosters.insert({ ...base, id: 'current', automaticName: false, locked: false, detachmentId: '["second","first"]', picks: '[{"entryId":"unit","note":"Hold home"}]', prep: undefined })
   if (broken) ctx.db.rosters.insert({ ...base, id: 'bad', picks: '{' })
@@ -102,7 +103,7 @@ it.skipIf(!existsSync(cli))(
       const stranger = (await (await fetch(`${url}/v1/identity`, { method: 'POST' })).json()) as { token: string }
       await expect(send('/call/migrate_product_data', '["rosters",["old"]]', stranger.token)).rejects.toThrow('Operator required')
       await send('/call/seed_migration_fixture', '[false]')
-      expect(await migrateProductData(source)).toEqual({ rosters: 2, collection: 2 })
+      expect(await migrateProductData(source)).toEqual({ rosters: 3, collection: 2 })
       expect(await rawRoster('old')).toEqual({
         ...before,
         automaticName: true,
@@ -112,6 +113,17 @@ it.skipIf(!existsSync(cli))(
       })
       expect(await migrateProductData(source)).toEqual({ rosters: 0, collection: 0 })
       const store = new SpacetimeOperator(url, database, identity.token)
+      expect({ prep: (await rawRoster('reminded')).prep, alerts: await store.abilityRemindersByUser('migration-owner') }).toEqual({
+        prep: '{"stratagems":[],"secondaries":[],"remindersEnabled":true}',
+        alerts: [
+          {
+            key: 'datasheet:lightning',
+            ability: 'Living Lightning',
+            description: '',
+            timings: [{ moment: 'turn-start', phase: null, turn: 'your-turn' }],
+          },
+        ],
+      })
       expect(await store.collectionProfile('migration-owner', null)).toEqual({
         entries: [{ entryId: 'models', models: 12, built: 0, painted: 0 }],
         wishes: [],

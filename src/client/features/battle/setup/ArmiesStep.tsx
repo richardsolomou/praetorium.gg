@@ -32,6 +32,7 @@ import { isGuestSeat } from '../../../../core/newBattle'
 import type { RosterAttachment } from '../useCommand'
 import { GuestInvite } from '../GuestInvite'
 import { GuestRosterChooser } from './GuestRosterChooser'
+import { visitorFieldingReminders } from '../../rosters/visitorReminders'
 import { useHistoryDialog } from '../../../useHistoryDialog'
 
 type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRosterSummariesQuery>['queryFn']>>>[number]
@@ -233,7 +234,8 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
         pending={pending}
         problem={problem}
         onChoose={(draft) => {
-          void attachRoster({ kind: 'attach-draft-roster', draft }).then((attached) => attached && closeChooser())
+          const reminders = visitorFieldingReminders(draft.prep?.reminders)
+          void attachRoster({ kind: 'attach-draft-roster', draft, reminders }).then((attached) => attached && closeChooser())
         }}
       />
       <RosterChooser

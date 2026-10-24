@@ -8,6 +8,7 @@ vi.mock('spacetime:sys@2.2', async (original) => ({ ...(await original<object>()
 
 import spacetime, * as module from './index'
 import { UNIT_LOADOUT_NAME_MAX_LENGTH, UNIT_LOADOUTS_MAX } from '../../src/core/unitLoadouts'
+import { ABILITY_REMINDERS_MAX } from '../../src/core/reminders'
 
 const ISSUER = 'https://praetorium.gg/api/auth'
 const AUDIENCE = 'praetorium'
@@ -1022,6 +1023,176 @@ describe('saved unit loadouts', () => {
     module.saveUnitLoadout(setup.procedure(setup.operator), loadout('one'))
     setup.call(setup.operator, (ctx) => module.deleteUserData(ctx, { userId: 'owner' }))
     expect(setup.test.db.unitLoadouts.id.find('one')).toBeNull()
+  })
+})
+
+describe('ability reminders', () => {
+  const timings = (turn: string) => [{ moment: 'turn-start', phase: null, turn }]
+  const reminder = (key = 'datasheet:lightning', turn = 'your-turn') => ({
+    key,
+    ability: 'Living Lightning',
+    description: '',
+    timings: timings(turn),
+  })
+  const save = (setup: ReturnType<typeof harness>, value: object = reminder(), userId = 'owner', at = NOW) =>
+    JSON.parse(
+      module.saveAbilityReminder(setup.procedure(setup.operator), { userId, payload: JSON.stringify(value), at: BigInt(at) }),
+    ) as string
+  const listed = (setup: ReturnType<typeof harness>, userId = 'owner') =>
+    JSON.parse(module.abilityRemindersByUser(setup.procedure(setup.operator), { userId })) as ReturnType<typeof reminder>[]
+  const rosterRow = (id: string, updatedAt: number, reminders: object[]) =>
+    JSON.stringify({
+      id,
+      userId: 'owner',
+      name: id,
+      automaticName: false,
+      catalogueId: 'catalogue-proof',
+      detachmentId: '[]',
+      disposition: null,
+      limit: 1_000,
+      picks: '[]',
+      prep: JSON.stringify({ stratagems: [], secondaries: [], reminders, remindersEnabled: true }),
+      tags: '[]',
+      waivedRules: '[]',
+      optionalRules: '[]',
+      borrowedDetachmentId: null,
+      baseRosterId: null,
+      visibility: 'private',
+      source: 'editable',
+      now: updatedAt,
+    })
+  const unitAlert = (index: number, turn = 'your-turn') => ({
+    ...reminder(`datasheet:lightning:${index}`, turn),
+    unit: { index, name: 'Plasmancer' },
+  })
+
+  it('lists a saved alert to its owner', () => {
+    const setup = harness()
+    save(setup)
+    expect(listed(setup)).toEqual([reminder()])
+  })
+
+  it('lists nothing of another player’s alerts', () => {
+    const setup = harness()
+    save(setup)
+    expect(listed(setup, 'other')).toEqual([])
+  })
+
+  it('refuses a caller other than the operator', () => {
+    const setup = harness()
+    expect(() =>
+      module.saveAbilityReminder(setup.procedure(stranger()), { userId: 'owner', payload: JSON.stringify(reminder()), at: 1n }),
+    ).toThrow('Operator required')
+  })
+
+  it('refuses an alert tied to one unit', () => {
+    const setup = harness()
+    expect(() => save(setup, unitAlert(0))).toThrow('Invalid reminder')
+  })
+
+  it('replaces the timings of an ability already set', () => {
+    const setup = harness()
+    save(setup)
+    save(setup, reminder('datasheet:lightning', 'opponent-turn'))
+    expect(listed(setup)).toEqual([reminder('datasheet:lightning', 'opponent-turn')])
+  })
+
+  it('refuses another ability once the limit is reached', () => {
+    const setup = harness()
+    for (let index = 0; index < ABILITY_REMINDERS_MAX; index++) save(setup, reminder(`datasheet:${index}`))
+    expect(save(setup, reminder('datasheet:extra'))).toBe('full')
+  })
+
+  it('deletes an alert for its owner', () => {
+    const setup = harness()
+    save(setup)
+    setup.call(setup.operator, (ctx) => module.deleteAbilityReminder(ctx, { userId: 'owner', key: 'datasheet:lightning' }))
+    expect(listed(setup)).toEqual([])
+  })
+
+  it('deletes alerts with the account', () => {
+    const setup = harness()
+    save(setup)
+    setup.call(setup.operator, (ctx) => module.deleteUserData(ctx, { userId: 'owner' }))
+    expect(setup.test.db.abilityReminders.count()).toBe(0n)
+  })
+
+  it('moves an older build’s roster alerts to the account', () => {
+    const setup = harness()
+    module.saveRoster(setup.procedure(setup.operator), { payload: rosterRow('roster', NOW, [unitAlert(2)]) })
+    expect(listed(setup)).toEqual([reminder()])
+  })
+
+  it('keeps no alerts in a saved roster', () => {
+    const setup = harness()
+    module.saveRoster(setup.procedure(setup.operator), { payload: rosterRow('roster', NOW, [unitAlert(2)]) })
+    expect(JSON.parse(setup.test.db.rosters.id.find('roster')!.prep!)).not.toHaveProperty('reminders')
+  })
+
+  it('keeps an account alert set after the roster was saved', () => {
+    const setup = harness()
+    save(setup, reminder('datasheet:lightning', 'opponent-turn'), 'owner', NOW + 10)
+    module.saveRoster(setup.procedure(setup.operator), { payload: rosterRow('roster', NOW, [unitAlert(2)]) })
+    expect(listed(setup)).toEqual([reminder('datasheet:lightning', 'opponent-turn')])
+  })
+
+  it('lets a player at the limit change an alert they hold', () => {
+    const setup = harness()
+    for (let index = 0; index < ABILITY_REMINDERS_MAX; index++) save(setup, reminder(`datasheet:${index}`))
+    expect(save(setup, reminder('datasheet:0', 'opponent-turn'))).toBe('saved')
+  })
+
+  it('never lets a saved roster replace an alert the account holds', () => {
+    const setup = harness()
+    save(setup, reminder('datasheet:lightning', 'opponent-turn'), 'owner', NOW - 10)
+    module.saveRoster(setup.procedure(setup.operator), { payload: rosterRow('roster', NOW, [unitAlert(2)]) })
+    expect(listed(setup)).toEqual([reminder('datasheet:lightning', 'opponent-turn')])
+  })
+
+  it('keeps a roster’s alerts the full account could not take', () => {
+    const setup = harness()
+    for (let index = 0; index < ABILITY_REMINDERS_MAX; index++) save(setup, reminder(`datasheet:${index}`))
+    module.saveRoster(setup.procedure(setup.operator), { payload: rosterRow('roster', NOW, [unitAlert(2)]) })
+    expect(JSON.parse(setup.test.db.rosters.id.find('roster')!.prep!).reminders).toEqual([unitAlert(2)])
+  })
+
+  const stored = (setup: ReturnType<typeof harness>, rosters: readonly (readonly [string, bigint, string])[]) =>
+    setup.call(setup.operator, (ctx) => {
+      for (const [id, updatedAt, turn] of rosters)
+        ctx.db.rosters.insert({
+          ...JSON.parse(rosterRow(id, 0, [unitAlert(0, turn)])),
+          createdAt: 1n,
+          updatedAt,
+          detachmentId: '[]',
+          disposition: undefined,
+          borrowedDetachmentId: undefined,
+          automaticName: false,
+          locked: false,
+          archived: false,
+          baseRosterId: undefined,
+          copiedFromRosterId: undefined,
+          pointsBudget: undefined,
+        })
+    })
+
+  it('migrates stored rosters, keeping the most recently saved timings', () => {
+    const setup = harness()
+    stored(setup, [
+      ['newer', 9n, 'opponent-turn'],
+      ['older', 3n, 'your-turn'],
+    ])
+    module.migrateProductData(setup.procedure(setup.operator), { table: 'rosters', keys: ['newer', 'older'] })
+    expect(listed(setup).map((row) => row.timings)).toEqual([timings('opponent-turn')])
+  })
+
+  it('migrates a roster saved at the same time without replacing the alert it found', () => {
+    const setup = harness()
+    stored(setup, [
+      ['first', 5n, 'opponent-turn'],
+      ['second', 5n, 'your-turn'],
+    ])
+    module.migrateProductData(setup.procedure(setup.operator), { table: 'rosters', keys: ['first', 'second'] })
+    expect(listed(setup).map((row) => row.timings)).toEqual([timings('opponent-turn')])
   })
 })
 

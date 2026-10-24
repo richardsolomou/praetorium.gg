@@ -1,4 +1,5 @@
-import { leagueBattleOptions } from './actionFunctions'
+import { leagueBattleOptions, savedAbilityReminders } from './actionFunctions'
+import { fieldingReminders } from '../../shared/reminderAbilities'
 import { compactReplayFrames } from '../../core/replayFrames'
 import { REPLAY_BATCH_SIZE } from '../../contracts/battles'
 import { buildLeagueBattle } from '../../shared/leagueBattle'
@@ -187,7 +188,10 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
     const problem = priced && rosterUseError(priced, capturedRoster)
     if (!priced || problem) throw new Error(problem || 'Army data is unavailable.')
     const roster = rosterSnapshot(
-      capturedRoster,
+      {
+        ...capturedRoster,
+        reminders: fieldingReminders(catalogue, selected.rules, capturedRoster, priced.units, await savedAbilityReminders()),
+      },
       priced,
       unitBattleDetailsIn(
         catalogue,
