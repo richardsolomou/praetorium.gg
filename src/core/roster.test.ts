@@ -2001,6 +2001,57 @@ describe('who the data lets a list nominate as its Warlord', () => {
     expect(crowned.toggles.map((toggle) => toggle.name)).toEqual(['Warlord'])
   })
 
+  it('marks the crown required on a unit that must be the Warlord', () => {
+    const forced = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'primarch',
+          name: 'Primarch',
+          type: 'model',
+          entryLinks: [{ id: 'primarch-warlord', targetId: 'warlord', type: 'selectionEntry', constraints: mandatory('primarch-min') }],
+        },
+        { id: 'warlord', name: 'Warlord', type: 'upgrade' },
+      ],
+    })
+
+    expect(buildUnit('primarch', forced)!.toggles).toEqual([{ key: 'primarch-warlord', name: 'Warlord', selected: true, required: true }])
+  })
+
+  it('marks the crown required when a modifier raises its minimum', () => {
+    const raised = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'commander',
+          name: 'Commander',
+          type: 'model',
+          entryLinks: [
+            {
+              id: 'commander-warlord',
+              targetId: 'warlord',
+              type: 'selectionEntry',
+              constraints: [{ id: 'commander-min', type: 'min', value: 0, field: 'selections', scope: 'parent' }],
+              modifiers: [
+                {
+                  type: 'increment',
+                  value: 1,
+                  field: 'commander-min',
+                  conditions: [{ type: 'atLeast', value: 0, field: 'selections', scope: 'roster', childId: 'warlord' }],
+                },
+              ],
+            },
+          ],
+        },
+        { id: 'warlord', name: 'Warlord', type: 'upgrade' },
+      ],
+    })
+
+    expect(buildUnit('commander', raised)!.toggles[0]?.required).toBe(true)
+  })
+
+  it('leaves the crown optional on an ordinary character', () => {
+    expect(buildUnit('captain', index)!.toggles[0]?.required).toBeUndefined()
+  })
+
   it('leaves the crown out of the wargear, since it is not a thing the unit carries', () => {
     expect(buildUnit('captain', index)!.choices).toEqual([])
   })

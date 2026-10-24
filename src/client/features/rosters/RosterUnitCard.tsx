@@ -11,6 +11,7 @@ export type AttachDirection = 'join' | 'host'
 
 type BuilderUnitCardProps = {
   unit: ComponentProps<typeof UnitCard>['unit']
+  warlord?: boolean
   nickname?: string
   note?: string
   index: number
@@ -38,6 +39,7 @@ type BuilderUnitCardProps = {
 
 export const BuilderUnitCard = memo(function BuilderUnitCard({
   unit,
+  warlord,
   nickname,
   note,
   index,
@@ -64,6 +66,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
   return (
     <UnitCard
       unit={unit}
+      warlord={warlord}
       nickname={nickname}
       note={note}
       alliedFaction={alliedFaction}

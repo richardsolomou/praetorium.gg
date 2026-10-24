@@ -146,24 +146,32 @@ export function usePicks(initial: readonly RosterPick[]) {
 }
 
 /**
- * The pick to make Warlord when the list holds none: the eligible unit added first, which
- * the ever-increasing keys record. Only asked when units arrive or leave, so a Warlord the
- * player takes away deliberately stays away.
+ * The pick that should be the army's one Warlord, when the list says otherwise.
+ *
+ * A unit the data requires as Warlord takes it from everyone else. Otherwise two crowns
+ * keep the one added first, and with `fill` an empty list crowns the eligible unit added
+ * first, which the ever-increasing keys record. `fill` is only set when units arrive or
+ * leave, so a Warlord the player takes away deliberately stays away.
  */
-export function defaultWarlord(
+export function settledWarlord(
   picks: readonly KeyedPick[],
-  units: readonly ({ toggles: readonly { key: string; name: string; selected?: boolean }[] } | undefined)[],
+  units: readonly ({ toggles: readonly { key: string; name: string; selected?: boolean; required?: boolean }[] } | undefined)[],
+  fill: boolean,
 ) {
-  const warlords = units.map((unit) => unit?.toggles.find((toggle) => toggle.name === 'Warlord'))
-  if (warlords.some((toggle) => toggle?.selected)) return null
-  const eligible = warlords.flatMap((toggle, index) =>
-    toggle && picks[index] ? [{ index, toggle: toggle.key, key: picks[index].key }] : [],
-  )
-  const first = eligible.reduce<(typeof eligible)[number] | undefined>(
-    (earliest, entry) => (earliest && earliest.key < entry.key ? earliest : entry),
-    undefined,
-  )
-  return first ? { index: first.index, toggle: first.toggle } : null
+  const warlords = units.flatMap((unit, index) => {
+    const toggle = unit?.toggles.find((candidate) => candidate.name === 'Warlord')
+    const key = picks[index]?.key
+    return toggle && key !== undefined ? [{ index, key, toggle }] : []
+  })
+  const first = (eligible: typeof warlords) =>
+    eligible.reduce<(typeof warlords)[number] | undefined>(
+      (earliest, entry) => (earliest && earliest.key < entry.key ? earliest : entry),
+      undefined,
+    )
+  const selected = warlords.filter((entry) => entry.toggle.selected)
+  const chosen = first(warlords.filter((entry) => entry.toggle.required)) ?? first(selected) ?? (fill ? first(warlords) : undefined)
+  if (!chosen || (selected.length === 1 && selected[0]!.index === chosen.index)) return null
+  return { index: chosen.index, toggle: chosen.toggle.key }
 }
 
 /**
