@@ -286,18 +286,33 @@ function spreadRepeatedGroup(
   if (!modelId) return selection
   const withinModel = path.slice(repeating.path.length)
   const models = allAt(selection, repeating.path)
-  const requested = Object.entries(counts)
-    .filter(([, count]) => count > 0)
-    .map(([optionId, count]) => ({ optionId, remaining: count }))
-  const variants: Selection[] = []
-  let requestAt = 0
   // A model the squad took on only to carry this weapon — one the data does not
   // insist on, holding a group it does insist on — has no reason to stay once the
   // weapon is put down. Shieldvanes are the other case: the models were always
   // there and the upgrade is what is optional, so an unequipped one has to remain.
   const group = index.definitions.get(path.at(-1) ?? '')
-  const optionalCarrier = requiredCount(repeating.definition, index, { ...options, roster: [...(options.roster ?? []), selection] }) === 0
-  const disposable = optionalCarrier && Boolean(group) && requiredCount(group!, index) > 0
+  // The model the unit's size counts is never optional, even when its group, not the
+  // model, states how many there are: "2-5 Bullgryns" holds the Bullgryn's count.
+  const sizing = sizeOf(selection, index).path.join('/') === repeating.path.join('/')
+  const optionalCarrier =
+    !sizing && requiredCount(repeating.definition, index, { ...options, roster: [...(options.roster ?? []), selection] }) === 0
+  const mandatory = Boolean(group) && requiredCount(group!, index) > 0
+  const disposable = optionalCarrier && mandatory
+  const inner = group ? resolve(group, index) : undefined
+  const defaultId = mandatory && inner && 'defaultSelectionEntryId' in inner ? inner.defaultSelectionEntryId : undefined
+  // A squad that cannot grow to fit the request, such as one just made smaller, gives
+  // up the default before any option the player chose.
+  const bodies = models.reduce((total, model) => total + (model.count ?? 1), 0)
+  const excess = optionalCarrier ? 0 : Object.values(counts).reduce((total, count) => total + Math.max(0, count), 0) - bodies
+  const requested = Object.entries(counts)
+    .map(([optionId, count]) => ({ optionId, remaining: optionId === defaultId && excess > 0 ? count - excess : count }))
+    .filter((request) => request.remaining > 0)
+  // A body a request leaves over, as one the squad has just grown by, keeps what the
+  // data gives every model; a request for none of the options puts them all down.
+  const unassigned = (base: Selection, count: number) =>
+    defaultId && requested.length ? withChoice({ ...base, count }, withinModel.join('/'), defaultId, index) : { ...base, count }
+  const variants: Selection[] = []
+  let requestAt = 0
 
   for (const model of models) {
     const base = withoutSelectionAt(model, withinModel)
@@ -311,7 +326,7 @@ function spreadRepeatedGroup(
       request.remaining -= count
       if (request.remaining === 0) requestAt += 1
     }
-    if (remaining > 0 && !disposable) variants.push({ ...base, count: remaining })
+    if (remaining > 0 && !disposable) variants.push(unassigned(base, remaining))
   }
   for (; requestAt < requested.length; requestAt += 1) {
     if (!optionalCarrier) break

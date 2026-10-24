@@ -1312,4 +1312,23 @@ describe('per-model wargear on a model its group counts', () => {
       ['Brute shield', 2],
     ])
   })
+
+  const shields = (models: number, spread: Record<string, number>) =>
+    wargearOf(buildUnit('squad', index, models, undefined, { spreads: { 'bodies/body/shield': spread } })!.selection, index).toSorted(
+      (left, right) => left.name.localeCompare(right.name),
+    )
+
+  it('keeps a split and tops it up when the squad grows', () => {
+    expect(shields(6, { brute: 1, slab: 1 })).toEqual([
+      { name: 'Brute shield', count: 1 },
+      { name: 'Slabshield', count: 4 },
+    ])
+  })
+
+  it('gives up the default option first when the squad shrinks', () => {
+    expect(shields(3, { slab: 4, brute: 1 })).toEqual([
+      { name: 'Brute shield', count: 1 },
+      { name: 'Slabshield', count: 1 },
+    ])
+  })
 })
