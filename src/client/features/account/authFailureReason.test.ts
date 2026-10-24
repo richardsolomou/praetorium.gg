@@ -36,6 +36,10 @@ describe('authentication failure reason', () => {
     expect(authFailureReason('access_denied')).toBe('cancelled')
   })
 
+  it('reads a cancelled Sign in with Apple as cancelled', () => {
+    expect(authFailureReason('user_cancelled_authorize')).toBe('cancelled')
+  })
+
   it('reads an unlinked provider account from its callback code', () => {
     expect(authFailureReason('account_not_linked')).toBe('account_not_linked')
   })

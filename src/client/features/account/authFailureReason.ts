@@ -18,6 +18,8 @@ export type AuthFailureReason =
 function callbackFailureReason(error: string): AuthFailureReason {
   switch (error.trim().toLowerCase()) {
     case 'access_denied':
+    // Apple's own code for a cancelled sign-in, forwarded unchanged by the callback.
+    case 'user_cancelled_authorize':
       return 'cancelled'
     case 'internal_server_error':
       return 'server_error'
