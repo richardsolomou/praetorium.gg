@@ -40,8 +40,9 @@ import {
 import { attachmentHost } from '../../../core/attach'
 import { attachedUnitCount } from '../../../core/attachedUnits'
 import type { FormatRuleId, Roster, Secondary, Stratagem } from '../../../core/battle'
-import { enforces, type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../../core/battle'
+import { canTransport, enforces, type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
+import { frozenUnits } from '../../../core/rosterSnapshot'
 import { withoutUnitNotes } from '../../../core/unitNotes'
 import {
   armyReminder,
@@ -68,6 +69,7 @@ import {
   playerDefaultsQuery,
   priceQuery,
   rostersLentToMeQuery,
+  unitBattleDetailsQuery,
   unitsQuery,
 } from '../../queries'
 import { errorMessage } from '../../queryClient'
@@ -91,6 +93,7 @@ import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
 import { UnitAnnotations } from './builder/UnitAnnotations'
+import { cardEmbark, editedPicks, embarkCards, embarkRows, NO_EMBARK } from './builder/embarkModel'
 import { UnitPhoto } from './builder/UnitPhoto'
 import { useDetachmentRules } from './builder/useDetachmentRules'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
@@ -104,8 +107,9 @@ import { RosterBody, RosterHeader, RosterOutline, RosterShell, RosterUnits } fro
 import { saveFailureReason } from './saveFailure'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink'
-import { type AttachDirection, BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
+import { type AttachDirection, AttachedUnitActions, BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
 import type { AttachChoice } from './builder/UnitCard'
+import type { KeyedPick } from './rosterPicks'
 import { RosterDataChanges } from './RosterDataChanges'
 import { RosterRulesNotice } from './RosterRulesNotice'
 import { RosterReadiness } from './RosterReadiness'
@@ -707,6 +711,75 @@ export function ListBuilder({
     () => pickEditor(setPicks, { catalogueId, units, limits: pricePending ? undefined : unitLimits }, allocateKey),
     [allocateKey, catalogueId, pricePending, setPicks, unitLimits, units],
   )
+  const carried = units.some(canTransport)
+  const { data: battleDetails, isPlaceholderData: battleDetailsPending } = useQuery({
+    ...unitBattleDetailsQuery(
+      catalogueId,
+      picks.map((pick) => pick.entryId),
+    ),
+    enabled: !frozen && carried,
+    placeholderData: keepPreviousData,
+  })
+  const embarksPending = pricePending || battleDetailsPending
+  // The picks the last judgement described, so the next one knows which units the player has since changed.
+  const judgedPicks = useRef(picks)
+  // Judged only once the price and details describe these picks, so positions line up.
+  const currentEmbarks = useMemo(
+    () =>
+      !frozen && priced && battleDetails && !embarksPending
+        ? embarkCards(
+            frozenUnits(annotated, priced.units, battleDetails),
+            (at) => picks[priced.units[at]!.key]!.key,
+            editedPicks(judgedPicks.current, picks),
+          )
+        : null,
+    [annotated, battleDetails, embarksPending, frozen, picks, priced],
+  )
+  if (currentEmbarks) judgedPicks.current = picks
+  // The last judgement stays on screen while an edit is priced; it names units by key, so a press still means the same units.
+  const shownEmbarks = useRef(currentEmbarks)
+  if (currentEmbarks) shownEmbarks.current = currentEmbarks
+  const frozenEmbarks = useMemo(() => (frozen ? embarkCards(frozen.units).cards : null), [frozen])
+  // An edit that leaves a unit unable to start in its transport, such as a larger squad, puts it back on the battlefield.
+  // No details at all means the army data could not be read, which says nothing about what fits.
+  const droppedEmbarks = useMemo(
+    () => (currentEmbarks && battleDetails?.length ? currentEmbarks.dropped : []),
+    [battleDetails?.length, currentEmbarks],
+  )
+  // Each unit an edit put back, told on its card until the player embarks or changes it again.
+  const [putBack, setPutBack] = useState<ReadonlyMap<number, { transport: string; pick: KeyedPick }>>(new Map())
+  useEffect(() => {
+    const going = droppedEmbarks.flatMap(({ card, transport }) => {
+      const pick = picks.find((each) => each.key === card && each.embarkedIn !== undefined)
+      return pick ? [{ transport, pick }] : []
+    })
+    if (!building || !going.length) return
+    edit.disembark(going.map(({ pick }) => pick.key))
+    setPutBack((current) => new Map([...current, ...going.map((entry) => [entry.pick.key, entry] as const)]))
+  }, [building, droppedEmbarks, edit, picks])
+  const standing = useMemo(
+    () =>
+      [...putBack.values()].filter(({ pick }) => {
+        const now = picks.find((each) => each.key === pick.key)
+        return now?.embarkedIn === undefined && now && !editedPicks([pick], [now]).length
+      }),
+    [picks, putBack],
+  )
+  // Forgotten once cleared, so changing the unit back to how it was does not bring the notice back.
+  useEffect(() => {
+    if (standing.length !== putBack.size) setPutBack(new Map(standing.map((entry) => [entry.pick.key, entry])))
+  }, [putBack.size, standing])
+  const judged = shownEmbarks.current
+  const embarks = useMemo(() => {
+    if (!carried || !judged) return null
+    if (!standing.length) return judged.cards
+    const cards = new Map(judged.cards)
+    for (const { transport, pick } of standing) {
+      const card = cards.get(pick.key)
+      if (card) cards.set(pick.key, { ...card, notice: `No longer fits in ${transport}, so it starts on the battlefield` })
+    }
+    return cards
+  }, [carried, judged, standing])
   const editor = useRef(edit)
   /**
    * What an edit reports is the list it leaves behind, read once the edit has landed.
@@ -898,7 +971,7 @@ export function ListBuilder({
     () => (attachCandidates ? { candidates: attachCandidates, held, limits: unitLimits } : null),
     [attachCandidates, held, unitLimits],
   )
-  const cardRelationships = useCardRelationships(picks, units, attachDiscovery)
+  const cardRelationships = useCardRelationships(picks, units, attachDiscovery, embarks)
   const openSetup = () => {
     setSetupMode('edit')
     setSetupDraft({
@@ -1049,14 +1122,17 @@ export function ListBuilder({
         joined: NO_JOINED,
         unit,
       }))
-  const renderCard = ({ unit, index, joined }: (typeof cards)[number]) =>
+  const renderCard = ({ unit, index, joined }: (typeof cards)[number], inUnit = false) =>
     frozen ? (
       <UnitCard
         key={unit.entryId + index}
         unit={unit}
         nickname={frozen.units[index]?.nickname}
         note={frozen.units[index]?.note}
-        joined={arrangement === 'attached' ? unitRoleRows(joined) : joined}
+        joined={[
+          ...(arrangement === 'attached' ? unitRoleRows(joined) : joined),
+          ...embarkRows(cardEmbark(frozenEmbarks?.get(index) ?? NO_EMBARK, inUnit)),
+        ]}
         selected={selected === index}
         onSelect={loadoutAvailable ? () => selectUnit(index) : undefined}
         editable={false}
@@ -1075,6 +1151,8 @@ export function ListBuilder({
         }
         canJoin={cardRelationships.get(picks[index]?.key ?? -1)?.canJoin ?? []}
         canHost={cardRelationships.get(picks[index]?.key ?? -1)?.canHost ?? []}
+        embark={cardRelationships.get(picks[index]?.key ?? -1)?.embark ?? NO_EMBARK}
+        inAttachedUnit={inUnit}
         alliedFaction={
           picks[index]?.catalogueId === catalogueId
             ? undefined
@@ -1089,6 +1167,7 @@ export function ListBuilder({
         onSaveLoadout={pricePending ? undefined : guest ? askForLoadoutAccount : me ? openSaveLoadout : undefined}
         onDetach={detach}
         onAttach={attach}
+        onEmbark={edit.embark}
         editable={building}
       />
     )
@@ -1692,8 +1771,29 @@ export function ListBuilder({
                         nickname={(frozen ? frozen.units[host.index] : picks[host.index])?.nickname}
                         points={members.reduce((total, card) => total + card.unit.points, 0)}
                         editable={!frozen && building}
+                        actions={
+                          frozen ? (
+                            <AttachedUnitActions
+                              host={host.index}
+                              name={host.name}
+                              embark={frozenEmbarks?.get(host.index) ?? NO_EMBARK}
+                              canHost={[]}
+                              editable={false}
+                            />
+                          ) : (
+                            <AttachedUnitActions
+                              host={host.index}
+                              name={host.name}
+                              embark={cardRelationships.get(picks[host.index]?.key ?? -1)?.embark ?? NO_EMBARK}
+                              canHost={cardRelationships.get(picks[host.index]?.key ?? -1)?.canHost ?? []}
+                              editable={building}
+                              onAttach={attach}
+                              onEmbark={edit.embark}
+                            />
+                          )
+                        }
                       >
-                        {members.map(renderCard)}
+                        {members.map((member) => renderCard(member, true))}
                       </AttachedUnitBlock>
                     ) : (
                       renderCard(host)

@@ -23,6 +23,7 @@ import {
   homeRosters,
   loadoutDatasheets,
   priceRoster,
+  unitBattleDetails,
   rosterAccess,
   rosterBootstrap,
   rosterLoans,
@@ -235,6 +236,17 @@ export const priceQuery = (
     queryFn: ({ signal }) => priceRoster({ data, signal }),
     enabled: Boolean(catalogueId),
     staleTime: SSR_STALE_TIME,
+  })
+}
+
+/** What a battle freezes of each datasheet in a list, for judging embarks as setup will. */
+export const unitBattleDetailsQuery = (catalogueId: string, entryIds: readonly string[]) => {
+  const data = { catalogueId, entryIds: [...new Set(entryIds)].toSorted() }
+  return queryOptions({
+    queryKey: ['unit-battle-details', data.catalogueId, data.entryIds],
+    queryFn: ({ signal }) => unitBattleDetails({ data, signal }),
+    enabled: Boolean(catalogueId) && data.entryIds.length > 0,
+    staleTime: referenceStaleTime,
   })
 }
 
