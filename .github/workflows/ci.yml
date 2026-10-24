@@ -9,16 +9,11 @@ on:
     - cron: '17 13 * * *'
   workflow_dispatch:
     inputs:
-      e2e-shards:
-        description: Browser-test shards for a timing comparison
+      e2e-runners:
+        description: Browser runners for a timing comparison
         type: choice
         options: ['14', '16', '8']
         default: '14'
-      e2e-stacks:
-        description: Browser-test stacks each runner hosts, one shard per stack
-        type: choice
-        options: ['2', '1', '3']
-        default: '2'
       coverage:
         description: Record the coverage map that pull requests choose specs from
         type: boolean
@@ -148,8 +143,6 @@ jobs:
       node-version: ${{ steps.node.outputs.version }}
       runner-count: ${{ steps.runners.outputs.count }}
       runners: ${{ steps.runners.outputs.runners }}
-      shard-count: ${{ steps.runners.outputs.shards }}
-      stacks: ${{ steps.runners.outputs.stacks }}
       specs: ${{ steps.runners.outputs.specs }}
     steps:
       - uses: actions/checkout@v7
@@ -189,26 +182,22 @@ jobs:
           SELECTED: ${{ steps.select.outputs.specs }}
           REASON: ${{ steps.select.outputs.reason }}
           FULL: ${{ env.FULL_E2E }}
-          MAX: ${{ inputs.e2e-shards || '14' }}
-          # One stack sustains two Playwright workers, so a runner hosts several stacks instead.
-          # The account runs 20 jobs at once, and fewer runner jobs leave slots for other pull requests.
-          STACKS: ${{ inputs.e2e-stacks || '2' }}
+          # The account runs 20 jobs at once and the other lanes hold about six while the runners
+          # start, so a 16th runner waits for a slot instead of finishing sooner.
+          MAX: ${{ inputs.e2e-runners || '14' }}
         run: |
           set -euo pipefail
           specs="$SELECTED"
           if [ "$FULL" = true ]; then specs=all; fi
-          shards="$(node -p 'JSON.parse(process.argv[1]).length' "$(node scripts/e2eShard.ts --runners "$specs" "$MAX")")"
-          count="$(( (shards + STACKS - 1) / STACKS ))"
+          runners="$(node scripts/e2eShard.ts --runners "$specs" "$MAX")"
           {
             echo "specs=$specs"
-            echo "shards=$shards"
-            echo "stacks=$STACKS"
-            echo "runners=$(node -p 'JSON.stringify(Array.from({ length: Number(process.argv[1]) }, (_, index) => index + 1))' "$count")"
-            echo "count=$count"
+            echo "runners=$runners"
+            echo "count=$(node -p 'JSON.parse(process.argv[1]).length' "$runners")"
           } >> "$GITHUB_OUTPUT"
           {
             if [ "$FULL" = true ]; then echo '### Every end-to-end spec runs'; else echo '### Only the affected end-to-end specs run'; fi
-            echo "$REASON; this run uses $shards of $MAX shards on $count runners."
+            echo "$REASON; this run uses $(node -p 'JSON.parse(process.argv[1]).length' "$runners") of $MAX runners."
             if [ "$SELECTED" != all ]; then node -p 'JSON.parse(process.argv[1]).map((spec) => "- " + spec).join("\n")' "$SELECTED"; fi
           } >> "$GITHUB_STEP_SUMMARY"
       - run: pnpm catalogue:sync
@@ -264,42 +253,29 @@ jobs:
           r2-account-id: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
           r2-access-key-id: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
           r2-secret-access-key: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
-      - name: Run the runner's E2E shards
+      - name: Run the E2E shard
         env:
-          E2E_RUNNER: ${{ matrix.runner }}
-          E2E_SHARDS: ${{ needs.browser-build.outputs.shard-count }}
-          E2E_STACKS: ${{ needs.browser-build.outputs.stacks }}
+          E2E_SHARD: ${{ matrix.runner }}
+          E2E_RUNNERS: ${{ needs.browser-build.outputs.runner-count }}
           E2E_SPECS: ${{ needs.browser-build.outputs.specs != 'all' && needs.browser-build.outputs.specs || '' }}
           E2E_COVERAGE_DIR: ${{ (github.event_name == 'schedule' || inputs.coverage) && format('{0}/e2e-coverage', runner.temp) || '' }}
           SPACETIME_BIN: ${{ steps.stack.outputs.spacetime-bin }}
+          PLAYWRIGHT_STARTUP_REPORT: e2e-startup-${{ matrix.runner }}.json
         run: |
           set -euo pipefail
           PLAYWRIGHT_JSON_OUTPUT_NAME="$RUNNER_TEMP/e2e-tests.json" pnpm exec playwright test --list --reporter=json > /dev/null
-          # Each shard starts its own stack, on its own ports and data directory.
-          pids=()
-          first="$(( (E2E_RUNNER - 1) * E2E_STACKS + 1 ))"
-          for shard in $(seq "$first" "$(( first + E2E_STACKS - 1 ))"); do
-            if [ "$shard" -gt "$E2E_SHARDS" ]; then break; fi
-            node --import tsx scripts/e2eShard.ts "$RUNNER_TEMP/e2e-tests.json" "$shard" "$E2E_SHARDS" > "$RUNNER_TEMP/e2e-shard-$shard.txt"
-            PLAYWRIGHT_PORT="$((4170 + shard))" \
-              PLAYWRIGHT_OUTPUT_DIR="test-results-$shard" \
-              PLAYWRIGHT_JSON_OUTPUT_NAME="e2e-report-$shard.json" \
-              PLAYWRIGHT_STARTUP_REPORT="e2e-startup-$shard.json" \
-              pnpm exec playwright test --test-list="$RUNNER_TEMP/e2e-shard-$shard.txt" --reporter=github,json &
-            pids+=("$!")
-          done
-          status=0
-          for pid in "${pids[@]}"; do wait "$pid" || status=1; done
-          exit "$status"
+          node --import tsx scripts/e2eShard.ts "$RUNNER_TEMP/e2e-tests.json" "$E2E_SHARD" "$E2E_RUNNERS" > "$RUNNER_TEMP/e2e-shard.txt"
+          PLAYWRIGHT_PORT="$((4170 + E2E_SHARD))" \
+            PLAYWRIGHT_OUTPUT_DIR="test-results-$E2E_SHARD" \
+            PLAYWRIGHT_JSON_OUTPUT_NAME="e2e-report-$E2E_SHARD.json" \
+            pnpm exec playwright test --test-list="$RUNNER_TEMP/e2e-shard.txt" --reporter=github,json
       - name: Report browser-test startup
         if: success() || failure()
         run: |
-          for report in e2e-startup-*.json; do
-            if test -f "$report"; then
-              echo "Browser-test startup for ${report} (seconds):" >> "$GITHUB_STEP_SUMMARY"
-              cat "$report" >> "$GITHUB_STEP_SUMMARY"
-            fi
-          done
+          if test -f "e2e-startup-${{ matrix.runner }}.json"; then
+            echo 'Browser-test startup (seconds):' >> "$GITHUB_STEP_SUMMARY"
+            cat "e2e-startup-${{ matrix.runner }}.json" >> "$GITHUB_STEP_SUMMARY"
+          fi
       - if: github.event_name == 'schedule' || inputs.coverage
         uses: actions/upload-artifact@v7
         with:
@@ -312,12 +288,12 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: e2e-report-${{ matrix.runner }}
-          path: e2e-report-*.json
+          path: e2e-report-${{ matrix.runner }}.json
           retention-days: 30
           if-no-files-found: ignore
       # A test that passes on retry still leaves its failed attempt's trace here; screenshots
       # that passing tests write are not worth an upload.
-      - if: failure() || (success() && hashFiles('test-results-*/**/trace.zip') != '')
+      - if: failure() || (success() && hashFiles(format('test-results-{0}/**/trace.zip', matrix.runner)) != '')
         uses: actions/upload-artifact@v7
         with:
           name: playwright-results-${{ matrix.runner }}
