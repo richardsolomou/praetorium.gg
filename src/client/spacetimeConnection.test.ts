@@ -205,7 +205,7 @@ it('does not report a sustained network failure', async () => {
 })
 
 /** Opens one connection and hands back its link and the hooks it was given. */
-async function linked(issue: () => Promise<string | null>) {
+async function linked(issue: () => Promise<string | null>, expires?: boolean) {
   let link: SpacetimeLink<string> | undefined
   const disconnect = vi.fn()
   const inactive = vi.fn()
@@ -213,7 +213,7 @@ async function linked(issue: () => Promise<string | null>) {
     link = current
     return { disconnect }
   })
-  const stop = maintainSpacetimeConnection({ issue, open, inactive, report: vi.fn() })
+  const stop = maintainSpacetimeConnection({ issue, open, inactive, report: vi.fn(), expires })
   await vi.waitFor(() => expect(open).toHaveBeenCalledTimes(1))
   return { link: link!, open, disconnect, inactive, stop }
 }
@@ -252,4 +252,29 @@ it('ends the connection when a renewal finds access withdrawn', async () => {
   const ended = disconnect.mock.calls.length
   stop()
   expect(ended).toBe(1)
+})
+
+it('refreshes an expiring ticket by opening a new connection', async () => {
+  vi.useFakeTimers()
+  const { open, stop } = await linked(async () => 'ticket')
+  await vi.advanceTimersByTimeAsync(4 * 60 * 1_000)
+  stop()
+  expect(open).toHaveBeenCalledTimes(2)
+})
+
+it('keeps a lasting ticket connected past the refresh interval', async () => {
+  vi.useFakeTimers()
+  const { open, stop } = await linked(async () => 'ticket', false)
+  await vi.advanceTimersByTimeAsync(60 * 60 * 1_000)
+  stop()
+  expect(open).toHaveBeenCalledOnce()
+})
+
+it('reconnects the SDK with a lasting ticket instead of issuing another', async () => {
+  vi.useFakeTimers()
+  const issue = vi.fn(async () => `ticket-${issue.mock.calls.length}`)
+  const { link, stop } = await linked(issue, false)
+  const renewed = await link.renew()
+  stop()
+  expect([renewed, issue.mock.calls.length]).toEqual(['ticket-1', 1])
 })

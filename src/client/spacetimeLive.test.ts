@@ -394,6 +394,15 @@ it('retains the anonymous identity when the SDK requests a reconnect token', asy
   expect([renewed, fetch.mock.calls.length]).toEqual(['anonymous-1', 1])
 })
 
+it('keeps one anonymous connection and identity past the signed-in token refresh', async () => {
+  const fetch = vi.fn(async () => Response.json({ token: 'anonymous' }))
+  vi.stubGlobal('fetch', fetch)
+  useSpacetimeLiveProduct(product, false)
+  mount()
+  await vi.advanceTimersByTimeAsync(60 * 60_000)
+  expect([fetch.mock.calls.length, mocks.sockets.length]).toEqual([1, 1])
+})
+
 it('renews a seated battle token instead of reusing its expiring credential', async () => {
   const fetch = vi.fn(async () =>
     Response.json({ token: `seat-${fetch.mock.calls.length}`, database: 'test', uri: product.uri, battleId: 'battle-id' }),

@@ -68,13 +68,13 @@ function report(error: unknown) {
 type Ticket = { token: string; database: string; uri: string }
 
 /** The SDK rides out a dropped socket on its own; the loop replaces the connection only once it gives up. */
-function connection<T extends Ticket>(issued: T, link: SpacetimeLink<T>, renew = true) {
+function connection<T extends Ticket>(issued: T, link: SpacetimeLink<T>) {
   return DbConnection.builder()
     .withUri(issued.uri)
     .withDatabaseName(issued.database)
     .withToken(issued.token)
     .withAutomaticReconnect()
-    .withTokenProvider(async () => (renew ? (await link.renew()).token : issued.token))
+    .withTokenProvider(async () => (await link.renew()).token)
     .onDisconnect((_current, _error, retrying) => (retrying === undefined ? link.failed() : link.interrupted()))
     .onConnectError((_current, error, retrying) => (retrying === undefined ? link.failed(error) : link.interrupted(error)))
 }
@@ -217,8 +217,7 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
         : () => guestTicket(config),
       open: (issued, link) => {
         const { failed, isCurrent, ready } = link
-        // Host-issued anonymous tokens do not expire; issuing another creates a different identity.
-        return connection(issued, link, signedIn)
+        return connection(issued, link)
           .onConnect((current) => {
             if (!isCurrent()) return
             let applied = false
@@ -266,6 +265,8 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
       },
       inactive: () => setSubscribed(false),
       report,
+      // Host-issued anonymous tokens do not expire; issuing another creates a different identity.
+      expires: signedIn,
     })
   }, [config, queryClient, refresh, refreshAdmin, refreshPublic, signedIn])
 
