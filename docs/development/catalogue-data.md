@@ -1,42 +1,50 @@
 # Catalogue data
 
-Community data supplies roster construction and reference records. Deterministic evaluation lives in `src/core`; source loading and contextual projection live in `src/server`. [Running locally](running-locally.md#catalogue) owns activation commands; [Game rules](game-rules.md) owns play/scoring semantics.
+Pins live in `catalogue/composition.json`, `catalogue/sources.json`, and `catalogue.json`; corrections in [`catalogue/patches/`](../../catalogue/patches/README.md). [Running locally](running-locally.md#catalogue) covers setup.
 
-## Area guides
+## Rules text
 
-Read the area guide for the task; this page keeps what applies to all of them.
+- Never serve Game Datacards rules text from the server in any form. Read source strings through `SourceTexts` (`src/shared/sourceText.ts`) and record rule facts in `textFacts`; `scripts/clientText.integration.test.ts` enforces this.
+- Snapshots contain rules text: publish them only to the private `praetorium-private` bucket.
 
-| Working on                                                                                           | Read                                                              |
-| ---------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Source loading, published rules text, runtime updates, compiled runtime, snapshots, offline download | [Sources and runtime](catalogue/sources.md)                       |
-| Composing sources, rules versions, roster migrations, canonical audits, data-update history          | [Rules versions, updates and audits](catalogue/rules-versions.md) |
-| Books, custom points budgets, building units, pricing, legality, the picker                          | [Units and pricing](catalogue/construction.md)                    |
-| Collection counts, CSV, wishlist, photos                                                             | [Collection](catalogue/collection.md)                             |
-| Saved rosters, imports, exports, saved loadouts                                                      | [Saved lists and interchange](catalogue/saved-lists.md)           |
+## Data
 
-## Code map
+- Bump `CANONICAL_CATALOGUE_COMPILER_VERSION` when canonical records change, then republish via `catalogue.yml` with `force`.
+- Parsed sources from `src/server/sharedJson.ts` are shared: copy before changing.
+- Construction reads go in `constructionReads.ts` so the worker and server agree.
+- Points come from the [MFM fork](https://github.com/richardsolomou/wh40k-11e-mfm); never duplicate prices in definitions.
+- `changes/history.json` is immutable; never compare frozen battle or league snapshots with current data.
 
-| Question                                | Owner                                                                      |
-| --------------------------------------- | -------------------------------------------------------------------------- |
-| Book membership and imports             | `src/server/catalogueIndex.ts`                                             |
-| Applied datasheet projection            | `src/shared/catalogue.ts`                                                  |
-| Picker prices/limits and search         | `src/shared/cataloguePicker.ts`, `src/core/datasheetSearch.ts`             |
-| Text resolution and joins               | `src/shared/catalogueDescriptions.ts`, `datasheetJoin.ts`, `datacards.ts`  |
-| Army-rule fallback                      | `src/server/catalogueArmyRules.ts`                                         |
-| Entry/link meaning                      | `src/core/definitions.ts`                                                  |
-| Selection-tree edits                    | `src/core/selection.ts`                                                    |
-| Defaults and choice swaps               | `src/core/expand.ts`                                                       |
-| Model sizes, choices, spread, and kinds | `src/core/unitSize.ts`, `unitChoices.ts`, `unitSpread.ts`, `modelKinds.ts` |
-| Unit assembly and equipment             | `src/core/roster.ts`, `wargear.ts`                                         |
-| Evaluation and keyword conditions       | `src/core/evaluate.ts`                                                     |
-| Shared count semantics                  | `src/core/collective.ts`                                                   |
-| Custom points budget bounds             | `src/core/battle.ts`                                                       |
-| Exclusive detachment pairs              | `src/shared/rosterDetachments.ts`                                          |
+## Rules versions
 
-## Verification
+- Saved lists carry `<edition-id>~<book-id>` and keep their version when the default changes. Never replace a retained edition with current rules or move its pinned commits.
+- Promote a preview by keeping its ID and files and switching `status`/`default`; never rename or copy it.
+- New MFM version: freeze the current base to explicit pins, add a new `base: true` default, and fold the outgoing base in `catalogue/edition-migrations.json`.
+- Retired sources and IDs stay resolvable so old snapshots and rosters verify; retired IDs are illegal, never dropped or free.
 
-Before pushing a catalogue release, run `just catalogue-preflight` against the proposed `catalogue.json`; it needs private release-snapshot access, activates that snapshot and runs the `@catalogue` browser journeys, so keep those tags on the owning tests when they move.
+## Pricing and legality
 
-Loadout persistence fixtures choose their equipment and rules version explicitly rather than inherit upstream defaults. Optimizing preparation must not drop current or retained rules; compare complete outputs for the pinned snapshot.
+- `evaluate.ts` reports unsupported semantics in `unhandled` and fails closed on unreadable conditions. Ability prose never applies benefits.
+- `pointsBudget` changes only the points limit and strategic reserve limit.
+- Never hide upstream disagreements from `just points` or lower its match rate.
 
-After a source change, run adjacent evaluator/projection tests, `just points`, and roster/import browser flows, and check every affected surface: picker, unit card, loadout, roster total, saved-list assessment, reference and combat projection. Use each distinct conditional price-row shape. A same-named weapon on another datasheet is not proof that this one is wrong.
+## Roster migration
+
+Before changing sources or saved-selection construction, baseline production rosters:
+
+```sh
+just rosters-fetch
+just rosters-audit
+cp data-dev/production-rosters.audit.json data-dev/production-rosters.baseline.json
+just rosters-audit data-dev/production-rosters.json catalogue-data data-dev/production-rosters.baseline.json
+```
+
+Author replacements in `catalogue/roster-migrations.json` with a reason. Never fuzzy-match, substitute, or drop a selection, or suppress a legality error, to make the audit pass.
+
+## Privacy
+
+- Other readers never get a roster's picks, notes, or preparation; exports never carry notes.
+- Imports never silently drop or substitute units, and never overwrite an existing draft.
+- Collection photos stay in the private bucket with location metadata stripped; every path that drops a photo row records it in `collection_photo_deletion` in the same transaction.
+
+Before a catalogue release, run `just catalogue-preflight` against the proposed `catalogue.json`.

@@ -1,53 +1,37 @@
 # Praetorium — Agent Guide
 
-`AGENTS.md` links to this file. Keep one project instruction source. [README.md](README.md) describes the product; [CONTRIBUTING.md](CONTRIBUTING.md) owns setup and checks.
+Setup and checks: [CONTRIBUTING.md](CONTRIBUTING.md). Code placement: [architecture](docs/development/architecture.md). Product intent: [PRODUCT.md](PRODUCT.md); visual system: [DESIGN.md](DESIGN.md).
 
-## Read for the task
+Before changing a domain, read its guide in `docs/development/`:
 
-Read the relevant guide and section before changing its behavior. Read [Architecture](docs/development/architecture.md) for code placement. Topic guides own their domain and verification rules; do not copy them here or read every guide for an unrelated change. Large guides are a short page plus area guides; read the page, then only the area the task touches.
+- `catalogue-data`: points, legality, rules versions, saved lists, imports
+- `battles`: command log, guests, undo, realtime, offline battles
+- `leagues`: sealing, reveal, league battles
+- `game-rules`: stratagems, missions, scoring, terrain
+- `combat-simulation`, `agent-reference` (MCP, plugin, crawlers), `telemetry`
+- `interface`: screens, components, copy, saved app data
+- `mobile`, `mobile-release`: native shell and store releases
+- `running-locally`: dev servers, browser tests
 
-| Working on                                          | Read                                                       |
-| --------------------------------------------------- | ---------------------------------------------------------- |
-| Local servers, ports, databases, browser tests      | [Running locally](docs/development/running-locally.md)     |
-| Points, legality, picker, saved lists               | [Catalogue data](docs/development/catalogue-data.md)       |
-| Battle log, phases, undo, live updates, standings   | [Battles](docs/development/battles.md)                     |
-| Leagues, entry approval, sealed rosters             | [Leagues](docs/development/leagues.md)                     |
-| Stratagems, missions, scoring, terrain, rules pages | [Game rules](docs/development/game-rules.md)               |
-| Combat simulation                                   | [Combat simulation](docs/development/combat-simulation.md) |
-| Screens, components, responsive verification        | [Interface](docs/development/interface.md)                 |
-| Product scope                                       | [Product design](docs/product-design.md)                   |
-| Agent and crawler reference access                  | [Agent reference](docs/development/agent-reference.md)     |
-| Hosted deployment and PR previews                   | [Deployment](docs/deployment.md)                           |
-| Native shell and authentication                     | [Mobile](docs/development/mobile.md)                       |
-| Native distribution and store setup                 | [Mobile release](docs/development/mobile-release.md)       |
-| Analytics, errors, logs                             | [Telemetry](docs/development/telemetry.md)                 |
+Also `docs/deployment.md` (hosting, previews, releases) and `docs/product-design.md` (privacy contract).
 
-## Where knowledge goes
+## Rules
 
-Before writing anything down, put it in the first place that fits; a guide is the last resort.
+- No fetched upstream catalogues, copied rules prose, generated catalogues, or snapshots in Git; corrections follow [catalogue/patches](catalogue/patches/README.md). Report unsupported rules instead of inventing them.
+- `src/core` is deterministic domain logic: no IO or framework imports except zod. Reuse the one existing authority for legality, pricing, visibility, and battle state.
+- Battle state folds from its command log; never persist a score, phase, round, or mission beside it.
+- Server reads use `rpc()`, mutations `mutationRpc()` with an origin check before state access.
+- `src/components/ui` is vendored shadcn: generate via the CLI and wrap, never edit.
+- A change players can notice needs a changeset: one plain sentence per fix ([CONTRIBUTING.md](CONTRIBUTING.md#pull-requests-and-releases)).
+- No outreach, acquisition, personal, or private analytics material in the repo. Docs cover the hosted service and local contribution only.
 
-| What you learned                                                    | Where it goes                                                     |
-| ------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| A rule a test can enforce                                           | The test                                                          |
-| Why one function or file works the way it does                      | A comment on that code                                            |
-| What broke and how it was fixed                                     | The commit message and pull request                               |
-| How players use a feature                                           | The in-app docs (`src/client/features/docs/content`)              |
-| A constraint spanning files that code can't express and still holds | The owning guide, replacing what it supersedes; name entry points |
+## Writing things down
 
-Guides keep durable constraints, code entry points, and verification, and state required steps apart from descriptions of automation. `pnpm docs:budget` (part of `just check`) caps each guide file and the total; when a guide needs room, remove or move something rather than raising the cap.
+- Add a test only when it guards behavior that could realistically break. CI time is limited: no tests that restate the implementation, can't fail, or duplicate existing coverage.
+- Explain non-obvious code in a comment and the reason for a change in the commit.
+- Explain player-facing behavior in the in-app docs (`src/client/features/docs/content`).
+- Guides hold only constraints that span files and that code can't express.
 
-## Shared constraints
+## Local preview
 
-- Keep acquisition strategy, outreach targets and drafts, personal/location context, private analytics links, and operational measurement plans in private notes. Public issues and documentation retain reproducible product problems, implementation contracts, and technical verification.
-- Keep fetched upstream catalogues, copied rules prose, generated catalogues, and snapshots out of Git. Authored source corrections belong in `catalogue/patches/`, with minimal upstream context and verified provenance; a correction that adds rules text beyond a single quoted sentence is a commit on a fork branch of its source. Use the verified fetched snapshot, inspect the exact source required by the change, and report missing or unsupported semantics rather than inventing rules.
-- Keep deterministic domain decisions in `src/core`, without IO or framework imports except zod. Reuse the existing authority for legality, pricing, visibility, and battle state; a second implementation of the same decision is a bug.
-- Fold battle state from its command log. Do not persist a second score, phase, round, or mission that can disagree with it.
-- Server reads use `rpc()` and mutations use `mutationRpc()`. Mutations check their origin before state access; CSRF protection is per function.
-- Treat generated `src/components/ui` as vendored shadcn Base UI: generate through the CLI and wrap instead of hand-patching.
-- Public documentation describes the supported hosted service and local contribution. The repository does not maintain a self-hosted deployment.
-
-## Working preview
-
-Check the thread's browser status and `just dev-status` before starting local services. Follow [Running locally](docs/development/running-locally.md#development-lifecycle): run `just dev` after any checkout, pull, or merge, use its reported URL, and run `just teardown` once the branch's pull request has merged, released or not. Never kill a process by a shared port or a broad process-name match.
-
-When the user is testing, preserve their tab and inspect in a hidden tab on the same origin. Add corrections to the owning topic guide instead of growing this root file with feature-specific regression notes.
+Check `just dev-status` first. Run `just dev` after any checkout, pull, or merge and use the URL it prints; run `just teardown` after the PR merges. Never kill processes by port or broad name.
