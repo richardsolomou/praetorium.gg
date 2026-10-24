@@ -8,6 +8,7 @@ import {
   leagueWarlords,
   leagueRegistrationFull,
   leagueRevealChecklist,
+  leagueStage,
   leagueArmy,
   leagueTeams,
   mayRevealLeague,
@@ -403,6 +404,48 @@ describe('leagueRevealChecklist', () => {
 
   it('ignores sizes and teams for a legacy event', () => {
     expect(leagueRevealChecklist({ format: null, rosterLimit: null }, [entry('a')]).map((check) => check.step)).toEqual(['places', 'lists'])
+  })
+})
+
+describe('leagueStage', () => {
+  const entry = (userId: string, over: Partial<LeagueRevealEntry> = {}): LeagueRevealEntry => ({
+    userId,
+    status: 'accepted',
+    submitted: true,
+    requiredLimit: null,
+    teamId: null,
+    dispositionOwed: false,
+    ...over,
+  })
+  const open = { format: '1v1' as const, rosterLimit: 2_000, revealedAt: null }
+  const revealed = { ...open, revealedAt: 1 }
+
+  it('is empty until someone is accepted', () => {
+    expect(leagueStage(open, [entry('a', { status: 'pending' })], false)).toBe('empty')
+  })
+
+  it('is joining while fewer players are in than the shape seats', () => {
+    expect(leagueStage(open, [entry('a')], false)).toBe('joining')
+  })
+
+  it('counts doubles as joining until four players are in', () => {
+    expect(leagueStage({ ...open, format: '2v2' }, [entry('a'), entry('b'), entry('c')], false)).toBe('joining')
+  })
+
+  it('is sealing while a roster is still owed', () => {
+    expect(leagueStage(open, [entry('a'), entry('b', { submitted: false })], false)).toBe('sealing')
+  })
+
+  it('is ready once every reveal check passes', () => {
+    expect(leagueStage(open, [entry('a'), entry('b')], false)).toBe('ready')
+  })
+
+  it('is playing once revealed with no finished battle', () => {
+    expect(leagueStage(revealed, [entry('a'), entry('b')], false)).toBe('playing')
+  })
+
+  it('has results once a battle has finished', () => {
+    expect(leagueStage(revealed, [entry('a'), entry('b')], true)).toBe('results')
   })
 })
 

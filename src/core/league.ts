@@ -162,6 +162,26 @@ export function leagueRevealChecklist(
   return checks
 }
 
+/** Where an event stands, from no players to a results table; each stage has one next step for the page to name. */
+export type LeagueStage = 'empty' | 'joining' | 'sealing' | 'ready' | 'playing' | 'results'
+
+/**
+ * An event's stage, read from the reveal checklist rather than a second count of who is in and who has sealed.
+ * Before the shape can seat a game the event is still joining, even though one sealed roster could be revealed.
+ */
+export function leagueStage(
+  event: { format: TableShape | null; rosterLimit: number | null; revealedAt: number | null },
+  entries: readonly LeagueRevealEntry[],
+  played: boolean,
+): LeagueStage {
+  if (event.revealedAt) return played ? 'results' : 'playing'
+  const checks = leagueRevealChecklist(event, entries)
+  const accepted = checks[0]?.step === 'places' ? checks[0].accepted : 0
+  if (!accepted) return 'empty'
+  if (accepted < LEAGUE_SHAPE_PLACES[leagueTableShape(event.format)]) return 'joining'
+  return checks.every((check) => check.done) ? 'ready' : 'sealing'
+}
+
 /** The most admins one league can have beside its owner. */
 export const LEAGUE_ADMIN_MAX = 16
 

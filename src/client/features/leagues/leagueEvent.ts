@@ -1,10 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query'
 import {
+  LEAGUE_SHAPE_PLACES,
   alliedLeagueRosterLimit,
+  leagueTableShape,
   leagueRegistrationFull,
   leagueRosterSplit,
   type LeagueAdmission,
   type LeagueEntryView,
+  type LeagueStage,
 } from '../../../core/league'
 import { pointsLabel } from '../../../core/battle'
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
@@ -145,4 +148,29 @@ export function leaguePhase(league: LeagueFacts, accepted: number, occupied: num
   return leagueRegistrationFull(league, accepted, occupied)
     ? { label: 'Registration full', tint: 'text-dim' }
     : { label: 'Registration open', tint: 'text-parchment' }
+}
+
+/**
+ * The one thing that happens next at an event's stage, said to whoever moves it on: the organizer, or a player in it.
+ * An empty event has no players yet, so only its organizer reads a step there.
+ */
+export function leagueNextStep(stage: LeagueStage, organizer: boolean, format: League['format']) {
+  const places = LEAGUE_SHAPE_PLACES[leagueTableShape(format)]
+  if (organizer)
+    return {
+      empty: 'Copy the invite link and send it to your group.',
+      joining: `Share the invite link until at least ${places} players are in.`,
+      sealing: 'Players seal their rosters. Nobody sees another list, you included, until the reveal.',
+      ready: 'Reveal the rosters. That opens every list at once and closes entry.',
+      playing: 'Players start their league battles from this page. Finished ones fill the results table.',
+      results: 'Start the next event once this one’s games are done.',
+    }[stage]
+  return {
+    empty: null,
+    joining: 'More players need to join before there’s anyone to play.',
+    sealing: 'The rosters stay hidden until everyone has sealed, then open together.',
+    ready: 'Anyone playing can reveal the rosters now. Then the battles start.',
+    playing: 'Start a battle against anyone here. Finished battles fill the results table.',
+    results: 'Keep playing. Each finished battle updates the table.',
+  }[stage]
 }

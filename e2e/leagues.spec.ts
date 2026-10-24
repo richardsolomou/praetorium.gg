@@ -697,6 +697,29 @@ test('a full league keeps its lists sealed until someone reveals them', async ({
   await Promise.all([ownerContext.close(), opponentContext.close()])
 })
 
+test('a league names its next step, which moves on once a player joins', async ({ browser }) => {
+  const ownerContext = await browser.newContext()
+  const playerContext = await browser.newContext()
+  const owner = await ownerContext.newPage()
+  const player = await playerContext.newPage()
+  await signUp(owner, uniqueName('Next step organizer'))
+  await signUp(player, uniqueName('Next step player'))
+  await owner.goto('/leagues')
+  const create = await openLeagueCreation(owner)
+  await create.getByLabel('Name').fill(uniqueName('Next step league'))
+  await create.getByRole('button', { name: /^Anyone who joins/ }).click()
+  await submitLeagueCreation(owner, create)
+  const nextStep = owner.locator('[data-league-next-step]')
+  await expect(nextStep).toHaveText('Next: Copy the invite link and send it to your group.')
+
+  await player.goto(owner.url())
+  await join(player)
+  await owner.reload()
+  await expect(nextStep).toHaveText('Next: Share the invite link until at least 2 players are in.')
+  await ownerContext.close()
+  await playerContext.close()
+})
+
 test('a new league starts with its first event and can seal a roster', async ({ page }) => {
   const ownerName = uniqueName('LeagueOwner')
   const leagueName = uniqueName('Home League')
