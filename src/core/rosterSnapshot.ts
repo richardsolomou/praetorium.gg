@@ -51,6 +51,7 @@ type PricedRoster = {
     prebattleRules: readonly ('infiltrators' | 'scouts')[]
     strategicReserveExempt?: boolean
     embarksWithBodyguard?: boolean
+    embarkedSpace?: number
     transport?: boolean
   }[]
 }
@@ -157,6 +158,7 @@ export function rosterSnapshot(
           prebattleRules: [...unit.prebattleRules],
           ...(unit.strategicReserveExempt ? { strategicReserveExempt: true } : {}),
           ...(unit.embarksWithBodyguard ? { embarksWithBodyguard: true } : {}),
+          ...(unit.embarkedSpace ? { embarkedSpace: unit.embarkedSpace } : {}),
           ...(unit.transport ? { transport: true } : {}),
         }
       }),
