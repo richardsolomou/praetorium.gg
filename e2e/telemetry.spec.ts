@@ -300,9 +300,14 @@ test('a datasheet reader who starts a roster or the simulator is attributed to t
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await setup.getByRole('button', { name: 'Create roster' }).click()
   await expect
-    .poll(() => events.filter((event) => ['roster_add_started', 'guest_roster_started', 'roster_unit_added'].includes(event.name)))
+    .poll(() =>
+      events.filter((event) =>
+        ['roster_add_started', 'roster_creation_started', 'guest_roster_started', 'roster_unit_added'].includes(event.name),
+      ),
+    )
     .toEqual([
       { name: 'roster_add_started', properties: { reference: 'datasheet' } },
+      { name: 'roster_creation_started', properties: { reference: 'datasheet' } },
       { name: 'guest_roster_started', properties: { limit: 2000, detachment_count: 1, reference: 'datasheet' } },
       { name: 'roster_unit_added', properties: { unit_count: 1, reference: 'datasheet' } },
     ])

@@ -140,12 +140,17 @@ export function AddToRoster({
     return book ? rulesVersionLabel(book) : 'Loading rules version…'
   }
 
+  const create = () => {
+    posthog.capture('roster_creation_started', { reference: 'datasheet' })
+    setStep('create')
+  }
   const open = () => {
     posthog.capture('roster_add_started', { reference: 'datasheet' })
     const draft = me ? null : readGuestDraft()
     setGuestDraft(draft)
     // A visitor with nothing built yet has only one place to go.
-    setStep(!me && !draft && canStart ? 'create' : 'choose')
+    if (!me && !draft && canStart) create()
+    else setStep('choose')
   }
   const account = useAccountPrompt()
   const startNew = () => {
@@ -153,8 +158,7 @@ export function AddToRoster({
       setStep('closed')
       return account.ask('another-roster')
     }
-    posthog.capture('roster_creation_started', { reference: 'datasheet' })
-    setStep('create')
+    create()
   }
 
   return (
