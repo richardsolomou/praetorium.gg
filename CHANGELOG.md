@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.188.1
+
+### Patch Changes
+
+- f4a096e: Twelve Chapter Approved terrain layouts now join the footprints the publisher's diagrams mark as one terrain area, including Purge the Foe / Reconnaissance Layout B.
+- 07bd36b: The eye marking two footprints joined into one terrain area no longer hides under the objective marker on central objective terrain.
+
 ## 0.188.0
 
 ### Minor Changes
