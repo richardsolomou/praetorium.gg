@@ -12,6 +12,7 @@ import { errorMessage } from '../../queryClient'
 import { requestNativeHaptic } from '../../nativeBridge'
 import { captureAppSnapshot } from '../../offline/appSnapshot'
 import { writeAppSnapshot } from '../../offline/appStorage'
+import { holdingReload } from '../../pendingWrites'
 
 /** A list the server prices and freezes before it is attached: a saved one, or the draft a guest built on this device. */
 export type RosterAttachment =
@@ -60,8 +61,15 @@ export function afterFailedCommand<T extends Pick<QueuedCommand, 'basedOn' | 'ba
   return { kept, dropped: queued.filter((candidate) => !kept.includes(candidate)) }
 }
 
-/** Sends queued commands one at a time, each against the newest history this device has seen. */
-async function drainCommands({
+/**
+ * Sends queued commands one at a time, each against the newest history this device has seen. Queued commands live only
+ * in this page, so automatic reloads wait until the queue is empty, including between sends.
+ */
+export function drainCommands(args: Parameters<typeof sendQueued>[0]) {
+  return holdingReload(sendQueued(args))
+}
+
+async function sendQueued({
   token,
   queryClient,
   seen,
