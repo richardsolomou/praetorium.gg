@@ -123,7 +123,7 @@ function FactionShelf({
         <span className="readout">{entries.length}</span>
       </h2>
       {entries.length ? (
-        <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
+        <div className="mt-2 grid grid-cols-1 gap-px border border-edge bg-panel md:grid-cols-2 xl:grid-cols-3">
           {entries.map((entry) => {
             const editions = versions
               .filter((version) => currentCatalogueFamilyId(version.id) === currentCatalogueFamilyId(entry.id))
@@ -133,7 +133,7 @@ function FactionShelf({
                 key={entry.id}
                 data-onboarding="faction-entry"
                 data-faction={entry.displayName}
-                className="flex items-center border-l-2"
+                className="flex items-center border-l-2 bg-panel ring-1 ring-edge"
                 style={{ borderLeftColor: factionColour(entry.slug, entry.displayName) }}
               >
                 <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2">
