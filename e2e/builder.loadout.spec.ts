@@ -1,7 +1,15 @@
 import { expect, test, type Page } from './test'
 import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
 import { savedWork } from './storage'
-import { expectNoHorizontalOverflow, expectNotAttachable, openBuilder, add, arrangeByRole, attach } from './builder.harness'
+import {
+  expectInsideHorizontalBounds,
+  expectNoHorizontalOverflow,
+  expectNotAttachable,
+  openBuilder,
+  add,
+  arrangeByRole,
+  attach,
+} from './builder.harness'
 
 test('a squad grows from its unit editor', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
@@ -905,6 +913,21 @@ test('Tempestus Scions keep their special weapons when specialists take their pl
   await expect(card).toContainText('1x Plasma gun')
   await expect(card).toContainText('1x Meltagun')
   await expect(page.getByText('Within the points limit')).toBeAttached()
+})
+
+test('a long unit name wraps inside the loadout pane on a small phone', async ({ page }) => {
+  await openBuilder(page, 'Astra Militarum', /Combined Arms/)
+  await add(page, 'Militarum Tempestus Command Squad')
+  await page.setViewportSize({ width: 375, height: 667 })
+  await page
+    .locator('[data-unit="Militarum Tempestus Command Squad"]')
+    .getByRole('button', { name: 'Militarum Tempestus Command Squad', exact: true })
+    .click()
+
+  const loadout = page.locator('aside[aria-label="Loadout"]')
+  const name = loadout.getByRole('heading', { name: 'Militarum Tempestus Command Squad' })
+  await expect(name).toBeVisible()
+  await expectInsideHorizontalBounds(loadout, name)
 })
 
 test('a selected multi-weapon option is not repeated in the equipped summary', async ({ page }) => {
