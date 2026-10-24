@@ -1,10 +1,13 @@
 import { CancelledError } from '@tanstack/react-query'
+import type { PostHog } from 'posthog-js'
 import { beforeEach, expect, it, vi } from 'vitest'
 
 const captureException = vi.hoisted(() => vi.fn())
 const capture = vi.hoisted(() => vi.fn())
-vi.mock('posthog-js', () => ({ posthog: { captureException, capture } }))
+const client = vi.hoisted(() => ({ captureException, capture, __loaded: true }))
+vi.mock('posthog-js', () => ({ posthog: client }))
 
+import { POSTHOG_BROWSER_OPTIONS } from '../posthog'
 import {
   completedModuleRecovery,
   mayReloadCancelledLoad,
@@ -15,6 +18,7 @@ import {
 } from './routeErrors'
 
 beforeEach(() => {
+  client.__loaded = true
   captureException.mockClear()
   capture.mockClear()
 })
@@ -114,4 +118,17 @@ it('keeps unknown words out of a not-found address', () => {
 it('reports the home page address of a not-found page as itself', () => {
   notFoundPage('/', ['/'])
   expect(capture).toHaveBeenCalledWith('page_not_found', { path: '/' })
+})
+
+it('holds a not-found report made before the SDK loads, as on a page opened at a missing address', () => {
+  client.__loaded = false
+  notFoundPage('/missing', [])
+  expect(capture).not.toHaveBeenCalled()
+})
+
+it('sends a held not-found report once the SDK loads', () => {
+  client.__loaded = false
+  notFoundPage('/missing', [])
+  POSTHOG_BROWSER_OPTIONS.loaded(client as unknown as PostHog)
+  expect(capture).toHaveBeenCalledWith('page_not_found', { path: '/:id' })
 })
