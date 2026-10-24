@@ -282,6 +282,16 @@ describe('the army Warlord', () => {
     expect(errorsFor([1])).toEqual([])
   })
 
+  it('is not asked of an empty list, which only keeps score', () => {
+    expect(
+      calculateRosterPrice(
+        { catalogueId: 'cat', detachmentIds: [], disposition: null, waivedRules: [], limit: 2_000, units: [] },
+        loaded,
+        rulesWithout,
+      )?.errors,
+    ).toEqual([])
+  })
+
   it('can be waived for a table that plays without one', () => {
     expect(errorsFor([], ['warlord'])).toEqual([])
   })

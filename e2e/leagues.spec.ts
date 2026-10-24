@@ -760,7 +760,7 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   await expect(roster).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByRole('alert')).toHaveCount(0)
   await chooser.getByRole('button', { name: `Seal ${rosterName}` }).click()
-  await expect(page.getByRole('alert')).toHaveText('Choose a Warlord: this list has none')
+  await expect(page.getByRole('alert')).toHaveText('fix roster errors before using it: Army: needs a Warlord')
   await expect(chooser.getByRole('link', { name: `Edit ${rosterName}` })).toHaveAttribute('href', /^\/rosters\/[^/]+$/)
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
@@ -1884,6 +1884,12 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
     'aria-pressed',
     'true',
   )
+  // Every doubles list names its own Warlord, so each team also chooses whose leads it.
+  for (const player of [teammate, opponent]) {
+    const leader = player.locator('[data-team-warlord]').getByRole('button').first()
+    await leader.click()
+    await expect(leader).toHaveAttribute('aria-pressed', 'true')
+  }
 
   // The organizer's teams carry unpairing and each member's removal together at both widths.
   await owner.reload()

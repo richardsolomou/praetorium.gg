@@ -186,7 +186,9 @@ function legalReplacementPairs(
  */
 const hasWarlordToggle = (toggles: BuiltUnit['toggles']) => toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected)
 
+/** An empty list only keeps score, so the Warlord is asked of a list once it fields something. */
 function armyWarlordErrors(picked: readonly { toggles: BuiltUnit['toggles'] }[]) {
+  if (!picked.length) return []
   const problem = warlordCountProblem(picked.filter((unit) => hasWarlordToggle(unit.toggles)).length)
   return problem ? [{ entryId: 'warlord', entryName: 'Army', message: problem }] : []
 }
