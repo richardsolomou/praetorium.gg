@@ -17,6 +17,7 @@ import { publicAssetsR2Client } from '../src/server/r2Client.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
 import { startCatalogueRefresh } from './lib/catalogueRefreshProcess.ts'
 import { serveLiveCatalogueAsset } from './lib/liveCatalogueAssets.ts'
+import { startupRemainingMs } from './lib/startupBudget.ts'
 
 const execFile = promisify(execFileCallback)
 
@@ -152,6 +153,7 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
       nodeBuildDirectory(),
       path.resolve(process.env.DATA_DIR ?? '/data'),
       lifecycle.signal,
+      startupRemainingMs(),
     )
   }
   if (!existsSync(authPath) && process.env.AUTH_INITIALIZE_EMPTY === 'true') {
@@ -217,10 +219,15 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
   }
   const appOrigin = viteOrigin ?? `http://127.0.0.1:${internalPort}`
   const started = performance.now()
-  const readinessSignal = AbortSignal.any([lifecycle.signal, AbortSignal.timeout(360_000)])
+  const readinessSignal = AbortSignal.any([lifecycle.signal, AbortSignal.timeout(startupRemainingMs())])
+  // A production build can hold readiness for minutes, and each health request waits for it in silence.
+  const progress = setInterval(
+    () =>
+      console.error(`Node startup: still waiting for application readiness after ${Math.round((performance.now() - started) / 1_000)}s`),
+    60_000,
+  )
   let ready = false
-  for (let attempt = 0; attempt < 600; attempt++) {
-    readinessSignal.throwIfAborted()
+  while (!readinessSignal.aborted) {
     try {
       const response = await fetch(`${appOrigin}/api/health`, { signal: readinessSignal })
       if (response.ok) {
@@ -230,8 +237,10 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
     } catch {
       // The application is still warming its catalogue.
     }
-    await delay(200, undefined, { signal: readinessSignal })
+    await delay(200, undefined, { signal: readinessSignal }).catch(() => {})
   }
+  clearInterval(progress)
+  lifecycle.signal.throwIfAborted()
   if (!ready) throw new Error('Node server did not become healthy')
   console.error(`Node startup: application readiness completed in ${Math.round(performance.now() - started)}ms`)
   const proxy = httpProxy.createProxyServer({ changeOrigin: false, xfwd: true })
