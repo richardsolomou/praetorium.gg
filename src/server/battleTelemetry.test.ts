@@ -11,7 +11,14 @@ const submitted = () => mocks.capture.mock.calls.find(([, event]) => event === '
 beforeEach(() => mocks.capture.mockReset())
 
 it('reports the formation a unit was set to', async () => {
-  await captureBattleCommand('player', { kind: 'set-unit-formation', unitKey: 'u0', formation: 'deep-strike' }, appended, 1, 'direct')
+  await captureBattleCommand(
+    'player',
+    'battle-id',
+    { kind: 'set-unit-formation', unitKey: 'u0', formation: 'deep-strike' },
+    appended,
+    1,
+    'direct',
+  )
 
   expect(submitted()).toMatchObject({ formation: 'deep-strike' })
 })
@@ -20,7 +27,19 @@ it('counts the units an attached list starts embarked, without naming them', asy
   const units = [{ key: 'u0', startsEmbarkedIn: 'u2' }, { key: 'u1', startsEmbarkedIn: 'u2' }, { key: 'u2' }]
   const command = { kind: 'attach-roster', roster: { built: { units } } } as unknown as Command
 
-  await captureBattleCommand('player', command, appended, 1, 'sync')
+  await captureBattleCommand('player', 'battle-id', command, appended, 1, 'sync')
 
   expect(submitted()).toMatchObject({ listed_embark_count: 2 })
+})
+
+it('identifies the battle a command was submitted to', async () => {
+  await captureBattleCommand('player', 'battle-id', { kind: 'reset-setup' }, appended, 1, 'direct')
+
+  expect(submitted()).toMatchObject({ battle_id: 'battle-id' })
+})
+
+it('identifies the battle a lifecycle change belongs to', async () => {
+  await captureBattleCommand('player', 'battle-id', { kind: 'begin-battle', firstPlayerId: 'player' }, appended, 1, 'direct')
+
+  expect(mocks.capture).toHaveBeenLastCalledWith('player', 'battle_started', { battle_id: 'battle-id', delivery: 'direct' })
 })

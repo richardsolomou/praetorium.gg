@@ -46,7 +46,7 @@ Only browser events carry `feature` and `surface`; server and native-shell event
 
 ## Privacy boundary
 
-Signed-in browsers identify with the account ID, and `PostHogBetterAuthIdentity` in `AppShell.tsx` sets the account's `name` and `email` as person properties for support. Event properties never carry names, emails, images, opaque tokens or IDs, search text, unit/list contents, command payloads, rules prose, or error messages; use bounded enums, booleans, counts, durations, and outcomes. Source-normalized faction/detachment labels are allowed; catalogue IDs are not.
+Signed-in browsers identify with the account ID, and `PostHogBetterAuthIdentity` in `AppShell.tsx` sets the account's `name` and `email` as person properties for support. Event properties never carry names, emails, images, opaque tokens or IDs, search text, unit/list contents, command payloads, rules prose, or error messages; use bounded enums, booleans, counts, durations, and outcomes. Only server battle events carry an ID: `battle_id`, the battle's internal ID, never its URL token. Source-normalized faction/detachment labels are allowed; catalogue IDs are not.
 
 The one exception is the automatic import report. When `roster_import_failed` fires (except `reason: share_link`, a New Recruit link), or `roster_import_review_required` has unmatched or unplaced entries, `RosterImport.tsx` files an App feedback response (`importFailureReport` in `src/client/features/feedback/feedback.ts`) whose message carries the unmatched and unplaced lines and the exact input, so the failure can be reproduced. The `roster_import_*` events stay free of list contents.
 
@@ -64,7 +64,7 @@ Screenshots go to the private `praetorium-private` R2 bucket (production reaches
 
 ## Measuring success
 
-Count unique people for conversion and retention, attempts for friction, and completed actions for use; funnels measure people, not objects, because object IDs are excluded. Absence of an event indicates drop-off only after deployment and within a defined window.
+Count unique people for conversion and retention, attempts for friction, and completed actions for use; funnels measure people, not objects, except that `battle_id` counts per-battle completion. Absence of an event indicates drop-off only after deployment and within a defined window.
 
 Apply browser bot classifications only to browser events. PostHog classifies server SDK completions as Automation too; excluding that classification across a mixed funnel removes legitimate successful actions. Keep hostless historical server events when filtering the production host.
 
@@ -84,7 +84,7 @@ The browser SDK reads the parameters on landing. It puts them on that `$pageview
 
 ## Operational reports
 
-Keep hosted dashboard links, saved insight definitions, acquisition baselines and trial results in private notes. The public event contract above describes what the application captures; it does not prescribe operational reporting or acquisition plans.
+Keep hosted dashboard links, saved insight definitions, acquisition baselines and trial results in private notes.
 
 Report filters must exclude internal/test and owner traffic without dropping legitimate server completions. Inspect each saved insight for its cohort, window and instrumentation limits before comparing results.
 
