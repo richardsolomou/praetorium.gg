@@ -47,6 +47,20 @@ export function workerSources(buildDirectory: string, root: string) {
     .flatMap((source) => sourcePath(source, root) ?? [])
 }
 
+// `import.meta.glob('./content/*.md', …)` or `import text from './file.md?raw'`.
+const assetImport = /import\.meta\.glob(?:<[^>]*>)?\(\s*['"]([^'"]+)['"]|from\s+['"](\.{1,2}\/[^'"]+)\?raw['"]/g
+
+/** Application files a module bundles by glob or as raw text, which source maps never list. */
+export function assetImports(root: string, file: string) {
+  const source = path.join(root, file)
+  if (!fs.existsSync(source)) return []
+  const directory = path.dirname(source)
+  return [...fs.readFileSync(source, 'utf8').matchAll(assetImport)]
+    .flatMap(([, glob, raw]) => (glob ? fs.globSync(glob, { cwd: directory }) : [raw!]))
+    .map((match) => path.relative(root, path.join(directory, match)))
+    .filter((match) => match.startsWith('src/') && fs.existsSync(path.join(root, match)))
+}
+
 /** Reads a built script and its source map from the build directory, by the address the test loaded it from. */
 export function scriptReader(buildDirectory: string, root: string) {
   const scripts = new Map<string, Script | null>()
@@ -159,5 +173,8 @@ export function buildE2eMap(
         .toSorted((left, right) => left[0] - right[0] || left[1] - right[1]),
     }
   }
+  // An asset is part of its importer's top level, so it loads wherever the importer does.
+  for (const [file, entry] of Object.entries(files))
+    for (const asset of assetImports(root, file)) files[asset] ??= { loaded: entry.loaded, functions: [] }
   return { version: E2E_MAP_VERSION, revision, specs, files, whole: [...new Set(whole)].toSorted() }
 }

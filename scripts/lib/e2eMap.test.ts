@@ -134,3 +134,26 @@ it('counts every spec the server served as loading each server module, since the
   )
   expect(map.files['src/a.ts']?.loaded).toEqual([0, 1])
 })
+
+it('counts a file bundled by glob or as raw text as loaded wherever its importer loads', () => {
+  fs.mkdirSync(path.join(root, 'src/content'), { recursive: true })
+  fs.writeFileSync(path.join(root, 'src/content/guide.md'), '# Guide\n')
+  fs.writeFileSync(path.join(root, 'src/notes.md'), '# Notes\n')
+  fs.writeFileSync(
+    path.join(root, 'src/b.ts'),
+    "import notes from './notes.md?raw'\nconst bodies = import.meta.glob<string>('./content/*.md', { query: '?raw', eager: true })\n",
+  )
+  const map = buildE2eMap(
+    [
+      { spec: 'e2e/one.spec.ts', client: [call('a')], server: [] },
+      { spec: 'e2e/two.spec.ts', client: [call('b')], server: [] },
+    ],
+    scriptReader(build, root),
+    root,
+    'abc',
+  )
+  expect([map.files['src/content/guide.md'], map.files['src/notes.md']]).toEqual([
+    { loaded: [0, 1], functions: [] },
+    { loaded: [0, 1], functions: [] },
+  ])
+})
