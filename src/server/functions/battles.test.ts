@@ -11,7 +11,6 @@ vi.mock('@tanstack/react-start', () => {
 vi.mock('../rpc', () => ({ rpc: (work: () => unknown) => work(), mutationRpc: (work: () => unknown) => work() }))
 vi.mock('../playerSession', () => ({ requireUser: async () => ({ id: 'actor' }) }))
 vi.mock('../guestSession', () => ({ requireBattleActor: async () => mocks.actor() }))
-vi.mock('../battleSubmission', () => ({ submittedBattleCommand: async (_actor: string, command: unknown) => command }))
 vi.mock('../app', () => ({
   app: () => ({ service: mocks, telemetry: { capture: mocks.capture }, rulesFor: async () => null }),
 }))

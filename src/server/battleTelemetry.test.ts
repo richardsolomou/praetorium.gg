@@ -5,8 +5,9 @@ import { captureBattleCommand } from './battleTelemetry'
 const mocks = vi.hoisted(() => ({ capture: vi.fn() }))
 vi.mock('./app', () => ({ app: () => ({ telemetry: { capture: mocks.capture } }) }))
 
-const appended = { outcome: 'appended', seq: 1 } as const
+const appended = { result: { outcome: 'appended', seq: 1 } } as const
 const submitted = () => mocks.capture.mock.calls.find(([, event]) => event === 'battle_command_submitted')?.[2]
+const finishes = () => mocks.capture.mock.calls.filter(([, event]) => event === 'battle_finished').map(([, , properties]) => properties)
 
 beforeEach(() => mocks.capture.mockReset())
 
@@ -42,4 +43,16 @@ it('identifies the battle a lifecycle change belongs to', async () => {
   await captureBattleCommand('player', 'battle-id', { kind: 'begin-battle', firstPlayerId: 'player' }, appended, 1, 'direct')
 
   expect(mocks.capture).toHaveBeenLastCalledWith('player', 'battle_started', { battle_id: 'battle-id', delivery: 'direct' })
+})
+
+it.each(['advance', 'settle-opponent-turn', 'end-battle'] as const)('reports a battle that %s finished once, with why', async (kind) => {
+  await captureBattleCommand('player', 'battle-id', { kind }, { ...appended, finished: 'completed' }, 1, 'direct')
+
+  expect(finishes()).toEqual([{ battle_id: 'battle-id', reason: 'completed', delivery: 'direct' }])
+})
+
+it('reports no finish for an ending command the battle did not finish on', async () => {
+  await captureBattleCommand('player', 'battle-id', { kind: 'end-battle', reason: 'conceded', concededBy: 'player' }, appended, 1, 'sync')
+
+  expect(finishes()).toEqual([])
 })
