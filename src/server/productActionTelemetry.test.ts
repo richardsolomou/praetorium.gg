@@ -138,6 +138,7 @@ const cases: Case[] = [
     events: [['league_roster_submitted', { format: '2v2', required_limit: 1000 }]],
   },
   { kind: 'setLeagueTeamDisposition', input: { token: league.token, disposition: 'private-disposition' }, events: [] },
+  { kind: 'setLeagueTeamWarlord', input: { token: league.token, userId: 'private-person' }, events: [] },
   { kind: 'revealLeague', input: { token: league.token }, events: [['league_rosters_revealed']] },
   { kind: 'unsealLeagueRoster', input: { token: league.token, userId: 'private-person' }, events: [['league_roster_unsealed']] },
   {

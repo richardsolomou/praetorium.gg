@@ -130,6 +130,7 @@ export const admitLeagueEntriesSchema = z.object({
 })
 export const submitLeagueRosterSchema = z.object({ token, eventToken: token.optional(), rosterId: id })
 export const setLeagueTeamDispositionSchema = z.object({ token, eventToken: token.optional(), disposition: z.string().min(1).max(64) })
+export const setLeagueTeamWarlordSchema = z.object({ token, eventToken: token.optional(), userId: id })
 export const assignLeagueRosterRequirementSchema = z.object({
   token,
   eventToken: token.optional(),

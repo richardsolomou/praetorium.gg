@@ -79,7 +79,7 @@ it('rejects a saved roster with an obsolete detachment when it is used', async (
             disposition: null,
             limit: 2_000,
             picks: [],
-            waivedRules: [],
+            waivedRules: ['warlord'],
           },
           lentBy: null,
         }),
@@ -122,7 +122,7 @@ it('snapshots an over-points saved roster when its points limit is waived', asyn
     disposition: null,
     limit: 1_000,
     picks: [{ entryId: 'squad' }],
-    waivedRules: ['points-limit'],
+    waivedRules: ['warlord', 'points-limit'],
   }
   vi.mocked(app).mockReturnValue({
     service: { rosterService: { usableRoster: vi.fn().mockResolvedValue({ roster: saved, lentBy: null }) } },
@@ -138,7 +138,7 @@ it('snapshots an over-points saved roster when its points limit is waived', asyn
   const { snapshot } = await rosterForUse('player', 'roster')
   expect({ points: snapshot.text.split('\n')[0], waivedRules: snapshot.built?.waivedRules }).toEqual({
     points: '1080 / 1000 pts',
-    waivedRules: ['points-limit'],
+    waivedRules: ['warlord', 'points-limit'],
   })
 })
 
@@ -160,7 +160,7 @@ const lentRoster = {
   disposition: null,
   limit: 1_000,
   picks: [{ entryId: 'squad' }],
-  waivedRules: [],
+  waivedRules: ['warlord'],
 }
 
 function lentFrom(lentBy: { id: string; name: string } | null) {

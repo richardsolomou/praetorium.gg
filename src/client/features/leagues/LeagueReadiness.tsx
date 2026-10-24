@@ -41,6 +41,7 @@ export function LeagueReadiness({
     return !check.done && step ? [step] : []
   })
   const owing = checks.find((check) => check.step === 'dispositions')?.waiting ?? []
+  const leaderless = checks.find((check) => check.step === 'warlords')?.waiting ?? []
   const nameOf = (userId: string) => {
     const entry = league.entries.find((candidate) => candidate.userId === userId)
     return entry ? label(entry) : 'someone'
@@ -63,6 +64,9 @@ export function LeagueReadiness({
     owing.length
       ? `${namesPhrase(owing.map(nameOf))} still ${owing.length === 1 ? 'needs' : 'need'} to choose their team’s Force Disposition.`
       : null,
+    leaderless.length
+      ? `${namesPhrase(leaderless.map(nameOf))} still ${leaderless.length === 1 ? 'needs' : 'need'} to choose whose Warlord leads their team.`
+      : null,
     !isOrganizer && organizerSteps.length
       ? `${league.admins.length ? 'The organizers still need' : `${league.ownerName} still needs`} to ${namesPhrase(organizerSteps)}.`
       : null,
@@ -73,8 +77,8 @@ export function LeagueReadiness({
   // The organizer sees only what still stands in the way, in words; the bar and the entrant list already say who has sealed.
   const unmet = isOrganizer
     ? checks.filter(
-        (check): check is Exclude<LeagueRevealCheck, { step: 'lists' | 'dispositions' }> =>
-          check.step !== 'lists' && check.step !== 'dispositions' && !check.done,
+        (check): check is Exclude<LeagueRevealCheck, { step: 'lists' | 'dispositions' | 'warlords' }> =>
+          check.step !== 'lists' && check.step !== 'dispositions' && check.step !== 'warlords' && !check.done,
       )
     : []
   // Once only more players can help, sizing or pairing the ones already in leads nowhere, so the list stops there.
@@ -168,7 +172,7 @@ export function RevealRostersDialog({
 
 /** What the organizer still has to do for one unmet check. */
 export function checkDetail(
-  check: Exclude<LeagueRevealCheck, { step: 'lists' | 'dispositions' }>,
+  check: Exclude<LeagueRevealCheck, { step: 'lists' | 'dispositions' | 'warlords' }>,
   format: League['format'],
   nameOf: (userId: string) => string,
 ) {

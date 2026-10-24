@@ -423,7 +423,8 @@ export class SpacetimeRepository {
   async leagueByToken(token: string, viewerId: string | null = null, eventToken?: string) {
     const record = await this.product.leagueByToken(token, eventToken)
     if (!record) return undefined
-    const { league, selected, latest, events, entries, teams, adminIds, eventCount, latestEntryCount, latestAcceptedCount } = record
+    const { league, selected, latest, events, entries, teams, teamWarlords, adminIds, eventCount, latestEntryCount, latestAcceptedCount } =
+      record
     const profiles = await this.accounts.profilesByIds([
       league.ownerId,
       ...adminIds,
@@ -438,6 +439,7 @@ export class SpacetimeRepository {
     const pairs = leagueTeams(
       entries.map((entry) => ({ ...entry, roster: rosters.get(entry.userId) ?? null })),
       new Map(teams.map((team) => [team.teamId, team.disposition])),
+      new Map(teamWarlords.map((team) => [team.teamId, team.userId])),
     )
     const owner = profiles.get(league.ownerId)
     if (!owner) throw new Error(`League owner ${league.ownerId} is missing from auth database`)
@@ -482,10 +484,11 @@ export class SpacetimeRepository {
           requiredLimit: requiredLeagueRosterLimit(selected.format, selected.rosterLimit, entry.requiredLimit, entry.teamId),
           sealedLimit: selected.format === null && revealed ? (roster?.built?.limit ?? null) : null,
           dispositionOwed: pair?.owed ?? false,
+          warlordOwed: pair?.warlordOwed ?? false,
           // What the pair's lists offer is part of those lists, so only the pair reads it before the reveal.
           team:
             pair && (revealed || (viewerId !== null && pair.userIds.includes(viewerId)))
-              ? { choices: pair.choices, disposition: pair.disposition }
+              ? { choices: pair.choices, disposition: pair.disposition, warlordChoices: pair.warlordChoices, warlord: pair.warlord }
               : null,
         }
       }),
@@ -583,6 +586,13 @@ export class SpacetimeRepository {
     )
   }
 
+  setLeagueTeamWarlord(token: string, ownerId: string, userId: string, now: number, eventToken?: string) {
+    return this.product.leagueCommand(
+      { op: 'set-team-warlord', token, ownerId, userId, now, eventToken: eventToken ?? '' },
+      z.union([z.object({ outcome: z.literal('chosen') }), z.object({ outcome: z.enum(['missing', 'closed', 'not-offered']) })]),
+    )
+  }
+
   revealLeague(token: string, ownerId: string, now: number, eventToken?: string) {
     return this.product.leagueCommand(
       { op: 'reveal', token, ownerId, now, eventToken: eventToken ?? '' },
@@ -648,6 +658,7 @@ export class SpacetimeRepository {
         snapshot: string | null
         teamId: string | null
         teamDisposition: string | null
+        teamWarlord: string | null
       }[]
     }) =>
       | { allyIds: string[]; opponentIds: string[]; initialCommands: Command[]; result: T }
@@ -657,6 +668,7 @@ export class SpacetimeRepository {
     if (!record) return undefined
     const { selected: event } = record
     const picks = new Map(record.teams.map((team) => [team.teamId, team.disposition]))
+    const warlords = new Map(record.teamWarlords.map((team) => [team.teamId, team.userId]))
     const entries = record.entries.filter(
       (entry) =>
         entry.status === 'accepted' &&
@@ -674,6 +686,7 @@ export class SpacetimeRepository {
         snapshot: entry.rosterSnapshot,
         teamId: entry.teamId,
         teamDisposition: (entry.teamId && picks.get(entry.teamId)) ?? null,
+        teamWarlord: (entry.teamId && warlords.get(entry.teamId)) ?? null,
       })),
     })
     const created = await this.product.leagueCommand(

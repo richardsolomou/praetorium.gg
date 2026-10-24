@@ -170,6 +170,8 @@ const leagueRecord = z.object({
   eventCount: z.number().int(),
   entries: z.array(leagueEntry),
   teams: z.array(z.object({ teamId: z.string(), disposition: z.string() })),
+  // Absent from a module deployed before team Warlords, which recorded none.
+  teamWarlords: z.array(z.object({ teamId: z.string(), userId: z.string() })).default([]),
   adminIds: z.array(z.string()),
   latestEntryCount: z.number().int(),
   latestAcceptedCount: z.number().int(),

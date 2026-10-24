@@ -593,6 +593,7 @@ it('charges MFM only for the optional copy of required wargear', () => {
       disposition: null,
       limit: 2_000,
       picks: [{ entryId: 'tank', spreads: { pintle: { melta: 3 } } }],
+      waivedRules: ['warlord'],
     }),
   )
   const priced = calculateRosterPrice(savedRosterPriceInput(saved), catalogue, null)

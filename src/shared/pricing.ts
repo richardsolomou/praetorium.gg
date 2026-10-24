@@ -1,7 +1,7 @@
 import { groupBy, RecentlyUsed, uniqueBy } from '../core/collections'
 import { admitsHost, attachmentCategoriesOf, attachmentErrors, attachmentHost, attachmentLimitsOf, attachmentOf } from '../core/attach'
 import { routeSlug } from '../core/slug'
-import { borrowedDispositionError, detachmentPointBudget, detachmentPointsError, isKotcLimit } from '../core/battle'
+import { borrowedDispositionError, detachmentPointBudget, detachmentPointsError, enforces, isKotcLimit } from '../core/battle'
 import { type CatalogueIndex, targetOf } from '../core/catalogue'
 import {
   battleSizeSelection,
@@ -35,7 +35,7 @@ import { mfmDetachmentFor, mfmEnhancementPoints, mfmWargearOptionPoints } from '
 import { deploymentRules } from './rosterDeployment'
 import { grantsReserveExemptionIn, reserveSelectorsIn } from './textFacts'
 import { heldWargear, replacementKey, type ReplacementSource } from './heldWargear'
-import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations } from './formatRestrictions'
+import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations, warlordCountProblem } from './formatRestrictions'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
 import type { PriceInput } from '../contracts/schemas'
@@ -185,6 +185,16 @@ function legalReplacementPairs(
  * plainest possible version of the same question answered twice.
  */
 const hasWarlordToggle = (toggles: BuiltUnit['toggles']) => toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected)
+
+/**
+ * The Warlord is asked of a list once something in it could be one. A list of squads alone, or an empty one kept to
+ * track a game, has nothing the Warlord choice could fix.
+ */
+function armyWarlordErrors(picked: readonly { toggles: BuiltUnit['toggles'] }[]) {
+  if (!picked.some((unit) => unit.toggles.some((toggle) => toggle.name === 'Warlord'))) return []
+  const problem = warlordCountProblem(picked.filter((unit) => hasWarlordToggle(unit.toggles)).length)
+  return problem ? [{ entryId: 'warlord', entryName: 'Army', message: problem }] : []
+}
 
 function labelUnitsOf(
   picked: readonly { name: string; selection: Selection; toggles: BuiltUnit['toggles'] }[],
@@ -612,6 +622,7 @@ function calculateRoster(
     ),
     ...factionRestrictionViolations(restrictions, constructionUnits),
     ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, constructionUnits, data.limit, data.waivedRules) : []),
+    ...(!isKotcLimit(data.limit) && enforces(data.waivedRules, 'warlord') ? armyWarlordErrors(picked) : []),
     ...(enhancementsAllowed !== null && enhancementsHeld > enhancementsAllowed
       ? [
           {

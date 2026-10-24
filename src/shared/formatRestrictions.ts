@@ -28,6 +28,10 @@ export function factionRestrictionViolations(restrictions: FactionRestrictions |
   })
 }
 
+/** What is wrong with how many Warlords an army names: the core rules ask for exactly one. */
+export const warlordCountProblem = (warlords: number) =>
+  warlords === 0 ? 'needs a Warlord' : warlords > 1 ? `needs exactly 1 Warlord, has ${warlords}` : null
+
 /**
  * KOTC 2.0 army-construction changes layered over normal Incursion legality.
  *
@@ -49,8 +53,8 @@ export function kotcViolations(detachments: number, units: readonly KotcUnit[], 
     add('needs at least 2 Infantry units')
   if (enforces(waived, 'kotc-warlord')) {
     const warlords = units.filter((unit) => unit.warlord)
-    if (!warlords.length) add('needs a Warlord')
-    else if (warlords.length !== 1) add(`needs exactly 1 Warlord, has ${warlords.length}`)
+    const counted = warlordCountProblem(warlords.length)
+    if (counted) add(counted)
     for (const warlord of warlords) if (!hasKeyword(warlord, 'character')) add('Warlord must have the Character keyword', warlord)
   }
   for (const unit of units) {

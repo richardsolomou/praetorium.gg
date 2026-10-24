@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { grantsReserveExemptionIn, reserveSelectorsIn } from '../shared/textFacts'
-import type { OptionalRuleId } from '../core/battle'
+import type { FormatRuleId, OptionalRuleId } from '../core/battle'
 import type { SelectionEntry } from '../core/catalogue'
 import {
   calculateRosterAssessment,
@@ -116,6 +116,7 @@ it('prices a saved fixed composition after resizing its equipped models', () => 
       catalogueId: 'cat',
       detachmentIds: [],
       disposition: null,
+      waivedRules: ['warlord'],
       limit: 2000,
       units: [
         {
@@ -186,6 +187,7 @@ describe('the enhancements an army may hold', () => {
         catalogueId: 'cat',
         detachmentIds: [],
         disposition: null,
+        waivedRules: ['warlord'],
         limit,
         units: Array.from({ length: bearers }, (_, at) => ({ entryId: `lord-${at}` })),
       },
@@ -225,6 +227,7 @@ describe('a custom points budget beside the battle size', () => {
       catalogueId: 'cat',
       detachmentIds: [],
       disposition: null,
+      waivedRules: ['warlord'],
       limit: roster.limit,
       units: ['a', 'b', 'c', 'd'].map((entryId) => ({ entryId })),
     },
@@ -241,11 +244,67 @@ describe('a custom points budget beside the battle size', () => {
   })
 })
 
+describe('the army Warlord', () => {
+  const loaded = bookOf({
+    selectionEntries: [
+      {
+        id: 'captain',
+        name: 'Captain',
+        type: 'unit',
+        costs: pointsCost(80),
+        selectionEntries: [{ id: 'captain-warlord', name: 'Warlord', type: 'upgrade' }],
+      },
+    ],
+  })
+  const errorsFor = (warlords: number[], waivedRules: FormatRuleId[] = []) =>
+    calculateRosterPrice(
+      {
+        catalogueId: 'cat',
+        detachmentIds: [],
+        disposition: null,
+        waivedRules,
+        limit: 2_000,
+        units: [0, 1].map((at) => ({ entryId: 'captain', toggles: { 'captain-warlord': warlords.includes(at) ? 1 : 0 } })),
+      },
+      loaded,
+      rulesWithout,
+    )?.errors.map((error) => `${error.entryName} ${error.message}`)
+
+  it('is required in every battle size', () => {
+    expect(errorsFor([])).toEqual(['Army needs a Warlord'])
+  })
+
+  it('is one unit, never two', () => {
+    expect(errorsFor([0, 1])).toEqual(['Army needs exactly 1 Warlord, has 2'])
+  })
+
+  it('is satisfied by one named Warlord', () => {
+    expect(errorsFor([1])).toEqual([])
+  })
+
+  it('is not asked of a list with nothing that could be one', () => {
+    const squads = bookOf({ selectionEntries: [{ id: 'squad', name: 'Squad', type: 'unit', costs: pointsCost(80) }] })
+    expect(
+      calculateRosterPrice(
+        { catalogueId: 'cat', detachmentIds: [], disposition: null, waivedRules: [], limit: 2_000, units: [{ entryId: 'squad' }] },
+        squads,
+        rulesWithout,
+      )?.errors,
+    ).toEqual([])
+  })
+
+  it('can be waived for a table that plays without one', () => {
+    expect(errorsFor([], ['warlord'])).toEqual([])
+  })
+})
+
 describe('a datasheet capped by the battle size', () => {
   const priceCopies = (loaded: ReturnType<typeof bookOf>, limit: number, units: { entryId: string; catalogueId?: string }[]) =>
-    calculateRosterPrice({ catalogueId: 'cat', detachmentIds: [], disposition: null, limit, units }, loaded, rulesWithout)?.errors.map(
-      (error) => error.message,
-    )
+    calculateRosterPrice(
+      { catalogueId: 'cat', detachmentIds: [], disposition: null, waivedRules: ['warlord'], limit, units },
+      loaded,
+      rulesWithout,
+    )?.errors.map((error) => error.message)
 
   it('allows the smaller game fewer copies than the larger one', () => {
     const loaded = bookOf({ selectionEntries: [cappedLord('lord', 'Warlord')] })
@@ -284,7 +343,12 @@ describe('a datasheet capped by the battle size', () => {
     const units = [{ entryId: 'lord' }, { entryId: 'lord' }, { entryId: 'lord' }]
     const cache: NonNullable<Parameters<typeof calculateRosterAssessment>[3]> = new Map()
     const assess = (limit: number) =>
-      calculateRosterAssessment({ catalogueId: 'cat', detachmentIds: [], disposition: null, limit, units }, loaded, rulesWithout, cache)
+      calculateRosterAssessment(
+        { catalogueId: 'cat', detachmentIds: [], disposition: null, waivedRules: ['warlord'], limit, units },
+        loaded,
+        rulesWithout,
+        cache,
+      )
 
     assess(2_000)
     expect(assess(1_000)?.errors.map((error) => error.message)).toEqual(['allows at most 2, has 3'])
@@ -337,6 +401,7 @@ describe('a limit the catalogue breaks inside a unit', () => {
         catalogueId: 'cat',
         detachmentIds: [],
         disposition: null,
+        waivedRules: ['warlord'],
         limit: 2_000,
         units: Array.from({ length: copies }, () => ({ entryId: 'kill-team' })),
       },
@@ -1471,7 +1536,14 @@ describe('a saved loadout applied to another roster', () => {
     loadout: Parameters<typeof loadoutPicks>[0],
   ) =>
     calculateRosterPrice(
-      { catalogueId: 'cat', detachmentIds: [], disposition: null, limit, units: [...held, ...loadoutPicks(loadout, 'cat')!] },
+      {
+        catalogueId: 'cat',
+        detachmentIds: [],
+        disposition: null,
+        waivedRules: ['warlord'],
+        limit,
+        units: [...held, ...loadoutPicks(loadout, 'cat')!],
+      },
       loaded,
       rulesWithout,
     )?.errors.map((error) => error.message)

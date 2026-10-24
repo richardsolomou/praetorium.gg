@@ -19,7 +19,7 @@ const roster = (id: string) => ({
   disposition: null,
   limit: 2_000,
   picks: [],
-  waivedRules: [],
+  waivedRules: ['warlord' as const],
 })
 const priceable = (id: string) => ({ ...roster(id), optionalRules: [], borrowedDetachmentId: null })
 

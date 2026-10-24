@@ -47,7 +47,7 @@ it.skipIf(!url || !databaseName || !token)(
                   points: 100,
                   models: 1,
                   group: 'character',
-                  warlord: saved.warlord,
+                  warlord: true,
                   warlordEligible: true,
                 },
               ],
