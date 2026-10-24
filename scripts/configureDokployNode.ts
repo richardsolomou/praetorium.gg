@@ -3,6 +3,7 @@ import { verifyWebAssetRoute } from './publishWebAssets.ts'
 import { webAssetRouting } from './lib/webAssetRouting.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
 import { requiredEnv } from './lib/requiredEnv.ts'
+import { STARTUP_BUDGET_MS } from './lib/startupBudget.ts'
 
 type Application = {
   applicationId: string
@@ -98,7 +99,7 @@ export async function ensureWebHealthCheck(origin: URL, headers: Record<string, 
     Test: ['CMD', 'node', '/app/scripts/healthcheck.ts'],
     Interval: 10_000_000_000,
     Timeout: 10_000_000_000,
-    StartPeriod: 1_800_000_000_000,
+    StartPeriod: STARTUP_BUDGET_MS * 1_000_000,
     Retries: 3,
   }
   const response = await request(new URL('/api/application.update', origin), {
