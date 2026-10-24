@@ -715,7 +715,7 @@ test('a league names its next step, which moves on once a player joins', async (
   await player.goto(owner.url())
   await join(player)
   await owner.reload()
-  await expect(nextStep).toHaveText('Next: Share the invite link until at least 2 players are in.')
+  await expect(nextStep).toHaveText('Next: Players seal their rosters. Nobody sees another list, you included, until the reveal.')
   await ownerContext.close()
   await playerContext.close()
 })

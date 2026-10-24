@@ -162,24 +162,32 @@ export function leagueRevealChecklist(
   return checks
 }
 
-/** Where an event stands, from no players to a results table; each stage has one next step for the page to name. */
-export type LeagueStage = 'empty' | 'joining' | 'sealing' | 'ready' | 'playing' | 'results'
-
 /**
- * An event's stage, read from the reveal checklist rather than a second count of who is in and who has sealed.
- * Before the shape can seat a game the event is still joining, even though one sealed roster could be revealed.
+ * Where an event stands, from no players to a results table. Before the reveal it is the first reveal check still
+ * holding the event up, so the page names the same step the reveal command would refuse on.
  */
+export type LeagueStage = 'empty' | 'approving' | 'sizing' | 'pairing' | 'sealing' | 'choosing' | 'ready' | 'playing' | 'results'
+
+const STAGE_FOR_CHECK = {
+  places: 'empty',
+  requests: 'approving',
+  sizes: 'sizing',
+  teams: 'pairing',
+  lists: 'sealing',
+  dispositions: 'choosing',
+} as const satisfies Record<LeagueRevealCheck['step'], LeagueStage>
+
 export function leagueStage(
   event: { format: TableShape | null; rosterLimit: number | null; revealedAt: number | null },
   entries: readonly LeagueRevealEntry[],
   played: boolean,
 ): LeagueStage {
   if (event.revealedAt) return played ? 'results' : 'playing'
-  const checks = leagueRevealChecklist(event, entries)
-  const accepted = checks[0]?.step === 'places' ? checks[0].accepted : 0
-  if (!accepted) return 'empty'
-  if (accepted < LEAGUE_SHAPE_PLACES[leagueTableShape(event.format)]) return 'joining'
-  return checks.every((check) => check.done) ? 'ready' : 'sealing'
+  const held = leagueRevealChecklist(event, entries).find((check) => !check.done)
+  if (!held) return 'ready'
+  // Nobody is in yet, but an approval league may already have requests to answer.
+  if (held.step === 'places' && entries.some((entry) => entry.status === 'pending')) return 'approving'
+  return STAGE_FOR_CHECK[held.step]
 }
 
 /** The most admins one league can have beside its owner. */

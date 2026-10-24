@@ -1,6 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
 import {
-  LEAGUE_SHAPE_PLACES,
   alliedLeagueRosterLimit,
   leagueTableShape,
   leagueRegistrationFull,
@@ -151,26 +150,35 @@ export function leaguePhase(league: LeagueFacts, accepted: number, occupied: num
 }
 
 /**
- * The one thing that happens next at an event's stage, said to whoever moves it on: the organizer, or a player in it.
- * An empty event has no players yet, so only its organizer reads a step there.
+ * What happens next at an event's stage, said to the reader by what they owe: the organizer the step the reveal waits
+ * on, a player what the organizer or the group still has to do. A revealed event asks a player to play only once
+ * their side can start a battle; until then the status card says why not.
  */
-export function leagueNextStep(stage: LeagueStage, organizer: boolean, format: League['format']) {
-  const places = LEAGUE_SHAPE_PLACES[leagueTableShape(format)]
-  if (organizer)
+export function leagueNextStep(stage: LeagueStage, viewer: { organizer: boolean; canPlay: boolean }, format: League['format']) {
+  const shape = leagueTableShape(format)
+  const pairs = shape === '2v1' ? 'the allies' : 'players into teams'
+  if (viewer.organizer)
     return {
       empty: 'Copy the invite link and send it to your group.',
-      joining: `Share the invite link until at least ${places} players are in.`,
+      approving: 'Answer the requests waiting below.',
+      sizing: 'Give each player a solo or allied size below.',
+      pairing: `Pair ${pairs} below.`,
       sealing: 'Players seal their rosters. Nobody sees another list, you included, until the reveal.',
+      choosing: 'Each team chooses its Force Disposition. Then you can reveal the rosters.',
       ready: 'Reveal the rosters. That opens every list at once and closes entry.',
       playing: 'Players start their league battles from this page. Finished ones fill the results table.',
       results: 'Start the next event once this one’s games are done.',
     }[stage]
+  const play = `Start a ${TABLE_SHAPE_LABELS[shape].count} battle from your card. Finished battles fill the results table.`
   return {
     empty: null,
-    joining: 'More players need to join before there’s anyone to play.',
-    sealing: 'The rosters stay hidden until everyone has sealed, then open together.',
+    approving: 'The organizer answers the waiting requests next.',
+    sizing: 'The organizer gives each player a solo or allied size.',
+    pairing: `The organizer pairs ${pairs}.`,
+    sealing: 'Rosters stay hidden until everyone has sealed and someone reveals them.',
+    choosing: 'Each team chooses its Force Disposition before anyone reveals the rosters.',
     ready: 'Anyone playing can reveal the rosters now. Then the battles start.',
-    playing: 'Start a battle against anyone here. Finished battles fill the results table.',
-    results: 'Keep playing. Each finished battle updates the table.',
+    playing: viewer.canPlay ? play : null,
+    results: viewer.canPlay ? play : null,
   }[stage]
 }

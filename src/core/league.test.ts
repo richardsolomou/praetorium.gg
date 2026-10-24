@@ -421,23 +421,47 @@ describe('leagueStage', () => {
   const revealed = { ...open, revealedAt: 1 }
 
   it('is empty until someone is accepted', () => {
-    expect(leagueStage(open, [entry('a', { status: 'pending' })], false)).toBe('empty')
+    expect(leagueStage(open, [], false)).toBe('empty')
   })
 
-  it('is joining while fewer players are in than the shape seats', () => {
-    expect(leagueStage(open, [entry('a')], false)).toBe('joining')
+  it('is approving while nobody is in but requests are waiting', () => {
+    expect(leagueStage(open, [entry('a', { status: 'pending' })], false)).toBe('approving')
   })
 
-  it('counts doubles as joining until four players are in', () => {
-    expect(leagueStage({ ...open, format: '2v2' }, [entry('a'), entry('b'), entry('c')], false)).toBe('joining')
+  it('is approving while a doubles request is unanswered', () => {
+    const team = (userId: string) => entry(userId, { teamId: 't1' })
+    const teamTwo = (userId: string) => entry(userId, { teamId: 't2' })
+    expect(
+      leagueStage({ ...open, format: '2v2' }, [team('a'), team('b'), teamTwo('c'), teamTwo('d'), entry('e', { status: 'pending' })], false),
+    ).toBe('approving')
+  })
+
+  it('is sizing a 2v1 whose rosters are sealed but sizes unassigned', () => {
+    expect(leagueStage({ ...open, format: '2v1' }, [entry('a'), entry('b'), entry('c')], false)).toBe('sizing')
+  })
+
+  it('is pairing a 2v1 whose allies are sized but not paired', () => {
+    const allied = (userId: string) => entry(userId, { requiredLimit: 1_000 })
+    expect(leagueStage({ ...open, format: '2v1' }, [entry('a', { requiredLimit: 2_000 }), allied('b'), allied('c')], false)).toBe('pairing')
+  })
+
+  it('is pairing doubles whose rosters are sealed but teams unassigned', () => {
+    expect(leagueStage({ ...open, format: '2v2' }, [entry('a'), entry('b'), entry('c'), entry('d')], false)).toBe('pairing')
   })
 
   it('is sealing while a roster is still owed', () => {
     expect(leagueStage(open, [entry('a'), entry('b', { submitted: false })], false)).toBe('sealing')
   })
 
-  it('is ready once every reveal check passes', () => {
-    expect(leagueStage(open, [entry('a'), entry('b')], false)).toBe('ready')
+  it('is choosing while a team owes its Force Disposition', () => {
+    const team = (userId: string, teamId: string) => entry(userId, { teamId, dispositionOwed: teamId === 't1' })
+    expect(leagueStage({ ...open, format: '2v2' }, [team('a', 't1'), team('b', 't1'), team('c', 't2'), team('d', 't2')], false)).toBe(
+      'choosing',
+    )
+  })
+
+  it('is ready whenever the reveal checklist passes, as the reveal command decides', () => {
+    expect(leagueStage(open, [entry('a')], false)).toBe('ready')
   })
 
   it('is playing once revealed with no finished battle', () => {

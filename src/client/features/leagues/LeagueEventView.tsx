@@ -201,6 +201,7 @@ export function LeagueEventView({
           : yetToPlay.length
             ? `Still to play: ${namesPhrase(yetToPlay)}.`
             : 'You have played everyone. Rematches count too.'
+  const alone = battleFormat === '1v1' && !opponents.length
   const registrationFull = leagueRegistrationFull(league, accepted.length, league.occupiedCount)
   const latest = league.events[0]?.token === league.eventToken
   const entryCard = entryStatus({
@@ -212,7 +213,7 @@ export function LeagueEventView({
     ownSideSealed,
     allies: allies.map(label),
     playDetail,
-    alone: battleFormat === '1v1' && !opponents.length,
+    alone,
     latest,
     join: () => join.mutate(),
     joining: join.isPending,
@@ -282,7 +283,8 @@ export function LeagueEventView({
     latest && (isOrganizer || ownEntry?.status === 'accepted')
       ? leagueNextStep(
           leagueStage(league, league.entries, Boolean(results?.rows.some((result) => result.played))),
-          isOrganizer,
+          // The same facts that give the status card its start-battle action.
+          { organizer: isOrganizer, canPlay: Boolean(ownEntry?.submitted) && ownSideSealed && !alone },
           league.format,
         )
       : null
