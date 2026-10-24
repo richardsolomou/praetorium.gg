@@ -1,10 +1,10 @@
 import { Minus, Plus } from 'lucide-react'
-import { type PointerEvent, useEffect, useRef } from 'react'
+import { type PointerEvent, useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Select as SelectPrimitive } from '@base-ui/react/select'
 import { Select, SelectContent, SelectItem, SelectValue } from '@/components/ui/select'
 import type { OnboardingTarget } from '../onboardingTargets'
-import { holdRepeat } from './holdRepeat'
+import { holdPress } from './holdRepeat'
 
 /** Minus, the number, plus, each held to repeat; given choices, the number also picks a count directly. */
 export function Stepper({
@@ -76,30 +76,18 @@ export function CountButton({
   describedBy?: string
 }) {
   const latest = useRef(onClick)
-  const stop = useRef<(() => void) | null>(null)
-  // A held press already stepped, so the click its release fires must not step again.
-  const repeated = useRef(false)
   useEffect(() => {
     latest.current = onClick
   })
-  useEffect(() => () => stop.current?.(), [])
-  const release = () => {
-    stop.current?.()
-    stop.current = null
-  }
+  const [press] = useState(holdPress)
+  useEffect(() => press.release, [press])
   const hold = (event: PointerEvent) => {
-    repeated.current = false
-    if (!repeat || event.button !== 0) return
-    release()
-    stop.current = holdRepeat(() => {
-      if (!latest.current) return false
-      repeated.current = true
-      latest.current()
-      return true
-    })
-    // The button disables itself at its limit and then hears no pointer events.
-    window.addEventListener('pointerup', release, { once: true })
-    window.addEventListener('pointercancel', release, { once: true })
+    if (repeat && event.button === 0)
+      press.press(event.pointerId, window, () => {
+        const step = latest.current
+        step?.()
+        return Boolean(step)
+      })
   }
   const color = decrease
     ? 'border-destructive/60 bg-destructive/15 text-destructive hover:bg-destructive/25 hover:text-destructive dark:border-destructive/60 dark:bg-destructive/15 dark:hover:bg-destructive/25'
@@ -113,15 +101,9 @@ export function CountButton({
       aria-describedby={describedBy}
       disabled={!onClick}
       onPointerDown={hold}
-      onPointerLeave={release}
+      onPointerLeave={press.release}
       onContextMenu={repeat ? (event) => event.preventDefault() : undefined}
-      onKeyDown={() => {
-        repeated.current = false
-      }}
-      onClick={() => {
-        if (repeated.current) repeated.current = false
-        else onClick?.()
-      }}
+      onClick={(event) => press.click(event.detail) && onClick?.()}
     >
       {decrease ? <Minus strokeWidth={2.5} /> : <Plus strokeWidth={2.5} />}
     </Button>
