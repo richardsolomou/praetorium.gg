@@ -98,7 +98,7 @@ export function embarkCards(
     )
     for (const candidate of transports) {
       if (candidate === transport) continue
-      const detail = joined.length ? `With ${joined.map((unit) => unit.name).join(', ')}` : null
+      const detail = joined.length ? `With ${joined.map(named).join(', ')}` : null
       cards.get(card(candidate))!.canCarry.push(...pairing(host, candidate, named(host), detail))
     }
   }
