@@ -61,8 +61,15 @@ export function afterFailedCommand<T extends Pick<QueuedCommand, 'basedOn' | 'ba
   return { kept, dropped: queued.filter((candidate) => !kept.includes(candidate)) }
 }
 
-/** Sends queued commands one at a time, each against the newest history this device has seen. */
-async function drainCommands({
+/**
+ * Sends queued commands one at a time, each against the newest history this device has seen. Queued commands live only
+ * in this page, so automatic reloads wait until the queue is empty, including between sends.
+ */
+export function drainCommands(args: Parameters<typeof sendQueued>[0]) {
+  return holdingReload(sendQueued(args))
+}
+
+async function sendQueued({
   token,
   queryClient,
   seen,
@@ -153,8 +160,7 @@ export function useCommand(token: string, seq: number) {
   }, [seq])
 
   const drain = useCallback(
-    // Queued commands live only in this page, so the drain holds reloads until it has sent them all.
-    () => holdingReload(drainCommands({ token, queryClient, seen, queued, draining, setPending, setProblem })),
+    () => drainCommands({ token, queryClient, seen, queued, draining, setPending, setProblem }),
     [queryClient, token],
   )
 

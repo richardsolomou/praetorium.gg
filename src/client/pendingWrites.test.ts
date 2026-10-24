@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query'
 import { expect, it } from 'vitest'
-import { holdingReload, writesPending } from './pendingWrites'
+import { holdingReload, pendingWriteMiddleware, writesPending } from './pendingWrites'
 
 function deferred() {
   let resolve!: () => void
@@ -36,4 +36,26 @@ it('counts a running React Query mutation as pending', async () => {
   expect(writesPending(client)).toBe(true)
   write.resolve()
   await running
+})
+
+const callServerFunction = (method: 'GET' | 'POST', next: () => Promise<unknown>) =>
+  (pendingWriteMiddleware.options.client as unknown as (options: { method: string; next: () => Promise<unknown> }) => Promise<unknown>)({
+    method,
+    next,
+  })
+
+it('counts a server function post as pending', async () => {
+  const write = deferred()
+  const sent = callServerFunction('POST', () => write.promise)
+  expect(writesPending(new QueryClient())).toBe(true)
+  write.resolve()
+  await sent
+})
+
+it('leaves a server function read out of pending writes', async () => {
+  const read = deferred()
+  const reading = callServerFunction('GET', () => read.promise)
+  expect(writesPending(new QueryClient())).toBe(false)
+  read.resolve()
+  await reading
 })

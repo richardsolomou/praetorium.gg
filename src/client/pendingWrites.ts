@@ -1,4 +1,5 @@
 import type { QueryClient } from '@tanstack/react-query'
+import { createMiddleware } from '@tanstack/react-start'
 
 let held = 0
 
@@ -10,3 +11,8 @@ export function holdingReload<T>(write: Promise<T>): Promise<T> {
 
 /** Whether a reload now could drop a change this page has not finished sending or saving. */
 export const writesPending = (client: QueryClient) => held > 0 || client.isMutating() > 0
+
+/** Server function writes post, so a stale page waits for them before it reloads. */
+export const pendingWriteMiddleware = createMiddleware({ type: 'function' }).client(({ method, next }) =>
+  method === 'POST' ? holdingReload(next()) : next(),
+)
