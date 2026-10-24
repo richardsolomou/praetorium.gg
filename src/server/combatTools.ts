@@ -78,7 +78,7 @@ const simulateCombatInputSchema = z.object({
 type SimulateCombatInput = z.infer<typeof simulateCombatInputSchema>
 type SideInput = z.infer<typeof sideSchema>
 
-/** Why a matchup has no estimate; each reason names the input or mechanic that is not supported. */
+/** Why the named sides cannot be built; each reason names the faction, unit, size, or attachment at fault. */
 class CombatRefusal extends Error {
   constructor(readonly reasons: string[]) {
     super(reasons.join(' '))
@@ -273,7 +273,6 @@ export async function simulateCombat(input: SimulateCombatInput) {
     excluded: { ranged: [], melee: [] },
     allocation: [],
   })
-  if (matchup.target?.error) return refused([matchup.target.error])
   const adjustments = input.modifiers ?? {}
   const request: CombatRequest = {
     ranged: matchup.scenario('ranged', adjustments),
@@ -286,7 +285,8 @@ export async function simulateCombat(input: SimulateCombatInput) {
     const weapons = plan.active.map((entry) => ({ name: entry.profile.name, count: entry.count }))
     const modes = plan.choices.map((choice) => ({ key: choice.key, label: choice.label, value: choice.value, options: choice.options }))
     const result = answer[key]
-    if (plan.errors.length) return { status: 'refused' as const, reasons: plan.errors, weapons, weaponModes: modes }
+    const errors = [...(matchup.target?.error ? [matchup.target.error] : []), ...plan.errors]
+    if (errors.length) return { status: 'refused' as const, reasons: errors, weapons, weaponModes: modes }
     if (!result) return { status: 'refused' as const, reasons: ['This phase could not be built.'], weapons, weaponModes: modes }
     if (result.error) return { status: 'refused' as const, reasons: [result.error], weapons, weaponModes: modes }
     if (!request[key]!.weapons.length && !request[key]!.mortalWounds?.length) return { status: 'no attacks' as const }
@@ -294,7 +294,7 @@ export async function simulateCombat(input: SimulateCombatInput) {
   }
   const shooting = phase('ranged')
   const fight = phase('melee')
-  if (shooting.status === 'refused' && fight.status === 'refused') return refused([...shooting.reasons, ...fight.reasons])
+  const phaseRefusals = [...new Set([shooting, fight].flatMap((part) => (part.status === 'refused' ? part.reasons : [])))]
   const citations = [...attacker.units, ...defender.units]
   const documents = citations.flatMap((unit) => (unit.referenceId && corpus.byId.get(unit.referenceId)) || [])
   const result = {
@@ -310,7 +310,9 @@ export async function simulateCombat(input: SimulateCombatInput) {
       ? { status: 'estimated' as const, ...outcome(answer.combined.result) }
       : answer.combined?.error
         ? { status: 'refused' as const, reasons: [answer.combined.error] }
-        : { status: 'not applicable' as const },
+        : phaseRefusals.length
+          ? { status: 'refused' as const, reasons: phaseRefusals }
+          : { status: 'not applicable' as const },
     simulatorUrl: `/simulator?s=${encodeSimulatorState({
       v: 1,
       sides: [sharedSide(attacker, input.attacker.rules), sharedSide(defender, input.defender.rules)],
@@ -342,7 +344,7 @@ export function registerCombatTools(tools: AgentTools) {
     {
       title: 'Estimate combat between two units',
       description:
-        "Runs Praetorium's exact combat simulator for one attacking unit, with any attached leaders, against one defending unit at full strength: shooting, melee, and shooting followed by melee. Returns expected models destroyed, expected wounds lost, the chance to destroy the unit, cumulative odds, weapons used, the rule and weapon-mode choices each side can change, datasheet citations, and a simulator link. Passive datasheet rules apply by default; stratagems and conditional rules stay off until chosen. Unsupported mechanics are refused or listed under notCalculated rather than approximated. Like the standalone simulator page, it uses default loadouts and no detachment; unit sizes and attachments must be legal.",
+        "Runs Praetorium's exact combat simulator for one attacking unit, with any attached leaders, against one defending unit at full strength: shooting, melee, and shooting followed by melee. Returns expected models destroyed, expected wounds lost, the chance to destroy the unit, cumulative odds, weapons used, the rule and weapon-mode choices each side can change, datasheet citations, and a simulator link. Passive datasheet rules apply by default; stratagems and conditional rules stay off until chosen. Rules the simulator cannot calculate are never approximated: a phase it cannot estimate has status refused with its reasons, and recognised rules it leaves out are listed under notCalculated, so explain those gaps rather than retrying. Errors are reserved for unknown factions or units, illegal unit sizes or attachments, and unavailable reference data. Like the standalone simulator page, it uses default loadouts and no detachment; unit sizes and attachments must be legal.",
       inputSchema: simulateCombatInputSchema,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },

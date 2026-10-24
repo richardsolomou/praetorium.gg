@@ -168,18 +168,28 @@ const cases: Case[] = [
     events: [['league_updated', { visibility: 'private', admission: 'approval', player_limit_set: false }]],
   },
   { kind: 'deleteLeague', input: { token: league.token }, events: [['league_deleted']] },
-  { kind: 'deleteBattle', input: { token: 'private-battle' }, events: [['battle_deleted']] },
+  {
+    kind: 'deleteBattle',
+    input: { token: 'private-battle' },
+    result: 'battle-id',
+    events: [['battle_deleted', { battle_id: 'battle-id' }]],
+  },
   {
     kind: 'createBattle',
     input: { limit: 2000, opponentId: 'private-opponent' },
-    result: { token: 'private-battle', practice: false },
-    events: [['battle_created', { limit: 2000, player_count: 2, practice: false, casual: false, manual: false, guests: 0 }]],
+    result: { battleId: 'battle-id', token: 'private-battle', practice: false },
+    events: [
+      [
+        'battle_created',
+        { battle_id: 'battle-id', limit: 2000, player_count: 2, practice: false, casual: false, manual: false, guests: 0 },
+      ],
+    ],
   },
   {
     kind: 'createLeagueBattle',
     input: { token: league.token, opponentId: 'private-person' },
-    result: { token: 'private-battle', format: '1v1', requiredLimit: 2000 },
-    events: [['league_battle_created', { format: '1v1', required_limit: 2000 }]],
+    result: { battleId: 'battle-id', token: 'private-battle', format: '1v1', requiredLimit: 2000 },
+    events: [['league_battle_created', { battle_id: 'battle-id', format: '1v1', required_limit: 2000 }]],
   },
 ]
 

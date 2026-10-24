@@ -140,15 +140,15 @@ beforeEach(() => {
 })
 
 it('captures a newly applied synced battle command and lifecycle without its contents', async () => {
-  mocks.submitWithWorkspace.mockResolvedValue({ result: { outcome: 'appended', seq: 2 }, applied: true })
+  mocks.submitWithWorkspace.mockResolvedValue({ result: { outcome: 'appended', seq: 2 }, applied: true, battleId: 'battle-id' })
   await invoke({ data: { ...input(), command: { kind: 'begin-battle' } } })
   expect(mocks.capture.mock.calls).toEqual([
     [
       'actor',
       'battle_command_submitted',
-      { command: 'begin-battle', outcome: 'appended', delivery: 'sync', duration_ms: expect.any(Number) },
+      { battle_id: 'battle-id', command: 'begin-battle', outcome: 'appended', delivery: 'sync', duration_ms: expect.any(Number) },
     ],
-    ['actor', 'battle_started', { delivery: 'sync' }],
+    ['actor', 'battle_started', { battle_id: 'battle-id', delivery: 'sync' }],
   ])
 })
 
