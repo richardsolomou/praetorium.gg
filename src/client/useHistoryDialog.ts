@@ -6,9 +6,9 @@ type DialogLocationState = { historyDialog?: { hash: string; value: string } }
 /**
  * A dialog held in its own history entry, so the system Back gesture closes it instead of leaving the page.
  *
- * The open dialog's value lives in the entry's state behind `#hash`; closing steps back over that
- * entry, as `useRosterPanes` does for compact roster panes. Only `open` pushes that entry, so the one
- * behind it is this page even after a reload; it is replaced only when nothing of this tab's is behind it.
+ * The open dialog's value lives in the entry's state behind `#hash`. Only `open` pushes that entry, so
+ * the one behind it is this page even after a reload: closing steps back over it, and replaces it in
+ * place only when it is the tab's first entry.
  * Dialogs opt in: one that closes by navigating, or that the address opens, would leave a stale entry behind.
  */
 export function useHistoryDialog(hash: string) {
