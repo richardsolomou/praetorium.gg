@@ -66,7 +66,9 @@ function applicationRegions(code: string) {
 export function instrumentModule(code: string) {
   if (code.split(hooks).length !== 2) throw new Error(`the module bundle has no single \`${hooks}\` to wrap`)
   const regions = applicationRegions(code)
-  const functions = functionNodes(parseSync('bundle.js', code).program).filter(({ start }) => regions.some(([first, last]) => first <= start && start < last))
+  const functions = functionNodes(parseSync('bundle.js', code).program).filter(({ start }) =>
+    regions.some(([first, last]) => first <= start && start < last),
+  )
   const insertions: [offset: number, text: string][] = []
   functions.forEach(({ body }, id) => {
     if (body!.type === 'BlockStatement') insertions.push([body!.start + 1, `__praetoriumHit(${id});`])
