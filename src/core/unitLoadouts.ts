@@ -5,8 +5,10 @@ import type { RosterPick } from './roster'
 export const UNIT_LOADOUT_NAME_MAX_LENGTH = 80
 export const UNIT_LOADOUTS_MAX = 100
 
-/** What a saved loadout keeps of a unit: its datasheet, squad size and wargear. */
-export const unitLoadoutPickSchema = rosterPickSchema.pick({ entryId: true, models: true, choices: true, spreads: true }).strict()
+/** What a saved loadout keeps of a unit: its datasheet, squad size, wargear and nickname. */
+export const unitLoadoutPickSchema = rosterPickSchema
+  .pick({ entryId: true, models: true, choices: true, spreads: true, nickname: true })
+  .strict()
 
 export const unitLoadoutNameSchema = z.string().trim().min(1).max(UNIT_LOADOUT_NAME_MAX_LENGTH)
 
@@ -23,7 +25,7 @@ type PricedUnit = { choices: readonly { key: string; kind?: 'enhancement' | 'upg
 /**
  * A roster unit as a saved loadout.
  *
- * The nickname, note, Warlord, attachment, enhancements and detachment upgrades belong to the army the
+ * The note, Warlord, attachment, enhancements and detachment upgrades belong to the army the
  * unit stood in, so a loadout never carries them into another. Only a priced unit says which
  * choices are enhancements, so an unpriced one cannot be saved.
  */
@@ -38,6 +40,7 @@ export function loadoutOf(pick: RosterPick, rosterCatalogueId: string, unit: Pri
       ...(pick.models === undefined ? {} : { models: pick.models }),
       ...(choices && Object.keys(choices).length ? { choices } : {}),
       ...(pick.spreads ? { spreads: pick.spreads } : {}),
+      ...(pick.nickname ? { nickname: pick.nickname } : {}),
     },
   }
 }

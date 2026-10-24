@@ -16,7 +16,7 @@ export function SaveLoadoutDialog({ pick, unit, catalogueId, onClose }: Props) {
   return (
     <LoadoutNameDialog
       title="Save loadout"
-      description="Keeps this unit’s model count and wargear so you can add it to any roster of this army. Its note, Warlord, enhancement, detachment upgrade and attachment stay in this roster."
+      description="Keeps this unit’s model count, wargear and custom name so you can add it to any roster of this army. Its note, Warlord, enhancement, detachment upgrade and attachment stay in this roster."
       initialName={unit.name}
       submit="Save loadout"
       pendingLabel="Saving…"
