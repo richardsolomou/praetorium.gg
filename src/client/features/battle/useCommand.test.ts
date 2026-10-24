@@ -3,11 +3,13 @@ import { describe, expect, it, vi } from 'vitest'
 import { writesPending } from '../../pendingWrites'
 
 const submit = vi.hoisted(() => vi.fn())
+const captureException = vi.hoisted(() => vi.fn())
 const writeAppSnapshot = vi.hoisted(() => vi.fn())
 vi.mock('../../functions', () => ({ submit }))
 vi.mock('../../offline/appStorage', () => ({ writeAppSnapshot }))
 vi.mock('../../offline/appSnapshot', () => ({ captureAppSnapshot: () => null }))
 vi.mock('../../nativeBridge', () => ({ requestNativeHaptic: () => {} }))
+vi.mock('posthog-js', () => ({ posthog: { captureException } }))
 
 import { afterFailedCommand, asSentence, drainCommands } from './useCommand'
 
@@ -65,5 +67,23 @@ describe('automatic reloads while commands are queued', () => {
     expect(writesPending(client)).toBe(true)
     saved()
     await drained
+  })
+})
+
+describe('a command sent while the connection drops', () => {
+  it('asks the player to check their connection and reports nothing', async () => {
+    submit.mockRejectedValueOnce(new TypeError('Load failed'))
+    const setProblem = vi.fn()
+    await drainCommands({
+      token: 'battle',
+      queryClient: new QueryClient(),
+      seen: { current: 0 },
+      queued: { current: [{ command: { kind: 'begin-battle' } as never, basedOn: 0 }] },
+      draining: { current: false },
+      setPending: () => {},
+      setProblem,
+    })
+    expect(setProblem).toHaveBeenLastCalledWith('Check your connection and try again.')
+    expect(captureException).not.toHaveBeenCalled()
   })
 })
