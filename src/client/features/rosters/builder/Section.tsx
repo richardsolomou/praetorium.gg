@@ -11,8 +11,8 @@ type Props = {
   /** Held by the caller, for a shelf that can empty and come back without forgetting whether it was open. */
   open?: boolean
   onOpenChange?: (open: boolean) => void
-  /** Sits the heading on its first entry, for entries whose outline carries a label above it. */
-  snug?: boolean
+  /** What the shelf's units cost together, beside its title. */
+  points?: number
 }
 
 /**
@@ -22,12 +22,13 @@ type Props = {
  * right number of units in each category, not by scrolling to the bottom to find
  * out.
  */
-export function Section({ title, count, children, defaultOpen = true, open, onOpenChange, snug = false }: Props) {
+export function Section({ title, count, children, defaultOpen = true, open, onOpenChange, points }: Props) {
   return (
     <Collapsible render={<section />} defaultOpen={defaultOpen} open={open} onOpenChange={onOpenChange}>
-      <div className={`flex w-full items-center justify-between ${snug ? 'pt-2.5 pb-0.5' : 'py-1.5'}`}>
+      <div className="flex w-full items-center gap-2 py-1.5">
         <h2 className="rubric">{title}</h2>
-        <span className="flex items-center gap-1.5">
+        {points === undefined ? null : <span className="readout text-xs text-dim">{points} pts</span>}
+        <span className="ml-auto flex items-center gap-1.5">
           <span className="readout text-sm text-dim">{count}</span>
           <CollapsibleTrigger
             render={<Button variant="ghost" size="icon-xs" aria-label={`Toggle ${title}`} className="group text-faint" />}
