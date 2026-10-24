@@ -139,7 +139,7 @@ export function leagueFormat(league: Pick<LeagueFacts, 'format' | 'rosterLimit'>
 }
 
 /** Legends and Crucible read as what a list may bring; a battle-size rule as one it may switch off. */
-export const allowanceLabel = (option: { id: LeagueAllowance; label: string }) =>
+const allowanceLabel = (option: { id: LeagueAllowance; label: string }) =>
   option.id === 'legends' || option.id === 'crucible' ? option.label : `${option.label} off`
 
 /**

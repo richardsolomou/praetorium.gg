@@ -383,8 +383,8 @@ export function leagueAllowanceOptions(format: TableShape, rosterLimit: number):
   const rules = new Map(limits.flatMap((limit) => formatRules(limit)).map((rule) => [rule.id, rule]))
   return [
     ...[...rules.values()].filter((rule) => format === '1v1' || !WARLORD_RULES.has(rule.id)),
-    { id: 'legends', label: 'Legends', hint: 'Lists may include Legends datasheets' },
-    { id: 'crucible', label: 'Crucible', hint: 'Lists may include Crucible datasheets' },
+    { id: 'legends', label: 'Legends', hint: 'Datasheets matched play leaves out' },
+    { id: 'crucible', label: 'Crucible', hint: 'Datasheets matched play leaves out' },
   ]
 }
 
