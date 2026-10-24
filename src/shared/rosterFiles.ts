@@ -422,7 +422,8 @@ const modelAliases = (name: string) => [
   normalized(name),
   ...nameVariants(name.replace(modelLoadout, '').replace(/\s+(?:Squad|Sodality)$/i, '')),
 ]
-const compact = (name: string) => name.replaceAll(' ', '')
+// BSData prefixes weapons the official app does not, as its "Astartes Chainsword" and "Steed's savage claws" are the app's "Chainsword" and "Savage claws".
+const spellingKey = (name: string) => name.replace(/^(?:astartes|\S+'s) /, '').replaceAll(' ', '')
 
 function wargearCounts(selection: Selection, index: LoadedCatalogue['index']) {
   const counts = new Map<string, number>()
@@ -442,10 +443,10 @@ function textRosterPick(
   const stated = new Map<string, number>()
   const labels = new Map<string, string>()
   const statedUnder = new Map<string, Map<string, number>>()
-  const respaced = respacedNames(entryId, loaded.index)
+  const respelled = respelledNames(entryId, loaded.index)
   for (const selection of unit.selections) {
     const label = selection.name.replace(/^(?:Enhancements?|Upgrade):\s*(.+)$/i, (_, name: string) => upgradeName(name)).trim()
-    const name = respaced.get(compact(normalized(label))) ?? normalized(label)
+    const name = respelled.get(spellingKey(normalized(label))) ?? normalized(label)
     stated.set(name, (stated.get(name) ?? 0) + selection.count)
     if (!labels.has(name)) labels.set(name, label)
     if (!selection.model) continue
@@ -458,7 +459,7 @@ function textRosterPick(
   // The official app titles a model after its datasheet, as a "Thunderwolf Cavalry Pack Leader" the catalogue does not name;
   // a name the datasheet holds, as a "Piranha fusion blaster", is not one.
   const ownNames = nameVariants(unit.name)
-  const namedForUnit = (name: string) => !respaced.has(compact(name)) && ownNames.some((own) => name.startsWith(`${own} `))
+  const namedForUnit = (name: string) => !respelled.has(spellingKey(name)) && ownNames.some((own) => name.startsWith(`${own} `))
   const statedModels = [...stated].reduce((total, [name, count]) => total + (models.has(name) || namedForUnit(name) ? count : 0), 0)
   // Model lines size the unit; without them, its most numerous wargear stands in.
   const requestedModels = unit.models ?? (statedModels || Math.max(1, ...unit.selections.map((selection) => selection.count)))
@@ -660,12 +661,12 @@ function modelNames(entryId: string, index: LoadedCatalogue['index']) {
   return names
 }
 
-/** A datasheet's names keyed without spaces, as BSData's "Relic Great Axe" is the app's "Relic Greataxe"; null where two collide. */
-function respacedNames(entryId: string, index: LoadedCatalogue['index']) {
+/** A datasheet's names keyed by spellingKey, as BSData's "Relic Great Axe" is the app's "Relic Greataxe"; null where two collide. */
+function respelledNames(entryId: string, index: LoadedCatalogue['index']) {
   const names = new Map<string, string | null>()
   eachDefinition(entryId, index, (definition, target) => {
     for (const name of new Set([nameOf(definition, index.definitions), target.name ?? ''].filter(Boolean).map(normalized))) {
-      const key = compact(name)
+      const key = spellingKey(name)
       names.set(key, names.has(key) && names.get(key) !== name ? null : name)
     }
   })
@@ -718,7 +719,9 @@ function optionAliases(
   return new Map(
     options.map((option) => {
       const selection = defaultSelection(option.id, loaded.index, context)
-      const names = new Map([option.name, upgradeName(option.name)].map((name) => [normalized(name), 1]))
+      // A model named for what it carries answers to it, as a "Battle Sister w/ Simulacrum Imperialis" is a "Simulacrum Imperialis".
+      const loadout = isModel(option.id, loaded.index) ? option.name.match(modelLoadout)?.[1] : undefined
+      const names = new Map([option.name, upgradeName(option.name), ...(loadout ? [loadout] : [])].map((name) => [normalized(name), 1]))
       for (const [name, count] of selection ? wargearCounts(selection, loaded.index) : []) names.set(name, count)
       // A loadout also answers to the swaps it holds, as a Watchmaster's plasma pistol is taken through "Laspistol and chainsword".
       if (!isModel(option.id, loaded.index)) {
