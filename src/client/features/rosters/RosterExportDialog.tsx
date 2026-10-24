@@ -45,8 +45,8 @@ export function RosterExportDialog({ exported, onClose }: { exported: RosterText
         </DialogHeader>
         <DialogBody>
           <p className="mb-3 text-xs text-dim">
-            Includes model counts, equipment, enhancements, Warlord, attachments, setup and rules version. Unit notes, preparation, rule
-            waivers and optional rules are omitted.
+            Includes custom unit names, model counts, equipment, enhancements, Warlord, attachments, setup and rules version. Unit notes,
+            preparation, rule waivers and optional rules are omitted.
           </p>
           {exported?.omittedUnitCount ? (
             <Problem className="mb-3">

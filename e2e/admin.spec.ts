@@ -9,7 +9,7 @@ test('a player secures an account with an authenticator app', async ({ page, req
   const name = uniqueName('Secure Player')
   const { email, password } = await signUp(page, name)
   await page.goto('/profile')
-  await expect(page.getByRole('heading', { name: 'Authenticator app' })).toBeVisible()
+  await expect(page.getByText('Two-factor authentication', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Set up authenticator' }).click()
   const setup = page.getByRole('dialog', { name: 'Set up two-factor authentication' })
   await setup.getByLabel('Confirm your password').fill(password)
@@ -33,7 +33,7 @@ test('a player secures an account with an authenticator app', async ({ page, req
   await setup.getByRole('button', { name: 'Verify and enable' }).click()
   await expect(setup.getByText('Save these one-time recovery codes somewhere secure.')).toBeVisible()
   await setup.getByRole('button', { name: 'I saved my recovery codes' }).click()
-  await expect(page.getByText('Enabled', { exact: true })).toBeVisible()
+  await expect(page.getByText('Enabled · Protects password sign-in', { exact: true })).toBeVisible()
   await page.unroute('**/api/auth/two-factor/verify-totp')
 
   await page.getByRole('button', { name: `Account menu for ${name}` }).click()

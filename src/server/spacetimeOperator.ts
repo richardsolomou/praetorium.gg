@@ -6,7 +6,6 @@ import type { CollectionImportRow } from '../core/collection'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES, type RosterSource, type RosterVisibility } from '../core/savedRoster'
 import { commandRefusal, reduceBattle, type Command, type LoggedCommand, type Refusal, type SubmitResult } from '../core/battle'
 import { commandSchema } from '../core/commands'
-import { BATTLE_AUDIENCES, DEFAULT_BATTLE_AUDIENCE, type BattleAudience } from '../core/battleAudience'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, rosterDiscoveryCursorSchema, type RosterDiscoveryQuery } from '../core/rosterDiscovery'
 import type { PlayerDefaults } from '../core/playerDefaults'
@@ -60,7 +59,9 @@ const collectionRow = z.object({
   models: z.number().int(),
   built: z.number().int().default(0),
   painted: z.number().int().default(0),
+  countsAs: z.array(z.string()).default([]),
   photoIds: z.array(z.uuid()).optional(),
+  photoShows: z.record(z.uuid(), z.string()).default({}),
 })
 const recentMatchupRow = recentMatchupSchema.extend({ at: z.number().int() })
 const favouriteDatasheetRow = z.object({ userId: z.string(), entryId: z.string(), at: z.number().int() })
@@ -488,24 +489,6 @@ export class SpacetimeOperator {
     return this.read('accept_friend_invite', [token, recipientId, now], acceptedInvite)
   }
 
-  async battleAudiences(userIds: readonly string[]) {
-    if (!userIds.length) return new Map<string, BattleAudience>()
-    const rows = await this.read(
-      'battle_audiences',
-      [[...new Set(userIds)]],
-      z.array(z.object({ userId: z.string(), audience: z.enum(BATTLE_AUDIENCES) })),
-    )
-    return new Map(rows.map((row) => [row.userId, row.audience]))
-  }
-
-  async battleAudience(userId: string): Promise<BattleAudience> {
-    return (await this.battleAudiences([userId])).get(userId) ?? DEFAULT_BATTLE_AUDIENCE
-  }
-
-  async setBattleAudience(userId: string, audience: BattleAudience, now: number) {
-    return this.reply('set_battle_audience', [userId, audience, now], z.enum(BATTLE_AUDIENCES))
-  }
-
   async shareBattle(userId: string, otherId: string) {
     return this.reply('share_battle', [userId, otherId], z.boolean())
   }
@@ -640,10 +623,6 @@ export class SpacetimeOperator {
     return this.read('collection_profile', [userId, viewerId === null ? { none: [] } : { some: viewerId }], collectionProfileSchema)
   }
 
-  async setCollectionPublished(userId: string, published: boolean) {
-    return this.reply('set_collection_published', [userId, published], z.boolean())
-  }
-
   async collectionByUser(userId: string) {
     return this.read('collection_by_user', [userId], z.array(collectionRow))
   }
@@ -664,6 +643,10 @@ export class SpacetimeOperator {
     await this.call('set_collection_progress', [input.userId, input.entryId, input.built, input.painted])
   }
 
+  async setCollectionCountsAs(input: { userId: string; entryId: string; countsAs: string[] }) {
+    await this.call('set_collection_counts_as', [input.userId, input.entryId, input.countsAs])
+  }
+
   async collectionWishesByUser(userId: string) {
     return this.read('collection_wishes_by_user', [userId], z.array(z.object({ entryId: z.string(), wanted: z.number().int().positive() })))
   }
@@ -680,8 +663,11 @@ export class SpacetimeOperator {
     )
   }
 
-  async setCollectionPhoto(input: { userId: string; entryId: string; photoId: string; now: number }) {
-    await this.call('set_collection_photo', [input.userId, input.entryId, input.photoId, input.now])
+  /** `shows` files the photo under another datasheet the row's models count as. */
+  async setCollectionPhoto(input: { userId: string; entryId: string; shows?: string; photoId: string; now: number }) {
+    if (input.shows && input.shows !== input.entryId)
+      await this.call('set_collection_photo_as', [input.userId, input.entryId, input.shows, input.photoId, input.now])
+    else await this.call('set_collection_photo', [input.userId, input.entryId, input.photoId, input.now])
   }
 
   async removeCollectionPhoto(userId: string, photoId: string) {
@@ -755,7 +741,6 @@ export class SpacetimeOperator {
               entryId: z.string(),
               at: z.number().int(),
               likes: z.number().int().nonnegative(),
-              published: z.boolean(),
               kept: z.boolean(),
             }),
           )

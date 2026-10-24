@@ -11,6 +11,8 @@ Below, each kind of model has its own card with its weapons and choices, and cho
 
 Enhancements and detachment **Unit upgrades** are chosen here too, with **No enhancement** or **No upgrade** to clear them. A chosen enhancement shows as a chip on the unit's card.
 
+**Custom name** renames the unit, up to 40 characters, so you can tell two copies of the same datasheet apart. Its card shows the custom name above the datasheet name, and anyone who can read the roster sees it, including your opponent in a battle and the text export.
+
 The **Note** box holds up to 500 characters that only you can see. Exports and other readers never get it.
 
 ## Unit actions
@@ -26,4 +28,15 @@ Attach from the roster cards, not the picker:
 
 Each menu has **In this roster** and **Add a new unit**. The second adds the datasheet and attaches it in one step, with its price shown. Units at their copy limit are greyed out with the reason. Once joined, the card shows **Leading** or **Supporting** with **Remove**, and the Bodyguard shows **Leader** or **Support** with **Detach**. A Leader may stand on its own, but a Support unit must be attached to a Bodyguard.
 
+Every datasheet in an attached unit sits on an **Attached units** shelf after the characters, which counts each datasheet. Each unit is outlined with its total points and the Bodyguard's custom name: Leaders first, then Support units, then the Bodyguard, with the cards inside just saying **Leader** or **Support**. The foot of the outline holds what the whole unit does: **Attach unit** while it has a free slot, and **Embark unit in transport**. To put each card back on its role shelf instead, untick **Group attached units** under **Display** in the roster's menu. The choice is saved on this device for every roster.
+
 ![An Ancient's Attach to unit menu listing an Intercessor Squad in the roster and new squads with their prices.](screenshot:build-an-army-attach 'The Attach to unit menu, with In this roster and Add a new unit')
+
+## Start units embarked
+
+Embark from the roster cards too:
+
+- On a unit, **Embark in transport** lists the roster's transports with how many models each already carries.
+- On a transport, **Embark unit** lists the units that could ride in it.
+
+A transport the unit can't fit in, or whose capacity can't be read, is greyed out with the reason. Once aboard, the unit's card shows **Embarked in** with **Remove** (an attached unit's outline shows **Unit embarked in**), and the transport lists each unit inside with the models it takes and **Disembark**. A Leader or Support unit embarks with the unit it joined, listed once under that unit's name. If a change to a unit means it no longer fits, such as a bigger squad or a Leader joining it, that unit goes back to the battlefield and its card or outline says why until you change or embark it again. If the transport itself changes, the units added to the roster last go back first. Battle setup starts the unit in that transport, and you can still change it there.

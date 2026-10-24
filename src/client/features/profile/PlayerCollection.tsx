@@ -25,7 +25,10 @@ export function PlayerCollection({
   const viewing = usePhotoSteps(
     groups.flatMap((group) =>
       group.entries.flatMap((entry) =>
-        (entry.photoIds ?? []).map((photoId) => ({ photoId, owner, entryId: entry.entryId, name: entry.name })),
+        (entry.photoIds ?? []).map((photoId) => {
+          const { entryId, name } = entry.photoShows?.[photoId] ?? entry
+          return { photoId, owner, entryId, name }
+        }),
       ),
     ),
   )

@@ -7,6 +7,9 @@
  *
  * `tsx scripts/e2eShard.ts <tests.json> <current> <total>` reads the JSON reporter's
  * `--list` output and prints one runner's tests for `playwright test --test-list`.
+ * With E2E_SPECS set to a JSON array of spec files, only their tests are listed, as the
+ * coverage map chose. `tsx scripts/e2eShard.ts --runners <specs> <max>` prints the runners
+ * those specs need, by their recorded durations, as a JSON array of runner numbers.
  * `tsx scripts/e2eShard.ts --record <report.json>...` updates e2e/durations.json from
  * JSON reports, taking each test's median across the runs they cover and dropping tests
  * the reports no longer list; a test missing from it weighs as much as the median.
@@ -81,6 +84,21 @@ export function shardTitles(titles: readonly string[], durations: Durations, cur
 
 const readJson = <T>(file: string): T => JSON.parse(fs.readFileSync(file, 'utf8')) as T
 
+/** Titles name their file relative to `e2e/`, as the selected specs name it relative to the repository. */
+export function selectedTitles(titles: readonly string[], specs: readonly string[]) {
+  const files = new Set(specs.map((spec) => path.relative('e2e', spec)))
+  return titles.filter((title) => files.has(title.split(' › ')[0]!))
+}
+
+/** As many runners as the selected tests fill at the full suite's load per runner, up to `max`. */
+export function runnersFor(durations: Durations, specs: readonly string[] | 'all', max: number) {
+  if (specs === 'all') return max
+  if (specs.length === 0) return 0
+  const all = Object.values(durations).reduce((sum, seconds) => sum + seconds, 0)
+  const selected = selectedTitles(Object.keys(durations), specs).reduce((sum, title) => sum + durations[title]!, 0)
+  return Math.min(max, Math.max(1, Math.ceil((selected * max) / all)))
+}
+
 if (isEntryPoint(import.meta.url)) {
   const arguments_ = process.argv.slice(2)
   if (arguments_[0] === '--record') {
@@ -92,10 +110,16 @@ if (isEntryPoint(import.meta.url)) {
     const durations: Durations = { ...Object.fromEntries(kept), ...medianDurations(parsed) }
     const sorted = Object.fromEntries(Object.entries(durations).toSorted(([left], [right]) => left.localeCompare(right)))
     fs.writeFileSync(durationsFile, `${JSON.stringify(sorted, null, 2)}\n`)
+  } else if (arguments_[0] === '--runners') {
+    const [, specs, max] = arguments_
+    if (!specs || !max) throw new Error('usage: e2eShard.ts --runners <all|specs.json> <max>')
+    const count = runnersFor(readJson(durationsFile), specs === 'all' ? 'all' : (JSON.parse(specs) as string[]), Number(max))
+    console.log(JSON.stringify(Array.from({ length: count }, (_, index) => index + 1)))
   } else {
     const [listFile, current, total] = arguments_
     if (!listFile || !current || !total) throw new Error('usage: e2eShard.ts <tests.json> <current> <total>')
-    const titles = testTitles(readJson(listFile))
+    const listed = testTitles(readJson(listFile))
+    const titles = process.env.E2E_SPECS ? selectedTitles(listed, JSON.parse(process.env.E2E_SPECS) as string[]) : listed
     if (titles.length === 0) throw new Error(`${listFile} lists no tests`)
     console.log(shardTitles(titles, readJson(durationsFile), Number(current), Number(total)).join('\n'))
   }

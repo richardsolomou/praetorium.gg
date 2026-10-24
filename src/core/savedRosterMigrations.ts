@@ -13,7 +13,6 @@ export function migrateSavedRoster(value: unknown): unknown {
   const roster = value as Record<string, unknown>
   return {
     ...roster,
-    ...(Array.isArray(roster.picks) ? { picks: roster.picks.map((pick) => omitRetired(pick, 'nickname')) } : {}),
     ...('prep' in roster ? { prep: omitRetired(roster.prep, 'shareNotes') } : {}),
   }
 }

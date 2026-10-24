@@ -2,6 +2,7 @@
 
 import { groupBy } from './collections'
 import { isGuestSeat } from './newBattle'
+import { routeSlug } from './slug'
 import { type BattleState, mayNameCard, type PlayerId, pointsLabel } from './battle'
 import { battleOutcome, sideScore, type StandingBattle, type StandingFaction, winRate } from './standings'
 
@@ -95,18 +96,31 @@ export type ServiceRecord = {
   averageCpSpent: number
   /** Their side's points over the command points it spent, or null when it spent none. */
   pointsPerCp: number | null
-  /** The stratagems their side used most, and how many different ones it used at all. */
+  /** Every stratagem their side used, most used first. */
   stratagems: StratagemRecord[]
-  stratagemsUsed: number
+  /** The stratagems with the best and worst win rate, among those used in at least `RECORD_SAMPLE` battles. */
+  bestStratagem: StratagemRecord | null
+  worstStratagem: StratagemRecord | null
+  /** Every card their side held, most held first. */
   cards: CardRecord[]
-  /** The cards earning most and least per battle held, among those held at least `CARD_SAMPLE` times. */
+  /** The cards earning most and least per battle held, among those held at least `RECORD_SAMPLE` times. */
   bestCard: CardRecord | null
   worstCard: CardRecord | null
   primaryMissions: MissionRecord[]
   opposingFactions: FactionRecord[]
+  opponents: OpponentRecord[]
 }
 
-export type StratagemRecord = { key: string; name: string; uses: number; cp: number; reference?: StratagemPlay['reference'] }
+/** `battles` counts the battles the stratagem was used in; `rate` is the win rate across them. */
+export type StratagemRecord = {
+  key: string
+  name: string
+  uses: number
+  cp: number
+  battles: number
+  rate: number
+  reference?: StratagemPlay['reference']
+}
 
 /** `scored` counts the battles the card banked any points in; `average` is its points per battle held. */
 export type CardRecord = {
@@ -123,11 +137,10 @@ export type MissionRecord = Omit<Split, 'rate'> & { key: string; name: string; a
 
 export type FactionRecord = Split & { faction: StandingFaction }
 
-/** How many stratagems the table lists. The rest are counted in `stratagemsUsed`. */
-export const STRATAGEM_ROWS = 10
+export type OpponentRecord = Split & { id: string; name: string; image: string | null }
 
-/** How many battles a card has to be held in before it can be the best or the worst. */
-export const CARD_SAMPLE = 3
+/** How many battles a card or stratagem has to appear in before it can be the best or the worst. */
+export const RECORD_SAMPLE = 3
 
 /** What a reader can narrow the record by. Every absent field means "all of them". */
 export type RecordFilter = {
@@ -293,6 +306,7 @@ export function serviceRecord(battles: readonly RecordBattle[], playerId: string
     ...cardRecords(taken),
     primaryMissions: missionRecords(taken),
     opposingFactions: factionRecords(taken),
+    opponents: opponentRecords(taken),
   }
 }
 
@@ -313,7 +327,14 @@ function sidePlay(appearance: Appearance) {
   }
 }
 
-/** Newest first, so a row keeps the name and page its most recent battle gave it. */
+/**
+ * What a stratagem or card row is counted under. Catalogue revisions have re-keyed
+ * the same card, from a slug of its name to the source's own id, and battle logs keep
+ * whichever key they were written with, so the name is the identity that holds.
+ */
+const rowIdentity = ({ name }: { name: string }) => routeSlug(name)
+
+/** Newest first, so a row keeps the key, name and page its most recent battle gave it. */
 const newestFirst = (taken: readonly Appearance[]) => taken.toReversed().map((one) => ({ one, play: sidePlay(one) }))
 
 function resources(taken: readonly Appearance[]) {
@@ -321,53 +342,75 @@ function resources(taken: readonly Appearance[]) {
   const spent = played.reduce((total, { play }) => total + play.cpSpent, 0)
   const points = taken.reduce((total, one) => total + one.points, 0)
   const rows = new Map<string, StratagemRecord>()
-  for (const { play } of played) {
+  const usedIn = new Map<string, Set<Appearance>>()
+  for (const { one, play } of played) {
     for (const use of play.stratagems) {
-      const row = rows.get(use.key) ?? { key: use.key, name: use.name, uses: 0, cp: 0 }
+      const identity = rowIdentity(use)
+      const row = rows.get(identity) ?? { key: use.key, name: use.name, uses: 0, cp: 0, battles: 0, rate: 0 }
       row.uses += 1
       row.cp += use.cp
       if (!row.reference && use.reference) row.reference = use.reference
-      rows.set(use.key, row)
+      rows.set(identity, row)
+      usedIn.set(identity, (usedIn.get(identity) ?? new Set()).add(one))
     }
   }
-  const sorted = [...rows.values()].toSorted(
-    (one, other) => other.uses - one.uses || other.cp - one.cp || one.name.localeCompare(other.name),
+  const sorted = [...rows.values()]
+    .map((row) => {
+      const { battles, rate } = split([...(usedIn.get(rowIdentity(row)) ?? [])])
+      return { ...row, battles, rate }
+    })
+    .toSorted((one, other) => other.uses - one.uses || other.cp - one.cp || one.name.localeCompare(other.name))
+  const { best, worst } = extremes(
+    sorted,
+    (row) => row.battles,
+    (row) => row.rate,
   )
   return {
     averageCpSpent: mean(played.map(({ play }) => play.cpSpent)),
     pointsPerCp: spent ? points / spent : null,
-    stratagems: sorted.slice(0, STRATAGEM_ROWS),
-    stratagemsUsed: sorted.length,
+    stratagems: sorted,
+    bestStratagem: best,
+    worstStratagem: worst,
   }
 }
 
 /**
- * Each card's record, and the best and worst of them.
- *
- * Best and worst are read only among cards held `CARD_SAMPLE` times, so one lucky
- * game cannot top the table, and only once two cards qualify: a card compared with
- * nothing is not the best of anything.
+ * The rows scoring highest and lowest, read only among rows seen in `RECORD_SAMPLE`
+ * battles, so one lucky game cannot top the table, and only once two rows qualify:
+ * a row compared with nothing is not the best of anything. Ties go to the row seen
+ * in more battles, then by name.
  */
+function extremes<Row extends { name: string }>(rows: readonly Row[], seen: (row: Row) => number, score: (row: Row) => number) {
+  const ranked = rows
+    .filter((row) => seen(row) >= RECORD_SAMPLE)
+    .toSorted((one, other) => score(other) - score(one) || seen(other) - seen(one) || one.name.localeCompare(other.name))
+  const enough = ranked.length >= 2
+  return { best: enough ? (ranked[0] ?? null) : null, worst: enough ? (ranked.at(-1) ?? null) : null }
+}
+
+/** Each card's record, and the best and worst of them by points per battle held. */
 function cardRecords(taken: readonly Appearance[]) {
   const rows = new Map<string, CardRecord>()
   for (const { play } of newestFirst(taken)) {
     for (const card of play.cards) {
-      const row = rows.get(card.key) ?? { key: card.key, name: card.name, held: 0, scored: 0, points: 0, average: 0 }
+      const identity = rowIdentity(card)
+      const row = rows.get(identity) ?? { key: card.key, name: card.name, held: 0, scored: 0, points: 0, average: 0 }
       row.held += 1
       row.scored += card.points > 0 ? 1 : 0
       row.points += card.points
       if (!row.reference && card.reference) row.reference = card.reference
-      rows.set(card.key, row)
+      rows.set(identity, row)
     }
   }
   const cards = [...rows.values()]
     .map((row) => ({ ...row, average: row.points / row.held }))
     .toSorted((one, other) => other.held - one.held || other.average - one.average || one.name.localeCompare(other.name))
-  const ranked = cards
-    .filter((card) => card.held >= CARD_SAMPLE)
-    .toSorted((one, other) => other.average - one.average || other.held - one.held || one.name.localeCompare(other.name))
-  const enough = ranked.length >= 2
-  return { cards, bestCard: enough ? (ranked[0] ?? null) : null, worstCard: enough ? (ranked.at(-1) ?? null) : null }
+  const { best, worst } = extremes(
+    cards,
+    (card) => card.held,
+    (card) => card.average,
+  )
+  return { cards, bestCard: best, worstCard: worst }
 }
 
 function missionRecords(taken: readonly Appearance[]): MissionRecord[] {
@@ -409,6 +452,27 @@ function factionRecords(taken: readonly Appearance[]): FactionRecord[] {
       (one, other) =>
         other.battles - one.battles || other.rate - one.rate || one.faction.displayName.localeCompare(other.faction.displayName),
     )
+}
+
+/** Results against each signed-in player on the other side, named as their most recent battle named them. */
+function opponentRecords(taken: readonly Appearance[]): OpponentRecord[] {
+  const rows = new Map<string, { name: string; image: string | null; against: Appearance[] }>()
+  for (const { one } of newestFirst(taken)) {
+    for (const seat of opposingSeats(one)) {
+      const id = one.battle.playerIds[seat]
+      if (!id || isGuestSeat(id)) continue
+      const row = rows.get(id) ?? {
+        name: one.battle.players[seat] ?? '',
+        image: one.battle.playerDetails?.find((player) => player.id === id)?.image ?? null,
+        against: [],
+      }
+      row.against.push(one)
+      rows.set(id, row)
+    }
+  }
+  return [...rows]
+    .map(([id, { name, image, against }]) => ({ id, name, image, ...split(against) }))
+    .toSorted((one, other) => other.battles - one.battles || other.rate - one.rate || one.name.localeCompare(other.name))
 }
 
 /** A side's half of the score, added up the same way `sideScore` adds the whole. */

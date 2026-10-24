@@ -1,0 +1,15 @@
+name: Update RAS
+
+on:
+  schedule:
+    - cron: '43 8 * * 1'
+  workflow_dispatch:
+
+jobs:
+  update:
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: richardsolomou/ras-stack/.github/workflows/update-stack.yml@v1
+    secrets:
+      UPGRADE_TOKEN: ${{ secrets.CHANGESETS_TOKEN }}

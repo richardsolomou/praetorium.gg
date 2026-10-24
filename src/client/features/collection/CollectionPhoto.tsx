@@ -3,18 +3,38 @@ import { cn } from '@/lib/utils'
 import { Camera } from 'lucide-react'
 import { useState } from 'react'
 import { collectionPhotoPath } from '../../../contracts/collection'
-import { MAX_DATASHEET_PHOTOS } from '../../../core/collectionPhotos'
+import { MAX_DATASHEET_PHOTOS, photosShowing } from '../../../core/collectionPhotos'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
-import { collectionPhotosQuery, meQuery } from '../../queries'
+import { collectionCountsAsQuery, collectionPhotoShowsQuery, collectionPhotosQuery, meQuery } from '../../queries'
 import { PhotoDropZone } from './PhotoDropZone'
 import { PhotoViewer } from './PhotoViewer'
 import { usePhotoSteps } from './PhotoLightbox'
 
-/** A collection row's photo: its first thumbnail, or a camera when there is none, opening the player's photos of that datasheet. */
-export function CollectionPhoto({ entryId, name }: { entryId: string; name: string }) {
+const noSheets: readonly { id: string; name: string }[] = []
+
+/**
+ * A collection row's photo: its first thumbnail, or a camera when there is none, opening the player's photos of that datasheet.
+ *
+ * A row whose models count as other datasheets lists each of them apart, so a photo of a magnetised build is filed as that build.
+ * A datasheet the row no longer counts as keeps its section while photos are filed under it, without space to add more.
+ */
+export function CollectionPhoto({
+  entryId,
+  name,
+  army = noSheets,
+}: {
+  entryId: string
+  name: string
+  army?: readonly { id: string; name: string }[]
+}) {
   const [open, setOpen] = useState(false)
   const { data: photos } = useQuery(collectionPhotosQuery())
+  const { data: shows } = useQuery(collectionPhotoShowsQuery())
+  const { data: countsAs } = useQuery(collectionCountsAsQuery())
   const own = photos?.[entryId] ?? []
+  const links = new Set(countsAs?.[entryId] ?? [])
+  const filed = new Set(own.flatMap((photoId) => shows?.[photoId] ?? []))
+  const variants = army.filter((sheet) => sheet.id !== entryId && (links.has(sheet.id) || filed.has(sheet.id)))
   return (
     <>
       <button
@@ -42,7 +62,16 @@ export function CollectionPhoto({ entryId, name }: { entryId: string; name: stri
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
-            <OwnPhotos entryId={entryId} name={name} />
+            {variants.length ? (
+              [{ id: entryId, name }, ...variants].map((sheet) => (
+                <section key={sheet.id} aria-label={sheet.name} className="space-y-2">
+                  <h3 className="eyebrow">{sheet.name}</h3>
+                  <OwnPhotos entryId={sheet.id} name={sheet.name} addable={sheet.id === entryId || links.has(sheet.id)} />
+                </section>
+              ))
+            ) : (
+              <OwnPhotos entryId={entryId} name={name} />
+            )}
           </DialogBody>
         </DialogContent>
       </Dialog>
@@ -51,10 +80,21 @@ export function CollectionPhoto({ entryId, name }: { entryId: string; name: stri
 }
 
 /** The player's photos of a datasheet, each opening the viewer that removes it, followed by space to add more. */
-export function OwnPhotos({ entryId, name, className = 'grid-cols-3' }: { entryId: string; name: string; className?: string }) {
+export function OwnPhotos({
+  entryId,
+  name,
+  className = 'grid-cols-3',
+  addable = true,
+}: {
+  entryId: string
+  name: string
+  className?: string
+  addable?: boolean
+}) {
   const { data: me } = useQuery(meQuery())
   const { data: photos } = useQuery({ ...collectionPhotosQuery(), enabled: Boolean(me) })
-  const own = photos?.[entryId] ?? []
+  const { data: shows } = useQuery({ ...collectionPhotoShowsQuery(), enabled: Boolean(me) })
+  const own = photosShowing(photos ?? {}, shows ?? {}, entryId)
   const viewing = usePhotoSteps(me ? own.map((photoId) => ({ photoId, owner: { id: me.id, name: me.name } })) : [])
   if (!me) return null
   return (
@@ -70,7 +110,7 @@ export function OwnPhotos({ entryId, name, className = 'grid-cols-3' }: { entryI
           <img src={collectionPhotoPath(photoId, 'thumbnail')} alt="" className="aspect-square w-full bg-sunken object-cover" />
         </button>
       ))}
-      <PhotoDropZone entryId={entryId} name={name} className="aspect-square" />
+      {addable ? <PhotoDropZone entryId={entryId} name={name} className="aspect-square" /> : null}
       <PhotoViewer
         entryId={entryId}
         name={name}

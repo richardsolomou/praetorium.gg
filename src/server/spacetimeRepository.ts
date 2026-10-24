@@ -769,10 +769,6 @@ export class SpacetimeRepository {
     return this.product.collectionProfile(...args)
   }
 
-  setCollectionPublished(...args: Parameters<SpacetimeOperator['setCollectionPublished']>) {
-    return this.product.setCollectionPublished(...args)
-  }
-
   collectionByUser(...args: Parameters<SpacetimeOperator['collectionByUser']>) {
     return this.product.collectionByUser(...args)
   }
@@ -791,6 +787,10 @@ export class SpacetimeRepository {
 
   setCollectionProgress(...args: Parameters<SpacetimeOperator['setCollectionProgress']>) {
     return this.product.setCollectionProgress(...args)
+  }
+
+  setCollectionCountsAs(...args: Parameters<SpacetimeOperator['setCollectionCountsAs']>) {
+    return this.product.setCollectionCountsAs(...args)
   }
 
   collectionWishesByUser(...args: Parameters<SpacetimeOperator['collectionWishesByUser']>) {
@@ -1029,18 +1029,6 @@ export class SpacetimeRepository {
 
   async battlesSeatedBy(userId: string, limit: number, viewerId: string | null) {
     return (await this.feed({ scope: 'profile', userId, viewerId, limit })).battles
-  }
-
-  battleAudiences(...args: Parameters<SpacetimeOperator['battleAudiences']>) {
-    return this.product.battleAudiences(...args)
-  }
-
-  battleAudience(...args: Parameters<SpacetimeOperator['battleAudience']>) {
-    return this.product.battleAudience(...args)
-  }
-
-  setBattleAudience(...args: Parameters<SpacetimeOperator['setBattleAudience']>) {
-    return this.product.setBattleAudience(...args)
   }
 
   shareBattle(...args: Parameters<SpacetimeOperator['shareBattle']>) {

@@ -1,4 +1,4 @@
-import { attachGroups, type TextRoster, type TextRosterUnit } from './textRoster'
+import { attachGroups, textNickname, type TextRoster, type TextRosterUnit } from './textRoster'
 
 /**
  * A points figure grouped in any locale's style, read as "(1 995 Punkte)" or "(2 Detachment Points)":
@@ -115,7 +115,7 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     else if (numeric) {
       const field = { models: 'models', 'roster entry': 'entry', 'attached to entry': 'attachedToEntry' } as const
       current[field[numeric[1]!.toLowerCase() as keyof typeof field]] = Number(numeric[2])
-    } else if (/^Nickname:/i.test(name)) (current.unread ??= []).push(line)
+    } else if (/^(?:Custom name|Nickname):/i.test(name)) current.nickname = textNickname(name.replace(/^(?:Custom name|Nickname):\s*/i, ''))
     else if (/^Warlord$/i.test(name)) current.warlord = true
     else if (/^(?:Leading|Supporting):/i.test(name)) current.leading = name.replace(/^(?:Leading|Supporting):\s*/i, '').trim()
     else if (/^(?:Leader|Support):/i.test(name)) current.leader = name.replace(/^(?:Leader|Support):\s*/i, '').trim()

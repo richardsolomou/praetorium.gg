@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { boundedProgress, groupCollection } from './collection'
+import { boundedProgress, usableDatasheets, groupCollection } from './collection'
 
 const factions = [
   {
@@ -83,5 +83,24 @@ describe('bounded progress', () => {
   })
   it('keeps possible counts', () => {
     expect(boundedProgress(10, { built: 6, painted: 2 })).toEqual({ built: 6, painted: 2 })
+  })
+})
+
+describe('usable datasheets', () => {
+  it('includes what the owned models also count as', () => {
+    expect(usableDatasheets(['russ'], { russ: ['demolisher'] })).toEqual(new Set(['russ', 'demolisher']))
+  })
+
+  it('ignores links from datasheets the player does not own', () => {
+    expect(usableDatasheets([], { russ: ['demolisher'] })).toEqual(new Set())
+  })
+})
+
+describe('grouped photos of other builds', () => {
+  it('names the datasheet a photo shows', () => {
+    expect(
+      groupCollection([{ entryId: 'warriors', models: 1, photoIds: ['photo'], photoShows: { photo: 'overlord' } }], factions)[0]!
+        .entries[0]!.photoShows,
+    ).toEqual({ photo: { entryId: 'overlord', name: 'Overlord' } })
   })
 })

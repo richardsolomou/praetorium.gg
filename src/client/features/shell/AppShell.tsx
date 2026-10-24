@@ -23,10 +23,10 @@ import { ImpersonationBanner } from './ImpersonationBanner'
 import { NativeAppNavigation } from './NativeAppNavigation'
 import { NativePushRegistration } from './NativePushRegistration'
 import { OnboardingGuide } from '../onboarding/OnboardingGuide'
-import { FeedbackDialog } from '../feedback/FeedbackDialog'
+import { SupportPanel } from '../feedback/SupportPanel'
+import { SupportIdentity } from '../feedback/support'
 import { meQuery } from '../../queries'
 import { CommunityLinks } from './CommunityLinks'
-import { followTextSize } from '../../textSize'
 import { followTextSourceChoice } from '../../rulesText'
 import { useRealtimeConfig, useSpacetimeLiveProduct } from '../../spacetimeLive'
 // A local dev server shares the production project token, so gate the browser
@@ -147,7 +147,6 @@ export function AppShell() {
   const { data: me } = useQuery(meQuery())
   const realtime = useRealtimeConfig()
   useSpacetimeLiveProduct(realtime, Boolean(me))
-  useLayoutEffect(followTextSize, [])
   useLayoutEffect(followTextSourceChoice, [])
   // Browser tests wait for this before interacting: a click before hydration does nothing.
   useEffect(() => document.documentElement.setAttribute('data-hydrated', ''), [])
@@ -161,6 +160,7 @@ export function AppShell() {
         <PostHogIntegration environment={posthog} options={POSTHOG_BROWSER_OPTIONS} service={posthogService}>
           <TooltipProvider delay={250} closeDelay={100}>
             {posthog && <PostHogBetterAuthIdentity authClient={authClient} properties={({ name, email }) => ({ name, email })} />}
+            {posthog && <SupportIdentity />}
             <GlobalSearchProvider>
               {/*
                * The bar spans the window and the page inside it decides its own width,
@@ -214,7 +214,7 @@ export function AppShell() {
                   state={location.state}
                 />
                 <OnboardingGuide />
-                <FeedbackDialog />
+                <SupportPanel />
                 <TextSourcesDialog />
                 <Impersonation />
                 <NativePushRegistration />

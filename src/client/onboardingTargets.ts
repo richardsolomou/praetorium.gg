@@ -100,7 +100,6 @@ export const onboardingTargets = [
   'profile-tabs',
   'profile-rankings',
   'profile-record',
-  'battle-sharing',
 ] as const
 
 export type OnboardingTarget = (typeof onboardingTargets)[number]

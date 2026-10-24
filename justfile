@@ -148,6 +148,11 @@ reference-evaluate:
 reference-verify origin:
     pnpm reference:verify "{{ origin }}"
 
+# Zip the ChatGPT directory plugin into dist/ for upload
+plugin-zip:
+    mkdir -p dist && rm -f dist/praetorium-plugin.zip
+    cd plugin && zip -qr ../dist/praetorium-plugin.zip . -x '.claude-plugin/*'
+
 e2e-install:
     pnpm exec playwright install chromium --only-shell
 

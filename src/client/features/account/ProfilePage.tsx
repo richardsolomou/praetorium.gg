@@ -10,10 +10,7 @@ import { Label } from '@/components/ui/label'
 import { PROFILE_NAME_MAX_LENGTH } from '../../../core/profileName'
 import { authClient } from '../../authClient'
 import { AccountSecurity } from './AccountSecurity'
-import { BattleSharing } from './BattleSharing'
-import { CollectionSharing } from './CollectionSharing'
 import { PlayerDefaultsSettings } from './PlayerDefaultsSettings'
-import { TextSizeSettings } from './TextSizeSettings'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SignInRequired } from '../../components/SignInRequired'
@@ -111,7 +108,7 @@ function ProfileForm({
       <PageHeader
         eyebrow="Your account"
         title="Account settings"
-        description="Your name and picture, sign-in, privacy and roster defaults."
+        description="Your name and picture, sign-in and roster defaults."
         media={
           <span className="grid size-12 shrink-0 place-items-center border border-edge-strong bg-sunken text-parchment">
             <UserRound className="size-5" aria-hidden />
@@ -202,13 +199,13 @@ function ProfileForm({
         </form>
         <AccountSecurity
           me={me}
-          privacy={
-            <>
-              <BattleSharing />
-              <CollectionSharing userId={me.id} />
-              <PlayerDefaultsSettings />
-              <TextSizeSettings />
-            </>
+          preferences={
+            <div className="border border-edge bg-panel p-5 md:p-7">
+              <h2 className="rubric border-b border-edge pb-2">Preferences</h2>
+              <div className="mt-4">
+                <PlayerDefaultsSettings />
+              </div>
+            </div>
           }
         />
       </PageContent>

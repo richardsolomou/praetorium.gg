@@ -1,0 +1,11 @@
+diff --git a/definitions/Imperium - Imperial Knights - Library.json b/definitions/Imperium - Imperial Knights - Library.json
+--- a/definitions/Imperium - Imperial Knights - Library.json
++++ b/definitions/Imperium - Imperial Knights - Library.json
+@@ -442,7 +442,6 @@
+             "import": true,
+             "type": "model",
+             "categoryLinks": [
+-              {"name": "Infantry", "id": "c6b8-e08d-c64-4d76", "primary": false, "targetId": "cf47-a0d7-7207-29dc"},
+               {"name": "Sir Hekhtur", "id": "2874-44bd-2013-e490", "primary": false, "targetId": "dd27-74f3-9b5b-7908"},
+               {"name": "Character", "id": "5227-efb9-ad01-3a5b", "primary": false, "targetId": "9cfd-1c32-585f-7d5c"},
+               {"name": "Epic Hero", "id": "32b7-cff5-e40b-6e52", "primary": false, "targetId": "4f3a-f0f7-6647-348d"}

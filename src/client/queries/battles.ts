@@ -1,6 +1,5 @@
 import { infiniteQueryOptions, keepPreviousData, queryOptions, replaceEqualDeep } from '@tanstack/react-query'
 import {
-  battleAudience,
   battleReport,
   friendBattles,
   friendships,
@@ -23,7 +22,6 @@ import { SSR_STALE_TIME } from './shared'
 import { liveProductRefresh } from '../liveProductRefresh'
 import { uniqueBy } from '../../core/collections'
 import {
-  battleAudienceKey,
   battleKey,
   battleReplayKey,
   battlesKey,
@@ -102,9 +100,6 @@ export const playerRankingsQuery = (userId: string) =>
   queryOptions({ queryKey: playerRankingsKey(userId), queryFn: () => playerRankings({ data: { userId } }), staleTime: 60_000 })
 
 export const standingsQuery = () => queryOptions({ queryKey: standingsKey(), queryFn: () => standings(), staleTime: 60_000 })
-
-export const battleAudienceQuery = () =>
-  queryOptions({ queryKey: battleAudienceKey(), queryFn: () => battleAudience(), staleTime: SSR_STALE_TIME })
 
 export const opponentsQuery = () => queryOptions({ queryKey: opponentsKey(), queryFn: () => opponents(), staleTime: SSR_STALE_TIME })
 export const friendshipsQuery = () => queryOptions({ queryKey: friendshipsKey(), queryFn: () => friendships(), staleTime: SSR_STALE_TIME })

@@ -42,7 +42,7 @@ function render(count: number | null, linked = false, objectives = deployment.ob
           markers: [],
           measurements: [],
           parts: [],
-          objectiveGroup: null,
+          group: null,
           objective: { position: { x, y: 22 }, group: linked && x < 2 ? 'center' : null },
         })),
       },

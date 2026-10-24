@@ -7,35 +7,26 @@ const url = process.env.SPACETIME_TEST_URL
 const database = process.env.SPACETIME_TEST_DATABASE
 const token = process.env.SPACETIME_TEST_OPERATOR_TOKEN
 
-it.skipIf(!url || !database || !token)(
-  'publishes model counts until the owner hides them and revokes them on account deletion',
-  async () => {
-    const operator = new SpacetimeOperator(url!, database!, token!)
-    const owner = randomUUID()
-    const other = randomUUID()
-    try {
-      await operator.setCollectionModels({ userId: owner, entryId: 'warriors', models: 100, now: Date.now() })
-      expect(await operator.collectionProfile(owner, null)).toEqual({ published: true, entries: [{ entryId: 'warriors', models: 100 }] })
-      await operator.setCollectionModels({ userId: owner, entryId: 'overlord', models: 2, now: Date.now() })
-      expect((await operator.collectionProfile(owner, other))?.entries).toEqual(
-        expect.arrayContaining([
-          { entryId: 'warriors', models: 100 },
-          { entryId: 'overlord', models: 2 },
-        ]),
-      )
-      expect(await operator.setCollectionPublished(owner, false)).toBe(false)
-      expect(await operator.collectionProfile(owner, null)).toBeNull()
-      expect(await operator.collectionProfile(owner, other)).toBeNull()
-      expect((await operator.collectionProfile(owner, owner))?.published).toBe(false)
-      await operator.setCollectionPublished(owner, true)
-      expect((await operator.collectionProfile(owner, null))?.entries).toHaveLength(2)
-      await operator.deleteUserData(owner)
-      expect(await operator.collectionProfile(owner, null)).toEqual({ published: true, entries: [] })
-    } finally {
-      await operator.deleteUserData(owner)
-    }
-  },
-)
+it.skipIf(!url || !database || !token)('publishes model counts and revokes them on account deletion', async () => {
+  const operator = new SpacetimeOperator(url!, database!, token!)
+  const owner = randomUUID()
+  const other = randomUUID()
+  try {
+    await operator.setCollectionModels({ userId: owner, entryId: 'warriors', models: 100, now: Date.now() })
+    expect((await operator.collectionProfile(owner, null))?.entries).toEqual([{ entryId: 'warriors', models: 100 }])
+    await operator.setCollectionModels({ userId: owner, entryId: 'overlord', models: 2, now: Date.now() })
+    expect((await operator.collectionProfile(owner, other))?.entries).toEqual(
+      expect.arrayContaining([
+        { entryId: 'warriors', models: 100 },
+        { entryId: 'overlord', models: 2 },
+      ]),
+    )
+    await operator.deleteUserData(owner)
+    expect((await operator.collectionProfile(owner, null))?.entries).toEqual([])
+  } finally {
+    await operator.deleteUserData(owner)
+  }
+})
 
 it.skipIf(!url || !database || !token)(
   'keeps several photos per collection row, in order and up to the limit, and leaves every dropped photo for deletion',
@@ -62,12 +53,6 @@ it.skipIf(!url || !database || !token)(
       ])
       expect(await operator.collectionPhotoDeletions(1_000)).toContain(second)
 
-      await operator.setCollectionPublished(owner, false)
-      expect([await operator.collectionPhoto(first, null), await operator.collectionPhoto(first, owner)]).toEqual([
-        null,
-        { userId: owner, entryId: 'warriors' },
-      ])
-
       await operator.removeFromCollection(owner, 'warriors')
       await operator.setCollectionPhoto({ userId: owner, entryId: 'overlord', photoId: photos.at(-1)!, now: Date.now() })
       await operator.deleteUserData(owner)
@@ -82,37 +67,29 @@ it.skipIf(!url || !database || !token)(
   },
 )
 
-it.skipIf(!url || !database || !token)(
-  'lists a datasheet’s shared photos newest first, with a reader’s own even when hidden, until an administrator removes one',
-  async () => {
-    const operator = new SpacetimeOperator(url!, database!, token!)
-    const entryId = `gallery-${randomUUID()}`
-    const [shared, hidden] = [randomUUID(), randomUUID()]
-    const [sharedPhoto, hiddenPhoto] = [randomUUID(), randomUUID()]
-    try {
-      for (const [userId, photoId, at] of [
-        [shared, sharedPhoto, 1],
-        [hidden, hiddenPhoto, 2],
-      ] as const) {
-        await operator.setCollectionModels({ userId, entryId, models: 1, now: at })
-        await operator.setCollectionPhoto({ userId, entryId, photoId, now: at })
-      }
-      expect((await operator.datasheetPhotos(entryId, null, 12)).map((row) => row.photoId)).toEqual([hiddenPhoto, sharedPhoto])
-      await operator.setCollectionPublished(hidden, false)
-      expect([
-        (await operator.datasheetPhotos(entryId, null, 12)).map((row) => row.photoId),
-        (await operator.datasheetPhotos(entryId, hidden, 12)).map((row) => row.photoId),
-      ]).toEqual([[sharedPhoto], [hiddenPhoto, sharedPhoto]])
-      await operator.removeCollectionPhotoById(sharedPhoto)
-      expect([await operator.datasheetPhotos(entryId, null, 12), await operator.collectionPhotoDeletions(1_000)]).toEqual([
-        [],
-        expect.arrayContaining([sharedPhoto]),
-      ])
-    } finally {
-      await Promise.all([operator.deleteUserData(shared), operator.deleteUserData(hidden)])
+it.skipIf(!url || !database || !token)('lists a datasheet’s photos newest first until an administrator removes one', async () => {
+  const operator = new SpacetimeOperator(url!, database!, token!)
+  const entryId = `gallery-${randomUUID()}`
+  const [shared, other] = [randomUUID(), randomUUID()]
+  const [sharedPhoto, otherPhoto] = [randomUUID(), randomUUID()]
+  try {
+    for (const [userId, photoId, at] of [
+      [shared, sharedPhoto, 1],
+      [other, otherPhoto, 2],
+    ] as const) {
+      await operator.setCollectionModels({ userId, entryId, models: 1, now: at })
+      await operator.setCollectionPhoto({ userId, entryId, photoId, now: at })
     }
-  },
-)
+    expect((await operator.datasheetPhotos(entryId, null, 12)).map((row) => row.photoId)).toEqual([otherPhoto, sharedPhoto])
+    await operator.removeCollectionPhotoById(sharedPhoto)
+    expect([
+      (await operator.datasheetPhotos(entryId, null, 12)).map((row) => row.photoId),
+      await operator.collectionPhotoDeletions(1_000),
+    ]).toEqual([[otherPhoto], expect.arrayContaining([sharedPhoto])])
+  } finally {
+    await Promise.all([operator.deleteUserData(shared), operator.deleteUserData(other)])
+  }
+})
 
 it.skipIf(!url || !database || !token)(
   'ranks a datasheet’s photos by likes, counting each reader once and withdrawing a deleted reader’s like',

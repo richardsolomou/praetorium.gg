@@ -34,15 +34,6 @@ test('a visitor browses public battles and opens a spectator view on a phone and
   await expect(host.getByRole('region', { name: 'Battle scoreboard' })).toContainText('wins by concession')
   await page.goto('/battles')
   await expect(page.locator(`[data-battle-shelf="Public games"] article > a[href="${battlePath}"]`)).toBeVisible()
-  await host.goto('/profile')
-  for (const audience of ['Friends', 'Players only']) {
-    const choice = host.getByRole('button', { name: new RegExp(`^${audience}`) })
-    await choice.click()
-    await expect(choice).toHaveAttribute('aria-pressed', 'true')
-    await expect(choice).toBeEnabled()
-    await page.reload()
-    await expect(page.locator(`[data-battle-shelf] article > a[href="${battlePath}"]`)).toHaveCount(0)
-  }
   await hostContext.close()
   await opponentContext.close()
 })

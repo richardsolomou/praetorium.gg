@@ -37,6 +37,11 @@ const cases: Case[] = [
     input: { entryId: 'private-unit', built: 2, painted: 1 },
     events: [['player_collection_progressed', { built: 2, painted: 1 }]],
   },
+  {
+    kind: 'setCollectionCountsAs',
+    input: { entryId: 'private-unit', countsAs: ['private-variant'] },
+    events: [['player_collection_linked', { datasheets: 1 }]],
+  },
   { kind: 'setCollectionWanted', input: { entryId: 'private-unit', wanted: 2 }, events: [['player_collection_wished', { wanted: 2 }]] },
   {
     kind: 'setFavouriteFaction',
@@ -58,12 +63,6 @@ const cases: Case[] = [
     input: { rosterVisibility: 'private', battleSize: 2000 },
     result: { rosterVisibility: 'public', battleSize: 1000 },
     events: [['player_defaults_set', { roster_visibility: 'public', battle_size: 1000 }]],
-  },
-  {
-    kind: 'setBattleAudience',
-    input: { audience: 'private' },
-    result: 'friends',
-    events: [['battle_audience_set', { audience: 'friends' }]],
   },
   {
     kind: 'setPushNotifications',

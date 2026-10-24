@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Check, EyeOff, Heart, Trash2 } from 'lucide-react'
+import { Check, Heart, Trash2 } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { collectionPhotoPath } from '../../../contracts/collection'
@@ -24,8 +24,6 @@ type AdminPhoto = {
   /** Kept by an administrator after an earlier report. */
   kept?: boolean
   likes?: number
-  /** Whether the owner shows their collection to others; absent for a reported photo, which nobody else sees. */
-  published?: boolean
 }
 
 const NO_PHOTOS: AdminPhoto[] = []
@@ -162,15 +160,10 @@ function PhotoCredit({ photo, stacked = false }: { photo: AdminPhoto; stacked?: 
   )
 }
 
-/** What decides whether others see the photo, and how many like it. */
+/** The photo's review history and how many like it. */
 function PhotoFacts({ photo }: { photo: AdminPhoto }) {
   return (
     <span className="flex flex-wrap items-center gap-1.5">
-      {photo.published === false ? (
-        <span className="chip inline-flex items-center gap-1 text-dim">
-          <EyeOff className="size-3" aria-hidden /> Collection private
-        </span>
-      ) : null}
       {photo.shown ? <span className="chip text-discarded">Kept before · still shown</span> : null}
       {photo.kept ? <span className="chip text-dim">Kept before</span> : null}
       {photo.likes ? (

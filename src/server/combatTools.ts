@@ -11,6 +11,7 @@ import {
   combatRuleSelections,
   type CombatRule,
 } from '../core/combatRules'
+import { admitsHost, attachmentOf } from '../core/attach'
 import { combatUnitKeywords } from '../core/combatUnit'
 import type { RosterPick } from '../core/roster'
 import { encodeSimulatorState } from '../contracts/simulatorState'
@@ -19,7 +20,9 @@ import { app } from './app'
 import { activeReferenceCorpus } from './referenceApi'
 import type { ReferenceCorpus } from './referenceCorpus'
 import { datasheetCitation, referenceFaction } from './referenceService'
+import type { LoadedCatalogue } from '../shared/catalogueIndex'
 import { rosterCombatant } from '../shared/rosterCombatRules'
+import { rosterDatasheetSelections } from '../shared/rosterDatasheetContext'
 
 /**
  * Estimates run synchronously on the shared server, so this is 400 times below the browser worker's bound, about
@@ -51,7 +54,9 @@ const sideSchema = z.object({
     )
     .max(MAX_ATTACHED)
     .optional()
-    .describe('Leaders or support units joined to the unit, from its canBeLedBy and canBeSupportedBy.'),
+    .describe(
+      'Leaders or support units joined to the unit, from its canBeLedBy and canBeSupportedBy. A unit that joins one of these instead, such as Nork Deddog joining a Cadian Command Squad, goes after it.',
+    ),
   rules: ruleChoicesSchema
     .optional()
     .describe('Rule choices by rule id from a previous result: 0 turns a rule off and n selects its nth option.'),
@@ -139,12 +144,28 @@ async function sidePicks(corpus: ReferenceCorpus, side: SideInput) {
   return { catalogueId: host.faction.id, picks, sheets: [host.sheet, ...found.map((member) => member.sheet)] }
 }
 
+/** Each attached unit joins the main unit, or else the first attached unit before it that can take it, as a Loyal Protector joins a Command Squad. */
+function joinedPicks(loaded: LoadedCatalogue, catalogueId: string, picks: readonly RosterPick[]): RosterPick[] {
+  const built = rosterDatasheetSelections(loaded, { catalogueId, detachmentIds: [], picks: [...picks] })
+  const admits = (member: number, host: number) => {
+    const definition = loaded.index.definitions.get(picks[member]!.entryId)
+    const unit = built.unitSelections.find((candidate) => candidate.pickIndex === member)
+    const attachment = definition && attachmentOf(definition, loaded.index, unit && built.selections[unit.selectionIndex])
+    const hostName = loaded.index.definitions.get(picks[host]!.entryId)?.name ?? picks[host]!.entryId
+    return Boolean(attachment && admitsHost(attachment, hostName))
+  }
+  return picks.map((pick, at) =>
+    at ? { ...pick, attachedTo: [...picks.keys()].slice(0, at).find((host) => admits(at, host)) ?? 0 } : pick,
+  )
+}
+
 /** One side at full strength, with the rules it brings and the choices an agent can make about them. */
 async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
-  const resolved = await sidePicks(corpus, side)
+  const named = await sidePicks(corpus, side)
   const instance = app()
-  const [loaded, rules] = await Promise.all([instance.catalogueFor(resolved.catalogueId), instance.rulesFor(resolved.catalogueId)])
+  const [loaded, rules] = await Promise.all([instance.catalogueFor(named.catalogueId), instance.rulesFor(named.catalogueId)])
   if (!loaded) throw new CombatRefusal(['Praetorium reference data is temporarily unavailable.'])
+  const resolved = { ...named, picks: joinedPicks(loaded, named.catalogueId, named.picks) }
   const projection = rosterCombatant(loaded, rules, {
     catalogueId: resolved.catalogueId,
     detachmentIds: [],
@@ -156,8 +177,8 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
     ...projection.attachmentErrors.map((error) => `${error.entryName}: ${error.message}.`),
     ...[
       { requested: side.models, built: projection.models, name: projection.selected.name },
-      ...projection.companions.map((member, index) => ({
-        requested: side.attached?.[index]?.models,
+      ...projection.companions.map((member) => ({
+        requested: side.attached?.[member.pickIndex - 1]?.models,
         built: member.models,
         name: member.selected.name,
       })),
@@ -191,11 +212,14 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
       sharedDefenceSources: selection.sharedDefenceSources(member.rules),
     })),
   }
-  const units = resolved.sheets.map((sheet, index) => ({
-    name: index ? projection.companions[index - 1]!.selected.name : projection.selected.name,
-    models: index ? projection.companions[index - 1]!.models : projection.models,
-    ...datasheetCitation(corpus, sheet),
-  }))
+  const units = resolved.sheets.map((sheet, index) => {
+    const member = index ? projection.companions.find((companion) => companion.pickIndex === index)! : null
+    return {
+      name: member ? member.selected.name : projection.selected.name,
+      models: member ? member.models : projection.models,
+      ...datasheetCitation(corpus, sheet),
+    }
+  })
   return { snapshot, units, rules: selection.rules, choices: selection.choices, resolved, role }
 }
 
@@ -306,7 +330,9 @@ function sharedSide({ resolved }: Combatant, rules: SideInput['rules']) {
     catalogueId: resolved.catalogueId,
     pick: host,
     rules: rules ?? {},
-    ...(attached.length ? { attached: attached.map(({ attachedTo: _attachedTo, ...member }) => member) } : {}),
+    ...(attached.length
+      ? { attached: attached.map(({ attachedTo, ...member }) => (attachedTo ? { ...member, attachedTo } : member)) }
+      : {}),
   }
 }
 

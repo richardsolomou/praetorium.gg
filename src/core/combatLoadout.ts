@@ -8,7 +8,15 @@ import { selectionCountBoundsAt, type EvaluateOptions, type Selection } from './
 import { wargearKey, wargearOf, type Wargear } from './wargear'
 
 export type CombatEquipment = Wargear & { profileIds?: string[] }
-export type CombatCarrier = { name: string; models: number; weapons: CombatEquipment[]; modelProfileIds?: string[]; unitWide?: boolean }
+export type CombatCarrier = {
+  name: string
+  models: number
+  weapons: CombatEquipment[]
+  modelProfileIds?: string[]
+  /** The model's own keywords, which an ability limited to some models in the unit is checked against. */
+  keywords?: string[]
+  unitWide?: boolean
+}
 
 export const referenceOnlyWeapon = (name: string) => /\(ref\.?\s*only\)/i.test(name)
 
@@ -73,7 +81,17 @@ export function combatCarriers(selection: Selection, index: CatalogueIndex, opti
       const modelProfileIds = definitionProfiles(definition!, index)
         .filter((profile) => datasheetProfileKind(profile.typeName ?? '') === 'unit')
         .map((profile) => profile.id)
-      const identity = modelProfileIds.length ? { modelProfileIds } : {}
+      const keywords = [
+        ...new Set(
+          [definition!, target].flatMap((source) =>
+            (source.categoryLinks ?? []).flatMap((link) => {
+              const name = link.name ?? index.categories.get(link.targetId)?.name
+              return name ? [name.replace(/^Faction:\s*/iu, '')] : []
+            }),
+          ),
+        ),
+      ]
+      const identity = { ...(modelProfileIds.length ? { modelProfileIds } : {}), ...(keywords.length ? { keywords } : {}) }
       const mixed = (node.selections ?? []).filter((child) => {
         const group = index.definitions.get(child.id)
         return group && isCollectiveGroup(group, index) && (child.selections ?? []).filter((entry) => (entry.count ?? 1) > 0).length > 1

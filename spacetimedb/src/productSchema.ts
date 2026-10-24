@@ -57,15 +57,6 @@ const guestSeats = table(
   },
 )
 
-const battleSharing = table(
-  { name: 'battle_sharing' },
-  {
-    userId: t.string().primaryKey(),
-    audience: t.string(),
-    at: t.u64(),
-  },
-)
-
 const pushPreferences = table(
   { name: 'push_preferences' },
   {
@@ -266,8 +257,6 @@ const collectionStock = table(
   },
 )
 
-const collectionSharing = table({ name: 'collection_sharing' }, { userId: t.string().primaryKey(), published: t.bool() })
-
 const collection = table(
   { name: 'collection' },
   {
@@ -278,6 +267,8 @@ const collection = table(
     models: t.option(t.u32()).default(undefined),
     built: t.option(t.u32()).default(undefined),
     painted: t.option(t.u32()).default(undefined),
+    /** Other datasheets the player says these models also count as, such as a magnetised hull's variants. */
+    countsAs: t.option(t.array(t.string())).default(undefined),
   },
 )
 
@@ -439,7 +430,6 @@ export const productTables = {
   battles,
   battleUsers,
   guestSeats,
-  battleSharing,
   pushPreferences,
   playerDefaults,
   pushTokens,
@@ -456,7 +446,6 @@ export const productTables = {
   leagueEventBattles,
   leagueAdmins,
   collection,
-  collectionSharing,
   collectionWishes,
   collectionStock,
   collectionPhotos,

@@ -10,7 +10,7 @@
  */
 
 import { groupBy } from './collections'
-import { attachedUnits } from './attachedUnits'
+import { attachedUnitList, attachedHost, attachedUnits } from './attachedUnits'
 import { refuse, sameSide } from './battlePrimitives'
 import { isPracticeSeat } from './newBattle'
 import { appliesInMode, cardsDue, cardsDueFromTheirTurn, finalAwardTotal, type MissionAward } from './scoring'
@@ -124,10 +124,11 @@ type BuiltRoster = {
   units: SubmittedUnit[]
 }
 
-type SubmittedUnit = {
+export type SubmittedUnit = {
   key: string
   name: string
-  /** Frozen from the saved pick; it reaches only its owner's view. */
+  /** Frozen from the saved pick; the note reaches only its owner's view. */
+  nickname?: string
   note?: string
   points: number
   models: number
@@ -172,6 +173,12 @@ type SubmittedUnit = {
   transportCapacity?: PrintedTransport
   /** The datasheet's keywords, which a transport's rule names to say who may ride; absent from older logs. */
   keywords?: string[]
+  /** The transport the list starts this unit in, by key; setup judges it again through `startingEmbarks`. */
+  startsEmbarkedIn?: string
+  /** While joined to a unit, this one can embark within any transport that unit can. */
+  embarksWithBodyguard?: boolean
+  /** The space each model takes in a transport it rides by `embarksWithBodyguard`, when its ability fixes one. */
+  embarkedSpace?: number
 }
 
 export const UNIT_FORMATIONS = ['battlefield', 'strategic-reserves', 'deep-strike', 'embarked'] as const
@@ -188,7 +195,7 @@ type ReserveUnit = Pick<
 /** Deep Strike changes an ingress move; the unit still starts in Strategic Reserves. */
 export function strategicReservePoints(units: readonly ReserveUnit[]): number {
   const byKey = new Map(units.map((unit) => [unit.key, unit]))
-  return [...groupBy(units, (unit) => unit.attachedTo ?? unit.key).values()].reduce((total, attached) => {
+  return [...groupBy(units, (unit) => attachedHost(units, unit).key).values()].reduce((total, attached) => {
     const reserved = attached.filter(
       (unit) =>
         startsInStrategicReserves(unit.formation) ||
@@ -209,10 +216,28 @@ export function transportLabel(units: readonly Pick<UnitState, 'key' | 'name'>[]
 /** What a transport holds if these passengers ride in it, or why they cannot. */
 export function transportLoadOf(
   transport: Pick<UnitState, 'transportRule' | 'transportCapacity' | 'wargear'> | undefined,
-  passengers: readonly Passenger[],
+  passengers: readonly (Passenger & Partial<Pick<UnitState, 'key' | 'attachedTo' | 'embarksWithBodyguard' | 'embarkedSpace'>>)[],
 ): TransportLoad | Refusal {
   const rule = transportRule(transport?.transportCapacity ?? transport?.transportRule, transport?.wargear)
-  return rule ? transportLoad(rule, passengers) : refuse('transport-capacity-unknown', 'this transport has no known model capacity')
+  if (!rule) return refuse('transport-capacity-unknown', 'this transport has no known model capacity')
+  return transportLoad(
+    rule,
+    passengers.map((passenger) => {
+      const bodyguard = passenger.embarksWithBodyguard && passengers.find((candidate) => candidate.key === passenger.attachedTo)
+      if (!bodyguard || !bodyguard.keywords) return passenger
+      return { ...passenger, ridesAs: bodyguard.keywords, ...(passenger.embarkedSpace ? { space: passenger.embarkedSpace } : {}) }
+    }),
+  )
+}
+
+/** How full a transport is with these passengers, as a player reads it, or null when its capacity is unknown. */
+export function transportAboard(
+  transport: Pick<UnitState, 'transportRule' | 'transportCapacity' | 'wargear'> | undefined,
+  passengers: readonly Passenger[],
+): string | null {
+  const load = transportLoadOf(transport, passengers)
+  if (!Array.isArray(load)) return null
+  return `${load.map((pool) => (load.length === 1 ? `${pool.used}/${pool.capacity}` : `${pool.used}/${pool.capacity} ${pool.carries}`)).join(', ')} models`
 }
 
 const loadRefusal = (load: TransportLoad | Refusal): Refusal | null => (Array.isArray(load) ? null : load)
@@ -317,10 +342,55 @@ function changedFormation(unit: UnitState, formation: UnitFormation, redeployed 
     ...unit,
     formation,
     embarkedIn: formation === 'embarked' ? transportKey : undefined,
+    startingEmbarkRefused: undefined,
     deployed: formation === 'battlefield',
     postDeploymentReserve: startsInStrategicReserves(formation) && (redeployed || (remainsInReserves && unit.postDeploymentReserve)),
   }
 }
+
+/** A frozen list's units as they stand when it is attached: on the battlefield, unhurt. */
+export const fieldedUnits = (submitted: readonly SubmittedUnit[]): UnitState[] =>
+  submitted.map((unit) =>
+    Object.assign({ destroyed: false, deployed: true, formation: 'battlefield' as const, alive: unit.models, damage: 0 }, unit),
+  )
+
+/**
+ * The army with every unit its list starts embarked put in its transport, in list order.
+ * A unit `unitFormationRefusal` would not let in stays where it was, with the reason.
+ *
+ * Judged against the frozen army rather than trusted from the builder: the rules
+ * version, a transport's wargear or an attached character can change what fits.
+ * The builder names the units an edit just changed in `edited`; their attached units
+ * are judged last, so the unit that grew is the one left out rather than another passenger.
+ */
+export function startingEmbarks(fielded: readonly UnitState[], edited: readonly string[] = []): UnitState[] {
+  const units = fielded.map((unit) => ({ ...unit }))
+  const table = settingUp(units)
+  const changed = new Set(edited)
+  const wasEdited = ({ host, joined }: { host: UnitState; joined: readonly UnitState[] }) =>
+    [host, ...joined].some((unit) => changed.has(unit.key))
+  const attached = attachedUnitList(units)
+  for (const { host } of [...attached.filter((unit) => !wasEdited(unit)), ...attached.filter(wasEdited)]) {
+    const transportKey = host.startsEmbarkedIn
+    if (!transportKey) continue
+    const refusal = unitFormationRefusal(table, table.players[0], { unitKey: host.key, formation: 'embarked', transportKey })
+    if (refusal) host.startingEmbarkRefused = refusal.message
+    else for (const unit of attachedUnits(units, host.key)) Object.assign(unit, changedFormation(unit, 'embarked', false, transportKey))
+  }
+  return units
+}
+
+/** Why this unit cannot start in that transport alongside what the rest of the list starts in it. */
+export function startingEmbarkRefusal(fielded: readonly UnitState[], unitKey: string, transportKey: string): Refusal | null {
+  const moving = new Set(attachedUnits(fielded, unitKey).map((unit) => unit.key))
+  const units = startingEmbarks(fielded.map((unit) => (moving.has(unit.key) ? { ...unit, startsEmbarkedIn: undefined } : unit)))
+  const table = settingUp(units)
+  return unitFormationRefusal(table, table.players[0], { unitKey, formation: 'embarked', transportKey })
+}
+
+/** One army alone at a table being set, with no reserve limit to judge since embarking in a deployed transport adds none. */
+const settingUp = (units: readonly UnitState[]) =>
+  ({ status: 'setup', firstPlayerId: null, players: [{ side: 0, units, roster: null }] }) as const satisfies FormationTable
 
 function disembarkPassengers(units: UnitState[], transport: UnitState): void {
   if (!transport.destroyed || !canTransport(transport)) return
@@ -336,6 +406,8 @@ export type UnitState = SubmittedUnit & {
   formation: UnitFormation
   /** The key of this unit's transport when embarked. */
   embarkedIn?: string
+  /** Why setup could not start this unit where its list said, until the table moves it. */
+  startingEmbarkRefused?: string
   /** Whether the unit was on the battlefield when the first-turn roll was recorded. */
   deployedAtRollOff?: boolean
   /** The unit entered reserves after deployment, when the mission rules exempt it from the starting cap. */
@@ -1912,9 +1984,9 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       player.roster = { ...command.roster, name: command.roster.name.trim() }
       player.rosterSeq = seq
       // A replaced list is a different army, so nothing about the old one survives.
-      player.units = (command.roster.built?.units ?? []).map((unit) =>
-        Object.assign({ destroyed: false, deployed: true, formation: 'battlefield' as const, alive: unit.models, damage: 0 }, unit),
-      )
+      const fielded = fieldedUnits(command.roster.built?.units ?? [])
+      // A list corrected mid-battle has already deployed, so where it starts no longer applies.
+      player.units = state.status === 'setup' ? startingEmbarks(fielded) : fielded
       if (command.prep !== undefined && !state.settings.manual) applyPrep(player, command.prep)
       // Most armies on a table are painted, so a list arrives claiming the bonus and
       // the few that are not turn it off. Only when the command says so: a log from

@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page } from '@playwright/test'
 import { createRoster, signUp } from './account'
+import { baseURL } from './stackEnv'
 
 /**
  * A picture of one element, taken again if the page moved under it.
@@ -76,5 +77,14 @@ export async function attach(page: Page, unit: string, target: string) {
   const card = page.locator(`[data-unit="${unit}"]`).first()
   await card.getByRole('button', { name: `Attach ${unit} to unit` }).click()
   await page.getByRole('menu').getByRole('menuitem', { name: target, exact: true }).click()
-  await expect(card).toContainText(target)
+  // By role the card names the unit it joined; attached together it shares that unit's outline instead.
+  const outlined = page
+    .locator('section[aria-label]')
+    .filter({ has: card })
+    .filter({ has: page.locator(`[data-unit="${target}"]`) })
+  await expect(card.filter({ hasText: target }).or(outlined).first()).toBeVisible()
 }
+
+/** Shows each datasheet on its role shelf, where its card names the unit it joined, for tests about those rows. */
+export const arrangeByRole = (page: Page) =>
+  page.context().addCookies([{ name: 'praetorium_roster_arrangement', value: 'role', url: `${baseURL}/rosters` }])

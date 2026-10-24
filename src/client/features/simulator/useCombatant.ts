@@ -15,6 +15,7 @@ import { survivingUnits } from '../rosters/builder/pricePlaceholder'
 import type { KeyedPick } from '../rosters/rosterPicks'
 import { pickEditor, usePicks } from '../rosters/builder/usePicks'
 import { attachedUnit } from '../../../core/attach'
+import { attachedHost } from '../../../core/attachedUnits'
 import { restoreWeaponPreferences, storeWeaponPreferences, type PreferenceMember, type StoredWeaponPreferences } from './combatPreferences'
 
 export type CombatRoster = {
@@ -53,7 +54,8 @@ export function useCombatant(roster?: CombatRoster, initial?: SimulatorSide | nu
   const [health, setHealth] = useState<Record<string, { models: number; damage: number }>>({})
   const [allocations, setAllocations] = useState<Record<string, CombatCarrier[]>>({})
   const picks = usePicks(
-    roster?.picks ?? (initial ? [initial.pick, ...(initial.attached ?? []).map((pick) => ({ ...pick, attachedTo: 0 }))] : []),
+    roster?.picks ??
+      (initial ? [initial.pick, ...(initial.attached ?? []).map((pick) => ({ ...pick, attachedTo: pick.attachedTo ?? 0 }))] : []),
   )
   const battlePicks = roster?.battle ? JSON.stringify(roster.picks) : null
   const { resetPicks } = picks
@@ -372,9 +374,11 @@ function shareable(
       ...(Object.keys(preferences).length ? { preferences } : {}),
       roster: { ...roster.saved.source, pickIndex },
     }
-  const attached = picks
-    .filter((member) => member.attachedTo === pick.key)
-    .map(({ key: _memberKey, attachedTo: _host, ...member }) => member)
+  const members = picks.filter((member) => member !== pick && attachedHost(picks, member) === pick)
+  const attached = members.map(({ key: _memberKey, attachedTo: host, ...member }) => {
+    const joined = members.findIndex((other) => other.key === host)
+    return joined < 0 ? member : { ...member, attachedTo: joined + 1 }
+  })
   return {
     catalogueId,
     pick: shared,

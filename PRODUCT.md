@@ -26,7 +26,7 @@ Praetorium is a free army builder, combat simulator, battle tracker and rules re
 
 - Phones held at the table, often one-handed, glanced at between rolls, sometimes in poor light or with an unreliable connection; the app works offline once its data is downloaded.
 - Desktop for list building, simulation and league organizing.
-- Players talk on the [Praetorium Discord](https://discord.gg/kgDnqFSDV2); the app has no chat.
+- Players talk on the [Praetorium Discord](https://discord.gg/7M3sDHEXJU); the app has no chat.
 - [Product design](docs/product-design.md) owns scope and the privacy contract; the development guides own implementation.
 
 ## Capabilities and Constraints
@@ -53,5 +53,5 @@ Praetorium is a free army builder, combat simulator, battle tracker and rules re
 1. The table comes first: anything used during a game must work at a glance, one-handed, on a phone.
 2. One connected flow: a list, a simulation, a battle and a league share the same data, and moving between them never means re-entering it.
 3. Truth over convenience: show what the community data supports and say plainly what it does not.
-4. Players own their data and audience: sharing is explicit, and privacy follows the narrowest choice at the table.
+4. Players own their data: battles and collections are public, and each roster's access is the player's choice.
 5. Free for everyone: no feature is gated behind payment.

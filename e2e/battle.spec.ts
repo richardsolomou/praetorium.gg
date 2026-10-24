@@ -87,39 +87,29 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await expect(scoring.locator('output').filter({ hasText: 'VP' })).toContainText('Scoring 5 VP')
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(scoring).toBeVisible()
-  for (const textSize of ['standard', 'larger']) {
-    await page.setViewportSize({ width: 360, height: 644 })
-    await page.evaluate((size) => {
-      document.documentElement.dataset.textSize = size
-    }, textSize)
-    const applicationTabs = page.getByRole('navigation', { name: 'Application sections' })
-    await expect
-      .poll(async () => {
-        const dialogBox = (await scoring.boundingBox())!
-        return dialogBox.y + dialogBox.height - (await applicationTabs.boundingBox())!.y
-      })
-      .toBeLessThanOrEqual(1)
-    const body = scoring.locator('[data-slot="dialog-body"]')
-    await expect
-      .poll(async () => (await body.boundingBox())!.height / (await scoring.boundingBox())!.height)
-      .toBeGreaterThan(textSize === 'standard' ? 0.5 : 0.35)
-    const footer = scoring.locator('[data-slot="dialog-footer"]')
-    await body.hover()
-    await page.mouse.wheel(0, 2000)
-    await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
-    await expect(footer.getByRole('button', { name: 'Undo latest action' })).toBeInViewport()
-    await expect(footer.getByRole('button', { name: 'Back', exact: true })).toBeInViewport()
-    await expect(footer.getByRole('button', { name: 'Pass the turn', exact: true })).toBeInViewport()
-    const footerBox = (await footer.boundingBox())!
-    expect(footerBox.y + footerBox.height).toBeLessThanOrEqual((await applicationTabs.boundingBox())!.y + 1)
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
-    await page.mouse.wheel(0, -2000)
-    await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBe(0)
-    await page.screenshot({ path: `test-results/scoring-mobile-${textSize}.png` })
-  }
-  await page.evaluate(() => {
-    delete document.documentElement.dataset.textSize
-  })
+  await page.setViewportSize({ width: 360, height: 644 })
+  const applicationTabs = page.getByRole('navigation', { name: 'Application sections' })
+  await expect
+    .poll(async () => {
+      const dialogBox = (await scoring.boundingBox())!
+      return dialogBox.y + dialogBox.height - (await applicationTabs.boundingBox())!.y
+    })
+    .toBeLessThanOrEqual(1)
+  const body = scoring.locator('[data-slot="dialog-body"]')
+  await expect.poll(async () => (await body.boundingBox())!.height / (await scoring.boundingBox())!.height).toBeGreaterThan(0.5)
+  const footer = scoring.locator('[data-slot="dialog-footer"]')
+  await body.hover()
+  await page.mouse.wheel(0, 2000)
+  await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBeGreaterThan(0)
+  await expect(footer.getByRole('button', { name: 'Undo latest action' })).toBeInViewport()
+  await expect(footer.getByRole('button', { name: 'Back', exact: true })).toBeInViewport()
+  await expect(footer.getByRole('button', { name: 'Pass the turn', exact: true })).toBeInViewport()
+  const footerBox = (await footer.boundingBox())!
+  expect(footerBox.y + footerBox.height).toBeLessThanOrEqual((await applicationTabs.boundingBox())!.y + 1)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
+  await page.mouse.wheel(0, -2000)
+  await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBe(0)
+  await page.screenshot({ path: 'test-results/scoring-mobile.png' })
   await page.setViewportSize({ width: 390, height: 844 })
   await scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true }).scrollIntoViewIfNeeded()
   await scoring.getByRole('button', { name: 'Pass the turn', exact: true }).click()

@@ -60,6 +60,19 @@ it('restores leader and support loadouts alongside the main squad', () => {
   expect(decodeSimulatorState(encodeSimulatorState(attached))).toEqual(attached)
 })
 
+describe('a unit joined to an attached unit', () => {
+  const chained = (attachedTo: number) =>
+    encoded({ ...state, sides: [{ ...state.sides[0], attached: [{ entryId: 'command-squad' }, { entryId: 'nork', attachedTo }] }, null] })
+
+  it('restores the attached unit it joined', () => {
+    expect(decodeSimulatorState(chained(1))?.sides[0]?.attached?.[1]).toEqual({ entryId: 'nork', attachedTo: 1 })
+  })
+
+  it.each([2, 3])('refuses joining position %i, which is not an earlier unit', (attachedTo) => {
+    expect(decodeSimulatorState(chained(attachedTo))).toBeNull()
+  })
+})
+
 it('bounds the number of units in a shared side', () => {
   expect(
     decodeSimulatorState(
