@@ -36,7 +36,7 @@ import { loadoutPicks } from '../../../../core/rosterCopies'
 import type { priceQuery } from '../../../queries'
 import { LoadoutNameDialog } from './LoadoutNameDialog'
 import { LoadoutRow } from './LoadoutRow'
-import { isAttachedUnit, loadoutNoun, type PickerLoadout, pickerRows } from './pickerRows'
+import { isAttachedUnit, loadoutNoun, type PickerLoadout, pickerRows, shownKind } from './pickerRows'
 import { useUnitLoadouts } from './useUnitLoadouts'
 
 type Props = {
@@ -183,8 +183,7 @@ export const Picker = memo(function Picker({
         loadouts,
         query,
         keeps: (entryId, points) => {
-          const kind = nonMatchedPlay.get(entryId)
-          if (kind && !active.has(kind)) return false
+          if (!shownKind(nonMatchedPlay.get(entryId), active)) return false
           if (active.has('fit') && room !== null && points != null && points > room) return false
           if (active.has('limit') && limits.has(entryId) && !canAddCopy(entryId, inRoster[entryId] ?? 0, limits)) return false
           if (active.has('owned') && collection.size && !collection.has(entryId)) return false

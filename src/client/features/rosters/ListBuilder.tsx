@@ -85,6 +85,7 @@ import { Loadout } from './builder/Loadout'
 import { Stepper } from '../../components/Stepper'
 import { changedDraftSpreadCounts, withDraftSpreadCounts } from './builder/loadoutModel'
 import { Picker, type PickerFilter } from './builder/Picker'
+import { shownKind } from './builder/pickerRows'
 import { SaveLoadoutDialog } from './builder/SaveLoadoutDialog'
 import { Section } from './builder/Section'
 import { AttachedUnitBlock } from './builder/AttachedUnitBlock'
@@ -962,8 +963,11 @@ export function ListBuilder({
     placeholderData: keepPreviousData,
   })
   const attachDiscovery = useMemo(
-    () => (attachCandidates ? { candidates: attachCandidates, held, limits: unitLimits } : null),
-    [attachCandidates, held, unitLimits],
+    () =>
+      attachCandidates
+        ? { candidates: attachCandidates.filter((unit) => shownKind(unit.nonMatchedPlay, pickerFilters)), held, limits: unitLimits }
+        : null,
+    [attachCandidates, pickerFilters, held, unitLimits],
   )
   const cardRelationships = useCardRelationships(picks, units, attachDiscovery, embarks)
   const openSetup = () => {

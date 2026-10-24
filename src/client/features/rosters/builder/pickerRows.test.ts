@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { type PickerLoadout, pickerRows } from './pickerRows'
+import { type PickerLoadout, pickerRows, shownKind } from './pickerRows'
 
 const immortals = { id: 'immortals', name: 'Immortals', points: 70 }
 const warriors = { id: 'warriors', name: 'Necron Warriors', points: 90 }
@@ -73,5 +73,15 @@ describe('pickerRows', () => {
 
   it('searches unavailable loadouts by name', () => {
     expect(rows({ found: [], query: 'tesla' }).unavailable).toEqual([])
+  })
+})
+
+describe('shownKind', () => {
+  it('hides a Legends datasheet until its chip is on', () => {
+    expect([shownKind('legends', new Set()), shownKind('legends', new Set(['legends']))]).toEqual([false, true])
+  })
+
+  it('always shows a matched-play datasheet', () => {
+    expect(shownKind(undefined, new Set())).toBe(true)
   })
 })
