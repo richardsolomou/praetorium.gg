@@ -47,7 +47,7 @@ export function joinableUnits(picks: readonly AttachmentPick[], units: readonly 
 
 type Candidate = Omit<AttachmentParty, 'attachment'> & {
   attachment?: Attachment | null
-  /** A picker datasheet's own keywords, standing in for the ones it would hold in the list. */
+  /** A picker datasheet's keywords, with those its detachments grant, standing in for the ones it would hold in the list. */
   search?: { keywords: readonly string[] } | null
 }
 

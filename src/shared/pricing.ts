@@ -28,7 +28,7 @@ import { describedEnhancements } from './catalogueDescriptions'
 import { descriptionKey } from './datacards'
 import { factionDisplayName } from './factionNames'
 import { detachmentNamed } from './factionReferences'
-import { contextualUnitLimit, groupOfEntry, shelfOfCategory, unitsIn } from './cataloguePicker'
+import { contextualUnitLimit, shelfIn, unitsIn } from './cataloguePicker'
 import { isDetachmentWrapperLimit, rosterDetachments } from './rosterDetachments'
 import { detachmentPoints } from './detachmentPoints'
 import { mfmUnitFor, unitPointAdjustment } from './unitPoints'
@@ -772,9 +772,6 @@ function calculateRoster(
         attachment = attachmentPartyOf(definition, loaded.index, unit.selection)
         builtAttachments.set(unit.source, attachment)
       }
-      const shelf = (unitSelectionIndex === undefined ? [] : (rosterKeywordsFor(catalogueId)[unitSelectionIndex]?.primaries ?? []))
-        .map((id) => shelfOfCategory(loaded.index.categories.get(id)?.name))
-        .find(Boolean)
       return {
         key: unit.key,
         entryId: unit.entryId,
@@ -796,7 +793,11 @@ function calculateRoster(
         enhancements: selectedEnhancements,
         upgrades,
         wargear: wargear.filter((piece) => !specialSelections.has(routeSlug(piece.name)) || specialWargear.has(routeSlug(piece.name))),
-        group: shelf ?? groupOfEntry(loaded.index, unit.entryId),
+        group: shelfIn(
+          loaded.index,
+          unit.entryId,
+          unitSelectionIndex === undefined ? [] : (rosterKeywordsFor(catalogueId)[unitSelectionIndex]?.primaries ?? []),
+        ),
         ...attachment,
         keywords: unitKeywords,
       }
