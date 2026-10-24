@@ -142,6 +142,12 @@ export const unreadReplies = (tickets: readonly { unread_count?: number }[] | un
 export const refreshSupport = (client: QueryClient) =>
   Promise.all([client.invalidateQueries({ queryKey: ticketsKey() }), client.invalidateQueries({ queryKey: [SUPPORT_KEY, 'messages'] })])
 
+/**
+ * Reads everything again as whoever Support now knows the player as. A reset, not a refresh: a refresh joins a read
+ * still in flight, which started before the identity changed and would show the previous reader's conversations.
+ */
+export const readAsNewIdentity = (client: QueryClient) => client.resetQueries({ queryKey: [SUPPORT_KEY] })
+
 /** The account this page last proved to Support; the SDK keeps the proof in memory, so a reload starts without one. */
 let provenId: string | undefined
 
@@ -166,7 +172,7 @@ export function SupportIdentity() {
     else if (!me && provenId) posthog.clearIdentity()
     else return
     provenId = proven?.distinctId
-    void refreshSupport(queryClient)
+    void readAsNewIdentity(queryClient)
   }, [me, proven, queryClient])
   return null
 }
@@ -174,11 +180,14 @@ export function SupportIdentity() {
 /** What the support panel shows: the player's conversations, a new message, or one conversation. */
 export type SupportView = { kind: 'inbox' } | { kind: 'compose' } | { kind: 'thread'; ticketId: string }
 
-const OPEN_SUPPORT = 'praetorium-open-support'
+const listeners = new Set<(view: SupportView) => void>()
+/** A request made before the panel listens, as a link opening a conversation on a fresh page load is. */
+let waiting: SupportView | undefined
 
 /** Opens the support panel over the current page, so a message sent from it records what the player was looking at. */
 export function openSupport(view: SupportView) {
-  window.dispatchEvent(new CustomEvent<SupportView>(OPEN_SUPPORT, { detail: view }))
+  if (!listeners.size) waiting = view
+  for (const listener of listeners) listener(view)
 }
 
 export const openFeedback = () => openSupport({ kind: 'compose' })
@@ -186,7 +195,10 @@ export const openConversations = () => openSupport({ kind: 'inbox' })
 export const openConversation = (ticketId: string) => openSupport({ kind: 'thread', ticketId })
 
 export function onOpenSupport(listener: (view: SupportView) => void) {
-  const handle = (event: Event) => listener((event as CustomEvent<SupportView>).detail)
-  window.addEventListener(OPEN_SUPPORT, handle)
-  return () => window.removeEventListener(OPEN_SUPPORT, handle)
+  listeners.add(listener)
+  if (waiting) listener(waiting)
+  waiting = undefined
+  return () => {
+    listeners.delete(listener)
+  }
 }
