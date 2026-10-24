@@ -54,7 +54,7 @@ Exception tracking may carry stack traces; manual captures add only an operation
 
 ## Feedback
 
-Feedback opens a Support ticket (`src/client/features/feedback/support.ts`); reply from the Support inbox. Import reports stay on the App feedback survey, whose question ids `feedback.ts` pins. Dev servers fake Support (`devSupport.ts`); `e2e/telemetry.harness.ts` stubs both.
+Feedback opens a Support ticket (`src/client/features/feedback/support.ts`); reply in the Support inbox; a Workflow on `$conversation_message_sent` calls `/api/support-replies`, which emails the player. Dev servers fake Support (`devSupport.ts`); e2e stubs it.
 
 Screenshots go to the private `praetorium-private` R2 bucket (production reaches it with the backup credentials) and only administrators can open their links.
 
