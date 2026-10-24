@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.188.2
+
+### Patch Changes
+
+- 43ad719: The email telling you we replied now looks like Praetorium, with a button that opens the conversation.
+- de203c6: The email telling you we replied now says who replied and which of your messages it is about, and that replying to the email itself does not reach us.
+
 ## 0.188.1
 
 ### Patch Changes
