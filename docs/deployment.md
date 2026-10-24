@@ -16,9 +16,9 @@ The separate “Cache public reference API and images” Cloudflare rule allows 
 
 ## Delivery
 
-`.github/workflows/dokploy-web.yml` owns image publication, product migration, deployment, and health checks, deploying a digest-pinned image without rebuilding it. Staging uses separate data. Images are private in GHCR; Dokploy pulls production and preview images with the `GHCR_PULL_TOKEN` repository secret, a classic token with only `read:packages`, so production and previews stop deploying if it expires.
+`dokploy-web.yml` publishes images, migrates product data, deploys by digest and checks health. Staging has separate data. Dokploy pulls private GHCR images for production and previews using `GHCR_PULL_TOKEN` (classic, `read:packages`); expiry blocks deployment.
 
-`.github/workflows/release.yml` runs on every push to `main`: with pending changesets it commits a `[skip ci]` release commit directly on `main`, tags it, creates the GitHub Release, and deploys it; otherwise it deploys the pushed commit. [Mobile release](development/mobile-release.md#build-and-upload) owns whether a release rebuilds the app. The release push uses the `CHANGESETS_TOKEN` repository secret, a fine-grained owner token that the `main` ruleset's admin bypass lets past required checks; if it expires or loses access, production is not deployed until the secret is replaced. Re-running an older release cannot roll back; roll back explicitly through `dokploy-web.yml`'s `workflow_dispatch` with a `revision`.
+`.github/workflows/release.yml` runs on every push to `main`: pending changesets create a `[skip ci]` release commit on `main`, tag and GitHub Release before deployment; otherwise it deploys the pushed commit. [Mobile release](development/mobile-release.md#build-and-upload) owns app rebuilds. Release pushes use `CHANGESETS_TOKEN`, a fine-grained owner token with `main` ruleset admin bypass; expiry or lost access blocks production deployment. Rollbacks require `dokploy-web.yml`'s `workflow_dispatch` with a `revision`; rerunning an old release cannot roll back.
 
 `Dockerfile.node` carries no fetched catalogue data. Startup prepares source data, server projections and browser downloads in the persistent catalogue cache; the background worker refreshes that data from configured branches without rebuilding or restarting the image. [Catalogue data](development/catalogue/sources.md#runtime-updates) owns validation, atomic activation and retention. The image must contain `server/combat-calculation-worker.mjs` ([Combat simulation](development/combat-simulation.md)). It ships no curl or wget, so health check commands run `node /app/scripts/healthcheck.ts`.
 
@@ -36,6 +36,8 @@ The start period in `scripts/configureDokployNode.ts` covers the first catalogue
 The offline reference and app manifests (`offline-reference-version.json`, `offline-app-version.json`) are uncached and point to retained hashed assets. The reference and construction downloads are gzip data served as `application/octet-stream` without HTTP content encoding, so the client decompresses it consistently through Nitro and the CDN. Keep generated bundles and copied rules out of Git.
 
 Open pages poll the uncached `/api/release` and offer a manual Refresh for a newer version. `/whats-new` reads `CHANGELOG.md`, so changeset summaries are player-facing copy; [Contributing](../CONTRIBUTING.md#pull-requests-and-releases) sets what they may say, and an entry players should not see is deleted from `CHANGELOG.md` directly. `INDEXNOW_KEY` is production-only; the release keeps its before/after sitemaps in the `production-sitemaps` artifact. `TYPESAFE_API_KEY` is production-only too, so only real uploads are screened.
+
+`scripts/announceDiscord.ts` needs secret `DISCORD_ANNOUNCEMENTS_WEBHOOK_URL` and variable `DISCORD_ANNOUNCEMENTS_CHANNEL_ID`. Retain R2 receipts across webhook rotations; inspect pending deliveries before retrying.
 
 ## Pull request previews
 

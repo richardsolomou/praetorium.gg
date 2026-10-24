@@ -33,6 +33,26 @@ jobs:
       revision: ${{ needs.release.outputs.sha || github.sha }}
     secrets: inherit
 
+  announce-discord:
+    needs: [release, dokploy-production]
+    if: needs.release.outputs.created == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.release.outputs.sha }}
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - name: Announce the live release to players
+        env:
+          DEPLOY_SHA: ${{ needs.release.outputs.sha }}
+          DISCORD_ANNOUNCEMENTS_WEBHOOK_URL: ${{ secrets.DISCORD_ANNOUNCEMENTS_WEBHOOK_URL }}
+          DISCORD_ANNOUNCEMENTS_CHANNEL_ID: ${{ vars.DISCORD_ANNOUNCEMENTS_CHANNEL_ID }}
+          R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+        run: pnpm exec tsx scripts/announceDiscord.ts
+
   after-release:
     needs: [release]
     runs-on: ubuntu-latest
