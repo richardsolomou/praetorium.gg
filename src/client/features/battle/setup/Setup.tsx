@@ -29,6 +29,7 @@ import { FirstTurnStep } from './FirstTurnStep'
 import { DeployStep } from './DeployStep'
 import { PreBattleRulesStep } from './PreBattleRulesStep'
 import { SideDispositionChoice } from './SideDispositionChoice'
+import { SideWarlordChoice } from './SideWarlordChoice'
 import { ReservesStep } from './ReservesStep'
 import { SecondariesStep } from './SecondariesStep'
 import { MissionDetailsDialog, type MissionDetails } from '../MissionCards'
@@ -122,6 +123,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   const owed = table.flatMap((side) => side.armies).filter((army) => (army.isViewer || army.automated) && !army.roster)
   const awaited = table.flatMap((side) => side.armies).filter((army) => !army.isViewer && !army.automated && !army.roster)
   const undecided = table.filter((side) => side.dispositionChoices.length > 1 && !side.disposition)
+  const leaderless = table.filter((side) => side.warlordChoices.length > 1 && !side.warlord)
   const missingCards = table.filter((side) => !missionCardsReady(side))
   const kotc = isKotcLimit(view.settings.limit)
   const pointsBudget = battlePointsBudget(view)
@@ -160,6 +162,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
     ...awaited.map((army) => `${army.playerName}’s army`),
     ...(ready && view.settings.limit === null ? ['Battle size'] : []),
     ...(view.settings.limit !== null && budgetsDiffer ? ['Points budget'] : []),
+    ...(leaderless.length ? ['Warlord'] : []),
     ...(manual
       ? []
       : [
@@ -174,7 +177,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   ]
 
   const complete: Record<SectionId, boolean> = {
-    armies: view.settings.limit !== null && ready && !budgetsDiffer,
+    armies: view.settings.limit !== null && ready && !budgetsDiffer && !leaderless.length,
     mission: Boolean(mission) && !undecided.length,
     battlefield: Boolean(view.deploymentId),
     defender: Boolean(view.attackerId),
@@ -262,13 +265,15 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
               : awaited.length
                 ? `Waiting for ${formatList(awaited.map((army) => army.playerName))} to choose an army.`
                 : (sizeProblem ??
+                  (leaderless.length ? 'Choose whose Warlord leads each allied side.' : null) ??
                   (table.some((side) => side.armies.length > 1)
                     ? 'Battle size follows your rosters. Each side brings the same points; allies split them evenly.'
                     : 'Battle size follows your rosters. Each side brings the same points.'))
           }
-          needed={Boolean(owed.length || sizeProblem)}
+          needed={Boolean(owed.length || sizeProblem || leaderless.length)}
         >
           <ArmiesStep view={view} sides={table} send={send} attachRoster={attachRoster} pending={busy} problem={problem} />
+          <SideWarlordChoice sides={table} send={send} />
           <div data-onboarding="battle-setup-size">
             {formatOpen ? (
               <SetupPanel className="grid gap-4 sm:grid-cols-2">

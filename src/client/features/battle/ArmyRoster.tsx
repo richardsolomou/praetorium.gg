@@ -86,11 +86,14 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
   const canSimulate = (unit: UnitState) => readable(unit) && !unit.destroyed && unit.formation === 'battlefield'
   const simulate = () => onSimulate({ playerId: army.playerId })
   const unitProps: UnitControls = { army, actionable, pending, blocked, send, press }
+  // Allies field one Warlord between them, so only the list whose Warlord leads the side wears the crown.
+  const leads = (side.warlord ?? army.playerId) === army.playerId
   const card = (unit: UnitState) => (
     <BattleUnit
       key={unit.key}
       {...unitProps}
       unit={unit}
+      warlord={leads && unit.warlord === true}
       selected={unit.key === selected?.key}
       onSelect={readable(unit) ? () => setSelectedKey(unit.key) : undefined}
     />
@@ -210,6 +213,7 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
 
 function BattleUnit({
   unit,
+  warlord,
   selected,
   onSelect,
   ...controls
@@ -217,6 +221,7 @@ function BattleUnit({
   selected: boolean
   onSelect?: () => void
   unit: UnitState
+  warlord: boolean
 } & UnitControls) {
   const { actionable } = controls
   // A whole unit on the table with nothing to press has nothing to report, so it says nothing.
@@ -233,6 +238,7 @@ function BattleUnit({
         enhancements: unit.enhancements ?? [],
         upgrades: unit.upgrades ?? [],
       }}
+      warlord={warlord}
       nickname={unit.nickname}
       note={unit.note}
       selected={selected}
