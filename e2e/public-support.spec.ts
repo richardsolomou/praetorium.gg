@@ -29,11 +29,11 @@ test('support sends feedback in place and keeps the public issue tracker', async
     )
     await expect(page.getByRole('main').getByRole('link', { name: 'Praetorium Discord' })).toHaveAttribute(
       'href',
-      'https://discord.gg/7M3sDHEXJU',
+      'https://discord.gg/RFUMZNFwMu',
     )
     const header = page.locator(width === 1440 ? '[data-web-app-chrome]' : '[data-mobile-app-header]')
     const community = header.getByRole('navigation', { name: 'Community' })
-    await expect(community.getByRole('link', { name: 'Discord', exact: true })).toHaveAttribute('href', 'https://discord.gg/7M3sDHEXJU')
+    await expect(community.getByRole('link', { name: 'Discord', exact: true })).toHaveAttribute('href', 'https://discord.gg/RFUMZNFwMu')
     await expect(community.getByRole('link', { name: 'GitHub', exact: true })).toHaveAttribute(
       'href',
       'https://github.com/richardsolomou/praetorium.gg',
