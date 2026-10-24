@@ -838,9 +838,19 @@ async function seedInto(
       userId: input.creatorId,
       allyIds: input.allyIds ?? [],
       opponentIds: input.opponentIds,
-      initialCommands: battleCommands(input.limit, input.rosters, input.tail),
+      initialCommands: battleCommands(input.limit, input.rosters, [
+        ...sideWarlords([[input.creatorId, ...(input.allyIds ?? [])], input.opponentIds]),
+        ...input.tail,
+      ]),
       now: now(),
     })
+  }
+
+  /** Allies each bring a Warlord, so a seeded side of allies names its first seat's to lead it. */
+  function sideWarlords(sides: readonly (readonly string[])[]): Command[] {
+    return sides.flatMap((playerIds, side) =>
+      playerIds.length > 1 ? [{ kind: 'set-side-warlord' as const, side, playerId: playerIds[0]! }] : [],
+    )
   }
 
   async function createRevealedLeague(input: {
@@ -928,9 +938,15 @@ async function seedInto(
         const team = (await repository.leagueByToken(input.token, entry.userId, input.eventToken))?.entries.find(
           (candidate) => candidate.userId === entry.userId,
         )?.team
-        if (!team || team.disposition || !team.choices[0]) continue
-        const result = await repository.setLeagueTeamDisposition(input.token, entry.userId, team.choices[0], now(), input.eventToken)
-        if (result.outcome !== 'chosen') throw new Error(`${input.name} could not settle a Force Disposition: ${result.outcome}`)
+        if (!team) continue
+        if (!team.disposition && team.choices[0]) {
+          const result = await repository.setLeagueTeamDisposition(input.token, entry.userId, team.choices[0], now(), input.eventToken)
+          if (result.outcome !== 'chosen') throw new Error(`${input.name} could not settle a Force Disposition: ${result.outcome}`)
+        }
+        if (!team.warlord && team.warlordChoices[0]) {
+          const result = await repository.setLeagueTeamWarlord(input.token, entry.userId, team.warlordChoices[0], now(), input.eventToken)
+          if (result.outcome !== 'chosen') throw new Error(`${input.name} could not settle a Warlord: ${result.outcome}`)
+        }
       }
       const reveal = await repository.revealLeague(input.token, input.ownerId, now(), input.eventToken)
       if (reveal.outcome !== 'revealed') throw new Error(`${input.name} could not be revealed: ${reveal.outcome}`)
@@ -942,6 +958,10 @@ async function seedInto(
     const dispositions = sides.flatMap((playerIds, side) => {
       const disposition = playerIds.length > 1 ? revealedEntries.find((entry) => entry.userId === playerIds[0])?.team?.disposition : null
       return disposition ? [{ side, disposition }] : []
+    })
+    const warlords = sides.flatMap((playerIds, side) => {
+      const playerId = playerIds.length > 1 ? revealedEntries.find((entry) => entry.userId === playerIds[0])?.team?.warlord : null
+      return playerId ? [{ side, playerId }] : []
     })
     await repository.createLeagueBattle(
       {
@@ -963,6 +983,7 @@ async function seedInto(
             leagueToken: input.token,
             eventToken: input.eventToken,
             ...(dispositions.length ? { dispositions } : {}),
+            ...(warlords.length ? { warlords } : {}),
           },
           ...input.battle.tail,
         ],

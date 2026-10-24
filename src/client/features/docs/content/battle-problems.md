@@ -2,7 +2,7 @@
 
 ### Start battle is greyed out
 
-The bar beside it lists what's left: an army, the battle size, a Force Disposition, the battlefield, defender, mission cards or first turn.
+The bar beside it lists what's left: an army, the battle size, an allied side's Warlord, a Force Disposition, the battlefield, defender, mission cards or first turn.
 
 ### "Choose rosters with the same points budget for each side."
 
