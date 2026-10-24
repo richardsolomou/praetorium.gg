@@ -30,6 +30,7 @@ type BuilderUnitCardProps = {
   onDuplicate: (index: number) => void
   canDuplicate?: boolean
   onSaveLoadout?: (index: number) => void
+  onSaveAttachedUnit?: (index: number) => void
   onDetach: (index: number) => void
   onAttach: (index: number, direction: AttachDirection, choice: AttachChoice) => void
   /** Starts the unit picked under `passengerKey` in the transport picked under `transportKey`, or on the battlefield. */
@@ -56,6 +57,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
   onDuplicate,
   canDuplicate,
   onSaveLoadout,
+  onSaveAttachedUnit,
   onDetach,
   onAttach,
   onEmbark,
@@ -74,6 +76,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
       onDuplicate={() => onDuplicate(index)}
       canDuplicate={canDuplicate}
       onSaveLoadout={onSaveLoadout && (() => onSaveLoadout(index))}
+      onSaveAttachedUnit={onSaveAttachedUnit && (() => onSaveAttachedUnit(index))}
       onDetach={joined.some((row) => row.detach === index) ? () => onDetach(index) : undefined}
       joined={[
         ...joined.map((row) => ({ ...row, onAct: () => onDetach(row.detach) })),

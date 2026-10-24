@@ -5,10 +5,16 @@ const immortals = { id: 'immortals', name: 'Immortals', points: 70 }
 const warriors = { id: 'warriors', name: 'Necron Warriors', points: 90 }
 const book = [immortals, warriors]
 
-const tesla: PickerLoadout = { id: 'a', name: 'Tesla wall', pick: { entryId: 'immortals', models: 10 }, points: 140 }
-const gauss: PickerLoadout = { id: 'b', name: 'Gauss five', pick: { entryId: 'immortals' }, points: 70 }
-const horde: PickerLoadout = { id: 'c', name: 'Horde', pick: { entryId: 'warriors', models: 20 }, points: 180 }
-const retired: PickerLoadout = { id: 'd', name: 'Old guard', pick: { entryId: 'retired' }, points: null }
+const tesla: PickerLoadout = { id: 'a', name: 'Tesla wall', picks: [{ entryId: 'immortals', models: 10 }], points: 140 }
+const gauss: PickerLoadout = { id: 'b', name: 'Gauss five', picks: [{ entryId: 'immortals' }], points: 70 }
+const horde: PickerLoadout = { id: 'c', name: 'Horde', picks: [{ entryId: 'warriors', models: 20 }], points: 180 }
+const retired: PickerLoadout = { id: 'd', name: 'Old guard', picks: [{ entryId: 'retired' }], points: null }
+const command: PickerLoadout = {
+  id: 'e',
+  name: 'Royal court',
+  picks: [{ entryId: 'warriors' }, { entryId: 'overlord', attachedTo: 0 }],
+  points: 200,
+}
 const loadouts = [tesla, gauss, horde, retired]
 
 const rows = (options: { found?: typeof book; query?: string; keeps?: (entryId: string, points: number | null | undefined) => boolean }) =>
@@ -52,6 +58,17 @@ describe('pickerRows', () => {
 
   it('reports a loadout whose datasheet the book does not offer', () => {
     expect(rows({}).unavailable).toEqual([retired])
+  })
+
+  it('reports a loadout with an attached datasheet the book does not offer', () => {
+    expect(pickerRows({ units: book, found: book, loadouts: [command], query: '', keeps: () => true }).unavailable).toEqual([command])
+  })
+
+  it('lists a loadout of attached units under its own unit’s datasheet', () => {
+    const offered = [...book, { id: 'overlord', name: 'Overlord', points: 85 }]
+    expect(
+      pickerRows({ units: offered, found: offered, loadouts: [command], query: '', keeps: () => true }).loadouts.get('warriors'),
+    ).toEqual([command])
   })
 
   it('searches unavailable loadouts by name', () => {

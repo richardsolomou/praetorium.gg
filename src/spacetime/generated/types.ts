@@ -419,6 +419,7 @@ export const UnitLoadouts = __t.object('UnitLoadouts', {
   catalogueId: __t.string(),
   pick: __t.string(),
   createdAt: __t.u64(),
+  joined: __t.option(__t.string()),
 })
 export type UnitLoadouts = __Infer<typeof UnitLoadouts>
 

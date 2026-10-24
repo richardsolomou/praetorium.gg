@@ -17,7 +17,7 @@ import { deploymentRules } from '../shared/rosterDeployment'
 import { factionRestrictionViolations, isCatalogueSelfContradiction, kotcViolations } from '../shared/formatRestrictions'
 import { descriptionKey } from './datacards'
 import { rosterUseProblem } from '../core/rosterLegality'
-import { loadoutPick } from '../core/rosterCopies'
+import { loadoutPicks } from '../core/rosterCopies'
 import { bookOf, enhancement, points as pointsCost, shelfOf } from './catalogue.fixtures'
 import type { LoadedRules } from './rules'
 
@@ -1468,10 +1468,10 @@ describe('a saved loadout applied to another roster', () => {
     loaded: ReturnType<typeof bookOf>,
     limit: number,
     held: { entryId: string }[],
-    loadout: Parameters<typeof loadoutPick>[0],
+    loadout: Parameters<typeof loadoutPicks>[0],
   ) =>
     calculateRosterPrice(
-      { catalogueId: 'cat', detachmentIds: [], disposition: null, limit, units: [...held, loadoutPick(loadout, 'cat')!] },
+      { catalogueId: 'cat', detachmentIds: [], disposition: null, limit, units: [...held, ...loadoutPicks(loadout, 'cat')!] },
       loaded,
       rulesWithout,
     )?.errors.map((error) => error.message)

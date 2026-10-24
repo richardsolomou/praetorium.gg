@@ -41,6 +41,7 @@ import { attachedUnitCount } from '../../../core/attachedUnits'
 import type { FormatRuleId, Roster, Secondary, Stratagem } from '../../../core/battle'
 import { canTransport, enforces, type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
+import { joinedUnits } from '../../../core/unitLoadouts'
 import { frozenUnits } from '../../../core/rosterSnapshot'
 import { withoutUnitNotes } from '../../../core/unitNotes'
 import {
@@ -800,19 +801,29 @@ export function ListBuilder({
     [setSelected],
   )
   const [requestRefusal, setRequestRefusal] = useState<string | null>(null)
-  const [queuedAdds, setQueuedAdds] = useState<{ entryId: string; context: readonly unknown[]; link?: AttachLink; loadout?: RosterPick }[]>(
-    [],
-  )
-  const queueAdd = (entryId: string, extra: { link?: AttachLink; loadout?: RosterPick }) => {
+  const [queuedAdds, setQueuedAdds] = useState<
+    { entryId: string; context: readonly unknown[]; link?: AttachLink; loadout?: readonly RosterPick[] }[]
+  >([])
+  const queueAdd = (entryId: string, extra: { link?: AttachLink; loadout?: readonly RosterPick[] }) => {
     setRequestRefusal(null)
     setQueuedAdds((current) => {
-      const queued = current.filter((entry) => entry.entryId === entryId).length
-      if (picks.length + current.length >= 100 || !canAddCopy(entryId, (held[entryId] ?? 0) + queued, unitLimits)) return current
+      const queuedPicks = current.flatMap((entry) => entry.loadout ?? [entry])
+      const adding = extra.loadout ?? [{ entryId }]
+      const fits = adding.every((pick, at) =>
+        canAddCopy(
+          pick.entryId,
+          (held[pick.entryId] ?? 0) + [...queuedPicks, ...adding.slice(0, at)].filter((queued) => queued.entryId === pick.entryId).length,
+          unitLimits,
+        ),
+      )
+      if (picks.length + queuedPicks.length + adding.length > 100 || !fits) return current
       return [...current, { entryId, context: priceRequest.queryKey, ...extra }]
     })
   }
   const add = (entryId: string, link?: AttachLink) => queueAdd(entryId, link ? { link } : {})
-  const applyLoadout = (loadout: RosterPick) => queueAdd(loadout.entryId, { loadout })
+  const applyLoadout = (loadout: readonly RosterPick[]) => {
+    if (loadout[0]) queueAdd(loadout[0].entryId, { loadout })
+  }
   const priceLoadouts = useCallback(
     (loadouts: readonly RosterPick[]) =>
       priceQuery(catalogueId, detachmentIds, disposition, limit, loadouts, waivedRules, borrowedDetachmentId, optionalRules),
@@ -828,8 +839,17 @@ export function ListBuilder({
     if (pricePending || priceLoading || priceFailed) return
     setQueuedAdds((current) => current.slice(1))
     if (!samePriceContext(next.context, priceRequest.queryKey)) return
-    const outcome = requestedUnit(next.entryId, held[next.entryId] ?? 0, unitLimits)
-    if (outcome.kind === 'refused') {
+    const wanted = next.loadout ?? [{ entryId: next.entryId }]
+    const outcome = wanted
+      .map((pick, at) =>
+        requestedUnit(
+          pick.entryId,
+          (held[pick.entryId] ?? 0) + wanted.slice(0, at).filter((earlier) => earlier.entryId === pick.entryId).length,
+          unitLimits,
+        ),
+      )
+      .find((answer) => answer.kind === 'refused')
+    if (outcome?.kind === 'refused') {
       setRequestRefusal(outcome.message)
       return
     }
@@ -878,8 +898,9 @@ export function ListBuilder({
     setReminders((current) => remindersAfterUnitInserted(current, index + 1))
     reporting.current = { event: 'roster_unit_duplicated' }
   }, [])
-  const [savingLoadout, setSavingLoadout] = useState<number | null>(null)
-  const openSaveLoadout = useCallback((index: number) => setSavingLoadout(index), [])
+  const [savingLoadout, setSavingLoadout] = useState<{ index: number; whole: boolean } | null>(null)
+  const openSaveLoadout = useCallback((index: number) => setSavingLoadout({ index, whole: false }), [])
+  const openSaveAttachedUnit = useCallback((index: number) => setSavingLoadout({ index, whole: true }), [])
   const { ask: askAccount } = account
   const askForLoadoutAccount = useCallback(() => askAccount('loadout'), [askAccount])
   const join = useCallback((index: number, targetKey: number | undefined) => {
@@ -1165,6 +1186,15 @@ export function ListBuilder({
         onDuplicate={duplicate}
         canDuplicate={!pricePending && canAddCopy(unit.entryId, held[unit.entryId] ?? 0, unitLimits)}
         onSaveLoadout={pricePending ? undefined : guest ? askForLoadoutAccount : me ? openSaveLoadout : undefined}
+        onSaveAttachedUnit={
+          pricePending || !joinedUnits(picks, picks[index]?.key ?? -1, catalogueId).length
+            ? undefined
+            : guest
+              ? askForLoadoutAccount
+              : me
+                ? openSaveAttachedUnit
+                : undefined
+        }
         onDetach={detach}
         onAttach={attach}
         onEmbark={embark}
@@ -2028,10 +2058,12 @@ export function ListBuilder({
           <CreateBattle rosterId={savedId} open={startingBattle} onOpenChange={setStartingBattle} />
         </>
       ) : null}
-      {savingLoadout !== null && picks[savingLoadout] && units[savingLoadout] ? (
+      {savingLoadout !== null && picks[savingLoadout.index] ? (
         <SaveLoadoutDialog
-          pick={picks[savingLoadout]}
-          unit={units[savingLoadout]}
+          picks={picks}
+          units={units}
+          index={savingLoadout.index}
+          whole={savingLoadout.whole}
           catalogueId={catalogueId}
           onClose={() => setSavingLoadout(null)}
         />

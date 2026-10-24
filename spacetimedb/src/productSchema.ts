@@ -364,6 +364,7 @@ const unitLoadouts = table(
     catalogueId: t.string(),
     pick: t.string(),
     createdAt: t.u64(),
+    joined: t.option(t.string()).default(undefined),
   },
 )
 

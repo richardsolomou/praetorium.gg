@@ -16,6 +16,8 @@ type Props = {
   accepts: (name: string) => boolean
   pending: boolean
   error: unknown
+  /** What is being named, above the name. */
+  children?: ReactNode
   onSubmit: (name: string) => void
   onClose: () => void
 }
@@ -30,6 +32,7 @@ export function LoadoutNameDialog({
   accepts,
   pending,
   error,
+  children,
   onSubmit,
   onClose,
 }: Props) {
@@ -45,6 +48,7 @@ export function LoadoutNameDialog({
           {description ? <DialogDescription>{description}</DialogDescription> : null}
         </DialogHeader>
         <DialogBody>
+          {children}
           <form
             id={`${id}-form`}
             onSubmit={(event) => {

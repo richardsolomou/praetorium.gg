@@ -962,6 +962,27 @@ describe('saved unit loadouts', () => {
     ).toThrow('Invalid loadout')
   })
 
+  it('lists a loadout’s joined units back to its owner', () => {
+    const setup = harness()
+    const joined = [{ entryId: 'lieutenant', attachedTo: 0 }]
+    module.saveUnitLoadout(setup.procedure(setup.operator), {
+      ...loadout('one'),
+      payload: JSON.stringify({ name: 'Command', catalogueId: 'sm', pick: { entryId: 'intercessors' }, joined }),
+    })
+    expect(saved(setup)).toMatchObject([{ joined }])
+  })
+
+  it('refuses a joined unit carrying a private note', () => {
+    const setup = harness()
+    const payload = JSON.stringify({
+      name: 'Command',
+      catalogueId: 'sm',
+      pick: { entryId: 'intercessors' },
+      joined: [{ entryId: 'lieutenant', attachedTo: 0, note: 'secret' }],
+    })
+    expect(() => module.saveUnitLoadout(setup.procedure(setup.operator), { ...loadout('one'), payload })).toThrow('Invalid loadout')
+  })
+
   it('refuses another loadout once the library is full', () => {
     const setup = harness()
     for (let index = 0; index < UNIT_LOADOUTS_MAX; index++) module.saveUnitLoadout(setup.procedure(setup.operator), loadout(`l-${index}`))

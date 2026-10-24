@@ -13,7 +13,7 @@ import { playerDefaultsSchema } from '../contracts/schemas'
 import { recentMatchupSchema, type RecentMatchup } from '../core/recentMatchups'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
 import { TABLE_SHAPES } from '../core/tableShape'
-import { unitLoadoutPickSchema, type UnitLoadout } from '../core/unitLoadouts'
+import { unitLoadoutSchema, type UnitLoadout } from '../core/unitLoadouts'
 import { leagueRosterSharingSchema } from '../contracts/leagueRosterSharing'
 
 // Module results drop fields this build does not know, so a replica still on the previous build keeps
@@ -72,13 +72,7 @@ const favouriteDetachmentRow = z.object({
   detachmentId: z.string(),
   at: z.number().int(),
 })
-const unitLoadoutRow = z.object({
-  id: z.string(),
-  name: z.string(),
-  catalogueId: z.string(),
-  pick: unitLoadoutPickSchema,
-  createdAt: z.number().int(),
-})
+const unitLoadoutRow = unitLoadoutSchema.extend({ id: z.string(), name: z.string(), catalogueId: z.string(), createdAt: z.number().int() })
 const pushTarget = z.object({ userId: z.string(), token: z.string() })
 const battleSnapshot = z.object({
   battle: z.object({ id: z.string(), token: z.string(), createdAt: z.number().int() }),

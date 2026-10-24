@@ -17,7 +17,7 @@ The **Note** box holds up to 500 characters that only you can see. Exports and o
 
 ## Unit actions
 
-Each card's menu (or a right-click) offers **Duplicate unit**, **Save loadout** and **Delete unit**. **Save loadout** keeps the model count, wargear and custom name under a name, up to 100 per account. It then appears beneath its datasheet in the picker for any roster of the same army; enhancements, upgrades, Warlord and attachments aren't kept.
+Each card's menu (or a right-click) offers **Duplicate unit**, **Save loadout** and **Delete unit**. **Save loadout** keeps the model count, wargear and custom name under a name, up to 100 per account. It then appears beneath its datasheet in the picker for any roster of the same army; enhancements, upgrades, Warlord and attachments aren't kept. A unit with characters attached also offers **Save attached unit**, which keeps every unit in it. The picker lists it as its own row in its bodyguard's section, and adding it brings the units back already attached.
 
 ## Attach Leaders and Support units
 
