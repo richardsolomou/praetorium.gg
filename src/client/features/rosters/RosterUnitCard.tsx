@@ -3,8 +3,8 @@ import type { PickerUnit } from '../../../contracts/catalogue'
 import { availableChoices, newHosts, newJoiners, rosterJoiners } from '../../../core/attachmentOptions'
 import type { KeyedPick } from './rosterPicks'
 import { attachmentRows, joinableUnits } from './builder/attachments'
-import { type AttachChoice, UnitCard } from './builder/UnitCard'
-import { type EmbarkCard, NO_EMBARK } from './builder/embarkModel'
+import { AttachMenu, type AttachChoice, EmbarkMenu, JoinedRow, ROW, UnitCard } from './builder/UnitCard'
+import { cardEmbark, type EmbarkCard, embarkRows, NO_EMBARK } from './builder/embarkModel'
 import { unitLimitMessage } from './builder/usePicks'
 
 export type AttachDirection = 'join' | 'host'
@@ -18,6 +18,8 @@ type BuilderUnitCardProps = {
   canJoin: AttachChoice[]
   canHost: AttachChoice[]
   embark: EmbarkCard
+  /** Drawn inside an attached unit's outline, which offers the unit's own joiners and embark instead. */
+  inAttachedUnit: boolean
   alliedFaction: ComponentProps<typeof UnitCard>['alliedFaction']
   selected: boolean
   editable: boolean
@@ -41,7 +43,8 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
   joined,
   canJoin,
   canHost,
-  embark,
+  embark: unitEmbark,
+  inAttachedUnit,
   alliedFaction,
   selected,
   editable,
@@ -55,6 +58,7 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
   onAttach,
   onEmbark,
 }: BuilderUnitCardProps) {
+  const embark = cardEmbark(unitEmbark, inAttachedUnit)
   return (
     <UnitCard
       unit={unit}
@@ -69,11 +73,11 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
       onSaveLoadout={onSaveLoadout && (() => onSaveLoadout(index))}
       joined={[
         ...joined.map((row) => ({ ...row, onAct: () => onDetach(row.detach) })),
-        ...embark.rows.map((row) => ({ ...row, onAct: () => onEmbark(row.passenger, undefined) })),
+        ...embarkRows(embark).map((row) => ({ ...row, onAct: () => onEmbark(row.passenger, undefined) })),
       ]}
       canJoin={canJoin}
       onJoin={(choice) => onAttach(index, 'join', choice)}
-      canHost={canHost}
+      canHost={inAttachedUnit ? [] : canHost}
       onHost={(choice) => onAttach(index, 'host', choice)}
       canBoard={embark.canBoard}
       onBoard={(choice) => onEmbark(choice.passenger, choice.transport)}
@@ -85,6 +89,62 @@ export const BuilderUnitCard = memo(function BuilderUnitCard({
     />
   )
 })
+
+/**
+ * What an attached unit does as one, drawn once on its outline rather than on each of its cards: who else may join it,
+ * and where it starts embarked. `host` is the bodyguard, whose card the unit's embark is told on.
+ */
+export function AttachedUnitActions({
+  host,
+  name,
+  embark,
+  canHost,
+  editable,
+  onAttach,
+  onEmbark,
+}: {
+  host: number
+  name: string
+  embark: EmbarkCard
+  canHost: AttachChoice[]
+  editable: boolean
+  onAttach?: (index: number, direction: AttachDirection, choice: AttachChoice) => void
+  onEmbark?: (passengerKey: number, transportKey: number | undefined) => void
+}) {
+  const { ridesIn, notice } = embark
+  return (
+    <>
+      {editable && canHost.length ? (
+        <AttachMenu
+          label="Attach unit"
+          ariaLabel={`Attach a unit to ${name}`}
+          choices={canHost}
+          onChoose={(choice) => onAttach?.(host, 'host', choice)}
+        />
+      ) : null}
+      {ridesIn ? (
+        <JoinedRow
+          row={{ ...ridesIn, label: 'Unit embarked in', onAct: () => onEmbark?.(ridesIn.passenger, undefined) }}
+          editable={editable}
+        />
+      ) : null}
+      {editable && embark.canBoard.length ? (
+        <EmbarkMenu
+          label="Embark unit in transport"
+          ariaLabel={`Embark ${name} in transport`}
+          choiceLabel={(choice) => `Embark ${name} in ${choice.name}`}
+          choices={embark.canBoard}
+          onChoose={(choice) => onEmbark?.(choice.passenger, choice.transport)}
+        />
+      ) : null}
+      {notice ? (
+        <div data-unit-status className={ROW}>
+          <output className="text-xs">{notice}</output>
+        </div>
+      ) : null}
+    </>
+  )
+}
 
 type CardRelationships = {
   joined: ReturnType<typeof attachmentRows>

@@ -18,7 +18,10 @@ export type EmbarkRow = { label: string; name: string; detail?: string; action: 
 export type EmbarkChoice = { passenger: number; transport: number; name: string; detail: string | null; reason: string | null }
 
 export type EmbarkCard = {
-  rows: EmbarkRow[]
+  /** The transport this unit starts in. */
+  ridesIn?: EmbarkRow
+  /** The units starting in this transport. */
+  carries: EmbarkRow[]
   /** Transports this unit could start in. */
   canBoard: EmbarkChoice[]
   /** Units that could start in this transport. */
@@ -27,7 +30,14 @@ export type EmbarkCard = {
   notice?: string
 }
 
-export const NO_EMBARK: EmbarkCard = { rows: [], canBoard: [], canCarry: [] }
+export const NO_EMBARK: EmbarkCard = { carries: [], canBoard: [], canCarry: [] }
+
+/** A card's embark rows: where it rides, then who rides in it. */
+export const embarkRows = ({ ridesIn, carries }: EmbarkCard) => [...(ridesIn ? [ridesIn] : []), ...carries]
+
+/** What a unit's card shows; inside an attached unit's outline, only what it carries, as the outline speaks for the unit. */
+export const cardEmbark = (card: EmbarkCard, inAttachedUnit: boolean): EmbarkCard =>
+  inAttachedUnit ? { ...NO_EMBARK, carries: card.carries, canCarry: card.canCarry } : card
 
 /**
  * What each card says and offers about the list's starting embarks, as setup will judge them.
@@ -66,14 +76,14 @@ export function embarkCards(
   const offered = (choices: EmbarkChoice[]) =>
     choices.toSorted((left, right) => Number(Boolean(left.reason)) - Number(Boolean(right.reason)))
 
-  const cards = new Map<number, EmbarkCard>(fielded.map((unit) => [card(unit), { rows: [], canBoard: [], canCarry: [] }]))
+  const cards = new Map<number, EmbarkCard>(fielded.map((unit) => [card(unit), { carries: [], canBoard: [], canCarry: [] }]))
   for (const { host, joined } of passengers) {
     const transport = transports.find((candidate) => candidate.key === host.embarkedIn)
     if (transport) {
       for (const unit of attachedUnits(started, host.key)) {
-        cards.get(card(unit))!.rows.push({ label: 'Embarked in', name: named(transport), action: 'Remove', passenger: card(host) })
+        cards.get(card(unit))!.ridesIn = { label: 'Embarked in', name: named(transport), action: 'Remove', passenger: card(host) }
       }
-      cards.get(card(transport))!.rows.push({
+      cards.get(card(transport))!.carries.push({
         label: 'Embarked',
         name: named(host),
         detail: aboard(transport, host) ?? undefined,

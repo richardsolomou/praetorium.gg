@@ -36,7 +36,7 @@ export type AttachChoice =
   | { kind: 'new'; entryId: string; name: string; points: number | null; reason: string | null }
 
 /** Who this unit is joined to or riding with, in whichever direction the card is showing. */
-type Joined = { label: string; name: string; detail?: string; action?: string; onAct?: () => void }
+export type Joined = { label: string; name: string; detail?: string; action?: string; onAct?: () => void }
 
 type Props = {
   unit: BuiltUnit
@@ -193,22 +193,7 @@ export function UnitCard({
       ))}
 
       {joined.map((row) => (
-        <div key={`${row.label}-${row.name}`} className={`${ROW} pointer-events-none relative z-10 gap-2 [&_button]:pointer-events-auto`}>
-          <span className="chip shrink-0">{row.label}</span>
-          <span className="min-w-0 flex-1 text-xs">{row.name}</span>
-          {row.detail ? <span className="readout shrink-0 text-2xs text-dim">{row.detail}</span> : null}
-          {editable && row.action ? (
-            <Button
-              data-print-hide
-              variant="ghost"
-              size="xs"
-              className="shrink-0 text-2xs tracking-label text-azure uppercase"
-              onClick={row.onAct}
-            >
-              {row.action}
-            </Button>
-          ) : null}
-        </div>
+        <JoinedRow key={`${row.label}-${row.name}`} row={row} editable={editable} />
       ))}
 
       {editable && canJoin.length ? (
@@ -276,11 +261,33 @@ const noop = () => undefined
 const NONE: never[] = []
 
 /** A line under the unit's name: an enhancement, an upgrade, or who it is standing with. */
-const ROW = 'flex items-center border-t border-edge bg-raised px-2.5 py-1'
+export const ROW = 'flex items-center border-t border-edge bg-raised px-2.5 py-1'
 const MENU = 'w-44'
 const ITEM = 'text-xs font-semibold uppercase'
 
-function AttachMenu({
+/** A row naming who a unit is joined to or riding with, and the button undoing it while the roster can be edited. */
+export function JoinedRow({ row, editable }: { row: Joined; editable: boolean }) {
+  return (
+    <div className={`${ROW} pointer-events-none relative z-10 gap-2 [&_button]:pointer-events-auto`}>
+      <span className="chip shrink-0">{row.label}</span>
+      <span className="min-w-0 flex-1 text-xs">{row.name}</span>
+      {row.detail ? <span className="readout shrink-0 text-2xs text-dim">{row.detail}</span> : null}
+      {editable && row.action ? (
+        <Button
+          data-print-hide
+          variant="ghost"
+          size="xs"
+          className="shrink-0 text-2xs tracking-label text-azure uppercase"
+          onClick={row.onAct}
+        >
+          {row.action}
+        </Button>
+      ) : null}
+    </div>
+  )
+}
+
+export function AttachMenu({
   label,
   ariaLabel,
   onboarding,
@@ -341,7 +348,7 @@ function AttachMenu({
   )
 }
 
-function EmbarkMenu({
+export function EmbarkMenu({
   label,
   ariaLabel,
   choiceLabel,

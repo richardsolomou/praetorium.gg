@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RosterPick } from '../../../../core/roster'
 import { frozenUnits } from '../../../../core/rosterSnapshot'
-import { editedPicks, embarkCards } from './embarkModel'
+import { cardEmbark, editedPicks, embarkCards } from './embarkModel'
 
 const unit = (key: number, entryId: string, models: number, transport = false) => ({
   key,
@@ -49,7 +49,7 @@ describe('a passenger’s card', () => {
   })
 
   it('says which transport it starts in', () => {
-    expect(card(0, SQUAD_ABOARD).rows).toEqual([{ label: 'Embarked in', name: 'Rhino', action: 'Remove', passenger: 0 }])
+    expect(card(0, SQUAD_ABOARD).ridesIn).toEqual({ label: 'Embarked in', name: 'Rhino', action: 'Remove', passenger: 0 })
   })
 
   it('stops offering the transport it already starts in', () => {
@@ -61,7 +61,7 @@ describe('a passenger’s card', () => {
   })
 
   it('tells a joined character where its unit rides', () => {
-    expect(card(1, LED_SQUAD_ABOARD).rows).toEqual([{ label: 'Embarked in', name: 'Rhino', action: 'Remove', passenger: 0 }])
+    expect(card(1, LED_SQUAD_ABOARD).ridesIn).toEqual({ label: 'Embarked in', name: 'Rhino', action: 'Remove', passenger: 0 })
   })
 
   it('greys out a transport without room, with the reason', () => {
@@ -93,7 +93,7 @@ describe('a transport’s card', () => {
   })
 
   it('lists an attached unit aboard once, with the room it takes', () => {
-    expect(card(3, LED_SQUAD_ABOARD).rows).toEqual([
+    expect(card(3, LED_SQUAD_ABOARD).carries).toEqual([
       { label: 'Embarked', name: 'Intercessors', detail: '6/10 models', action: 'Disembark', passenger: 0 },
     ])
   })
@@ -102,6 +102,24 @@ describe('a transport’s card', () => {
     expect(card(3, LED_SQUAD_ABOARD).canCarry).toEqual([
       { passenger: 2, transport: 3, name: 'Scouts', detail: null, reason: 'this transport can carry at most 10 models' },
     ])
+  })
+})
+
+describe('a card inside an attached unit’s outline', () => {
+  it('leaves where the unit rides to the outline', () => {
+    expect(cardEmbark(card(0, SQUAD_ABOARD), true).ridesIn).toBeUndefined()
+  })
+
+  it('leaves boarding to the outline', () => {
+    expect(cardEmbark(card(0), true).canBoard).toEqual([])
+  })
+
+  it('keeps where a unit on its own rides', () => {
+    expect(cardEmbark(card(0, SQUAD_ABOARD), false).ridesIn).toMatchObject({ name: 'Rhino' })
+  })
+
+  it('keeps what it carries', () => {
+    expect(cardEmbark(card(3, LED_SQUAD_ABOARD), true).carries).toEqual(card(3, LED_SQUAD_ABOARD).carries)
   })
 })
 

@@ -93,7 +93,7 @@ import { Pane } from './builder/Pane'
 import { useRosterPanes } from './builder/useRosterPanes'
 import { UnitCard } from './builder/UnitCard'
 import { UnitAnnotations } from './builder/UnitAnnotations'
-import { editedPicks, embarkCards, NO_EMBARK } from './builder/embarkModel'
+import { cardEmbark, editedPicks, embarkCards, embarkRows, NO_EMBARK } from './builder/embarkModel'
 import { UnitPhoto } from './builder/UnitPhoto'
 import { useDetachmentRules } from './builder/useDetachmentRules'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
@@ -107,7 +107,7 @@ import { RosterBody, RosterHeader, RosterOutline, RosterShell, RosterUnits } fro
 import { saveFailureReason } from './saveFailure'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink'
-import { type AttachDirection, BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
+import { type AttachDirection, AttachedUnitActions, BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
 import type { AttachChoice } from './builder/UnitCard'
 import type { KeyedPick } from './rosterPicks'
 import { RosterDataChanges } from './RosterDataChanges'
@@ -1122,14 +1122,17 @@ export function ListBuilder({
         joined: NO_JOINED,
         unit,
       }))
-  const renderCard = ({ unit, index, joined }: (typeof cards)[number]) =>
+  const renderCard = ({ unit, index, joined }: (typeof cards)[number], inUnit = false) =>
     frozen ? (
       <UnitCard
         key={unit.entryId + index}
         unit={unit}
         nickname={frozen.units[index]?.nickname}
         note={frozen.units[index]?.note}
-        joined={[...(arrangement === 'attached' ? unitRoleRows(joined) : joined), ...(frozenEmbarks?.get(index)?.rows ?? [])]}
+        joined={[
+          ...(arrangement === 'attached' ? unitRoleRows(joined) : joined),
+          ...embarkRows(cardEmbark(frozenEmbarks?.get(index) ?? NO_EMBARK, inUnit)),
+        ]}
         selected={selected === index}
         onSelect={loadoutAvailable ? () => selectUnit(index) : undefined}
         editable={false}
@@ -1149,6 +1152,7 @@ export function ListBuilder({
         canJoin={cardRelationships.get(picks[index]?.key ?? -1)?.canJoin ?? []}
         canHost={cardRelationships.get(picks[index]?.key ?? -1)?.canHost ?? []}
         embark={cardRelationships.get(picks[index]?.key ?? -1)?.embark ?? NO_EMBARK}
+        inAttachedUnit={inUnit}
         alliedFaction={
           picks[index]?.catalogueId === catalogueId
             ? undefined
@@ -1767,8 +1771,29 @@ export function ListBuilder({
                         nickname={(frozen ? frozen.units[host.index] : picks[host.index])?.nickname}
                         points={members.reduce((total, card) => total + card.unit.points, 0)}
                         editable={!frozen && building}
+                        actions={
+                          frozen ? (
+                            <AttachedUnitActions
+                              host={host.index}
+                              name={host.name}
+                              embark={frozenEmbarks?.get(host.index) ?? NO_EMBARK}
+                              canHost={[]}
+                              editable={false}
+                            />
+                          ) : (
+                            <AttachedUnitActions
+                              host={host.index}
+                              name={host.name}
+                              embark={cardRelationships.get(picks[host.index]?.key ?? -1)?.embark ?? NO_EMBARK}
+                              canHost={cardRelationships.get(picks[host.index]?.key ?? -1)?.canHost ?? []}
+                              editable={building}
+                              onAttach={attach}
+                              onEmbark={edit.embark}
+                            />
+                          )
+                        }
                       >
-                        {members.map(renderCard)}
+                        {members.map((member) => renderCard(member, true))}
                       </AttachedUnitBlock>
                     ) : (
                       renderCard(host)

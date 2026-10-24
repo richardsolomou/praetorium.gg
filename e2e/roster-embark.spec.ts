@@ -10,7 +10,7 @@ import {
   uniqueName,
   waitForRosterSave,
 } from './account'
-import { shot } from './builder.harness'
+import { attach, shot } from './builder.harness'
 
 const phone = { viewport: { width: 390, height: 844 } }
 const desktop = { viewport: { width: 1440, height: 900 } }
@@ -131,7 +131,9 @@ for (const [size, label] of [
     await captain.getByRole('button', { name: 'Attach Captain to unit', exact: true }).click()
     await waitForRosterSave(page, () => page.getByRole('menu').getByRole('menuitem', { name: SQUAD, exact: true }).first().click())
     const led = page.locator('section[aria-label]').filter({ has: captain })
-    await expect(led.locator(`[data-unit="${SQUAD}"]`)).toContainText(PUT_BACK)
+    const bar = led.locator('[data-unit-actions]')
+    await expect(bar).toContainText(PUT_BACK)
+    await expect(led.locator(`[data-unit="${SQUAD}"]`)).not.toContainText(PUT_BACK)
     await expect(rhino).toContainText(`${SQUAD} #27/12 models`)
     await expect(rhino.getByRole('button', { name: 'Disembark', exact: true })).toHaveCount(1)
     await shot(led, `test-results/roster-embark-put-back-${label}.png`)
@@ -144,10 +146,52 @@ for (const [size, label] of [
       () => page.getByRole('menuitem', { name: `Embark ${SQUAD} #1 in Rhino`, exact: true }).click(),
       'embarkedIn',
     )
-    await expect(led.locator(`[data-unit="${SQUAD}"]`)).not.toContainText(PUT_BACK)
-    await expect(captain).toContainText('Embarked inRhino')
+    await expect(bar).not.toContainText(PUT_BACK)
+    await expect(bar).toContainText('Unit embarked inRhino')
     await expect(rhino).toContainText(`${SQUAD} #16/12 models`)
     await shot(page.getByRole('region', { name: 'Attached units' }).or(led).first(), `test-results/roster-embark-led-aboard-${label}.png`)
     await shot(rhino, `test-results/roster-embark-led-transport-${label}.png`)
+  })
+}
+
+for (const [size, label] of [
+  [phone, 'phone'],
+  [desktop, 'desktop'],
+] as const) {
+  test(`an attached unit is joined and embarked from its outline, not its cards (${label})`, async ({ browser }) => {
+    test.setTimeout(240_000)
+    const page = await (await browser.newContext(size)).newPage()
+    await signUp(page, uniqueName('Outlined'))
+    await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Outlined Marines' })
+    for (const name of [SQUAD, 'Rhino', 'Captain', 'Ancient']) await addUnit(page, name)
+    const { rhino } = await cards(page)
+    await attach(page, 'Captain', SQUAD)
+
+    const led = page.locator('section[aria-label]').filter({ has: page.locator('[data-unit="Captain"]') })
+    const bar = led.locator('[data-unit-actions]')
+    const inside = led.locator('[data-unit]')
+    await bar.getByRole('button', { name: `Attach a unit to ${SQUAD}`, exact: true }).click()
+    await waitForRosterSave(page, () => page.getByRole('menu').getByRole('menuitem', { name: 'Ancient', exact: true }).click())
+    await expect(led.locator('[data-unit="Ancient"]')).toBeVisible()
+    await expect(bar.getByRole('button', { name: `Attach a unit to ${SQUAD}`, exact: true })).toHaveCount(0)
+
+    await bar.getByRole('button', { name: `Embark ${SQUAD} in transport`, exact: true }).click()
+    await waitForRosterSave(page, () => page.getByRole('menuitem', { name: `Embark ${SQUAD} in Rhino`, exact: true }).click(), 'embarkedIn')
+    await expect(bar).toContainText('Unit embarked inRhino')
+    await expect(inside.filter({ hasText: 'Embarked in' })).toHaveCount(0)
+    await expect(inside.getByRole('button', { name: /^Embark / })).toHaveCount(0)
+    await expect(rhino.getByRole('button', { name: 'Disembark', exact: true })).toHaveCount(1)
+    await shot(led, `test-results/roster-embark-outline-${label}.png`)
+
+    await page.getByRole('button', { name: 'View', exact: true }).click()
+    await expect(bar).toContainText('Unit embarked inRhino')
+    await expect(bar.getByRole('button')).toHaveCount(0)
+    await expect(inside.filter({ hasText: 'Embarked in' })).toHaveCount(0)
+    await shot(led, `test-results/roster-embark-outline-view-${label}.png`)
+    await page.getByRole('button', { name: 'Build', exact: true }).click()
+
+    await waitForRosterSave(page, () => bar.getByRole('button', { name: 'Remove', exact: true }).click(), 'embarkedIn')
+    await expect(bar).not.toContainText('Unit embarked in')
+    await expect(bar.getByRole('button', { name: `Embark ${SQUAD} in transport`, exact: true })).toBeVisible()
   })
 }

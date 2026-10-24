@@ -7,13 +7,15 @@ type Props = {
   /** Whether the cards carry their actions menu, which sits to the right of each card's points. */
   editable: boolean
   children: ReactNode
+  /** What the whole unit does as one, along the outline's foot; the bar hides when they render nothing. */
+  actions?: ReactNode
 }
 
 /**
  * Datasheets that play as one unit, outlined together with the unit's cost, and any name,
  * set into the outline above the cards' own points.
  */
-export function AttachedUnitBlock({ nickname, points, editable, children }: Props) {
+export function AttachedUnitBlock({ nickname, points, editable, children, actions }: Props) {
   return (
     <section aria-label={nickname ?? 'Attached unit'} className="mt-3 border border-edge-strong px-1.5 pb-1.5 first:mt-1">
       <p className={`readout -mt-2 ml-auto w-fit ${editable ? 'mr-11' : 'mr-2.5'} bg-sunken px-1.5 text-xs leading-4 text-dim`}>
@@ -21,6 +23,9 @@ export function AttachedUnitBlock({ nickname, points, editable, children }: Prop
         {points} pts
       </p>
       <div className="space-y-1.5">{children}</div>
+      <div data-unit-actions className="mt-1.5 border-x border-b border-edge empty:hidden">
+        {actions}
+      </div>
     </section>
   )
 }
