@@ -2,7 +2,9 @@ import { createRouter } from '@tanstack/react-router'
 import { setupRouterSsrQueryIntegration } from '@tanstack/react-router-ssr-query'
 import { RouteError } from './client/components/RouteError'
 import { createQueryClient } from './client/queryClient'
-import { completedModuleRecovery, moduleRecoveryAttempt, reportRouteError } from './client/routeErrors'
+import { writesPending } from './client/pendingWrites'
+import { staleBuildRelease } from './client/releaseUpdate'
+import { completedRouteRecovery, reloadStaleBuild, reportRouteError, routeRecoveryPending } from './client/routeErrors'
 import { siteOrigin } from './server/requestOrigin'
 import { routeTree } from './routeTree.gen'
 
@@ -17,8 +19,17 @@ export function getRouter() {
     defaultOnCatch: reportRouteError,
   })
   if (typeof window !== 'undefined') {
+    // A route change discards the screen's unsaved state anyway, so a full load costs nothing a client navigation keeps.
+    router.subscribe('onBeforeNavigate', ({ pathChanged, toLocation }) => {
+      const release = pathChanged && staleBuildRelease(queryClient)
+      if (release)
+        reloadStaleBuild(release, 'navigation', {
+          href: new URL(toLocation.href, window.location.origin).href,
+          saving: writesPending(queryClient),
+        })
+    })
     router.subscribe('onRendered', () => {
-      if (!moduleRecoveryAttempt(window.location.href)) return
+      if (!routeRecoveryPending(window.location.href)) return
       const location = router.state.location.href
       const matches = router.state.matches
       const components = matches.map((match) => router.routesById[match.routeId]?.options.component)
@@ -33,7 +44,7 @@ export function getRouter() {
               components.some((component) => component?.preload)
             )
               return
-            const recovered = completedModuleRecovery(window.location.href)
+            const recovered = completedRouteRecovery(window.location.href)
             if (recovered) router.history.replace(recovered)
           })
         },

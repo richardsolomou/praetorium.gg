@@ -1,11 +1,12 @@
 import type { CanonicalDatasheet, UnitSummary } from '../contracts/catalogue'
 import type { ReferenceDocument, ReferenceKind } from '../contracts/reference'
 import { routeSlug } from '../core/slug'
+import { datasheetPageBySlug } from '../core/datasheetSlug'
 import { unitsIn } from '../shared/cataloguePicker'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { factionDisplayName } from '../shared/factionNames'
 import { gameReferencesFor } from '../shared/gameReferences'
-import type { ReferenceCorpus } from './referenceCorpus'
+import { datasheetRoute, type ReferenceCorpus } from './referenceCorpus'
 import type { LoadedRules } from './rules'
 
 export type ReferenceFaction = { id: string; slug: string; name: string; datasheets: number; detachments: number }
@@ -115,8 +116,8 @@ function referenceDetachment(corpus: ReferenceCorpus, factionId: string, detachm
 
 /** Where a datasheet is read: its canonical page and the id get_reference_record accepts. */
 export function datasheetCitation(corpus: ReferenceCorpus, sheet: CanonicalDatasheet | undefined) {
-  const route = sheet?.referenceRoute ?? (sheet ? { catalogueId: sheet.catalogueId, slug: sheet.slug } : null)
-  if (!route) return { url: null, referenceId: null }
+  if (!sheet) return { url: null, referenceId: null }
+  const route = datasheetRoute(sheet)
   const referenceId = `datasheet:${route.catalogueId}:${route.slug}`
   return {
     url: corpus.byId.get(referenceId)?.url ?? `/factions/${route.catalogueId}/datasheets/${route.slug}`,
@@ -141,16 +142,12 @@ function unitReference(corpus: ReferenceCorpus, unit: UnitSummary, sheet: Canoni
 export const referenceRecordCatalogueId = (id: string) => /^(?:datasheet|detachment):([^:]+):/.exec(id)?.[1]
 
 export function referenceRecord(corpus: ReferenceCorpus, rules: LoadedRules | null, id: string) {
+  if (id.startsWith('datasheet:')) return datasheetRecord(corpus, id)
   const document = corpus.byId.get(id)
   if (!document) return null
   const references = rules ? gameReferencesFor(rules) : null
   let data: unknown = document
-  if (id.startsWith('datasheet:')) {
-    const [, catalogueId, slug] = id.split(':')
-    data = corpus.catalogue.datasheets.find(
-      (sheet) => sheet.slug === slug && (sheet.catalogueId === catalogueId || sheet.referenceRoute?.catalogueId === catalogueId),
-    )
-  } else if (id.startsWith('detachment:')) {
+  if (id.startsWith('detachment:')) {
     const [, factionSlug, slug] = id.split(':')
     data = corpus.catalogue.detachments.find((candidate) => candidate.factionSlug === factionSlug && candidate.slug === slug)
   } else if (id.startsWith('mission-pack:') && references) {
@@ -169,6 +166,18 @@ export function referenceRecord(corpus: ReferenceCorpus, rules: LoadedRules | nu
     data = rules.terrainLayouts.find((candidate) => candidate.id === id.slice('terrain:'.length))
   }
   return data ? { document, data } : null
+}
+
+/** A datasheet record by its id, or by an id it had before its page's slug gained or lost an id suffix. */
+function datasheetRecord(corpus: ReferenceCorpus, id: string) {
+  const [, catalogueId, slug = ''] = id.split(':')
+  const pages = corpus.catalogue.datasheets.flatMap((sheet) => {
+    const route = datasheetRoute(sheet)
+    return route.catalogueId === catalogueId ? [{ id: sheet.id, slug: route.slug, sheet }] : []
+  })
+  const page = datasheetPageBySlug(pages, slug)
+  const document = page && corpus.byId.get(`datasheet:${catalogueId}:${page.slug}`)
+  return document ? { document, data: page.sheet } : null
 }
 
 const cardSummary = (card: GameReferences['secondaries'][number]) => ({ id: card.key, name: card.name })

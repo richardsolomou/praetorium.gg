@@ -2,6 +2,7 @@ import { useClientValue } from './useClientValue'
 import type { SocialAuthProvider } from '../authConfig'
 import { nativeBridgeVersion } from './nativeBridge'
 import { toBase64Url } from '../core/base64'
+import { holdingReload } from './pendingWrites'
 
 export type NativeAuthAction = 'link' | 'sign-in'
 
@@ -43,4 +44,16 @@ export async function requestNativeAuth(request: Omit<NativeAuthRequest, 'challe
   const proof = version >= 2 ? await nativeAuthProof() : {}
   window.ReactNativeWebView.postMessage(JSON.stringify({ version, type: 'native-auth', ...request, ...proof } satisfies NativeAuthRequest))
   return true
+}
+
+/** The one-time token the native shell exchanges for this sign-in, bound to the shell's challenge. */
+export function nativeAuthExchange(request: { action: NativeAuthAction; challenge?: string; provider: SocialAuthProvider; next: string }) {
+  return holdingReload(
+    fetch('/api/auth/native-auth-token/generate', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(request),
+    }),
+  ).then(async (response) => (response.ok ? ((await response.json()) as { id: string; token: string }) : null))
 }

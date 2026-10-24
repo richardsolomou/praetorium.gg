@@ -3,18 +3,32 @@ import { type ErrorComponentProps, useRouter } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { isModuleLoadFailure } from '../networkErrors'
-import { mayReloadCancelledLoad, reloadModuleRoute, routeErrorExplanation } from '../routeErrors'
+import { writesPending } from '../pendingWrites'
+import { checkedStaleBuildRelease } from '../releaseUpdate'
+import { mayReloadCancelledLoad, reloadModuleRoute, reloadStaleBuild, routeErrorExplanation } from '../routeErrors'
 import { FullPageState } from './PageState'
 
 /**
  * A loader that joined a read whose last viewer unmounted mid-flight sees it cancelled, not failed, so the route loads
  * again instead of showing an error. Signing in in the mobile app does this: the refetch it starts loses its screen.
+ * A page built before the deployed release can fail on the newer server's responses, which only its code can fix.
  */
 export function RouteError({ error }: ErrorComponentProps) {
   const router = useRouter()
   const [reload] = useState(() => error instanceof CancelledError && mayReloadCancelledLoad())
   useEffect(() => {
-    if (reload) void router.invalidate()
+    if (reload) {
+      void router.invalidate()
+      return
+    }
+    const { queryClient } = router.options.context
+    let mounted = true
+    void checkedStaleBuildRelease(queryClient).then((release) => {
+      if (mounted && release) reloadStaleBuild(release, 'route_error', { saving: writesPending(queryClient) })
+    })
+    return () => {
+      mounted = false
+    }
   }, [reload, router])
   if (reload) return null
   return (
@@ -27,7 +41,15 @@ export function RouteError({ error }: ErrorComponentProps) {
             Reload
           </Button>
         ) : (
-          <Button data-route-error onClick={() => void router.invalidate()}>
+          <Button
+            data-route-error
+            onClick={() =>
+              void checkedStaleBuildRelease(router.options.context.queryClient).then((release) => {
+                if (release) reloadStaleBuild(release, 'try_again')
+                else void router.invalidate()
+              })
+            }
+          >
             Try again
           </Button>
         )
