@@ -32,6 +32,7 @@ import { isGuestSeat } from '../../../../core/newBattle'
 import type { RosterAttachment } from '../useCommand'
 import { GuestInvite } from '../GuestInvite'
 import { GuestRosterChooser } from './GuestRosterChooser'
+import { useHistoryDialog } from '../../../useHistoryDialog'
 
 type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRosterSummariesQuery>['queryFn']>>>[number]
 type Props = {
@@ -50,8 +51,9 @@ type Props = {
  * it is attached — that is what makes the step worth doing together.
  */
 export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }: Props) {
-  /** The army the chooser is picking for: your own, or a practice opponent's. */
-  const [choosing, setChoosing] = useState<Army | null>(null)
+  /** The army the chooser is picking for, your own or a practice opponent's, by player id. */
+  const [choosingId, choose, closeChooser] = useHistoryDialog('choose-roster')
+  const choosing = sides.flatMap((side) => side.armies).find((army) => army.playerId === choosingId) ?? null
   /**
    * A chosen list that is not playing all of its format, held back for a confirmation.
    *
@@ -61,6 +63,11 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
   const [confirming, setConfirming] = useState<SavedRoster | null>(null)
   /** A chosen list the library already prices over its limit, held back instead of sent for the server to refuse. */
   const [overLimit, setOverLimit] = useState<SavedRoster | null>(null)
+  // Both answer the chooser, so Back past its history entry dismisses them with it.
+  if (choosing === null && (confirming || overLimit)) {
+    setConfirming(null)
+    setOverLimit(null)
+  }
   /** A guest has no account, so no saved or lent lists: their army comes from this device's builder. */
   const guest = isGuestSeat(view.viewerId)
   const rosterQuery = useQuery({ ...savedRosterSummariesQuery(), enabled: !guest })
@@ -79,7 +86,7 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
   const lent = (lentQuery.data ?? []).filter(({ summary }) => chooserLimit === null || summary.limit === chooserLimit)
   const attach = async (savedRoster: SavedRoster) => {
     if (choosing && (await attachRoster({ kind: 'attach-saved-roster', rosterId: savedRoster.id, playerId: choosing.playerId })))
-      setChoosing(null)
+      closeChooser()
   }
   // The confirmation closes as it is answered, so a refused attach reports itself in
   // the chooser behind it rather than under a dialog that has nowhere to say it.
@@ -144,9 +151,7 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                         variant="outline"
                         size="sm"
                         aria-label={`${army.roster ? 'Change' : 'Choose'} roster for ${army.playerName}`}
-                        onClick={() => {
-                          setChoosing(army)
-                        }}
+                        onClick={() => choose(army.playerId)}
                       >
                         {army.roster ? 'Change roster' : 'Choose roster'}
                       </Button>
@@ -224,16 +229,16 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
       </div>
       <GuestRosterChooser
         open={guest && choosing !== null}
-        onOpenChange={(open) => !open && setChoosing(null)}
+        onOpenChange={(open) => !open && closeChooser()}
         pending={pending}
         problem={problem}
         onChoose={(draft) => {
-          void attachRoster({ kind: 'attach-draft-roster', draft }).then((attached) => attached && setChoosing(null))
+          void attachRoster({ kind: 'attach-draft-roster', draft }).then((attached) => attached && closeChooser())
         }}
       />
       <RosterChooser
         open={!guest && choosing !== null}
-        onOpenChange={(open) => !open && setChoosing(null)}
+        onOpenChange={(open) => !open && closeChooser()}
         forArmy={choosing}
         rosters={eligible}
         lent={lent}

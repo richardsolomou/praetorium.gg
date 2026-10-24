@@ -1,10 +1,9 @@
 import { definePlugin } from 'nitro'
-import { app } from './app'
 import { combatCalculationPool } from './combatCalculationPool'
 
+// No warm-up starts here: this bundle is separate from the SSR bundle that serves requests, so importing app()
+// would warm unread copies of its module caches. `scripts/nodeServer.ts` probes /api/health from boot, which
+// creates the app in the SSR bundle and starts the warm-up there.
 export default definePlugin((nitro) => {
-  // The Vite dev server evaluates a second copy of app.ts here beside the SSR environment's,
-  // and warming both builds the catalogue twice, so development warms from its first request.
-  if (process.env.NODE_ENV === 'production') void app().ready()
   nitro.hooks.hook('close', () => combatCalculationPool.close())
 })

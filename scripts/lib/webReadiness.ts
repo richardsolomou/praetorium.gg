@@ -1,5 +1,9 @@
 import { setTimeout as delay } from 'node:timers/promises'
 
+/**
+ * `timeoutMs` restates `STARTUP_BUDGET_MS` instead of importing it: the deploy workflow runs this file alone,
+ * copied out of the workflow's own revision with `git show`, so it cannot import a sibling module.
+ */
 export async function waitForWebRevision(
   origin: string,
   revision: string,

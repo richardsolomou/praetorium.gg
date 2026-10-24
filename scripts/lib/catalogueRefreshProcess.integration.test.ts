@@ -56,7 +56,7 @@ async function fixture(cached = false) {
         import { startCatalogueRefresh } from ${JSON.stringify(pathToFileURL(path.resolve('scripts/lib/catalogueRefreshProcess.ts')).href)};
         const controller = new AbortController();
         process.on('SIGTERM', () => controller.abort());
-        await startCatalogueRefresh(${JSON.stringify(build)}, ${JSON.stringify(data)}, controller.signal);
+        await startCatalogueRefresh(${JSON.stringify(build)}, ${JSON.stringify(data)}, controller.signal, 30 * 60_000);
         console.log('Catalogue ready');
       `,
     ],

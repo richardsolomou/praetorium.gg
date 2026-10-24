@@ -18,6 +18,7 @@ import { randomId, randomToken } from 'ras-stack/auth'
 import type { AdminBattle } from '../admin'
 import {
   battleCapacity,
+  type BattleEndReason,
   type BattleState,
   type Command,
   commandArmy,
@@ -142,7 +143,7 @@ const PROFILE_BATTLE_PAGE = 25
  * round trip later, a page acts on a view it has already changed — sending a seq
  * from before its own command, or naming the wrong command to undo.
  */
-type SubmitAnswer = { result: SubmitResult; screen: SeatedScreen; battleId: string; applied?: boolean }
+type SubmitAnswer = { result: SubmitResult; screen: SeatedScreen; battleId: string; applied?: boolean; finished?: BattleEndReason }
 type SubmitArgs = [
   token: string,
   userId: string,
@@ -781,20 +782,23 @@ export class PraetoriumService {
 
   async submit(...args: SubmitArgs): Promise<SubmitAnswer> {
     const [, userId, , , rules] = args
-    const { result, history, application } = await this.append(...args)
-    return { result, screen: this.seatedScreen(history, userId, rules), battleId: history.battle.id, ...application }
+    const { result, previous, history, application } = await this.append(...args)
+    const screen = this.seatedScreen(history, userId, rules)
+    return { result, screen, battleId: history.battle.id, ...application, ...finishing(result, previous, screen) }
   }
 
   /** The answer with the submitting device's copy of the history, so it is saved without a second download. */
   async submitWithWorkspace(...args: SubmitArgs): Promise<SubmitAnswer & { workspace?: BattleWorkspace }> {
     const [, userId, , , rules] = args
-    const { result, history, application } = await this.append(...args)
+    const { result, previous, history, application } = await this.append(...args)
+    const screen = this.seatedScreen(history, userId, rules)
     return {
       result,
-      screen: this.seatedScreen(history, userId, rules),
+      screen,
       workspace: this.workspace(history, userId),
       battleId: history.battle.id,
       ...application,
+      ...finishing(result, previous, screen),
     }
   }
 
@@ -865,7 +869,7 @@ export class PraetoriumService {
         return { ...submitted, secondaries }
       },
     )
-    return { result, history: { ...history, log }, application: applied === undefined ? {} : { applied } }
+    return { result, previous: history, history: { ...history, log }, application: applied === undefined ? {} : { applied } }
   }
 
   /**
@@ -984,6 +988,12 @@ function adminBattleSummary(history: BattleHistory): AdminBattle {
     round: state.round,
     players: history.players.map(({ id, name, side }) => ({ id, name, side })),
   }
+}
+
+/** How an appended command finished the battle, read from the folds on either side of it rather than from its kind. */
+function finishing(result: SubmitResult, previous: BattleHistory, screen: SeatedScreen): { finished?: BattleEndReason } {
+  if (result.outcome !== 'appended' || screen.view.status !== 'finished' || !screen.view.result) return {}
+  return foldHistory(previous).status === 'finished' ? {} : { finished: screen.view.result.reason }
 }
 
 function foldHistory({ players, log }: BattleHistory) {

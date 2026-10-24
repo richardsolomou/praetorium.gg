@@ -3,7 +3,30 @@ import type { z } from 'zod'
 import type { submitSchema } from '../contracts/schemas'
 import { randomUUID } from 'node:crypto'
 import { isGuestSeat } from '../core/newBattle'
+import { app } from './app'
+import type { PraetoriumService } from './service'
+import { captureBattleCommand } from './battleTelemetry'
 import { frozenRoster, rosterForUse } from './rosterUsage'
+
+/** A battle command from a page or an agent, with the capture both share; durable sync has its own entry point. */
+export async function submitBattleCommand(
+  actorId: string,
+  data: z.infer<typeof submitSchema> & { workspace?: boolean },
+): Promise<Omit<Awaited<ReturnType<PraetoriumService['submitWithWorkspace']>>, 'battleId'>> {
+  const startedAt = performance.now()
+  const command = await submittedBattleCommand(actorId, data.command)
+  const instance = app()
+  const { battleId, ...answer } = await instance.service[data.workspace ? 'submitWithWorkspace' : 'submit'](
+    data.token,
+    actorId,
+    data.expectedSeq,
+    command,
+    await instance.rulesFor(),
+  )
+  // A guest is nobody's person in analytics; their browser reports its own anonymous events.
+  if (!isGuestSeat(actorId)) await captureBattleCommand(actorId, battleId, command, answer, performance.now() - startedAt, 'direct')
+  return answer
+}
 
 export async function submittedBattleCommand(userId: string, submitted: z.infer<typeof submitSchema>['command']): Promise<Command> {
   if (submitted.kind === 'attach-saved-roster') {

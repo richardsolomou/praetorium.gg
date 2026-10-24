@@ -1,10 +1,9 @@
-import type { Command, SubmitResult } from '../core/battle'
+import type { BattleEndReason, Command, SubmitResult } from '../core/battle'
 import { app } from './app'
 
 const lifecycleEvents: Partial<Record<Command['kind'], string>> = {
   'attach-roster': 'battle_roster_attached',
   'begin-battle': 'battle_started',
-  'end-battle': 'battle_finished',
   'reopen-battle': 'battle_reopened',
 }
 
@@ -12,7 +11,7 @@ export async function captureBattleCommand(
   userId: string,
   battleId: string,
   command: Command,
-  result: SubmitResult,
+  { result, finished }: { result: SubmitResult; finished?: BattleEndReason },
   duration: number,
   delivery: 'direct' | 'sync',
 ) {
@@ -33,4 +32,5 @@ export async function captureBattleCommand(
   if (result.outcome !== 'appended') return
   const event = lifecycleEvents[command.kind]
   if (event) await app().telemetry.capture(userId, event, { battle_id: battleId, delivery })
+  if (finished) await app().telemetry.capture(userId, 'battle_finished', { battle_id: battleId, reason: finished, delivery })
 }

@@ -1,26 +1,36 @@
-import { expect, it, vi } from 'vitest'
+import { beforeEach, expect, it, vi } from 'vitest'
 import { AgentTools } from './agentTools'
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
 
-const { ownRoster, saveOwnedRoster, submit, userBattleId, screen } = vi.hoisted(() => ({
+const { ownRoster, saveOwnedRoster, submit, userBattleId, screen, createBattle, setRosterVisibility, capture } = vi.hoisted(() => ({
   ownRoster: vi.fn(),
   saveOwnedRoster: vi.fn(),
   submit: vi.fn(),
   userBattleId: vi.fn(),
   screen: vi.fn(),
+  createBattle: vi.fn(),
+  setRosterVisibility: vi.fn(),
+  capture: vi.fn(),
 }))
 vi.mock('./saveOwnedRoster', () => ({ saveOwnedRoster }))
 vi.mock('./publishedTextFiles', () => ({ publishedTextLocations: async () => ({ files: {}, holds: () => false }) }))
 vi.mock('./app', () => ({
   app: () => ({
-    service: { submit, userBattleId, screen, leagueService: { ownRoster } },
+    service: { submit, userBattleId, screen, createBattle, leagueService: { ownRoster }, rosterService: { setRosterVisibility } },
+    telemetry: { capture },
+    catalogueFor: async () => null,
     rulesFor: async () => null,
     battleReadRulesFor: async () => null,
   }),
 }))
 
 import { registerAccountMcpTools } from './accountMcp'
+
+beforeEach(() => capture.mockReset())
+
+const events = () => capture.mock.calls.map(([, event]) => event)
+const roster = { name: '', catalogueId: 'necrons', detachmentIds: [], disposition: null, limit: 1_000, picks: [], prep: null }
 
 async function call(userId: string, name: string, args: object) {
   const server = new McpServer({ name: 'account-test', version: '1.0.0' })
@@ -56,15 +66,7 @@ it('reads only the signed-in player’s roster', async () => {
 
 it('links a saved roster to its page so the assistant can share it', async () => {
   saveOwnedRoster.mockResolvedValueOnce({ id: 'roster-1', updatedAt: 1 })
-  const response = await call('player-1', 'save_roster', {
-    name: '',
-    catalogueId: 'necrons',
-    detachmentIds: [],
-    disposition: null,
-    limit: 1_000,
-    picks: [],
-    prep: null,
-  })
+  const response = await call('player-1', 'save_roster', roster)
   expect(response.result.structuredContent.url).toBe('https://praetorium.gg/rosters/roster-1')
 })
 
@@ -90,4 +92,55 @@ it('checks a battle seat before returning the private battle screen', async () =
   const response = await call('player-1', 'get_my_battle', { token: 'private-battle' })
   expect(response.result.isError).toBe(true)
   expect(screen).not.toHaveBeenCalled()
+})
+
+it('counts a roster an agent creates', async () => {
+  saveOwnedRoster.mockResolvedValueOnce({ id: 'roster-1', created: true, updatedAt: 1 })
+  await call('player-1', 'save_roster', roster)
+  expect(events()).toEqual(['roster_created'])
+})
+
+it('does not count an agent’s edit of a saved roster as a creation', async () => {
+  saveOwnedRoster.mockResolvedValueOnce({ id: 'roster-1', created: false, updatedAt: 1 })
+  await call('player-1', 'save_roster', { ...roster, id: 'roster-1' })
+  expect(events()).toEqual([])
+})
+
+it('reports a visibility change an agent makes', async () => {
+  await call('player-1', 'set_roster_visibility', { id: 'roster-1', visibility: 'public' })
+  expect(capture).toHaveBeenLastCalledWith('player-1', 'roster_visibility_updated', { visibility: 'public' })
+})
+
+it('counts a battle an agent creates as a direct creation of that battle', async () => {
+  createBattle.mockResolvedValueOnce({ battleId: 'battle-id', token: 'battle-1', practice: false })
+  await call('player-1', 'create_battle', { opponentId: 'opponent', casual: true })
+  expect(capture.mock.calls.map(([, event, { battle_id, delivery }]) => [event, battle_id, delivery])).toEqual([
+    ['battle_created', 'battle-id', 'direct'],
+  ])
+})
+
+it('reports a battle command an agent records against its battle', async () => {
+  submit.mockResolvedValueOnce({ result: { outcome: 'appended', seq: 5 }, battleId: 'battle-id' })
+  await call('player-1', 'submit_battle_action', { token: 'battle-1', expectedSeq: 4, command: { kind: 'set-painted', painted: true } })
+  expect(capture.mock.calls.map(([, event, { battle_id }]) => [event, battle_id])).toEqual([['battle_command_submitted', 'battle-id']])
+})
+
+it('keeps the internal battle id out of an agent’s battle action answer', async () => {
+  submit.mockResolvedValueOnce({ result: { outcome: 'appended', seq: 5 }, battleId: 'battle-id' })
+  const response = await call('player-1', 'submit_battle_action', {
+    token: 'battle-1',
+    expectedSeq: 4,
+    command: { kind: 'set-painted', painted: true },
+  })
+  expect(response.result.structuredContent).not.toHaveProperty('battleId')
+})
+
+it('reports a battle an agent’s command finished, with its battle and why', async () => {
+  submit.mockResolvedValueOnce({ result: { outcome: 'appended', seq: 5 }, battleId: 'battle-id', finished: 'completed' })
+  await call('player-1', 'submit_battle_action', { token: 'battle-1', expectedSeq: 4, command: { kind: 'advance' } })
+  expect(capture).toHaveBeenLastCalledWith('player-1', 'battle_finished', {
+    battle_id: 'battle-id',
+    reason: 'completed',
+    delivery: 'direct',
+  })
 })

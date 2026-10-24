@@ -8,7 +8,8 @@ import { holdCatalogueCache, retainedCatalogueCache, pruneCatalogueCaches } from
 
 const execute = promisify(execFile)
 
-export async function startCatalogueRefresh(buildDirectory: string, dataDirectory: string, signal: AbortSignal) {
+/** Resolves once a first catalogue is live, failing after `firstCatalogueMs`; later refreshes continue in the background. */
+export async function startCatalogueRefresh(buildDirectory: string, dataDirectory: string, signal: AbortSignal, firstCatalogueMs: number) {
   const { key, authoring } = JSON.parse(fs.readFileSync(path.join(buildDirectory, 'server/catalogue-compiler.json'), 'utf8')) as {
     key: string
     authoring: string
@@ -60,7 +61,7 @@ export async function startCatalogueRefresh(buildDirectory: string, dataDirector
   }
   try {
     if (!liveCatalogueRevision(root)) {
-      const deadline = Date.now() + 30 * 60_000
+      const deadline = Date.now() + firstCatalogueMs
       do {
         signal.throwIfAborted()
         await refresh(Math.max(1, Math.min(25 * 60_000, deadline - Date.now())))

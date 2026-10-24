@@ -16,6 +16,7 @@ import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, ROSTER_DISCOVERY_PAGE_SIZE } from '../.
 import { discoveryScope, inDiscoveryScope } from '../../core/rosterDiscoveryScope'
 import { variantDifferences } from '../rosterDifferences'
 import { copySavedRoster, saveOwnedRoster } from '../saveOwnedRoster'
+import { rosterActions } from '../rosterActions'
 import { copiedArmy } from '../../core/rosterCopies'
 import { currentCatalogueFamilyId, currentEntryId } from '../../core/retiredCatalogueIds'
 import { groupBy } from '../../core/collections'
@@ -341,9 +342,7 @@ export const saveRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const { id, created, updatedAt } = await saveOwnedRoster(player.id, data)
-      // Counted when a row is made, which a visitor's list does while arriving with the id it was built under.
-      if (created) await captureRosterCreated(app(), player.id, data)
+      const { id, updatedAt } = await rosterActions.save(player.id, data)
       return { id, updatedAt }
     }),
   )
@@ -458,8 +457,7 @@ export const setRosterVisibility = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      await app().service.rosterService.setRosterVisibility(player.id, data.id, data.visibility)
-      await app().telemetry.capture(player.id, 'roster_visibility_updated', { visibility: data.visibility })
+      await rosterActions.setVisibility(player.id, data)
       return null
     }),
   )
