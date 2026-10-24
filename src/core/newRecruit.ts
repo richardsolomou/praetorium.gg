@@ -5,6 +5,9 @@ import { GAME_SIZES } from './battle'
 const unitHeader = /^(?:Char\d+:\s*)?(\d+)x\s+(.+?)\s+\(\d[\d,]*\s*pts?\)(?::\s*(.*))?$/i
 const modelLine = /^[•*]\s*(\d+)x\s+([^:]+?)(?::\s*(.*))?$/
 
+/** A New Recruit share link, which opens the list in New Recruit and carries none of it. */
+export const isNewRecruitLink = (input: string) => /^(?:https?:\/\/)?(?:[\w-]+\.)?newrecruit\.eu(?:[/?#]\S*)?$/i.test(input.trim())
+
 export function fromNewRecruitText(input: string): TextRoster | null {
   const newRecruit = /Created with newrecruit\.eu/i.test(input)
   const native =

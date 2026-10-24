@@ -8,7 +8,7 @@ export type SpacetimeLink<T> = {
   failed: (error?: unknown) => void
   /** The SDK lost the socket and is reconnecting on its own; poll until the subscription applies again. */
   interrupted: (error?: unknown) => void
-  /** A fresh ticket for the SDK's reconnect, ending this connection if access has been withdrawn. */
+  /** The ticket for the SDK's reconnect: a fresh one if tickets expire, ending this connection if access has been withdrawn. */
   renew: () => Promise<T>
   isCurrent: () => boolean
   ready: () => void
@@ -26,7 +26,10 @@ export function maintainSpacetimeConnection<T>(options: {
   open: (issued: T, link: SpacetimeLink<T>) => Connection
   inactive: () => void
   report: (error: unknown) => void
+  /** Whether tickets expire and need refreshing; otherwise every reconnect reuses the ticket the connection opened with. */
+  expires?: boolean
 }) {
+  const expires = options.expires ?? true
   let active = true
   let generation = 0
   let retryDelay = RETRY_MS
@@ -95,6 +98,7 @@ export function maintainSpacetimeConnection<T>(options: {
         options.inactive()
       }
       const renew = async () => {
+        if (!expires) return issued
         const renewed = await options.issue()
         if (renewed !== null) return renewed
         failed()
@@ -106,6 +110,7 @@ export function maintainSpacetimeConnection<T>(options: {
         return
       }
       connection = opened
+      if (!expires) return
       refresh = setTimeout(() => {
         if (!active || attempt !== generation) return
         generation++

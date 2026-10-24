@@ -199,6 +199,14 @@ describe('BattleBase text import', () => {
     it('reads thousands separated by a narrow no-break space', () => {
       expect(fromBattleBaseText(kriegGermanOfficial.replace('1 995', '1\u202f995'))?.reportedPoints).toBe(1995)
     })
+
+    it('reads thousands separated by an apostrophe, as Swiss German writes them', () => {
+      expect(fromBattleBaseText(kriegGermanOfficial.replace('1 995', "1'995").replace('2 000', "2'000"))?.limit).toBe(2000)
+    })
+
+    it('reads thousands separated by a typographic apostrophe', () => {
+      expect(fromBattleBaseText(kriegGermanOfficial.replace('1 995', '1’995'))?.reportedPoints).toBe(1995)
+    })
   })
 
   describe('hand-edited app text', () => {

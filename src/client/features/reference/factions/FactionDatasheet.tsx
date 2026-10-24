@@ -20,6 +20,7 @@ import { changeDetail } from '../../../catalogueChanges'
 import { useDateFormatting } from '../../../dates'
 import { FactionMark, factionColour } from '../../../components/FactionMark'
 import { DatasheetAddMenu } from './DatasheetAddMenu'
+import { AddToRoster } from '../../rosters/ReferenceRosterActions'
 import { DatasheetPhotos } from './DatasheetPhotos'
 import { SimulateDatasheet } from '../../simulator/SimulateDatasheet'
 import { Keyword, KEYWORD_TAG_CLASS, KeywordList, type KeywordRule } from '../../../components/Keyword'
@@ -57,7 +58,8 @@ export function FactionDatasheet() {
         media={<FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} />}
         actions={
           <div className="flex flex-wrap items-center gap-1">
-            <DatasheetAddMenu faction={faction} entryId={sheet.id} name={sheet.name} />
+            <AddToRoster faction={faction} entryId={sheet.id} name={sheet.name} />
+            <DatasheetAddMenu entryId={sheet.id} name={sheet.name} />
             <SimulateDatasheet catalogueId={faction.id} entryId={sheet.id} />
           </div>
         }
