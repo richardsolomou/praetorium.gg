@@ -62,6 +62,11 @@ describe('roster exchange codes', () => {
     ])
   })
 
+  it('carries the transport a unit starts in', async () => {
+    const embarked = { ...roster, picks: roster.picks.map((pick, at) => (at === 0 ? { ...pick, embarkedIn: 2 } : pick)) }
+    expect((await decodeRosterExchange(await encodeRosterExchange(embarked))).picks[0]?.embarkedIn).toBe(2)
+  })
+
   it('encodes the same roster to the same code', async () => {
     expect(await encodeRosterExchange(roster)).toBe(await encodeRosterExchange({ ...roster }))
   })

@@ -1,5 +1,29 @@
 # praetorium
 
+## 0.185.0
+
+### Minor Changes
+
+- 34b6bf9: Embark units in transports from the roster cards; each transport lists who starts inside it, and battle setup starts them there, which you can still change. An attached unit embarks, and takes another Leader or Support unit, from the foot of its outline. A change that stops a unit fitting takes that unit out, and its card or outline says why.
+
+## 0.184.5
+
+### Patch Changes
+
+- a87cc47: Nork Deddog, Ogryn Bodyguard and Regimental Attachés can embark in any transport their Command Squad can, with a Loyal Protector taking up the space of 3 models.
+
+## 0.184.4
+
+### Patch Changes
+
+- 6d3e8b8: The agent combat tool and simulator links can field a unit that joins an attached unit, such as Nork Deddog with the Cadian Command Squad leading Cadian Shock Troops.
+
+## 0.184.3
+
+### Patch Changes
+
+- f6fc73c: An Inquisitor leading a unit can embark in any transport its bodyguard can, as Authority of the Inquisition allows.
+
 ## 0.184.2
 
 ### Patch Changes

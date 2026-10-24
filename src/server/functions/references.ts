@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { rosterDatasheetLoadedProperties } from '../../shared/rosterTelemetry'
 import { createServerFn } from '@tanstack/react-start'
 import { app } from '../app'
-import { unitWoundsIn } from '../../shared/catalogue'
+import { unitBattleDetailsIn, unitWoundsIn } from '../../shared/catalogue'
 import { publishedTextFiles } from '../publishedTextFiles'
 import { booksOffering, pickerUnitsFor } from '../../shared/pickerUnits'
 import { detachmentsOffering } from '../../shared/factionReferences'
@@ -247,6 +247,17 @@ export const unitWounds = createServerFn({ method: 'GET' })
       const loaded = await app().catalogueFor(data.catalogueId)
       if (!loaded) return []
       return unitWoundsIn(loaded, data.catalogueId, data.entryIds)
+    }),
+  )
+
+/** What a battle freezes of each datasheet in a list, read while building it so the builder judges embarks as setup will. */
+export const unitBattleDetails = createServerFn({ method: 'GET' })
+  .validator(unitWoundsSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      const loaded = await app().catalogueFor(data.catalogueId)
+      if (!loaded) return []
+      return unitBattleDetailsIn(loaded, data.catalogueId, data.entryIds)
     }),
   )
 

@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SimulatorSide } from '../../../contracts/simulatorState'
 import type { RosterPick } from '../../../core/roster'
 import { rosterCombatant } from '../../../shared/rosterCombatRules'
@@ -147,6 +147,18 @@ beforeEach(() => {
   hooks.changes = 0
   const book = preferenceBook()
   hooks.sheets.mockImplementation((data) => rosterCombatant(book, null, data))
+})
+
+describe('a link with a unit joined to an attached unit', () => {
+  const chained: SimulatorSide = { ...initial, attached: [{ entryId: 'leader' }, { entryId: 'support', attachedTo: 1 }], preferences: {} }
+
+  it('joins it to that attached unit', () => {
+    expect(render(chained).picks.positioned.map((pick) => pick.attachedTo)).toEqual([undefined, 0, 1])
+  })
+
+  it('shares it joined to that attached unit', () => {
+    expect(render(chained).shared?.attached).toEqual(chained.attached)
+  })
 })
 
 it('retains version-one preferences while the selected sheets are loading', () => {

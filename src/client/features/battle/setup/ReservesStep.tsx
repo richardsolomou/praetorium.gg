@@ -8,8 +8,8 @@ import {
   type Command,
   strategicReservePoints,
   strategicReserveSideTotals,
+  transportAboard,
   transportLabel,
-  transportLoadOf,
   UNIT_FORMATIONS,
   unitFormationRefusal,
 } from '../../../../core/battle'
@@ -108,6 +108,7 @@ function ArmySetup({ army, multiple, moves }: { army: Army; multiple: boolean; m
           )}
         </span>
       </div>
+      <DroppedEmbarks army={army} units={units} />
       {sections.map((section) => (
         <section key={section.label} className="space-y-1">
           <p className="eyebrow">{section.label}</p>
@@ -117,6 +118,20 @@ function ArmySetup({ army, multiple, moves }: { army: Army; multiple: boolean; m
         </section>
       ))}
     </article>
+  )
+}
+
+/** Starting embarks the list asked for that the frozen army cannot hold, until the table moves the unit. */
+function DroppedEmbarks({ army, units }: { army: Army; units: AttachedUnit<Army['units'][number]>[] }) {
+  return units.flatMap((unit) =>
+    unit.host.startingEmbarkRefused ? (
+      <SetupNote key={unit.host.key}>
+        {reserveUnitLabel(units, unit)} starts on the battlefield: the list put it in{' '}
+        {transportLabel(army.units, unit.host.startsEmbarkedIn ?? '') ?? 'a transport'}, but {unit.host.startingEmbarkRefused}.
+      </SetupNote>
+    ) : (
+      []
+    ),
   )
 }
 
@@ -250,13 +265,10 @@ function TransportBoarding({
       !canTransport(unit.host) && !unit.joined.some(canTransport) && ![unit.host, ...unit.joined].some((member) => member.destroyed),
   )
   const canBoard = !transport.destroyed && transport.formation !== 'embarked'
-  const load = transportLoadOf(
+  const aboard = transportAboard(
     transport,
     army.units.filter((unit) => unit.embarkedIn === transport.key),
   )
-  const aboard = Array.isArray(load)
-    ? `${load.map((pool) => (load.length === 1 ? `${pool.used}/${pool.capacity}` : `${pool.used}/${pool.capacity} ${pool.carries}`)).join(', ')} models`
-    : null
 
   return (
     <div className="mt-2 border-t border-edge px-0.5 pt-2">
