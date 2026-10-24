@@ -2,7 +2,7 @@ A battle is one shared record of the game: setup, phases, victory points, comman
 
 ## Start a battle
 
-Open [Battles](/battles) and choose **New battle**, or choose **Start a battle** from a saved roster in the builder to start with that list already on your seat.
+Open [Battles](/battles) and choose **New battle**, or choose **Start a battle** from a saved roster in the builder to start with that list already on your seat. To play a friend, choose **Battle** next to them on [Friends](/friends): the dialog opens as a duel with them already seated.
 
 1. Pick a **Battle format**: **Duel** (1v1), **Solo vs pair** (2v1) or **Doubles** (2v2). For solo vs pair, also say whether you're solo or on the pair.
 2. Fill every seat. Each seat takes one of:

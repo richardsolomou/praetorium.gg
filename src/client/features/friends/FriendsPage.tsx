@@ -1,14 +1,15 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Check, Link2, RotateCw, UserPlus, X } from 'lucide-react'
+import { Check, EllipsisVertical, Link2, RotateCw, Swords, UserMinus, UserPlus, X } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { PageContent, PageHeader } from '../../components/Page'
 import { SearchField } from '../../components/SearchField'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SignInRequired } from '../../components/SignInRequired'
-import { friendshipsQuery, meQuery, opponentsQuery, playerSearchKey, playerSearchQuery } from '../../queries'
+import { friendshipsQuery, meQuery, opponentsQuery, playerProfileQuery, playerSearchKey, playerSearchQuery } from '../../queries'
 import { useSettled } from '../../useSettled'
 import { acceptFriend, rejectFriend, removeFriend, requestFriend } from '../../functions'
 import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../../../core/playerSearch'
@@ -16,14 +17,20 @@ import type { OnboardingTarget } from '../onboarding/onboarding'
 import { InviteQr, SHARED_LABEL, useFriendInvite, useInviteShareLabel } from './friendInvite'
 import { Problem } from '../../components/Problem'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { CreateBattle } from '../battles/CreateBattle'
+import type { Facet } from '../../../core/serviceRecord'
+import { formatAgo } from '../../dates'
+import { countLabel } from '../../text'
 
 type Person = { id: string; name: string; image?: string | null }
 
 export function FriendsPage() {
   const { data: me } = useQuery(meQuery())
   const { data = { friends: [], incoming: [], outgoing: [] } } = useQuery(friendshipsQuery())
+  const { data: profile } = useQuery({ ...playerProfileQuery(me?.id ?? ''), enabled: Boolean(me) })
   const [query, setQuery] = useState('')
   const [unfriending, setUnfriending] = useState<Person | null>(null)
+  const [battling, setBattling] = useState<Person | null>(null)
   const settledQuery = useSettled(query.trim())
   const search = playerSearchQuery(settledQuery)
   const { data: matches = [], isFetching } = useQuery({ ...search, placeholderData: keepPreviousData })
@@ -52,11 +59,12 @@ export function FriendsPage() {
   // Judged from what is typed rather than what has settled, so the invitation does
   // not stay up for the length of a burst of typing.
   const searching = !tooShort && (typed !== settledQuery || isFetching) && !found.length
+  const played = new Map(profile?.facets.opponents.map((facet) => [facet.value, facet]))
 
   return (
     <main className="w-full">
-      <PageHeader eyebrow="Your account" title="Friends" description="Add the people you play with." />
-      <PageContent className="space-y-6">
+      <PageHeader eyebrow="Your account" title="Friends" description="The people you play with." />
+      <PageContent className="space-y-8">
         {request.error || accept.error || reject.error || remove.error ? (
           <Problem
             error={request.error ?? accept.error ?? reject.error ?? remove.error}
@@ -64,49 +72,10 @@ export function FriendsPage() {
           />
         ) : null}
 
-        <section>
-          <h2 className="rubric border-b border-edge pb-2">Find players</h2>
-          <SearchField
-            onboarding="friend-search"
-            className="mt-2"
-            value={query}
-            onChange={setQuery}
-            placeholder="Search by account name"
-            label="Search by account name"
-            clearLabel="Empty the player search"
-            maxLength={PLAYER_SEARCH_MAX_LENGTH}
-          />
-          <div className="mt-2 space-y-2">
-            {found.map((person) => (
-              <PersonRow
-                key={person.id}
-                person={person}
-                action="Add friend"
-                pending={inFlight(request) === person.id}
-                onAction={() => request.mutate(person.id)}
-              />
-            ))}
-            {searching ? (
-              <>
-                <output className="sr-only">Searching</output>
-                <PersonRowSkeleton />
-                <PersonRowSkeleton />
-              </>
-            ) : null}
-            {typed && tooShort ? (
-              <p className="py-2 text-sm text-dim">Type at least {PLAYER_SEARCH_MIN_LENGTH} letters of a player’s name.</p>
-            ) : null}
-            {!tooShort && !searching && !found.length ? <p className="py-2 text-sm text-dim">No players match that name.</p> : null}
-          </div>
-        </section>
-
-        <InviteFriend />
-
-        <div className="grid gap-6 md:grid-cols-2">
+        {data.incoming.length ? (
           <People
             onboarding="friend-requests"
             title="Friend requests"
-            empty="No requests are waiting for you."
             people={data.incoming}
             action="Accept"
             secondaryAction="Reject"
@@ -114,28 +83,93 @@ export function FriendsPage() {
             onAction={(person) => accept.mutate(person.id)}
             onSecondaryAction={(person) => reject.mutate(person.id)}
           />
-          <People
-            onboarding="friend-list"
-            title="Friends"
-            empty="No friends yet."
-            people={data.friends}
-            action="Remove"
-            pendingId={inFlight(remove)}
-            onAction={setUnfriending}
-          />
-        </div>
-
-        {data.outgoing.length ? (
-          <People
-            title="Sent requests"
-            empty=""
-            people={data.outgoing}
-            action="Cancel"
-            pendingId={inFlight(remove)}
-            onAction={(person) => remove.mutate(person.id)}
-          />
         ) : null}
+
+        <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-x-16">
+          <aside className="min-w-0 space-y-6 lg:col-start-2 lg:row-start-1">
+            <section>
+              <h2 className="rubric border-b border-edge pb-2">Add a friend</h2>
+              <SearchField
+                onboarding="friend-search"
+                className="mt-3"
+                value={query}
+                onChange={setQuery}
+                placeholder="Search by account name"
+                label="Search by account name"
+                clearLabel="Empty the player search"
+                maxLength={PLAYER_SEARCH_MAX_LENGTH}
+              />
+              <div className="mt-2 space-y-2">
+                {found.map((person) => (
+                  <PersonRow
+                    key={person.id}
+                    person={person}
+                    action="Add friend"
+                    pending={inFlight(request) === person.id}
+                    onAction={() => request.mutate(person.id)}
+                  />
+                ))}
+                {searching ? (
+                  <>
+                    <output className="sr-only">Searching</output>
+                    <PersonRowSkeleton />
+                    <PersonRowSkeleton />
+                  </>
+                ) : null}
+                {typed && tooShort ? (
+                  <p className="py-2 text-sm text-dim">Type at least {PLAYER_SEARCH_MIN_LENGTH} letters of a player’s name.</p>
+                ) : null}
+                {!tooShort && !searching && !found.length ? <p className="py-2 text-sm text-dim">No players match that name.</p> : null}
+              </div>
+            </section>
+            <InviteFriend />
+          </aside>
+
+          <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-start-1">
+            <section data-onboarding="friend-list">
+              <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
+                <span>Friends</span>
+                <span className="readout">{data.friends.length}</span>
+              </h2>
+              {data.friends.length ? (
+                <div className="mt-3 grid gap-2">
+                  {data.friends.map((friend) => (
+                    <FriendCard
+                      key={friend.id}
+                      friend={friend}
+                      viewerId={me.id}
+                      played={played.get(friend.id)}
+                      onBattle={() => setBattling(friend)}
+                      onRemove={() => setUnfriending(friend)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="py-3 text-sm text-dim">
+                  No friends yet. Find someone by name, or send an invite link to someone new to Praetorium.
+                </p>
+              )}
+            </section>
+
+            {data.outgoing.length ? (
+              <People
+                title="Sent requests"
+                people={data.outgoing}
+                action="Cancel"
+                pendingId={inFlight(remove)}
+                onAction={(person) => remove.mutate(person.id)}
+              />
+            ) : null}
+          </div>
+        </div>
       </PageContent>
+      <CreateBattle
+        opponentId={battling?.id}
+        open={Boolean(battling)}
+        onOpenChange={(open) => {
+          if (!open) setBattling(null)
+        }}
+      />
       <ConfirmDialog
         open={Boolean(unfriending)}
         title={`Remove ${unfriending?.name}?`}
@@ -153,36 +187,87 @@ export function FriendsPage() {
   )
 }
 
+/** A friend, what you have played against them, and the two things a player does with one. */
+function FriendCard({
+  friend,
+  viewerId,
+  played,
+  onBattle,
+  onRemove,
+}: {
+  friend: Person
+  viewerId: string
+  played?: Facet
+  onBattle: () => void
+  onRemove: () => void
+}) {
+  return (
+    <article data-person={friend.name} className="flex items-center gap-3 border border-edge bg-panel p-3">
+      <Link to="/users/$userId" params={{ userId: friend.id }} className="shrink-0" tabIndex={-1} aria-hidden>
+        <PlayerAvatar name={friend.name} image={friend.image} className="size-10 text-xs" />
+      </Link>
+      <div className="min-w-0 flex-1">
+        <Link to="/users/$userId" params={{ userId: friend.id }} className="block truncate font-bold uppercase hover:text-info">
+          {friend.name}
+        </Link>
+        {played ? (
+          <Link
+            to="/users/$userId"
+            params={{ userId: viewerId }}
+            search={{ opponentId: friend.id }}
+            className="block truncate text-xs text-dim hover:text-bone"
+          >
+            {countLabel(played.battles, 'game')} played · {formatAgo(played.latest)}
+          </Link>
+        ) : (
+          <p className="truncate text-xs text-faint">No games played yet</p>
+        )}
+      </div>
+      <Button variant="outline" size="sm" className="shrink-0" aria-label={`New battle with ${friend.name}`} onClick={onBattle}>
+        <Swords /> Battle
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" className="shrink-0" aria-label={`More for ${friend.name}`} />}>
+          <EllipsisVertical />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem variant="destructive" onClick={onRemove}>
+            <UserMinus /> Remove friend
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </article>
+  )
+}
+
 function InviteFriend() {
   const invite = useFriendInvite()
   const shareLabel = useInviteShareLabel()
 
   return (
     <section>
-      <h2 className="rubric border-b border-edge pb-2">Invite a friend</h2>
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-4">
-        <p className="text-sm text-dim">Not on Praetorium yet? Send them a one-time invite link.</p>
-        <div data-onboarding="friend-invite" className="flex flex-wrap gap-2">
-          {invite.url ? (
-            <>
-              <Button variant="outline" disabled={invite.busy} onClick={() => void invite.share()}>
-                {invite.feedback ? <Check /> : <Link2 />}
-                {invite.feedback ? SHARED_LABEL[invite.feedback] : shareLabel}
-              </Button>
-              <InviteQr url={invite.url} disabled={invite.busy} />
-              <Button variant="ghost" disabled={invite.busy} onClick={() => void invite.shareNew()}>
-                <RotateCw /> New link
-              </Button>
-              <Button variant="ghost" disabled={invite.busy} onClick={invite.cancel}>
-                <X /> Cancel
-              </Button>
-            </>
-          ) : (
-            <Button disabled={invite.busy} onClick={() => void invite.share()}>
-              <UserPlus /> {invite.creating ? 'Creating…' : 'Create invite link'}
+      <h3 className="eyebrow text-dim">Not on Praetorium yet?</h3>
+      <p className="mt-1 text-sm text-dim">Send them a one-time invite link.</p>
+      <div data-onboarding="friend-invite" className="mt-3 flex flex-wrap gap-2">
+        {invite.url ? (
+          <>
+            <Button variant="outline" disabled={invite.busy} onClick={() => void invite.share()}>
+              {invite.feedback ? <Check /> : <Link2 />}
+              {invite.feedback ? SHARED_LABEL[invite.feedback] : shareLabel}
             </Button>
-          )}
-        </div>
+            <InviteQr url={invite.url} disabled={invite.busy} />
+            <Button variant="ghost" disabled={invite.busy} onClick={() => void invite.shareNew()}>
+              <RotateCw /> New link
+            </Button>
+            <Button variant="ghost" disabled={invite.busy} onClick={invite.cancel}>
+              <X /> Cancel
+            </Button>
+          </>
+        ) : (
+          <Button disabled={invite.busy} onClick={() => void invite.share()}>
+            <UserPlus /> {invite.creating ? 'Creating…' : 'Create invite link'}
+          </Button>
+        )}
       </div>
       {invite.problem ? <Problem className="mt-3">{invite.problem}</Problem> : null}
     </section>
@@ -193,7 +278,6 @@ function People({
   title,
   people,
   action,
-  empty,
   onboarding,
   pendingId,
   onAction,
@@ -203,7 +287,6 @@ function People({
   title: string
   people: Person[]
   action: string
-  empty: string
   onboarding?: OnboardingTarget
   pendingId: string | null
   onAction: (person: Person) => void
@@ -216,22 +299,18 @@ function People({
         <span>{title}</span>
         <span className="readout">{people.length}</span>
       </h2>
-      <div className="mt-2 space-y-2">
-        {people.length ? (
-          people.map((person) => (
-            <PersonRow
-              key={person.id}
-              person={person}
-              action={action}
-              pending={pendingId === person.id}
-              onAction={() => onAction(person)}
-              secondaryAction={secondaryAction}
-              onSecondaryAction={onSecondaryAction ? () => onSecondaryAction(person) : undefined}
-            />
-          ))
-        ) : (
-          <p className="py-2 text-sm text-dim">{empty}</p>
-        )}
+      <div className="mt-3 grid gap-2">
+        {people.map((person) => (
+          <PersonRow
+            key={person.id}
+            person={person}
+            action={action}
+            pending={pendingId === person.id}
+            onAction={() => onAction(person)}
+            secondaryAction={secondaryAction}
+            onSecondaryAction={onSecondaryAction ? () => onSecondaryAction(person) : undefined}
+          />
+        ))}
       </div>
     </section>
   )

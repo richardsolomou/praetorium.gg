@@ -146,20 +146,23 @@ describe('battle rows', () => {
       ...overrides,
     }) as unknown as Battle
 
-  it("lists the player's games in progress one line each", () => {
-    expect((render({ mine: ['a', 'b', 'c'].map((token) => battle(token)) }).match(/aria-label="Open /g) ?? []).length).toBe(3)
+  it("lists two of the player's games in progress", () => {
+    expect((render({ mine: ['a', 'b', 'c'].map((token) => battle(token)) }).match(/aria-label="Open /g) ?? []).length).toBe(2)
+  })
+
+  it('links to every battle when more games are in progress than shown', () => {
+    expect(text(render({ mine: ['a', 'b', 'c'].map((token) => battle(token)) }))).toContain('All my battles')
   })
 
   it('names how a finished game went for the player', () => {
     expect(text(render({ mine: [battle('a', { status: 'finished', scores: [20, 50] })] }))).toMatch(/Games you have played 1 .*\bLost\b/)
   })
 
-  it.each(['mine', 'friends', 'open'] as const)('lists at most three games from %s in feed order', (feed) => {
+  it.each(['mine', 'friends', 'open'] as const)('lists at most two games from %s in feed order', (feed) => {
     const battles = Array.from({ length: 5 }, (_, index) => battle(String(index), { status: 'finished' }))
     expect(render({ [feed]: battles }).match(/aria-label="(?:Open|Watch) Alex versus Opponent \d+"/g)).toEqual([
       `aria-label="${feed === 'mine' ? 'Open' : 'Watch'} Alex versus Opponent 0"`,
       `aria-label="${feed === 'mine' ? 'Open' : 'Watch'} Alex versus Opponent 1"`,
-      `aria-label="${feed === 'mine' ? 'Open' : 'Watch'} Alex versus Opponent 2"`,
     ])
   })
 
