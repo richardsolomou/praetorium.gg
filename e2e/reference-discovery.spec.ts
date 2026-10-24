@@ -146,11 +146,7 @@ test('reference roster choices distinguish saved rules versions', async ({ page 
   const archived = await custodesRoster(page, 'MFM 1.5 · Archived')
   await page.goto('/factions/adeptus-custodes/rules/mfm-1-6/datasheets/allarus-custodians')
   await page.waitForLoadState('networkidle')
-  await page.getByRole('button', { name: 'Add to', exact: true }).click()
-  await page
-    .getByRole('dialog', { name: 'Add Allarus Custodians to', exact: true })
-    .getByRole('button', { name: 'Roster…', exact: true })
-    .click()
+  await page.getByRole('button', { name: 'Add to roster', exact: true }).click()
   const chooser = page.getByRole('dialog', { name: 'Add Allarus Custodians to a roster', exact: true })
   const archivedChoice = chooser.locator(`a[href^="${archived}?"]`)
   for (const viewport of [desktop, phone]) {
