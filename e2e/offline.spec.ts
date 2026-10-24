@@ -10,20 +10,19 @@ test('the home page paints before downloading the offline application and keeps 
 }) => {
   test.setTimeout(240_000)
   const bundles: string[] = []
+  // The download runs in a worker, whose requests are missing from the page's resource timing.
+  const downloads: number[] = []
   page.on('request', (assetRequest) => {
     if (/\/assets\/(reference|construction)-[a-f0-9]+\.bin$/.test(assetRequest.url())) bundles.push(assetRequest.url())
+    if (/\/assets\/((reference|construction)-[a-f0-9]+\.bin|offline-app-[a-f0-9]+\.js)$/.test(assetRequest.url()))
+      downloads.push(Date.now())
   })
   await page.goto('/')
   await expect(page.locator('main h1')).toBeVisible()
   await waitForOfflineApp(page)
-  const downloads = await page.evaluate(() =>
-    performance
-      .getEntriesByType('resource')
-      .filter((entry) => /\/assets\/((reference|construction)-[a-f0-9]+\.bin|offline-app-[a-f0-9]+\.js)$/.test(entry.name))
-      .map((entry) => entry.startTime),
-  )
+  const navigationStart = await page.evaluate(() => performance.timeOrigin)
   expect(downloads).toHaveLength(3)
-  expect(Math.min(...downloads)).toBeGreaterThanOrEqual(10_000)
+  expect(Math.min(...downloads) - navigationStart).toBeGreaterThanOrEqual(10_000)
 
   const manifest = await request.get('/offline-reference-version.json')
   expect(manifest.headers()['cache-control']).toBe('no-store')

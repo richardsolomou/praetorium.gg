@@ -86,6 +86,16 @@ test('an army is read and its losses recorded without leaving the battle', async
     .getByRole('button', { name: 'Bring Foetid Bloat-drone back' })
     .click()
   await expect(units).toHaveText('2/2')
+  // The shelf stays as the player left it while it empties and fills again, however the battle state arrives.
+  await army
+    .locator('[data-army-list] [data-unit="Foetid Bloat-drone"]')
+    .getByRole('button', { name: 'Mark Foetid Bloat-drone destroyed' })
+    .click()
+  await army
+    .locator('[data-army-list] [data-unit="Foetid Bloat-drone"]')
+    .getByRole('button', { name: 'Bring Foetid Bloat-drone back' })
+    .click()
+  await expect(units).toHaveText('2/2')
 
   // Casualties are running counts rather than events, so the log and Undo leave them out.
   await army.getByRole('button', { name: 'Close' }).click()

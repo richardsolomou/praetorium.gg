@@ -8,6 +8,9 @@ type Props = {
   count: number
   children: ReactNode
   defaultOpen?: boolean
+  /** Held by the caller, for a shelf that can empty and come back without forgetting whether it was open. */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
   /** What the shelf's units cost together, beside its title. */
   points?: number
 }
@@ -19,9 +22,9 @@ type Props = {
  * right number of units in each category, not by scrolling to the bottom to find
  * out.
  */
-export function Section({ title, count, children, defaultOpen = true, points }: Props) {
+export function Section({ title, count, children, defaultOpen = true, open, onOpenChange, points }: Props) {
   return (
-    <Collapsible render={<section />} defaultOpen={defaultOpen}>
+    <Collapsible render={<section />} defaultOpen={defaultOpen} open={open} onOpenChange={onOpenChange}>
       <div className="flex w-full items-center gap-2 py-1.5">
         <h2 className="rubric">{title}</h2>
         {points === undefined ? null : <span className="readout text-xs text-dim">{points} pts</span>}
