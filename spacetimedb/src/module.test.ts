@@ -1169,6 +1169,34 @@ describe('collection counts', () => {
     ]).toEqual([{ added: 0, replaced: 0, kept: 1 }, ['deathmarks']])
   })
 
+  const PHOTO = '00000000-0000-4000-8000-000000000001'
+  const photoAs = (setup: ReturnType<typeof harness>, shows: string) =>
+    setup.call(setup.operator, (ctx) =>
+      module.setCollectionPhotoAs(ctx, { userId: 'owner', entryId: 'warriors', shows, photoId: PHOTO, at: BigInt(NOW) }),
+    )
+
+  it('files a photo under a datasheet the models count as', () => {
+    const setup = owned(2, 0, 0)
+    linked(setup, ['immortals'])
+    photoAs(setup, 'immortals')
+    expect(
+      JSON.parse(module.datasheetPhotos(setup.procedure(setup.operator), { entryId: 'immortals', viewerId: undefined, limit: 10 })),
+    ).toMatchObject([{ photoId: PHOTO }])
+  })
+
+  it('keeps a variant photo with the row it belongs to', () => {
+    const setup = owned(2, 0, 0)
+    linked(setup, ['immortals'])
+    photoAs(setup, 'immortals')
+    expect(JSON.parse(module.collectionByUser(setup.procedure(setup.operator), { userId: 'owner' }))).toMatchObject([
+      { entryId: 'warriors', photoIds: [PHOTO], photoShows: { [PHOTO]: 'immortals' } },
+    ])
+  })
+
+  it('refuses a photo of a datasheet the models do not count as', () => {
+    expect(() => photoAs(owned(2, 0, 0), 'immortals')).toThrow('Choose a datasheet')
+  })
+
   it('replaces saved links when asked', () => {
     const setup = owned(2, 0, 0)
     linked(setup, ['deathmarks'])

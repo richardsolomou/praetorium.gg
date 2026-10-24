@@ -33,6 +33,7 @@ import RevokeSessionReducer from '../revoke_session_reducer'
 import SetCollectionCountsAsReducer from '../set_collection_counts_as_reducer'
 import SetCollectionModelsReducer from '../set_collection_models_reducer'
 import SetCollectionPhotoReducer from '../set_collection_photo_reducer'
+import SetCollectionPhotoAsReducer from '../set_collection_photo_as_reducer'
 import SetCollectionPhotoLikeReducer from '../set_collection_photo_like_reducer'
 import SetCollectionProgressReducer from '../set_collection_progress_reducer'
 import SetCollectionWantedReducer from '../set_collection_wanted_reducer'
@@ -67,6 +68,7 @@ export type RevokeSessionParams = __Infer<typeof RevokeSessionReducer>
 export type SetCollectionCountsAsParams = __Infer<typeof SetCollectionCountsAsReducer>
 export type SetCollectionModelsParams = __Infer<typeof SetCollectionModelsReducer>
 export type SetCollectionPhotoParams = __Infer<typeof SetCollectionPhotoReducer>
+export type SetCollectionPhotoAsParams = __Infer<typeof SetCollectionPhotoAsReducer>
 export type SetCollectionPhotoLikeParams = __Infer<typeof SetCollectionPhotoLikeReducer>
 export type SetCollectionProgressParams = __Infer<typeof SetCollectionProgressReducer>
 export type SetCollectionWantedParams = __Infer<typeof SetCollectionWantedReducer>

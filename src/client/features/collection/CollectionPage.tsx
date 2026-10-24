@@ -222,7 +222,15 @@ export function CollectionPage() {
                         data-unit={sheet.name}
                         name={sheet.name}
                         sheet={sheet}
-                        photo={<CollectionPhoto entryId={sheet.id} name={sheet.name} />}
+                        photo={
+                          <CollectionPhoto
+                            entryId={sheet.id}
+                            name={sheet.name}
+                            variants={(armySheets.get(sheet.catalogueId) ?? []).filter((other) =>
+                              countsAs.data?.[sheet.id]?.includes(other.id),
+                            )}
+                          />
+                        }
                         action={<EntryMenu name={sheet.name} onCountsAs={() => setLinking(sheet)} onRemove={() => setRemoving(sheet)} />}
                       >
                         <CollectionEntryCounts entryId={sheet.id} name={sheet.name} />

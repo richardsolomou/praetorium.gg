@@ -95,3 +95,12 @@ describe('usable datasheets', () => {
     expect(usableDatasheets([], { russ: ['demolisher'] })).toEqual(new Set())
   })
 })
+
+describe('grouped photos of other builds', () => {
+  it('names the datasheet a photo shows', () => {
+    expect(
+      groupCollection([{ entryId: 'warriors', models: 1, photoIds: ['photo'], photoShows: { photo: 'overlord' } }], factions)[0]!
+        .entries[0]!.photoShows,
+    ).toEqual({ photo: { entryId: 'overlord', name: 'Overlord' } })
+  })
+})

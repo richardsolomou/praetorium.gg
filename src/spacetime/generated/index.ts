@@ -61,6 +61,7 @@ import RevokeSessionReducer from './revoke_session_reducer'
 import SetCollectionCountsAsReducer from './set_collection_counts_as_reducer'
 import SetCollectionModelsReducer from './set_collection_models_reducer'
 import SetCollectionPhotoReducer from './set_collection_photo_reducer'
+import SetCollectionPhotoAsReducer from './set_collection_photo_as_reducer'
 import SetCollectionPhotoLikeReducer from './set_collection_photo_like_reducer'
 import SetCollectionProgressReducer from './set_collection_progress_reducer'
 import SetCollectionWantedReducer from './set_collection_wanted_reducer'
@@ -243,6 +244,7 @@ const reducersSchema = __reducers(
   __reducerSchema('set_collection_counts_as', SetCollectionCountsAsReducer),
   __reducerSchema('set_collection_models', SetCollectionModelsReducer),
   __reducerSchema('set_collection_photo', SetCollectionPhotoReducer),
+  __reducerSchema('set_collection_photo_as', SetCollectionPhotoAsReducer),
   __reducerSchema('set_collection_photo_like', SetCollectionPhotoLikeReducer),
   __reducerSchema('set_collection_progress', SetCollectionProgressReducer),
   __reducerSchema('set_collection_wanted', SetCollectionWantedReducer),

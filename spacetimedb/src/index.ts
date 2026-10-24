@@ -1606,7 +1606,7 @@ export const collectionByUser = spacetime.procedure({ userId: t.string() }, t.st
         built: built ?? 0,
         painted: painted ?? 0,
         countsAs: countsAs ?? [],
-        ...collectionPhotoField(tx, key),
+        ...collectionPhotoField(tx, { key, entryId }),
       })),
     )
   }),
@@ -1638,7 +1638,7 @@ export const collectionProfile = spacetime.procedure(
           models: row.models,
           built: row.built ?? 0,
           painted: row.painted ?? 0,
-          ...collectionPhotoField(tx, row.key, viewerId === userId),
+          ...collectionPhotoField(tx, row, viewerId === userId),
         })
       }
       return productJson({ entries, wishes: collectionWishes(tx, userId) })
@@ -1767,20 +1767,30 @@ export const importCollection = spacetime.procedure(
 
 export const setCollectionPhoto = spacetime.reducer(
   { userId: t.string(), entryId: t.string(), photoId: t.string(), at: t.u64() },
-  (ctx, input) => {
-    requireOperator(ctx)
-    const { userId, entryId, photoId } = z
-      .object({ userId: idInput, entryId: z.string().min(1).max(2_000_000), photoId: z.uuid() })
-      .parse(input)
-    addToCollectionIn(ctx, [userId, entryId, input.at])
-    const key = JSON.stringify([userId, entryId])
-    if (Array.from(ctx.db.collectionPhotos.row.filter(key)).length >= MAX_DATASHEET_PHOTOS)
-      throw new SenderError(`You can add up to ${MAX_DATASHEET_PHOTOS} photos of a datasheet`)
-    ctx.db.collectionPhotos.insert({ photoId, key, userId, entryId, at: input.at, likes: 0, review: undefined })
-    touchCollection(ctx, userId)
-    touchAdmin(ctx)
-  },
+  (ctx, input) => addCollectionPhoto(ctx, { ...input, shows: input.entryId }),
 )
+
+/** A photo kept with one collection row but filed under a datasheet its models also count as, so that datasheet's gallery shows it. */
+export const setCollectionPhotoAs = spacetime.reducer(
+  { userId: t.string(), entryId: t.string(), shows: t.string(), photoId: t.string(), at: t.u64() },
+  (ctx, input) => addCollectionPhoto(ctx, input),
+)
+
+function addCollectionPhoto(ctx: Context, input: { userId: string; entryId: string; shows: string; photoId: string; at: bigint }) {
+  requireOperator(ctx)
+  const { userId, entryId, shows, photoId } = z
+    .object({ userId: idInput, entryId: z.string().min(1).max(2_000_000), shows: z.string().min(1).max(64), photoId: z.uuid() })
+    .parse(input)
+  const key = JSON.stringify([userId, entryId])
+  if (shows !== entryId && !ctx.db.collection.key.find(key)?.countsAs?.includes(shows))
+    throw new SenderError('Choose a datasheet these models can also be')
+  addToCollectionIn(ctx, [userId, entryId, input.at])
+  if (Array.from(ctx.db.collectionPhotos.row.filter(key)).length >= MAX_DATASHEET_PHOTOS)
+    throw new SenderError(`You can add up to ${MAX_DATASHEET_PHOTOS} photos of a datasheet`)
+  ctx.db.collectionPhotos.insert({ photoId, key, userId, entryId: shows, at: input.at, likes: 0, review: undefined })
+  touchCollection(ctx, userId)
+  touchAdmin(ctx)
+}
 
 /** The owner's removal of one of their photos; another player's photo is left alone. */
 export const removeCollectionPhoto = spacetime.reducer({ userId: t.string(), photoId: t.string() }, (ctx, { userId, photoId }) => {
@@ -1992,11 +2002,14 @@ export const clearCollectionPhotoDeletions = spacetime.reducer({ photoIds: t.arr
  * A collection row's photos, oldest first; absent rather than empty when there are none, because `productJson` writes
  * undefined fields as null. Only the owner sees a held photo.
  */
-function collectionPhotoField(ctx: Context, key: string, owner = true) {
-  const photos = Array.from(ctx.db.collectionPhotos.row.filter(key))
+function collectionPhotoField(ctx: Context, row: { key: string; entryId: string }, owner = true) {
+  const photos = Array.from(ctx.db.collectionPhotos.row.filter(row.key))
     .filter((photo) => owner || photo.review !== 'held')
     .toSorted((left, right) => Number(left.at - right.at) || left.photoId.localeCompare(right.photoId))
-  return photos.length ? { photoIds: photos.map((photo) => photo.photoId) } : {}
+  const shows = photos.filter((photo) => photo.entryId !== row.entryId).map((photo) => [photo.photoId, photo.entryId])
+  return photos.length
+    ? { photoIds: photos.map((photo) => photo.photoId), ...(shows.length ? { photoShows: Object.fromEntries(shows) } : {}) }
+    : {}
 }
 
 /** Drops a photo and its likes, leaving its id for the web server to delete the stored object. */

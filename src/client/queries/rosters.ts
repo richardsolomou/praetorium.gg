@@ -13,6 +13,7 @@ import {
   collectionWishes,
   collectionCountsAs,
   collectionPhotos,
+  collectionPhotoShows,
   datasheetPhotos,
   fieldedDatasheets,
   wishlistSuggestions,
@@ -105,6 +106,8 @@ export const datasheetPhotosQuery = (entryId: string) =>
   })
 export const collectionPhotosQuery = () =>
   queryOptions({ queryKey: ['collection-photos'], queryFn: () => collectionPhotos(), staleTime: SSR_STALE_TIME })
+export const collectionPhotoShowsQuery = () =>
+  queryOptions({ queryKey: ['collection-photo-shows'], queryFn: () => collectionPhotoShows(), staleTime: SSR_STALE_TIME })
 
 export const unitsQuery = (
   catalogueId: string,

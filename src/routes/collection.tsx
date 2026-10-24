@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { CollectionPage } from '../client/features/collection/CollectionPage'
 import {
   collectionCountsQuery,
+  collectionPhotoShowsQuery,
   collectionPhotosQuery,
   collectionProgressQuery,
   collectionQuery,
@@ -24,6 +25,7 @@ export const Route = createFileRoute('/collection')({
       context.queryClient.query({ ...collectionWishesQuery(), staleTime: 'static' }),
       context.queryClient.query({ ...collectionCountsAsQuery(), staleTime: 'static' }),
       context.queryClient.query({ ...collectionPhotosQuery(), staleTime: 'static' }).catch(() => ({})),
+      context.queryClient.query({ ...collectionPhotoShowsQuery(), staleTime: 'static' }).catch(() => ({})),
       // Suggestions are optional; a failed read leaves them out instead of failing the page.
       context.queryClient.query({ ...fieldedDatasheetsQuery(), staleTime: 'static' }).catch(() => []),
       context.queryClient.query({ ...combatUnitsQuery(), staleTime: 'static' }),

@@ -48,7 +48,14 @@ export function collectionDatasheets(factions: readonly CollectionFaction[]) {
 }
 
 export function groupCollection(
-  entries: readonly { entryId: string; models: number; built?: number; painted?: number; photoIds?: string[] }[],
+  entries: readonly {
+    entryId: string
+    models: number
+    built?: number
+    painted?: number
+    photoIds?: string[]
+    photoShows?: Record<string, string>
+  }[],
   factions: readonly CollectionFaction[],
 ) {
   const sheets = collectionDatasheets(factions)
@@ -66,6 +73,8 @@ export function groupCollection(
         built?: number
         painted?: number
         photoIds?: string[]
+        /** The datasheet each photo of another build shows, by photo id. */
+        photoShows?: Record<string, { entryId: string; name: string }>
       }[]
     }
   >()
@@ -74,7 +83,20 @@ export function groupCollection(
     const id = sheet?.catalogueId ?? null
     const group = groups.get(id) ?? { catalogueId: id, name: sheet?.faction ?? 'Earlier rules', models: 0, entries: [] }
     group.models += entry.models
-    group.entries.push({ ...entry, slug: sheet?.slug ?? null, name: sheet?.name ?? 'A datasheet from earlier rules' })
+    const { photoShows, ...rest } = entry
+    group.entries.push({
+      ...rest,
+      slug: sheet?.slug ?? null,
+      name: sheet?.name ?? 'A datasheet from earlier rules',
+      ...(photoShows && {
+        photoShows: Object.fromEntries(
+          Object.entries(photoShows).map(([photoId, shown]) => [
+            photoId,
+            { entryId: shown, name: sheets.get(shown)?.name ?? 'A datasheet from earlier rules' },
+          ]),
+        ),
+      }),
+    })
     groups.set(id, group)
   }
   return [...groups.values()]

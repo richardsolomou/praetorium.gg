@@ -348,6 +348,15 @@ export const collectionPhotos = createServerFn({ method: 'GET' }).handler(() =>
   }),
 )
 
+/** Photos filed under another datasheet the entry's models count as, by photo id. */
+export const collectionPhotoShows = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => {
+    const id = await currentUserId()
+    const shows: Record<string, string> = id ? await app().service.rosterService.collectionPhotoShows(id) : {}
+    return shows
+  }),
+)
+
 const photoRateLimit = fixedWindowRateLimit('too many photo uploads')
 
 export const uploadCollectionPhoto = createServerFn({ method: 'POST' })
@@ -357,7 +366,7 @@ export const uploadCollectionPhoto = createServerFn({ method: 'POST' })
       const player = await requireUser()
       const limited = photoRateLimit(getRequest(), 12)
       if (limited) throw limited
-      const photoId = await app().collectionPhotos.upload(player.id, data.entryId, data.image)
+      const photoId = await app().collectionPhotos.upload(player.id, data.entryId, data.image, data.shows)
       await app().telemetry.capture(player.id, 'collection_photo_uploaded')
       void recordScreening(app().photoScreening, data.image, COLLECTION_PHOTO_QUESTIONS, (properties) =>
         app().telemetry.capture(player.id, 'collection_photo_screened', properties),

@@ -30,6 +30,7 @@ const queryFamilies = {
     'collection-wishes',
     'collection-counts-as',
     'collection-photos',
+    'collection-photo-shows',
     'collection-profile',
     'datasheet-photos',
   ],

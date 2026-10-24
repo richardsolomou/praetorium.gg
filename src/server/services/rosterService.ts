@@ -318,6 +318,11 @@ export class RosterService {
     return Object.fromEntries(rows.flatMap((row) => (row.photoIds ? [[row.entryId, row.photoIds]] : [])))
   }
 
+  async collectionPhotoShows(userId: string): Promise<Record<string, string>> {
+    const rows = await this.repository.collectionByUser(userId)
+    return Object.assign({}, ...rows.map((row) => row.photoShows))
+  }
+
   async setCollectionModels(userId: string, entryId: string, models: number) {
     await this.repository.setCollectionModels({ userId, entryId, models, now: this.clock() })
   }

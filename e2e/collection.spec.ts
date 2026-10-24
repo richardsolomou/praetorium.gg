@@ -759,6 +759,41 @@ test('models that can also be another datasheet fill it in a roster and show as 
   await page.screenshot({ path: test.info().outputPath('counts-as-readiness-phone.png'), fullPage: true })
 })
 
+test('photos of another build stay with the models they show and appear on that build’s datasheet', async ({ page }) => {
+  const player = uniqueName('Build photos')
+  await signUp(page, player)
+  await page.goto('/collection')
+  await addDatasheet(page, 'Necron Warriors', 'Necrons')
+  const card = page.locator('[data-unit="Necron Warriors"]')
+  await card.getByRole('button', { name: 'Actions for Necron Warriors', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Can also be…', exact: true }).click()
+  const linking = page.getByRole('dialog', { name: 'What else can these Necron Warriors models be?' })
+  await linking.getByLabel('Search this army’s datasheets').fill('immortals')
+  await linking.getByRole('checkbox', { name: 'Immortals', exact: true }).check()
+  await linking.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(card.locator('[data-counts-as]')).toContainText('Can also be Immortals')
+
+  const dialog = page.getByRole('dialog', { name: 'Your Necron Warriors', exact: true })
+  await retryUntilVisible(dialog, () => card.getByRole('button', { name: 'Add photos of your Necron Warriors', exact: true }).click())
+  const immortals = dialog.getByRole('region', { name: 'Immortals', exact: true })
+  await immortals.getByLabel('Choose photos of your Immortals').setInputFiles(png('immortals.png'))
+  await loaded(immortals.getByRole('button', { name: 'Your photo 1 of Immortals', exact: true }).locator('img'))
+  await expect(
+    dialog.getByRole('region', { name: 'Necron Warriors', exact: true }).getByRole('button', { name: /^Your photo/ }),
+  ).toHaveCount(0)
+  await page.screenshot({ path: test.info().outputPath('build-photos-dialog.png') })
+  await page.keyboard.press('Escape')
+
+  await page.goto('/factions/necrons/datasheets/immortals')
+  const gallery = page.locator('[data-datasheet-photos]')
+  await expect(gallery.getByRole('button', { name: `Immortals from ${player}’s collection`, exact: true })).toBeVisible()
+  await gallery.getByLabel('Choose photos of your Immortals').setInputFiles(png('second.png'))
+  await expect(gallery.getByRole('button', { name: `Immortals from ${player}’s collection`, exact: true })).toHaveCount(2)
+  await page.goto('/collection')
+  await expect(page.locator('[data-unit]')).toHaveCount(1)
+  await expect(card.getByRole('button', { name: 'Photos of your Necron Warriors', exact: true })).toHaveText('2')
+})
+
 test('the wishlist suggests unowned datasheets other players field that none of the player’s rosters use', async ({ page, browser }) => {
   const publisher = await browser.newPage()
   await savedArmy(publisher, 'Wishlist publisher', { name: 'Published', visibility: 'public' })

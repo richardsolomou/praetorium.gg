@@ -3,15 +3,29 @@ import { cn } from '@/lib/utils'
 import { Camera } from 'lucide-react'
 import { useState } from 'react'
 import { collectionPhotoPath } from '../../../contracts/collection'
-import { MAX_DATASHEET_PHOTOS } from '../../../core/collectionPhotos'
+import { MAX_DATASHEET_PHOTOS, photosShowing } from '../../../core/collectionPhotos'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/Dialog'
-import { collectionPhotosQuery, meQuery } from '../../queries'
+import { collectionPhotoShowsQuery, collectionPhotosQuery, meQuery } from '../../queries'
 import { PhotoDropZone } from './PhotoDropZone'
 import { PhotoViewer } from './PhotoViewer'
 import { usePhotoSteps } from './PhotoLightbox'
 
-/** A collection row's photo: its first thumbnail, or a camera when there is none, opening the player's photos of that datasheet. */
-export function CollectionPhoto({ entryId, name }: { entryId: string; name: string }) {
+const noVariants: readonly { id: string; name: string }[] = []
+
+/**
+ * A collection row's photo: its first thumbnail, or a camera when there is none, opening the player's photos of that datasheet.
+ *
+ * A row whose models count as other datasheets lists each of them apart, so a photo of a magnetised build is filed as that build.
+ */
+export function CollectionPhoto({
+  entryId,
+  name,
+  variants = noVariants,
+}: {
+  entryId: string
+  name: string
+  variants?: readonly { id: string; name: string }[]
+}) {
   const [open, setOpen] = useState(false)
   const { data: photos } = useQuery(collectionPhotosQuery())
   const own = photos?.[entryId] ?? []
@@ -42,7 +56,16 @@ export function CollectionPhoto({ entryId, name }: { entryId: string; name: stri
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
-            <OwnPhotos entryId={entryId} name={name} />
+            {variants.length ? (
+              [{ id: entryId, name }, ...variants].map((sheet) => (
+                <section key={sheet.id} aria-label={sheet.name} className="space-y-2">
+                  <h3 className="eyebrow">{sheet.name}</h3>
+                  <OwnPhotos entryId={sheet.id} name={sheet.name} />
+                </section>
+              ))
+            ) : (
+              <OwnPhotos entryId={entryId} name={name} />
+            )}
           </DialogBody>
         </DialogContent>
       </Dialog>
@@ -54,7 +77,8 @@ export function CollectionPhoto({ entryId, name }: { entryId: string; name: stri
 export function OwnPhotos({ entryId, name, className = 'grid-cols-3' }: { entryId: string; name: string; className?: string }) {
   const { data: me } = useQuery(meQuery())
   const { data: photos } = useQuery({ ...collectionPhotosQuery(), enabled: Boolean(me) })
-  const own = photos?.[entryId] ?? []
+  const { data: shows } = useQuery({ ...collectionPhotoShowsQuery(), enabled: Boolean(me) })
+  const own = photosShowing(photos ?? {}, shows ?? {}, entryId)
   const viewing = usePhotoSteps(me ? own.map((photoId) => ({ photoId, owner: { id: me.id, name: me.name } })) : [])
   if (!me) return null
   return (

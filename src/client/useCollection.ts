@@ -13,6 +13,7 @@ import {
 import {
   collectionCountsQuery,
   collectionCountsAsQuery,
+  collectionPhotoShowsQuery,
   collectionPhotosQuery,
   collectionProgressQuery,
   collectionQuery,
@@ -146,6 +147,7 @@ function useInvalidatePhotos() {
   return () =>
     Promise.all([
       queryClient.invalidateQueries({ queryKey: collectionPhotosQuery().queryKey }),
+      queryClient.invalidateQueries({ queryKey: collectionPhotoShowsQuery().queryKey }),
       queryClient.invalidateQueries({ queryKey: collectionQuery().queryKey }),
       queryClient.invalidateQueries({ queryKey: collectionCountsQuery().queryKey }),
       queryClient.invalidateQueries({ queryKey: datasheetPhotosKey() }),
@@ -157,8 +159,8 @@ function useInvalidatePhotos() {
 export function useCollectionPhotoUpload() {
   const onSettled = useInvalidatePhotos()
   return useMutation({
-    mutationFn: async ({ entryId, file }: { entryId: string; file: File }) =>
-      uploadCollectionPhoto({ data: { entryId, image: await prepareCollectionPhoto(file) } }),
+    mutationFn: async ({ entryId, shows, file }: { entryId: string; shows?: string; file: File }) =>
+      uploadCollectionPhoto({ data: { entryId, shows, image: await prepareCollectionPhoto(file) } }),
     onSettled,
   })
 }
