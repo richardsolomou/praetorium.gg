@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, CheckCircle2, ImageIcon, MessageSquareOff, SendHorizontal } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
+import Markdown, { type Components } from 'react-markdown'
 import type { Message, TicketStatus } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Kbd } from '@/components/ui/kbd'
@@ -272,7 +273,7 @@ function Bubble({
             sending && 'opacity-60',
           )}
         >
-          {read ? read.body : message.content}
+          {read ? read.body : mine ? message.content : <TeamMessage content={message.content} />}
           {read && (read.version || read.screenshot) ? (
             <span className="mt-2 flex flex-wrap gap-1.5 border-t border-edge pt-2 whitespace-normal">
               {read.version ? <span className="chip">Version {read.version}</span> : null}
@@ -289,6 +290,32 @@ function Bubble({
         </p>
       </div>
     </div>
+  )
+}
+
+/** The team writes replies in markdown, so a pasted image or link shows as one rather than as its syntax. */
+const TEAM_MARKDOWN: Components = {
+  p: ({ children }) => <p className="whitespace-pre-wrap">{children}</p>,
+  a: ({ href, children }) => (
+    <a href={href} target="_blank" rel="noreferrer" className="text-info underline underline-offset-2 hover:text-bone">
+      {children}
+    </a>
+  ),
+  img: ({ src, alt }) =>
+    typeof src === 'string' ? (
+      <a href={src} target="_blank" rel="noreferrer" className="block">
+        <img src={src} alt={alt ?? ''} loading="lazy" className="max-h-80 max-w-full border border-edge" />
+      </a>
+    ) : null,
+  ul: ({ children }) => <ul className="list-disc pl-5">{children}</ul>,
+  ol: ({ children }) => <ol className="list-decimal pl-5">{children}</ol>,
+}
+
+function TeamMessage({ content }: { content: string }) {
+  return (
+    <span className="block space-y-2 whitespace-normal">
+      <Markdown components={TEAM_MARKDOWN}>{content}</Markdown>
+    </span>
   )
 }
 

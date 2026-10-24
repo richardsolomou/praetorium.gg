@@ -21,6 +21,14 @@ export function ticketSubject(content: string) {
   return line.length > SUBJECT_LENGTH ? `${line.slice(0, SUBJECT_LENGTH - 1).trimEnd()}…` : line
 }
 
+/** A message on one line, with the team's markdown images and links read as words rather than syntax. */
+export const messagePreview = (content: string) =>
+  readTicketMessage(content)
+    .body.replace(/!\[[^\]]*\]\([^)]*\)/g, 'Image')
+    .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replace(/\s+/g, ' ')
+    .trim()
+
 /** The SDK cuts any string property at 65,535 characters; the message is sent twice, well inside the 1 MB event limit. */
 export const IMPORT_REPORT_MAX_LENGTH = 60_000
 
