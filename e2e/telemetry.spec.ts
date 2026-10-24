@@ -562,6 +562,25 @@ test('a reply appears in an open conversation without reloading it', async ({ pa
   await expect(conversation.getByText('Looking into it')).toBeVisible({ timeout: 15_000 })
 })
 
+test('a link from a reply email opens that conversation over the support page', async ({ page }) => {
+  await page.goto('/factions')
+  await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
+  const support = await stubSupport(page)
+  await support.seed(3)
+  const [, linked] = await support.tickets()
+  await support.reply(linked.id, 'We fixed it')
+
+  // The stand-in lives in this page, so the link is followed in place rather than loaded fresh.
+  await page.evaluate((id) => {
+    history.pushState({}, '', `/support?conversation=${id}`)
+    dispatchEvent(new PopStateEvent('popstate'))
+  }, linked.id)
+
+  const panel = page.getByRole('dialog')
+  await expect(panel.getByRole('region', { name: 'Conversation' }).getByText('We fixed it')).toBeVisible()
+  await expect(page).toHaveURL(/\/support$/)
+})
+
 test('an administrator opens the screenshot attached to feedback', async ({ page }) => {
   await signInAsPreview(page)
   await page.goto('/factions')
