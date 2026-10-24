@@ -1,10 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query'
 import {
   alliedLeagueRosterLimit,
+  leagueTableShape,
   leagueRegistrationFull,
   leagueRosterSplit,
   type LeagueAdmission,
   type LeagueEntryView,
+  type LeagueStage,
 } from '../../../core/league'
 import { pointsLabel } from '../../../core/battle'
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
@@ -145,4 +147,29 @@ export function leaguePhase(league: LeagueFacts, accepted: number, occupied: num
   return leagueRegistrationFull(league, accepted, occupied)
     ? { label: 'Registration full', tint: 'text-dim' }
     : { label: 'Registration open', tint: 'text-parchment' }
+}
+
+/**
+ * What happens next at an event's stage. The organizer reads the step the reveal waits on; a player's own step before
+ * the reveal is already on the status card and the readiness panel, so a player reads one only once their side can
+ * start a battle.
+ */
+export function leagueNextStep(stage: LeagueStage, viewer: { organizer: boolean; canPlay: boolean }, format: League['format']) {
+  const shape = leagueTableShape(format)
+  if (viewer.organizer)
+    return {
+      empty: 'Copy the invite link and send it to your group.',
+      approving: 'Answer the requests waiting below.',
+      recruiting: 'Share the invite link. This format needs more players before you can reveal.',
+      sizing: 'Size players below: at least one solo and two allied.',
+      pairing: `Pair ${shape === '2v1' ? 'the allies' : 'players into teams'} below.`,
+      sealing: 'Players seal their rosters. Nobody sees another list, you included, until the reveal.',
+      choosing: 'Each team chooses its Force Disposition. Then you can reveal the rosters.',
+      ready: 'Reveal the rosters. That opens every list at once and closes entry.',
+      playing: 'Players start their league battles from this page. Finished ones fill the results table.',
+      results: 'Start the next event once this one’s games are done.',
+    }[stage]
+  return (stage === 'playing' || stage === 'results') && viewer.canPlay
+    ? `Start a ${TABLE_SHAPE_LABELS[shape].count} battle from your card. Finished battles fill the results table.`
+    : null
 }
