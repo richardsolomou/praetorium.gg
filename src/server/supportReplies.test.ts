@@ -39,6 +39,12 @@ describe('supportReplyEmail', () => {
     expect(supportReplyEmail({ name: 'Tronic', url: 'https://praetorium.gg/support' }).subject).toBe('We replied to your message')
   })
 
+  it('points its button at the conversation', () => {
+    expect(supportReplyEmail({ name: 'Tronic', url: 'https://praetorium.gg/support?conversation=t-1' }).html).toMatch(
+      /<a href="https:\/\/praetorium\.gg\/support\?conversation=t-1"[^>]*>Read our reply<\/a>/,
+    )
+  })
+
   it('escapes the name in the HTML part', () => {
     expect(supportReplyEmail({ name: '<b>Tronic</b>', url: 'https://praetorium.gg/support' }).html).toContain(
       'Hi &#60;b&#62;Tronic&#60;/b&#62;,',
