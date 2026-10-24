@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildIndex, type Catalogue, type CatalogueFile } from './catalogue'
+import { buildIndex, type Catalogue, type CatalogueFile, type SelectionEntry } from './catalogue'
 import { evaluate } from './evaluate'
 import { defaultSelection, withChoice } from './expand'
 import { buildUnit, resolveUnitChoice } from './roster'
@@ -1658,6 +1658,64 @@ describe('a choice the data closes behind another', () => {
     const built = buildUnit('champion', index, undefined, { ranged: 'combi', melee: 'power-weapon' })!
     expect(wargearOf(built.selection, index)).toEqual([{ name: 'Combi-weapon', count: 1 }])
     expect(evaluate([built.selection], index).errors).toEqual([])
+  })
+})
+
+describe('a wargear group holding only optional extras', () => {
+  const extra = (id: string, name: string): SelectionEntry => ({
+    id,
+    name,
+    type: 'upgrade',
+    constraints: [{ id: `${id}-max`, type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+    modifiers: [
+      {
+        type: 'set',
+        value: 0,
+        field: `${id}-max`,
+        conditions: [{ type: 'lessThan', value: 10, field: 'selections', scope: 'unit', childId: 'model', includeChildSelections: true }],
+      },
+    ],
+  })
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'ratlings',
+        name: 'Ratlings',
+        type: 'unit',
+        selectionEntryGroups: [
+          {
+            id: 'models',
+            name: '5-10 Ratlings',
+            selectionEntries: [
+              {
+                id: 'ratling',
+                name: 'Ratling',
+                type: 'model',
+                constraints: [
+                  { id: 'ratling-min', type: 'min', value: 5, field: 'selections', scope: 'parent' },
+                  { id: 'ratling-max', type: 'max', value: 10, field: 'selections', scope: 'parent' },
+                ],
+              },
+            ],
+          },
+          {
+            id: 'wargear',
+            name: 'Wargear Options',
+            selectionEntries: [extra('battlemutt', 'Ratling Battlemutt'), extra('demolition', 'Demolition Gear')],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('lets a full squad take every extra at once', () => {
+    const choice = buildUnit('ratlings', index, 10)?.choices.find((candidate) => candidate.key === 'wargear')
+    expect({ room: choice?.room, maximums: choice?.options.map((option) => option.max) }).toEqual({ room: 2, maximums: [1, 1] })
+  })
+
+  it('closes every extra the squad size rules out', () => {
+    const choice = buildUnit('ratlings', index, 5)?.choices.find((candidate) => candidate.key === 'wargear')
+    expect(choice?.options.map((option) => option.max)).toEqual([0, 0])
   })
 })
 

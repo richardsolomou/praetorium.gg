@@ -324,20 +324,27 @@ function collectUnitChoices(
           ? effectiveCount(selection, repeating.path, repeating.definition, index, options)
           : scaleOf(child.definition, definition, index, carriers)
         const capacity = maximumCountAt(selection, here, child.definition, index, options)
-        // Specialists that each take a squadmate's place, as a Skitarii Rangers' options do,
-        // compete for no shared room either.
+        const fixed = choosable.some((option) => minimum(option.definition) > 0)
+        // Wargear in a group with no cap, hanging straight off an entry, shares no room: a
+        // Ratlings squad may take its Battlemutt and its demolition gear together. Models
+        // still compete for the squad's bodies, and an enclosing group's cap still counts
+        // what its nested groups hold. Specialists that each take a squadmate's place, as
+        // a Skitarii Rangers' options do, compete for no shared room either.
         const independent =
           capacity === null &&
           choosable.length > 1 &&
-          (choosable.every((option) => /^This model can be equipped with 1 .+\.$/i.test(resolve(option.definition, index).name ?? '')) ||
+          ((!fixed && target.type !== undefined && choosable.every((option) => resolve(option.definition, index).type === 'upgrade')) ||
+            choosable.every((option) => /^This model can be equipped with 1 .+\.$/i.test(resolve(option.definition, index).name ?? '')) ||
             replacesSquadmate(child.definition, childrenOf(target, index), index, options.modifierCache))
-        const room =
-          capacity === null
-            ? independent
-              ? sum(choosable.map((option) => scaled(maximumCount(option.definition, index), scale)))
-              : occupantRoom(choosable, index)
-            : capacity * scale
-        const fixed = choosable.some((option) => minimum(option.definition) > 0)
+        const roomFor = (option: Option) => scaled(maximumCount(option.definition, index), scale)
+        // An option's own cap as the unit stands, since a squad size can open or close it.
+        // The group keeps its full room, so the datasheet still names what a closed option is.
+        const capFor = (option: Option) =>
+          scaled(
+            selectionCountBoundsAt(selection, [...here, option.id], index, options)?.maximum ?? maximumCount(option.definition, index),
+            scale,
+          )
+        const room = capacity === null ? (independent ? sum(choosable.map(roomFor)) : occupantRoom(choosable, index)) : capacity * scale
         const dynamic = choosable.some(
           (option) => minimum(option.definition) === 0 && hasDynamicSelectionLimit(option.definition, index, options.modifierCache),
         )
@@ -369,7 +376,6 @@ function collectUnitChoices(
         // bolter each answer only to their own maximum, once for every model carrying
         // the group, and a tank may carry all three.
         const separate = fixed && capacity === null
-        const roomFor = (option: Option) => scaled(maximumCount(option.definition, index), scale)
         // Replacing one model kind with another must keep the selected squad size.
         // A group's catalogue cap names its largest squad, which is not the room a
         // five-model squad currently has to divide between its loadouts.
@@ -402,7 +408,7 @@ function collectUnitChoices(
                 ? heldRoom(adjustable, countOf)
                 : room
         const maximumFor = (option: Option) => {
-          if (independent) return roomFor(option)
+          if (independent) return capFor(option)
           if (sized && !repeating) {
             return replacingMaximum(selection, here, option, countOf(option.id) + spare, sizePath, index, options)
           }
