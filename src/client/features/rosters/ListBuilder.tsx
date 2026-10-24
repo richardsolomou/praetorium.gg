@@ -883,6 +883,10 @@ export function ListBuilder({
     editor.current.join(index, targetKey)
     posthog.capture('roster_attachment_updated', { attached: targetKey !== undefined })
   }, [])
+  const embark = useCallback((passengerKey: number, transportKey: number | undefined) => {
+    editor.current.embark(passengerKey, transportKey)
+    posthog.capture('roster_embark_updated', { embarked: transportKey !== undefined })
+  }, [])
   const selection = useRef({ picks, updateLoadoutHistory, workspacePath })
   useLayoutEffect(() => {
     selection.current = { picks, updateLoadoutHistory, workspacePath }
@@ -1156,7 +1160,7 @@ export function ListBuilder({
         onSaveLoadout={pricePending ? undefined : guest ? askForLoadoutAccount : me ? openSaveLoadout : undefined}
         onDetach={detach}
         onAttach={attach}
-        onEmbark={edit.embark}
+        onEmbark={embark}
         editable={building}
       />
     )
@@ -1172,6 +1176,7 @@ export function ListBuilder({
             const next = checked ? 'attached' : 'role'
             setArrangement(next)
             keepRosterArrangement(next)
+            posthog.capture('roster_arrangement_changed', { arrangement: next })
           }}
         >
           <Group /> Group attached units
@@ -1757,6 +1762,7 @@ export function ListBuilder({
                     return members.length > 1 ? (
                       <AttachedUnitBlock
                         key={host.key}
+                        name={host.name}
                         nickname={(frozen ? frozen.units[host.index] : picks[host.index])?.nickname}
                         points={members.reduce((total, card) => total + card.unit.points, 0)}
                         editable={!frozen && building}
@@ -1777,7 +1783,7 @@ export function ListBuilder({
                               canHost={cardRelationships.get(picks[host.index]?.key ?? -1)?.canHost ?? []}
                               editable={building}
                               onAttach={attach}
-                              onEmbark={edit.embark}
+                              onEmbark={embark}
                             />
                           )
                         }
