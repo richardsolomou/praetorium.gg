@@ -29,7 +29,6 @@ function stored(section: NativeSection): NativeTabMemory | null {
   try {
     const value = readSessionValue(`${TAB_PREFIX}${section}`)
     if (!value) return null
-    if (!value.startsWith('{')) return { href: value, scrollY: 0, regions: {} }
     const parsed = JSON.parse(value) as Partial<NativeTabMemory>
     if (typeof parsed.href !== 'string') return null
     const state = rememberedState(parsed.state)

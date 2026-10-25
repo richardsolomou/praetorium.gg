@@ -37,7 +37,8 @@ import { Fact } from '../../components/Fact'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SettingRow } from '../../components/SettingRow'
 import { AdminBattleRow } from './AdminBattleRow'
-import { MethodIcon, methodName } from './accountText'
+import { methodName } from './accountText'
+import { AuthMethodIcon } from '../account/AuthMethodIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Problem } from '../../components/Problem'
 import { Notice } from './feedback'
@@ -238,7 +239,7 @@ export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; cu
             {user.signInMethods.map((method) => (
               <SettingRow
                 key={method.providerId}
-                icon={<MethodIcon providerId={method.providerId} />}
+                icon={<AuthMethodIcon method={method.providerId as 'credential' | SocialAuthProvider} />}
                 title={methodName(method.providerId)}
                 detail={`Linked ${dates.date(method.linkedAt)}`}
                 action={

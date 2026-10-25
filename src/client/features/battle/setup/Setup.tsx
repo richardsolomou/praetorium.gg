@@ -33,8 +33,7 @@ import { BATTLE_SIZE_CONTROL, CHOOSABLE, CHOSEN, SetupPanel, useDispositionNames
 import { TwistChoice } from './TwistChoice'
 import { DefenderStep } from './DefenderStep'
 import { FirstTurnStep } from './FirstTurnStep'
-import { DeployStep } from './DeployStep'
-import { PreBattleRulesStep } from './PreBattleRulesStep'
+import { PrebattleUnits } from './PrebattleUnits'
 import { SideDispositionChoice } from './SideDispositionChoice'
 import { ReservesStep } from './ReservesStep'
 import { SecondariesStep } from './SecondariesStep'
@@ -551,7 +550,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
           onboarding="battle-setup-deploy"
           hint={`Sides alternate setting up one unit at a time${defender ? `, ${sideName(defender)} first` : ''}. Units in strategic reserves stay off the table.`}
         >
-          {youHaveAnArmy ? <DeployStep sides={table} /> : null}
+          {youHaveAnArmy ? <PrebattleUnits sides={table} rule="infiltrators" empty="No unit sets up outside the deployment zone." /> : null}
         </SetupSection>
 
         <SetupSection
@@ -586,7 +585,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
           complete={complete['pre-battle']}
           hint={`Sides alternate resolving pre-battle rules${firstSide ? `, ${sideName(firstSide)} first` : ''}. Start battle opens the first Command phase.`}
         >
-          {youHaveAnArmy ? <PreBattleRulesStep sides={table} /> : null}
+          {youHaveAnArmy ? <PrebattleUnits sides={table} rule="scouts" empty="No unit has a pre-battle move." /> : null}
         </SetupSection>
 
         <div data-setup-bar className="flex items-center justify-between gap-3 border-t border-edge pt-6">

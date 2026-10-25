@@ -2,10 +2,9 @@ import { KeyRound } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { SocialAuthProvider } from '../../../authConfig'
 
-export { SOCIAL_AUTH_PROVIDER_NAMES, type SocialAuthProvider } from '../../../authConfig'
-
-export function AuthMethodIcon({ method, className }: { method: SocialAuthProvider | 'password'; className?: string }) {
-  if (method === 'password') return <KeyRound className={cn('size-4', className)} aria-hidden />
+/** A sign-in method's mark, by its auth provider id. */
+export function AuthMethodIcon({ method, className }: { method: 'credential' | SocialAuthProvider; className?: string }) {
+  if (method === 'credential') return <KeyRound className={cn('size-4', className)} aria-hidden />
   if (method === 'apple') return <AppleIcon className={className} />
   if (method === 'google') return <GoogleIcon className={className} />
   if (method === 'github') return <GithubIcon className={className} />

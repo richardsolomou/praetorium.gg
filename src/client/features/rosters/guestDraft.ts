@@ -15,7 +15,6 @@ const KEY = 'praetorium.guest-draft'
 const VERSION = 1
 /** How long after asking to save a sign-in still counts as that request, rather than a later visit. */
 const SAVE_REQUEST_WINDOW_MS = 60 * 60 * 1000
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
 /**
  * A list a visitor is building, kept on this device until an account saves it.
@@ -138,7 +137,7 @@ export function peekGuestDraft(): GuestDraft | null {
 
 /** Tells the server whether this browser holds a list, so a refresh draws the page it will become. */
 export function markGuestDraft(held: boolean) {
-  setRosterCookie(GUEST_DRAFT_COOKIE, held ? '1' : null, COOKIE_MAX_AGE)
+  setRosterCookie(GUEST_DRAFT_COOKIE, held ? '1' : null)
 }
 
 /** Whether the draft was kept; a full or disabled storage keeps nothing and says so. */

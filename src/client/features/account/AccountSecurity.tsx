@@ -8,12 +8,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../../../authConfig'
+import { PASSWORD_MIN_LENGTH, SOCIAL_AUTH_PROVIDER_NAMES, SOCIAL_PROVIDERS, type SocialAuthProvider } from '../../../authConfig'
 import { revokeMcpConnection, setOwnPassword, unlinkOwnAccount } from '../../functions'
 import { authClient } from '../../authClient'
 import { hasNativeAuthBridge, requestNativeAuth, useGithubAuthAvailability } from '../../nativeAuth'
 import { accountMethodsQuery, mcpConnectionsQuery, meQuery } from '../../queries'
-import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES, type SocialAuthProvider } from './AuthMethodIcon'
+import { AuthMethodIcon } from './AuthMethodIcon'
 import { ConnectedAppIcon } from './ConnectedAppIcon'
 import { GithubSupporter } from './GithubSupporter'
 import {
@@ -123,7 +123,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
               </div>
             ) : null}
             <MethodRow
-              method="password"
+              method="credential"
               name="Password"
               linked={hasPassword}
               available
@@ -439,7 +439,7 @@ function MethodRow({
   note,
   action,
 }: {
-  method: SocialAuthProvider | 'password'
+  method: 'credential' | SocialAuthProvider
   name: string
   linked: boolean
   available: boolean

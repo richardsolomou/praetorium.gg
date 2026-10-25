@@ -32,24 +32,10 @@ const PAGE_ADDRESSES = [
   ['/battles/a-token/', 'battle'],
   ['/simulator', 'simulator'],
   ['/simulator/', 'simulator'],
-  ['/data-updates', 'data-updates'],
   ['/', 'home'],
   ['/tournaments', 'leagues'],
   ['/tournaments/', 'leagues'],
   ['/tournaments/a-league', 'league'],
-  ['/factions', 'factions'],
-  ['/factions/orks', 'faction'],
-  ['/factions/orks/detachments/awakened-dynasty', 'detachment'],
-  ['/factions/orks/datasheets', 'datasheets'],
-  ['/factions/orks/datasheets/boyz', 'datasheet'],
-  ['/missions/pack', 'missions'],
-  ['/missions/pack/matchups/you/opponent', 'mission'],
-  ['/leaderboard', 'leaderboard'],
-  ['/rules', 'rules'],
-  ['/rules/core-rules', 'rule-document'],
-  ['/rules/core-rules/movement', 'rule-section'],
-  ['/users/a-player', 'player'],
-  ['/profile', 'profile'],
 ] as const
 
 describe('onboarding page', () => {
@@ -139,7 +125,7 @@ describe('onboarding steps', () => {
   })
 
   it('sends a player on another page to the step’s address', () => {
-    expect(onboardingHrefFor('roster-search', 'factions')).toBe('/rosters')
+    expect(onboardingHrefFor('roster-search', 'battles')).toBe('/rosters')
   })
 
   it('sends a step whose control is nowhere back to the last address that reaches its task', () => {
@@ -290,7 +276,7 @@ describe('onboarding focus', () => {
 
   it('waits for the page it is expecting', () => {
     const focus = { task: 'roster-tools', step: 'tools-review' } as const
-    expect(focusAfterOnboardingNavigation(focus, 'rules')).toBe(focus)
+    expect(focusAfterOnboardingNavigation(focus, 'friends')).toBe(focus)
   })
 
   it('leaves a step whose successor shares its page to the control that opens it', () => {

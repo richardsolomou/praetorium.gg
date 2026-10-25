@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BattleView } from '../core/battleView'
-import { canWritePrep, facingSides, fixedHandShort, missionCardsReady, type SideMission, sideName, sides } from './sides'
+import { canWritePrep, fixedHandShort, missionCardsReady, type SideMission, sideName, sides } from './sides'
 
 type ViewPlayer = BattleView['players'][number]
 
@@ -140,11 +140,6 @@ describe('battle sides', () => {
 
   it('orders sides by seat so both devices agree on the tints', () => {
     expect(sides(view([player({ id: 'second', side: 1 }), player({ id: 'first', side: 0 })])).map((side) => side.index)).toEqual([0, 1])
-  })
-
-  it('puts the viewer’s own side first when facing the table', () => {
-    const battle = view([player({ id: 'them', side: 0 }), player({ id: 'you', side: 1, isViewer: true })])
-    expect(facingSides(battle).yours?.index).toBe(1)
   })
 
   it('names an allied side after both players', () => {
