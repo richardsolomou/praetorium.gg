@@ -835,6 +835,7 @@ export {
   unsealLeagueRoster,
   assignLeagueRosterRequirement,
   assignLeagueTeam,
+  chooseLeagueSide,
   updateLeague,
   deleteLeague,
   deleteBattle,

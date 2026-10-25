@@ -3311,12 +3311,50 @@ export const clubByToken = spacetime.procedure({ token: t.string() }, t.string()
         pointsBudget: event.pointsBudget ?? null,
         players: leagueEntriesFor(tx, event.id)
           .filter((entry) => entry.status === 'accepted')
-          .map((entry) => ({ userId: entry.userId, sealed: entry.rosterSnapshot !== undefined })),
+          .map((entry) => ({
+            userId: entry.userId,
+            sealed: entry.rosterSnapshot !== undefined,
+            teamId: entry.teamId ?? null,
+            requiredLimit: entry.requiredLimit ?? null,
+          })),
         played: playedPairs(tx, event.id),
+        battles: Array.from(tx.db.leagueEventBattles.eventId.filter(event.id)).length,
+        playing: unfinishedPlayers(tx, event.id),
       })),
     })
   }),
 )
+
+const CLUB_GAME_SIDES = ['solo', 'pair', 'team-1', 'team-2'] as const
+
+/** The seat a side of a club's team game names: one solo player against an allied pair, or two pairs. */
+function clubGameSeat(format: string | undefined, rosterLimit: number | undefined, side: (typeof CLUB_GAME_SIDES)[number]) {
+  if (rosterLimit === undefined) return null
+  const allied = alliedLeagueRosterLimit(rosterLimit)
+  if (format === '2v1' && side === 'solo') return { teamId: undefined, requiredLimit: rosterLimit, places: 1 }
+  if (format === '2v1' && side === 'pair') return { teamId: 'pair', requiredLimit: allied, places: 2 }
+  if (format === '2v2' && (side === 'team-1' || side === 'team-2')) return { teamId: side, requiredLimit: allied, places: 2 }
+  return null
+}
+
+/** Everyone seated at one of an event's battles that has not ended yet. */
+function unfinishedPlayers(ctx: Context, eventId: string) {
+  const players = new Set<string>()
+  for (const row of ctx.db.leagueEventBattles.eventId.filter(eventId)) {
+    if (!ctx.db.battles.id.find(row.battleId)) continue
+    const { seats, log } = battleData(ctx, row.battleId)
+    const ids = seats.map((seat) => seat.id)
+    if (
+      reduceBattle(
+        ids,
+        log,
+        seats.map((seat) => seat.side),
+      ).status !== 'finished'
+    )
+      for (const id of ids) players.add(id)
+  }
+  return [...players]
+}
 
 /** Which entrants have already started a battle against each other in an event, as sorted id pairs. */
 function playedPairs(ctx: Context, eventId: string) {
@@ -3835,14 +3873,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       })
     } else {
       const club = tx.db.clubs.token.find(leagueCommandInput(z.object({ clubToken: idInput }), value).clubToken)
-      // A club's game is a casual round of duels between members, so Swiss rounds and team formats are a tournament's alone.
-      if (
-        !club ||
-        input.rounds !== null ||
-        (input.format ?? '1v1') !== '1v1' ||
-        !isClubOrganizer(club, clubMemberRows(tx, club), input.ownerId)
-      )
-        return productJson('forbidden')
+      // A club's game is casual, so Swiss rounds are a tournament's alone.
+      if (!club || input.rounds !== null || !isClubOrganizer(club, clubMemberRows(tx, club), input.ownerId)) return productJson('forbidden')
       tx.db.clubGames.insert({ eventId: input.eventId, clubId: club.id, creatorId: input.ownerId, createdAt })
     }
     tx.db.sealedEvents.insert({
@@ -3908,6 +3940,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       ? host.tournament.ownerId !== ownerId
       : ![
           'submit',
+          'set-side',
           'set-team-disposition',
           'set-team-warlord',
           'create-battle',
@@ -3981,9 +4014,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     }
     if (rule) {
       const rounds = rule.rounds === undefined ? event.rounds : (rule.rounds ?? undefined)
-      // Swiss rounds pair duels; a club game is always a round of duels without them.
-      if (rounds !== undefined && rule.format !== '1v1') return productJson('forbidden')
-      if (host.kind === 'club' && (rounds !== undefined || rule.format !== '1v1')) return productJson('forbidden')
+      // Swiss rounds pair duels, and a club's game never plays them.
+      if (rounds !== undefined && (host.kind === 'club' || rule.format !== '1v1')) return productJson('forbidden')
       const points =
         rule.pointsBudget === undefined
           ? { budget: rule.format === '1v1' && rule.rosterLimit === event.rosterLimit ? event.pointsBudget : undefined }
@@ -4312,6 +4344,51 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         })
     touchEvent(tx, host)
     return productJson(input.noticeResults ? { resealIds } : 'updated')
+  }
+  if (operation === 'set-side') {
+    const input = leagueCommandInput(
+      z.object({ op: z.literal('set-side'), side: z.enum(CLUB_GAME_SIDES).nullable(), now: leagueTimeInput }),
+      value,
+    )
+    // A club's players take their own seats; a tournament's organizer sizes and pairs its entrants.
+    if (host.kind !== 'club') return productJson('forbidden')
+    if (event.revealedAt !== undefined || (event.sealBy !== undefined && BigInt(input.now) > event.sealBy)) return productJson('closed')
+    if (tx.db.clubMembers.key.find(JSON.stringify([host.club.id, ownerId]))?.status !== 'accepted') return productJson('members-only')
+    const key = JSON.stringify([event.id, ownerId])
+    const entry = tx.db.leagueEventEntries.key.find(key)
+    if (input.side === null) {
+      if (entry) {
+        if (entry.teamId) clearTeamPicks(tx, event.id, new Set([entry.teamId]))
+        tx.db.leagueEventEntries.key.delete(key)
+        touchEvent(tx, host)
+      }
+      return productJson('updated')
+    }
+    const seat = clubGameSeat(event.format, event.rosterLimit, input.side)
+    if (!seat) return productJson('wrong-format')
+    if (entry && entry.teamId === seat.teamId && entry.requiredLimit === seat.requiredLimit) return productJson('updated')
+    const taken = leagueEntriesFor(tx, event.id).filter(
+      (row) =>
+        row.userId !== ownerId && row.status === 'accepted' && row.teamId === seat.teamId && row.requiredLimit === seat.requiredLimit,
+    ).length
+    if (taken >= seat.places) return productJson('full')
+    // Both sides' Force Disposition and Warlord picks were made for the old line-up, so each side chooses again.
+    clearTeamPicks(tx, event.id, new Set([entry?.teamId, seat.teamId].filter((id): id is string => id !== undefined)))
+    if (!entry) insertLeagueEntry(tx, event.id, ownerId, 'accepted', input.now)
+    const current = tx.db.leagueEventEntries.key.find(key)!
+    tx.db.leagueEventEntries.key.update({
+      ...current,
+      status: 'accepted',
+      teamId: seat.teamId,
+      requiredLimit: seat.requiredLimit,
+      // A list sealed for another seat may not fit this one, so it is sealed again.
+      rosterId: undefined,
+      rosterName: undefined,
+      rosterSnapshot: undefined,
+      submittedAt: undefined,
+    })
+    touchEvent(tx, host)
+    return productJson('updated')
   }
   if (operation === 'submit') {
     const input = leagueCommandInput(

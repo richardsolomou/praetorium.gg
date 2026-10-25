@@ -753,8 +753,16 @@ describe('club games', () => {
     expect(setup().create('owner', { rounds: 3 })).toBe('forbidden')
   })
 
-  it('plays duels only', () => {
-    expect(setup().create('owner', { format: '2v2' })).toBe('forbidden')
+  it('seats members on their own sides of a team game, one solo player against a pair', () => {
+    const fixture = setup()
+    fixture.create('owner', { format: '2v1' })
+    const sit = (ownerId: string, side: string | null) => fixture.game({ op: 'set-side', ownerId, side, now: NOW })
+    expect([sit('owner', 'solo'), sit('member', 'solo'), sit('member', 'pair'), sit('stranger', 'pair')]).toEqual([
+      'updated',
+      'full',
+      'updated',
+      'members-only',
+    ])
   })
 
   it('enters a member who seals a list without joining first', () => {

@@ -48,22 +48,23 @@ const offeredAllowances = (rule: LeagueEventRuleValue): LeagueEventRuleValue => 
   pointsBudget: rule.format === '1v1' && allowsPointsBudget(rule.rosterLimit) ? rule.pointsBudget : null,
 })
 
-/** What a team shape asks of an entrant's roster; a duel's points say it all. */
+/** What a team shape asks of an entrant's roster; a duel's points say it all. A tournament's organizer seats entrants, a club's players seat themselves. */
 export const ROSTER_RULE: Partial<Record<TableShape, string>> = {
   '2v1': 'You give each player a solo or allied size before they seal.',
   '2v2': 'You pair players into teams of two, and each seals a half-size roster. Team-wide limits are yours to check.',
+}
+export const CLUB_ROSTER_RULE: Partial<Record<TableShape, string>> = {
+  '2v1': 'Players take the solo seat or a place in the pair, then seal a list for it.',
+  '2v2': 'Players join one of two teams, then each seals a half-size list. Team-wide limits are up to each team.',
 }
 
 export function LeagueEventRuleFields({
   value,
   pairing = false,
-  duelOnly = false,
   disabled = false,
   onChange,
 }: {
   value: LeagueEventRuleValue
-  /** A club's sealed game is a round of duels, so it offers no other format. */
-  duelOnly?: boolean
   /** Whether the organizer may choose Swiss rounds, which a club's sealed game never plays. */
   pairing?: boolean
   disabled?: boolean
@@ -83,27 +84,25 @@ export function LeagueEventRuleFields({
 
   return (
     <>
-      {duelOnly ? null : (
-        <Choice
-          label="Battle format"
-          value={value.format}
-          options={TABLE_SHAPES.map((shape) => ({ value: shape, ...TABLE_SHAPE_LABELS[shape] }))}
-          columns={3}
-          disabled={disabled}
-          onChange={(format) =>
-            onChange(
-              offeredAllowances({
-                ...value,
-                format,
-                rosterLimit:
-                  format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)
-                    ? LEAGUE_DEFAULT_ROSTER_LIMIT
-                    : value.rosterLimit,
-              }),
-            )
-          }
-        />
-      )}
+      <Choice
+        label="Battle format"
+        value={value.format}
+        options={TABLE_SHAPES.map((shape) => ({ value: shape, ...TABLE_SHAPE_LABELS[shape] }))}
+        columns={3}
+        disabled={disabled}
+        onChange={(format) =>
+          onChange(
+            offeredAllowances({
+              ...value,
+              format,
+              rosterLimit:
+                format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)
+                  ? LEAGUE_DEFAULT_ROSTER_LIMIT
+                  : value.rosterLimit,
+            }),
+          )
+        }
+      />
       <div className="space-y-1.5">
         {limits.length > 1 ? (
           <>
@@ -149,7 +148,9 @@ export function LeagueEventRuleFields({
             <p className="font-semibold">{label(value.rosterLimit)}</p>
           </>
         )}
-        {ROSTER_RULE[value.format] ? <p className="text-xs text-dim">{ROSTER_RULE[value.format]}</p> : null}
+        {(pairing ? ROSTER_RULE : CLUB_ROSTER_RULE)[value.format] ? (
+          <p className="text-xs text-dim">{(pairing ? ROSTER_RULE : CLUB_ROSTER_RULE)[value.format]}</p>
+        ) : null}
       </div>
       {pairing && value.format === '1v1' ? <Pairing value={value} disabled={disabled} onChange={onChange} /> : null}
       <HouseRules value={value} disabled={disabled} onChange={onChange} />

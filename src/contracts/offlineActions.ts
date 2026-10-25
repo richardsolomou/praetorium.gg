@@ -39,6 +39,7 @@ export const offlineActionSchemas = {
   unsealLeagueRoster: schemas.leagueRosterSchema,
   assignLeagueRosterRequirement: schemas.assignLeagueRosterRequirementSchema,
   assignLeagueTeam: schemas.assignLeagueTeamSchema,
+  chooseLeagueSide: schemas.chooseLeagueSideSchema,
   updateLeague: schemas.updateLeagueSchema,
   deleteLeague: schemas.tokenSchema,
   deleteBattle: schemas.deleteBattleSchema,

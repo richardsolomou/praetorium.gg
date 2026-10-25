@@ -1,68 +1,132 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import { Check, EllipsisVertical, Eye, FileLock2, Pencil, Swords, Trash2 } from 'lucide-react'
+import { Check, EllipsisVertical, Eye, FileLock2, LogOut, Pencil, Swords, Trash2, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { leagueSealingClosed } from '../../../core/league'
+import type { LeagueSide } from '../../../contracts/schemas'
+import { leagueRevealChecklist, leagueSealingClosed, requiredLeagueRosterLimit } from '../../../core/league'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
-import { createLeagueBattle, deleteLeague, revealLeague, submitLeagueRoster } from '../../functions'
-import { battlesQuery, gameReferencesQuery, leagueQuery } from '../../queries'
+import { chooseLeagueSide, createLeagueBattle, deleteLeague, revealLeague, submitLeagueRoster } from '../../functions'
+import { battlesFrom, battlesQuery, gameReferencesQuery, leagueBattlesQuery, leagueQuery } from '../../queries'
+import { BattleShelf } from '../battles/BattleShelf'
+import { countLabel } from '../../text'
 import { useNow } from '../../useNow'
 import { useMoment } from '../leagues/EventSchedule'
 import { ViewRosterButton } from '../leagues/LeagueEntrants'
 import { RosterChooser } from '../leagues/LeagueRosterChooser'
 import { LeagueSettingsDialog } from '../leagues/LeagueSettingsDialog'
-import { eventName, useLeagueRefresh } from '../leagues/leagueEvent'
-import type { Club } from './club'
+import { TeamDispositionPanel } from '../leagues/LeagueTeamDisposition'
+import { TeamWarlordPanel } from '../leagues/LeagueTeamWarlord'
+import { eventName, namesPhrase, useLeagueRefresh } from '../leagues/leagueEvent'
+import { useClubRefresh, type Club } from './club'
 
 type Game = Club['games'][number]
+type Player = Game['players'][number]
+type Side = { key: string; title: string; side: LeagueSide | null; places: number; players: Player[] }
+
+const teamGame = (game: Game) => game.format === '2v1' || game.format === '2v2'
 
 /**
- * A club's sealed game where the club plays it: who has sealed a list, sealing your own, opening them together, then
- * a battle against each member who sealed, with the lists everyone sealed.
+ * The sides of a team game: a solo seat against a pair, or two teams of two. Before the reveal every seat a player may
+ * take shows, empty or not; a game carried over from a league names its pairs by id instead.
+ */
+function gameSides(game: Game): Side[] {
+  const open = game.revealedAt === null
+  const fixed = game.format === '2v1' ? ['pair'] : ['team-1', 'team-2']
+  const teamIds = [...new Set([...(open ? fixed : []), ...game.players.flatMap((player) => (player.teamId ? [player.teamId] : []))])]
+  const label = game.format === '2v1' ? 'Pair' : 'Team'
+  const teams = teamIds.map((teamId, index) => ({
+    key: teamId,
+    title: game.format === '2v1' && teamIds.length === 1 ? label : `${label} ${index + 1}`,
+    side: fixed.includes(teamId) ? (teamId as LeagueSide) : null,
+    places: 2,
+    players: game.players.filter((player) => player.teamId === teamId),
+  }))
+  if (game.format !== '2v1') return teams
+  const solo = game.players.filter((player) => player.teamId === null && player.requiredLimit === game.rosterLimit)
+  return [{ key: 'solo', title: 'Solo', side: 'solo', places: open ? 1 : solo.length, players: solo }, ...teams]
+}
+
+/**
+ * A club's sealed game where the club plays it: who is in, sealing your own list, opening them together, then the
+ * battles. A duel plays everyone else who sealed; a team game seats its players on sides and plays as one battle.
  */
 export function ClubSealedGame({
   club,
   game,
   viewerId,
   highlighted = false,
+  embedded = false,
 }: {
   club: Club
   game: Game
   viewerId: string | null
   highlighted?: boolean
+  /** Opened inside a past game's row, which already names it. */
+  embedded?: boolean
 }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const moment = useMoment()
   const now = useNow(game.sealBy)
-  const refresh = useLeagueRefresh(game.token)
+  const refreshGame = useLeagueRefresh(game.token)
+  const refreshClub = useClubRefresh(club.token)
+  // Who sits where and who has sealed come with the club, the lists and team picks with the game.
+  const refresh = () => Promise.all([refreshGame(), refreshClub()])
   const { data: record } = useQuery(leagueQuery(game.token))
+  const battleHistory = useInfiniteQuery({ ...leagueBattlesQuery(game.token, game.token), enabled: game.revealedAt !== null })
+  const battles = battlesFrom(battleHistory.data)
   const [choosing, setChoosing] = useState(false)
   const [revealing, setRevealing] = useState(false)
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  // A side to move to, or null to step out, held while a sealed player confirms losing their list.
+  const [moving, setMoving] = useState<LeagueSide | null | undefined>(undefined)
 
   const member = club.members.some((candidate) => candidate.userId === viewerId && candidate.status === 'accepted')
   const people = new Map(club.members.map((candidate) => [candidate.userId, candidate]))
+  const nameOf = (userId: string) => people.get(userId)?.name ?? 'A former member'
+  const team = teamGame(game)
   const revealed = game.revealedAt !== null
   const closed = !revealed && leagueSealingClosed(game, now)
   // Past the deadline only those who sealed in time are playing.
   const players = game.players.filter((player) => !closed || player.sealed)
   const own = players.find((player) => player.userId === viewerId)
+  const ownEntry = record?.entries.find((entry) => entry.userId === viewerId)
   const sealed = players.filter((player) => player.sealed)
-  const ready = !revealed && sealed.length >= 2 && sealed.length === players.length
+  const checks = record ? leagueRevealChecklist(record, record.entries, now) : []
+  const ready =
+    !revealed && (team ? checks.length > 0 && checks.every((check) => check.done) : sealed.length >= 2 && sealed.length === players.length)
   const played = new Set(game.played.map((pair) => pair.join('|')))
   const hasPlayed = (userId: string) => played.has([viewerId ?? '', userId].toSorted().join('|'))
+  const toPlay = unplayedOpponents(game, viewerId)
   const listName = (userId: string) => record?.entries.find((entry) => entry.userId === userId)?.rosterName ?? null
+  const sides = team ? gameSides(game) : []
+  const seatedIds = new Set(sides.flatMap((entry) => entry.players.map((player) => player.userId)))
+  // In from before the game was a team game, or from a format change, without a seat yet.
+  const picking = team ? players.filter((player) => !seatedIds.has(player.userId)) : []
+  const ownLimit = team
+    ? requiredLeagueRosterLimit(game.format, game.rosterLimit, ownEntry?.requiredLimit ?? null, ownEntry?.teamId ?? null)
+    : game.rosterLimit
+  // Everyone who sealed and has a battle in this game, so a past game lists only the lists nobody played.
+  const battled = new Set([...game.played.flat(), ...game.playing])
+
+  const mayTakeSeat = member && !revealed && !closed
 
   const seal = useMutation({
     mutationFn: (rosterId: string) => submitLeagueRoster({ data: { token: game.token, rosterId } }),
     onSuccess: async () => {
       setChoosing(false)
+      await refresh()
+    },
+  })
+  const side = useMutation({
+    mutationFn: (next: LeagueSide | null) => chooseLeagueSide({ data: { token: game.token, side: next } }),
+    onSuccess: async () => {
+      setMoving(undefined)
       await refresh()
     },
   })
@@ -90,6 +154,11 @@ export function ClubSealedGame({
       await refresh()
     },
   })
+  const move = (next: LeagueSide | null) => {
+    side.reset()
+    if (own?.sealed) setMoving(next)
+    else side.mutate(next)
+  }
 
   const when = revealed
     ? game.playsAt
@@ -100,106 +169,248 @@ export function ClubSealedGame({
       : game.playsAt
         ? `Played ${moment(game.playsAt)}`
         : null
+  const waiting = (step: 'lists' | 'dispositions' | 'warlords') => {
+    const check = checks.find((candidate) => candidate.step === step)
+    return check && 'waiting' in check && !check.done ? namesPhrase(check.waiting.map(nameOf)) : ''
+  }
+  const openSeats = sides.reduce((count, entry) => count + (entry.side ? Math.max(0, entry.places - entry.players.length) : 0), 0)
+  const hint = closed
+    ? 'The deadline has passed.'
+    : ready
+      ? 'Everyone has sealed. Reveal when you’re ready.'
+      : !team
+        ? 'Lists stay hidden until they’re revealed together.'
+        : openSeats
+          ? `${countLabel(openSeats, 'seat')} still open. Lists stay hidden until they’re revealed together.`
+          : waiting('lists')
+            ? `Waiting on ${waiting('lists')} to seal.`
+            : waiting('dispositions')
+              ? `${waiting('dispositions')} still choose a Force Disposition.`
+              : waiting('warlords')
+                ? `${waiting('warlords')} still choose a Warlord.`
+                : 'Lists stay hidden until they’re revealed together.'
+
+  const row = (player: Player) => {
+    const person = people.get(player.userId)
+    const name = nameOf(player.userId)
+    const list = revealed || player.userId === viewerId ? listName(player.userId) : null
+    return (
+      <li key={player.userId} data-person={name} className="flex min-w-0 items-center gap-3 px-4 py-2.5">
+        <PlayerAvatar name={name} image={person?.image ?? null} className="size-7 text-3xs" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate font-semibold">
+            {name}
+            {player.userId === viewerId ? <span className="ml-1.5 text-xs font-normal text-dim">you</span> : null}
+          </span>
+          {list ? <span className="block truncate text-xs text-dim">{list}</span> : null}
+        </span>
+        {revealed ? (
+          <>
+            <ViewRosterButton token={game.token} eventToken={game.token} userId={player.userId} label={name} />
+            {!team && own?.sealed && player.userId !== viewerId && player.sealed ? (
+              hasPlayed(player.userId) ? (
+                // A past game lists its battles above, so only Up next marks who is done.
+                embedded ? null : (
+                  <span className="chip shrink-0 text-achieved">Played</span>
+                )
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  aria-label={`Play ${name}`}
+                  disabled={play.isPending}
+                  onClick={() => play.mutate(player.userId)}
+                >
+                  <Swords /> Play
+                </Button>
+              )
+            ) : null}
+          </>
+        ) : player.sealed ? (
+          <span className="flex shrink-0 items-center gap-1 text-sm text-achieved">
+            <Check className="size-4" aria-hidden /> Sealed
+          </span>
+        ) : (
+          <span className="shrink-0 text-sm text-faint">Choosing</span>
+        )}
+      </li>
+    )
+  }
+
+  const canSeal = member && !closed && ownLimit !== null && (!team || own !== undefined)
+  const canReveal = ready && (own?.sealed === true || club.organizer)
+  const canLeave = team && own !== undefined && !closed
+  const menu = club.organizer ? (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Sealed game options" />}>
+        <EllipsisVertical />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-48">
+        {revealed ? null : (
+          <DropdownMenuItem onClick={() => setEditing(true)}>
+            <Pencil /> Edit
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem variant="destructive" onClick={() => (remove.reset(), setDeleting(true))}>
+          <Trash2 /> Delete
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  ) : null
+  const lists = team ? (
+    <div className="border-t border-edge">
+      <div className={`grid gap-px bg-edge ${sides.length > 1 ? 'sm:grid-cols-2' : ''}`}>
+        {sides.map((entry) => {
+          const seated = entry.players.some((player) => player.userId === viewerId)
+          const room = entry.players.length < entry.places
+          return (
+            <section key={entry.key} data-side={entry.title} aria-label={entry.title} className="bg-panel">
+              <div className="flex min-h-11 items-center gap-2 px-4 pt-2">
+                <h4 className="eyebrow min-w-0 flex-1 text-dim">{entry.title}</h4>
+                {mayTakeSeat && entry.side && !seated && room ? (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    aria-label={`Join ${entry.title}`}
+                    disabled={side.isPending}
+                    onClick={() => move(entry.side)}
+                  >
+                    <UserPlus /> Join
+                  </Button>
+                ) : null}
+              </div>
+              <ul className="divide-y divide-edge">
+                {entry.players.map(row)}
+                {!revealed && entry.side
+                  ? Array.from({ length: Math.max(0, entry.places - entry.players.length) }, (_, index) => (
+                      <li key={`open-${index}`} className="px-4 py-2.5 text-sm text-faint">
+                        Open seat
+                      </li>
+                    ))
+                  : null}
+              </ul>
+            </section>
+          )
+        })}
+      </div>
+      {picking.length ? (
+        <p className="border-t border-edge px-4 py-2.5 text-sm text-dim">
+          Picking a side: {namesPhrase(picking.map((player) => (player.userId === viewerId ? 'you' : nameOf(player.userId))))}
+        </p>
+      ) : null}
+    </div>
+  ) : (
+    <ul className="divide-y divide-edge border-t border-edge">
+      {players.map(row)}
+      {!players.length ? <li className="px-4 py-2.5 text-sm text-dim">Nobody has sealed a list yet.</li> : null}
+    </ul>
+  )
+  const gameBattles = battles.length ? (
+    <div className={embedded ? 'p-3' : 'space-y-2 border-t border-edge p-4'}>
+      {embedded ? null : <p className="eyebrow text-dim">Battles</p>}
+      <BattleShelf
+        name={`Battles of ${eventName({ ...game, tournament: null, club })}`}
+        battles={battles}
+        viewerId={viewerId ?? undefined}
+      />
+    </div>
+  ) : null
 
   return (
     <section
       id={`game-${game.token}`}
       data-sealed-game={game.token}
       aria-label={`Sealed game: ${eventName({ ...game, tournament: null, club })}`}
-      className={`border bg-panel ${highlighted ? 'border-parchment' : 'border-edge'}`}
+      className={embedded ? 'bg-panel' : `border bg-panel ${highlighted ? 'border-parchment' : 'border-edge'}`}
     >
-      <div className="flex min-w-0 items-start gap-3 p-4 pb-3">
-        <div className="min-w-0 flex-1">
-          <p className="eyebrow text-discarded">Sealed game</p>
-          <h3 className="mt-1 truncate font-bold uppercase">{eventName({ ...game, tournament: null, club })}</h3>
-          {when ? <p className="mt-0.5 text-sm text-dim">{when}</p> : null}
-        </div>
-        {club.organizer ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Sealed game options" />}>
-              <EllipsisVertical />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              {revealed ? null : (
-                <DropdownMenuItem onClick={() => setEditing(true)}>
-                  <Pencil /> Edit
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem variant="destructive" onClick={() => (remove.reset(), setDeleting(true))}>
-                <Trash2 /> Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        ) : null}
-      </div>
-
-      <ul className="divide-y divide-edge border-t border-edge">
-        {players.map((player) => {
-          const person = people.get(player.userId)
-          const name = person?.name ?? 'A former member'
-          const list = revealed || player.userId === viewerId ? listName(player.userId) : null
-          return (
-            <li key={player.userId} data-person={name} className="flex min-w-0 items-center gap-3 px-4 py-2.5">
-              <PlayerAvatar name={name} image={person?.image ?? null} className="size-7 text-3xs" />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-semibold">
-                  {name}
-                  {player.userId === viewerId ? <span className="ml-1.5 text-xs font-normal text-dim">you</span> : null}
-                </span>
-                {list ? <span className="block truncate text-xs text-dim">{list}</span> : null}
-              </span>
-              {revealed ? (
-                <>
-                  <ViewRosterButton token={game.token} eventToken={game.token} userId={player.userId} label={name} />
-                  {game.format === '1v1' && own?.sealed && player.userId !== viewerId && player.sealed ? (
-                    hasPlayed(player.userId) ? (
-                      <span className="chip shrink-0 text-achieved">Played</span>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        aria-label={`Play ${name}`}
-                        disabled={play.isPending}
-                        onClick={() => play.mutate(player.userId)}
-                      >
-                        <Swords /> Play
-                      </Button>
-                    )
+      {embedded ? (
+        // A past game is read for what it produced. Its battle cards already name each player's army, so only lists
+        // sealed and never played are listed.
+        <>
+          {gameBattles}
+          {sealed.some((player) => !battled.has(player.userId)) ? (
+            <>
+              <p className={`eyebrow px-4 pb-2 text-dim ${battles.length ? '' : 'pt-3'}`}>
+                {battles.length ? 'Sealed, not played' : 'Lists'}
+              </p>
+              <ul className="divide-y divide-edge border-t border-edge">
+                {sealed.filter((player) => !battled.has(player.userId)).map(row)}
+              </ul>
+            </>
+          ) : null}
+          {(team && toPlay.length) || club.organizer ? (
+            <div className="flex flex-wrap items-center gap-2 border-t border-edge p-3">
+              {team && toPlay.length ? (
+                <Button size="sm" disabled={play.isPending} onClick={() => play.mutate(toPlay[0]!.userId)}>
+                  <Swords /> Start battle
+                </Button>
+              ) : null}
+              {club.organizer ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="ml-auto text-dim hover:text-destructive"
+                  onClick={() => (remove.reset(), setDeleting(true))}
+                >
+                  <Trash2 /> Delete game
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
+        </>
+      ) : (
+        <>
+          <div className="flex min-w-0 items-start gap-3 p-4 pb-3">
+            <div className="min-w-0 flex-1">
+              <p className="eyebrow text-discarded">Sealed game</p>
+              <h3 className="mt-1 font-bold break-words uppercase">{eventName({ ...game, tournament: null, club })}</h3>
+              {when ? <p className="mt-0.5 text-sm text-dim">{when}</p> : null}
+            </div>
+            {menu}
+          </div>
+          {lists}
+          {revealed ? (
+            team && toPlay.length ? (
+              <div className="flex flex-wrap items-center gap-2 border-t border-edge p-4">
+                <Button disabled={play.isPending} onClick={() => play.mutate(toPlay[0]!.userId)}>
+                  <Swords /> Start battle
+                </Button>
+                <p className="min-w-0 flex-1 text-xs text-dim">Against {namesPhrase(toPlay.map((player) => nameOf(player.userId)))}.</p>
+              </div>
+            ) : null
+          ) : (
+            <div className="space-y-3 border-t border-edge p-4">
+              {canSeal || canReveal || canLeave ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  {canSeal ? (
+                    <Button variant={own?.sealed ? 'outline' : 'default'} onClick={() => (seal.reset(), setChoosing(true))}>
+                      <FileLock2 /> {own?.sealed ? 'Swap your list' : 'Seal your list'}
+                    </Button>
                   ) : null}
-                </>
-              ) : player.sealed ? (
-                <span className="flex shrink-0 items-center gap-1 text-sm text-achieved">
-                  <Check className="size-4" aria-hidden /> Sealed
-                </span>
-              ) : (
-                <span className="shrink-0 text-sm text-faint">Choosing</span>
-              )}
-            </li>
-          )
-        })}
-        {!players.length ? <li className="px-4 py-2.5 text-sm text-dim">Nobody has sealed a list yet.</li> : null}
-      </ul>
-
-      {revealed ? null : (
-        <div className="flex flex-wrap items-center gap-2 border-t border-edge p-4">
-          {member && !closed ? (
-            <Button variant={own?.sealed ? 'outline' : 'default'} onClick={() => (seal.reset(), setChoosing(true))}>
-              <FileLock2 /> {own?.sealed ? 'Swap your list' : 'Seal your list'}
-            </Button>
-          ) : null}
-          {ready && (own?.sealed || club.organizer) ? (
-            <Button variant="outline" onClick={() => (reveal.reset(), setRevealing(true))}>
-              <Eye /> Reveal lists
-            </Button>
-          ) : null}
-          <p className="min-w-0 flex-1 text-xs text-dim">
-            {closed
-              ? 'The deadline has passed.'
-              : ready
-                ? 'Everyone in has sealed. Reveal when you’re ready.'
-                : 'Lists stay hidden until they’re revealed together.'}
-          </p>
-        </div>
+                  {canReveal ? (
+                    <Button variant="outline" onClick={() => (reveal.reset(), setRevealing(true))}>
+                      <Eye /> Reveal lists
+                    </Button>
+                  ) : null}
+                  {canLeave ? (
+                    <Button variant="ghost" disabled={side.isPending} onClick={() => move(null)}>
+                      <LogOut /> Leave
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
+              <p className="text-xs text-dim">{hint}</p>
+              {side.error && moving === undefined ? <Problem error={side.error} /> : null}
+              {viewerId && ownEntry?.team && ownEntry.team.choices.length > 1 ? (
+                <TeamDispositionPanel token={game.token} eventToken={game.token} team={ownEntry.team} />
+              ) : null}
+              {viewerId && ownEntry?.team && ownEntry.team.warlordChoices.length > 1 ? (
+                <TeamWarlordPanel token={game.token} eventToken={game.token} viewerId={viewerId} team={ownEntry.team} nameOf={nameOf} />
+              ) : null}
+            </div>
+          )}
+          {gameBattles}
+        </>
       )}
       {play.error ? <Problem error={play.error} className="px-4 pb-3" /> : null}
 
@@ -208,10 +419,26 @@ export function ClubSealedGame({
         pending={seal.isPending}
         error={seal.error}
         failedRosterId={seal.variables ?? null}
-        requiredLimit={game.rosterLimit}
+        requiredLimit={ownLimit}
         pointsBudget={game.pointsBudget}
         onClose={() => !seal.isPending && setChoosing(false)}
         onChoose={(roster) => seal.mutate(roster.id)}
+      />
+      <ConfirmDialog
+        open={moving !== undefined}
+        title={moving === null ? 'Leave this game?' : 'Change sides?'}
+        description={
+          moving === null
+            ? 'Your sealed list goes with you. You can join again until the lists are revealed.'
+            : 'Your sealed list is unsealed, so you seal one for your new side.'
+        }
+        cancel="Stay"
+        confirm={moving === null ? 'Leave' : 'Change sides'}
+        pendingLabel={moving === null ? 'Leaving…' : 'Changing…'}
+        pending={side.isPending}
+        error={side.error}
+        onClose={() => setMoving(undefined)}
+        onConfirm={() => moving !== undefined && side.mutate(moving)}
       />
       <ConfirmDialog
         open={revealing}
@@ -228,7 +455,7 @@ export function ClubSealedGame({
       <ConfirmDialog
         open={deleting}
         title="Delete this sealed game?"
-        description="Its sealed lists go with it. Battles already played stay on the club table."
+        description="Its sealed lists go with it. Battles already played stay on the club leaderboard."
         cancel="Keep it"
         confirm="Delete"
         pendingLabel="Deleting…"
@@ -244,16 +471,31 @@ export function ClubSealedGame({
 }
 
 /**
- * Whether a game belongs under Up next: until its lists are revealed, then while it is the club's newest game, a duel,
- * and the reader still has someone to play. Games carried over from leagues include team formats, played as one battle.
+ * Who the reader has sealed against and not yet played: everyone else in a duel, the other side in a team game. A
+ * 2v1's solo player faces the paired players; two solo players or two pairs never meet.
+ */
+function unplayedOpponents(game: Game, viewerId: string | null) {
+  const own = game.players.find((player) => player.userId === viewerId && player.sealed)
+  if (!own) return []
+  const played = new Set(game.played.map((pair) => pair.join('|')))
+  return game.players.filter(
+    (player) =>
+      player.sealed &&
+      player.userId !== own.userId &&
+      (game.format === '2v1'
+        ? (player.teamId === null) !== (own.teamId === null)
+        : game.format === '2v2'
+          ? player.teamId !== own.teamId
+          : true) &&
+      !played.has([own.userId, player.userId].toSorted().join('|')),
+  )
+}
+
+/**
+ * Whether a game belongs under Up next: until its lists are revealed, while the reader has a battle in it still going,
+ * and while it is the club's newest game and the reader has someone left to play.
  */
 export function sealedGameOpen(club: Club, game: Game, viewerId: string | null) {
-  if (game.revealedAt === null) return true
-  if (game.token !== club.games[0]?.token || game.format !== '1v1') return false
-  const own = game.players.find((player) => player.userId === viewerId && player.sealed)
-  if (!own) return false
-  const played = new Set(game.played.map((pair) => pair.join('|')))
-  return game.players.some(
-    (player) => player.sealed && player.userId !== viewerId && !played.has([viewerId ?? '', player.userId].toSorted().join('|')),
-  )
+  if (game.revealedAt === null || (viewerId !== null && game.playing.includes(viewerId))) return true
+  return game.token === club.games[0]?.token && unplayedOpponents(game, viewerId).length > 0
 }

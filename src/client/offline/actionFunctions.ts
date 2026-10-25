@@ -553,6 +553,13 @@ export async function assignLeagueRosterRequirement(
   return null
 }
 
+export async function chooseLeagueSide(args: Parameters<typeof server.chooseLeagueSide>[0]): ReturnType<typeof server.chooseLeagueSide> {
+  const defer = deferredForAccount()
+  if (!localEngine()) return server.chooseLeagueSide(args)
+  await defer('chooseLeagueSide', args.data, `league:${args.data.token}`)
+  return null
+}
+
 export async function assignLeagueTeam(args: Parameters<typeof server.assignLeagueTeam>[0]): ReturnType<typeof server.assignLeagueTeam> {
   const defer = deferredForAccount()
   if (!localEngine()) return server.assignLeagueTeam(args)

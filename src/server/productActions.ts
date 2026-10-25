@@ -205,6 +205,11 @@ export const productActions = {
     await captureMutation(owner, 'league_team_assigned', { team_size: result.teamSize })
     return null
   }),
+  chooseLeagueSide: action(schemas.chooseLeagueSide, async (owner, data) => {
+    const result = await app().service.leagueService.chooseLeagueSide(data.token, owner, data.side, data.eventToken)
+    await captureMutation(owner, 'league_side_chosen', { side: result.side })
+    return null
+  }),
   updateLeague: action(schemas.updateLeague, async (owner, { token, rule, schedule, ...details }) => {
     const tournament = details.name === undefined ? undefined : (details as Required<typeof details>)
     const { ruleChanged } = await app().service.leagueService.updateLeague(token, owner, { details: tournament, rule, schedule })

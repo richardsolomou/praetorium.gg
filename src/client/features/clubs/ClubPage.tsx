@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
   Check,
-  ChevronRight,
+  ChevronDown,
   Clipboard,
   EllipsisVertical,
   Eye,
@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { buttonClass } from '../../components/buttonClass'
@@ -26,7 +27,7 @@ import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
 import { createBattle, deleteClub, joinClub, leaveClub, moderateClubMember, removeClubMember } from '../../functions'
-import { battlesQuery, clubKey, clubQuery, clubsKey, clubStandingsQuery, gameReferencesQuery, meQuery } from '../../queries'
+import { battlesQuery, clubQuery, clubStandingsQuery, gameReferencesQuery, meQuery } from '../../queries'
 import { BattleShelf } from '../battles/BattleShelf'
 import { useInviteShareLabel } from '../friends/friendInvite'
 import { Standings } from '../leaderboard/Standings'
@@ -35,7 +36,8 @@ import { SectionHeading } from '../leagues/LeagueEntrants'
 import { LeagueSettingsDialog } from '../leagues/LeagueSettingsDialog'
 import { eventName } from '../leagues/leagueEvent'
 import { useDateFormatting } from '../../dates'
-import type { Club } from './club'
+import { countLabel } from '../../text'
+import { useClubRefresh, type Club } from './club'
 import { ClubSettingsDialog } from './ClubSettingsDialog'
 import { ClubSealedGame, sealedGameOpen } from './ClubSealedGame'
 
@@ -51,12 +53,6 @@ export function ClubPage({ token, game }: { token: string; game?: string }) {
   }, [club, navigate])
   if (!club) return null
   return <ClubScreen club={club} viewerId={me?.id ?? null} highlight={game} />
-}
-
-function useClubRefresh(token: string) {
-  const queryClient = useQueryClient()
-  return () =>
-    Promise.all([queryClient.invalidateQueries({ queryKey: clubKey(token) }), queryClient.invalidateQueries({ queryKey: clubsKey() })])
 }
 
 function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: string | null; highlight: string | undefined }) {
@@ -162,9 +158,9 @@ function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: strin
           </div>
           <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-span-2 lg:row-start-1">
             <UpNext club={club} table={table} viewerId={viewerId} highlight={highlight} />
-            <RecentGames table={table} viewerId={viewerId} member={member} />
-            {table?.finished ? <ClubTable table={table} viewerId={viewerId} /> : null}
+            <RecentGames club={club} table={table} viewerId={viewerId} member={member} />
             <PastSealedGames club={club} viewerId={viewerId} highlight={highlight} />
+            {table?.finished ? <ClubLeaderboard table={table} viewerId={viewerId} /> : null}
           </div>
           <aside className="space-y-6 lg:col-start-2">
             <Members club={club} viewerId={viewerId} isOwner={isOwner} play={member ? play : null} />
@@ -189,7 +185,7 @@ function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: strin
       <ConfirmDialog
         open={leaving}
         title={member ? `Leave ${club.name}?` : 'Withdraw your request?'}
-        description="You come off the table. Rejoin and your results come back."
+        description="You come off the leaderboard. Rejoin and your results come back."
         cancel="Stay"
         confirm={member ? 'Leave club' : 'Withdraw'}
         pendingLabel="Leaving…"
@@ -253,7 +249,7 @@ function NewGame({ club, viewerId, play }: { club: Club; viewerId: string; play:
           >
             <Swords /> {play.isPending ? 'Starting…' : 'Start battle'}
           </Button>
-          <p className="text-xs text-dim">Each of you picks a list at setup. The result goes on the club table.</p>
+          <p className="text-xs text-dim">Each of you picks a list at setup. The result goes on the club leaderboard.</p>
         </div>
       ) : (
         <p className="mt-1.5 text-sm text-dim">Nobody else is in the club yet. Copy the invite link to bring people in.</p>
@@ -293,8 +289,8 @@ function JoinClub({ club, viewerId, own }: { club: Club; viewerId: string | null
   const detail = own
     ? `${club.ownerName} or an admin needs to accept you.`
     : club.admission === 'approval'
-      ? 'An organizer accepts each request. Once you’re in, your games against members go on the table.'
-      : 'Once you’re in, your games against members go on the table.'
+      ? 'An organizer accepts each request. Once you’re in, your games against members go on the leaderboard.'
+      : 'Once you’re in, your games against members go on the leaderboard.'
   return (
     <section data-club-status aria-labelledby="club-status" className="border border-edge bg-panel p-4 sm:p-5">
       <h2 id="club-status" className="text-xl leading-tight font-bold uppercase">
@@ -348,28 +344,36 @@ function UpNext({
 }
 
 /** The club's latest finished games; before the first, what to do to play one. */
-function RecentGames({ table, viewerId, member }: { table: ClubTable | null | undefined; viewerId: string | null; member: boolean }) {
+/** Battles played outside sealed games; a sealed game lists its own. A club with no games yet says how to start one. */
+function RecentGames({
+  club,
+  table,
+  viewerId,
+  member,
+}: {
+  club: Club
+  table: ClubTable | null | undefined
+  viewerId: string | null
+  member: boolean
+}) {
   if (!table) return null
   if (table.recent.length)
     return <BattleShelf title="Recent games" name="Club games" battles={table.recent} viewerId={viewerId ?? undefined} />
+  if (table.finished || table.active.length || club.games.length) return null
   return (
     <section>
       <SectionHeading title="Recent games" />
       <p className="text-sm text-dim">
-        {table.active.length
-          ? 'No finished games yet.'
-          : member
-            ? 'No games yet. Start the first with New game.'
-            : 'No games yet. Members’ games show up here.'}
+        {member ? 'No games yet. Start the first with New game.' : 'No games yet. Members’ games show up here.'}
       </p>
     </section>
   )
 }
 
-function ClubTable({ table, viewerId }: { table: ClubTable; viewerId: string | null }) {
+function ClubLeaderboard({ table, viewerId }: { table: ClubTable; viewerId: string | null }) {
   return (
     <div className="space-y-2">
-      <Standings table={table.table} viewerId={viewerId ?? undefined} title="Table" empty="No games finished yet." />
+      <Standings table={table.table} viewerId={viewerId ?? undefined} title="Leaderboard" empty="No games finished yet." />
       <p className="text-sm text-faint">
         Everyone starts at 1000. Guest, practice and manually tracked games don’t count.
         {table.partial ? ' Only the latest 10,000 games are counted.' : ''}
@@ -378,43 +382,62 @@ function ClubTable({ table, viewerId }: { table: ClubTable; viewerId: string | n
   )
 }
 
-/** Sealed games the reader has nothing left to do in. Their battles are in Recent games and on the table. */
+const PAST_GAMES_SHOWN = 3
+
+/** Sealed games the reader has nothing left to do in, newest first; each opens to its lists and the battles it produced. */
 function PastSealedGames({ club, viewerId, highlight }: { club: Club; viewerId: string | null; highlight: string | undefined }) {
-  const { date } = useDateFormatting()
+  const [all, setAll] = useState(false)
   const past = club.games.filter((game) => !sealedGameOpen(club, game, viewerId))
   if (!past.length) return null
+  // A link to an older game shows the whole list, so the game it names is there to open.
+  const shown = all || past.findIndex((game) => game.token === highlight) >= PAST_GAMES_SHOWN ? past : past.slice(0, PAST_GAMES_SHOWN)
   return (
     <section>
       <SectionHeading title="Past sealed games" count={past.length} />
       <ul className="divide-y divide-edge border border-edge bg-panel">
-        {past.map((game) =>
-          game.token === highlight ? (
-            <li key={game.token}>
-              <ClubSealedGame club={club} game={game} viewerId={viewerId} highlighted />
-            </li>
-          ) : (
-            <li key={game.token}>
-              <Link
-                to="/clubs/$token"
-                params={{ token: club.token }}
-                search={{ game: game.token }}
-                hash={`game-${game.token}`}
-                replace
-                resetScroll={false}
-                className="flex min-w-0 items-center gap-3 p-3 hover:bg-raised"
-              >
-                <span className="min-w-0 flex-1 truncate font-semibold">{eventName({ ...game, tournament: null, club })}</span>
-                <span className="shrink-0 text-sm text-dim">
-                  {game.players.filter((player) => player.sealed).length} players ·{' '}
-                  {date(game.playsAt ?? game.revealedAt ?? game.createdAt)}
-                </span>
-                <ChevronRight aria-hidden className="size-4 shrink-0 text-faint" />
-              </Link>
-            </li>
-          ),
-        )}
+        {shown.map((game) => (
+          <PastSealedGame key={game.token} club={club} game={game} viewerId={viewerId} open={game.token === highlight} />
+        ))}
       </ul>
+      {past.length > shown.length ? (
+        <Button variant="ghost" size="sm" className="mt-2" onClick={() => setAll(true)}>
+          Show {past.length - shown.length} more
+        </Button>
+      ) : null}
     </section>
+  )
+}
+
+function PastSealedGame({
+  club,
+  game,
+  viewerId,
+  open,
+}: {
+  club: Club
+  game: Club['games'][number]
+  viewerId: string | null
+  open: boolean
+}) {
+  const { date } = useDateFormatting()
+  const players = game.players.filter((player) => player.sealed).length
+  return (
+    <Collapsible defaultOpen={open} render={<li id={`game-${game.token}`} />}>
+      <CollapsibleTrigger className="group flex w-full min-w-0 items-center gap-3 p-3 text-left hover:bg-raised">
+        <span className="min-w-0 flex-1 truncate font-semibold">{eventName({ ...game, tournament: null, club })}</span>
+        <span className="shrink-0 text-sm text-dim">
+          {[
+            countLabel(players, 'player'),
+            countLabel(game.battles, 'battle'),
+            date(game.playsAt ?? game.revealedAt ?? game.createdAt),
+          ].join(' · ')}
+        </span>
+        <ChevronDown aria-hidden className="size-4 shrink-0 text-faint transition-transform group-data-[panel-open]:rotate-180" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="border-t border-edge">
+        <ClubSealedGame club={club} game={game} viewerId={viewerId} embedded />
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
 
@@ -520,7 +543,7 @@ function Members({
         description={
           confirming?.action === 'decline'
             ? 'They won’t join the club. They can ask again later.'
-            : 'They come off the club table. They can join again later, and their results come back.'
+            : 'They come off the club leaderboard. They can join again later, and their results come back.'
         }
         cancel="Keep"
         confirm={confirming?.action === 'decline' ? 'Decline' : 'Remove'}

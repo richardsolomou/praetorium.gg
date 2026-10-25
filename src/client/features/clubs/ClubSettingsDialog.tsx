@@ -80,7 +80,7 @@ function SettingsForm({ club, isOwner, onClose }: { club: Club | null; isOwner: 
         <DialogDescription>
           {club
             ? 'Switching to “Anyone who joins” lets in everyone waiting.'
-            : 'Keep a running table for your group. A game counts when its players pick the club at setup.'}
+            : 'Keep a running leaderboard for your group. A game counts when its players pick the club at setup.'}
         </DialogDescription>
       </DialogHeader>
       <form

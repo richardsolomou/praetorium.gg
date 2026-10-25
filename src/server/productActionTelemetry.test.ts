@@ -166,6 +166,12 @@ const cases: Case[] = [
     events: [['league_team_assigned', { team_size: 2 }]],
   },
   {
+    kind: 'chooseLeagueSide',
+    input: { token: league.token, side: 'pair' },
+    result: { side: 'pair' },
+    events: [['league_side_chosen', { side: 'pair' }]],
+  },
+  {
     kind: 'updateLeague',
     input: { ...league, rule: { format: '1v1', rosterLimit: 1000 } },
     result: { ruleChanged: true },

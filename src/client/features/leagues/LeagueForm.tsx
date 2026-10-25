@@ -16,7 +16,7 @@ import {
 import { pointsBudgetError, pointsLabel } from '../../../core/battle'
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { Choice } from '../../components/Choice'
-import { LeagueEventRuleFields, ROSTER_RULE } from './LeagueEventRuleFields'
+import { LeagueEventRuleFields, CLUB_ROSTER_RULE, ROSTER_RULE } from './LeagueEventRuleFields'
 import { LeagueAdminsField, type AdminChoice } from './LeagueAdminsField'
 import { leagueAllowances } from './leagueEvent'
 
@@ -110,13 +110,14 @@ export function LeagueFormFields({
               {leagueRosterSplit(value.format, value.rosterLimit) ?? pointsLabel(value.rosterLimit)}
             </p>
             <p className="text-sm text-dim">House rules: {leagueAllowances(value)}</p>
-            <p className="text-xs text-dim">{[ROSTER_RULE[value.format], ruleLock].filter(Boolean).join(' ')}</p>
+            <p className="text-xs text-dim">
+              {[(tournament ? ROSTER_RULE : CLUB_ROSTER_RULE)[value.format], ruleLock].filter(Boolean).join(' ')}
+            </p>
           </div>
         ) : (
           <LeagueEventRuleFields
             value={value}
             pairing={tournament}
-            duelOnly={!tournament}
             disabled={disabled}
             onChange={(rule) =>
               // A shape the limit cannot seat starts its limit at the fewest places that do.
@@ -131,7 +132,7 @@ export function LeagueFormFields({
           />
         )}
       </div>
-      <ScheduleFields idPrefix={idPrefix} value={value} disabled={disabled} onChange={onChange} />
+      <ScheduleFields idPrefix={idPrefix} value={value} tournament={tournament} disabled={disabled} onChange={onChange} />
       {ownerPlays === undefined || !onOwnerPlaysChange ? null : (
         <div className="flex items-center gap-3">
           <Switch id={`${idPrefix}-owner-plays`} checked={ownerPlays} disabled={disabled} onCheckedChange={onOwnerPlaysChange} />
@@ -244,11 +245,13 @@ const momentFromInput = (text: string) => (text ? new Date(text).getTime() : nul
 function ScheduleFields({
   idPrefix,
   value,
+  tournament,
   disabled,
   onChange,
 }: {
   idPrefix: string
   value: LeagueFormValue
+  tournament: boolean
   disabled: boolean
   onChange: (value: LeagueFormValue) => void
 }) {
@@ -267,7 +270,7 @@ function ScheduleFields({
           />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor={`${idPrefix}-seal-by`}>Seal rosters by</Label>
+          <Label htmlFor={`${idPrefix}-seal-by`}>{tournament ? 'Seal rosters by' : 'Lists due'}</Label>
           <Input
             id={`${idPrefix}-seal-by`}
             type="datetime-local"
@@ -279,7 +282,10 @@ function ScheduleFields({
         </div>
       </div>
       <p className={`text-xs ${problem ? 'text-destructive' : 'text-dim'}`}>
-        {problem ?? 'Both optional. After the deadline nobody can seal, and anyone without a sealed roster sits the event out.'}
+        {problem ??
+          (tournament
+            ? 'Both optional. After the deadline nobody can seal, and anyone without a sealed roster sits the event out.'
+            : 'Both optional. After the deadline nobody can seal, and anyone who hasn’t sealed doesn’t play.')}
       </p>
     </div>
   )

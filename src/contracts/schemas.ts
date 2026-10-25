@@ -125,7 +125,6 @@ export const createClubGameSchema = z
     clubToken: token,
     ...leagueEventRuleFields,
     rounds: z.null().optional(),
-    ownerPlays: z.boolean().default(false),
     schedule: leagueSchedule.optional(),
   })
   .superRefine(validateLeagueEventRule)
@@ -177,6 +176,13 @@ export const assignLeagueRosterRequirementSchema = z.object({
   userId: id,
   requiredLimit: z.number().int(),
 })
+/** A club game's player takes a seat themselves; `null` steps out before the reveal. */
+export const chooseLeagueSideSchema = z.object({
+  token,
+  eventToken: token.optional(),
+  side: z.enum(['solo', 'pair', 'team-1', 'team-2']).nullable(),
+})
+export type LeagueSide = NonNullable<z.infer<typeof chooseLeagueSideSchema>['side']>
 export const assignLeagueTeamSchema = z.object({
   token,
   eventToken: token.optional(),

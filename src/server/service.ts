@@ -132,7 +132,7 @@ const STANDINGS_BATTLE_LIMIT = 500
 const LEAGUE_RESULTS_BATTLE_LIMIT = 500
 /** Pages of 500 battles a club table reads before it reports itself partial. */
 const CLUB_STANDINGS_PAGES = 20
-const CLUB_RECENT_BATTLES = 5
+const CLUB_RECENT_BATTLES = 3
 const STANDINGS_HOLD_MS = 60_000
 
 /** How much of a table is sent. Nobody reads past this, and every faction played costs one. */
@@ -586,12 +586,14 @@ export class PraetoriumService {
     const practice = await this.repository.practiceOpponents()
     // A game's battles name its event; one from before events were recorded on battles names only its league, now this club.
     const gameEvents = new Set(club.games.map((game) => game.token))
+    // A sealed game lists its own battles, so the club's other lists keep to the ones played outside them.
+    const fromGames = new Set<string>()
     const counted = this.battleSummaries(
       histories.filter((history) => {
         const state = foldHistory(history)
-        return (
-          state.clubId === club.id || (state.leagueEventToken ? gameEvents.has(state.leagueEventToken) : state.leagueToken === club.token)
-        )
+        const fromGame = state.leagueEventToken !== null && gameEvents.has(state.leagueEventToken)
+        if (fromGame) fromGames.add(history.battle.token)
+        return state.clubId === club.id || fromGame || (state.leagueEventToken === null && state.leagueToken === club.token)
       }),
       viewerId,
       null,
@@ -602,9 +604,11 @@ export class PraetoriumService {
     return {
       table: { faction: null, players: rows.length, rows },
       finished: counted.filter((battle) => battle.status === 'finished').length,
-      recent: counted.filter((battle) => battle.status === 'finished').slice(0, CLUB_RECENT_BATTLES),
+      recent: counted.filter((battle) => battle.status === 'finished' && !fromGames.has(battle.token)).slice(0, CLUB_RECENT_BATTLES),
       // The reader's own club battles still being set up or played, which is what they most likely came back for.
-      active: viewerId ? counted.filter((battle) => battle.status !== 'finished' && battle.playerIds.includes(viewerId)) : [],
+      active: viewerId
+        ? counted.filter((battle) => battle.status !== 'finished' && battle.playerIds.includes(viewerId) && !fromGames.has(battle.token))
+        : [],
       partial: before !== undefined,
     }
   }

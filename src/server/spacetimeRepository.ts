@@ -14,6 +14,7 @@ import { CLUB_MEMBER_STATUSES } from '../core/club'
 import { openPairing, type LeagueBattleSetup } from '../shared/leagueBattle'
 import type { Command } from '../core/battle'
 import { z } from 'zod'
+import type { LeagueSide } from '../contracts/schemas'
 import { SqliteAccountRepository } from './accountRepository'
 import { SpacetimeOperator } from './spacetimeOperator'
 import { leagueRosterSharingSchema } from '../contracts/leagueRosterSharing'
@@ -320,7 +321,6 @@ export class SpacetimeRepository {
     format?: TableShape
     rosterLimit?: number
     allowances?: readonly LeagueAllowance[]
-    ownerPlays?: boolean
     pointsBudget?: number | null
     schedule?: LeagueSchedule
     now: number
@@ -684,6 +684,13 @@ export class SpacetimeRepository {
     return this.product.leagueCommand(
       { op: 'assign-team', token, ownerId, userIds, teamId, eventToken: eventToken ?? '', noticeResults: true },
       z.union([z.object({ resealIds: z.array(z.string()) }), z.enum(['updated', 'missing', 'forbidden', 'closed', 'wrong-format'])]),
+    )
+  }
+
+  chooseLeagueSide(token: string, ownerId: string, side: LeagueSide | null, now: number, eventToken?: string) {
+    return this.product.leagueCommand(
+      { op: 'set-side', token, ownerId, side, now, eventToken: eventToken ?? '' },
+      z.enum(['updated', 'missing', 'forbidden', 'closed', 'wrong-format', 'full', 'members-only']),
     )
   }
 

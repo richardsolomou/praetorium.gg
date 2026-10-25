@@ -24,7 +24,7 @@ export function ClubIndex() {
       <PageHeader
         eyebrow="Events"
         title="Clubs"
-        description="Keep a running table of the games your group plays."
+        description="Keep a running leaderboard of the games your group plays."
         actions={
           me ? (
             <Button onClick={() => setCreating(true)}>

@@ -142,6 +142,7 @@ test('a club seals lists for a game night and plays them from the club page', as
   await game.getByRole('button', { name: `Play ${memberName}` }).click()
   await owner.waitForURL(/\/battles\/[^/]+$/)
   await expect(owner.getByText('Host army').first()).toBeVisible()
+  const battlePath = new URL(owner.url()).pathname
 
   // Sealed games stay off the tournaments page, and their own address opens them on the club, even once played.
   const token = new URL(clubUrl).pathname.split('/').at(-1)!
@@ -151,8 +152,76 @@ test('a club seals lists for a game night and plays them from the club page', as
   await owner.goto(`/tournaments/${gameToken}`)
   await expect(owner).toHaveURL(new RegExp(`/clubs/${token}\\?game=${gameToken}`))
   await expect(owner.locator(`[data-sealed-game="${gameToken}"]`)).toContainText('Regular army')
+  // A battle still being played shows once, inside its game under Up next.
+  await expect(owner.locator(`a[href="${battlePath}"]`)).toHaveCount(1)
   await ownerContext.close()
   await memberContext.close()
+})
+
+test('a club plays a solo-vs-pair sealed game, its players taking their own sides', async ({ browser }) => {
+  test.setTimeout(240_000)
+  const contexts = await Promise.all([0, 1, 2].map(() => browser.newContext({ viewport: { width: 1440, height: 1000 } })))
+  const [solo, ally, partner] = await Promise.all(contexts.map((context) => context.newPage()))
+  await signUp(solo, uniqueName('Solo host'))
+  await signUp(ally, uniqueName('First ally'))
+  await signUp(partner, uniqueName('Second ally'))
+  await sealableRoster(solo, 'Solo army')
+  await sealableRoster(ally, 'First allied army', /Incursion/)
+  await sealableRoster(partner, 'Second allied army', /Incursion/)
+
+  await solo.goto('/clubs')
+  const create = solo.getByRole('dialog', { name: 'New club' })
+  await retryUntilVisible(create, () => solo.getByRole('button', { name: 'New club' }).click({ timeout: 1_000 }))
+  await create.getByLabel('Name').fill(uniqueName('Team night'))
+  await create.getByRole('button', { name: 'Create club' }).click()
+  await solo.waitForURL(/\/clubs\/[^/]+$/)
+  const clubUrl = solo.url()
+  for (const player of [ally, partner]) {
+    await player.goto(clubUrl)
+    await retryUntilVisible(player.getByRole('button', { name: 'Copy invite link' }), () =>
+      player.getByRole('button', { name: 'Join club' }).click({ timeout: 1_000 }),
+    )
+  }
+
+  await solo.reload()
+  const dialog = solo.getByRole('dialog', { name: 'New sealed game' })
+  await retryUntilVisible(dialog, () => solo.getByRole('button', { name: 'New sealed game' }).click({ timeout: 1_000 }))
+  await dialog.getByRole('button', { name: /^Solo vs pair/ }).click()
+  await dialog.getByRole('button', { name: 'Start sealed game' }).click()
+  await expect(solo).toHaveURL(/\?game=/)
+  const gameUrl = solo.url()
+  const game = (page: Page) => page.locator('[data-sealed-game]')
+
+  // Everyone, the host too, enters by taking a seat; a full side offers none.
+  await expect(game(solo).getByRole('button', { name: 'Seal your list' })).toHaveCount(0)
+  await game(solo).getByRole('button', { name: 'Join Solo' }).click()
+  await expect(game(solo).locator('[data-side="Solo"]')).toContainText('you')
+  for (const player of [ally, partner]) {
+    await player.goto(gameUrl)
+    await expect(game(player).getByRole('button', { name: 'Join Solo' })).toHaveCount(0)
+    await game(player).getByRole('button', { name: 'Join Pair' }).click()
+    await expect(game(player).locator('[data-side="Pair"]')).toContainText('you')
+  }
+  await sealFromClub(solo, game(solo), 'Solo army')
+  await sealFromClub(ally, game(ally), 'First allied army')
+  await sealFromClub(partner, game(partner), 'Second allied army')
+
+  // Each allied list names a Warlord, so the pair picks whose leads before the lists open.
+  await partner.reload()
+  const warlord = game(partner).locator('[data-team-warlord]').getByRole('button').first()
+  await warlord.click()
+  await expect(warlord).toHaveAttribute('aria-pressed', 'true')
+  const disposition = game(partner).locator('[data-team-disposition]').getByRole('button')
+  if (await disposition.count()) await disposition.first().click()
+
+  await solo.reload()
+  await game(solo).getByRole('button', { name: 'Reveal lists' }).click()
+  await solo.getByRole('alertdialog', { name: 'Reveal every list?' }).getByRole('button', { name: 'Reveal lists' }).click()
+  await expect(game(solo)).toContainText('Second allied army')
+  await game(solo).getByRole('button', { name: 'Start battle' }).click()
+  await solo.waitForURL(/\/battles\/[^/]+$/)
+  await expect(solo.getByText('Solo army').first()).toBeVisible()
+  await Promise.all(contexts.map((context) => context.close()))
 })
 
 /** Seals a saved roster from the club page's sealed game card, which also enters its player. */
@@ -165,9 +234,9 @@ async function sealFromClub(page: Page, game: Locator, rosterName: string) {
   await expect(game.getByRole('button', { name: 'Swap your list' })).toBeVisible()
 }
 
-/** A roster a sealed game accepts: one Warlord at Strike Force. */
-async function sealableRoster(page: Page, name: string) {
-  await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name })
+/** A roster a sealed game accepts: one Warlord, at Strike Force unless the seat asks for another size. */
+async function sealableRoster(page: Page, name: string, size?: RegExp) {
+  await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name, size })
   await page.getByLabel('Add a unit').fill('Skorpekh Lord')
   await page.getByRole('button', { name: 'Add Skorpekh Lord', exact: true }).first().click()
   await page.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()

@@ -102,6 +102,7 @@ const operationScopes = {
   unsealLeagueRoster: ['leagues'],
   assignLeagueRosterRequirement: ['leagues'],
   assignLeagueTeam: ['leagues'],
+  chooseLeagueSide: ['leagues'],
   updateLeague: ['leagues'],
   deleteLeague: ['leagues'],
   deleteBattle: ['battles'],

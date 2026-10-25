@@ -10,6 +10,7 @@ import {
   admitLeagueEntriesSchema,
   assignLeagueRosterRequirementSchema,
   assignLeagueTeamSchema,
+  chooseLeagueSideSchema,
   createLeagueBattleSchema,
   createClubGameSchema,
   createLeagueSchema,
@@ -101,7 +102,6 @@ export const createClubGame = createServerFn({ method: 'POST' })
       await app().telemetry.capture(player.id, 'club_game_created', {
         format: data.format,
         roster_limit: data.rosterLimit,
-        owner_plays: data.ownerPlays,
       })
       return result
     }),
@@ -251,6 +251,15 @@ export const assignLeagueTeam = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       return productActions.assignLeagueTeam(player.id, data)
+    }),
+  )
+
+export const chooseLeagueSide = createServerFn({ method: 'POST' })
+  .validator(chooseLeagueSideSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      return productActions.chooseLeagueSide(player.id, data)
     }),
   )
 

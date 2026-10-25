@@ -245,7 +245,11 @@ const clubGame = z.object({
   format: z.enum(TABLE_SHAPES).nullable(),
   rosterLimit: z.number().int().nullable(),
   pointsBudget: z.number().int().nullable(),
-  players: z.array(z.object({ userId: z.string(), sealed: z.boolean() })),
+  players: z.array(
+    z.object({ userId: z.string(), sealed: z.boolean(), teamId: z.string().nullable(), requiredLimit: z.number().int().nullable() }),
+  ),
+  battles: z.number().int(),
+  playing: z.array(z.string()),
   played: z.array(z.tuple([z.string(), z.string()])),
 })
 const clubRecord = z.object({ club, members: z.array(clubMember), games: z.array(clubGame) })

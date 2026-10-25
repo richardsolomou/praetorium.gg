@@ -18,6 +18,7 @@ import {
   type LeagueVisibility,
 } from '../../core/league'
 import type { TableShape } from '../../core/tableShape'
+import type { LeagueSide } from '../../contracts/schemas'
 import type { LeagueSchedule, RepositoryPort } from '../spacetimeRepository'
 import type { BattleFaction } from '../../shared/battleSummary'
 import type { Notifier } from '../pushNotifier'
@@ -57,11 +58,9 @@ export class LeagueService {
     {
       clubToken,
       schedule,
-      ownerPlays,
       ...input
     }: Omit<EventRuleInput, 'rounds'> & {
       clubToken: string
-      ownerPlays: boolean
       schedule?: LeagueSchedule
     },
   ) {
@@ -71,7 +70,6 @@ export class LeagueService {
       eventToken: token,
       clubToken,
       ownerId,
-      ownerPlays,
       schedule,
       ...eventRule(input),
       now: this.clock(),
@@ -257,6 +255,17 @@ export class LeagueService {
     if (result === 'closed') throw new Response('teams cannot change after reveal', { status: 409 })
     if (result === 'wrong-format') throw new Response('pairs are assigned only for 2v1 and 2v2 events', { status: 409 })
     throw new Response('choose accepted event entrants', { status: 404 })
+  }
+
+  async chooseLeagueSide(token: string, userId: string, side: LeagueSide | null, eventToken?: string) {
+    const result = await this.repository.chooseLeagueSide(token, userId, side, this.clock(), eventToken)
+    if (result === 'updated') return { side }
+    if (result === 'missing') throw new Response('no such event', { status: 404 })
+    if (result === 'forbidden') throw new Response('only a club’s players choose their own side', { status: 403 })
+    if (result === 'closed') throw new Response('sides cannot change once the lists are out or past their deadline', { status: 409 })
+    if (result === 'wrong-format') throw new Response('choose a side this game plays', { status: 400 })
+    if (result === 'full') throw new Response('that side is full', { status: 409 })
+    throw new Response('only the club’s members can play its sealed games', { status: 403 })
   }
 
   async ownRoster(userId: string, rosterId: string) {

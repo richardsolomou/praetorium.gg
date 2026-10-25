@@ -129,7 +129,7 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
       const schedule = { playsAt, sealBy }
       if (mode.kind === 'create')
         return mode.clubToken
-          ? createClubGame({ data: { clubToken: mode.clubToken, format, rosterLimit, allowances, pointsBudget, schedule, ownerPlays } })
+          ? createClubGame({ data: { clubToken: mode.clubToken, format, rosterLimit, allowances, pointsBudget, schedule } })
           : createLeague({ data: { ...details, format, rosterLimit, allowances, rounds, pointsBudget, schedule, ownerPlays } })
       await updateLeague({
         data: {
@@ -161,7 +161,7 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
   const description =
     mode.kind === 'create'
       ? mode.clubToken
-        ? 'Members seal a roster in secret, then you reveal them together. Its battles count on the club’s table.'
+        ? 'Members seal a list in secret, then you reveal them together. Its battles count on the club’s leaderboard.'
         : 'Everyone seals a roster in secret, then you reveal them together.'
       : sealedGame
         ? 'Applies from now on. Nothing already sealed or played changes.'
@@ -197,7 +197,8 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
             limitFormat={limitFormat}
             ruleLock={ruleLock}
             tournament={!sealedGame}
-            ownerPlays={mode.kind === 'edit' ? undefined : ownerPlays}
+            // A club game's players enter by sealing a list or taking a seat, its organizer included.
+            ownerPlays={mode.kind === 'edit' || sealedGame ? undefined : ownerPlays}
             admins={
               mode.kind === 'edit' && isOwner && league?.tournament
                 ? { selected: adminIds, known: league.tournament.admins, onChange: setAdminIds }
