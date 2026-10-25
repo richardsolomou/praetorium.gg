@@ -15,6 +15,7 @@ import type { RosterPick } from '../../../core/roster'
 import { LoadoutOptimizationContext } from './LoadoutOdds'
 import type { Combatant } from './useCombatant'
 import { errorMessage } from '../../queryClient'
+import { workerAnswer } from '../../workerAnswer'
 
 export type OptimizeLoadoutRequest = { kind: 'optimize'; space: LoadoutCandidates; scoring: LoadoutScoring; mode: LoadoutOptimizationMode }
 export type OptimizeLoadoutAnswer = { optimized: LoadoutOptimization; error?: never } | { error: string; optimized?: never }
@@ -69,7 +70,6 @@ export function useLoadoutOptimizer(combatant: Combatant) {
     if (!context?.scoring || !combatant.ready || active.current || combatant.battleUnit) return
     const controller = new AbortController()
     const workers: Worker[] = []
-    const pending = new Set<(reason: Error) => void>()
     let timer: ReturnType<typeof setTimeout> | undefined
     const job = {
       key,
@@ -77,8 +77,6 @@ export function useLoadoutOptimizer(combatant: Combatant) {
       cancel: () => {
         controller.abort()
         workers.forEach((worker) => worker.terminate())
-        pending.forEach((reject) => reject(new Error('Optimization cancelled.')))
-        pending.clear()
         clearTimeout(timer)
         if (active.current === job) active.current = null
       },
@@ -136,19 +134,19 @@ export function useLoadoutOptimizer(combatant: Combatant) {
         if (current() && improved && best) apply(best)
       }
       const score = (worker: Worker, space: LoadoutCandidates) =>
-        new Promise<LoadoutOptimization>((resolve, reject) => {
-          pending.add(reject)
-          worker.onerror = () => {
-            pending.delete(reject)
-            reject(new Error('Optimization failed. Try again.'))
-          }
-          worker.onmessage = (event: MessageEvent<OptimizeLoadoutAnswer>) => {
-            pending.delete(reject)
-            if (event.data.optimized) resolve(event.data.optimized)
-            else reject(new Error(event.data.error))
-          }
-          worker.postMessage({ kind: 'optimize', space, scoring: context.scoring!, mode } satisfies OptimizeLoadoutRequest)
-        })
+        workerAnswer<OptimizeLoadoutAnswer>(
+          worker,
+          { kind: 'optimize', space, scoring: context.scoring!, mode } satisfies OptimizeLoadoutRequest,
+          { signal: controller.signal },
+        ).then(
+          (answer): LoadoutOptimization => {
+            if (answer.optimized) return answer.optimized
+            throw new Error(answer.error)
+          },
+          () => {
+            throw new Error(controller.signal.aborted ? 'Optimization cancelled.' : 'Optimization failed. Try again.')
+          },
+        )
       /** Scores every candidate a search sends while it is still searching, and returns the best of them. */
       const run = async (picks: RosterPick[], walk?: { seed: number; steps: number }) => {
         const response = await loadoutSearch(

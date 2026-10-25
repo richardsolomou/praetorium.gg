@@ -2,6 +2,7 @@ import CombatWorker from './combatWorker'
 import { useEffect, useState } from 'react'
 import type { LoadoutScoring, LoadoutSpace, OptionEstimate, ProfileOdds } from '../../../core/combatLoadouts'
 import type { CombatRequest } from '../../../core/combatMatchup'
+import { WorkerFailure, workerAnswer } from '../../workerAnswer'
 
 export type LoadoutOddsRequest = { kind: 'loadouts'; space: LoadoutSpace; scoring: LoadoutScoring; expected: CombatRequest }
 export type LoadoutOdds = {
@@ -31,40 +32,42 @@ export function useLoadoutOdds({
   const [found, setFound] = useState<{ request: string; attempt: number; odds: LoadoutOdds; error?: string } | null>(null)
   useEffect(() => {
     if (!request) return
-    let active = true
+    const controller = new AbortController()
     let worker: Worker | undefined
-    let timer: ReturnType<typeof setTimeout> | undefined
-    const stop = () => {
-      if (!active) return
-      active = false
-      worker?.terminate()
-      clearTimeout(timer)
-    }
-    const fail = (error: string) => {
-      if (!active) return
+    const fail = (error: string) =>
       setFound((previous) => ({
         request,
         attempt,
         odds: previous?.odds ?? { estimates: new Map(), profiles: new Map() },
         error,
       }))
-      stop()
-    }
     try {
       worker = new CombatWorker()
-      worker.onmessage = (event: MessageEvent<LoadoutOdds>) => {
-        if (active) setFound({ request, attempt, odds: event.data })
-        stop()
-      }
-      const failed = () => fail('The loadout comparison failed. Try again.')
-      worker.onerror = failed
-      worker.onmessageerror = failed
-      timer = setTimeout(() => fail('The loadout comparison took too long. Try again.'), 15_000)
-      worker.postMessage({ kind: 'loadouts', ...JSON.parse(request) } as LoadoutOddsRequest)
     } catch {
       fail('The loadout comparison could not start. Try again.')
+      return
     }
-    return stop
+    const asking = worker
+    workerAnswer<LoadoutOdds>(asking, { kind: 'loadouts', ...JSON.parse(request) } as LoadoutOddsRequest, {
+      timeoutMs: 15_000,
+      signal: controller.signal,
+    })
+      .then(
+        (odds) => setFound({ request, attempt, odds }),
+        (error: unknown) => {
+          if (controller.signal.aborted) return
+          if (!(error instanceof WorkerFailure)) fail('The loadout comparison could not start. Try again.')
+          else
+            fail(
+              error.reason === 'timeout' ? 'The loadout comparison took too long. Try again.' : 'The loadout comparison failed. Try again.',
+            )
+        },
+      )
+      .finally(() => asking.terminate())
+    return () => {
+      controller.abort()
+      asking.terminate()
+    }
   }, [request, attempt])
   if (!request) return null
   if (found?.request === request && found.attempt === attempt)
