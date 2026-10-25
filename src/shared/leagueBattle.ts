@@ -1,6 +1,12 @@
 import { parseRosterSnapshot } from '../core/commands'
 import { type Command, GAME_SIZES } from '../core/battle'
-import { alliedLeagueRosterLimit, LEAGUE_TEAM_ROSTER_LIMITS } from '../core/league'
+import {
+  alliedLeagueRosterLimit,
+  LEAGUE_TEAM_ROSTER_LIMITS,
+  leagueSeatPoints,
+  leagueSeatRefusal,
+  type LeagueArmyPoints,
+} from '../core/league'
 import type { TableShape } from '../core/tableShape'
 
 /** The two players' unplayed table in the latest Swiss round, if they have one. */
@@ -38,7 +44,7 @@ export type LeagueBattleSetup = {
     teamDisposition: string | null
     teamWarlord: string | null
   }[]
-}
+} & LeagueArmyPoints
 export class LeagueBattleSetupError extends Error {
   constructor(
     message: string,
@@ -86,7 +92,7 @@ export function buildLeagueBattle(
     throw new LeagueBattleSetupError('play the opponent you were paired with this round, once the round is paired', 409)
   const expectedPlayers = league.format === '2v2' ? 4 : league.format === '2v1' ? 3 : 2
   if (league.format === '2v2' && !LEAGUE_TEAM_ROSTER_LIMITS.some((candidate) => candidate === league.rosterLimit)) {
-    throw new LeagueBattleSetupError('sealed rosters use an unsupported doubles force size', 409)
+    throw new LeagueBattleSetupError('sealed rosters use an unsupported doubles battle size', 409)
   }
   if (league.format === '1v1' || league.format === null) {
     if (league.entries.length !== expectedPlayers || invited.length !== expectedPlayers - 1)
@@ -163,15 +169,18 @@ export function buildLeagueBattle(
     }
     participantIds = [userId, ...allyIds, ...opponentIds]
     for (const playerId of participantIds) {
-      const rosterLimit = rosters.get(playerId)?.built?.limit
-      if (rosterLimit === undefined || rosterLimit !== requirements.get(playerId))
-        throw new LeagueBattleSetupError('a sealed roster does not match its assigned size', 409)
+      const built = rosters.get(playerId)?.built
+      if (!built || leagueSeatRefusal(built, limit, leagueSeatPoints(league, requirements.get(playerId) === limit)!))
+        throw new LeagueBattleSetupError('a sealed roster does not fit its seat', 409)
     }
   }
   if (league.format === '2v2') {
-    const requiredLimit = alliedLeagueRosterLimit(limit)
-    if (participantIds.some((playerId) => rosters.get(playerId)?.built?.limit !== requiredLimit))
-      throw new LeagueBattleSetupError('every doubles roster must use half the force size', 409)
+    const points = leagueSeatPoints(league, false)!
+    const misfit = (playerId: string) => {
+      const built = rosters.get(playerId)?.built
+      return !built || leagueSeatRefusal(built, limit, points) !== null
+    }
+    if (participantIds.some(misfit)) throw new LeagueBattleSetupError('a sealed roster does not fit its seat', 409)
   }
 
   const initialCommands: Command[] = [
@@ -183,6 +192,10 @@ export function buildLeagueBattle(
       twistId: null,
       teamBattle: league.format === '2v1' || league.format === '2v2',
       playerCount: expectedPlayers,
+      // The creator's side sits first, so its seat's points do too.
+      ...(league.format === '2v1' || league.format === '2v2'
+        ? { armyPoints: [allyIds.length > 0, opponentIds.length > 1].map((pair) => leagueSeatPoints(league, !pair)!) }
+        : {}),
       clockLimitMinutes: null,
     },
     { kind: 'attach-roster', playerId: userId, roster: ownRoster, prep: null, painted: true },

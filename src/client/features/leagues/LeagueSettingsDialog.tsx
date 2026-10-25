@@ -80,6 +80,8 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
     allowances: league ? [...currentAllowances(league)] : [],
     rounds: league?.rounds ?? null,
     pointsBudget: league?.pointsBudget ?? null,
+    soloPoints: league?.soloPoints ?? null,
+    allyPoints: league?.allyPoints ?? null,
     playsAt: league?.playsAt ?? null,
     sealBy: league?.sealBy ?? null,
   }))
@@ -110,7 +112,9 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
     (league !== null &&
       (!sameAllowances(value.allowances, currentAllowances(league)) ||
         value.rounds !== league.rounds ||
-        value.pointsBudget !== league.pointsBudget))
+        value.pointsBudget !== league.pointsBudget ||
+        value.soloPoints !== league.soloPoints ||
+        value.allyPoints !== league.allyPoints))
   const clearsAssignments =
     mode.kind === 'edit' &&
     shapeChanged &&
@@ -125,8 +129,9 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
       if (mode.kind === 'create') posthog.capture('league_creation_failed', { reason: 'request' })
     },
     mutationFn: async () => {
-      const { format, rosterLimit, allowances, rounds, pointsBudget, playsAt, sealBy, ...details } = value
+      const { format, rosterLimit, allowances, rounds, pointsBudget, soloPoints, allyPoints, playsAt, sealBy, ...details } = value
       const schedule = { playsAt, sealBy }
+      const points = { pointsBudget, soloPoints, allyPoints }
       if (mode.kind === 'create')
         return mode.clubToken
           ? createClubGame({
@@ -135,19 +140,18 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
                 timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                 format,
                 rosterLimit,
-                allowances,
-                pointsBudget,
+                allowances, ...points,
                 schedule,
               },
             })
-          : createLeague({ data: { ...details, format, rosterLimit, allowances, rounds, pointsBudget, schedule, ownerPlays } })
+          : createLeague({ data: { ...details, format, rosterLimit, allowances, rounds, ...points, schedule, ownerPlays } })
       await updateLeague({
         data: {
           token: mode.token,
           // A club's sealed game has no details of its own.
           ...(sealedGame ? {} : details),
           schedule,
-          ...(ruleLock || !ruleChanged ? {} : { rule: { format, rosterLimit, allowances, rounds, pointsBudget } }),
+          ...(ruleLock || !ruleChanged ? {} : { rule: { format, rosterLimit, allowances, rounds, ...points } }),
         },
       })
       if (isOwner && adminsChanged) await setLeagueAdmins({ data: { token: mode.token, userIds: adminIds } })

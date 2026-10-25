@@ -15,7 +15,15 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PAINTED_ARMY_POINTS, pointsBudgetOf, pointsLabel, pointsSize, type Command } from '../../../../core/battle'
+import {
+  armyPointsFor,
+  armyPointsText,
+  fitsBattleSize,
+  PAINTED_ARMY_POINTS,
+  pointsBudgetOf,
+  pointsLabel,
+  type Command,
+} from '../../../../core/battle'
 import { type BattleView } from '../../../../core/battleView'
 import { errorMessage } from '../../../queryClient'
 import { rostersLentToMeQuery, savedRosterSummariesQuery } from '../../../queries'
@@ -75,16 +83,13 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
   const saved = (rosterQuery.data ?? []).filter((roster) => !roster.archived)
   const lentQuery = useQuery({ ...rostersLentToMeQuery(), enabled: !guest })
   const nameDisposition = useDispositionNames()
-  const yourSide = sides.find((side) => side.isViewer)
-  const sideOf = (army: Army) => sides.find((side) => side.armies.some((candidate) => candidate.playerId === army.playerId))
-  /** What one army on a side may cost, which an allied pair splits between them. */
-  const limitFor = (side: Side | undefined) =>
-    view.settings.limit === null ? null : view.settings.limit / Math.max(1, side?.armies.length ?? 1)
-  const perArmy = limitFor(yourSide)
-  // The chooser prices against the side it was opened for, which an allied pair splits.
-  const chooserLimit = view.settings.sizeFromRosters ? null : choosing ? limitFor(sideOf(choosing)) : perArmy
-  const eligible = chooserLimit === null ? saved : saved.filter((roster) => roster.limit === chooserLimit)
-  const lent = (lentQuery.data ?? []).filter(({ summary }) => chooserLimit === null || summary.limit === chooserLimit)
+  const team = view.settings.teamBattle
+  // A size the rosters set is no filter, since any list may change it.
+  const chooserLimit = view.settings.sizeFromRosters ? null : view.settings.limit
+  const fits = (roster: { limit: number; waivedRules?: readonly string[] | null }) =>
+    fitsBattleSize({ limit: chooserLimit, teamBattle: team }, { ...roster, waivedRules: roster.waivedRules ?? undefined })
+  const eligible = saved.filter(fits)
+  const lent = (lentQuery.data ?? []).filter(({ summary }) => fits(summary))
   const attach = async (savedRoster: SavedRoster) => {
     if (choosing && (await attachRoster({ kind: 'attach-saved-roster', rosterId: savedRoster.id, playerId: choosing.playerId })))
       closeChooser()
@@ -100,12 +105,7 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
   const oneWaiver = confirmingWaivers.length === 1
   return (
     <div data-onboarding="battle-setup-armies" className="space-y-4">
-      {perArmy !== null && perArmy !== view.settings.limit ? (
-        <SetupNote>
-          The allied side splits {view.settings.limit?.toLocaleString('en')} points evenly, so each ally brings a {pointsSize(perArmy)}{' '}
-          army.
-        </SetupNote>
-      ) : null}
+      {team && view.settings.limit !== null ? <SetupNote>Each army spends up to {armyPointsText(view)} points.</SetupNote> : null}
       <div className="grid items-start gap-6 lg:grid-cols-2">
         {sides.map((side) => (
           <SetupSidePanel key={side.index} side={side} named>
@@ -128,7 +128,7 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                     {army.roster ? (
                       <span className="mt-0.5 block text-xs text-dim">
                         {army.roster.built
-                          ? `${army.unitCount} units · ${(army.points ?? 0).toLocaleString('en')} of ${pointsLabel(pointsBudgetOf(army.roster.built))}`
+                          ? `${army.unitCount} units · ${(army.points ?? 0).toLocaleString('en')} of ${pointsLabel(team ? (armyPointsFor(view, side.index) ?? pointsBudgetOf(army.roster.built)) : pointsBudgetOf(army.roster.built))}`
                           : 'Imported army'}
                       </span>
                     ) : null}
@@ -246,6 +246,7 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
         lent={lent}
         savedCount={saved.length}
         requiredLimit={chooserLimit}
+        orSmaller={team}
         selectedId={choosing?.rosterId ?? null}
         loading={rosterQuery.isPending}
         pending={pending}
@@ -328,6 +329,7 @@ function RosterChooser({
   lent,
   savedCount,
   requiredLimit,
+  orSmaller,
   selectedId,
   loading,
   pending,
@@ -342,6 +344,8 @@ function RosterChooser({
   lent: LentRoster[]
   savedCount: number
   requiredLimit: number | null
+  /** Whether a list built for a smaller size fits too, as it does in a team battle. */
+  orSmaller: boolean
   /** The list already fielded by this army, matched by id: two lists can share a name. */
   selectedId: string | null
   loading: boolean
@@ -371,7 +375,7 @@ function RosterChooser({
             {forArmy?.automated ? 'One of your own lists, played by the side across the table. ' : ''}
             {requiredLimit === null
               ? 'Your rosters, most recently updated first.'
-              : `Rosters built for ${pointsLabel(requiredLimit)}, most recently updated first.`}
+              : `Rosters built for ${pointsLabel(requiredLimit)}${orSmaller ? ' or fewer' : ''}, most recently updated first.`}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -397,7 +401,7 @@ function RosterChooser({
               <div className="space-y-3 border border-edge bg-sunken p-4">
                 <p className="text-sm text-dim">
                   {savedCount
-                    ? `None of your ${savedCount} saved rosters is built for ${requiredLimit?.toLocaleString('en')} points.`
+                    ? `None of your ${savedCount} saved rosters is built for ${requiredLimit?.toLocaleString('en')} points${orSmaller ? ' or fewer' : ''}.`
                     : 'You do not have a saved roster yet.'}
                 </p>
                 <div className="flex flex-wrap gap-2">

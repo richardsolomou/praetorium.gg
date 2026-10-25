@@ -31,6 +31,8 @@ const trial = (entries: LeagueBattleSetup['entries']): LeagueBattleSetup => ({
   eventToken: 'event',
   format: '2v1',
   rosterLimit: 2_000,
+  soloPoints: null,
+  allyPoints: null,
   rounds: null,
   paired: false,
   revealedAt: 1,
@@ -55,6 +57,21 @@ describe('2v1 league battles', () => {
 
   it('seats an allied entrant beside their fixed partner', () => {
     expect(build(paired, 'ally', 'solo').allyIds).toEqual(['partner'])
+  })
+
+  it('carries the event’s points per army into the battle, creator’s side first', () => {
+    const uneven = { ...paired, soloPoints: 1_750, allyPoints: 800 }
+    const configure = build(uneven, 'ally', 'solo').initialCommands.find((command) => command.kind === 'configure-battle')
+    expect(configure).toMatchObject({ armyPoints: [800, 1_750] })
+  })
+
+  it('refuses an ally whose list was built bigger than the event’s size', () => {
+    const oversized = trial([
+      entrant('solo', 2_000, 'take-and-hold'),
+      { ...entrant('ally', 1_000, 'take-and-hold', 'pair'), snapshot: roster(3_000, 'take-and-hold') },
+      entrant('partner', 1_000, 'purge-the-foe', 'pair'),
+    ])
+    expect(() => build(oversized, 'solo', 'ally')).toThrow('a sealed roster does not fit its seat')
   })
 
   it('refuses an ally who is not the creator’s partner', () => {
@@ -107,6 +124,8 @@ describe('doubles league battles', () => {
     eventToken: 'event',
     format: '2v2',
     rosterLimit: 2_000,
+    soloPoints: null,
+    allyPoints: null,
     rounds: null,
     paired: false,
     revealedAt: 1,

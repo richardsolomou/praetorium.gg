@@ -1,9 +1,10 @@
 import { buildLeagueBattle, LeagueBattleSetupError } from '../../shared/leagueBattle'
 import { offlineContext, offlineIdentifier } from '../offlineContext'
 import { randomId, randomToken } from 'ras-stack/auth'
-import { pointsBudgetError, type Roster } from '../../core/battle'
+import { pointsBudgetError, pointsLabel, type Roster } from '../../core/battle'
 import { commandSchema, parseRosterSnapshot } from '../../core/commands'
 import {
+  leagueArmyPointsError,
   offeredLeagueAllowances,
   leagueTableShape,
   LEAGUE_DEFAULT_ROSTER_LIMIT,
@@ -33,10 +34,10 @@ export class LeagueService {
   ) {}
 
   async createTournament(ownerId: string, input: TournamentDetails & EventRuleInput & { ownerPlays: boolean; schedule?: LeagueSchedule }) {
-    const { format, rosterLimit, allowances, rounds, pointsBudget, ...details } = input
+    const { format, rosterLimit, allowances, rounds, pointsBudget, soloPoints, allyPoints, ...details } = input
     const token = offlineIdentifier('leagueToken', randomToken)
     const eventToken = offlineIdentifier('eventToken', randomToken)
-    const rule = eventRule({ format, rosterLimit, allowances, rounds, pointsBudget })
+    const rule = eventRule({ format, rosterLimit, allowances, rounds, pointsBudget, soloPoints, allyPoints })
     const result = await this.repository.createTournament({
       id: offlineIdentifier('leagueId', randomId),
       token,
@@ -280,12 +281,10 @@ export class LeagueService {
   async submitLeagueRoster(
     token: string,
     userId: string,
-    roster: { id: string; limit: number; pointsBudget?: number | null; updatedAt: number },
+    roster: { id: string; limit: number; updatedAt: number },
     snapshot: Roster,
     eventToken?: string,
   ) {
-    if (roster.pointsBudget != null)
-      throw new Response('sealed rosters use their battle size’s standard points; remove the custom points budget first', { status: 409 })
     const command = commandSchema.parse({ kind: 'attach-roster', roster: snapshot })
     if (command.kind !== 'attach-roster') throw new Error('expected a roster snapshot')
     const { id: _savedRosterId, ...sealed } = command.roster
@@ -309,12 +308,19 @@ export class LeagueService {
           status: 409,
         },
       )
-    if (result.outcome === 'wrong-limit') throw new Response('choose a roster built for your assigned size', { status: 409 })
+    if (result.outcome === 'wrong-limit')
+      throw new Response('choose a roster built for this event’s battle size; a team event takes smaller ones too', { status: 409 })
     if (result.outcome === 'invalid-warlords') throw new Response(leagueWarlordRefusal(snapshot), { status: 409 })
     if (result.outcome === 'disallowed') throw new Response(result.message, { status: 409 })
     if (result.outcome === 'past-deadline') throw new Response('the roster deadline has passed', { status: 409 })
     if (result.outcome === 'wrong-budget')
       throw new Response(`choose a roster built to this event’s ${result.pointsBudget.toLocaleString('en')} points`, { status: 409 })
+    if (result.outcome === 'over-points')
+      throw new Response(`choose a roster that spends at most ${result.points.toLocaleString('en')} points`, { status: 409 })
+    if (result.outcome === 'ally-mismatch')
+      throw new Response(`your ally sealed a list saved to ${pointsLabel(result.pointsBudget)}; choose one saved to the same total`, {
+        status: 409,
+      })
     throw new Response('the roster could not be sealed; check your entry and roster, then try again', { status: 409 })
   }
 
@@ -465,6 +471,8 @@ type EventRuleInput = {
   allowances?: readonly LeagueAllowance[]
   rounds?: number | null
   pointsBudget?: number | null
+  soloPoints?: number | null
+  allyPoints?: number | null
 }
 
 /** Missing allowances stay missing, which an update reads as "leave them as they are". */
@@ -482,12 +490,16 @@ function eventRule(rule: EventRuleInput) {
         ? 'only a duel takes its own points total'
         : pointsBudgetError(rosterLimit, rule.pointsBudget)
   if (pointsBudgetProblem) throw new Response(pointsBudgetProblem, { status: 400 })
+  const armyPointsProblem = leagueArmyPointsError(format, rule)
+  if (armyPointsProblem) throw new Response(armyPointsProblem, { status: 400 })
   return {
     format,
     rosterLimit,
     allowances: rule.allowances && offeredLeagueAllowances(format, rosterLimit, rule.allowances),
     rounds: rule.rounds,
     pointsBudget: rule.pointsBudget,
+    soloPoints: rule.soloPoints,
+    allyPoints: rule.allyPoints,
   }
 }
 

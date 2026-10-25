@@ -176,14 +176,69 @@ describe('battle size from saved rosters', () => {
     const state = reduceBattle([ALICE, BOB], log([ALICE, configure(2000)], [ALICE, army(2000, undefined, 2500)], [BOB, army(2000)]))
     expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('choose matching points budgets for each side')
   })
+})
 
-  it('splits an agreed custom side budget between allies', () => {
-    const command = { ...configure(), teamBattle: true, playerCount: 3 } as Command
-    const state = reduceBattle(
-      [ALICE, BOB, CAROL],
-      log([ALICE, command], [ALICE, army(2000, undefined, 1500)], [BOB, army(1000, undefined, 750)], [CAROL, army(1000, undefined, 750)]),
-      [0, 1, 1],
-    )
-    expect([state.settings.limit, battlePointsBudget(state)]).toEqual([2000, 1500])
+describe('team battle points', () => {
+  const teamBattle = (limit: number | null, armyPoints?: number[]) =>
+    ({ ...configure(limit), teamBattle: true, playerCount: 3, ...(armyPoints ? { armyPoints } : {}) }) as Command
+  /** A list of `units` 100-point units, saved at `limit` with an optional points total and waivers. */
+  const list = (playerId: string, limit: number, units: number, pointsBudget?: number, waivedRules?: string[]): Command => {
+    const command = army(limit, playerId, pointsBudget)
+    if (command.kind !== 'attach-roster' || !command.roster.built) throw new Error('Expected a built roster')
+    const built = command.roster.built
+    return {
+      ...command,
+      roster: {
+        ...command.roster,
+        built: {
+          ...built,
+          ...(waivedRules ? { waivedRules } : {}),
+          units: Array.from({ length: units }, (_, index) => ({ ...built.units[0]!, key: `u${index}` })),
+        },
+      },
+    } as Command
+  }
+  const table = (...commands: Command[]) =>
+    reduceBattle([ALICE, BOB, CAROL], log(...commands.map((command) => [ALICE, command] as [string, Command])), [0, 1, 1])
+  const begin: Command = { kind: 'begin-battle', firstPlayerId: ALICE }
+
+  it('lets an ally bring a list smaller than the battle size', () => {
+    const state = table(teamBattle(2000), list(ALICE, 2000, 10), list(BOB, 1000, 5), list(CAROL, 1000, 5))
+    expect(validate(state, ALICE, begin)).toBeNull()
+  })
+
+  it('refuses a list built bigger than the battle size', () => {
+    const state = table(teamBattle(2000))
+    expect(validate(state, ALICE, list(BOB, 3000, 5))).toBe('that roster does not match the battle size')
+  })
+
+  it('accepts a bigger list that waives its points limit', () => {
+    const state = table(teamBattle(2000))
+    expect(validate(state, ALICE, list(BOB, 3000, 5, undefined, ['points-limit']))).toBeNull()
+  })
+
+  it('takes the battle size from the biggest list', () => {
+    const state = table(teamBattle(null), list(ALICE, 2000, 10), list(BOB, 1000, 5), list(CAROL, 1000, 5))
+    expect(state.settings.limit).toBe(2000)
+  })
+
+  it('refuses an army spending more than its side’s points per army', () => {
+    const state = table(teamBattle(2000, [1750, 800]), list(ALICE, 2000, 17), list(BOB, 1000, 9), list(CAROL, 1000, 8))
+    expect(validate(state, ALICE, begin)).toBe('an army spends more than its 800 points')
+  })
+
+  it('starts uneven sides within their own points per army', () => {
+    const state = table(teamBattle(2000, [1750, 800]), list(ALICE, 2000, 17), list(BOB, 1000, 8), list(CAROL, 1000, 8))
+    expect(validate(state, ALICE, begin)).toBeNull()
+  })
+
+  it('names each side’s points per army beside the battle size', () => {
+    const state = table(teamBattle(2000, [1750, 800]), list(ALICE, 2000, 17), list(BOB, 1000, 8), list(CAROL, 1000, 8))
+    expect(battleSizeText(state)).toBe('Strike Force · 1,750 vs 800 + 800')
+  })
+
+  it('refuses points per army for a duel', () => {
+    const state = reduceBattle([ALICE, BOB], [])
+    expect(validate(state, ALICE, { ...configure(2000), armyPoints: [1000, 1000] })).toBe('only a team battle sets points per army')
   })
 })

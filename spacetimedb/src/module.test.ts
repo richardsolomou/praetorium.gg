@@ -67,6 +67,8 @@ function insertTournament(ctx: Ctx, event: Partial<SealedEvent> = {}) {
     createdAt: 1n,
     revealedAt: undefined,
     revealedBy: undefined,
+    soloPoints: undefined,
+    allyPoints: undefined,
     ...event,
   })
   ctx.db.tournaments.insert({
@@ -320,17 +322,27 @@ describe('what a league event allows', () => {
           payload: JSON.stringify({ token: 'league', eventToken: 'event', ...payload }),
         }),
       ) as unknown
-    const seal = (waivedRules: string[]) => {
+    /** Seals `userId`'s list built at `limit`, with an optional points total, whose one unit costs `points`. */
+    const seal = (
+      waivedRules: string[],
+      {
+        userId = 'entrant',
+        limit = 2000,
+        pointsBudget,
+        points = 80,
+      }: { userId?: string; limit?: number; pointsBudget?: number; points?: number } = {},
+    ) => {
       module.saveRoster(host.procedure(host.operator), {
         payload: JSON.stringify({
-          id: 'saved',
-          userId: 'entrant',
+          id: `saved-${userId}`,
+          userId,
           name: 'League army',
           automaticName: false,
           catalogueId: 'catalogue',
           detachmentId: '[]',
           disposition: null,
-          limit: 2000,
+          limit,
+          pointsBudget,
           picks: '[]',
           prep: '{"reminders":[]}',
           tags: '[]',
@@ -342,14 +354,14 @@ describe('what a league event allows', () => {
           now: NOW,
         }),
       })
-      const captain = { key: 'captain', entryId: 'captain', name: 'Captain', models: 1, points: 80, warlord: true, group: 'character' }
+      const captain = { key: 'captain', entryId: 'captain', name: 'Captain', models: 1, points, warlord: true, group: 'character' }
       return command({
         op: 'submit',
-        ownerId: 'entrant',
-        userId: 'entrant',
-        rosterId: 'saved',
+        ownerId: userId,
+        userId,
+        rosterId: `saved-${userId}`,
         rosterName: 'League army',
-        rosterLimit: 2000,
+        rosterLimit: limit,
         rosterUpdatedAt: NOW,
         snapshot: JSON.stringify({
           name: 'League army',
@@ -357,7 +369,8 @@ describe('what a league event allows', () => {
           built: {
             catalogueId: 'catalogue',
             revision: 'revision',
-            limit: 2000,
+            limit,
+            pointsBudget,
             detachment: null,
             disposition: null,
             waivedRules,
@@ -371,7 +384,7 @@ describe('what a league event allows', () => {
       command({ op: 'update', ownerId: 'organizer', rule: { format, rosterLimit: 2000, ...rule } })
     const event = () => host.call(host.operator, (ctx) => ctx.db.sealedEvents.id.find('event'))
     const entry = () => host.call(host.operator, (ctx) => ctx.db.leagueEventEntries.key.find('["event","entrant"]'))
-    const set = (fields: { sealBy?: bigint; pointsBudget?: number }) =>
+    const set = (fields: { sealBy?: bigint; pointsBudget?: number; allyPoints?: number }) =>
       host.call(host.operator, (ctx) => ctx.db.sealedEvents.id.update({ ...ctx.db.sealedEvents.id.find('event')!, ...fields }))
     const reveal = (now: number) => command({ op: 'reveal', ownerId: 'organizer', now })
     return { seal, update, event, entry, set, reveal }
@@ -394,6 +407,28 @@ describe('what a league event allows', () => {
     const league = setup('[]')
     league.set({ pointsBudget: 1500 })
     expect(league.seal([])).toMatchObject({ outcome: 'wrong-budget' })
+  })
+
+  it('seals a doubles list built smaller than the event’s size, within its points per army', () => {
+    const league = setup('[]', '2v2')
+    league.set({ allyPoints: 800 })
+    expect(league.seal([], { limit: 1000, pointsBudget: 800, points: 800 })).toMatchObject({ outcome: 'sealed' })
+  })
+
+  it('refuses a doubles list spending past its points per army', () => {
+    const league = setup('[]', '2v2')
+    league.set({ allyPoints: 800 })
+    expect(league.seal([], { limit: 1000, points: 850 })).toMatchObject({ outcome: 'over-points', points: 800 })
+  })
+
+  it('refuses a doubles list built bigger than the event’s size', () => {
+    expect(setup('[]', '2v2').seal([], { limit: 3000 })).toMatchObject({ outcome: 'wrong-limit' })
+  })
+
+  it('refuses a doubles list saved to another points total than its sealed ally’s', () => {
+    const league = setup('[]', '2v2')
+    league.seal([], { userId: 'ally', limit: 1000, pointsBudget: 800 })
+    expect(league.seal([], { limit: 1000 })).toMatchObject({ outcome: 'ally-mismatch', pointsBudget: 800 })
   })
 
   it('seals a list with a restriction switched off at an event from before allowances', () => {

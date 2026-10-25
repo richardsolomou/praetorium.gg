@@ -50,6 +50,8 @@ import {
   LEAGUE_NAME_MAX_LENGTH,
   LEAGUE_TEAM_ROSTER_LIMITS,
   LEAGUE_VISIBILITIES,
+  leagueArmyPointsError,
+  type LeagueArmyPoints,
 } from '../core/league'
 import { TABLE_SHAPES, type TableShape } from '../core/tableShape'
 import { CLUB_ADMIN_MAX, CLUB_DESCRIPTION_MAX_LENGTH, CLUB_NAME_MAX_LENGTH } from '../core/club'
@@ -95,6 +97,8 @@ const leagueEventRuleFields = {
   // Absent from an older client: no Swiss rounds or own points total on a new event, and an edit leaves them as they stand.
   rounds: z.number().int().min(1).max(SWISS_ROUNDS_MAX).nullable().optional(),
   pointsBudget: z.number().int().min(POINTS_BUDGET_MIN).max(POINTS_BUDGET_MAX).nullable().optional(),
+  soloPoints: z.number().int().min(1).max(POINTS_BUDGET_MAX).nullable().optional(),
+  allyPoints: z.number().int().min(1).max(POINTS_BUDGET_MAX).nullable().optional(),
 }
 /** When the event is played and the roster deadline, as instants; a deadline after the date would let lists in once play started. */
 const leagueSchedule = z
@@ -103,7 +107,12 @@ const leagueSchedule = z
     message: 'set the roster deadline before the date it is played',
     path: ['sealBy'],
   })
-function validateLeagueEventRule(value: { format: TableShape; rosterLimit: number; rounds?: number | null }, context: z.RefinementCtx) {
+function validateLeagueEventRule(
+  value: { format: TableShape; rosterLimit: number; rounds?: number | null } & Partial<LeagueArmyPoints>,
+  context: z.RefinementCtx,
+) {
+  const armyPointsProblem = leagueArmyPointsError(value.format, value)
+  if (armyPointsProblem) context.addIssue({ code: 'custom', path: ['allyPoints'], message: armyPointsProblem })
   if ((value.format === '2v1' || value.format === '2v2') && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)) {
     context.addIssue({ code: 'custom', path: ['rosterLimit'], message: `choose a supported ${value.format} roster size` })
   }

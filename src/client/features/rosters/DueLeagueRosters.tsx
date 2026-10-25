@@ -8,13 +8,20 @@ import { leaguesQuery } from '../../queries'
 /** The way back to every event still waiting for a list of this size, so a list built for one can be sealed there. */
 export function DueLeagueRosters({ limit, pointsBudget, saved }: { limit: number; pointsBudget: number | null; saved: boolean }) {
   const { data: leagues = [] } = useQuery(leaguesQuery())
-  if (!saved || pointsBudget !== null) return null
+  if (!saved) return null
+  // A duel takes lists at its size and points total; a team event, once it seats the player, any list no bigger than its size.
+  const fits = (league: (typeof leagues)[number], required: number) =>
+    league.format === '2v1' || league.format === '2v2'
+      ? league.rosterLimit !== null && limit <= league.rosterLimit
+      : required === limit && pointsBudget === (league.pointsBudget ?? null)
   const due = leagues.filter(
     (league) =>
       !league.revealedAt &&
       league.ownEntry?.status === 'accepted' &&
       !league.ownEntry.submitted &&
-      (league.ownEntry.requiredLimit === null ? league.format === null : league.ownEntry.requiredLimit === limit),
+      (league.ownEntry.requiredLimit === null
+        ? league.format === null && pointsBudget === null
+        : fits(league, league.ownEntry.requiredLimit)),
   )
   return due.map((league) => (
     <Link

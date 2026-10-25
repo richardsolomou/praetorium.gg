@@ -18,6 +18,7 @@ import { buttonClass } from '../../components/buttonClass'
 import { GAME_SIZES, pointsSize } from '../../../core/battle'
 import {
   leagueRegistrationFull,
+  leagueEntryPoints,
   leagueRevealChecklist,
   leagueSealingClosed,
   leagueStage,
@@ -166,6 +167,7 @@ export function LeagueEventView({
 
   const eventBattles = battlesFrom(battleHistory.data)
   const ownEntry = viewerId ? league.entries.find((entry) => entry.userId === viewerId) : undefined
+  const seatPoints = ownEntry ? leagueEntryPoints(league, ownEntry) : null
   const entryStatusNow = ownEntry?.status
   // A duel needs nothing from the organizer before a roster, so a new entrant's next step opens straight away.
   const duel = league.format !== '2v1' && league.format !== '2v2'
@@ -447,8 +449,9 @@ export function LeagueEventView({
         pending={submit.isPending}
         error={submit.error}
         failedRosterId={submit.variables ?? null}
-        requiredLimit={ownEntry?.requiredLimit ?? null}
+        requiredLimit={seatPoints === null ? (ownEntry?.requiredLimit ?? null) : league.rosterLimit}
         pointsBudget={league.pointsBudget}
+        seatPoints={seatPoints}
         onClose={() => {
           if (submit.isPending) return
           submit.reset()
@@ -648,7 +651,8 @@ function entryStatus({
       steps: steps('assign'),
     }
   }
-  const size = ownEntry.requiredLimit ? `${pointsSize(ownEntry.requiredLimit)} ` : ''
+  const points = leagueEntryPoints(league, ownEntry) ?? ownEntry.requiredLimit
+  const size = points ? `${pointsSize(points)} ` : ''
   if (!revealed && !ownEntry.submitted && sealingClosed)
     return {
       title: 'The roster deadline has passed',

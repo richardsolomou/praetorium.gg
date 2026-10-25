@@ -155,8 +155,8 @@ describe('league creation input', () => {
     expect(createLeagueSchema.parse(league)).toMatchObject({ format: '1v1', rosterLimit: 2_000, ownerPlays: false })
   })
 
-  it('rejects a new 2v1 league whose allied half is unsupported', () => {
-    expect(createLeagueSchema.safeParse({ ...league, format: '2v1', rosterLimit: 1_000 }).success).toBe(false)
+  it('rejects a new 2v1 league at King of the Colosseum', () => {
+    expect(createLeagueSchema.safeParse({ ...league, format: '2v1', rosterLimit: 600 }).success).toBe(false)
   })
 
   it('leaves the event rule alone when an update does not name one', () => {
@@ -175,10 +175,9 @@ describe('league creation input', () => {
     expect(createClubGameSchema.safeParse({ clubToken: 'club', rounds: 3 }).success).toBe(false)
   })
 
-  it('accepts the official doubles force size and rejects a smaller one', () => {
+  it('refuses a solo player’s points at a doubles event', () => {
     const details = { ...league, token: 'league', description: '', playerLimit: null }
-    expect(updateLeagueSchema.safeParse({ ...details, rule: { format: '2v2', rosterLimit: 2_000 } }).success).toBe(true)
-    expect(updateLeagueSchema.safeParse({ ...details, rule: { format: '2v2', rosterLimit: 1_000 } }).success).toBe(false)
+    expect(updateLeagueSchema.safeParse({ ...details, rule: { format: '2v2', rosterLimit: 2_000, soloPoints: 1_000 } }).success).toBe(false)
   })
 
   it('accepts all four doubles seats', () => {

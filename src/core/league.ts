@@ -3,10 +3,14 @@ import { migratedEditionId, migratedEditionPick } from './editionMigrations'
 import { attachedUnitCount } from './attachedUnits'
 import { TABLE_SHAPE_LABELS, type TableShape } from './tableShape'
 import {
+  fitsBattleSize,
   FORMAT_RULE_IDS,
   formatRules,
   GAME_SIZES,
+  isKotcLimit,
+  POINTS_BUDGET_MAX,
   pointsLabel,
+  withinArmyPoints,
   waivedFormatRules,
   type FormatRule,
   type FormatRuleId,
@@ -29,7 +33,8 @@ export const LEAGUE_ENTRY_STATUSES = ['pending', 'accepted', 'rejected'] as cons
 export type LeagueEntryStatus = (typeof LEAGUE_ENTRY_STATUSES)[number]
 
 export const LEAGUE_DEFAULT_ROSTER_LIMIT = 2_000
-export const LEAGUE_TEAM_ROSTER_LIMITS = [2_000] as const
+/** The battle sizes a team event plays at; King of the Colosseum is a duel. */
+export const LEAGUE_TEAM_ROSTER_LIMITS = GAME_SIZES.flatMap((size) => (isKotcLimit(size.limit) ? [] : [size.limit]))
 
 export function leagueTableShape(format: TableShape | null | undefined): TableShape {
   return format ?? '1v1'
@@ -39,20 +44,43 @@ export function alliedLeagueRosterLimit(rosterLimit: number) {
   return rosterLimit / 2
 }
 
+/** An organizer's points per army at a team event, by seat; null plays an even share of the battle size. */
+export type LeagueArmyPoints = { soloPoints: number | null; allyPoints: number | null }
+
+/** What one army spends at a team event: the organizer's number for its seat, or an even share of the battle size. */
+export function leagueSeatPoints(event: { rosterLimit: number | null } & Partial<LeagueArmyPoints>, solo: boolean) {
+  if (event.rosterLimit === null) return null
+  return solo ? (event.soloPoints ?? event.rosterLimit) : (event.allyPoints ?? alliedLeagueRosterLimit(event.rosterLimit))
+}
+
+/** Why an organizer's points per army do not fit the event's format, or null. */
+export function leagueArmyPointsError(format: TableShape, points: Partial<LeagueArmyPoints>): string | null {
+  const given = [points.soloPoints, points.allyPoints].filter((value) => value !== null && value !== undefined)
+  if (format === '1v1' && given.length) return 'only a team event sets points per army'
+  if (format === '2v2' && points.soloPoints != null) return 'a doubles event has no solo player'
+  if (given.some((value) => !Number.isInteger(value) || value < 1 || value > POINTS_BUDGET_MAX))
+    return `choose between 1 and ${POINTS_BUDGET_MAX.toLocaleString('en')} points per army`
+  return null
+}
+
 /**
- * How a shape splits an event's roster size between the players on a side.
+ * How a team shape spends its points, side against side: "1,750 vs 800 + 800".
  *
  * A 1v1 splits nothing, so it has no phrasing here and each surface prints the size in
  * whatever density it has room for.
  */
-export function leagueRosterSplit(format: TableShape, rosterLimit: number) {
-  if (format === '2v1')
-    return `${rosterLimit.toLocaleString('en')} solo / ${alliedLeagueRosterLimit(rosterLimit).toLocaleString('en')} allied`
-  if (format === '2v2')
-    return `${rosterLimit.toLocaleString('en')} per force / ${alliedLeagueRosterLimit(rosterLimit).toLocaleString('en')} each`
+export function leagueRosterSplit(event: { format: TableShape; rosterLimit: number } & Partial<LeagueArmyPoints>) {
+  const ally = leagueSeatPoints(event, false)!.toLocaleString('en')
+  if (event.format === '2v1') return `${leagueSeatPoints(event, true)!.toLocaleString('en')} vs ${ally} + ${ally}`
+  if (event.format === '2v2') return `${ally} + ${ally} vs ${ally} + ${ally}`
   return null
 }
 
+/**
+ * A duel's battle size, or the seat a team event gave an entrant, null until it seats them: a 2v1's solo player at the
+ * event's size and its allies at half, and doubles players at half. A team event's lists are built at its size or
+ * smaller, whatever their seat.
+ */
 export function requiredLeagueRosterLimit(
   format: TableShape | null,
   eventLimit: number | null,
@@ -63,6 +91,27 @@ export function requiredLeagueRosterLimit(
   if (format === '2v1') return entryAssignment
   if (format === '2v2') return teamId === null || eventLimit === null ? null : alliedLeagueRosterLimit(eventLimit)
   return null
+}
+
+/** What a seated entrant's army may spend at a team event, or null at a duel or before they have a seat. */
+export function leagueEntryPoints(
+  event: { format: TableShape | null; rosterLimit: number | null } & Partial<LeagueArmyPoints>,
+  entry: { requiredLimit: number | null; teamId: string | null },
+) {
+  if (event.format === '2v1')
+    return entry.requiredLimit === null ? null : leagueSeatPoints(event, entry.requiredLimit === event.rosterLimit)
+  if (event.format === '2v2') return entry.teamId === null ? null : leagueSeatPoints(event, false)
+  return null
+}
+
+/** Why a sealed list cannot play its seat at a team event: built bigger than the event's size, or spending past its seat. */
+export function leagueSeatRefusal(
+  built: { limit: number; waivedRules?: readonly string[]; units: readonly { points: number }[] },
+  eventLimit: number,
+  points: number,
+): 'wrong-limit' | 'over-points' | null {
+  if (!fitsBattleSize({ limit: eventLimit, teamBattle: true }, built)) return 'wrong-limit'
+  return withinArmyPoints(built, points) ? null : 'over-points'
 }
 
 export const LEAGUE_NAME_MAX_LENGTH = 100
@@ -419,17 +468,12 @@ const NON_MATCHED_PLAY_LABELS: Record<NonMatchedPlayKind, string> = { legends: '
 export const isNonMatchedPlayAllowance = (id: LeagueAllowance): id is NonMatchedPlayKind => NON_MATCHED_PLAY.has(id)
 
 /**
- * The allowances an organizer can choose for this rule, in reading order, described at the size the lists are built
- * to: a 2v1 at its solo size, a doubles event at its half size. Allies choose whose Warlord leads, so a team event
- * always needs one.
+ * The allowances an organizer can choose for this rule, in reading order, described at the event's battle size, which
+ * every list is built at or below. Allies choose whose Warlord leads, so a team event always needs one.
  */
 export function leagueAllowanceOptions(format: TableShape, rosterLimit: number): LeagueAllowanceOption[] {
-  const allied = alliedLeagueRosterLimit(rosterLimit)
-  const limits = format === '1v1' ? [rosterLimit] : format === '2v1' ? [rosterLimit, allied] : [allied]
-  const rules = new Map<LeagueAllowance, FormatRule>()
-  for (const rule of limits.flatMap((limit) => formatRules(limit))) if (!rules.has(rule.id)) rules.set(rule.id, rule)
   return [
-    ...[...rules.values()].filter((rule) => format === '1v1' || !WARLORD_RULES.has(rule.id)),
+    ...formatRules(rosterLimit).filter((rule) => format === '1v1' || !WARLORD_RULES.has(rule.id)),
     ...NON_MATCHED_PLAY_KINDS.map((id) => ({ id, label: NON_MATCHED_PLAY_LABELS[id], hint: 'Datasheets matched play leaves out' })),
   ]
 }
@@ -525,12 +569,17 @@ function sealedDetachments(built: NonNullable<Roster['built']>) {
  * An event's table shape and points, such as "Duel · 2,000 points" or "Duel · 750 points at Incursion" for its own
  * total, or null for an event that fixed neither.
  */
-export function leagueFormat(event: { format: TableShape | null; rosterLimit: number | null; pointsBudget?: number | null }) {
+export function leagueFormat(
+  event: { format: TableShape | null; rosterLimit: number | null; pointsBudget?: number | null } & Partial<LeagueArmyPoints>,
+) {
   if (!event.format || !event.rosterLimit) return null
   const size = GAME_SIZES.find((candidate) => candidate.limit === event.rosterLimit)
+  const split = leagueRosterSplit({ ...event, format: event.format, rosterLimit: event.rosterLimit })
   const points = event.pointsBudget
     ? `${pointsLabel(event.pointsBudget)}${size ? ` at ${size.name}` : ''}`
-    : (leagueRosterSplit(event.format, event.rosterLimit) ?? pointsLabel(event.rosterLimit))
+    : split
+      ? `${size?.name ?? pointsLabel(event.rosterLimit)} · ${split}`
+      : pointsLabel(event.rosterLimit)
   return `${TABLE_SHAPE_LABELS[event.format].name} · ${points}`
 }
 
@@ -545,7 +594,7 @@ export function leagueTitle(
     format: TableShape | null
     rosterLimit: number | null
     pointsBudget?: number | null
-  },
+  } & Partial<LeagueArmyPoints>,
   { withClub = true } = {},
 ) {
   if (event.tournament) return event.tournament.name

@@ -1,3 +1,4 @@
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -17,12 +18,15 @@ import { PointsTotalError, PointsTotalInput } from '../../components/PointsTotal
 import {
   isNonMatchedPlayAllowance,
   leagueAllowanceOptions,
+  leagueArmyPointsError,
   leagueRosterSplit,
+  leagueSeatPoints,
   offeredLeagueAllowances,
   LEAGUE_DEFAULT_ROSTER_LIMIT,
   LEAGUE_TEAM_ROSTER_LIMITS,
   type LeagueAllowance,
   type LeagueAllowanceOption,
+  type LeagueArmyPoints,
 } from '../../../core/league'
 import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { Choice } from '../../components/Choice'
@@ -37,25 +41,27 @@ type LeagueEventRuleValue = {
   rounds: number | null
   /** A duel's own points total under its battle size, or null for the size's full points. */
   pointsBudget: number | null
-}
+} & LeagueArmyPoints
 
 /** Drops what a new format or size no longer offers, so the form never holds an allowance it does not show. */
 const offeredAllowances = (rule: LeagueEventRuleValue): LeagueEventRuleValue => ({
   ...rule,
   allowances: offeredLeagueAllowances(rule.format, rule.rosterLimit, rule.allowances),
-  // Swiss rounds and an own points total are for duels only.
+  // Swiss rounds and an own points total are for duels only, and points per army for team shapes.
   rounds: rule.format === '1v1' ? rule.rounds : null,
   pointsBudget: rule.format === '1v1' && allowsPointsBudget(rule.rosterLimit) ? rule.pointsBudget : null,
+  soloPoints: rule.format === '2v1' ? rule.soloPoints : null,
+  allyPoints: rule.format === '1v1' ? null : rule.allyPoints,
 })
 
 /** What a team shape asks of an entrant's roster; a duel's points say it all. A tournament's organizer seats entrants, a club's players seat themselves. */
 export const ROSTER_RULE: Partial<Record<TableShape, string>> = {
-  '2v1': 'You give each player a solo or allied size before they seal.',
-  '2v2': 'You pair players into teams of two, and each seals a half-size roster. Team-wide limits are yours to check.',
+  '2v1': 'You give each player the solo seat or a place in the pair before they seal.',
+  '2v2': 'You pair players into teams of two before they seal. Team-wide limits are yours to check.',
 }
 export const CLUB_ROSTER_RULE: Partial<Record<TableShape, string>> = {
   '2v1': 'Players take the solo seat or a place in the pair, then seal a list for it.',
-  '2v2': 'Players join one of two teams, then each seals a half-size list. Team-wide limits are up to each team.',
+  '2v2': 'Players join one of two teams, then each seals a list. Team-wide limits are up to each team.',
 }
 
 export function LeagueEventRuleFields({
@@ -76,10 +82,8 @@ export function LeagueEventRuleFields({
   const [budgetText, setBudgetText] = useState(value.pointsBudget === null ? '' : String(value.pointsBudget))
   const budgetError = budgetText.trim() ? pointsBudgetError(value.rosterLimit, Number(budgetText)) : null
   const label = (limit: number) => {
-    const split = leagueRosterSplit(value.format, limit)
-    if (split) return split
     const size = GAME_SIZES.find((candidate) => candidate.limit === limit)
-    return size ? battleSizeOptionLabel(size) : `${pointsLabel(limit)} per player`
+    return size ? battleSizeOptionLabel(size) : pointsLabel(limit)
   }
 
   return (
@@ -140,6 +144,7 @@ export function LeagueEventRuleFields({
               ) : null}
             </div>
             <PointsTotalError id="league-event-points-budget" error={budgetError} />
+            {value.format === '1v1' ? null : <ArmyPointsFields value={value} disabled={disabled} onChange={onChange} />}
           </>
         ) : (
           // One size on offer is a fact to read, not a choice to make.
@@ -155,6 +160,86 @@ export function LeagueEventRuleFields({
       {pairing && value.format === '1v1' ? <Pairing value={value} disabled={disabled} onChange={onChange} /> : null}
       <HouseRules value={value} disabled={disabled} onChange={onChange} />
     </>
+  )
+}
+
+/**
+ * What each army may spend at a team event, typed per seat: 1,750 for the solo player against 800 for each ally, say.
+ *
+ * Most events play an even split, so it reads as one line until the organizer asks for the boxes or has set their own
+ * numbers. A box left empty plays an even share of the battle size, which its placeholder shows.
+ */
+function ArmyPointsFields({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: LeagueEventRuleValue
+  disabled: boolean
+  onChange: (value: LeagueEventRuleValue) => void
+}) {
+  const seats: { key: keyof LeagueArmyPoints; label: string; solo: boolean }[] =
+    value.format === '2v1'
+      ? [
+          { key: 'soloPoints', label: 'Solo player', solo: true },
+          { key: 'allyPoints', label: 'Each ally', solo: false },
+        ]
+      : [{ key: 'allyPoints', label: 'Each player', solo: false }]
+  const error = leagueArmyPointsError(value.format, value)
+  const [open, setOpen] = useState(false)
+  if (!open && value.soloPoints === null && value.allyPoints === null)
+    return (
+      <p className="text-xs text-dim">
+        {leagueRosterSplit(value)}, an even split.{' '}
+        <Button variant="link" size="xs" className="h-auto px-0 text-xs text-info" disabled={disabled} onClick={() => setOpen(true)}>
+          Set points per army
+        </Button>
+      </p>
+    )
+  return (
+    <div className="space-y-1.5 pt-2">
+      <p className="text-sm leading-none font-medium">Points per army</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        {seats.map((seat) => (
+          <div key={seat.key} className="space-y-1">
+            <Label htmlFor={`league-event-${seat.key}`} className="text-xs text-dim">
+              {seat.label}
+            </Label>
+            <Input
+              id={`league-event-${seat.key}`}
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder={String(leagueSeatPoints({ rosterLimit: value.rosterLimit }, seat.solo))}
+              value={value[seat.key] === null ? '' : String(value[seat.key])}
+              disabled={disabled}
+              aria-invalid={Boolean(error)}
+              className="h-11 text-base"
+              onChange={(event) => onChange({ ...value, [seat.key]: event.target.value.trim() ? Number(event.target.value) : null })}
+            />
+          </div>
+        ))}
+      </div>
+      {error ? (
+        <p role="alert" className="text-xs text-destructive">
+          {error[0]!.toUpperCase() + error.slice(1)}.
+        </p>
+      ) : null}
+      <p className="text-xs text-dim">
+        Lists are built at the battle size or smaller and spend up to their seat’s points. Allies bring lists saved to the same total.{' '}
+        <Button
+          variant="link"
+          size="xs"
+          className="h-auto px-0 text-xs text-info"
+          disabled={disabled}
+          onClick={() => {
+            setOpen(false)
+            onChange({ ...value, soloPoints: null, allyPoints: null })
+          }}
+        >
+          Use an even split
+        </Button>
+      </p>
+    </div>
   )
 }
 

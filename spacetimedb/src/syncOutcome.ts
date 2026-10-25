@@ -22,6 +22,8 @@ const failures = new Set([
   'past-deadline',
   'past',
   'wrong-budget',
+  'over-points',
+  'ally-mismatch',
   'self',
   'already-friends',
 ])

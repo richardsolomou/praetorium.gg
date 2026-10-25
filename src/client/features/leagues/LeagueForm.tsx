@@ -7,14 +7,15 @@ import { useState } from 'react'
 import {
   leagueMinimumPlaces,
   leaguePlacesSeat,
-  leagueRosterSplit,
+  leagueArmyPointsError,
+  leagueFormat,
   LEAGUE_MEMBER_MAX,
   type LeagueAdmission,
   type LeagueAllowance,
   type LeagueVisibility,
 } from '../../../core/league'
-import { pointsBudgetError, pointsLabel } from '../../../core/battle'
-import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
+import { pointsBudgetError } from '../../../core/battle'
+import type { TableShape } from '../../../core/tableShape'
 import { Choice } from '../../components/Choice'
 import { LeagueEventRuleFields, CLUB_ROSTER_RULE, ROSTER_RULE } from './LeagueEventRuleFields'
 import { LeagueAdminsField, type AdminChoice } from './LeagueAdminsField'
@@ -31,6 +32,8 @@ export type LeagueFormValue = {
   allowances: LeagueAllowance[]
   rounds: number | null
   pointsBudget: number | null
+  soloPoints: number | null
+  allyPoints: number | null
   playsAt: number | null
   sealBy: number | null
 }
@@ -105,10 +108,7 @@ export function LeagueFormFields({
         {ruleLock ? (
           <div className="space-y-1.5">
             <p className="eyebrow">Format and points</p>
-            <p className="font-semibold">
-              {TABLE_SHAPE_LABELS[value.format].name} ·{' '}
-              {leagueRosterSplit(value.format, value.rosterLimit) ?? pointsLabel(value.rosterLimit)}
-            </p>
+            <p className="font-semibold">{leagueFormat(value)}</p>
             <p className="text-sm text-dim">House rules: {leagueAllowances(value)}</p>
             <p className="text-xs text-dim">
               {[(tournament ? ROSTER_RULE : CLUB_ROSTER_RULE)[value.format], ruleLock].filter(Boolean).join(' ')}
@@ -225,6 +225,7 @@ export function leagueFormValid(value: LeagueFormValue, seated = 0, limitFormat:
   return (
     (!tournament || (Boolean(value.name.trim()) && leaguePlacesSeat(limitFormat, value.playerLimit, seated))) &&
     !pointsBudgetError(value.rosterLimit, value.pointsBudget) &&
+    !leagueArmyPointsError(value.format, value) &&
     !scheduleProblem(value)
   )
 }
