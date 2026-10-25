@@ -94,6 +94,21 @@ test('the roster workspace reserves the desktop picker while its book loads', as
   }
 })
 
+test('an edit made just before leaving the roster still saves', async ({ page }) => {
+  await signUp(page, 'Hasty Builder')
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Before leaving' })
+  const saved = page.context().waitForEvent('response', (response) => Boolean(response.request().postData()?.includes('After leaving')))
+  await page.getByLabel('List name').fill('After leaving')
+  // A script click leaves inside the autosave's settle pause, which a pointer click cannot promise.
+  await page
+    .locator('a[href="/rosters"]')
+    .first()
+    .evaluate((link: HTMLAnchorElement) => link.click())
+  await saved
+  await page.reload()
+  await expect(page.getByText('After leaving').first()).toBeVisible()
+})
+
 test('the roster header fades whichever end of its facts it is hiding', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
   const page = await context.newPage()
