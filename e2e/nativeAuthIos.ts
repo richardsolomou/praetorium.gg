@@ -455,27 +455,30 @@ async function main() {
   await run('xcrun', ['simctl', 'launch', udid, 'gg.praetorium'])
   const journey = guestDraftJourney ? 'native-guest-draft-ios' : 'native-auth-ios'
   const javaHome = process.env.JAVA_HOME ?? (existsSync('/opt/homebrew/opt/openjdk@21') ? '/opt/homebrew/opt/openjdk@21' : undefined)
-  await run(
-    'maestro',
-    [
-      'test',
-      '-e',
-      `NATIVE_OFFLINE_VERIFY=${process.env.NATIVE_OFFLINE_VERIFY ?? '0'}`,
-      '--udid',
-      udid,
-      '--test-output-dir',
-      path.join(root, 'test-results', journey),
-      path.join(root, 'e2e', `${journey}.yaml`),
-    ],
-    {
-      env: {
-        ...process.env,
-        ...(javaHome ? { JAVA_HOME: javaHome, PATH: `${javaHome}/bin:${process.env.PATH ?? ''}` } : {}),
-        MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true',
-        MAESTRO_CLI_NO_ANALYTICS: 'true',
-      },
-    },
-  )
+  const maestroEnvironment = {
+    ...process.env,
+    ...(javaHome ? { JAVA_HOME: javaHome, PATH: `${javaHome}/bin:${process.env.PATH ?? ''}` } : {}),
+    MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true',
+    MAESTRO_CLI_NO_ANALYTICS: 'true',
+  }
+  const maestro = (flow: string, results: string, options: string[] = []) =>
+    run(
+      'maestro',
+      [
+        'test',
+        ...options,
+        '--udid',
+        udid,
+        '--test-output-dir',
+        path.join(root, 'test-results', results),
+        path.join(root, 'e2e', `${flow}.yaml`),
+      ],
+      { env: maestroEnvironment },
+    )
+  const relaunch = async () => {
+    await relaunch()
+  }
+  await maestro(journey, journey, ['-e', `NATIVE_OFFLINE_VERIFY=${process.env.NATIVE_OFFLINE_VERIFY ?? '0'}`])
   await delay(1_000)
   assertFlow()
   console.log(`Native authentication refreshed without an app restart: ${events.join(' -> ')}`)
@@ -487,86 +490,23 @@ async function main() {
     console.log('Simulator notification permission and device registration succeeded.')
   }
   if (process.env.NATIVE_OFFLINE_VERIFY === '1') {
-    const maestroEnvironment = {
-      ...process.env,
-      ...(javaHome ? { JAVA_HOME: javaHome, PATH: `${javaHome}/bin:${process.env.PATH ?? ''}` } : {}),
-      MAESTRO_CLI_ANALYSIS_NOTIFICATION_DISABLED: 'true',
-      MAESTRO_CLI_NO_ANALYTICS: 'true',
-    }
-    await run(
-      'maestro',
-      [
-        'test',
-        '--udid',
-        udid,
-        '--test-output-dir',
-        path.join(root, 'test-results', 'native-offline-ios'),
-        path.join(root, 'e2e', 'native-offline-save-ios.yaml'),
-      ],
-      { env: maestroEnvironment },
-    )
+    await maestro('native-offline-save-ios', 'native-offline-ios')
     await waitForSavedApp(udid)
     const offlineProxy = proxy
     proxy?.closeAllConnections()
     if (proxy) await new Promise<void>((resolve) => proxy!.close(() => resolve()))
     proxy = undefined
-    await run('xcrun', ['simctl', 'terminate', udid, 'gg.praetorium'])
-    await run('xcrun', ['simctl', 'launch', udid, 'gg.praetorium'])
-    await run(
-      'maestro',
-      [
-        'test',
-        '--udid',
-        udid,
-        '--test-output-dir',
-        path.join(root, 'test-results', 'native-offline-ios'),
-        path.join(root, 'e2e', 'native-offline-read-ios.yaml'),
-      ],
-      { env: maestroEnvironment },
-    )
+    await relaunch()
+    await maestro('native-offline-read-ios', 'native-offline-ios')
     console.log('Saved reference reopened after a cold launch with the service unreachable.')
-    await run('xcrun', ['simctl', 'terminate', udid, 'gg.praetorium'])
-    await run('xcrun', ['simctl', 'launch', udid, 'gg.praetorium'])
-    await run(
-      'maestro',
-      [
-        'test',
-        '--udid',
-        udid,
-        '--test-output-dir',
-        path.join(root, 'test-results', 'native-offline-ios'),
-        path.join(root, 'e2e', 'native-offline-reopen-ios.yaml'),
-      ],
-      { env: maestroEnvironment },
-    )
+    await relaunch()
+    await maestro('native-offline-reopen-ios', 'native-offline-ios')
     await terminateSavedRenderer(udid)
-    await run(
-      'maestro',
-      [
-        'test',
-        '--udid',
-        udid,
-        '--test-output-dir',
-        path.join(root, 'test-results', 'native-offline-ios'),
-        path.join(root, 'e2e', 'native-offline-recovery-ios.yaml'),
-      ],
-      { env: maestroEnvironment },
-    )
+    await maestro('native-offline-recovery-ios', 'native-offline-ios')
     console.log('Saved WebView recovered its current rule after renderer termination while disconnected.')
     proxy = offlineProxy
     await new Promise<void>((resolve) => proxy!.listen(publicPort, '127.0.0.1', resolve))
-    await run(
-      'maestro',
-      [
-        'test',
-        '--udid',
-        udid,
-        '--test-output-dir',
-        path.join(root, 'test-results', 'native-offline-ios'),
-        path.join(root, 'e2e', 'native-offline-sync-ios.yaml'),
-      ],
-      { env: maestroEnvironment },
-    )
+    await maestro('native-offline-sync-ios', 'native-offline-ios')
     const operator = fixtureOperator()
     const savedRoster = await operator.roster('native-saved-army')
     const savedBattle = await operator.battleByToken('native-cache-game')
@@ -579,18 +519,7 @@ async function main() {
       throw new Error('The native offline roster edit and battle command did not sync to the product database')
     console.log('Offline native roster edits and battle commands survived renderer recovery and synced on reconnect.')
     await seedSavedApp(true)
-    await run(
-      'maestro',
-      [
-        'test',
-        '--udid',
-        udid,
-        '--test-output-dir',
-        path.join(root, 'test-results', 'native-offline-ios'),
-        path.join(root, 'e2e', 'native-offline-resume-ios.yaml'),
-      ],
-      { env: maestroEnvironment },
-    )
+    await maestro('native-offline-resume-ios', 'native-offline-ios')
     console.log('Saved reference revalidated on foreground without navigating away from the current rule.')
   }
 }
