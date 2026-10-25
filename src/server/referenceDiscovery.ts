@@ -3,7 +3,7 @@ import { publicOrigin } from './requestOrigin'
 import { activeReferenceCorpus } from './referenceApi'
 import { app } from './app'
 import { updateId } from './catalogueHistory'
-import { factionsLastUpdated, referencesLastUpdated } from './catalogueChangeLog'
+import { factionsLastUpdated, listedHistory, referencesLastUpdated } from './catalogueChangeLog'
 import { gameReferencesFor } from '../shared/gameReferences'
 import { ifNoneMatch } from './ifNoneMatch'
 import { PRODUCT_DOCS, type ProductDoc } from '../contracts/productDocs'
@@ -58,11 +58,12 @@ export async function referenceSitemap(request: Request) {
   // it carries are part of the cache key.
   const history = (await app().catalogueHistoryFor()) ?? []
   const updates = history.map(updateId)
-  if (history.length) {
-    paths.set('/data-updates', Math.max(...history.map((entry) => entry.recordedAt)))
+  const listed = listedHistory(history)
+  if (listed.length) {
+    paths.set('/data-updates', Math.max(...listed.map((entry) => entry.recordedAt)))
     const canonical = await app().canonicalCatalogueFor()
     if (canonical) {
-      for (const [slug, recordedAt] of factionsLastUpdated(history, canonical)) paths.set(`/data-updates/${slug}`, recordedAt)
+      for (const [slug, recordedAt] of factionsLastUpdated(listed, canonical)) paths.set(`/data-updates/${slug}`, recordedAt)
       const canonicalPaths = new Map(
         corpus.documents.flatMap((document) => {
           if (document.kind !== 'datasheet' && document.kind !== 'detachment') return []
@@ -70,7 +71,7 @@ export async function referenceSitemap(request: Request) {
           return [[`/factions/${faction}/${document.kind === 'datasheet' ? 'datasheets' : 'detachments'}/${slug}`, document.url]]
         }),
       )
-      for (const [path, recordedAt] of referencesLastUpdated(history, canonical)) {
+      for (const [path, recordedAt] of referencesLastUpdated(listed, canonical)) {
         const destination = canonicalPaths.get(path) ?? path
         if (paths.has(destination)) paths.set(destination, recordedAt)
       }

@@ -1,4 +1,5 @@
 import type { CatalogueChange, CatalogueChangeSet } from '../core/catalogueChanges'
+import { editionFamilyId } from '../core/catalogueEdition'
 import { type CatalogueHistoryEntry, factionAnchors, updateSummary } from '../core/catalogueHistory'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { IndexedUpdate, LinkedChangeSet, ReferenceLink } from '../contracts/catalogueChanges'
@@ -86,6 +87,36 @@ export function indexedUpdate(entry: CatalogueHistoryEntry, canonical: Canonical
     ...updateSummary(anchor, entry.changes),
     changes: linkedChanges(entry.changes, canonical, anchor),
   }
+}
+
+const listedHistoryCache = new WeakMap<readonly CatalogueHistoryEntry[], CatalogueHistoryEntry[]>()
+
+const isAddition = (change: CatalogueChange) => change.kind.endsWith('-added')
+
+/**
+ * The history, oldest first, as the updates pages list it. Rules versions are recorded under
+ * qualified IDs so saved lists on them match, but two of their rows say nothing new: a version's
+ * first row lists everything it holds as added, and the default version repeats its army's row.
+ */
+export function listedHistory(history: readonly CatalogueHistoryEntry[]): CatalogueHistoryEntry[] {
+  const cached = listedHistoryCache.get(history)
+  if (cached) return cached
+  const recorded = new Set<string>()
+  const listed = history.flatMap((entry) => {
+    const plain = new Map(
+      entry.changes.factions.filter(({ catalogueId }) => !catalogueId.includes('~')).map((f) => [f.catalogueId, JSON.stringify(f.changes)]),
+    )
+    const factions = entry.changes.factions.filter(({ catalogueId, changes }) => {
+      if (!catalogueId.includes('~')) return true
+      const introduced = !recorded.has(catalogueId) && changes.every(isAddition)
+      recorded.add(catalogueId)
+      return !introduced && plain.get(editionFamilyId(catalogueId)) !== JSON.stringify(changes)
+    })
+    if (factions.length === entry.changes.factions.length) return [entry]
+    return factions.length ? [{ ...entry, changes: { ...entry.changes, factions } }] : []
+  })
+  listedHistoryCache.set(history, listed)
+  return listed
 }
 
 /**

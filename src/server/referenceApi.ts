@@ -28,6 +28,12 @@ type ReferenceRecord = {
   data: unknown
 }
 
+/** Each army's current rules, by the faction id the reference files them under. */
+export async function currentFactionIds() {
+  const factions = (await app().factionsFor())?.factions ?? []
+  return new Set(factions.filter((faction) => faction.isDefault).map((faction) => faction.id))
+}
+
 export async function activeReferenceCorpus(catalogueId?: string) {
   const instance = app()
   if (instance.sync().status !== 'ready') return null
@@ -135,7 +141,7 @@ export async function referenceUnitsResponse(request: Request, catalogueId: stri
     instance.rulesFor(selected?.id ?? catalogueId),
   ])
   if (!corpus || !loaded) return referenceUnavailable()
-  const data = referenceUnits(corpus, loaded, rules, catalogueId, battleSize, detachment)
+  const data = referenceUnits(corpus, loaded, rules, catalogueId, battleSize, detachment, await currentFactionIds())
   if (!data) return problem('faction or detachment not found', 404)
   const markdown = [
     `# ${data.faction.name} roster planning`,

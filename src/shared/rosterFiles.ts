@@ -5,7 +5,7 @@ import { attachmentRows } from '../core/attachmentRows'
 import { fromBattleBaseText } from '../core/battlebase'
 import { type Definition, nameOf } from '../core/catalogue'
 import { childrenOf, isRosterToggle, modelProfileOf, resolve } from '../core/definitions'
-import { canonicalDetachmentName } from '../core/detachmentName'
+import { detachmentNameVariants } from '../core/detachmentName'
 import type { Selection } from '../core/evaluate'
 import { fromNewRecruitText } from '../core/newRecruit'
 import { normalizedNameVariants } from '../core/name'
@@ -398,7 +398,7 @@ function detachmentsNamed<T extends { id: string; name: string }>(combined: stri
   const candidates = options.toSorted((left, right) => normalized(right.name).length - normalized(left.name).length)
   const visit = (remaining: string, available: readonly T[]): T[] | null => {
     for (const candidate of available) {
-      for (const name of new Set([candidate.name, canonicalDetachmentName(candidate.name)].map(normalized))) {
+      for (const name of new Set(detachmentNameVariants(candidate.name).map(normalized))) {
         if (remaining === name) return [candidate]
         for (const separator of [', and ', ' and ', ', ']) {
           if (!remaining.startsWith(name + separator)) continue

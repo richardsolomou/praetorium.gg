@@ -2,7 +2,7 @@ import { TEXT_SOURCES } from '../shared/sourceText'
 import { z } from 'zod'
 import { REFERENCE_KINDS } from '../contracts/reference'
 import { app } from './app'
-import { activeReferenceCorpus } from './referenceApi'
+import { activeReferenceCorpus, currentFactionIds } from './referenceApi'
 import { referenceDocumentMarkdown } from './referenceCorpus'
 import { REFERENCE_RESULT_MAX, searchReference, validReferenceCursor } from './referenceSearch'
 import {
@@ -127,7 +127,7 @@ export function registerReferenceTools(server: AgentTools) {
     {
       title: 'List compact faction units for roster planning',
       description:
-        'Returns every pickable unit in one bounded response with unit-size costs, composition, attachment relationships, roster limits, roles, keywords, and links. Include a detachment to receive its rules, enhancements, upgrades, and stratagems by name, cost, and timing without opening every unit page. Their rules text is at each record’s textSources.',
+        'Returns every pickable unit in one bounded response with unit-size costs, composition, attachment relationships, roster limits, roles, keywords, and links. Include a detachment, including one a chapter takes from its codex, to list only the units it allows and receive its rules, enhancements, upgrades, and stratagems by name, cost, and timing without opening every unit page. Their rules text is at each record’s textSources.',
       inputSchema: {
         faction: z.string().trim().min(1).max(160).describe('Faction id, URL slug, or display name from list_reference.'),
         battleSize: z.number().int().min(1).max(10_000).optional().describe('Battle size in points for size-dependent limits.'),
@@ -151,7 +151,7 @@ export function registerReferenceTools(server: AgentTools) {
         instance.rulesFor(selected?.id ?? faction),
       ])
       if (!corpus || !loaded) return unavailable()
-      const result = referenceUnits(corpus, loaded, rules, faction, battleSize, detachment)
+      const result = referenceUnits(corpus, loaded, rules, faction, battleSize, detachment, await currentFactionIds())
       if (!result) return { content: [{ type: 'text', text: 'Faction or detachment not found.' }], isError: true }
       return structured(result)
     },

@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
 import type { CanonicalCatalogue, CanonicalDatasheet } from '../contracts/catalogue'
-import { bookOf, points } from './catalogue.fixtures'
+import { bookOf, points, shelfOf } from './catalogue.fixtures'
 import type { ReferenceCorpus } from './referenceCorpus'
 import { referenceRecord, referenceUnits, referenceFaction } from './referenceService'
 import type { LoadedRules } from './rules'
@@ -100,6 +100,59 @@ it('rejects a detachment outside the requested faction', () => {
   const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot' }
 
   expect(referenceUnits(corpus, loaded, null, 'cat', undefined, 'missing')).toBeNull()
+})
+
+it('plans a chapter with a detachment its codex holds', () => {
+  const loaded = shelfOf(
+    {
+      sharedSelectionEntries: [
+        {
+          id: 'wrapper',
+          name: 'Detachment',
+          type: 'upgrade',
+          selectionEntryGroups: [
+            { id: 'choices', name: 'Detachment', selectionEntries: [{ id: 'gladius', name: 'Gladius Task Force', type: 'upgrade' }] },
+          ],
+        },
+      ],
+    },
+    {
+      selectionEntries: [{ id: 'templar', name: 'Templar', type: 'unit' }],
+      catalogueLinks: [{ targetId: 'cat', importRootEntries: true }],
+    },
+  )
+  const catalogue = {
+    format: 'praetorium.canonical-catalogue.v1',
+    compilerVersion: 1,
+    revisions: {},
+    datasheets: [
+      {
+        id: 'templar',
+        slug: 'templar',
+        catalogueId: 'cat-1',
+        faction: 'Chapter',
+        referenceRoute: { catalogueId: 'chapter', slug: 'templar' },
+        attachments: [],
+        leaders: [],
+        supporters: [],
+      },
+    ],
+    detachments: ['old~cat', 'current~cat'].map((catalogueId) => ({
+      catalogueId,
+      faction: 'Codex',
+      factionSlug: 'codex',
+      id: 'gladius',
+      slug: 'gladius-task-force',
+      name: 'Gladius Task Force',
+    })),
+    ruleDocuments: [],
+    issues: [],
+  } as unknown as CanonicalCatalogue
+  const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot' }
+
+  expect(
+    referenceUnits(corpus, loaded, null, 'chapter', undefined, 'Gladius Task Force', new Set(['cat-1', 'current~cat']))?.detachment,
+  ).toMatchObject({ id: 'gladius', catalogueId: 'current~cat' })
 })
 
 it('connects a primary mission to its terrain and deployment records', () => {

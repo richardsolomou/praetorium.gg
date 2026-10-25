@@ -4,7 +4,7 @@ import type { IndexedUpdate } from '../../contracts/catalogueChanges'
 import type { CatalogueChange } from '../../core/catalogueChanges'
 import { decodeHistoryCursor, encodeHistoryCursor, historyPage } from '../../core/catalogueHistory'
 import { app } from '../app'
-import { factionHistory, indexedUpdate, recentReferenceChanges } from '../catalogueChangeLog'
+import { factionHistory, indexedUpdate, listedHistory, recentReferenceChanges } from '../catalogueChangeLog'
 import { historyAnchor } from '../catalogueHistory'
 import { rpc } from '../rpc'
 import { parseReleaseNotes } from '../../core/releaseNotes'
@@ -24,7 +24,7 @@ export const catalogueChangeLog = createServerFn({ method: 'GET' })
     rpc(async (): Promise<{ updates: IndexedUpdate[]; older: string | null }> => {
       const instance = app()
       const before = data.before ? decodeHistoryCursor(data.before) : null
-      const history = (await instance.catalogueHistoryFor()) ?? []
+      const history = listedHistory((await instance.catalogueHistoryFor()) ?? [])
       const canonical = history.length ? await instance.canonicalCatalogueFor(data.faction) : null
       const scoped = data.faction ? (canonical ? factionHistory(history, canonical, data.faction) : []) : history
       const page = historyPage(scoped, CHANGE_LOG_PAGE, before ?? undefined)
@@ -41,7 +41,7 @@ export const referenceChanges = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async (): Promise<{ recordedAt: number; change: CatalogueChange }[]> => {
       const instance = app()
-      const history = (await instance.catalogueHistoryFor()) ?? []
+      const history = listedHistory((await instance.catalogueHistoryFor()) ?? [])
       const canonical = history.length ? await instance.canonicalCatalogueFor(data.faction) : null
       return recentReferenceChanges(history, canonical, data)
     }),
@@ -59,7 +59,7 @@ export const armyUpdates = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       const instance = app()
-      const history = (await instance.catalogueHistoryFor()) ?? []
+      const history = listedHistory((await instance.catalogueHistoryFor()) ?? [])
       if (!history.length) return []
       const newest = await Promise.all(
         data.factions.map(async (slug) => {

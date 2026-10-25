@@ -151,7 +151,7 @@ type CategoryLink = { id: string; targetId: string; name?: string; primary?: boo
  * here rather than on the datasheet: every unit has a category named after itself,
  * and that category carries the number.
  */
-type CategoryEntry = {
+export type CategoryEntry = {
   id: string
   name?: string
   /** Bookkeeping the data keeps for itself — a marker naming weapons with a variable characteristic. */

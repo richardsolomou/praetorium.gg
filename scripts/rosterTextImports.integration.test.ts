@@ -286,20 +286,11 @@ Skitarii Rangers (85 Points)
     )
   })
 
-  it('prices both Salamanders detachments against their unannotated source names', () => {
+  it('prices both Salamanders detachments against their source names', () => {
     expect(priced(salamandersOfficial)?.detachments).toEqual([
-      { name: 'Deathwatch Support (ITS NOT READY)', points: 1 },
+      { name: 'Deathwatch Support', points: 1 },
       { name: "Forgefather's Seekers", points: 2 },
     ])
-  })
-
-  it('preserves the upstream warning that Deathwatch Support construction is unfinished', () => {
-    expect(priced(salamandersOfficial)?.errors).toContainEqual({
-      entryId: '5eb6-4ed2-6aca-c7f1',
-      entryName: 'Deathwatch Support (ITS NOT READY)',
-      message:
-        'This detachment is not ready yet. It requires a lot of extra work and is in progress. Please do not report it missing as a bug report.\u00a0',
-    })
   })
 
   it('imports the reported German official-app Krieg roster without mismatches', () => {
