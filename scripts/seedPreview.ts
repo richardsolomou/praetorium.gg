@@ -759,6 +759,7 @@ async function seedInto(
   })
   await createOpenLeague()
   await createClubs()
+  await readBack()
 
   /**
    * A club the preview login runs, with every state its page shows: a join request, an admin, finished and live club
@@ -989,6 +990,26 @@ async function seedInto(
       }
       const reveal = await repository.revealLeague(gameToken, previewUserId, now())
       if (reveal.outcome !== 'revealed') throw new Error(`club game ${game.key} could not be revealed: ${reveal.outcome}`)
+    }
+  }
+
+  /**
+   * Reads every list and page the seeded data feeds, as each account. `scripts/releasedServer.test.ts` runs a
+   * released seed against a newer module, so this is where the released server's parsers meet what that module returns.
+   */
+  async function readBack() {
+    const page = { limit: 100 }
+    await repository.publicBattles(page)
+    for (const userId of ids.values()) {
+      await repository.relationships(userId)
+      await repository.rosterSummariesByUser(userId)
+      await repository.battlesByUser(userId, page)
+      await repository.battlesByFriends(userId, page)
+      for (const league of await repository.leaguesVisibleTo(userId)) await repository.leagueByToken(league.token, userId)
+      for (const club of await repository.clubsVisibleTo(userId)) {
+        await repository.clubByToken(club.token)
+        await repository.battlesByClub(club.token, page)
+      }
     }
   }
 
