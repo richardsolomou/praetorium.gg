@@ -128,15 +128,41 @@ type UnitListOptions = {
   nonMatchedPlay?: boolean
 }
 
+/** A faction page lists what its cards list, where it has cards at all. */
+function hasFactionCards(loaded: LoadedCatalogue, catalogueId: string, factionCards = false) {
+  const book = loaded.index.catalogues.get(catalogueId)
+  return Boolean(factionCards && book && factionContentOf(loaded, book.name))
+}
+
+/** The datasheets a book's list holds before pricing, so a count of them matches the list. */
+export function listedDatasheets(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  { factionCards, nonMatchedPlay = false }: Pick<UnitListOptions, 'factionCards' | 'nonMatchedPlay'> = {},
+) {
+  const included = hasFactionCards(loaded, catalogueId, factionCards)
+  const allied = loaded.index.alliedDatasheets.get(catalogueId)
+  return [...datasheetsOf(loaded.index, catalogueId)].flatMap((id) => {
+    const entry = loaded.index.definitions.get(id)
+    if (!entry || !isOfferedDatasheet(loaded.index, entry, nonMatchedPlay)) return []
+    const name = nameOf(entry, loaded.index.definitions)
+    // No Game Datacards export prints Legends or Crucible cards, so the faction's cards cannot list them.
+    if (included && !isNonMatchedPlayName(name) && !datacardOf(loaded, catalogueId, id)?.own) return []
+    // Unaligned Forces is the shared shelf for Legends fortifications and
+    // mission-only battlefield assets. A few assets (including Sentry Gun) lack
+    // the suffix even though they are not matched-play roster choices.
+    if (allied?.get(id)?.name === 'Unaligned Forces' && !isNonMatchedPlayName(name)) return []
+    return [{ id, entry, name }]
+  })
+}
+
 /** The complete priced list `unitsIn` searches, built a datasheet per step and shared by every reader of the same list. */
 export function unitSummaries(
   loaded: LoadedCatalogue,
   catalogueId: string,
   { restrictions, factionCards, battleSize, waivedRules = [], detachmentIds = [], nonMatchedPlay = false }: UnitListOptions = {},
 ): Stepwise<UnitSummary[]> {
-  // A faction page lists what its cards list, where it has cards at all.
-  const book = loaded.index.catalogues.get(catalogueId)
-  const included = Boolean(factionCards && book && factionContentOf(loaded, book.name))
+  const included = hasFactionCards(loaded, catalogueId, factionCards)
   // The complete, priced list is cached so each search filters in memory. Waived rules
   // change which datasheets the book offers and how many of each, so they belong in the key.
   const detachments = rosterDetachments(loaded, catalogueId, detachmentIds)
@@ -175,23 +201,13 @@ function* summarizeUnits(
   }[] = []
   const allied = loaded.index.alliedDatasheets.get(catalogueId) ?? new Map<string, { name: string; order: number }>()
 
-  for (const id of datasheetsOf(loaded.index, catalogueId)) {
-    const entry = loaded.index.definitions.get(id)
-    if (!entry) continue
-    if (!isOfferedDatasheet(loaded.index, entry, nonMatchedPlay)) continue
+  for (const { id, entry, name } of listedDatasheets(loaded, catalogueId, { factionCards: included, nonMatchedPlay })) {
     const target = targetOf(entry, loaded.index.definitions)
-    const name = nameOf(entry, loaded.index.definitions)
-    // No Game Datacards export prints Legends or Crucible cards, so the faction's cards cannot list them.
-    if (included && !isNonMatchedPlayName(name) && !datacardOf(loaded, catalogueId, id)?.own) continue
     const listed = detachmentUnitFacts(loaded, catalogueId, id, detachments.selections)
     // Asked only where a restriction can act on the answer: folding the keywords a
     // datasheet carries costs a default build of it, and most books exclude nothing.
     if (restrictions && restrictedBy(restrictions, name, listed?.keywords ?? keywordsIn(loaded, catalogueId, id))) continue
-    // Unaligned Forces is the shared shelf for Legends fortifications and
-    // mission-only battlefield assets. A few assets (including Sentry Gun) lack
-    // the suffix even though they are not matched-play roster choices.
     const ally = allied.get(id)
-    if (ally?.name === 'Unaligned Forces' && !isNonMatchedPlayName(name)) continue
     found.push({
       id,
       name,

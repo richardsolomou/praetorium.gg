@@ -1,12 +1,11 @@
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { datacardsFactionKeys } from './datacards'
 import type { StandingFaction } from '../core/standings'
-import { nameOf, targetOf } from '../core/catalogue'
-import { isNonMatchedPlayName } from '../core/name'
-import { isOfferedDatasheet } from './catalogueUnit'
+import { targetOf } from '../core/catalogue'
+import { listedDatasheets } from './cataloguePicker'
 import { routeSlug } from '../core/slug'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
-import { datasheetsOf, isReferenceDatasheet, type LoadedCatalogue } from './catalogueIndex'
+import { isReferenceDatasheet, type LoadedCatalogue } from './catalogueIndex'
 import { factionContentOf, factionDisplayName } from './factionNames'
 import { type LoadedRules, rulesFaction } from './rules'
 import { joinKey } from '../core/text'
@@ -81,19 +80,6 @@ function referenceDetachmentRoute(
   }
 }
 
-/** Legends and Crucible pages a faction lists beside its cards, which no card export prints. */
-function nonMatchedPlayPages(loaded: LoadedCatalogue, catalogueId: string) {
-  return [...datasheetsOf(loaded.index, catalogueId)].filter((id) => {
-    const entry = loaded.index.definitions.get(id)
-    return (
-      entry &&
-      isNonMatchedPlayName(nameOf(entry, loaded.index.definitions)) &&
-      isOfferedDatasheet(loaded.index, entry, true) &&
-      isReferenceDatasheet(loaded, catalogueId, id)
-    )
-  }).length
-}
-
 function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined, faction: LoadedCatalogue['factions'][number]) {
   const displayName = factionDisplayName(faction.name, rules?.factionNames)
   const slugId = routeSlug(displayName)
@@ -102,9 +88,11 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
     .find(Boolean)
   const versions = mfmVersions(loaded.mfm)
   const version = points?.attribution ? null : (points?.version ?? (versions.size === 1 ? versions.values().next().value : null))
-  const content = loaded.factionContents.get(slugId)
   const detachments = loaded.detachments.get(faction.id)?.options ?? []
   const referenceDetachments = detachments.filter((detachment) => isReferenceDetachment(loaded, rules, faction, detachment))
+  const datasheets = listedDatasheets(loaded, faction.id, { factionCards: true, nonMatchedPlay: true }).filter(({ id }) =>
+    isReferenceDatasheet(loaded, faction.id, id),
+  ).length
   return {
     summary: {
       id: faction.id,
@@ -122,7 +110,7 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
         : null,
       references: faction.references.map((reference) => ({
         ...reference,
-        datasheets: content ? content.datasheets.size + nonMatchedPlayPages(loaded, faction.id) : reference.datasheets,
+        datasheets,
         detachments: referenceDetachments.length,
       })),
       detachments: detachments.map((detachment) => ({
