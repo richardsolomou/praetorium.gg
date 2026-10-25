@@ -71,7 +71,7 @@ export function FactionDatasheet() {
             {sheet.points === null ? null : <span className="chip text-info">{sheet.points} pts</span>}
           </div>
         ) : null}
-        <UnitKeywords id="keyword-rules" data-onboarding="datasheet-keywords" className="mt-2" sheet={sheet} />
+        <UnitKeywords id="keyword-rules" className="mt-2" sheet={sheet} />
       </PageHeader>
       <PageContent className="space-y-6">
         <Breadcrumb>
@@ -96,12 +96,9 @@ export function FactionDatasheet() {
           </BreadcrumbList>
         </Breadcrumb>
 
-        {unit.length === 1 && unit[0] ? (
-          <UnitCharacteristics onboarding="datasheet-stats" profile={unit[0]} anchorIds={unitAnchorIds.get(unit[0].id)} />
-        ) : null}
+        {unit.length === 1 && unit[0] ? <UnitCharacteristics profile={unit[0]} anchorIds={unitAnchorIds.get(unit[0].id)} /> : null}
         {unit.length > 1 ? (
           <ProfileTable
-            onboarding="datasheet-stats"
             title="Models"
             profiles={unit}
             omit={['invulnerable-save', 'base-size']}
@@ -122,15 +119,11 @@ export function FactionDatasheet() {
             </div>
           </section>
         ) : null}
-        {ranged.length ? (
-          <ProfileTable onboarding="datasheet-weapons" title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} />
-        ) : null}
-        {melee.length ? (
-          <ProfileTable onboarding="datasheet-weapons" title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} />
-        ) : null}
-        <Abilities onboarding="datasheet-abilities" abilities={abilities} rules={sheet.keywordRules} />
+        {ranged.length ? <ProfileTable title="Ranged weapons" profiles={ranged} keywordRules={sheet.keywordRules} /> : null}
+        {melee.length ? <ProfileTable title="Melee weapons" profiles={melee} keywordRules={sheet.keywordRules} /> : null}
+        <Abilities abilities={abilities} rules={sheet.keywordRules} />
         <ProfileRules profiles={sheet.profiles} rules={sheet.keywordRules} />
-        <UnitConfiguration onboarding="datasheet-config" sheet={sheet} rules={sheet.keywordRules} />
+        <UnitConfiguration sheet={sheet} rules={sheet.keywordRules} />
         <PointsChanges faction={faction} slug={sheet.slug} />
         <TransportReference transport={sheet.transport} profiles={structured.transport} abilities={abilities} rules={sheet.keywordRules} />
         <Relationships sheet={sheet} abilityIds={relationshipAbilityIds} />

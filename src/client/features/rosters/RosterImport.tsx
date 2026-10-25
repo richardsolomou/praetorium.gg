@@ -1,3 +1,5 @@
+import { advanceOnboarding } from '../onboarding/onboarding'
+import { GuideHelp } from '../onboarding/GuideHelp'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useLocation, useNavigate } from '@tanstack/react-router'
 import { Copy, FileUp, LoaderCircle, TriangleAlert } from 'lucide-react'
@@ -151,6 +153,7 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
       return imported
     },
     onSuccess: (imported, file) => {
+      advanceOnboarding('roster-tools', 'tools-input', 'tools-review')
       if (imported.unknown.length || imported.unplaced.length) {
         posthog.capture('roster_import_review_required', {
           missing_count: imported.unknown.length,
@@ -206,6 +209,7 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
 
   const show = () => {
     if (blocked) return blocked()
+    advanceOnboarding('roster-tools', 'tools-import', 'tools-input')
     posthog.capture('roster_import_started', { input: 'text' })
     bring.reset()
     keep.reset()
@@ -229,8 +233,11 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
           </DialogHeader>
 
           <DialogBody>
+            <GuideHelp task="roster-tools" step={review ? 'tools-review' : 'tools-input'}>
+              Import guide
+            </GuideHelp>
             {review ? (
-              <div className="space-y-3">
+              <div data-onboarding="import-review" className="space-y-3">
                 <p className="text-sm">
                   <span className="font-semibold">{review.name}</span> · {review.units.length} of {review.sourceUnitCount} matched{' '}
                   {review.units.length === 1 ? 'entry' : 'entries'}
@@ -285,6 +292,7 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
                   variant="outline"
                   disabled={working}
                   onClick={() => {
+                    advanceOnboarding('roster-tools', 'tools-review', 'tools-input')
                     bring.reset()
                     keep.reset()
                   }}
@@ -298,6 +306,7 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
                   Roster text or exchange code
                 </Label>
                 <Textarea
+                  data-onboarding="import-input"
                   id="roster-text"
                   value={text}
                   onChange={(event) => setText(event.target.value)}

@@ -1,4 +1,6 @@
-You can build a list without an account. This device then keeps one roster in this browser; the footer's **Save roster** takes you through signing up and saves that list to your account. Variants, saved loadouts, sharing, locking, lending and battles need an account.
+Open **Getting started** in the account menu for two goals: build or import an army, then try a matchup. The guides work before you sign in. **Build guide** on the Rosters page takes you through setup and adding your first unit; the rest of the builder stays available to explore at your own pace.
+
+You can build a list without an account. This device then keeps one roster in this browser; the footer's **Save roster** takes you through creating an account or signing in, saves that list to your account, and returns you to your army. The draft stays on this device until saving succeeds. Variants, saved loadouts, sharing, locking, lending and battles need an account.
 
 Open [Rosters](/rosters) and choose **New roster**. The setup dialog asks for:
 
@@ -14,3 +16,5 @@ Choose **Create roster**. While something is missing, the dialog says what, such
 You can also start from a faction or detachment page with **Start a roster**, or from a datasheet's **Add to roster**.
 
 ![The Create roster dialog for Space Marines with Strike Force, Gladius Task Force and the Take and Hold Force disposition chosen.](screenshot:build-an-army-setup 'The Force disposition choice in the Create roster dialog')
+
+Battle, friend, and tournament guides are available on their own pages. Completing or skipping those guides is not required to finish Getting started.

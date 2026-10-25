@@ -1,3 +1,4 @@
+import { GuideHelp } from '../onboarding/GuideHelp'
 import { pageLinkTabClass, pageLinkTabsClass } from '../../components/PageTabs'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -45,10 +46,10 @@ export function BattlesPage({ view: asked }: { view: BattlesView }) {
         }
         actions={
           me ? (
-            // An empty list of the player's own offers the action in its own empty state.
-            view === 'mine' && !battles.length ? null : (
-              <CreateBattle />
-            )
+            <>
+              <GuideHelp task="battle">Battle guide</GuideHelp>
+              {view === 'mine' && !battles.length ? null : <CreateBattle />}
+            </>
           ) : (
             <Link to="/sign-in" search={{ next: '/battles' }} className={buttonClass()}>
               Sign in to play

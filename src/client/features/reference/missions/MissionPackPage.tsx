@@ -49,7 +49,7 @@ export function MissionPackPage({ packId }: { packId: string }) {
         {allowances.length ? <p className="readout mt-1 text-xs text-dim">{allowances.join(' · ')}</p> : null}
       </PageHeader>
       <PageContent className="space-y-6">
-        <section id="matrix" data-onboarding="mission-dispositions">
+        <section id="matrix">
           <h2 className="rubric border-b border-edge pb-2">Force dispositions</h2>
           <p className="mt-2 text-sm text-dim">Your disposition down the left, your opponent’s across the top.</p>
           {/* Bleeds to the window on a phone, so the cut-off column reads as a scroller. */}
@@ -104,7 +104,7 @@ export function MissionPackPage({ packId }: { packId: string }) {
           </div>
         </section>
 
-        <section data-onboarding="mission-secondaries">
+        <section>
           <h2 className="rubric flex justify-between border-b border-edge pb-2">
             <span>Secondary missions</span>
             <span className="readout">{data.secondaries.length}</span>

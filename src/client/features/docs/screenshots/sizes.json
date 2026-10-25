@@ -19,15 +19,15 @@
   "compare-loadouts-rosters": [2228, 1132],
   "import-a-roster-exchange-code": [1152, 1656],
   "import-a-roster-export-text": [1728, 1656],
-  "import-a-roster-paste": [1728, 1032],
-  "import-a-roster-review": [1728, 800],
-  "import-a-roster-shortfall": [1728, 1276],
+  "import-a-roster-paste": [1728, 1132],
+  "import-a-roster-review": [1728, 900],
+  "import-a-roster-shortfall": [1728, 1376],
   "track-a-battle-battle-options": [398, 368],
   "track-a-battle-guest-invite": [1152, 1024],
-  "track-a-battle-new-battle": [1152, 1388],
+  "track-a-battle-new-battle": [1152, 1468],
   "track-a-battle-phase": [792, 262],
   "track-a-battle-scoring": [1728, 1384],
   "track-a-battle-setup-bar": [1368, 152],
   "track-a-battle-stratagems": [832, 1302],
-  "track-a-battle-tracking": [1152, 1388]
+  "track-a-battle-tracking": [1152, 1468]
 }

@@ -1,3 +1,4 @@
+import { GuideHelp } from '../onboarding/GuideHelp'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
@@ -267,6 +268,7 @@ export function RosterLibraryPage({
         description="Build, import, organize, and share your armies, or find one your friends and other players made public."
         actions={
           <>
+            <GuideHelp task="roster">Build guide</GuideHelp>
             <RosterImport onImport={me ? undefined : keepImported} blocked={another} />
             <CreateRoster
               factionOptions={available?.factions ?? []}

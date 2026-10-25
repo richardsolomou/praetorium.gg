@@ -67,7 +67,7 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
         </div>
       </PageHeader>
       <PageContent className="space-y-6">
-        <section data-onboarding="matchup-primary">
+        <section>
           <h2 className="rubric border-b border-edge pb-2">Primary missions</h2>
           <div className="mt-4 grid gap-6 md:grid-cols-2">
             {sides.map((side) => (
@@ -88,7 +88,7 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
         </section>
 
         {sides.some((side) => side.actions.length) ? (
-          <section data-onboarding="matchup-actions">
+          <section aria-label="Actions">
             <h2 className="rubric flex justify-between border-b border-edge pb-2">
               <span>Actions</span>
               <span className="readout">{sides.reduce((total, side) => total + side.actions.length, 0)}</span>
@@ -115,7 +115,7 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
           </section>
         ) : null}
 
-        <section data-onboarding="matchup-terrain">
+        <section>
           <h2 className="rubric flex justify-between border-b border-edge pb-2">
             <span>Terrain layouts</span>
             <span className="readout" aria-label={terrainQuery.isPending ? 'Loading terrain layout count' : undefined}>

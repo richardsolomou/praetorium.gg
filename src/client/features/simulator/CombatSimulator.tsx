@@ -1,3 +1,4 @@
+import { GuideHelp } from '../onboarding/GuideHelp'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { posthog } from 'posthog-js'
 import { ArrowLeftRight, BookOpen } from 'lucide-react'
@@ -228,6 +229,7 @@ export function CombatSimulator({
         description="Compare shooting and melee between units or whole rosters. Try an editable Intercessors vs Necron Warriors example, or choose your own matchup."
         actions={
           <div className="space-y-2">
+            <GuideHelp task="simulator">First matchup guide</GuideHelp>
             <Button
               variant="outline"
               className="min-h-11"
@@ -377,6 +379,7 @@ export function CombatSimulatorMatchup({
     }),
     preferences: attacker.weaponPreferences,
   }
+  const calculated = useRef<string | null>(null)
   const state = JSON.stringify({ v: 1, sides: [first.shared, second.shared], swapped: reversed, matchup })
   useEffect(() => {
     onChange?.(JSON.parse(state) as SimulatorState)
@@ -384,12 +387,13 @@ export function CombatSimulatorMatchup({
   useEffect(() => {
     const advance = () => {
       if (attacker.snapshot) advanceOnboarding('simulator', 'simulator-attacker', 'simulator-defender')
-      if (attacker.snapshot && defender.snapshot) advanceOnboarding('simulator', 'simulator-defender', 'simulator-results')
+      if (attacker.snapshot && defender.snapshot && calculated.current === state)
+        advanceOnboarding('simulator', 'simulator-defender', 'simulator-results')
     }
     advance()
     window.addEventListener(ONBOARDING_FOCUS_EVENT, advance)
     return () => window.removeEventListener(ONBOARDING_FOCUS_EVENT, advance)
-  }, [attacker.snapshot, defender.snapshot])
+  }, [attacker.snapshot, defender.snapshot, state])
   return (
     <CombatMatchup
       entryPoint={source}
@@ -397,6 +401,8 @@ export function CombatSimulatorMatchup({
       initialSettings={matchup}
       onSettingsChange={reportSettings}
       onCompleted={() => {
+        calculated.current = state
+        advanceOnboarding('simulator', 'simulator-defender', 'simulator-results')
         if (!onRemember || !attacker.ready || !defender.ready || !attacker.unit || !defender.unit) return
         onRemember({
           shared: encodeSimulatorState(JSON.parse(state) as SimulatorState),
@@ -427,7 +433,6 @@ export function CombatSimulatorMatchup({
               variant="outline"
               size="icon-sm"
               className="bg-panel text-dim active:not-aria-[haspopup]:translate-y-0"
-              data-onboarding="simulator-swap"
               aria-label="Swap attacker and defender"
               title="Swap attacker and defender"
               onClick={() => setReversed((current) => !current)}

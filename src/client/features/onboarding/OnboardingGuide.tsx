@@ -3,15 +3,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocation, useNavigate } from '@tanstack/react-router'
 import { useServerFn } from '@tanstack/react-start'
 import { Check, ChevronRight, Circle, Flag, RotateCcw, X } from 'lucide-react'
-import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent } from '@/components/ui/popover'
 import {
-  availableOnboardingTasks,
+  EMPTY_ONBOARDING_PROGRESS,
+  gettingStartedTaskIds,
   isTourTask,
-  onboardingComplete,
-  resolvedOnboardingTasks,
+  resolvedGettingStartedTasks,
   type OnboardingProgress,
   type OnboardingProgressOperation,
   type OnboardingTaskId,
@@ -35,7 +35,7 @@ import {
   onboardingPromptAtTop,
   onboardingStepEntry,
   onboardingStepPastAbsentTarget,
-  onboardingTasks,
+  gettingStartedTasks,
   storedOnboardingFocus,
   type OnboardingAdvanceEvent,
   type OnboardingFocus,
@@ -43,6 +43,7 @@ import {
   type OnboardingStepId,
 } from './onboarding'
 import { Problem } from '../../components/Problem'
+import { peekGuestDraft } from '../rosters/guestDraft'
 
 /** How long a step waits for its control to appear before the guide offers the page instead. */
 const TARGET_WAIT = 1_500
@@ -57,24 +58,30 @@ const PLACEMENTS = {
 
 export function OnboardingGuide() {
   const { data: me } = useQuery(meQuery())
-  return me ? <AccountOnboardingGuide key={me.id} userId={me.id} /> : null
+  return <AccountOnboardingGuide key={me?.id ?? 'visitor'} userId={me?.id} />
 }
 
-function AccountOnboardingGuide({ userId }: { userId: string }) {
+function AccountOnboardingGuide({ userId }: { userId?: string }) {
   const location = useLocation()
   const navigate = useNavigate()
   const posthog = usePostHog()
   const queryClient = useQueryClient()
-  const { data } = useQuery(onboardingQuery())
+  const { data: progress } = useQuery({ ...onboardingQuery(), enabled: Boolean(userId) })
+  const data = userId ? progress : EMPTY_ONBOARDING_PROGRESS
   const callUpdate = useServerFn(updateOnboardingProgress)
   const mutation = useMutation({
     mutationFn: (operation: OnboardingProgressOperation) => callUpdate({ data: operation }),
-    onSuccess: (progress) => queryClient.setQueryData(onboardingQuery().queryKey, progress),
+    onSuccess: (saved) => queryClient.setQueryData(onboardingQuery().queryKey, saved),
   })
-  const updateProgress = useCallback((operation: OnboardingProgressOperation) => mutation.mutate(operation), [mutation])
-  const storageKey = onboardingFocusStorageKey(userId)
+  const updateProgress = useCallback(
+    (operation: OnboardingProgressOperation) => {
+      if (userId) mutation.mutate(operation)
+    },
+    [mutation, userId],
+  )
+  const storageKey = onboardingFocusStorageKey(userId ?? 'visitor')
   const [open, setOpen] = useState(false)
-  const [focus, setFocus] = useState<OnboardingFocus | undefined>(() => storedOnboardingFocus(userId))
+  const [focus, setFocus] = useState<OnboardingFocus | undefined>(() => storedOnboardingFocus(userId ?? 'visitor'))
   const currentFocus = useRef(focus)
   // Kept with its step, so a step that has just moved on never points at the last step's control.
   const [trackedTarget, setTrackedTarget] = useState<{ step: OnboardingStepId; element: HTMLElement | undefined }>()
@@ -84,7 +91,6 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
   const [lost, setLost] = useState<OnboardingFocus>()
   const compact = useCompactChrome()
   const page = onboardingPage(location.pathname)
-  const visible = useMemo(() => (data ? availableOnboardingTasks(data) : []), [data])
   const focusedStep = focus ? ONBOARDING_UI[focus.step] : undefined
 
   // The ref answers event handlers that run before the next render; storage follows each committed step.
@@ -96,19 +102,16 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
     currentFocus.current = focus
     writeSessionValue(storageKey, focus ? JSON.stringify(focus) : null)
   }, [focus, storageKey])
-  // Arriving on the next step's own page is the whole transition wherever a step changes page, and a task nobody can
-  // complete from the tooltip finishes when the server says the player did it.
   const arrived = focusAfterOnboardingNavigation(focus, page)
-  const awaited = focusedStep?.awaitsTask && focusedStep.next
   if (arrived !== focus) setFocus(arrived)
-  else if (focus && awaited && data?.completedTasks.includes(focus.task)) setFocus({ task: focus.task, step: awaited })
   const target = focusedStep && trackedTarget?.step === focus?.step ? trackedTarget?.element : undefined
 
   const showStep = useCallback(
     async (next: OnboardingFocus) => {
       rememberFocus(next)
       const href = onboardingHrefFor(next.step, onboardingPage(location.pathname))
-      if (href) await navigate({ href })
+      const targetExists = document.querySelector(`[data-onboarding="${ONBOARDING_UI[next.step].target}"]`)
+      if (href && !targetExists) await navigate({ href })
     },
     [location.pathname, navigate, rememberFocus],
   )
@@ -122,12 +125,6 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
   }, [target])
 
   useEffect(() => {
-    const show = () => setOpen(true)
-    window.addEventListener(ONBOARDING_EVENT, show)
-    return () => window.removeEventListener(ONBOARDING_EVENT, show)
-  }, [])
-
-  useEffect(() => {
     const advance = (event: Event) => {
       const next = nextOnboardingFocus(currentFocus.current, (event as CustomEvent<OnboardingAdvanceEvent>).detail)
       if (next !== currentFocus.current) rememberFocus(next)
@@ -136,7 +133,6 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
     return () => window.removeEventListener(ONBOARDING_ADVANCE_EVENT, advance)
   }, [rememberFocus])
 
-  // A control the data need not produce is stepped over, rather than stranding the tour on a faction with no enhancements.
   const targetLost = useEffectEvent((waiting: OnboardingFocus) => {
     setLost(waiting)
     const next = focus === waiting && onboardingStepPastAbsentTarget(waiting.step)
@@ -223,22 +219,46 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
     updateProgress(operation)
   }
 
-  const launch = async (task: OnboardingTaskId) => {
+  const launch = async (task: OnboardingTaskId, step?: OnboardingStepId) => {
     if (!data?.welcomed) updateProgress({ operation: 'welcome' })
     setOpen(false)
     posthog.capture('onboarding_task_started', { task })
+    const guest = !userId && task === 'roster' && (!step || step === 'roster-start') ? peekGuestDraft() : null
+    if (guest) {
+      rememberFocus({ task, step: guest.draft.picks.length ? 'roster-list' : 'roster-picker' })
+      await navigate({ to: '/rosters/$id', params: { id: guest.id } })
+      return
+    }
     // A tour the player left half-finished resumes where it stopped.
-    await showStep(focus?.task === task ? focus : { task, step: FIRST_ONBOARDING_STEP[task] })
+    await showStep(step ? { task, step } : focus?.task === task ? focus : { task, step: FIRST_ONBOARDING_STEP[task] })
   }
 
+  const openGuide = useEffectEvent((event: Event) => {
+    const requested = (event as CustomEvent<OnboardingFocus | undefined>).detail
+    if (requested) void launch(requested.task, requested.step)
+    else setOpen(true)
+  })
+  useEffect(() => {
+    const show = (event: Event) => openGuide(event)
+    window.addEventListener(ONBOARDING_EVENT, show)
+    return () => window.removeEventListener(ONBOARDING_EVENT, show)
+  }, [])
+
+  useEffect(() => {
+    if (open) posthog.capture('onboarding_guide_opened', { signed_in: Boolean(userId) })
+  }, [open, posthog, userId])
+
   const finish = () => {
-    if (!focus || !isTourTask(focus.task)) return rememberFocus(undefined)
+    if (!focus) return
+    const completed = () => {
+      posthog.capture('onboarding_walkthrough_finished', { task: focus.task, signed_in: Boolean(userId) })
+      if (currentFocus.current === focus) rememberFocus(undefined)
+    }
+    if (!userId || !isTourTask(focus.task)) return completed()
     mutation.mutate(
       { operation: 'complete', task: focus.task },
       {
-        onSuccess: () => {
-          if (currentFocus.current === focus) rememberFocus(undefined)
-        },
+        onSuccess: completed,
       },
     )
   }
@@ -270,7 +290,7 @@ function AccountOnboardingGuide({ userId }: { userId: string }) {
     <>
       <GuidePanel
         data={data}
-        visible={visible}
+        signedIn={Boolean(userId)}
         open={open}
         busy={mutation.isPending}
         onClose={() => changeOpen(false)}
@@ -379,7 +399,7 @@ function GuidePrompt({
 
 function GuidePanel({
   data,
-  visible,
+  signedIn,
   open,
   busy,
   onClose,
@@ -387,7 +407,7 @@ function GuidePanel({
   onUpdate,
 }: {
   data: OnboardingProgress
-  visible: OnboardingTaskId[]
+  signedIn: boolean
   open: boolean
   busy: boolean
   onClose: () => void
@@ -399,8 +419,7 @@ function GuidePanel({
     if (open) heading.current?.focus()
   }, [open])
   if (!open) return null
-  const resolved = resolvedOnboardingTasks(data)
-  const complete = onboardingComplete(data)
+  const resolved = resolvedGettingStartedTasks(data)
   return (
     <dialog
       open
@@ -409,23 +428,20 @@ function GuidePanel({
       className="fixed right-4 bottom-[calc(5rem+env(safe-area-inset-bottom))] left-4 z-50 flex max-h-[calc(100dvh-7rem)] w-auto flex-col overflow-hidden border border-edge bg-panel text-sm text-bone shadow-xl min-[860px]:bottom-4 min-[860px]:left-auto min-[860px]:max-h-[calc(100dvh-2rem)] min-[860px]:w-[32rem]"
     >
       <div className="relative border-b border-edge bg-sunken p-4 pr-12">
-        <div className="flex flex-col gap-2">
-          <p className="eyebrow text-info">Getting started</p>
-          <h2 id="onboarding-guide-title" ref={heading} tabIndex={-1} className="text-xl text-bone outline-none">
-            {complete ? 'Everything covered' : 'Learn Praetorium'}
-          </h2>
-          <p className="text-dim">
-            {complete
-              ? 'You have covered the essentials. Reopen any task whenever you want a reminder.'
-              : 'Build, play, organize, and explore at your own pace. Your progress follows your account.'}
+        <p className="eyebrow text-info">Getting started</p>
+        <h2 id="onboarding-guide-title" ref={heading} tabIndex={-1} className="mt-2 text-xl text-bone outline-none">
+          Your first army and matchup
+        </h2>
+        <p className="mt-2 text-dim">
+          {signedIn
+            ? 'Build or import an army, then try a matchup. Your progress follows your account.'
+            : 'Build or import an army, then try a matchup. No account needed; this device keeps your army until you sign in to save it.'}
+        </p>
+        {signedIn ? (
+          <p className="mt-2 text-xs text-dim">
+            {resolved.length} of {gettingStartedTaskIds.length} complete or skipped
           </p>
-          <div className="mt-1 h-1.5 overflow-hidden bg-panel">
-            <div className="h-full bg-info transition-[width]" style={{ width: `${(resolved.size / onboardingTasks.length) * 100}%` }} />
-          </div>
-          <p className="text-xs text-dim">
-            {resolved.size} of {onboardingTasks.length} tasks resolved
-          </p>
-        </div>
+        ) : null}
         <Button
           type="button"
           variant="ghost"
@@ -437,62 +453,73 @@ function GuidePanel({
           <X />
         </Button>
       </div>
-      <div className="grid min-h-0 gap-1 overflow-y-auto p-2">
-        {onboardingTasks
-          .filter((task) => visible.includes(task.id))
-          .map((task) => {
-            const completed = data.completedTasks.includes(task.id)
-            const skipped = data.skippedTasks.includes(task.id)
-            return (
-              <div key={task.id} className="group flex items-center gap-1 border border-transparent hover:border-edge hover:bg-raised">
-                <button type="button" className="flex min-w-0 flex-1 items-start gap-3 p-3 text-left" onClick={() => onLaunch(task.id)}>
-                  {completed ? (
-                    <Check className="mt-0.5 size-4 shrink-0 text-info" />
-                  ) : skipped ? (
-                    <Circle className="mt-0.5 size-4 shrink-0 text-faint" />
+      <div className="grid min-h-0 gap-2 overflow-y-auto p-3">
+        {gettingStartedTaskIds.map((id) => {
+          const task = gettingStartedTasks[id]
+          const completed = data.completedTasks.includes(id)
+          const skipped = data.skippedTasks.includes(id)
+          return (
+            <section key={id} className="border border-edge p-3" aria-label={id === 'roster' ? 'Build or import an army' : task.title}>
+              <div className="flex items-start gap-2">
+                {completed ? (
+                  <Check className="mt-0.5 size-4 shrink-0 text-info" />
+                ) : skipped ? (
+                  <Circle className="mt-0.5 size-4 shrink-0 text-faint" />
+                ) : (
+                  <Flag className="mt-0.5 size-4 shrink-0 text-info" />
+                )}
+                <div className="min-w-0 flex-1">
+                  <h3 className="font-semibold">{id === 'roster' ? 'Build or import an army' : task.title}</h3>
+                  <p className="mt-1 text-xs text-dim">
+                    {completed
+                      ? 'Complete · Reopen the guide whenever you need it.'
+                      : skipped
+                        ? 'Skipped · Try it whenever you are ready.'
+                        : id === 'roster'
+                          ? 'Start from scratch, or bring a list from your army builder.'
+                          : task.description}
+                  </p>
+                </div>
+                {signedIn && !completed ? (
+                  skipped ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      disabled={busy}
+                      aria-label={'Restore ' + task.title}
+                      onClick={() => onUpdate({ operation: 'restore', task: id })}
+                    >
+                      <RotateCcw />
+                    </Button>
                   ) : (
-                    <Flag className="mt-0.5 size-4 shrink-0 text-info" />
-                  )}
-                  <span className="min-w-0">
-                    <span className={`block font-semibold ${completed || skipped ? 'text-dim line-through' : 'text-bone'}`}>
-                      {task.title}
-                    </span>
-                    <span className="mt-0.5 block text-xs leading-snug text-dim">
-                      {completed ? 'Complete · Review this task' : skipped ? 'Skipped' : task.description}
-                    </span>
-                  </span>
-                </button>
-                {skipped ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="mr-2"
-                    disabled={busy}
-                    aria-label={`Restore ${task.title}`}
-                    onClick={() => onUpdate({ operation: 'restore', task: task.id })}
-                  >
-                    <RotateCcw />
-                  </Button>
-                ) : !completed ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="sm"
-                    className="mr-1 text-xs text-dim"
-                    disabled={busy}
-                    aria-label={`Skip ${task.title}`}
-                    onClick={() => onUpdate({ operation: 'skip', task: task.id })}
-                  >
-                    Skip
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      disabled={busy}
+                      aria-label={'Skip ' + task.title}
+                      onClick={() => onUpdate({ operation: 'skip', task: id })}
+                    >
+                      Skip
+                    </Button>
+                  )
+                ) : null}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => onLaunch(id)}>
+                  {task.title}
+                </Button>
+                {id === 'roster' ? (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => onLaunch('roster-tools')}>
+                    Import an existing army
                   </Button>
                 ) : null}
               </div>
-            )
-          })}
-        {!complete && visible.length < onboardingTasks.length ? (
-          <p className="px-3 py-2 text-xs text-dim">More guidance appears after you resolve the preparation tasks.</p>
-        ) : null}
+            </section>
+          )
+        })}
+        <p className="text-xs text-dim">Battle, friend, and tournament guides are available on their own pages.</p>
       </div>
     </dialog>
   )

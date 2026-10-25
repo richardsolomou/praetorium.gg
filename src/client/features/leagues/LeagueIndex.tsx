@@ -1,3 +1,4 @@
+import { GuideHelp } from '../onboarding/GuideHelp'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Eye, LockKeyhole, Users } from 'lucide-react'
@@ -25,7 +26,14 @@ export function LeagueIndex() {
         eyebrow="Events"
         title="Tournaments"
         description="One-off events. Everyone seals a list in secret, then the lists are revealed together."
-        actions={me ? <CreateLeague /> : null}
+        actions={
+          me ? (
+            <>
+              <GuideHelp task="league">Tournament guide</GuideHelp>
+              <CreateLeague />
+            </>
+          ) : null
+        }
       />
       <PageContent className="space-y-6">
         {mine.length ? <LeagueShelf title="Your tournaments" leagues={mine} viewerId={me?.id ?? null} /> : null}

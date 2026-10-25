@@ -1,3 +1,4 @@
+import { GuideHelp } from '../../onboarding/GuideHelp'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight } from 'lucide-react'
@@ -35,16 +36,14 @@ export function RulesIndex() {
   const matches = matchingRules(data.documents, wanted)
   return (
     <main className="w-full">
-      <PageHeader eyebrow="Reference" title="Rules" description="Core rules, mission sequence, event and Combat Patrol rules." />
+      <PageHeader
+        eyebrow="Reference"
+        title="Rules"
+        description="Core rules, mission sequence, event and Combat Patrol rules."
+        actions={<GuideHelp task="reference">Search help</GuideHelp>}
+      />
       <PageContent className="space-y-6">
-        <SearchField
-          onboarding="rules-search"
-          value={wanted}
-          onChange={setWanted}
-          placeholder="Find a rule"
-          label="Find a rule"
-          clearLabel="Empty the rule filter"
-        />
+        <SearchField value={wanted} onChange={setWanted} placeholder="Find a rule" label="Find a rule" clearLabel="Empty the rule filter" />
         {matches ? (
           <FoundRules matches={matches} />
         ) : (
@@ -113,7 +112,7 @@ function FoundRules({ matches }: { matches: Found[] }) {
 function DocumentShelf({ document }: { document: RuleDocumentSummary }) {
   const rules = document.sections.reduce((count, section) => count + section.entries.length, 0)
   return (
-    <section data-onboarding="rules-documents">
+    <section>
       <h2 className="rubric flex items-baseline justify-between gap-3 border-b border-edge pb-2">
         <Link to="/rules/$documentId" params={{ documentId: document.slug }} className="hover:text-bone">
           {document.title}

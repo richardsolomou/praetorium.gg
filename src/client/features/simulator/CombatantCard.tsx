@@ -235,7 +235,6 @@ export function CombatantCard({
                       className="relative h-7 w-12 shrink-0 overflow-hidden rounded-r-none px-1 tabular-nums"
                       disabled={!optimizer.enabled && !optimizer.busy}
                       onClick={() => (optimizer.busy ? optimizer.cancel() : void optimizer.optimize())}
-                      data-onboarding={side === 'Attacker' ? 'simulator-optimize' : undefined}
                       aria-label={optimizer.busy ? `Cancel optimization, approximately ${optimizer.progress}% complete` : 'Optimize'}
                     >
                       {optimizer.busy ? <span>{optimizer.progress}%</span> : <WandSparkles className="size-4" aria-hidden />}
@@ -360,7 +359,6 @@ export function CombatantCard({
                     </span>
                   )}
                   <Button
-                    data-onboarding={side === 'Attacker' && member.index === pickIndex ? 'simulator-loadout' : undefined}
                     variant="outline"
                     size="icon-sm"
                     title="Loadout"

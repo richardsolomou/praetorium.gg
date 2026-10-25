@@ -451,7 +451,7 @@ html[data-native-app='true'] [data-battle-sticky-header] {
   }
 
   [data-battle-reference-pack] :is(.pack-rule, [data-slot='unit-profile'], [data-slot='profile-grid']),
-  [data-print-loadout] :is(.bg-card, [data-onboarding='loadout-weapon']) {
+  [data-print-loadout] .bg-card {
     break-inside: avoid;
   }
 

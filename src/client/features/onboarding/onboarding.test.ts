@@ -15,7 +15,6 @@ import {
   onboardingStepIds,
   onboardingStepPastAbsentTarget,
   onboardingTargets,
-  onboardingTasks,
   ONBOARDING_UI,
   storedOnboardingFocus,
   type OnboardingStepId,
@@ -60,10 +59,6 @@ describe('onboarding page', () => {
 })
 
 describe('onboarding tasks', () => {
-  it('offers one task for every area the account can make progress in', () => {
-    expect(onboardingTasks.map((task) => task.id)).toEqual(onboardingTaskIds)
-  })
-
   it('starts a tour for every task', () => {
     expect(Object.keys(FIRST_ONBOARDING_STEP)).toEqual(onboardingTaskIds)
   })
@@ -120,11 +115,11 @@ describe('onboarding steps', () => {
   })
 
   it('steps over a control the data need not produce', () => {
-    expect(onboardingStepPastAbsentTarget('reference-datasheet-weapons')).toBe('reference-datasheet-abilities')
+    expect(onboardingStepPastAbsentTarget('friend-requests')).toBe('friend-list')
   })
 
   it('strands a step whose control the screen always draws, rather than skipping it', () => {
-    expect(onboardingStepPastAbsentTarget('reference-datasheet-keywords')).toBeUndefined()
+    expect(onboardingStepPastAbsentTarget('simulator-results')).toBeUndefined()
   })
 
   it('moves the compact prompt out of the way of a control at the foot of the screen', () => {
@@ -148,16 +143,16 @@ describe('onboarding steps', () => {
   })
 
   it('sends a step whose control is nowhere back to the last address that reaches its task', () => {
-    expect(onboardingStepEntry('reference-datasheet-weapons')).toBe('reference-faction-entry')
+    expect(onboardingStepEntry('tools-review')).toBe('tools-import')
   })
 
   it('leaves a step its own address reaches where it is', () => {
-    expect(onboardingStepEntry('community-leaderboard')).toBe('community-leaderboard')
+    expect(onboardingStepEntry('simulator-attacker')).toBe('simulator-attacker')
   })
 
-  it('walks the community tour outwards from the reader', () => {
+  it('keeps community help on the public games shelf', () => {
     const community = Object.values(ONBOARDING_UI).filter((step) => step.task === 'community')
-    expect([...new Set(community.map((step) => step.page))]).toEqual(['home', 'leaderboard', 'player'])
+    expect([...new Set(community.map((step) => step.page))]).toEqual(['home'])
   })
 
   it('gives every step a control of its own, so no prompt describes a whole screen', () => {
@@ -216,25 +211,23 @@ describe('onboarding targets', () => {
 
   /**
    * One marker per target, except where one control is drawn in two shapes: the picker
-   * a phone opens from its own button, a profile that is one line or a table of them,
-   * and weapons split between a ranged table and a melee one.
+   * a phone opens from its own button.
    */
   it('marks one control per target, except where a screen draws that control two ways', () => {
     expect([...markers].filter(([, count]) => count > 1).toSorted(([left], [right]) => left.localeCompare(right))).toEqual([
-      ['datasheet-stats', 2],
-      ['datasheet-weapons', 2],
       ['roster-picker', 2],
     ])
   })
 
   it('moves the guide on from a control that handles its own press', () => {
     const edges = new Set(Object.entries(ONBOARDING_UI).map(([id, step]) => `${id}->${step.next ?? ''}`))
+    edges.add('tools-review->tools-input')
     expect([...advancesInSource()].filter((advance) => !edges.has(advance))).toEqual([])
   })
 
   it('wires up every step a press rather than an address moves on', () => {
     const pressed = Object.entries(ONBOARDING_UI).filter(
-      ([, step]) => step.next && !step.nextLabel && !step.awaitsTask && ONBOARDING_UI[step.next].page === step.page,
+      ([, step]) => step.next && !step.nextLabel && ONBOARDING_UI[step.next].page === step.page,
     )
     const advances = advancesInSource()
     expect(pressed.filter(([id, step]) => !advances.has(`${id}->${step.next ?? ''}`)).map(([id]) => id)).toEqual([])
@@ -289,14 +282,14 @@ describe('onboarding focus', () => {
   })
 
   it('moves on when the player reaches the next step’s page', () => {
-    expect(focusAfterOnboardingNavigation({ task: 'reference', step: 'reference-faction-entry' }, 'faction')).toEqual({
-      task: 'reference',
-      step: 'reference-army-rules',
+    expect(focusAfterOnboardingNavigation({ task: 'roster-tools', step: 'tools-review' }, 'roster')).toEqual({
+      task: 'roster-tools',
+      step: 'tools-finished',
     })
   })
 
   it('waits for the page it is expecting', () => {
-    const focus = { task: 'reference', step: 'reference-faction-entry' } as const
+    const focus = { task: 'roster-tools', step: 'tools-review' } as const
     expect(focusAfterOnboardingNavigation(focus, 'rules')).toBe(focus)
   })
 

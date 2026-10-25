@@ -1,3 +1,4 @@
+import { GuideHelp } from '../../onboarding/GuideHelp'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -42,6 +43,7 @@ export function FactionIndexPage() {
         eyebrow="Army reference"
         title="Factions"
         description="Browse faction rules, detachments, datasheets, loadouts and points."
+        actions={<GuideHelp task="reference">Search help</GuideHelp>}
       />
       <PageContent>
         <SearchField
@@ -127,7 +129,6 @@ function FactionShelf({
             return (
               <div
                 key={entry.id}
-                data-onboarding="faction-entry"
                 data-faction={entry.displayName}
                 className="flex items-center border-l-2 bg-panel pr-1 ring-1 ring-edge hover:bg-raised"
                 style={{ borderLeftColor: factionColour(entry.slug, entry.displayName) }}

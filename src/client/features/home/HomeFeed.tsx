@@ -1,3 +1,4 @@
+import { GuideHelp } from '../onboarding/GuideHelp'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, Users } from 'lucide-react'
 import { buttonClass } from '../../components/buttonClass'
@@ -33,7 +34,7 @@ export function FriendTables({ battles }: { battles: readonly Battle[] }) {
   if (battles.length) {
     return (
       <div>
-        <BattleShelf onboarding="home-friends" title="Friends' games" battles={battles} />
+        <BattleShelf title="Friends' games" battles={battles} />
         <AllGames view="friends">All friends' games</AllGames>
       </div>
     )
@@ -64,7 +65,10 @@ export function PublicTables({ battles, signedIn }: { battles: readonly Battle[]
   return (
     <div>
       <BattleShelf onboarding="home-public" title="Public games" battles={battles} />
-      <AllGames view="public">All public games</AllGames>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <AllGames view="public">All public games</AllGames>
+        <GuideHelp task="community">Watching games</GuideHelp>
+      </div>
     </div>
   )
 }

@@ -5,7 +5,7 @@ import { Link, useLocation, useNavigate } from '@tanstack/react-router'
 import { Boxes, CircleUserRound, LogIn, LogOut, Map, MessageSquareWarning, ShieldCheck, UserRoundPen, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { onboardingComplete, resolvedOnboardingTasks } from '../../../core/onboarding'
+import { gettingStartedTaskIds, onboardingComplete, resolvedGettingStartedTasks } from '../../../core/onboarding'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,7 +20,7 @@ import { authClient } from '../../authClient'
 import { clearSavedApp } from '../../offline/appStorage'
 import { reconcileAppAccount } from '../../offline/appSnapshot'
 import { setNativeAccountMenuOpen } from '../../nativeBridge'
-import { onboardingTasks, openOnboarding } from '../onboarding/onboarding'
+import { openOnboarding } from '../onboarding/onboarding'
 import { forgetThisDevice } from '../../pushNotifications'
 import { meQuery, onboardingQuery } from '../../queries'
 import { MenuSection } from '../../components/MenuSection'
@@ -67,20 +67,22 @@ function AccountMenuItems() {
   const path = useLocation({ select: (location) => location.pathname })
   const href = useLocation({ select: (location) => location.href })
   const { me, onboarding, signOut } = useAccountControls()
-  const onboardingResolved = onboarding ? resolvedOnboardingTasks(onboarding).size : 0
-  const showOnboarding = onboarding && !onboardingComplete(onboarding)
+  const onboardingResolved = onboarding ? resolvedGettingStartedTasks(onboarding).length : 0
+  const showOnboarding = !me || (onboarding && !onboardingComplete(onboarding))
   const { tickets } = useSupportTickets()
   const unread = unreadReplies(tickets)
   const help = (
     <MenuSection label="Help">
       {showOnboarding ? (
-        <DropdownMenuItem onClick={openOnboarding}>
+        <DropdownMenuItem onClick={() => openOnboarding()}>
           <Map />
           <span>Getting started</span>
-          <span className="readout ml-auto text-xs text-dim">
-            {onboardingResolved}/{onboardingTasks.length}
-          </span>
-          {!onboarding.welcomed ? <span className="chip border-discarded/50 bg-discarded/10 text-discarded">New</span> : null}
+          {me ? (
+            <span className="readout ml-auto text-xs text-dim">
+              {onboardingResolved}/{gettingStartedTaskIds.length}
+            </span>
+          ) : null}
+          {onboarding && !onboarding.welcomed ? <span className="chip border-discarded/50 bg-discarded/10 text-discarded">New</span> : null}
         </DropdownMenuItem>
       ) : null}
       <DropdownMenuItem onClick={openConversations}>

@@ -170,8 +170,8 @@ export function WargearRow({
   )
   return (
     <li
-      data-onboarding="loadout-weapon"
-      className={`border border-l-[5px] bg-panel/40 ${count && highlightSelection ? 'border-azure/50 border-l-azure' : 'border-edge'}`}
+      aria-label={name}
+      className={`border border-l-[5px] bg-panel/40 print:break-inside-avoid ${count && highlightSelection ? 'border-azure/50 border-l-azure' : 'border-edge'}`}
     >
       {instructions?.map((instruction) => (
         <RuleText key={instruction} text={instruction} rules={rules} className="!mt-0 p-2.5 text-xs leading-[1.125rem]" />
@@ -329,7 +329,7 @@ export function SpecialChoice({
   const choose = (optionId: string) => onChoose(choice.key, optionId)
   if (!showOptions && !choice.chosen) return null
   return (
-    <fieldset data-onboarding="loadout-enhancement" aria-label={`${unitName} ${heading}`} className="m-0 min-w-0 border-0">
+    <fieldset aria-label={`${unitName} ${heading}`} className="m-0 min-w-0 border-0">
       <legend className="eyebrow mb-1.5">{heading}</legend>
       <div className="space-y-1.5">
         {choice.optional && showOptions ? (

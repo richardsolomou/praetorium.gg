@@ -145,7 +145,7 @@ export function SignInPage({
           {savingRoster || joining ? (
             <p className="mt-3 text-sm text-dim">
               {savingRoster
-                ? 'Create a free account or sign in to save your roster. Until then it stays on this device.'
+                ? 'Create a free account or sign in. Your roster will be saved to that account, then you will return to your army. Until saving succeeds, the draft stays on this device.'
                 : 'Save your army lists and play battles with friends. Free.'}
             </p>
           ) : null}

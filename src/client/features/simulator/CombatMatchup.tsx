@@ -655,10 +655,7 @@ export function CombatMatchup({
             })}
           </div>
           <details data-combat-buffs className="mt-3 border-t border-edge">
-            <summary
-              data-onboarding="simulator-buffs"
-              className="rubric cursor-pointer py-3 text-info outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
+            <summary className="rubric scroll-mt-header cursor-pointer py-3 text-info outline-none focus-visible:ring-2 focus-visible:ring-primary">
               Rules & buffs
             </summary>
             <div className="grid gap-4 pb-3 @xl:grid-cols-2">
@@ -668,10 +665,7 @@ export function CombatMatchup({
           </details>
           <section aria-label="Modifiers" className="border-t border-edge">
             <details data-manual-modifiers open={modifiersOpen} onToggle={(event) => setModifiersOpen(event.currentTarget.open)}>
-              <summary
-                data-onboarding="simulator-modifiers"
-                className="rubric cursor-pointer py-3 text-info outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
+              <summary className="rubric scroll-mt-header cursor-pointer py-3 text-info outline-none focus-visible:ring-2 focus-visible:ring-primary">
                 Manual modifiers
               </summary>
               <div className="pb-3">

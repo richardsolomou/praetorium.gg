@@ -91,7 +91,7 @@ export function DetachmentReference({
           {afterHero}
 
           {detachment.rules.length ? (
-            <section data-onboarding="detachment-rules">
+            <section>
               <SectionTitle title="Detachment rules" count={detachment.rules.length} />
               <div className="mt-2 grid gap-2">
                 {detachment.rules.map((rule) => (
@@ -104,7 +104,7 @@ export function DetachmentReference({
             </section>
           ) : null}
 
-          <section data-onboarding="detachment-enhancements">
+          <section>
             <SectionTitle title="Enhancements" count={detachment.enhancements.length} />
             <div className="mt-2 grid gap-2 md:grid-cols-2">
               {!detachment.enhancements.length ? <p className="py-2 text-sm text-dim">No enhancement details are available.</p> : null}
@@ -141,7 +141,7 @@ export function DetachmentReference({
             </section>
           ) : null}
 
-          <section data-onboarding="detachment-stratagems">
+          <section aria-label="Stratagems">
             <SectionTitle title="Stratagems" count={detachment.stratagems.length} />
             {detachment.stratagems.some((stratagem) => !stratagem.description) ? (
               <p className="mt-2 text-sm text-dim">Some stratagem descriptions are not available.</p>

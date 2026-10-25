@@ -113,12 +113,7 @@ export function RosterRow({
           />
         }
       >
-        <Link
-          data-onboarding="roster-open"
-          to="/rosters/$id"
-          params={{ id: roster.id }}
-          className="flex min-w-0 flex-1 flex-wrap items-center gap-2 p-1"
-        >
+        <Link to="/rosters/$id" params={{ id: roster.id }} className="flex min-w-0 flex-1 flex-wrap items-center gap-2 p-1">
           {layout === 'variant' ? (
             <RosterVariantSummary
               roster={roster}

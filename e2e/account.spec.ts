@@ -16,7 +16,7 @@ async function expectOnboardingProgress(page: Parameters<typeof signUp>[0], reso
     .locator('[data-web-app-chrome]')
     .getByRole('button', { name: /Account menu for/ })
     .click()
-  await expect(page.getByRole('menuitem', { name: /Getting started/ })).toContainText(`${resolved}/8`)
+  await expect(page.getByRole('menuitem', { name: /Getting started/ })).toContainText(`${resolved}/2`)
   await page.keyboard.press('Escape')
 }
 
@@ -328,7 +328,7 @@ test('friends use the profile picture shown elsewhere', async ({ browser }) => {
     },
   })
   await alice.reload()
-  await expectOnboardingProgress(alice, 1)
+  await expectOnboardingProgress(alice, 0)
 
   const friend = bob.locator(`[data-person="${aliceName}"]`)
   await expect(friend.locator('img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.jpg$/)
@@ -465,18 +465,19 @@ test('onboarding waits in the profile menu and disappears when complete', async 
   const name = uniqueName('Feedback')
   await signUp(page, name)
 
-  await expect(page.getByRole('heading', { name: 'Learn Praetorium' })).toBeHidden()
+  await expect(page.getByRole('heading', { name: 'Your first army and matchup' })).toBeHidden()
   await expect(page.getByRole('button', { name: /Getting started/ })).toHaveCount(0)
   const account = page.locator('[data-web-app-chrome]').getByRole('button', { name: `Account menu for ${name}` })
   await expect(account.locator('[data-onboarding-new]')).toBeVisible()
   await account.click()
 
   const gettingStarted = page.getByRole('menuitem', { name: /Getting started/ })
-  await expect(gettingStarted).toContainText('0/8')
+  await expect(gettingStarted).toContainText('0/2')
   await expect(gettingStarted).toContainText('New')
   await page.screenshot({ path: 'test-results/account-menu-onboarding.png', fullPage: true })
   await gettingStarted.click()
-  await expect(page.getByRole('heading', { name: 'Learn Praetorium' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Your first army and matchup' })).toBeVisible()
+  await page.screenshot({ path: test.info().outputPath('getting-started-desktop.png') })
 
   const welcomed = page.waitForResponse(
     (response) => response.ok() && response.request().method() === 'POST' && Boolean(response.request().postData()?.includes('"welcome"')),
@@ -486,7 +487,7 @@ test('onboarding waits in the profile menu and disappears when complete', async 
   await account.click()
 
   await expect(page.getByRole('menuitem', { name: 'My profile' })).toContainText(name)
-  await expect(gettingStarted).toContainText('0/8')
+  await expect(gettingStarted).toContainText('0/2')
   await expect(gettingStarted).not.toContainText('New')
   await expect(page.getByRole('menuitem', { name: 'Feedback' })).toBeVisible()
   await page.screenshot({ path: 'test-results/account-menu-desktop.png', fullPage: true })
@@ -500,16 +501,8 @@ test('onboarding waits in the profile menu and disappears when complete', async 
   await page.screenshot({ path: 'test-results/account-menu-phone.png', fullPage: true })
 
   await gettingStarted.click()
-  for (const task of [
-    'Build your first army',
-    'Add someone you play with',
-    'Start a battle',
-    'Join or run a tournament',
-    'Explore the game reference',
-    'Follow games and players',
-    'Compare units in combat',
-    'Import and manage armies',
-  ]) {
+  await page.screenshot({ path: test.info().outputPath('getting-started-phone.png') })
+  for (const task of ['Build your first army', 'Try your first matchup']) {
     const skip = page.getByRole('button', { name: `Skip ${task}` })
     await skip.click()
     await expect(skip).toBeHidden()

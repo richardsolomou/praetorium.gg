@@ -143,7 +143,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
             void navigate({ to: '/users/$userId', params: { userId }, search: { ...filter, tab: value as ProfileTab } })
           }
         >
-          <PageTabsList data-onboarding="profile-tabs" tabs={tabs} />
+          <PageTabsList tabs={tabs} />
 
           <TabsContent value="record" className="mt-4 space-y-6">
             {rankings ? <PlayerRankings rankings={rankings} /> : null}

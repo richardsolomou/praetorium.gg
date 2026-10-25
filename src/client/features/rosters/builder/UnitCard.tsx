@@ -210,13 +210,7 @@ export function UnitCard({
       ))}
 
       {editable && canJoin.length ? (
-        <AttachMenu
-          label="Attach to unit"
-          ariaLabel={`Attach ${unit.name} to unit`}
-          onboarding="unit-attachment"
-          choices={canJoin}
-          onChoose={onJoin}
-        />
+        <AttachMenu label="Attach to unit" ariaLabel={`Attach ${unit.name} to unit`} choices={canJoin} onChoose={onJoin} />
       ) : null}
 
       {editable && canHost.length ? (
