@@ -89,7 +89,7 @@ test('members who are not friends start a club game from the club page', async (
   )
 
   await owner.reload()
-  await owner.getByRole('button', { name: `Play ${memberName}` }).click()
+  await owner.getByRole('button', { name: 'Start battle' }).click()
   await owner.waitForURL(/\/battles\/[^/]+$/)
   const token = new URL(owner.url()).pathname.split('/').at(-1)!
   const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`

@@ -2,6 +2,7 @@ import { hash } from 'node:crypto'
 import path from 'node:path'
 import { eq } from 'drizzle-orm'
 import type { Command, Roster } from '../src/core/battle'
+import type { LeagueSide } from '../src/contracts/schemas'
 import type { RosterPick } from '../src/core/roster'
 import { rosterSnapshot } from '../src/core/rosterSnapshot'
 import { routeSlug } from '../src/core/slug'
@@ -13,6 +14,7 @@ import { rosterRow } from '../src/server/rosterPersistence'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { SpacetimeRepository } from '../src/server/spacetimeRepository'
 import { unitBattleDetailsIn } from '../src/shared/catalogue'
+import { buildLeagueBattle } from '../src/shared/leagueBattle'
 import { catalogueBaseUrl, fetchCurrentSnapshot, installedSnapshot } from '../src/server/catalogueSnapshot'
 import { catalogueDirectory } from '../src/server/catalogueIndex'
 import { calculateRosterPrice } from '../src/shared/pricing'
@@ -756,6 +758,239 @@ async function seedInto(
     },
   })
   await createOpenLeague()
+  await createClubs()
+
+  /**
+   * A club the preview login runs, with every state its page shows: a join request, an admin, finished and live club
+   * battles, a past sealed duel, a doubles game being played, a solo-vs-pair game still taking seats, and a duel waiting
+   * on the login's list. Two clubs it is not in show the joining side.
+   */
+  async function createClubs() {
+    const token = 'preview-club'
+    const day = 86_400_000
+    // Each step checks what exists, so a run that stopped partway picks up where it left off.
+    if (!(await repository.clubByToken(token)))
+      await repository.createClub({
+        id: token,
+        token,
+        ownerId: previewUserId,
+        name: 'Thursday Night Wargamers',
+        description: 'We meet Thursdays from 7pm in the back room of the Dice Tower. Bring 2,000-point lists; tables and terrain provided.',
+        visibility: 'public',
+        admission: 'approval',
+        now: now(),
+      })
+    for (const userId of [allyUserId, opponentUserId, rivalUserId, strangerUserId]) {
+      await repository.joinClub(token, userId, now())
+      await repository.moderateClubMember(token, previewUserId, userId, true)
+    }
+    await repository.setClubAdmins(token, previewUserId, [allyUserId])
+    await repository.joinClub(token, wandererUserId, now())
+
+    const finished = (winnerId: string, loserId: string, scores: [number, number]): Command[] => [
+      { kind: 'begin-battle', firstPlayerId: winnerId },
+      { kind: 'score', category: 'primary', delta: scores[0], playerId: winnerId },
+      { kind: 'score', category: 'primary', delta: scores[1], playerId: loserId },
+      { kind: 'end-battle', reason: 'conceded', concededBy: loserId },
+    ]
+    const clubBattles: [string, string, string, string, Command[]][] = [
+      ['opponent-rival', opponentUserId, 'preview-opponent-orks', 'preview-rival-orks', finished(opponentUserId, rivalUserId, [62, 48])],
+      [
+        'preview-opponent',
+        previewUserId,
+        'preview-necrons-cursed-skyshroud',
+        'preview-opponent-aeldari',
+        finished(previewUserId, opponentUserId, [71, 55]),
+      ],
+      ['stranger-rival', strangerUserId, 'preview-stranger-aeldari', 'preview-rival-orks', finished(rivalUserId, strangerUserId, [58, 40])],
+      [
+        'preview-rival',
+        previewUserId,
+        'preview-astra-militarum-combined-arms',
+        'preview-rival-orks',
+        [{ kind: 'begin-battle', firstPlayerId: rivalUserId }],
+      ],
+    ]
+    for (const [key, creatorId, creatorRoster, opponentRoster, tail] of clubBattles) {
+      const opponentId = key.endsWith('rival') ? rivalUserId : opponentUserId
+      await createCasualBattle({
+        id: `preview-club-battle-${key}`,
+        token: `preview-club-battle-${key}`,
+        creatorId,
+        opponentIds: [opponentId],
+        limit: 2_000,
+        rosters: [
+          [creatorId, creatorRoster],
+          [opponentId, opponentRoster],
+        ],
+        tail: [{ kind: 'set-battle-club', clubId: token }, ...tail],
+      })
+    }
+
+    await createClubGame({
+      key: 'duel-past',
+      format: '1v1',
+      schedule: { playsAt: now() - 7 * day, sealBy: null },
+      seats: [
+        { userId: previewUserId, rosterId: 'preview-necrons-cursed-skyshroud' },
+        { userId: opponentUserId, rosterId: 'preview-opponent-orks' },
+        { userId: rivalUserId, rosterId: 'preview-rival-orks' },
+      ],
+      reveal: true,
+      battles: [
+        {
+          key: 'preview-opponent',
+          userId: previewUserId,
+          opponentId: opponentUserId,
+          tail: finished(opponentUserId, previewUserId, [66, 52]),
+        },
+        { key: 'opponent-rival', userId: opponentUserId, opponentId: rivalUserId, tail: finished(opponentUserId, rivalUserId, [70, 61]) },
+      ],
+    })
+    await createClubGame({
+      key: 'doubles',
+      format: '2v2',
+      schedule: { playsAt: now(), sealBy: null },
+      seats: [
+        { userId: previewUserId, rosterId: 'preview-space-marines-gladius', side: 'team-1' },
+        { userId: allyUserId, rosterId: 'preview-ally-space-marines', side: 'team-1' },
+        { userId: opponentUserId, rosterId: 'preview-opponent-tyranids', side: 'team-2' },
+        { userId: rivalUserId, rosterId: 'preview-rival-tyranids', side: 'team-2' },
+      ],
+      reveal: true,
+      battles: [
+        {
+          key: 'doubles',
+          userId: previewUserId,
+          opponentId: opponentUserId,
+          tail: [{ kind: 'begin-battle', firstPlayerId: previewUserId }],
+        },
+      ],
+    })
+    await createClubGame({
+      key: 'solo-pair',
+      format: '2v1',
+      schedule: { playsAt: now() + 7 * day, sealBy: now() + 6 * day },
+      seats: [
+        { userId: previewUserId, rosterId: 'preview-astra-militarum-combined-arms', side: 'solo' },
+        { userId: allyUserId, rosterId: 'preview-ally-death-guard', side: 'pair' },
+      ],
+      reveal: false,
+      battles: [],
+    })
+    await createClubGame({
+      key: 'duel-open',
+      format: '1v1',
+      schedule: { playsAt: now() + 3 * day, sealBy: now() + 2 * day },
+      seats: [
+        { userId: opponentUserId, rosterId: 'preview-opponent-aeldari' },
+        { userId: strangerUserId, rosterId: 'preview-stranger-necrons' },
+      ],
+      reveal: false,
+      battles: [],
+    })
+
+    if (await repository.clubByToken('preview-club-garage')) return
+    await repository.createClub({
+      id: 'preview-club-garage',
+      token: 'preview-club-garage',
+      ownerId: strangerUserId,
+      name: 'Kieran’s Garage League',
+      description: 'Invite-only Sunday games in Kieran’s garage. Ask to join and he’ll let you in.',
+      visibility: 'public',
+      admission: 'approval',
+      now: now(),
+    })
+    await repository.joinClub('preview-club-garage', wandererUserId, now())
+    await repository.moderateClubMember('preview-club-garage', strangerUserId, wandererUserId, true)
+    await repository.joinClub('preview-club-garage', previewUserId, now())
+    await repository.createClub({
+      id: 'preview-club-open',
+      token: 'preview-club-open',
+      ownerId: wandererUserId,
+      name: 'Open Table Saturdays',
+      description: 'Drop-in games at the community hall. Anyone can join.',
+      visibility: 'public',
+      admission: 'automatic',
+      now: now(),
+    })
+    await repository.joinClub('preview-club-open', strangerUserId, now())
+
+    async function createClubGame(game: {
+      key: string
+      format: '1v1' | '2v1' | '2v2'
+      schedule: { playsAt: number | null; sealBy: number | null }
+      seats: { userId: string; rosterId: string; side?: LeagueSide }[]
+      reveal: boolean
+      battles: { key: string; userId: string; opponentId: string; tail: Command[] }[]
+    }) {
+      const gameToken = `preview-club-game-${game.key}`
+      const existing = await repository.leagueByToken(gameToken, previewUserId)
+      if (!existing) {
+        const created = await repository.createClubGame({
+          eventId: gameToken,
+          eventToken: gameToken,
+          clubToken: token,
+          ownerId: previewUserId,
+          format: game.format,
+          rosterLimit: 2_000,
+          schedule: game.schedule,
+          now: now(),
+        })
+        if (created) throw new Error(`club game ${game.key} could not be created: ${created}`)
+      }
+      if (!existing?.revealedAt) await sealClubGame(gameToken, game)
+      for (const battle of game.battles) {
+        const battleToken = `preview-club-game-battle-${battle.key}`
+        if (await repository.battleByToken(battleToken)) continue
+        const userIds = game.format === '1v1' ? [battle.userId, battle.opponentId] : game.seats.map((seat) => seat.userId)
+        await repository.createLeagueBattle(
+          { id: battleToken, token: battleToken, leagueToken: gameToken, userId: battle.userId, userIds, now: now() },
+          (league) => {
+            const built = buildLeagueBattle(league, battle.userId, battle.opponentId, null, battleToken)
+            return { ...built, initialCommands: [...built.initialCommands, ...battle.tail] }
+          },
+        )
+      }
+    }
+
+    /** Seats every player before anyone seals, since a doubles list only seals once its partner is seated. */
+    async function sealClubGame(
+      gameToken: string,
+      game: { key: string; seats: { userId: string; rosterId: string; side?: LeagueSide }[]; reveal: boolean },
+    ) {
+      for (const seat of game.seats) {
+        if (!seat.side) continue
+        const result = await repository.chooseLeagueSide(gameToken, seat.userId, seat.side, now())
+        if (result !== 'updated') throw new Error(`club game ${game.key} could not seat a player: ${result}`)
+      }
+      for (const seat of game.seats) {
+        const saved = await repository.roster(seat.rosterId)
+        if (!saved) throw new Error(`${seat.rosterId} was not saved`)
+        const result = await repository.submitLeagueRoster({
+          token: gameToken,
+          userId: seat.userId,
+          rosterId: saved.id,
+          rosterName: saved.name,
+          rosterLimit: saved.limit,
+          rosterUpdatedAt: saved.updatedAt,
+          snapshot: JSON.stringify(snapshot(saved.id)),
+          now: now(),
+        })
+        if (result.outcome !== 'sealed') throw new Error(`club game ${game.key} could not seal ${saved.name}: ${result.outcome}`)
+      }
+      if (!game.reveal) return
+      for (const seat of game.seats) {
+        const team = (await repository.leagueByToken(gameToken, seat.userId))?.entries.find((entry) => entry.userId === seat.userId)?.team
+        if (!team) continue
+        if (!team.disposition && team.choices[0]) await repository.setLeagueTeamDisposition(gameToken, seat.userId, team.choices[0], now())
+        if (!team.warlord && team.warlordChoices[0])
+          await repository.setLeagueTeamWarlord(gameToken, seat.userId, team.warlordChoices[0], now())
+      }
+      const reveal = await repository.revealLeague(gameToken, previewUserId, now())
+      if (reveal.outcome !== 'revealed') throw new Error(`club game ${game.key} could not be revealed: ${reveal.outcome}`)
+    }
+  }
 
   async function ensurePreviewUser(email: string, password: string, name: string) {
     let id = await userIdByEmail(email)

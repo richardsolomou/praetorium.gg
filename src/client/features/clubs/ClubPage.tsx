@@ -74,7 +74,6 @@ function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: strin
     onSettled: refresh,
     onSuccess: () => navigate({ to: '/clubs' }),
   })
-  const play = usePlayClubGame(club.token)
   const leave = useMutation({
     mutationFn: () => leaveClub({ data: { token: club.token } }),
     onSettled: refresh,
@@ -93,24 +92,24 @@ function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: strin
                 {invite.feedback === 'shared' ? <Share2 /> : invite.feedback === 'copied' ? <Check /> : <Clipboard />} {shareLabel}
               </Button>
             ) : null}
-            {club.organizer ? (
-              <Button variant="outline" onClick={() => setEditing(true)}>
-                <Pencil /> Edit club
-              </Button>
-            ) : null}
-            {own ? (
+            {member ? (
               <DropdownMenu>
                 <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`More for ${club.name}`} />}>
                   <EllipsisVertical />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
+                  {club.organizer ? (
+                    <DropdownMenuItem onClick={() => setEditing(true)}>
+                      <Pencil /> Edit club
+                    </DropdownMenuItem>
+                  ) : null}
                   {isOwner ? (
                     <DropdownMenuItem variant="destructive" onClick={() => (remove.reset(), setDeleting(true))}>
                       <Trash2 /> Delete club
                     </DropdownMenuItem>
                   ) : (
                     <DropdownMenuItem variant="destructive" onClick={() => (leave.reset(), setLeaving(true))}>
-                      <LogOut /> {member ? 'Leave club' : 'Withdraw request'}
+                      <LogOut /> Leave club
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -151,19 +150,20 @@ function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: strin
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_1fr]">
           <div className="lg:col-start-2 lg:row-start-1">
             {member && viewerId ? (
-              <NewGame club={club} viewerId={viewerId} play={play} />
+              <NewGame club={club} viewerId={viewerId} />
             ) : (
-              <JoinClub club={club} viewerId={viewerId} own={own} />
+              <JoinClub club={club} viewerId={viewerId} own={own} onWithdraw={() => (leave.reset(), setLeaving(true))} />
             )}
           </div>
           <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-span-2 lg:row-start-1">
+            <JoinRequests club={club} />
             <UpNext club={club} table={table} viewerId={viewerId} highlight={highlight} />
             <RecentGames club={club} table={table} viewerId={viewerId} member={member} />
             <PastSealedGames club={club} viewerId={viewerId} highlight={highlight} />
             {table?.finished ? <ClubLeaderboard table={table} viewerId={viewerId} /> : null}
           </div>
-          <aside className="space-y-6 lg:col-start-2">
-            <Members club={club} viewerId={viewerId} isOwner={isOwner} play={member ? play : null} />
+          <aside className="lg:col-start-2">
+            <Members club={club} viewerId={viewerId} isOwner={isOwner} />
           </aside>
         </div>
       </PageContent>
@@ -185,7 +185,7 @@ function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: strin
       <ConfirmDialog
         open={leaving}
         title={member ? `Leave ${club.name}?` : 'Withdraw your request?'}
-        description="You come off the leaderboard. Rejoin and your results come back."
+        description={member ? 'You come off the leaderboard. Rejoin and your results come back.' : 'You can ask again later.'}
         cancel="Stay"
         confirm={member ? 'Leave club' : 'Withdraw'}
         pendingLabel="Leaving…"
@@ -215,10 +215,9 @@ function usePlayClubGame(token: string) {
   })
 }
 
-type PlayClubGameMutation = ReturnType<typeof usePlayClubGame>
-
 /** A member's way in to a game: pick another member and start an ordinary battle, counted for the club. */
-function NewGame({ club, viewerId, play }: { club: Club; viewerId: string; play: PlayClubGameMutation }) {
+function NewGame({ club, viewerId }: { club: Club; viewerId: string }) {
+  const play = usePlayClubGame(club.token)
   const opponents = club.members.filter((member) => member.status === 'accepted' && member.userId !== viewerId)
   const [opponentId, setOpponentId] = useState<string | null>(null)
   const chosen = opponents.find((member) => member.userId === opponentId) ?? opponents[0]
@@ -282,8 +281,18 @@ function NewSealedGame({ club }: { club: Club }) {
   )
 }
 
-/** For someone not in the club yet: join, or see that the request is waiting. Members have nothing to do here. */
-function JoinClub({ club, viewerId, own }: { club: Club; viewerId: string | null; own: Member | null }) {
+/** For someone not in the club yet: join, or see that the request is waiting and take it back. */
+function JoinClub({
+  club,
+  viewerId,
+  own,
+  onWithdraw,
+}: {
+  club: Club
+  viewerId: string | null
+  own: Member | null
+  onWithdraw: () => void
+}) {
   const refresh = useClubRefresh(club.token)
   const join = useMutation({ mutationFn: () => joinClub({ data: { token: club.token } }), onSettled: refresh })
   const detail = own
@@ -297,21 +306,23 @@ function JoinClub({ club, viewerId, own }: { club: Club; viewerId: string | null
         {own ? 'Request sent' : 'Join this club'}
       </h2>
       <p className="mt-1.5 text-sm text-dim">{detail}</p>
-      <div className="mt-4">
-        {own ? null : viewerId ? (
-          <Button size="lg" className="w-full pointer-coarse:h-11" disabled={join.isPending} onClick={() => join.mutate()}>
-            <UserPlus /> {club.admission === 'approval' ? 'Ask to join' : 'Join club'}
-          </Button>
-        ) : (
-          <Link
-            to="/sign-in"
-            search={{ next: `/clubs/${club.token}` }}
-            className={buttonClass({ size: 'lg', className: 'w-full pointer-coarse:h-11' })}
-          >
-            Sign in to join
-          </Link>
-        )}
-      </div>
+      {own ? (
+        <Button variant="outline" className="mt-4 w-full pointer-coarse:h-11" onClick={onWithdraw}>
+          <LogOut /> Withdraw request
+        </Button>
+      ) : viewerId ? (
+        <Button size="lg" className="mt-4 w-full pointer-coarse:h-11" disabled={join.isPending} onClick={() => join.mutate()}>
+          <UserPlus /> {club.admission === 'approval' ? 'Ask to join' : 'Join club'}
+        </Button>
+      ) : (
+        <Link
+          to="/sign-in"
+          search={{ next: `/clubs/${club.token}` }}
+          className={buttonClass({ size: 'lg', className: 'mt-4 w-full pointer-coarse:h-11' })}
+        >
+          Sign in to join
+        </Link>
+      )}
       {join.error ? <Problem error={join.error} className="mt-2" /> : null}
     </section>
   )
@@ -343,7 +354,6 @@ function UpNext({
   )
 }
 
-/** The club's latest finished games; before the first, what to do to play one. */
 /** Battles played outside sealed games; a sealed game lists its own. A club with no games yet says how to start one. */
 function RecentGames({
   club,
@@ -424,13 +434,15 @@ function PastSealedGame({
   return (
     <Collapsible defaultOpen={open} render={<li id={`game-${game.token}`} />}>
       <CollapsibleTrigger className="group flex w-full min-w-0 items-center gap-3 p-3 text-left hover:bg-raised">
-        <span className="min-w-0 flex-1 truncate font-semibold">{eventName({ ...game, tournament: null, club })}</span>
-        <span className="shrink-0 text-sm text-dim">
-          {[
-            countLabel(players, 'player'),
-            countLabel(game.battles, 'battle'),
-            date(game.playsAt ?? game.revealedAt ?? game.createdAt),
-          ].join(' · ')}
+        <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-3">
+          <span className="min-w-0 truncate font-semibold sm:flex-1">{eventName({ ...game, tournament: null, club })}</span>
+          <span className="text-sm text-dim sm:shrink-0">
+            {[
+              countLabel(players, 'player'),
+              countLabel(game.battles, 'battle'),
+              date(game.playsAt ?? game.revealedAt ?? game.createdAt),
+            ].join(' · ')}
+          </span>
         </span>
         <ChevronDown aria-hidden className="size-4 shrink-0 text-faint transition-transform group-data-[panel-open]:rotate-180" />
       </CollapsibleTrigger>
@@ -441,123 +453,126 @@ function PastSealedGame({
   )
 }
 
-function Members({
-  club,
-  viewerId,
-  isOwner,
-  play,
-}: {
-  club: Club
-  viewerId: string | null
-  isOwner: boolean
-  /** Starts a club game against a member, for a reader who is one. */
-  play: PlayClubGameMutation | null
-}) {
+/** People asking to join, for an organizer to answer before anything else on the page. */
+function JoinRequests({ club }: { club: Club }) {
   const refresh = useClubRefresh(club.token)
   const moderate = useMutation({
     mutationFn: (input: { userId: string; accept: boolean }) => moderateClubMember({ data: { token: club.token, ...input } }),
     onSettled: refresh,
   })
+  // Turning a request down is asked about first, so one stray press doesn't send someone away.
+  const [declining, setDeclining] = useState<Member | null>(null)
+  const pending = club.members.filter((member) => member.status === 'pending')
+  if (!club.organizer || !pending.length) return null
+  return (
+    <section>
+      <SectionHeading title="Asking to join" count={pending.length} />
+      <ul className="divide-y divide-edge border border-edge bg-panel">
+        {pending.map((member) => (
+          <li key={member.userId} data-person={member.name} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 p-3">
+            <Link to="/users/$userId" params={{ userId: member.userId }} className="group flex min-w-0 flex-1 items-center gap-2.5">
+              <PlayerAvatar name={member.name} image={member.image} className="size-8 text-xs" />
+              <span className="truncate font-semibold group-hover:underline">{member.name}</span>
+            </Link>
+            <div className="flex shrink-0 gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="pointer-coarse:h-11"
+                disabled={moderate.isPending}
+                onClick={() => moderate.mutate({ userId: member.userId, accept: true })}
+              >
+                <Check /> Let in
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="pointer-coarse:h-11"
+                disabled={moderate.isPending}
+                onClick={() => (moderate.reset(), setDeclining(member))}
+              >
+                <X /> Decline
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {moderate.error && !declining ? <Problem error={moderate.error} className="mt-2" /> : null}
+      <ConfirmDialog
+        open={declining !== null}
+        title={`Decline ${declining?.name ?? ''}?`}
+        description="They won’t join the club. They can ask again later."
+        cancel="Keep"
+        confirm="Decline"
+        pendingLabel="Declining…"
+        destructive
+        pending={moderate.isPending}
+        error={moderate.error}
+        onClose={() => setDeclining(null)}
+        onConfirm={() => declining && moderate.mutate({ userId: declining.userId, accept: false }, { onSuccess: () => setDeclining(null) })}
+      />
+    </section>
+  )
+}
+
+function Members({ club, viewerId, isOwner }: { club: Club; viewerId: string | null; isOwner: boolean }) {
+  const refresh = useClubRefresh(club.token)
   const remove = useMutation({
     mutationFn: (userId: string) => removeClubMember({ data: { token: club.token, userId } }),
     onSettled: refresh,
-    onSuccess: () => setConfirming(null),
+    onSuccess: () => setRemoving(null),
   })
-  // Removing someone, or turning their request down, is asked about first: one stray press should not cost a member their place.
-  const [confirming, setConfirming] = useState<{ member: Member; action: 'remove' | 'decline' } | null>(null)
-  const pending = club.organizer ? club.members.filter((member) => member.status === 'pending') : []
-  const accepted = club.members.filter((member) => member.status === 'accepted')
+  // Removing someone is asked about first: one stray press should not cost a member their place.
+  const [removing, setRemoving] = useState<Member | null>(null)
+  const accepted = club.members.filter((member) => member.status === 'accepted').toSorted((a, b) => rank(club, a) - rank(club, b))
   return (
-    <>
-      {pending.length ? (
-        <section>
-          <SectionHeading title="Asking to join" count={pending.length} />
-          <ul className="divide-y divide-edge border border-edge bg-panel">
-            {pending.map((member) => (
-              <li key={member.userId} data-person={member.name} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 p-3">
+    <section>
+      <SectionHeading title="Members" count={accepted.length} />
+      <ul className="divide-y divide-edge border border-edge bg-panel">
+        {accepted.map((member) => {
+          const role = member.userId === club.ownerId ? 'Owner' : member.role === 'admin' ? 'Admin' : null
+          const removable =
+            club.organizer && member.userId !== club.ownerId && member.userId !== viewerId && (member.role !== 'admin' || isOwner)
+          return (
+            <li key={member.userId} data-person={member.name} className="flex min-h-12 min-w-0 items-center gap-2 py-1.5 pr-1.5 pl-3">
+              <Link to="/users/$userId" params={{ userId: member.userId }} className="group flex min-w-0 flex-1 items-center gap-2.5">
                 <PlayerAvatar name={member.name} image={member.image} className="size-8 text-xs" />
-                <span className="min-w-0 flex-1 truncate font-semibold">{member.name}</span>
-                <div className="flex basis-full gap-2">
-                  <Button size="sm" disabled={moderate.isPending} onClick={() => moderate.mutate({ userId: member.userId, accept: true })}>
-                    <Check /> Let in
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={moderate.isPending}
-                    onClick={() => (moderate.reset(), setConfirming({ member, action: 'decline' }))}
-                  >
-                    <X /> Decline
-                  </Button>
-                </div>
-              </li>
-            ))}
-          </ul>
-          {moderate.error ? <Problem error={moderate.error} className="mt-2" /> : null}
-        </section>
-      ) : null}
-      <section>
-        <SectionHeading title="Members" count={accepted.length} />
-        <ul className="divide-y divide-edge border border-edge bg-panel">
-          {accepted.map((member) => {
-            const removable =
-              club.organizer && member.userId !== club.ownerId && member.userId !== viewerId && (member.role !== 'admin' || isOwner)
-            return (
-              <li key={member.userId} data-person={member.name} className="flex min-w-0 items-center gap-2 p-2 pl-3">
-                <Link to="/users/$userId" params={{ userId: member.userId }} className="group flex min-w-0 flex-1 items-center gap-2.5">
-                  <PlayerAvatar name={member.name} image={member.image} className="size-8 text-xs" />
-                  <span className="truncate font-semibold group-hover:underline">{member.name}</span>
-                </Link>
-                {play && member.userId !== viewerId ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="pointer-coarse:h-11"
-                    aria-label={`Play ${member.name}`}
-                    disabled={play.isPending}
-                    onClick={() => play.mutate(member.userId)}
-                  >
-                    <Swords /> Play
-                  </Button>
-                ) : null}
-                {removable ? (
-                  <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    className="pointer-coarse:size-11"
-                    aria-label={`Remove ${member.name} from the club`}
-                    disabled={remove.isPending}
-                    onClick={() => (remove.reset(), setConfirming({ member, action: 'remove' }))}
-                  >
-                    <X />
-                  </Button>
-                ) : null}
-              </li>
-            )
-          })}
-        </ul>
-      </section>
+                <span className="truncate font-semibold group-hover:underline">{member.name}</span>
+                {member.userId === viewerId ? <span className="shrink-0 text-xs text-dim">you</span> : null}
+              </Link>
+              {role ? <span className="chip shrink-0">{role}</span> : null}
+              {removable ? (
+                <Button
+                  size="icon-sm"
+                  variant="ghost"
+                  className="text-faint hover:text-destructive pointer-coarse:size-11"
+                  aria-label={`Remove ${member.name} from the club`}
+                  disabled={remove.isPending}
+                  onClick={() => (remove.reset(), setRemoving(member))}
+                >
+                  <X />
+                </Button>
+              ) : null}
+            </li>
+          )
+        })}
+      </ul>
       <ConfirmDialog
-        open={confirming !== null}
-        title={confirming?.action === 'decline' ? `Decline ${confirming.member.name}?` : `Remove ${confirming?.member.name ?? ''}?`}
-        description={
-          confirming?.action === 'decline'
-            ? 'They won’t join the club. They can ask again later.'
-            : 'They come off the club leaderboard. They can join again later, and their results come back.'
-        }
+        open={removing !== null}
+        title={`Remove ${removing?.name ?? ''}?`}
+        description="They come off the club leaderboard. They can join again later, and their results come back."
         cancel="Keep"
-        confirm={confirming?.action === 'decline' ? 'Decline' : 'Remove'}
-        pendingLabel={confirming?.action === 'decline' ? 'Declining…' : 'Removing…'}
+        confirm="Remove"
+        pendingLabel="Removing…"
         destructive
-        pending={remove.isPending || moderate.isPending}
-        error={confirming?.action === 'decline' ? moderate.error : remove.error}
-        onClose={() => setConfirming(null)}
-        onConfirm={() => {
-          if (!confirming) return
-          if (confirming.action === 'remove') remove.mutate(confirming.member.userId)
-          else moderate.mutate({ userId: confirming.member.userId, accept: false }, { onSuccess: () => setConfirming(null) })
-        }}
+        pending={remove.isPending}
+        error={remove.error}
+        onClose={() => setRemoving(null)}
+        onConfirm={() => removing && remove.mutate(removing.userId)}
       />
-    </>
+    </section>
   )
 }
+
+/** Who runs the club comes first, owner then admins. */
+const rank = (club: Club, member: Member) => (member.userId === club.ownerId ? 0 : member.role === 'admin' ? 1 : 2)
