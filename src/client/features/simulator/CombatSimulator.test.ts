@@ -7,6 +7,10 @@ import type { Combatant } from './useCombatant'
 
 const hooks = vi.hoisted(() => ({ cursor: 0, side: 0, slots: [] as unknown[], combatants: [] as Combatant[], initial: vi.fn() }))
 const rememberMatchup = vi.fn()
+vi.mock('../onboarding/onboarding', async (original) => ({
+  ...(await original<typeof import('../onboarding/onboarding')>()),
+  advanceOnboarding: vi.fn(),
+}))
 vi.mock('react', async (original) => ({
   ...(await original<typeof import('react')>()),
   useState: (initial: unknown) => {

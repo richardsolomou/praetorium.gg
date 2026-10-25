@@ -2,6 +2,8 @@ export const onboardingTaskIds = ['roster', 'friend', 'battle', 'league', 'refer
 
 export type OnboardingTaskId = (typeof onboardingTaskIds)[number]
 
+export const gettingStartedTaskIds = ['roster', 'simulator'] as const
+
 /** Tours that only a finished walkthrough can complete; every other task is folded from what the player has actually done. */
 export const tourTaskIds = ['reference', 'community', 'simulator', 'roster-tools'] as const
 
@@ -11,17 +13,6 @@ const factTaskIds = ['roster', 'friend', 'battle', 'league'] as const
 
 /** What the rest of the database already says the player has done. */
 export type OnboardingFacts = Record<(typeof factTaskIds)[number], boolean>
-
-const onboardingPrerequisites: Record<OnboardingTaskId, readonly OnboardingTaskId[]> = {
-  roster: [],
-  friend: [],
-  battle: ['roster'],
-  league: [],
-  reference: [],
-  community: [],
-  simulator: [],
-  'roster-tools': ['roster'],
-}
 
 /** The only onboarding state worth keeping: a welcome, a finished tour, and a task the player waved away. */
 export type StoredOnboarding = { welcomed: boolean; tasks: readonly { task: string; state: 'completed' | 'skipped' }[] }
@@ -65,12 +56,10 @@ export function resolvedOnboardingTasks(progress: OnboardingProgress): Set<Onboa
 }
 
 export function onboardingComplete(progress: OnboardingProgress): boolean {
-  return resolvedOnboardingTasks(progress).size === onboardingTaskIds.length
+  return resolvedGettingStartedTasks(progress).length === gettingStartedTaskIds.length
 }
 
-export function availableOnboardingTasks(progress: OnboardingProgress): OnboardingTaskId[] {
+export function resolvedGettingStartedTasks(progress: OnboardingProgress) {
   const resolved = resolvedOnboardingTasks(progress)
-  return onboardingTaskIds.filter(
-    (task) => resolved.has(task) || onboardingPrerequisites[task].every((prerequisite) => resolved.has(prerequisite)),
-  )
+  return gettingStartedTaskIds.filter((task) => resolved.has(task))
 }

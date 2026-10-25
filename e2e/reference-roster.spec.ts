@@ -153,14 +153,8 @@ for (const width of [1440, 390]) {
     await setup.getByRole('button', { name: 'Create roster', exact: true }).click()
     const card = page.locator(`[data-unit="${name}"]`)
     await card.getByRole('button', { name, exact: true }).click()
-    const rifles = page
-      .locator('[data-onboarding="loadout-weapon"]')
-      .filter({ hasText: /Melta Rifle/ })
-      .first()
-    const multi = page
-      .locator('[data-onboarding="loadout-weapon"]')
-      .filter({ hasText: /Multi-melta/ })
-      .first()
+    const rifles = page.getByRole('listitem', { name: /Melta rifle/i }).first()
+    const multi = page.getByRole('listitem', { name: /Multi-melta/i }).first()
     await expect(rifles.getByText('HUNTER:Monster/Vehicle', { exact: true })).toBeVisible()
     await expect(multi.getByText('HUNTER:Monster/Vehicle', { exact: true })).toBeVisible()
     await expect(rifles.getByText('2 profiles', { exact: true })).toBeVisible()

@@ -1,3 +1,4 @@
+import { GuideHelp } from '../onboarding/GuideHelp'
 import { isGuestSeat } from '../../../core/newBattle'
 import { GuestInvite } from './GuestInvite'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -600,6 +601,9 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
         ) : null}
         <div data-battle-sticky-header className="sticky top-(--app-header) z-20 space-y-2 bg-void/95 pb-2 backdrop-blur lg:contents">
           <Scoreboard view={view} clock={clock} sides={table} outcome={null} />
+          <GuideHelp task="battle" step="battle-live-score">
+            Playing guide
+          </GuideHelp>
 
           {/* Nobody across the table yet means neither a tab nor a column for them. */}
           <Tabs value={focus} onValueChange={(value) => setFocus(value as Focus)} className="battle-focus-tabs lg:hidden">

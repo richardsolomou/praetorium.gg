@@ -93,7 +93,6 @@ export function FactionDatasheets() {
           </BreadcrumbList>
         </Breadcrumb>
         <SearchField
-          onboarding="datasheet-search"
           value={query}
           onChange={setQuery}
           placeholder="Find a datasheet"
@@ -191,7 +190,6 @@ const FactionDatasheetRow = memo(function FactionDatasheetRow({
 }) {
   return (
     <div
-      data-onboarding="datasheet-row"
       data-datasheet={unit.name}
       className="flex w-full min-w-0 items-center border border-edge bg-panel [contain:layout_style] hover:border-info"
     >

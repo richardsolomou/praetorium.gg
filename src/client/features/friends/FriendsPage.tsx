@@ -1,3 +1,4 @@
+import { GuideHelp } from '../onboarding/GuideHelp'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, EllipsisVertical, Link2, RotateCw, Swords, UserMinus, UserPlus, X } from 'lucide-react'
@@ -63,7 +64,12 @@ export function FriendsPage() {
 
   return (
     <main className="w-full">
-      <PageHeader eyebrow="Your account" title="Friends" description="The people you play with." />
+      <PageHeader
+        eyebrow="Your account"
+        title="Friends"
+        description="The people you play with."
+        actions={<GuideHelp task="friend">Friend guide</GuideHelp>}
+      />
       <PageContent className="space-y-8">
         {request.error || accept.error || reject.error || remove.error ? (
           <Problem

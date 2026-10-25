@@ -27,7 +27,7 @@ export function PlayerRankings({ rankings }: { rankings: Rankings }) {
   const rows = [...(rankings.overall ? [rankings.overall] : []), ...rankings.factions]
   if (!rows.length) return null
   return (
-    <section data-onboarding="profile-rankings" data-rankings>
+    <section data-rankings>
       <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
         <span>Leaderboard</span>
         <span className="text-xs text-faint normal-case">Last {rankings.days} days</span>

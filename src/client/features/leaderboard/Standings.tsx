@@ -18,7 +18,7 @@ export type StandingsTable = { faction: StandingFaction | null; players: number;
  */
 export function Standings({ table, viewerId }: { table: StandingsTable; viewerId?: string }) {
   return (
-    <section data-onboarding="standings-table" data-standings>
+    <section data-standings>
       <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
         <span>{table.faction?.displayName ?? 'Everyone'}</span>
         <span className="readout">{table.players}</span>
@@ -102,7 +102,6 @@ export function FactionFilter({ factions, selected }: { factions: readonly Stand
   if (!factions.length) return null
   return (
     <SearchableSelect
-      onboarding="leaderboard-faction"
       ariaLabel="Faction"
       groups={[
         {

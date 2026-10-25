@@ -74,7 +74,6 @@ import {
   unitsQuery,
 } from '../../queries'
 import { errorMessage } from '../../queryClient'
-import { advanceOnboarding } from '../onboarding/onboarding'
 import type { RosterSetupReview } from './rosterSetupReview'
 import { requireReviewedRoster } from '../../offline/reviewedRoster'
 import { localEngine } from '../../offline/localRuntime'
@@ -107,6 +106,7 @@ import { RosterLoanDialog } from './RosterLoanDialog'
 import { encodeRosterExchange } from '../../../core/rosterExchange'
 import { RosterBody, RosterHeader, RosterOutline, RosterShell, RosterUnits } from './RosterPresentation'
 import { saveFailureReason } from './saveFailure'
+import { advanceOnboarding } from '../onboarding/onboarding'
 import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
 import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink'
 import { type AttachDirection, AttachedUnitActions, BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
@@ -777,6 +777,7 @@ export function ListBuilder({
     if (!report) return
     reporting.current = null
     posthog.capture(report.event, { unit_count: attachedUnitCount(picks), ...(report.reference ? { reference: report.reference } : {}) })
+    if (report.event === 'roster_unit_added') advanceOnboarding('roster', 'roster-add', 'roster-list')
   }, [edit, picks])
   const drop = useCallback(
     (index: number) => {
@@ -927,7 +928,6 @@ export function ListBuilder({
       const { picks: currentPicks, updateLoadoutHistory: updateHistory, workspacePath: currentWorkspace } = selection.current
       const selectedKey = currentPicks[index]?.key
       if (selectedKey !== undefined) updateHistory({ workspace: currentWorkspace, pane: 'loadout', selectedKey })
-      advanceOnboarding('roster', 'roster-points', 'roster-loadout')
     },
     [setPreview, setSelected, setShowing],
   )
@@ -1439,9 +1439,7 @@ export function ListBuilder({
             <>
               {variantMenu}
               <DropdownMenu>
-                <DropdownMenuTrigger
-                  render={<Button data-onboarding="roster-actions" variant="ghost" size="icon-sm" aria-label="Roster actions" />}
-                >
+                <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label="Roster actions" />}>
                   <EllipsisVertical />
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="min-w-52">
@@ -1893,7 +1891,6 @@ export function ListBuilder({
         {loadoutAvailable ? (
           <Pane
             variant="loadout"
-            onboarding="roster-loadout"
             open={showing === 'loadout' && Boolean(selected !== null || preview)}
             threeColumn={editable}
             title={preview?.name ?? frozenSelected?.name ?? selectedUnit?.name ?? 'Unit'}
@@ -1917,7 +1914,6 @@ export function ListBuilder({
                     {warlord && inspectorView === 'edit' ? (
                       <button
                         type="button"
-                        data-onboarding="unit-warlord"
                         title={
                           requiredWarlord
                             ? `${requiredWarlord.name} must be your Warlord`
@@ -1938,12 +1934,9 @@ export function ListBuilder({
                         <Crown className="size-3.5 fill-current" /> Warlord
                       </span>
                     ) : null}
-                    <span data-onboarding="unit-points" className="chip w-[4.5rem] justify-center text-info">
-                      {optimisticUnit.points} pts
-                    </span>
+                    <span className="chip w-[4.5rem] justify-center text-info">{optimisticUnit.points} pts</span>
                     {optimisticUnit.size.resizable && inspectorView === 'edit' ? (
                       <Stepper
-                        onboarding="unit-models"
                         label={`models in ${optimisticUnit.name}`}
                         countLabel={`${optimisticUnit.name} models`}
                         count={optimisticUnit.size.models}

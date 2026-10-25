@@ -1,3 +1,4 @@
+import { GuideHelp } from '../onboarding/GuideHelp'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { Check, ChevronRight, Link2, Plus, UserRound } from 'lucide-react'
@@ -244,6 +245,9 @@ export function CreateBattle({
           <>
             <DialogHeader>
               <DialogTitle className="text-2xl">Start a battle</DialogTitle>
+              <GuideHelp task="battle" step="battle-format">
+                Battle setup guide
+              </GuideHelp>
               <DialogDescription>
                 Choose who is playing. A guest is an opponent without an account; a practice opponent lets you play both sides alone.
                 {rosterId ? ' You bring this roster.' : null}

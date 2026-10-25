@@ -68,7 +68,7 @@ export function ServiceRecordPanel({
   onFilter: (next: PlayerProfileFilter) => void
 }) {
   return (
-    <section data-onboarding="profile-record" data-service-record>
+    <section data-service-record>
       <div className="flex items-baseline justify-between gap-3 border-b border-edge pb-2">
         <h2 className="rubric">Service record</h2>
         <RecordFilters facets={facets} filter={filter} onFilter={onFilter} />

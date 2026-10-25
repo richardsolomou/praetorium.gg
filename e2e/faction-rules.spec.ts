@@ -11,7 +11,7 @@ const factions = [
 test('Custodes reference retains cards with unsupported battle timing', { tag: '@catalogue' }, async ({ page }, testInfo) => {
   const factionPath = '/factions/adeptus-custodes/rules/custodes-codex-2026-10-17'
   await page.goto(factionPath)
-  const detachments = page.locator('[data-onboarding="faction-detachments"]')
+  const detachments = page.getByRole('region', { name: 'Detachments', exact: true })
   for (const [name, count] of [
     ['Aquilan Shield', 3],
     ['Auric Champions', 2],
@@ -35,7 +35,7 @@ test('Custodes reference retains cards with unsupported battle timing', { tag: '
     await page.screenshot({ path: testInfo.outputPath(`custodes-detachment-counts-${width}.png`) })
   }
   await detachments.getByRole('link', { name: /^Guardians of the Throne\s/i }).click()
-  const stratagems = page.locator('[data-onboarding="detachment-stratagems"]')
+  const stratagems = page.getByRole('region', { name: 'Stratagems', exact: true })
   await expect(stratagems.locator('article')).toHaveCount(6)
   await expect(stratagems).toContainText('Superhuman Focus')
   await expect(stratagems).toContainText('In Auramite Clad')

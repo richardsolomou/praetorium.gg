@@ -30,7 +30,7 @@ export function RuleContents({ documentId }: { documentId: string }) {
       />
       <PageContent className="space-y-6">
         {document.sections.map((section) => (
-          <section key={section.id} data-onboarding="rule-contents">
+          <section key={section.id}>
             <h2 className="rubric flex items-baseline justify-between gap-3 border-b border-edge pb-2">
               <Link
                 to="/rules/$documentId/$sectionId"
@@ -45,7 +45,6 @@ export function RuleContents({ documentId }: { documentId: string }) {
               {section.entries.map((entry) => (
                 <Link
                   key={entry.anchor}
-                  data-onboarding="rule-entry"
                   to="/rules/$documentId/$sectionId"
                   params={{ documentId: document.slug, sectionId: section.slug }}
                   hash={entry.anchor}

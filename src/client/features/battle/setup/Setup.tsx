@@ -1,3 +1,4 @@
+import { GuideHelp } from '../../onboarding/GuideHelp'
 import type { RosterAttachment } from '../useCommand'
 import { useQuery } from '@tanstack/react-query'
 import { Check } from 'lucide-react'
@@ -247,6 +248,9 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
         <header className="space-y-3">
           <div className="space-y-1 text-center">
             <h1 className="text-lg text-balance sm:text-xl">Set up the battle</h1>
+            <GuideHelp task="battle" step="battle-setup-size">
+              Battle setup guide
+            </GuideHelp>
             <p className="text-sm text-dim">In the order the rules play it. Anyone at the table can answer for either side.</p>
             {manual ? <p className="text-sm text-discarded">Manual tracking. {MANUAL_TRACKING_LIMITS}</p> : null}
           </div>

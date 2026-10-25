@@ -453,7 +453,6 @@ const PickerRow = memo(function PickerRow({
 }: PickerRowProps) {
   return (
     <div
-      data-onboarding="picker-unit"
       data-picker-unit={unit.name}
       className="flex flex-wrap items-center gap-1.5 border border-edge bg-card px-2.5 py-1.5 [contain:layout_style] [contain-intrinsic-size:auto_3.25rem] [content-visibility:auto]"
     >

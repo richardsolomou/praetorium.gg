@@ -27,15 +27,7 @@ export function FactionDetachment() {
               </BreadcrumbItem>
               <BreadcrumbSeparator className="text-dim" />
               <BreadcrumbItem>
-                <BreadcrumbLink
-                  render={
-                    <FactionReferenceLink
-                      data-onboarding="detachment-breadcrumb"
-                      to="/factions/$catalogueId"
-                      params={{ catalogueId: faction.slug }}
-                    />
-                  }
-                >
+                <BreadcrumbLink render={<FactionReferenceLink to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} />}>
                   {faction.displayName}
                 </BreadcrumbLink>
               </BreadcrumbItem>

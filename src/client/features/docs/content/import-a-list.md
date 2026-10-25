@@ -16,6 +16,8 @@ A list can hold at most 100 entries. Anything else you paste is refused with "it
 
 ## Import a list
 
+You do not need an existing roster or an account. Choose **Import an existing army** in **Getting started**, or **Import guide** inside the import dialog, for help with pasting, reviewing, and opening your list. A visitor opens a draft kept on this device; **Save roster** then takes you through signing in to keep it in your account.
+
 1. In the other app, use its text export and copy the whole thing, from the list title down. Keep the faction, detachment and battle size lines; they decide which army and battle size you get.
 2. Open [Rosters](/rosters) and choose **Import roster**.
 3. Paste into **Roster text or exchange code** and choose **Import pasted roster**.

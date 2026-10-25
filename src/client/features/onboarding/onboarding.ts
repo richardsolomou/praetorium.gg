@@ -1,5 +1,5 @@
 import { readSessionValue } from '../../storedValue'
-import { onboardingTaskIds, type OnboardingProgressOperation, type OnboardingTaskId } from '../../../core/onboarding'
+import { gettingStartedTaskIds, onboardingTaskIds, type OnboardingProgressOperation, type OnboardingTaskId } from '../../../core/onboarding'
 import type { OnboardingTarget } from '../../onboardingTargets'
 export { onboardingTargets, type OnboardingTarget } from '../../onboardingTargets'
 
@@ -7,49 +7,16 @@ export const ONBOARDING_FOCUS_EVENT = 'praetorium:onboarding-focus'
 export const ONBOARDING_EVENT = 'praetorium:onboarding'
 export const ONBOARDING_ADVANCE_EVENT = 'praetorium:onboarding-advance'
 
-/** The tasks the field guide offers, in the order the panel lists them. */
-export const onboardingTasks: readonly { id: OnboardingTaskId; title: string; description: string }[] = [
-  {
-    id: 'roster',
+export const gettingStartedTasks: Record<(typeof gettingStartedTaskIds)[number], { title: string; description: string }> = {
+  roster: {
     title: 'Build your first army',
-    description: 'Create a roster, choose its faction and detachment, then add the units you want to field.',
+    description: 'Create a roster, choose its faction and detachment, then add your first unit.',
   },
-  {
-    id: 'friend',
-    title: 'Add someone you play with',
-    description: 'Find another player by account name. Once they accept, you can seat them in a battle.',
+  simulator: {
+    title: 'Try your first matchup',
+    description: 'Choose an attacker and a defender, then read the shooting and melee results.',
   },
-  {
-    id: 'battle',
-    title: 'Start a battle',
-    description: 'Play with friends or practice alone. Prepare the table, then learn phases, scoring, and army controls.',
-  },
-  {
-    id: 'league',
-    title: 'Join or run a league',
-    description: 'Seal rosters in secret, open them together, and play each other with a results table.',
-  },
-  {
-    id: 'reference',
-    title: 'Explore the game reference',
-    description: 'Search Praetorium, browse factions and datasheets, compare missions, and read the source rules.',
-  },
-  {
-    id: 'community',
-    title: 'Follow games and players',
-    description: 'Watch battles, check the standings, and read a player.',
-  },
-  {
-    id: 'simulator',
-    title: 'Compare units in combat',
-    description: 'Read shooting and melee odds, compare loadouts, and adjust the conditions at the table.',
-  },
-  {
-    id: 'roster-tools',
-    title: 'Import and manage armies',
-    description: 'Bring an existing roster, make variants, share or export it, and check what rules updates changed.',
-  },
-]
+}
 
 export function onboardingFocusStorageKey(userId: string) {
   return `praetorium:focused-onboarding-step:${userId}`
@@ -92,22 +59,13 @@ type OnboardingPage =
   | 'data-updates'
 
 export const onboardingStepIds = [
-  'roster-warlord',
-  'roster-attachment',
-  'roster-reminder',
   'simulator-attacker',
   'simulator-defender',
   'simulator-results',
-  'simulator-loadout',
-  'simulator-optimize',
-  'simulator-buffs',
-  'simulator-modifiers',
-  'simulator-swap',
+  'tools-input',
+  'tools-review',
+  'tools-finished',
   'tools-import',
-  'tools-open',
-  'tools-actions',
-  'tools-variants',
-  'tools-updates',
   'battle-setup-size',
   'battle-setup-armies',
   'battle-setup-mission',
@@ -130,16 +88,8 @@ export const onboardingStepIds = [
   'roster-create',
   'roster-picker',
   'roster-search',
-  'roster-unit',
   'roster-add',
   'roster-list',
-  'roster-points',
-  'roster-loadout',
-  'roster-models',
-  'roster-wargear',
-  'roster-weapon',
-  'roster-enhancement',
-  'roster-unit-points',
   'friend-start',
   'friend-requests',
   'friend-list',
@@ -159,39 +109,7 @@ export const onboardingStepIds = [
   'league-reveal',
   'league-status',
   'reference-search',
-  'reference-faction-entry',
-  'reference-army-rules',
-  'reference-detachments',
-  'reference-detachment-rules',
-  'reference-enhancements',
-  'reference-stratagems',
-  'reference-back-to-faction',
-  'reference-datasheets',
-  'reference-datasheet-search',
-  'reference-datasheet-row',
-  'reference-datasheet-stats',
-  'reference-datasheet-weapons',
-  'reference-datasheet-abilities',
-  'reference-datasheet-config',
-  'reference-datasheet-keywords',
-  'reference-secondaries',
-  'reference-missions',
-  'reference-matchup-primary',
-  'reference-matchup-actions',
-  'reference-matchup-terrain',
-  'reference-rules-search',
-  'reference-rules-documents',
-  'reference-rule-contents',
-  'reference-rule-entry',
-  'reference-rule-section',
-  'community-home',
-  'community-friends',
   'community-public',
-  'community-leaderboard',
-  'community-standings',
-  'community-profile-tabs',
-  'community-profile-rankings',
-  'community-profile-record',
 ] as const
 
 export type OnboardingStepId = (typeof onboardingStepIds)[number]
@@ -210,8 +128,7 @@ type OnboardingStep = {
   next?: OnboardingStepId
   /** The copy on a button that takes the player to the next step's page, where `href` reaches it. */
   nextLabel?: string
-  /** The server folds this step's task from real rows, so the guide moves on when it says the task is done. */
-  awaitsTask?: true
+  entry?: OnboardingStepId
   /** The data need not produce this control, so the guide steps over it rather than stranding on it. */
   optional?: true
   final?: true
@@ -223,51 +140,12 @@ export const FIRST_ONBOARDING_STEP: Record<OnboardingTaskId, OnboardingStepId> =
   battle: 'battle-start',
   league: 'league-start',
   reference: 'reference-search',
-  community: 'community-home',
+  community: 'community-public',
   simulator: 'simulator-attacker',
   'roster-tools': 'tools-import',
 }
 
 export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
-  'roster-warlord': {
-    task: 'roster',
-    target: 'unit-warlord',
-    page: 'roster',
-    href: '/rosters',
-    title: 'Choose your Warlord',
-    description:
-      'The first eligible character you add becomes your Warlord; another can take it here. Check the roster’s legality warnings before you bring it to a battle.',
-    placement: 'bottom',
-    next: 'roster-attachment',
-    nextLabel: 'Next',
-    optional: true,
-  },
-  'roster-attachment': {
-    task: 'roster',
-    target: 'unit-attachment',
-    page: 'roster',
-    href: '/rosters',
-    title: 'Attach a leader',
-    description:
-      'Attach to unit joins a character to an eligible bodyguard in your roster, or adds a new one already joined. The joined cards show who is leading whom.',
-    placement: 'bottom',
-    next: 'roster-reminder',
-    nextLabel: 'Next',
-    optional: true,
-  },
-  'roster-reminder': {
-    task: 'roster',
-    target: 'unit-reminder',
-    page: 'roster',
-    href: '/rosters',
-    title: 'Remember an ability',
-    description:
-      'The bell sets a personal battle alert for this ability in all your rosters. Choose the start or end of a phase or turn, whose turn it applies to, and add more triggers if needed. Save it before bringing the army to battle.',
-    placement: 'bottom',
-    next: 'roster-unit-points',
-    nextLabel: 'Next',
-    optional: true,
-  },
   'simulator-attacker': {
     task: 'simulator',
     target: 'simulator-attacker',
@@ -297,67 +175,6 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     description:
       'Chance to destroy means removing the whole target unit. Average wounds and models lost describe expected damage. Breakdown separates shooting, melee, and shooting followed by melee.',
     placement: 'top',
-    next: 'simulator-loadout',
-    nextLabel: 'Next',
-  },
-  'simulator-loadout': {
-    task: 'simulator',
-    target: 'simulator-loadout',
-    page: 'simulator',
-    href: '/simulator',
-    title: 'Compare weapons',
-    description:
-      'Loadout lets you change equipment. Weapon options and profiles show their odds against this defender. Simulating from a roster copies its current choices; simulator edits never change the saved army.',
-    placement: 'bottom',
-    next: 'simulator-optimize',
-    nextLabel: 'Next',
-  },
-  'simulator-optimize': {
-    task: 'simulator',
-    target: 'simulator-optimize',
-    page: 'simulator',
-    href: '/simulator',
-    title: 'Find a stronger loadout',
-    description:
-      'Optimize searches legal weapon choices for the best combined chance to destroy this target. It keeps unit size, enhancements, and your conditions fixed. Cancel keeps improvements already found.',
-    placement: 'bottom',
-    next: 'simulator-buffs',
-    nextLabel: 'Next',
-    optional: true,
-  },
-  'simulator-buffs': {
-    task: 'simulator',
-    target: 'simulator-buffs',
-    page: 'simulator',
-    href: '/simulator',
-    title: 'Apply the rules in play',
-    description:
-      'Rules & buffs shows available effects. Confirm range, eligibility, and activation at the table; unsupported effects are not included in the odds.',
-    placement: 'bottom',
-    next: 'simulator-modifiers',
-    nextLabel: 'Next',
-  },
-  'simulator-modifiers': {
-    task: 'simulator',
-    target: 'simulator-modifiers',
-    page: 'simulator',
-    href: '/simulator',
-    title: 'Set the conditions',
-    description:
-      'Manual modifiers covers situations such as cover, re-rolls, and having charged. All affects both phases; Shooting and Melee affect only that phase. Reset restores the defaults.',
-    placement: 'bottom',
-    next: 'simulator-swap',
-    nextLabel: 'Next',
-  },
-  'simulator-swap': {
-    task: 'simulator',
-    target: 'simulator-swap',
-    page: 'simulator',
-    href: '/simulator',
-    title: 'Reverse or share the matchup',
-    description:
-      'Swap exchanges attacker and defender and resets situational adjustments. To share a standalone matchup, copy the page address: it restores the units, loadouts, and calculation choices.',
-    placement: 'bottom',
     final: true,
   },
   'tools-import': {
@@ -367,57 +184,9 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     href: '/rosters',
     title: 'Bring an existing army',
     description:
-      'Import roster accepts Games Workshop text from Praetorium, BattleBase, or New Recruit. Review any units or equipment that cannot be imported before accepting the roster.',
+      'Open Import roster to bring an existing army. Export your list as Games Workshop text from your army builder, or use a Praetorium exchange code.',
     placement: 'bottom',
-    next: 'tools-open',
-    nextLabel: 'Next',
-  },
-  'tools-open': {
-    task: 'roster-tools',
-    target: 'roster-open',
-    page: 'rosters',
-    href: '/rosters',
-    title: 'Open a saved roster',
-    description:
-      'Open one of your armies to find its sharing, export, and variant tools. The library also flags rosters that are over their limit or no longer legal.',
-    placement: 'bottom',
-    next: 'tools-actions',
-  },
-  'tools-actions': {
-    task: 'roster-tools',
-    target: 'roster-actions',
-    page: 'roster',
-    href: '/rosters',
-    title: 'Share, print, or make a variant',
-    description:
-      'Roster actions offers Create variant, Export text, and Print. To share a link, set the roster to Unlisted or Public in Edit roster setup; private rosters have no share action. A variant is a separate saved roster you can edit.',
-    placement: 'bottom',
-    next: 'tools-variants',
-    nextLabel: 'Next',
-  },
-  'tools-variants': {
-    task: 'roster-tools',
-    target: 'roster-variants',
-    page: 'roster',
-    href: '/rosters',
-    title: 'Compare your variants',
-    description:
-      'This button shows changes from the base roster and lets you move between its variants. The library groups them together and summarises changed units, loadouts, and detachments.',
-    placement: 'bottom',
-    next: 'tools-updates',
-    nextLabel: 'Next',
-    optional: true,
-  },
-  'tools-updates': {
-    task: 'roster-tools',
-    target: 'roster-data-updates',
-    page: 'data-updates',
-    href: '/data-updates',
-    title: 'Review rules and points changes',
-    description:
-      'Data updates shows what changed and which saved rosters were affected. Review their current points and legality before playing; armies already brought to battles or sealed for an event keep their recorded versions.',
-    placement: 'bottom',
-    final: true,
+    next: 'tools-input',
   },
   'battle-setup-size': {
     task: 'battle',
@@ -662,18 +431,6 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     description:
       'Search by name, keyword or ability. The filters beneath hide anything that will not fit the points left, or that the roster already holds its limit of.',
     placement: 'right',
-    next: 'roster-unit',
-    nextLabel: 'Next',
-  },
-  'roster-unit': {
-    task: 'roster',
-    target: 'picker-unit',
-    page: 'roster',
-    href: '/rosters',
-    title: 'Read a row first',
-    description:
-      'A row carries the unit name and what it costs. Its name opens the full datasheet, and the heart marks the models you own.',
-    placement: 'right',
     next: 'roster-add',
     nextLabel: 'Next',
   },
@@ -686,7 +443,6 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     description: 'Add puts the unit in your roster at its cheapest legal loadout. Add one to carry on.',
     placement: 'right',
     next: 'roster-list',
-    awaitsTask: true,
   },
   'roster-list': {
     task: 'roster',
@@ -694,91 +450,9 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     page: 'roster',
     href: '/rosters',
     title: 'Your roster',
-    description: 'Chosen units sit here by battlefield role. Each card shows its points, its models and any enhancement it carries.',
+    description:
+      'Your first unit is in the army. Keep adding units here; select one to change its equipment. Your edits are kept as you build.',
     placement: 'right',
-    next: 'roster-points',
-    nextLabel: 'Next',
-  },
-  'roster-points': {
-    task: 'roster',
-    target: 'roster-points',
-    page: 'roster',
-    href: '/rosters',
-    title: 'Points and legality',
-    description:
-      'The running total sits against your battle size, and the tick becomes a warning when the roster goes over or breaks a rule. Select a unit to shape it.',
-    placement: 'top',
-    next: 'roster-loadout',
-  },
-  'roster-loadout': {
-    task: 'roster',
-    target: 'roster-loadout',
-    page: 'roster',
-    href: '/rosters',
-    title: 'Shape the unit',
-    description: 'The loadout pane holds everything this unit’s datasheet lets you change.',
-    placement: 'left',
-    next: 'roster-models',
-    nextLabel: 'Next',
-  },
-  'roster-models': {
-    task: 'roster',
-    target: 'unit-models',
-    page: 'roster',
-    href: '/rosters',
-    title: 'How many models',
-    description: 'Squad size is set here. The points and the weapons the unit may carry both follow it.',
-    placement: 'bottom',
-    next: 'roster-wargear',
-    nextLabel: 'Next',
-    optional: true,
-  },
-  'roster-wargear': {
-    task: 'roster',
-    target: 'loadout-wargear',
-    page: 'roster',
-    href: '/rosters',
-    title: 'Wargear options',
-    description:
-      'Choices that belong to the whole unit rather than one model sit together here, and the roster re-prices as you take them.',
-    placement: 'left',
-    next: 'roster-weapon',
-    nextLabel: 'Next',
-    optional: true,
-  },
-  'roster-weapon': {
-    task: 'roster',
-    target: 'loadout-weapon',
-    page: 'roster',
-    href: '/rosters',
-    title: 'One weapon at a time',
-    description: 'Each weapon keeps its own box with its profiles open, and the plus and minus decide how many models carry it.',
-    placement: 'left',
-    next: 'roster-enhancement',
-    nextLabel: 'Next',
-    optional: true,
-  },
-  'roster-enhancement': {
-    task: 'roster',
-    target: 'loadout-enhancement',
-    page: 'roster',
-    href: '/rosters',
-    title: 'Enhancements',
-    description:
-      'A character can carry one enhancement from your detachment for the points printed beside it. No enhancement is a choice too.',
-    placement: 'left',
-    next: 'roster-warlord',
-    nextLabel: 'Next',
-    optional: true,
-  },
-  'roster-unit-points': {
-    task: 'roster',
-    target: 'unit-points',
-    page: 'roster',
-    href: '/rosters',
-    title: 'What the unit costs',
-    description: 'This follows every change you make, and the total at the foot of the roster follows it. Your edits save on their own.',
-    placement: 'bottom',
     final: true,
   },
   'friend-start': {
@@ -987,308 +661,10 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     page: 'home',
     href: '/',
     title: 'Search everything',
-    description: 'Pages, factions, datasheets, detachments, missions, rules, and your own rosters and battles, all from one box.',
+    description:
+      'Search for a unit, rule, faction, mission, or one of your armies. Open a result to read it; use its source link when you need the full rules text.',
     placement: 'left',
-    next: 'reference-faction-entry',
-    nextLabel: 'Browse factions',
-  },
-  'reference-faction-entry': {
-    task: 'reference',
-    target: 'faction-entry',
-    page: 'factions',
-    href: '/factions',
-    title: 'Every army',
-    description: 'Each row names an army and how many detachments it brings. Open one to read it.',
-    placement: 'bottom',
-    next: 'reference-army-rules',
-  },
-  'reference-army-rules': {
-    task: 'reference',
-    target: 'faction-army-rules',
-    page: 'faction',
-    href: '/factions',
-    title: 'Army rules',
-    description: 'The abilities every unit in this army carries, in the words the source uses for them.',
-    placement: 'bottom',
-    next: 'reference-detachments',
-    nextLabel: 'Next',
-    optional: true,
-  },
-  'reference-detachments': {
-    task: 'reference',
-    target: 'faction-detachments',
-    page: 'faction',
-    href: '/factions',
-    title: 'Detachments',
-    description: 'A roster may only take what its detachment offers, so this is where an army is really chosen. Open one.',
-    placement: 'bottom',
-    next: 'reference-detachment-rules',
-  },
-  'reference-detachment-rules': {
-    task: 'reference',
-    target: 'detachment-rules',
-    page: 'detachment',
-    href: '/factions',
-    title: 'Detachment rules',
-    description: 'What this detachment gives every army built on it.',
-    placement: 'bottom',
-    next: 'reference-enhancements',
-    nextLabel: 'Next',
-    optional: true,
-  },
-  'reference-enhancements': {
-    task: 'reference',
-    target: 'detachment-enhancements',
-    page: 'detachment',
-    href: '/factions',
-    title: 'Enhancements',
-    description: 'Upgrades for a single character, at the points printed on each one. A roster takes them from its own detachment.',
-    placement: 'bottom',
-    next: 'reference-stratagems',
-    nextLabel: 'Next',
-  },
-  'reference-stratagems': {
-    task: 'reference',
-    target: 'detachment-stratagems',
-    page: 'detachment',
-    href: '/factions',
-    title: 'Stratagems',
-    description:
-      'Each one names its cost, its phase and whose turn it belongs to. In a battle you are only offered the ones the moment allows.',
-    placement: 'bottom',
-    next: 'reference-back-to-faction',
-    nextLabel: 'Next',
-  },
-  'reference-back-to-faction': {
-    task: 'reference',
-    target: 'detachment-breadcrumb',
-    page: 'detachment',
-    href: '/factions',
-    title: 'Back to the army',
-    description: 'This returns to the army the detachment belongs to, where its units are listed.',
-    placement: 'bottom',
-    next: 'reference-datasheets',
-  },
-  'reference-datasheets': {
-    task: 'reference',
-    target: 'faction-datasheets',
-    page: 'faction',
-    href: '/factions',
-    title: 'The units',
-    description: 'Datasheets holds every unit this army can field, with what each of them costs.',
-    placement: 'bottom',
-    next: 'reference-datasheet-search',
-  },
-  'reference-datasheet-search': {
-    task: 'reference',
-    target: 'datasheet-search',
-    page: 'datasheets',
-    href: '/factions',
-    title: 'Find a unit',
-    description: 'Search by unit name, or open a battlefield-role shelf below and browse.',
-    placement: 'bottom',
-    next: 'reference-datasheet-row',
-    nextLabel: 'Next',
-  },
-  'reference-datasheet-row': {
-    task: 'reference',
-    target: 'datasheet-row',
-    page: 'datasheets',
-    href: '/factions',
-    title: 'Open a datasheet',
-    description: 'A row carries the unit name and its points. Open one to read the whole unit.',
-    placement: 'bottom',
-    next: 'reference-datasheet-stats',
-  },
-  'reference-datasheet-stats': {
-    task: 'reference',
-    target: 'datasheet-stats',
-    page: 'datasheet',
-    href: '/factions',
-    title: 'The unit profile',
-    description:
-      'Movement, toughness, save, wounds, leadership and objective control — one line per model kind where a unit has more than one.',
-    placement: 'bottom',
-    next: 'reference-datasheet-weapons',
-    nextLabel: 'Next',
-  },
-  'reference-datasheet-weapons': {
-    task: 'reference',
-    target: 'datasheet-weapons',
-    page: 'datasheet',
-    href: '/factions',
-    title: 'Weapons',
-    description: 'Range, attacks, skill, strength, armour penetration and damage, with every profile a weapon can be fired at.',
-    placement: 'bottom',
-    next: 'reference-datasheet-abilities',
-    nextLabel: 'Next',
-    optional: true,
-  },
-  'reference-datasheet-abilities': {
-    task: 'reference',
-    target: 'datasheet-abilities',
-    page: 'datasheet',
-    href: '/factions',
-    title: 'Abilities',
-    description: 'The core, army and unit abilities this unit brings to the table.',
-    placement: 'bottom',
-    next: 'reference-datasheet-config',
-    nextLabel: 'Next',
-    optional: true,
-  },
-  'reference-datasheet-config': {
-    task: 'reference',
-    target: 'datasheet-config',
-    page: 'datasheet',
-    href: '/factions',
-    title: 'Sizes, points and wargear',
-    description: 'The sizes this unit can be taken at, what each size costs, and the wargear swaps the builder will offer you.',
-    placement: 'bottom',
-    next: 'reference-datasheet-keywords',
-    nextLabel: 'Next',
-    optional: true,
-  },
-  'reference-datasheet-keywords': {
-    task: 'reference',
-    target: 'datasheet-keywords',
-    page: 'datasheet',
-    href: '/factions',
-    title: 'Keywords',
-    description: 'Keywords decide which rules reach a unit. Hover one and the source’s own definition of it appears.',
-    placement: 'bottom',
-    next: 'reference-secondaries',
-    nextLabel: 'Explore missions',
-  },
-  'reference-secondaries': {
-    task: 'reference',
-    target: 'mission-secondaries',
-    page: 'missions',
-    href: '/missions',
-    title: 'Secondary missions',
-    description: 'The deck both players draw from during a game. Open a card to read what it scores and what it asks of you.',
-    placement: 'top',
-    next: 'reference-missions',
-    nextLabel: 'Next',
-  },
-  'reference-missions': {
-    task: 'reference',
-    target: 'mission-dispositions',
-    page: 'missions',
-    href: '/missions',
-    title: 'Pick the matchup',
-    description:
-      'Your disposition runs down the left and your opponent’s across the top. The cell between them is the mission you would play.',
-    placement: 'top',
-    next: 'reference-matchup-primary',
-  },
-  'reference-matchup-primary': {
-    task: 'reference',
-    target: 'matchup-primary',
-    page: 'mission',
-    href: '/missions',
-    title: 'The primary missions',
-    description: 'Both sides’ primary missions, with when each one scores and what it pays.',
-    placement: 'bottom',
-    next: 'reference-matchup-actions',
-    nextLabel: 'Next',
-  },
-  'reference-matchup-actions': {
-    task: 'reference',
-    target: 'matchup-actions',
-    page: 'mission',
-    href: '/missions',
-    title: 'Actions',
-    description: 'What each side’s mission asks a unit to do, so it is known before the first turn.',
-    placement: 'bottom',
-    next: 'reference-matchup-terrain',
-    nextLabel: 'Next',
-    optional: true,
-  },
-  'reference-matchup-terrain': {
-    task: 'reference',
-    target: 'matchup-terrain',
-    page: 'mission',
-    href: '/missions',
-    title: 'Battlefields',
-    description: 'Every terrain and deployment layout this pairing can be played on, with the distances the source prints.',
-    placement: 'bottom',
-    next: 'reference-rules-search',
-    nextLabel: 'Read the rules',
-  },
-  'reference-rules-search': {
-    task: 'reference',
-    target: 'rules-search',
-    page: 'rules',
-    href: '/rules',
-    title: 'Find a rule',
-    description: 'Search by the name the rulebook prints, or by the number beside it, such as 09.04.',
-    placement: 'bottom',
-    next: 'reference-rules-documents',
-    nextLabel: 'Next',
-  },
-  'reference-rules-documents': {
-    task: 'reference',
-    target: 'rules-documents',
-    page: 'rules',
-    href: '/rules',
-    title: 'The documents',
-    description: 'Each document lists its sections and how many rules they hold. Open one.',
-    placement: 'bottom',
-    next: 'reference-rule-contents',
-  },
-  'reference-rule-contents': {
-    task: 'reference',
-    target: 'rule-contents',
-    page: 'rule-document',
-    href: '/rules',
-    title: 'What is in it',
-    description: 'Every rule is listed under its section by the number the source prints against it.',
-    placement: 'bottom',
-    next: 'reference-rule-entry',
-    nextLabel: 'Next',
-  },
-  'reference-rule-entry': {
-    task: 'reference',
-    target: 'rule-entry',
-    page: 'rule-document',
-    href: '/rules',
-    title: 'Open a rule',
-    description: 'A rule number is a link, so anything that quotes one takes you straight to it.',
-    placement: 'bottom',
-    next: 'reference-rule-section',
-  },
-  'reference-rule-section': {
-    task: 'reference',
-    target: 'rule-article',
-    page: 'rule-section',
-    href: '/rules',
-    title: 'Read it',
-    description: 'The rule in the source’s own words, with its clarifications beneath it.',
-    placement: 'bottom',
     final: true,
-  },
-  'community-home': {
-    task: 'community',
-    target: 'home-activity',
-    page: 'home',
-    href: '/',
-    title: 'Home',
-    description: 'Your own games come first, with a way straight into another battle or another army.',
-    placement: 'bottom',
-    next: 'community-friends',
-    nextLabel: 'Next',
-  },
-  'community-friends': {
-    task: 'community',
-    target: 'home-friends',
-    page: 'home',
-    href: '/',
-    title: 'What your friends are playing',
-    description: 'Games your friends have shared, apart from the ones you are already sitting in.',
-    placement: 'top',
-    next: 'community-public',
-    nextLabel: 'Next',
-    optional: true,
   },
   'community-public': {
     task: 'community',
@@ -1298,70 +674,51 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     title: 'Anybody’s games',
     description: 'Battles shared with everyone. Watching one takes no seat and changes nothing in it.',
     placement: 'top',
-    next: 'community-leaderboard',
-    nextLabel: 'View standings',
-    optional: true,
+    final: true,
   },
-  'community-leaderboard': {
-    task: 'community',
-    target: 'leaderboard-faction',
-    page: 'leaderboard',
-    href: '/leaderboard',
-    title: 'Rank one army',
-    description: 'Narrow the table to a faction and it ranks the players who fielded it, rather than giving the army a record of its own.',
-    placement: 'bottom',
-    next: 'community-standings',
-    nextLabel: 'Next',
-    optional: true,
-  },
-  'community-standings': {
-    task: 'community',
-    target: 'standings-table',
-    page: 'leaderboard',
-    href: '/leaderboard',
-    title: 'Ranked by rating',
+  'tools-input': {
+    task: 'roster-tools',
+    target: 'import-input',
+    entry: 'tools-import',
+    page: 'rosters',
+    href: '/rosters',
+    title: 'Paste your army',
     description:
-      'Finished public battles from the last 90 days, ranked by a rating that weighs who each player beat. Open a row to read that player.',
+      'Paste the exported text or exchange code, then choose Import pasted roster. A link to another army builder is not an army-text export.',
     placement: 'top',
-    next: 'community-profile-tabs',
+    next: 'tools-review',
   },
-  'community-profile-tabs': {
-    task: 'community',
-    target: 'profile-tabs',
-    page: 'player',
-    href: '/leaderboard',
-    title: 'A player',
-    description: 'Their record, the battles you are allowed to watch, and any rosters they have published.',
-    placement: 'bottom',
-    next: 'community-profile-rankings',
-    nextLabel: 'Next',
-  },
-  'community-profile-rankings': {
-    task: 'community',
-    target: 'profile-rankings',
-    page: 'player',
-    href: '/leaderboard',
-    title: 'Where they place',
-    description: 'Every leaderboard this player appears on, overall and for each army they have fielded.',
+  'tools-review': {
+    task: 'roster-tools',
+    target: 'import-review',
+    entry: 'tools-import',
+    page: 'rosters',
+    href: '/rosters',
+    title: 'Check what matched',
+    description:
+      'Review matched entries, points, and any warnings. Missing units are left out; unmatched equipment uses the defaults. Edit your text to try again, or accept the reviewed list to open it.',
     placement: 'top',
-    next: 'community-profile-record',
-    nextLabel: 'Next',
-    optional: true,
+    next: 'tools-finished',
   },
-  'community-profile-record': {
-    task: 'community',
-    target: 'profile-record',
-    page: 'player',
-    href: '/leaderboard',
-    title: 'Their record',
-    description: 'Wins, win rate by who took the first turn, victory points and streaks.',
+  'tools-finished': {
+    task: 'roster-tools',
+    target: 'roster-points',
+    page: 'roster',
+    href: '/rosters',
+    title: 'Your imported army',
+    description:
+      'Check the points and equipment before playing. Without an account, this device keeps the draft; Save roster takes you through signing in and returns you to your army.',
     placement: 'top',
     final: true,
   },
 }
 
-export function openOnboarding() {
-  window.dispatchEvent(new Event(ONBOARDING_EVENT))
+export function openOnboarding(task?: OnboardingTaskId, step?: OnboardingStepId) {
+  window.dispatchEvent(
+    new CustomEvent<OnboardingFocus | undefined>(ONBOARDING_EVENT, {
+      detail: task ? { task, step: step ?? FIRST_ONBOARDING_STEP[task] } : undefined,
+    }),
+  )
 }
 
 /** Moves the guide on within one page, where a dialog or a selection is the whole transition. */
@@ -1383,13 +740,7 @@ export function focusAfterOnboardingNavigation(focus: OnboardingFocus | undefine
   return { task: focus.task, step: step.next } satisfies OnboardingFocus
 }
 
-/**
- * The step to move to when a control the data need not produce never appears.
- *
- * A faction with no enhancements and a unit with no ranged weapons are ordinary
- * data, not a lost guide, so the step hands on to its successor instead of
- * offering to take the player somewhere they already are.
- */
+/** Optional controls can be absent without the guide losing its place. */
 export function onboardingStepPastAbsentTarget(step: OnboardingStepId): OnboardingStepId | undefined {
   const current = ONBOARDING_UI[step]
   return current.optional ? current.next : undefined
@@ -1413,7 +764,9 @@ export function onboardingHrefFor(step: OnboardingStepId, page: OnboardingPage |
 
 /** Where a step whose control is nowhere sends the player: the last step of its task an address reaches. */
 export function onboardingStepEntry(step: OnboardingStepId): OnboardingStepId {
-  const first = FIRST_ONBOARDING_STEP[ONBOARDING_UI[step].task]
+  const currentStep = ONBOARDING_UI[step]
+  if (currentStep.entry) return currentStep.entry
+  const first = FIRST_ONBOARDING_STEP[currentStep.task]
   let entry = first
   for (let current: OnboardingStepId | undefined = first; current; current = ONBOARDING_UI[current].next) {
     if (onboardingPage(ONBOARDING_UI[current].href) === ONBOARDING_UI[current].page) entry = current

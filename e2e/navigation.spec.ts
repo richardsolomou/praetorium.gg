@@ -794,7 +794,7 @@ test('a matchup keeps each action in the column of the side whose mission asks f
   // Priority Assets asks for the action here, and it is the side drawn second, so an
   // action packed into the first free column would read as the other side's.
   await page.goto('/missions/chapter-approved-2026-2027/matchups/take-and-hold/priority-assets')
-  const columns = page.locator('[data-onboarding="matchup-actions"] > div > div')
+  const columns = page.getByRole('region', { name: 'Actions', exact: true }).locator(':scope > div > div')
   await expect(columns.nth(0)).toContainText('Inescapable Dominion asks for no action.')
   await expect(columns.nth(1)).toContainText('SECURE ASSET')
 })

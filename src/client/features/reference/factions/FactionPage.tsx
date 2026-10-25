@@ -95,7 +95,6 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
         </Link>
         <section className="grid grid-cols-1 gap-px border border-edge bg-edge sm:grid-cols-3">
           <FactionReferenceLink
-            data-onboarding="faction-datasheets"
             to="/factions/$catalogueId/datasheets"
             params={{ catalogueId: faction.slug }}
             className="flex items-center justify-between bg-panel px-3 py-3 hover:bg-raised"
@@ -128,7 +127,7 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
           </Link>
         </section>
         {faction.armyRules.length ? (
-          <section data-onboarding="faction-army-rules">
+          <section>
             <h2 className="rubric border-b border-edge pb-2">Faction abilities</h2>
             <div className="mt-2 divide-y divide-edge border border-edge bg-panel">
               {faction.armyRules.map((rule) => (
@@ -140,7 +139,7 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
             </div>
           </section>
         ) : null}
-        <section data-onboarding="faction-detachments">
+        <section aria-label="Detachments">
           <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
             <span>Detachments</span>
             <span className="readout">{detachments.length}</span>
