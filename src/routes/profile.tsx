@@ -1,12 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { ProfilePage } from '../client/features/account/ProfilePage'
 import { githubSponsorshipQuery, meQuery, playerDefaultsQuery } from '../client/queries'
-import { searchFlag } from '../client/searchParams'
+import { searchFlag, searchText } from '../client/searchParams'
 
 export const Route = createFileRoute('/profile')({
   validateSearch: (search: Record<string, unknown>) => {
     const result: { error?: string; verified?: boolean } = {}
-    if (typeof search.error === 'string' && search.error) result.error = search.error
+    const error = searchText(search.error)
+    if (error) result.error = error
     if (searchFlag(search.verified)) result.verified = true
     return result
   },

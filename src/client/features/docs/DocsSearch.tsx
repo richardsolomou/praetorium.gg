@@ -6,6 +6,7 @@ import { SearchField } from '../../components/SearchField'
 import { cn } from '@/lib/utils'
 import { openFeedback } from '../feedback/support'
 import { AREAS, docsMatching, proseLink, troubleshooting } from './docsLibrary'
+import { countLabel } from '../../text'
 
 export function FeedbackLink({ children }: { children: ReactNode }) {
   return (
@@ -33,7 +34,7 @@ export function DocsSearchResults({ query }: { query: string }) {
   const results = docsMatching(query)
   return (
     <section aria-label="Search results">
-      <p className="rubric">{results.length === 1 ? '1 result' : `${results.length} results`}</p>
+      <p className="rubric">{countLabel(results.length, 'result')}</p>
       {results.length ? (
         <ul className="mt-3 divide-y divide-edge border border-edge bg-panel">
           {results.map((entry) => {

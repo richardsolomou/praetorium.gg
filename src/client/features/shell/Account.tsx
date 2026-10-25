@@ -28,6 +28,7 @@ import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { openConversations, unreadReplies, useSupportTickets } from '../feedback/support'
 import { errorMessage } from '../../queryClient'
 import { OPEN_SYNC_EVENT } from '../../offline/SyncStatus'
+import { countLabel } from '../../text'
 
 function useAccountControls() {
   const { data: me } = useQuery(meQuery())
@@ -192,7 +193,7 @@ export function Account({ native = false, className = '' }: { native?: boolean; 
             variant="ghost"
             size={native ? 'icon' : 'icon-sm'}
             className={`${native ? 'size-12' : ''} shrink-0 text-dim hover:bg-raised hover:text-info ${className}`}
-            aria-label={`${me ? `Account menu for ${me.name}` : 'Account menu'}${unread ? `, ${unread} unread feedback ${unread === 1 ? 'reply' : 'replies'}` : ''}`}
+            aria-label={`${me ? `Account menu for ${me.name}` : 'Account menu'}${unread ? `, ${countLabel(unread, 'unread feedback reply', 'unread feedback replies')}` : ''}`}
           />
         }
       >

@@ -11,7 +11,8 @@ export const Route = createFileRoute('/sign-in')({
     // `name` starts a new account with the name its holder already played under, such as a guest seat's.
     const result: { next?: string; error?: string; reset?: boolean; join?: boolean; name?: string } = {}
     result.next = localRedirectPath(search.next)
-    if (typeof search.error === 'string' && search.error) result.error = search.error
+    const error = searchText(search.error)
+    if (error) result.error = error
     if (searchFlag(search.reset)) result.reset = true
     if (searchFlag(search.join)) result.join = true
     const name = searchText(search.name, PROFILE_NAME_MAX_LENGTH)

@@ -3,15 +3,16 @@ import { useCallback, useEffect, useState } from 'react'
 import { CombatSimulator } from '../client/features/simulator/CombatSimulator'
 import { pageHead } from '../client/linkPreview'
 import { factionIndexQuery } from '../client/queries'
+import { searchText } from '../client/searchParams'
 
 type SimulatorSearch = { s?: string; from?: 'datasheet' }
 
 export const Route = createFileRoute('/simulator')({
   // `from` names the reference page that opened the simulator, for telemetry only; it is dropped on arrival.
-  validateSearch: (search: Record<string, unknown>): SimulatorSearch => ({
-    ...(typeof search.s === 'string' && search.s ? { s: search.s } : {}),
-    ...(search.from === 'datasheet' ? { from: search.from } : {}),
-  }),
+  validateSearch: (search: Record<string, unknown>): SimulatorSearch => {
+    const s = searchText(search.s)
+    return { ...(s ? { s } : {}), ...(search.from === 'datasheet' ? { from: search.from } : {}) }
+  },
   loader: ({ context }) => context.queryClient.query({ ...factionIndexQuery(), staleTime: 'static' }),
   head: ({ match }) =>
     pageHead(match.context.origin, {

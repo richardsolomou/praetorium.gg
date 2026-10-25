@@ -40,6 +40,7 @@ import { ClubSettingsDialog } from './ClubSettingsDialog'
 import { ClubSealedGame } from './ClubSealedGame'
 import { clubGameOpen } from '../../../core/club'
 import { useNow } from '../../useNow'
+import { countLabel } from '../../text'
 
 type Member = Club['members'][number]
 type ClubTable = NonNullable<Awaited<ReturnType<NonNullable<ReturnType<typeof clubStandingsQuery>['queryFn']>>>>
@@ -122,8 +123,8 @@ function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: strin
       >
         <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-dim">
           {club.visibility === 'private' ? <LockKeyhole className="size-3.5" aria-hidden /> : <Eye className="size-3.5" aria-hidden />}
-          {accepted.length === 1 ? '1 member' : `${accepted.length} members`} · {club.visibility === 'private' ? 'Private link' : 'Public'}{' '}
-          · {club.admission === 'approval' ? 'Approval required' : 'Anyone can join'}
+          {countLabel(accepted.length, 'member')} · {club.visibility === 'private' ? 'Private link' : 'Public'} ·{' '}
+          {club.admission === 'approval' ? 'Approval required' : 'Anyone can join'}
         </p>
         {club.description ? <p className="mt-3 max-w-2xl font-rules text-sm whitespace-pre-wrap text-dim">{club.description}</p> : null}
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-dim">
