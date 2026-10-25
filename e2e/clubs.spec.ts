@@ -143,13 +143,14 @@ test('a club seals lists for a game night and plays them from the club page', as
   await owner.waitForURL(/\/battles\/[^/]+$/)
   await expect(owner.getByText('Host army').first()).toBeVisible()
 
-  // Sealed games stay off the tournaments page, and their own address opens them on the club.
+  // Sealed games stay off the tournaments page, and their own address opens them on the club, even once played.
   const token = new URL(clubUrl).pathname.split('/').at(-1)!
   await owner.goto('/tournaments')
   await expect(owner.getByRole('heading', { name: 'Tournaments', exact: true })).toBeVisible()
   await expect(owner.locator(`[data-league="${gameToken}"]`)).toHaveCount(0)
   await owner.goto(`/tournaments/${gameToken}`)
   await expect(owner).toHaveURL(new RegExp(`/clubs/${token}\\?game=${gameToken}`))
+  await expect(owner.locator(`[data-sealed-game="${gameToken}"]`)).toContainText('Regular army')
   await ownerContext.close()
   await memberContext.close()
 })

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
   Check,
+  ChevronRight,
   Clipboard,
   EllipsisVertical,
   Eye,
@@ -163,7 +164,7 @@ function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: strin
             <UpNext club={club} table={table} viewerId={viewerId} highlight={highlight} />
             <RecentGames table={table} viewerId={viewerId} member={member} />
             {table?.finished ? <ClubTable table={table} viewerId={viewerId} /> : null}
-            <PastSealedGames club={club} viewerId={viewerId} />
+            <PastSealedGames club={club} viewerId={viewerId} highlight={highlight} />
           </div>
           <aside className="space-y-6 lg:col-start-2">
             <Members club={club} viewerId={viewerId} isOwner={isOwner} play={member ? play : null} />
@@ -332,7 +333,7 @@ function UpNext({
   viewerId: string | null
   highlight: string | undefined
 }) {
-  const games = club.games.filter((game) => sealedGameOpen(game, viewerId))
+  const games = club.games.filter((game) => sealedGameOpen(club, game, viewerId))
   const active = table?.active ?? []
   if (!games.length && !active.length) return null
   return (
@@ -378,22 +379,40 @@ function ClubTable({ table, viewerId }: { table: ClubTable; viewerId: string | n
 }
 
 /** Sealed games the reader has nothing left to do in. Their battles are in Recent games and on the table. */
-function PastSealedGames({ club, viewerId }: { club: Club; viewerId: string | null }) {
+function PastSealedGames({ club, viewerId, highlight }: { club: Club; viewerId: string | null; highlight: string | undefined }) {
   const { date } = useDateFormatting()
-  const past = club.games.filter((game) => !sealedGameOpen(game, viewerId))
+  const past = club.games.filter((game) => !sealedGameOpen(club, game, viewerId))
   if (!past.length) return null
   return (
     <section>
       <SectionHeading title="Past sealed games" count={past.length} />
       <ul className="divide-y divide-edge border border-edge bg-panel">
-        {past.map((game) => (
-          <li key={game.token} className="flex min-w-0 items-center gap-3 p-3">
-            <span className="min-w-0 flex-1 truncate font-semibold">{eventName({ ...game, tournament: null, club })}</span>
-            <span className="shrink-0 text-sm text-dim">
-              {game.players.filter((player) => player.sealed).length} players · {date(game.playsAt ?? game.revealedAt ?? game.createdAt)}
-            </span>
-          </li>
-        ))}
+        {past.map((game) =>
+          game.token === highlight ? (
+            <li key={game.token}>
+              <ClubSealedGame club={club} game={game} viewerId={viewerId} highlighted />
+            </li>
+          ) : (
+            <li key={game.token}>
+              <Link
+                to="/clubs/$token"
+                params={{ token: club.token }}
+                search={{ game: game.token }}
+                hash={`game-${game.token}`}
+                replace
+                resetScroll={false}
+                className="flex min-w-0 items-center gap-3 p-3 hover:bg-raised"
+              >
+                <span className="min-w-0 flex-1 truncate font-semibold">{eventName({ ...game, tournament: null, club })}</span>
+                <span className="shrink-0 text-sm text-dim">
+                  {game.players.filter((player) => player.sealed).length} players ·{' '}
+                  {date(game.playsAt ?? game.revealedAt ?? game.createdAt)}
+                </span>
+                <ChevronRight aria-hidden className="size-4 shrink-0 text-faint" />
+              </Link>
+            </li>
+          ),
+        )}
       </ul>
     </section>
   )

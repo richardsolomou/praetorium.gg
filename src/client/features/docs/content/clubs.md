@@ -18,6 +18,8 @@ When the game ends, the result goes on the table. Ratings work as on the [leader
 
 An organizer can start one with **New sealed game**. It shows under **Up next** on the club page. Any member can seal a list there in secret, and once everyone who sealed is ready, reveal the lists together. Then each of you plays everyone else who sealed, with **Play** beside their name. Sealed games are one-on-one, and the results go on the club table.
 
+Once you've played everyone, or a newer sealed game starts, the game moves to **Past sealed games**. Open it there to see the lists or play a game you missed.
+
 ## Leave or delete a club
 
 **Leave club** takes you off the table. Your games still count for your opponents, and your results come back if you rejoin. The owner can't leave their own club. **Delete club** removes the club, its members, its table and its sealed games. Its battles stay.

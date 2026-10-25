@@ -151,7 +151,7 @@ export function ClubSealedGame({
               {revealed ? (
                 <>
                   <ViewRosterButton token={game.token} eventToken={game.token} userId={player.userId} label={name} />
-                  {own?.sealed && player.userId !== viewerId && player.sealed ? (
+                  {game.format === '1v1' && own?.sealed && player.userId !== viewerId && player.sealed ? (
                     hasPlayed(player.userId) ? (
                       <span className="chip shrink-0 text-achieved">Played</span>
                     ) : (
@@ -243,9 +243,13 @@ export function ClubSealedGame({
   )
 }
 
-/** Whether the reader still has a battle to play in a revealed game, which keeps it under Up next. */
-export function sealedGameOpen(game: Game, viewerId: string | null) {
+/**
+ * Whether a game belongs under Up next: until its lists are revealed, then while it is the club's newest game, a duel,
+ * and the reader still has someone to play. Games carried over from leagues include team formats, played as one battle.
+ */
+export function sealedGameOpen(club: Club, game: Game, viewerId: string | null) {
   if (game.revealedAt === null) return true
+  if (game.token !== club.games[0]?.token || game.format !== '1v1') return false
   const own = game.players.find((player) => player.userId === viewerId && player.sealed)
   if (!own) return false
   const played = new Set(game.played.map((pair) => pair.join('|')))
