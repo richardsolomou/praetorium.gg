@@ -1,5 +1,40 @@
 # praetorium
 
+## 0.192.0
+
+### Minor Changes
+
+- 75017e2: A club's sealed game can be a duel, solo vs pair, or doubles, with players picking their own side.
+- a44c340: Clubs give your club or friend group a standing leaderboard: choose the club when you set up a battle and the result counts toward its ratings.
+- 059f3fd: A duel tournament can play a battle size at its own points total, such as Incursion at 750 points.
+- 059f3fd: Tournaments and sealed games can set the date they're played and a roster deadline, after which entrants without a sealed roster sit the event out.
+- c9918af: Clubs and tournaments open from an Events menu in the header, and from their own rows on the More screen.
+- 5de7e66: A faction's datasheet list can be filtered by keyword, by Legends and Crucible, and by your favourites or collection.
+- 9836cc6: Getting started guides you through building or importing an army and trying a matchup before or after signing in, with battle, friend, and tournament help on their own pages.
+- a1b8ea4: Every existing league is now a club with the same people, and each of its events a sealed game in that club whose battles count on the club's leaderboard.
+- c9918af: Duel tournaments can play Swiss rounds: the organizer pairs each round on the scores so far without rematches, and the results rank by match points, victory points and strength of schedule.
+- a1b8ea4: Leagues are now tournaments: one sealed-roster event each, or a sealed game when a club plays one.
+
+### Patch Changes
+
+- 8ce50cb: Battle cards show their status as a coloured left edge instead of a score bar across the top.
+- 8ce50cb: Finished battle cards fade the losing side so the winners stand out.
+- 64bc2b0: A sealed duel marks an opponent you're still playing as Playing, not Played.
+- 64bc2b0: Requests to join a club now show at the top of the club page, so organizers see them first.
+- 64bc2b0: A club's members list marks its owner and admins, and you start a club battle from New game.
+- 64bc2b0: A club's sealed games list their battles as one line each, with the score, that opens the battle.
+- 64bc2b0: You can withdraw a request to join a club from the club page's request card.
+- 45d9e67: Turning away a tournament request, rejecting or cancelling a friend request, cancelling an invite link, revoking an app, returning a lent roster and removing an alert now ask first.
+- 5a71081: Detachment cards on a faction page now open the detachment from their edges too.
+- 5a71081: Faction cards on the factions page now open the faction wherever you click them.
+- 411ef9f: A faction page's Datasheets, Data updates and Public armies links sit side by side on wider screens.
+- 5823f7d: A faction's overview now shows the same datasheet count as its datasheets page.
+- 214ed75: A faction page shows how many public armies it has, beside its Datasheets link.
+- c41370a: Imported lists keep the melee weapon chosen for a heavy weapon Chaos Terminator.
+- c41370a: Imported lists keep a squad's swapped weapons when several of its loadouts share the same weapon, as Red Corsairs Raiders' meltaguns and power fists do.
+- 5de7e66: Legends and Crucible datasheets are available offline.
+- 99f1e33: An edit made just before leaving a roster is no longer lost.
+
 ## 0.191.1
 
 ### Patch Changes
