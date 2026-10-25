@@ -32,10 +32,11 @@ it('falls back locally when connectivity is reported but the request fails', asy
   ).toBe('device')
 })
 
-it('aborts a stalled server request before falling back locally', async () => {
+it('aborts a stalled server request after five seconds before falling back locally', async () => {
   vi.stubGlobal('window', {})
   vi.stubGlobal('navigator', { onLine: true })
-  vi.useFakeTimers()
+  const deadline = new AbortController()
+  const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(deadline.signal)
   let requestSignal: AbortSignal | undefined
   try {
     const result = calculationRead(
@@ -46,10 +47,14 @@ it('aborts a stalled server request before falling back locally', async () => {
         }),
       () => 'device',
     )
-    await vi.advanceTimersByTimeAsync(5_000)
-    expect({ result: await result, aborted: requestSignal?.aborted }).toEqual({ result: 'device', aborted: true })
+    deadline.abort(new DOMException('The operation timed out.', 'TimeoutError'))
+    expect({ result: await result, aborted: requestSignal?.aborted, after: timeout.mock.calls[0] }).toEqual({
+      result: 'device',
+      aborted: true,
+      after: [5_000],
+    })
   } finally {
-    vi.useRealTimers()
+    timeout.mockRestore()
   }
 })
 

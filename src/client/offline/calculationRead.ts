@@ -8,16 +8,13 @@ export async function calculationRead<T>(
   signal?.throwIfAborted()
   if (typeof window === 'undefined') return online(signal)
   if (typeof navigator.onLine === 'boolean' && !navigator.onLine) return local()
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(new DOMException('Calculation request timed out', 'TimeoutError')), 5_000)
+  const timeout = AbortSignal.timeout(5_000)
   try {
-    const result = await online(signal ? anySignal([signal, controller.signal]) : controller.signal)
+    const result = await online(signal ? anySignal([signal, timeout]) : timeout)
     signal?.throwIfAborted()
     return result
   } catch (error) {
     signal?.throwIfAborted()
     return local(error)
-  } finally {
-    clearTimeout(timeout)
   }
 }
