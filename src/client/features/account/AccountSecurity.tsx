@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, MailCheck, ShieldCheck, Trash2 } from 'lucide-react'
 import { posthog } from 'posthog-js'
@@ -29,6 +29,7 @@ import {
 import { SettingRow } from '../../components/SettingRow'
 import { PageState } from '../../components/PageState'
 import { Problem } from '../../components/Problem'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useCopyText } from '../../useCopyText'
 import { useQrCode } from '../../components/useQrCode'
 
@@ -594,40 +595,25 @@ function RemoveMethodDialog({
   onClose: () => void
   onDone: () => void | Promise<void>
 }) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const remove = useMutation({ mutationFn: () => unlinkOwnAccount({ data: { provider: method } }), onSuccess: onDone })
   const label = method === 'credential' ? 'password sign-in' : SOCIAL_AUTH_PROVIDER_NAMES[method]
   return (
-    <AccountDialog title={method === 'credential' ? 'Remove password sign-in' : `Unlink ${label}`} onClose={onClose}>
-      <DialogBody>
-        <p className="text-sm text-dim">You will no longer be able to sign in with {label}. Your other linked method will keep working.</p>
-        {error ? <Problem>{error}</Problem> : null}
-      </DialogBody>
-      <DialogFooter>
-        <DialogClose render={<Button type="button" variant="outline" />}>
-          {method === 'credential' ? 'Keep password' : `Keep ${SOCIAL_AUTH_PROVIDER_NAMES[method]}`}
-        </DialogClose>
-        <Button
-          type="button"
-          variant="destructive"
-          disabled={busy}
-          onClick={async () => {
-            setBusy(true)
-            setError('')
-            try {
-              await unlinkOwnAccount({ data: { provider: method } })
-              await onDone()
-            } catch {
-              setError('That method was not removed. Keep another available method linked and turn off two-factor authentication first.')
-            } finally {
-              setBusy(false)
-            }
-          }}
-        >
-          {busy ? 'Removing…' : method === 'credential' ? 'Remove password' : `Unlink ${label}`}
-        </Button>
-      </DialogFooter>
-    </AccountDialog>
+    <ConfirmDialog
+      title={method === 'credential' ? 'Remove password sign-in' : `Unlink ${label}`}
+      description={`You will no longer be able to sign in with ${label}. Your other linked method will keep working.`}
+      cancel={method === 'credential' ? 'Keep password' : `Keep ${label}`}
+      confirm={method === 'credential' ? 'Remove password' : `Unlink ${label}`}
+      pendingLabel="Removing…"
+      destructive
+      pending={remove.isPending}
+      error={
+        remove.isError
+          ? new Error('That method was not removed. Keep another available method linked and turn off two-factor authentication first.')
+          : null
+      }
+      onClose={onClose}
+      onConfirm={() => remove.mutate()}
+    />
   )
 }
 
@@ -640,39 +626,20 @@ function RevokeConnectionDialog({
   onClose: () => void
   onDone: () => void | Promise<void>
 }) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const revoke = useMutation({ mutationFn: () => revokeMcpConnection({ data: { id: connection.id } }), onSuccess: onDone })
   return (
-    <AccountDialog title={`Revoke ${connection.name}?`} onClose={onClose}>
-      <DialogBody>
-        <p className="text-sm text-dim">
-          {connection.name} can no longer read or change your rosters and battles. Connect it again to give it access.
-        </p>
-        {error ? <Problem>{error}</Problem> : null}
-      </DialogBody>
-      <DialogFooter>
-        <DialogClose render={<Button type="button" variant="outline" />}>Keep access</DialogClose>
-        <Button
-          type="button"
-          variant="destructive"
-          disabled={busy}
-          onClick={async () => {
-            setBusy(true)
-            setError('')
-            try {
-              await revokeMcpConnection({ data: { id: connection.id } })
-              await onDone()
-            } catch {
-              setError('Could not revoke access. Try again.')
-            } finally {
-              setBusy(false)
-            }
-          }}
-        >
-          {busy ? 'Revoking…' : 'Revoke access'}
-        </Button>
-      </DialogFooter>
-    </AccountDialog>
+    <ConfirmDialog
+      title={`Revoke ${connection.name}?`}
+      description={`${connection.name} can no longer read or change your rosters and battles. Connect it again to give it access.`}
+      cancel="Keep access"
+      confirm="Revoke access"
+      pendingLabel="Revoking…"
+      destructive
+      pending={revoke.isPending}
+      error={revoke.isError ? new Error('Could not revoke access. Try again.') : null}
+      onClose={onClose}
+      onConfirm={() => revoke.mutate()}
+    />
   )
 }
 
