@@ -10,7 +10,7 @@
  */
 
 import { plainQuotes } from '../core/text'
-import { cachedIn } from '../core/collections'
+import { cachedIn, remember } from '../core/collections'
 import { type CatalogueIndex, type Definition, nameOf } from '../core/catalogue'
 import { childrenOf, resolve } from '../core/definitions'
 import type { UnitSize } from '../core/unitSize'
@@ -157,21 +157,20 @@ const datasheetFactionCache = new WeakMap<CatalogueIndex, Map<string, string[]>>
 
 /** Which factions offer a datasheet under each name, for a name this one does not hold. */
 function datasheetFactions(loaded: LoadedCatalogue): ReadonlyMap<string, readonly string[]> {
-  const cached = datasheetFactionCache.get(loaded.index)
-  if (cached) return cached
-  const found = new Map<string, string[]>()
-  for (const [catalogueId, entries] of loaded.index.datasheets) {
-    for (const id of entries) {
-      const definition = loaded.index.definitions.get(id)
-      if (!definition) continue
-      const name = normalized(nameOf(definition, loaded.index.definitions))
-      const factions = found.get(name) ?? []
-      if (!factions.includes(catalogueId)) factions.push(catalogueId)
-      found.set(name, factions)
+  return remember(datasheetFactionCache, loaded.index, () => {
+    const found = new Map<string, string[]>()
+    for (const [catalogueId, entries] of loaded.index.datasheets) {
+      for (const id of entries) {
+        const definition = loaded.index.definitions.get(id)
+        if (!definition) continue
+        const name = normalized(nameOf(definition, loaded.index.definitions))
+        const factions = found.get(name) ?? []
+        if (!factions.includes(catalogueId)) factions.push(catalogueId)
+        found.set(name, factions)
+      }
     }
-  }
-  datasheetFactionCache.set(loaded.index, found)
-  return found
+    return found
+  })
 }
 
 function datasheetNames(loaded: LoadedCatalogue, catalogueId: string): string[] {

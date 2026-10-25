@@ -1,4 +1,4 @@
-import { groupBy } from '../core/collections'
+import { groupBy, remember } from '../core/collections'
 import { routeSlug } from '../core/slug'
 import type { BattleReadRules } from './rules'
 
@@ -46,10 +46,4 @@ function buildGameReferences(rules: BattleReadRules) {
 
 const cache = new WeakMap<BattleReadRules, ReturnType<typeof buildGameReferences>>()
 
-export function gameReferencesFor(rules: BattleReadRules) {
-  const cached = cache.get(rules)
-  if (cached) return cached
-  const references = buildGameReferences(rules)
-  cache.set(rules, references)
-  return references
-}
+export const gameReferencesFor = (rules: BattleReadRules) => remember(cache, rules, () => buildGameReferences(rules))

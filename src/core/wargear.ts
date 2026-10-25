@@ -13,6 +13,7 @@ import { fieldedCount } from './collective'
 import { childrenOf, isRosterToggle, resolve } from './definitions'
 import type { Selection } from './evaluate'
 import { routeSlug } from './slug'
+import { remember } from './collections'
 
 export type Wargear = { name: string; count: number }
 
@@ -25,12 +26,7 @@ const keys = new Map<string, string>()
 /** Catalogue names are a bounded set, and matching runs for every weapon of every model. */
 export const wargearKey = (name: string, includeUnmarkedModes = false) => {
   const asked = `${Number(includeUnmarkedModes)}${name}`
-  let key = keys.get(asked)
-  if (key === undefined) {
-    key = routeSlug(wargearBaseName(name, includeUnmarkedModes))
-    keys.set(asked, key)
-  }
-  return key
+  return remember(keys, asked, () => routeSlug(wargearBaseName(name, includeUnmarkedModes)))
 }
 
 /** The shared name without a profile mode, aura label, or source marker. */

@@ -1,5 +1,6 @@
 import { escapeRegExp } from './text'
 import { diceExpression, type DiceExpression } from './combat'
+import { remember } from './collections'
 
 export const normalizeCombatKeyword = (text: string) =>
   text
@@ -42,11 +43,7 @@ function targets(text: string): NonNullable<CombatKeyword['target']> | null {
 // Weapon keywords are a small catalogue vocabulary that every attack plan parses again.
 const parsedKeywords = new Map<string, CombatKeyword | null>()
 
-export function combatKeyword(text: string): CombatKeyword | null {
-  let parsed = parsedKeywords.get(text)
-  if (parsed === undefined) parsedKeywords.set(text, (parsed = parseCombatKeyword(text)))
-  return parsed
-}
+export const combatKeyword = (text: string): CombatKeyword | null => remember(parsedKeywords, text, () => parseCombatKeyword(text))
 
 function parseCombatKeyword(text: string): CombatKeyword | null {
   const [written = '', restriction, extra] = normalizeCombatKeyword(text).split(/\s*:\s*/)

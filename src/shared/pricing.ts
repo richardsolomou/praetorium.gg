@@ -1,4 +1,4 @@
-import { groupBy, RecentlyUsed, uniqueBy } from '../core/collections'
+import { groupBy, RecentlyUsed, uniqueBy, remember } from '../core/collections'
 import { attachmentErrors, attachmentPartyOf } from '../core/attach'
 import { attachmentHost } from '../core/attachedUnits'
 import { routeSlug } from '../core/slug'
@@ -44,14 +44,8 @@ import type { PriceInput } from '../contracts/schemas'
 
 /** A built unit depends only on its pick, the battle size and the detachments, so every price on one catalogue shares it. */
 const sharedBuiltUnits = new WeakMap<LoadedCatalogue, Map<string, BuiltUnit | null>>()
-function sharedBuiltUnitsFor(loaded: LoadedCatalogue) {
-  let units = sharedBuiltUnits.get(loaded)
-  if (!units) {
-    units = new RecentlyUsed(2_000)
-    sharedBuiltUnits.set(loaded, units)
-  }
-  return units
-}
+const sharedBuiltUnitsFor = (loaded: LoadedCatalogue) =>
+  remember(sharedBuiltUnits, loaded, () => new RecentlyUsed<string, BuiltUnit | null>(2_000))
 
 /** Projections of one built unit, kept for as long as the unit itself is. */
 const builtModelKinds = new WeakMap<BuiltUnit, ModelKind[]>()
@@ -552,14 +546,8 @@ function calculateRoster(
   // Model kinds are the dear part of a unit's projection, and the price reads them
   // twice: once to find units the catalogue composes itself, and once to draw each
   // unit's card. Project each built unit once and keep the result with it.
-  const modelKindsFor = (unit: (typeof picked)[number]) => {
-    let kinds = builtModelKinds.get(unit.source)
-    if (!kinds) {
-      kinds = modelKindsOf(unit.entryId, unit.selection, loaded.index, options)
-      builtModelKinds.set(unit.source, kinds)
-    }
-    return kinds
-  }
+  const modelKindsFor = (unit: (typeof picked)[number]) =>
+    remember(builtModelKinds, unit.source, () => modelKindsOf(unit.entryId, unit.selection, loaded.index, options))
   const whole = evaluateForces(forces, loaded.index, options)
   const selectionPoints = new Map<Selection, number>()
   forces.forEach((force, forceAt) =>
@@ -790,11 +778,7 @@ function calculateRoster(
             : [],
         ),
       )
-      let attachment = builtAttachments.get(unit.source)
-      if (attachment === undefined) {
-        attachment = attachmentPartyOf(definition, loaded.index, unit.selection)
-        builtAttachments.set(unit.source, attachment)
-      }
+      const attachment = remember(builtAttachments, unit.source, () => attachmentPartyOf(definition, loaded.index, unit.selection))
       return {
         key: unit.key,
         entryId: unit.entryId,

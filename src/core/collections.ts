@@ -36,13 +36,21 @@ export function uniqueBy<T>(values: readonly T[], keyOf: (value: T) => unknown):
   })
 }
 
+/** `compute()` once per key of `store`; undefined and null results are cached too. */
+export function remember<K, T>(
+  store: { has(key: K): boolean; get(key: K): T | undefined; set(key: K, value: T): unknown },
+  key: K,
+  compute: () => T,
+): T {
+  if (store.has(key)) return store.get(key)!
+  const value = compute()
+  store.set(key, value)
+  return value
+}
+
 /** `compute()` once per owner and key, kept for as long as the owner lives; undefined and null results are cached too. */
 export function cachedIn<O extends WeakKey, T>(store: WeakMap<O, Map<string, T>>, owner: O, key: string, compute: () => T): T {
-  let cache = store.get(owner)
-  if (!cache) {
-    cache = new Map<string, T>()
-    store.set(owner, cache)
-  }
+  const cache = remember(store, owner, () => new Map<string, T>())
   if (cache.has(key)) return cache.get(key)!
   const value = compute()
   cache.set(key, value)

@@ -1,4 +1,4 @@
-import { cachedIn } from '../core/collections'
+import { cachedIn, remember } from '../core/collections'
 import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/catalogue'
 import { formatDatasheetLimit, isKotcLimit, kotcDatasheetRepeatable, kotcUnitExclusions } from '../core/battle'
 import {
@@ -323,8 +323,7 @@ export function contextualUnitLimit(
 ) {
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return 0
-  let modifierCache = modifierCaches.get(loaded)
-  if (!modifierCache) modifierCaches.set(loaded, (modifierCache = new WeakMap()))
+  const modifierCache = remember(modifierCaches, loaded, () => new WeakMap())
   const limit = rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster, modifierCache })
   if (!isKotcLimit(battleSize)) return limit
   const listed = listedUnitFacts(loaded, catalogueId, entryId, roster)

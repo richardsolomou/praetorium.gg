@@ -1,7 +1,7 @@
 import { distance } from 'fastest-levenshtein'
 import { foldedText } from './text'
 import { wargearKey } from './wargear'
-import { uniqueBy } from './collections'
+import { uniqueBy, remember } from './collections'
 
 /**
  * One entry per weapon, keyed by base name so firing modes (`- Standard`) and
@@ -236,14 +236,11 @@ const wordText = (values: readonly string[]) => ` ${[...new Set(values.flatMap((
  * substring search before their fields are ranked; `own` leaves out what its abilities say.
  */
 function searchableText(fields: DatasheetSearchFields) {
-  let text = searchableTextCache.get(fields)
-  if (text === undefined) {
+  return remember(searchableTextCache, fields, () => {
     const own = [fields.name, ...METADATA.flatMap(({ field }) => fields[field])]
     const effects = (fields.abilityDescriptions ?? []).map(({ name, description }) => `${name} ${description}`)
-    text = { all: wordText([...own, ...effects]), own: wordText(own) }
-    searchableTextCache.set(fields, text)
-  }
-  return text
+    return { all: wordText([...own, ...effects]), own: wordText(own) }
+  })
 }
 
 /**

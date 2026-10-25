@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { remember } from './collections'
 
 export const MAX_COMBAT_MODELS = 100
 
@@ -431,14 +432,9 @@ function inflict(state: State, lost: Weights | readonly Weights[], layout: Alloc
   const result = new Float64Array(state.length)
   result[layout.total] = state[layout.total]!
   const distributions: readonly Weights[] = typeof lost[0] === 'number' ? [lost as Weights] : (lost as readonly Weights[])
-  const tails = distributions.map((points) => {
-    let tail = tailsOf.get(points)
-    if (!tail) {
-      tail = points.map((_, from) => points.slice(from).reduce((total, weight) => total + weight, 0))
-      tailsOf.set(points, tail)
-    }
-    return tail
-  })
+  const tails = distributions.map((points) =>
+    remember(tailsOf, points, () => points.map((_, from) => points.slice(from).reduce((total, weight) => total + weight, 0))),
+  )
   for (let at = 0; at < layout.total; at++) {
     const weight = state[at]!
     if (!weight) continue

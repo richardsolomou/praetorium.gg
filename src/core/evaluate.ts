@@ -26,6 +26,7 @@ import type {
   Repeat,
 } from './catalogue'
 import { fieldedCount, scaleOf } from './collective'
+import { remember } from './collections'
 
 /** What the player picked: an entry, group or link id, how many, and what sits under it. */
 export type Selection = { id: string; count?: number; selections?: readonly Selection[] }
@@ -422,15 +423,13 @@ export function pointCapErrors(
   options: EvaluateOptions,
   pointsOf: (selection: Selection) => number,
 ): { errors: EvaluationError[]; unhandled: string[] } {
-  let caps = pointCapsCache.get(index)
-  if (!caps) {
-    caps = [...index.categories.values()].flatMap((category) =>
+  const caps = remember(pointCapsCache, index, () =>
+    [...index.categories.values()].flatMap((category) =>
       (category.constraints ?? []).flatMap((constraint) =>
         constraint.type === 'max' && constraint.field === index.pointsTypeId ? [{ category, constraint }] : [],
       ),
-    )
-    pointCapsCache.set(index, caps)
-  }
+    ),
+  )
   const census = new Census(0, options.modifierCache)
   const { root, forces: built } = rosterContext(forces, index, census, options)
   const errors: EvaluationError[] = []
@@ -751,22 +750,18 @@ const dependence = new WeakMap<Definition, { hidden: boolean; limits: boolean }>
  * same in every roster, so answering needs no roster tree.
  */
 function rosterDependent(sources: readonly Definition[]) {
-  const key = sources.at(-1)!
-  let found = dependence.get(key)
-  if (!found) {
+  return remember(dependence, sources.at(-1)!, () => {
     const modifiers = flattenedModifiers(sources)
     const limits = new Set(
       sources
         .flatMap((source) => source.constraints ?? [])
         .flatMap((constraint) => (constraint.field === 'selections' ? [constraint.id] : [])),
     )
-    found = {
+    return {
       hidden: modifiers.some((modifier) => modifier.field === 'hidden'),
       limits: modifiers.some((modifier) => limits.has(modifier.field)),
     }
-    dependence.set(key, found)
-  }
-  return found
+  })
 }
 
 /** The definitions a node built for this candidate reads, as `candidateContext` resolves it. */

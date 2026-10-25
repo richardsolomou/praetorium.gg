@@ -8,6 +8,7 @@ import type {
 import { distance } from 'fastest-levenshtein'
 import { foldedText } from '../core/text'
 import type { ReferenceCorpus } from './referenceCorpus'
+import { remember } from '../core/collections'
 
 export const REFERENCE_QUERY_MAX_LENGTH = 120
 export const REFERENCE_RESULT_MAX = 25
@@ -133,41 +134,40 @@ function decodeCursor(cursor: string | undefined) {
 }
 
 function indexFor(corpus: ReferenceCorpus) {
-  const cached = indices.get(corpus.documents)
-  if (cached) return cached
-  const indexed = corpus.documents.map((document): IndexedDocument => {
-    const id = normalize(document.id)
-    const idWords = words(id)
-    const title = normalize(document.title)
-    const titleWords = words(title)
-    return {
-      document,
-      id,
-      idWords,
-      title,
-      titleWords,
-      sections: document.sections.map((section) => {
-        const sectionId = normalize(section.id)
-        const sectionIdWords = words(sectionId)
-        const heading = normalize(section.title)
-        const headingWords = words(heading)
-        const text = normalize(section.text)
-        const textWords = words(text)
-        return {
-          section,
-          id: sectionId,
-          idWords: sectionIdWords,
-          heading,
-          headingWords,
-          text,
-          textWords,
-          searchableWords: [...idWords, ...sectionIdWords, ...titleWords, ...headingWords, ...textWords],
-        }
-      }),
-    }
+  return remember(indices, corpus.documents, () => {
+    const indexed = corpus.documents.map((document): IndexedDocument => {
+      const id = normalize(document.id)
+      const idWords = words(id)
+      const title = normalize(document.title)
+      const titleWords = words(title)
+      return {
+        document,
+        id,
+        idWords,
+        title,
+        titleWords,
+        sections: document.sections.map((section) => {
+          const sectionId = normalize(section.id)
+          const sectionIdWords = words(sectionId)
+          const heading = normalize(section.title)
+          const headingWords = words(heading)
+          const text = normalize(section.text)
+          const textWords = words(text)
+          return {
+            section,
+            id: sectionId,
+            idWords: sectionIdWords,
+            heading,
+            headingWords,
+            text,
+            textWords,
+            searchableWords: [...idWords, ...sectionIdWords, ...titleWords, ...headingWords, ...textWords],
+          }
+        }),
+      }
+    })
+    return indexed
   })
-  indices.set(corpus.documents, indexed)
-  return indexed
 }
 
 function bestSection(document: IndexedDocument, query: string, tokens: readonly string[]) {
