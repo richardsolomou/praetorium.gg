@@ -1,5 +1,36 @@
 # praetorium
 
+## 0.191.0
+
+### Minor Changes
+
+- 35b604c: League organizers can now choose what an event allows beyond matched play, such as Legends, Crucible or lists without a Warlord, and lists that need anything else are refused when sealed.
+- 3535786: The unit picker can now show Legends and Crucible datasheets, so you can add them to a list.
+- d047ef3: Legends and Crucible datasheets now have their own reference pages, listed on each faction's datasheets page and in search, with their profiles, base sizes, abilities, wargear and points.
+
+### Patch Changes
+
+- 9344eea: Battle setup is more compact: each army's Warlord and battle ready choices sit in one row under it, and each side's Force Disposition shows as a row under its mission, where allies pick theirs.
+- 6797631: The embark menu no longer lets a transport's capacity overlap its name.
+- 6797631: A transport's card names every unit in an embarked attached unit, such as its Leader, without a model count that pushed Disembark onto its own line.
+- 6797631: An embarked unit is no longer offered other transports while it's aboard one; remove it first to move it.
+- ac41212: A faction's detachments sit side by side on wider screens.
+- ee442e7: The factions page lists factions in columns side by side on wider screens.
+- 54ed7d1: The force dispositions page lists each disposition's primary mission against every opponent.
+- 45dc515: The friends page leads with your friends, shows how many games you've played each one and when, and starts a battle with one in a click.
+- cae3779: The signed-in home page shows two games per section, with links to the rest of your, your friends' and public games.
+- d732546: The docs now explain how to run a league, play in one, and fix a refused seal.
+- d047ef3: Legends units now cost what the Munitorum Field Manual says, where it prices them, instead of the community catalogue's points.
+- 3535786: A Legends unit's datasheet no longer offers a full-datasheet link that led to a missing page.
+- f743583: Datasheets now show keywords that only some models have, such as CHARACTER and OFFICER on a Command Squad's commander, separately from the keywords every model has.
+- 9344eea: During a battle, each side's primary mission shows the Force Disposition it's playing.
+- 6797631: When an edit leaves a unit too big for its transport, a brief message says so instead of a note staying on the unit's card.
+- 817dbd1: A transport's datasheet in the roster builder now shows how many models it can carry.
+- 8af1871: Roster menus drop Convert rules version: change the rules version in Edit roster setup, which now also offers Keep the original.
+- 7db257d: Roster action menus match the unit card's style and group their actions, with Delete set apart at the bottom.
+- 985c605: Images and links in the team's support replies show as images and links, and the conversation list no longer shows their markdown.
+- 6797631: A unit's action menu now groups its actions, with Delete unit set apart at the bottom.
+
 ## 0.190.0
 
 ### Minor Changes
