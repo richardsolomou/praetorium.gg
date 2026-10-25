@@ -3,14 +3,14 @@ A club keeps a running leaderboard of the games your group plays. There's no end
 ## Set up a club
 
 - **Who can find it**: **Public** lists the club on the clubs page. **Private link** keeps it to people you send the link to.
-- **Who gets in**: **Anyone who joins**, or **You approve** each request. Switching to **Anyone who joins** lets in everyone waiting.
-- **Admins**: the owner picks them from the members in **Edit club**. Admins can edit the club and manage members. Only the owner can remove an admin or delete the club.
+- **Who gets in**: **Anyone who joins**, or **You approve** each request. Requests wait at the top of the club page under **Asking to join**. Switching to **Anyone who joins** lets in everyone waiting.
+- **Admins**: the owner picks them from the members in **Edit club**, in the club page's ⋯ menu. The members list marks the owner and admins. Admins can edit the club and manage members. Only the owner can remove an admin or delete the club.
 
 Use **Copy invite link** on the club page to bring people in. Only members can see a private club's leaderboard.
 
 ## Play for the leaderboard
 
-When you set up a battle, pick the club under **Club**. You'll only see it when everyone in the battle is a member. Games with a guest or practice opponent, and manually tracked games, can't count. You can change the choice until the battle starts.
+On the club page, pick an opponent under **New game** and press **Start battle**. Or, when you set up a battle anywhere else, pick the club under **Club**. You'll only see it when everyone in the battle is a member. Games with a guest or practice opponent, and manually tracked games, can't count. You can change the choice until the battle starts.
 
 When the game ends, the result goes on the club's leaderboard. Ratings work as on the site-wide [leaderboard](/leaderboard): everyone starts at 1000, beating a higher-rated player gains more, a concession is a loss, and allies share their side's result. Club games still count on the site-wide leaderboard too.
 

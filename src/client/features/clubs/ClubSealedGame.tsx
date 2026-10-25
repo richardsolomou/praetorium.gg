@@ -1,17 +1,17 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
-import { Check, EllipsisVertical, Eye, FileLock2, LogOut, Pencil, Swords, Trash2, UserPlus } from 'lucide-react'
+import { Link, useNavigate } from '@tanstack/react-router'
+import { Check, ChevronRight, EllipsisVertical, Eye, FileLock2, LogOut, Pencil, Swords, Trash2, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { LeagueSide } from '../../../contracts/schemas'
+import { battleOutcome } from '../../../core/standings'
 import { leagueRevealChecklist, leagueSealingClosed, requiredLeagueRosterLimit } from '../../../core/league'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
 import { chooseLeagueSide, createLeagueBattle, deleteLeague, revealLeague, submitLeagueRoster } from '../../functions'
 import { battlesFrom, battlesQuery, gameReferencesQuery, leagueBattlesQuery, leagueQuery } from '../../queries'
-import { BattleShelf } from '../battles/BattleShelf'
 import { countLabel } from '../../text'
 import { useNow } from '../../useNow'
 import { useMoment } from '../leagues/EventSchedule'
@@ -21,6 +21,9 @@ import { LeagueSettingsDialog } from '../leagues/LeagueSettingsDialog'
 import { TeamDispositionPanel } from '../leagues/LeagueTeamDisposition'
 import { TeamWarlordPanel } from '../leagues/LeagueTeamWarlord'
 import { eventName, namesPhrase, useLeagueRefresh } from '../leagues/leagueEvent'
+import { battleOutcomeStage, battleStage } from '../../battleStage'
+import { summarySides } from '../../battleSummary'
+import type { Battle } from '../battles/battle'
 import { useClubRefresh, type Club } from './club'
 
 type Game = Club['games'][number]
@@ -185,9 +188,9 @@ export function ClubSealedGame({
           : waiting('lists')
             ? `Waiting on ${waiting('lists')} to seal.`
             : waiting('dispositions')
-              ? `${waiting('dispositions')} still choose a Force Disposition.`
+              ? `Waiting on ${waiting('dispositions')} to choose a Force Disposition.`
               : waiting('warlords')
-                ? `${waiting('warlords')} still choose a Warlord.`
+                ? `Waiting on ${waiting('warlords')} to choose a Warlord.`
                 : 'Lists stay hidden until they’re revealed together.'
 
   const row = (player: Player) => {
@@ -210,7 +213,9 @@ export function ClubSealedGame({
             {!team && own?.sealed && player.userId !== viewerId && player.sealed ? (
               hasPlayed(player.userId) ? (
                 // A past game lists its battles above, so only Up next marks who is done.
-                embedded ? null : (
+                embedded ? null : game.playing.includes(player.userId) && game.playing.includes(viewerId ?? '') ? (
+                  <span className="chip shrink-0">Playing</span>
+                ) : (
                   <span className="chip shrink-0 text-achieved">Played</span>
                 )
               ) : (
@@ -305,14 +310,15 @@ export function ClubSealedGame({
       {!players.length ? <li className="px-4 py-2.5 text-sm text-dim">Nobody has sealed a list yet.</li> : null}
     </ul>
   )
+  // The lists above already name each player's army, so a battle needs only who met whom and how it stands.
   const gameBattles = battles.length ? (
-    <div className={embedded ? 'p-3' : 'space-y-2 border-t border-edge p-4'}>
-      {embedded ? null : <p className="eyebrow text-dim">Battles</p>}
-      <BattleShelf
-        name={`Battles of ${eventName({ ...game, tournament: null, club })}`}
-        battles={battles}
-        viewerId={viewerId ?? undefined}
-      />
+    <div className={embedded ? '' : 'border-t border-edge'}>
+      {embedded ? null : <p className="eyebrow px-4 pt-3 pb-1 text-dim">Battles</p>}
+      <ul aria-label={`Battles of ${eventName({ ...game, tournament: null, club })}`} className="divide-y divide-edge">
+        {battles.map((battle) => (
+          <BattleResult key={battle.token} battle={battle} viewerId={viewerId} />
+        ))}
+      </ul>
     </div>
   ) : null
 
@@ -330,7 +336,7 @@ export function ClubSealedGame({
           {gameBattles}
           {sealed.some((player) => !battled.has(player.userId)) ? (
             <>
-              <p className={`eyebrow px-4 pb-2 text-dim ${battles.length ? '' : 'pt-3'}`}>
+              <p className={`eyebrow px-4 pt-3 pb-2 text-dim ${battles.length ? 'border-t border-edge' : ''}`}>
                 {battles.length ? 'Sealed, not played' : 'Lists'}
               </p>
               <ul className="divide-y divide-edge border-t border-edge">
@@ -467,6 +473,55 @@ export function ClubSealedGame({
       />
       {editing ? <LeagueSettingsDialog mode={{ kind: 'edit', token: game.token }} open={editing} onOpenChange={setEditing} /> : null}
     </section>
+  )
+}
+
+/** One battle of a sealed game as a single line: how it stands, who met whom, and the score, opening the battle. */
+function BattleResult({ battle, viewerId }: { battle: Battle; viewerId: string | null }) {
+  const seat = viewerId ? battle.playerIds.indexOf(viewerId) : -1
+  const sides = summarySides(battle)
+  const finished = battle.status === 'finished'
+  const stage = seat !== -1 && finished ? battleOutcomeStage(battleOutcome(battle, battle.sides[seat]!)) : battleStage(battle.status)
+  const lost = (index: number) => finished && battleOutcome(battle, index) === 'lost'
+  const label = sides.map((side) => side.players.join(' and ')).join(' versus ')
+  return (
+    <li>
+      <Link
+        to="/battles/$token"
+        params={{ token: battle.token }}
+        aria-label={`${seat === -1 ? 'Watch' : 'Open'} ${label}`}
+        className="group flex min-h-12 min-w-0 items-center gap-3 px-4 py-2 hover:bg-raised"
+      >
+        <span data-battle-status={battle.status} className={`chip w-20 shrink-0 justify-center text-center ${stage.tint}`}>
+          {stage.name}
+        </span>
+        <span className="min-w-0 flex-1 text-sm">
+          {sides.map((side, at) => (
+            <span key={side.index} className={lost(side.index) ? 'text-faint' : 'font-semibold'}>
+              {at ? <span className="px-1.5 font-normal text-faint">vs</span> : null}
+              {side.seats.map(({ player }, index) => (
+                <span key={player.id || player.name}>
+                  {index ? <span className="font-normal text-faint"> &amp; </span> : null}
+                  {player.name}
+                  {player.id === viewerId ? <span className="ml-1 text-xs font-normal text-dim">you</span> : null}
+                </span>
+              ))}
+            </span>
+          ))}
+        </span>
+        {battle.status === 'setup' ? null : (
+          <span className="figure shrink-0 text-base font-bold">
+            {sides.map((side, at) => (
+              <span key={side.index}>
+                {at ? <span className="px-1 text-faint">–</span> : null}
+                <span className={`${at ? 'text-side-b' : 'text-side-a'} ${lost(side.index) ? 'opacity-50' : ''}`}>{side.score}</span>
+              </span>
+            ))}
+          </span>
+        )}
+        <ChevronRight aria-hidden className="size-4 shrink-0 text-faint group-hover:text-bone" />
+      </Link>
+    </li>
   )
 }
 
