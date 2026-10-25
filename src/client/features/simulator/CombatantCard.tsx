@@ -76,9 +76,7 @@ export function CombatantCard({
     const faction =
       factions.data?.factions.find((entry) => entry.id === catalogueId || entry.slug === catalogueId) ??
       (catalogueId === combatant.faction ? selectedFaction : undefined)
-    return faction ? (
-      <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
-    ) : undefined
+    return faction ? <FactionMark faction={faction} size="sm" /> : undefined
   }
   const failed = factions.isError || catalogueUnits.isError || combatant.price.isError || combatant.sheets.isError
   const unavailable =

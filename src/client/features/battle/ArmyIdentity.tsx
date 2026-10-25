@@ -76,14 +76,14 @@ function IdentityLine({
           title={faction.displayName}
           className="inline-flex min-w-0 items-center gap-1 text-bone hover:text-azure"
         >
-          <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
+          <FactionMark faction={faction} size="sm" />
           <span aria-hidden className="truncate">
             {faction.displayName}
           </span>
         </FactionReferenceLink>
       ) : (
         <span key="faction" className="inline-flex min-w-0 items-center gap-1 text-bone">
-          <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
+          <FactionMark faction={faction} size="sm" />
           <span className="truncate">{faction.displayName}</span>
         </span>
       )

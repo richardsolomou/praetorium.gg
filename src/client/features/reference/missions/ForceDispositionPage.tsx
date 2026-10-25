@@ -71,7 +71,7 @@ export function ForceDispositionPage({ dispositionId }: { dispositionId: string 
                     params={{ catalogueId: faction.slug }}
                     className="flex items-center gap-2 border-b border-edge px-3 py-2 font-bold uppercase hover:bg-raised hover:text-info"
                   >
-                    <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
+                    <FactionMark faction={faction} size="sm" />
                     <span className="min-w-0 truncate">{faction.displayName}</span>
                   </FactionReferenceLink>
                   <ul>

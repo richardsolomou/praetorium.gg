@@ -25,7 +25,12 @@ export function RecentSimulations({
   const mark = (catalogueId: string | undefined) => {
     if (!catalogueId) return null
     const faction = index?.factions.find((candidate) => candidate.id === catalogueId)
-    return <FactionMark id={faction?.slug ?? catalogueId} name={faction?.displayName} icon={faction?.icon ?? null} size="sm" />
+    return (
+      <FactionMark
+        faction={{ slug: faction?.slug ?? catalogueId, displayName: faction?.displayName ?? '', icon: faction?.icon ?? null }}
+        size="sm"
+      />
+    )
   }
   return (
     <section aria-label="Recent simulations" className="min-w-0">

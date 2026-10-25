@@ -24,10 +24,12 @@ describe('faction colors', () => {
 it('shows the selected rules version beside the faction mark', () => {
   const markup = renderToStaticMarkup(
     createElement(FactionMark, {
-      id: 'custodes-11e~1f19-6509-d906-ca10',
-      name: 'Adeptus Custodes',
-      icon: null,
-      edition: { id: 'custodes-11e', name: 'Custodes codex', status: 'preview' },
+      faction: {
+        slug: 'custodes-11e~1f19-6509-d906-ca10',
+        displayName: 'Adeptus Custodes',
+        icon: null,
+        edition: { id: 'custodes-11e', name: 'Custodes codex', status: 'preview' },
+      },
     }),
   )
   expect(markup).toContain('aria-label="Rules version: Custodes codex · Preview"')

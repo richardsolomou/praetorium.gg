@@ -203,9 +203,7 @@ function Side({
                 {player.id === viewerId ? <span className="eyebrow shrink-0 text-parchment">You</span> : null}
               </span>
               <span className={`mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-dim ${mirrored ? 'sm:flex-row-reverse' : ''}`}>
-                {faction ? (
-                  <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
-                ) : null}
+                {faction ? <FactionMark faction={faction} size="sm" /> : null}
                 <span className="truncate">
                   {faction?.displayName ?? army ?? 'List not attached'}
                   {detachments.length ? <span className="text-faint"> · {detachments.join(' · ')}</span> : null}

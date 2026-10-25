@@ -100,7 +100,7 @@ function CollectionGroups({
           <section key={group.catalogueId ?? 'retired'} aria-label={group.name} className="@container/army space-y-3">
             <header className="flex flex-wrap items-center gap-3 border-b border-edge pb-2">
               <div className="flex min-w-0 flex-1 items-center gap-3">
-                {group.catalogueId ? <FactionMark id={group.catalogueId} name={group.name} icon={icon} size="md" /> : null}
+                {group.catalogueId ? <FactionMark faction={{ slug: group.catalogueId, displayName: group.name, icon }} size="md" /> : null}
                 <div className="min-w-0">
                   <h2 className="rubric break-words text-bone">{group.name}</h2>
                   <p className="mt-1 text-xs text-dim">{countLabel(group.entries.length, 'datasheet')}</p>

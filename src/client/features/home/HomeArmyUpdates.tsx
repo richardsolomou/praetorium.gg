@@ -38,7 +38,7 @@ export function HomeArmyUpdates({ updates }: { updates: readonly ArmyUpdate[] })
               hash={anchor}
               className="-mx-3 flex min-w-0 items-center gap-2 px-3 py-3 hover:bg-raised"
             >
-              <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
+              <FactionMark faction={faction} size="sm" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-bold uppercase">{faction.displayName}</span>
                 <span className="block text-xs text-dim">

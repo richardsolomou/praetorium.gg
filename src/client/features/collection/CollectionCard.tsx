@@ -25,13 +25,7 @@ export function CollectionCard({
         {photo ??
           (sheet?.presentation ? (
             <span className="flex size-6 shrink-0 items-center justify-center">
-              <FactionMark
-                id={sheet.presentation.slug}
-                name={sheet.presentation.displayName}
-                edition={sheet.presentation.edition}
-                icon={sheet.presentation.icon}
-                size="sm"
-              />
+              <FactionMark faction={sheet.presentation} size="sm" />
             </span>
           ) : null)}
         <span className="min-w-[6rem] flex-1 break-words">

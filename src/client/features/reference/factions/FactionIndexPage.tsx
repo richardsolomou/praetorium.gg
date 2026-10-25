@@ -138,7 +138,7 @@ function FactionShelf({
                   params={{ catalogueId: entry.slug }}
                   className="flex min-w-0 flex-1 items-center gap-3 self-stretch py-2 pr-1 pl-3"
                 >
-                  <FactionMark id={entry.slug} name={entry.displayName} edition={entry.edition} icon={entry.icon} />
+                  <FactionMark faction={entry} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-bold uppercase">{entry.displayName}</span>
                     <span className="block text-xs text-dim">

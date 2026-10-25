@@ -28,7 +28,7 @@ export function RosterPicker({
               value: option.id,
               label: option.label,
               icon: faction ? (
-                <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
+                <FactionMark faction={faction} size="sm" />
               ) : (
                 (option.icon ?? <ScrollText className="size-4 text-info" aria-hidden />)
               ),

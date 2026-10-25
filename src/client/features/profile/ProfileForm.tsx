@@ -69,7 +69,7 @@ export function ProfileForm({
       {main ? (
         <Fact label={played ? 'Plays most' : 'Builds most'}>
           <span className="flex items-center gap-1.5 text-sm font-bold text-bone uppercase">
-            <FactionMark id={main.slug} name={main.displayName} edition={main.edition} icon={main.icon} size="sm" />
+            <FactionMark faction={main} size="sm" />
             {main.displayName}
           </span>
         </Fact>

@@ -267,7 +267,7 @@ export function CollectionPage() {
 }
 
 function Mark({ faction, size = 'sm' }: { faction: FactionPresentation; size?: 'sm' | 'md' }) {
-  return <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size={size} />
+  return <FactionMark faction={faction} size={size} />
 }
 
 function Tally({ label, value }: { label: string; value: number | null }) {

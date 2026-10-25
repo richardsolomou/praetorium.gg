@@ -56,7 +56,7 @@ export function FactionDatasheet() {
         tint={factionColour(faction.slug, faction.displayName)}
         eyebrow={`${faction.displayName} · Datasheet`}
         title={sheet.name}
-        media={<FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} />}
+        media={<FactionMark faction={faction} />}
         actions={
           <div className="flex flex-wrap items-center gap-1">
             <AddToRoster faction={faction} entryId={sheet.id} name={sheet.name} />

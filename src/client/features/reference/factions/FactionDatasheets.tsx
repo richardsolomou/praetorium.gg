@@ -76,7 +76,7 @@ export function FactionDatasheets() {
         tint={factionColour(faction.slug, faction.displayName)}
         eyebrow={faction.displayName}
         title="Datasheets"
-        media={<FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} />}
+        media={<FactionMark faction={faction} />}
       />
       <PageContent className="space-y-6">
         <Breadcrumb>

@@ -55,7 +55,7 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
         tint={factionColour(faction.slug, faction.displayName)}
         eyebrow="Faction"
         title={faction.displayName}
-        media={<FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="lg" />}
+        media={<FactionMark faction={faction} size="lg" />}
         actions={
           editions.length > 1 ? (
             <div className="grid grid-cols-[minmax(0,20rem)_auto] items-center gap-2">

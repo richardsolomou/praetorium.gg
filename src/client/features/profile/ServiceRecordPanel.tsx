@@ -387,13 +387,7 @@ function CareerTables({ record }: { record: ServiceRecord }) {
               params={{ catalogueId: row.faction.slug }}
               className="flex min-w-0 items-center gap-2 hover:text-info"
             >
-              <FactionMark
-                id={row.faction.slug}
-                name={row.faction.displayName}
-                edition={row.faction.edition}
-                icon={row.faction.icon}
-                size="sm"
-              />
+              <FactionMark faction={row.faction} size="sm" />
               <span className="font-bold break-words uppercase">{row.faction.displayName}</span>
             </FactionReferenceLink>
           )}

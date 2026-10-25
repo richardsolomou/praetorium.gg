@@ -478,7 +478,7 @@ function PlayedOutcome({ outcome, token }: { outcome: PlayedArmy['outcome']; tok
           <span className="text-faint">vs</span>
           {outcome.opponents.map((faction) => (
             <span key={faction.slug} className="flex min-w-0 items-center gap-1.5">
-              <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
+              <FactionMark faction={faction} size="sm" />
               <span className="truncate">{faction.displayName}</span>
             </span>
           ))}
