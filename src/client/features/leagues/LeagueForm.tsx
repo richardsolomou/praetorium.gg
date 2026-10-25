@@ -146,7 +146,7 @@ export function LeagueFormFields({
               value={value.description}
               maxLength={2000}
               rows={2}
-              placeholder="Dates, venue, house rules, anything players need to know."
+              placeholder="Dates, venue, anything else players need to know."
               disabled={disabled}
               onChange={(event) => onChange({ ...value, description: event.target.value })}
             />
