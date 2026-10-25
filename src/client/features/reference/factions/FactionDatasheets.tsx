@@ -67,7 +67,8 @@ export function FactionDatasheets() {
         <section>
           <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
             <span>Datasheets</span>
-            <span className="readout">{query.trim() ? units.length : (faction.references[0]?.datasheets ?? units.length)}</span>
+            {/* The faction's own count is an estimate from its cards, so it only stands in until the list itself arrives. */}
+            <span className="readout">{isPending ? faction.references[0]?.datasheets : units.length}</span>
           </h2>
           <div className="mt-2">
             {units.length ? (

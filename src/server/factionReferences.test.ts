@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { bookOf, withCards } from './catalogue.fixtures'
-import { detachmentNamed, detachmentsOffering, factionsFor, isReferenceDetachment } from '../shared/factionReferences'
+import { detachmentNamed, detachmentsOffering, factionIndexFor, factionsFor, isReferenceDetachment } from '../shared/factionReferences'
 import type { LoadedRules } from './rules'
+import { referenceFactionDatasheets } from './referenceCatalogue'
 
 describe('joining catalogue detachments to their rules reference', () => {
   it('joins the verified singular BSData label to the plural Game Datacards label', () => {
@@ -298,4 +299,19 @@ it('does not guess a release for an unmatched faction when points sources have d
 it('projects no factions when the requested scope is empty', () => {
   const loaded = bookOf({ name: 'Army', selectionEntries: [{ id: 'unit', name: 'Unit', type: 'unit' }] })
   expect(factionsFor(loaded, null, new Set()).factions).toEqual([])
+})
+
+describe('the datasheet count a faction page shows', () => {
+  it('counts its Legends pages beside its cards, as its datasheet list does', async () => {
+    const loaded = bookOf({
+      selectionEntries: [
+        { id: 'walker', name: 'Plague Walker', type: 'model' },
+        { id: 'legend', name: 'Tomb Stalker [Legends]', type: 'model' },
+      ],
+    })
+    loaded.factionContents.set('test-catalogue', withCards('Test catalogue', ['Plague Walkers']))
+    expect(factionIndexFor(loaded, null).factions[0]?.references[0]?.datasheets).toBe(
+      (await referenceFactionDatasheets(loaded, { catalogueId: 'cat', query: '' })).length,
+    )
+  })
 })

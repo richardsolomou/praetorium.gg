@@ -961,7 +961,8 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.locator('[data-shelf="Xenos"]')).toBeVisible()
   await page.goto('/factions/dark-angels')
   const darkAngelsDatasheets = page.getByRole('link', { name: /Datasheets/ })
-  await expect(darkAngelsDatasheets).toContainText('16')
+  // Its own cards and the Legends and Crucible pages it lists beside them.
+  await expect(darkAngelsDatasheets).toHaveText(/^Datasheets\s*36$/)
   await expect(page.getByText('Detachments', { exact: true }).locator('..')).toContainText('3')
   await expect(page.getByText('Gladius Task Force', { exact: true })).toHaveCount(0)
   await page.screenshot({ path: 'test-results/dark-angels-faction-content.png', fullPage: true })
