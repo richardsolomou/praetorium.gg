@@ -4,6 +4,7 @@ import { catalogueEditionLoaders } from '../../src/server/catalogueEditions'
 import { readCatalogueRuntime } from '../../src/server/catalogueRuntime'
 import { loadRules } from '../../src/server/rules'
 import type { LoadedRules } from '../../src/shared/rules'
+import { catalogueDataDirectory } from './catalogueFiles'
 
 export function loadSnapshot(directory: string) {
   const catalogue = loadCatalogue(directory)
@@ -23,7 +24,7 @@ export function benchmarkEditions(usage: string) {
   if (mode !== 'source' && mode !== 'runtime') throw new Error(usage)
   const gc = global.gc
   if (!gc) throw new Error('Run with --expose-gc so measurements follow garbage collection')
-  const directory = path.resolve(process.argv[3] ?? 'catalogue-data')
+  const directory = path.resolve(process.argv[3] ?? catalogueDataDirectory())
   const runtime =
     mode === 'runtime' ? readCatalogueRuntime(directory, path.resolve(process.argv[4] ?? '.output/server/catalogue-runtime')) : null
   let catalogue: ReturnType<typeof loadCatalogue> | undefined

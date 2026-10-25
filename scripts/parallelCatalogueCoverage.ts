@@ -3,16 +3,13 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
-import { compareCatalogueCoverage, readAcceptedLosses } from './lib/catalogueCoverageComparison'
 
 const {
   positionals: [output],
   values,
-} = parseArgs({ allowPositionals: true, options: { part: { type: 'string' }, compare: { type: 'string' }, accept: { type: 'string' } } })
+} = parseArgs({ allowPositionals: true, options: { part: { type: 'string' } } })
 if (!output) {
-  throw new Error(
-    'usage: parallelCatalogueCoverage.ts <out.json> [--part <index>/<count>] [--compare <before.json>] [--accept <withdrawn.json>]',
-  )
+  throw new Error('usage: parallelCatalogueCoverage.ts <out.json> [--part <index>/<count>]')
 }
 // A part takes every count-th faction, so machines can split the snapshot between them
 // whatever worker count each one chooses.
@@ -63,8 +60,6 @@ try {
     .flatMap((file) => JSON.parse(fs.readFileSync(file, 'utf8')) as { name: string }[])
     .toSorted((left, right) => left.name.localeCompare(right.name))
   fs.writeFileSync(output, JSON.stringify(snapshot, null, 1))
-
-  if (values.compare) compareCatalogueCoverage(values.compare, output, readAcceptedLosses(values.accept))
 } finally {
   fs.rmSync(temporaryDirectory, { recursive: true, force: true })
 }

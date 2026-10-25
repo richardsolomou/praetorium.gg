@@ -12,13 +12,13 @@ dev:
     pnpm dev
 
 dev-status:
-    pnpm dev:status
+    pnpm exec tsx scripts/dev.ts status
 
 dev-stop:
-    pnpm dev:stop
+    pnpm exec tsx scripts/dev.ts stop
 
 dev-restart:
-    pnpm dev:restart
+    pnpm exec tsx scripts/dev.ts restart
 
 # Stop this worktree's stack and remove the browser-test stacks it or a deleted worktree left behind; run once its PR has merged
 teardown:
@@ -45,10 +45,10 @@ mobile *args:
     url="${EXPO_PUBLIC_APP_URL:-$(node --import tsx scripts/mobileAppUrl.ts ios)}" && EXPO_PUBLIC_APP_URL="$url" pnpm mobile -- {{ args }}
 
 mobile-ios:
-    url="${EXPO_PUBLIC_APP_URL:-$(node --import tsx scripts/mobileAppUrl.ts ios)}" && EXPO_PUBLIC_APP_URL="$url" pnpm mobile:ios
+    url="${EXPO_PUBLIC_APP_URL:-$(node --import tsx scripts/mobileAppUrl.ts ios)}" && EXPO_PUBLIC_APP_URL="$url" pnpm --dir mobile ios
 
 mobile-android:
-    url="${EXPO_PUBLIC_APP_URL:-$(node --import tsx scripts/mobileAppUrl.ts android)}" && EXPO_PUBLIC_APP_URL="$url" pnpm mobile:android
+    url="${EXPO_PUBLIC_APP_URL:-$(node --import tsx scripts/mobileAppUrl.ts android)}" && EXPO_PUBLIC_APP_URL="$url" pnpm --dir mobile android
 
 format:
     pnpm format
@@ -80,7 +80,7 @@ check:
 
 # Prepare a local catalogue from the shared snapshot or pinned public sources
 catalogue-prepare:
-    pnpm catalogue:prepare
+    pnpm exec tsx scripts/syncCatalogue.ts --prepare
 
 # Activate the exact release snapshot; downloading requires private store access
 catalogue-sync:
@@ -114,7 +114,7 @@ catalogue-materialize *args:
 
 # Compare configured pins with approved branch heads without activating them
 catalogue-upstream:
-    pnpm catalogue:upstream
+    pnpm exec tsx scripts/syncCatalogue.ts --upstream
 
 # Compile upstream sources into Praetorium's canonical datasheet catalogue
 catalogue-compile:
@@ -122,7 +122,7 @@ catalogue-compile:
 
 # Report canonical catalogue gaps; pass --details for every finding
 catalogue-audit *args:
-    pnpm catalogue:audit -- {{ args }}
+    pnpm exec tsx scripts/auditCanonicalCatalogue.ts {{ args }}
 
 # Build the data-update history seed from every published snapshot and the sources' own history: --out <file>
 catalogue-history-seed *args:
@@ -169,15 +169,15 @@ e2e-cold *args:
     PLAYWRIGHT_BUILD_CACHE=off pnpm exec playwright test {{ args }}
 
 e2e-native-auth-ios:
-    pnpm test:e2e:native-auth:ios
+    pnpm exec tsx e2e/nativeAuthIos.ts
 
 # Save a native reference, stop its service, and reopen it from device storage
 e2e-native-offline-ios:
-    NATIVE_OFFLINE_VERIFY=1 pnpm test:e2e:native-auth:ios
+    NATIVE_OFFLINE_VERIFY=1 pnpm exec tsx e2e/nativeAuthIos.ts
 
 # Build a visitor roster in the native app, sign in with a system provider, and check the account saved it
 e2e-native-guest-draft-ios:
-    NATIVE_GUEST_DRAFT_VERIFY=1 pnpm test:e2e:native-auth:ios
+    NATIVE_GUEST_DRAFT_VERIFY=1 pnpm exec tsx e2e/nativeAuthIos.ts
 
 e2e-trace *args:
     PLAYWRIGHT_TRACE=1 pnpm exec playwright test {{ args }}

@@ -15,8 +15,10 @@ type Application = {
   dockerImage: string | null
 }
 
+const webHost = (target: 'staging' | 'production') => (target === 'production' ? 'praetorium.gg' : 'staging.praetorium.gg')
+
 export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging' | 'production') {
-  const url = target === 'production' ? 'https://praetorium.gg' : 'https://staging.praetorium.gg'
+  const url = `https://${webHost(target)}`
   const database = `praetorium-${target}`
   const internalHost = requiredEnv('SPACETIME_INTERNAL_HOST', environment)
   if (!/^[a-z][a-z0-9-]{1,63}$/.test(internalHost)) throw new Error('Invalid SpacetimeDB internal host')
@@ -239,18 +241,12 @@ async function run() {
     return
   }
   if (command === 'assets') {
-    await configureWebAssetRoute(
-      origin,
-      headers,
-      applicationId,
-      target === 'production' ? 'praetorium.gg' : 'staging.praetorium.gg',
-      process.argv.slice(4),
-    )
+    await configureWebAssetRoute(origin, headers, applicationId, webHost(target), process.argv.slice(4))
     console.log(`Configured ${target} shared web assets`)
     return
   }
   if (command === 'domain') {
-    await ensureWebDomain(origin, headers, applicationId, target === 'production' ? 'praetorium.gg' : 'staging.praetorium.gg')
+    await ensureWebDomain(origin, headers, applicationId, webHost(target))
     console.log(`Configured ${target} web domain`)
     return
   }
@@ -270,7 +266,7 @@ async function run() {
   if (!response.ok) throw new Error(`Dokploy environment save failed with HTTP ${response.status}`)
   if ((await inspect()).env !== env) throw new Error('Dokploy environment did not persist')
   await ensureWebHealthCheck(origin, headers, applicationId)
-  await ensureWebDomain(origin, headers, applicationId, target === 'production' ? 'praetorium.gg' : 'staging.praetorium.gg')
+  await ensureWebDomain(origin, headers, applicationId, webHost(target))
   console.log(`Configured ${target} web environment`)
 }
 
