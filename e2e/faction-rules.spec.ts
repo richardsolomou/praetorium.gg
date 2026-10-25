@@ -99,39 +99,16 @@ test('rules history labels recorded status dates rather than publisher dates', {
   }
 })
 
-test('faction links open current rules and version menus identify archives', { tag: '@catalogue' }, async ({ page }) => {
+test('faction cards open current rules and the rules version menu lists every version', { tag: '@catalogue' }, async ({ page }) => {
   for (const faction of factions) {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/factions')
     const row = page.locator(`[data-faction="${faction.name}"]`).first()
-    const link = row.getByRole('link', { name: faction.name, exact: true })
+    const link = row.getByRole('link', { name: new RegExp(`^${faction.name}`) })
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 })
       await expect(link).toHaveAttribute('href', `/factions/${faction.slug}/rules/mfm-1-6`)
-      if (faction.versions > 1) {
-        await retryUntilVisible(page.getByRole('menu'), () =>
-          row.getByRole('button', { name: `Rules versions for ${faction.name}` }).click(),
-        )
-        const items = page.getByRole('menuitem')
-        await expect(items).toHaveCount(faction.versions)
-        await expect(items.first().locator('[data-rules-status="current"]')).toHaveText('Current')
-        await expect(items.first().locator('[data-rules-status="current"]')).toHaveCSS('border-top-style', 'solid')
-        await expect(items.first().locator('[data-rules-status="current"]')).toHaveCSS('color', 'rgb(124, 196, 138)')
-        await expect(items.first().locator('[data-rules-status="current"]')).toHaveCSS('width', '72px')
-        expect(
-          await items
-            .first()
-            .locator('[data-rules-status]')
-            .evaluate((chip) => chip.parentElement?.firstElementChild === chip),
-        ).toBe(true)
-        if (faction.name === 'Dark Angels') await page.screenshot({ path: `test-results/rules-status-menu-${width}.png` })
-        await expect(items.first()).toHaveText('Current MFM 1.6')
-        await expect(page.getByRole('menu')).not.toContainText('Previous rules')
-        await page.keyboard.press('Escape')
-        await expect(page.getByRole('menu')).toHaveCount(0)
-      } else {
-        await expect(row.getByRole('button', { name: `Rules versions for ${faction.name}` })).toHaveCount(0)
-      }
+      await expect(row).toContainText(faction.versions > 1 ? `${faction.versions} rules versions` : 'detachments')
     }
     await page.setViewportSize({ width: 1440, height: 900 })
     await link.click()
@@ -143,6 +120,7 @@ test('faction links open current rules and version menus identify archives', { t
       if (faction.versions > 1) {
         await expect(page.getByRole('combobox', { name: 'Rules version' })).toHaveText('Current MFM 1.6')
         await retryUntilVisible(page.getByRole('option').first(), () => page.getByRole('combobox', { name: 'Rules version' }).click())
+        await expect(page.getByRole('option')).toHaveCount(faction.versions)
         await expect(page.getByRole('option').first().locator('[data-rules-status="current"]')).toHaveText('Current')
         await expect(page.getByRole('option').first().locator('[data-rules-status="current"]')).toHaveCSS('color', 'rgb(124, 196, 138)')
       }

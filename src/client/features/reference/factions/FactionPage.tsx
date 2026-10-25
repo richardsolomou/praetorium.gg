@@ -173,11 +173,11 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
                 </>
               )
               return detachment.reference ? (
-                <div key={detachment.id} className="flex items-center gap-1 bg-panel px-3 py-2.5 ring-1 ring-edge hover:bg-raised">
+                <div key={detachment.id} className="flex items-center bg-panel pr-3 ring-1 ring-edge hover:bg-raised">
                   <FactionReferenceLink
                     to="/factions/$catalogueId/detachments/$detachmentId"
                     params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
-                    className="flex min-w-0 flex-1 items-center gap-3"
+                    className="flex min-w-0 flex-1 items-center gap-3 self-stretch py-2.5 pr-1 pl-3"
                   >
                     {content}
                   </FactionReferenceLink>
