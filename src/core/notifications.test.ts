@@ -25,13 +25,13 @@ describe('notice messages', () => {
     ).toEqual({ title: 'New battle', body: 'Alice started a battle with you.', path: '/battles/abc' })
   })
 
-  it('says a battle started from a league is a tournament battle', () => {
+  it('says a battle started from a league is a sealed-roster battle', () => {
     expect(
       noticeMessage(
         { kind: 'battle-created', actorId: 'alice', recipientIds: ['bob'], battleToken: 'abc', league: true },
         { actor: 'Alice' },
       )?.body,
-    ).toBe('Alice started a tournament battle with you.')
+    ).toBe('Alice started a sealed-roster battle with you.')
   })
 
   it('tells a player an organizer added them to seal a list in that event', () => {

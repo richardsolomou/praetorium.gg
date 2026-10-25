@@ -6,24 +6,29 @@ import { leaguesQuery, meQuery } from '../../queries'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
+import { EventsTabs } from '../events/EventsTabs'
 import { CreateLeague } from './CreateLeague'
 import { LEAGUE_CARD, LeagueCardActions } from './LeagueActions'
 import { leagueFormat, leaguePhase, leaguePlayers } from './leagueEvent'
 
 export function LeagueIndex() {
   const { data: me } = useQuery(meQuery())
-  const { data: leagues = [] } = useQuery(leaguesQuery())
+  const { data: all = [] } = useQuery(leaguesQuery())
+  // A club's sealed games are reached from its club page; the list keeps them for rosters due and offline saves.
+  const leagues = all.filter((league) => !league.clubId)
   const mine = leagues.filter((league) => league.personal)
   const publicLeagues = leagues.filter((league) => league.visibility === 'public' && !mine.includes(league))
 
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Sealed rosters"
+        eyebrow="Events"
         title="Tournaments"
-        description="Everyone seals a roster in secret, the rosters open together, then you play each other and the results build up."
+        description="Organized one-off events: everyone seals a roster in secret, the rosters open together, then you play each other."
         actions={me ? <CreateLeague /> : null}
-      />
+      >
+        <EventsTabs current="tournaments" />
+      </PageHeader>
       <PageContent className="space-y-6">
         {mine.length ? <LeagueShelf title="Your tournaments" leagues={mine} viewerId={me?.id ?? null} /> : null}
         {publicLeagues.length ? <LeagueShelf title="Public tournaments" leagues={publicLeagues} viewerId={me?.id ?? null} /> : null}

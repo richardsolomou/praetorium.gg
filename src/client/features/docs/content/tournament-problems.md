@@ -1,6 +1,6 @@
 ## Common problems
 
-### "This tournament keeps … on" or "This tournament doesn't allow Legends datasheets…"
+### "This event keeps … on" or "This event doesn't allow Legends datasheets…"
 
 The tournament seals matched-play lists unless its organizer allows more under **House rules**. Switch the restriction back on in the picker's **Format restrictions**, or remove the Legends or Crucible unit, then seal again. The tournament page shows what it allows beside its format.
 

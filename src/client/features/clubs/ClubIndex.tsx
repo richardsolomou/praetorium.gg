@@ -8,6 +8,7 @@ import { PageState } from '../../components/PageState'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { clubsQuery, meQuery } from '../../queries'
 import { LEAGUE_CARD } from '../leagues/LeagueActions'
+import { EventsTabs } from '../events/EventsTabs'
 import { ClubSettingsDialog } from './ClubSettingsDialog'
 
 type ClubSummary = Awaited<ReturnType<NonNullable<ReturnType<typeof clubsQuery>['queryFn']>>>[number]
@@ -21,9 +22,9 @@ export function ClubIndex() {
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Play with your group"
+        eyebrow="Events"
         title="Clubs"
-        description="A standing table for your club or friend group. Members choose the club when they set up a battle, and every result counts."
+        description="Casual play with your friends or local club: tag your battles to the club and they count on its standing table."
         actions={
           me ? (
             <Button onClick={() => setCreating(true)}>
@@ -31,7 +32,9 @@ export function ClubIndex() {
             </Button>
           ) : null
         }
-      />
+      >
+        <EventsTabs current="clubs" />
+      </PageHeader>
       <PageContent className="space-y-6">
         {mine.length ? <ClubShelf title="Your clubs" clubs={mine} viewerId={me?.id ?? null} /> : null}
         {publicClubs.length ? <ClubShelf title="Public clubs" clubs={publicClubs} viewerId={me?.id ?? null} /> : null}

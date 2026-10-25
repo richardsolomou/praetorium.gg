@@ -403,7 +403,11 @@ export function InvitePanel({ league }: { league: League }) {
     <section className="border border-edge bg-panel p-4">
       <h2 className="rubric border-b border-edge pb-2">Invite players</h2>
       <p className="mt-1 text-xs text-dim">
-        {league.visibility === 'private' ? 'Unlisted, so this link is the way in.' : 'Also listed on the tournaments page.'}
+        {league.club
+          ? 'Members also find it on the club page.'
+          : league.visibility === 'private'
+            ? 'Unlisted, so this link is the way in.'
+            : 'Also listed on the tournaments page.'}
       </p>
       <button
         type="button"
@@ -489,7 +493,7 @@ function AddFriends({ league, token }: { league: League; token: string }) {
               </ul>
             ) : !candidates.length ? (
               <p className="text-sm text-dim">
-                {friendships.friends.length ? 'Every friend is already in this tournament.' : 'Add friends first, then enter them here.'}
+                {friendships.friends.length ? 'Every friend is already in.' : 'Add friends first, then enter them here.'}
               </p>
             ) : (
               <ul className="divide-y divide-edge border border-edge bg-panel">

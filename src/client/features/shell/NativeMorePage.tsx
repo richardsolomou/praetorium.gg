@@ -4,6 +4,7 @@ import {
   BookOpen,
   Boxes,
   Calculator,
+  CalendarDays,
   ChevronRight,
   CircleHelp,
   Gavel,
@@ -14,10 +15,8 @@ import {
   MessageSquareWarning,
   ShieldCheck,
   Sparkles,
-  Trophy,
   UserRound,
   Users,
-  UsersRound,
   type LucideIcon,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -31,7 +30,7 @@ const TOOLS: readonly MoreLink[] = [
   { description: 'Damage and kill odds for any attack', icon: Calculator, label: 'Combat simulator', to: '/simulator' },
   { description: 'Packs, scoring and deployments', icon: BookOpen, label: 'Missions', to: '/missions' },
   { description: 'Core rules, missions and event rules', icon: Gavel, label: 'Rules', to: '/rules' },
-  { description: 'Sealed-roster events', icon: Trophy, label: 'Tournaments', to: '/tournaments' },
+  { description: 'Clubs and tournaments', icon: CalendarDays, label: 'Events', to: '/clubs' },
 ]
 
 const REFERENCE: readonly MoreLink[] = [
@@ -39,10 +38,7 @@ const REFERENCE: readonly MoreLink[] = [
   { description: 'Points and datasheet changes', icon: History, label: 'Data updates', to: '/data-updates' },
 ]
 
-const COMMUNITY: readonly MoreLink[] = [
-  { description: 'Player standings', icon: Medal, label: 'Leaderboard', to: '/leaderboard' },
-  { description: 'Standing tables for your club or group', icon: UsersRound, label: 'Clubs', to: '/clubs' },
-]
+const COMMUNITY: readonly MoreLink[] = [{ description: 'Player standings', icon: Medal, label: 'Leaderboard', to: '/leaderboard' }]
 
 const FRIENDS: MoreLink = { description: 'Invite friends to private battles', icon: Users, label: 'Friends', to: '/friends' }
 

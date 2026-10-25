@@ -12,20 +12,18 @@ export function OutdatedLeagueRosters({ rosterId, saved }: { rosterId: string; s
   return (
     <Popover>
       <PopoverTrigger
-        render={
-          <Button variant="ghost" size="xs" className="text-discarded hover:text-discarded" aria-label="Tournament roster out of date" />
-        }
+        render={<Button variant="ghost" size="xs" className="text-discarded hover:text-discarded" aria-label="Sealed roster out of date" />}
       >
         <TriangleAlert className="size-4" aria-hidden />
-        Update tournament
+        Update sealed roster
       </PopoverTrigger>
       <PopoverContent align="end" className="max-h-[min(28rem,70dvh)] w-[min(22rem,calc(100vw-2rem))] overflow-y-auto">
-        <PopoverTitle>Tournament roster out of date</PopoverTitle>
+        <PopoverTitle>Sealed roster out of date</PopoverTitle>
         <div className="space-y-3 text-xs">
           {entries.map((entry) => (
             <div key={`${entry.leagueToken}:${entry.eventToken}`} className="space-y-1">
               <p className="font-semibold">{entry.leagueName}</p>
-              <p className="text-dim">Your changes are not in the tournament roster yet.</p>
+              <p className="text-dim">Your changes are not in the sealed roster yet.</p>
               {!saved ? (
                 <p className="text-parchment">Save changes before replacing it.</p>
               ) : (
@@ -35,7 +33,7 @@ export function OutdatedLeagueRosters({ rosterId, saved }: { rosterId: string; s
                   search={{ event: entry.eventToken, choose: true }}
                   className="text-info underline hover:text-bone"
                 >
-                  Replace tournament roster
+                  Replace sealed roster
                 </Link>
               )}
             </div>

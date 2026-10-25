@@ -191,6 +191,22 @@ const leagueEvents = table(
     revealedBy: t.option(t.string()).default(undefined),
     /** JSON `LeagueAllowance[]`; absent on events created before organizers chose them, which accept any waiver. */
     allowances: t.option(t.string()).default(undefined),
+    /** How many Swiss rounds the organizer pairs; absent for open play, where entrants choose their own opponents. */
+    rounds: t.option(t.u32()).default(undefined),
+  },
+)
+
+/** One table of one Swiss round, keyed by event, round and table. `bId` is absent for a bye. */
+const leagueRoundPairings = table(
+  { name: 'league_round_pairings' },
+  {
+    key: t.string().primaryKey(),
+    eventId: t.string().index('btree'),
+    round: t.u32(),
+    table: t.u32(),
+    aId: t.string(),
+    bId: t.option(t.string()),
+    battleId: t.option(t.string()),
   },
 )
 
@@ -516,6 +532,7 @@ export const productTables = {
   leagueEventTeamWarlords,
   leagueRosterSharing,
   leagueEventBattles,
+  leagueRoundPairings,
   leagueAdmins,
   clubs,
   clubMembers,

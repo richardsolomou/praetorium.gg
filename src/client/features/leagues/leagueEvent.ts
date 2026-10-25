@@ -32,6 +32,11 @@ export function useLeagueRefresh(token: string) {
   }
 }
 
+/** What players call a league: a club's is its casual sealed game, never a tournament. */
+export function leagueNoun(league: { club?: unknown }) {
+  return league.club ? ({ noun: 'sealed game', Noun: 'Sealed game' } as const) : ({ noun: 'tournament', Noun: 'Tournament' } as const)
+}
+
 /** Names a few people outright and counts the rest, so a long waiting list stays one line. */
 export function namesPhrase(names: string[], shown = 3) {
   if (names.length <= shown) return formatList(names)
@@ -112,10 +117,10 @@ export type EntryStep = { label: string; state: 'done' | 'current' | 'upcoming' 
 export type EntryStage = 'join' | 'assign' | 'seal' | 'reveal' | 'play'
 
 /** The path through an event with the stage the reader is on marked current, so it can only restate the status card's own decision. */
-export function entryProgress(league: Pick<League, 'format'>, stage: EntryStage): EntryStep[] {
+export function entryProgress(league: Pick<League, 'format' | 'club'>, stage: EntryStage): EntryStep[] {
   const assignment = league.format === '2v1' ? 'Play solo or get an ally' : league.format === '2v2' ? 'Get paired with a teammate' : null
   const stages: { stage: EntryStage; label: string }[] = [
-    { stage: 'join', label: 'Join the tournament' },
+    { stage: 'join', label: `Join the ${leagueNoun(league).noun}` },
     ...(assignment ? [{ stage: 'assign' as const, label: assignment }] : []),
     { stage: 'seal', label: 'Seal your roster' },
     { stage: 'reveal', label: 'Rosters revealed' },
@@ -179,8 +184,12 @@ export function leaguePhase(league: LeagueFacts, accepted: number, occupied: num
  * the reveal is already on the status card and the readiness panel, so a player reads one only once their side can
  * start a battle.
  */
-export function leagueNextStep(stage: LeagueStage, viewer: { organizer: boolean; canPlay: boolean }, format: League['format']) {
-  const shape = leagueTableShape(format)
+export function leagueNextStep(
+  stage: LeagueStage,
+  viewer: { organizer: boolean; canPlay: boolean },
+  league: Pick<League, 'format' | 'club'>,
+) {
+  const shape = leagueTableShape(league.format)
   if (viewer.organizer)
     return {
       empty: 'Copy the invite link and send it to your group.',
@@ -191,8 +200,8 @@ export function leagueNextStep(stage: LeagueStage, viewer: { organizer: boolean;
       sealing: 'Players seal their rosters. Nobody sees another list, you included, until the reveal.',
       choosing: 'Each team chooses its Force Disposition. Then you can reveal the rosters.',
       ready: 'Reveal the rosters. That opens every list at once and closes entry.',
-      playing: 'Players start their tournament battles from this page. Finished ones fill the results table.',
-      results: 'To play again with fresh rosters, start a new tournament.',
+      playing: 'Players start their battles from this page. Finished ones fill the results table.',
+      results: `To play again with fresh rosters, start a new ${leagueNoun(league).noun}.`,
     }[stage]
   return (stage === 'playing' || stage === 'results') && viewer.canPlay
     ? `Start a ${TABLE_SHAPE_LABELS[shape].count} battle from your card. Finished battles fill the results table.`

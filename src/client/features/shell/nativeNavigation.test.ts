@@ -19,7 +19,8 @@ describe('native application navigation', () => {
   })
 
   it.each([
-    ['/tournaments', 'tournaments', 'Tournaments'],
+    ['/tournaments', 'events', 'Tournaments'],
+    ['/clubs', 'events', 'Clubs'],
     ['/rules', 'rules', 'Rules'],
     ['/leaderboard', 'leaderboard', 'Leaderboard'],
     ['/missions', 'missions', 'Missions'],
@@ -40,7 +41,7 @@ describe('native application navigation', () => {
     ],
     [
       '/tournaments/league-id',
-      { back: { href: '/tournaments', label: 'Back to tournaments', preferHistory: true }, section: 'tournaments', title: 'Tournament' },
+      { back: { href: '/tournaments', label: 'Back to tournaments', preferHistory: true }, section: 'events', title: 'Tournament' },
     ],
     [
       '/factions/necrons',

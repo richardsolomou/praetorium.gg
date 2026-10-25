@@ -7,7 +7,7 @@ import { version } from '../../../../package.json'
 import { useQuery } from '@tanstack/react-query'
 import { HeadContent, Link, Outlet, Scripts, useLocation } from '@tanstack/react-router'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { BookOpen, Calculator, ChevronDown, Gavel, Layers3, Medal, ScrollText, Swords, Trophy, UsersRound } from 'lucide-react'
+import { BookOpen, Calculator, CalendarDays, ChevronDown, Gavel, Layers3, Medal, ScrollText, Swords, UsersRound } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { postHogEnvironment } from 'ras-stack/posthog'
@@ -44,7 +44,7 @@ const PRIMARY_LINKS = [
   { to: '/rosters', label: 'Rosters', Icon: ScrollText },
   { to: '/battles', label: 'Battles', Icon: Swords },
   { to: '/simulator', label: 'Simulator', Icon: Calculator },
-  { to: '/tournaments', label: 'Tournaments', Icon: Trophy },
+  { to: '/clubs', label: 'Events', Icon: CalendarDays, sections: ['/clubs', '/tournaments'] },
   { to: '/leaderboard', label: 'Leaderboard', Icon: Medal },
 ] as const
 
@@ -55,18 +55,32 @@ const REFERENCE_LINKS = [
   { to: '/rules', label: 'Rules', Icon: Gavel },
 ] as const
 
+const within = (path: string, section: string) => path === section || path.startsWith(`${section}/`)
+
 function Tabs({ links, tone }: { links: typeof PRIMARY_LINKS | typeof REFERENCE_LINKS; tone: string }) {
-  return links.map(({ to, label, Icon }) => (
-    <Link key={to} to={to} search={to === '/leaderboard' ? { faction: undefined } : undefined} className={cn('nav-tab', tone)}>
-      <Icon aria-hidden />
-      {label}
-    </Link>
-  ))
+  const path = useLocation({ select: (location) => location.pathname })
+  return links.map((link) => {
+    const { to, label, Icon } = link
+    // A tab that covers several sections is active in any of them, beyond the one it links to.
+    const active = 'sections' in link && link.sections.some((section) => within(path, section))
+    return (
+      <Link
+        key={to}
+        to={to}
+        search={to === '/leaderboard' ? { faction: undefined } : undefined}
+        className={cn('nav-tab', tone)}
+        {...(active ? { 'data-status': 'active', 'aria-current': 'page' } : {})}
+      >
+        <Icon aria-hidden />
+        {label}
+      </Link>
+    )
+  })
 }
 
 function ReferenceMenu() {
   const path = useLocation({ select: (location) => location.pathname })
-  const inReference = REFERENCE_LINKS.some(({ to }) => path === to || path.startsWith(`${to}/`))
+  const inReference = REFERENCE_LINKS.some(({ to }) => within(path, to))
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="nav-tab text-dim @min-[47rem]:hidden" data-status={inReference ? 'active' : undefined}>

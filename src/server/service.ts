@@ -47,8 +47,9 @@ import {
   serviceRecord,
 } from '../core/serviceRecord'
 import { routeSlug } from '../core/slug'
-import { type Standing, type StandingFaction, standings } from '../core/standings'
+import { battleOutcome, sideScore, type Standing, type StandingBattle, type StandingFaction, standings } from '../core/standings'
 import { refuse } from '../core/battlePrimitives'
+import { swissPairings, swissStandings, type SwissMatch } from '../core/swiss'
 import { leagueResults } from '../core/leagueResults'
 import { REPLAY_BATCH_SIZE, type BattlesCursor } from '../contracts/battles'
 import { gameReferencesFor } from '../shared/gameReferences'
@@ -535,7 +536,34 @@ export class PraetoriumService {
       viewerId,
     )
     const entrantIds = league.entries.filter((entry) => entry.status === 'accepted').map((entry) => entry.userId)
-    return { ...leagueResults(entrantIds, battles), partial: nextCursor !== null }
+    return {
+      ...leagueResults(entrantIds, battles),
+      swiss: league.rounds === null ? null : swissStandings(entrantIds, swissMatches(league.pairings, battles)),
+      partial: nextCursor !== null,
+    }
+  }
+
+  /** Pairs the next Swiss round from the results so far. */
+  async pairLeagueRound(leagueToken: string, eventToken: string | undefined, userId: string) {
+    const league = await this.leagueService.league(leagueToken, userId, eventToken)
+    if (!league) throw new Response('no such event', { status: 404 })
+    if (league.rounds === null || !league.revealedAt) throw new Response('pair rounds once the rosters are out', { status: 409 })
+    const { battles } = await this.leagueBattles(leagueToken, league.eventToken, { limit: LEAGUE_RESULTS_BATTLE_LIMIT }, null, [], userId)
+    const players = league.entries.filter((entry) => entry.status === 'accepted' && entry.submitted).map((entry) => entry.userId)
+    const matches = swissMatches(league.pairings, battles)
+    const round = Math.max(0, ...league.pairings.map((pairing) => pairing.round)) + 1
+    const result = await this.repository.pairLeagueRound({
+      token: leagueToken,
+      eventToken: league.eventToken,
+      ownerId: userId,
+      round,
+      pairs: swissPairings(players, matches, Math.random),
+    })
+    if (result === 'paired') return { round }
+    if (result === 'forbidden') throw new Response('only the organizer pairs rounds', { status: 403 })
+    if (result === 'not-ready') throw new Response('every table must finish its battle before the next round', { status: 409 })
+    if (result === 'missing') throw new Response('no such event', { status: 404 })
+    throw new Response('the round changed while it was being paired; try again', { status: 409 })
   }
 
   /**
@@ -665,7 +693,7 @@ export class PraetoriumService {
     if (invited.length && !guestNames.length && (typeof input !== 'object' || !input.casual)) {
       const leagueMatches = await this.leagueBattleOptions(userId, input)
       if (leagueMatches.length) {
-        throw new Response('start this matchup from its tournament page, or confirm a casual battle', { status: 409 })
+        throw new Response('start this matchup from its event page, or confirm a casual battle', { status: 409 })
       }
     }
     const practice = invited.some((id) => allowed.get(id)?.automated)
@@ -880,7 +908,7 @@ export class PraetoriumService {
     const history = await this.mustFind(token)
     if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
     if (sync) command = restoreOpaqueBattleKeys(history.players, history.log, command)
-    if (command.kind === 'lock-league-rosters') throw new Response('tournament roster locks are created by the server', { status: 403 })
+    if (command.kind === 'lock-league-rosters') throw new Response('sealed roster locks are created by the server', { status: 403 })
     // The product database refuses a non-member too; asking first gives the refusal its code.
     const clubId = command.kind === 'set-battle-club' ? command.clubId : null
     const clubRefusal =
@@ -1148,4 +1176,27 @@ export function guestDeviceHash(secret: string) {
 
 function sameHash(left: string, right: string) {
   return left.length === right.length && timingSafeEqual(Buffer.from(left), Buffer.from(right))
+}
+
+/** Each paired table as a Swiss result, read from the battle it started; a table still playing has no outcome yet. */
+function swissMatches(
+  pairings: readonly { round: number; aId: string; bId: string | null; battleToken: string | null }[],
+  battles: readonly (StandingBattle & { token: string })[],
+): SwissMatch[] {
+  const byToken = new Map(battles.map((battle) => [battle.token, battle]))
+  return pairings.map((pairing) => {
+    const battle = pairing.battleToken ? byToken.get(pairing.battleToken) : undefined
+    if (!pairing.bId || battle?.status !== 'finished')
+      return { round: pairing.round, a: pairing.aId, b: pairing.bId, outcome: null, vp: [0, 0] }
+    const sideA = battle.sides[battle.playerIds.indexOf(pairing.aId)] ?? 0
+    const sideB = battle.sides[battle.playerIds.indexOf(pairing.bId)] ?? 1
+    const outcome = battleOutcome(battle, sideA)
+    return {
+      round: pairing.round,
+      a: pairing.aId,
+      b: pairing.bId,
+      outcome: outcome === 'won' ? 'a' : outcome === 'lost' ? 'b' : 'draw',
+      vp: [sideScore(battle, sideA), sideScore(battle, sideB)],
+    }
+  })
 }

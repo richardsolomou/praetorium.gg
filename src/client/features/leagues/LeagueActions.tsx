@@ -9,11 +9,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { deleteLeague } from '../../functions'
 import { shareLink } from '../../nativeBridge'
 import { LeagueSettingsDialog } from './LeagueSettingsDialog'
-import { useLeagueRefresh } from './leagueEvent'
+import { leagueNoun, useLeagueRefresh } from './leagueEvent'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useInviteShareLabel } from '../friends/friendInvite'
 
-type ManageableLeague = { token: string; name: string }
+type ManageableLeague = { token: string; name: string; club?: unknown }
 
 /** One frame for every league card, so a card with organizer actions looks like one without. */
 export const LEAGUE_CARD = 'relative flex min-w-0 flex-col border border-edge bg-panel transition-colors hover:border-info hover:bg-raised'
@@ -50,7 +50,7 @@ export function LeaguePageActions({ actions, canDelete }: { actions: LeagueActio
   return (
     <>
       <Button variant="outline" onClick={actions.openEdit}>
-        <Pencil /> Edit tournament
+        <Pencil /> Edit {actions.noun}
       </Button>
       {canDelete ? (
         <DropdownMenu>
@@ -59,7 +59,7 @@ export function LeaguePageActions({ actions, canDelete }: { actions: LeagueActio
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuItem variant="destructive" onClick={actions.openDeleting}>
-              <Trash2 /> Delete tournament
+              <Trash2 /> Delete {actions.noun}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -110,7 +110,7 @@ function LeagueActionItems({
     <>
       {showView ? (
         <Item render={<Link to="/tournaments/$token" params={{ token: actions.league.token }} />}>
-          <Eye /> View tournament
+          <Eye /> View {actions.noun}
         </Item>
       ) : null}
       {showShare ? (
@@ -120,11 +120,11 @@ function LeagueActionItems({
         </Item>
       ) : null}
       <Item onClick={actions.openEdit}>
-        <Pencil /> Edit tournament
+        <Pencil /> Edit {actions.noun}
       </Item>
       {canDelete ? (
         <Item variant="destructive" onClick={actions.openDeleting}>
-          <Trash2 /> Delete tournament
+          <Trash2 /> Delete {actions.noun}
         </Item>
       ) : null}
     </>
@@ -139,8 +139,8 @@ function LeagueActionDialogs({ actions }: { actions: LeagueActionsController }) 
         open={actions.deleting}
         title={`Delete ${actions.league.name}?`}
         description="Every entrant and sealed roster goes with it, for good. Battles already started from it stay where they are."
-        cancel="Keep tournament"
-        confirm="Delete tournament"
+        cancel={`Keep ${actions.noun}`}
+        confirm={`Delete ${actions.noun}`}
         pendingLabel="Deleting…"
         destructive
         pending={actions.remove.isPending}
@@ -148,7 +148,7 @@ function LeagueActionDialogs({ actions }: { actions: LeagueActionsController }) 
         onClose={() => actions.setDeleting(false)}
         onConfirm={() => actions.remove.mutate()}
       >
-        {actions.remove.isPending ? <output className="sr-only">Deleting the tournament…</output> : null}
+        {actions.remove.isPending ? <output className="sr-only">Deleting the {actions.noun}…</output> : null}
       </ConfirmDialog>
     </>
   )
@@ -213,6 +213,7 @@ export function useLeagueActions(league: ManageableLeague, onDeleted?: () => voi
   })
   return {
     league,
+    noun: leagueNoun(league).noun,
     editing,
     setEditing,
     deleting,

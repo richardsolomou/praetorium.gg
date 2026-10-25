@@ -4,7 +4,8 @@ import { pageHead } from '../client/linkPreview'
 import { clubsQuery } from '../client/queries'
 
 export const Route = createFileRoute('/clubs/')({
-  loader: ({ context }) => context.queryClient.query({ ...clubsQuery(), staleTime: 'static' }),
+  // Events opens here, so a device offline before it ever read its clubs still reaches the page and its tabs.
+  loader: ({ context }) => context.queryClient.query({ ...clubsQuery(), staleTime: 'static' }).catch(() => null),
   head: ({ match }) =>
     pageHead(match.context.origin, {
       title: 'Clubs',

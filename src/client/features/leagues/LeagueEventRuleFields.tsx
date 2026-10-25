@@ -24,14 +24,18 @@ import {
 } from '../../../core/league'
 import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { Choice } from '../../components/Choice'
+import { SWISS_ROUNDS_MAX } from '../../../core/swiss'
 import { leagueAllowances } from './leagueEvent'
 
-type LeagueEventRuleValue = { format: TableShape; rosterLimit: number; allowances: LeagueAllowance[] }
+/** `rounds` is the Swiss rounds the organizer pairs, or null for open play. */
+type LeagueEventRuleValue = { format: TableShape; rosterLimit: number; allowances: LeagueAllowance[]; rounds: number | null }
 
 /** Drops what a new format or size no longer offers, so the form never holds an allowance it does not show. */
 const offeredAllowances = (rule: LeagueEventRuleValue): LeagueEventRuleValue => ({
   ...rule,
   allowances: offeredLeagueAllowances(rule.format, rule.rosterLimit, rule.allowances),
+  // Swiss rounds pair duels only.
+  rounds: rule.format === '1v1' ? rule.rounds : null,
 })
 
 /** What a team shape asks of an entrant's roster; a duel's points say it all. */
@@ -42,10 +46,13 @@ export const ROSTER_RULE: Partial<Record<TableShape, string>> = {
 
 export function LeagueEventRuleFields({
   value,
+  pairing = false,
   disabled = false,
   onChange,
 }: {
   value: LeagueEventRuleValue
+  /** Whether the organizer may choose Swiss rounds, which a club's sealed game never plays. */
+  pairing?: boolean
   disabled?: boolean
   onChange: (value: LeagueEventRuleValue) => void
 }) {
@@ -108,10 +115,62 @@ export function LeagueEventRuleFields({
         )}
         {ROSTER_RULE[value.format] ? <p className="text-xs text-dim">{ROSTER_RULE[value.format]}</p> : null}
       </div>
+      {pairing && value.format === '1v1' ? <Pairing value={value} disabled={disabled} onChange={onChange} /> : null}
       <HouseRules value={value} disabled={disabled} onChange={onChange} />
     </>
   )
 }
+
+/** Open play lets entrants choose their opponents; Swiss rounds have the organizer pair each round on the scores so far. */
+function Pairing({
+  value,
+  disabled,
+  onChange,
+}: {
+  value: LeagueEventRuleValue
+  disabled: boolean
+  onChange: (value: LeagueEventRuleValue) => void
+}) {
+  return (
+    <div className="space-y-3">
+      <Choice
+        label="Pairing"
+        value={value.rounds === null ? 'open' : 'swiss'}
+        options={[
+          { value: 'open', name: 'Open play', detail: 'Players choose who to play, as often as they like.' },
+          { value: 'swiss', name: 'Swiss rounds', detail: 'You pair each round on the scores so far, without rematches.' },
+        ]}
+        columns={2}
+        disabled={disabled}
+        onChange={(pairing) => onChange({ ...value, rounds: pairing === 'open' ? null : (value.rounds ?? SWISS_DEFAULT_ROUNDS) })}
+      />
+      {value.rounds === null ? null : (
+        <div className="space-y-1.5">
+          <Label htmlFor="league-event-rounds">Rounds</Label>
+          <Select
+            value={String(value.rounds)}
+            disabled={disabled}
+            onValueChange={(rounds) => rounds && onChange({ ...value, rounds: Number(rounds) })}
+          >
+            <SelectTrigger id="league-event-rounds" className="h-11 w-full">
+              <SelectValue>{() => `${value.rounds} rounds`}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {Array.from({ length: SWISS_ROUNDS_MAX }, (_, index) => index + 1).map((rounds) => (
+                <SelectItem key={rounds} value={String(rounds)}>
+                  {rounds === 1 ? '1 round' : `${rounds} rounds`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-dim">Three suits up to eight players, four up to sixteen.</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const SWISS_DEFAULT_ROUNDS = 3
 
 /**
  * The event's restrictions read as the roster picker's menu does, ticked while enforced, so an organizer unticks what

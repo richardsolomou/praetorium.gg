@@ -2,4 +2,4 @@
 'praetorium.gg': minor
 ---
 
-Leagues are now tournaments: one sealed-roster event each, run on its own or inside a club.
+Leagues are now tournaments: one sealed-roster event each, or a sealed game when a club plays one.

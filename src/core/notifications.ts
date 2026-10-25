@@ -51,7 +51,7 @@ export function noticeMessage(notice: Notice, names: { actor?: string; league?: 
     case 'battle-created':
       return {
         title: 'New battle',
-        body: `${actor} started ${notice.league ? 'a tournament battle' : 'a battle'} with you.`,
+        body: `${actor} started ${notice.league ? 'a sealed-roster battle' : 'a battle'} with you.`,
         path: `/battles/${encodeURIComponent(notice.battleToken)}`,
       }
     case 'friend-requested':
@@ -73,7 +73,7 @@ export function noticeMessage(notice: Notice, names: { actor?: string; league?: 
         'league-entry-added': `${actor} added you as a player. Seal your list.`,
         'league-entry-rejected': 'The organizer declined your entry.',
         'league-roster-reseal': 'Your sealed list was cleared after a size or team change. Seal a replacement.',
-        'league-revealed': 'The rosters are out. Start your tournament battles.',
+        'league-revealed': 'The rosters are out. Start your battles.',
         'league-roster-unsealed': 'The organizer unsealed your roster. Seal a replacement.',
       }[notice.kind]
       return { title: names.league, body, path: `/tournaments/${encodeURIComponent(notice.leagueToken)}${query}` }

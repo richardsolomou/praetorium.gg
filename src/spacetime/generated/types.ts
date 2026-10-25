@@ -257,6 +257,7 @@ export const LeagueEvents = __t.object('LeagueEvents', {
   revealedAt: __t.option(__t.u64()),
   revealedBy: __t.option(__t.string()),
   allowances: __t.option(__t.string()),
+  rounds: __t.option(__t.u32()),
 })
 export type LeagueEvents = __Infer<typeof LeagueEvents>
 
@@ -267,6 +268,17 @@ export const LeagueRosterSharing = __t.object('LeagueRosterSharing', {
   rosterId: __t.option(__t.string()),
 })
 export type LeagueRosterSharing = __Infer<typeof LeagueRosterSharing>
+
+export const LeagueRoundPairings = __t.object('LeagueRoundPairings', {
+  key: __t.string(),
+  eventId: __t.string(),
+  round: __t.u32(),
+  table: __t.u32(),
+  aId: __t.string(),
+  bId: __t.option(__t.string()),
+  battleId: __t.option(__t.string()),
+})
+export type LeagueRoundPairings = __Infer<typeof LeagueRoundPairings>
 
 export const Leagues = __t.object('Leagues', {
   id: __t.string(),

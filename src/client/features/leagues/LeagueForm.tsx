@@ -29,6 +29,7 @@ export type LeagueFormValue = {
   format: TableShape
   rosterLimit: number
   allowances: LeagueAllowance[]
+  rounds: number | null
 }
 
 /**
@@ -44,6 +45,7 @@ export function LeagueFormFields({
   seated = 0,
   limitFormat = value.format,
   ruleLock = null,
+  listing,
   ownerPlays,
   optionsOpen = false,
   admins,
@@ -59,6 +61,8 @@ export function LeagueFormFields({
   limitFormat?: TableShape | null
   /** Why the format and points can no longer change, or null while they can. */
   ruleLock?: string | null
+  /** Whether a public league is listed on the tournaments page, which a club's sealed game never is. */
+  listing: boolean
   /** Whether the organizer enters as a player; omitted where their entry already stands on its own. */
   ownerPlays?: boolean
   /** Whether More options starts unfolded, as it does when editing a league that already has them set. */
@@ -104,6 +108,7 @@ export function LeagueFormFields({
         ) : (
           <LeagueEventRuleFields
             value={value}
+            pairing={listing}
             disabled={disabled}
             onChange={(rule) =>
               // A shape the limit cannot seat starts its limit at the fewest places that do.
@@ -170,7 +175,7 @@ export function LeagueFormFields({
                   ? `No lower than ${minimum} while entry is open.`
                   : limitFormat === '2v2'
                     ? 'Doubles needs an even number of places, at least four.'
-                    : 'A 2v1 tournament needs at least three places.'}
+                    : '2v1 needs at least three places.'}
               </p>
             ) : null}
           </div>
@@ -180,7 +185,7 @@ export function LeagueFormFields({
             columns={2}
             options={[
               { value: 'private', name: 'Private link', detail: 'Only people you send it to.' },
-              { value: 'public', name: 'Public', detail: 'Listed on the tournaments page.' },
+              { value: 'public', name: 'Public', detail: listing ? 'Listed on the tournaments page.' : 'Anyone can open it.' },
             ]}
             disabled={disabled}
             onChange={(visibility) => onChange({ ...value, visibility })}

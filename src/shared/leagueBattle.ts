@@ -3,11 +3,27 @@ import { type Command, GAME_SIZES } from '../core/battle'
 import { alliedLeagueRosterLimit, LEAGUE_TEAM_ROSTER_LIMITS } from '../core/league'
 import type { TableShape } from '../core/tableShape'
 
+/** The two players' unplayed table in the latest Swiss round, if they have one. */
+export function openPairing<T extends { round: number; aId: string; bId: string | null; battleToken: string | null }>(
+  pairings: readonly T[],
+  userId: string,
+  opponentId: string | undefined,
+) {
+  const round = Math.max(0, ...pairings.map((pairing) => pairing.round))
+  const seated = (pairing: T, id: string | undefined) => pairing.aId === id || pairing.bId === id
+  return pairings.find(
+    (pairing) => pairing.round === round && pairing.battleToken === null && seated(pairing, userId) && seated(pairing, opponentId),
+  )
+}
+
 export type LeagueBattleSetup = {
   eventToken: string
   format: TableShape | null
   rosterLimit: number | null
   revealedAt: number | null
+  /** Swiss rounds, or null in open play; a Swiss battle needs the players' unplayed table in the current round. */
+  rounds: number | null
+  paired: boolean
   /**
    * `teamDisposition` is the card the entrant's fixed pair sealed and `teamWarlord` the entrant whose Warlord leads it,
    * each absent from events revealed before pairs sealed one.
@@ -64,7 +80,9 @@ export function buildLeagueBattle(
 ) {
   const invited = [opponentId, allyId, secondOpponentId].filter((id): id is string => Boolean(id))
 
-  if (league.revealedAt === null) throw new LeagueBattleSetupError('reveal the tournament rosters before starting a battle', 409)
+  if (league.revealedAt === null) throw new LeagueBattleSetupError('reveal the rosters before starting a battle', 409)
+  if (league.rounds !== null && !league.paired)
+    throw new LeagueBattleSetupError('play the opponent you were paired with this round, once the round is paired', 409)
   const expectedPlayers = league.format === '2v2' ? 4 : league.format === '2v1' ? 3 : 2
   if (league.format === '2v2' && !LEAGUE_TEAM_ROSTER_LIMITS.some((candidate) => candidate === league.rosterLimit)) {
     throw new LeagueBattleSetupError('sealed rosters use an unsupported doubles force size', 409)
@@ -75,7 +93,7 @@ export function buildLeagueBattle(
   }
   const rosters = new Map(
     league.entries.map((entry) => {
-      if (!entry.snapshot) throw new Error('accepted tournament entrant has no roster snapshot')
+      if (!entry.snapshot) throw new Error('accepted entrant has no roster snapshot')
       return [entry.userId, parseRosterSnapshot(entry.snapshot)] as const
     }),
   )

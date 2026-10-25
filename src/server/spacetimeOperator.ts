@@ -157,6 +157,16 @@ const leagueEvent = z.object({
     .string()
     .nullable()
     .transform((value) => (value === null ? null : parseLeagueAllowances(value))),
+  // Absent from a module deployed before Swiss rounds.
+  rounds: z.number().int().nullable().default(null),
+})
+const leaguePairing = z.object({
+  key: z.string(),
+  round: z.number().int(),
+  table: z.number().int(),
+  aId: z.string(),
+  bId: z.string().nullable(),
+  battleToken: z.string().nullable(),
 })
 const leagueEntry = z.object({
   key: z.string(),
@@ -185,6 +195,7 @@ const leagueRecord = z.object({
   latestEntryCount: z.number().int(),
   latestAcceptedCount: z.number().int(),
   club: z.object({ token: z.string(), name: z.string() }).nullable().default(null),
+  pairings: z.array(leaguePairing).default([]),
 })
 const visibleLeague = z.object({
   league,

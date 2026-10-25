@@ -83,6 +83,7 @@ describe('sharing a revealed league roster', () => {
         revealedAt: revealed ? 10n : undefined,
         revealedBy: 'organizer',
         allowances: undefined,
+        rounds: undefined,
       })
       ctx.db.leagueEventEntries.insert({
         key: '["event","entrant"]',
@@ -312,6 +313,7 @@ describe('what a league event allows', () => {
         revealedAt: undefined,
         revealedBy: undefined,
         allowances,
+        rounds: undefined,
       })
       for (const userId of ['entrant', 'ally'])
         ctx.db.leagueEventEntries.insert({
@@ -600,6 +602,7 @@ describe('leagues becoming clubs', () => {
           revealedAt: undefined,
           revealedBy: undefined,
           allowances: '[]',
+          rounds: undefined,
         })
       }
       for (const [eventId, userId, status] of [
@@ -668,6 +671,109 @@ describe('leagues becoming clubs', () => {
     const fixture = setup()
     fixture.migrate()
     expect(fixture.migrate()).toBe(0)
+  })
+})
+
+describe('swiss rounds', () => {
+  const players = ['a', 'b', 'c', 'd']
+  function setup() {
+    const host = harness()
+    host.call(host.operator, (ctx) => {
+      ctx.db.leagues.insert({
+        id: 'league',
+        token: 'league',
+        ownerId: 'organizer',
+        name: 'Open',
+        description: '',
+        visibility: 'public',
+        admission: 'automatic',
+        playerLimit: undefined,
+        recurring: false,
+        createdAt: 1n,
+        clubId: undefined,
+      })
+      ctx.db.leagueEvents.insert({
+        id: 'event',
+        token: 'event',
+        leagueId: 'league',
+        number: 1,
+        format: '1v1',
+        rosterLimit: 2000,
+        createdAt: 1n,
+        revealedAt: 2n,
+        revealedBy: 'organizer',
+        allowances: '[]',
+        rounds: 3,
+      })
+      for (const userId of players)
+        ctx.db.leagueEventEntries.insert({
+          key: JSON.stringify(['event', userId]),
+          eventId: 'event',
+          userId,
+          status: 'accepted',
+          joinedAt: 1n,
+          rosterId: undefined,
+          rosterName: 'Army',
+          rosterSnapshot: JSON.stringify({ name: 'Army', text: '10 Intercessors' }),
+          submittedAt: 1n,
+          requiredLimit: undefined,
+          teamId: undefined,
+        })
+    })
+    const command = (input: Record<string, unknown>) =>
+      JSON.parse(
+        module.leagueCommand(host.procedure(host.operator), {
+          payload: JSON.stringify({ token: 'league', eventToken: 'event', ownerId: 'organizer', ...input }),
+        }),
+      ) as unknown
+    const pair = (round: number, pairs: [string, string | null][]) => command({ op: 'pair-round', round, pairs })
+    const battle = (userId: string, opponentId: string, pairingKey: string) =>
+      command({
+        op: 'create-battle',
+        ownerId: userId,
+        id: `battle-${userId}`,
+        battleToken: `battle-token-${userId}`,
+        userId,
+        allyIds: [],
+        opponentIds: [opponentId],
+        initialCommands: [],
+        now: NOW,
+        expectedLatest: true,
+        expectedEntries: [userId, opponentId]
+          .toSorted((left, right) => players.indexOf(left) - players.indexOf(right))
+          .map((id) => ({ userId: id, snapshot: JSON.stringify({ name: 'Army', text: '10 Intercessors' }) })),
+        pairingKey,
+      })
+    return { pair, battle }
+  }
+  const table = (round: number, number: number) => JSON.stringify(['event', round, number])
+
+  it('seats every sealed entrant at one table', () => {
+    expect(setup().pair(1, [['a', 'b']])).toBe('stale')
+  })
+
+  it('plays a table only against the paired opponent', () => {
+    const swiss = setup()
+    swiss.pair(1, [
+      ['a', 'b'],
+      ['c', 'd'],
+    ])
+    expect(swiss.battle('a', 'c', table(1, 1))).toBe(false)
+  })
+
+  it('waits for every table before pairing the next round', () => {
+    const swiss = setup()
+    swiss.pair(1, [
+      ['a', 'b'],
+      ['c', 'd'],
+    ])
+    swiss.battle('a', 'b', table(1, 1))
+    expect(
+      swiss.pair(2, [
+        ['a', 'c'],
+        ['b', 'd'],
+      ]),
+    ).toBe('not-ready')
   })
 })
 

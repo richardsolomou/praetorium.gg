@@ -137,7 +137,7 @@ export function Spectator({
                 search={view.leagueEventToken ? { event: view.leagueEventToken } : {}}
                 className="inline-flex shrink-0 items-center gap-1 text-info hover:text-bone"
               >
-                <ArrowLeft className="size-3.5" /> Tournament
+                <ArrowLeft className="size-3.5" /> Event
               </Link>
             ) : null}
             {view.clubId ? <ClubLink token={view.token} /> : null}

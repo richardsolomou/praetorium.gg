@@ -148,7 +148,7 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
         <ClubFigures club={club} members={accepted.length} table={table} />
         {member ? null : <JoinClub club={club} viewerId={viewerId} own={own} />}
         {table ? <TableSection table={table} viewerId={viewerId} member={member} /> : null}
-        <Tournaments club={club} />
+        <SealedGames club={club} />
         <Members club={club} viewerId={viewerId} isOwner={isOwner} />
       </PageContent>
 
@@ -156,7 +156,7 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
       <ConfirmDialog
         open={deleting}
         title={`Delete ${club.name}?`}
-        description="The club, its members and its table go for good. Its tournaments and battles stay where they are."
+        description="The club, its members and its table go for good. Its sealed games and battles stay where they are."
         cancel="Keep club"
         confirm="Delete club"
         pendingLabel="Deleting…"
@@ -189,7 +189,7 @@ function ClubFigures({ club, members, table }: { club: Club; members: number; ta
   const figures = [
     { label: 'Members', value: String(members) },
     { label: 'Battles', value: table ? String(table.finished) : '–' },
-    { label: 'Tournaments', value: String(club.tournaments.length) },
+    { label: 'Sealed games', value: String(club.tournaments.length) },
   ]
   return (
     <dl className="grid grid-cols-3 border border-edge bg-panel sm:grid-cols-4">
@@ -271,7 +271,7 @@ function TableSection({ table, viewerId, member }: { table: ClubTable; viewerId:
       <div className="space-y-2">
         <Standings table={table.table} viewerId={viewerId ?? undefined} title="Table" empty="No club battle has finished yet." />
         <p className="text-sm text-faint">
-          Battles members chose the club for, and the battles of its tournaments, rated from 1000 like the leaderboard. Guest, practice and
+          Battles members chose the club for, and the battles of its sealed games, rated from 1000 like the leaderboard. Guest, practice and
           manually tracked battles never count.{table.partial ? ' Only the most recent 10,000 battles are counted.' : ''}
         </p>
       </div>
@@ -280,20 +280,20 @@ function TableSection({ table, viewerId, member }: { table: ClubTable; viewerId:
   )
 }
 
-/** Sealed-roster events the club has run; its organizers start new ones here. */
-function Tournaments({ club }: { club: Club }) {
+/** Sealed-roster games the club has played; its organizers start new ones here. */
+function SealedGames({ club }: { club: Club }) {
   const refresh = useClubRefresh(club.token)
   const [creating, setCreating] = useState(false)
   if (!club.tournaments.length && !club.organizer) return null
   return (
     <section>
       <SectionHeading
-        title="Tournaments"
+        title="Sealed games"
         count={club.tournaments.length}
         action={
           club.organizer ? (
             <Button size="sm" variant="outline" onClick={() => setCreating(true)}>
-              <Plus /> New tournament
+              <Plus /> New sealed game
             </Button>
           ) : null
         }
@@ -318,8 +318,7 @@ function Tournaments({ club }: { club: Club }) {
         </ul>
       ) : (
         <p className="text-sm text-dim">
-          Run a tournament when the club wants one: everyone seals a roster in secret, the rosters open together, and its battles count here
-          too.
+          Everyone seals a roster in secret, the rosters open together, then you play them. The battles count on the club’s table.
         </p>
       )}
       <LeagueSettingsDialog

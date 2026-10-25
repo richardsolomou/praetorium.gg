@@ -384,6 +384,8 @@ export async function createLeague(args: Parameters<typeof server.createLeague>[
     // The club is named once the server has checked the organizer may add to it.
     clubId: null,
     club: null,
+    rounds: input.rounds ?? null,
+    pairings: [],
     eventToken: identifiers.eventToken,
     eventNumber: 1,
     eventCreatedAt: now,
@@ -406,6 +408,7 @@ export async function createLeague(args: Parameters<typeof server.createLeague>[
         createdAt: now,
         revealedAt: null,
         revealedBy: null,
+        rounds: input.rounds ?? null,
       },
     ],
   }

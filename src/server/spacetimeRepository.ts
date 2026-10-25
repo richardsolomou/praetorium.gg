@@ -11,6 +11,7 @@ import {
 } from '../core/league'
 import { TABLE_SHAPES, type TableShape } from '../core/tableShape'
 import { CLUB_MEMBER_STATUSES } from '../core/club'
+import { openPairing } from '../shared/leagueBattle'
 import type { Command } from '../core/battle'
 import { z } from 'zod'
 import { SqliteAccountRepository } from './accountRepository'
@@ -292,6 +293,7 @@ export class SpacetimeRepository {
     allowances?: readonly LeagueAllowance[]
     ownerPlays?: boolean
     clubToken?: string
+    rounds?: number | null
     now: number
   }) {
     return this.product.leagueCommand(
@@ -347,7 +349,7 @@ export class SpacetimeRepository {
       visibility: LeagueVisibility
       admission: LeagueAdmission
       playerLimit: number | null
-      rule?: { format: TableShape; rosterLimit: number; allowances?: readonly LeagueAllowance[] }
+      rule?: { format: TableShape; rosterLimit: number; allowances?: readonly LeagueAllowance[]; rounds?: number | null }
     },
   ) {
     return this.product.leagueCommand(
@@ -357,6 +359,10 @@ export class SpacetimeRepository {
         z.enum(['missing', 'forbidden', 'below-accepted', 'team-minimum', 'closed', 'sealed']),
       ]),
     )
+  }
+
+  pairLeagueRound(input: { token: string; eventToken: string; ownerId: string; round: number; pairs: [string, string | null][] }) {
+    return this.product.leagueCommand({ op: 'pair-round', ...input }, z.enum(['paired', 'not-ready', 'stale', 'missing', 'forbidden']))
   }
 
   deleteLeague(token: string, ownerId: string) {
@@ -548,6 +554,7 @@ export class SpacetimeRepository {
       latestEntryCount,
       latestAcceptedCount,
       club,
+      pairings,
     } = record
     const profiles = await this.accounts.profilesByIds([
       league.ownerId,
@@ -589,6 +596,8 @@ export class SpacetimeRepository {
       currentEntrantCount: latestEntryCount,
       currentAcceptedCount: latestAcceptedCount,
       club,
+      rounds: selected.rounds,
+      pairings,
       events: events.map(({ id: _id, leagueId: _leagueId, ...event }) => event),
       occupiedCount: entries.filter((entry) => entry.status !== 'rejected').length,
       entries: entries.map((entry) => {
@@ -779,6 +788,9 @@ export class SpacetimeRepository {
       format: TableShape | null
       rosterLimit: number | null
       revealedAt: number | null
+      /** Whether the two players have an unplayed table in the current Swiss round. */
+      paired: boolean
+      rounds: number | null
       entries: {
         userId: string
         requiredLimit: number | null
@@ -802,11 +814,14 @@ export class SpacetimeRepository {
         entry.rosterSnapshot !== null &&
         (event.format === '2v2' || event.format === '2v1' || input.userIds.includes(entry.userId)),
     )
+    const pairing = openPairing(record.pairings, input.userId, input.userIds[1])
     const prepared = await prepare({
       eventToken: event.token,
       format: event.format,
       rosterLimit: event.rosterLimit,
       revealedAt: event.revealedAt,
+      rounds: event.rounds,
+      paired: Boolean(pairing),
       entries: entries.map((entry) => ({
         userId: entry.userId,
         requiredLimit: entry.requiredLimit,
@@ -831,6 +846,7 @@ export class SpacetimeRepository {
         now: input.now,
         expectedLatest: !input.eventToken,
         expectedEntries: entries.map((entry) => ({ userId: entry.userId, snapshot: entry.rosterSnapshot! })),
+        ...(pairing ? { pairingKey: pairing.key } : {}),
       },
       z.boolean(),
     )

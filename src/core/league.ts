@@ -431,11 +431,11 @@ export function leagueAllowanceRefusal(roster: Roster, allowances: readonly stri
   if (allowances === null || !built) return null
   const waived = waivedFormatRules(built.limit, built.waivedRules).filter((rule) => !allowances.includes(rule.id))
   if (waived.length)
-    return `This tournament keeps ${formatList(waived.map((rule) => rule.label))} on. Switch ${waived.length === 1 ? 'it' : 'them'} back on in the picker’s Format restrictions, then seal again.`
+    return `This event keeps ${formatList(waived.map((rule) => rule.label))} on. Switch ${waived.length === 1 ? 'it' : 'them'} back on in the picker’s Format restrictions, then seal again.`
   for (const unit of built.units) {
     const kind = nonMatchedPlayKind(unit.name)
     if (kind && !allowances.includes(kind))
-      return `This tournament doesn’t allow ${NON_MATCHED_PLAY_LABELS[kind]} datasheets, such as ${matchedPlayName(unit.name)}. Remove them, then seal again.`
+      return `This event doesn’t allow ${NON_MATCHED_PLAY_LABELS[kind]} datasheets, such as ${matchedPlayName(unit.name)}. Remove them, then seal again.`
   }
   return null
 }

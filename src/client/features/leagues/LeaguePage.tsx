@@ -8,7 +8,7 @@ import { leagueQuery, meQuery } from '../../queries'
 import { isLeagueOrganizer } from '../../../core/league'
 import { LeaguePageActions, useLeagueActions } from './LeagueActions'
 import { LeagueEventView } from './LeagueEventView'
-import { leagueAllowances, leagueFormat, leaguePhase, leaguePlayers, type League } from './leagueEvent'
+import { leagueAllowances, leagueFormat, leagueNoun, leaguePhase, leaguePlayers, type League } from './leagueEvent'
 
 export function LeaguePage({
   token,
@@ -51,22 +51,31 @@ function LeagueScreen({
     league.admins.map((admin) => admin.id),
     viewerId,
   )
-  const actions = useLeagueActions(league, () => navigate({ to: '/tournaments' }))
+  const actions = useLeagueActions(league, () =>
+    league.club ? navigate({ to: '/clubs/$token', params: { token: league.club.token } }) : navigate({ to: '/tournaments' }),
+  )
   const accepted = league.entries.filter((entry) => entry.status === 'accepted').length
   const phase = leaguePhase(league, accepted, league.occupiedCount)
 
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Tournament"
+        eyebrow={leagueNoun(league).Noun}
         title={league.name}
         actions={isOrganizer ? <LeaguePageActions actions={actions} canDelete={isOwner} /> : null}
       >
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <span className={`chip ${phase.tint}`}>{phase.label}</span>
           <span className="flex flex-wrap items-center gap-x-1.5 text-sm text-dim">
-            {[leagueFormat(league), leagueAllowances(league), leaguePlayers(league, accepted)].filter(Boolean).join(' · ')} ·
-            {league.visibility === 'private' ? <LockKeyhole className="size-3.5" aria-hidden /> : <Eye className="size-3.5" aria-hidden />}
+            {[
+              leagueFormat(league),
+              league.rounds ? `Swiss, ${league.rounds} ${league.rounds === 1 ? 'round' : 'rounds'}` : null,
+              leagueAllowances(league),
+              leaguePlayers(league, accepted),
+            ]
+              .filter(Boolean)
+              .join(' · ')}{' '}
+            ·{league.visibility === 'private' ? <LockKeyhole className="size-3.5" aria-hidden /> : <Eye className="size-3.5" aria-hidden />}
             {league.visibility === 'private' ? 'Private link' : 'Public'} ·{' '}
             {league.admission === 'approval' ? 'Approval required' : 'Anyone can join'}
           </span>

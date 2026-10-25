@@ -36,6 +36,7 @@ import {
   requiredLeagueRosterLimit,
 } from '../../src/core/league'
 import { parseRosterSnapshot, rosterPickSchema } from '../../src/core/commands'
+import { SWISS_ROUNDS_MAX } from '../../src/core/swiss'
 import {
   CLUB_ADMIN_MAX,
   CLUB_DESCRIPTION_MAX_LENGTH,
@@ -308,6 +309,10 @@ function deleteBattle(ctx: Context, battleId: string) {
   for (const row of Array.from(ctx.db.commands.battleId.filter(battleId))) ctx.db.commands.key.delete(row.key)
   for (const row of Array.from(ctx.db.battleUsers.battleId.filter(battleId))) ctx.db.battleUsers.key.delete(row.key)
   for (const row of Array.from(ctx.db.guestSeats.battleId.filter(battleId))) ctx.db.guestSeats.seatId.delete(row.seatId)
+  // A deleted table battle frees its pairing, so the two players can start it again.
+  if (leagueEvent)
+    for (const pairing of Array.from(ctx.db.leagueRoundPairings.eventId.filter(leagueEvent.eventId)))
+      if (pairing.battleId === battleId) ctx.db.leagueRoundPairings.key.update({ ...pairing, battleId: undefined })
   ctx.db.leagueEventBattles.battleId.delete(battleId)
   ctx.db.clubBattles.battleId.delete(battleId)
   ctx.db.battles.id.delete(battleId)
@@ -321,6 +326,7 @@ function deleteLeague(ctx: Context, leagueId: string) {
     clearTeamPicks(ctx, event.id)
     for (const row of Array.from(ctx.db.leagueEventBattles.eventId.filter(event.id)))
       ctx.db.leagueEventBattles.battleId.delete(row.battleId)
+    for (const row of Array.from(ctx.db.leagueRoundPairings.eventId.filter(event.id))) ctx.db.leagueRoundPairings.key.delete(row.key)
     ctx.db.leagueEvents.id.delete(event.id)
   }
   for (const row of Array.from(ctx.db.leagueAdmins.leagueId.filter(leagueId))) ctx.db.leagueAdmins.key.delete(row.key)
@@ -2543,6 +2549,24 @@ function leagueEntriesFor(ctx: Context, eventId: string) {
   )
 }
 
+function roundPairings(ctx: Context, eventId: string) {
+  return Array.from(ctx.db.leagueRoundPairings.eventId.filter(eventId)).sort((a, b) => a.round - b.round || a.table - b.table)
+}
+
+/** A bye is done as soon as it is paired; a table once its battle has ended. */
+function pairingFinished(ctx: Context, pairing: { bId: string | undefined; battleId: string | undefined }) {
+  if (pairing.bId === undefined) return true
+  if (pairing.battleId === undefined || !ctx.db.battles.id.find(pairing.battleId)) return false
+  const { seats, log } = battleData(ctx, pairing.battleId)
+  return (
+    reduceBattle(
+      seats.map((seat) => seat.id),
+      log,
+      seats.map((seat) => seat.side),
+    ).status === 'finished'
+  )
+}
+
 function leagueEventFor(ctx: Context, leagueId: string, token: string | null) {
   const events = leagueEventsFor(ctx, leagueId)
   return token ? events.find((event) => event.token === token) : events[0]
@@ -2574,6 +2598,14 @@ function leagueRecord(ctx: Context, token: string, eventToken: string | null) {
     adminIds: leagueAdminIds(ctx, league.id),
     latestEntryCount: latestEntries.length,
     latestAcceptedCount: latestEntries.filter((entry) => entry.status === 'accepted').length,
+    pairings: roundPairings(ctx, selected.id).map((pairing) => ({
+      key: pairing.key,
+      round: pairing.round,
+      table: pairing.table,
+      aId: pairing.aId,
+      bId: pairing.bId ?? null,
+      battleToken: pairing.battleId ? (ctx.db.battles.id.find(pairing.battleId)?.token ?? null) : null,
+    })),
     club: (() => {
       const club = league.clubId ? ctx.db.clubs.id.find(league.clubId) : undefined
       return club ? { token: club.token, name: club.name } : null
@@ -2864,10 +2896,13 @@ function leagueCommandInput<S extends z.ZodType>(inputSchema: S, value: unknown)
 const leagueTimeInput = z.number().int().nonnegative()
 const leagueFormatInput = z.enum(TABLE_SHAPES)
 // Absent on an update from an older client, which leaves the event's allowances as they stand.
+const leagueRoundsInput = z.number().int().min(1).max(SWISS_ROUNDS_MAX).nullable()
 const leagueRuleInput = z.object({
   format: leagueFormatInput,
   rosterLimit: z.number().int().positive().max(10_000),
   allowances: leagueAllowancesSchema.optional(),
+  // Absent from an older client, which leaves the event's pairing as it stands.
+  rounds: leagueRoundsInput.optional(),
 })
 
 /** Null for an event created before allowances were recorded. */
@@ -3640,11 +3675,13 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         allowances: leagueAllowancesSchema.default([]),
         ownerPlays: z.boolean().default(false),
         clubToken: idInput.optional(),
+        rounds: leagueRoundsInput.default(null),
         now: leagueTimeInput,
       }),
       value,
     )
     if (!leaguePlacesSeat(input.format, input.playerLimit)) return productJson('too-small')
+    if (input.rounds !== null && (input.clubToken || (input.format ?? '1v1') !== '1v1')) return productJson('forbidden')
     const club = input.clubToken ? tx.db.clubs.token.find(input.clubToken) : undefined
     if (input.clubToken && (!club || !isClubOrganizer(club, clubMemberRows(tx, club), input.ownerId))) return productJson('forbidden')
     tx.db.leagues.insert({
@@ -3672,6 +3709,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       revealedAt: undefined,
       revealedBy: undefined,
       allowances: JSON.stringify(input.allowances),
+      rounds: input.rounds ?? undefined,
     })
     if (input.ownerPlays) insertLeagueEntry(tx, input.eventId, input.ownerId, 'accepted', input.now)
     touchProduct(tx, input.ownerId, 'leagues', 'onboarding')
@@ -3794,6 +3832,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       createdAt: BigInt(input.now),
       revealedAt: undefined,
       revealedBy: undefined,
+      rounds: undefined,
     })
     if (input.ownerPlays) insertLeagueEntry(tx, input.id, ownerId, 'accepted', input.now)
     touchLeague(tx, league.id, latest.id)
@@ -3825,11 +3864,14 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       if (input.playerLimit !== null && input.playerLimit < accepted) return productJson('below-accepted')
     }
     if (rule) {
+      const rounds = rule.rounds === undefined ? current.rounds : (rule.rounds ?? undefined)
+      if (rounds !== undefined && (league.clubId !== undefined || rule.format !== '1v1')) return productJson('forbidden')
       tx.db.leagueEvents.id.update({
         ...current,
         format: rule.format,
         rosterLimit: rule.rosterLimit,
         allowances: rule.allowances === undefined ? current.allowances : JSON.stringify(rule.allowances),
+        rounds,
       })
       // Sizes and pairs follow the format and points; what lists may waive leaves them standing.
       if (rule.format !== current.format || rule.rosterLimit !== current.rosterLimit) {
@@ -3859,6 +3901,45 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
   const eventToken = leagueCommandInput(z.object({ eventToken: z.string().max(MAX_ID_LENGTH) }), value).eventToken
   const event = leagueEventFor(tx, league.id, eventToken || null)
   if (!event) return productJson(operation === 'reveal' ? { outcome: 'not-ready' } : 'missing')
+  if (operation === 'pair-round') {
+    const input = leagueCommandInput(
+      z.object({
+        op: z.literal('pair-round'),
+        round: z.number().int().min(1).max(SWISS_ROUNDS_MAX),
+        pairs: z.array(z.tuple([idInput, idInput.nullable()])).max(128),
+      }),
+      value,
+    )
+    if (event.revealedAt === undefined || event.rounds === undefined) return productJson('not-ready')
+    const pairings = roundPairings(tx, event.id)
+    const latest = Math.max(0, ...pairings.map((pairing) => pairing.round))
+    if (input.round !== latest + 1 || input.round > event.rounds) return productJson('stale')
+    if (pairings.some((pairing) => pairing.round === latest && !pairingFinished(tx, pairing))) return productJson('not-ready')
+    // Every entrant who sealed a list sits at exactly one table, and at most one sits the round out.
+    const players = leagueEntriesFor(tx, event.id)
+      .filter((entry) => entry.status === 'accepted' && entry.rosterSnapshot !== undefined)
+      .map((entry) => entry.userId)
+    const seated = input.pairs.flatMap(([a, b]) => (b === null ? [a] : [a, b]))
+    if (
+      seated.length !== players.length ||
+      new Set(seated).size !== seated.length ||
+      seated.some((id) => !players.includes(id)) ||
+      input.pairs.filter(([, b]) => b === null).length > 1
+    )
+      return productJson('stale')
+    for (const [index, [aId, bId]] of input.pairs.entries())
+      tx.db.leagueRoundPairings.insert({
+        key: JSON.stringify([event.id, input.round, index + 1]),
+        eventId: event.id,
+        round: input.round,
+        table: index + 1,
+        aId,
+        bId: bId ?? undefined,
+        battleId: undefined,
+      })
+    touchLeague(tx, league.id, event.id)
+    return productJson('paired')
+  }
   if (operation === 'share-roster' || operation === 'dismiss-roster-sharing') {
     const current = leagueRosterSharingState(tx, event, ownerId)
     if (!current) return productJson('unavailable')
@@ -4222,10 +4303,31 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         now: leagueTimeInput,
         expectedLatest: z.boolean(),
         expectedEntries: z.array(z.object({ userId: idInput, snapshot: z.string().max(1_000_000) })).max(128),
+        pairingKey: z
+          .string()
+          .max(MAX_ID_LENGTH * 2)
+          .optional(),
       }),
       value,
     )
     if (event.revealedAt === undefined) return productJson(false)
+    // A Swiss tournament plays only the tables its organizer paired, each once.
+    const pairing = input.pairingKey ? tx.db.leagueRoundPairings.key.find(input.pairingKey) : undefined
+    if (event.rounds !== undefined) {
+      const latest = Math.max(0, ...roundPairings(tx, event.id).map((row) => row.round))
+      const players = new Set([pairing?.aId, pairing?.bId])
+      if (
+        !pairing ||
+        pairing.eventId !== event.id ||
+        pairing.round !== latest ||
+        pairing.battleId !== undefined ||
+        !players.has(input.userId) ||
+        !players.has(input.opponentIds[0]) ||
+        input.opponentIds.length !== 1 ||
+        input.allyIds.length
+      )
+        return productJson(false)
+    }
     if (input.expectedLatest && leagueEventFor(tx, league.id, null)?.id !== event.id) return productJson(false)
     const seatIds = [input.userId, ...input.allyIds, ...input.opponentIds]
     if (seatIds.length > 4 || new Set(seatIds).size !== seatIds.length) return productJson(false)
@@ -4281,6 +4383,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       log.push({ seq, by: input.userId, at: input.now, command })
     }
     tx.db.leagueEventBattles.insert({ battleId: input.id, eventId: event.id })
+    if (pairing && event.rounds !== undefined) tx.db.leagueRoundPairings.key.update({ ...pairing, battleId: input.id })
     touchLeague(tx, league.id, event.id)
     for (const seat of seats) touchProduct(tx, seat.id, 'battles', 'onboarding')
     touchPublic(tx, 'battles')

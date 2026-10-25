@@ -2,7 +2,7 @@ import { leagueBattleOptions, savedAbilityReminders } from './actionFunctions'
 import { fieldingReminders } from '../../shared/reminderAbilities'
 import { compactReplayFrames } from '../../core/replayFrames'
 import { REPLAY_BATCH_SIZE } from '../../contracts/battles'
-import { buildLeagueBattle } from '../../shared/leagueBattle'
+import { buildLeagueBattle, openPairing } from '../../shared/leagueBattle'
 import { battleSummary } from '../../shared/battleSummary'
 import type * as Server from '../../server/functions'
 import * as server from '../../server/functions'
@@ -406,6 +406,7 @@ export async function createLeagueBattle(
   const prepared = buildLeagueBattle(
     {
       ...league,
+      paired: Boolean(openPairing(league.pairings, owner.id, args.data.opponentId)),
       entries: rosters.map((entry) => ({
         ...entry,
         snapshot: entry.snapshot ? JSON.stringify(entry.snapshot) : null,

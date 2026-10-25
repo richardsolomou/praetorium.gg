@@ -19,6 +19,7 @@ import {
   leagueRosterSchema,
   moderateLeagueEntrySchema,
   openLeagueSchema,
+  pairLeagueRoundSchema,
   setLeagueAdminsSchema,
   setLeagueTeamDispositionSchema,
   setLeagueTeamWarlordSchema,
@@ -277,5 +278,16 @@ export const createLeagueBattle = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       return productActions.createLeagueBattle(player.id, data)
+    }),
+  )
+
+export const pairLeagueRound = createServerFn({ method: 'POST' })
+  .validator(pairLeagueRoundSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const result = await app().service.pairLeagueRound(data.token, data.eventToken, player.id)
+      await app().telemetry.capture(player.id, 'league_round_paired', { round: result.round })
+      return result
     }),
   )

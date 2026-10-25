@@ -52,6 +52,7 @@ import {
 } from '../core/league'
 import { TABLE_SHAPES, type TableShape } from '../core/tableShape'
 import { CLUB_ADMIN_MAX, CLUB_DESCRIPTION_MAX_LENGTH, CLUB_NAME_MAX_LENGTH } from '../core/club'
+import { SWISS_ROUNDS_MAX } from '../core/swiss'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import { PROFILE_NAME_MAX_LENGTH } from '../core/profileName'
 
@@ -76,7 +77,7 @@ export const tokenSchema = z.object({ token })
 export const battleReplaySchema = z.object({ token, seq: z.number().int().min(1) })
 export const battleReplayBatchSchema = z.object({ token, seqs: z.array(z.number().int().min(1)).min(1).max(REPLAY_BATCH_SIZE) })
 const leagueFields = {
-  name: z.string().trim().min(1, 'name the tournament').max(LEAGUE_NAME_MAX_LENGTH),
+  name: z.string().trim().min(1, 'add a name').max(LEAGUE_NAME_MAX_LENGTH),
   description: z.string().trim().max(LEAGUE_DESCRIPTION_MAX_LENGTH),
   visibility: z.enum(LEAGUE_VISIBILITIES),
   admission: z.enum(LEAGUE_ADMISSIONS),
@@ -90,11 +91,15 @@ const leagueEventRuleFields = {
     .refine((value) => GAME_SIZES.some((size) => size.limit === value))
     .default(LEAGUE_DEFAULT_ROSTER_LIMIT),
   allowances: leagueAllowancesSchema.default([]),
+  // Absent from an older client: no Swiss rounds on a new event, and an edit leaves them as they stand.
+  rounds: z.number().int().min(1).max(SWISS_ROUNDS_MAX).nullable().optional(),
 }
-function validateLeagueEventRule(value: { format: TableShape; rosterLimit: number }, context: z.RefinementCtx) {
+function validateLeagueEventRule(value: { format: TableShape; rosterLimit: number; rounds?: number | null }, context: z.RefinementCtx) {
   if ((value.format === '2v1' || value.format === '2v2') && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)) {
     context.addIssue({ code: 'custom', path: ['rosterLimit'], message: `choose a supported ${value.format} roster size` })
   }
+  if (value.rounds != null && value.format !== '1v1')
+    context.addIssue({ code: 'custom', path: ['rounds'], message: 'Swiss rounds pair duels only' })
 }
 export const createLeagueSchema = z
   .object({
@@ -116,6 +121,7 @@ export const updateLeagueSchema = z.object({
     .optional(),
 })
 export const leagueEventSchema = z.object({ token, eventToken: token.optional() })
+export const pairLeagueRoundSchema = z.object({ token, eventToken: token.optional() })
 export const createLeagueEventSchema = z
   .object({ token, ...leagueFields, ...leagueEventRuleFields, ownerPlays: z.boolean().default(false) })
   .superRefine(validateLeagueEventRule)

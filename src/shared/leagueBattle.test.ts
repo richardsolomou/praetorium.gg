@@ -30,6 +30,8 @@ const trial = (entries: LeagueBattleSetup['entries']): LeagueBattleSetup => ({
   eventToken: 'event',
   format: '2v1',
   rosterLimit: 2_000,
+  rounds: null,
+  paired: false,
   revealedAt: 1,
   entries,
 })
@@ -103,6 +105,8 @@ describe('doubles league battles', () => {
     eventToken: 'event',
     format: '2v2',
     rosterLimit: 2_000,
+    rounds: null,
+    paired: false,
     revealedAt: 1,
     entries: [
       entrant('a', 1_000, 'take-and-hold', 'one', 'take-and-hold'),
