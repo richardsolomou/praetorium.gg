@@ -476,7 +476,8 @@ async function main() {
       { env: maestroEnvironment },
     )
   const relaunch = async () => {
-    await relaunch()
+    await run('xcrun', ['simctl', 'terminate', udid, 'gg.praetorium'])
+    await run('xcrun', ['simctl', 'launch', udid, 'gg.praetorium'])
   }
   await maestro(journey, journey, ['-e', `NATIVE_OFFLINE_VERIFY=${process.env.NATIVE_OFFLINE_VERIFY ?? '0'}`])
   await delay(1_000)
