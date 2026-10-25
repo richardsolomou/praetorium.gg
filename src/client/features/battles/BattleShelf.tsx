@@ -55,7 +55,7 @@ export function BattleShelf({
           <span className="readout">{battles.length}</span>
         </h2>
       ) : null}
-      <div className={`grid gap-3 ${title ? 'mt-3' : ''}`}>
+      <div className={`grid gap-4 ${title ? 'mt-3' : ''}`}>
         {battles.map((battle) => {
           const canDelete = Boolean(viewerId && onDelete && battle.playerIds[0] === viewerId)
           const seat = viewerId ? battle.playerIds.indexOf(viewerId) : -1
@@ -75,32 +75,30 @@ export function BattleShelf({
           const scored = battle.status !== 'setup'
           const a = ours?.score ?? 0
           const b = theirs?.score ?? 0
-          const share = a + b ? (a / (a + b)) * 100 : 50
+          // Fading the losers lifts the winners; a draw fades neither.
+          const lost = (side?: SummarySide) =>
+            battle.status === 'finished' && side !== undefined && battleOutcome(battle, side.index) === 'lost'
+          const faded = 'opacity-50'
           return (
             <ContextMenu key={battle.token}>
               <ContextMenuTrigger
                 render={
-                  <article className="group relative min-w-0 overflow-hidden border border-edge bg-panel shadow-[0_1rem_2rem_-1.25rem_rgba(0,0,0,0.7)] transition-colors hover:border-info hover:bg-raised" />
+                  <article className="group relative min-w-0 overflow-hidden border border-edge-strong bg-panel shadow-[0_1rem_2rem_-1.25rem_rgba(0,0,0,0.7)] transition-colors hover:border-info hover:bg-raised" />
                 }
               >
-                <span className="flex h-1" aria-hidden>
-                  {scored ? (
-                    <>
-                      <span className="bg-side-a" style={{ width: `${share}%` }} />
-                      <span className="flex-1 bg-side-b" />
-                    </>
-                  ) : (
-                    <span className="flex-1 bg-edge" />
-                  )}
-                </span>
+                {/* The stage's colour down the edge, so a shelf sorts by eye before any chip is read; faded once the game is over. */}
+                <span
+                  className={`absolute inset-y-0 left-0 w-1 bg-current ${stage.tint} ${battle.status === 'finished' ? 'opacity-40' : ''}`}
+                  aria-hidden
+                />
                 <Link
                   to="/battles/$token"
                   params={{ token: battle.token }}
                   aria-label={`${seat === -1 ? 'Watch' : 'Open'} ${battle.players.join(' versus ')}`}
                   className="block min-w-0"
                 >
-                  <span className="grid min-w-0 items-center gap-3 px-4 pt-3 pb-3 sm:grid-cols-[minmax(0,1fr)_8.5rem_minmax(0,1fr)] sm:gap-4">
-                    <Side side={ours} viewerId={viewerId} className="order-2 sm:order-none" />
+                  <span className="grid min-w-0 items-center gap-3 px-4 pt-3 pb-2 sm:grid-cols-[minmax(0,1fr)_8.5rem_minmax(0,1fr)] sm:gap-4">
+                    <Side side={ours} viewerId={viewerId} className={cn('order-2 sm:order-none', lost(ours) && faded)} />
                     <span className="order-1 flex items-center justify-between gap-3 sm:order-none sm:flex-col sm:justify-center sm:gap-1.5">
                       <span data-battle-status={battle.status} className={`chip ${stage.tint}`}>
                         {stage.name}
@@ -109,9 +107,9 @@ export function BattleShelf({
                       <span className={`figure text-3xl leading-none font-bold ${scored ? '' : 'max-sm:hidden'}`}>
                         {scored ? (
                           <>
-                            <span className="text-side-a">{a}</span>
+                            <span className={cn('text-side-a', lost(ours) && faded)}>{a}</span>
                             <span className="px-1.5 text-xl text-faint">–</span>
-                            <span className="text-side-b">{b}</span>
+                            <span className={cn('text-side-b', lost(theirs) && faded)}>{b}</span>
                           </>
                         ) : (
                           <span className="text-xl text-faint">vs</span>
@@ -127,11 +125,11 @@ export function BattleShelf({
                       side={theirs}
                       viewerId={viewerId}
                       mirrored
-                      className="order-3 max-sm:border-t max-sm:border-edge max-sm:pt-3 sm:order-none"
+                      className={cn('order-3 max-sm:border-t max-sm:border-edge max-sm:pt-3 sm:order-none', lost(theirs) && faded)}
                     />
                   </span>
                   <span
-                    className={`flex min-w-0 items-center justify-between gap-3 border-t border-edge bg-sunken/40 py-1.5 pl-4 text-2xs text-faint ${canDelete ? 'pr-10' : 'pr-4'}`}
+                    className={`flex min-w-0 items-center justify-between gap-3 pb-2.5 pl-4 text-2xs text-faint ${canDelete ? 'pr-10' : 'pr-4'}`}
                   >
                     <span className="truncate">{setting}</span>
                     <span className="shrink-0">{date(battle.lastActivity)}</span>
