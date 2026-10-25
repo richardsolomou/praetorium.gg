@@ -37,8 +37,8 @@ export const collectionWishesKey = () => ['collection-wishes']
 export const collectionCountsAsKey = () => ['collection-counts-as']
 export const fieldedDatasheetsKey = () => ['fielded-datasheets']
 export const wishlistSuggestionsKey = () => ['wishlist-suggestions']
-/** Without an entry, every datasheet's photos. */
 export const adminKey = () => ['admin']
+/** Without an entry, every datasheet's photos. */
 export const datasheetPhotosKey = (entryId?: string) => (entryId === undefined ? ['datasheet-photos'] : ['datasheet-photos', entryId])
 /** Without a player, every player's collection. */
 export const collectionProfileKey = (userId?: string) => (userId === undefined ? ['collection-profile'] : ['collection-profile', userId])
