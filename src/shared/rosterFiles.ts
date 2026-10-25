@@ -490,7 +490,7 @@ function textRosterPick(
       return { stated, held }
     })
     const statedChoiceCounts = new Map(
-      choices.map((choice, at) => [choice.key, countsForChoice(choice.options, aliases[at]!, scopes[at]!.stated, scopes[at]!.held)]),
+      choices.map((choice, at) => [choice.key, countsForChoice(choice, aliases[at]!, scopes[at]!.stated, scopes[at]!.held)]),
     )
     const offeredBy = countBy(
       aliases.flatMap((choice) => [...new Set([...choice.values()].flatMap((names) => [...names.keys()]))]),
@@ -540,15 +540,24 @@ function textRosterPick(
     const absent = spreadEntries.flatMap(([key, counts]) =>
       Object.entries(counts).flatMap(([id, count]) => (count === 0 && isModel(id, loaded.index) ? [`${key}/${id}/`] : [])),
     )
-    // A piece the counted choices already place is not also another choice's to take.
-    const spreadPlaced = new Map<string, number>()
-    for (const [key, counts] of spreadEntries) {
-      const names = aliases[choices.findIndex((choice) => choice.key === key)]
-      for (const [id, count] of Object.entries(counts))
-        for (const [name, each] of names?.get(id) ?? []) spreadPlaced.set(name, (spreadPlaced.get(name) ?? 0) + count * each)
+    // A piece the counted choices already place is not also another choice's to take,
+    // except the default of a choice on the placed model itself, as a heavy weapon
+    // Terminator's accursed weapon is the one its melee choice decides.
+    const spreadPlaced = (within: string) => {
+      const pieces = new Map<string, number>()
+      for (const [key, counts] of spreadEntries) {
+        const names = aliases[choices.findIndex((choice) => choice.key === key)]
+        for (const [id, count] of Object.entries(counts)) {
+          if (within.startsWith(`${key}/${id}/`)) continue
+          for (const [name, each] of names?.get(id) ?? []) pieces.set(name, (pieces.get(name) ?? 0) + count * each)
+        }
+      }
+      return pieces
     }
-    const leftFor = (at: number, id: string) =>
-      [...(aliases[at]!.get(id) ?? [])].some(([name]) => (scopes[at]!.stated.get(name) ?? 0) > (spreadPlaced.get(name) ?? 0))
+    const leftFor = (at: number, id: string) => {
+      const pieces = spreadPlaced(choices[at]!.key)
+      return [...(aliases[at]!.get(id) ?? [])].some(([name]) => (scopes[at]!.stated.get(name) ?? 0) > (pieces.get(name) ?? 0))
+    }
     const pick = {
       entryId,
       catalogueId,
@@ -782,7 +791,7 @@ function singleChoice(
 }
 
 function countsForChoice(
-  options: readonly { id: string; name: string; count: number }[],
+  { options, room }: { options: readonly { id: string; name: string; count: number }[]; room: number },
   aliases: ReadonlyMap<string, ReadonlyMap<string, number>>,
   stated: ReadonlyMap<string, number>,
   held: ReadonlyMap<string, number>,
@@ -808,14 +817,37 @@ function countsForChoice(
     )
     if (distinctive.length) distinctiveCounts.set(option.id, Math.min(...distinctive))
   }
-  if (distinctiveCounts.size) return distinctiveCounts
+  if (!distinctiveCounts.size)
+    return new Map(
+      options.flatMap((option) => {
+        const count = stated.get(normalized(option.name))
+        return count === undefined ? [] : [[option.id, count]]
+      }),
+    )
 
-  return new Map(
-    options.flatMap((option) => {
-      const count = stated.get(normalized(option.name))
-      return count === undefined ? [] : [[option.id, count]]
-    }),
-  )
+  // A name several options share can be left over once the distinctive ones are counted,
+  // as a Raider list's meltaguns are when both loadouts holding one also hold a power fist.
+  // The option holding most of what is left takes it, if the list states all it holds
+  // and the choice has room left for it.
+  const isStated = (name: string) => nameVariants(name).some((variant) => stated.has(variant))
+  const leftOver = (name: string) =>
+    (stated.get(name) ?? 0) -
+    Math.max(0, (held.get(name) ?? 0) - inChoice(name)) -
+    [...distinctiveCounts].reduce((total, [id, count]) => total + count * (aliases.get(id)?.get(name) ?? 0), 0)
+  for (;;) {
+    const [best] = options
+      .filter((option) => !distinctiveCounts.has(option.id))
+      .filter((option) => [...(aliases.get(option.id)?.keys() ?? [])].every((name) => owners.get(name) === 1 || isStated(name)))
+      .map((option) => ({
+        option,
+        names: [...(aliases.get(option.id) ?? [])].filter(([name]) => owners.get(name)! > 1 && leftOver(name) > 0),
+      }))
+      .filter(({ names }) => names.length)
+      .sort((left, right) => right.names.length - left.names.length)
+    const free = room - [...distinctiveCounts.values()].reduce((total, count) => total + count, 0)
+    if (!best || free <= 0) return distinctiveCounts
+    distinctiveCounts.set(best.option.id, Math.min(free, ...best.names.map(([name, each]) => Math.floor(leftOver(name) / each))))
+  }
 }
 
 export function exportRosterFile(
