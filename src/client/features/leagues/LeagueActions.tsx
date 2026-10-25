@@ -2,17 +2,18 @@ import { useMutation } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, Clipboard, EllipsisVertical, Eye, Pencil, Share2, Trash2 } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
-import { posthog } from 'posthog-js'
+
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { deleteLeague } from '../../functions'
-import { shareLink } from '../../nativeBridge'
+
 import { LeagueSettingsDialog } from './LeagueSettingsDialog'
 import { eventFullName, eventLink, eventName, eventPath, leagueNoun, useLeagueRefresh } from './leagueEvent'
 import type { TableShape } from '../../../core/tableShape'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useInviteShareLabel } from '../friends/friendInvite'
+import { useShareLink } from '../../useShareLink'
 
 type ManageableLeague = {
   token: string
@@ -182,26 +183,15 @@ export function inviteFeedbackText(feedback: Exclude<InviteFeedback, null>) {
 
 /** Copies an invite to `path`, or hands it to the native share sheet, and says which happened for a few seconds. */
 export function useInviteShare(path: string, name: string, event: 'league_invite_shared' | 'club_invite_shared') {
-  const [feedback, setFeedback] = useState<InviteFeedback>(null)
+  const link = useShareLink(event)
+  const feedback: InviteFeedback = link.problem ? 'error' : link.shared
+  const { reset } = link
   useEffect(() => {
     if (!feedback) return
-    const timeout = window.setTimeout(() => setFeedback(null), 4_000)
+    const timeout = window.setTimeout(reset, 4_000)
     return () => window.clearTimeout(timeout)
-  }, [feedback])
-  return {
-    feedback,
-    clear: () => setFeedback(null),
-    share: async () => {
-      setFeedback(null)
-      try {
-        const result = await shareLink(`${window.location.origin}${path}`, name)
-        setFeedback(result)
-        posthog.capture(event, { method: result })
-      } catch {
-        setFeedback('error')
-      }
-    },
-  }
+  }, [feedback, reset])
+  return { feedback, clear: reset, share: () => link.share(`${window.location.origin}${path}`, name) }
 }
 
 type LeagueActionsController = ReturnType<typeof useLeagueActions>

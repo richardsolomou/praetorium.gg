@@ -9,9 +9,10 @@ import { Problem } from '../../components/Problem'
 import { useQrCode } from '../../components/useQrCode'
 import { guestInvite } from '../../functions'
 import { battleQuery, guestInviteQuery } from '../../queries'
-import { errorMessage } from '../../queryClient'
-import { shareLink, useNativeShare } from '../../nativeBridge'
+
+import { useNativeShare } from '../../nativeBridge'
 import { useOrigin } from '../../useOrigin'
+import { useShareLink } from '../../useShareLink'
 
 /**
  * The link and QR code a host shows a guest so they play their own side on their own device.
@@ -36,8 +37,7 @@ function GuestInviteDialog({ token, playerId, name, onClose }: { token: string; 
   const nativeShare = useNativeShare()
   const invite = useQuery(guestInviteQuery(token, playerId))
   const [confirming, setConfirming] = useState(false)
-  const [shared, setShared] = useState<'copied' | 'shared' | null>(null)
-  const [shareProblem, setShareProblem] = useState<string | null>(null)
+  const link = useShareLink('guest_invite_shared')
   const joined = invite.data?.joined ?? false
   const url = invite.data && origin ? `${origin}/join/${invite.data.invite}` : null
   const { image, failed } = useQrCode(joined ? null : url, 224)
@@ -50,22 +50,12 @@ function GuestInviteDialog({ token, playerId, name, onClose }: { token: string; 
     onSuccess: async (renewed) => {
       queryClient.setQueryData(guestInviteQuery(token, playerId).queryKey, renewed)
       setConfirming(false)
-      setShared(null)
+      link.reset()
       posthog.capture('guest_seat_taken_back')
       await queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey })
     },
   })
-  const share = async () => {
-    if (!url) return
-    setShareProblem(null)
-    try {
-      const result = await shareLink(url, `Play ${name}’s side on Praetorium`)
-      setShared(result)
-      posthog.capture('guest_invite_shared', { method: result })
-    } catch (error) {
-      setShareProblem(errorMessage(error))
-    }
-  }
+  const share = () => (url ? link.share(url, `Play ${name}’s side on Praetorium`) : undefined)
   return (
     <>
       <Dialog open onOpenChange={(next) => !next && onClose()}>
@@ -96,9 +86,9 @@ function GuestInviteDialog({ token, playerId, name, onClose }: { token: string; 
                 )}
                 <p className="break-all text-xs text-dim">{url}</p>
                 <Button className="w-full" onClick={() => void share()}>
-                  {shared ? (shared === 'copied' ? 'Link copied' : 'Link shared') : nativeShare ? 'Share link' : 'Copy link'}
+                  {link.shared ? (link.shared === 'copied' ? 'Link copied' : 'Link shared') : nativeShare ? 'Share link' : 'Copy link'}
                 </Button>
-                {shareProblem ? <Problem>{shareProblem}</Problem> : null}
+                {link.problem ? <Problem error={link.problem} /> : null}
                 <p className="text-xs text-dim">The first device to open it takes the seat for 30 days.</p>
               </div>
             ) : (
