@@ -1,5 +1,36 @@
 # praetorium
 
+## 0.193.0
+
+### Minor Changes
+
+- f966973: 2v1 and doubles battles and tournaments set their own points per army, such as 1,750 against 800 each, and allies can bring lists built for a smaller size.
+
+### Patch Changes
+
+- 5091cd1: Assistants can plan a chapter army with a detachment from the Space Marines codex, and see only the units that detachment allows.
+- 5091cd1: Units that only a particular detachment allows, such as Deathwatch in a chapter army, appear in the picker with that detachment and are flagged in lists without it.
+- f966973: Tournaments with their own points total accept lists built to that total.
+- 5424d97: Official-app text that lost its blank lines and price brackets while being pasted now imports instead of being refused as an unsupported export.
+- 5424d97: Imported official-app lists read a Gun Servitor as the servitor its weapon marks, so Inquisitorial Agents are no longer priced with an extra servitor.
+- 5424d97: Imported official-app Bladeguard Veteran Squads keep their Master-crafted Power Swords, which the catalogue calls power weapons.
+- 5424d97: Imported official-app lists keep a sergeant's swapped weapon on the sergeant, so a Scout Squad whose sergeant carries a shotgun is no longer priced as ten models.
+- 5091cd1: Points caps such as the 500 points of Deathwatch a chapter may take are now checked against what the units cost your list.
+- aa3eaf2: Keep club player rows and their actions inside sealed game cards on narrow screens.
+
+  Restore combat simulations between revealed club lists, including combined team armies.
+
+  Open new club games from a compact page action so club activity leads the page.
+
+  Keep roster viewing controls aligned across club player rows.
+
+  Show player avatars when choosing an opponent for a club game.
+
+  Move sealed club games to Past automatically when a new game starts or their game day ends, keeping existing battles resumable and revealed lists available to view and simulate.
+
+- 5091cd1: Data updates no longer list every datasheet as new when a rules version is added.
+- 5091cd1: Data updates no longer list each army's changes twice, once under the army and again under the current rules version.
+
 ## 0.192.1
 
 ### Patch Changes
