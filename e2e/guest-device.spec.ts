@@ -1,23 +1,9 @@
 import { expect, test, type Page } from './test'
-import {
-  advance,
-  attachRoster,
-  createBattle,
-  createRoster,
-  desktopContext,
-  retryUntilVisible,
-  signUp,
-  startBattle,
-  takeTheTurn,
-  uniqueName,
-  playTurn,
-  expectNoPageOverflow,
-} from './account'
+import { advance, attachRoster, createBattle, createRoster, desktopContext, retryUntilVisible, signUp, startBattle, takeTheTurn, uniqueName, playTurn, shotAtWidths, PHONE } from './account'
 import { add } from './builder.harness'
 import { productSql, userIdNamed, lastPathSegment } from './storage'
 
 const GUEST = uniqueName('Sam the Guest')
-const PHONE = { width: 390, height: 844 }
 const scoreboard = (page: Page) => page.getByRole('region', { name: 'Battle scoreboard' })
 const phase = (page: Page) => page.locator('[data-scoreboard] h1')
 /** Below the five seconds a page without a live subscription waits between polls. */
@@ -43,19 +29,6 @@ async function expectFitsOnPhone(page: Page, panel: ReturnType<Page['getByRole']
   const before = page.viewportSize()!
   await page.setViewportSize(PHONE)
   expect((await panel.boundingBox())!.height).toBeLessThan(PHONE.height * 0.8)
-  await page.setViewportSize(before)
-}
-
-async function shot(page: Page, name: string) {
-  const before = page.viewportSize()!
-  for (const [label, size] of [
-    ['desktop', { width: 1280, height: 900 }],
-    ['phone', PHONE],
-  ] as const) {
-    await page.setViewportSize(size)
-    await expectNoPageOverflow(page)
-    await page.screenshot({ path: test.info().outputPath(`${name}-${label}.png`), fullPage: true })
-  }
   await page.setViewportSize(before)
 }
 
@@ -92,11 +65,11 @@ test('a guest joins from their own device, plays their side and keeps the game b
   const invite = host.getByRole('dialog', { name: `Invite ${GUEST} to play` })
   await expect(invite.getByRole('img', { name: `QR code for ${GUEST}’s seat` })).toBeVisible()
   await expectFitsOnPhone(host, invite)
-  await shot(host, 'invite')
+  await shotAtWidths(host, 'invite', { fullPage: true })
   const link = (await invite.locator('p.break-all').textContent())!
   await guest.goto(link)
   await expect(guest.getByRole('heading', { name: `Play as ${GUEST}` })).toBeVisible()
-  await shot(guest, 'join')
+  await shotAtWidths(guest, 'join', { fullPage: true })
   await guest.getByRole('button', { name: 'Join on this device' }).click()
   await guest.waitForURL(/\/battles\/[^/]+$/)
   const battleUrl = guest.url()
@@ -119,14 +92,14 @@ test('a guest joins from their own device, plays their side and keeps the game b
   await guest.getByRole('button', { name: `Choose roster for ${GUEST}` }).click()
   const chooser = guest.getByRole('dialog', { name: 'Choose your roster' })
   await expectFitsOnPhone(guest, chooser)
-  await shot(guest, 'guest-chooser')
+  await shotAtWidths(guest, 'guest-chooser', { fullPage: true })
   await chooser.getByRole('button', { name: 'Bring this roster' }).click()
   await expect(chooser).toBeHidden()
   await expect(host.locator('[data-players="1"]').first()).toBeVisible()
   await expect(host.getByRole('region', { name: 'Armies' })).toContainText('Ready')
   // The host no longer chooses for a guest who plays their own seat.
   await expect(host.getByRole('button', { name: `Choose roster for ${GUEST}` })).toHaveCount(0)
-  await shot(guest, 'guest-setup')
+  await shotAtWidths(guest, 'guest-setup', { fullPage: true })
 
   await startBattle(host)
   // The host keeps the seat's controls during play, to take it back if the guest's device is lost.
@@ -140,7 +113,7 @@ test('a guest joins from their own device, plays their side and keeps the game b
   for (let step = 1; step < 6; step += 1) await advance(host)
   await takeTheTurn(guest)
   await expect(scoreboard(guest).getByText(`${GUEST}’s turn`, { exact: true })).toBeVisible()
-  await shot(guest, 'guest-battle')
+  await shotAtWidths(guest, 'guest-battle', { fullPage: true })
   await playTurn(guest)
   await takeTheTurn(host)
   await expect(host.locator('[data-stat="round"]')).toHaveText('2')
@@ -161,7 +134,7 @@ test('a guest joins from their own device, plays their side and keeps the game b
   // The finished game is when signing up is offered, with what it brings.
   const keep = guest.getByRole('region', { name: 'Keep this battle' })
   await expect(keep).toContainText(`${hostName} as a friend`)
-  await shot(guest, 'keep')
+  await shotAtWidths(guest, 'keep', { fullPage: true })
   await keep.getByRole('link', { name: 'Create an account' }).click()
   await guest.waitForLoadState('networkidle')
   // The account starts with the name the guest played under, which they can still change.
@@ -172,14 +145,14 @@ test('a guest joins from their own device, plays their side and keeps the game b
   await guest.waitForURL(battleUrl)
 
   const claim = guest.getByRole('region', { name: 'Add this battle to your record' })
-  await shot(guest, 'claim')
+  await shotAtWidths(guest, 'claim', { fullPage: true })
   const written = await loggedCommands(id)
   await claim.getByRole('button', { name: 'Add to my record' }).click()
   const claimed = guest.getByRole('region', { name: 'This battle is in your record' })
   await expect(claimed).toBeVisible()
   // Claiming records who the seat was; the log stays exactly as it was played.
   expect(await loggedCommands(id)).toEqual(written)
-  await shot(guest, 'claimed')
+  await shotAtWidths(guest, 'claimed', { fullPage: true })
   await claimed.getByRole('button', { name: `Add ${hostName} as a friend` }).click()
   await expect(claimed.getByRole('button', { name: 'Friend request sent' })).toBeVisible()
 

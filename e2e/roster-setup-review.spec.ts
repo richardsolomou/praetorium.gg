@@ -1,6 +1,6 @@
 import { waitForOfflineApp } from './offline'
 import { expect, test, type Page } from './test'
-import { chooseRosterAction, confirmRosterSetup, retryUntilVisible, savedArmy, waitForRosterSave } from './account'
+import { confirmRosterSetup, retryUntilVisible, savedArmy, waitForRosterSave, openRosterSetup } from './account'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
 async function reviewedArmy(page: Page) {
@@ -16,12 +16,8 @@ async function reviewedArmy(page: Page) {
   if (await back.isVisible()) await back.click()
   return { id, operator, source: (await operator.roster(id))! }
 }
-async function openSetup(page: Page) {
-  await chooseRosterAction(page, 'Edit roster setup')
-  return page.getByRole('dialog', { name: 'Edit roster setup' })
-}
 async function shrink(page: Page) {
-  const setup = await openSetup(page)
+  const setup = await openRosterSetup(page)
   await setup.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /King of the Colosseum/ }).click()
   const disposition = setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Purge the Foe', exact: true })
@@ -50,7 +46,7 @@ test('setup preview cancellation and exact saved result', async ({ page }) => {
   await page.setViewportSize(desktop)
   const source = (await operator.roster(id))!
 
-  const setup = await openSetup(page)
+  const setup = await openRosterSetup(page)
   await setup.getByLabel('Roster name').fill('Name-only review')
   await setup.getByRole('button', { name: 'Review changes' }).click()
   const nameReview = page.getByRole('dialog', { name: 'Review roster changes' })
@@ -182,12 +178,12 @@ test('native-v3 concurrent setup confirmations save only one exact variant candi
   const source = (await operator.roster(variantId))!
   const second = await context.newPage()
   await second.goto(`/rosters/${variantId}`)
-  const firstSetup = await openSetup(page)
+  const firstSetup = await openRosterSetup(page)
   await firstSetup.getByLabel('Roster name').fill('First reviewed candidate')
   await firstSetup.getByRole('button', { name: 'Review changes' }).click()
   const firstReview = page.getByRole('dialog', { name: 'Review roster changes' })
   await expect(firstReview.getByLabel('Roster change preview')).toBeVisible()
-  const secondSetup = await openSetup(second)
+  const secondSetup = await openRosterSetup(second)
   await secondSetup.getByLabel('Roster name').fill('Second reviewed candidate')
   await secondSetup.getByRole('button', { name: 'Review changes' }).click()
   const secondReview = second.getByRole('dialog', { name: 'Review roster changes' })
@@ -248,7 +244,7 @@ test('native-v3 lost save acknowledgement cannot overwrite a later source edit o
       await route.abort('failed')
     } else await route.continue()
   })
-  const setup = await openSetup(page)
+  const setup = await openRosterSetup(page)
   await setup.getByLabel('Roster name').fill('Unacknowledged candidate')
   await setup.getByRole('button', { name: 'Review changes' }).click()
   const review = page.getByRole('dialog', { name: 'Review roster changes' })

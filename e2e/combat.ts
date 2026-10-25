@@ -84,3 +84,9 @@ export async function closeCombatBreakdown(scope: Page | Locator) {
   const details = scope.locator('[data-results-summary] details')
   if (await details.evaluate((element) => (element as HTMLDetailsElement).open)) await details.locator('summary').click()
 }
+
+/** Every simulator result region on the page, or within `scope`, has finished calculating. */
+export async function combatSettled(scope: Page | Locator) {
+  for (const name of ['Shooting results', 'Melee results', 'Combined estimate'])
+    await expect(scope.getByRole('region', { name, exact: true })).toHaveAttribute('aria-busy', 'false')
+}

@@ -1,5 +1,5 @@
 import { expect, type Page, test } from './test'
-import { retryUntilVisible, signUp, uniqueName, visitorSetup, expectNoPageOverflow } from './account'
+import { retryUntilVisible, signUp, uniqueName, visitorSetup, shotAtWidths } from './account'
 import { add } from './builder.harness'
 import { SIGN_IN_REQUIRED } from '../src/core/session'
 import { lastPathSegment } from './storage'
@@ -15,22 +15,6 @@ async function startGuestRoster(page: Page) {
   await setup.getByRole('button', { name: 'Create roster' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
   await expect(page.getByLabel('Add a unit')).toBeVisible()
-}
-
-const PHONE = { width: 390, height: 844 }
-
-/** Saves the page at desktop and phone widths, checking neither scrolls sideways. */
-async function shot(page: Page, name: string) {
-  const before = page.viewportSize()!
-  for (const [label, size] of [
-    ['desktop', { width: 1280, height: 900 }],
-    ['phone', PHONE],
-  ] as const) {
-    await page.setViewportSize(size)
-    await expectNoPageOverflow(page)
-    await page.screenshot({ path: test.info().outputPath(`${name}-${label}.png`) })
-  }
-  await page.setViewportSize(before)
 }
 
 const DRAFT_KEY = 'praetorium.guest-draft'
@@ -201,7 +185,7 @@ test("a visitor's roster is listed on the rosters page as a saved one is", async
   await expect(row).toContainText('1 unit')
   await expect(row.locator('.readout')).not.toHaveText(/^—\//)
   await expect(page.getByRole('navigation', { name: 'Rosters' }).getByRole('link')).toHaveText(['Mine', 'Friends', 'Public', 'Played'])
-  await shot(page, 'round4-visitor-rosters')
+  await shotAtWidths(page, 'round4-visitor-rosters')
   await row.getByRole('link').click()
   await expect(page).toHaveURL(builder)
 })
@@ -218,7 +202,7 @@ test('a visitor keeping a roster is asked to sign up for a second one', async ({
 
   await retryUntilVisible(prompt, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
   await expect(prompt.getByRole('link', { name: 'Create an account' })).toHaveAttribute('href', '/sign-in?next=%2Frosters&join=true')
-  await shot(page, 'round4-second-roster')
+  await shotAtWidths(page, 'round4-second-roster')
   await page.keyboard.press('Escape')
   await page.getByRole('button', { name: 'Import roster' }).click()
   await expect(prompt).toBeVisible()

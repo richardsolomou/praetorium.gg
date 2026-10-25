@@ -1,16 +1,5 @@
 import { expect, type Locator, type Page, test } from './test'
-import {
-  attachRoster,
-  befriend,
-  confirmRosterSetup,
-  createBattle,
-  createRoster,
-  PRACTICE_OPPONENT,
-  signUp,
-  startBattle,
-  uniqueName,
-  waitForRosterSave,
-} from './account'
+import { attachRoster, befriend, createBattle, createRoster, PRACTICE_OPPONENT, signUp, startBattle, uniqueName, waitForRosterSave, setRosterAccess } from './account'
 import { shot } from './builder.harness'
 import { lastPathSegment } from './storage'
 
@@ -44,15 +33,6 @@ async function annotate(page: Page, card: Locator, field: 'Custom name' | 'Note'
   await waitForRosterSave(page, () => fields.getByRole('textbox', { name: field, exact: true }).fill(value), value)
   const back = page.getByRole('button', { name: 'Back to roster' })
   if (await back.isVisible()) await back.click()
-}
-
-async function setAccess(page: Page, name: string, value: string) {
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
-  await setup.getByRole('combobox', { name: 'Access' }).click()
-  await page.getByRole('option', { name }).click()
-  await waitForRosterSave(page, () => confirmRosterSetup(setup), `"${value}"`)
 }
 
 for (const [size, label] of [
@@ -148,7 +128,7 @@ for (const [size, label] of [
     await addSquads(owner, 1)
     await annotate(owner, owner.locator(`[data-unit="${SQUAD}"]`), 'Custom name', 'Rot Alpha')
     await annotate(owner, owner.locator(`[data-unit="${SQUAD}"]`), 'Note', ALPHA_NOTE)
-    await setAccess(owner, 'Public — listed on your profile', 'public')
+    await setRosterAccess(owner, 'Public — listed on your profile', 'public')
     const path = new URL(owner.url()).pathname
 
     const reader = await (await browser.newContext(size)).newPage()

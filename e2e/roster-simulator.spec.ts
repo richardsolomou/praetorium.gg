@@ -1,11 +1,9 @@
 import { chooseCombatUnit, combatEstimate, closeCombatBreakdown, openCombatControls, holdCombatCalculations } from './combat'
 import { expect, test, type Page } from './test'
-import { addUnit, createRoster, retryUntilVisible, signUp, waitForRosterSave, expectNoPageOverflow } from './account'
+import { addUnit, createRoster, signUp, waitForRosterSave, expectNoPageOverflow, chooseOption } from './account'
 
 async function choose(page: Page, control: string, name: string) {
-  const option = page.getByRole('option', { name, exact: true })
-  await retryUntilVisible(option, () => page.getByRole('combobox', { name: control, exact: true }).click())
-  await option.click()
+  await chooseOption(page, control, name)
   if (control.endsWith(' unit')) {
     await expect(
       page.getByRole('region', { name: control.split(' ')[0], exact: true }).getByRole('button', { name: 'Loadout', exact: true }),

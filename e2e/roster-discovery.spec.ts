@@ -1,27 +1,10 @@
 import { expect, type Page, test } from './test'
-import {
-  befriend,
-  chooseRosterAction,
-  confirmRosterSetup,
-  createRoster,
-  retryUntilVisible,
-  signUp,
-  uniqueName,
-  waitForRosterSave,
-} from './account'
+import { befriend, chooseRosterAction, createRoster, retryUntilVisible, signUp, uniqueName, waitForRosterSave, setRosterAccess } from './account'
 import { expectNoHorizontalOverflow, shot } from './builder.harness'
 import { productOperator, userIdFor, lastPathSegment } from './storage'
 
 const UNIT = 'Immortals'
 const NOTE = 'Discovery note stays with the owner'
-
-async function setAccess(page: Page, name: string, value: string) {
-  await chooseRosterAction(page, 'Edit roster setup')
-  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
-  await setup.getByRole('combobox', { name: 'Access' }).click()
-  await page.getByRole('option', { name }).click()
-  await waitForRosterSave(page, () => confirmRosterSetup(setup), `"${value}"`)
-}
 
 async function addNotedUnit(page: Page) {
   await page.getByLabel('Add a unit').fill(UNIT)
@@ -77,7 +60,7 @@ for (const [width, label] of [
     const armyName = uniqueName('Found army')
     await createRoster(owner, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: armyName })
     await addNotedUnit(owner)
-    await setAccess(owner, 'Public — listed on your profile', 'public')
+    await setRosterAccess(owner, 'Public — listed on your profile', 'public')
     const sourceId = lastPathSegment(owner.url())
     const product = await productOperator()
     const source = await product.roster(sourceId)
@@ -122,7 +105,7 @@ for (const [width, label] of [
 
     await reader.goto(filtered)
     await expect(card).toBeVisible()
-    await setAccess(owner, 'Private', 'private')
+    await setRosterAccess(owner, 'Private', 'private')
     await expect(card).toHaveCount(0)
     await reader.reload()
     await expect(reader.getByRole('heading', { name: 'Public rosters', exact: true })).toBeVisible()
@@ -169,7 +152,7 @@ test("a friend's public roster is listed to friends, and a player's own stays of
   await befriend(owner, friend)
   const armyName = uniqueName('Friend army')
   await createRoster(owner, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: armyName })
-  await setAccess(owner, 'Public — listed on your profile', 'public')
+  await setRosterAccess(owner, 'Public — listed on your profile', 'public')
 
   await friend.goto('/rosters?view=friends')
   await expect(friend.locator(`[data-discovered-roster="${armyName}"]`)).toBeVisible()

@@ -1,20 +1,15 @@
-import { expect, test, type Page } from './test'
+import { expect, test } from './test'
 import { addUnit, createRoster, retryUntilVisible, signUp } from './account'
-import { closeCombatBreakdown, openCombatBreakdown, openCombatControls } from './combat'
+import { closeCombatBreakdown, openCombatBreakdown, openCombatControls, combatSettled } from './combat'
 import { capture, docsScreenshots } from './docsScreenshots'
 
 docsScreenshots()
-
-async function settled(page: Page) {
-  for (const name of ['Combined estimate', 'Shooting results', 'Melee results'])
-    await expect(page.getByRole('region', { name, exact: true })).toHaveAttribute('aria-busy', 'false')
-}
 
 test('compare loadouts in the unit simulator', async ({ page }) => {
   await page.goto('/simulator')
   await page.waitForLoadState('networkidle')
   await page.getByRole('button', { name: 'Try an example', exact: true }).click()
-  await settled(page)
+  await combatSettled(page)
   const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
 
   const addMember = page.getByRole('combobox', { name: 'Attacker add attached unit', exact: true })
@@ -22,7 +17,7 @@ test('compare loadouts in the unit simulator', async ({ page }) => {
   await retryUntilVisible(lieutenant, () => addMember.click())
   await lieutenant.click()
   await expect(attacker.locator('[data-combat-member="Lieutenant"]')).toBeVisible()
-  await settled(page)
+  await combatSettled(page)
   await page.evaluate(() => window.scrollTo(0, 0))
   await capture('compare-loadouts-add-member', attacker, addMember)
 
@@ -33,7 +28,7 @@ test('compare loadouts in the unit simulator', async ({ page }) => {
   await expect(best).toBeVisible()
   await capture('compare-loadouts-best-kill', choice, best)
   await loadout.getByRole('button', { name: 'Close', exact: true }).click()
-  await settled(page)
+  await combatSettled(page)
 
   await page.evaluate(() => window.scrollTo(0, 0))
   await attacker.getByRole('button', { name: 'Optimization options', exact: true }).click()
@@ -47,7 +42,7 @@ test('compare loadouts in the unit simulator', async ({ page }) => {
   const cover = page.getByRole('button', { name: 'Cover (−1 BS)', exact: true })
   await cover.click()
   await expect(cover).toHaveAttribute('aria-pressed', 'true')
-  await settled(page)
+  await combatSettled(page)
   await capture(
     'compare-loadouts-modifiers',
     page.locator('[data-manual-modifiers]'),
@@ -61,7 +56,7 @@ test('compare loadouts in the unit simulator', async ({ page }) => {
   await capture('compare-loadouts-calculation-uses', applied, applied.getByRole('listitem').filter({ hasText: 'Cover' }), { padded: true })
 
   await openCombatBreakdown(page)
-  await settled(page)
+  await combatSettled(page)
   const summary = page.locator('[data-results-summary]')
   await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
   await capture('compare-loadouts-breakdown', summary, summary.getByRole('region', { name: 'Combined distributions', exact: true }))

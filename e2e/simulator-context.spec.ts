@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from './test'
 import { decodeSimulatorState, encodeSimulatorState, type SimulatorState } from '../src/contracts/simulatorState'
-import { addUnit, createRoster, retryUntilVisible, signUp, waitForRosterSave, expectNoPageOverflow } from './account'
-import { chooseCombatUnit, openCombatControls } from './combat'
+import { addUnit, createRoster, signUp, waitForRosterSave, expectNoPageOverflow, chooseOption } from './account'
+import { chooseCombatUnit, openCombatControls, combatSettled } from './combat'
 
 declare global {
   interface Window {
@@ -44,16 +44,8 @@ function shared(page: Page) {
 }
 
 async function choose(page: Page, control: string, name: string) {
-  const button = page.getByRole('combobox', { name: control, exact: true })
-  await expect(button).toBeEnabled()
-  const option = page.getByRole('option', { name, exact: true })
-  await retryUntilVisible(option, () => button.click())
-  await option.click()
-}
-
-async function settled(scope: Page | Locator) {
-  for (const phase of ['Shooting results', 'Melee results', 'Combined estimate'])
-    await expect(scope.getByRole('region', { name: phase, exact: true })).toHaveAttribute('aria-busy', 'false')
+  await expect(page.getByRole('combobox', { name: control, exact: true })).toBeEnabled()
+  await chooseOption(page, control, name)
 }
 
 async function noOverflow(page: Page, scope: Locator) {
@@ -62,7 +54,7 @@ async function noOverflow(page: Page, scope: Locator) {
 }
 
 async function selectedProfile(page: Page, prefix: string) {
-  await settled(page)
+  await combatSettled(page)
   await expect(page.getByRole('combobox', { name: 'Librarian · Smite', exact: true })).toContainText(focusedName)
   await expect(
     page.getByRole('region', { name: 'Shooting results' }).getByRole('heading', { name: focusedName, exact: true }),
@@ -100,7 +92,7 @@ test('surviving profile choices agree with results and v1 links through member e
   }
   await selectedProfile(page, 'attached:1:')
   await choose(page, 'Librarian · Smite', witchfireName)
-  await settled(page)
+  await combatSettled(page)
   const ordinary = await page.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1).textContent()
   await choose(page, 'Librarian · Smite', focusedName)
   await selectedProfile(page, 'attached:1:')
@@ -111,7 +103,7 @@ test('surviving profile choices agree with results and v1 links through member e
   const damage = await page.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1).textContent()
   const swap = page.getByRole('button', { name: 'Swap attacker and defender', exact: true })
   await swap.click()
-  await settled(page)
+  await combatSettled(page)
   await page.goto(page.url())
   await expect(page.getByRole('region', { name: 'Defender', exact: true })).toContainText('Librarian')
   await expect(swap).toBeEnabled()
@@ -119,7 +111,7 @@ test('surviving profile choices agree with results and v1 links through member e
   await selectedProfile(page, '')
   await expect(page.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1)).toHaveText(damage!)
   await swap.click()
-  await settled(page)
+  await combatSettled(page)
   await swap.click()
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 })
@@ -135,7 +127,7 @@ test('surviving profile choices agree with results and v1 links through member e
   await page.goto(`/simulator?s=${encodeSimulatorState(obsolete)}`)
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 })
-    await settled(page)
+    await combatSettled(page)
     await expect(page.getByText(discarded, { exact: true })).toBeVisible()
     await expect(page.getByRole('combobox', { name: 'Librarian · Smite', exact: true })).toContainText(witchfireName)
   }
@@ -150,7 +142,7 @@ test('surviving profile choices agree with results and v1 links through member e
   await selectedProfile(page, '')
   await expect(page.getByText(discarded, { exact: true })).toHaveCount(0)
   await page.goto(`/simulator?s=${encodeSimulatorState(obsolete)}`)
-  await settled(page)
+  await combatSettled(page)
   await expect(page.getByText(discarded, { exact: true })).toBeVisible()
   await openCombatControls(page)
   await page.getByRole('button', { name: 'Reset', exact: true }).click()
@@ -219,7 +211,7 @@ async function editor(page: Page, context: 'standalone' | 'roster', companion: b
     await page.locator('aside[aria-label="Loadout"]').getByRole('button', { name: 'Simulate combat', exact: true }).click()
   }
   await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
-  await settled(page)
+  await combatSettled(page)
   const attacker = page.getByRole('region', { name: 'Attacker', exact: true })
   if (companion) await attacker.getByLabel('Attacker Overlord loadout', { exact: true }).click()
   else await attacker.getByRole('button', { name: 'Loadout', exact: true }).click()

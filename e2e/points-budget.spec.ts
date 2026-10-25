@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { attachRoster, chooseRosterAction, createBattle, PRACTICE_OPPONENT, savedArmy, setupStep, waitForRosterSave } from './account'
+import { attachRoster, createBattle, PRACTICE_OPPONENT, savedArmy, setupStep, waitForRosterSave, openRosterSetup } from './account'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
 async function openArmy(page: Page, name: string) {
@@ -9,13 +9,8 @@ async function openArmy(page: Page, name: string) {
   return army
 }
 
-async function openSetup(page: Page) {
-  await chooseRosterAction(page, 'Edit roster setup')
-  return page.getByRole('dialog', { name: 'Edit roster setup' })
-}
-
 async function setBudget(page: Page, budget: string) {
-  const setup = await openSetup(page)
+  const setup = await openRosterSetup(page)
   await setup.getByLabel('Points limit').fill(budget)
   await setup.getByRole('button', { name: 'Review changes' }).click()
   const review = page.getByRole('dialog', { name: 'Review roster changes' })
@@ -34,7 +29,7 @@ test('a custom points budget is validated, enforced, saved and fielded', async (
   const points = page.locator('[data-stat="points"]')
   await expect(points).toContainText('/2000')
 
-  const setup = await openSetup(page)
+  const setup = await openRosterSetup(page)
   // The size's own points show as the box's placeholder, so an empty box plays the full size.
   const budget = setup.getByLabel('Points limit')
   await expect(budget).toHaveValue('')

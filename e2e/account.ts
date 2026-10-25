@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto'
 import type { BrowserContextOptions, Locator, Page } from '@playwright/test'
-import { expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { PHASES } from '../src/core/battle'
 import type { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { PREVIEW_EMAIL, PREVIEW_PASSWORD } from '../scripts/seedPreview'
@@ -654,6 +654,42 @@ export async function scrollSearchResultIntoView(page: Page, result: Locator) {
     await result.scrollIntoViewIfNeeded({ timeout: 100 })
     await expect(result).toBeInViewport({ timeout: 100 })
   }).toPass({ timeout: 15000 })
+}
+
+/** Opens a combobox and picks one of its options, reopening it if hydration swallowed the first press. */
+export async function chooseOption(page: Page, control: string, name: string) {
+  const option = page.getByRole('option', { name, exact: true })
+  await retryUntilVisible(option, () => page.getByRole('combobox', { name: control, exact: true }).click())
+  await option.click()
+}
+
+export async function openRosterSetup(page: Page) {
+  await chooseRosterAction(page, 'Edit roster setup')
+  return page.getByRole('dialog', { name: 'Edit roster setup' })
+}
+
+/** Changes who can open the roster and waits until the saved roster says so. */
+export async function setRosterAccess(page: Page, name: string, value: string) {
+  const setup = await openRosterSetup(page)
+  await setup.getByRole('combobox', { name: 'Access' }).click()
+  await page.getByRole('option', { name }).click()
+  await waitForRosterSave(page, () => confirmRosterSetup(setup), `"${value}"`)
+}
+
+export const PHONE = { width: 390, height: 844 }
+
+/** Saves the page at desktop and phone widths, checking neither scrolls sideways. */
+export async function shotAtWidths(page: Page, name: string, { fullPage = false } = {}) {
+  const before = page.viewportSize()!
+  for (const [label, size] of [
+    ['desktop', { width: 1280, height: 900 }],
+    ['phone', PHONE],
+  ] as const) {
+    await page.setViewportSize(size)
+    await expectNoPageOverflow(page)
+    await page.screenshot({ path: test.info().outputPath(`${name}-${label}.png`), fullPage })
+  }
+  await page.setViewportSize(before)
 }
 
 /** The page is no wider than its viewport; a failure shows by how much it overflows. */
