@@ -2,7 +2,7 @@ import { currentReference, offlineDatasheets, referenceData } from '../offline/r
 import { infiniteQueryOptions, keepPreviousData, type QueryClient, queryOptions } from '@tanstack/react-query'
 import type { FormatRuleId, OptionalRuleId } from '../../core/battle'
 import type { RosterPick } from '../../core/roster'
-import type { UnitSummary } from '../../contracts/catalogue'
+import type { FactionDatasheet } from '../../contracts/catalogue'
 import type { RosterAudience, RosterDiscoveryCursor, RosterDiscoveryFilter } from '../../core/rosterDiscovery'
 import type { RosterSort } from '../../core/rosterSort'
 import type { BattlesCursor } from '../../contracts/battles'
@@ -149,7 +149,7 @@ export const factionDatasheetsQuery = (catalogueId: string, query: string) =>
     initialDataUpdatedAt: () => (currentReference() ? Date.now() : (referenceData()?.savedAt ?? 0)),
     queryFn: async ({ client }) => {
       const saved = offlineDatasheets(catalogueId, query)
-      const current = client.getQueryData<UnitSummary[]>(factionDatasheetsKey(catalogueId, query))
+      const current = client.getQueryData<FactionDatasheet[]>(factionDatasheetsKey(catalogueId, query))
       if (typeof window !== 'undefined' && !navigator.onLine && current !== undefined) return current
       if (saved && currentReference()) return saved
       try {

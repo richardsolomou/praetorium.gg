@@ -3,8 +3,8 @@ import { stepThrough } from '../shared/steps'
 import { unitSummaries, unitsIn } from '../shared/cataloguePicker'
 import { isReferenceDatasheet } from '../shared/catalogueIndex'
 import { coreRulesFirst } from './rulesCore'
-import type { CanonicalCatalogue } from '../contracts/catalogue'
-import { datasheetInBySlug } from '../shared/catalogue'
+import type { CanonicalCatalogue, FactionDatasheet } from '../contracts/catalogue'
+import { datasheetInBySlug, datasheetSearchFieldsIn } from '../shared/catalogue'
 import { datasheetPageBySlug } from '../core/datasheetSlug'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { describeDatasheetAbilities } from '../shared/datasheetDescriptions'
@@ -62,7 +62,9 @@ export function referenceRuleSection(sources: ReferenceSources, data: { document
 export async function referenceFactionDatasheets(catalogue: LoadedCatalogue, data: { catalogueId: string; query: string }) {
   const options = { factionCards: true, nonMatchedPlay: true }
   await completeStepsCooperatively(stepThrough(unitSummaries(catalogue, data.catalogueId, options)))
-  return unitsIn(catalogue, data.catalogueId, data.query, options).filter((unit) =>
-    isReferenceDatasheet(catalogue, data.catalogueId, unit.id),
+  return unitsIn(catalogue, data.catalogueId, data.query, options).flatMap((unit): FactionDatasheet[] =>
+    isReferenceDatasheet(catalogue, data.catalogueId, unit.id)
+      ? [{ ...unit, keywords: datasheetSearchFieldsIn(catalogue, data.catalogueId, unit.id)?.keywords ?? [] }]
+      : [],
   )
 }

@@ -126,8 +126,8 @@ it('shares preparation with concurrent and synchronous faction readers', async (
   })
   const first = referenceFactionDatasheets(catalogue, { catalogueId: 'cat', query: '' })
   const second = referenceFactionDatasheets(catalogue, { catalogueId: 'cat', query: 'Unit 2' })
-  const expected = unitsIn(catalogue, 'cat', '', { factionCards: true })
-  expect(await Promise.all([first, second])).toEqual([expected, expected.filter((unit) => unit.name === 'Unit 2')])
+  const expected = unitsIn(catalogue, 'cat', '', { factionCards: true }).map((unit) => unit.id)
+  expect((await Promise.all([first, second])).map((units) => units.map((unit) => unit.id))).toEqual([expected, ['unit-2']])
 })
 
 it('retries faction preparation after a source lookup fails', async () => {

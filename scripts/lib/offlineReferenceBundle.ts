@@ -8,14 +8,13 @@ import type { CatalogueFile } from '../../src/core/catalogue'
 import { packRuntimeData, type RuntimeData } from '../../src/contracts/runtimeData'
 import { shareRuntimeData } from '../../src/contracts/sharedRuntimeData'
 import { shareReferenceText } from '../../src/contracts/sharedReferenceText'
-import { isReferenceDatasheet } from '../../src/server/catalogueIndex'
 import { referenceCatalogue } from '../../src/server/canonicalCatalogue'
 import { detachmentsOffering } from '../../src/shared/factionReferences'
-import { unitsIn } from '../../src/shared/cataloguePicker'
 import {
   publishedDetachmentReference,
   publishedFaction,
   referenceDatasheetBySlug,
+  referenceFactionDatasheets,
   referenceRuleIndex,
   referenceRuleSection,
 } from '../../src/server/referenceCatalogue'
@@ -151,9 +150,7 @@ export async function writeReferenceBundle(outDir: string, directory = catalogue
     put(['faction', faction.id], faction)
     put(['faction', faction.slug], faction)
     if (faction.isDefault) put(['faction', routeSlug(faction.displayName)], faction)
-    const units = unitsIn(selectedCatalogue, faction.id, '', { factionCards: true }).filter((unit) =>
-      isReferenceDatasheet(selectedCatalogue, faction.id, unit.id),
-    )
+    const units = await referenceFactionDatasheets(selectedCatalogue, { catalogueId: faction.id, query: '' })
     put(['faction-datasheets', faction.id, ''], units)
     for (const unit of units) {
       const sheet = referenceDatasheetBySlug(selectedSources, { catalogueId: faction.id, slug: unit.slug })
