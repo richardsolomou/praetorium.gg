@@ -139,12 +139,13 @@ export class RosterService {
 
   /** Public rosters anyone can find, newest save first, named and pictured for their owner; a roster whose owner has no account is left out. */
   async discoverRosters(query: RosterDiscoveryQuery) {
-    const { rows, nextCursor } = await this.repository.discoverRosters(query)
+    const { rows, total, nextCursor } = await this.repository.discoverRosters(query)
     const owners = await this.repository.profilesByIds(rows.map((row) => row.userId))
     const owned = rows.filter((row) => owners.has(row.userId))
     const summaries = readerSummaries(owned)
     return {
       rosters: owned.map((row, index) => ({ summary: summaries[index]!, owner: owners.get(row.userId)!, priceable: rosterFromRow(row) })),
+      total: total ?? null,
       nextCursor,
     }
   }

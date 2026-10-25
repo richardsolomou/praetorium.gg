@@ -115,6 +115,15 @@ describe('roster discovery filters', () => {
 })
 
 describe('roster discovery pages', () => {
+  it('counts every roster the filter finds, not only the page', () => {
+    const rows = [
+      ...Array.from({ length: 30 }, (_, index) => row(`necrons-${index}`, index)),
+      row('orks', 99, { catalogueId: 'orks' }),
+      row('private', 98, { visibility: 'private' }),
+    ]
+    expect(discoveryPage(rows, query({ catalogueIds: ['necrons'], limit: 24 })).total).toBe(30)
+  })
+
   it('lists the most recently saved roster first', () => {
     expect(ids([row('older', 1), row('newest', 3), row('newer', 2)])).toEqual(['newest', 'newer', 'older'])
   })

@@ -533,7 +533,12 @@ export class SpacetimeOperator {
     return this.read(
       'discover_rosters',
       [JSON.stringify(query)],
-      z.object({ rows: z.array(rosterRow).max(ROSTER_DISCOVERY_MAX_PAGE_SIZE), nextCursor: rosterDiscoveryCursorSchema.nullable() }),
+      z.object({
+        rows: z.array(rosterRow).max(ROSTER_DISCOVERY_MAX_PAGE_SIZE),
+        // A module published before the count was added answers without it.
+        total: z.number().int().nonnegative().optional(),
+        nextCursor: rosterDiscoveryCursorSchema.nullable(),
+      }),
     )
   }
 

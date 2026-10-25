@@ -1,10 +1,10 @@
 import { RulesVersionLabel } from '../../../components/RulesVersionLabel'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../../../favouriteDetachments'
-import { factionIndexQuery, factionQuery } from '../../../queries'
+import { discoveredRostersQuery, factionIndexQuery, factionQuery } from '../../../queries'
 import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
 import { FavouriteFactionToggle } from './FavouriteFactionToggle'
 import { FactionMark, factionColour } from '../../../components/FactionMark'
@@ -26,6 +26,12 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
   const navigate = useNavigate()
   const { date } = useDateFormatting()
   const { favourites } = useFavouriteDetachments(direct)
+  // The rosters page asks for exactly this filter and order, so following the link reuses the answer.
+  const { data: publicRosters } = useInfiniteQuery({
+    ...discoveredRostersQuery({ faction: faction ? currentCatalogueFamilyId(faction.id) : '' }, 'public', 'updated-desc'),
+    enabled: direct && Boolean(faction),
+  })
+  const publicArmies = publicRosters?.pages[0]?.total ?? null
   if (!direct) return <Outlet />
   if (!faction) return null
   const editions = index?.factions.filter((entry) => currentCatalogueFamilyId(entry.id) === currentCatalogueFamilyId(faction.id)) ?? []
@@ -101,20 +107,23 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
             </span>
           </FactionReferenceLink>
           <Link
+            to="/rosters"
+            search={{ view: 'public', faction: faction.slug }}
+            className="flex items-center justify-between bg-panel px-3 py-3 hover:bg-raised"
+          >
+            <span className="font-bold uppercase">Public armies</span>
+            <span className="flex items-center gap-3">
+              {publicArmies === null ? null : <span className="readout">{publicArmies}</span>}
+              <ChevronRight className="size-4 text-dim" aria-hidden />
+            </span>
+          </Link>
+          <Link
             to="/data-updates/$catalogueId"
             params={{ catalogueId: faction.slug }}
             search={{}}
             className="flex items-center justify-between bg-panel px-3 py-3 hover:bg-raised"
           >
             <span className="font-bold uppercase">Data updates</span>
-            <ChevronRight className="size-4 text-dim" aria-hidden />
-          </Link>
-          <Link
-            to="/rosters"
-            search={{ view: 'public', faction: faction.slug }}
-            className="flex items-center justify-between bg-panel px-3 py-3 hover:bg-raised"
-          >
-            <span className="font-bold uppercase">Public armies</span>
             <ChevronRight className="size-4 text-dim" aria-hidden />
           </Link>
         </section>
