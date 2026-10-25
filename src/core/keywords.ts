@@ -1,6 +1,6 @@
-import { plainQuotes } from './text'
+import { plainQuotes, plainDashes } from './text'
 export const normalizeKeywordSelector = (value: string) =>
-  plainQuotes(value.replaceAll(/\^\^|\*\*/g, '').replaceAll(/[‐‑‒–—]/g, '-'))
+  plainQuotes(plainDashes(value.replaceAll(/\^\^|\*\*/g, '')))
     .replaceAll(/[^\p{L}\p{N}+'-]+/gu, ' ')
     .trim()
     .toLowerCase()

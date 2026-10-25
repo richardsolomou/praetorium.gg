@@ -102,7 +102,7 @@ it.each([true, false])('offers one composition control when fixed sizes are %s',
     selected: { ...sheet, detachments: [], attribution: null },
     available: { ...sheet, detachments: [], attribution: null },
     carriers: [],
-    datacardJoin: 'none',
+    datacardJoin: 'missing',
   }
   queryClient.setQueryData(loadoutDatasheetsQuery('catalogue', 'unit', [], picks, 0).queryKey, data)
   const choice = (key: string, names: string[]) => ({
@@ -172,7 +172,7 @@ it('lists weapons a chosen bundle replaced among the equipped weapons of a unit 
     selected: { ...sheet, detachments: [], attribution: null },
     available: { ...sheet, detachments: [], attribution: null },
     carriers: [],
-    datacardJoin: 'none',
+    datacardJoin: 'missing',
   }
   queryClient.setQueryData(loadoutDatasheetsQuery('catalogue', 'walker', [], picks, 0).queryKey, data)
   const unit: LoadoutUnit = {

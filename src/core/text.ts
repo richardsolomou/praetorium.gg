@@ -22,6 +22,9 @@ export const capitalised = (text: string) => text.charAt(0).toLocaleUpperCase() 
 /** A number as a list prints it, thousands separators included: 2,000. */
 export const printedNumber = (text: string) => Number(text.replaceAll(',', ''))
 
+/** Every dash and the minus sign as a plain hyphen. */
+export const plainDashes = (text: string) => text.replaceAll(/[\p{Pd}\u2212]/gu, '-')
+
 /** Typographic and modifier-letter apostrophes as a plain one. */
 export const plainQuotes = (text: string) => text.replaceAll(/[‘’ʼ]/g, "'")
 

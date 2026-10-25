@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { bookOf, card, points, withCards } from './catalogue.fixtures'
-import { datacardJoinOutcome, datacardJoinReport, datacardOf } from '../shared/datasheetJoin'
+import { datacardJoinReport, datacardOf } from '../shared/datasheetJoin'
 
 const book = () =>
   bookOf({
@@ -24,9 +24,6 @@ describe('the join from a datasheet to its card', () => {
     loaded.factionContents.set('test-catalogue', withCards('Test catalogue', ['Rhino']))
     loaded.datacardExcludedCatalogueIds = new Set(['other'])
     expect(datacardOf(loaded, 'cat', 'rhino')).not.toBeNull()
-  })
-  it('reports a missing datacard as the join outcome', () => {
-    expect(datacardJoinOutcome(book(), 'cat', 'rhino')).toBe('missing')
   })
 
   it("reads the book's own file first, apostrophes folded", () => {

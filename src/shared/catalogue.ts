@@ -28,7 +28,13 @@ import { datacardOf } from './datasheetJoin'
 import { mergeDetachmentRules } from './catalogueDescriptions'
 import { definitionTokens, displayRuleName, modifiedProfileField } from './catalogueDisplay'
 import { relationshipFor, relationshipsFor } from './catalogueRelationships'
-import { deploymentAbilities, parseAbilityGrants, parsedAbilityGrants, titleCaseAbility } from './catalogueAbilityGrants'
+import {
+  deploymentAbilities,
+  parseAbilityGrants,
+  parsedAbilityGrants,
+  titleCaseAbility,
+  weaponProfileTypes,
+} from './catalogueAbilityGrants'
 import { weaponGrantsIn } from './textFacts'
 import type { AbilityKind, Datasheet } from '../contracts/catalogue'
 
@@ -969,7 +975,7 @@ function weaponAbilitiesInSelectedUnit(
         const granted = {
           keyword: grant[2]!.replace(/^[^:]+/, (name) => titleCaseAbility(name)),
           source: profile.name,
-          profileTypes: [`${titleCaseAbility(grant[1]!)} Weapons`],
+          profileTypes: weaponProfileTypes(grant[1]),
         }
         found.set(`${granted.keyword.toLowerCase()}:${granted.profileTypes.join(',')}:${granted.source}`, granted)
       }
@@ -994,10 +1000,8 @@ function weaponAbilitiesInAttachedUnit(
           /^While this model is leading a unit, (?:(melee|ranged) )?weapons equipped by models in that unit have the \[([\p{L}\p{N} +'’\p{Pd}]+)\] ability\.$/iu,
         )
         if (!match) continue
-        const keyword = match[2]!.toLowerCase().replaceAll(/(^|[\s-])\p{L}/gu, (letter) => letter.toUpperCase())
-        const profileTypes = match[1]
-          ? [`${match[1][0]!.toUpperCase()}${match[1].slice(1).toLowerCase()} Weapons`]
-          : ['Ranged Weapons', 'Melee Weapons']
+        const keyword = titleCaseAbility(match[2]!)
+        const profileTypes = weaponProfileTypes(match[1])
         found.set(`${profile.name}:${keyword}:${profileTypes.join(',')}`, { keyword, source: profile.name, profileTypes })
       }
     }

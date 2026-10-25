@@ -1,4 +1,4 @@
-import { plainQuotes } from '../core/text'
+import { plainQuotes, plainDashes } from '../core/text'
 import { cachedIn } from '../core/collections'
 import { nameOf, targetOf } from '../core/catalogue'
 import { isNonMatchedPlayName, matchedPlayName, normalizedName, normalizedNameVariants } from '../core/name'
@@ -19,7 +19,7 @@ const cardIndexes = new WeakMap<FactionContent, Map<string, DatasheetDetails>>()
 const joins = new WeakMap<LoadedCatalogue, Map<string, DatacardJoin | null>>()
 
 /** Catalogue and datacard sources use different apostrophe and hyphen glyphs in otherwise identical names. */
-const comparable = (name: string) => normalizedName(plainQuotes(name.normalize('NFKC')).replaceAll(/[‐‑‒–—−]/g, '-'))
+const comparable = (name: string) => normalizedName(plainDashes(plainQuotes(name.normalize('NFKC'))))
 
 function cardIn(content: FactionContent, name: string): DatasheetDetails | null {
   let index = cardIndexes.get(content)
@@ -37,9 +37,6 @@ function cardIn(content: FactionContent, name: string): DatasheetDetails | null 
 export function datacardOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string): DatacardJoin | null {
   return cachedIn(joins, loaded, `${catalogueId}:${entryId}`, () => join(loaded, catalogueId, entryId))
 }
-
-export const datacardJoinOutcome = (loaded: LoadedCatalogue, catalogueId: string, entryId: string) =>
-  datacardOf(loaded, catalogueId, entryId) ? 'name' : 'missing'
 
 function join(loaded: LoadedCatalogue, catalogueId: string, entryId: string): DatacardJoin | null {
   const entry = loaded.index.definitions.get(entryId)

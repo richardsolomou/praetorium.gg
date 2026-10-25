@@ -294,7 +294,7 @@ function attachmentSubstitutions(index: CatalogueIndex) {
           const base = match[1]?.replace(/\s+unit$/i, '').trim()
           if (!base) continue
           const substitutes = found.get(normalizedName(base)) ?? []
-          if (!substitutes.some((name) => normalizedName(name) === normalizedName(substitute))) substitutes.push(substitute)
+          if (!substitutes.some((name) => sameText(name, substitute))) substitutes.push(substitute)
           found.set(normalizedName(base), substitutes)
         }
       }

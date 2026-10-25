@@ -9,10 +9,10 @@
  * worth a sentence of its own.
  */
 
-import { plainQuotes } from '../core/text'
+import { plainQuotes, plainDashes } from '../core/text'
 import { cachedIn, remember } from '../core/collections'
-import { type CatalogueIndex, type Definition, nameOf } from '../core/catalogue'
-import { childrenOf, resolve } from '../core/definitions'
+import { type CatalogueIndex, nameOf } from '../core/catalogue'
+import { eachDefinition } from '../core/definitions'
 import type { UnitSize } from '../core/unitSize'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { descriptionKey } from './datacards'
@@ -26,10 +26,9 @@ export type UnplacedChoice = { name: string; reason: string }
 
 export const normalized = (value: string) =>
   plainQuotes(
-    value
+    plainDashes(value)
       .trim()
       .toLocaleLowerCase()
-      .replace(/[‐‑]/g, '-')
       .replace(/\s+/g, ' ')
       .replace(/\[\d+\]$/, ''),
   )
@@ -138,18 +137,9 @@ function factionNames(loaded: LoadedCatalogue, catalogueId: string): ReadonlySet
 
 function namesIn(index: CatalogueIndex, catalogueId: string) {
   const names = new Set<string>()
-  const seen = new Set<string>()
-  const walk = (definition: Definition) => {
-    const target = resolve(definition, index)
-    if (seen.has(target.id)) return
-    seen.add(target.id)
-    names.add(normalized(nameOf(definition, index.definitions)))
-    for (const child of childrenOf(target, index)) walk(child.definition)
-  }
-  for (const id of index.datasheets.get(catalogueId) ?? []) {
-    const definition = index.definitions.get(id)
-    if (definition) walk(definition)
-  }
+  eachDefinition(index.datasheets.get(catalogueId) ?? [], index, (definition) =>
+    names.add(normalized(nameOf(definition, index.definitions))),
+  )
   return names
 }
 

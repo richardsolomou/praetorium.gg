@@ -58,6 +58,26 @@ export function childrenOf(definition: Definition, index: CatalogueIndex): Optio
 }
 
 /** An option's price, including entries it must hold: a "2 Multi-meltas" option can carry its cost on the weapons. */
+/** Visits each definition reachable from `rootIds` once, by the entry it resolves to, so shared wargear is read once. */
+export function eachDefinition(
+  rootIds: Iterable<string>,
+  index: CatalogueIndex,
+  visit: (definition: Definition, target: Definition) => void,
+) {
+  const seen = new Set<string>()
+  const walk = (definition: Definition) => {
+    const target = resolve(definition, index)
+    if (seen.has(target.id)) return
+    seen.add(target.id)
+    visit(definition, target)
+    for (const child of childrenOf(target, index)) walk(child.definition)
+  }
+  for (const id of rootIds) {
+    const root = index.definitions.get(id)
+    if (root) walk(root)
+  }
+}
+
 export function pointsOf(option: Option, index: CatalogueIndex, visited = new Set<string>()): number {
   const target = resolve(option.definition, index)
   const own =
