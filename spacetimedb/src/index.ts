@@ -14,6 +14,7 @@ import {
   POINTS_BUDGET_MAX,
   POINTS_BUDGET_MIN,
   pointsBudgetError,
+  pointsBudgetOf,
   reduceBattle,
   validate,
   type FormatRuleId,
@@ -27,6 +28,9 @@ import { onboardingTaskIds, tourTaskIds } from '../../src/core/onboarding'
 import {
   alliedLeagueRosterLimit,
   leagueAllowancesSchema,
+  leagueArmyPointsError,
+  leagueEntryPoints,
+  leagueSeatRefusal,
   parseLeagueAllowances,
   leagueAllowanceRefusal,
   leaguePlacesSeat,
@@ -363,6 +367,8 @@ function eventTitle(host: EventHost) {
     format: (host.event.format ?? null) as TableShape | null,
     rosterLimit: host.event.rosterLimit ?? null,
     pointsBudget: host.event.pointsBudget,
+    soloPoints: host.event.soloPoints ?? null,
+    allyPoints: host.event.allyPoints ?? null,
   })
 }
 
@@ -2628,6 +2634,8 @@ export const migrateLeaguesToClubs = spacetime.procedure({ now: t.u64() }, t.u32
           createdAt: event.createdAt,
           revealedAt: event.revealedAt,
           revealedBy: event.revealedBy,
+          soloPoints: undefined,
+          allyPoints: undefined,
         })
         tx.db.clubGames.insert({
           eventId: event.id,
@@ -3045,13 +3053,24 @@ function leaguePointsBudget(format: string | null, rosterLimit: number | null, b
   if (format !== '1v1' || pointsBudgetError(rosterLimit, budget)) return null
   return { budget }
 }
+const leagueArmyPointsInput = z.number().int().min(1).max(POINTS_BUDGET_MAX).nullable()
 const leagueRuleInput = z.object({
   format: leagueFormatInput,
   rosterLimit: z.number().int().positive().max(10_000),
   allowances: leagueAllowancesSchema.optional(),
-  // Absent from an older client, which leaves the event's pairing and points total as they stand.
+  // Absent from an older client, which leaves the event's pairing and points as they stand.
   rounds: leagueRoundsInput.optional(),
   pointsBudget: leaguePointsBudgetInput.optional(),
+  soloPoints: leagueArmyPointsInput.optional(),
+  allyPoints: leagueArmyPointsInput.optional(),
+})
+
+/** An event's format, size and points per army, as the league rules read them. */
+const eventPoints = (event: SealedEventRow) => ({
+  format: (event.format ?? null) as TableShape | null,
+  rosterLimit: event.rosterLimit ?? null,
+  soloPoints: event.soloPoints ?? null,
+  allyPoints: event.allyPoints ?? null,
 })
 
 /** Null for an event created before allowances were recorded. */
@@ -3096,13 +3115,13 @@ function revealLeagueEvent(tx: Context, event: SealedEventRow, now: number, acto
   if (
     event.format !== undefined &&
     entries.some((entry, index) => {
-      const required = requiredLeagueRosterLimit(
-        event.format as TableShape,
-        event.rosterLimit ?? null,
-        entry.requiredLimit ?? null,
-        entry.teamId ?? null,
-      )
-      return required === null || snapshots[index]!.built?.limit !== required
+      const format = event.format as TableShape
+      const required = requiredLeagueRosterLimit(format, event.rosterLimit ?? null, entry.requiredLimit ?? null, entry.teamId ?? null)
+      const built = snapshots[index]!.built
+      if (required === null || !built) return true
+      if (format === '1v1') return built.limit !== required
+      const points = leagueEntryPoints(eventPoints(event), { requiredLimit: entry.requiredLimit ?? null, teamId: entry.teamId ?? null })
+      return points === null || leagueSeatRefusal(built, event.rosterLimit!, points) !== null
     })
   )
     return { outcome: 'not-ready' as const }
@@ -3350,6 +3369,8 @@ export const clubByToken = spacetime.procedure({ token: t.string() }, t.string()
           format: event.format ?? null,
           rosterLimit: event.rosterLimit ?? null,
           pointsBudget: event.pointsBudget ?? null,
+          soloPoints: event.soloPoints ?? null,
+          allyPoints: event.allyPoints ?? null,
           players: leagueEntriesFor(tx, event.id)
             .filter((entry) => entry.status === 'accepted')
             .map((entry) => ({
@@ -3889,13 +3910,16 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         ownerPlays: z.boolean().default(false),
         rounds: leagueRoundsInput.default(null),
         pointsBudget: leaguePointsBudgetInput.default(null),
+        soloPoints: leagueArmyPointsInput.default(null),
+        allyPoints: leagueArmyPointsInput.default(null),
         schedule: leagueScheduleInput.default({ playsAt: null, sealBy: null }),
         now: leagueTimeInput,
       }),
       value,
     )
     const points = leaguePointsBudget(input.format ?? '1v1', input.rosterLimit, input.pointsBudget)
-    if (!points || (input.rounds !== null && (input.format ?? '1v1') !== '1v1')) return productJson('forbidden')
+    if (!points || (input.rounds !== null && (input.format ?? '1v1') !== '1v1') || leagueArmyPointsError(input.format ?? '1v1', input))
+      return productJson('forbidden')
     const createdAt = BigInt(input.now)
     if (operation === 'create') {
       const tournament = leagueCommandInput(leagueDetailsInput.extend({ id: idInput, token: idInput }), value)
@@ -3942,6 +3966,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       createdAt,
       revealedAt: undefined,
       revealedBy: undefined,
+      soloPoints: input.soloPoints ?? undefined,
+      allyPoints: input.allyPoints ?? undefined,
     })
     if (input.ownerPlays) insertLeagueEntry(tx, input.eventId, input.ownerId, 'accepted', input.now)
     touchEventById(tx, input.eventId)
@@ -4054,6 +4080,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       input.rule &&
       (input.rule.format !== event.format ||
         input.rule.rosterLimit !== event.rosterLimit ||
+        (input.rule.soloPoints !== undefined && input.rule.soloPoints !== (event.soloPoints ?? null)) ||
+        (input.rule.allyPoints !== undefined && input.rule.allyPoints !== (event.allyPoints ?? null)) ||
         (input.rule.allowances !== undefined && JSON.stringify(input.rule.allowances) !== JSON.stringify(leagueEventAllowances(event))))
         ? input.rule
         : null
@@ -4075,7 +4103,11 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         rule.pointsBudget === undefined
           ? { budget: rule.format === '1v1' && rule.rosterLimit === event.rosterLimit ? event.pointsBudget : undefined }
           : leaguePointsBudget(rule.format, rule.rosterLimit, rule.pointsBudget)
-      if (!points) return productJson('forbidden')
+      // Points per army belong to the format and size they were set for, so changing either drops ones left unsaid.
+      const kept = rule.format === event.format && rule.rosterLimit === event.rosterLimit
+      const soloPoints = rule.soloPoints === undefined ? (kept ? event.soloPoints : undefined) : (rule.soloPoints ?? undefined)
+      const allyPoints = rule.allyPoints === undefined ? (kept ? event.allyPoints : undefined) : (rule.allyPoints ?? undefined)
+      if (!points || leagueArmyPointsError(rule.format, { soloPoints, allyPoints })) return productJson('forbidden')
       tx.db.sealedEvents.id.update({
         ...event,
         format: rule.format,
@@ -4083,6 +4115,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         allowances: rule.allowances === undefined ? event.allowances : JSON.stringify(rule.allowances),
         rounds,
         pointsBudget: points.budget,
+        soloPoints,
+        allyPoints,
       })
       // Sizes and pairs follow the format and points; what lists may waive leaves them standing.
       if (rule.format !== event.format || rule.rosterLimit !== event.rosterLimit) {
@@ -4479,8 +4513,9 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       entry.requiredLimit ?? null,
       entry.teamId ?? null,
     )
-    if ((event.format === '2v1' || event.format === '2v2') && requiredLimit === null) return productJson({ outcome: 'unassigned' })
-    if (requiredLimit !== null && input.rosterLimit !== requiredLimit) return productJson({ outcome: 'wrong-limit' })
+    const team = event.format === '2v1' || event.format === '2v2'
+    if (team && requiredLimit === null) return productJson({ outcome: 'unassigned' })
+    if (!team && requiredLimit !== null && input.rosterLimit !== requiredLimit) return productJson({ outcome: 'wrong-limit' })
     let submitted: Roster
     try {
       submitted = parseRosterSnapshot(input.snapshot)
@@ -4494,6 +4529,20 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     if (refusal) return productJson({ outcome: 'disallowed', message: refusal })
     if (event.pointsBudget !== undefined && (submitted.built?.pointsBudget ?? submitted.built?.limit) !== event.pointsBudget)
       return productJson({ outcome: 'wrong-budget', pointsBudget: event.pointsBudget })
+    if (team) {
+      const points = leagueEntryPoints(eventPoints(event), { requiredLimit: entry.requiredLimit ?? null, teamId: entry.teamId ?? null })
+      if (!submitted.built || points === null) return productJson({ outcome: 'wrong-limit' })
+      const seat = leagueSeatRefusal(submitted.built, event.rosterLimit!, points)
+      if (seat === 'wrong-limit') return productJson({ outcome: 'wrong-limit' })
+      if (seat === 'over-points') return productJson({ outcome: 'over-points', points })
+      // Allies bring lists saved to the same points total, so the first to seal sets it for the other.
+      const partner = leagueEntriesFor(tx, event.id).find(
+        (row) => row.userId !== input.userId && row.teamId !== undefined && row.teamId === entry.teamId && row.status === 'accepted',
+      )
+      const partnerBuilt = partner ? sealedRoster(partner)?.built : undefined
+      if (partnerBuilt && pointsBudgetOf(partnerBuilt) !== pointsBudgetOf(submitted.built))
+        return productJson({ outcome: 'ally-mismatch', pointsBudget: pointsBudgetOf(partnerBuilt) })
+    }
     if (
       event.format === '2v2' &&
       !leagueEntriesFor(tx, event.id).some((row) => row.userId !== input.userId && row.teamId === entry.teamId && row.status === 'accepted')
@@ -4515,7 +4564,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       !saved ||
       saved.userId !== input.userId ||
       saved.updatedAt !== BigInt(input.rosterUpdatedAt) ||
-      (requiredLimit !== null && saved.limit !== requiredLimit)
+      (requiredLimit !== null && saved.limit !== (team ? submitted.built?.limit : requiredLimit))
     )
       return productJson({ outcome: 'missing' })
     tx.db.leagueEventEntries.key.update({

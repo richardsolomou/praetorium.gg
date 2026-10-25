@@ -8,14 +8,19 @@ import { Label } from '@/components/ui/label'
 import type { Command } from '../../../../core/battle'
 import type { BattleView } from '../../../../core/battleView'
 import {
+  armyPointsFor,
   battlePointsBudget,
+  evenArmyPoints,
   battleSizeLabel,
   battleSizeOptionLabel,
+  battleSizeText,
   GAME_SIZES,
   isKotcLimit,
   pointsBudgetsAgree,
   rosterBattleFormat,
+  teamArmyProblems,
 } from '../../../../core/battle'
+import { ArmyPoints } from './ArmyPoints'
 import { gameReferencesQuery } from '../../../queries'
 import { fixedHandShort, missionCardsReady, type Side, type SideMission, sideName, sides as foldSides } from '../../../sides'
 import type { SendCommand } from '../useCommand'
@@ -62,11 +67,14 @@ function matchupName(table: Side[], nameDisposition: (id: string | null | undefi
   return named.length === 2 && named.every(Boolean) ? named.join(' vs ') : undefined
 }
 
-/** Every matched-play size, named and priced, for the one control that asks for it. */
-const SIZE_OPTIONS: SearchableGroup[] = [
+/** Every matched-play size, named and priced, for the one control that asks for it; King of the Colosseum is a duel. */
+const sizeOptions = (teamBattle: boolean): SearchableGroup[] => [
   {
     label: '',
-    items: GAME_SIZES.map((size) => ({ label: battleSizeOptionLabel(size), value: String(size.limit) })),
+    items: GAME_SIZES.filter((size) => !teamBattle || !isKotcLimit(size.limit)).map((size) => ({
+      label: battleSizeOptionLabel(size),
+      value: String(size.limit),
+    })),
   },
 ]
 
@@ -136,12 +144,20 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   const recording = ready && missingCards.some((side) => !fixedHandShort(side))
   const busy = pending || recording
 
-  const budgetsDiffer = ready && !pointsBudgetsAgree(view)
+  const team = view.settings.teamBattle
+  const budgetsDiffer = ready && !team && !pointsBudgetsAgree(view)
+  const armyProblem = ready ? teamArmyProblems(view)[0] : undefined
   const sizeProblem =
     view.settings.limit !== null
       ? budgetsDiffer
         ? BUDGET_MISMATCH
-        : null
+        : armyProblem
+          ? `${sideName(table.find((side) => side.index === armyProblem.side)!)}: ${
+              armyProblem.code === 'allies-mismatch'
+                ? 'choose lists saved to the same points total.'
+                : `an army spends more than its ${armyPointsFor(view, armyProblem.side)?.toLocaleString('en')} points.`
+            }`
+          : null
       : !ready
         ? null
         : view.settings.sizeFromRosters
@@ -162,7 +178,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
     ...owed.map((army) => (army.isViewer ? 'Your army' : `${army.playerName}’s army`)),
     ...awaited.map((army) => `${army.playerName}’s army`),
     ...(ready && view.settings.limit === null ? ['Battle size'] : []),
-    ...(view.settings.limit !== null && budgetsDiffer ? ['Points budget'] : []),
+    ...(view.settings.limit !== null && (budgetsDiffer || armyProblem) ? ['Points budget'] : []),
     ...(leaderless.length ? ['Warlord'] : []),
     ...(manual
       ? []
@@ -178,7 +194,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   ]
 
   const complete: Record<SectionId, boolean> = {
-    armies: view.settings.limit !== null && ready && !budgetsDiffer && !leaderless.length,
+    armies: view.settings.limit !== null && ready && !budgetsDiffer && !armyProblem && !leaderless.length,
     mission: Boolean(mission) && !undecided.length,
     battlefield: Boolean(view.deploymentId),
     defender: Boolean(view.attackerId),
@@ -225,6 +241,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
       twistId: view.settings.twistId,
       teamBattle: view.settings.teamBattle,
       playerCount: view.settings.playerCount,
+      armyPoints: view.settings.armyPoints ?? null,
       clockLimitMinutes: null,
       ...(manual ? { manual: true } : {}),
       ...settings,
@@ -234,12 +251,14 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   const sizeName =
     view.settings.limit === null
       ? 'Determined by your rosters'
-      : pointsBudget === null
-        ? battleSizeOptionLabel({
-            name: GAME_SIZES.find((size) => size.limit === view.settings.limit)?.name ?? 'Battle',
-            limit: view.settings.limit,
-          })
-        : battleSizeLabel(view.settings.limit, pointsBudget)
+      : team
+        ? battleSizeText(view)!
+        : pointsBudget === null
+          ? battleSizeOptionLabel({
+              name: GAME_SIZES.find((size) => size.limit === view.settings.limit)?.name ?? 'Battle',
+              limit: view.settings.limit,
+            })
+          : battleSizeLabel(view.settings.limit, pointsBudget)
   // The size and pack fold away once there is nothing to settle in them.
   const formatOpen = isOpen('armies') || !sizeFixed || (!manual && (!chosenPack || (references?.packs.length ?? 0) > 1))
 
@@ -270,8 +289,8 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                 ? `Waiting for ${formatList(awaited.map((army) => army.playerName))} to choose an army.`
                 : (sizeProblem ??
                   (leaderless.length ? 'Choose whose Warlord leads each allied side.' : null) ??
-                  (table.some((side) => side.armies.length > 1)
-                    ? 'Battle size follows your rosters. Each side brings the same points; allies split them evenly.'
+                  (team
+                    ? 'The biggest list sets the battle size. Each army spends up to its side’s points per army, and allies bring lists saved to the same total.'
                     : 'Battle size follows your rosters. Each side brings the same points.'))
           }
           needed={Boolean(owed.length || sizeProblem || leaderless.length)}
@@ -297,7 +316,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                       <SearchableSelect
                         id={BATTLE_SIZE_CONTROL}
                         ariaLabel="Battle size"
-                        groups={SIZE_OPTIONS}
+                        groups={sizeOptions(team)}
                         value={view.settings.limit === null ? '' : String(view.settings.limit)}
                         onValueChange={(value) => configure({ limit: Number(value) })}
                         placeholder="Choose a battle size"
@@ -307,6 +326,15 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                     </>
                   )}
                 </div>
+                {team && view.settings.limit !== null && !view.leagueToken ? (
+                  <ArmyPoints
+                    sides={table}
+                    defaults={[0, 1].map((side) => evenArmyPoints(view, side)!)}
+                    chosen={view.settings.armyPoints}
+                    disabled={busy}
+                    onChange={(armyPoints) => configure({ armyPoints })}
+                  />
+                ) : null}
                 {view.leagueToken ? null : (
                   <div className="sm:col-span-2">
                     <Choice

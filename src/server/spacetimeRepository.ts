@@ -304,6 +304,8 @@ export class SpacetimeRepository {
     ownerPlays?: boolean
     rounds?: number | null
     pointsBudget?: number | null
+    soloPoints?: number | null
+    allyPoints?: number | null
     schedule?: LeagueSchedule
     now: number
   }) {
@@ -323,6 +325,8 @@ export class SpacetimeRepository {
     rosterLimit?: number
     allowances?: readonly LeagueAllowance[]
     pointsBudget?: number | null
+    soloPoints?: number | null
+    allyPoints?: number | null
     schedule?: LeagueSchedule
     now: number
   }) {
@@ -350,6 +354,8 @@ export class SpacetimeRepository {
         allowances?: readonly LeagueAllowance[]
         rounds?: number | null
         pointsBudget?: number | null
+        soloPoints?: number | null
+        allyPoints?: number | null
       }
       schedule?: LeagueSchedule
     },
@@ -403,6 +409,8 @@ export class SpacetimeRepository {
         rosterLimit: event.rosterLimit,
         revealedAt: event.revealedAt,
         pointsBudget: event.pointsBudget,
+        soloPoints: event.soloPoints,
+        allyPoints: event.allyPoints,
         playsAt: event.playsAt,
         sealBy: event.sealBy,
         entrantCount: accepted,
@@ -596,6 +604,8 @@ export class SpacetimeRepository {
       revealedByName: event.revealedBy ? (profiles.get(event.revealedBy)?.name ?? null) : null,
       rounds: event.rounds,
       pointsBudget: event.pointsBudget,
+      soloPoints: event.soloPoints,
+      allyPoints: event.allyPoints,
       playsAt: event.playsAt,
       sealBy: event.sealBy,
       pairings,
@@ -719,6 +729,8 @@ export class SpacetimeRepository {
         z.object({ outcome: z.literal('disposition-dropped'), disposition: z.string() }),
         z.object({ outcome: z.literal('disallowed'), message: z.string() }),
         z.object({ outcome: z.literal('wrong-budget'), pointsBudget: z.number() }),
+        z.object({ outcome: z.literal('over-points'), points: z.number() }),
+        z.object({ outcome: z.literal('ally-mismatch'), pointsBudget: z.number() }),
       ]),
     )
   }
@@ -816,6 +828,8 @@ export class SpacetimeRepository {
       eventToken: event.token,
       format: event.format,
       rosterLimit: event.rosterLimit,
+      soloPoints: event.soloPoints,
+      allyPoints: event.allyPoints,
       revealedAt: event.revealedAt,
       rounds: event.rounds,
       paired: Boolean(pairing),

@@ -69,8 +69,8 @@ describe('setup', () => {
     expect(state.players.filter((player) => player.roster).length).toBe(4)
   })
 
-  it('unselects all allied rosters when the shared battle size changes', () => {
-    const state = fourSeatState([0, 0, 1, 1], undefined, 1_000)
+  it('unselects allied rosters built bigger than a smaller battle size', () => {
+    const state = fourSeatState([0, 0, 1, 1], [2_000, 2_000, 2_000, 2_000], 1_000)
 
     expect(state.players.filter((player) => player.roster).length).toBe(0)
   })
@@ -134,10 +134,10 @@ describe('setup', () => {
     expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('players must be seated on two valid sides')
   })
 
-  it('refuses a four-seat battle with a roster at the full force size', () => {
+  it('refuses allies whose lists are saved to different points totals', () => {
     const state = fourSeatState([0, 0, 1, 1], [1_000, 1_000, 1_000, 2_000])
 
-    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('every roster must match the battle size')
+    expect(validate(state, ALICE, { kind: 'begin-battle', firstPlayerId: ALICE })).toBe('allies bring lists saved to the same points total')
   })
 
   it('keeps a legacy team-battle command at three seats', () => {

@@ -236,6 +236,10 @@ const sealedEvents = table(
     createdAt: t.u64(),
     revealedAt: t.option(t.u64()),
     revealedBy: t.option(t.string()),
+    /** What a 2v1's solo player may spend; absent spends the battle size. */
+    soloPoints: t.option(t.u32()).default(undefined),
+    /** What each ally in a 2v1, or each doubles player, may spend; absent spends half the battle size. */
+    allyPoints: t.option(t.u32()).default(undefined),
   },
 )
 

@@ -6,6 +6,7 @@ import {
   leagueAllowanceOptions,
   leagueTableShape,
   leagueRegistrationFull,
+  leagueSeatPoints,
   leagueTitle,
   type LeagueAdmission,
   type LeagueAllowance,
@@ -61,12 +62,13 @@ export function doublesTeams<T extends Pick<LeagueEntryView, 'teamId' | 'status'
 }
 
 /** What each side of a 2v1 means at the table, said where the side is named rather than left to be guessed. */
-export function sideGroups(league: Pick<League, 'rosterLimit'>): Record<'solo' | 'allied' | 'unsized', { title: string; detail?: string }> {
-  const solo = league.rosterLimit ?? 0
+export function sideGroups(
+  league: Pick<League, 'rosterLimit' | 'soloPoints' | 'allyPoints'>,
+): Record<'solo' | 'allied' | 'unsized', { title: string; detail?: string }> {
   return {
-    solo: { title: `Solo · ${pointsLabel(solo)}`, detail: 'Plays alone against a pair.' },
+    solo: { title: `Solo · ${pointsLabel(leagueSeatPoints(league, true) ?? 0)}`, detail: 'Plays alone against a pair.' },
     allied: {
-      title: `Allied · ${pointsLabel(alliedLeagueRosterLimit(solo))}`,
+      title: `Allied · ${pointsLabel(leagueSeatPoints(league, false) ?? 0)}`,
       detail: 'Plays beside another ally.',
     },
     unsized: { title: 'Waiting for a size' },
@@ -82,7 +84,7 @@ export type EntrantGrouping<T> = { key: string; title?: string; detail?: string;
 
 /** The groups the entrant list, the organizer and the revealed rosters all split an event into, so a pairing reads the same everywhere. */
 export function entrantGroups<T extends Pick<LeagueEntryView, 'teamId' | 'status' | 'requiredLimit'>>(
-  league: Pick<League, 'format' | 'rosterLimit'>,
+  league: Pick<League, 'format' | 'rosterLimit' | 'soloPoints' | 'allyPoints'>,
   accepted: readonly T[],
   names: (members: T[]) => string,
 ): EntrantGrouping<T>[] {
@@ -151,6 +153,8 @@ type NamedEvent = {
   format?: TableShape | null
   rosterLimit?: number | null
   pointsBudget?: number | null
+  soloPoints?: number | null
+  allyPoints?: number | null
 }
 
 /** An event's name where its club is in view: a tournament's own name, or what a sealed game plays. */
@@ -167,6 +171,8 @@ function namedEvent(event: NamedEvent, withClub: boolean) {
       format: event.format ?? null,
       rosterLimit: event.rosterLimit ?? null,
       pointsBudget: event.pointsBudget,
+      soloPoints: event.soloPoints,
+      allyPoints: event.allyPoints,
     },
     { withClub },
   )

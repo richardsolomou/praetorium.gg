@@ -8,6 +8,14 @@ The bar beside it lists what's left: an army, the battle size, an allied side's 
 
 Your lists were built for different sizes or budgets. Pick lists built for the same points, or edit one.
 
+### "an army spends more than its … points"
+
+In a 2v1 or doubles battle each side has its own points per army, shown beside **Battle size**. Change it with **Set points per army**, or bring a list that spends less.
+
+### "choose lists saved to the same points total"
+
+Allies on one side bring lists saved to the same points total. Change one ally's list, or set its points total in the builder to match.
+
 ### The roster chooser says none of your saved rosters is built for the battle's points
 
 The battle size is already set by the other armies. Choose **Choose a different battle size** or build a list for it in [Rosters](/rosters).

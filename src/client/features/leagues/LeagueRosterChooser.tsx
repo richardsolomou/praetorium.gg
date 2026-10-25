@@ -10,7 +10,7 @@ import { savedRosterSummariesQuery } from '../../queries'
 import { RosterChoices } from '../rosters/RosterChoices'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { Problem } from '../../components/Problem'
-import { pointsLabel, pointsSize } from '../../../core/battle'
+import { battleSizeName, fitsBattleSize, pointsLabel, pointsSize } from '../../../core/battle'
 
 export function RosterChooser({
   open,
@@ -19,6 +19,7 @@ export function RosterChooser({
   failedRosterId,
   requiredLimit,
   pointsBudget = null,
+  seatPoints = null,
   onClose,
   onChoose,
 }: {
@@ -29,16 +30,26 @@ export function RosterChooser({
   requiredLimit: number | null
   /** The event's own points total, which a roster's budget must match; null where the size's full points apply. */
   pointsBudget?: number | null
+  /** What a team event's seat may spend; its list is built at `requiredLimit` or smaller, with any points total. */
+  seatPoints?: number | null
   onClose: () => void
   onChoose: (roster: SavedRoster) => void
 }) {
   const rosterQuery = useQuery({ ...savedRosterSummariesQuery(), enabled: open })
-  const rosters = (rosterQuery.data ?? []).filter(
-    (roster) =>
-      !roster.archived && (roster.pointsBudget ?? null) === pointsBudget && (requiredLimit === null || roster.limit === requiredLimit),
-  )
+  const fits = (roster: SavedRoster) =>
+    requiredLimit === null ||
+    (seatPoints === null
+      ? (roster.pointsBudget ?? null) === pointsBudget && roster.limit === requiredLimit
+      : fitsBattleSize({ limit: requiredLimit, teamBattle: true }, { ...roster, waivedRules: roster.waivedRules ?? undefined }))
+  const rosters = (rosterQuery.data ?? []).filter((roster) => !roster.archived && fits(roster))
   const size =
-    requiredLimit === null ? null : pointsBudget ? `${pointsLabel(pointsBudget)} ${pointsSize(requiredLimit)}` : pointsSize(requiredLimit)
+    requiredLimit === null
+      ? null
+      : seatPoints !== null
+        ? pointsSize(seatPoints)
+        : pointsBudget
+          ? `${pointsLabel(pointsBudget)} ${pointsSize(requiredLimit)}`
+          : pointsSize(requiredLimit)
   // Picking a roster and sealing it are two presses, because a seal is what every opponent reads at reveal.
   const [selectedId, setSelectedId] = useState<string | null>(null)
   if (!open && selectedId !== null) setSelectedId(null)
@@ -53,7 +64,9 @@ export function RosterChooser({
           <DialogDescription>
             {size === null
               ? 'Hidden until the reveal. You can swap it until then.'
-              : `Your ${size} rosters. Hidden until the reveal; you can swap it until then.`}
+              : seatPoints !== null
+                ? `Your rosters built for ${battleSizeName(requiredLimit!)} or smaller, spending up to ${pointsLabel(seatPoints)}. Hidden until the reveal; you can swap it until then.`
+                : `Your ${size} rosters. Hidden until the reveal; you can swap it until then.`}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>

@@ -153,6 +153,17 @@ const sealedEvent = z.object({
     .transform((value) => (value === null ? null : parseLeagueAllowances(value))),
   rounds: z.number().int().nullable(),
   pointsBudget: z.number().int().nullable(),
+  // Absent from a module released before events set points per army.
+  soloPoints: z
+    .number()
+    .int()
+    .nullish()
+    .transform((value) => value ?? null),
+  allyPoints: z
+    .number()
+    .int()
+    .nullish()
+    .transform((value) => value ?? null),
   playsAt: z.number().int().nullable(),
   sealBy: z.number().int().nullable(),
 })
@@ -246,6 +257,16 @@ const clubGame = z.object({
   format: z.enum(TABLE_SHAPES).nullable(),
   rosterLimit: z.number().int().nullable(),
   pointsBudget: z.number().int().nullable(),
+  soloPoints: z
+    .number()
+    .int()
+    .nullish()
+    .transform((value) => value ?? null),
+  allyPoints: z
+    .number()
+    .int()
+    .nullish()
+    .transform((value) => value ?? null),
   players: z.array(
     z.object({ userId: z.string(), sealed: z.boolean(), teamId: z.string().nullable(), requiredLimit: z.number().int().nullable() }),
   ),

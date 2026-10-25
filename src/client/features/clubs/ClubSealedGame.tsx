@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { LeagueSide } from '../../../contracts/schemas'
 import { battleOutcome } from '../../../core/standings'
-import { leagueRevealChecklist, leagueSealingClosed, requiredLeagueRosterLimit } from '../../../core/league'
+import { leagueEntryPoints, leagueRevealChecklist, leagueSealingClosed, requiredLeagueRosterLimit } from '../../../core/league'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
@@ -116,8 +116,11 @@ export function ClubSealedGame({
   // In from before the game was a team game, or from a format change, without a seat yet.
   const picking = team ? players.filter((player) => !seatedIds.has(player.userId)) : []
   const ownLimit = team
-    ? requiredLeagueRosterLimit(game.format, game.rosterLimit, ownEntry?.requiredLimit ?? null, ownEntry?.teamId ?? null)
+    ? requiredLeagueRosterLimit(game.format, game.rosterLimit, ownEntry?.requiredLimit ?? null, ownEntry?.teamId ?? null) === null
+      ? null
+      : game.rosterLimit
     : game.rosterLimit
+  const seatPoints = team && ownEntry ? leagueEntryPoints(game, ownEntry) : null
 
   const mayTakeSeat = member && !revealed && !closed
 
@@ -454,8 +457,9 @@ export function ClubSealedGame({
         pending={seal.isPending}
         error={seal.error}
         failedRosterId={seal.variables ?? null}
-        requiredLimit={ownLimit}
+        requiredLimit={team && seatPoints === null ? null : ownLimit}
         pointsBudget={game.pointsBudget}
+        seatPoints={seatPoints}
         onClose={() => !seal.isPending && setChoosing(false)}
         onChoose={(roster) => seal.mutate(roster.id)}
       />

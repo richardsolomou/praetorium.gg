@@ -24,6 +24,8 @@ import {
   readsAlliedLeagueRoster,
   readsSealedLeagueRoster,
   requiredLeagueRosterLimit,
+  leagueEntryPoints,
+  leagueSeatRefusal,
   visibleLeagueEntries,
   type LeagueAllyEntry,
   type LeagueEntryView,
@@ -159,6 +161,22 @@ describe('league roster requirements', () => {
   it('requires a doubles pairing before deriving half the force size', () => {
     expect(requiredLeagueRosterLimit('2v2', 2_000, null, null)).toBeNull()
     expect(requiredLeagueRosterLimit('2v2', 2_000, 1_000, 'team-a')).toBe(1_000)
+  })
+
+  it('gives each seat its organizer’s points, or an even share of the battle size', () => {
+    const event = { format: '2v1' as const, rosterLimit: 2_000, soloPoints: 1_750, allyPoints: null }
+    expect([
+      leagueEntryPoints(event, { requiredLimit: 2_000, teamId: null }),
+      leagueEntryPoints(event, { requiredLimit: 1_000, teamId: 'pair' }),
+    ]).toEqual([1_750, 1_000])
+  })
+
+  it('refuses a list built bigger than the event’s battle size', () => {
+    expect(leagueSeatRefusal({ limit: 3_000, units: [] }, 2_000, 1_000)).toBe('wrong-limit')
+  })
+
+  it('refuses a list spending past its seat’s points', () => {
+    expect(leagueSeatRefusal({ limit: 1_000, units: [{ points: 850 }] }, 2_000, 800)).toBe('over-points')
   })
 
   it('keeps legacy events unrestricted', () => {

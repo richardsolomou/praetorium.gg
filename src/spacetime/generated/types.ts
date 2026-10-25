@@ -474,6 +474,8 @@ export const SealedEvents = __t.object('SealedEvents', {
   createdAt: __t.u64(),
   revealedAt: __t.option(__t.u64()),
   revealedBy: __t.option(__t.string()),
+  soloPoints: __t.option(__t.u32()),
+  allyPoints: __t.option(__t.u32()),
 })
 export type SealedEvents = __Infer<typeof SealedEvents>
 

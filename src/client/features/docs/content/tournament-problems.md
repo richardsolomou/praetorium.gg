@@ -8,9 +8,17 @@ The tournament seals matched-play lists unless its organizer allows more under *
 
 Every tournament list names exactly one Character or Epic Hero as its Warlord, even in a team tournament, unless a duel's house rules let lists switch the Warlord off. Make one unit the Warlord in the builder, then seal again.
 
-### "choose a roster built for your assigned size"
+### "choose a roster built for this event's battle size"
 
-The roster was built to a different number of points than the tournament or your assigned size. Build or copy a list at that size. A custom points budget isn't accepted either: remove it first.
+A duel tournament seals lists built at its battle size. A 2v1 or doubles tournament also takes smaller ones, but none built bigger unless the list waives **Points limit** and the house rules allow it. Build or copy a list at a size that fits.
+
+### "choose a roster that spends at most … points"
+
+In a 2v1 or doubles tournament each seat has its own points per army. Take units out of the list until it spends no more than that, then seal again.
+
+### "your ally sealed a list saved to … points"
+
+Allies seal lists saved to the same points total. Set your list's points total in the builder to match your ally's, or ask them to change theirs.
 
 ### "wait for the organizer to give you a size or team"
 
