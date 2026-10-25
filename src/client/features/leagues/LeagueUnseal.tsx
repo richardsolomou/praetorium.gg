@@ -45,7 +45,7 @@ export function UnsealRoster({ token, eventToken, userId, label }: { token: stri
       <ConfirmDialog
         open={confirming}
         title={`Unseal ${label}’s roster?`}
-        description="Their revealed roster is discarded and they can seal another one for this event. Battles already started keep the roster they were created with."
+        description="Their revealed roster is discarded and they can seal another one for this tournament. Battles already started keep the roster they were created with."
         cancel="Keep it sealed"
         confirm="Unseal roster"
         pendingLabel="Unsealing…"

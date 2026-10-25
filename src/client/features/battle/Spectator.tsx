@@ -132,12 +132,12 @@ export function Spectator({
           <div className="flex min-w-0 items-center gap-2 text-xs">
             {view.leagueToken ? (
               <Link
-                to="/leagues/$token"
+                to="/tournaments/$token"
                 params={{ token: view.leagueToken }}
                 search={view.leagueEventToken ? { event: view.leagueEventToken } : {}}
                 className="inline-flex shrink-0 items-center gap-1 text-info hover:text-bone"
               >
-                <ArrowLeft className="size-3.5" /> League
+                <ArrowLeft className="size-3.5" /> Tournament
               </Link>
             ) : null}
             {view.clubId ? <ClubLink token={view.token} /> : null}

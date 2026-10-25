@@ -45,7 +45,7 @@ import {
   type EntryStep,
   type League,
 } from './leagueEvent'
-import { InvitePanel, NextEventPanel, OrganizerEntrants } from './LeagueOrganizer'
+import { InvitePanel, OrganizerEntrants } from './LeagueOrganizer'
 import { LeagueArmies, type ArmyGroup } from './LeagueArmies'
 import { LeagueReadiness, RevealRostersDialog } from './LeagueReadiness'
 import { LeagueBattleSkeleton, RosterChooser } from './LeagueRosterChooser'
@@ -66,7 +66,7 @@ type ClickAction = {
   reveal?: true
   onClick: () => void
 }
-type Action = ClickAction | { label: string; to: '/sign-in' | '/leagues' }
+type Action = ClickAction | { label: string; to: '/sign-in' | '/tournaments' }
 
 type Status = {
   title: string
@@ -196,7 +196,7 @@ export function LeagueEventView({
     battleFormat !== '1v1' || !ownEntry?.submitted || !league.revealedAt
       ? undefined
       : !opponents.length
-        ? 'Nobody else is playing in this event.'
+        ? 'Nobody else is playing in this tournament.'
         : !results
           ? '\u00a0'
           : yetToPlay.length
@@ -289,12 +289,7 @@ export function LeagueEventView({
           league.format,
         )
       : null
-  const aside = isOrganizer ? (
-    <aside className="space-y-3">
-      {latest && !revealed ? <InvitePanel league={league} /> : null}
-      {latest && revealed ? <NextEventPanel league={league} /> : null}
-    </aside>
-  ) : null
+  const aside = isOrganizer ? <aside className="space-y-3">{latest && !revealed ? <InvitePanel league={league} /> : null}</aside> : null
 
   return (
     <>
@@ -563,33 +558,33 @@ function entryStatus({
     : 'Hidden until the reveal.'
   if (!ownEntry || ownEntry.status !== 'accepted') {
     if (revealed && isOrganizer)
-      return { title: 'The rosters are out', detail: 'You run this league without a roster of your own.', tone: 'closed' }
+      return { title: 'The rosters are out', detail: 'You run this tournament without a roster of your own.', tone: 'closed' }
     if (revealed)
       return {
         title: 'The rosters are out',
         detail: `Everyone here sealed a roster in secret, the rosters opened together, and now they play each other. ${league.ownerName} runs it.`,
         tone: 'closed',
-        action: signedIn ? { label: 'Start your own league', to: '/leagues' } : undefined,
+        action: signedIn ? { label: 'Start your own tournament', to: '/tournaments' } : undefined,
       }
     if (!signedIn) return { title: 'Registration is open', action: { label: 'Sign in to join', to: '/sign-in' }, steps: steps('join') }
     if (ownEntry?.status === 'pending')
       return { title: 'Waiting for approval', detail: `${league.ownerName} will let you in.`, tone: 'waiting', steps: steps('join') }
     const rejoin = ownEntry?.status === 'rejected'
-    if (registrationFull) return { title: rejoin ? 'You are not in this league' : 'This league is full', tone: 'closed' }
+    if (registrationFull) return { title: rejoin ? 'You are not in this tournament' : 'This tournament is full', tone: 'closed' }
     if (isOrganizer && !rejoin)
       return {
         title: 'You are not playing',
-        detail: 'You run this league without a roster of your own.',
+        detail: 'You run this tournament without a roster of your own.',
         action: { label: 'Join as a player', icon: <UserPlus />, variant: 'outline', pending: joining, onClick: join },
       }
     return {
-      title: rejoin ? 'You are not in this league' : 'Join this league',
+      title: rejoin ? 'You are not in this tournament' : 'Join this tournament',
       detail: rejoin
         ? 'Your request was turned down.'
         : league.admission === 'approval'
           ? `${league.ownerName} approves each player.`
           : undefined,
-      action: { label: rejoin ? 'Request to join again' : 'Join league', icon: <UserPlus />, pending: joining, onClick: join },
+      action: { label: rejoin ? 'Request to join again' : 'Join tournament', icon: <UserPlus />, pending: joining, onClick: join },
       steps: steps('join'),
     }
   }
@@ -682,10 +677,10 @@ function EntryStatusCard({ status, problem, token }: { status: Status; problem: 
         {action ? (
           'to' in action ? (
             <Link
-              {...(action.to === '/sign-in' ? { to: '/sign-in', search: { next: `/leagues/${token}` } } : { to: '/leagues' })}
+              {...(action.to === '/sign-in' ? { to: '/sign-in', search: { next: `/tournaments/${token}` } } : { to: '/tournaments' })}
               className={buttonClass({
                 size: 'lg',
-                variant: action.to === '/leagues' ? 'outline' : 'default',
+                variant: action.to === '/tournaments' ? 'outline' : 'default',
                 className: 'w-full pointer-coarse:h-11',
               })}
             >

@@ -123,7 +123,7 @@ test('explains supported features before public activity and opens an account-fr
     'Ability reminders',
     'Live battle tracking',
     'Team & practice games',
-    'Sealed league rosters',
+    'Sealed-roster tournaments',
     'King of the Colosseum',
     'Battle replay & stats',
   ]) {

@@ -64,7 +64,7 @@ export function buildLeagueBattle(
 ) {
   const invited = [opponentId, allyId, secondOpponentId].filter((id): id is string => Boolean(id))
 
-  if (league.revealedAt === null) throw new LeagueBattleSetupError('reveal the league rosters before starting a battle', 409)
+  if (league.revealedAt === null) throw new LeagueBattleSetupError('reveal the tournament rosters before starting a battle', 409)
   const expectedPlayers = league.format === '2v2' ? 4 : league.format === '2v1' ? 3 : 2
   if (league.format === '2v2' && !LEAGUE_TEAM_ROSTER_LIMITS.some((candidate) => candidate === league.rosterLimit)) {
     throw new LeagueBattleSetupError('sealed rosters use an unsupported doubles force size', 409)
@@ -75,7 +75,7 @@ export function buildLeagueBattle(
   }
   const rosters = new Map(
     league.entries.map((entry) => {
-      if (!entry.snapshot) throw new Error('accepted league entrant has no roster snapshot')
+      if (!entry.snapshot) throw new Error('accepted tournament entrant has no roster snapshot')
       return [entry.userId, parseRosterSnapshot(entry.snapshot)] as const
     }),
   )

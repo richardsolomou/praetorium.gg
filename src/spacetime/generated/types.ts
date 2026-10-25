@@ -145,6 +145,12 @@ export const Commands = __t.object('Commands', {
 })
 export type Commands = __Infer<typeof Commands>
 
+export const CompletedMigrations = __t.object('CompletedMigrations', {
+  name: __t.string(),
+  at: __t.u64(),
+})
+export type CompletedMigrations = __Infer<typeof CompletedMigrations>
+
 export const FavouriteDatasheets = __t.object('FavouriteDatasheets', {
   key: __t.string(),
   userId: __t.string(),
@@ -273,6 +279,7 @@ export const Leagues = __t.object('Leagues', {
   playerLimit: __t.option(__t.u32()),
   recurring: __t.bool(),
   createdAt: __t.u64(),
+  clubId: __t.option(__t.string()),
 })
 export type Leagues = __Infer<typeof Leagues>
 

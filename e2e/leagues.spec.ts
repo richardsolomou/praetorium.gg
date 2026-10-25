@@ -27,7 +27,7 @@ test('players can decline and publish their original league roster across device
   const saved = (await product.roster(savedId))!
   await product.setRosterVisibility(savedId, saved.userId, 'private', Date.now())
   await sealableRoster(opponent, 'Already public league army')
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('League roster sharing'))
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
@@ -43,7 +43,7 @@ test('players can decline and publish their original league roster across device
   await expect(opponent.getByRole('region', { name: 'Roster sharing', exact: true })).toHaveCount(0)
   await owner.reload()
   const sharing = owner.getByRole('region', { name: 'Roster sharing', exact: true })
-  await expect(sharing.getByRole('heading', { name: 'Share your league roster?' })).toBeVisible()
+  await expect(sharing.getByRole('heading', { name: 'Share your tournament roster?' })).toBeVisible()
   await expect(sharing.getByRole('button')).toHaveText(['Make public', 'No thanks'])
   expect((await sharing.boundingBox())!.y).toBeLessThan((await owner.locator('[data-league-armies]').boundingBox())!.y)
   await sharing.scrollIntoViewIfNeeded()
@@ -66,11 +66,11 @@ test('players can decline and publish their original league roster across device
   await elsewhere.close()
 
   await owner.setViewportSize({ width: 1440, height: 1000 })
-  await owner.getByRole('button', { name: 'Start event 2', exact: true }).click()
-  const nextEvent = owner.getByRole('dialog', { name: 'Start event 2', exact: true })
-  await expect(nextEvent.getByRole('switch', { name: /I’m playing too/ })).toBeChecked()
-  await nextEvent.getByRole('button', { name: 'Start event 2', exact: true }).click()
-  await expect(owner.locator('main header').getByText('League · Event 2')).toBeVisible()
+  await owner.goto('/tournaments')
+  const second = await openLeagueCreation(owner, { ownerPlays: true })
+  await second.getByLabel('Name').fill(uniqueName('Second roster sharing'))
+  await second.getByRole('button', { name: /^Anyone who joins/ }).click()
+  await submitLeagueCreation(owner, second)
   leagueUrl = owner.url()
   await sealOwnRoster(owner, armyName)
   await opponent.goto(leagueUrl)
@@ -78,7 +78,7 @@ test('players can decline and publish their original league roster across device
   await sealOwnRoster(opponent, 'Already public league army')
   await owner.reload()
   await revealEvent(owner)
-  await expect(sharing.getByRole('heading', { name: 'Share your league roster?' })).toBeVisible()
+  await expect(sharing.getByRole('heading', { name: 'Share your tournament roster?' })).toBeVisible()
 
   // Publication changes the saved roster’s visibility without replacing its edits.
   await owner.setViewportSize({ width: 1440, height: 1000 })
@@ -133,7 +133,7 @@ test('revealed rosters compare every unit using frozen loadouts and preserve lea
   await sealableRoster(owner, 'Comparison defenders', 'Immortals')
   const savedUrl = owner.url()
   await sealableRoster(opponent, 'Comparison attackers', 'Lokhust Destroyers')
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('Comparison league'))
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
@@ -541,7 +541,7 @@ async function sealableRoster(page: Page, name: string, extraUnit?: string) {
 
 async function join(page: Page) {
   await eventLoaded(page)
-  const button = page.getByRole('button', { name: /^(?:Join league|Join as a player)$/ })
+  const button = page.getByRole('button', { name: /^(?:Join tournament|Join as a player)$/ })
   await expect(async () => {
     if (!(await button.isVisible())) return
     await button.click({ timeout: 2_000 })
@@ -594,16 +594,16 @@ async function expectOrganizerAvatar(row: Locator, ownerName: string) {
 }
 
 async function submitLeagueCreation(page: Page, dialog: Locator) {
-  await dialog.getByRole('button', { name: 'Create league' }).click()
-  await expect(page).toHaveURL(/\/leagues\/[^/?]+/)
+  await dialog.getByRole('button', { name: 'Create tournament' }).click()
+  await expect(page).toHaveURL(/\/tournaments\/[^/?]+/)
   await eventLoaded(page)
 }
 
 /** Opens the new-league form; the organizer stays out of the event unless a test asks them to play, so joining stays explicit. */
 async function openLeagueCreation(page: Page, { ownerPlays = false } = {}) {
-  const dialog = page.getByRole('dialog', { name: 'New league' })
+  const dialog = page.getByRole('dialog', { name: 'New tournament' })
   await expect(async () => {
-    await page.getByRole('button', { name: 'New league' }).click()
+    await page.getByRole('button', { name: 'New tournament' }).click()
     await expect(dialog).toBeVisible({ timeout: 1_000 })
   }).toPass({ timeout: 10_000 })
   const plays = dialog.getByRole('switch', { name: /I’m playing too/ })
@@ -616,22 +616,13 @@ async function openLeagueCreation(page: Page, { ownerPlays = false } = {}) {
 
 async function openEventSettings(page: Page) {
   await eventLoaded(page)
-  const settings = page.getByRole('dialog', { name: 'Edit league' })
+  const settings = page.getByRole('dialog', { name: 'Edit tournament' })
   // A press before hydration does nothing, so retry it until the dialog answers.
   await expect(async () => {
-    if (!(await settings.isVisible())) await page.getByRole('button', { name: 'Edit league' }).click()
+    if (!(await settings.isVisible())) await page.getByRole('button', { name: 'Edit tournament' }).click()
     await expect(settings.getByLabel('Name')).toBeVisible({ timeout: 2_000 })
   }).toPass({ timeout: 20_000 })
   return settings
-}
-
-/** Picks an event from the league's one-line event menu, checking which one the page showed first when asked. */
-async function openEvent(page: Page, name: string, { current }: { current?: string } = {}) {
-  await page.getByRole('button', { name: /^League events/ }).click()
-  const menu = page.getByRole('menu')
-  if (current) await expect(menu.getByRole('menuitem', { name: new RegExp(`^${current}\\b`) })).toHaveAttribute('aria-current', 'page')
-  await menu.getByRole('menuitem', { name: new RegExp(`^${name}\\b`) }).click()
-  await expect(menu).toBeHidden()
 }
 
 function leagueHeader(page: Page) {
@@ -646,7 +637,7 @@ test('an event seals Legends only once its organizer allows them', async ({ page
   await page.getByRole('button', { name: 'Legends', exact: true }).click()
   await page.getByLabel('Add a unit').fill('Tesseract Ark')
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Tesseract Ark [Legends]', exact: true }).click())
-  await page.goto('/leagues')
+  await page.goto('/tournaments')
   const create = await openLeagueCreation(page, { ownerPlays: true })
   await create.getByLabel('Name').fill(uniqueName('Tuesday league'))
   await expect(create.getByRole('button', { name: 'House rules' })).toHaveAccessibleDescription('Matched play')
@@ -657,7 +648,7 @@ test('an event seals Legends only once its organizer allows them', async ({ page
   const chooser = page.getByRole('dialog', { name: 'Seal a roster' })
   await openRosterChooser(page)
   await chooseRosterToSeal(page, rosterName)
-  await expect(chooser).toContainText('This event doesn’t allow Legends datasheets, such as Tesseract Ark.')
+  await expect(chooser).toContainText('This tournament doesn’t allow Legends datasheets, such as Tesseract Ark.')
   await page.keyboard.press('Escape')
   await expect(chooser).toBeHidden()
 
@@ -680,7 +671,7 @@ test('an admin the owner chooses runs the league but cannot delete it', async ({
   await signUp(owner, ownerName)
   await signUp(admin, adminName)
   await befriend(owner, admin)
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('Shared league'))
   await submitLeagueCreation(owner, create)
@@ -696,7 +687,7 @@ test('an admin the owner chooses runs the league but cannot delete it', async ({
 
   await admin.goto(owner.url())
   await eventLoaded(admin)
-  await expect(admin.getByRole('button', { name: 'Edit league' })).toBeVisible()
+  await expect(admin.getByRole('button', { name: 'Edit tournament' })).toBeVisible()
   await expect(admin.getByRole('button', { name: /^More for / })).toHaveCount(0)
   const adminSettings = await openEventSettings(admin)
   await expect(adminSettings.getByLabel('Admins')).toHaveCount(0)
@@ -713,7 +704,7 @@ test('a full league keeps its lists sealed until someone reveals them', async ({
   await signUp(opponent, opponentName)
   await sealableRoster(owner, 'Full owner list')
   await sealableRoster(opponent, 'Full opponent list')
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner, { ownerPlays: true })
   await create.getByLabel('Name').fill(uniqueName('Full league'))
   await create.getByLabel('Player limit').fill('2')
@@ -743,7 +734,7 @@ test('a league names its next step, which moves on once a player joins', async (
   const player = await playerContext.newPage()
   await signUp(owner, uniqueName('Next step organizer'))
   await signUp(player, uniqueName('Next step player'))
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('Next step league'))
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
@@ -775,7 +766,7 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   await page.locator('[data-unit="Captain"]').getByRole('button', { name: 'Captain', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Remove Captain Warlord' })).toHaveAttribute('aria-pressed', 'true')
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Remove Captain Warlord' }).click())
-  await page.goto('/leagues')
+  await page.goto('/tournaments')
   const create = await openLeagueCreation(page, { ownerPlays: true })
   await create.getByLabel('Name').fill(leagueName)
   await expect(create.getByText('One-off', { exact: true })).toHaveCount(0)
@@ -807,8 +798,6 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.keyboard.press('Escape')
 
-  // A league that has run one event has no archive to switch between.
-  await expect(page.getByRole('button', { name: /^League events/ })).toHaveCount(0)
   await expect(page.locator(`[data-person="${ownerName}"]`)).toBeVisible()
 
   await page.setViewportSize({ width: 390, height: 844 })
@@ -858,7 +847,7 @@ for (const { rules, status } of [
     await makeWarlord(page, unit)
     const operator = await productOperator()
     const saved = (await operator.roster(new URL(page.url()).pathname.split('/').at(-1)!))!
-    await page.goto('/leagues')
+    await page.goto('/tournaments')
     const create = await openLeagueCreation(page)
     await create.getByLabel('Name').fill(uniqueName('Rules league'))
     await create.getByRole('button', { name: /^Anyone who joins/ }).click()
@@ -886,7 +875,7 @@ test('only a changed roster in an open league event offers replacement', async (
   await signUp(page, uniqueName('RosterOwner'))
   await sealableRoster(page, 'Original league list')
   const rosterUrl = page.url()
-  await page.goto('/leagues')
+  await page.goto('/tournaments')
   const create = await openLeagueCreation(page)
   await create.getByLabel('Name').fill(uniqueName('Replacement league'))
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
@@ -895,7 +884,7 @@ test('only a changed roster in an open league event offers replacement', async (
   await sealOwnRoster(page, 'Original league list')
 
   const leagueToken = new URL(page.url()).pathname.split('/').at(-1)!
-  await page.goto(`/leagues/${leagueToken}`)
+  await page.goto(`/tournaments/${leagueToken}`)
   await expect(page.getByRole('heading', { name: 'Your roster is sealed' })).toBeVisible()
   const settings = await openEventSettings(page)
   await settings.getByRole('button', { name: 'Cancel', exact: true }).click()
@@ -940,7 +929,7 @@ test('only a changed roster in an open league event offers replacement', async (
     .toBe(true)
   await page.route('**/_serverFn/**', (route) => (route.request().method() === 'GET' ? route.abort('failed') : route.continue()))
   await page.goto('/')
-  await page.locator('[data-web-app-chrome]').getByRole('link', { name: 'Leagues', exact: true }).click()
+  await page.locator('[data-web-app-chrome]').getByRole('link', { name: 'Tournaments', exact: true }).click()
   await page.locator(`[data-league="${leagueToken}"]`).getByRole('link').click()
   await expect(page.getByRole('heading', { name: 'Your roster is sealed' })).toBeVisible()
   const restoredSettings = await openEventSettings(page)
@@ -948,14 +937,14 @@ test('only a changed roster in an open league event offers replacement', async (
   await page.unrouteAll({ behavior: 'wait' })
 
   const editorResponse = await page.request.get(rosterUrl)
-  expect(await editorResponse.text()).not.toContain('League roster out of date')
+  expect(await editorResponse.text()).not.toContain('Tournament roster out of date')
   await page.goto(rosterUrl)
   await expect(page.getByLabel('List name')).toHaveValue('Original league list')
-  await expect(page.getByRole('button', { name: 'League roster out of date' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Tournament roster out of date' })).toHaveCount(0)
   await page.setViewportSize({ width: 390, height: 844 })
   await waitForRosterSave(page, () => page.getByLabel('List name').fill('Updated league list'), 'Updated league list')
   const footer = page.locator('footer')
-  const update = footer.getByRole('button', { name: 'League roster out of date' })
+  const update = footer.getByRole('button', { name: 'Tournament roster out of date' })
   await expect(update).toBeVisible()
   await waitForRosterSave(page, () => page.getByLabel('List name').fill('Original league list'), 'Original league list')
   await expect(update).toHaveCount(0)
@@ -964,16 +953,16 @@ test('only a changed roster in an open league event offers replacement', async (
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   const footerHeight = (await footer.boundingBox())?.height
   await update.click()
-  await expect(page.getByText('Your changes are not in the league roster yet.')).toBeVisible()
+  await expect(page.getByText('Your changes are not in the tournament roster yet.')).toBeVisible()
   expect((await footer.boundingBox())?.height).toBe(footerHeight)
-  await page.getByRole('link', { name: 'Replace league roster' }).click()
+  await page.getByRole('link', { name: 'Replace tournament roster' }).click()
   const chooser = page.getByRole('dialog', { name: 'Seal a roster' })
   await expect(chooser).toBeVisible()
   await chooseRosterToSeal(page, 'Updated league list')
   await expect(chooser).toBeHidden()
   await expect(page.getByRole('heading', { name: 'Your roster is sealed' })).toBeVisible()
   await page.goto(rosterUrl)
-  await expect(page.getByRole('button', { name: 'League roster out of date' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Tournament roster out of date' })).toHaveCount(0)
 })
 
 test('the organizer unseals a revealed roster so its entrant can seal a corrected one', async ({ browser }) => {
@@ -990,7 +979,7 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   const organizerRosterUrl = owner.url()
   await sealableRoster(entrant, 'Mistaken list')
   await sealableRoster(entrant, 'Corrected list', 'Lokhust Destroyers')
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('Unseal League'))
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
@@ -1006,7 +995,7 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   await revealEvent(owner)
   await owner.goto(organizerRosterUrl)
   await waitForRosterSave(owner, () => owner.getByLabel('List name').fill('Organizer list revised'), 'Organizer list revised')
-  await expect(owner.getByRole('button', { name: 'League roster out of date' })).toHaveCount(0)
+  await expect(owner.getByRole('button', { name: 'Tournament roster out of date' })).toHaveCount(0)
   await owner.goto(leagueUrl.toString())
   // Revealed players show with their lists, which carry the organizer's unseal control; the entrant list is gone.
   const entrantCard = owner.locator(`[data-army="${entrantName}"]`)
@@ -1060,7 +1049,7 @@ test('an eligible casual matchup is directed through its league event', async ({
   await signUp(entrant, entrantName)
   await befriend(owner, entrant)
   const leagueToken = await createLegacyLeague(ownerName, leagueName)
-  const leagueUrl = new URL(`/leagues/${leagueToken}`, owner.url())
+  const leagueUrl = new URL(`/tournaments/${leagueToken}`, owner.url())
   await owner.goto(leagueUrl.toString())
 
   await join(owner)
@@ -1082,7 +1071,7 @@ test('an eligible casual matchup is directed through its league event', async ({
   await casual.getByRole('combobox', { name: 'Opponent' }).click()
   await owner.getByRole('option', { name: entrantName, exact: true }).click()
   await casual.getByRole('button', { name: 'Start battle' }).click()
-  const warning = owner.getByRole('dialog', { name: 'You are both in a league' })
+  const warning = owner.getByRole('dialog', { name: 'You are both in a tournament' })
   await expect(warning.getByRole('button', { name: 'Play it casually' })).toBeVisible()
   await expectNoHorizontalOverflow(owner, warning)
   await owner.setViewportSize({ width: 390, height: 844 })
@@ -1131,7 +1120,7 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   await owner.locator('[data-unit="Lokhust Destroyers"]').getByRole('button', { name: 'Lokhust Destroyers', exact: true }).click()
   await waitForRosterSave(owner, () => owner.getByRole('button', { name: 'Select Deepening Madness' }).click())
 
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('Roster reveal'))
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
@@ -1230,7 +1219,7 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   })
   await owner.getByRole('button', { name: 'Save profile' }).click()
   await expect(owner.getByText('Profile saved.')).toBeVisible()
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(leagueName)
   await submitLeagueCreation(owner, create)
@@ -1244,7 +1233,7 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   await expectOrganizerAvatar(organizer, ownerName)
   await expectNoHorizontalOverflow(owner, organizer)
 
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   await owner.setViewportSize({ width: 1440, height: 900 })
   let card = owner.locator(`[data-league="${leagueToken}"]`)
   // A card without a description names its organizer beside their avatar.
@@ -1257,7 +1246,7 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   await expectNoHorizontalOverflow(owner, card)
   await owner.getByRole('button', { name: `Actions for ${leagueName}` }).click()
   const dropdown = owner.getByRole('menu')
-  await expect(dropdown.getByRole('menuitem', { name: 'View league' })).toBeVisible()
+  await expect(dropdown.getByRole('menuitem', { name: 'View tournament' })).toBeVisible()
   await expectNoHorizontalOverflow(owner, card, dropdown)
   await owner.evaluate(() => {
     Object.defineProperty(navigator, 'clipboard', {
@@ -1271,19 +1260,19 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   await expect(copyError).toBeVisible()
   await expect(copyError).toHaveAttribute('aria-live', 'polite')
   await owner.getByRole('button', { name: `Actions for ${leagueName}` }).click()
-  await owner.getByRole('menuitem', { name: 'Edit league' }).click()
+  await owner.getByRole('menuitem', { name: 'Edit tournament' }).click()
   await expect(copyError).toBeHidden()
-  let edit = owner.getByRole('dialog', { name: 'Edit league' })
+  let edit = owner.getByRole('dialog', { name: 'Edit tournament' })
   await edit.getByRole('button', { name: 'Cancel' }).click()
   await expect(edit).toBeHidden()
 
   await owner.reload()
   await card.click({ button: 'right', position: { x: 2, y: 2 } })
   const contextMenu = owner.getByRole('menu')
-  await expect(contextMenu.getByRole('menuitem', { name: 'Edit league' })).toBeVisible()
+  await expect(contextMenu.getByRole('menuitem', { name: 'Edit tournament' })).toBeVisible()
   await expectNoHorizontalOverflow(owner, card, contextMenu)
-  await owner.getByRole('menuitem', { name: 'Edit league' }).click()
-  edit = owner.getByRole('dialog', { name: 'Edit league' })
+  await owner.getByRole('menuitem', { name: 'Edit tournament' }).click()
+  edit = owner.getByRole('dialog', { name: 'Edit tournament' })
   await expectNoHorizontalOverflow(owner, card, edit)
   await edit.getByLabel('Name').fill(renamed)
   await edit.getByLabel('Details').fill('Updated event details')
@@ -1322,21 +1311,21 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   await ownerMirror.goto(leagueUrl.toString())
   await expect(ownerMirror.getByRole('heading', { name: renamed })).toBeVisible()
   await owner.getByRole('button', { name: `More for ${renamed}` }).click()
-  await owner.getByRole('menuitem', { name: 'Delete league' }).click()
+  await owner.getByRole('menuitem', { name: 'Delete tournament' }).click()
   const confirmation = owner.getByRole('alertdialog', { name: `Delete ${renamed}?` })
   await expect(confirmation.getByText('Battles already started from it stay where they are.', { exact: false })).toBeVisible()
   await expectNoHorizontalOverflow(owner, confirmation)
-  await confirmation.getByRole('button', { name: 'Delete league' }).click()
-  await expect(owner).toHaveURL(/\/leagues\/?$/)
+  await confirmation.getByRole('button', { name: 'Delete tournament' }).click()
+  await expect(owner).toHaveURL(/\/tournaments\/?$/)
   await expect(owner.getByRole('heading', { name: renamed })).toHaveCount(0)
-  await expect(ownerMirror).toHaveURL(/\/leagues\/?$/, { timeout: 10_000 })
+  await expect(ownerMirror).toHaveURL(/\/tournaments\/?$/, { timeout: 10_000 })
   await expect(ownerMirror.getByRole('heading', { name: renamed })).toHaveCount(0)
 
   await ownerContext.close()
   await entrantContext.close()
 })
 
-test('a league starts each event with fresh registration', async ({ browser }) => {
+test('a tournament runs one event, and its old league address still finds it', async ({ browser }) => {
   const ownerContext = await browser.newContext()
   const entrantContext = await browser.newContext()
   const owner = await ownerContext.newPage()
@@ -1348,7 +1337,7 @@ test('a league starts each event with fresh registration', async ({ browser }) =
   await signUp(owner, ownerName)
   await signUp(entrant, entrantName)
 
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(leagueName)
   await expect(create.getByText('One-off', { exact: true })).toHaveCount(0)
@@ -1379,37 +1368,11 @@ test('a league starts each event with fresh registration', async ({ browser }) =
   )
   await expect(owner.getByRole('heading', { name: 'Everyone has sealed' })).toBeVisible()
   await revealEvent(owner)
-  await expect(owner.getByRole('button', { name: 'Start event 2' })).toBeVisible()
+  await expect(owner.locator('main header').getByText('Tournament', { exact: true })).toBeVisible()
+  await expect(owner.getByRole('button', { name: /^Start event/ })).toHaveCount(0)
 
-  await owner.getByRole('button', { name: 'Start event 2' }).click()
-  const nextEvent = owner.getByRole('dialog', { name: 'Start event 2' })
-  // The organizer played last time, so the next event enters them again unless they say otherwise.
-  await expect(nextEvent.getByRole('switch', { name: /I’m playing too/ })).toBeChecked()
-  await nextEvent.getByRole('button', { name: 'Start event 2' }).click()
-  await expect(owner.locator('main header').getByText('League · Event 2')).toBeVisible()
-  await expect(leagueHeader(owner)).toContainText('Registration open')
-  await expect(leagueHeader(owner)).toContainText('1 player')
-  await expect(owner.locator(`[data-person="${entrantName}"]`)).toHaveCount(0)
-  expect(await owner.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
-
-  await owner.goto('/leagues')
-  await expect(owner.locator(`[data-league="${leagueToken}"]`)).toContainText('Event 2')
-
-  await owner.goto(leagueUrl.toString())
-  await openEvent(owner, 'Event 1', { current: 'Event 2' })
-  await expect(owner.locator('main header').getByText('League · Past event 1')).toBeVisible()
-  await expect(leagueHeader(owner)).toContainText('Rosters revealed')
-
-  await entrant.goto(leagueUrl.toString())
-  await expect(leagueHeader(entrant)).toContainText('Registration open')
-  await join(entrant)
-  // Joining a duel opens the chooser; this entrant browses the past event first.
-  await entrant.getByRole('dialog', { name: 'Seal a roster' }).getByRole('button', { name: 'Cancel' }).click()
-  await expect(entrant.locator(`[data-person="${entrantName}"]`)).toBeVisible()
-
-  await openEvent(entrant, 'Event 1')
-  await expect(entrant.locator(`[data-army="${ownerName}"]`)).toBeVisible()
-  await expect(entrant.locator(`[data-army="${entrantName}"]`)).toBeVisible()
+  await owner.goto(`/leagues/${leagueToken}?choose=1`)
+  await expect(owner).toHaveURL(new RegExp(`/tournaments/${leagueToken}\\?choose=`))
 
   await owner.setViewportSize({ width: 390, height: 844 })
   await owner.goto(leagueUrl.toString())
@@ -1427,7 +1390,7 @@ test('an organizer adds friends to an event without waiting for them to ask', as
   await befriend(owner, first)
   await befriend(owner, second)
 
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner, { ownerPlays: true })
   await create.getByLabel('Name').fill(uniqueName('Friends League'))
   await create.getByLabel('Player limit').fill('2')
@@ -1482,7 +1445,7 @@ test('an organizer answers requests, lets a turned-away player back in, and rais
   const [owner, first, second, third] = await Promise.all(contexts.map((context) => context.newPage()))
   for (const [index, page] of [owner, first, second, third].entries()) await signUp(page, names[index])
 
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('Request League'))
   await create.getByRole('button', { name: /^You approve/ }).click()
@@ -1569,7 +1532,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
     { name: wrongRoster, limit: 2_000 },
   ])
 
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(leagueName)
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
@@ -1722,18 +1685,6 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await edit.getByLabel('Player limit').fill('2')
   await edit.getByRole('button', { name: 'Save changes' }).click()
   await expect(edit).toBeHidden()
-  // The next event keeps the 2v1 and raises the limit it no longer seats.
-  await owner.getByRole('button', { name: 'Start event 2' }).click()
-  const nextEvent = owner.getByRole('dialog', { name: 'Start event 2' })
-  await expect(nextEvent.getByLabel('Player limit')).toHaveValue('3')
-  await nextEvent.getByRole('button', { name: 'Start event 2' }).click()
-  await expect(leagueHeader(owner)).toContainText('Registration open')
-  await openEvent(owner, 'Event 1')
-  await expect(leagueHeader(owner)).toContainText('Rosters revealed')
-  // Settings belong to the current event even from an archived one.
-  const historicalEdit = await openEventSettings(owner)
-  await expect(historicalEdit.getByLabel('Player limit')).toHaveAttribute('min', '3')
-  await historicalEdit.getByRole('button', { name: 'Cancel' }).click()
   await eventLoaded(owner)
   await owner.getByRole('button', { name: 'Start 2 vs 1 battle' }).click()
   const battleChooser = owner.getByRole('dialog', { name: 'Start 2 vs 1 battle' })
@@ -1850,15 +1801,15 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
     { name: 'Wrong doubles roster', limit: 2_000 },
   ])
 
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('Doubles League'))
   // The format is chosen with everything else, and a doubles limit has to seat two full teams.
   await create.getByRole('button', { name: /^Doubles/ }).click()
   await create.getByLabel('Player limit').fill('3')
-  await expect(create.getByRole('button', { name: 'Create league' })).toBeDisabled()
+  await expect(create.getByRole('button', { name: 'Create tournament' })).toBeDisabled()
   await create.getByLabel('Player limit').fill('4')
-  await expect(create.getByRole('button', { name: 'Create league' })).toBeEnabled()
+  await expect(create.getByRole('button', { name: 'Create tournament' })).toBeEnabled()
   await create.getByLabel('Player limit').fill('6')
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
   await owner.setViewportSize({ width: 390, height: 844 })

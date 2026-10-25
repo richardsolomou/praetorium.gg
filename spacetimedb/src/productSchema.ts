@@ -172,6 +172,8 @@ const leagues = table(
     playerLimit: t.option(t.u32()),
     recurring: t.bool(),
     createdAt: t.u64(),
+    /** The club this tournament runs inside; absent for a stand-alone one. */
+    clubId: t.option(t.string()).default(undefined),
   },
 )
 
@@ -288,6 +290,15 @@ const clubMembers = table(
 )
 
 /** Which battles count on which club's table: an index of each battle's folded `set-battle-club`, rewritten whenever one could change it. */
+/** One-off data migrations already applied, by name, so the server can ask for each at every start. */
+const completedMigrations = table(
+  { name: 'completed_migrations' },
+  {
+    name: t.string().primaryKey(),
+    at: t.u64(),
+  },
+)
+
 const clubBattles = table(
   { name: 'club_battles' },
   {
@@ -509,6 +520,7 @@ export const productTables = {
   clubs,
   clubMembers,
   clubBattles,
+  completedMigrations,
   collection,
   collectionWishes,
   collectionStock,

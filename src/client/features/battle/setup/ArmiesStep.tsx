@@ -142,7 +142,7 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                     <WaiverNote rules={rosterWaivers(army.roster?.built)} className="mt-1" />
                   </div>
                   {view.leagueToken ? (
-                    <span className="chip shrink-0 self-start text-achieved sm:self-auto">League roster</span>
+                    <span className="chip shrink-0 self-start text-achieved sm:self-auto">Tournament roster</span>
                   ) : army.isViewer || (army.automated && !guest) ? (
                     <div className="flex shrink-0 flex-wrap items-center gap-1">
                       {isGuestSeat(army.playerId) && !guest ? (

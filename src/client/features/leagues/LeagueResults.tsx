@@ -69,7 +69,7 @@ export function LeagueResults({
           </tbody>
         </table>
       </div>
-      {partial ? <p className="mt-2 text-xs text-dim">Counts this event’s latest 500 battles.</p> : null}
+      {partial ? <p className="mt-2 text-xs text-dim">Counts this tournament’s latest 500 battles.</p> : null}
     </section>
   )
 }

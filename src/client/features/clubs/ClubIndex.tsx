@@ -33,8 +33,8 @@ export function ClubIndex() {
         }
       />
       <PageContent className="space-y-6">
-        {mine.length ? <ClubShelf title="Your clubs" clubs={mine} /> : null}
-        {publicClubs.length ? <ClubShelf title="Public clubs" clubs={publicClubs} /> : null}
+        {mine.length ? <ClubShelf title="Your clubs" clubs={mine} viewerId={me?.id ?? null} /> : null}
+        {publicClubs.length ? <ClubShelf title="Public clubs" clubs={publicClubs} viewerId={me?.id ?? null} /> : null}
         {!clubs.length ? (
           <PageState
             headingLevel={2}
@@ -50,44 +50,66 @@ export function ClubIndex() {
   )
 }
 
-function ClubShelf({ title, clubs }: { title: string; clubs: readonly ClubSummary[] }) {
+function ClubShelf({ title, clubs, viewerId }: { title: string; clubs: readonly ClubSummary[]; viewerId: string | null }) {
   return (
     <section>
       <h2 className="rubric mb-2 flex items-baseline justify-between border-b border-edge pb-2">
         {title} <span className="readout">{clubs.length}</span>
       </h2>
       <div className="grid gap-3 md:grid-cols-2">
-        {clubs.map((club) => (
-          <article key={club.id} data-club={club.token} className={LEAGUE_CARD}>
-            <Link to="/clubs/$token" params={{ token: club.token }} className="flex min-w-0 flex-1 flex-col">
-              <div className="flex-1 p-4">
-                <p className="flex items-center gap-2 text-xs text-dim">
-                  {club.visibility === 'private' ? (
-                    <LockKeyhole className="size-3.5 shrink-0" aria-label="Private" />
-                  ) : (
-                    <Eye className="size-3.5 shrink-0 text-info" aria-label="Public" />
-                  )}
-                  <span className="truncate tracking-label uppercase">
-                    {club.memberCount === 1 ? '1 member' : `${club.memberCount} members`}
-                  </span>
-                </p>
-                <h3 className="mt-1.5 truncate text-lg leading-tight font-bold uppercase">{club.name}</h3>
-                {club.description ? (
-                  <p className="mt-1 line-clamp-2 text-sm text-dim">{club.description}</p>
-                ) : (
-                  <p className="mt-1.5 flex min-w-0 items-center gap-1.5 text-sm text-dim">
-                    <PlayerAvatar name={club.ownerName} image={club.ownerImage} className="size-5 text-3xs" />
-                    <span className="truncate">Run by {club.ownerName}</span>
+        {clubs.map((club) => {
+          const status = clubStatus(club, viewerId)
+          return (
+            <article key={club.id} data-club={club.token} className={LEAGUE_CARD}>
+              <Link to="/clubs/$token" params={{ token: club.token }} className="flex min-w-0 flex-1 flex-col">
+                <div className="flex-1 p-4">
+                  <p className="flex items-center gap-2 text-xs text-dim">
+                    {club.visibility === 'private' ? (
+                      <LockKeyhole className="size-3.5 shrink-0" aria-label="Private" />
+                    ) : (
+                      <Eye className="size-3.5 shrink-0 text-info" aria-label="Public" />
+                    )}
+                    <span className="truncate tracking-label uppercase">
+                      {club.admission === 'approval' ? 'Approval required' : 'Anyone can join'}
+                    </span>
                   </p>
-                )}
-              </div>
-              {club.ownMember?.status === 'pending' ? (
-                <div className="border-t border-edge bg-sunken/60 px-4 py-2.5 text-sm font-semibold text-dim">Waiting for approval</div>
-              ) : null}
-            </Link>
-          </article>
-        ))}
+                  <h3 className="mt-1.5 truncate text-lg leading-tight font-bold uppercase">{club.name}</h3>
+                  {club.description ? (
+                    <p className="mt-1 line-clamp-2 text-sm text-dim">{club.description}</p>
+                  ) : (
+                    <p className="mt-1.5 flex min-w-0 items-center gap-1.5 text-sm text-dim">
+                      <PlayerAvatar name={club.ownerName} image={club.ownerImage} className="size-5 text-3xs" />
+                      <span className="truncate">Run by {club.ownerName}</span>
+                    </p>
+                  )}
+                </div>
+                <div className="flex min-w-0 items-center gap-3 border-t border-edge bg-sunken/60 px-4 py-2.5 text-sm">
+                  {status ? (
+                    <span className={`flex min-w-0 items-center gap-2 font-semibold ${status.tint}`}>
+                      <span aria-hidden className="size-2 shrink-0 rounded-full bg-current" />
+                      <span className="truncate">{status.label}</span>
+                    </span>
+                  ) : null}
+                  <span className="ml-auto shrink-0 text-xs text-dim readout">
+                    {plural(club.memberCount, 'member')} · {plural(club.battleCount, 'battle')}
+                  </span>
+                </div>
+              </Link>
+            </article>
+          )
+        })}
       </div>
     </section>
   )
+}
+
+const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`
+
+/** The reader's own place in the club, when they have one. */
+function clubStatus(club: ClubSummary, viewerId: string | null) {
+  if (club.ownerId === viewerId) return { label: 'You run it', tint: 'text-achieved' }
+  if (club.ownMember?.status === 'pending') return { label: 'Waiting for approval', tint: 'text-dim' }
+  if (club.ownMember?.role === 'admin') return { label: 'Admin', tint: 'text-achieved' }
+  if (club.ownMember) return { label: 'Member', tint: 'text-achieved' }
+  return null
 }

@@ -186,15 +186,15 @@ describe('setup', () => {
   })
 
   it('refuses to replace a sealed league roster', () => {
-    expect(validate(leagueBattle(), ALICE, builtRoster('Replacement', ['Terminators']))).toBe('league rosters are sealed')
+    expect(validate(leagueBattle(), ALICE, builtRoster('Replacement', ['Terminators']))).toBe('tournament rosters are sealed')
   })
 
   it('refuses to remove a sealed league roster', () => {
-    expect(validate(leagueBattle(), ALICE, { kind: 'detach-roster' })).toBe('league rosters are sealed')
+    expect(validate(leagueBattle(), ALICE, { kind: 'detach-roster' })).toBe('tournament rosters are sealed')
   })
 
   it('refuses to reset sealed league rosters', () => {
-    expect(validate(leagueBattle(), ALICE, { kind: 'reset-setup' })).toBe('league rosters are sealed')
+    expect(validate(leagueBattle(), ALICE, { kind: 'reset-setup' })).toBe('tournament rosters are sealed')
   })
 
   it('refuses to change a sealed league battle size', () => {
@@ -207,7 +207,7 @@ describe('setup', () => {
         twistId: null,
         clockLimitMinutes: null,
       }),
-    ).toBe('league roster battle size is sealed')
+    ).toBe('tournament battle size is sealed')
   })
 
   it('refuses to add another side to a sealed league battle', () => {
@@ -221,7 +221,7 @@ describe('setup', () => {
         teamBattle: true,
         clockLimitMinutes: null,
       }),
-    ).toBe('league battle sides are sealed')
+    ).toBe('tournament battle sides are sealed')
   })
 
   it('shares the current setup section with every player', () => {
@@ -584,7 +584,7 @@ describe('setup', () => {
 
       it('refuses changing the sealed card in setup', () => {
         expect(validate(sealed, CAROL, { kind: 'set-side-disposition', side: 1, disposition: 'purge-the-foe' })).toBe(
-          'the league sealed each side’s force disposition',
+          'the tournament sealed each side’s force disposition',
         )
       })
 

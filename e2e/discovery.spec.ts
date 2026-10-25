@@ -5,7 +5,7 @@ const pages = [
   { path: '/rosters', title: 'Warhammer 40,000 army builder' },
   { path: '/rosters?limit=1000&visibility=public', canonical: '/rosters', title: 'Warhammer 40,000 army builder' },
   { path: '/battles', title: 'Warhammer 40,000 battle tracker' },
-  { path: '/leagues', title: 'Leagues' },
+  { path: '/tournaments', title: 'Tournaments' },
   { path: '/sources', title: 'Data sources' },
   { path: '/support', title: 'Support' },
   { path: '/privacy', title: 'Privacy policy' },

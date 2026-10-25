@@ -381,6 +381,9 @@ export async function createLeague(args: Parameters<typeof server.createLeague>[
     admins: [],
     recurring: true,
     createdAt: now,
+    // The club is named once the server has checked the organizer may add to it.
+    clubId: null,
+    club: null,
     eventToken: identifiers.eventToken,
     eventNumber: 1,
     eventCreatedAt: now,
@@ -414,7 +417,7 @@ export async function createLeagueEvent(args: Parameters<typeof server.createLea
   if (!localEngine()) return server.createLeagueEvent(args)
   const identifiers = { eventId: crypto.randomUUID(), eventToken: crypto.randomUUID() }
   const league = await openLeague({ data: { token: args.data.token } })
-  if (!league) throw new Error('Save this league on the device before starting an event offline.')
+  if (!league) throw new Error('Save this tournament on the device before starting an event offline.')
   const input = offlineActionSchemas.createLeagueEvent.parse(args.data)
   const now = Date.now()
   const event = {

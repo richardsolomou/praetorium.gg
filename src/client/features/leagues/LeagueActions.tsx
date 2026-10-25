@@ -50,7 +50,7 @@ export function LeaguePageActions({ actions, canDelete }: { actions: LeagueActio
   return (
     <>
       <Button variant="outline" onClick={actions.openEdit}>
-        <Pencil /> Edit league
+        <Pencil /> Edit tournament
       </Button>
       {canDelete ? (
         <DropdownMenu>
@@ -59,7 +59,7 @@ export function LeaguePageActions({ actions, canDelete }: { actions: LeagueActio
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuItem variant="destructive" onClick={actions.openDeleting}>
-              <Trash2 /> Delete league
+              <Trash2 /> Delete tournament
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -109,8 +109,8 @@ function LeagueActionItems({
   return (
     <>
       {showView ? (
-        <Item render={<Link to="/leagues/$token" params={{ token: actions.league.token }} />}>
-          <Eye /> View league
+        <Item render={<Link to="/tournaments/$token" params={{ token: actions.league.token }} />}>
+          <Eye /> View tournament
         </Item>
       ) : null}
       {showShare ? (
@@ -120,11 +120,11 @@ function LeagueActionItems({
         </Item>
       ) : null}
       <Item onClick={actions.openEdit}>
-        <Pencil /> Edit league
+        <Pencil /> Edit tournament
       </Item>
       {canDelete ? (
         <Item variant="destructive" onClick={actions.openDeleting}>
-          <Trash2 /> Delete league
+          <Trash2 /> Delete tournament
         </Item>
       ) : null}
     </>
@@ -138,9 +138,9 @@ function LeagueActionDialogs({ actions }: { actions: LeagueActionsController }) 
       <ConfirmDialog
         open={actions.deleting}
         title={`Delete ${actions.league.name}?`}
-        description="Every event, entrant, and sealed roster goes with it, for good. Battles already started from it stay where they are."
-        cancel="Keep league"
-        confirm="Delete league"
+        description="Every entrant and sealed roster goes with it, for good. Battles already started from it stay where they are."
+        cancel="Keep tournament"
+        confirm="Delete tournament"
         pendingLabel="Deleting…"
         destructive
         pending={actions.remove.isPending}
@@ -148,7 +148,7 @@ function LeagueActionDialogs({ actions }: { actions: LeagueActionsController }) 
         onClose={() => actions.setDeleting(false)}
         onConfirm={() => actions.remove.mutate()}
       >
-        {actions.remove.isPending ? <output className="sr-only">Deleting the league…</output> : null}
+        {actions.remove.isPending ? <output className="sr-only">Deleting the tournament…</output> : null}
       </ConfirmDialog>
     </>
   )
@@ -202,7 +202,7 @@ export function useLeagueActions(league: ManageableLeague, onDeleted?: () => voi
   const refreshLeague = useLeagueRefresh(league.token)
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const invite = useInviteShare(`/leagues/${league.token}`, league.name, 'league_invite_shared')
+  const invite = useInviteShare(`/tournaments/${league.token}`, league.name, 'league_invite_shared')
   const remove = useMutation({
     mutationFn: () => deleteLeague({ data: { token: league.token } }),
     onSettled: refreshLeague,

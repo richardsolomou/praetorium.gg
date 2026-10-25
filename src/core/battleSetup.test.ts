@@ -143,7 +143,7 @@ describe('battle size from saved rosters', () => {
         [ALICE, { kind: 'lock-league-rosters', leagueToken: 'league' }],
       ),
     )
-    expect(validate(state, ALICE, configure())).toBe('league roster battle size is sealed')
+    expect(validate(state, ALICE, configure())).toBe('tournament battle size is sealed')
   })
 
   it('keeps explicit sizes fixed when a player changes their army', () => {

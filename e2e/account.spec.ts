@@ -502,7 +502,7 @@ test('onboarding waits in the profile menu and disappears when complete', async 
     'Build your first army',
     'Add someone you play with',
     'Start a battle',
-    'Join or run a league',
+    'Join or run a tournament',
     'Explore the game reference',
     'Follow games and players',
     'Compare units in combat',

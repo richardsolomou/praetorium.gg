@@ -31,7 +31,7 @@ const TOOLS: readonly MoreLink[] = [
   { description: 'Damage and kill odds for any attack', icon: Calculator, label: 'Combat simulator', to: '/simulator' },
   { description: 'Packs, scoring and deployments', icon: BookOpen, label: 'Missions', to: '/missions' },
   { description: 'Core rules, missions and event rules', icon: Gavel, label: 'Rules', to: '/rules' },
-  { description: 'Organized play', icon: Trophy, label: 'Leagues', to: '/leagues' },
+  { description: 'Sealed-roster events', icon: Trophy, label: 'Tournaments', to: '/tournaments' },
 ]
 
 const REFERENCE: readonly MoreLink[] = [

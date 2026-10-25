@@ -120,6 +120,7 @@ import * as LeagueRosterSharingProcedure from './league_roster_sharing_procedure
 import * as LeagueRostersProcedure from './league_rosters_procedure'
 import * as LeaguesVisibleToProcedure from './leagues_visible_to_procedure'
 import * as LendRosterProcedure from './lend_roster_procedure'
+import * as MigrateLeaguesToClubsProcedure from './migrate_leagues_to_clubs_procedure'
 import * as MigrateProductDataProcedure from './migrate_product_data_procedure'
 import * as OnboardingByUserProcedure from './onboarding_by_user_procedure'
 import * as OperatorHealthProcedure from './operator_health_procedure'
@@ -321,6 +322,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('league_rosters', LeagueRostersProcedure.params, LeagueRostersProcedure.returnType),
   __procedureSchema('leagues_visible_to', LeaguesVisibleToProcedure.params, LeaguesVisibleToProcedure.returnType),
   __procedureSchema('lend_roster', LendRosterProcedure.params, LendRosterProcedure.returnType),
+  __procedureSchema('migrate_leagues_to_clubs', MigrateLeaguesToClubsProcedure.params, MigrateLeaguesToClubsProcedure.returnType),
   __procedureSchema('migrate_product_data', MigrateProductDataProcedure.params, MigrateProductDataProcedure.returnType),
   __procedureSchema('onboarding_by_user', OnboardingByUserProcedure.params, OnboardingByUserProcedure.returnType),
   __procedureSchema('operator_health', OperatorHealthProcedure.params, OperatorHealthProcedure.returnType),

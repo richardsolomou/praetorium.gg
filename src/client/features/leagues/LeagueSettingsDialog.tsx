@@ -3,25 +3,19 @@ import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
-import {
-  effectiveLeagueAllowances,
-  leagueMinimumPlaces,
-  leaguePlacesSeat,
-  leagueTableShape,
-  LEAGUE_DEFAULT_ROSTER_LIMIT,
-} from '../../../core/league'
+import { effectiveLeagueAllowances, leagueTableShape, LEAGUE_DEFAULT_ROSTER_LIMIT } from '../../../core/league'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
-import { createLeague, createLeagueEvent, setLeagueAdmins, updateLeague } from '../../functions'
+import { createLeague, setLeagueAdmins, updateLeague } from '../../functions'
 import { leagueQuery, leagueReadsKey, leaguesQuery, meQuery } from '../../queries'
 import { leagueFormValid, LeagueFormFields, type LeagueFormValue } from './LeagueForm'
 import type { League } from './leagueEvent'
 import { Problem } from '../../components/Problem'
 
 /**
- * `create` opens a league with its first event, `edit` changes the league and its current event, and
- * `next` starts the event after a revealed one. All three are the same form, so every setting lives in one place.
+ * `create` opens a tournament, inside a club when given its token, and `edit` changes one. Both are the same form,
+ * so every setting lives in one place.
  */
-type LeagueSettingsMode = { kind: 'create' } | { kind: 'edit'; token: string } | { kind: 'next'; token: string }
+type LeagueSettingsMode = { kind: 'create'; clubToken?: string } | { kind: 'edit'; token: string }
 
 const SAVE = ['league-settings']
 
@@ -54,8 +48,8 @@ function CurrentSettings({ mode, token, onClose }: { mode: LeagueSettingsMode; t
   return (
     <DialogContent aria-busy size="md">
       <DialogHeader>
-        <DialogTitle className="text-2xl">{mode.kind === 'next' ? 'Start the next event' : 'Edit league'}</DialogTitle>
-        <DialogDescription>Loading the league’s current settings…</DialogDescription>
+        <DialogTitle className="text-2xl">Edit tournament</DialogTitle>
+        <DialogDescription>Loading the tournament’s current settings…</DialogDescription>
       </DialogHeader>
     </DialogContent>
   )
@@ -72,16 +66,12 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const current = league ? leagueTableShape(league.format) : '1v1'
-  // A next event carries the last one's format forward, raising a limit set since that no longer seats it.
   const [value, setValue] = useState<LeagueFormValue>(() => ({
     name: league?.name ?? '',
     description: league?.description ?? '',
     visibility: league?.visibility ?? 'private',
     admission: league?.admission ?? 'automatic',
-    playerLimit:
-      mode.kind === 'next' && league && !leaguePlacesSeat(current, league.playerLimit)
-        ? leagueMinimumPlaces(current, league.playerLimit ?? 0)
-        : (league?.playerLimit ?? null),
+    playerLimit: league?.playerLimit ?? null,
     format: current,
     rosterLimit: league?.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT,
     allowances: league ? [...currentAllowances(league)] : [],
@@ -95,14 +85,13 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
   const currentAdmins = league?.admins.map((admin) => admin.id) ?? []
   const [adminIds, setAdminIds] = useState(currentAdmins)
   const adminsChanged = adminIds.length !== currentAdmins.length || adminIds.some((id) => !currentAdmins.includes(id))
-  // A fresh event starts with nobody in it, so only the open event's entrants hold places.
   const seated =
     mode.kind === 'edit' && league && !league.revealedAt ? league.entries.filter((entry) => entry.status === 'accepted').length : 0
   const ruleLock =
     mode.kind !== 'edit' || !league
       ? null
       : league.revealedAt
-        ? 'The rosters are out; start the next event to play a different format.'
+        ? 'The rosters are out; start a new tournament to play a different format.'
         : league.entries.some((entry) => entry.submitted)
           ? 'Locked now that a roster is sealed.'
           : null
@@ -114,7 +103,6 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
     mode.kind === 'edit' &&
     shapeChanged &&
     league?.entries.some((entry) => entry.teamId || (league.format === '2v1' && entry.requiredLimit))
-  const next = (league?.eventCount ?? 0) + 1
 
   const save = useMutation({
     mutationKey: SAVE,
@@ -126,11 +114,8 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
     },
     mutationFn: async () => {
       const { format, rosterLimit, allowances, ...details } = value
-      if (mode.kind === 'create') return createLeague({ data: { ...details, format, rosterLimit, allowances, ownerPlays } })
-      if (mode.kind === 'next') {
-        const created = await createLeagueEvent({ data: { token: mode.token, ...details, format, rosterLimit, allowances, ownerPlays } })
-        return { token: mode.token, eventToken: created.eventToken }
-      }
+      if (mode.kind === 'create')
+        return createLeague({ data: { ...details, format, rosterLimit, allowances, ownerPlays, clubToken: mode.clubToken } })
       await updateLeague({
         data: { token: mode.token, ...details, ...(ruleLock || !ruleChanged ? {} : { rule: { format, rosterLimit, allowances } }) },
       })
@@ -144,29 +129,18 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
       ]),
     onSuccess: async (created) => {
       onClose()
-      if (created) await navigate({ to: '/leagues/$token', params: { token: created.token }, search: { event: created.eventToken } })
+      if (created) await navigate({ to: '/tournaments/$token', params: { token: created.token }, search: { event: created.eventToken } })
     },
   })
 
-  const title = mode.kind === 'create' ? 'New league' : mode.kind === 'next' ? `Start event ${next}` : 'Edit league'
+  const title = mode.kind === 'create' ? 'New tournament' : 'Edit tournament'
   const description =
     mode.kind === 'create'
-      ? 'Everyone seals a roster in secret, then you reveal them together.'
-      : mode.kind === 'next'
-        ? 'Starts empty: everyone joins and seals a new roster.'
-        : 'Applies from now on. Nothing already sealed or played changes. Switching to Anyone who joins lets in everyone still waiting.'
-  const submit =
-    mode.kind === 'create'
-      ? save.isPending
-        ? 'Creating…'
-        : 'Create league'
-      : mode.kind === 'next'
-        ? save.isPending
-          ? 'Opening…'
-          : `Start event ${next}`
-        : save.isPending
-          ? 'Saving…'
-          : 'Save changes'
+      ? mode.clubToken
+        ? 'Runs inside the club. Everyone seals a roster in secret, then you reveal them together.'
+        : 'Everyone seals a roster in secret, then you reveal them together.'
+      : 'Applies from now on. Nothing already sealed or played changes. Switching to Anyone who joins lets in everyone still waiting.'
+  const submit = mode.kind === 'create' ? (save.isPending ? 'Creating…' : 'Create tournament') : save.isPending ? 'Saving…' : 'Save changes'
 
   return (
     <DialogContent showCloseButton={!save.isPending} aria-busy={save.isPending} size="md">

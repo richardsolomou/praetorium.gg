@@ -61,6 +61,16 @@ test('club members choose their club at battle setup', async ({ browser }, testI
   await expect(table.locator('tbody tr')).toHaveCount(2)
   await expect(table.locator('tbody tr').first()).toContainText(ownerName)
   await owner.screenshot({ path: testInfo.outputPath('club-page.png'), fullPage: true })
+
+  // A tournament the club runs links back to it and is listed on the club page.
+  const tournamentName = uniqueName('Club tournament')
+  const tournament = owner.getByRole('dialog', { name: 'New tournament' })
+  await retryUntilVisible(tournament, () => owner.getByRole('button', { name: 'New tournament' }).click({ timeout: 1_000 }))
+  await tournament.getByLabel('Name').fill(tournamentName)
+  await tournament.getByRole('button', { name: 'Create tournament' }).click()
+  await expect(owner).toHaveURL(/\/tournaments\/[^/?]+/)
+  await owner.getByRole('link', { name: clubName }).click()
+  await expect(owner.getByRole('link', { name: new RegExp(tournamentName) })).toBeVisible()
   await ownerContext.close()
   await memberContext.close()
 })

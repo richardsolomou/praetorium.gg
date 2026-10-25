@@ -167,10 +167,10 @@ export function LeagueFormFields({
             {seated || limitFormat === '2v1' || limitFormat === '2v2' ? (
               <p className="text-xs text-dim">
                 {seated
-                  ? `No lower than ${minimum} while this event is open.`
+                  ? `No lower than ${minimum} while entry is open.`
                   : limitFormat === '2v2'
                     ? 'Doubles needs an even number of places, at least four.'
-                    : 'A 2v1 league needs at least three places.'}
+                    : 'A 2v1 tournament needs at least three places.'}
               </p>
             ) : null}
           </div>
@@ -180,7 +180,7 @@ export function LeagueFormFields({
             columns={2}
             options={[
               { value: 'private', name: 'Private link', detail: 'Only people you send it to.' },
-              { value: 'public', name: 'Public', detail: 'Listed on the leagues page.' },
+              { value: 'public', name: 'Public', detail: 'Listed on the tournaments page.' },
             ]}
             disabled={disabled}
             onChange={(visibility) => onChange({ ...value, visibility })}

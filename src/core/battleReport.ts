@@ -141,7 +141,7 @@ function describe(
       // whose seat was emptied rather than what used to be in it.
       return `${who} took ${whose} army off the table`
     case 'lock-league-rosters':
-      return 'The league rosters are sealed for this battle'
+      return 'The tournament rosters are sealed for this battle'
     case 'set-battle-club':
       return command.clubId ? 'The battle counts for a club' : 'The battle no longer counts for a club'
     case 'set-prep': {

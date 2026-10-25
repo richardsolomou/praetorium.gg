@@ -1,4 +1,4 @@
-export type NativeSection = 'battles' | 'clubs' | 'factions' | 'home' | 'leaderboard' | 'leagues' | 'missions' | 'rosters' | 'rules'
+export type NativeSection = 'battles' | 'clubs' | 'factions' | 'home' | 'leaderboard' | 'missions' | 'rosters' | 'rules' | 'tournaments'
 
 type NativeNavigation = {
   back?: { href: string; label: string; preferHistory?: boolean }
@@ -29,7 +29,7 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
     if (typeof search.league === 'string') {
       const event = typeof search.event === 'string' ? `?${new URLSearchParams({ event: search.event })}` : ''
       return {
-        back: { href: `/leagues/${search.league}${event}`, label: 'Back to league', preferHistory: true },
+        back: { href: `/tournaments/${search.league}${event}`, label: 'Back to tournament', preferHistory: true },
         section: 'rosters',
         title: 'Roster',
       }
@@ -41,10 +41,10 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
       ? { back: { href: '/battles', label: 'Back to battles', preferHistory: true }, section: 'battles', title: 'Battle' }
       : { section: 'battles', title: 'Battles' }
   }
-  if (root === 'leagues') {
+  if (root === 'tournaments') {
     return id
-      ? { back: { href: '/leagues', label: 'Back to leagues', preferHistory: true }, section: 'leagues', title: 'League' }
-      : { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'leagues', title: 'Leagues' }
+      ? { back: { href: '/tournaments', label: 'Back to tournaments', preferHistory: true }, section: 'tournaments', title: 'Tournament' }
+      : { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'tournaments', title: 'Tournaments' }
   }
   if (root === 'clubs') {
     return id

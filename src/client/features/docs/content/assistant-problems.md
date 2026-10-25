@@ -45,5 +45,5 @@ The public server allows about 120 requests a minute from one address. Wait a mi
 - Praetorium doesn't check the assistant's reasoning. It supplies data and calculated results; anything the assistant concludes from them is the assistant's.
 - No rules wording. You'll need the linked source for exact text.
 - The simulator tool covers one unit, with up to two attached units, against one unit at full strength, with default loadouts and no detachment.
-- The assistant can't edit an unsaved roster in your browser, delete rosters, or change league entries. It only sees your own rosters and battles you're seated in.
+- The assistant can't edit an unsaved roster in your browser, delete rosters, or change tournament entries. It only sees your own rosters and battles you're seated in.
 - An assistant's own provider sees what Praetorium returns to it, including your roster and battle details when you've connected your account.

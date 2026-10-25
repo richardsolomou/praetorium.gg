@@ -131,6 +131,7 @@ const STANDINGS_BATTLE_LIMIT = 500
 const LEAGUE_RESULTS_BATTLE_LIMIT = 500
 /** Pages of 500 battles a club table reads before it reports itself partial. */
 const CLUB_STANDINGS_PAGES = 20
+const CLUB_RECENT_BATTLES = 6
 const STANDINGS_HOLD_MS = 60_000
 
 /** How much of a table is sent. Nobody reads past this, and every faction played costs one. */
@@ -555,17 +556,25 @@ export class PraetoriumService {
       if (!before) break
     }
     const practice = await this.repository.practiceOpponents()
-    const tables = standings(
-      this.battleSummaries(
-        histories.filter((history) => foldHistory(history).clubId === club.id),
-        null,
-        null,
-        factions,
-      ),
-      { exclude: practice.map((opponent) => opponent.id) },
+    // A battle from before events were recorded on it names only its league, which is the token of that league's first event.
+    const tournamentEvents = new Set(club.tournaments.flatMap((tournament) => [tournament.token, ...tournament.eventTokens]))
+    const counted = this.battleSummaries(
+      histories.filter((history) => {
+        const state = foldHistory(history)
+        return state.clubId === club.id || tournamentEvents.has(state.leagueEventToken ?? state.leagueToken ?? '')
+      }),
+      viewerId,
+      null,
+      factions,
     )
+    const tables = standings(counted, { exclude: practice.map((opponent) => opponent.id) })
     const rows = tables.overall.filter((row) => memberIds.has(row.id))
-    return { table: { faction: null, players: rows.length, rows }, partial: before !== undefined }
+    return {
+      table: { faction: null, players: rows.length, rows },
+      finished: counted.filter((battle) => battle.status === 'finished').length,
+      recent: counted.slice(0, CLUB_RECENT_BATTLES),
+      partial: before !== undefined,
+    }
   }
 
   /** The club a battle counts for, and for a seated player during setup the clubs it could; a private club's name stays with its players. */
@@ -656,7 +665,7 @@ export class PraetoriumService {
     if (invited.length && !guestNames.length && (typeof input !== 'object' || !input.casual)) {
       const leagueMatches = await this.leagueBattleOptions(userId, input)
       if (leagueMatches.length) {
-        throw new Response('start this matchup from its league page, or confirm a casual battle', { status: 409 })
+        throw new Response('start this matchup from its tournament page, or confirm a casual battle', { status: 409 })
       }
     }
     const practice = invited.some((id) => allowed.get(id)?.automated)
@@ -871,7 +880,7 @@ export class PraetoriumService {
     const history = await this.mustFind(token)
     if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
     if (sync) command = restoreOpaqueBattleKeys(history.players, history.log, command)
-    if (command.kind === 'lock-league-rosters') throw new Response('league roster locks are created by the server', { status: 403 })
+    if (command.kind === 'lock-league-rosters') throw new Response('tournament roster locks are created by the server', { status: 403 })
     // The product database refuses a non-member too; asking first gives the refusal its code.
     const clubId = command.kind === 'set-battle-club' ? command.clubId : null
     const clubRefusal =

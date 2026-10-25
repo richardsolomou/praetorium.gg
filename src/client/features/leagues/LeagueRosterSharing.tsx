@@ -11,7 +11,7 @@ export function LeagueRosterSharing({ token, eventToken, userId }: { token: stri
   const { data, error, refetch } = useQuery(query)
   const save = useMutation({
     mutationFn: (decision: 'publish' | 'dismiss') => {
-      if (!data) throw new Error('Reload the league and try again.')
+      if (!data) throw new Error('Reload the tournament and try again.')
       return decision === 'publish'
         ? shareLeagueRoster({ data: { token, eventToken, submittedAt: data.submittedAt, rosterId: data.roster.id } })
         : dismissLeagueRosterSharing({ data: { token, eventToken } })
@@ -41,7 +41,7 @@ export function LeagueRosterSharing({ token, eventToken, userId }: { token: stri
       <div className="flex min-w-0 flex-1 gap-3">
         <Info className="mt-0.5 size-5 shrink-0 text-info" aria-hidden />
         <div className="min-w-0">
-          <h2 className="text-base font-semibold text-bone">Share your league roster?</h2>
+          <h2 className="text-base font-semibold text-bone">Share your tournament roster?</h2>
           <p className="mt-1 text-sm break-words text-dim">
             Let anyone find and copy <span className="font-medium text-bone">{data.roster.name}</span> from your profile and Public Rosters.
             Your notes stay private.

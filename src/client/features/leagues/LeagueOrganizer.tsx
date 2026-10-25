@@ -18,7 +18,6 @@ import { friendshipsQuery } from '../../queries'
 import { useOrigin } from '../../useOrigin'
 import { inviteFeedbackText, useInviteShare } from './LeagueActions'
 import { EntrantGroup, EntrantList, SectionHeading, sealStatus } from './LeagueEntrants'
-import { LeagueSettingsDialog } from './LeagueSettingsDialog'
 import { entrantGroups, soloOrAllied, useLeagueRefresh, type League } from './leagueEvent'
 import { Problem } from '../../components/Problem'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -396,31 +395,15 @@ function SizeToggle({
   )
 }
 
-/** The organizer's way on once an event is revealed: the next event, set up in the same form as the first. */
-export function NextEventPanel({ league }: { league: League }) {
-  const [open, setOpen] = useState(false)
-  const next = league.eventCount + 1
-  return (
-    <section className="border border-edge bg-panel p-4">
-      <h2 className="rubric border-b border-edge pb-2">Next event</h2>
-      <p className="mt-1 text-xs text-dim">For when this event’s games are done. This event keeps its rosters and results.</p>
-      <Button variant="outline" className="mt-3 w-full pointer-coarse:h-11" onClick={() => setOpen(true)}>
-        Start event {next}
-      </Button>
-      <LeagueSettingsDialog mode={{ kind: 'next', token: league.token }} open={open} onOpenChange={setOpen} />
-    </section>
-  )
-}
-
 export function InvitePanel({ league }: { league: League }) {
   const origin = useOrigin()
-  const invite = useInviteShare(`/leagues/${league.token}`, league.name, 'league_invite_shared')
+  const invite = useInviteShare(`/tournaments/${league.token}`, league.name, 'league_invite_shared')
   const shareLabel = useInviteShareLabel()
   return (
     <section className="border border-edge bg-panel p-4">
       <h2 className="rubric border-b border-edge pb-2">Invite players</h2>
       <p className="mt-1 text-xs text-dim">
-        {league.visibility === 'private' ? 'Unlisted, so this link is the way in.' : 'Also listed on the leagues page.'}
+        {league.visibility === 'private' ? 'Unlisted, so this link is the way in.' : 'Also listed on the tournaments page.'}
       </p>
       <button
         type="button"
@@ -432,7 +415,9 @@ export function InvitePanel({ league }: { league: League }) {
         <span className="flex items-center gap-2.5 px-3 py-2.5">
           <Link2 className="size-4 shrink-0 text-info" aria-hidden />
           <span className="min-w-0">
-            <span className="block truncate text-xs text-dim">{origin ? `${origin.replace(/^https?:\/\//, '')}/leagues/` : '\u00a0'}</span>
+            <span className="block truncate text-xs text-dim">
+              {origin ? `${origin.replace(/^https?:\/\//, '')}/tournaments/` : '\u00a0'}
+            </span>
             <span className="block truncate text-sm font-semibold text-bone">{league.token}</span>
           </span>
         </span>
@@ -504,7 +489,7 @@ function AddFriends({ league, token }: { league: League; token: string }) {
               </ul>
             ) : !candidates.length ? (
               <p className="text-sm text-dim">
-                {friendships.friends.length ? 'Every friend is already in this event.' : 'Add friends first, then enter them here.'}
+                {friendships.friends.length ? 'Every friend is already in this tournament.' : 'Add friends first, then enter them here.'}
               </p>
             ) : (
               <ul className="divide-y divide-edge border border-edge bg-panel">

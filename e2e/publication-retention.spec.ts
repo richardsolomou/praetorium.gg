@@ -97,7 +97,7 @@ async function leagueFixture(ownerId: string, members: string[]) {
 }
 
 async function sealThroughPage(page: Page, leagueToken: string, rosterName: string) {
-  await page.goto(`/leagues/${leagueToken}`)
+  await page.goto(`/tournaments/${leagueToken}`)
   const chooser = page.getByRole('dialog', { name: 'Seal a roster' })
   await retryUntilVisible(chooser, () => page.getByRole('button', { name: 'Choose a roster', exact: true }).click())
   await chooser.locator(`[data-roster="${rosterName}"]`).click()
@@ -166,7 +166,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await retryUntilVisible(remove, () => page.getByRole('button', { name: 'Actions for Changed saved roster', exact: true }).click())
   await remove.click()
   const deletion = page.getByRole('alertdialog')
-  await expect(deletion).toContainText('Frozen copies in battles and leagues are kept')
+  await expect(deletion).toContainText('Frozen copies in battles and tournaments are kept')
   await deletion.getByRole('button', { name: 'Keep roster', exact: true }).click()
   expect(await productSql`SELECT id FROM rosters WHERE id = ${rosterId}`).toEqual([{ id: rosterId }])
   await page.getByRole('button', { name: 'Actions for Changed saved roster', exact: true }).click()
@@ -181,7 +181,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   // Its owner still reads the sealed copy before the reveal, after the saved roster is gone.
   await page.goto(`/rosters/${userId}?league=${league.token}&event=${league.eventToken}`)
   await expect(page.locator('[data-unit="Skorpekh Lord"]')).toBeVisible()
-  await page.goto(`/leagues/${league.token}`)
+  await page.goto(`/tournaments/${league.token}`)
   const viewSealed = page.getByRole('link', { name: `View ${name}’s roster`, exact: true })
   const reveal = page.getByRole('alertdialog', { name: 'Reveal every roster?' })
   await retryUntilVisible(reveal, () =>
@@ -210,11 +210,11 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
       await page.screenshot({ path: test.info().outputPath(`retained-${kind}-${width}.png`) })
     }
   }
-  await page.goto(`/leagues/${league.token}`)
-  const deleteLeague = page.getByRole('menuitem', { name: 'Delete league', exact: true })
+  await page.goto(`/tournaments/${league.token}`)
+  const deleteLeague = page.getByRole('menuitem', { name: 'Delete tournament', exact: true })
   await retryUntilVisible(deleteLeague, () => page.getByRole('button', { name: /^More for Retention league-/ }).click())
   await deleteLeague.click()
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete league', exact: true }).click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete tournament', exact: true }).click()
   await expect.poll(() => productSql`SELECT id FROM league_events WHERE league_id = ${league.id}`).toEqual([])
   expect(await productSql`SELECT user_id FROM league_event_entries WHERE event_id = ${league.eventId}`).toEqual([])
   expect(await productSql`SELECT seq, body FROM commands WHERE battle_id = ${battle.id}`).toEqual(commandsBefore)

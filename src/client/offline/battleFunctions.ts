@@ -316,7 +316,7 @@ export async function createBattle(args: Parameters<typeof server.createBattle>[
   const guestNames = input.guestNames ?? []
   if (!input.casual && !guestNames.length) {
     const matches = await leagueBattleOptions({ data: input })
-    if (matches.length) throw new Error('Start this matchup from its saved league, or choose a casual battle.')
+    if (matches.length) throw new Error('Start this matchup from its saved tournament, or choose a casual battle.')
   }
   const opponents = await cachedRead(opponentsKey(), () => server.opponents())
   const opponentIds = input.opponentIds ?? (input.opponentId ? [input.opponentId] : [])

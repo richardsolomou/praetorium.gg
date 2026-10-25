@@ -36,5 +36,5 @@ Nobody is seated at the battle any more, so there is nothing to watch.
 
 - Praetorium records what you tell it. It doesn't roll dice, check movement, range or line of sight, or judge whether a score was earned. In a manual battle it doesn't check scores or CP at all.
 - There's no computer opponent. A practice opponent is a side you play yourself.
-- Guests can't sit on your side or play in leagues.
+- Guests can't sit on your side or play in tournaments.
 - A finished battle can't be reopened from the app.

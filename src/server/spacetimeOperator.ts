@@ -140,6 +140,8 @@ const league = z.object({
   playerLimit: z.number().int().nullable(),
   recurring: z.boolean(),
   createdAt: z.number().int(),
+  // Absent from a module deployed before tournaments joined clubs.
+  clubId: z.string().nullable().default(null),
 })
 const leagueEvent = z.object({
   id: z.string(),
@@ -182,6 +184,7 @@ const leagueRecord = z.object({
   adminIds: z.array(z.string()),
   latestEntryCount: z.number().int(),
   latestAcceptedCount: z.number().int(),
+  club: z.object({ token: z.string(), name: z.string() }).nullable().default(null),
 })
 const visibleLeague = z.object({
   league,
@@ -230,11 +233,20 @@ const clubMember = z.object({
   joinedAt: z.number().int(),
 })
 const battleClub = club.pick({ id: true, token: true, name: true, visibility: true })
-const clubRecord = z.object({ club, members: z.array(clubMember) })
+const clubTournament = z.object({
+  token: z.string(),
+  name: z.string(),
+  createdAt: z.number().int(),
+  revealedAt: z.number().int().nullable(),
+  eventTokens: z.array(z.string()),
+})
+const clubRecord = z.object({ club, members: z.array(clubMember), tournaments: z.array(clubTournament) })
 const visibleClub = z.object({
   club,
   adminIds: z.array(z.string()),
   memberCount: z.number().int(),
+  // Absent from a module deployed before club tables counted battles.
+  battleCount: z.number().int().default(0),
   ownMember: clubMember.pick({ status: true, role: true }).nullable(),
 })
 
@@ -288,6 +300,10 @@ export class SpacetimeOperator {
   async revokeSession(sessionId: string) {
     if (!sessionId || sessionId.length > 128) throw new Error('Invalid session ID')
     await this.call('revoke_session', [sessionId])
+  }
+
+  async migrateLeaguesToClubs(now: number) {
+    return this.reply('migrate_leagues_to_clubs', [now], z.number().int())
   }
 
   async health() {

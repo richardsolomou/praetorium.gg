@@ -11,17 +11,17 @@ web
 ## Users
 
 - Warhammer 40,000 players, most often mid-game on a phone, tracking turns, scoring and casualties or checking a rule between rolls.
-- Away from the table: list building, simulation, rules reading; organizers run leagues.
+- Away from the table: list building, simulation, rules reading; organizers run clubs and tournaments.
 
 ## Product Purpose
 
-- Free army builder, combat simulator, battle tracker and rules reference that carries a game from list to final score, with 1v1, 2v1 and 2v2 games against friends, guests or a practice opponent, and leagues with secretly sealed lists.
+- Free army builder, combat simulator, battle tracker and rules reference that carries a game from list to final score, with 1v1, 2v1 and 2v2 games against friends, guests or a practice opponent, and tournaments with secretly sealed lists.
 
 ## Positioning
 
 - Free and AGPL open source; nothing behind payment.
-- One place: builder, simulator, battles, leagues and reference share the same rosters and data.
-- Social play: friends, leagues, clubs, guest seats, spectating, public battles, leaderboard.
+- One place: builder, simulator, battles, clubs, tournaments and reference share the same rosters and data.
+- Social play: friends, clubs, tournaments, guest seats, spectating, public battles, leaderboard.
 
 ## Operating Context
 
@@ -51,7 +51,7 @@ web
 ## Product Principles
 
 1. The table comes first: in-game screens work at a glance, one-handed, on a phone.
-2. One connected flow: never re-enter data between list, simulation, battle and league.
+2. One connected flow: never re-enter data between list, simulation, battle and tournament.
 3. Truth over convenience: say plainly what the data does not support.
 4. Players own their data: battles and collections are public; each roster's access is the player's choice.
 5. No feature is gated behind payment.

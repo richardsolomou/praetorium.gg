@@ -1,6 +1,20 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Check, Clipboard, EllipsisVertical, Eye, LockKeyhole, LogOut, Pencil, Share2, Trash2, UserPlus, X } from 'lucide-react'
+import {
+  Check,
+  Clipboard,
+  EllipsisVertical,
+  Eye,
+  LockKeyhole,
+  LogOut,
+  Pencil,
+  Plus,
+  Share2,
+  Trash2,
+  Trophy,
+  UserPlus,
+  X,
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -11,12 +25,17 @@ import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
 import { deleteClub, joinClub, leaveClub, moderateClubMember, removeClubMember } from '../../functions'
 import { clubKey, clubQuery, clubsKey, clubStandingsQuery, meQuery } from '../../queries'
-import { Standings } from '../leaderboard/Standings'
+import { BattleShelf } from '../battles/BattleShelf'
 import { useInviteShareLabel } from '../friends/friendInvite'
+import { Standings } from '../leaderboard/Standings'
 import { inviteFeedbackText, useInviteShare } from '../leagues/LeagueActions'
 import { SectionHeading } from '../leagues/LeagueEntrants'
+import { LeagueSettingsDialog } from '../leagues/LeagueSettingsDialog'
 import type { Club } from './club'
 import { ClubSettingsDialog } from './ClubSettingsDialog'
+
+type Member = Club['members'][number]
+type ClubTable = NonNullable<Awaited<ReturnType<NonNullable<ReturnType<typeof clubStandingsQuery>['queryFn']>>>>
 
 export function ClubPage({ token }: { token: string }) {
   const navigate = useNavigate()
@@ -38,13 +57,17 @@ function useClubRefresh(token: string) {
 function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null }) {
   const navigate = useNavigate()
   const refresh = useClubRefresh(club.token)
+  const { data: table } = useQuery(clubStandingsQuery(club.token))
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [leaving, setLeaving] = useState(false)
   const isOwner = viewerId === club.ownerId
   const own = club.members.find((member) => member.userId === viewerId) ?? null
-  const accepted = club.members.filter((member) => member.status === 'accepted')
-  const admins = accepted.filter((member) => member.role === 'admin')
+  const member = own?.status === 'accepted'
+  const accepted = club.members.filter((candidate) => candidate.status === 'accepted')
+  const admins = accepted.filter((candidate) => candidate.role === 'admin')
+  const invite = useInviteShare(`/clubs/${club.token}`, club.name, 'club_invite_shared')
+  const shareLabel = useInviteShareLabel()
   const remove = useMutation({
     mutationFn: () => deleteClub({ data: { token: club.token } }),
     onSettled: refresh,
@@ -63,6 +86,11 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
         title={club.name}
         actions={
           <>
+            {member ? (
+              <Button variant="outline" onClick={invite.share}>
+                {invite.feedback === 'shared' ? <Share2 /> : invite.feedback === 'copied' ? <Check /> : <Clipboard />} {shareLabel}
+              </Button>
+            ) : null}
             {club.organizer ? (
               <Button variant="outline" onClick={() => setEditing(true)}>
                 <Pencil /> Edit club
@@ -80,7 +108,7 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
                     </DropdownMenuItem>
                   ) : (
                     <DropdownMenuItem variant="destructive" onClick={() => (leave.reset(), setLeaving(true))}>
-                      <LogOut /> {own?.status === 'pending' ? 'Withdraw request' : 'Leave club'}
+                      <LogOut /> {member ? 'Leave club' : 'Withdraw request'}
                     </DropdownMenuItem>
                   )}
                 </DropdownMenuContent>
@@ -92,8 +120,7 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
         <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-dim">
           {club.visibility === 'private' ? <LockKeyhole className="size-3.5" aria-hidden /> : <Eye className="size-3.5" aria-hidden />}
           {club.visibility === 'private' ? 'Private link' : 'Public'} ·{' '}
-          {club.admission === 'approval' ? 'Approval required' : 'Anyone can join'} ·{' '}
-          {accepted.length === 1 ? '1 member' : `${accepted.length} members`}
+          {club.admission === 'approval' ? 'Approval required' : 'Anyone can join'}
         </p>
         {club.description ? <p className="mt-3 max-w-2xl font-rules text-sm whitespace-pre-wrap text-dim">{club.description}</p> : null}
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-dim">
@@ -110,11 +137,18 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
             </Link>
           ))}
         </div>
+        {invite.feedback ? (
+          <p aria-live="polite" className="mt-2 text-xs text-dim">
+            {inviteFeedbackText(invite.feedback)}
+          </p>
+        ) : null}
       </PageHeader>
 
-      <PageContent className="space-y-6">
-        <Membership club={club} viewerId={viewerId} own={own} />
-        <ClubTable token={club.token} viewerId={viewerId} />
+      <PageContent className="space-y-8">
+        <ClubFigures club={club} members={accepted.length} table={table} />
+        {member ? null : <JoinClub club={club} viewerId={viewerId} own={own} />}
+        {table ? <TableSection table={table} viewerId={viewerId} member={member} /> : null}
+        <Tournaments club={club} />
         <Members club={club} viewerId={viewerId} isOwner={isOwner} />
       </PageContent>
 
@@ -122,7 +156,7 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
       <ConfirmDialog
         open={deleting}
         title={`Delete ${club.name}?`}
-        description="The club, its members and its table go for good. Battles its members played stay where they are."
+        description="The club, its members and its table go for good. Its tournaments and battles stay where they are."
         cancel="Keep club"
         confirm="Delete club"
         pendingLabel="Deleting…"
@@ -134,10 +168,10 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
       />
       <ConfirmDialog
         open={leaving}
-        title={own?.status === 'pending' ? 'Withdraw your request?' : `Leave ${club.name}?`}
+        title={member ? `Leave ${club.name}?` : 'Withdraw your request?'}
         description="You drop off the club’s table. Rejoin any time to come back on it with your record."
         cancel="Stay"
-        confirm={own?.status === 'pending' ? 'Withdraw' : 'Leave club'}
+        confirm={member ? 'Leave club' : 'Withdraw'}
         pendingLabel="Leaving…"
         destructive
         pending={leave.isPending}
@@ -149,34 +183,52 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
   )
 }
 
-/** Where the reader stands: invited to join, waiting, or a member with an invite to pass on. */
-function Membership({ club, viewerId, own }: { club: Club; viewerId: string | null; own: Club['members'][number] | null }) {
+/** The club at a glance: how many play, how much they have played, and who leads. */
+function ClubFigures({ club, members, table }: { club: Club; members: number; table: ClubTable | null | undefined }) {
+  const leader = table?.table.rows[0]
+  const figures = [
+    { label: 'Members', value: String(members) },
+    { label: 'Battles', value: table ? String(table.finished) : '–' },
+    { label: 'Tournaments', value: String(club.tournaments.length) },
+  ]
+  return (
+    <dl className="grid grid-cols-3 border border-edge bg-panel sm:grid-cols-4">
+      {figures.map((figure, index) => (
+        <div key={figure.label} className={`border-edge p-3 sm:p-4 ${index < figures.length - 1 ? 'border-r' : ''}`}>
+          <dt className="eyebrow">{figure.label}</dt>
+          <dd className="mt-1 figure text-2xl">{figure.value}</dd>
+        </div>
+      ))}
+      <div className="col-span-3 border-t border-edge p-3 sm:col-span-1 sm:border-t-0 sm:border-l sm:p-4">
+        <dt className="eyebrow">Leading</dt>
+        <dd className="mt-1 flex min-w-0 items-center gap-2">
+          {leader ? (
+            <>
+              <PlayerAvatar name={leader.name} image={leader.image} className="size-7 text-3xs" />
+              <span className="min-w-0 truncate font-semibold">{leader.name}</span>
+              <span className="ml-auto figure text-achieved">{Math.round(leader.rating)}</span>
+            </>
+          ) : (
+            <span className="text-dim">Nobody yet</span>
+          )}
+        </dd>
+      </div>
+    </dl>
+  )
+}
+
+/** Where a visitor stands: invited to join, or waiting to be let in. */
+function JoinClub({ club, viewerId, own }: { club: Club; viewerId: string | null; own: Member | null }) {
   const refresh = useClubRefresh(club.token)
-  const invite = useInviteShare(`/clubs/${club.token}`, club.name, 'club_invite_shared')
-  const shareLabel = useInviteShareLabel()
   const join = useMutation({ mutationFn: () => joinClub({ data: { token: club.token } }), onSettled: refresh })
-  if (own?.status === 'accepted')
-    return (
-      <section className="flex flex-wrap items-center gap-3 border border-edge bg-panel p-4">
-        <p className="min-w-0 flex-1 text-sm text-dim">
-          Choose this club when you set up a battle against another member, and the result counts on its table.
-        </p>
-        <Button variant="outline" onClick={invite.share}>
-          {invite.feedback === 'shared' ? <Share2 /> : invite.feedback === 'copied' ? <Check /> : <Clipboard />} {shareLabel}
-        </Button>
-        <p aria-live="polite" className="basis-full text-xs text-dim empty:hidden">
-          {invite.feedback ? inviteFeedbackText(invite.feedback) : ''}
-        </p>
-      </section>
-    )
   return (
     <section className="flex flex-wrap items-center gap-3 border border-edge bg-panel p-4">
       <p className="min-w-0 flex-1 text-sm text-dim">
-        {own?.status === 'pending'
+        {own
           ? `Waiting for ${club.ownerName} or an admin to let you in.`
           : club.admission === 'approval'
-            ? 'Ask to join, and an organizer lets you in.'
-            : 'Join to play for a place on this club’s table.'}
+            ? 'Ask to join, and an organizer lets you in. Then the battles you play other members count on the club’s table.'
+            : 'Join, and the battles you play other members count on the club’s table.'}
       </p>
       {own ? null : viewerId ? (
         <Button onClick={() => join.mutate()} disabled={join.isPending}>
@@ -192,6 +244,96 @@ function Membership({ club, viewerId, own }: { club: Club; viewerId: string | nu
   )
 }
 
+/** The table once a battle has counted; until then, how one comes to count. */
+function TableSection({ table, viewerId, member }: { table: ClubTable; viewerId: string | null; member: boolean }) {
+  if (!table.finished && !table.recent.length)
+    return (
+      <section>
+        <SectionHeading title="How the table fills" />
+        <ol className="grid gap-px border border-edge bg-edge sm:grid-cols-3">
+          {[
+            ['Bring the group in', 'Send the invite link. Everyone who joins can play for the table.'],
+            ['Choose the club at setup', 'When every player is a member, battle setup offers the club. Pick it before the game starts.'],
+            ['Finish the battle', 'The result counts here, rated from 1000 like the leaderboard.'],
+          ].map(([title, detail], index) => (
+            <li key={title} className="bg-panel p-4">
+              <span className="figure text-sm text-faint">{index + 1}</span>
+              <p className="mt-1 font-bold uppercase">{title}</p>
+              <p className="mt-1 text-sm text-dim">{detail}</p>
+            </li>
+          ))}
+        </ol>
+        {member ? null : <p className="mt-2 text-sm text-faint">The table fills as members play each other.</p>}
+      </section>
+    )
+  return (
+    <div className="space-y-8">
+      <div className="space-y-2">
+        <Standings table={table.table} viewerId={viewerId ?? undefined} title="Table" empty="No club battle has finished yet." />
+        <p className="text-sm text-faint">
+          Battles members chose the club for, and the battles of its tournaments, rated from 1000 like the leaderboard. Guest, practice and
+          manually tracked battles never count.{table.partial ? ' Only the most recent 10,000 battles are counted.' : ''}
+        </p>
+      </div>
+      <BattleShelf title="Recent battles" name="Club battles" battles={table.recent} viewerId={viewerId ?? undefined} />
+    </div>
+  )
+}
+
+/** Sealed-roster events the club has run; its organizers start new ones here. */
+function Tournaments({ club }: { club: Club }) {
+  const refresh = useClubRefresh(club.token)
+  const [creating, setCreating] = useState(false)
+  if (!club.tournaments.length && !club.organizer) return null
+  return (
+    <section>
+      <SectionHeading
+        title="Tournaments"
+        count={club.tournaments.length}
+        action={
+          club.organizer ? (
+            <Button size="sm" variant="outline" onClick={() => setCreating(true)}>
+              <Plus /> New tournament
+            </Button>
+          ) : null
+        }
+      />
+      {club.tournaments.length ? (
+        <ul className="divide-y divide-edge border border-edge bg-panel">
+          {club.tournaments.map((tournament) => (
+            <li key={tournament.token}>
+              <Link
+                to="/tournaments/$token"
+                params={{ token: tournament.token }}
+                className="flex min-w-0 items-center gap-3 p-3 hover:bg-raised"
+              >
+                <Trophy className="size-4 shrink-0 text-info" aria-hidden />
+                <span className="min-w-0 flex-1 truncate font-semibold">{tournament.name}</span>
+                <span className={`chip shrink-0 ${tournament.revealedAt ? 'text-achieved' : 'text-dim'}`}>
+                  {tournament.revealedAt ? 'Rosters out' : 'Sealing'}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-sm text-dim">
+          Run a tournament when the club wants one: everyone seals a roster in secret, the rosters open together, and its battles count here
+          too.
+        </p>
+      )}
+      <LeagueSettingsDialog
+        mode={{ kind: 'create', clubToken: club.token }}
+        open={creating}
+        onOpenChange={(open) => {
+          setCreating(open)
+          if (!open) void refresh()
+        }}
+      />
+    </section>
+  )
+}
+
 function Members({ club, viewerId, isOwner }: { club: Club; viewerId: string | null; isOwner: boolean }) {
   const refresh = useClubRefresh(club.token)
   const moderate = useMutation({
@@ -202,9 +344,9 @@ function Members({ club, viewerId, isOwner }: { club: Club; viewerId: string | n
     mutationFn: (userId: string) => removeClubMember({ data: { token: club.token, userId } }),
     onSettled: refresh,
   })
-  const pending = club.members.filter((member) => member.status === 'pending' && club.organizer)
+  const pending = club.organizer ? club.members.filter((member) => member.status === 'pending') : []
   const accepted = club.members.filter((member) => member.status === 'accepted')
-  const role = (member: Club['members'][number]) => (member.userId === club.ownerId ? 'Owner' : member.role === 'admin' ? 'Admin' : null)
+  const role = (member: Member) => (member.userId === club.ownerId ? 'Owner' : member.role === 'admin' ? 'Admin' : null)
   return (
     <>
       {pending.length ? (
@@ -212,20 +354,22 @@ function Members({ club, viewerId, isOwner }: { club: Club; viewerId: string | n
           <SectionHeading title="Asking to join" count={pending.length} />
           <ul className="divide-y divide-edge border border-edge bg-panel">
             {pending.map((member) => (
-              <li key={member.userId} data-person={member.name} className="flex min-w-0 items-center gap-3 p-3">
+              <li key={member.userId} data-person={member.name} className="flex min-w-0 flex-wrap items-center gap-3 p-3">
                 <PlayerAvatar name={member.name} image={member.image} className="size-8 text-xs" />
                 <span className="min-w-0 flex-1 truncate font-semibold">{member.name}</span>
-                <Button size="sm" disabled={moderate.isPending} onClick={() => moderate.mutate({ userId: member.userId, accept: true })}>
-                  <Check /> Let in
-                </Button>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={moderate.isPending}
-                  onClick={() => moderate.mutate({ userId: member.userId, accept: false })}
-                >
-                  <X /> Decline
-                </Button>
+                <div className="flex gap-2">
+                  <Button size="sm" disabled={moderate.isPending} onClick={() => moderate.mutate({ userId: member.userId, accept: true })}>
+                    <Check /> Let in
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={moderate.isPending}
+                    onClick={() => moderate.mutate({ userId: member.userId, accept: false })}
+                  >
+                    <X /> Decline
+                  </Button>
+                </div>
               </li>
             ))}
           </ul>
@@ -234,13 +378,17 @@ function Members({ club, viewerId, isOwner }: { club: Club; viewerId: string | n
       ) : null}
       <section>
         <SectionHeading title="Members" count={accepted.length} />
-        <ul className="divide-y divide-edge border border-edge bg-panel">
+        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {accepted.map((member) => {
             const removable =
               club.organizer && member.userId !== club.ownerId && member.userId !== viewerId && (member.role !== 'admin' || isOwner)
             return (
-              <li key={member.userId} data-person={member.name} className="flex min-w-0 items-center gap-3 p-3">
-                <Link to="/users/$userId" params={{ userId: member.userId }} className="group flex min-w-0 flex-1 items-center gap-3">
+              <li
+                key={member.userId}
+                data-person={member.name}
+                className="flex min-w-0 items-center gap-2 border border-edge bg-panel p-2 pl-3"
+              >
+                <Link to="/users/$userId" params={{ userId: member.userId }} className="group flex min-w-0 flex-1 items-center gap-2.5">
                   <PlayerAvatar name={member.name} image={member.image} className="size-8 text-xs" />
                   <span className="truncate font-semibold group-hover:underline">{member.name}</span>
                   {role(member) ? <span className="chip shrink-0 text-dim">{role(member)}</span> : null}
@@ -249,6 +397,7 @@ function Members({ club, viewerId, isOwner }: { club: Club; viewerId: string | n
                   <Button
                     size="icon-sm"
                     variant="ghost"
+                    className="pointer-coarse:size-11"
                     aria-label={`Remove ${member.name} from the club`}
                     disabled={remove.isPending}
                     onClick={() => remove.mutate(member.userId)}
@@ -263,20 +412,5 @@ function Members({ club, viewerId, isOwner }: { club: Club; viewerId: string | n
         {remove.error ? <Problem error={remove.error} className="mt-2" /> : null}
       </section>
     </>
-  )
-}
-
-/** The club's table, which a private club shows its members alone. */
-function ClubTable({ token, viewerId }: { token: string; viewerId: string | null }) {
-  const { data } = useQuery(clubStandingsQuery(token))
-  if (!data) return null
-  return (
-    <div className="space-y-2">
-      <Standings table={data.table} viewerId={viewerId ?? undefined} title="Table" empty="No club battle has finished yet." />
-      <p className="text-sm text-faint">
-        Every battle members chose this club for at setup, rated from 1000 like the leaderboard. Guest, practice and manually tracked
-        battles never count.{data.partial ? ' Only the most recent 10,000 battles are counted.' : ''}
-      </p>
-    </div>
   )
 }

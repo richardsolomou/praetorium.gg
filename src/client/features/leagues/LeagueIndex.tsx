@@ -19,20 +19,20 @@ export function LeagueIndex() {
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Organized play"
-        title="Leagues"
+        eyebrow="Sealed rosters"
+        title="Tournaments"
         description="Everyone seals a roster in secret, the rosters open together, then you play each other and the results build up."
         actions={me ? <CreateLeague /> : null}
       />
       <PageContent className="space-y-6">
-        {mine.length ? <LeagueShelf title="Your leagues" leagues={mine} viewerId={me?.id ?? null} /> : null}
-        {publicLeagues.length ? <LeagueShelf title="Public leagues" leagues={publicLeagues} viewerId={me?.id ?? null} /> : null}
+        {mine.length ? <LeagueShelf title="Your tournaments" leagues={mine} viewerId={me?.id ?? null} /> : null}
+        {publicLeagues.length ? <LeagueShelf title="Public tournaments" leagues={publicLeagues} viewerId={me?.id ?? null} /> : null}
         {!leagues.length ? (
           <PageState
             headingLevel={2}
-            eyebrow="Organized play"
-            title="No leagues yet"
-            explanation={me ? 'Create one and send the link to your group.' : 'Public leagues will appear here. Sign in to create one.'}
+            eyebrow="Sealed rosters"
+            title="No tournaments yet"
+            explanation={me ? 'Create one and send the link to your group.' : 'Public tournaments will appear here. Sign in to create one.'}
             icon={Users}
           />
         ) : null}
@@ -58,13 +58,13 @@ function LeagueShelf({
       <div className="grid gap-3 md:grid-cols-2">
         {leagues.map((league) => {
           const organizer = isLeagueOrganizer(league, league.adminIds, viewerId)
-          // One status: the reader's own place when they have one, otherwise where the league stands.
+          // One status: the reader's own place when they have one, otherwise where the tournament stands.
           const status = league.ownEntry
             ? ownEntryStatus(league.ownEntry, Boolean(league.revealedAt))
             : leaguePhase(league, league.entrantCount, league.occupiedCount)
           const format = leagueFormat(league)
           const card = (
-            <Link to="/leagues/$token" params={{ token: league.token }} className="flex min-w-0 flex-1 flex-col">
+            <Link to="/tournaments/$token" params={{ token: league.token }} className="flex min-w-0 flex-1 flex-col">
               <div className={`flex-1 p-4 ${organizer ? 'pr-12' : ''}`}>
                 <p className="flex items-center gap-2 text-xs text-dim">
                   {league.visibility === 'private' ? (
@@ -89,11 +89,7 @@ function LeagueShelf({
                   <span aria-hidden className="size-2 shrink-0 rounded-full bg-current" />
                   <span className="truncate">{status.label}</span>
                 </span>
-                <span className="ml-auto shrink-0 text-xs text-dim">
-                  {[leaguePlayers(league, league.entrantCount), league.eventNumber > 1 ? `Event ${league.eventNumber}` : null]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </span>
+                <span className="ml-auto shrink-0 text-xs text-dim">{leaguePlayers(league, league.entrantCount)}</span>
               </div>
             </Link>
           )
@@ -123,7 +119,7 @@ function LeagueShelf({
 /** Where the reader's own entry stands, tinted by whether it needs them: amber to act, green once done. */
 function ownEntryStatus(entry: { status: 'pending' | 'accepted' | 'rejected'; submitted: boolean }, revealed: boolean) {
   if (entry.status === 'pending') return { label: 'Waiting for approval', tint: 'text-dim' }
-  if (entry.status === 'rejected') return { label: 'Not in this league', tint: 'text-faint' }
+  if (entry.status === 'rejected') return { label: 'Not in this tournament', tint: 'text-faint' }
   if (entry.submitted)
     return revealed ? { label: 'Rosters revealed', tint: 'text-achieved' } : { label: 'Your roster is sealed', tint: 'text-achieved' }
   return revealed ? { label: 'No roster', tint: 'text-faint' } : { label: 'Seal your roster', tint: 'text-discarded' }

@@ -54,7 +54,7 @@ describe('native tab memory', () => {
 
   it('has nothing to recall for a section this session has not visited', () => {
     stubSessionStorage()
-    expect(recallTab('leagues')).toBeNull()
+    expect(recallTab('tournaments')).toBeNull()
   })
 
   it('remembers nothing for a location outside the tabbed sections', () => {

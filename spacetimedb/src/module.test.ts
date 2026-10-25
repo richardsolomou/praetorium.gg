@@ -70,6 +70,7 @@ describe('sharing a revealed league roster', () => {
         playerLimit: undefined,
         recurring: true,
         createdAt: 1n,
+        clubId: undefined,
       })
       ctx.db.leagueEvents.insert({
         id: 'event',
@@ -298,6 +299,7 @@ describe('what a league event allows', () => {
         playerLimit: undefined,
         recurring: true,
         createdAt: 1n,
+        clubId: undefined,
       })
       ctx.db.leagueEvents.insert({
         id: 'event',
@@ -565,6 +567,107 @@ describe('club battles', () => {
     battle.submit(0, { kind: 'set-battle-club', clubId: 'club-id' })
     battle.submit(1, { kind: 'undo', target: 1 })
     expect(battle.clubs().current).toBeNull()
+  })
+})
+
+describe('leagues becoming clubs', () => {
+  function setup() {
+    const host = harness()
+    host.call(host.operator, (ctx) => {
+      ctx.db.leagues.insert({
+        id: 'league',
+        token: 'league-token',
+        ownerId: 'owner',
+        name: 'Club night',
+        description: '',
+        visibility: 'private',
+        admission: 'automatic',
+        playerLimit: undefined,
+        recurring: true,
+        createdAt: 1n,
+        clubId: undefined,
+      })
+      ctx.db.leagueAdmins.insert({ key: JSON.stringify(['league', 'admin']), leagueId: 'league', userId: 'admin', addedAt: 1n })
+      for (const number of [1, 2]) {
+        ctx.db.leagueEvents.insert({
+          id: `event-${number}`,
+          token: `event-token-${number}`,
+          leagueId: 'league',
+          number,
+          format: '1v1',
+          rosterLimit: 1000,
+          createdAt: BigInt(number),
+          revealedAt: undefined,
+          revealedBy: undefined,
+          allowances: '[]',
+        })
+      }
+      for (const [eventId, userId, status] of [
+        ['event-1', 'player', 'accepted'],
+        ['event-2', 'waiting', 'pending'],
+      ] as const)
+        ctx.db.leagueEventEntries.insert({
+          key: JSON.stringify([eventId, userId]),
+          eventId,
+          userId,
+          status,
+          joinedAt: 1n,
+          rosterId: undefined,
+          rosterName: undefined,
+          rosterSnapshot: undefined,
+          submittedAt: undefined,
+          requiredLimit: undefined,
+          teamId: undefined,
+        })
+    })
+    const migrate = () => module.migrateLeaguesToClubs(host.procedure(host.operator), { now: BigInt(NOW) })
+    const club = () =>
+      JSON.parse(module.clubByToken(host.procedure(host.operator), { token: 'league-token' })) as {
+        members: { userId: string; role: string }[]
+        tournaments: { token: string; name: string }[]
+      } | null
+    const league = (token: string, eventToken = '') =>
+      JSON.parse(module.leagueByToken(host.procedure(host.operator), { token, eventToken })) as { league: { token: string } } | null
+    return { migrate, club, league }
+  }
+
+  it('makes a club of the owner, admins and accepted entrants', () => {
+    const fixture = setup()
+    fixture.migrate()
+    expect(fixture.club()?.members.map((member) => [member.userId, member.role])).toEqual(
+      expect.arrayContaining([
+        ['owner', 'member'],
+        ['admin', 'admin'],
+        ['player', 'member'],
+      ]),
+    )
+  })
+
+  it('leaves out entrants who were never let in', () => {
+    const fixture = setup()
+    fixture.migrate()
+    expect(fixture.club()?.members.some((member) => member.userId === 'waiting')).toBe(false)
+  })
+
+  it('makes each event its own tournament in the club', () => {
+    const fixture = setup()
+    fixture.migrate()
+    expect(fixture.club()?.tournaments.map((tournament) => [tournament.token, tournament.name])).toEqual([
+      ['event-token-2', 'Club night, event 2'],
+      ['league-token', 'Club night, event 1'],
+    ])
+  })
+
+  it('still opens a later event from a link to its old league', () => {
+    const fixture = setup()
+    fixture.migrate()
+    expect(fixture.league('league-token', 'event-token-2')?.league.token).toBe('event-token-2')
+  })
+
+  it('migrates only once', () => {
+    const fixture = setup()
+    fixture.migrate()
+    expect(fixture.migrate()).toBe(0)
   })
 })
 

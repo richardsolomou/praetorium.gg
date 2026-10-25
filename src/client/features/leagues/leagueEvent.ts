@@ -115,7 +115,7 @@ export type EntryStage = 'join' | 'assign' | 'seal' | 'reveal' | 'play'
 export function entryProgress(league: Pick<League, 'format'>, stage: EntryStage): EntryStep[] {
   const assignment = league.format === '2v1' ? 'Play solo or get an ally' : league.format === '2v2' ? 'Get paired with a teammate' : null
   const stages: { stage: EntryStage; label: string }[] = [
-    { stage: 'join', label: 'Join the league' },
+    { stage: 'join', label: 'Join the tournament' },
     ...(assignment ? [{ stage: 'assign' as const, label: assignment }] : []),
     { stage: 'seal', label: 'Seal your roster' },
     { stage: 'reveal', label: 'Rosters revealed' },
@@ -191,8 +191,8 @@ export function leagueNextStep(stage: LeagueStage, viewer: { organizer: boolean;
       sealing: 'Players seal their rosters. Nobody sees another list, you included, until the reveal.',
       choosing: 'Each team chooses its Force Disposition. Then you can reveal the rosters.',
       ready: 'Reveal the rosters. That opens every list at once and closes entry.',
-      playing: 'Players start their league battles from this page. Finished ones fill the results table.',
-      results: 'Start the next event once this one’s games are done.',
+      playing: 'Players start their tournament battles from this page. Finished ones fill the results table.',
+      results: 'To play again with fresh rosters, start a new tournament.',
     }[stage]
   return (stage === 'playing' || stage === 'results') && viewer.canPlay
     ? `Start a ${TABLE_SHAPE_LABELS[shape].count} battle from your card. Finished battles fill the results table.`

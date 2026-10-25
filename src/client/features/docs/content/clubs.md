@@ -1,4 +1,4 @@
-A club is a standing table for your club or friend group. It never ends and has no events: members play each other whenever they like, and every battle they choose the club for counts toward its ratings. Start one with **New club** on [Clubs](/clubs).
+A club is a standing table for your club or friend group. It never ends: members play each other whenever they like, and every battle they choose the club for counts toward its ratings. Start one with **New club** on [Clubs](/clubs).
 
 ## Set up a club
 
@@ -10,10 +10,14 @@ Share the link from **Copy invite link** on the club page. A private club's tabl
 
 ## Play for the table
 
-When you set up a battle, choose the club under **Club**. It's offered only when every player is a member of the club, and never for a battle with a guest or practice opponent, a league battle, or one tracked manually. You can change the choice until the battle starts, and then it's fixed.
+When you set up a battle, choose the club under **Club**. It's offered only when every player is a member of the club, and never for a battle with a guest or practice opponent, or one tracked manually. A tournament's battles count through the tournament instead (see below). You can change the choice until the battle starts, and then it's fixed.
 
 When the battle finishes, the result counts on the club's table. Ratings work like the [leaderboard](/leaderboard): everyone starts at 1000, beating a higher-rated player gains more, a concession is a loss and allies share their side's result. Club battles count on the leaderboard as usual too.
 
+## Run a tournament
+
+When the club wants a sealed-roster event, an organizer presses **New tournament** on the club page. It works like any [tournament](/docs/run-a-tournament): everyone seals a roster in secret and the rosters open together. Its battles count on the club's table too, and the club page lists every tournament the club has run.
+
 ## Leave or delete a club
 
-**Leave club** takes you off the table. Your battles still count for your opponents, and your row comes back if you rejoin. The owner can't leave their own club. **Delete club** removes the club, its members and its table. Battles stay where they are.
+**Leave club** takes you off the table. Your battles still count for your opponents, and your row comes back if you rejoin. The owner can't leave their own club. **Delete club** removes the club, its members and its table. Its tournaments and battles stay where they are.

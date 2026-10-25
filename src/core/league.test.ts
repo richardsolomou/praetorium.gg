@@ -668,7 +668,7 @@ describe('what an event allows', () => {
 
   it('refuses a switched-off restriction the event does not allow', () => {
     expect(leagueAllowanceRefusal(roster({ waivedRules: ['points-limit'] }), [])).toBe(
-      'This event keeps Points limit on. Switch it back on in the picker’s Format restrictions, then seal again.',
+      'This tournament keeps Points limit on. Switch it back on in the picker’s Format restrictions, then seal again.',
     )
   })
 
@@ -678,7 +678,7 @@ describe('what an event allows', () => {
 
   it('refuses a Legends datasheet the event does not allow', () => {
     expect(leagueAllowanceRefusal(roster({ units: [unit] }), ['crucible'])).toBe(
-      'This event doesn’t allow Legends datasheets, such as Land Speeder Typhoon. Remove them, then seal again.',
+      'This tournament doesn’t allow Legends datasheets, such as Land Speeder Typhoon. Remove them, then seal again.',
     )
   })
 

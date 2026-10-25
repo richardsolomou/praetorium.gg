@@ -202,7 +202,7 @@ export function CombatSimulator({
               })),
             },
             {
-              label: "Friends' league rosters",
+              label: "Friends' tournament rosters",
               options: (leagues.data ?? []).map((entry) => ({
                 id: rosterSourceKey(friendLeagueSource(entry)),
                 label: friendLeagueLabel(entry),

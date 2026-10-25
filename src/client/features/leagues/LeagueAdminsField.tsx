@@ -64,7 +64,7 @@ export function LeagueAdminsField({ idPrefix, admins, disabled }: { idPrefix: st
           ))}
         </SelectContent>
       </Select>
-      <p className="text-xs text-dim">Admins start events, change settings, and manage players. Only you can delete the league.</p>
+      <p className="text-xs text-dim">Admins change settings and manage players. Only you can delete the tournament.</p>
     </div>
   )
 }

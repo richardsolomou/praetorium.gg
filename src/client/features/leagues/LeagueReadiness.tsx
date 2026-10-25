@@ -149,8 +149,7 @@ export function RevealRostersDialog({
       description={
         <>
           {accepted.length === 1 ? 'The sealed roster opens' : `All ${accepted.length} sealed rosters open`} for everyone who can open this
-          league, and nobody else can join this event.{' '}
-          {pending ? `${countLabel(pending, 'request')} still waiting will be turned down. ` : ''}
+          tournament, and nobody else can join. {pending ? `${countLabel(pending, 'request')} still waiting will be turned down. ` : ''}
           You cannot undo this.
         </>
       }

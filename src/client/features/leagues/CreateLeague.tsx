@@ -17,7 +17,7 @@ export function CreateLeague() {
           setOpen(true)
         }}
       >
-        <Plus /> New league
+        <Plus /> New tournament
       </Button>
       <LeagueSettingsDialog mode={{ kind: 'create' }} open={open} onOpenChange={setOpen} />
     </>

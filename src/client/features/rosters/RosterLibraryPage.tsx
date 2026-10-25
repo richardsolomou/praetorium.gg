@@ -442,8 +442,8 @@ export function RosterLibraryPage({
               {guest
                 ? 'This removes the roster from this device for good. A copy you brought to a battle is kept there.'
                 : deleting?.archived
-                  ? 'This removes the saved roster for good. Frozen copies in battles and leagues are kept.'
-                  : 'Deleting removes the roster for good; archiving hides it until you unarchive it. Frozen copies in battles and leagues are kept either way.'}
+                  ? 'This removes the saved roster for good. Frozen copies in battles and tournaments are kept.'
+                  : 'Deleting removes the roster for good; archiving hides it until you unarchive it. Frozen copies in battles and tournaments are kept either way.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

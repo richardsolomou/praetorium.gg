@@ -291,6 +291,7 @@ export class SpacetimeRepository {
     rosterLimit?: number
     allowances?: readonly LeagueAllowance[]
     ownerPlays?: boolean
+    clubToken?: string
     now: number
   }) {
     return this.product.leagueCommand(
@@ -304,7 +305,7 @@ export class SpacetimeRepository {
         rosterLimit: input.rosterLimit ?? null,
         playerLimit: input.playerLimit ?? null,
       },
-      z.literal('too-small').nullable(),
+      z.enum(['too-small', 'forbidden']).nullable(),
     )
   }
 
@@ -466,6 +467,7 @@ export class SpacetimeRepository {
     if (!owner) throw new Error(`Club owner ${record.club.ownerId} is missing from auth database`)
     return {
       ...record.club,
+      tournaments: record.tournaments,
       ownerName: owner.name,
       ownerImage: owner.image,
       members: record.members.flatMap((member) => {
@@ -478,10 +480,10 @@ export class SpacetimeRepository {
   async clubsVisibleTo(userId: string | null, limit = 100) {
     const rows = await this.product.clubsVisibleTo(userId, Math.min(Math.max(limit, 1), 100))
     const owners = await this.accounts.profilesByIds(rows.map((row) => row.club.ownerId))
-    return rows.map(({ club, adminIds, memberCount, ownMember }) => {
+    return rows.map(({ club, adminIds, memberCount, battleCount, ownMember }) => {
       const owner = owners.get(club.ownerId)
       if (!owner) throw new Error(`Club owner ${club.ownerId} is missing from auth database`)
-      return { ...club, ownerName: owner.name, ownerImage: owner.image, adminIds, memberCount, ownMember }
+      return { ...club, ownerName: owner.name, ownerImage: owner.image, adminIds, memberCount, battleCount, ownMember }
     })
   }
 
@@ -533,8 +535,20 @@ export class SpacetimeRepository {
   async leagueByToken(token: string, viewerId: string | null = null, eventToken?: string) {
     const record = await this.product.leagueByToken(token, eventToken)
     if (!record) return undefined
-    const { league, selected, latest, events, entries, teams, teamWarlords, adminIds, eventCount, latestEntryCount, latestAcceptedCount } =
-      record
+    const {
+      league,
+      selected,
+      latest,
+      events,
+      entries,
+      teams,
+      teamWarlords,
+      adminIds,
+      eventCount,
+      latestEntryCount,
+      latestAcceptedCount,
+      club,
+    } = record
     const profiles = await this.accounts.profilesByIds([
       league.ownerId,
       ...adminIds,
@@ -574,6 +588,7 @@ export class SpacetimeRepository {
       currentEventRevealedAt: latest.revealedAt,
       currentEntrantCount: latestEntryCount,
       currentAcceptedCount: latestAcceptedCount,
+      club,
       events: events.map(({ id: _id, leagueId: _leagueId, ...event }) => event),
       occupiedCount: entries.filter((entry) => entry.status !== 'rejected').length,
       entries: entries.map((entry) => {

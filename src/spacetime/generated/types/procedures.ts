@@ -55,6 +55,7 @@ import * as LeagueRosterSharingProcedure from '../league_roster_sharing_procedur
 import * as LeagueRostersProcedure from '../league_rosters_procedure'
 import * as LeaguesVisibleToProcedure from '../leagues_visible_to_procedure'
 import * as LendRosterProcedure from '../lend_roster_procedure'
+import * as MigrateLeaguesToClubsProcedure from '../migrate_leagues_to_clubs_procedure'
 import * as MigrateProductDataProcedure from '../migrate_product_data_procedure'
 import * as OnboardingByUserProcedure from '../onboarding_by_user_procedure'
 import * as OperatorHealthProcedure from '../operator_health_procedure'
@@ -194,6 +195,8 @@ export type LeaguesVisibleToArgs = __Infer<typeof LeaguesVisibleToProcedure.para
 export type LeaguesVisibleToResult = __Infer<typeof LeaguesVisibleToProcedure.returnType>
 export type LendRosterArgs = __Infer<typeof LendRosterProcedure.params>
 export type LendRosterResult = __Infer<typeof LendRosterProcedure.returnType>
+export type MigrateLeaguesToClubsArgs = __Infer<typeof MigrateLeaguesToClubsProcedure.params>
+export type MigrateLeaguesToClubsResult = __Infer<typeof MigrateLeaguesToClubsProcedure.returnType>
 export type MigrateProductDataArgs = __Infer<typeof MigrateProductDataProcedure.params>
 export type MigrateProductDataResult = __Infer<typeof MigrateProductDataProcedure.returnType>
 export type OnboardingByUserArgs = __Infer<typeof OnboardingByUserProcedure.params>

@@ -18,7 +18,7 @@ export function DueLeagueRosters({ limit, pointsBudget, saved }: { limit: number
   return due.map((league) => (
     <Link
       key={league.token}
-      to="/leagues/$token"
+      to="/tournaments/$token"
       params={{ token: league.token }}
       search={{ choose: true }}
       className={buttonClass({ variant: 'ghost', size: 'xs', className: 'max-w-48 text-parchment' })}

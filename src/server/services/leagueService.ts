@@ -32,7 +32,7 @@ export class LeagueService {
     private readonly notifier: Notifier,
   ) {}
 
-  async createLeague(ownerId: string, input: LeagueDetails & EventRuleInput & { ownerPlays: boolean }) {
+  async createLeague(ownerId: string, input: LeagueDetails & EventRuleInput & { ownerPlays: boolean; clubToken?: string }) {
     const { format, rosterLimit, allowances, ...details } = input
     const token = offlineIdentifier('leagueToken', randomToken)
     const eventToken = offlineIdentifier('eventToken', randomToken)
@@ -48,6 +48,7 @@ export class LeagueService {
       now: this.clock(),
     })
     if (result === 'too-small') throw new Response(tooFewPlaces(leagueTableShape(format)), { status: 409 })
+    if (result === 'forbidden') throw new Response('only the club’s organizers can start its tournaments', { status: 403 })
     return { token, eventToken }
   }
 
@@ -66,7 +67,7 @@ export class LeagueService {
       now: this.clock(),
     })
     if (result === 'created') return { eventToken }
-    if (result === 'missing') throw new Response('no such league', { status: 404 })
+    if (result === 'missing') throw new Response('no such tournament', { status: 404 })
     if (result === 'forbidden') throw new Response('only an organizer can start an event', { status: 403 })
     if (result === 'too-small') throw new Response(tooFewPlaces(rule.format), { status: 409 })
     throw new Response('reveal this event’s lists before starting another', { status: 409 })
@@ -84,8 +85,8 @@ export class LeagueService {
         this.notifier.notify([{ kind: 'league-entry-accepted', actorId: ownerId, recipientIds: result.admitted, leagueToken: token }])
       return { ruleChanged: result.ruleChanged }
     }
-    if (result === 'missing') throw new Response('no such league', { status: 404 })
-    if (result === 'forbidden') throw new Response('only the organizer can edit this league', { status: 403 })
+    if (result === 'missing') throw new Response('no such tournament', { status: 404 })
+    if (result === 'forbidden') throw new Response('only the organizer can edit this tournament', { status: 403 })
     if (result === 'closed') throw new Response('the event’s rules cannot change after reveal', { status: 409 })
     if (result === 'sealed') throw new Response('the event’s rules cannot change once a list is sealed', { status: 409 })
     if (result === 'team-minimum') throw new Response('the open team event needs a supported number of places', { status: 409 })
@@ -95,16 +96,16 @@ export class LeagueService {
   async deleteLeague(token: string, ownerId: string) {
     const result = await this.repository.deleteLeague(token, ownerId)
     if (result === 'deleted') return
-    if (result === 'missing') throw new Response('no such league', { status: 404 })
-    throw new Response('only the organizer can delete this league', { status: 403 })
+    if (result === 'missing') throw new Response('no such tournament', { status: 404 })
+    throw new Response('only the organizer can delete this tournament', { status: 403 })
   }
 
   /** Replaces who runs the league beside its owner, from the owner's friends. */
   async setLeagueAdmins(token: string, ownerId: string, userIds: readonly string[]) {
     const result = await this.repository.setLeagueAdmins(token, ownerId, userIds, this.clock())
     if (typeof result === 'object') return result
-    if (result === 'missing') throw new Response('no such league', { status: 404 })
-    if (result === 'forbidden') throw new Response('only the league’s owner can choose its admins', { status: 403 })
+    if (result === 'missing') throw new Response('no such tournament', { status: 404 })
+    if (result === 'forbidden') throw new Response('only the tournament’s owner can choose its admins', { status: 403 })
     throw new Response('admins must be your friends', { status: 403 })
   }
 
@@ -143,9 +144,9 @@ export class LeagueService {
       ])
       return result.status
     }
-    if (result === 'missing') throw new Response('no such league', { status: 404 })
+    if (result === 'missing') throw new Response('no such tournament', { status: 404 })
     if (result === 'closed') throw new Response('this event’s lists are already out', { status: 409 })
-    if (result === 'full') throw new Response('this league is full', { status: 409 })
+    if (result === 'full') throw new Response('this tournament is full', { status: 409 })
     return result
   }
 
@@ -157,11 +158,11 @@ export class LeagueService {
         this.notifier.notify([{ kind: 'league-entry-added', actorId: ownerId, recipientIds: result.added, leagueToken: token, eventToken }])
       return { added: result.added.length }
     }
-    if (result === 'missing') throw new Response('no such league event', { status: 404 })
+    if (result === 'missing') throw new Response('no such tournament', { status: 404 })
     if (result === 'forbidden') throw new Response('only the organizer can add players', { status: 403 })
     if (result === 'closed') throw new Response('players cannot be added after reveal', { status: 409 })
     if (result === 'not-friends') throw new Response('you can only add your friends', { status: 403 })
-    throw new Response('the league does not have enough places left', { status: 409 })
+    throw new Response('the tournament does not have enough places left', { status: 409 })
   }
 
   async moderateLeagueEntry(
@@ -192,7 +193,7 @@ export class LeagueService {
     if (result === 'admitted' || result === 'updated') return
     if (result === 'forbidden') throw new Response('only the organizer can change entrants', { status: 403 })
     if (result === 'closed') throw new Response('this event’s lists are already out', { status: 409 })
-    if (result === 'full') throw new Response('this league is full', { status: 409 })
+    if (result === 'full') throw new Response('this tournament is full', { status: 409 })
     throw new Response('no such event entrant', { status: 404 })
   }
 
@@ -208,7 +209,7 @@ export class LeagueService {
     }
     if (result === 'forbidden') throw new Response('only the organizer can change entrants', { status: 403 })
     if (result === 'closed') throw new Response('this event’s lists are already out', { status: 409 })
-    throw new Response('no such league event', { status: 404 })
+    throw new Response('no such tournament', { status: 404 })
   }
 
   async assignLeagueRosterRequirement(token: string, ownerId: string, userId: string, requiredLimit: number, eventToken?: string) {
@@ -238,7 +239,7 @@ export class LeagueService {
     }
     if (result === 'forbidden') throw new Response('only the organizer can assign teams', { status: 403 })
     if (result === 'closed') throw new Response('teams cannot change after reveal', { status: 409 })
-    if (result === 'wrong-format') throw new Response('pairs are assigned only for 2v1 and 2v2 leagues', { status: 409 })
+    if (result === 'wrong-format') throw new Response('pairs are assigned only for 2v1 and 2v2 tournaments', { status: 409 })
     throw new Response('choose accepted event entrants', { status: 404 })
   }
 
@@ -256,7 +257,7 @@ export class LeagueService {
     eventToken?: string,
   ) {
     if (roster.pointsBudget != null)
-      throw new Response('leagues use their battle size’s standard points; remove the custom points budget first', { status: 409 })
+      throw new Response('tournaments use their battle size’s standard points; remove the custom points budget first', { status: 409 })
     const command = commandSchema.parse({ kind: 'attach-roster', roster: snapshot })
     if (command.kind !== 'attach-roster') throw new Error('expected a roster snapshot')
     const { id: _savedRosterId, ...sealed } = command.roster
@@ -314,7 +315,7 @@ export class LeagueService {
       return
     }
     if (result.outcome === 'invalid-warlords')
-      throw new Response('each league roster must select exactly one eligible Warlord before reveal', { status: 409 })
+      throw new Response('each tournament roster must select exactly one eligible Warlord before reveal', { status: 409 })
     throw new Response('wait for every accepted list and every pair’s Force Disposition and Warlord before reveal', { status: 409 })
   }
 
@@ -390,7 +391,8 @@ export class LeagueService {
     secondOpponentId?: string,
   ) {
     const invited = [opponentId, allyId, secondOpponentId].filter((id): id is string => Boolean(id))
-    if (new Set([userId, ...invited]).size !== invited.length + 1) throw new Response('choose different league entrants', { status: 400 })
+    if (new Set([userId, ...invited]).size !== invited.length + 1)
+      throw new Response('choose different tournament entrants', { status: 400 })
     const token = offlineIdentifier('battleToken', randomToken)
     const id = offlineIdentifier('battleId', randomId)
     const result = await this.repository.createLeagueBattle(
@@ -412,7 +414,7 @@ export class LeagueService {
         }
       },
     )
-    if (!result) throw new Response('no such league', { status: 404 })
+    if (!result) throw new Response('no such tournament', { status: 404 })
     this.notifier.notify([
       { kind: 'battle-created', actorId: userId, recipientIds: result.participantIds, battleToken: token, league: true },
     ])

@@ -4,14 +4,14 @@ import type { Command } from '../core/battle'
 import type { RepositoryPort } from './spacetimeRepository'
 import { PraetoriumService } from './service'
 
-function fixture({ members = [ALICE, BOB], visibility = 'private', clubId = 'club-id' } = {}) {
+function fixture({ members = [ALICE, BOB], visibility = 'private', clubId = 'club-id', tagged = true } = {}) {
   const history = {
     battle: { id: 'battle', token: 'token', createdAt: 0 },
     players: NAMES.map((player, side) => ({ ...player, side, automated: false })),
     log: log(
-      [ALICE, { kind: 'set-battle-club', clubId }],
       [ALICE, builtRoster('Alice army', ['Immortals'])],
       [BOB, builtRoster('Bob army', ['Immortals'])],
+      [ALICE, tagged ? { kind: 'set-battle-club', clubId } : { kind: 'lock-league-rosters', leagueToken: 'league', eventToken: 'event' }],
       [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
       [ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: BOB }] as [string, Command],
     ),
@@ -22,6 +22,7 @@ function fixture({ members = [ALICE, BOB], visibility = 'private', clubId = 'clu
       token: 'club',
       ownerId: ALICE,
       visibility,
+      tournaments: [{ token: 'league', eventTokens: ['event'] }],
       members: members.map((userId) => ({ userId, status: 'accepted', role: 'member', name: userId, image: null })),
     }),
     battlesByClub: vi.fn().mockResolvedValue({ battles: [history], nextCursor: null }),
@@ -39,6 +40,10 @@ const rows = async (service: PraetoriumService, viewerId: string | null = ALICE)
 
 it('rates the battles chosen for the club', async () => {
   expect(await rows(fixture())).toEqual([ALICE, BOB])
+})
+
+it('counts the battles of the club’s tournaments', async () => {
+  expect(await rows(fixture({ tagged: false }))).toEqual([ALICE, BOB])
 })
 
 it('leaves a player who left the club off its table', async () => {

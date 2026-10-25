@@ -39,10 +39,10 @@ export const AREAS: Record<
     summary: 'Keep a standing table of the battles your club or group plays.',
     action: { to: '/clubs', label: 'Open Clubs' },
   },
-  Leagues: {
+  Tournaments: {
     icon: Trophy,
-    summary: 'Seal rosters in secret, reveal them together, then play the event.',
-    action: { to: '/leagues', label: 'Open Leagues' },
+    summary: 'Seal rosters in secret, reveal them together, then play each other.',
+    action: { to: '/tournaments', label: 'Open Tournaments' },
   },
   'AI assistants': {
     icon: Bot,

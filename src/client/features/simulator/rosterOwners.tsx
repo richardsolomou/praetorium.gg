@@ -9,8 +9,6 @@ type FriendLeagueRoster = {
   leagueToken: string
   leagueName: string
   eventToken: string
-  eventNumber: number
-  eventCount: number
   userId: string
   rosterName: string
   ownerName: string
@@ -22,13 +20,9 @@ export const friendLeagueSource = ({ leagueToken: token, eventToken, userId }: F
   league: { token, eventToken, userId },
 })
 
-/** A friend's sealed league list named by list, player and league, numbering the event only when the league has several. */
+/** A friend's sealed league list named by list, player and tournament. */
 export const friendLeagueLabel = (entry: FriendLeagueRoster) =>
-  [
-    entry.rosterName || 'Sealed roster',
-    entry.ownerName,
-    entry.eventCount > 1 ? `${entry.leagueName} event ${entry.eventNumber}` : entry.leagueName,
-  ].join(' · ')
+  [entry.rosterName || 'Sealed roster', entry.ownerName, entry.leagueName].join(' · ')
 
 type KnownRosters = {
   me: RosterOwner | null | undefined

@@ -44,7 +44,7 @@ const PRIMARY_LINKS = [
   { to: '/rosters', label: 'Rosters', Icon: ScrollText },
   { to: '/battles', label: 'Battles', Icon: Swords },
   { to: '/simulator', label: 'Simulator', Icon: Calculator },
-  { to: '/leagues', label: 'Leagues', Icon: Trophy },
+  { to: '/tournaments', label: 'Tournaments', Icon: Trophy },
   { to: '/leaderboard', label: 'Leaderboard', Icon: Medal },
 ] as const
 

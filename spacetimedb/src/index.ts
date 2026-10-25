@@ -337,6 +337,21 @@ function touchClub(ctx: Context, clubId: string) {
 
 const CLUB_MEMBERS_ONLY = 'every player must be a member of the club'
 
+/** A club's tournaments, newest first. Few leagues exist, so a scan stands in for an index on an optional column. */
+function clubTournaments(ctx: Context, clubId: string) {
+  return Array.from(ctx.db.leagues.iter())
+    .filter((league) => league.clubId === clubId)
+    .sort((a, b) => Number(b.createdAt - a.createdAt))
+}
+
+/** Battles that count for a club: those tagged for it, and those its tournaments started. */
+function* clubBattleIds(ctx: Context, clubId: string) {
+  for (const row of ctx.db.clubBattles.clubId.filter(clubId)) yield row.battleId
+  for (const league of clubTournaments(ctx, clubId))
+    for (const event of ctx.db.leagueEvents.leagueId.filter(league.id))
+      for (const row of ctx.db.leagueEventBattles.eventId.filter(event.id)) yield row.battleId
+}
+
 /** Clubs every seat belongs to, none of them a guest or practice opponent: the clubs this battle may count for. */
 function battleClubIds(ctx: Context, seats: readonly { id: string; automated: boolean }[]) {
   if (seats.some((seat) => seat.automated || isGuestSeat(seat.id))) return []
@@ -365,6 +380,7 @@ function deleteClub(ctx: Context, clubId: string) {
   touchClub(ctx, clubId)
   for (const row of Array.from(ctx.db.clubMembers.clubId.filter(clubId))) ctx.db.clubMembers.key.delete(row.key)
   for (const row of Array.from(ctx.db.clubBattles.clubId.filter(clubId))) ctx.db.clubBattles.battleId.delete(row.battleId)
+  for (const league of clubTournaments(ctx, clubId)) ctx.db.leagues.id.update({ ...league, clubId: undefined })
   ctx.db.clubs.id.delete(clubId)
 }
 
@@ -726,8 +742,8 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
           if (battle) yield battle
         }
       } else if (input.scope === 'club') {
-        for (const entry of tx.db.clubBattles.clubId.filter(club!.id)) {
-          const battle = tx.db.battles.id.find(entry.battleId)
+        for (const battleId of clubBattleIds(tx, club!.id)) {
+          const battle = tx.db.battles.id.find(battleId)
           if (battle) yield battle
         }
       } else yield* tx.db.battles.iter()
@@ -2442,6 +2458,67 @@ export const clubNames = spacetime.procedure({ tokens: t.array(t.string()) }, t.
   }),
 )
 
+const LEAGUES_TO_CLUBS = 'leagues-to-clubs'
+
+/**
+ * Leagues ran as standing groups, each a series of events. Each becomes a club with its people, and each event a
+ * tournament inside it: the first keeps the league's row and link, and later ones become rows keyed by their event.
+ * Runs once; the server asks at every start.
+ */
+export const migrateLeaguesToClubs = spacetime.procedure({ now: t.u64() }, t.u32(), (ctx, { now }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (tx.db.completedMigrations.name.find(LEAGUES_TO_CLUBS)) return 0
+    const leagues = Array.from(tx.db.leagues.iter()).filter((league) => league.clubId === undefined)
+    for (const league of leagues) {
+      tx.db.clubs.insert({
+        id: league.id,
+        token: league.token,
+        ownerId: league.ownerId,
+        name: league.name,
+        description: league.description,
+        visibility: league.visibility,
+        admission: league.admission,
+        createdAt: league.createdAt,
+      })
+      const adminIds = leagueAdminIds(tx, league.id)
+      const events = leagueEventsFor(tx, league.id).toReversed()
+      const people = new Set([league.ownerId, ...adminIds])
+      for (const event of events)
+        for (const entry of tx.db.leagueEventEntries.eventId.filter(event.id)) if (entry.status === 'accepted') people.add(entry.userId)
+      for (const userId of people)
+        tx.db.clubMembers.insert({
+          key: JSON.stringify([league.id, userId]),
+          clubId: league.id,
+          userId,
+          status: 'accepted',
+          role: adminIds.includes(userId) ? 'admin' : 'member',
+          joinedAt: now,
+        })
+      // A series of events reads as one tournament per event, each named for its place in the series.
+      const name = (number: number) => (events.length > 1 ? `${league.name}, event ${number}` : league.name)
+      tx.db.leagues.id.update({ ...league, name: name(1), clubId: league.id })
+      for (const event of events.slice(1)) {
+        tx.db.leagues.insert({
+          ...league,
+          id: event.id,
+          token: event.token,
+          name: name(event.number),
+          createdAt: event.createdAt,
+          clubId: league.id,
+        })
+        tx.db.leagueEvents.id.update({ ...event, leagueId: event.id, number: 1 })
+        for (const userId of adminIds)
+          tx.db.leagueAdmins.insert({ key: JSON.stringify([event.id, userId]), leagueId: event.id, userId, addedAt: now })
+      }
+      touchLeague(tx, league.id)
+      touchClub(tx, league.id)
+    }
+    tx.db.completedMigrations.insert({ name: LEAGUES_TO_CLUBS, at: now })
+    return leagues.length
+  }),
+)
+
 export const operatorHealth = spacetime.procedure({}, t.bool(), (ctx) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
@@ -2472,7 +2549,12 @@ function leagueEventFor(ctx: Context, leagueId: string, token: string | null) {
 }
 
 function leagueRecord(ctx: Context, token: string, eventToken: string | null) {
-  const league = ctx.db.leagues.token.find(token)
+  // A link from before tournaments split from their league names the old league and the event, which may now be its own tournament.
+  const moved = eventToken ? ctx.db.leagueEvents.token.find(eventToken) : undefined
+  const league =
+    moved && ctx.db.leagues.token.find(token)?.id !== moved.leagueId
+      ? ctx.db.leagues.id.find(moved.leagueId)
+      : ctx.db.leagues.token.find(token)
   if (!league) return null
   const events = leagueEventsFor(ctx, league.id)
   const selected = eventToken ? events.find((event) => event.token === eventToken) : events[0]
@@ -2492,6 +2574,10 @@ function leagueRecord(ctx: Context, token: string, eventToken: string | null) {
     adminIds: leagueAdminIds(ctx, league.id),
     latestEntryCount: latestEntries.length,
     latestAcceptedCount: latestEntries.filter((entry) => entry.status === 'accepted').length,
+    club: (() => {
+      const club = league.clubId ? ctx.db.clubs.id.find(league.clubId) : undefined
+      return club ? { token: club.token, name: club.name } : null
+    })(),
   }
 }
 
@@ -3060,7 +3146,21 @@ export const clubByToken = spacetime.procedure({ token: t.string() }, t.string()
     requireOperator(tx)
     if (token.length > MAX_ID_LENGTH) throw new SenderError('Invalid club token')
     const club = tx.db.clubs.token.find(token)
-    return productJson(club ? { club, members: clubMemberRows(tx, club) } : null)
+    if (!club) return productJson(null)
+    return productJson({
+      club,
+      members: clubMemberRows(tx, club),
+      tournaments: clubTournaments(tx, club.id).map((league) => {
+        const event = leagueEventFor(tx, league.id, null)
+        return {
+          token: league.token,
+          name: league.name,
+          createdAt: league.createdAt,
+          revealedAt: event?.revealedAt ?? null,
+          eventTokens: Array.from(tx.db.leagueEvents.leagueId.filter(league.id), (row) => row.token),
+        }
+      }),
+    })
   }),
 )
 
@@ -3085,6 +3185,7 @@ export const clubsVisibleTo = spacetime.procedure({ userId: t.string(), limit: t
           club,
           adminIds: members.filter((member) => member.role === 'admin').map((member) => member.userId),
           memberCount: members.filter((member) => member.status === 'accepted').length,
+          battleCount: new Set(clubBattleIds(tx, club.id)).size,
           ownMember: ownMember ? { status: ownMember.status, role: ownMember.role } : null,
         }
       }),
@@ -3538,11 +3639,14 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         rosterLimit: z.number().int().positive().max(10_000).nullable(),
         allowances: leagueAllowancesSchema.default([]),
         ownerPlays: z.boolean().default(false),
+        clubToken: idInput.optional(),
         now: leagueTimeInput,
       }),
       value,
     )
     if (!leaguePlacesSeat(input.format, input.playerLimit)) return productJson('too-small')
+    const club = input.clubToken ? tx.db.clubs.token.find(input.clubToken) : undefined
+    if (input.clubToken && (!club || !isClubOrganizer(club, clubMemberRows(tx, club), input.ownerId))) return productJson('forbidden')
     tx.db.leagues.insert({
       id: input.id,
       token: input.token,
@@ -3554,7 +3658,9 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       playerLimit: input.playerLimit ?? undefined,
       recurring: input.recurring,
       createdAt: BigInt(input.now),
+      clubId: club?.id,
     })
+    if (club) touchClub(tx, club.id)
     tx.db.leagueEvents.insert({
       id: input.eventId,
       token: input.eventToken,

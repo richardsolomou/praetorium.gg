@@ -25,13 +25,13 @@ describe('notice messages', () => {
     ).toEqual({ title: 'New battle', body: 'Alice started a battle with you.', path: '/battles/abc' })
   })
 
-  it('says a battle started from a league is a league battle', () => {
+  it('says a battle started from a league is a tournament battle', () => {
     expect(
       noticeMessage(
         { kind: 'battle-created', actorId: 'alice', recipientIds: ['bob'], battleToken: 'abc', league: true },
         { actor: 'Alice' },
       )?.body,
-    ).toBe('Alice started a league battle with you.')
+    ).toBe('Alice started a tournament battle with you.')
   })
 
   it('tells a player an organizer added them to seal a list in that event', () => {
@@ -40,7 +40,7 @@ describe('notice messages', () => {
         { kind: 'league-entry-added', actorId: 'alice', recipientIds: ['bob'], leagueToken: 'league', eventToken: 'event' },
         { actor: 'Alice', league: 'Club night' },
       ),
-    ).toEqual({ title: 'Club night', body: 'Alice added you as a player. Seal your list.', path: '/leagues/league?event=event' })
+    ).toEqual({ title: 'Club night', body: 'Alice added you as a player. Seal your list.', path: '/tournaments/league?event=event' })
   })
 
   it('names a deleted player generically rather than dropping the notice', () => {
@@ -58,7 +58,7 @@ describe('notice messages', () => {
     ).toEqual({
       title: 'Autumn league',
       body: 'The organizer unsealed your roster. Seal a replacement.',
-      path: '/leagues/league?event=event',
+      path: '/tournaments/league?event=event',
     })
   })
 
