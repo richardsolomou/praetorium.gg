@@ -656,11 +656,15 @@ export async function scrollSearchResultIntoView(page: Page, result: Locator) {
   }).toPass({ timeout: 15000 })
 }
 
-/** Opens a combobox and picks one of its options, reopening it if hydration swallowed the first press. */
+/**
+ * Opens a combobox and picks one of its options, reopening it if hydration swallowed the first press. Waits for the
+ * list to close, so a next pick from a list offering the same option cannot land on this one as it leaves.
+ */
 export async function chooseOption(page: Page, control: string, name: string) {
   const option = page.getByRole('option', { name, exact: true })
   await retryUntilVisible(option, () => page.getByRole('combobox', { name: control, exact: true }).click())
   await option.click()
+  await expect(option).toBeHidden()
 }
 
 export async function openRosterSetup(page: Page) {
