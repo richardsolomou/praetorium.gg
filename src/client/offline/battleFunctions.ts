@@ -311,7 +311,8 @@ export async function replayBattleBatch(args: Parameters<typeof server.replayBat
 
 export async function createBattle(args: Parameters<typeof server.createBattle>[0]): ReturnType<typeof server.createBattle> {
   const owner = localOwner()
-  if (!localEngine() || !owner || !localConstruction()) return server.createBattle(args)
+  // A club game needs the server to check its players are members, so it is never started on the device alone.
+  if (!localEngine() || !owner || !localConstruction() || args.data.clubToken) return server.createBattle(args)
   const input = createBattleSchema.parse(args.data)
   const guestNames = input.guestNames ?? []
   if (!input.casual && !guestNames.length) {

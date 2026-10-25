@@ -82,3 +82,35 @@ test('club members choose their club at battle setup', async ({ browser }, testI
   await ownerContext.close()
   await memberContext.close()
 })
+
+test('members who are not friends start a club game from the club page', async ({ browser }) => {
+  const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
+  const memberContext = await browser.newContext()
+  const owner = await ownerContext.newPage()
+  const member = await memberContext.newPage()
+  await signUp(owner, uniqueName('Club host'))
+  const memberName = uniqueName('Club regular')
+  await signUp(member, memberName)
+
+  await owner.goto('/clubs')
+  const create = owner.getByRole('dialog', { name: 'New club' })
+  await retryUntilVisible(create, () => owner.getByRole('button', { name: 'New club' }).click({ timeout: 1_000 }))
+  const clubName = uniqueName('Open night')
+  await create.getByLabel('Name').fill(clubName)
+  await create.getByRole('button', { name: 'Create club' }).click()
+  await expect(owner.getByRole('heading', { name: clubName })).toBeVisible()
+  const clubUrl = owner.url()
+  await member.goto(clubUrl)
+  await retryUntilVisible(member.locator('[data-person]').filter({ hasText: memberName }), () =>
+    member.getByRole('button', { name: 'Join club' }).click({ timeout: 1_000 }),
+  )
+
+  await owner.reload()
+  await owner.getByRole('button', { name: `Play ${memberName}` }).click()
+  await owner.waitForURL(/\/battles\/[^/]+$/)
+  const token = new URL(owner.url()).pathname.split('/').at(-1)!
+  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
+  await expect.poll(async () => (await productSql`SELECT club_id FROM club_battles WHERE battle_id = ${battle.id}`).length).toBe(1)
+  await ownerContext.close()
+  await memberContext.close()
+})

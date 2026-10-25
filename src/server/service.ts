@@ -681,7 +681,14 @@ export class PraetoriumService {
       throw new Response('choose an opponent', { status: 400 })
     }
     const allowed = new Map(invitable.map((opponent) => [opponent.id, opponent]))
-    if (invited.some((id) => !allowed.has(id)))
+    // Joining a club is consent to play its members, so a club game needs no friendship; the product database checks membership again.
+    const clubToken = typeof input === 'object' ? input.clubToken : undefined
+    const club = clubToken ? await this.clubService.club(clubToken, userId) : null
+    if (clubToken) {
+      const members = new Set(club?.members.filter((member) => member.status === 'accepted').map((member) => member.userId))
+      if (!club || !members.has(userId) || guestNames.length || invited.some((id) => !members.has(id)))
+        throw new Response('a club game is played between its members', { status: 403 })
+    } else if (invited.some((id) => !allowed.has(id)))
       throw new Response('battle players must be your friends or a practice opponent', { status: 403 })
     // How many chairs a battle has is `battleCapacity`'s to say, here as everywhere.
     if (invited.length + guestNames.length >= battleCapacity({ teamBattle: true, playerCount: 4 }))
@@ -690,7 +697,7 @@ export class PraetoriumService {
     // who turns up, so a battle without an opponent is not a battle yet.
     if (!opponentIds.length && !guestNames.length) throw new Response('choose an opponent', { status: 400 })
     // A league seats its own entrants, so a table with a guest at it can only be casual.
-    if (invited.length && !guestNames.length && (typeof input !== 'object' || !input.casual)) {
+    if (!club && invited.length && !guestNames.length && (typeof input !== 'object' || !input.casual)) {
       const leagueMatches = await this.leagueBattleOptions(userId, input)
       if (leagueMatches.length) {
         throw new Response('start this matchup from its event page, or confirm a casual battle', { status: 409 })
@@ -706,17 +713,20 @@ export class PraetoriumService {
       allyIds,
       opponentIds,
       guestNames,
-      initialCommand: {
-        kind: 'configure-battle',
-        limit: settings.limit,
-        missionPackId: settings.manual ? null : settings.missionPackId,
-        terrainLayoutId: null,
-        twistId: null,
-        teamBattle: invited.length + guestNames.length >= 2,
-        playerCount: (invited.length + guestNames.length + 1) as 2 | 3 | 4,
-        clockLimitMinutes: null,
-        ...(settings.manual ? { manual: true } : {}),
-      },
+      initialCommands: [
+        {
+          kind: 'configure-battle',
+          limit: settings.limit,
+          missionPackId: settings.manual ? null : settings.missionPackId,
+          terrainLayoutId: null,
+          twistId: null,
+          teamBattle: invited.length + guestNames.length >= 2,
+          playerCount: (invited.length + guestNames.length + 1) as 2 | 3 | 4,
+          clockLimitMinutes: null,
+          ...(settings.manual ? { manual: true } : {}),
+        },
+        ...(club ? [{ kind: 'set-battle-club' as const, clubId: club.id }] : []),
+      ],
       now: offlineContext.getStore()?.createdAt ?? this.clock(),
     })
     this.notifier.notify([{ kind: 'battle-created', actorId: userId, recipientIds: invited, battleToken: token, league: false }])

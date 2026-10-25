@@ -3318,12 +3318,18 @@ function createBattleIn(tx: Context, args: unknown[]) {
       log,
       seats.map((seat) => seat.side),
     )
-    const refusal = command.kind === 'set-battle-club' ? 'a club is chosen during setup' : validate(state, userId, command)
+    // A club game started from its club is tagged at birth, for players who all belong to it.
+    const refusal =
+      validate(state, userId, command) ??
+      (command.kind === 'set-battle-club' && command.clubId && !battleClubIds(tx, battleData(tx, id).seats).includes(command.clubId)
+        ? CLUB_MEMBERS_ONLY
+        : null)
     if (refusal) throw new SenderError(`new battle command was refused: ${refusal}`)
     const seq = index + 1
     tx.db.commands.insert({ key: JSON.stringify([id, seq]), battleId: id, seq, userId, at: BigInt(now), body: JSON.stringify(command) })
     log.push({ seq, by: userId, at: now, command })
   }
+  if (initialCommands.some((command) => command.kind === 'set-battle-club')) indexClubBattle(tx, id)
   return productJson(battleData(tx, id))
 }
 

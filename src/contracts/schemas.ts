@@ -224,6 +224,7 @@ export const createBattleSchema = z
     missionPackId: id.nullable().default(null),
     casual: z.boolean().default(false),
     manual: z.boolean().default(false),
+    clubToken: token.optional(),
   })
   .refine((value) => opposingSeats(value) <= 2, 'a side seats two players at most')
   .refine((value) => (value.allyId ? 1 : 0) + opposingSeats(value) <= 3, 'a battle seats four players at most')

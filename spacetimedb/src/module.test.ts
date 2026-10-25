@@ -531,7 +531,7 @@ describe('clubs', () => {
 })
 
 describe('club battles', () => {
-  function setup(members: string[]) {
+  function setup(members: string[], initialCommands: unknown[] = []) {
     const host = harness()
     const command = (input: Record<string, unknown>) =>
       module.clubCommand(host.procedure(host.operator), { payload: JSON.stringify({ token: 'club', ...input }) })
@@ -553,7 +553,7 @@ describe('club battles', () => {
         userId: 'creator',
         allyIds: [],
         opponentIds: ['opponent'],
-        initialCommands: [],
+        initialCommands,
         now: NOW,
       }),
     })
@@ -575,6 +575,14 @@ describe('club battles', () => {
       }
     return { submit, clubs }
   }
+
+  it('tags a club game started between members from the start', () => {
+    expect(setup(['opponent'], [{ kind: 'set-battle-club', clubId: 'club-id' }]).clubs().current?.token).toBe('club')
+  })
+
+  it('refuses to start a club game with a player outside the club', () => {
+    expect(() => setup([], [{ kind: 'set-battle-club', clubId: 'club-id' }])).toThrow('every player must be a member of the club')
+  })
 
   it('offers a club only when every player is a member', () => {
     expect(setup([]).clubs().options).toEqual([])
