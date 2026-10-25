@@ -65,7 +65,7 @@ export function pickerUnitsFor(
 
 /** Prepares what a faction's unpriced picker and reference list read, a datasheet per step. */
 export function* pickerConstruction(loaded: LoadedCatalogue, rules: LoadedRules | null, catalogueId: string): Steps<void> {
-  yield* stepThrough(unitSummaries(loaded, catalogueId, { factionCards: true }))
+  yield* stepThrough(unitSummaries(loaded, catalogueId, { factionCards: true, nonMatchedPlay: true }))
   const units = yield* stepThrough(
     unitSummaries(loaded, catalogueId, { restrictions: pickerRestrictions(loaded, rules, catalogueId), nonMatchedPlay: true }),
   )
@@ -80,7 +80,7 @@ export function* pickerConstruction(loaded: LoadedCatalogue, rules: LoadedRules 
 export function booksOffering(loaded: LoadedCatalogue, rules: LoadedRules | null, entryId: string, catalogueIds: readonly string[]) {
   return catalogueIds.filter((catalogueId) =>
     unitsIn(loaded, catalogueId, '', { restrictions: pickerRestrictions(loaded, rules, catalogueId), nonMatchedPlay: true }).some(
-      (unit) => unit.id === entryId && !unit.nonMatchedPlay,
+      (unit) => unit.id === entryId,
     ),
   )
 }

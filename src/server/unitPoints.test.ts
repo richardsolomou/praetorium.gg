@@ -632,3 +632,18 @@ it('joins a singular MFM wargear name to its plural catalogue option', () => {
 
   expect(mfmWargearOptionPoints(unit, 'Twin Haywire Blasters', [])).toBe(5)
 })
+
+it('prices a Legends datasheet from the field manual entry that names it without the suffix', () => {
+  const catalogue = bookOf({ selectionEntries: [{ id: 'shroud', name: 'Night Shroud [Legends]', type: 'model', costs: points(150) }] })
+  catalogue.mfm = new Map([
+    [
+      'test-catalogue',
+      {
+        slug: 'test-catalogue',
+        version: '1.6',
+        units: [{ name: 'Night Shroud', legends: true, pricing: [{ range: '[1,)', costs: [{ models: 1, points: 140 }] }] }],
+      },
+    ],
+  ])
+  expect(priceOf(catalogue, 'cat', 'shroud')).toBe(140)
+})

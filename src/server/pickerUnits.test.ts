@@ -17,8 +17,8 @@ describe('the books that offer a datasheet', () => {
     expect(booksOffering(shelf, null, 'squad', ['cat', 'cat-1'])).toEqual(['cat'])
   })
 
-  it('exclude every book for a Legends datasheet', () => {
-    expect(booksOffering(shelf, null, 'old', ['cat', 'cat-1'])).toEqual([])
+  it('include the book of a Legends datasheet, whose page adds it like any other', () => {
+    expect(booksOffering(shelf, null, 'old', ['cat', 'cat-1'])).toEqual(['cat'])
   })
 
   it('exclude a book the catalogue does not hold', () => {

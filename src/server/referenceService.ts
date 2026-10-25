@@ -74,7 +74,7 @@ export function referenceUnits(
   const canonicalById = new Map(
     corpus.catalogue.datasheets.filter((sheet) => sheet.catalogueId === foundFaction.id).map((sheet) => [sheet.id, sheet]),
   )
-  const units = unitsIn(loaded, foundFaction.id, '', { restrictions, battleSize }).map((unit) =>
+  const units = unitsIn(loaded, foundFaction.id, '', { restrictions, battleSize, nonMatchedPlay: true }).map((unit) =>
     unitReference(corpus, unit, canonicalById.get(unit.id)),
   )
   const selectedDetachment = detachment ? referenceDetachment(corpus, foundFaction.id, detachment) : null

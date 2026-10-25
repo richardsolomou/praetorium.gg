@@ -18,7 +18,8 @@ import type {
 import type { RuleDocument } from '../contracts/rules'
 import { datasheetIn } from '../shared/catalogue'
 import { catalogueDirectory, datasheetsOf, isReferenceDatasheet, loadCatalogue, type LoadedCatalogue } from './catalogueIndex'
-import { isMatchedPlayDatasheet } from '../shared/cataloguePicker'
+import { isOfferedDatasheet } from '../shared/catalogueUnit'
+import { buildUnit } from '../core/roster'
 import { DATACARDS_ATTRIBUTION } from './datacards'
 import { datacardOf } from '../shared/datasheetJoin'
 import { describeDatasheetAbilitiesWithContributions } from '../shared/datasheetDescriptions'
@@ -31,7 +32,7 @@ import { readSharedJson } from './sharedJson'
 import { mfmUnitFor } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
-export const CANONICAL_CATALOGUE_COMPILER_VERSION = 18 as const
+export const CANONICAL_CATALOGUE_COMPILER_VERSION = 19 as const
 
 const characteristicSchema = z.object({
   name: z.string(),
@@ -401,7 +402,7 @@ export function* canonicalCatalogueSteps(
     for (const entryId of datasheetsOf(loaded.index, faction.id)) {
       yield
       const entry = loaded.index.definitions.get(entryId)
-      if (!entry || !isMatchedPlayDatasheet(loaded.index, entry) || !isReferenceDatasheet(loaded, faction.id, entryId)) continue
+      if (!entry || !isOfferedDatasheet(loaded.index, entry, true) || !isReferenceDatasheet(loaded, faction.id, entryId)) continue
       const projected = datasheetIn(loaded, faction.id, entryId)
       if (!projected) continue
       const joined = datacardOf(loaded, faction.id, entryId)
@@ -413,8 +414,15 @@ export function* canonicalCatalogueSteps(
       const cardsComposition = described.composition
       const cardsCosts = described.costs
       const mfmUnit = mfmUnitFor(loaded, faction.id, entryId)
-      const sourceCosts = mfmUnit ? mfmCostRows(mfmUnit) : cardsCosts
-      const costSource: CanonicalSourceName = mfmUnit ? 'points' : 'datacards'
+      // Most Legends units have no field manual or card price, so the catalogue's own price for the smallest unit stands in.
+      const smallest = buildUnit(entryId, loaded.index, undefined, undefined, { primaryCatalogueId: faction.id, mustering: true })?.size
+        .models
+      const definitionCosts =
+        described.points === null || smallest === undefined
+          ? []
+          : [{ models: String(smallest), cost: String(described.points), keyword: null, faction: null, detachment: null }]
+      const sourceCosts = mfmUnit ? mfmCostRows(mfmUnit) : cardsCosts.length ? cardsCosts : definitionCosts
+      const costSource: CanonicalSourceName = mfmUnit ? 'points' : cardsCosts.length ? 'datacards' : 'definitions'
       const costPoint = singleUnqualifiedPoint(sourceCosts)
       const points = sourceCosts.length ? costPoint : described.points
       const usesDatacards = Boolean(

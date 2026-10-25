@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { datasheetIn, datasheetInBySlug } from '../shared/catalogue'
+import { datasheetInBySlug } from '../shared/catalogue'
 import { calculateRosterPrice } from '../shared/pricing'
 import { pickerConstruction, pickerUnitsFor } from '../shared/pickerUnits'
 import { groupOfEntry, unitsIn } from '../shared/cataloguePicker'
@@ -517,6 +517,22 @@ describe('the picker', () => {
     expect(unitsIn(book, 'cat', '', { factionCards: true }).map((unit) => unit.name)).toEqual(['Plague Walker', "Transcendent C'tan"])
   })
 
+  it('lists Legends datasheets beside the cards on a faction page, since no card export prints them', () => {
+    const book = bookOf({
+      selectionEntries: [
+        { id: 'walker', name: 'Plague Walker', type: 'model', costs: points(100) },
+        { id: 'uncarded', name: 'Tomb Sentinel', type: 'model', costs: points(120) },
+        { id: 'legend', name: 'Tomb Stalker [Legends]', type: 'model', costs: points(150) },
+      ],
+    })
+    book.factionContents.set('test-catalogue', withCards('Test catalogue', ['Plague Walkers']))
+
+    expect(unitsIn(book, 'cat', '', { factionCards: true, nonMatchedPlay: true }).map((unit) => unit.name)).toEqual([
+      'Plague Walker',
+      'Tomb Stalker [Legends]',
+    ])
+  })
+
   it('lists the whole book when the faction has no cards', () => {
     const book = bookOf({ selectionEntries: [{ id: 'ctan', name: "Transcendent C'tan", type: 'model', costs: points(295) }] })
 
@@ -959,10 +975,6 @@ describe('the picker', () => {
         ['Land Speeder [Legends]', 'legends'],
         ['Squad', undefined],
       ])
-    })
-
-    it('link to no reference page, since reference covers matched play only', () => {
-      expect(datasheetIn(book, 'cat', 'old')?.referenceRoute).toBeNull()
     })
   })
 

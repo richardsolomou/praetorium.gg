@@ -181,7 +181,8 @@ function* summarizeUnits(
     if (!isOfferedDatasheet(loaded.index, entry, nonMatchedPlay)) continue
     const target = targetOf(entry, loaded.index.definitions)
     const name = nameOf(entry, loaded.index.definitions)
-    if (included && !datacardOf(loaded, catalogueId, id)?.own) continue
+    // No Game Datacards export prints Legends or Crucible cards, so the faction's cards cannot list them.
+    if (included && !isNonMatchedPlayName(name) && !datacardOf(loaded, catalogueId, id)?.own) continue
     const listed = detachmentUnitFacts(loaded, catalogueId, id, detachments.selections)
     // Asked only where a restriction can act on the answer: folding the keywords a
     // datasheet carries costs a default build of it, and most books exclude nothing.
