@@ -184,7 +184,7 @@ export const discoverRosters = createServerFn({ method: 'GET' })
       const [viewerId, factionIndex] = await Promise.all([currentUserId(), instance.factionIndexFor()])
       const factions = factionIndex?.factions ?? []
       const scope = discoveryScope(filter, factions)
-      if (!scope || (audience === 'friends' && !viewerId)) return { rosters: [], nextCursor: null }
+      if (!scope || (audience === 'friends' && !viewerId)) return { rosters: [], total: 0, nextCursor: null }
       const page = await instance.service.rosterService.discoverRosters({
         ...scope,
         audience,
@@ -203,6 +203,7 @@ export const discoverRosters = createServerFn({ method: 'GET' })
           points: assessments[index]!.points,
           problem: assessments[index]!.verdict.problem,
         })),
+        total: page.total,
         nextCursor: page.nextCursor,
       }
     }),

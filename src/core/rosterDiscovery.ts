@@ -73,11 +73,13 @@ export function discoveryPage<
   const { before } = query
   const after = before && { id: before.id, name: before.name, limit: before.limit, createdAt: before.createdAt, updatedAt: before.at }
   const kept: T[] = []
+  let total = 0
   for (const row of rows) {
     if (row.visibility !== 'public') continue
     if (query.audience === 'friends' ? !friendIds.has(row.userId) : row.userId === query.viewerId) continue
     if (catalogues && !catalogues.has(row.catalogueId)) continue
     if (detachments && !detachmentIds(row.detachmentId).some((saved) => detachments.has(saved))) continue
+    total += 1
     // A cursor from a build that paged only by update time carries no name, so its own roster is matched by ID.
     if (after && (row.id === after.id || order(row, after) <= 0)) continue
     if (kept.length > query.limit && order(row, kept.at(-1)!) >= 0) continue
@@ -89,6 +91,8 @@ export function discoveryPage<
   const last = shown.at(-1)
   return {
     rows: shown,
+    /** Every roster the filter finds, across all pages. */
+    total,
     nextCursor:
       kept.length > query.limit && last
         ? { at: last.updatedAt, id: last.id, name: last.name, limit: last.limit, createdAt: last.createdAt }

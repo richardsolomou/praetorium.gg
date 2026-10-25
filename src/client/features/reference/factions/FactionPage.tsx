@@ -1,10 +1,10 @@
 import { RulesVersionLabel } from '../../../components/RulesVersionLabel'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
-import { useQuery } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../../../favouriteDetachments'
-import { factionIndexQuery, factionQuery } from '../../../queries'
+import { discoveredRostersQuery, factionIndexQuery, factionQuery } from '../../../queries'
 import { FavouriteDetachmentToggle } from './FavouriteDetachmentToggle'
 import { FavouriteFactionToggle } from './FavouriteFactionToggle'
 import { FactionMark, factionColour } from '../../../components/FactionMark'
@@ -26,6 +26,12 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
   const navigate = useNavigate()
   const { date } = useDateFormatting()
   const { favourites } = useFavouriteDetachments(direct)
+  // The rosters page asks for exactly this filter and order, so following the link reuses the answer.
+  const { data: publicRosters } = useInfiniteQuery({
+    ...discoveredRostersQuery({ faction: faction ? currentCatalogueFamilyId(faction.id) : '' }, 'public', 'updated-desc'),
+    enabled: direct && Boolean(faction),
+  })
+  const publicArmies = publicRosters?.pages[0]?.total ?? null
   if (!direct) return <Outlet />
   if (!faction) return null
   const editions = index?.factions.filter((entry) => currentCatalogueFamilyId(entry.id) === currentCatalogueFamilyId(faction.id)) ?? []
@@ -87,12 +93,12 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
         <Link to="/factions" className="eyebrow flex items-center gap-1 text-info hover:text-bone">
           <ChevronLeft className="size-3.5" /> Factions
         </Link>
-        <section className="divide-y divide-edge border border-edge bg-panel">
+        <section className="grid grid-cols-1 gap-px border border-edge bg-edge sm:grid-cols-3">
           <FactionReferenceLink
             data-onboarding="faction-datasheets"
             to="/factions/$catalogueId/datasheets"
             params={{ catalogueId: faction.slug }}
-            className="flex items-center justify-between px-3 py-3 hover:bg-raised"
+            className="flex items-center justify-between bg-panel px-3 py-3 hover:bg-raised"
           >
             <span className="font-bold uppercase">Datasheets</span>
             <span className="flex items-center gap-3">
@@ -101,20 +107,23 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
             </span>
           </FactionReferenceLink>
           <Link
+            to="/rosters"
+            search={{ view: 'public', faction: faction.slug }}
+            className="flex items-center justify-between bg-panel px-3 py-3 hover:bg-raised"
+          >
+            <span className="font-bold uppercase">Public armies</span>
+            <span className="flex items-center gap-3">
+              {publicArmies === null ? null : <span className="readout">{publicArmies}</span>}
+              <ChevronRight className="size-4 text-dim" aria-hidden />
+            </span>
+          </Link>
+          <Link
             to="/data-updates/$catalogueId"
             params={{ catalogueId: faction.slug }}
             search={{}}
-            className="flex items-center justify-between px-3 py-3 hover:bg-raised"
+            className="flex items-center justify-between bg-panel px-3 py-3 hover:bg-raised"
           >
             <span className="font-bold uppercase">Data updates</span>
-            <ChevronRight className="size-4 text-dim" aria-hidden />
-          </Link>
-          <Link
-            to="/rosters"
-            search={{ view: 'public', faction: faction.slug }}
-            className="flex items-center justify-between px-3 py-3 hover:bg-raised"
-          >
-            <span className="font-bold uppercase">Public armies</span>
             <ChevronRight className="size-4 text-dim" aria-hidden />
           </Link>
         </section>
@@ -173,11 +182,11 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
                 </>
               )
               return detachment.reference ? (
-                <div key={detachment.id} className="flex items-center gap-1 bg-panel px-3 py-2.5 ring-1 ring-edge hover:bg-raised">
+                <div key={detachment.id} className="flex items-center bg-panel pr-3 ring-1 ring-edge hover:bg-raised">
                   <FactionReferenceLink
                     to="/factions/$catalogueId/detachments/$detachmentId"
                     params={{ catalogueId: faction.slug, detachmentId: detachment.slug }}
-                    className="flex min-w-0 flex-1 items-center gap-3"
+                    className="flex min-w-0 flex-1 items-center gap-3 self-stretch py-2.5 pr-1 pl-3"
                   >
                     {content}
                   </FactionReferenceLink>

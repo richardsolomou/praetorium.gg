@@ -1,5 +1,5 @@
 import { waitForOfflineApp } from './offline'
-import { confirmRosterSetup, visitorSetup } from './account'
+import { confirmRosterSetup, retryUntilVisible, visitorSetup } from './account'
 import { expect, test, type Locator, type Page } from './test'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
 
@@ -202,21 +202,18 @@ test('converts the saved roster in place and restores its current choices', asyn
   await page.screenshot({ path: 'test-results/custodes-converted-roster.png' })
 })
 
-test('faction index versions and logo tooltips work with touch', async ({ browser }) => {
+test('faction index cards and logo tooltips work with touch', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
   const page = await context.newPage()
   await page.goto('/factions')
   const row = page.locator('[data-faction="Adeptus Custodes"]')
   await row.scrollIntoViewIfNeeded()
-  const name = row.getByRole('link', { name: 'Adeptus Custodes', exact: true }).last()
-  expect(await name.evaluate((element) => element.scrollWidth > element.clientWidth)).toBe(false)
-  const nameBounds = (await name.boundingBox())!
-  const versionBounds = (await row.getByRole('button', { name: 'Rules versions for Adeptus Custodes', exact: true }).boundingBox())!
-  expect(versionBounds.y).toBeGreaterThanOrEqual(nameBounds.y + nameBounds.height)
-  await row.getByRole('button', { name: 'Rules versions for Adeptus Custodes', exact: true }).tap()
-  await expect(page.getByRole('menuitem', { name: 'Custodes codex · 17 Oct 2026 · Archived', exact: true })).toBeVisible()
+  await expect(row).toContainText('3 rules versions')
+  await row.getByRole('link').first().tap()
+  await expect(page).toHaveURL(/\/factions\/adeptus-custodes\/rules\/mfm-1-6$/)
+  await retryUntilVisible(page.getByRole('option').first(), () => page.getByRole('combobox', { name: 'Rules version' }).tap())
   await page.screenshot({ path: 'test-results/custodes-faction-versions-phone.png' })
-  await page.getByRole('menuitem', { name: 'Custodes codex · 17 Oct 2026 · Archived', exact: true }).tap()
+  await page.getByRole('option', { name: /Custodes codex · 17 Oct 2026/ }).tap()
   await expect(page).toHaveURL(/\/factions\/adeptus-custodes\/rules\/custodes-codex-2026-10-17$/)
   await page.locator('[data-rules-version]').tap()
   await expect(page.getByRole('tooltip')).toContainText('Archived Custodes codex · 17 Oct 2026')

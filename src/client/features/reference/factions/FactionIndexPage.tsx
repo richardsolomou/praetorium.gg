@@ -1,13 +1,9 @@
-import { RulesVersionLabel } from '../../../components/RulesVersionLabel'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, Heart } from 'lucide-react'
 import { useState } from 'react'
 import { Toggle } from '@/components/ui/toggle'
-import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { rulesVersionLabel } from '../../../../core/catalogueEdition'
 import { currentCatalogueFamilyId } from '../../../../core/retiredCatalogueIds'
 import { factionIndexQuery, meQuery } from '../../../queries'
 import { useFavouriteFactions } from '../../../favouriteFactions'
@@ -125,61 +121,39 @@ function FactionShelf({
       {entries.length ? (
         <div className="mt-2 grid grid-cols-1 gap-px border border-edge bg-panel md:grid-cols-2 xl:grid-cols-3">
           {entries.map((entry) => {
-            const editions = versions
-              .filter((version) => currentCatalogueFamilyId(version.id) === currentCatalogueFamilyId(entry.id))
-              .toSorted((left, right) => Number(Boolean(right.isDefault)) - Number(Boolean(left.isDefault)))
+            const editions = versions.filter(
+              (version) => currentCatalogueFamilyId(version.id) === currentCatalogueFamilyId(entry.id),
+            ).length
             return (
               <div
                 key={entry.id}
                 data-onboarding="faction-entry"
                 data-faction={entry.displayName}
-                className="flex items-center border-l-2 bg-panel ring-1 ring-edge"
+                className="flex items-center border-l-2 bg-panel pr-1 ring-1 ring-edge hover:bg-raised"
                 style={{ borderLeftColor: factionColour(entry.slug, entry.displayName) }}
               >
-                <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2">
+                <FactionReferenceLink
+                  to="/factions/$catalogueId"
+                  params={{ catalogueId: entry.slug }}
+                  className="flex min-w-0 flex-1 items-center gap-3 self-stretch py-2 pr-1 pl-3"
+                >
                   <FactionMark id={entry.slug} name={entry.displayName} edition={entry.edition} icon={entry.icon} />
-                  <div className="min-w-0 flex-1">
-                    <FactionReferenceLink
-                      to="/factions/$catalogueId"
-                      params={{ catalogueId: entry.slug }}
-                      className="block truncate font-bold uppercase"
-                    >
-                      {entry.displayName}
-                    </FactionReferenceLink>
-                    <div className="flex flex-wrap items-center gap-x-2 text-xs text-dim">
-                      <span>{countLabel(entry.references[0]?.detachments ?? 0, 'detachment')}</span>
-                      {editions.length > 1 ? (
-                        <>
-                          <span aria-hidden>·</span>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger
-                              render={<Button variant="ghost" size="sm" aria-label={`Rules versions for ${entry.displayName}`} />}
-                              className="h-auto rounded-none p-0 text-xs font-normal text-dim underline-offset-4 hover:text-bone hover:underline"
-                            >
-                              {editions.length} rules versions
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="min-w-80 max-w-[calc(100vw-2rem)]">
-                              {editions.map((version) => (
-                                <DropdownMenuItem
-                                  key={version.id}
-                                  aria-label={rulesVersionLabel(version)}
-                                  render={<FactionReferenceLink to="/factions/$catalogueId" params={{ catalogueId: version.id }} />}
-                                >
-                                  <RulesVersionLabel faction={version} />
-                                </DropdownMenuItem>
-                              ))}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </>
-                      ) : null}
-                    </div>
-                  </div>
-                </div>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-bold uppercase">{entry.displayName}</span>
+                    <span className="block text-xs text-dim">
+                      {[
+                        countLabel(entry.references[0]?.detachments ?? 0, 'detachment'),
+                        ...(editions > 1 ? [`${editions} rules versions`] : []),
+                      ].join(' · ')}
+                    </span>
+                  </span>
+                  <ChevronRight className="size-4 shrink-0 text-dim" aria-hidden />
+                </FactionReferenceLink>
                 {onFavourite ? (
                   <Toggle
                     variant="default"
                     size="sm"
-                    className="m-1 size-7 bg-transparent p-0"
+                    className="size-7 bg-transparent p-0"
                     aria-label={`${favourites.has(entry.id) ? 'Remove' : 'Add'} ${entry.displayName} ${favourites.has(entry.id) ? 'from' : 'to'} favourites`}
                     pressed={favourites.has(entry.id)}
                     onPressedChange={() => onFavourite(entry.id)}
@@ -190,13 +164,12 @@ function FactionShelf({
                   <Link
                     to="/sign-in"
                     search={{ next: '/factions' }}
-                    className="m-1 grid size-7 place-items-center"
+                    className="grid size-7 place-items-center"
                     aria-label={`Sign in to add ${entry.displayName} to favourites`}
                   >
                     <Heart className="size-4 text-dim" />
                   </Link>
                 )}
-                <ChevronRight className="mr-2 size-4 text-dim" aria-hidden />
               </div>
             )
           })}
