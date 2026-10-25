@@ -51,6 +51,7 @@ import {
 } from '../../src/core/league'
 import { commandSchema, parseRosterSnapshot, rosterPickSchema, rosterSnapshotOrNull } from '../../src/core/commands'
 import { SWISS_ROUNDS_MAX } from '../../src/core/swiss'
+import type { SyncProductActionName } from '../../src/core/syncProductActions'
 import {
   clubGameOpen,
   clubGamePastAt,
@@ -4730,7 +4731,7 @@ const syncProductActions = {
   set_push_enabled: setPushEnabledIn,
   set_player_defaults: setPlayerDefaultsIn,
   league_command: leagueCommandIn,
-}
+} satisfies Record<SyncProductActionName, unknown>
 
 const syncProductInput = z.object({
   id: z.uuid(),
