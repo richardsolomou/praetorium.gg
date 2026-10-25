@@ -51,7 +51,7 @@ export function turnPrompt(owed: number, drawing: boolean): 'owed' | 'draw' | nu
 }
 
 /** A ceiling the mission states, which one it is, and how much of it is left. */
-export type CapRoom = { scope: 'round' | 'battle'; cap: number; room: number }
+type CapRoom = { scope: 'round' | 'battle'; cap: number; room: number }
 
 /**
  * The tighter of the two ceilings a category is still under, or null when there is none.

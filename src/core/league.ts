@@ -31,7 +31,7 @@ export type LeagueVisibility = (typeof LEAGUE_VISIBILITIES)[number]
 export const LEAGUE_ADMISSIONS = ['automatic', 'approval'] as const
 export type LeagueAdmission = (typeof LEAGUE_ADMISSIONS)[number]
 
-export const LEAGUE_ENTRY_STATUSES = ['pending', 'accepted', 'rejected'] as const
+const LEAGUE_ENTRY_STATUSES = ['pending', 'accepted', 'rejected'] as const
 export type LeagueEntryStatus = (typeof LEAGUE_ENTRY_STATUSES)[number]
 
 export const LEAGUE_DEFAULT_ROSTER_LIMIT = 2_000
@@ -136,7 +136,7 @@ export type LeagueEntryView = {
 }
 
 /** The fewest places each table shape can seat. */
-export const LEAGUE_SHAPE_PLACES: Record<TableShape, number> = { '1v1': 2, '2v1': 3, '2v2': 4 }
+const LEAGUE_SHAPE_PLACES: Record<TableShape, number> = { '1v1': 2, '2v1': 3, '2v2': 4 }
 
 /** The lowest player limit an event of this shape can have, never below its accepted entrants and even for doubles, whose teams are pairs. */
 export function leagueMinimumPlaces(format: TableShape | null, accepted = 0) {
@@ -289,7 +289,7 @@ export function leagueSealingClosed(event: { sealBy?: number | null }, now: numb
 }
 
 /** The accepted entrants still in the event: once the roster deadline passes, those without a sealed list drop out. */
-export function leagueEligibleEntries<T extends { status: LeagueEntryStatus; submitted: boolean }>(
+function leagueEligibleEntries<T extends { status: LeagueEntryStatus; submitted: boolean }>(
   event: { sealBy?: number | null },
   entries: readonly T[],
   now: number,
@@ -448,7 +448,7 @@ export function leagueWarlordValid(roster: Roster, legacy = false) {
  * Legends or Crucible datasheets. An event created before organizers chose this records none (null) and keeps sealing
  * whatever a list switches off, as it always did; a new one starts from strict matched play.
  */
-export const LEAGUE_ALLOWANCES = [...FORMAT_RULE_IDS, ...NON_MATCHED_PLAY_KINDS] as const
+const LEAGUE_ALLOWANCES = [...FORMAT_RULE_IDS, ...NON_MATCHED_PLAY_KINDS] as const
 export type LeagueAllowance = (typeof LEAGUE_ALLOWANCES)[number]
 export type LeagueAllowanceOption = Omit<FormatRule, 'id'> & { id: LeagueAllowance }
 export const leagueAllowancesSchema = z.array(z.enum(LEAGUE_ALLOWANCES)).max(LEAGUE_ALLOWANCES.length)

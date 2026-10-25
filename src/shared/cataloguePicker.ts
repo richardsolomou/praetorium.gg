@@ -81,7 +81,7 @@ function groupOf(entry: Definition, target: Definition): UnitGroup {
   return 'other'
 }
 
-export const shelfOfCategory = (name: string | undefined) => GROUP_BY_CATEGORY.get((name ?? '').trim().toLowerCase())
+const shelfOfCategory = (name: string | undefined) => GROUP_BY_CATEGORY.get((name ?? '').trim().toLowerCase())
 
 /** The same shelf by entry id, so a roster and the picker cannot sort a unit differently. */
 export function groupOfEntry(index: CatalogueIndex, entryId: string): UnitGroup {
@@ -94,7 +94,7 @@ export const shelfIn = (index: CatalogueIndex, entryId: string, primaries: reado
   primaries.map((id) => shelfOfCategory(index.categories.get(id)?.name)).find(Boolean) ?? groupOfEntry(index, entryId)
 
 /** A datasheet's keywords and shelf as one more copy of it in the roster would have them, which its detachments can change. */
-export function listedUnitFacts(loaded: LoadedCatalogue, catalogueId: string, entryId: string, roster: readonly Selection[]) {
+function listedUnitFacts(loaded: LoadedCatalogue, catalogueId: string, entryId: string, roster: readonly Selection[]) {
   const selection = defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId })
   if (!selection) return null
   const held = keywordsBySelection([...roster, selection], loaded.index, { primaryCatalogueId: catalogueId }).at(-1)!

@@ -28,8 +28,8 @@ export type SwissRow = {
 
 /** More rounds than this would outlast any event a group runs in a day or a weekend. */
 export const SWISS_ROUNDS_MAX = 12
-export const SWISS_WIN = 3
-export const SWISS_DRAW = 1
+const SWISS_WIN = 3
+const SWISS_DRAW = 1
 
 export function swissStandings(players: readonly string[], matches: readonly SwissMatch[]): SwissRow[] {
   const rows = new Map(

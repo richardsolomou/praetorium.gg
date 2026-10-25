@@ -432,7 +432,7 @@ export type UnitState = SubmittedUnit & {
 }
 
 /** What is left of a unit, in wounds, which is the one number both halves fold to. */
-export function unitWoundsLeft(unit: UnitState): number | null {
+function unitWoundsLeft(unit: UnitState): number | null {
   return unit.wounds ? unit.alive * unit.wounds - unit.damage : null
 }
 
@@ -1293,7 +1293,7 @@ export function* replay(state: BattleState, log: readonly LoggedCommand[]): Gene
 }
 
 /** Commands that change what is left of a unit, which the table corrects by pressing the opposite control. */
-export const CASUALTY_COMMANDS: readonly Command['kind'][] = ['set-unit', 'wound-unit', 'damage-unit']
+const CASUALTY_COMMANDS: readonly Command['kind'][] = ['set-unit', 'wound-unit', 'damage-unit']
 
 /** Applies one command that is standing when it is folded, and records whether undo may name it. */
 export function applyEntry(state: BattleState, entry: LoggedCommand) {
@@ -2939,7 +2939,7 @@ export function evenArmyPoints(state: TableArmies & { settings: BattleSettings }
 export const armyPointsFor = (state: TableArmies & { settings: BattleSettings }, side: number): number | null =>
   state.settings.armyPoints?.[side] ?? evenArmyPoints(state, side)
 
-export const pointsSpent = (built: Pick<TableBuilt, 'units'>) => built.units?.reduce((total, unit) => total + unit.points, 0) ?? 0
+const pointsSpent = (built: Pick<TableBuilt, 'units'>) => built.units?.reduce((total, unit) => total + unit.points, 0) ?? 0
 
 /** Whether a list spends no more than the points its army may, unless it waives its points limit. */
 export const withinArmyPoints = (built: Pick<TableBuilt, 'units' | 'waivedRules'>, points: number) =>

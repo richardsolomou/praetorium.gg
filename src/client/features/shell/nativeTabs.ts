@@ -3,9 +3,9 @@ import { nativeNavigation, type NativeSection } from './nativeNavigation'
 
 const TAB_PREFIX = 'praetorium.native-tab:'
 
-export type NativeTabState = { rosterPane?: unknown; rosterSnapshotPane?: unknown }
+type NativeTabState = { rosterPane?: unknown; rosterSnapshotPane?: unknown }
 
-export type NativeTabMemory = {
+type NativeTabMemory = {
   href: string
   scrollY: number
   regions: Record<string, number>

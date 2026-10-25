@@ -48,7 +48,7 @@ export const referenceChanges = createServerFn({ method: 'GET' })
   )
 
 /** How many armies the home page asks after, which is at most one per list it shows. */
-export const ARMY_UPDATE_FACTIONS = 5
+const ARMY_UPDATE_FACTIONS = 5
 
 /**
  * The newest data update that reached each named faction, with only the count of its changes:

@@ -19,7 +19,7 @@ export type AppShellState = {
   renderKey: number
 }
 
-export type AppShellRenderState = Pick<AppShellState, 'sourceUrl' | 'renderKey'>
+type AppShellRenderState = Pick<AppShellState, 'sourceUrl' | 'renderKey'>
 
 export function appShellRenderState(state: AppShellState): AppShellRenderState {
   return { sourceUrl: state.sourceUrl, renderKey: state.renderKey }

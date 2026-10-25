@@ -102,7 +102,7 @@ class UpstreamTextError extends Error {
   }
 }
 
-export type TextLoadFailure = { reason: 'network' | 'http' | 'mismatch' | 'invalid'; status?: number }
+type TextLoadFailure = { reason: 'network' | 'http' | 'mismatch' | 'invalid'; status?: number }
 
 /** Why a rules text file did not load, never the error's message. */
 export function textLoadFailure(error: unknown): TextLoadFailure {

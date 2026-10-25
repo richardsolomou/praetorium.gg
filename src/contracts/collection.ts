@@ -43,7 +43,7 @@ export const collectionPhotoLikeSchema = collectionPhotoIdSchema.extend({ liked:
 
 export const collectionPhotoReportSchema = collectionPhotoIdSchema.extend({ reason: z.string().trim().max(500) })
 
-export const adminCollectionPhotosCursorSchema = z.object({ at: z.number().int().nonnegative(), id: z.uuid() })
+const adminCollectionPhotosCursorSchema = z.object({ at: z.number().int().nonnegative(), id: z.uuid() })
 
 export type AdminCollectionPhotosCursor = z.infer<typeof adminCollectionPhotosCursorSchema>
 

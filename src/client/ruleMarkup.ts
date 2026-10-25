@@ -8,7 +8,7 @@ export type RuleInline =
   /** `(10.05)`, as printed, beside the number on its own so a page can link it. */
   | { kind: 'reference'; code: string; text: string }
 
-export type RuleTableCell = { header: boolean; content: RuleInline[] }
+type RuleTableCell = { header: boolean; content: RuleInline[] }
 export type RuleMarkupBlock =
   | { kind: 'paragraph'; content: RuleInline[] }
   | { kind: 'list'; items: RuleMarkupBlock[][] }

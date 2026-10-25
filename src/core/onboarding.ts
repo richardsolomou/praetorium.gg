@@ -51,7 +51,7 @@ export function onboardingProgress(stored: StoredOnboarding, facts: OnboardingFa
   }
 }
 
-export function resolvedOnboardingTasks(progress: OnboardingProgress): Set<OnboardingTaskId> {
+function resolvedOnboardingTasks(progress: OnboardingProgress): Set<OnboardingTaskId> {
   return new Set([...progress.completedTasks, ...progress.skippedTasks])
 }
 

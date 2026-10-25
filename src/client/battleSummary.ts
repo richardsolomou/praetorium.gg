@@ -12,7 +12,7 @@ export function deploymentName(id: string | null, deployments: readonly { id: st
 }
 
 /** Fold list rows by side, not seat order: a 2v1 creator can sit beside an ally in the first two seats. */
-export type BattleSummary = {
+type BattleSummary = {
   players: readonly string[]
   playerDetails?: readonly { id: string; name: string; image: string | null; automated: boolean }[]
   armies: readonly (string | null)[]

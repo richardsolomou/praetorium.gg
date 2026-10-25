@@ -69,7 +69,7 @@ export function attachmentLimitsOf(definition: Definition, index: CatalogueIndex
   return { leader: maximum('leader'), support: maximum('support'), categories }
 }
 
-export function attachmentCategoriesOf(definition: Definition, index: CatalogueIndex): string[] {
+function attachmentCategoriesOf(definition: Definition, index: CatalogueIndex): string[] {
   const sources = [...new Set([definition, targetOf(definition, index.definitions)])]
   return [
     ...new Set(

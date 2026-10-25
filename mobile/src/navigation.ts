@@ -18,7 +18,7 @@ type NavigationDecision = { kind: 'internal'; url: string } | { kind: 'external'
 const WEB_PROTOCOLS = new Set(['http:', 'https:'])
 const EXTERNAL_PROTOCOLS = new Set([...WEB_PROTOCOLS, 'mailto:', 'tel:'])
 
-export type ExternalOpenStrategy = 'system' | 'in-app-browser'
+type ExternalOpenStrategy = 'system' | 'in-app-browser'
 
 // An external link opens in the operating system when a handler exists. A web
 // page also lists the in-app browser as a fallback, so a device that cannot

@@ -112,7 +112,7 @@ export function registerTextSources(table: Readonly<Record<string, TextSourceFil
 /** What stands in for text this device has not chosen to load, is still loading, could not load, or cannot find. */
 export type MissingText = 'unchosen' | 'loading' | 'failed' | 'unavailable' | null
 /** Text as this device can show it. */
-export type LoadedText = { text: string; missing: MissingText }
+type LoadedText = { text: string; missing: MissingText }
 
 /**
  * The sources a text's tokens need that this device has not chosen: the one authority for

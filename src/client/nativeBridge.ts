@@ -80,7 +80,7 @@ function askNative<T>(
   })
 }
 
-export type NativeLocalState = { epoch: string; state: LocalState | null; saved: boolean }
+type NativeLocalState = { epoch: string; state: LocalState | null; saved: boolean }
 export function supportsNativeLocalState() {
   return supports('local-state')
 }

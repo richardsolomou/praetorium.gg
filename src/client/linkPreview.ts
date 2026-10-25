@@ -20,7 +20,7 @@ import { capitalised } from '../core/text'
  * reader may see and these are built from that. The same builders feed the preview
  * images, which read with no session at all, so a picture and its caption agree.
  */
-export type LinkPreview = { title: string; description: string; card: PreviewCard }
+type LinkPreview = { title: string; description: string; card: PreviewCard }
 
 type Page = {
   title: string

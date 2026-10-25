@@ -70,7 +70,7 @@ function selectionCard(player: PlayerState, key: string): Secondary | undefined 
 const sameOccurrence = (saved: SavedMissionSelection, prompt: Pick<MissionSelectionPrompt, 'cardKey' | 'occurrence' | 'kind'>) =>
   saved.cardKey === prompt.cardKey && saved.occurrence === prompt.occurrence && saved.selection.kind === prompt.kind
 
-export function missionSelectionPrompts(state: BattleState, player: PlayerState, card: Secondary): MissionSelectionPrompt[] {
+function missionSelectionPrompts(state: BattleState, player: PlayerState, card: Secondary): MissionSelectionPrompt[] {
   const capability = card.selection
   if (!capability || state.status !== 'playing') return []
   const primary = player.primaryCard?.key === card.key
