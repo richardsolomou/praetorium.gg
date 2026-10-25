@@ -106,9 +106,8 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
   // The battlefield follows from both sides' dispositions, so the host has to have seen both armies first.
   await expect(host.getByText(allyRoster, { exact: true }).first()).toBeVisible()
   await expect(host.getByText(partnerRoster, { exact: true }).first()).toBeVisible()
-  // Only the allied side splits the points, so only an ally is told about it.
-  await expect(ally.getByText(/splits 2,000 points evenly, so each ally brings a 1,000-point army/)).toBeVisible()
-  await expect(host.getByText(/splits 2,000 points evenly/)).toHaveCount(0)
+  // Each side's points per army read in seat order, which says who is allied.
+  await expect(ally.getByText('Each army spends up to 2,000 vs 1,000 + 1,000 points.')).toBeVisible()
 
   // Setting the table is done together, so one device can arrange an army it does not own.
   // Three devices are settling cards at once, so a press that loses that race is pressed again.
@@ -201,7 +200,7 @@ test('a 2v1 opened from the allied side seats its opener with their ally and pla
   // The battlefield follows from both sides' dispositions, so the host has to have seen every army first.
   await expect(host.getByText(allyRoster, { exact: true }).first()).toBeVisible()
   // Halved for the pair and whole for the side facing them, which is what says who is allied.
-  await expect(host.getByText(/splits 2,000 points evenly, so each ally brings a 1,000-point army/)).toBeVisible()
+  await expect(host.getByText('Each army spends up to 1,000 + 1,000 vs 2,000 points.')).toBeVisible()
 
   await chooseBattlefield(host)
   await startBattle(host, `${hostName} & ${allyName}`)

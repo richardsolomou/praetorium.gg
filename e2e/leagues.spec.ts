@@ -1569,10 +1569,11 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await signUp(allied, alliedName)
   await signUp(secondAllied, secondAlliedAccountName)
   const alliedRoster = 'Allied 1,000 roster'
-  const wrongRoster = 'Solo 2,000 roster'
+  // A team event takes lists at its battle size or smaller, so only a bigger one is filtered out.
+  const wrongRoster = 'Onslaught 3,000 roster'
   await seedRosters(alliedName, [
     { name: alliedRoster, limit: 1_000 },
-    { name: wrongRoster, limit: 2_000 },
+    { name: wrongRoster, limit: 3_000 },
   ])
 
   await owner.goto('/tournaments')
@@ -1839,7 +1840,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   const [, teammate] = pages
   await seedRosters(names[1], [
     { name: 'Eligible doubles roster', limit: 1_000 },
-    { name: 'Wrong doubles roster', limit: 2_000 },
+    { name: 'Wrong doubles roster', limit: 3_000 },
   ])
 
   await owner.goto('/tournaments')
