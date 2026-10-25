@@ -8,6 +8,7 @@ import { Conversation } from './Conversation'
 import { FeedbackForm } from './FeedbackForm'
 import { onOpenSupport, type SupportView, unreadReplies, useSupportTickets } from './support'
 import { TicketList } from './YourFeedback'
+import { countLabel } from '../../text'
 
 /**
  * Support over whichever page the player is on: their conversations, a new message, and each conversation. Wide
@@ -98,7 +99,7 @@ function Conversations({ onOpen }: { onOpen: (ticketId: string) => void }) {
         <DialogTitle>Your feedback</DialogTitle>
         <DialogDescription>
           {tickets?.length
-            ? `${count ?? tickets.length} ${(count ?? tickets.length) === 1 ? 'conversation' : 'conversations'}${unread ? `, ${unread} new ${unread === 1 ? 'reply' : 'replies'}` : ''}`
+            ? `${countLabel(count ?? tickets.length, 'conversation')}${unread ? `, ${countLabel(unread, 'new reply', 'new replies')}` : ''}`
             : 'Feedback you send and our replies.'}
         </DialogDescription>
       </DialogHeader>

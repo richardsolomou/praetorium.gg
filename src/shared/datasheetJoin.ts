@@ -13,7 +13,7 @@ import { factionContentsOf } from './factionNames'
  * The book's own faction file is checked by name, then identical cards shared by
  * other files.
  */
-export type DatacardJoin = { details: DatasheetDetails; own: boolean; method: 'name' }
+export type DatacardJoin = { details: DatasheetDetails; own: boolean }
 
 const cardIndexes = new WeakMap<FactionContent, Map<string, DatasheetDetails>>()
 const joins = new WeakMap<LoadedCatalogue, Map<string, DatacardJoin | null>>()
@@ -39,7 +39,7 @@ export function datacardOf(loaded: LoadedCatalogue, catalogueId: string, entryId
 }
 
 export const datacardJoinOutcome = (loaded: LoadedCatalogue, catalogueId: string, entryId: string) =>
-  datacardOf(loaded, catalogueId, entryId)?.method ?? 'missing'
+  datacardOf(loaded, catalogueId, entryId) ? 'name' : 'missing'
 
 function join(loaded: LoadedCatalogue, catalogueId: string, entryId: string): DatacardJoin | null {
   const entry = loaded.index.definitions.get(entryId)
@@ -54,13 +54,13 @@ function join(loaded: LoadedCatalogue, catalogueId: string, entryId: string): Da
   const nearby = [...new Set([...(source ? factionContentsOf(loaded, source) : []), ...factionContentsOf(loaded, book.name)])]
   for (const content of nearby) {
     const card = cardIn(content, name)
-    if (card) return { details: card, own: true, method: 'name' }
+    if (card) return { details: card, own: true }
   }
   const cards = [...new Set(loaded.factionContents.values())].flatMap((content) =>
     nearby.includes(content) ? [] : (cardIn(content, name) ?? []),
   )
   const agreed = cards.length > 0 && cards.every((card) => JSON.stringify(card) === JSON.stringify(cards[0]))
-  return agreed ? { details: cards[0]!, own: false, method: 'name' } : null
+  return agreed ? { details: cards[0]!, own: false } : null
 }
 
 /**
@@ -80,8 +80,7 @@ export function datacardJoinReport(loaded: LoadedCatalogue, isReference: (catalo
   const nameJoins: { faction: string; name: string }[] = []
   const nonMatchedPlayCatalogueOnly: { faction: string; name: string }[] = []
   for (const book of loaded.factions) {
-    const leaf = book.name.split(' - ').at(-1) ?? book.name
-    const content = loaded.factionContents.get(routeSlug(leaf))
+    const content = loaded.factionContents.get(routeSlug(book.name))
     if (!content) continue
     if (!content.armyRules.length) factionsWithoutArmyRules.push(book.name)
     const matched = new Set<DatasheetDetails>()
@@ -96,8 +95,8 @@ export function datacardJoinReport(loaded: LoadedCatalogue, isReference: (catalo
       if (!isReference(book.id, entryId)) continue
       if (isNonMatchedPlay) {
         if (!found) nonMatchedPlayCatalogueOnly.push({ faction: book.name, name })
-      } else if (found?.method === 'name') nameJoins.push({ faction: book.name, name })
-      else if (!found) catalogueOnly.push({ faction: book.name, name })
+      } else if (found) nameJoins.push({ faction: book.name, name })
+      else catalogueOnly.push({ faction: book.name, name })
     }
     for (const [cardName, details] of content.datasheetDetails) {
       if (matched.has(details) || nonMatchedPlay.has(comparable(cardName))) continue

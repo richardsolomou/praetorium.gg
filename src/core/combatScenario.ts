@@ -7,6 +7,10 @@ import { combatRuleMortals, combatRuleProfiles, combatRuleWeapons, type ActiveCo
 import type { StructuredDatasheetProfile } from './datasheet'
 
 type Phase = CombatOptions['phase']
+
+/** Keeps the profile ids of the unit at this position in an attached group apart from the others'. */
+export const attachedProfilePrefix = (index: number) => `attached:${index}:`
+
 export type CombatAttacker = {
   sheet: Datasheet
   carriers: readonly CombatCarrier[]
@@ -56,7 +60,7 @@ export function combatAttacks(
     const attack = (phase: Phase) => {
       const tooMany = members.reduce((total, member) => total + member.models, 0) > MAX_COMBAT_MODELS
       const parts = members.map((member, index) => {
-        const prefix = index ? `attached:${index}:` : ''
+        const prefix = index ? attachedProfilePrefix(index) : ''
         const rules = member.rules ?? []
         const sheet = combatRuleProfiles(member.sheet, rules, 'attacker', defender.keywords, defender.rules)
         const localPreferences = Object.fromEntries(

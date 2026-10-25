@@ -19,16 +19,18 @@ const PHASES = ['ranged', 'melee'] as const
 export type LoadoutOption = { group: string; entry: string; step: -1 | 0 | 1; carriers: CombatCarrier[] }
 /** A unit's current carriers, every weapon profile it could carry, and the legal options of each weapon choice. */
 export type LoadoutSpace = { carriers: CombatCarrier[]; weapons: Datasheet['profiles']; choices: LoadoutOption[][] }
+export const namespaceCarriers = (entries: CombatCarrier[], prefix: string) =>
+  entries.map((carrier) => ({
+    ...carrier,
+    ...(carrier.modelProfileIds ? { modelProfileIds: carrier.modelProfileIds.map((id) => `${prefix}${id}`) } : {}),
+    weapons: carrier.weapons.map((weapon) => ({
+      ...weapon,
+      ...(weapon.profileIds ? { profileIds: weapon.profileIds.map((id) => `${prefix}${id}`) } : {}),
+    })),
+  }))
+
 export function namespaceLoadoutSpace(space: LoadoutSpace, prefix: string): LoadoutSpace {
-  const carriers = (entries: CombatCarrier[]) =>
-    entries.map((carrier) => ({
-      ...carrier,
-      ...(carrier.modelProfileIds ? { modelProfileIds: carrier.modelProfileIds.map((id) => `${prefix}${id}`) } : {}),
-      weapons: carrier.weapons.map((weapon) => ({
-        ...weapon,
-        ...(weapon.profileIds ? { profileIds: weapon.profileIds.map((id) => `${prefix}${id}`) } : {}),
-      })),
-    }))
+  const carriers = (entries: CombatCarrier[]) => namespaceCarriers(entries, prefix)
   return {
     carriers: carriers(space.carriers),
     weapons: space.weapons.map((profile) => ({ ...profile, id: `${prefix}${profile.id}` })),

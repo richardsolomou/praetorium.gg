@@ -643,6 +643,10 @@ export const isKotcLimit = (limit: number | null): boolean =>
 export const POINTS_BUDGET_MIN = 500
 export const POINTS_BUDGET_MAX = 10_000
 
+/** Points for one army in a team battle: any whole number up to the roster contract's bound. */
+export const validArmyPoints = (points: number) => Number.isInteger(points) && points >= 1 && points <= POINTS_BUDGET_MAX
+export const ARMY_POINTS_ERROR = `choose between 1 and ${POINTS_BUDGET_MAX.toLocaleString('en')} points per army`
+
 /** King of the Colosseum fixes its points total, so only the core battle sizes take a custom budget. */
 export const allowsPointsBudget = (limit: number | null): boolean =>
   limit !== null && !isKotcLimit(limit) && GAME_SIZES.some((size) => size.limit === limit)
@@ -1444,11 +1448,8 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
         return refuse('league-sealed', 'this battle’s points are sealed')
       if (command.armyPoints) {
         if (!command.teamBattle) return refuse('invalid-army-points', 'only a team battle sets points per army')
-        if (
-          command.armyPoints.length !== 2 ||
-          command.armyPoints.some((points) => !Number.isInteger(points) || points < 1 || points > POINTS_BUDGET_MAX)
-        )
-          return refuse('invalid-army-points', `choose between 1 and ${POINTS_BUDGET_MAX.toLocaleString('en')} points per army`)
+        if (command.armyPoints.length !== 2 || !command.armyPoints.every(validArmyPoints))
+          return refuse('invalid-army-points', ARMY_POINTS_ERROR)
       }
       return null
     }

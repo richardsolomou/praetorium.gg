@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { meQuery } from '../client/queries'
 import { RosterLoading } from '../client/features/rosters/RosterLoading'
 
@@ -6,5 +6,4 @@ import { RosterLoading } from '../client/features/rosters/RosterLoading'
 export const Route = createFileRoute('/rosters')({
   loader: ({ context }) => context.queryClient.query({ ...meQuery(), staleTime: 'static' }),
   pendingComponent: RosterLoading,
-  component: Outlet,
 })

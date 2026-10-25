@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { advance, createRoster, setupBattle, signUp, uniqueName } from './account'
+import { createRoster, setupBattle, signUp, uniqueName, playTurn } from './account'
 import { battleLog } from './storage'
 
 test('two phones finish a five-round battle in step', async ({ browser }) => {
@@ -52,10 +52,4 @@ test('two phones finish a five-round battle in step', async ({ browser }) => {
 
 function scoreboard(page: Page) {
   return page.getByRole('region', { name: 'Battle scoreboard' })
-}
-
-async function playTurn(page: Page, phase = 0): Promise<void> {
-  if (phase === 6) return
-  await advance(page)
-  await playTurn(page, phase + 1)
 }

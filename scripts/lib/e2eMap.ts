@@ -85,7 +85,7 @@ export function workerSources(buildDirectory: string, root: string) {
 const assetImport = /import\.meta\.glob(?:<[^>]*>)?\(\s*['"]([^'"]+)['"]|from\s+['"](\.{1,2}\/[^'"]+)\?raw['"]/g
 
 /** Application files a module bundles by glob or as raw text, which source maps never list. */
-export function assetImports(root: string, file: string) {
+function assetImports(root: string, file: string) {
   const source = path.join(root, file)
   if (!fs.existsSync(source)) return []
   const directory = path.dirname(source)

@@ -1,5 +1,5 @@
 import { distance } from 'fastest-levenshtein'
-import { plainQuotes } from './text'
+import { foldedText } from './text'
 import { wargearKey } from './wargear'
 import { uniqueBy } from './collections'
 
@@ -270,8 +270,7 @@ function indexed(value: string) {
 }
 
 const normalize = (value: string) =>
-  plainQuotes(value.normalize('NFKD').replaceAll(/\p{M}/gu, ''))
-    .toLocaleLowerCase()
+  foldedText(value)
     .replaceAll(/\b(\d+)\s*(?:cp|command points?)\b/g, '$1 cp')
     .replaceAll(/[^\p{L}\p{N}]+/gu, ' ')
     .replaceAll(/\badvance\s+and\s+charge\b/g, 'advance charge')

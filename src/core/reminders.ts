@@ -1,6 +1,6 @@
-import { plainQuotes } from './text'
+import { capitalised, plainQuotes } from './text'
 import { z } from 'zod'
-import { type Phase, TURN_SCOPES, type TurnScope } from './battle'
+import { type Phase, type Stratagem, TURN_SCOPES, type TurnScope } from './battle'
 import { routeSlug } from './slug'
 
 const REMINDER_MOMENTS = ['phase-start', 'phase-end', 'turn-start', 'turn-end', 'round-start', 'round-end'] as const
@@ -281,4 +281,17 @@ function reminderTimingLabelWithoutRestriction(timing: ReminderTiming): string {
 }
 
 /** "Shooting" for `shooting`. */
-export const phaseName = (phase: string) => `${phase.charAt(0).toLocaleUpperCase()}${phase.slice(1)}`
+export const phaseName = capitalised
+
+export const TURN_LABELS: Record<TurnScope, string> = {
+  'your-turn': 'Your turn',
+  'opponent-turn': 'Opponent’s turn',
+  either: 'Either turn',
+}
+
+/** When a stratagem can be used, as "Shooting, Fight phase · Your turn · Once per battle". */
+export const stratagemTiming = (stratagem: Pick<Stratagem, 'phases' | 'turn' | 'limit'>) => [
+  stratagem.phases?.length ? `${stratagem.phases.map(phaseName).join(', ')} phase` : 'Any phase',
+  TURN_LABELS[stratagem.turn ?? 'either'],
+  stratagem.limit === 'unlimited' ? 'No use limit' : `Once per ${stratagem.limit.replace('-', ' ')}`,
+]

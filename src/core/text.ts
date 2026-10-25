@@ -17,8 +17,13 @@ export function canonicalJson(value: unknown): string {
   )
 }
 
+export const capitalised = (text: string) => text.charAt(0).toLocaleUpperCase() + text.slice(1)
+
 /** Typographic and modifier-letter apostrophes as a plain one. */
 export const plainQuotes = (text: string) => text.replaceAll(/[‘’ʼ]/g, "'")
+
+/** Without diacritics, typographic quotes or case: the form search compares text in. */
+export const foldedText = (text: string) => plainQuotes(text.normalize('NFKD').replaceAll(/\p{M}/gu, '')).toLocaleLowerCase()
 
 /** Letters and digits only, lower case and without diacritics: the key two spellings of one name share. */
 export const joinKey = (nameOrSlug: string) =>

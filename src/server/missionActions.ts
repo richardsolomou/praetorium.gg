@@ -1,16 +1,15 @@
-import { criteriaKey } from './missionCriteria'
-import { english, type MissionPack, missionCards, packText, readMissionPacks } from './missionPacks'
+import { english, type MissionPack, missionCards, packText } from './missionPacks'
 import type { MissionAction } from '../contracts/missions'
 
 export type { MissionAction } from '../contracts/missions'
 
-/** Keep mission actions in the pack’s own words; omit fields the pack does not state rather than inferring limits. */
-/** Every card's actions in every pack under `missions`, keyed by card name. */
-export function loadMissionActions(directory: string): Map<string, MissionAction[]> {
-  return actionsIn(readMissionPacks(directory))
-}
+/** Cards are keyed by name because the rules source and the mission pack give them unrelated ids. */
+export const missionCardKey = (name: string) => name.toLowerCase().replaceAll(/\s+/g, ' ').trim()
 
-/** The same reading, for a caller that has already parsed the packs. */
+/**
+ * Every card's actions, keyed by card name, in the pack's own words; fields the pack
+ * does not state are omitted rather than inferred.
+ */
 export function actionsIn(packs: readonly MissionPack[]): Map<string, MissionAction[]> {
   const found = new Map<string, MissionAction[]>()
   // A name in two packs is two cards until proven otherwise, so neither is used.
@@ -20,7 +19,7 @@ export function actionsIn(packs: readonly MissionPack[]): Map<string, MissionAct
       const name = english(card.name)
       const actions = readActions(card.actions, pack)
       if (!name || !actions.length) continue
-      const key = criteriaKey(name)
+      const key = missionCardKey(name)
       if (found.has(key)) contested.add(key)
       found.set(key, actions)
     }

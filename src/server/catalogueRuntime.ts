@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { CANONICAL_CATALOGUE_COMPILER_VERSION } from './canonicalCatalogue'
 import { parseSharedJson } from './sharedJson'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
-import type { GlobalSearchIndex } from '../contracts/referenceSearch'
+import type { GlobalSearchIndex } from '../core/referenceSearch'
 import type { factionsFor } from '../shared/factionReferences'
 import type { combatUnitsFor } from './combatUnits'
 

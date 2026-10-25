@@ -11,31 +11,14 @@ import {
   startBattle,
   uniqueName,
   waitForRosterSave,
-  makeWarlord,
+  sealableRoster,
 } from './account'
-import { productOperator, productSql, savedWork, withAuthSql } from './storage'
+import { productOperator, productSql, savedWork, withAuthSql, userIdNamed } from './storage'
 
 test.setTimeout(300_000)
 
 const tokenOf = (url: string) => new URL(url).pathname.split('/').at(-1)!
 const playedCount = (page: Page) => page.locator('[data-service-record] [data-record-battles]')
-
-async function playerId(name: string) {
-  const row = await withAuthSql(
-    (database) => database.prepare('SELECT id FROM user WHERE name = ?').get(name) as { id: string } | undefined,
-  )
-  if (!row) throw new Error(`Missing test player ${name}`)
-  return row.id
-}
-
-async function sealableRoster(page: Page, name: string) {
-  await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name })
-  await page.getByLabel('Add a unit').fill('Skorpekh Lord')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Skorpekh Lord', exact: true }).first().click())
-  await page.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
-  await makeWarlord(page, 'Skorpekh Lord')
-  return tokenOf(page.url())
-}
 
 async function collectionAndFavourite(page: Page, userId: string) {
   await page.goto('/factions/necrons/datasheets/overlord')
@@ -137,7 +120,7 @@ async function expectRecord(page: Page, userId: string, played: number) {
 test('saved roster deletion preserves its actual sealed and fielded copies until their containers are deleted', async ({ page }) => {
   const name = uniqueName('Retained copies')
   await signUp(page, name)
-  const userId = await playerId(name)
+  const userId = await userIdNamed(name)
   const rosterName = uniqueName('Original frozen roster')
   const rosterId = await sealableRoster(page, rosterName)
   const rosterUrl = page.url()
@@ -262,11 +245,11 @@ test('self-account deletion removes populated shared history and sealed entries 
     const ownerName = uniqueName('Deleted participant')
     const opponentName = uniqueName('Surviving participant')
     await signUp(owner, ownerName)
-    const ownerId = await playerId(ownerName)
+    const ownerId = await userIdNamed(ownerName)
     const ownerRoster = uniqueName('Removed saved roster')
     const ownerRosterId = await sealableRoster(owner, ownerRoster)
     await signUp(opponent, opponentName)
-    const opponentId = await playerId(opponentName)
+    const opponentId = await userIdNamed(opponentName)
     // Take and Hold against the sealed list's Purge the Foe draws primaries that need no nominations.
     const opponentRoster = await createRoster(opponent, {
       faction: 'Necrons',
@@ -363,7 +346,7 @@ test('saved public results leave cached rankings and viewer records after battle
     const ownerName = uniqueName('Record owner')
     const opponentName = uniqueName('Record opponent')
     await signUp(owner, ownerName)
-    const ownerId = await playerId(ownerName)
+    const ownerId = await userIdNamed(ownerName)
     const hostRoster = await createRoster(owner, {
       faction: 'Necrons',
       detachment: /Awakened Dynasty/,

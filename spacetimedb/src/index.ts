@@ -20,7 +20,6 @@ import {
   type FormatRuleId,
   type LoggedCommand,
 } from '../../src/core/battle'
-import { commandSchema } from '../../src/core/commands'
 import { teamDispositionChoices } from '../../src/core/teamDisposition'
 import { DEFAULT_PLAYER_DEFAULTS, isPlayerDefaults } from '../../src/core/playerDefaults'
 import { matchupPairingSchema, RECENT_MATCHUP_LIMIT, recentMatchupSchema } from '../../src/core/recentMatchups'
@@ -50,7 +49,7 @@ import {
   matchesSealedLeagueRoster,
   requiredLeagueRosterLimit,
 } from '../../src/core/league'
-import { parseRosterSnapshot, rosterPickSchema } from '../../src/core/commands'
+import { commandSchema, parseRosterSnapshot, rosterPickSchema, rosterSnapshotOrNull } from '../../src/core/commands'
 import { SWISS_ROUNDS_MAX } from '../../src/core/swiss'
 import {
   clubGameOpen,
@@ -2851,13 +2850,8 @@ export const outdatedLeagueEntriesForRoster = spacetime.procedure(
         if (entry.rosterId !== rosterId || entry.status !== 'accepted' || entry.rosterSnapshot === undefined) continue
         const event = tx.db.sealedEvents.id.find(entry.eventId)
         if (!event || event.revealedAt !== undefined) continue
-        let sameRoster = false
-        try {
-          sameRoster = matchesSealedLeagueRoster(current, parseRosterSnapshot(entry.rosterSnapshot))
-        } catch {
-          // An unreadable snapshot cannot be considered current.
-        }
-        if (sameRoster) continue
+        const sealed = rosterSnapshotOrNull(entry.rosterSnapshot)
+        if (sealed && matchesSealedLeagueRoster(current, sealed)) continue
         const host = hostOfEvent(tx, event)
         if (host)
           matches.push({ token: hostToken(host), name: eventTitle(host), club: host.kind === 'club' ? { token: host.club.token } : null })
@@ -2889,12 +2883,7 @@ export const friendLeagueRosters = spacetime.procedure({ viewerId: t.string() },
         if (!event || event.revealedAt === undefined) continue
         const host = hostOfEvent(tx, event)
         if (!host || !listsEvent(tx, host, viewerId, personal)) continue
-        let catalogueId: string | undefined
-        try {
-          catalogueId = parseRosterSnapshot(entry.rosterSnapshot).built?.catalogueId
-        } catch {
-          // An unreadable snapshot cannot be simulated.
-        }
+        const catalogueId = rosterSnapshotOrNull(entry.rosterSnapshot)?.built?.catalogueId
         if (!catalogueId) continue
         rosters.push({
           leagueToken: hostToken(host),
@@ -3159,20 +3148,11 @@ function eventTeams(ctx: Context, eventId: string, entries: LeagueEntryRow[]) {
       userId: entry.userId,
       status: entry.status as LeagueEntryStatus,
       teamId: entry.teamId ?? null,
-      roster: entry.teamId ? sealedRoster(entry) : null,
+      roster: entry.teamId ? rosterSnapshotOrNull(entry.rosterSnapshot) : null,
     })),
     picks,
     warlords,
   )
-}
-
-function sealedRoster(entry: LeagueEntryRow) {
-  if (entry.rosterSnapshot === undefined) return null
-  try {
-    return parseRosterSnapshot(entry.rosterSnapshot)
-  } catch {
-    return null
-  }
 }
 
 function setTeamPick(ctx: Context, eventId: string, teamId: string, disposition: string) {
@@ -4516,12 +4496,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const team = event.format === '2v1' || event.format === '2v2'
     if (team && requiredLimit === null) return productJson({ outcome: 'unassigned' })
     if (!team && requiredLimit !== null && input.rosterLimit !== requiredLimit) return productJson({ outcome: 'wrong-limit' })
-    let submitted: Roster
-    try {
-      submitted = parseRosterSnapshot(input.snapshot)
-    } catch {
-      return productJson({ outcome: 'missing' })
-    }
+    const submitted = rosterSnapshotOrNull(input.snapshot)
+    if (!submitted) return productJson({ outcome: 'missing' })
     const allowances = leagueEventAllowances(event)
     if (!leagueWarlordWaived(submitted, allowances) && !leagueWarlordValid(submitted))
       return productJson({ outcome: 'invalid-warlords', format: event.format ?? null })
@@ -4539,7 +4515,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       const partner = leagueEntriesFor(tx, event.id).find(
         (row) => row.userId !== input.userId && row.teamId !== undefined && row.teamId === entry.teamId && row.status === 'accepted',
       )
-      const partnerBuilt = partner ? sealedRoster(partner)?.built : undefined
+      const partnerBuilt = rosterSnapshotOrNull(partner?.rosterSnapshot)?.built
       if (partnerBuilt && pointsBudgetOf(partnerBuilt) !== pointsBudgetOf(submitted.built))
         return productJson({ outcome: 'ally-mismatch', pointsBudget: pointsBudgetOf(partnerBuilt) })
     }
@@ -4555,7 +4531,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       const teammate = leagueEntriesFor(tx, event.id).find(
         (row) => row.userId !== input.userId && row.teamId === entry.teamId && row.status === 'accepted',
       )
-      const partner = teammate ? sealedRoster(teammate) : null
+      const partner = rosterSnapshotOrNull(teammate?.rosterSnapshot)
       if (partner && !teamDispositionChoices([submitted, partner]).includes(pick.disposition))
         return productJson({ outcome: 'disposition-dropped', disposition: pick.disposition })
     }

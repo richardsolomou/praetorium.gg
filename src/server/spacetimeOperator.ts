@@ -365,7 +365,6 @@ export class SpacetimeOperator {
     allyIds?: string[]
     opponentIds?: string[]
     guestNames?: string[]
-    initialCommand?: Command
     initialCommands?: Command[]
     now: number
   }) {
@@ -379,7 +378,7 @@ export class SpacetimeOperator {
           allyIds: input.allyIds ?? [],
           opponentIds: input.opponentIds ?? [],
           guestNames: input.guestNames ?? [],
-          initialCommands: input.initialCommands ?? (input.initialCommand ? [input.initialCommand] : []),
+          initialCommands: input.initialCommands ?? [],
           now: input.now,
         }),
       ],

@@ -67,7 +67,7 @@ export function battlesFrom(data: { pages: ({ battles: unknown[] } | undefined)[
   )
 }
 
-export function requireBattlePage<T>(page: T | null | undefined): T {
+function requireBattlePage<T>(page: T | null | undefined): T {
   if (page == null) throw new Error('The battle feed returned no page.')
   return page
 }

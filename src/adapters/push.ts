@@ -12,7 +12,6 @@ export type PushSender = { send: (messages: readonly PushMessage[]) => Promise<v
 
 type PushSenderOptions = {
   accessToken: string
-  checkReceipts?: boolean
   /** Called with devices the service says no longer exist, so they stop being sent to. */
   onUnregistered: (tokens: string[]) => Promise<void> | void
   fetch?: typeof fetch
@@ -139,7 +138,7 @@ export function expoPushSender(options: PushSenderOptions): PushSender {
         })
       }
       await forget(gone)
-      if (tickets.size && options.checkReceipts !== false) later(() => void checkReceipts(tickets), RECEIPT_DELAY_MS)
+      if (tickets.size) later(() => void checkReceipts(tickets), RECEIPT_DELAY_MS)
     },
   }
 }

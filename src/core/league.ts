@@ -8,7 +8,8 @@ import {
   formatRules,
   GAME_SIZES,
   isKotcLimit,
-  POINTS_BUDGET_MAX,
+  ARMY_POINTS_ERROR,
+  validArmyPoints,
   pointsLabel,
   withinArmyPoints,
   waivedFormatRules,
@@ -58,8 +59,7 @@ export function leagueArmyPointsError(format: TableShape, points: Partial<League
   const given = [points.soloPoints, points.allyPoints].filter((value) => value !== null && value !== undefined)
   if (format === '1v1' && given.length) return 'only a team event sets points per army'
   if (format === '2v2' && points.soloPoints != null) return 'a doubles event has no solo player'
-  if (given.some((value) => !Number.isInteger(value) || value < 1 || value > POINTS_BUDGET_MAX))
-    return `choose between 1 and ${POINTS_BUDGET_MAX.toLocaleString('en')} points per army`
+  if (!given.every(validArmyPoints)) return ARMY_POINTS_ERROR
   return null
 }
 

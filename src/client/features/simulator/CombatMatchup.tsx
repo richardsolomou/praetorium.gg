@@ -24,7 +24,7 @@ import { combatMatchup, type CombatAnswer, type CombatantSnapshot, type CombatRe
 import type { CombatAdjustments, TargetAdjustment, WeaponAdjustment } from '../../../core/combatAdjustments'
 import { wargearKey } from '../../../core/wargear'
 import { CombatRuleLabel } from './CombatRuleLabel'
-import { Chip, Choice, PhaseIcon } from './CombatControls'
+import { Chip, Choice, PHASE_TITLES, PhaseIcon } from './CombatControls'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CombatResults } from './CombatResults'
 import { LoadoutOddsContext, LoadoutOptimizationContext, type LoadoutOptimization } from './LoadoutOdds'
@@ -428,7 +428,7 @@ export function CombatMatchup({
     if (sourceOptions.woundReroll !== 'none' && resolved.woundReroll === sourceOptions.woundReroll)
       sourced.push(`${sourceOptions.woundReroll === 'ones' ? 'Re-roll wound 1s' : 'Re-roll wounds'} from rules`)
     for (const scope of ['all', phase] as const) {
-      const name = scope === 'all' ? 'All' : phase === 'ranged' ? 'Shooting' : 'Melee'
+      const name = scope === 'all' ? 'All' : PHASE_TITLES[phase]
       const attack = adjustments[scope] ?? {}
       const weapon = weaponAdjustment(scope)
       for (const [field, label] of [

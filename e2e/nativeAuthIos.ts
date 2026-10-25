@@ -278,14 +278,16 @@ async function seedSavedApp(updated = false) {
     userId: fixtureUserId,
     opponentIds: opponentIds.slice(0, 1),
     now: Date.now(),
-    initialCommand: {
-      kind: 'configure-battle',
-      limit: 2000,
-      missionPackId: null,
-      terrainLayoutId: null,
-      twistId: null,
-      clockLimitMinutes: null,
-    },
+    initialCommands: [
+      {
+        kind: 'configure-battle',
+        limit: 2000,
+        missionPackId: null,
+        terrainLayoutId: null,
+        twistId: null,
+        clockLimitMinutes: null,
+      },
+    ],
   })
 }
 

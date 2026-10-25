@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto'
 import type { BrowserContextOptions, Locator, Page } from '@playwright/test'
 import { expect } from '@playwright/test'
+import { PHASES } from '../src/core/battle'
 import type { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { PREVIEW_EMAIL, PREVIEW_PASSWORD } from '../scripts/seedPreview'
 import { productOperator, savedWork, userIdFor } from './storage'
@@ -308,7 +309,7 @@ async function pressUntilChosen(choice: Locator, button: Locator) {
 }
 
 /** Tests that are not about deployment order use the first side as the defender, unless one was chosen. */
-export async function chooseDefender(page: Page) {
+async function chooseDefender(page: Page) {
   const choice = page.getByRole('group', { name: 'Defender', exact: true })
   await pressUntilChosen(choice, choice.getByRole('button').first())
 }
@@ -395,7 +396,7 @@ const drawPrompt = (page: Page) => page.getByRole('dialog', { name: /secondary m
 /** What the turn the other side just finished owed this one, asked as the turn arrives. */
 const owedPrompt = (page: Page) => page.getByRole('dialog', { name: /^Scoring end of (their turn|battle)/ })
 
-export async function dismissBattleReminder(page: Page) {
+async function dismissBattleReminder(page: Page) {
   const reminder = page.getByRole('dialog', { name: /^Battle reminders?$/ })
   if (!(await reminder.isVisible().catch(() => false))) return false
   await reminder.getByRole('button', { name: /^(Dismiss|End the phase|Continue to end of turn)$/ }).click()
@@ -558,6 +559,11 @@ export async function advance(page: Page, { dismissReminders = true }: { dismiss
   }
 }
 
+/** Ends all six phases of the current turn. */
+export async function playTurn(page: Page) {
+  for (let phase = 0; phase < PHASES.length; phase += 1) await advance(page)
+}
+
 export async function startBattle(page: Page, firstSide?: string, takeOpeningTurn = true, openingSecondaries: readonly string[] = []) {
   await chooseBattlefield(page)
   await setupStep(page, 'Secondaries')
@@ -648,6 +654,25 @@ export async function scrollSearchResultIntoView(page: Page, result: Locator) {
     await result.scrollIntoViewIfNeeded({ timeout: 100 })
     await expect(result).toBeInViewport({ timeout: 100 })
   }).toPass({ timeout: 15000 })
+}
+
+/** The smallest Necrons list an event will seal, a Skorpekh Lord as its Warlord, and its roster id. */
+export async function sealableRoster(page: Page, name: string, { size, extraUnit }: { size?: RegExp; extraUnit?: string } = {}) {
+  await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name, size })
+  await page.getByLabel('Add a unit').fill('Skorpekh Lord')
+  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Skorpekh Lord', exact: true }).first().click())
+  await page.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
+  await makeWarlord(page, 'Skorpekh Lord')
+  if (extraUnit) {
+    await page.getByLabel('Add a unit').fill(extraUnit)
+    await waitForRosterSave(page, () =>
+      page
+        .getByRole('button', { name: `Add ${extraUnit}`, exact: true })
+        .first()
+        .click(),
+    )
+  }
+  return new URL(page.url()).pathname.split('/').at(-1)!
 }
 
 /** The first eligible character a list adds is its Warlord already, so only another one needs choosing. */

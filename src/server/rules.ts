@@ -22,11 +22,18 @@ export function loadRules(...args: Parameters<typeof loadRulesSteps>): LoadedRul
 
 export function* loadRulesSteps(
   directory = catalogueDirectory(),
-  battlemasterDirectory = path.join(directory, 'battlemaster'),
-  iconDirectory = fs.existsSync(path.join(directory, 'icons')) ? path.join(directory, 'icons') : path.join(directory, 'faction-icons'),
-  datacardsDirectory = path.join(directory, 'datacards', '11th', 'gdc'),
-  /** The cards the catalogue already read, so one snapshot is parsed once. */
-  loadedDatacards?: LoadedDatacards,
+  {
+    battlemasterDirectory = path.join(directory, 'battlemaster'),
+    iconDirectory = fs.existsSync(path.join(directory, 'icons')) ? path.join(directory, 'icons') : path.join(directory, 'faction-icons'),
+    datacardsDirectory = path.join(directory, 'datacards', '11th', 'gdc'),
+    loadedDatacards,
+  }: {
+    battlemasterDirectory?: string
+    iconDirectory?: string
+    datacardsDirectory?: string
+    /** The cards the catalogue already read, so one snapshot is parsed once. */
+    loadedDatacards?: LoadedDatacards
+  } = {},
 ): Steps<LoadedRules | null> {
   const datacards = loadedDatacards ?? (yield* loadDatacardsSteps(datacardsDirectory))
   const factions = factionsFromDatacards(datacards, iconDirectory)

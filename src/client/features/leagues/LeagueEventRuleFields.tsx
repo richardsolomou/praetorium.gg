@@ -32,6 +32,7 @@ import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core
 import { Choice } from '../../components/Choice'
 import { SWISS_ROUNDS_MAX } from '../../../core/swiss'
 import { leagueAllowances } from './leagueEvent'
+import { asSentence, countLabel } from '../../text'
 
 /** `rounds` is the Swiss rounds the organizer pairs, or null for open play. */
 type LeagueEventRuleValue = {
@@ -221,7 +222,7 @@ function ArmyPointsFields({
       </div>
       {error ? (
         <p role="alert" className="text-xs text-destructive">
-          {error[0]!.toUpperCase() + error.slice(1)}.
+          {asSentence(error)}
         </p>
       ) : null}
       <p className="text-xs text-dim">
@@ -280,7 +281,7 @@ function Pairing({
             <SelectContent>
               {Array.from({ length: SWISS_ROUNDS_MAX }, (_, index) => index + 1).map((rounds) => (
                 <SelectItem key={rounds} value={String(rounds)}>
-                  {rounds === 1 ? '1 round' : `${rounds} rounds`}
+                  {countLabel(rounds, 'round')}
                 </SelectItem>
               ))}
             </SelectContent>

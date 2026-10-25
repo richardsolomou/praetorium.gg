@@ -6,6 +6,7 @@ import { ATTACHMENT_LABELS } from '../../../core/attachmentRows'
 import { rulesVersionLabel } from '../../../core/catalogueEdition'
 import { datasheetProfilesByKind } from '../../../core/datasheetStructure'
 import type { RosterPick } from '../../../core/roster'
+import { stratagemTiming } from '../../../core/reminders'
 import { nicknamedUnit } from '../../../core/unitNotes'
 import type { FormatRuleId, OptionalRuleId } from '../../../core/battle'
 import { pickedOptionalRules, pointsBudgetOf, waivedFormatRules } from '../../../core/battle'
@@ -349,19 +350,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
                 <h3>
                   {stratagem.name} · {stratagem.cp} CP
                 </h3>
-                <p>
-                  {[
-                    stratagem.detachment,
-                    written?.type,
-                    stratagem.phases?.length
-                      ? `${stratagem.phases.map((phase) => phase[0]!.toUpperCase() + phase.slice(1)).join(', ')} phase`
-                      : 'Any phase',
-                    stratagem.turn === 'your-turn' ? 'Your turn' : stratagem.turn === 'opponent-turn' ? 'Opponent’s turn' : 'Either turn',
-                    stratagem.limit === 'unlimited' ? 'No use limit' : `Once per ${stratagem.limit.replace('-', ' ')}`,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </p>
+                <p>{[stratagem.detachment, written?.type, ...stratagemTiming(stratagem)].filter(Boolean).join(' · ')}</p>
                 {written?.description ? <RuleText text={written.description} /> : <p>No description is available.</p>}
               </section>
             )

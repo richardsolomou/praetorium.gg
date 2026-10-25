@@ -17,6 +17,7 @@ import { UnitPicker } from '../../components/UnitPicker'
 import { LoadoutOddsContext, LoadoutOddsStatus, LoadoutOptimizationContext, useOptionNote, useProfileNote } from './LoadoutOdds'
 import { useLoadoutOdds } from './useLoadoutOdds'
 import { namespaceLoadoutSpace } from '../../../core/combatLoadouts'
+import { attachedProfilePrefix } from '../../../core/combatScenario'
 import { WeaponProfileNote } from '../../components/DatasheetProfiles'
 import type { Combatant } from './useCombatant'
 import { useLoadoutOptimizer } from './useLoadoutOptimizer'
@@ -514,7 +515,7 @@ function CombatMemberLoadout({ combatant, index, busy }: { combatant: Combatant;
   const context = useContext(LoadoutOptimizationContext)
   const primary = index === combatant.pickIndex
   const memberIndex = (combatant.sheets.data?.companions.findIndex((member) => member.pickIndex === index) ?? -1) + 1
-  const prefix = primary ? '' : `attached:${index}:`
+  const prefix = primary ? '' : attachedProfilePrefix(index)
   const loadouts = useQuery({
     ...combatLoadoutsQuery({
       catalogueId: combatant.catalogueId,

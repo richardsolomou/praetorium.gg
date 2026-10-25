@@ -6,6 +6,7 @@ import type {
   ReferenceSection,
 } from '../contracts/reference'
 import { distance } from 'fastest-levenshtein'
+import { foldedText } from '../core/text'
 import type { ReferenceCorpus } from './referenceCorpus'
 
 export const REFERENCE_QUERY_MAX_LENGTH = 120
@@ -120,12 +121,8 @@ function encodeCursor(offset: number) {
 
 export function validReferenceCursor(cursor: string | undefined) {
   if (!cursor) return true
-  try {
-    const decoded = Buffer.from(cursor, 'base64url').toString('utf8')
-    return /^\d+$/.test(decoded) && Number(decoded) <= 10_000 && encodeCursor(Number(decoded)) === cursor
-  } catch {
-    return false
-  }
+  const decoded = Buffer.from(cursor, 'base64url').toString('utf8')
+  return /^\d+$/.test(decoded) && Number(decoded) <= 10_000 && encodeCursor(Number(decoded)) === cursor
 }
 
 function decodeCursor(cursor: string | undefined) {
@@ -221,10 +218,6 @@ const singular = (value: string) => {
 }
 
 const normalize = (value: string) =>
-  value
-    .normalize('NFKD')
-    .replaceAll(/\p{M}/gu, '')
-    .replaceAll(/[‘’ʼ]/g, "'")
-    .toLocaleLowerCase()
+  foldedText(value)
     .replaceAll(/[^\p{L}\p{N}]+/gu, ' ')
     .trim()

@@ -1,7 +1,7 @@
 import { partialMatchKey, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import { MAX_LOCAL_OPERATIONS, type LocalOperation } from '../contracts/localState'
 import type { OfflineActionKind } from '../contracts/offlineActions'
-import { battleKey, reportKey } from './queries/queryKeys'
+import { adminKey, battleKey, reportKey } from './queries/queryKeys'
 
 const queryFamilies = {
   rosters: [
@@ -172,7 +172,7 @@ export function invalidateEveryProductQuery(queryClient: QueryClient, signedIn: 
 
 export function invalidateAdminProductQueries(queryClient: QueryClient, scope?: string) {
   if (scope !== undefined && scope !== 'admin-users') return Promise.resolve()
-  return queryClient.invalidateQueries({ queryKey: ['admin'] })
+  return queryClient.invalidateQueries({ queryKey: adminKey() })
 }
 
 /**

@@ -1,4 +1,5 @@
 import type { CombatAttack } from '../../../core/combatScenario'
+import { attachedProfilePrefix } from '../../../core/combatScenario'
 
 export type PreferenceMember = { identity: string; pickIndex: number; profileIds: readonly string[] }
 export type StoredWeaponPreferences = Record<string, { profileIds: readonly string[]; choices: Record<string, string> }>
@@ -10,8 +11,8 @@ export function storeWeaponPreferences(
 ): StoredWeaponPreferences {
   const stored = { ...previous }
   members.forEach((member, ordinal) => {
-    const prefix = ordinal ? `attached:${ordinal}:` : ''
-    const profilePrefix = ordinal ? `attached:${member.pickIndex}:` : ''
+    const prefix = ordinal ? attachedProfilePrefix(ordinal) : ''
+    const profilePrefix = ordinal ? attachedProfilePrefix(member.pickIndex) : ''
     const profileIds = member.profileIds.map((id) => (profilePrefix && id.startsWith(profilePrefix) ? id.slice(profilePrefix.length) : id))
     const choices = Object.fromEntries(
       Object.entries(preferences)
@@ -39,8 +40,8 @@ export function restoreWeaponPreferences(
     members.flatMap((member, ordinal) => {
       const previous = stored[member.identity]
       if (!previous) return []
-      const prefix = ordinal ? `attached:${ordinal}:` : ''
-      const profilePrefix = ordinal ? `attached:${member.pickIndex}:` : ''
+      const prefix = ordinal ? attachedProfilePrefix(ordinal) : ''
+      const profilePrefix = ordinal ? attachedProfilePrefix(member.pickIndex) : ''
       const currentIds = new Set(
         member.profileIds.map((id) => (profilePrefix && id.startsWith(profilePrefix) ? id.slice(profilePrefix.length) : id)),
       )

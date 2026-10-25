@@ -349,3 +349,13 @@ export function parseRosterSnapshot(snapshot: string): Roster {
   if (command.kind !== 'attach-roster') throw new Error('expected a roster snapshot')
   return command.roster
 }
+
+/** A saved roster snapshot, or null where there is none or it no longer parses. */
+export function rosterSnapshotOrNull(snapshot: string | null | undefined): Roster | null {
+  if (!snapshot) return null
+  try {
+    return parseRosterSnapshot(snapshot)
+  } catch {
+    return null
+  }
+}

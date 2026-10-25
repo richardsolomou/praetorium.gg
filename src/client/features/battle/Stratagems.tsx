@@ -6,6 +6,7 @@ import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { type Command, isNewOrders, STRATAGEM_CP_MAX } from '../../../core/battle'
 import { type BattleView } from '../../../core/battleView'
+import { stratagemTiming } from '../../../core/reminders'
 import type { Side } from '../../sides'
 import { hiddenNow, stratagemVisibleNow } from './stratagemVisibility'
 import { RuleText } from '../../components/RuleText'
@@ -129,14 +130,7 @@ function StratagemCard({
     if (newOrders) setNewOrdersCost(cp)
     else onUse(cp === stratagem.cp ? undefined : cp)
   }
-  const timing = [
-    written?.type,
-    stratagem.phases?.length ? `${stratagem.phases.map(title).join(', ')} phase` : 'Any phase',
-    stratagem.turn === 'your-turn' ? 'Your turn' : stratagem.turn === 'opponent-turn' ? 'Opponent’s turn' : 'Either turn',
-    stratagem.limit === 'unlimited' ? 'No use limit' : `Once per ${stratagem.limit.replace('-', ' ')}`,
-  ]
-    .filter(Boolean)
-    .join(' · ')
+  const timing = [written?.type, ...stratagemTiming(stratagem)].filter(Boolean).join(' · ')
   return (
     <div className={`${CARD} flex items-center gap-1.5`}>
       <BattlePromptDialog minimizedLabel={stratagem.name} resumeLabel="Return to stratagem">
@@ -247,9 +241,6 @@ function StratagemCard({
     </div>
   )
 }
-
-/** The source stores phases in lower case; every other name on screen is titled. */
-const title = (value: string) => value.charAt(0).toLocaleUpperCase() + value.slice(1)
 
 /** The printed price, and the neighbouring ones a board state can move it to. */
 function costChoices(printed: number) {

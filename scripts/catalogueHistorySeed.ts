@@ -16,7 +16,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import { type ChangeSource, catalogueChanges } from '../src/core/catalogueChanges'
-import { appendHistory, CATALOGUE_HISTORY_FORMAT, type CatalogueHistoryEntry } from '../src/core/catalogueHistory'
+import { appendHistory, type CatalogueHistoryEntry } from '../src/core/catalogueHistory'
+import { writeCatalogueHistory } from '../src/server/catalogueHistory'
 import { CANONICAL_CATALOGUE_SOURCE_NAMES } from '../src/server/canonicalCatalogueSources'
 import { catalogueBaseUrl, remoteRevocations } from '../src/server/catalogueSnapshot'
 import { catalogueSourcesSchema } from '../src/server/catalogueSources'
@@ -219,7 +220,7 @@ const { skipped } = await compareInOrder(
 )
 for (const worker of idle) worker.kill()
 for (const { point, reason } of skipped) console.log(`skipped ${point.label}: ${reason}`)
-fs.writeFileSync(out, `${JSON.stringify({ format: CATALOGUE_HISTORY_FORMAT, entries: history })}\n`)
+writeCatalogueHistory(out, history)
 console.log(
   `${history.length} change sets, ${skipped.length} of ${points.length} points skipped, ${out} ${fs.statSync(out).size} bytes, ${Math.round((performance.now() - started) / 1000)}s`,
 )

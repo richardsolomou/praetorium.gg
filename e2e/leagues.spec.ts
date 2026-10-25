@@ -1,8 +1,8 @@
 import { recordEvents } from './telemetry.harness'
 import { expect, test, type Locator, type Page } from './test'
 import { z } from 'zod'
-import { confirmRosterSetup, befriend, createRoster, uniqueName, signUp, waitForRosterSave, makeWarlord } from './account'
-import { productOperator, productSql, userIdFor, withAuthSql } from './storage'
+import { confirmRosterSetup, befriend, createRoster, uniqueName, signUp, waitForRosterSave, makeWarlord, sealableRoster } from './account'
+import { productOperator, productSql, userIdFor, withAuthSql, userIdNamed } from './storage'
 import { holdCombatCalculations } from './combat'
 import type { Command } from '../src/core/battle'
 
@@ -130,9 +130,9 @@ test('revealed rosters compare every unit using frozen loadouts and preserve lea
   const opponentName = uniqueName('Comparison opponent')
   await signUp(owner, ownerName)
   await signUp(opponent, opponentName)
-  await sealableRoster(owner, 'Comparison defenders', 'Immortals')
+  await sealableRoster(owner, 'Comparison defenders', { extraUnit: 'Immortals' })
   const savedUrl = owner.url()
-  await sealableRoster(opponent, 'Comparison attackers', 'Lokhust Destroyers')
+  await sealableRoster(opponent, 'Comparison attackers', { extraUnit: 'Lokhust Destroyers' })
   await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('Comparison league'))
@@ -338,10 +338,7 @@ async function sealEventRosters(leagueToken: string) {
 }
 
 async function createTournamentWithoutFormat(ownerName: string, leagueName: string) {
-  const owner = await withAuthSql(
-    (database) => database.prepare('SELECT id FROM user WHERE name = ? LIMIT 1').get(ownerName) as { id: string } | undefined,
-  )
-  if (!owner) throw new Error('The tournament owner is missing.')
+  const ownerId = await userIdNamed(ownerName)
   const token = crypto.randomUUID()
   const product = await productOperator()
   await product.leagueCommand(
@@ -351,7 +348,7 @@ async function createTournamentWithoutFormat(ownerName: string, leagueName: stri
       token,
       eventId: crypto.randomUUID(),
       eventToken: crypto.randomUUID(),
-      ownerId: owner.id,
+      ownerId,
       name: leagueName,
       description: '',
       visibility: 'public',
@@ -367,17 +364,14 @@ async function createTournamentWithoutFormat(ownerName: string, leagueName: stri
 }
 
 async function seedRosters(playerName: string, values: { name: string; limit: number }[]) {
-  const player = await withAuthSql(
-    (database) => database.prepare('SELECT id FROM user WHERE name = ? LIMIT 1').get(playerName) as { id: string } | undefined,
-  )
-  if (!player) throw new Error('The roster test player is missing.')
+  const playerId = await userIdNamed(playerName)
   const now = Date.now()
   const product = await productOperator()
   for (const [index, value] of values.entries()) {
-    const id = `${player.id}-${value.limit}-${index}`
+    const id = `${playerId}-${value.limit}-${index}`
     await product.saveRoster({
       id,
-      userId: player.id,
+      userId: playerId,
       name: value.name,
       catalogueId: 'test-catalogue',
       detachmentId: null,
@@ -572,22 +566,6 @@ function viewRoster(scope: Page | Locator, name: string) {
 }
 
 /** A roster a league accepts: one Warlord, plus whatever else it is asked to field. */
-async function sealableRoster(page: Page, name: string, extraUnit?: string) {
-  await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name })
-  await page.getByLabel('Add a unit').fill('Skorpekh Lord')
-  await page.getByRole('button', { name: 'Add Skorpekh Lord', exact: true }).first().click()
-  await page.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
-  await makeWarlord(page, 'Skorpekh Lord')
-  if (!extraUnit) return
-  await page.getByLabel('Add a unit').fill(extraUnit)
-  await waitForRosterSave(page, () =>
-    page
-      .getByRole('button', { name: `Add ${extraUnit}`, exact: true })
-      .first()
-      .click(),
-  )
-}
-
 async function join(page: Page) {
   await eventLoaded(page)
   const button = page.getByRole('button', { name: /^(?:Join tournament|Join as a player)$/ })
@@ -1020,7 +998,7 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   await sealableRoster(owner, 'Organizer list')
   const organizerRosterUrl = owner.url()
   await sealableRoster(entrant, 'Mistaken list')
-  await sealableRoster(entrant, 'Corrected list', 'Lokhust Destroyers')
+  await sealableRoster(entrant, 'Corrected list', { extraUnit: 'Lokhust Destroyers' })
   await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('Unseal League'))
@@ -1458,10 +1436,7 @@ test('an organizer adds friends to an event without waiting for them to ask', as
   await expect(first.getByRole('button', { name: 'Choose a roster' })).toBeVisible()
 
   // The server, not the picker, decides who may be added: a stranger is refused.
-  const strangerRow = await withAuthSql(
-    (database) => database.prepare('SELECT id FROM user WHERE name = ? LIMIT 1').get(names[3]) as { id: string } | undefined,
-  )
-  if (!strangerRow) throw new Error('The stranger is missing.')
+  const strangerId = await userIdNamed(names[3]!)
   const { ownerId } = await tournamentEvent(leagueToken)
   const product = await productOperator()
   const outcome = await product.leagueCommand(
@@ -1469,7 +1444,7 @@ test('an organizer adds friends to an event without waiting for them to ask', as
       op: 'add',
       token: leagueToken,
       ownerId,
-      userIds: [strangerRow.id],
+      userIds: [strangerId],
       memberLimit: 128,
       now: Date.now(),
       eventToken: '',

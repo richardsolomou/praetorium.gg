@@ -911,13 +911,7 @@ const discardableSecondaries = (side: Side) =>
     ? side.secondaries.filter((card) => !card.secret && card.status === 'active').map((card) => card.key)
     : []
 
-/**
- * The shape of the table, and only that.
- *
- * A seat nobody signs in to does not change what is being played — a 2v1 with one in
- * it is a 2v1 — and the seat is already named after what it is, so saying "practice"
- * here was the same fact told twice.
- */
+/** The shape of the table only: a seat nobody signs in to is already named for what it is. */
 function formatName(table: Side[]) {
   return table
     .map((side) => side.armies.length)

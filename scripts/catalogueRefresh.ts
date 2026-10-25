@@ -15,8 +15,8 @@ import { privateR2Client } from '../src/server/r2Client'
 import { fetchInto } from '../src/server/sync'
 import { loadMfm, mfmVersions } from '../src/server/mfm'
 import { catalogueChanges } from '../src/core/catalogueChanges'
-import { appendHistory, CATALOGUE_HISTORY_FORMAT } from '../src/core/catalogueHistory'
-import { CATALOGUE_HISTORY_FILE, loadCatalogueHistory, parseCatalogueHistory } from '../src/server/catalogueHistory'
+import { appendHistory } from '../src/core/catalogueHistory'
+import { CATALOGUE_HISTORY_FILE, loadCatalogueHistory, writeCatalogueHistory } from '../src/server/catalogueHistory'
 import { materializeCatalogue } from './lib/catalogueMaterialize'
 import { resolveCatalogueUpstream } from './lib/catalogueUpstream'
 import { refreshLiveCatalogue } from './lib/liveCatalogue'
@@ -129,11 +129,7 @@ await refreshLiveCatalogue(
         recordedAt: Date.now(),
         changes: catalogueChanges(older, newer),
       })
-      const historyFile = path.join(directory, CATALOGUE_HISTORY_FILE)
-      const historyJson = JSON.stringify({ format: CATALOGUE_HISTORY_FORMAT, entries: history })
-      if (!parseCatalogueHistory(historyJson, historyFile)) throw new Error('Runtime catalogue history exceeds its schema or size limit')
-      fs.mkdirSync(path.dirname(historyFile), { recursive: true })
-      fs.writeFileSync(historyFile, historyJson)
+      writeCatalogueHistory(path.join(directory, CATALOGUE_HISTORY_FILE), history)
     }
     const publicDirectory = await prepareCatalogueOutputs(directory, staging, compiler)
     const manifestFile = path.join(publicDirectory, 'offline-reference-version.json')

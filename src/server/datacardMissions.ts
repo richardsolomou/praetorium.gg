@@ -3,8 +3,7 @@ import { whenDrawnCondition } from '../shared/datacards'
 import { compareText } from '../core/text'
 import type { Mission, MissionCard, Award, AwardTrigger } from './rulesCards'
 import { english, type MissionPack, packText } from './missionPacks'
-import { actionsIn } from './missionActions'
-import { criteriaKey } from './missionCriteria'
+import { actionsIn, missionCardKey } from './missionActions'
 import type { WhenDrawn } from '../contracts/missions'
 import { missionSelectionKind } from './missionSelections'
 
@@ -56,7 +55,7 @@ function whenDrawn(text: string | null, ids: ReadonlyMap<string, string>, condit
       plain,
     )
   if (paired) {
-    const id = ids.get(criteriaKey(paired[1]!))
+    const id = ids.get(missionCardKey(paired[1]!))
     return id ? { operation: 'redraw', roundMax: null, required: false, heldCards: [id], condition: null } : null
   }
   return whenDrawnCondition(plain) && condition ? { operation: 'replace', roundMax: null, heldCards: [], condition } : null
@@ -99,7 +98,7 @@ function cardOf(
     name,
     text: packText(pack, raw.description),
     awards,
-    actions: actions.get(criteriaKey(name)) ?? [],
+    actions: actions.get(missionCardKey(name)) ?? [],
     whenDrawn: whenDrawn(english(raw.description), ids, packText(pack, raw.description, 'condition')),
     selection: missionSelectionKind(pack.id, raw),
   }
@@ -111,7 +110,7 @@ export function missionCardsFromDatacards(packs: readonly MissionPack[]): { prim
     packs.flatMap((pack) =>
       records(pack.secondaryMissions).flatMap((card) => {
         const name = english(card.name)
-        return name && typeof card.id === 'string' ? [[criteriaKey(name), card.id] as const] : []
+        return name && typeof card.id === 'string' ? [[missionCardKey(name), card.id] as const] : []
       }),
     ),
   )

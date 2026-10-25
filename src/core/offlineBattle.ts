@@ -1,6 +1,5 @@
 import { sameSide, playsSide } from './battlePrimitives'
 import { mayNameCard, reduceBattle, commandArmy, validate, type Command, type LoggedCommand } from './battle'
-import { battleView } from './battleView'
 import { rosterWithoutUnitNotes } from './unitNotes'
 
 type Players = { id: string; name: string; side: number; automated: boolean }[]
@@ -63,10 +62,6 @@ export function localBattleState(players: Players, log: readonly LoggedCommand[]
     players.map((player) => player.side),
     players.filter((player) => player.automated).map((player) => player.id),
   )
-}
-
-export function localBattleView(battle: { token: string }, players: Players, log: readonly LoggedCommand[], viewerId: string) {
-  return battleView(battle, players, localBattleState(players, log), viewerId)
 }
 
 export function resolveLocalDraw(

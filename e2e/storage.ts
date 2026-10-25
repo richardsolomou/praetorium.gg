@@ -64,6 +64,15 @@ export async function userIdFor(email: string, directory = root) {
   return user.id
 }
 
+export async function userIdNamed(name: string, directory = root) {
+  const user = await withAuthSql(
+    (database) => database.prepare('SELECT id FROM user WHERE name = ?').get(name) as { id: string } | undefined,
+    directory,
+  )
+  if (!user) throw new Error(`No account is named ${name}.`)
+  return user.id
+}
+
 function literal(value: Value): string {
   if (value === null) return 'NULL'
   if (typeof value === 'string') return `'${value.replaceAll("'", "''")}'`

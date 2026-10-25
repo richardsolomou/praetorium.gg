@@ -9,6 +9,7 @@ import { LeaguePageActions, useLeagueActions } from './LeagueActions'
 import { LeagueEventView } from './LeagueEventView'
 import { EventSchedule } from './EventSchedule'
 import { eventName, leagueAllowances, leagueFormat, leagueNoun, leaguePhase, leaguePlayers, type League } from './leagueEvent'
+import { countLabel } from '../../text'
 
 export function LeaguePage({ token, startBattle, chooseRoster }: { token: string; startBattle?: boolean; chooseRoster?: boolean }) {
   const navigate = useNavigate()
@@ -58,7 +59,7 @@ function LeagueScreen({
             {[
               // A sealed game's title already says its format and points.
               league.club ? null : leagueFormat(league),
-              league.rounds ? `Swiss, ${league.rounds} ${league.rounds === 1 ? 'round' : 'rounds'}` : null,
+              league.rounds ? `Swiss, ${countLabel(league.rounds, 'round')}` : null,
               leagueAllowances(league),
               leaguePlayers(league, accepted),
             ]

@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { app } from '../app'
 import { currentUserId, requireUser } from '../playerSession'
 import { mutationRpc, rpc } from '../rpc'
-import { dismissLeagueRosterSharingSchema, shareLeagueRosterSchema } from '../../contracts/leagueRosterSharing'
+import { shareLeagueRosterSchema } from '../../contracts/leagueRosterSharing'
 import {
   addLeagueEntrantsSchema,
   admitLeagueEntriesSchema,
@@ -219,7 +219,7 @@ export const shareLeagueRoster = createServerFn({ method: 'POST' })
   )
 
 export const dismissLeagueRosterSharing = createServerFn({ method: 'POST' })
-  .validator(dismissLeagueRosterSharingSchema)
+  .validator(leagueEventSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()

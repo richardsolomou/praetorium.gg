@@ -103,8 +103,8 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     if (!method || !options.captureAuthentication) return
     try {
       await options.captureAuthentication(userId, event, { method })
-    } catch {
-      ;(await auth.$context).logger.error('Authentication analytics capture failed')
+    } catch (error) {
+      ;(await auth.$context).logger.error('Authentication analytics capture failed', error)
     }
   }
 
@@ -146,9 +146,8 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
           ? { token: accessToken, type: 'access_token' as const }
           : undefined
       if (token) await revokeAppleToken(configuredApple, token)
-    } catch {
-      const context = await auth.$context
-      context.logger.error('Apple token revocation failed before account removal')
+    } catch (error) {
+      ;(await auth.$context).logger.error('Apple token revocation failed before account removal', error)
     }
   }
 
@@ -258,7 +257,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
             if (created.providerId === 'github')
               await options
                 .githubLinked?.()
-                .catch(async () => (await auth.$context).logger.error('GitHub sponsor refresh failed after linking'))
+                .catch(async (error: unknown) => (await auth.$context).logger.error('GitHub sponsor refresh failed after linking', error))
           },
         },
       },

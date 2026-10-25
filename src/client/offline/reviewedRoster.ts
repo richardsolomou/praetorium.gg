@@ -4,7 +4,7 @@ import type { syncRoster } from '../../server/functions/offline'
 
 export type ReviewedServerSave = Pick<Parameters<typeof syncRoster>[0]['data'], 'operationId' | 'expectedVersion'>
 
-export function rosterSaveKey(value: unknown) {
+function rosterSaveKey(value: unknown) {
   if (!value || typeof value !== 'object') return null
   const roster = value as RosterInput & { automaticName?: boolean }
   const parsed = saveRosterSchema.safeParse({

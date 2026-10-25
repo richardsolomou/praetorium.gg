@@ -113,7 +113,7 @@ it.skipIf(!url || !database || !token)('rolls back battle creation when an initi
       token: battleToken,
       userId: randomUUID(),
       opponentIds: [randomUUID()],
-      initialCommand: { kind: 'begin-battle', firstPlayerId: randomUUID() },
+      initialCommands: [{ kind: 'begin-battle', firstPlayerId: randomUUID() }],
       now: Date.now(),
     }),
   ).rejects.toThrow()

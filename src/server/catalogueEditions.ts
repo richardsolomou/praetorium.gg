@@ -55,13 +55,11 @@ export function catalogueEditionLoaders(
         const target = configuration.base ? directory : path.join(directory, 'editions', editionId)
         const catalogue = yield* loadCatalogueSteps(target, configuration.edition)
         if (!catalogue) throw new Error(`edition ${editionId} has no catalogue data`)
-        const rules = yield* loadRulesSteps(
-          target,
-          path.join(directory, 'battlemaster'),
-          path.join(directory, 'icons'),
-          undefined,
-          catalogue.datacards,
-        )
+        const rules = yield* loadRulesSteps(target, {
+          battlemasterDirectory: path.join(directory, 'battlemaster'),
+          iconDirectory: path.join(directory, 'icons'),
+          loadedDatacards: catalogue.datacards,
+        })
         const result: EditionContext = { catalogue, rules, canonical: new Map() }
         cache.set(editionId, result)
         return result
@@ -369,7 +367,7 @@ export function writeEditionCanonicalCatalogues(directory: string, primary: Cano
   fs.rmSync(output, { force: true })
   const loaded = loadCatalogue(directory)
   if (!loaded) throw new Error('catalogue data is unavailable')
-  const rules = loadRules(directory, undefined, undefined, undefined, loaded.datacards)
+  const rules = loadRules(directory, { loadedDatacards: loaded.datacards })
   const editions = catalogueEditionLoaders(
     directory,
     () => loaded,

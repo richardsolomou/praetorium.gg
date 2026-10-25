@@ -15,6 +15,7 @@ import {
   ABILITY_REMINDERS_FULL,
   armyReminderKey,
   type AbilityReminder,
+  TURN_LABELS,
 } from '../../../core/reminders'
 import { TURN_SCOPES, type TurnScope } from '../../../core/battle'
 import { RuleText } from '../../components/RuleText'
@@ -29,12 +30,6 @@ const MOMENTS: { value: ReminderMoment; label: string }[] = [
   { value: 'round-start', label: 'Start of round' },
   { value: 'round-end', label: 'End of round' },
 ]
-
-const TURN_LABELS: Record<TurnScope, string> = {
-  'your-turn': 'Your turn',
-  'opponent-turn': "Opponent's turn",
-  either: 'Either turn',
-}
 
 const phaseLabel = (phase: ReminderPhase) => (phase === 'any' ? 'Any phase' : phaseName(phase))
 

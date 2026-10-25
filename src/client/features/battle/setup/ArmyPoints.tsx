@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { POINTS_BUDGET_MAX } from '../../../../core/battle'
+import { POINTS_BUDGET_MAX, validArmyPoints } from '../../../../core/battle'
 import { sideName, type Side } from '../../../sides'
 
 const textFor = (chosen: number[] | undefined, side: number) => (chosen?.[side] === undefined ? '' : String(chosen[side]))
@@ -39,7 +39,7 @@ export function ArmyPoints({
     setTexts((current) => current.map((text, side) => (seen?.[side] === chosen?.[side] ? text : textFor(chosen, side))))
   }
   const points = texts.map((text, side) => (text.trim() ? Number(text) : defaults[side]!))
-  const invalid = (value: number) => !Number.isInteger(value) || value < 1 || value > POINTS_BUDGET_MAX
+  const invalid = (value: number) => !validArmyPoints(value)
   const commit = () => {
     if (points.some(invalid)) return
     const next = points.every((value, side) => value === defaults[side]) ? null : points

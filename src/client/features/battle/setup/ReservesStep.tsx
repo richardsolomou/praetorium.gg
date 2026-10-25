@@ -18,7 +18,7 @@ import { RuleText } from '../../../components/RuleText'
 import { type Army, type Side } from '../../../sides'
 import { formationLabel, SetupNote, SetupSidePanel } from './chrome'
 import { reserveSections, reserveUnitLabel } from './reservesModel'
-import { asSentence } from '../useCommand'
+import { asSentence } from '../../../text'
 import { Problem } from '../../../components/Problem'
 
 type FormationCommand = Extract<Command, { kind: 'set-unit-formation' }>

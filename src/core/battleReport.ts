@@ -25,6 +25,7 @@ import {
   pointsSize,
   transportLabel,
 } from './battle'
+import { capitalised } from './text'
 
 /** One thing that happened, in the words a player would use about it. */
 export type ReportEntry = {
@@ -327,8 +328,4 @@ function drawDescription(
 }
 
 /** A slug the data never gave a printed name, put into the case a sentence needs. */
-const titled = (slug: string) =>
-  slug
-    .split('-')
-    .map((word) => word.charAt(0).toLocaleUpperCase() + word.slice(1))
-    .join(' ')
+const titled = (slug: string) => slug.split('-').map(capitalised).join(' ')

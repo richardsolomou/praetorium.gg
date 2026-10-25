@@ -10,6 +10,7 @@ import { useDateFormatting } from '../../dates'
 import { clubsQuery, meQuery } from '../../queries'
 import { LEAGUE_CARD } from '../leagues/LeagueActions'
 import { ClubSettingsDialog } from './ClubSettingsDialog'
+import { countLabel } from '../../text'
 
 type ClubSummary = Awaited<ReturnType<NonNullable<ReturnType<typeof clubsQuery>['queryFn']>>>[number]
 
@@ -92,7 +93,7 @@ function ClubShelf({ title, clubs }: { title: string; clubs: readonly ClubSummar
                     <span className="truncate text-dim">{club.lastBattleAt ? `Last game ${date(club.lastBattleAt)}` : 'No games yet'}</span>
                   )}
                   <span className="ml-auto shrink-0 text-xs text-dim readout">
-                    {plural(club.memberCount, 'member')} · {plural(club.battleCount, 'game')}
+                    {countLabel(club.memberCount, 'member')} · {countLabel(club.battleCount, 'game')}
                   </span>
                 </div>
               </Link>
@@ -103,5 +104,3 @@ function ClubShelf({ title, clubs }: { title: string; clubs: readonly ClubSummar
     </section>
   )
 }
-
-const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`

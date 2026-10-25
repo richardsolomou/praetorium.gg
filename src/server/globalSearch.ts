@@ -1,15 +1,15 @@
-import { searchAll, type OwnSearchData } from '../core/referenceSearch'
+import {
+  searchAll,
+  type GlobalSearchIndex,
+  type GlobalSearchResult,
+  type IndexedDatasheet,
+  type IndexedDetachment,
+  type IndexedResult,
+  type OwnSearchData,
+} from '../core/referenceSearch'
 import { withoutText } from '../shared/sourceText'
 
-import type {
-  GlobalSearchIndex,
-  GlobalSearchResult,
-  IndexedResult,
-  IndexedDatasheet,
-  IndexedDetachment,
-} from '../contracts/referenceSearch'
-
-export type { GlobalSearchIndex, GlobalSearchResult } from '../contracts/referenceSearch'
+export type { GlobalSearchIndex, GlobalSearchResult }
 import { nameOf, targetOf } from '../core/catalogue'
 import { datasheetSearchFieldsIn } from '../shared/catalogue'
 import type { LoadedCatalogue } from './catalogueIndex'

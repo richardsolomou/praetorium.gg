@@ -13,8 +13,7 @@ import fs from 'node:fs'
 import { hash } from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
-import { CATALOGUE_HISTORY_FORMAT } from '../src/core/catalogueHistory'
-import { CATALOGUE_HISTORY_FILE, loadCatalogueHistory, parseCatalogueHistory } from '../src/server/catalogueHistory'
+import { CATALOGUE_HISTORY_FILE, loadCatalogueHistory, parseCatalogueHistory, writeCatalogueHistory } from '../src/server/catalogueHistory'
 import {
   catalogueBaseUrl,
   fetchCurrentPointer,
@@ -27,7 +26,7 @@ import {
 import { isSnapshotSourceName, type SnapshotSourceName } from '../src/server/catalogueSources'
 import { fetchCatalogueObject } from '../src/server/catalogueStore'
 import { catalogueChanges, type ChangeSource } from '../src/core/catalogueChanges'
-import { compiledChangeSource } from './lib/catalogueHistoryCompile'
+import { compiledChangeSource, knownRevisions } from './lib/catalogueHistoryCompile'
 import type { WorkerResult } from './catalogueHistoryWorker'
 import { type HistoryPoint, nextHistory } from './lib/catalogueHistoryPlan'
 import { editionMfmVersions, readCatalogueComposition, validateEditionContinuity } from '../src/server/catalogueComposition'
@@ -57,13 +56,6 @@ const compiled = async (label: string, pending: Promise<WorkerResult>): Promise<
   return null
 }
 
-const revisionsIn = (catalogue: string): Record<string, string> =>
-  Object.fromEntries(
-    Object.entries(JSON.parse(fs.readFileSync(path.join(catalogue, 'revision.json'), 'utf8')) as Record<string, string>).filter(([name]) =>
-      isSnapshotSourceName(name),
-    ),
-  )
-
 async function seedHistory() {
   const response = await fetchCatalogueObject(`${base}/changes/seed.json`, { cache: 'no-store' }).catch(() => null)
   if (!response?.ok) {
@@ -87,7 +79,7 @@ try {
       return null
     }
   })()
-  const nextRevisions = revisionsIn(directory)
+  const nextRevisions = knownRevisions(directory)
   const composition = readCatalogueComposition(directory)
   if (composition?.editions.length && !pointer) throw new Error('edition history requires a readable published snapshot')
   if (pointer) {
@@ -111,7 +103,7 @@ try {
   }
   const previous = pointer
     ? {
-        point: { id: pointer.id, revisions: revisionsIn(previousDirectory), recordedAt: 0 } satisfies HistoryPoint,
+        point: { id: pointer.id, revisions: knownRevisions(previousDirectory), recordedAt: 0 } satisfies HistoryPoint,
         history: loadCatalogueHistory(previousDirectory),
         source: await compiled('the published snapshot could not be compiled', previousCompile),
       }
@@ -167,8 +159,7 @@ try {
   console.log(reason)
   const file = path.join(directory, CATALOGUE_HISTORY_FILE)
   if (history) {
-    fs.mkdirSync(path.dirname(file), { recursive: true })
-    fs.writeFileSync(file, `${JSON.stringify({ format: CATALOGUE_HISTORY_FORMAT, entries: history })}\n`)
+    writeCatalogueHistory(file, history)
     console.log(`${file}: ${history.length} change sets${appended ? ', one new' : ''}`)
   } else {
     fs.rmSync(file, { force: true })

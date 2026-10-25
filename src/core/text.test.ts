@@ -1,22 +1,12 @@
-import { afterEach, expect, it, vi } from 'vitest'
-
-afterEach(() => {
-  vi.unstubAllGlobals()
-  vi.resetModules()
-})
-
-it('formats lists without Intl.ListFormat', async () => {
-  vi.stubGlobal('Intl', { ...Intl, ListFormat: undefined })
-  const { formatList } = await import('./text')
-  expect(formatList(['a', 'b', 'c'])).toBe('a, b and c')
-})
+import { expect, it } from 'vitest'
+import { formatList } from './text'
 
 it.each([
   [[], ''],
   [['a'], 'a'],
   [['a', 'b'], 'a and b'],
+  [['a', 'b', 'c'], 'a, b and c'],
   [['a', 'b', 'c', 'd'], 'a, b, c and d'],
-])('formats %j as %s', async (items, expected) => {
-  const { formatList } = await import('./text')
+])('formats %j as %s', (items, expected) => {
   expect(formatList(items)).toBe(expected)
 })

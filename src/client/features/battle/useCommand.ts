@@ -15,6 +15,7 @@ import { writeAppSnapshot } from '../../offline/appStorage'
 import { isFetchNetworkFailure } from '../../networkErrors'
 import { holdingReload } from '../../pendingWrites'
 import type { AbilityReminder } from '../../../core/reminders'
+import { asSentence } from '../../text'
 
 /** A list the server prices and freezes before it is attached: a saved one, or the draft a guest built on this device. */
 export type RosterAttachment =
@@ -35,14 +36,6 @@ function explain(result: SubmitResult, setup: boolean) {
   // Shared setup redraws from the winner; live controls remain available to retry.
   if (result.outcome === 'stale') return 'Your opponent got there first. Try that again.'
   return asSentence(result.reason)
-}
-
-/** Domain refusals are written as clauses; the screen shows them as a sentence. */
-export function asSentence(reason: string) {
-  const text = reason.trim()
-  if (!text) return text
-  const capitalised = text.charAt(0).toLocaleUpperCase() + text.slice(1)
-  return /[.!?…]$/.test(capitalised) ? capitalised : `${capitalised}.`
 }
 
 /**

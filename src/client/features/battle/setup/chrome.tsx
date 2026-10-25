@@ -7,6 +7,7 @@ import { sideName, type Side } from '../../../sides'
 import { tint } from '../battleTints'
 import { SidePlayers } from '../PlayerName'
 import { dispositionTone } from '../../../components/rosterSetup'
+import { capitalised } from '../../../../core/text'
 
 /**
  * The parts every setup step is built from.
@@ -104,7 +105,4 @@ export function DispositionChip({ disposition, className = '' }: { disposition: 
  * `deep-strike`, `scouts` — read in two sections, so one of them spelling it
  * `Deep strike` and the other `Deep Strike` would be the same fact in two hands.
  */
-export const formationLabel = (value: string) => {
-  const words = value.replaceAll('-', ' ')
-  return words.charAt(0).toLocaleUpperCase() + words.slice(1)
-}
+export const formationLabel = (value: string) => capitalised(value.replaceAll('-', ' '))

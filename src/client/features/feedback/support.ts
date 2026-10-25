@@ -90,7 +90,7 @@ export const supportTicketsQuery = (enabled: boolean) =>
   })
 
 /** The loaded conversations once each; a ticket that moved between pages since the last read would otherwise repeat. */
-export const ticketsFrom = (data: InfiniteData<GetTicketsResponse> | undefined) => [
+const ticketsFrom = (data: InfiniteData<GetTicketsResponse> | undefined) => [
   ...new Map(data?.pages.flatMap((page) => page.results).map((ticket) => [ticket.id, ticket])).values(),
 ]
 
@@ -185,7 +185,7 @@ const listeners = new Set<(view: SupportView) => void>()
 let waiting: SupportView | undefined
 
 /** Opens the support panel over the current page, so a message sent from it records what the player was looking at. */
-export function openSupport(view: SupportView) {
+function openSupport(view: SupportView) {
   if (!listeners.size) waiting = view
   for (const listener of listeners) listener(view)
 }

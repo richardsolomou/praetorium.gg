@@ -31,11 +31,6 @@ export const SWISS_ROUNDS_MAX = 12
 export const SWISS_WIN = 3
 export const SWISS_DRAW = 1
 
-/** Rounds enough for one undefeated player to stand alone, which is how many a Swiss event usually plays. */
-export function suggestedSwissRounds(players: number) {
-  return Math.max(1, Math.ceil(Math.log2(Math.max(players, 2))))
-}
-
 export function swissStandings(players: readonly string[], matches: readonly SwissMatch[]): SwissRow[] {
   const rows = new Map(
     players.map((userId): [string, SwissRow] => [userId, { userId, played: 0, won: 0, drawn: 0, lost: 0, points: 0, vp: 0, schedule: 0 }]),

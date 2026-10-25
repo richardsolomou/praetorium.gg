@@ -3,40 +3,11 @@ import { hash, randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { unzipSync } from 'fflate'
 import { type BattlemasterSource } from './catalogueSources'
-import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
 import { fetchWithRetry } from './fetch'
 import { battlemasterObjectiveHosts } from './battlemasterObjectives'
 import { replaceDirectory } from './replaceDirectory'
 
 export type SyncState = { status: 'absent' | 'working' | 'ready' | 'failed'; detail: string | null }
-
-const MAX_FACTION_ICON_BYTES = 256 * 1024
-
-export async function syncFactionIcons(directory: string, report: (message: string) => void = () => {}) {
-  const factions = SUPPLEMENTAL_FACTION_ICONS.map((faction) => ({ id: faction.id, logo_url: faction.logoUrl }))
-  const target = path.join(directory, 'faction-icons')
-  if (factions.length && factions.every((faction) => fs.existsSync(path.join(target, `${faction.id}.svg`)))) return
-
-  report('faction icons: fetching licensed artwork')
-  const staging = `${target}.incoming`
-  fs.rmSync(staging, { recursive: true, force: true })
-  fs.mkdirSync(staging, { recursive: true })
-  for (const faction of factions) {
-    if (!/^[a-z0-9-]+$/.test(faction.id)) throw new Error(`unsafe faction id ${faction.id}`)
-    const url = new URL(faction.logo_url)
-    if (url.hostname !== 'cdn.jsdelivr.net' || !url.pathname.includes('/gh/Certseeds/wh40k-icon@')) {
-      throw new Error(`untrusted faction icon for ${faction.id}`)
-    }
-    const response = await fetchWithRetry(url)
-    if (!response.ok) throw new Error(`${faction.id} icon answered ${response.status}`)
-    const bytes = new Uint8Array(await response.arrayBuffer())
-    if (bytes.length > MAX_FACTION_ICON_BYTES) throw new Error(`${faction.id} icon exceeds ${MAX_FACTION_ICON_BYTES} bytes`)
-    const svg = new TextDecoder().decode(bytes)
-    if (!/<svg[\s>]/.test(svg) || /<script[\s>]/i.test(svg)) throw new Error(`${faction.id} icon is not a safe SVG`)
-    fs.writeFileSync(path.join(staging, `${faction.id}.svg`), bytes)
-  }
-  replaceDirectory(staging, target)
-}
 
 type BattlemasterCatalog = {
   catalogKey: string

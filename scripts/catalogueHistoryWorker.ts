@@ -15,7 +15,7 @@ import { historicalSnapshotSources, installSnapshotArchive, type SnapshotPointer
 import { isSnapshotSourceName, type SnapshotSourceName } from '../src/server/catalogueSources'
 import { fetchCatalogueObject } from '../src/server/catalogueStore'
 import { extractSourceArchive } from '../src/server/sync'
-import { compiledChangeSource } from './lib/catalogueHistoryCompile'
+import { compiledChangeSource, knownRevisions } from './lib/catalogueHistoryCompile'
 
 export type WorkerTask =
   | { kind: 'directory'; directory: string; sources: SnapshotSourceName[] }
@@ -28,14 +28,6 @@ export type WorkerTask =
     }
 
 export type WorkerResult = { ok: true; source: ChangeSource | null; revisions: Record<string, string> } | { ok: false; reason: string }
-
-/** The revisions a snapshot says it holds, without any source this code no longer has. */
-const knownRevisions = (directory: string): Record<string, string> =>
-  Object.fromEntries(
-    Object.entries(JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')) as Record<string, string>).filter(([name]) =>
-      isSnapshotSourceName(name),
-    ),
-  )
 
 async function published(task: Extract<WorkerTask, { kind: 'published' }>, work: string): Promise<WorkerResult> {
   const archive = path.join(work, 'snapshot.zip')

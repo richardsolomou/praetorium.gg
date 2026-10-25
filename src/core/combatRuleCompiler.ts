@@ -1,4 +1,4 @@
-import { escapeRegExp, plainQuotes } from './text'
+import { capitalised, escapeRegExp, plainQuotes } from './text'
 import type { DatasheetCharacteristicKind } from './datasheet'
 import type { CombatRule, CombatRuleChoice, CombatRuleEffect } from './combatRules'
 import { compileMortalRule } from './combatMortalRules'
@@ -309,7 +309,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     if (/^the target of that attack is an enemy unit within range of an objective marker$/i.test(predicate))
       predicate = 'Target within range of an objective marker'
     predicate = predicate.replace(/^targeting an enemy unit within (\d+)"$/i, 'Target within $1"')
-    return { ...context, conditions: [...context.conditions, predicate[0]!.toUpperCase() + predicate.slice(1)] }
+    return { ...context, conditions: [...context.conditions, capitalised(predicate)] }
   }
   const recipient = (phrase: string, context: Context): Context | false | null => {
     phrase = phrase.trim()

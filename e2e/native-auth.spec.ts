@@ -3,21 +3,18 @@ import { expect, test } from './test'
 import { nativeAuthCompletionScript, nativeAuthConsumeScript, nativeAuthExchangeScript } from '../mobile/src/nativeAuth'
 import { signUp, uniqueName } from './account'
 import { baseURL } from './stackEnv'
-import { withAuthSql } from './storage'
+import { withAuthSql, userIdNamed } from './storage'
 
 test('a native proof signs the WebView in and survives its final reload', async ({ browser }) => {
   const systemPage = await (await browser.newContext()).newPage()
   const name = uniqueName('Native auth')
   await signUp(systemPage, name)
 
-  const player = await withAuthSql(
-    (database) => database.prepare('SELECT id FROM user WHERE name = ? LIMIT 1').get(name) as { id: string } | undefined,
-  )
-  if (!player) throw new Error('The native authentication player is missing.')
+  const playerId = await userIdNamed(name)
   await withAuthSql((database) =>
     database
       .prepare('INSERT INTO account (id, accountId, issuer, providerId, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(randomUUID(), randomUUID(), 'https://accounts.google.com', 'google', player.id, Date.now(), Date.now()),
+      .run(randomUUID(), randomUUID(), 'https://accounts.google.com', 'google', playerId, Date.now(), Date.now()),
   )
 
   const verifier = randomBytes(32).toString('base64url')

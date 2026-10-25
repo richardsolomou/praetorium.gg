@@ -8,7 +8,7 @@ import type { LoadedRules } from '../../src/shared/rules'
 export function loadSnapshot(directory: string) {
   const catalogue = loadCatalogue(directory)
   if (!catalogue) throw new Error(`Catalogue unavailable: ${directory}`)
-  return { catalogue, rules: loadRules(directory, undefined, undefined, undefined, catalogue.datacards) }
+  return { catalogue, rules: loadRules(directory, { loadedDatacards: catalogue.datacards }) }
 }
 
 export function loadSnapshotWithRules(directory: string) {
@@ -29,6 +29,6 @@ export function benchmarkEditions(usage: string) {
   let catalogue: ReturnType<typeof loadCatalogue> | undefined
   let rules: LoadedRules | null | undefined
   const base = () => (catalogue ??= loadCatalogue(directory))
-  const baseRules = () => (rules ??= loadRules(directory, undefined, undefined, undefined, base()?.datacards))
+  const baseRules = () => (rules ??= loadRules(directory, { loadedDatacards: base()?.datacards }))
   return { gc, mode, directory, runtime, base, baseRules, versions: catalogueEditionLoaders(directory, base, baseRules, runtime) }
 }

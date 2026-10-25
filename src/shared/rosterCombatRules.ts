@@ -16,6 +16,8 @@ import { type LoadedRules, rulesFaction } from './rules'
 import { selectedDetachmentRules } from './selectedDetachmentRules'
 import type { UnitChoiceCache } from '../core/unitChoices'
 import { keywordIdsBySelection, keywordNames, type ModifierCache } from '../core/evaluate'
+import { namespaceCarriers } from '../core/combatLoadouts'
+import { attachedProfilePrefix } from '../core/combatScenario'
 
 /**
  * What projections of one built roster can share: unit choices and modifiers are keyed by value, and each unit's
@@ -98,7 +100,7 @@ export function rosterCombatant(
         rules,
       )
       if (!selected) return unavailable()
-      const prefix = `attached:${pickIndex}:`
+      const prefix = attachedProfilePrefix(pickIndex)
       const carriers = combatCarriers(context.selections[unit.selectionIndex]!, loaded.index, {
         primaryCatalogueId: data.catalogueId,
         roster: context.selections.filter((_, at) => at !== unit.selectionIndex),
@@ -108,14 +110,7 @@ export function rosterCombatant(
           pickIndex,
           models: unit.models,
           selected: { ...selected, profiles: selected.profiles.map((profile) => ({ ...profile, id: `${prefix}${profile.id}` })) },
-          carriers: carriers.map((carrier) => ({
-            ...carrier,
-            ...(carrier.modelProfileIds ? { modelProfileIds: carrier.modelProfileIds.map((id) => `${prefix}${id}`) } : {}),
-            weapons: carrier.weapons.map((weapon) => ({
-              ...weapon,
-              ...(weapon.profileIds ? { profileIds: weapon.profileIds.map((id) => `${prefix}${id}`) } : {}),
-            })),
-          })),
+          carriers: namespaceCarriers(carriers, prefix),
           rules: rosterCombatRules(loaded, rules, { ...data, pickIndex }, memberContext, selected),
         },
       ]

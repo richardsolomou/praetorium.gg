@@ -31,7 +31,7 @@ const common = {
   exclusions:
     'Exclude rules whose only effect is movement, deployment, range, visibility, target selection/protection, shoot/fight/charge eligibility, firing order, objectives, actions, CP, leadership, healing or resurrection outside this attack sequence, or flavour text. Assault, Pistol/Close-Quarters, Precision, Fights First and Lone Operative alone are not damage modifiers here. Merely triggering after a hit, wound, attack or kill is not enough. A narrative claim to be deadly or durable without a stated mechanic is not evidence.',
 }
-export const combatRuleQuestions = {
+const combatRuleQuestions = {
   attacker: noul(
     {
       ...common,

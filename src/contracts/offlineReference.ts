@@ -1,6 +1,6 @@
 import { jsonByteLength } from '../core/json'
 import { PUBLIC_REFERENCE_QUERIES } from './appSnapshot'
-import type { GlobalSearchIndex } from './referenceSearch'
+import type { GlobalSearchIndex } from '../core/referenceSearch'
 import type { RuntimeData } from './runtimeData'
 import type { CatalogueFile } from '../core/catalogue'
 import { catalogueEditionSchema, type CatalogueEdition } from '../core/catalogueEdition'

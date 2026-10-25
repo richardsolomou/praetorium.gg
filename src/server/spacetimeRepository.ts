@@ -1,6 +1,6 @@
 import { isAdminUserCountSort, type AdminUser, type AdminUserCountSort, type AdminUserPage, type AdminUsersRequest } from '../admin'
 import type { BattlesCursor } from '../contracts/battles'
-import { parseRosterSnapshot } from '../core/commands'
+import { rosterSnapshotOrNull } from '../core/commands'
 import {
   leagueArmy,
   leagueTeams,
@@ -543,18 +543,8 @@ export class SpacetimeRepository {
     }))
   }
 
-  /** A sealed list, or null where none is sealed or its snapshot no longer parses. */
-  private sealedRoster(snapshot: string | null) {
-    if (!snapshot) return null
-    try {
-      return parseRosterSnapshot(snapshot)
-    } catch {
-      return null
-    }
-  }
-
   private frozenRosterLimit(snapshot: string | null) {
-    return this.sealedRoster(snapshot)?.built?.limit ?? null
+    return rosterSnapshotOrNull(snapshot)?.built?.limit ?? null
   }
 
   async leagueByToken(token: string, viewerId: string | null = null, eventToken?: string) {
@@ -569,7 +559,7 @@ export class SpacetimeRepository {
     const revealed = event.revealedAt !== null
     // Only a revealed list or a pair's choice needs the snapshot itself.
     const rosters = new Map(
-      entries.map((entry) => [entry.userId, revealed || entry.teamId ? this.sealedRoster(entry.rosterSnapshot) : null]),
+      entries.map((entry) => [entry.userId, revealed || entry.teamId ? rosterSnapshotOrNull(entry.rosterSnapshot) : null]),
     )
     const pairs = leagueTeams(
       entries.map((entry) => ({ ...entry, roster: rosters.get(entry.userId) ?? null })),

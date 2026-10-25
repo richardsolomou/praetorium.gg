@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from './test'
-import { befriend, createBattle, createRoster, makeWarlord, retryUntilVisible, signInAsPreview, signUp, uniqueName } from './account'
+import { befriend, createBattle, retryUntilVisible, signInAsPreview, signUp, uniqueName, sealableRoster } from './account'
 import { productSql } from './storage'
 import type { Command } from '../src/core/battle'
 
@@ -201,8 +201,8 @@ test('a club plays a solo-vs-pair sealed game, its players taking their own side
   await signUp(ally, uniqueName('First ally'))
   await signUp(partner, uniqueName('Second ally'))
   await sealableRoster(solo, 'Solo army')
-  await sealableRoster(ally, 'First allied army', /Incursion/)
-  await sealableRoster(partner, 'Second allied army', /Incursion/)
+  await sealableRoster(ally, 'First allied army', { size: /Incursion/ })
+  await sealableRoster(partner, 'Second allied army', { size: /Incursion/ })
 
   await solo.goto('/clubs')
   const create = solo.getByRole('dialog', { name: 'New club' })
@@ -372,10 +372,3 @@ async function sealFromClub(page: Page, game: Locator, rosterName: string) {
 }
 
 /** A roster a sealed game accepts: one Warlord, at Strike Force unless the seat asks for another size. */
-async function sealableRoster(page: Page, name: string, size?: RegExp) {
-  await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name, size })
-  await page.getByLabel('Add a unit').fill('Skorpekh Lord')
-  await page.getByRole('button', { name: 'Add Skorpekh Lord', exact: true }).first().click()
-  await page.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
-  await makeWarlord(page, 'Skorpekh Lord')
-}

@@ -2,7 +2,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { type MissionAction, loadMissionActions } from './missionActions'
+import { type MissionAction, actionsIn } from './missionActions'
+import { readMissionPacks } from './missionPacks'
 import { wordsFrom } from './sourceTexts.fixtures'
 
 const action = (name: string, fields: Record<string, unknown> = {}) => ({
@@ -40,7 +41,7 @@ const writePack = (fileName: string, pack: unknown) =>
 describe('reading the action a mission card names', () => {
   it('reads it out of the pack the card is printed in', () => {
     writePack('pack.json', { primaryMissions: [{ name: { en: 'Secure Asset' }, actions: [action('SECURE ASSET')] }] })
-    expect(wordsOf(loadMissionActions(directory).get('secure asset'))).toEqual([
+    expect(wordsOf(actionsIn(readMissionPacks(directory)).get('secure asset'))).toEqual([
       {
         name: 'SECURE ASSET',
         starts: 'Your Shooting phase.',
@@ -56,7 +57,9 @@ describe('reading the action a mission card names', () => {
   it('keeps a restriction the pack states', () => {
     const restrictionText = { en: 'A unit cannot start this action alone.' }
     writePack('pack.json', { primaryMissions: [{ name: { en: 'Extract Relic' }, actions: [action('SENSOR SWEEP', { restrictionText })] }] })
-    expect(wordsOf(loadMissionActions(directory).get('extract relic'))?.[0]?.restriction).toBe('A unit cannot start this action alone.')
+    expect(wordsOf(actionsIn(readMissionPacks(directory)).get('extract relic'))?.[0]?.restriction).toBe(
+      'A unit cannot start this action alone.',
+    )
   })
 
   it('reads primaries and secondaries alike', () => {
@@ -64,13 +67,13 @@ describe('reading the action a mission card names', () => {
       primaryMissions: [{ name: { en: 'Death Trap' }, actions: [action('BOOBY TRAP')] }],
       secondaryMissions: [{ name: { en: 'Cleanse' }, actions: [action('CLEANSE')] }],
     })
-    expect([...loadMissionActions(directory).keys()].toSorted()).toEqual(['cleanse', 'death trap'])
+    expect([...actionsIn(readMissionPacks(directory)).keys()].toSorted()).toEqual(['cleanse', 'death trap'])
   })
 
   it('keeps every action a card prints, in printed order', () => {
     writePack('pack.json', { primaryMissions: [{ name: { en: 'Vital Link' }, actions: [action('MAINTAIN CONTROL'), action('SABOTAGE')] }] })
     expect(
-      loadMissionActions(directory)
+      actionsIn(readMissionPacks(directory))
         .get('vital link')
         ?.map((entry) => entry.name),
     ).toEqual(['MAINTAIN CONTROL', 'SABOTAGE'])
@@ -78,23 +81,23 @@ describe('reading the action a mission card names', () => {
 
   it('leaves a card that prints no action out entirely', () => {
     writePack('pack.json', { primaryMissions: [{ name: { en: 'Take and Hold' }, actions: [] }] })
-    expect(loadMissionActions(directory).has('take and hold')).toBe(false)
+    expect(actionsIn(readMissionPacks(directory)).has('take and hold')).toBe(false)
   })
 
   it('drops an unnamed action rather than showing a nameless one', () => {
     writePack('pack.json', {
       primaryMissions: [{ name: { en: 'Sabotage' }, actions: [{ effectText: { en: 'Your unit sabotages it.' } }] }],
     })
-    expect(loadMissionActions(directory).has('sabotage')).toBe(false)
+    expect(actionsIn(readMissionPacks(directory)).has('sabotage')).toBe(false)
   })
 
   it('drops a name two packs disagree about rather than picking one', () => {
     writePack('a.json', { primaryMissions: [{ name: { en: 'Sabotage' }, actions: [action('SABOTAGE')] }] })
     writePack('b.json', { primaryMissions: [{ name: { en: 'Sabotage' }, actions: [action('DEMOLITION')] }] })
-    expect(loadMissionActions(directory).has('sabotage')).toBe(false)
+    expect(actionsIn(readMissionPacks(directory)).has('sabotage')).toBe(false)
   })
 
   it('reads no pack at all where there is no mission directory', () => {
-    expect(loadMissionActions(path.join(directory, 'absent')).size).toBe(0)
+    expect(readMissionPacks(path.join(directory, 'absent'))).toEqual([])
   })
 })

@@ -23,14 +23,16 @@ test('a roster chooser with no list for the battle size hands over to the battle
     userId,
     opponentIds: (await operator.practiceOpponentIds()).slice(0, 1),
     now: Date.now(),
-    initialCommand: {
-      kind: 'configure-battle',
-      limit: 2000,
-      missionPackId: null,
-      terrainLayoutId: null,
-      twistId: null,
-      clockLimitMinutes: null,
-    },
+    initialCommands: [
+      {
+        kind: 'configure-battle',
+        limit: 2000,
+        missionPackId: null,
+        terrainLayoutId: null,
+        twistId: null,
+        clockLimitMinutes: null,
+      },
+    ],
   })
   await page.goto(`/battles/${token}`)
 
@@ -109,14 +111,16 @@ const phoneBattle = async (page: Page, name: string, pointsBudget: number | null
     userId,
     opponentIds: (await operator.practiceOpponentIds()).slice(0, 1),
     now: Date.now(),
-    initialCommand: {
-      kind: 'configure-battle',
-      limit: 2000,
-      missionPackId: null,
-      terrainLayoutId: null,
-      twistId: null,
-      clockLimitMinutes: null,
-    },
+    initialCommands: [
+      {
+        kind: 'configure-battle',
+        limit: 2000,
+        missionPackId: null,
+        terrainLayoutId: null,
+        twistId: null,
+        clockLimitMinutes: null,
+      },
+    ],
   })
   await page.goto('/support')
   await page.goto(`/battles/${token}`)

@@ -16,7 +16,7 @@ import type { Attachment } from '../../../../core/attach'
 import { nicknamedUnit } from '../../../../core/unitNotes'
 import { FactionLabel, type FactionPresentation } from '../../../components/FactionMark'
 import { countLabel } from '../../../text'
-import { asSentence } from '../../battle/useCommand'
+import { asSentence } from '../../../text'
 import type { EmbarkChoice } from './embarkModel'
 
 type BuiltUnit = {

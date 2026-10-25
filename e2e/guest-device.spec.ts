@@ -10,9 +10,10 @@ import {
   startBattle,
   takeTheTurn,
   uniqueName,
+  playTurn,
 } from './account'
 import { add } from './builder.harness'
-import { productSql, withAuthSql } from './storage'
+import { productSql, userIdNamed } from './storage'
 
 const GUEST = uniqueName('Sam the Guest')
 const PHONE = { width: 390, height: 844 }
@@ -36,24 +37,12 @@ async function loggedCommands(id: string) {
   return productSql`SELECT seq, user_id, body FROM commands WHERE battle_id = ${id}`
 }
 
-async function playerId(name: string) {
-  const row = await withAuthSql(
-    (database) => database.prepare('SELECT id FROM user WHERE name = ?').get(name) as { id: string } | undefined,
-  )
-  if (!row) throw new Error(`Missing test player ${name}`)
-  return row.id
-}
-
 /** A short panel on a phone sizes to what it holds rather than taking the whole screen. */
 async function expectFitsOnPhone(page: Page, panel: ReturnType<Page['getByRole']>) {
   const before = page.viewportSize()!
   await page.setViewportSize(PHONE)
   expect((await panel.boundingBox())!.height).toBeLessThan(PHONE.height * 0.8)
   await page.setViewportSize(before)
-}
-
-async function playTurn(page: Page) {
-  for (let step = 0; step < 6; step += 1) await advance(page)
 }
 
 async function shot(page: Page, name: string) {
@@ -194,7 +183,7 @@ test('a guest joins from their own device, plays their side and keeps the game b
   await expect(claimed.getByRole('button', { name: 'Friend request sent' })).toBeVisible()
 
   // The battle is now one between two accounts, both records hold it, and the account kept the name played under.
-  await guest.goto(`/users/${await playerId(GUEST)}`)
+  await guest.goto(`/users/${await userIdNamed(GUEST)}`)
   await expect(guest.locator('[data-service-record] [data-record-battles]')).toHaveAttribute('data-record-battles', '1')
   await host.goto(battleUrl)
   await expect(scoreboard(host)).toContainText(GUEST)

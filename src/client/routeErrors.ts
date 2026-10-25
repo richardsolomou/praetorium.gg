@@ -36,7 +36,7 @@ export function routeErrorExplanation(error: unknown) {
 
 const RECOVERY_PARAM = '__route_retry'
 
-export function moduleRecoveryAttempt(href: string) {
+function moduleRecoveryAttempt(href: string) {
   const value = new URL(href).searchParams.get(RECOVERY_PARAM)
   return value && /^\d+\.[1-3]$/.test(value) ? Number(value.split('.')[1]) : 0
 }

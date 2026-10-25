@@ -14,7 +14,7 @@ import { PlayerDefaultsSettings } from './PlayerDefaultsSettings'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SignInRequired } from '../../components/SignInRequired'
-import { accountMethodsQuery, battlesQuery, friendshipsQuery, meQuery, opponentsQuery } from '../../queries'
+import { accountMethodsQuery, battlesQuery, friendshipsQuery, meQuery, opponentsQuery, userProfileKey } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { prepareProfileImage } from './profileImage'
 import { Problem } from '../../components/Problem'
@@ -81,7 +81,7 @@ function ProfileForm({
       queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey }),
       queryClient.invalidateQueries({ queryKey: friendshipsQuery().queryKey }),
       queryClient.invalidateQueries({ queryKey: opponentsQuery().queryKey }),
-      queryClient.invalidateQueries({ queryKey: ['user-profile'] }),
+      queryClient.invalidateQueries({ queryKey: userProfileKey() }),
     ])
     posthog.capture('profile_updated', { name_changed: name.trim() !== me.name, image_changed: image !== me.image })
     setSaved(true)

@@ -238,7 +238,7 @@ const hotReloadToken = {}
 function catalogueLoaders(directory: string) {
   const runtime = productionCatalogueRuntime(directory)
   const catalogue = memoize(() => loadCatalogue(directory))
-  const baseRules = stepwise(() => loadRulesSteps(directory, undefined, undefined, undefined, catalogue()?.datacards))
+  const baseRules = stepwise(() => loadRulesSteps(directory, { loadedDatacards: catalogue()?.datacards }))
   const rules = baseRules.get
   const editions = catalogueEditionLoaders(directory, catalogue, rules, runtime)
   function* construction() {
@@ -314,17 +314,21 @@ function catalogueReads(getInstance: () => App, loaded: ReturnType<typeof catalo
   }
 }
 
+/** Everything an instance reads from one catalogue directory, replaced together when the directory changes. */
+const catalogueFields = (getInstance: () => App, loaded: ReturnType<typeof catalogueLoaders>) => ({
+  catalogue: loaded.catalogue,
+  canonicalCatalogue: loaded.canonical,
+  rules: loaded.rules,
+  catalogueHistory: loaded.history,
+  combatUnits: loaded.combatUnits,
+  construction: loaded.construction,
+  ...catalogueReads(getInstance, loaded),
+})
+
 function useCatalogueLoaders(instance: App, directory: string) {
-  const next = catalogueLoaders(directory)
-  instance.catalogue = next.catalogue
-  instance.canonicalCatalogue = next.canonical
-  instance.rules = next.rules
-  instance.catalogueHistory = next.history
-  instance.combatUnits = next.combatUnits
-  instance.construction = next.construction
   Object.assign(
     instance,
-    catalogueReads(() => instance, next),
+    catalogueFields(() => instance, catalogueLoaders(directory)),
   )
 }
 
@@ -407,7 +411,6 @@ export function app(): App {
       spacetimeToken: async (headers) => (await auth.api.getToken({ headers })).token,
       spacetimeGuestToken: auth.spacetimeGuestToken,
       email,
-      catalogue: loaded.catalogue,
       refreshCatalogue: () => {
         const next = catalogueDirectory(dataDirectory)
         if (next === catalogueDataDirectory) return
@@ -415,14 +418,9 @@ export function app(): App {
         catalogueDataDirectory = next
         startup.warm()
       },
-      canonicalCatalogue: loaded.canonical,
-      rules: loaded.rules,
-      catalogueHistory: loaded.history,
-      combatUnits: loaded.combatUnits,
-      construction: loaded.construction,
       collectionPhotos,
       photoScreening: screening,
-      ...catalogueReads(() => instance, loaded),
+      ...catalogueFields(() => instance, loaded),
       push: Boolean(push),
       sync: () => sync.state,
       telemetry,

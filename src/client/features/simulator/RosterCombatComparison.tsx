@@ -1,15 +1,8 @@
-import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 import { ArrowLeftRight, Crosshair } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import {
-  combatUnitsQuery,
-  discoveredRostersQuery,
-  factionIndexQuery,
-  friendLeagueRostersQuery,
-  meQuery,
-  savedRosterSummariesQuery,
-} from '../../queries'
+import { combatUnitsQuery, factionIndexQuery } from '../../queries'
 import { openLeagueRoster, sharedRoster } from '../../functions'
 import { rosterSourceKey } from '../../../contracts/simulatorState'
 import { sealedCombatRoster } from './rosterCombat'
@@ -28,7 +21,7 @@ import { BenchmarkTargets } from './BenchmarkTargets'
 import { RosterPicker } from './RosterPicker'
 import { benchmarkRosters, defaultBenchmarkTargets, parseBenchmarkTargets, type BenchmarkTarget } from './benchmarks'
 import { Problem } from '../../components/Problem'
-import { friendLeagueLabel, friendLeagueSource, OwnerAvatars, type RosterOwner } from './rosterOwners'
+import { friendLeagueLabel, friendLeagueSource, OwnerAvatars, type RosterOwner, useSimulatorRosters } from './rosterOwners'
 
 export type RosterCombatSource = {
   id: string
@@ -64,12 +57,8 @@ export function RosterCombatComparison({
   liveKey?: string
   sessionKey?: string
 }) {
-  const me = useQuery({ ...meQuery(), enabled: !sources })
-  const saved = useQuery({ ...savedRosterSummariesQuery(), enabled: !sources && Boolean(me.data) })
+  const { me, saved, friendRosters, leagueRosters } = useSimulatorRosters(!sources)
   const activeRosters = saved.data?.filter((roster) => !roster.archived) ?? []
-  // The same friends' rosters and league lists the unit simulator offers.
-  const friends = useInfiniteQuery({ ...discoveredRostersQuery({}, 'friends', 'updated-desc'), enabled: !sources && Boolean(me.data) })
-  const leagues = useQuery({ ...friendLeagueRostersQuery(), enabled: !sources && Boolean(me.data) })
   const factions = useQuery(factionIndexQuery())
   const catalogue = useQuery({ ...combatUnitsQuery(), enabled: !sources })
   const storageKey = `praetorium.combat-benchmarks.v1:${me.data?.id ?? 'guest'}`
@@ -108,7 +97,7 @@ export function RosterCombatComparison({
         return [{ ...data, pickIndex: 0 }]
       },
     })),
-    ...(friends.data?.pages[0]?.rosters ?? []).map(({ roster, owner }) => ({
+    ...friendRosters.map(({ roster, owner }) => ({
       id: roster.id,
       catalogueId: roster.catalogueId,
       group: "Friends' rosters",
@@ -123,7 +112,7 @@ export function RosterCombatComparison({
         return [{ ...data, pickIndex: 0, owner }]
       },
     })),
-    ...(leagues.data ?? []).map((entry) => {
+    ...leagueRosters.map((entry) => {
       const { league } = friendLeagueSource(entry)
       const owner = { name: entry.ownerName, image: entry.ownerImage }
       return {
