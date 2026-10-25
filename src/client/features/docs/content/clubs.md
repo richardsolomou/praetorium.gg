@@ -21,7 +21,7 @@ An organizer can start one with **New sealed game** and pick its format: a duel,
 - **Duel**: any member seals a list, and after the reveal each of you plays everyone else who sealed, with **Play** beside their name.
 - **Solo vs pair** and **doubles**: pick your side with **Join**, then seal a list for it. Each pair chooses its Force Disposition and whose Warlord leads before the reveal. Afterwards, **Start battle** sets up the one battle between the sides.
 
-The results go on the club's leaderboard. Once you've played, or a newer sealed game starts, the game moves to **Past sealed games**. Open it there to see the lists and the battles it produced, or to play a game you missed. **Recent games** shows the club's other battles.
+The results go on the club's leaderboard. Once you've played, or a newer sealed game starts, the game moves to **Past sealed games**. It shows the battles each game produced, and you can still play a game you missed there. **Recent games** shows the club's other battles.
 
 ## Leave or delete a club
 

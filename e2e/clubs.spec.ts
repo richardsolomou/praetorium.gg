@@ -195,12 +195,12 @@ test('a club plays a solo-vs-pair sealed game, its players taking their own side
   // Everyone, the host too, enters by taking a seat; a full side offers none.
   await expect(game(solo).getByRole('button', { name: 'Seal your list' })).toHaveCount(0)
   await game(solo).getByRole('button', { name: 'Join Solo' }).click()
-  await expect(game(solo).locator('[data-side="Solo"]')).toContainText('you')
+  await expect(game(solo).locator('[data-side="Solo"]')).toContainText('You')
   for (const player of [ally, partner]) {
     await player.goto(gameUrl)
     await expect(game(player).getByRole('button', { name: 'Join Solo' })).toHaveCount(0)
     await game(player).getByRole('button', { name: 'Join Pair' }).click()
-    await expect(game(player).locator('[data-side="Pair"]')).toContainText('you')
+    await expect(game(player).locator('[data-side="Pair"]')).toContainText('You')
   }
   await sealFromClub(solo, game(solo), 'Solo army')
   await sealFromClub(ally, game(ally), 'First allied army')

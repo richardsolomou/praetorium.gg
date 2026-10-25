@@ -12,6 +12,7 @@ import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
 import { chooseLeagueSide, createLeagueBattle, deleteLeague, revealLeague, submitLeagueRoster } from '../../functions'
 import { battlesFrom, battlesQuery, gameReferencesQuery, leagueBattlesQuery, leagueQuery } from '../../queries'
+import { useDateFormatting } from '../../dates'
 import { countLabel } from '../../text'
 import { useNow } from '../../useNow'
 import { useMoment } from '../leagues/EventSchedule'
@@ -68,12 +69,13 @@ export function ClubSealedGame({
   game: Game
   viewerId: string | null
   highlighted?: boolean
-  /** Opened inside a past game's row, which already names it. */
+  /** A past game's row in a list, read for the battles it produced. */
   embedded?: boolean
 }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const moment = useMoment()
+  const { date } = useDateFormatting()
   const now = useNow(game.sealBy)
   const refreshGame = useLeagueRefresh(game.token)
   const refreshClub = useClubRefresh(club.token)
@@ -198,14 +200,14 @@ export function ClubSealedGame({
     const name = nameOf(player.userId)
     const list = revealed || player.userId === viewerId ? listName(player.userId) : null
     return (
-      <li key={player.userId} data-person={name} className="flex min-w-0 items-center gap-3 px-4 py-2.5">
-        <PlayerAvatar name={name} image={person?.image ?? null} className="size-7 text-3xs" />
+      <li key={player.userId} data-person={name} className="flex min-w-0 items-center gap-3 px-4 py-1.5">
+        <PlayerAvatar name={name} image={person?.image ?? null} className="size-8 text-2xs" />
         <span className="min-w-0 flex-1">
-          <span className="block truncate font-semibold">
-            {name}
-            {player.userId === viewerId ? <span className="ml-1.5 text-xs font-normal text-dim">you</span> : null}
+          <span className="flex min-w-0 items-baseline gap-1.5">
+            <span className="truncate text-sm leading-tight font-bold uppercase">{name}</span>
+            {player.userId === viewerId ? <span className="eyebrow shrink-0 text-parchment">You</span> : null}
           </span>
-          {list ? <span className="block truncate text-xs text-dim">{list}</span> : null}
+          {list ? <span className="mt-0.5 block truncate text-xs text-dim uppercase">{list}</span> : null}
         </span>
         {revealed ? (
           <>
@@ -267,29 +269,27 @@ export function ClubSealedGame({
       <div className={`grid gap-px bg-edge ${sides.length > 1 ? 'sm:grid-cols-2' : ''}`}>
         {sides.map((entry) => {
           const seated = entry.players.some((player) => player.userId === viewerId)
-          const room = entry.players.length < entry.places
           return (
             <section key={entry.key} data-side={entry.title} aria-label={entry.title} className="bg-panel">
-              <div className="flex min-h-11 items-center gap-2 px-4 pt-2">
-                <h4 className="eyebrow min-w-0 flex-1 text-dim">{entry.title}</h4>
-                {mayTakeSeat && entry.side && !seated && room ? (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    aria-label={`Join ${entry.title}`}
-                    disabled={side.isPending}
-                    onClick={() => move(entry.side)}
-                  >
-                    <UserPlus /> Join
-                  </Button>
-                ) : null}
-              </div>
+              <h4 className="eyebrow px-4 pt-3 pb-1 text-dim">{entry.title}</h4>
               <ul className="divide-y divide-edge">
                 {entry.players.map(row)}
                 {!revealed && entry.side
                   ? Array.from({ length: Math.max(0, entry.places - entry.players.length) }, (_, index) => (
-                      <li key={`open-${index}`} className="px-4 py-2.5 text-sm text-faint">
-                        Open seat
+                      <li key={`open-${index}`} className="flex min-w-0 items-center gap-3 px-4 py-1.5">
+                        <span aria-hidden className="size-8 shrink-0 rounded-full border border-dashed border-edge-strong" />
+                        <span className="min-w-0 flex-1 text-sm text-faint">Open seat</span>
+                        {index === 0 && mayTakeSeat && !seated ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            aria-label={`Join ${entry.title}`}
+                            disabled={side.isPending}
+                            onClick={() => move(entry.side)}
+                          >
+                            <UserPlus /> Join
+                          </Button>
+                        ) : null}
                       </li>
                     ))
                   : null}
@@ -333,6 +333,19 @@ export function ClubSealedGame({
         // A past game is read for what it produced. Its battle cards already name each player's army, so only lists
         // sealed and never played are listed.
         <>
+          <div className="flex min-w-0 items-center gap-3 border-b border-edge py-2 pr-2 pl-4">
+            <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-3">
+              <span className="min-w-0 truncate font-semibold sm:flex-1">{eventName({ ...game, tournament: null, club })}</span>
+              <span className="text-sm text-dim sm:shrink-0">
+                {[
+                  countLabel(sealed.length, 'player'),
+                  countLabel(game.battles, 'battle'),
+                  date(game.playsAt ?? game.revealedAt ?? game.createdAt),
+                ].join(' · ')}
+              </span>
+            </span>
+            {menu}
+          </div>
           {gameBattles}
           {sealed.some((player) => !battled.has(player.userId)) ? (
             <>
@@ -344,23 +357,11 @@ export function ClubSealedGame({
               </ul>
             </>
           ) : null}
-          {(team && toPlay.length) || club.organizer ? (
-            <div className="flex flex-wrap items-center gap-2 border-t border-edge p-3">
-              {team && toPlay.length ? (
-                <Button size="sm" disabled={play.isPending} onClick={() => play.mutate(toPlay[0]!.userId)}>
-                  <Swords /> Start battle
-                </Button>
-              ) : null}
-              {club.organizer ? (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="ml-auto text-dim hover:text-destructive"
-                  onClick={() => (remove.reset(), setDeleting(true))}
-                >
-                  <Trash2 /> Delete game
-                </Button>
-              ) : null}
+          {team && toPlay.length ? (
+            <div className="border-t border-edge p-3">
+              <Button size="sm" disabled={play.isPending} onClick={() => play.mutate(toPlay[0]!.userId)}>
+                <Swords /> Start battle
+              </Button>
             </div>
           ) : null}
         </>
@@ -476,7 +477,7 @@ export function ClubSealedGame({
   )
 }
 
-/** One battle of a sealed game as a single line: how it stands, who met whom, and the score, opening the battle. */
+/** One battle of a sealed game as a row, the names on a line of their own on a phone: how it stands, who met whom, and the score, opening the battle. */
 function BattleResult({ battle, viewerId }: { battle: Battle; viewerId: string | null }) {
   const seat = viewerId ? battle.playerIds.indexOf(viewerId) : -1
   const sides = summarySides(battle)
@@ -490,20 +491,20 @@ function BattleResult({ battle, viewerId }: { battle: Battle; viewerId: string |
         to="/battles/$token"
         params={{ token: battle.token }}
         aria-label={`${seat === -1 ? 'Watch' : 'Open'} ${label}`}
-        className="group flex min-h-12 min-w-0 items-center gap-3 px-4 py-2 hover:bg-raised"
+        className="group flex min-h-12 min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2 hover:bg-raised"
       >
-        <span data-battle-status={battle.status} className={`chip w-20 shrink-0 justify-center text-center ${stage.tint}`}>
+        <span data-battle-status={battle.status} className={`chip w-20 shrink-0 justify-center text-center max-sm:mr-auto ${stage.tint}`}>
           {stage.name}
         </span>
-        <span className="min-w-0 flex-1 text-sm">
+        <span className="min-w-0 flex-1 text-sm wrap-break-word max-sm:order-last max-sm:basis-full">
           {sides.map((side, at) => (
-            <span key={side.index} className={lost(side.index) ? 'text-faint' : 'font-semibold'}>
-              {at ? <span className="px-1.5 font-normal text-faint">vs</span> : null}
+            <span key={side.index} className={`uppercase ${lost(side.index) ? 'text-faint' : 'font-bold'}`}>
+              {at ? <span className="px-1.5 font-normal text-faint normal-case">vs</span> : null}
               {side.seats.map(({ player }, index) => (
                 <span key={player.id || player.name}>
                   {index ? <span className="font-normal text-faint"> &amp; </span> : null}
                   {player.name}
-                  {player.id === viewerId ? <span className="ml-1 text-xs font-normal text-dim">you</span> : null}
+                  {player.id === viewerId ? <span className="eyebrow ml-1.5 text-parchment">You</span> : null}
                 </span>
               ))}
             </span>
