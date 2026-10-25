@@ -14,7 +14,8 @@ import { recentMatchupSchema, type RecentMatchup } from '../core/recentMatchups'
 import { abilityReminderSchema, type AbilityReminder } from '../core/reminders'
 import { onboardingProgress as foldOnboardingProgress, type OnboardingProgressOperation } from '../core/onboarding'
 import { TABLE_SHAPES } from '../core/tableShape'
-import { parseLeagueAllowances } from '../core/league'
+import { LEAGUE_ADMISSIONS, LEAGUE_VISIBILITIES, parseLeagueAllowances } from '../core/league'
+import { CLUB_MEMBER_STATUSES, CLUB_ROLES } from '../core/club'
 import { unitLoadoutSchema, type UnitLoadout } from '../core/unitLoadouts'
 import { leagueRosterSharingSchema } from '../contracts/leagueRosterSharing'
 
@@ -210,6 +211,30 @@ const outdatedLeagueEntry = z.object({
   leagueName: z.string(),
   eventToken: z.string(),
   eventNumber: z.number().int(),
+})
+
+const club = z.object({
+  id: z.string(),
+  token: z.string(),
+  ownerId: z.string(),
+  name: z.string(),
+  description: z.string(),
+  visibility: z.enum(LEAGUE_VISIBILITIES),
+  admission: z.enum(LEAGUE_ADMISSIONS),
+  createdAt: z.number().int(),
+})
+const clubMember = z.object({
+  userId: z.string(),
+  status: z.enum(CLUB_MEMBER_STATUSES),
+  role: z.enum(CLUB_ROLES),
+  joinedAt: z.number().int(),
+})
+const clubRecord = z.object({ club, members: z.array(clubMember) })
+const visibleClub = z.object({
+  club,
+  adminIds: z.array(z.string()),
+  memberCount: z.number().int(),
+  ownMember: clubMember.pick({ status: true, role: true }).nullable(),
 })
 
 type SaveRosterInput = {
@@ -894,6 +919,18 @@ export class SpacetimeOperator {
 
   async leaguesVisibleTo(userId: string | null, limit: number) {
     return this.read('leagues_visible_to', [userId ?? '', limit], z.array(visibleLeague))
+  }
+
+  async clubByToken(token: string) {
+    return this.read('club_by_token', [token], clubRecord.nullable())
+  }
+
+  async clubsVisibleTo(userId: string | null, limit: number) {
+    return this.read('clubs_visible_to', [userId ?? '', limit], z.array(visibleClub))
+  }
+
+  async clubCommand<S extends z.ZodType>(command: Record<string, unknown>, result: S): Promise<z.output<S>> {
+    return this.read('club_command', [JSON.stringify(command)], result)
   }
 
   async outdatedLeagueEntriesForRoster(userId: string, rosterId: string) {

@@ -80,6 +80,9 @@ import * as BattleFeedProcedure from './battle_feed_procedure'
 import * as BattleForOperatorProcedure from './battle_for_operator_procedure'
 import * as CancelFriendInviteProcedure from './cancel_friend_invite_procedure'
 import * as ClaimGuestSeatProcedure from './claim_guest_seat_procedure'
+import * as ClubByTokenProcedure from './club_by_token_procedure'
+import * as ClubCommandProcedure from './club_command_procedure'
+import * as ClubsVisibleToProcedure from './clubs_visible_to_procedure'
 import * as CollectionByUserProcedure from './collection_by_user_procedure'
 import * as CollectionPhotoProcedure from './collection_photo_procedure'
 import * as CollectionPhotoDeletionsProcedure from './collection_photo_deletions_procedure'
@@ -268,6 +271,9 @@ const proceduresSchema = __procedures(
   __procedureSchema('battle_for_operator', BattleForOperatorProcedure.params, BattleForOperatorProcedure.returnType),
   __procedureSchema('cancel_friend_invite', CancelFriendInviteProcedure.params, CancelFriendInviteProcedure.returnType),
   __procedureSchema('claim_guest_seat', ClaimGuestSeatProcedure.params, ClaimGuestSeatProcedure.returnType),
+  __procedureSchema('club_by_token', ClubByTokenProcedure.params, ClubByTokenProcedure.returnType),
+  __procedureSchema('club_command', ClubCommandProcedure.params, ClubCommandProcedure.returnType),
+  __procedureSchema('clubs_visible_to', ClubsVisibleToProcedure.params, ClubsVisibleToProcedure.returnType),
   __procedureSchema('collection_by_user', CollectionByUserProcedure.params, CollectionByUserProcedure.returnType),
   __procedureSchema('collection_photo', CollectionPhotoProcedure.params, CollectionPhotoProcedure.returnType),
   __procedureSchema('collection_photo_deletions', CollectionPhotoDeletionsProcedure.params, CollectionPhotoDeletionsProcedure.returnType),

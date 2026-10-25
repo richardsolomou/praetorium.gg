@@ -14,7 +14,7 @@ Publication is named sharing; there is no anonymous archive of private game stat
 - League reveal never publishes; an entrant may publish the original roster, never a copy.
 - A guest seat belongs to one device by HTTP-only cookie, stored as a hash, and ends after 30 days, on reclaim, claim, or battle deletion.
 - A reported collection photo is visible only to its owner and administrators until reviewed.
-- Account deletion removes rosters, loadouts, ability alerts, friendships, entries, organized leagues, and every battle played. League deletion keeps battles.
+- Account deletion removes rosters, loadouts, ability alerts, friendships, entries, club memberships, organized leagues and owned clubs, and every battle played. League and club deletion keep battles.
 - Revocable player-content images are `no-store`. Screenshots with roster or battle data stay out of Git.
 
 Authorities: [`rosterAccess`](../src/server/services/rosterService.ts), [`rosterDiscovery.ts`](../src/core/rosterDiscovery.ts), [`PraetoriumService`](../src/server/service.ts), [`league.ts`](../src/core/league.ts), and deletion in [`spacetimedb/src/index.ts`](../spacetimedb/src/index.ts).

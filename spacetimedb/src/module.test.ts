@@ -416,6 +416,88 @@ describe('what a league event allows', () => {
   })
 })
 
+describe('clubs', () => {
+  function setup(admission: 'automatic' | 'approval' = 'approval', visibility: 'public' | 'private' = 'private') {
+    const host = harness()
+    const command = (input: Record<string, unknown>) =>
+      JSON.parse(module.clubCommand(host.procedure(host.operator), { payload: JSON.stringify({ token: 'club', ...input }) })) as unknown
+    const details = { name: 'Club', description: '', visibility, admission }
+    command({ op: 'create', id: 'club-id', ownerId: 'owner', now: NOW, ...details })
+    const join = (userId: string) => command({ op: 'join', userId, now: NOW + 1 })
+    const member = (userId: string) => (join(userId), command({ op: 'moderate', actorId: 'owner', userId, accept: true }))
+    const members = () =>
+      (
+        JSON.parse(module.clubByToken(host.procedure(host.operator), { token: 'club' })) as {
+          members: { userId: string; status: string; role: string }[]
+        } | null
+      )?.members
+    const listed = (userId: string) =>
+      (JSON.parse(module.clubsVisibleTo(host.procedure(host.operator), { userId, limit: 10 })) as { club: { token: string } }[]).map(
+        (row) => row.club.token,
+      )
+    return { ...host, command, details, join, member, members, listed }
+  }
+
+  it('asks the organizers to approve a join request', () => {
+    expect(setup().join('player')).toEqual({ status: 'pending', organizerIds: ['owner'] })
+  })
+
+  it('lets a player straight in when anyone may join', () => {
+    expect(setup('automatic').join('player')).toEqual({ status: 'accepted', organizerIds: [] })
+  })
+
+  it('refuses moderation by a member who does not run the club', () => {
+    const club = setup()
+    club.member('player')
+    club.join('waiting')
+    expect(club.command({ op: 'moderate', actorId: 'player', userId: 'waiting', accept: true })).toBe('forbidden')
+  })
+
+  it('admits everyone waiting when the club opens to anyone', () => {
+    const club = setup()
+    club.join('waiting')
+    club.command({ op: 'update', actorId: 'owner', ...club.details, admission: 'automatic' })
+    expect(club.members()?.find((member) => member.userId === 'waiting')?.status).toBe('accepted')
+  })
+
+  it('makes admins only of accepted members', () => {
+    const club = setup()
+    club.join('waiting')
+    expect(club.command({ op: 'set-admins', actorId: 'owner', userIds: ['waiting'] })).toBe('not-members')
+  })
+
+  it('stops an admin removing another admin', () => {
+    const club = setup()
+    club.member('first')
+    club.member('second')
+    club.command({ op: 'set-admins', actorId: 'owner', userIds: ['first', 'second'] })
+    expect(club.command({ op: 'remove', actorId: 'first', userId: 'second' })).toBe('forbidden')
+  })
+
+  it('keeps the owner in their own club', () => {
+    expect(setup().command({ op: 'leave', userId: 'owner' })).toBe('owner')
+  })
+
+  it('lists a private club only to its members', () => {
+    const club = setup()
+    club.member('player')
+    expect([club.listed('player'), club.listed('stranger')]).toEqual([['club'], []])
+  })
+
+  it('removes a deleted account’s memberships', () => {
+    const club = setup()
+    club.member('player')
+    club.call(club.operator, (ctx) => module.deleteUserData(ctx, { userId: 'player' }))
+    expect(club.members()?.map((member) => member.userId)).toEqual(['owner'])
+  })
+
+  it('deletes the clubs a deleted account owns', () => {
+    const club = setup()
+    club.call(club.operator, (ctx) => module.deleteUserData(ctx, { userId: 'owner' }))
+    expect(club.members()).toBeUndefined()
+  })
+})
+
 describe('saved action acknowledgements', () => {
   const saved = JSON.stringify(JSON.stringify({ rosterVisibility: 'private', battleSize: 1000 }))
   const input = () => ({

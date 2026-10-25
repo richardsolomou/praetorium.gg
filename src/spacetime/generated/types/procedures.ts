@@ -15,6 +15,9 @@ import * as BattleFeedProcedure from '../battle_feed_procedure'
 import * as BattleForOperatorProcedure from '../battle_for_operator_procedure'
 import * as CancelFriendInviteProcedure from '../cancel_friend_invite_procedure'
 import * as ClaimGuestSeatProcedure from '../claim_guest_seat_procedure'
+import * as ClubByTokenProcedure from '../club_by_token_procedure'
+import * as ClubCommandProcedure from '../club_command_procedure'
+import * as ClubsVisibleToProcedure from '../clubs_visible_to_procedure'
 import * as CollectionByUserProcedure from '../collection_by_user_procedure'
 import * as CollectionPhotoProcedure from '../collection_photo_procedure'
 import * as CollectionPhotoDeletionsProcedure from '../collection_photo_deletions_procedure'
@@ -109,6 +112,12 @@ export type CancelFriendInviteArgs = __Infer<typeof CancelFriendInviteProcedure.
 export type CancelFriendInviteResult = __Infer<typeof CancelFriendInviteProcedure.returnType>
 export type ClaimGuestSeatArgs = __Infer<typeof ClaimGuestSeatProcedure.params>
 export type ClaimGuestSeatResult = __Infer<typeof ClaimGuestSeatProcedure.returnType>
+export type ClubByTokenArgs = __Infer<typeof ClubByTokenProcedure.params>
+export type ClubByTokenResult = __Infer<typeof ClubByTokenProcedure.returnType>
+export type ClubCommandArgs = __Infer<typeof ClubCommandProcedure.params>
+export type ClubCommandResult = __Infer<typeof ClubCommandProcedure.returnType>
+export type ClubsVisibleToArgs = __Infer<typeof ClubsVisibleToProcedure.params>
+export type ClubsVisibleToResult = __Infer<typeof ClubsVisibleToProcedure.returnType>
 export type CollectionByUserArgs = __Infer<typeof CollectionByUserProcedure.params>
 export type CollectionByUserResult = __Infer<typeof CollectionByUserProcedure.returnType>
 export type CollectionPhotoArgs = __Infer<typeof CollectionPhotoProcedure.params>

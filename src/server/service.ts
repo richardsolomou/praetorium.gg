@@ -56,6 +56,7 @@ import { currentCatalogueFamilyId } from '../core/retiredCatalogueIds'
 import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type Mission } from './rules'
 import { type Notifier, silentNotifier } from './pushNotifier'
 import { LeagueService } from './services/leagueService'
+import { ClubService } from './services/clubService'
 import { RosterService } from './services/rosterService'
 import { SocialService } from './services/socialService'
 import type { BattleHistory, BattleSeats, RepositoryPort, SpacetimeRepository } from './spacetimeRepository'
@@ -156,6 +157,7 @@ type SubmitArgs = [
 
 export class PraetoriumService {
   readonly leagueService: LeagueService
+  readonly clubService: ClubService
   readonly rosterService: RosterService
   readonly socialService: SocialService
 
@@ -167,6 +169,7 @@ export class PraetoriumService {
     private readonly standingsRevision?: () => Promise<string>,
   ) {
     this.leagueService = new LeagueService(repository, clock, notifier)
+    this.clubService = new ClubService(repository, clock)
     this.rosterService = new RosterService(repository, clock)
     this.socialService = new SocialService(repository, clock, notifier)
   }

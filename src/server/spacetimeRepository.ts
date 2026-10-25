@@ -10,6 +10,7 @@ import {
   type LeagueVisibility,
 } from '../core/league'
 import { TABLE_SHAPES, type TableShape } from '../core/tableShape'
+import { CLUB_MEMBER_STATUSES } from '../core/club'
 import type { Command } from '../core/battle'
 import { z } from 'zod'
 import { SqliteAccountRepository } from './accountRepository'
@@ -393,6 +394,90 @@ export class SpacetimeRepository {
             }
           : null,
       }
+    })
+  }
+
+  createClub(input: {
+    id: string
+    token: string
+    ownerId: string
+    name: string
+    description: string
+    visibility: LeagueVisibility
+    admission: LeagueAdmission
+    now: number
+  }) {
+    return this.product.clubCommand({ ...input, op: 'create' }, z.literal('created'))
+  }
+
+  updateClub(
+    token: string,
+    actorId: string,
+    input: { name: string; description: string; visibility: LeagueVisibility; admission: LeagueAdmission },
+  ) {
+    return this.product.clubCommand(
+      { op: 'update', token, actorId, ...input },
+      z.union([z.object({ admitted: z.array(z.string()) }), z.enum(['missing', 'forbidden'])]),
+    )
+  }
+
+  deleteClub(token: string, actorId: string) {
+    return this.product.clubCommand({ op: 'delete', token, actorId }, z.enum(['deleted', 'missing', 'forbidden']))
+  }
+
+  joinClub(token: string, userId: string, now: number) {
+    return this.product.clubCommand(
+      { op: 'join', token, userId, now },
+      z.union([z.object({ status: z.enum(CLUB_MEMBER_STATUSES), organizerIds: z.array(z.string()) }), z.enum(['missing', 'full'])]),
+    )
+  }
+
+  leaveClub(token: string, userId: string) {
+    return this.product.clubCommand({ op: 'leave', token, userId }, z.enum(['left', 'missing', 'owner']))
+  }
+
+  moderateClubMember(token: string, actorId: string, userId: string, accept: boolean) {
+    return this.product.clubCommand(
+      { op: 'moderate', token, actorId, userId, accept },
+      z.enum(['accepted', 'rejected', 'missing', 'forbidden']),
+    )
+  }
+
+  removeClubMember(token: string, actorId: string, userId: string) {
+    return this.product.clubCommand({ op: 'remove', token, actorId, userId }, z.enum(['removed', 'missing', 'forbidden']))
+  }
+
+  setClubAdmins(token: string, actorId: string, userIds: readonly string[]) {
+    return this.product.clubCommand(
+      { op: 'set-admins', token, actorId, userIds },
+      z.union([z.object({ added: z.array(z.string()) }), z.enum(['missing', 'forbidden', 'not-members'])]),
+    )
+  }
+
+  async clubByToken(token: string) {
+    const record = await this.product.clubByToken(token)
+    if (!record) return undefined
+    const profiles = await this.accounts.profilesByIds(record.members.map((member) => member.userId))
+    const owner = profiles.get(record.club.ownerId)
+    if (!owner) throw new Error(`Club owner ${record.club.ownerId} is missing from auth database`)
+    return {
+      ...record.club,
+      ownerName: owner.name,
+      ownerImage: owner.image,
+      members: record.members.flatMap((member) => {
+        const profile = profiles.get(member.userId)
+        return profile ? [{ ...member, name: profile.name, image: profile.image }] : []
+      }),
+    }
+  }
+
+  async clubsVisibleTo(userId: string | null, limit = 100) {
+    const rows = await this.product.clubsVisibleTo(userId, Math.min(Math.max(limit, 1), 100))
+    const owners = await this.accounts.profilesByIds(rows.map((row) => row.club.ownerId))
+    return rows.map(({ club, adminIds, memberCount, ownMember }) => {
+      const owner = owners.get(club.ownerId)
+      if (!owner) throw new Error(`Club owner ${club.ownerId} is missing from auth database`)
+      return { ...club, ownerName: owner.name, ownerImage: owner.image, adminIds, memberCount, ownMember }
     })
   }
 

@@ -29,11 +29,22 @@ import {
   mayRevealLeague,
   isLeagueOrganizer,
   LEAGUE_ADMIN_MAX,
+  LEAGUE_ADMISSIONS,
+  LEAGUE_VISIBILITIES,
   type LeagueEntryStatus,
   matchesSealedLeagueRoster,
   requiredLeagueRosterLimit,
 } from '../../src/core/league'
 import { parseRosterSnapshot, rosterPickSchema } from '../../src/core/commands'
+import {
+  CLUB_ADMIN_MAX,
+  CLUB_DESCRIPTION_MAX_LENGTH,
+  CLUB_MEMBER_MAX,
+  CLUB_NAME_MAX_LENGTH,
+  isClubOrganizer,
+  type ClubMemberStatus,
+  type ClubRole,
+} from '../../src/core/club'
 import { admitConnection, authConfiguration } from './admission'
 import {
   ABILITY_REMINDERS_MAX,
@@ -215,6 +226,7 @@ type ProductScope =
   | 'onboarding'
   | 'settings'
   | 'leagues'
+  | 'clubs'
   | 'battles'
   | 'simulator'
 
@@ -229,7 +241,7 @@ function touchProduct(ctx: Context, userId: string, ...scopes: ProductScope[]) {
   }
 }
 
-type PublicScope = 'collection' | 'battles' | 'rosters' | 'leagues' | 'invites' | 'standings' | 'opponents'
+type PublicScope = 'collection' | 'battles' | 'rosters' | 'leagues' | 'clubs' | 'invites' | 'standings' | 'opponents'
 
 function touchPublic(ctx: Context, scope: PublicScope) {
   const current = ctx.db.publicRevisions.scope.find(scope)
@@ -314,6 +326,20 @@ function deleteLeague(ctx: Context, leagueId: string) {
   ctx.db.leagues.id.delete(leagueId)
 }
 
+function touchClub(ctx: Context, clubId: string) {
+  const club = ctx.db.clubs.id.find(clubId)
+  if (!club) return
+  touchProduct(ctx, club.ownerId, 'clubs')
+  for (const member of ctx.db.clubMembers.clubId.filter(clubId)) touchProduct(ctx, member.userId, 'clubs')
+  touchPublic(ctx, 'clubs')
+}
+
+function deleteClub(ctx: Context, clubId: string) {
+  touchClub(ctx, clubId)
+  for (const row of Array.from(ctx.db.clubMembers.clubId.filter(clubId))) ctx.db.clubMembers.key.delete(row.key)
+  ctx.db.clubs.id.delete(clubId)
+}
+
 function leagueAdminIds(ctx: Context, leagueId: string) {
   return Array.from(ctx.db.leagueAdmins.leagueId.filter(leagueId), (row) => row.userId)
 }
@@ -377,6 +403,11 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   for (const row of Array.from(ctx.db.sessionAccess.userId.filter(userId))) revoke(ctx, row.subject)
   for (const row of Array.from(ctx.db.battleUsers.userId.filter(userId))) deleteBattle(ctx, row.battleId)
   for (const row of Array.from(ctx.db.leagues.ownerId.filter(userId))) deleteLeague(ctx, row.id)
+  for (const row of Array.from(ctx.db.clubs.ownerId.filter(userId))) deleteClub(ctx, row.id)
+  for (const row of Array.from(ctx.db.clubMembers.userId.filter(userId))) {
+    ctx.db.clubMembers.key.delete(row.key)
+    touchClub(ctx, row.clubId)
+  }
   for (const row of Array.from(ctx.db.leagueAdmins.userId.filter(userId))) {
     ctx.db.leagueAdmins.key.delete(row.key)
     touchLeague(ctx, row.leagueId)
@@ -2816,6 +2847,193 @@ function clearTeamPicks(ctx: Context, eventId: string, teamIds?: ReadonlySet<str
 
 export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
   ctx.withTx((tx) => leagueCommandIn(tx, [payload])),
+)
+
+const clubDetailsInput = z.object({
+  name: z.string().min(1).max(CLUB_NAME_MAX_LENGTH),
+  description: z.string().max(CLUB_DESCRIPTION_MAX_LENGTH),
+  visibility: z.enum(LEAGUE_VISIBILITIES),
+  admission: z.enum(LEAGUE_ADMISSIONS),
+})
+
+const clubCommandInput = z.discriminatedUnion('op', [
+  clubDetailsInput.extend({ op: z.literal('create'), id: idInput, token: idInput, ownerId: idInput, now: leagueTimeInput }),
+  clubDetailsInput.extend({ op: z.literal('update'), token: idInput, actorId: idInput }),
+  z.object({ op: z.literal('delete'), token: idInput, actorId: idInput }),
+  z.object({ op: z.literal('join'), token: idInput, userId: idInput, now: leagueTimeInput }),
+  z.object({ op: z.literal('leave'), token: idInput, userId: idInput }),
+  z.object({ op: z.literal('moderate'), token: idInput, actorId: idInput, userId: idInput, accept: z.boolean() }),
+  z.object({ op: z.literal('remove'), token: idInput, actorId: idInput, userId: idInput }),
+  z.object({ op: z.literal('set-admins'), token: idInput, actorId: idInput, userIds: z.array(idInput).max(CLUB_ADMIN_MAX) }),
+])
+
+type ClubRow = NonNullable<ReturnType<Context['db']['clubs']['id']['find']>>
+
+function clubMembersOf(ctx: Context, clubId: string) {
+  return Array.from(ctx.db.clubMembers.clubId.filter(clubId)).sort((a, b) =>
+    a.joinedAt < b.joinedAt ? -1 : a.joinedAt > b.joinedAt ? 1 : a.userId.localeCompare(b.userId),
+  )
+}
+
+function clubMemberRows(ctx: Context, club: ClubRow) {
+  return clubMembersOf(ctx, club.id).map((row) => ({
+    userId: row.userId,
+    status: row.status as ClubMemberStatus,
+    role: row.role as ClubRole,
+    joinedAt: row.joinedAt,
+  }))
+}
+
+function insertClubMember(ctx: Context, clubId: string, userId: string, status: ClubMemberStatus, now: number) {
+  ctx.db.clubMembers.insert({ key: JSON.stringify([clubId, userId]), clubId, userId, status, role: 'member', joinedAt: BigInt(now) })
+}
+
+function clubCommandIn(tx: Context, args: unknown[]) {
+  const [payload] = z.tuple([textArg]).parse(args)
+
+  requireOperator(tx)
+  const input = decodePayload(clubCommandInput, payload, 'Invalid club command')
+  if (input.op === 'create') {
+    tx.db.clubs.insert({
+      id: input.id,
+      token: input.token,
+      ownerId: input.ownerId,
+      name: input.name,
+      description: input.description,
+      visibility: input.visibility,
+      admission: input.admission,
+      createdAt: BigInt(input.now),
+    })
+    insertClubMember(tx, input.id, input.ownerId, 'accepted', input.now)
+    touchClub(tx, input.id)
+    return productJson('created')
+  }
+  const club = tx.db.clubs.token.find(input.token)
+  if (!club) return productJson('missing')
+  const members = clubMemberRows(tx, club)
+  const memberKey = (userId: string) => JSON.stringify([club.id, userId])
+
+  if (input.op === 'join') {
+    const existing = tx.db.clubMembers.key.find(memberKey(input.userId))
+    if (existing) return productJson({ status: existing.status, organizerIds: [] })
+    if (members.length >= CLUB_MEMBER_MAX) return productJson('full')
+    const status = club.admission === 'automatic' ? 'accepted' : 'pending'
+    insertClubMember(tx, club.id, input.userId, status, input.now)
+    touchClub(tx, club.id)
+    const organizerIds =
+      status === 'pending' ? members.filter((member) => isClubOrganizer(club, members, member.userId)).map((member) => member.userId) : []
+    return productJson({ status, organizerIds })
+  }
+  if (input.op === 'leave') {
+    if (input.userId === club.ownerId) return productJson('owner')
+    if (!tx.db.clubMembers.key.find(memberKey(input.userId))) return productJson('missing')
+    touchClub(tx, club.id)
+    tx.db.clubMembers.key.delete(memberKey(input.userId))
+    return productJson('left')
+  }
+
+  const owner = input.actorId === club.ownerId
+  if (!(input.op === 'delete' || input.op === 'set-admins' ? owner : isClubOrganizer(club, members, input.actorId)))
+    return productJson('forbidden')
+
+  if (input.op === 'update') {
+    tx.db.clubs.id.update({
+      ...club,
+      name: input.name,
+      description: input.description,
+      visibility: input.visibility,
+      admission: input.admission,
+    })
+    // Opening the door lets in everyone already waiting at it.
+    const admitted = input.admission === 'automatic' ? members.filter((member) => member.status === 'pending') : []
+    for (const member of admitted) {
+      const row = tx.db.clubMembers.key.find(memberKey(member.userId))
+      if (row) tx.db.clubMembers.key.update({ ...row, status: 'accepted' })
+    }
+    touchClub(tx, club.id)
+    return productJson({ admitted: admitted.map((member) => member.userId) })
+  }
+  if (input.op === 'delete') {
+    deleteClub(tx, club.id)
+    return productJson('deleted')
+  }
+  if (input.op === 'moderate') {
+    const row = tx.db.clubMembers.key.find(memberKey(input.userId))
+    if (!row || row.status !== 'pending') return productJson('missing')
+    if (input.accept) tx.db.clubMembers.key.update({ ...row, status: 'accepted' })
+    else tx.db.clubMembers.key.delete(row.key)
+    touchClub(tx, club.id)
+    touchProduct(tx, input.userId, 'clubs')
+    return productJson(input.accept ? 'accepted' : 'rejected')
+  }
+  if (input.op === 'remove') {
+    const row = tx.db.clubMembers.key.find(memberKey(input.userId))
+    if (!row) return productJson('missing')
+    // Only the owner removes an admin, so admins cannot remove each other.
+    if (input.userId === club.ownerId || (row.role === 'admin' && !owner)) return productJson('forbidden')
+    touchClub(tx, club.id)
+    tx.db.clubMembers.key.delete(row.key)
+    return productJson('removed')
+  }
+  const userIds = new Set(input.userIds)
+  if (
+    [...userIds].some(
+      (userId) => userId === club.ownerId || !members.some((member) => member.userId === userId && member.status === 'accepted'),
+    )
+  )
+    return productJson('not-members')
+  const added: string[] = []
+  for (const member of members) {
+    if (member.userId === club.ownerId) continue
+    const role = userIds.has(member.userId) ? 'admin' : 'member'
+    if (role === member.role) continue
+    if (role === 'admin') added.push(member.userId)
+    const row = tx.db.clubMembers.key.find(memberKey(member.userId))
+    if (row) tx.db.clubMembers.key.update({ ...row, role })
+  }
+  touchClub(tx, club.id)
+  return productJson({ added })
+}
+
+export const clubCommand = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
+  ctx.withTx((tx) => clubCommandIn(tx, [payload])),
+)
+
+export const clubByToken = spacetime.procedure({ token: t.string() }, t.string(), (ctx, { token }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (token.length > MAX_ID_LENGTH) throw new SenderError('Invalid club token')
+    const club = tx.db.clubs.token.find(token)
+    return productJson(club ? { club, members: clubMemberRows(tx, club) } : null)
+  }),
+)
+
+/** Public clubs and every club a player owns, belongs to, or has asked to join, their own first. */
+export const clubsVisibleTo = spacetime.procedure({ userId: t.string(), limit: t.u32() }, t.string(), (ctx, { userId, limit }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (userId.length > MAX_ID_LENGTH || limit < 1 || limit > 100) throw new SenderError('Invalid club list')
+    const own = new Map(userId ? Array.from(tx.db.clubMembers.userId.filter(userId), (row) => [row.clubId, row] as const) : [])
+    const clubs = []
+    let scanned = 0
+    for (const club of tx.db.clubs.iter()) {
+      if (++scanned > 100_000) throw new SenderError('Club list is too large')
+      if (club.visibility === 'public' || own.has(club.id)) clubs.push(club)
+    }
+    clubs.sort((a, b) => Number(own.has(b.id)) - Number(own.has(a.id)) || Number(b.createdAt - a.createdAt))
+    return productJson(
+      clubs.slice(0, limit).map((club) => {
+        const members = clubMemberRows(tx, club)
+        const ownMember = own.get(club.id)
+        return {
+          club,
+          adminIds: members.filter((member) => member.role === 'admin').map((member) => member.userId),
+          memberCount: members.filter((member) => member.status === 'accepted').length,
+          ownMember: ownMember ? { status: ownMember.status, role: ownMember.role } : null,
+        }
+      }),
+    )
+  }),
 )
 
 /** Saved actions replay through the same functions as live calls, so arguments arrive untyped. */

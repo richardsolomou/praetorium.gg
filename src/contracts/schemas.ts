@@ -51,6 +51,7 @@ import {
   LEAGUE_VISIBILITIES,
 } from '../core/league'
 import { TABLE_SHAPES, type TableShape } from '../core/tableShape'
+import { CLUB_ADMIN_MAX, CLUB_DESCRIPTION_MAX_LENGTH, CLUB_NAME_MAX_LENGTH } from '../core/club'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import { PROFILE_NAME_MAX_LENGTH } from '../core/profileName'
 
@@ -156,6 +157,17 @@ export const leagueRosterSchema = z.object({ token, eventToken: token.optional()
 export const leagueBattlesSchema = z.object({ token, eventToken: token, before: battlesCursor.nullable().default(null) })
 export const leagueResultsSchema = z.object({ token, eventToken: token })
 export const setLeagueAdminsSchema = z.object({ token, userIds: z.array(id).max(LEAGUE_ADMIN_MAX) })
+const clubFields = {
+  name: z.string().trim().min(1, 'name the club').max(CLUB_NAME_MAX_LENGTH),
+  description: z.string().trim().max(CLUB_DESCRIPTION_MAX_LENGTH).default(''),
+  visibility: z.enum(LEAGUE_VISIBILITIES),
+  admission: z.enum(LEAGUE_ADMISSIONS),
+}
+export const createClubSchema = z.object(clubFields)
+export const updateClubSchema = z.object({ token, ...clubFields })
+export const clubMemberSchema = z.object({ token, userId: id })
+export const moderateClubMemberSchema = z.object({ token, userId: id, accept: z.boolean() })
+export const setClubAdminsSchema = z.object({ token, userIds: z.array(id).max(CLUB_ADMIN_MAX) })
 export const createLeagueBattleSchema = z.object({
   token,
   eventToken: token.optional(),

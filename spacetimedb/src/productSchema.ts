@@ -260,6 +260,33 @@ const leagueEventBattles = table(
   },
 )
 
+const clubs = table(
+  { name: 'clubs' },
+  {
+    id: t.string().primaryKey(),
+    token: t.string().unique(),
+    ownerId: t.string().index('btree'),
+    name: t.string(),
+    description: t.string(),
+    visibility: t.string(),
+    admission: t.string(),
+    createdAt: t.u64(),
+  },
+)
+
+/** Keyed by club and user. The owner holds an accepted row too, so "every player is a member" is one check; an admin is always a member. */
+const clubMembers = table(
+  { name: 'club_members' },
+  {
+    key: t.string().primaryKey(),
+    clubId: t.string().index('btree'),
+    userId: t.string().index('btree'),
+    status: t.string(),
+    role: t.string(),
+    joinedAt: t.u64(),
+  },
+)
+
 /** Retired roster-tied stock. SpacetimeDB refuses to drop a table that still holds rows, so it stays until it is emptied. */
 const collectionStock = table(
   { name: 'collection_stock' },
@@ -470,6 +497,8 @@ export const productTables = {
   leagueRosterSharing,
   leagueEventBattles,
   leagueAdmins,
+  clubs,
+  clubMembers,
   collection,
   collectionWishes,
   collectionStock,
