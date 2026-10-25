@@ -137,7 +137,7 @@ export type LeagueRevealCheck =
 export function leagueRevealChecklist(
   event: { format: TableShape | null; rosterLimit: number | null; sealBy?: number | null },
   entries: readonly LeagueRevealEntry[],
-  now: number = Date.now(),
+  now: number,
 ): LeagueRevealCheck[] {
   const accepted = leagueEligibleEntries(event, entries, now)
   const checks: LeagueRevealCheck[] = [{ step: 'places', done: accepted.length > 0, accepted: accepted.length }]
@@ -205,11 +205,12 @@ export function leagueStage(
   event: { format: TableShape | null; rosterLimit: number | null; revealedAt: number | null; sealBy?: number | null },
   entries: readonly LeagueRevealEntry[],
   played: boolean,
+  now: number,
 ): LeagueStage {
   if (event.revealedAt) return played ? 'results' : 'playing'
   // The reveal would turn waiting requests down, so answering them comes first even when nothing else holds it up.
   if (entries.some((entry) => entry.status === 'pending')) return 'approving'
-  const held = leagueRevealChecklist(event, entries).find((check) => !check.done)
+  const held = leagueRevealChecklist(event, entries, now).find((check) => !check.done)
   if (!held) return 'ready'
   if ((held.step === 'sizes' || held.step === 'teams') && held.short) return 'recruiting'
   return STAGE_FOR_CHECK[held.step]

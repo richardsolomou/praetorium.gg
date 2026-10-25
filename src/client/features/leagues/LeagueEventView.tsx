@@ -54,6 +54,7 @@ import { LeagueBattleSkeleton, RosterChooser } from './LeagueRosterChooser'
 import { LeagueCombatDialog } from './LeagueCombatDialog'
 import { LeagueResults } from './LeagueResults'
 import { useMoment } from './EventSchedule'
+import { useNow } from '../../useNow'
 import { LeagueRounds, ownTable, swissProgress } from './LeagueRounds'
 import { TeamDispositionPanel } from './LeagueTeamDisposition'
 import { TeamWarlordPanel } from './LeagueTeamWarlord'
@@ -107,6 +108,7 @@ export function LeagueEventView({
   const { data: results } = useQuery({ ...leagueResultsQuery(token, league.eventToken), enabled: Boolean(league.revealedAt) })
   const { data: gameReferences } = useQuery(gameReferencesQuery())
   const moment = useMoment()
+  const now = useNow(league.sealBy)
   const [choosing, setChoosing] = useState(Boolean(chooseRoster))
   const [sealing, setSealing] = useState<SavedRoster | null>(null)
   const [choosingBattle, setChoosingBattle] = useState(Boolean(startBattle))
@@ -236,7 +238,7 @@ export function LeagueEventView({
     choose: openRosterChooser,
     play: swissOpponent ? () => battle.mutate({ opponentId: swissOpponent }) : openBattleChooser,
     playLabel: swissOpponent ? `Start your round ${swissProgressNow.round} battle` : undefined,
-    sealingClosed: leagueSealingClosed(league, Date.now()),
+    sealingClosed: leagueSealingClosed(league, now),
     sealBy: league.sealBy === null ? null : moment(league.sealBy),
     playing: battle.isPending,
   })
@@ -244,7 +246,7 @@ export function LeagueEventView({
   const revealReady =
     !revealed &&
     mayRevealLeague(isOrganizer, ownEntry ?? null) &&
-    leagueRevealChecklist(league, league.entries).every((check) => check.done)
+    leagueRevealChecklist(league, league.entries, now).every((check) => check.done)
   const status: Status = revealReady
     ? {
         ...entryCard,
@@ -302,7 +304,7 @@ export function LeagueEventView({
   const nextStep =
     latest && !(swiss && revealed) && (isOrganizer || ownEntry?.status === 'accepted')
       ? leagueNextStep(
-          leagueStage(league, league.entries, Boolean(results?.rows.some((result) => result.played))),
+          leagueStage(league, league.entries, Boolean(results?.rows.some((result) => result.played)), now),
           // The same facts that give the status card its start-battle action.
           { organizer: isOrganizer, canPlay: Boolean(ownEntry?.submitted) && ownSideSealed && !alone },
           league,

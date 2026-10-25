@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
+import { useNow } from '../../useNow'
 import { Circle } from 'lucide-react'
 import { leagueRevealChecklist, mayRevealLeague, type LeagueEntryView, type LeagueRevealCheck } from '../../../core/league'
 import { revealLeague } from '../../functions'
@@ -34,7 +35,8 @@ export function LeagueReadiness({
   const accepted = league.entries.filter((entry) => entry.status === 'accepted')
   const sealed = accepted.filter((entry) => entry.submitted)
   const waiting = accepted.filter((entry) => !entry.submitted)
-  const checks = leagueRevealChecklist(league, league.entries)
+  const now = useNow(league.sealBy)
+  const checks = leagueRevealChecklist(league, league.entries, now)
   const ready = checks.every((check) => check.done)
   const organizerSteps = checks.flatMap((check) => {
     const step = check.step === 'teams' && league.format === '2v1' ? 'pair the allies' : ORGANIZER_STEPS[check.step]
