@@ -414,7 +414,7 @@ export function NextEventPanel({ league }: { league: League }) {
 
 export function InvitePanel({ league }: { league: League }) {
   const origin = useOrigin()
-  const invite = useInviteShare(league)
+  const invite = useInviteShare(`/leagues/${league.token}`, league.name, 'league_invite_shared')
   const shareLabel = useInviteShareLabel()
   return (
     <section className="border border-edge bg-panel p-4">

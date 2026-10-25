@@ -48,6 +48,7 @@ import {
 } from '../core/serviceRecord'
 import { routeSlug } from '../core/slug'
 import { type Standing, type StandingFaction, standings } from '../core/standings'
+import { refuse } from '../core/battlePrimitives'
 import { leagueResults } from '../core/leagueResults'
 import { REPLAY_BATCH_SIZE, type BattlesCursor } from '../contracts/battles'
 import { gameReferencesFor } from '../shared/gameReferences'
@@ -128,6 +129,8 @@ const STANDINGS_WINDOW_MS = 90 * DAY_MS
 const STANDINGS_BATTLE_LIMIT = 500
 /** The battle feed's largest page; an event with more battles than this shows a partial table. */
 const LEAGUE_RESULTS_BATTLE_LIMIT = 500
+/** Pages of 500 battles a club table reads before it reports itself partial. */
+const CLUB_STANDINGS_PAGES = 20
 const STANDINGS_HOLD_MS = 60_000
 
 /** How much of a table is sent. Nobody reads past this, and every faction played costs one. */
@@ -169,7 +172,7 @@ export class PraetoriumService {
     private readonly standingsRevision?: () => Promise<string>,
   ) {
     this.leagueService = new LeagueService(repository, clock, notifier)
-    this.clubService = new ClubService(repository, clock)
+    this.clubService = new ClubService(repository, clock, notifier)
     this.rosterService = new RosterService(repository, clock)
     this.socialService = new SocialService(repository, clock, notifier)
   }
@@ -534,6 +537,50 @@ export class PraetoriumService {
     return { ...leagueResults(entrantIds, battles), partial: nextCursor !== null }
   }
 
+  /**
+   * A club's standing table: every battle tagged for it, rated together, with rows for its current members only, so
+   * someone who leaves drops off and comes back with their record if they rejoin. A private club shows it to members alone.
+   */
+  async clubStandings(token: string, viewerId: string | null, factions: readonly BattleFaction[] = []) {
+    const club = await this.clubService.club(token, viewerId)
+    if (!club) return null
+    const memberIds = new Set(club.members.filter((member) => member.status === 'accepted').map((member) => member.userId))
+    if (club.visibility === 'private' && !(viewerId && memberIds.has(viewerId))) return null
+    const histories: BattleHistory[] = []
+    let before: BattlesCursor | undefined
+    for (let page = 0; page < CLUB_STANDINGS_PAGES; page++) {
+      const { battles, nextCursor } = await this.repository.battlesByClub(token, { limit: LEAGUE_RESULTS_BATTLE_LIMIT, before })
+      histories.push(...battles)
+      before = nextCursor ?? undefined
+      if (!before) break
+    }
+    const practice = await this.repository.practiceOpponents()
+    const tables = standings(
+      this.battleSummaries(
+        histories.filter((history) => foldHistory(history).clubId === club.id),
+        null,
+        null,
+        factions,
+      ),
+      { exclude: practice.map((opponent) => opponent.id) },
+    )
+    const rows = tables.overall.filter((row) => memberIds.has(row.id))
+    return { table: { faction: null, players: rows.length, rows }, partial: before !== undefined }
+  }
+
+  /** The club a battle counts for, and for a seated player during setup the clubs it could; a private club's name stays with its players. */
+  async battleClubs(token: string, viewerId: string | null) {
+    const seats = await this.repository.battleByToken(token)
+    if (!seats) throw new Response('no such battle', { status: 404 })
+    const seated = viewerId !== null && this.seated(seats, viewerId)
+    const { current, options } = await this.repository.battleClubs(seats.battle.id)
+    const summary = (club: { token: string; name: string }) => ({ token: club.token, name: club.name })
+    return {
+      current: current && (seated || current.visibility === 'public') ? summary(current) : null,
+      options: seated ? options.map((club) => ({ id: club.id, ...summary(club) })) : [],
+    }
+  }
+
   private battleSummaries(
     histories: readonly BattleHistory[],
     viewerId: string | null,
@@ -825,6 +872,12 @@ export class PraetoriumService {
     if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
     if (sync) command = restoreOpaqueBattleKeys(history.players, history.log, command)
     if (command.kind === 'lock-league-rosters') throw new Response('league roster locks are created by the server', { status: 403 })
+    // The product database refuses a non-member too; asking first gives the refusal its code.
+    const clubId = command.kind === 'set-battle-club' ? command.clubId : null
+    const clubRefusal =
+      clubId && !(await this.repository.battleClubs(history.battle.id)).options.some((club) => club.id === clubId)
+        ? refuse('club-members-only', 'every player must be a member of the club')
+        : null
     // The log comes back with the answer, so a refusal and a lost race both report
     // the state that refused them rather than the one the caller was holding —
     // and without a second read of a history the append had already in hand.
@@ -839,6 +892,7 @@ export class PraetoriumService {
         ...sync,
       },
       (state) => {
+        if (clubRefusal) return clubRefusal
         if (command.kind === 'begin-battle') return rules ? setupReferenceError(state, rules) : null
         if (command.kind === 'set-prep' && state.status === 'playing') {
           return rules ? repairPrepReferenceError(state, userId, command, rules) : null

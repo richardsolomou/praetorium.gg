@@ -13,7 +13,7 @@ import { groupBy } from './collections'
 import { nicknamedUnit } from './unitNotes'
 import { attachedUnitList, attachedHost, attachedUnits } from './attachedUnits'
 import { refuse, sameSide } from './battlePrimitives'
-import { isPracticeSeat } from './newBattle'
+import { isGuestSeat, isPracticeSeat } from './newBattle'
 import { appliesInMode, cardsDue, cardsDueFromTheirTurn, finalAwardTotal, type MissionAward } from './scoring'
 import type { UnitGroup } from './unitGroups'
 import type { RosterPick } from './roster'
@@ -869,6 +869,8 @@ export type Command =
   | { kind: 'set-side-warlord'; side: number; playerId: PlayerId }
   | ({ kind: 'attach-roster'; roster: Roster; prep?: BattlePrep | null; painted?: boolean } & OnBehalfOf)
   | ({ kind: 'detach-roster' } & OnBehalfOf)
+  /** The club whose table this battle counts on, by internal id since every battle is public and a club's token is its invite. */
+  | { kind: 'set-battle-club'; clubId: string | null }
   | {
       kind: 'lock-league-rosters'
       leagueToken: string
@@ -986,6 +988,8 @@ export type RefusalCode =
   | 'cards-owed'
   | 'cards-settled'
   | 'clock-unchanged'
+  | 'club-ineligible'
+  | 'club-members-only'
   | 'concession-required'
   | 'cp-gain-limit'
   | 'deployment-mismatch'
@@ -1197,6 +1201,7 @@ export type BattleState = {
   deploymentId: string | null
   leagueToken: string | null
   leagueEventToken: string | null
+  clubId: string | null
   settings: BattleSettings
   result: { reason: BattleEndReason; concededBy: PlayerId | null } | null
   players: PlayerState[]
@@ -1337,6 +1342,7 @@ export function emptyBattle(
     deploymentId: null,
     leagueToken: null,
     leagueEventToken: null,
+    clubId: null,
     settings: { ...DEFAULT_SETTINGS },
     result: null,
     players: playerIds.map((id, index) => ({
@@ -1411,6 +1417,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
     case 'configure-battle': {
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
       if (command.manual && state.leagueToken) return refuse('league-sealed', 'league battles play their mission pack')
+      if (command.manual && state.clubId) return refuse('club-ineligible', 'a battle counting for a club keeps its missions and scoring')
       if (command.manual && (command.missionPackId || command.twistId || command.terrainLayoutId))
         return refuse('manual-tracking', 'a manually tracked battle has no mission pack')
       if (state.leagueToken && command.limit !== state.settings.limit) return refuse('league-sealed', 'league roster battle size is sealed')
@@ -1496,6 +1503,14 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (!player.roster) return refuse('no-roster', 'that seat has no army')
       return null
     }
+    case 'set-battle-club':
+      if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
+      if (command.clubId === null) return null
+      if (state.leagueToken) return refuse('club-ineligible', 'a league battle counts for its league')
+      if (state.settings.manual) return refuse('club-ineligible', 'a manually tracked battle cannot count for a club')
+      if (state.players.some((candidate) => isGuestSeat(candidate.id) || isPracticeSeat(candidate)))
+        return refuse('club-ineligible', 'only members playing each other can count for a club')
+      return null
     case 'lock-league-rosters':
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
       if (state.leagueToken) return refuse('league-sealed', 'league rosters are already sealed')
@@ -2045,6 +2060,9 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       inferBattleSize(state)
       return
     }
+    case 'set-battle-club':
+      state.clubId = command.clubId
+      return
     case 'lock-league-rosters': {
       state.leagueToken = command.leagueToken
       state.leagueEventToken = command.eventToken ?? null

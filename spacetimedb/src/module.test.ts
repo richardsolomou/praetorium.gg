@@ -498,6 +498,76 @@ describe('clubs', () => {
   })
 })
 
+describe('club battles', () => {
+  function setup(members: string[]) {
+    const host = harness()
+    const command = (input: Record<string, unknown>) =>
+      module.clubCommand(host.procedure(host.operator), { payload: JSON.stringify({ token: 'club', ...input }) })
+    command({
+      op: 'create',
+      id: 'club-id',
+      ownerId: 'creator',
+      name: 'Club',
+      description: '',
+      visibility: 'private',
+      admission: 'automatic',
+      now: NOW,
+    })
+    for (const userId of members) command({ op: 'join', userId, now: NOW })
+    module.createBattle(host.procedure(host.operator), {
+      payload: JSON.stringify({
+        id: 'battle',
+        token: 'battle-token',
+        userId: 'creator',
+        allyIds: [],
+        opponentIds: ['opponent'],
+        initialCommands: [],
+        now: NOW,
+      }),
+    })
+    const submit = (expectedSeq: number, body: Record<string, unknown>) =>
+      JSON.parse(
+        module.submitBattle(host.procedure(host.operator), {
+          battleId: 'battle',
+          userId: 'creator',
+          expectedSeq,
+          body: JSON.stringify(body),
+          now: BigInt(NOW),
+          externalRefusal: '',
+        }),
+      ) as { result: { outcome: string; reason?: string } }
+    const clubs = () =>
+      JSON.parse(module.battleClubs(host.procedure(host.operator), { battleId: 'battle' })) as {
+        current: { token: string } | null
+        options: { token: string }[]
+      }
+    return { submit, clubs }
+  }
+
+  it('offers a club only when every player is a member', () => {
+    expect(setup([]).clubs().options).toEqual([])
+  })
+
+  it('refuses a club the opponent is not a member of', () => {
+    expect(setup([]).submit(0, { kind: 'set-battle-club', clubId: 'club-id' }).result.reason).toBe(
+      'every player must be a member of the club',
+    )
+  })
+
+  it('counts a tagged battle for its club', () => {
+    const battle = setup(['opponent'])
+    battle.submit(0, { kind: 'set-battle-club', clubId: 'club-id' })
+    expect(battle.clubs().current?.token).toBe('club')
+  })
+
+  it('stops counting a battle whose club choice is undone', () => {
+    const battle = setup(['opponent'])
+    battle.submit(0, { kind: 'set-battle-club', clubId: 'club-id' })
+    battle.submit(1, { kind: 'undo', target: 1 })
+    expect(battle.clubs().current).toBeNull()
+  })
+})
+
 describe('saved action acknowledgements', () => {
   const saved = JSON.stringify(JSON.stringify({ rosterVisibility: 'private', battleSize: 1000 }))
   const input = () => ({

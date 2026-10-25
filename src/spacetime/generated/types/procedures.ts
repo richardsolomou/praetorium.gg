@@ -11,12 +11,14 @@ import * as AcceptFriendProcedure from '../accept_friend_procedure'
 import * as AcceptFriendInviteProcedure from '../accept_friend_invite_procedure'
 import * as AdminCollectionPhotosProcedure from '../admin_collection_photos_procedure'
 import * as BattleByTokenProcedure from '../battle_by_token_procedure'
+import * as BattleClubsProcedure from '../battle_clubs_procedure'
 import * as BattleFeedProcedure from '../battle_feed_procedure'
 import * as BattleForOperatorProcedure from '../battle_for_operator_procedure'
 import * as CancelFriendInviteProcedure from '../cancel_friend_invite_procedure'
 import * as ClaimGuestSeatProcedure from '../claim_guest_seat_procedure'
 import * as ClubByTokenProcedure from '../club_by_token_procedure'
 import * as ClubCommandProcedure from '../club_command_procedure'
+import * as ClubNamesProcedure from '../club_names_procedure'
 import * as ClubsVisibleToProcedure from '../clubs_visible_to_procedure'
 import * as CollectionByUserProcedure from '../collection_by_user_procedure'
 import * as CollectionPhotoProcedure from '../collection_photo_procedure'
@@ -104,6 +106,8 @@ export type AdminCollectionPhotosArgs = __Infer<typeof AdminCollectionPhotosProc
 export type AdminCollectionPhotosResult = __Infer<typeof AdminCollectionPhotosProcedure.returnType>
 export type BattleByTokenArgs = __Infer<typeof BattleByTokenProcedure.params>
 export type BattleByTokenResult = __Infer<typeof BattleByTokenProcedure.returnType>
+export type BattleClubsArgs = __Infer<typeof BattleClubsProcedure.params>
+export type BattleClubsResult = __Infer<typeof BattleClubsProcedure.returnType>
 export type BattleFeedArgs = __Infer<typeof BattleFeedProcedure.params>
 export type BattleFeedResult = __Infer<typeof BattleFeedProcedure.returnType>
 export type BattleForOperatorArgs = __Infer<typeof BattleForOperatorProcedure.params>
@@ -116,6 +120,8 @@ export type ClubByTokenArgs = __Infer<typeof ClubByTokenProcedure.params>
 export type ClubByTokenResult = __Infer<typeof ClubByTokenProcedure.returnType>
 export type ClubCommandArgs = __Infer<typeof ClubCommandProcedure.params>
 export type ClubCommandResult = __Infer<typeof ClubCommandProcedure.returnType>
+export type ClubNamesArgs = __Infer<typeof ClubNamesProcedure.params>
+export type ClubNamesResult = __Infer<typeof ClubNamesProcedure.returnType>
 export type ClubsVisibleToArgs = __Infer<typeof ClubsVisibleToProcedure.params>
 export type ClubsVisibleToResult = __Infer<typeof ClubsVisibleToProcedure.returnType>
 export type CollectionByUserArgs = __Infer<typeof CollectionByUserProcedure.params>

@@ -1,4 +1,4 @@
-export type NativeSection = 'battles' | 'factions' | 'home' | 'leaderboard' | 'leagues' | 'missions' | 'rosters' | 'rules'
+export type NativeSection = 'battles' | 'clubs' | 'factions' | 'home' | 'leaderboard' | 'leagues' | 'missions' | 'rosters' | 'rules'
 
 type NativeNavigation = {
   back?: { href: string; label: string; preferHistory?: boolean }
@@ -45,6 +45,11 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
     return id
       ? { back: { href: '/leagues', label: 'Back to leagues', preferHistory: true }, section: 'leagues', title: 'League' }
       : { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'leagues', title: 'Leagues' }
+  }
+  if (root === 'clubs') {
+    return id
+      ? { back: { href: '/clubs', label: 'Back to clubs', preferHistory: true }, section: 'clubs', title: 'Club' }
+      : { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'clubs', title: 'Clubs' }
   }
   if (root === 'factions') {
     if (!id) return { section: 'factions', title: 'Factions' }

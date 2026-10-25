@@ -131,12 +131,14 @@ export function PrivacyPolicy() {
         <p>
           Deleting a saved roster removes the saved list, but keeps the frozen copies already used in battles or sealed in league events.
           Only a battle's creator can delete it; deletion removes its record and its contribution to public rankings. Deleting a league
-          removes its events and sealed rosters, while battles already played keep their own copies.
+          removes its events and sealed rosters, while battles already played keep their own copies. Deleting a club removes its memberships
+          and table; its battles stay. A club's table shows the results of battles its members chose the club for, to anyone for a public
+          club and to members for a private one.
         </p>
         <p>
           You can permanently delete your account from your profile. This removes your profile, rosters, friendships, league participation,
-          leagues you organize and every battle you played, including shared battles. Session records expire on their own; usage data is
-          kept by our analytics provider under its retention settings. The{' '}
+          leagues you organize, club memberships, clubs you own and every battle you played, including shared battles. Session records
+          expire on their own; usage data is kept by our analytics provider under its retention settings. The{' '}
           <a href="/delete-account" className="text-info hover:text-parchment">
             account deletion page
           </a>{' '}

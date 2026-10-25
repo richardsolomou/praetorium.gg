@@ -24,6 +24,7 @@ export type Notice = { actorId: string; recipientIds: readonly string[] } & (
       leagueToken: string
       eventToken?: string
     }
+  | { kind: 'club-member-requested' | 'club-member-accepted'; clubToken: string }
 )
 
 export type NoticeMessage = { title: string; body: string; path: string }
@@ -42,9 +43,9 @@ export function noticeRecipients(notice: Notice): string[] {
  * The words and destination of a notice, or null when its subject has gone.
  *
  * Only what the recipient can already read: a name any player may see, a league
- * they entered, and a path the page behind it would show them anyway.
+ * or club they entered, and a path the page behind it would show them anyway.
  */
-export function noticeMessage(notice: Notice, names: { actor?: string; league?: string }): NoticeMessage | null {
+export function noticeMessage(notice: Notice, names: { actor?: string; league?: string; club?: string }): NoticeMessage | null {
   const actor = names.actor ?? 'A player'
   switch (notice.kind) {
     case 'battle-created':
@@ -77,5 +78,13 @@ export function noticeMessage(notice: Notice, names: { actor?: string; league?: 
       }[notice.kind]
       return { title: names.league, body, path: `/leagues/${encodeURIComponent(notice.leagueToken)}${query}` }
     }
+    case 'club-member-requested':
+    case 'club-member-accepted':
+      if (!names.club) return null
+      return {
+        title: names.club,
+        body: notice.kind === 'club-member-requested' ? `${actor} asked to join. Let them in from the club page.` : 'You’re in the club.',
+        path: `/clubs/${encodeURIComponent(notice.clubToken)}`,
+      }
   }
 }

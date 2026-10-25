@@ -271,6 +271,10 @@ export class SpacetimeRepository {
     return this.product.leagueNames(...args)
   }
 
+  clubNames(...args: Parameters<SpacetimeOperator['clubNames']>) {
+    return this.product.clubNames(...args)
+  }
+
   async createLeague(input: {
     id: string
     token: string
@@ -1134,6 +1138,14 @@ export class SpacetimeRepository {
     page: { limit: number; before?: BattlesCursor; viewerId?: string | null },
   ) {
     return this.feed({ scope: 'league', leagueToken, eventToken, before: page.before, limit: page.limit, viewerId: page.viewerId })
+  }
+
+  async battlesByClub(clubToken: string, page: { limit: number; before?: BattlesCursor }) {
+    return this.feed({ scope: 'club', clubToken, before: page.before, limit: page.limit })
+  }
+
+  battleClubs(battleId: string) {
+    return this.product.battleClubs(battleId)
   }
 
   async publicBattles(page: { limit: number; before?: BattlesCursor; viewerId?: string | null }) {

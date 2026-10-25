@@ -309,6 +309,7 @@ function deleteBattle(ctx: Context, battleId: string) {
   for (const row of Array.from(ctx.db.battleUsers.battleId.filter(battleId))) ctx.db.battleUsers.key.delete(row.key)
   for (const row of Array.from(ctx.db.guestSeats.battleId.filter(battleId))) ctx.db.guestSeats.seatId.delete(row.seatId)
   ctx.db.leagueEventBattles.battleId.delete(battleId)
+  ctx.db.clubBattles.battleId.delete(battleId)
   ctx.db.battles.id.delete(battleId)
 }
 
@@ -334,9 +335,36 @@ function touchClub(ctx: Context, clubId: string) {
   touchPublic(ctx, 'clubs')
 }
 
+const CLUB_MEMBERS_ONLY = 'every player must be a member of the club'
+
+/** Clubs every seat belongs to, none of them a guest or practice opponent: the clubs this battle may count for. */
+function battleClubIds(ctx: Context, seats: readonly { id: string; automated: boolean }[]) {
+  if (seats.some((seat) => seat.automated || isGuestSeat(seat.id))) return []
+  const [first, ...rest] = seats
+  if (!first) return []
+  return Array.from(ctx.db.clubMembers.userId.filter(first.id))
+    .filter((row) => row.status === 'accepted')
+    .map((row) => row.clubId)
+    .filter((clubId) => rest.every((seat) => ctx.db.clubMembers.key.find(JSON.stringify([clubId, seat.id]))?.status === 'accepted'))
+}
+
+/** Rewrites a battle's club index row from its log, so a choice and its undo both land in the index. */
+function indexClubBattle(ctx: Context, battleId: string) {
+  const { seats, log } = battleData(ctx, battleId)
+  const clubId = reduceBattle(
+    seats.map((seat) => seat.id),
+    log,
+    seats.map((seat) => seat.side),
+    seats.filter((seat) => seat.automated).map((seat) => seat.id),
+  ).clubId
+  ctx.db.clubBattles.battleId.delete(battleId)
+  if (clubId) ctx.db.clubBattles.insert({ battleId, clubId })
+}
+
 function deleteClub(ctx: Context, clubId: string) {
   touchClub(ctx, clubId)
   for (const row of Array.from(ctx.db.clubMembers.clubId.filter(clubId))) ctx.db.clubMembers.key.delete(row.key)
+  for (const row of Array.from(ctx.db.clubBattles.clubId.filter(clubId))) ctx.db.clubBattles.battleId.delete(row.battleId)
   ctx.db.clubs.id.delete(clubId)
 }
 
@@ -649,12 +677,14 @@ export const battleByToken = spacetime.procedure({ token: t.string() }, t.string
 )
 
 const battleFeedQuery = z.strictObject({
-  scope: z.enum(['user', 'league', 'public', 'friends', 'watchable', 'profile']),
+  scope: z.enum(['user', 'league', 'club', 'public', 'friends', 'watchable', 'profile']),
   userId: z.string().max(MAX_ID_LENGTH).nullable(),
   viewerId: z.string().max(MAX_ID_LENGTH).nullable(),
   withUserId: z.string().max(MAX_ID_LENGTH).nullable(),
   leagueToken: z.string().max(MAX_ID_LENGTH).nullable(),
   eventToken: z.string().max(MAX_ID_LENGTH).nullable(),
+  // Sent only with the club scope, so a server older than clubs still reads every other feed.
+  clubToken: z.string().max(MAX_ID_LENGTH).optional(),
   since: z.number().int().nonnegative().nullable(),
   before: z.strictObject({ at: z.number().int().nonnegative(), id: z.string().max(MAX_ID_LENGTH) }).nullable(),
   limit: z.number().int().min(1).max(500),
@@ -668,6 +698,7 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
     if (
       ((input.scope === 'user' || input.scope === 'friends' || input.scope === 'profile') && !input.userId) ||
       (input.scope === 'league' && (!input.leagueToken || !input.eventToken)) ||
+      (input.scope === 'club' && !input.clubToken) ||
       (input.scope === 'watchable' && input.since === null)
     ) {
       throw new SenderError('Invalid battle feed scope')
@@ -678,6 +709,8 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
     if (input.scope === 'league' && (!league || !event || event.leagueId !== league.id || event.revealedAt === undefined)) {
       return productJson({ battles: [], nextCursor: null })
     }
+    const club = input.clubToken ? tx.db.clubs.token.find(input.clubToken) : undefined
+    if (input.scope === 'club' && !club) return productJson({ battles: [], nextCursor: null })
     const friendIds = input.scope === 'friends' ? acceptedFriendIds(tx, input.userId!) : new Set<string>()
 
     const rows: { id: string; token: string; createdAt: number; at: number }[] = []
@@ -689,6 +722,11 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
         }
       } else if (input.scope === 'league') {
         for (const entry of tx.db.leagueEventBattles.eventId.filter(event!.id)) {
+          const battle = tx.db.battles.id.find(entry.battleId)
+          if (battle) yield battle
+        }
+      } else if (input.scope === 'club') {
+        for (const entry of tx.db.clubBattles.clubId.filter(club!.id)) {
           const battle = tx.db.battles.id.find(entry.battleId)
           if (battle) yield battle
         }
@@ -705,7 +743,7 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
         continue
       if (input.scope === 'profile' && !seatIds.has(input.userId!)) continue
       let activity = battle.createdAt
-      if (input.scope === 'user' || input.scope === 'league' || input.scope === 'watchable' || input.scope === 'profile') {
+      if (input.scope !== 'public' && input.scope !== 'friends') {
         for (const command of tx.db.commands.battleId.filter(battle.id)) if (command.at > activity) activity = command.at
       }
       const at = safeNumber(activity)
@@ -783,7 +821,11 @@ export const submitBattle = spacetime.procedure(
         }
       }
       if (input.expectedSeq !== state.seq) return productJson({ result: { outcome: 'stale', seq: state.seq }, log, ...appliedReport })
-      const refusal = validate(state, input.userId, parsed.data)
+      const refusal =
+        validate(state, input.userId, parsed.data) ??
+        (parsed.data.kind === 'set-battle-club' && parsed.data.clubId && !battleClubIds(tx, seats).includes(parsed.data.clubId)
+          ? CLUB_MEMBERS_ONLY
+          : null)
       if (refusal) return productJson({ result: { outcome: 'refused', reason: refusal }, log, ...appliedReport })
       if (input.externalRefusal) {
         if (input.externalRefusal.length > 1_000) throw new SenderError('Invalid battle refusal')
@@ -801,6 +843,7 @@ export const submitBattle = spacetime.procedure(
       for (const seat of seats) touchProduct(tx, seat.id, 'battles')
       touchPublic(tx, 'battles')
       if (state.status === 'finished' || parsed.data.kind === 'end-battle') touchPublic(tx, 'standings')
+      if (parsed.data.kind === 'set-battle-club' || parsed.data.kind === 'undo') indexClubBattle(tx, input.battleId)
       return productJson({
         result: { outcome: 'appended', seq },
         ...(sync?.reportApplied ? { applied: true } : {}),
@@ -2386,6 +2429,19 @@ export const leagueNames = spacetime.procedure({ tokens: t.array(t.string()) }, 
   }),
 )
 
+export const clubNames = spacetime.procedure({ tokens: t.array(t.string()) }, t.string(), (ctx, { tokens }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (tokens.length > 100) throw new SenderError('Too many club names')
+    return productJson(
+      [...new Set(tokens)].flatMap((token) => {
+        const club = tx.db.clubs.token.find(token)
+        return club ? [[club.token, club.name]] : []
+      }),
+    )
+  }),
+)
+
 export const operatorHealth = spacetime.procedure({}, t.bool(), (ctx) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
@@ -3036,6 +3092,24 @@ export const clubsVisibleTo = spacetime.procedure({ userId: t.string(), limit: t
   }),
 )
 
+/** The club a battle counts for, and the clubs it could, for its setup. */
+export const battleClubs = spacetime.procedure({ battleId: t.string() }, t.string(), (ctx, { battleId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (battleId.length > MAX_ID_LENGTH) throw new SenderError('Invalid battle')
+    const summary = (club: ClubRow) => ({ id: club.id, token: club.token, name: club.name, visibility: club.visibility })
+    const currentId = tx.db.clubBattles.battleId.find(battleId)?.clubId
+    const current = currentId ? tx.db.clubs.id.find(currentId) : undefined
+    return productJson({
+      current: current ? summary(current) : null,
+      options: battleClubIds(tx, battleData(tx, battleId).seats).flatMap((clubId) => {
+        const club = tx.db.clubs.id.find(clubId)
+        return club ? [summary(club)] : []
+      }),
+    })
+  }),
+)
+
 /** Saved actions replay through the same functions as live calls, so arguments arrive untyped. */
 const textArg = z.string().max(2_000_000)
 const timestampArg = z.preprocess(
@@ -3083,7 +3157,7 @@ function createBattleIn(tx: Context, args: unknown[]) {
       log,
       seats.map((seat) => seat.side),
     )
-    const refusal = validate(state, userId, command)
+    const refusal = command.kind === 'set-battle-club' ? 'a club is chosen during setup' : validate(state, userId, command)
     if (refusal) throw new SenderError(`new battle command was refused: ${refusal}`)
     const seq = index + 1
     tx.db.commands.insert({ key: JSON.stringify([id, seq]), battleId: id, seq, userId, at: BigInt(now), body: JSON.stringify(command) })
@@ -4087,7 +4161,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         log,
         seats.map((seat) => seat.side),
       )
-      const refusal = validate(state, input.userId, command)
+      const refusal = command.kind === 'set-battle-club' ? 'a club is chosen during setup' : validate(state, input.userId, command)
       if (refusal) throw new SenderError(`new battle command was refused: ${refusal}`)
       const seq = index + 1
       tx.db.commands.insert({

@@ -17,6 +17,7 @@ import {
   Trophy,
   UserRound,
   Users,
+  UsersRound,
   type LucideIcon,
 } from 'lucide-react'
 import type { ReactNode } from 'react'
@@ -38,7 +39,10 @@ const REFERENCE: readonly MoreLink[] = [
   { description: 'Points and datasheet changes', icon: History, label: 'Data updates', to: '/data-updates' },
 ]
 
-const COMMUNITY: readonly MoreLink[] = [{ description: 'Player standings', icon: Medal, label: 'Leaderboard', to: '/leaderboard' }]
+const COMMUNITY: readonly MoreLink[] = [
+  { description: 'Player standings', icon: Medal, label: 'Leaderboard', to: '/leaderboard' },
+  { description: 'Standing tables for your club or group', icon: UsersRound, label: 'Clubs', to: '/clubs' },
+]
 
 const FRIENDS: MoreLink = { description: 'Invite friends to private battles', icon: Users, label: 'Friends', to: '/friends' }
 

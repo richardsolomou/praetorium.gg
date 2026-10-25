@@ -21,6 +21,7 @@ import {
   validate,
 } from './battle'
 import { battleView } from './battleView'
+import { guestSeatId } from './newBattle'
 import { ALICE, BOB, CAROL, NAMES, PLAYERS, advance, builtRoster, log, roster, started } from './battle.fixtures'
 
 describe('setup', () => {
@@ -1165,5 +1166,43 @@ describe('refusal codes', () => {
 
   it('answers no refusal for a legal command', () => {
     expect(commandRefusal(reduceBattle(PLAYERS, log(...started())), ALICE, advance())).toBeNull()
+  })
+})
+
+describe('club battles', () => {
+  const club: Command = { kind: 'set-battle-club', clubId: 'club' }
+  const configure = (manual: boolean): Command => ({
+    kind: 'configure-battle',
+    limit: 2000,
+    missionPackId: null,
+    terrainLayoutId: null,
+    twistId: null,
+    clockLimitMinutes: null,
+    manual,
+  })
+
+  it('refuses a club once the battle has started', () => {
+    expect(commandRefusal(reduceBattle(PLAYERS, log(...started())), ALICE, club)?.code).toBe('battle-started')
+  })
+
+  it('refuses a club for a battle with a guest', () => {
+    expect(commandRefusal(reduceBattle([ALICE, guestSeatId('battle', 1)], []), ALICE, club)?.code).toBe('club-ineligible')
+  })
+
+  it('refuses a club for a league battle', () => {
+    const state = reduceBattle(PLAYERS, log([ALICE, { kind: 'lock-league-rosters', leagueToken: 'league' }]))
+    expect(commandRefusal(state, ALICE, club)?.code).toBe('club-ineligible')
+  })
+
+  it('refuses a club for a manually tracked battle', () => {
+    expect(commandRefusal(reduceBattle(PLAYERS, log([ALICE, configure(true)])), ALICE, club)?.code).toBe('club-ineligible')
+  })
+
+  it('keeps a club battle on missions and scoring', () => {
+    expect(commandRefusal(reduceBattle(PLAYERS, log([ALICE, club])), ALICE, configure(true))?.code).toBe('club-ineligible')
+  })
+
+  it('forgets the club when its choice is undone', () => {
+    expect(reduceBattle(PLAYERS, log([ALICE, club], [ALICE, { kind: 'undo', target: 1 }])).clubId).toBeNull()
   })
 })

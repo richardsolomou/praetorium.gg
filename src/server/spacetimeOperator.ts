@@ -229,6 +229,7 @@ const clubMember = z.object({
   role: z.enum(CLUB_ROLES),
   joinedAt: z.number().int(),
 })
+const battleClub = club.pick({ id: true, token: true, name: true, visibility: true })
 const clubRecord = z.object({ club, members: z.array(clubMember) })
 const visibleClub = z.object({
   club,
@@ -368,12 +369,13 @@ export class SpacetimeOperator {
   }
 
   async battleFeed(input: {
-    scope: 'user' | 'league' | 'public' | 'friends' | 'watchable' | 'profile'
+    scope: 'user' | 'league' | 'club' | 'public' | 'friends' | 'watchable' | 'profile'
     userId?: string | null
     viewerId?: string | null
     withUserId?: string | null
     leagueToken?: string | null
     eventToken?: string | null
+    clubToken?: string
     since?: number | null
     before?: { at: number; id: string } | null
     limit: number
@@ -388,6 +390,7 @@ export class SpacetimeOperator {
           withUserId: input.withUserId ?? null,
           leagueToken: input.leagueToken ?? null,
           eventToken: input.eventToken ?? null,
+          ...(input.clubToken ? { clubToken: input.clubToken } : {}),
           since: input.since ?? null,
           before: input.before ?? null,
           limit: input.limit,
@@ -913,6 +916,12 @@ export class SpacetimeOperator {
     return new Map(pairs)
   }
 
+  async clubNames(tokens: readonly string[]) {
+    if (!tokens.length) return new Map<string, string>()
+    const pairs = await this.read('club_names', [[...new Set(tokens)]], z.array(z.tuple([z.string(), z.string()])))
+    return new Map(pairs)
+  }
+
   async leagueByToken(token: string, eventToken?: string) {
     return this.read('league_by_token', [token, eventToken ?? ''], leagueRecord.nullable())
   }
@@ -927,6 +936,10 @@ export class SpacetimeOperator {
 
   async clubsVisibleTo(userId: string | null, limit: number) {
     return this.read('clubs_visible_to', [userId ?? '', limit], z.array(visibleClub))
+  }
+
+  async battleClubs(battleId: string) {
+    return this.read('battle_clubs', [battleId], z.object({ current: battleClub.nullable(), options: z.array(battleClub) }))
   }
 
   async clubCommand<S extends z.ZodType>(command: Record<string, unknown>, result: S): Promise<z.output<S>> {

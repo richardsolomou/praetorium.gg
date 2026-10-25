@@ -1,4 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
+import { UsersRound } from 'lucide-react'
+import { buttonClass } from '../../components/buttonClass'
 import { PageContent, PageHeader } from '../../components/Page'
 import { FactionFilter, Standings } from './Standings'
 import { meQuery, standingsQuery } from '../../queries'
@@ -24,7 +27,14 @@ export function LeaderboardPage({ faction }: { faction?: string }) {
         eyebrow="Who is winning"
         title="Leaderboard"
         description={`Public battles from the last ${data?.days ?? 90} days, ranked by rating.`}
-        actions={<FactionFilter factions={data?.factions.map((entry) => entry.faction) ?? []} selected={chosen?.faction?.slug} />}
+        actions={
+          <>
+            <Link to="/clubs" className={buttonClass({ variant: 'outline' })}>
+              <UsersRound /> Club tables
+            </Link>
+            <FactionFilter factions={data?.factions.map((entry) => entry.faction) ?? []} selected={chosen?.faction?.slug} />
+          </>
+        }
       />
       <PageContent className="space-y-6">
         <Standings table={table} viewerId={me?.id} />

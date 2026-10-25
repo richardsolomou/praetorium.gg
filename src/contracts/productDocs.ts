@@ -1,4 +1,13 @@
-export const DOC_SECTIONS = ['Army lists', 'Imports', 'Combat simulator', 'Battles', 'Leagues', 'AI assistants', 'Account and app'] as const
+export const DOC_SECTIONS = [
+  'Army lists',
+  'Imports',
+  'Combat simulator',
+  'Battles',
+  'Clubs',
+  'Leagues',
+  'AI assistants',
+  'Account and app',
+] as const
 
 export const PRODUCT_DOCS = [
   {
@@ -151,6 +160,12 @@ export const PRODUCT_DOCS = [
     section: 'Battles',
     title: 'Battle problems',
     description: 'Greyed-out Start battle, blocked phases and other battle messages.',
+  },
+  {
+    slug: 'clubs',
+    section: 'Clubs',
+    title: 'Clubs',
+    description: 'A standing table for your club or friend group: joining, choosing the club at setup, and what counts.',
   },
   {
     slug: 'run-a-league',

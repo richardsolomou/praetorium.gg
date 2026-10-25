@@ -172,8 +172,8 @@ export function inviteFeedbackText(feedback: Exclude<InviteFeedback, null>) {
   return feedback === 'shared' ? 'Invite shared.' : feedback === 'copied' ? 'Invite link copied.' : 'Could not share the invite. Try again.'
 }
 
-/** Copies a league's invite, or hands it to the native share sheet, and says which happened for a few seconds. */
-export function useInviteShare(league: { token: string; name: string }) {
+/** Copies an invite to `path`, or hands it to the native share sheet, and says which happened for a few seconds. */
+export function useInviteShare(path: string, name: string, event: 'league_invite_shared' | 'club_invite_shared') {
   const [feedback, setFeedback] = useState<InviteFeedback>(null)
   useEffect(() => {
     if (!feedback) return
@@ -186,18 +186,14 @@ export function useInviteShare(league: { token: string; name: string }) {
     share: async () => {
       setFeedback(null)
       try {
-        const result = await shareLink(leagueInviteUrl(league.token), league.name)
+        const result = await shareLink(`${window.location.origin}${path}`, name)
         setFeedback(result)
-        posthog.capture('league_invite_shared', { method: result })
+        posthog.capture(event, { method: result })
       } catch {
         setFeedback('error')
       }
     },
   }
-}
-
-function leagueInviteUrl(token: string) {
-  return `${window.location.origin}/leagues/${token}`
 }
 
 type LeagueActionsController = ReturnType<typeof useLeagueActions>
@@ -206,7 +202,7 @@ export function useLeagueActions(league: ManageableLeague, onDeleted?: () => voi
   const refreshLeague = useLeagueRefresh(league.token)
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const invite = useInviteShare(league)
+  const invite = useInviteShare(`/leagues/${league.token}`, league.name, 'league_invite_shared')
   const remove = useMutation({
     mutationFn: () => deleteLeague({ data: { token: league.token } }),
     onSettled: refreshLeague,

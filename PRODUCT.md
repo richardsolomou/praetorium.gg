@@ -21,7 +21,7 @@ web
 
 - Free and AGPL open source; nothing behind payment.
 - One place: builder, simulator, battles, leagues and reference share the same rosters and data.
-- Social play: friends, leagues, guest seats, spectating, public battles, leaderboard.
+- Social play: friends, leagues, clubs, guest seats, spectating, public battles, leaderboard.
 
 ## Operating Context
 

@@ -55,6 +55,12 @@ export const Battles = __t.object('Battles', {
 })
 export type Battles = __Infer<typeof Battles>
 
+export const ClubBattles = __t.object('ClubBattles', {
+  battleId: __t.string(),
+  clubId: __t.string(),
+})
+export type ClubBattles = __Infer<typeof ClubBattles>
+
 export const ClubMembers = __t.object('ClubMembers', {
   key: __t.string(),
   clubId: __t.string(),

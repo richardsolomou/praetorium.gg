@@ -287,6 +287,15 @@ const clubMembers = table(
   },
 )
 
+/** Which battles count on which club's table: an index of each battle's folded `set-battle-club`, rewritten whenever one could change it. */
+const clubBattles = table(
+  { name: 'club_battles' },
+  {
+    battleId: t.string().primaryKey(),
+    clubId: t.string().index('btree'),
+  },
+)
+
 /** Retired roster-tied stock. SpacetimeDB refuses to drop a table that still holds rows, so it stays until it is emptied. */
 const collectionStock = table(
   { name: 'collection_stock' },
@@ -499,6 +508,7 @@ export const productTables = {
   leagueAdmins,
   clubs,
   clubMembers,
+  clubBattles,
   collection,
   collectionWishes,
   collectionStock,

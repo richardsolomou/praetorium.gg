@@ -19,6 +19,14 @@ export const openClub = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
   .handler(({ data }) => rpc(async () => app().service.clubService.club(data.token, await currentUserId())))
 
+export const clubStandings = createServerFn({ method: 'GET' })
+  .validator(tokenSchema)
+  .handler(({ data }) => rpc(async () => app().service.clubStandings(data.token, await currentUserId(), await app().battleFactionsFor())))
+
+export const battleClubs = createServerFn({ method: 'GET' })
+  .validator(tokenSchema)
+  .handler(({ data }) => rpc(async () => app().service.battleClubs(data.token, await currentUserId())))
+
 export const createClub = createServerFn({ method: 'POST' })
   .validator(createClubSchema)
   .handler(({ data }) =>
@@ -54,7 +62,7 @@ export const joinClub = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const player = await requireUser()
-      const { status } = await app().service.clubService.joinClub(data.token, player.id)
+      const status = await app().service.clubService.joinClub(data.token, player.id)
       await app().telemetry.capture(player.id, 'club_joined', { status })
       return status
     }),
