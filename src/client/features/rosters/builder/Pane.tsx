@@ -6,6 +6,7 @@ import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
 import type { OnboardingTarget } from '../../onboarding/onboarding'
 import { useCompactChrome } from '../../shell/useCompactChrome'
 import { useMediaQuery } from '../../../useMediaQuery'
+import { LOADOUT_INLINE } from './useRosterPanes'
 
 type Props = {
   variant: 'picker' | 'loadout'
@@ -80,7 +81,7 @@ export function Pane({
   const pane = useRef<HTMLElement>(null)
   const closeButton = useRef<HTMLButtonElement>(null)
   const returnFocus = useRef<HTMLElement>(null)
-  const compactLoadout = useMediaQuery('(max-width: 1023px)') && variant === 'loadout'
+  const compactLoadout = !useMediaQuery(LOADOUT_INLINE, true) && variant === 'loadout'
   /*
    * A compact loadout is a screen wherever the application tab bar is visible and
    * a dialog at intermediate web widths. A screen does not take the page hostage:

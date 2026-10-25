@@ -15,6 +15,9 @@ type RosterLocationState = { rosterPane?: RosterPaneHistory }
 
 const ROSTER_PANE_HASH = 'roster-pane'
 
+/** The width from which the loadout sits beside the roster instead of over it. */
+export const LOADOUT_INLINE = '(min-width: 1024px)'
+
 export function useRosterPanes({ path, workspacePath, picks }: { path: string; workspacePath: string; picks: readonly KeyedPick[] }) {
   const navigate = useNavigate()
   const router = useRouter()
@@ -23,7 +26,7 @@ export function useRosterPanes({ path, workspacePath, picks }: { path: string; w
   const [showing, setShowing] = useState<'picker' | 'loadout' | null>(null)
   // The server draws the desktop workspace; the browser corrects it before the first paint.
   const wideWorkspace = useMediaQuery('(min-width: 1300px)', true)
-  const loadoutInline = useMediaQuery('(min-width: 1024px)', true)
+  const loadoutInline = useMediaQuery(LOADOUT_INLINE, true)
   const workspaceMeasured = useHydrated()
   const paneHistory = useRouterState({
     select: (state) => {
