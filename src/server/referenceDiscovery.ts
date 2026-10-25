@@ -7,6 +7,7 @@ import { factionsLastUpdated, listedHistory, referencesLastUpdated } from './cat
 import { gameReferencesFor } from '../shared/gameReferences'
 import { ifNoneMatch } from './ifNoneMatch'
 import { PRODUCT_DOCS, type ProductDoc } from '../contracts/productDocs'
+import { escapeHtml } from './escapeHtml'
 
 /** Pages anyone may read that no reference document names. */
 const PUBLIC_PAGES = [
@@ -81,7 +82,7 @@ export async function referenceSitemap(request: Request) {
     .toSorted(([left], [right]) => (left < right ? -1 : 1))
     .map(([path, modified]) => {
       const lastmod = modified === null ? '' : `<lastmod>${new Date(modified).toISOString()}</lastmod>`
-      return `  <url><loc>${xml(`${origin}${path}`)}</loc>${lastmod}</url>`
+      return `  <url><loc>${escapeHtml(`${origin}${path}`)}</loc>${lastmod}</url>`
     })
     .join('\n')}\n</urlset>\n`
   return cachedText(request, corpus.revision, `sitemap\0${updates.join(',')}`, body, 'application/xml; charset=utf-8')
@@ -155,5 +156,3 @@ function cachedText(request: Request, revision: string, key: string, body: strin
   const headers = { 'Cache-Control': 'public, max-age=3600', 'Content-Type': contentType, ETag: etag }
   return ifNoneMatch(request, etag) ? new Response(null, { status: 304, headers }) : new Response(body, { headers })
 }
-
-const xml = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')

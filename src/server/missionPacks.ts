@@ -38,8 +38,6 @@ export function packText(pack: MissionPack, value: unknown, transform: TextTrans
   return (packTexts.get(pack) ?? publishedTexts('missions'))(raw, transform)
 }
 
-export { english } from '../shared/datacards'
-
 /**
  * Every primary and secondary card a pack prints, in the order it prints them.
  *

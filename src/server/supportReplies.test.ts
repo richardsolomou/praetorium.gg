@@ -55,7 +55,7 @@ describe('supportReplyEmail', () => {
   })
 
   it('escapes what the player wrote in the HTML part', () => {
-    expect(supportReplyEmail({ name: 'Tronic', url, subject: '<b>bold</b>' }).html).toContain('&#60;b&#62;bold&#60;/b&#62;')
+    expect(supportReplyEmail({ name: 'Tronic', url, subject: '<b>bold</b>' }).html).toContain('&lt;b&gt;bold&lt;/b&gt;')
   })
 })
 

@@ -1,6 +1,6 @@
 import { hash } from 'node:crypto'
 import type { MissionSelectionKind } from '../core/missionSelections'
-import { english } from './missionPacks'
+import { english } from '../shared/datacards'
 
 const chapterApproved = '4f285f2e-3c40-40fb-8b2f-bfccd173f1fd'
 const selections: Record<string, { kind: MissionSelectionKind; wording: string }> = {

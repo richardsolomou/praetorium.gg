@@ -1,4 +1,5 @@
-import { english, type MissionPack, missionCards, packText } from './missionPacks'
+import { type MissionPack, missionCards, packText } from './missionPacks'
+import { english } from '../shared/datacards'
 import type { MissionAction } from '../contracts/missions'
 
 export type { MissionAction } from '../contracts/missions'

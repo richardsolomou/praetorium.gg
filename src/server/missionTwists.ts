@@ -1,5 +1,6 @@
 import { routeSlug } from '../core/slug'
-import { english, type MissionPack, packText } from './missionPacks'
+import { type MissionPack, packText } from './missionPacks'
+import { english } from '../shared/datacards'
 
 /**
  * The optional twist a pack offers, which changes one rule for the whole battle.

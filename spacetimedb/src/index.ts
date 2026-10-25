@@ -4776,16 +4776,16 @@ export const syncProduct = spacetime.procedure({ payload: t.string() }, t.string
     const result = action(tx, input.args)
     const decoded: unknown = typeof result === 'string' ? JSON.parse(result) : result
     const refusal = productSyncRefusal(input.name, decoded)
+    const encoded = productJson(result ?? null)
     tx.db.syncReceipts.insert({
       id: input.id,
       owner: input.owner,
       fingerprint: input.fingerprint,
       createdAt: BigInt(now),
-      result: productJson(result ?? null),
+      result: encoded,
       outcome: refusal ? 'refused' : 'applied',
       message: refusal ?? '',
     })
-    const encoded = productJson(result ?? null)
     return input.reportApplied ? productJson({ result: encoded, applied: !refusal }) : encoded
   }),
 )

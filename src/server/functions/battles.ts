@@ -34,17 +34,13 @@ const BATTLES_PAGE = 25
 /** A page of a home-page feed. Shorter, because the page shows three of them at once. */
 const FEED_PAGE = 10
 
-async function battleFactions() {
-  return app().battleFactionsFor()
-}
-
 export const myBattles = createServerFn({ method: 'GET' })
   .validator(battlesPageSchema)
   .handler(({ data }) =>
     rpc(async () => {
       const id = await currentUserId()
       if (!id) return { battles: [], nextCursor: null }
-      const [rules, factions] = await Promise.all([app().battleMissionRulesFor(), battleFactions()])
+      const [rules, factions] = await Promise.all([app().battleMissionRulesFor(), app().battleFactionsFor()])
       return app().service.battles(id, rules, { limit: BATTLES_PAGE, before: data.before ?? undefined }, factions)
     }),
   )
@@ -60,7 +56,7 @@ export const publicBattles = createServerFn({ method: 'GET' })
   .validator(battlesPageSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const [viewerId, rules, factions] = await Promise.all([currentUserId(), app().battleMissionRulesFor(), battleFactions()])
+      const [viewerId, rules, factions] = await Promise.all([currentUserId(), app().battleMissionRulesFor(), app().battleFactionsFor()])
       return app().service.publicBattles(viewerId, rules, { limit: FEED_PAGE, before: data.before ?? undefined }, factions)
     }),
   )
@@ -72,7 +68,7 @@ export const friendBattles = createServerFn({ method: 'GET' })
     rpc(async () => {
       const id = await currentUserId()
       if (!id) return { battles: [], nextCursor: null }
-      const [rules, factions] = await Promise.all([app().battleMissionRulesFor(), battleFactions()])
+      const [rules, factions] = await Promise.all([app().battleMissionRulesFor(), app().battleFactionsFor()])
       return app().service.friendBattles(id, rules, { limit: FEED_PAGE, before: data.before ?? undefined }, factions)
     }),
   )
@@ -84,7 +80,9 @@ export const friendBattles = createServerFn({ method: 'GET' })
  * faction table is headed with a name a player recognises and addressed by its
  * slug. An instance with no catalogue synced still answers with the overall table.
  */
-export const standings = createServerFn({ method: 'GET' }).handler(() => rpc(async () => app().service.standings(await battleFactions())))
+export const standings = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => app().service.standings(await app().battleFactionsFor())),
+)
 
 /**
  * One player's profile: the battles this reader may see them in, their record, and
@@ -96,7 +94,7 @@ export const playerProfile = createServerFn({ method: 'GET' })
     rpc(async () => {
       const { userId, ...filter } = data
       const viewerId = await currentUserId()
-      const [rules, factions] = await Promise.all([app().battleReadRulesFor(), battleFactions()])
+      const [rules, factions] = await Promise.all([app().battleReadRulesFor(), app().battleFactionsFor()])
       return app().service.playerProfile(userId, viewerId, filter, rules, factions)
     }),
   )
@@ -104,7 +102,7 @@ export const playerProfile = createServerFn({ method: 'GET' })
 /** Where one player sits in the leaderboard's tables. The same fold the leaderboard pages. */
 export const playerRankings = createServerFn({ method: 'GET' })
   .validator(userSchema)
-  .handler(({ data }) => rpc(async () => app().service.playerRankings(data.userId, await battleFactions())))
+  .handler(({ data }) => rpc(async () => app().service.playerRankings(data.userId, await app().battleFactionsFor())))
 
 export const openBattle = createServerFn({ method: 'GET' })
   .validator(tokenSchema)

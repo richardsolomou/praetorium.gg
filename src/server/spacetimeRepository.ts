@@ -60,9 +60,16 @@ function seatPlayer(
   profiles: ReadonlyMap<string, Omit<BattlePlayer, 'side' | 'automated'>>,
   seat: Snapshot['seats'][number],
 ): BattlePlayer {
-  const profile = seat.guestName === undefined ? profiles.get(seat.id) : { id: seat.id, name: seat.guestName, image: null }
-  if (!profile) throw new Error(`Battle seat ${seat.id} is missing from auth database`)
+  const profile =
+    seat.guestName === undefined ? profileOf(profiles, seat.id, 'Battle seat') : { id: seat.id, name: seat.guestName, image: null }
   return { ...profile, side: seat.side, automated: seat.automated }
+}
+
+/** The account behind an id the product data names, which the auth database must still hold. */
+function profileOf<T>(profiles: ReadonlyMap<string, T>, id: string, role: string): T {
+  const profile = profiles.get(id)
+  if (!profile) throw new Error(`${role} ${id} is missing from auth database`)
+  return profile
 }
 
 export class SpacetimeRepository {
@@ -157,8 +164,7 @@ export class SpacetimeRepository {
     const ids = await this.product.practiceOpponentIds()
     const profiles = await this.accounts.profilesByIds(ids)
     return ids.map((id) => {
-      const profile = profiles.get(id)
-      if (!profile) throw new Error(`Practice opponent ${id} is missing from auth database`)
+      const profile = profileOf(profiles, id, 'Practice opponent')
       return profile
     })
   }
@@ -170,8 +176,7 @@ export class SpacetimeRepository {
     return rows
       .map((row) => {
         const otherId = row.requesterId === userId ? row.addresseeId : row.requesterId
-        const profile = profiles.get(otherId)
-        if (!profile) throw new Error(`Friend ${otherId} is missing from auth database`)
+        const profile = profileOf(profiles, otherId, 'Friend')
         return {
           requesterId: row.requesterId,
           addresseeId: row.addresseeId,
@@ -390,12 +395,11 @@ export class SpacetimeRepository {
     return this.product.eventAddress(...args)
   }
 
-  async leaguesVisibleTo(userId: string | null, limit = 100) {
-    const rows = await this.product.leaguesVisibleTo(userId, Math.min(Math.max(limit, 1), 100))
+  async leaguesVisibleTo(userId: string | null) {
+    const rows = await this.product.leaguesVisibleTo(userId, 100)
     const owners = await this.accounts.profilesByIds(rows.flatMap((row) => (row.tournament ? [row.tournament.ownerId] : [])))
     return rows.map(({ kind, token, tournament, club, event, personal, joined, accepted, occupied, ownEntry }) => {
-      const owner = tournament && owners.get(tournament.ownerId)
-      if (tournament && !owner) throw new Error(`Tournament owner ${tournament.ownerId} is missing from auth database`)
+      const owner = tournament && profileOf(owners, tournament.ownerId, 'Tournament owner')
       return {
         kind,
         token,
@@ -491,8 +495,7 @@ export class SpacetimeRepository {
     const record = await this.product.clubByToken(token)
     if (!record) return undefined
     const profiles = await this.accounts.profilesByIds(record.members.map((member) => member.userId))
-    const owner = profiles.get(record.club.ownerId)
-    if (!owner) throw new Error(`Club owner ${record.club.ownerId} is missing from auth database`)
+    const owner = profileOf(profiles, record.club.ownerId, 'Club owner')
     return {
       ...record.club,
       games: record.games,
@@ -505,12 +508,11 @@ export class SpacetimeRepository {
     }
   }
 
-  async clubsVisibleTo(userId: string | null, limit = 100) {
-    const rows = await this.product.clubsVisibleTo(userId, Math.min(Math.max(limit, 1), 100))
+  async clubsVisibleTo(userId: string | null) {
+    const rows = await this.product.clubsVisibleTo(userId, 100)
     const owners = await this.accounts.profilesByIds(rows.map((row) => row.club.ownerId))
     return rows.map(({ club, adminIds, memberCount, battleCount, lastBattleAt, ownMember }) => {
-      const owner = owners.get(club.ownerId)
-      if (!owner) throw new Error(`Club owner ${club.ownerId} is missing from auth database`)
+      const owner = profileOf(owners, club.ownerId, 'Club owner')
       return { ...club, ownerName: owner.name, ownerImage: owner.image, adminIds, memberCount, battleCount, lastBattleAt, ownMember }
     })
   }
@@ -568,8 +570,7 @@ export class SpacetimeRepository {
       new Map(teams.map((team) => [team.teamId, team.disposition])),
       new Map(teamWarlords.map((team) => [team.teamId, team.userId])),
     )
-    const owner = tournament && profiles.get(tournament.ownerId)
-    if (tournament && !owner) throw new Error(`Tournament owner ${tournament.ownerId} is missing from auth database`)
+    const owner = tournament && profileOf(profiles, tournament.ownerId, 'Tournament owner')
     return {
       kind,
       token: record.token,
@@ -603,8 +604,7 @@ export class SpacetimeRepository {
       pairings,
       occupiedCount: entries.filter((entry) => entry.status !== 'rejected').length,
       entries: entries.map((entry) => {
-        const profile = profiles.get(entry.userId)
-        if (!profile) throw new Error(`League entrant ${entry.userId} is missing from auth database`)
+        const profile = profileOf(profiles, entry.userId, 'League entrant')
         const roster = rosters.get(entry.userId) ?? null
         const pair = pairs.find((candidate) => candidate.userIds.includes(entry.userId))
         return {

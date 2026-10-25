@@ -443,11 +443,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     return true
   }
 
-  const grantedMcpResource = (resources: string | null) => {
-    if (!resources) return false
-    const parsed: unknown = JSON.parse(resources)
-    return Array.isArray(parsed) && parsed.includes(mcpResource)
-  }
+  const grantedMcpResource = (resources: string | null) => Boolean(resources) && stringList(resources!).includes(mcpResource)
 
   const mcpConnectionsFor = async (userId: string): Promise<AdminConnection[]> => {
     const rows = await database
@@ -470,7 +466,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
         id,
         clientId,
         name: name || clientId,
-        scopes: (JSON.parse(scopes) as unknown[]).filter((scope): scope is string => typeof scope === 'string'),
+        scopes: stringList(scopes),
         createdAt,
       }))
   }
@@ -496,8 +492,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
       .where(and(eq(oauthConsent.userId, userId), eq(oauthConsent.clientId, clientId)))
     return rows.some(({ resources, scopes }) => {
       if (!grantedMcpResource(resources)) return false
-      const grantedScopes: unknown = JSON.parse(scopes)
-      return !scope || (Array.isArray(grantedScopes) && grantedScopes.includes(scope))
+      return !scope || stringList(scopes).includes(scope)
     })
   }
 
@@ -558,4 +553,10 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     revokeMcpConsent,
     spacetimeGuestToken,
   })
+}
+
+/** The strings in a JSON array column; anything else stored there reads as no entries. */
+function stringList(json: string): string[] {
+  const parsed: unknown = JSON.parse(json)
+  return Array.isArray(parsed) ? parsed.filter((entry): entry is string => typeof entry === 'string') : []
 }
