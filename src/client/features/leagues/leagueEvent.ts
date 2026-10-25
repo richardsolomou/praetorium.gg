@@ -213,3 +213,15 @@ export function leagueNextStep(
     ? `Start a ${TABLE_SHAPE_LABELS[shape].count} battle from your card. Finished battles fill the results table.`
     : null
 }
+
+/** Where an event lives: a club's sealed game under its club, a tournament under tournaments. */
+export function eventPath(league: { token: string; club?: { token: string } | null }) {
+  return league.club ? `/clubs/${league.club.token}/games/${league.token}` : `/tournaments/${league.token}`
+}
+
+/** The same address as `eventPath`, as a route link. */
+export function eventLink(league: { token: string; club?: { token: string } | null }) {
+  return league.club
+    ? ({ to: '/clubs/$token/games/$game', params: { token: league.club.token, game: league.token } } as const)
+    : ({ to: '/tournaments/$token', params: { token: league.token } } as const)
+}

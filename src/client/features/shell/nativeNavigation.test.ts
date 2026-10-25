@@ -41,7 +41,11 @@ describe('native application navigation', () => {
     ],
     [
       '/tournaments/league-id',
-      { back: { href: '/clubs', label: 'Back to events', preferHistory: true }, section: 'events', title: 'Event' },
+      { back: { href: '/tournaments', label: 'Back to tournaments', preferHistory: true }, section: 'events', title: 'Tournament' },
+    ],
+    [
+      '/clubs/club-id/games/game-id',
+      { back: { href: '/clubs/club-id', label: 'Back to club', preferHistory: true }, section: 'events', title: 'Sealed game' },
     ],
     [
       '/factions/necrons',

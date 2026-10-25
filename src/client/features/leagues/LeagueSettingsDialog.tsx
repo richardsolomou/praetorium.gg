@@ -8,7 +8,7 @@ import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, Dia
 import { createLeague, setLeagueAdmins, updateLeague } from '../../functions'
 import { leagueQuery, leagueReadsKey, leaguesQuery, meQuery } from '../../queries'
 import { leagueFormValid, LeagueFormFields, type LeagueFormValue } from './LeagueForm'
-import { leagueNoun, type League } from './leagueEvent'
+import { eventLink, leagueNoun, type League } from './leagueEvent'
 import { Problem } from '../../components/Problem'
 
 /**
@@ -149,7 +149,11 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
       ]),
     onSuccess: async (created) => {
       onClose()
-      if (created) await navigate({ to: '/tournaments/$token', params: { token: created.token }, search: { event: created.eventToken } })
+      if (created)
+        await navigate({
+          ...eventLink({ token: created.token, club: mode.kind === 'create' && mode.clubToken ? { token: mode.clubToken } : null }),
+          search: { event: created.eventToken },
+        })
     },
   })
 

@@ -28,7 +28,11 @@ export function useFavouriteDetachments(enabled = true) {
   }
 }
 
-export const favouriteDetachmentsFirst = <T extends { id: string }>(
+/** Reads names the way a player does: case and accents aside, and numbers by value. */
+const byName = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true })
+
+/** The player's favourite detachments first, then the rest, each part alphabetical. */
+export const favouriteDetachmentsFirst = <T extends { id: string; name: string }>(
   entries: readonly T[],
   catalogueId: string,
   favourites: ReadonlySet<string>,
@@ -36,5 +40,5 @@ export const favouriteDetachmentsFirst = <T extends { id: string }>(
   entries.toSorted(
     (left, right) =>
       Number(favourites.has(favouriteDetachmentKey(catalogueId, right.id))) -
-      Number(favourites.has(favouriteDetachmentKey(catalogueId, left.id))),
+        Number(favourites.has(favouriteDetachmentKey(catalogueId, left.id))) || byName.compare(left.name, right.name),
   )

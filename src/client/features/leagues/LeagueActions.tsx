@@ -9,11 +9,11 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { deleteLeague } from '../../functions'
 import { shareLink } from '../../nativeBridge'
 import { LeagueSettingsDialog } from './LeagueSettingsDialog'
-import { leagueNoun, useLeagueRefresh } from './leagueEvent'
+import { eventLink, eventPath, leagueNoun, useLeagueRefresh } from './leagueEvent'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useInviteShareLabel } from '../friends/friendInvite'
 
-type ManageableLeague = { token: string; name: string; club?: unknown }
+type ManageableLeague = { token: string; name: string; club?: { token: string; name?: string } | null }
 
 /** One frame for every league card, so a card with organizer actions looks like one without. */
 export const LEAGUE_CARD = 'relative flex min-w-0 flex-col border border-edge bg-panel transition-colors hover:border-info hover:bg-raised'
@@ -109,7 +109,7 @@ function LeagueActionItems({
   return (
     <>
       {showView ? (
-        <Item render={<Link to="/tournaments/$token" params={{ token: actions.league.token }} />}>
+        <Item render={<Link {...eventLink(actions.league)} />}>
           <Eye /> View {actions.noun}
         </Item>
       ) : null}
@@ -202,7 +202,7 @@ export function useLeagueActions(league: ManageableLeague, onDeleted?: () => voi
   const refreshLeague = useLeagueRefresh(league.token)
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const invite = useInviteShare(`/tournaments/${league.token}`, league.name, 'league_invite_shared')
+  const invite = useInviteShare(eventPath(league), league.name, 'league_invite_shared')
   const remove = useMutation({
     mutationFn: () => deleteLeague({ data: { token: league.token } }),
     onSettled: refreshLeague,

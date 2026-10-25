@@ -2,14 +2,20 @@ import { describe, expect, it } from 'vitest'
 import { favouriteDetachmentKey, favouriteDetachmentsFirst } from './favouriteDetachments'
 
 describe('favouriteDetachmentsFirst', () => {
-  it('moves the current faction’s favourites ahead without changing their order', () => {
-    const detachments = [{ id: 'first' }, { id: 'second' }, { id: 'third' }]
-    const favourites = new Set([favouriteDetachmentKey('aeldari', 'second'), favouriteDetachmentKey('other', 'first')])
+  it('moves the current faction’s favourites ahead, each part in alphabetical order', () => {
+    const detachments = [
+      { id: 'warhost', name: 'Warhost' },
+      { id: 'ghosts', name: 'ghosts of the Ancients' },
+      { id: 'aspect', name: 'Aspect Host' },
+      { id: 'eldritch', name: 'Éldritch Raiders' },
+    ]
+    const favourites = new Set([favouriteDetachmentKey('aeldari', 'warhost'), favouriteDetachmentKey('other', 'aspect')])
 
     expect(favouriteDetachmentsFirst(detachments, 'aeldari', favourites).map((detachment) => detachment.id)).toEqual([
-      'second',
-      'first',
-      'third',
+      'warhost',
+      'aspect',
+      'eldritch',
+      'ghosts',
     ])
   })
 })

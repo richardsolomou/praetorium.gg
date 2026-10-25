@@ -68,8 +68,12 @@ test('club members choose their club at battle setup', async ({ browser }, testI
   await retryUntilVisible(game, () => owner.getByRole('button', { name: 'New sealed game' }).click({ timeout: 1_000 }))
   await game.getByLabel('Name').fill(gameName)
   await game.getByRole('button', { name: 'Start sealed game' }).click()
-  await expect(owner).toHaveURL(/\/tournaments\/[^/?]+/)
+  await expect(owner).toHaveURL(/\/clubs\/[^/]+\/games\/[^/?]+/)
   await expect(owner.getByText('Sealed game', { exact: true })).toBeVisible()
+  // A tournament address for the game still finds it, under its club.
+  const gameToken = new URL(owner.url()).pathname.split('/').at(-1)!
+  await owner.goto(`/tournaments/${gameToken}`)
+  await expect(owner).toHaveURL(new RegExp(`/clubs/[^/]+/games/${gameToken}`))
   await owner.getByRole('link', { name: clubName }).click()
   await expect(owner.getByRole('link', { name: new RegExp(gameName) })).toBeVisible()
   await owner.goto('/tournaments')

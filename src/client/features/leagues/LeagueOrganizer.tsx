@@ -18,7 +18,7 @@ import { friendshipsQuery } from '../../queries'
 import { useOrigin } from '../../useOrigin'
 import { inviteFeedbackText, useInviteShare } from './LeagueActions'
 import { EntrantGroup, EntrantList, SectionHeading, sealStatus } from './LeagueEntrants'
-import { entrantGroups, soloOrAllied, useLeagueRefresh, type League } from './leagueEvent'
+import { entrantGroups, eventPath, soloOrAllied, useLeagueRefresh, type League } from './leagueEvent'
 import { Problem } from '../../components/Problem'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { formatList, countLabel } from '../../text'
@@ -397,7 +397,7 @@ function SizeToggle({
 
 export function InvitePanel({ league }: { league: League }) {
   const origin = useOrigin()
-  const invite = useInviteShare(`/tournaments/${league.token}`, league.name, 'league_invite_shared')
+  const invite = useInviteShare(eventPath(league), league.name, 'league_invite_shared')
   const shareLabel = useInviteShareLabel()
   return (
     <section className="border border-edge bg-panel p-4">
@@ -420,7 +420,7 @@ export function InvitePanel({ league }: { league: League }) {
           <Link2 className="size-4 shrink-0 text-info" aria-hidden />
           <span className="min-w-0">
             <span className="block truncate text-xs text-dim">
-              {origin ? `${origin.replace(/^https?:\/\//, '')}/tournaments/` : '\u00a0'}
+              {origin ? `${origin.replace(/^https?:\/\//, '')}${eventPath(league).slice(0, -league.token.length)}` : '\u00a0'}
             </span>
             <span className="block truncate text-sm font-semibold text-bone">{league.token}</span>
           </span>

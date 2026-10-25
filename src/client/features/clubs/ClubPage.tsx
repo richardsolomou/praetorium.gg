@@ -303,8 +303,8 @@ function SealedGames({ club }: { club: Club }) {
           {club.tournaments.map((tournament) => (
             <li key={tournament.token}>
               <Link
-                to="/tournaments/$token"
-                params={{ token: tournament.token }}
+                to="/clubs/$token/games/$game"
+                params={{ token: club.token, game: tournament.token }}
                 className="flex min-w-0 items-center gap-3 p-3 hover:bg-raised"
               >
                 <Trophy className="size-4 shrink-0 text-info" aria-hidden />
