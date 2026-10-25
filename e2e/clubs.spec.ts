@@ -262,20 +262,45 @@ test('a club plays a solo-vs-pair sealed game, its players taking their own side
 
 test('club team rows keep their actions inside the card at narrow widths', async ({ page }, testInfo) => {
   await signInAsPreview(page)
+  let releaseHistory = () => {}
+  const historyHeld = new Promise<void>((resolve) => {
+    releaseHistory = resolve
+  })
+  const isHistory = (url: string) => {
+    const decoded = decodeURIComponent(url)
+    return decoded.includes('preview-club-game-doubles') && decoded.includes('"before"')
+  }
+  let historyStarted = false
+  await page.route('**/_serverFn/**', async (route) => {
+    if (isHistory(route.request().url())) {
+      historyStarted = true
+      await historyHeld
+    }
+    await route.continue()
+  })
   await page.goto('/clubs/preview-club')
   const game = page.locator('[data-sealed-game="preview-club-game-doubles"]')
-  await game.locator('summary').click()
+  await expect.poll(() => historyStarted).toBe(true)
+  await expect(game.locator('details')).not.toHaveAttribute('open', '')
+  const simulation = game.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true })
+  await retryUntilVisible(simulation, () => game.locator('summary').click({ timeout: 1_000 }))
+  const historyLoaded = page.waitForResponse((response) => isHistory(response.url()))
+  releaseHistory()
+  await historyLoaded
+  await expect(game.locator('a[href="/battles/preview-club-game-battle-doubles"]')).toBeVisible()
+  await expect(simulation).toBeVisible()
   for (const width of [240, 320, 390, 768, 1280]) {
     await page.setViewportSize({ width, height: 900 })
     await game.scrollIntoViewIfNeeded()
     expect(await game.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+    await expect(game.getByRole('button', { name: /^Simulate against/ })).toHaveCount(3)
     for (const action of await game.getByRole('button', { name: /^Simulate against/ }).all()) {
       const bounds = await action.boundingBox()
       const card = await game.boundingBox()
       expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(card!.x + card!.width)
     }
   }
-  await game.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true }).click()
+  await simulation.click()
   const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
   await expect(simulator.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText(
     'Team 1: Preview Player and Preview Ally',
@@ -285,7 +310,9 @@ test('club team rows keep their actions inside the card at narrow widths', async
   )
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
   const past = page.locator('[data-sealed-game="preview-club-game-duel-past"]')
-  await past.locator('summary').click()
+  await retryUntilVisible(past.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true }), () =>
+    past.locator('summary').click({ timeout: 1_000 }),
+  )
   await expect(past.getByRole('button', { name: /^Play / })).toHaveCount(0)
   await past.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true }).click()
   await expect(simulator.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText('Preview Player')
