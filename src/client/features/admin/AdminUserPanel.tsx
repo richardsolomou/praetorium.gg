@@ -52,6 +52,9 @@ type Confirming =
   | { kind: 'verify' }
   | { kind: 'unlink'; provider: 'credential' | SocialAuthProvider }
   | { kind: 'delete' }
+  | { kind: 'session'; sessionId: string; device: string }
+  | { kind: 'sessions' }
+  | { kind: 'connection'; connectionId: string; name: string }
 
 export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; current: boolean; onClose: () => void }) {
   const queryClient = useQueryClient()
@@ -279,8 +282,8 @@ export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; cu
             {noticeFor('sign-in')}
           </Section>
 
-          <Sessions user={user} current={current} notice={noticeFor('sessions')} onDone={(message) => done('sessions', message)} />
-          <Connections user={user} notice={noticeFor('connections')} onDone={(message) => done('connections', message)} />
+          <Sessions user={user} current={current} notice={noticeFor('sessions')} onConfirm={setConfirming} />
+          <Connections user={user} notice={noticeFor('connections')} onConfirm={setConfirming} />
           <RecentBattles user={user} />
 
           {current ? null : (
@@ -358,6 +361,15 @@ function Confirmation({
         case 'delete':
           await deleteUserAsAdmin({ data: { userId: user.id } })
           return onDeleted()
+        case 'session':
+          await revokeSessionAsAdmin({ data: { userId: user.id, sessionId: confirming.sessionId } })
+          return onDone('sessions', 'That device was signed out.')
+        case 'sessions':
+          await revokeSessionsAsAdmin({ data: { userId: user.id } })
+          return onDone('sessions', `${user.name} was signed out on every device.`)
+        case 'connection':
+          await revokeConnectionAsAdmin({ data: { userId: user.id, connectionId: confirming.connectionId } })
+          return onDone('connections', 'That app no longer has access.')
       }
     },
   })
@@ -426,6 +438,33 @@ function confirmationCopy(user: AdminUser, confirming: Confirming) {
         pendingLabel: 'Deleting…',
         destructive: true,
       }
+    case 'session':
+      return {
+        title: `Sign ${user.name} out of ${confirming.device}?`,
+        description: `${user.name} has to sign in again on that device.`,
+        cancel: 'Stay signed in',
+        confirm: 'Sign out',
+        pendingLabel: 'Signing out…',
+        destructive: true,
+      }
+    case 'sessions':
+      return {
+        title: `Sign ${user.name} out everywhere?`,
+        description: `${user.name} has to sign in again on every device.`,
+        cancel: 'Stay signed in',
+        confirm: 'Sign out everywhere',
+        pendingLabel: 'Signing out…',
+        destructive: true,
+      }
+    case 'connection':
+      return {
+        title: `Revoke ${confirming.name}?`,
+        description: `${confirming.name} can no longer read or change ${user.name}’s rosters and battles. They can connect it again.`,
+        cancel: 'Keep access',
+        confirm: 'Revoke',
+        pendingLabel: 'Revoking…',
+        destructive: true,
+      }
   }
 }
 
@@ -445,26 +484,16 @@ function Sessions({
   user,
   current,
   notice,
-  onDone,
+  onConfirm,
 }: {
   user: AdminUser
   current: boolean
   notice: ReactNode
-  onDone: (message: string) => Promise<void>
+  onConfirm: (confirming: Confirming) => void
 }) {
   const dates = useDateFormatting()
   const sessions = useQuery(adminUserSessionsQuery(user.id))
-  const revokeOne = useMutation({
-    mutationFn: (sessionId: string) => revokeSessionAsAdmin({ data: { userId: user.id, sessionId } }),
-    onSuccess: () => onDone('That device was signed out.'),
-  })
-  const revokeAll = useMutation({
-    mutationFn: () => revokeSessionsAsAdmin({ data: { userId: user.id } }),
-    onSuccess: () => onDone(`${user.name} was signed out on every device.`),
-  })
   const list = sessions.data ?? []
-  const busy = revokeOne.isPending || revokeAll.isPending
-  const error = sessions.error ?? revokeOne.error ?? revokeAll.error
   return (
     <Section title="Signed-in devices" total={sessions.data ? list.length : undefined}>
       {sessions.isPending ? <Skeleton className="h-14 w-full" /> : null}
@@ -492,8 +521,7 @@ function Sessions({
                   variant="ghost"
                   size="sm"
                   aria-label={`Sign out ${device.name}`}
-                  disabled={busy}
-                  onClick={() => revokeOne.mutate(session.id)}
+                  onClick={() => onConfirm({ kind: 'session', sessionId: session.id, device: device.name })}
                 >
                   Sign out
                 </Button>
@@ -504,23 +532,19 @@ function Sessions({
       })}
       {sessions.isSuccess && !list.length ? <p className="py-2 text-sm text-dim">{user.name} is not signed in anywhere.</p> : null}
       {!current && list.length > 1 ? (
-        <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => revokeAll.mutate()}>
+        <Button type="button" variant="outline" size="sm" onClick={() => onConfirm({ kind: 'sessions' })}>
           <LogOut /> Sign out everywhere
         </Button>
       ) : null}
-      {error ? <Problem error={error} /> : null}
+      {sessions.error ? <Problem error={sessions.error} /> : null}
       {notice}
     </Section>
   )
 }
 
-function Connections({ user, notice, onDone }: { user: AdminUser; notice: ReactNode; onDone: (message: string) => Promise<void> }) {
+function Connections({ user, notice, onConfirm }: { user: AdminUser; notice: ReactNode; onConfirm: (confirming: Confirming) => void }) {
   const dates = useDateFormatting()
   const connections = useQuery(adminUserConnectionsQuery(user.id))
-  const revoke = useMutation({
-    mutationFn: (connectionId: string) => revokeConnectionAsAdmin({ data: { userId: user.id, connectionId } }),
-    onSuccess: () => onDone('That app no longer has access.'),
-  })
   const list = connections.data ?? []
   return (
     <Section title="Connected apps" total={connections.data ? list.length : undefined}>
@@ -537,8 +561,7 @@ function Connections({ user, notice, onDone }: { user: AdminUser; notice: ReactN
               variant="ghost"
               size="sm"
               aria-label={`Revoke ${connection.name}`}
-              disabled={revoke.isPending}
-              onClick={() => revoke.mutate(connection.id)}
+              onClick={() => onConfirm({ kind: 'connection', connectionId: connection.id, name: connection.name })}
             >
               Revoke
             </Button>
@@ -547,7 +570,6 @@ function Connections({ user, notice, onDone }: { user: AdminUser; notice: ReactN
       ))}
       {connections.isSuccess && !list.length ? <p className="py-2 text-sm text-dim">No app has access to this account.</p> : null}
       {connections.error ? <Problem error={connections.error} /> : null}
-      {revoke.error ? <Problem error={revoke.error} /> : null}
       {notice}
     </Section>
   )

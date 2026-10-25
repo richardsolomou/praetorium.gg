@@ -131,6 +131,7 @@ import { RosterPrintPack, type RosterPrintInput } from './RosterPrintPack'
 import type { CombatRoster } from '../simulator/useCombatant'
 import { countLabel } from '../../text'
 import { Problem } from '../../components/Problem'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useAccountPrompt } from './AccountPrompt'
 import { CreateBattle } from '../battles/CreateBattle'
 import { guestDraftOf, peekGuestDraft, writeGuestDraft } from './guestDraft'
@@ -269,6 +270,7 @@ export function ListBuilder({
   const [exportText, setExportText] = useState<RosterTextExport | null>(null)
   const [exchangeCode, setExchangeCode] = useState<RosterExchangeCode | null>(null)
   const [lending, setLending] = useState(false)
+  const [returning, setReturning] = useState(false)
   const [startingBattle, setStartingBattle] = useState(false)
   const [printInput, setPrintInput] = useState<RosterPrintInput | null>(null)
   const automaticPrint = useRef(false)
@@ -1717,14 +1719,29 @@ export function ListBuilder({
               </Link>
               . You can field it in your battles.
             </span>
-            <Button variant="outline" size="xs" disabled={returnLoan.isPending} onClick={() => returnLoan.mutate()}>
+            <Button
+              variant="outline"
+              size="xs"
+              onClick={() => {
+                returnLoan.reset()
+                setReturning(true)
+              }}
+            >
               Return it
             </Button>
-            {returnLoan.isError ? (
-              <span role="alert" className="text-destructive">
-                {errorMessage(returnLoan.error, 'Could not return the roster. Try again.')}
-              </span>
-            ) : null}
+            <ConfirmDialog
+              open={returning}
+              title={`Return ${lentBy.name}’s roster?`}
+              description={`You can no longer field it in your battles. Only ${lentBy.name} can lend it to you again.`}
+              cancel="Keep it"
+              confirm="Return it"
+              pendingLabel="Returning…"
+              destructive
+              pending={returnLoan.isPending}
+              error={returnLoan.error}
+              onClose={() => setReturning(false)}
+              onConfirm={() => returnLoan.mutate()}
+            />
           </div>
         ) : null}
         {savedId && !frozen ? <RosterDataChanges rosterId={savedId} /> : null}

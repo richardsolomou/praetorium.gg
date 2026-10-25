@@ -1517,6 +1517,7 @@ test('an organizer answers requests, lets a turned-away player back in, and rais
   const requests = owner.locator('section').filter({ has: owner.getByRole('heading', { name: /^Requests/ }) })
   await expect(requests.locator('[data-person]')).toHaveCount(3)
   await requests.getByRole('button', { name: `Turn away ${names[1]}` }).click()
+  await owner.getByRole('alertdialog').getByRole('button', { name: 'Turn away' }).click()
   await expect(requests.locator('[data-person]')).toHaveCount(2)
 
   // A turned-away request stays with the organizer, who can still let that player in.

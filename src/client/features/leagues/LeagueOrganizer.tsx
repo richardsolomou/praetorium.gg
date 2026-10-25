@@ -18,7 +18,7 @@ import { friendshipsQuery } from '../../queries'
 import { useOrigin } from '../../useOrigin'
 import { inviteFeedbackText, useInviteShare } from './LeagueActions'
 import { EntrantGroup, EntrantList, SectionHeading, sealStatus } from './LeagueEntrants'
-import { entrantGroups, eventPath, soloOrAllied, useLeagueRefresh, type League } from './leagueEvent'
+import { entrantGroups, eventPath, leagueNoun, soloOrAllied, useLeagueRefresh, type League } from './leagueEvent'
 import { Problem } from '../../components/Problem'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { formatList, countLabel } from '../../text'
@@ -249,7 +249,10 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
                     className="text-dim hover:text-destructive pointer-coarse:h-11"
                     aria-label={`Turn away ${label(entry)}`}
                     disabled={moderate.isPending || acceptAll.isPending}
-                    onClick={() => moderate.mutate({ userId: entry.userId, status: 'rejected' })}
+                    onClick={() => {
+                      moderate.reset()
+                      setRemoving(entry)
+                    }}
                   >
                     <X /> Turn away
                   </Button>
@@ -302,18 +305,29 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
 
       <ConfirmDialog
         open={removing !== null}
-        title={`Remove ${removing ? label(removing) : ''}?`}
-        description={(() => {
-          const teammate = removing?.teamId
-            ? accepted.find((entry) => entry.teamId === removing.teamId && entry.userId !== removing.userId)
-            : undefined
-          return teammate && removing
-            ? `This also unpairs ${label(teammate)} and clears both their sealed rosters. ${label(removing)} has to join again and seal another roster to come back.`
-            : 'Their sealed roster goes with them. They have to join again and seal another to come back.'
-        })()}
-        cancel="Keep entrant"
-        confirm="Remove entrant"
-        pendingLabel="Removing…"
+        {...(removing?.status === 'pending'
+          ? {
+              title: `Turn away ${label(removing)}?`,
+              description: `They won’t be in this ${leagueNoun(league).noun}. They can ask again.`,
+              cancel: 'Keep request',
+              confirm: 'Turn away',
+              pendingLabel: 'Turning away…',
+              destructive: true,
+            }
+          : {
+              title: `Remove ${removing ? label(removing) : ''}?`,
+              description: (() => {
+                const teammate = removing?.teamId
+                  ? accepted.find((entry) => entry.teamId === removing.teamId && entry.userId !== removing.userId)
+                  : undefined
+                return teammate && removing
+                  ? `This also unpairs ${label(teammate)} and clears both their sealed rosters. ${label(removing)} has to join again and seal another roster to come back.`
+                  : 'Their sealed roster goes with them. They have to join again and seal another to come back.'
+              })(),
+              cancel: 'Keep entrant',
+              confirm: 'Remove entrant',
+              pendingLabel: 'Removing…',
+            })}
         pending={moderate.isPending}
         error={moderate.error}
         onClose={() => {
@@ -322,7 +336,9 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
         }}
         onConfirm={() => removing && moderate.mutate({ userId: removing.userId, status: 'rejected' })}
       >
-        {moderate.isPending ? <output className="sr-only">Removing entrant…</output> : null}
+        {moderate.isPending ? (
+          <output className="sr-only">{removing?.status === 'pending' ? 'Turning away…' : 'Removing entrant…'}</output>
+        ) : null}
       </ConfirmDialog>
       <ConfirmDialog
         open={reassigning !== null}

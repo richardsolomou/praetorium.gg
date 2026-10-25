@@ -48,8 +48,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
   const [removing, setRemoving] = useState<'credential' | SocialAuthProvider>()
   const [verificationSent, setVerificationSent] = useState(false)
   const [linkError, setLinkError] = useState(false)
-  const [revokingConnection, setRevokingConnection] = useState<string | null>(null)
-  const [connectionError, setConnectionError] = useState(false)
+  const [revoking, setRevoking] = useState<{ id: string; name: string }>()
   const verifyEmail = useAuthAction()
   const githubAuthAvailable = useGithubAuthAvailability()
   const linked = new Set(methods?.linked ?? [])
@@ -256,24 +255,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
                   .filter(Boolean)
                   .join(' · ')}
                 action={
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={revokingConnection !== null}
-                    onClick={async () => {
-                      setRevokingConnection(connection.id)
-                      setConnectionError(false)
-                      try {
-                        await revokeMcpConnection({ data: { id: connection.id } })
-                        await queryClient.invalidateQueries({ queryKey: mcpConnectionsQuery().queryKey })
-                      } catch {
-                        setConnectionError(true)
-                      } finally {
-                        setRevokingConnection(null)
-                      }
-                    }}
-                  >
+                  <Button type="button" variant="outline" size="sm" onClick={() => setRevoking(connection)}>
                     Revoke access
                   </Button>
                 }
@@ -281,7 +263,6 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
             ))}
           </div>
         ) : null}
-        {connectionError ? <Problem className="mt-3">Could not revoke access. Try again.</Problem> : null}
       </section>
 
       <section className="border border-destructive/40 bg-panel p-5 md:p-7">
@@ -349,6 +330,16 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
           onDone={async () => {
             setRemoving(undefined)
             await refresh()
+          }}
+        />
+      ) : null}
+      {revoking ? (
+        <RevokeConnectionDialog
+          connection={revoking}
+          onClose={() => setRevoking(undefined)}
+          onDone={async () => {
+            setRevoking(undefined)
+            await queryClient.invalidateQueries({ queryKey: mcpConnectionsQuery().queryKey })
           }}
         />
       ) : null}
@@ -634,6 +625,51 @@ function RemoveMethodDialog({
           }}
         >
           {busy ? 'Removing…' : method === 'credential' ? 'Remove password' : `Unlink ${label}`}
+        </Button>
+      </DialogFooter>
+    </AccountDialog>
+  )
+}
+
+function RevokeConnectionDialog({
+  connection,
+  onClose,
+  onDone,
+}: {
+  connection: { id: string; name: string }
+  onClose: () => void
+  onDone: () => void | Promise<void>
+}) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  return (
+    <AccountDialog title={`Revoke ${connection.name}?`} onClose={onClose}>
+      <DialogBody>
+        <p className="text-sm text-dim">
+          {connection.name} can no longer read or change your rosters and battles. Connect it again to give it access.
+        </p>
+        {error ? <Problem>{error}</Problem> : null}
+      </DialogBody>
+      <DialogFooter>
+        <DialogClose render={<Button type="button" variant="outline" />}>Keep access</DialogClose>
+        <Button
+          type="button"
+          variant="destructive"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true)
+            setError('')
+            try {
+              await revokeMcpConnection({ data: { id: connection.id } })
+              await onDone()
+            } catch {
+              setError('Could not revoke access. Try again.')
+            } finally {
+              setBusy(false)
+            }
+          }}
+        >
+          {busy ? 'Revoking…' : 'Revoke access'}
         </Button>
       </DialogFooter>
     </AccountDialog>

@@ -152,6 +152,7 @@ test('an administrator finds and manages a player', async ({ baseURL, browser, p
   await expect(supportPage).toHaveURL('/')
 
   await details.getByRole('button', { name: /^Sign out / }).click()
+  await confirm.getByRole('button', { name: 'Sign out', exact: true }).click()
   await expect(details.getByText(`${renamed} is not signed in anywhere.`)).toBeVisible()
   await supportPage.reload()
   await expect(supportPage.getByRole('button', { name: `Account menu for ${supportName}` })).toHaveCount(0)
