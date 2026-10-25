@@ -1,5 +1,6 @@
 import type { GlobalSearchResult } from '../../functions'
 import { PRODUCT_DOCS } from '../../../contracts/productDocs'
+import { matchesSearch } from '../../text'
 
 export const SEARCH_DEBOUNCE_MS = 250
 
@@ -47,6 +48,5 @@ const pages: GlobalSearchResult[] = [
 ]
 
 export function matchingPages(query: string) {
-  const wanted = query.trim().toLowerCase()
-  return wanted ? pages.filter((page) => `${page.label} ${page.detail}`.toLowerCase().includes(wanted)) : pages
+  return pages.filter((page) => matchesSearch(`${page.label} ${page.detail}`, query))
 }

@@ -19,6 +19,7 @@ import { LoaderCircle } from 'lucide-react'
 import { FactionLabel, type FactionPresentation } from './FactionMark'
 import type { OnboardingTarget } from '../onboardingTargets'
 import { useVirtualRows } from './useVirtualRows'
+import { matchesSearch } from '../text'
 
 /**
  * One choice, optionally with something drawn beside its name.
@@ -177,19 +178,8 @@ function centreSelected(container: HTMLElement | null) {
   container.scrollTop += offset - (container.clientHeight - item.offsetHeight) / 2
 }
 
-const searchable = (text: string) =>
-  text
-    .normalize('NFD')
-    .replaceAll(/\p{Diacritic}/gu, '')
-    .toLowerCase()
-
 /** Every search word must appear in the option or its group, so a faction name narrows a long flat list. */
-function matchesGroupedOption(option: GroupedOption, query: string) {
-  const text = searchable(`${option.label} ${option.group}`)
-  return searchable(query)
-    .split(/\s+/)
-    .every((word) => text.includes(word))
-}
+const matchesGroupedOption = (option: GroupedOption, query: string) => matchesSearch(`${option.label} ${option.group}`, query)
 
 /** Group headings become rows of their own, since a virtual list cannot nest the options inside group elements. */
 function VirtualOptions({ handle, selected }: { handle: RefObject<VirtualList | null>; selected: string }) {

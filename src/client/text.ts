@@ -1,4 +1,4 @@
-import { capitalised } from '../core/text'
+import { capitalised, foldedText } from '../core/text'
 
 export { formatList } from '../core/text'
 
@@ -11,3 +11,12 @@ export function asSentence(reason: string) {
 export const countLabel = (total: number, one: string, many = `${one}s`) => `${total} ${total === 1 ? one : many}`
 
 export const percentLabel = (rate: number) => `${Math.round(rate * 100)}%`
+
+/** Every word of the query appears in the text, whatever its case, accents or quote marks. */
+export function matchesSearch(text: string, query: string) {
+  const folded = foldedText(text)
+  return foldedText(query)
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((word) => folded.includes(word))
+}

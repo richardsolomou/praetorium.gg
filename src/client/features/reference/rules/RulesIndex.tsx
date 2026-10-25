@@ -8,6 +8,7 @@ import { ruleIndexQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { FullPageState, PageState } from '../../../components/PageState'
 import { SearchField } from '../../../components/SearchField'
+import { matchesSearch } from '../../../text'
 
 /**
  * Every rules document the community data carries, and a way into any one rule.
@@ -65,12 +66,11 @@ type Found = {
 
 /** Nothing while the box is empty, so an empty filter is the contents rather than every rule. */
 function matchingRules(documents: readonly RuleDocumentSummary[], query: string): Found[] | null {
-  const wanted = query.trim().toLowerCase()
-  if (!wanted) return null
+  if (!query.trim()) return null
   return documents.flatMap((document) =>
     document.sections.flatMap((section) =>
       section.entries
-        .filter((entry) => `${entry.code ?? ''} ${entry.title} ${section.title}`.toLowerCase().includes(wanted))
+        .filter((entry) => matchesSearch(`${entry.code ?? ''} ${entry.title} ${section.title}`, query))
         .map((entry) => ({ key: `${document.id}-${entry.anchor}`, document, section, ...entry })),
     ),
   )
