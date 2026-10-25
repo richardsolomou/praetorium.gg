@@ -132,7 +132,7 @@ const STANDINGS_BATTLE_LIMIT = 500
 const LEAGUE_RESULTS_BATTLE_LIMIT = 500
 /** Pages of 500 battles a club table reads before it reports itself partial. */
 const CLUB_STANDINGS_PAGES = 20
-const CLUB_RECENT_BATTLES = 6
+const CLUB_RECENT_BATTLES = 5
 const STANDINGS_HOLD_MS = 60_000
 
 /** How much of a table is sent. Nobody reads past this, and every faction played costs one. */
@@ -600,7 +600,9 @@ export class PraetoriumService {
     return {
       table: { faction: null, players: rows.length, rows },
       finished: counted.filter((battle) => battle.status === 'finished').length,
-      recent: counted.slice(0, CLUB_RECENT_BATTLES),
+      recent: counted.filter((battle) => battle.status === 'finished').slice(0, CLUB_RECENT_BATTLES),
+      // The reader's own club battles still being set up or played, which is what they most likely came back for.
+      active: viewerId ? counted.filter((battle) => battle.status !== 'finished' && battle.playerIds.includes(viewerId)) : [],
       partial: before !== undefined,
     }
   }

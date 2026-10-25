@@ -33,6 +33,7 @@ import { Standings } from '../leaderboard/Standings'
 import { inviteFeedbackText, useInviteShare } from '../leagues/LeagueActions'
 import { SectionHeading } from '../leagues/LeagueEntrants'
 import { LeagueSettingsDialog } from '../leagues/LeagueSettingsDialog'
+import { useMoment } from '../leagues/EventSchedule'
 import type { Club } from './club'
 import { ClubSettingsDialog } from './ClubSettingsDialog'
 
@@ -122,8 +123,8 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
       >
         <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-dim">
           {club.visibility === 'private' ? <LockKeyhole className="size-3.5" aria-hidden /> : <Eye className="size-3.5" aria-hidden />}
-          {club.visibility === 'private' ? 'Private link' : 'Public'} ·{' '}
-          {club.admission === 'approval' ? 'Approval required' : 'Anyone can join'}
+          {accepted.length === 1 ? '1 member' : `${accepted.length} members`} · {club.visibility === 'private' ? 'Private link' : 'Public'}{' '}
+          · {club.admission === 'approval' ? 'Approval required' : 'Anyone can join'}
         </p>
         {club.description ? <p className="mt-3 max-w-2xl font-rules text-sm whitespace-pre-wrap text-dim">{club.description}</p> : null}
         <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-dim">
@@ -148,18 +149,19 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
       </PageHeader>
 
       <PageContent>
-        {/* As a tournament reads: the reader's own place leads the side column and a phone, the club's play fills the main one. */}
+        {/* Your next move leads the side column and a phone; the main column runs from what is coming up to how the club stands. */}
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_1fr]">
-          <div className="space-y-6 lg:col-start-2 lg:row-start-1">
+          <div className="lg:col-start-2 lg:row-start-1">
             {member && viewerId ? (
-              <PlayClubGame club={club} viewerId={viewerId} table={table} play={play} />
+              <NewGame club={club} viewerId={viewerId} play={play} />
             ) : (
               <JoinClub club={club} viewerId={viewerId} own={own} />
             )}
-            <ClubFigures club={club} members={accepted.length} table={table} />
           </div>
           <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-span-2 lg:row-start-1">
-            {table ? <TableSection table={table} viewerId={viewerId} /> : null}
+            <UpNext club={club} table={table} viewerId={viewerId} />
+            <RecentGames table={table} viewerId={viewerId} member={member} />
+            {table?.finished ? <ClubTable table={table} viewerId={viewerId} /> : null}
             <SealedGames club={club} />
           </div>
           <aside className="space-y-6 lg:col-start-2">
@@ -199,39 +201,6 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
   )
 }
 
-/** The club at a glance: how many play, how much they have played, and who leads. */
-function ClubFigures({ club, members, table }: { club: Club; members: number; table: ClubTable | null | undefined }) {
-  const leader = table?.table.rows[0]
-  const figures = [
-    { label: 'Members', value: String(members) },
-    { label: 'Games played', value: table ? String(table.finished) : '–' },
-    { label: 'Sealed games', value: String(club.tournaments.length) },
-  ]
-  return (
-    <dl className="divide-y divide-edge border border-edge bg-panel text-sm">
-      {figures.map((figure) => (
-        <div key={figure.label} className="flex items-baseline justify-between gap-3 px-3 py-2.5">
-          <dt className="text-dim">{figure.label}</dt>
-          <dd className="figure text-base">{figure.value}</dd>
-        </div>
-      ))}
-      <div className="flex items-center justify-between gap-3 px-3 py-2.5">
-        <dt className="text-dim">Leading</dt>
-        <dd className="flex min-w-0 items-center gap-2">
-          {leader ? (
-            <>
-              <span className="min-w-0 truncate font-semibold">{leader.name}</span>
-              <span className="figure text-achieved">{Math.round(leader.rating)}</span>
-            </>
-          ) : (
-            <span className="text-faint">Nobody yet</span>
-          )}
-        </dd>
-      </div>
-    </dl>
-  )
-}
-
 /** Starts a battle against a member, counted for the club from the start, and opens it. */
 function usePlayClubGame(token: string) {
   const queryClient = useQueryClient()
@@ -250,35 +219,18 @@ function usePlayClubGame(token: string) {
 
 type PlayClubGameMutation = ReturnType<typeof usePlayClubGame>
 
-/** What a member comes here to do: play another member for the table, knowing where they stand on it. */
-function PlayClubGame({
-  club,
-  viewerId,
-  table,
-  play,
-}: {
-  club: Club
-  viewerId: string
-  table: ClubTable | null | undefined
-  play: PlayClubGameMutation
-}) {
+/** A member's way in to a game: pick another member and start an ordinary battle, counted for the club. */
+function NewGame({ club, viewerId, play }: { club: Club; viewerId: string; play: PlayClubGameMutation }) {
   const opponents = club.members.filter((member) => member.status === 'accepted' && member.userId !== viewerId)
   const [opponentId, setOpponentId] = useState<string | null>(null)
   const chosen = opponents.find((member) => member.userId === opponentId) ?? opponents[0]
-  const rows = table?.table.rows ?? []
-  const place = rows.findIndex((row) => row.id === viewerId)
   return (
-    <section aria-labelledby="club-play" className="border border-edge bg-panel p-4 sm:p-5">
-      <h2 id="club-play" className="text-xl leading-tight font-bold uppercase">
-        Play a club game
+    <section aria-labelledby="club-new-game" className="border border-edge bg-panel p-4 sm:p-5">
+      <h2 id="club-new-game" className="text-xl leading-tight font-bold uppercase">
+        New game
       </h2>
-      <p className="mt-1.5 text-sm text-dim">
-        {place >= 0
-          ? `You’re #${place + 1} of ${rows.length}, rated ${Math.round(rows[place]!.rating)}.`
-          : 'Your first finished game puts you on the table.'}
-      </p>
       {opponents.length ? (
-        <div className="mt-4 space-y-2">
+        <div className="mt-3 space-y-2">
           <Select value={chosen?.userId ?? ''} onValueChange={(id) => id && setOpponentId(id)} disabled={play.isPending}>
             <SelectTrigger aria-label="Opponent" className="h-11 w-full">
               <SelectValue>{() => chosen?.name ?? 'Choose an opponent'}</SelectValue>
@@ -299,10 +251,10 @@ function PlayClubGame({
           >
             <Swords /> {play.isPending ? 'Starting…' : 'Start battle'}
           </Button>
-          <p className="text-xs text-dim">An ordinary battle: each of you picks a list at setup.</p>
+          <p className="text-xs text-dim">Each of you picks a list at setup. The result goes on the club table.</p>
         </div>
       ) : (
-        <p className="mt-3 text-sm text-dim">Nobody else is in the club yet. Share the invite link to bring people in.</p>
+        <p className="mt-1.5 text-sm text-dim">Nobody else is in the club yet. Copy the invite link to bring people in.</p>
       )}
       {play.error ? <Problem error={play.error} className="mt-2" /> : null}
     </section>
@@ -344,51 +296,81 @@ function JoinClub({ club, viewerId, own }: { club: Club; viewerId: string | null
   )
 }
 
-/** The table once a battle has counted; until then, how one comes to count. */
-function TableSection({ table, viewerId }: { table: ClubTable; viewerId: string | null }) {
-  if (!table.finished && !table.recent.length)
-    return (
-      <section>
-        <SectionHeading title="Getting started" />
-        <ol className="grid gap-px border border-edge bg-edge sm:grid-cols-3">
-          {[
-            ['Invite your group', 'Share the link. Anyone who joins can play for the table.'],
-            ['Pick the club at setup', 'It’s offered when everyone in the battle is a member.'],
-            ['Finish the game', 'The result goes on the table. Everyone starts at 1000.'],
-          ].map(([title, detail], index) => (
-            <li key={title} className="bg-panel p-4">
-              <span className="figure text-sm text-faint">{index + 1}</span>
-              <p className="mt-1 font-bold uppercase">{title}</p>
-              <p className="mt-1 text-sm text-dim">{detail}</p>
+/** What the reader has coming: their own unfinished club battles, and sealed games still taking lists. */
+function UpNext({ club, table, viewerId }: { club: Club; table: ClubTable | null | undefined; viewerId: string | null }) {
+  const moment = useMoment()
+  const open = club.tournaments.filter((tournament) => !tournament.revealedAt)
+  const active = table?.active ?? []
+  if (!open.length && !active.length) return null
+  return (
+    <section className="space-y-3">
+      <SectionHeading title="Up next" />
+      {active.length ? <BattleShelf name="Your club battles" battles={active} viewerId={viewerId ?? undefined} /> : null}
+      {open.length ? (
+        <ul className="divide-y divide-edge border border-edge bg-panel">
+          {open.map((game) => (
+            <li key={game.token}>
+              <Link
+                to="/clubs/$token/games/$game"
+                params={{ token: club.token, game: game.token }}
+                className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 p-3 hover:bg-raised"
+              >
+                <span className="chip shrink-0 text-discarded">Sealed game</span>
+                <span className="min-w-0 flex-1 truncate font-semibold">{game.name}</span>
+                <span className="shrink-0 text-sm text-dim">
+                  {game.sealBy ? `Lists due ${moment(game.sealBy)}` : game.playsAt ? moment(game.playsAt) : 'Taking lists'}
+                </span>
+              </Link>
             </li>
           ))}
-        </ol>
-      </section>
-    )
+        </ul>
+      ) : null}
+    </section>
+  )
+}
+
+/** The club's latest finished games; before the first, what to do to play one. */
+function RecentGames({ table, viewerId, member }: { table: ClubTable | null | undefined; viewerId: string | null; member: boolean }) {
+  if (!table) return null
+  if (table.recent.length)
+    return <BattleShelf title="Recent games" name="Club games" battles={table.recent} viewerId={viewerId ?? undefined} />
   return (
-    <div className="space-y-8">
-      <div className="space-y-2">
-        <Standings table={table.table} viewerId={viewerId ?? undefined} title="Table" empty="No games finished yet." />
-        <p className="text-sm text-faint">
-          Counts games played for the club and its sealed games. Ratings start at 1000, as on the leaderboard. Guest, practice and manually
-          tracked games don’t count.{table.partial ? ' Only the latest 10,000 games are counted.' : ''}
-        </p>
-      </div>
-      <BattleShelf title="Recent battles" name="Club battles" battles={table.recent} viewerId={viewerId ?? undefined} />
+    <section>
+      <SectionHeading title="Recent games" />
+      <p className="text-sm text-dim">
+        {table.active.length
+          ? 'No finished games yet.'
+          : member
+            ? 'No games yet. Start the first with New game.'
+            : 'No games yet. Members’ games show up here.'}
+      </p>
+    </section>
+  )
+}
+
+function ClubTable({ table, viewerId }: { table: ClubTable; viewerId: string | null }) {
+  return (
+    <div className="space-y-2">
+      <Standings table={table.table} viewerId={viewerId ?? undefined} title="Table" empty="No games finished yet." />
+      <p className="text-sm text-faint">
+        Everyone starts at 1000. Guest, practice and manually tracked games don’t count.
+        {table.partial ? ' Only the latest 10,000 games are counted.' : ''}
+      </p>
     </div>
   )
 }
 
-/** Sealed-roster games the club has played; its organizers start new ones here. */
+/** Sealed games whose lists are out; open ones lead the page under Up next. Organizers start new ones here. */
 function SealedGames({ club }: { club: Club }) {
   const refresh = useClubRefresh(club.token)
   const [creating, setCreating] = useState(false)
-  if (!club.tournaments.length && !club.organizer) return null
+  const played = club.tournaments.filter((tournament) => tournament.revealedAt)
+  if (!played.length && !club.organizer) return null
   return (
     <section>
       <SectionHeading
         title="Sealed games"
-        count={club.tournaments.length}
+        count={played.length || undefined}
         action={
           club.organizer ? (
             <Button size="sm" variant="outline" onClick={() => setCreating(true)}>
@@ -397,28 +379,23 @@ function SealedGames({ club }: { club: Club }) {
           ) : null
         }
       />
-      {club.tournaments.length ? (
+      {played.length ? (
         <ul className="divide-y divide-edge border border-edge bg-panel">
-          {club.tournaments.map((tournament) => (
-            <li key={tournament.token}>
+          {played.map((game) => (
+            <li key={game.token}>
               <Link
                 to="/clubs/$token/games/$game"
-                params={{ token: club.token, game: tournament.token }}
+                params={{ token: club.token, game: game.token }}
                 className="flex min-w-0 items-center gap-3 p-3 hover:bg-raised"
               >
                 <Trophy className="size-4 shrink-0 text-info" aria-hidden />
-                <span className="min-w-0 flex-1 truncate font-semibold">{tournament.name}</span>
-                <span className={`chip shrink-0 ${tournament.revealedAt ? 'text-achieved' : 'text-dim'}`}>
-                  {tournament.revealedAt ? 'Rosters out' : 'Sealing'}
-                </span>
+                <span className="min-w-0 flex-1 truncate font-semibold">{game.name}</span>
               </Link>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-dim">
-          Everyone seals a list in secret, then you reveal them together and play. The results go on the table.
-        </p>
+        <p className="text-sm text-dim">Everyone seals a list in secret, then you reveal them together and play.</p>
       )}
       <LeagueSettingsDialog
         mode={{ kind: 'create', clubToken: club.token }}
@@ -458,7 +435,6 @@ function Members({
   const [confirming, setConfirming] = useState<{ member: Member; action: 'remove' | 'decline' } | null>(null)
   const pending = club.organizer ? club.members.filter((member) => member.status === 'pending') : []
   const accepted = club.members.filter((member) => member.status === 'accepted')
-  const role = (member: Member) => (member.userId === club.ownerId ? 'Owner' : member.role === 'admin' ? 'Admin' : null)
   return (
     <>
       {pending.length ? (
@@ -499,18 +475,17 @@ function Members({
                 <Link to="/users/$userId" params={{ userId: member.userId }} className="group flex min-w-0 flex-1 items-center gap-2.5">
                   <PlayerAvatar name={member.name} image={member.image} className="size-8 text-xs" />
                   <span className="truncate font-semibold group-hover:underline">{member.name}</span>
-                  {role(member) ? <span className="chip shrink-0 text-dim">{role(member)}</span> : null}
                 </Link>
                 {play && member.userId !== viewerId ? (
                   <Button
-                    size="icon-sm"
-                    variant="ghost"
-                    className="pointer-coarse:size-11"
+                    size="sm"
+                    variant="outline"
+                    className="pointer-coarse:h-11"
                     aria-label={`Play ${member.name}`}
                     disabled={play.isPending}
                     onClick={() => play.mutate(member.userId)}
                   >
-                    <Swords />
+                    <Swords /> Play
                   </Button>
                 ) : null}
                 {removable ? (

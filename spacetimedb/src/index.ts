@@ -3217,6 +3217,8 @@ export const clubByToken = spacetime.procedure({ token: t.string() }, t.string()
           name: league.name,
           createdAt: league.createdAt,
           revealedAt: event?.revealedAt ?? null,
+          playsAt: event?.playsAt ?? null,
+          sealBy: event?.sealBy ?? null,
           eventTokens: Array.from(tx.db.leagueEvents.leagueId.filter(league.id), (row) => row.token),
         }
       }),

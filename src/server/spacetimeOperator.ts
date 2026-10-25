@@ -252,6 +252,9 @@ const clubTournament = z.object({
   name: z.string(),
   createdAt: z.number().int(),
   revealedAt: z.number().int().nullable(),
+  // Absent from a module deployed before events had dates.
+  playsAt: z.number().int().nullable().default(null),
+  sealBy: z.number().int().nullable().default(null),
   eventTokens: z.array(z.string()),
 })
 const clubRecord = z.object({ club, members: z.array(clubMember), tournaments: z.array(clubTournament) })
