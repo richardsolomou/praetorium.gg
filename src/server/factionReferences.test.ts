@@ -302,14 +302,14 @@ it('projects no factions when the requested scope is empty', () => {
 })
 
 describe('the datasheet count a faction page shows', () => {
-  it('counts its Legends pages beside its cards, as its datasheet list does', async () => {
+  it('counts the Legends pages and own cards its datasheet list shows', async () => {
     const loaded = bookOf({
       selectionEntries: [
         { id: 'walker', name: 'Plague Walker', type: 'model' },
         { id: 'legend', name: 'Tomb Stalker [Legends]', type: 'model' },
       ],
     })
-    loaded.factionContents.set('test-catalogue', withCards('Test catalogue', ['Plague Walkers']))
+    loaded.factionContents.set('test-catalogue', withCards('Test catalogue', ['Plague Walkers', 'Chapter Champion']))
     expect(factionIndexFor(loaded, null).factions[0]?.references[0]?.datasheets).toBe(
       (await referenceFactionDatasheets(loaded, { catalogueId: 'cat', query: '' })).length,
     )
