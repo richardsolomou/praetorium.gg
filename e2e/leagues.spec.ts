@@ -483,6 +483,16 @@ async function eventLoaded(page: Page) {
   await expect(page.locator('[data-entry-status]')).toBeVisible()
 }
 
+/** Joining a duel opens the chooser by itself, so a press on the status card can land under it; each try is short and retried. */
+async function openRosterChooser(page: Page) {
+  const chooser = page.getByRole('dialog', { name: 'Seal a roster' })
+  const choose = page.getByRole('button', { name: /^(?:Choose a roster|Swap roster)$/ })
+  await expect(async () => {
+    if (!(await chooser.isVisible())) await choose.click({ timeout: 1_000 })
+    await expect(chooser).toBeVisible({ timeout: 1_000 })
+  }).toPass({ timeout: 15_000 })
+}
+
 async function chooseRosterToSeal(page: Page, rosterName: string) {
   const chooser = page.getByRole('dialog', { name: 'Seal a roster' })
   await chooser.locator(`[data-roster="${rosterName}"]`).click()
@@ -491,11 +501,7 @@ async function chooseRosterToSeal(page: Page, rosterName: string) {
 
 async function sealOwnRoster(page: Page, rosterName: string) {
   await eventLoaded(page)
-  // Joining a duel opens the chooser by itself; otherwise the status card does.
-  const chooser = page.getByRole('dialog', { name: 'Seal a roster' })
-  const choose = page.getByRole('button', { name: /^(?:Choose a roster|Swap roster)$/ })
-  await expect(chooser.or(choose)).toBeVisible()
-  if (!(await chooser.isVisible())) await choose.click()
+  await openRosterChooser(page)
   await chooseRosterToSeal(page, rosterName)
   await expect(page.getByRole('dialog', { name: 'Seal a roster' })).toBeHidden()
 }
@@ -649,9 +655,7 @@ test('an event seals Legends only once its organizer allows them', async ({ page
   await expect(leagueHeader(page)).toContainText('Matched play')
 
   const chooser = page.getByRole('dialog', { name: 'Seal a roster' })
-  const choose = page.getByRole('button', { name: /^(?:Choose a roster|Swap roster)$/ })
-  await expect(chooser.or(choose)).toBeVisible()
-  if (!(await chooser.isVisible())) await choose.click()
+  await openRosterChooser(page)
   await chooseRosterToSeal(page, rosterName)
   await expect(chooser).toContainText('This event doesn’t allow Legends datasheets, such as Tesseract Ark.')
   await page.keyboard.press('Escape')
