@@ -66,8 +66,6 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
   const member = own?.status === 'accepted'
   const accepted = club.members.filter((candidate) => candidate.status === 'accepted')
   const admins = accepted.filter((candidate) => candidate.role === 'admin')
-  const invite = useInviteShare(`/clubs/${club.token}`, club.name, 'club_invite_shared')
-  const shareLabel = useInviteShareLabel()
   const remove = useMutation({
     mutationFn: () => deleteClub({ data: { token: club.token } }),
     onSettled: refresh,
@@ -86,11 +84,6 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
         title={club.name}
         actions={
           <>
-            {member ? (
-              <Button variant="outline" onClick={invite.share}>
-                {invite.feedback === 'shared' ? <Share2 /> : invite.feedback === 'copied' ? <Check /> : <Clipboard />} {shareLabel}
-              </Button>
-            ) : null}
             {club.organizer ? (
               <Button variant="outline" onClick={() => setEditing(true)}>
                 <Pencil /> Edit club
@@ -137,19 +130,23 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
             </Link>
           ))}
         </div>
-        {invite.feedback ? (
-          <p aria-live="polite" className="mt-2 text-xs text-dim">
-            {inviteFeedbackText(invite.feedback)}
-          </p>
-        ) : null}
       </PageHeader>
 
-      <PageContent className="space-y-8">
-        <ClubFigures club={club} members={accepted.length} table={table} />
-        {member ? null : <JoinClub club={club} viewerId={viewerId} own={own} />}
-        {table ? <TableSection table={table} viewerId={viewerId} member={member} /> : null}
-        <SealedGames club={club} />
-        <Members club={club} viewerId={viewerId} isOwner={isOwner} />
+      <PageContent>
+        {/* As a tournament reads: the reader's own place leads the side column and a phone, the club's play fills the main one. */}
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_1fr]">
+          <div className="lg:col-start-2 lg:row-start-1">
+            <ClubStatus club={club} viewerId={viewerId} own={own} />
+          </div>
+          <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-span-2 lg:row-start-1">
+            {table ? <TableSection table={table} viewerId={viewerId} member={member} /> : null}
+            <SealedGames club={club} />
+          </div>
+          <aside className="space-y-6 lg:col-start-2">
+            <ClubFigures club={club} members={accepted.length} table={table} />
+            <Members club={club} viewerId={viewerId} isOwner={isOwner} />
+          </aside>
+        </div>
       </PageContent>
 
       <ClubSettingsDialog club={club} ownerId={viewerId} open={editing} onOpenChange={setEditing} />
@@ -189,17 +186,19 @@ function ClubFigures({ club, members, table }: { club: Club; members: number; ta
   const figures = [
     { label: 'Members', value: String(members) },
     { label: 'Battles', value: table ? String(table.finished) : '–' },
-    { label: 'Sealed games', value: String(club.tournaments.length) },
+    { label: 'Games', value: String(club.tournaments.length) },
   ]
   return (
-    <dl className="grid grid-cols-3 border border-edge bg-panel sm:grid-cols-4">
-      {figures.map((figure, index) => (
-        <div key={figure.label} className={`border-edge p-3 sm:p-4 ${index < figures.length - 1 ? 'border-r' : ''}`}>
-          <dt className="eyebrow">{figure.label}</dt>
-          <dd className="mt-1 figure text-2xl">{figure.value}</dd>
-        </div>
-      ))}
-      <div className="col-span-3 border-t border-edge p-3 sm:col-span-1 sm:border-t-0 sm:border-l sm:p-4">
+    <dl className="border border-edge bg-panel">
+      <div className="grid grid-cols-3 divide-x divide-edge">
+        {figures.map((figure) => (
+          <div key={figure.label} className="p-3">
+            <dt className="eyebrow truncate">{figure.label}</dt>
+            <dd className="mt-1 figure text-2xl">{figure.value}</dd>
+          </div>
+        ))}
+      </div>
+      <div className="border-t border-edge p-3">
         <dt className="eyebrow">Leading</dt>
         <dd className="mt-1 flex min-w-0 items-center gap-2">
           {leader ? (
@@ -217,29 +216,62 @@ function ClubFigures({ club, members, table }: { club: Club; members: number; ta
   )
 }
 
-/** Where a visitor stands: invited to join, or waiting to be let in. */
-function JoinClub({ club, viewerId, own }: { club: Club; viewerId: string | null; own: Member | null }) {
+/** The reader's own place in the club, and the one thing to do about it: join, wait, or bring others in. */
+function ClubStatus({ club, viewerId, own }: { club: Club; viewerId: string | null; own: Member | null }) {
   const refresh = useClubRefresh(club.token)
   const join = useMutation({ mutationFn: () => joinClub({ data: { token: club.token } }), onSettled: refresh })
+  const invite = useInviteShare(`/clubs/${club.token}`, club.name, 'club_invite_shared')
+  const shareLabel = useInviteShareLabel()
+  const member = own?.status === 'accepted'
+  const title = member
+    ? viewerId === club.ownerId
+      ? 'You run this club'
+      : 'You’re a member'
+    : own
+      ? 'Waiting for approval'
+      : 'Join this club'
+  const detail = member
+    ? 'Choose the club when you set up a battle against another member, and the result counts on its table.'
+    : own
+      ? `${club.ownerName} or an admin will let you in.`
+      : club.admission === 'approval'
+        ? 'Ask to join, and an organizer lets you in. Then the battles you play other members count on its table.'
+        : 'Join, and the battles you play other members count on its table.'
   return (
-    <section className="flex flex-wrap items-center gap-3 border border-edge bg-panel p-4">
-      <p className="min-w-0 flex-1 text-sm text-dim">
-        {own
-          ? `Waiting for ${club.ownerName} or an admin to let you in.`
-          : club.admission === 'approval'
-            ? 'Ask to join, and an organizer lets you in. Then the battles you play other members count on the club’s table.'
-            : 'Join, and the battles you play other members count on the club’s table.'}
-      </p>
-      {own ? null : viewerId ? (
-        <Button onClick={() => join.mutate()} disabled={join.isPending}>
-          <UserPlus /> {club.admission === 'approval' ? 'Ask to join' : 'Join club'}
-        </Button>
-      ) : (
-        <Link to="/sign-in" search={{ next: `/clubs/${club.token}` }} className={buttonClass()}>
-          Sign in to join
-        </Link>
-      )}
-      {join.error ? <Problem error={join.error} className="basis-full" /> : null}
+    <section
+      data-club-status
+      aria-labelledby="club-status"
+      className={`border bg-panel p-4 sm:p-5 ${member ? 'border-achieved/50' : 'border-edge'}`}
+    >
+      <h2 id="club-status" className={`text-xl leading-tight font-bold uppercase ${member ? 'text-achieved' : ''}`}>
+        {title}
+      </h2>
+      <p className="mt-1.5 text-sm text-dim">{detail}</p>
+      <div className="mt-4">
+        {member ? (
+          <Button variant="outline" size="lg" className="w-full pointer-coarse:h-11" onClick={invite.share}>
+            {invite.feedback === 'shared' ? <Share2 /> : invite.feedback === 'copied' ? <Check /> : <Clipboard />} {shareLabel}
+          </Button>
+        ) : own ? null : viewerId ? (
+          <Button size="lg" className="w-full pointer-coarse:h-11" disabled={join.isPending} onClick={() => join.mutate()}>
+            <UserPlus /> {club.admission === 'approval' ? 'Ask to join' : 'Join club'}
+          </Button>
+        ) : (
+          <Link
+            to="/sign-in"
+            search={{ next: `/clubs/${club.token}` }}
+            className={buttonClass({ size: 'lg', className: 'w-full pointer-coarse:h-11' })}
+          >
+            Sign in to join
+          </Link>
+        )}
+      </div>
+      {invite.feedback ? (
+        <p aria-live="polite" className="mt-2 text-xs text-dim">
+          {inviteFeedbackText(invite.feedback)}
+        </p>
+      ) : null}
+      {join.error ? <Problem error={join.error} className="mt-2" /> : null}
     </section>
   )
 }
@@ -353,10 +385,10 @@ function Members({ club, viewerId, isOwner }: { club: Club; viewerId: string | n
           <SectionHeading title="Asking to join" count={pending.length} />
           <ul className="divide-y divide-edge border border-edge bg-panel">
             {pending.map((member) => (
-              <li key={member.userId} data-person={member.name} className="flex min-w-0 flex-wrap items-center gap-3 p-3">
+              <li key={member.userId} data-person={member.name} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 p-3">
                 <PlayerAvatar name={member.name} image={member.image} className="size-8 text-xs" />
                 <span className="min-w-0 flex-1 truncate font-semibold">{member.name}</span>
-                <div className="flex gap-2">
+                <div className="flex basis-full gap-2">
                   <Button size="sm" disabled={moderate.isPending} onClick={() => moderate.mutate({ userId: member.userId, accept: true })}>
                     <Check /> Let in
                   </Button>
@@ -377,16 +409,12 @@ function Members({ club, viewerId, isOwner }: { club: Club; viewerId: string | n
       ) : null}
       <section>
         <SectionHeading title="Members" count={accepted.length} />
-        <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+        <ul className="divide-y divide-edge border border-edge bg-panel">
           {accepted.map((member) => {
             const removable =
               club.organizer && member.userId !== club.ownerId && member.userId !== viewerId && (member.role !== 'admin' || isOwner)
             return (
-              <li
-                key={member.userId}
-                data-person={member.name}
-                className="flex min-w-0 items-center gap-2 border border-edge bg-panel p-2 pl-3"
-              >
+              <li key={member.userId} data-person={member.name} className="flex min-w-0 items-center gap-2 p-2 pl-3">
                 <Link to="/users/$userId" params={{ userId: member.userId }} className="group flex min-w-0 flex-1 items-center gap-2.5">
                   <PlayerAvatar name={member.name} image={member.image} className="size-8 text-xs" />
                   <span className="truncate font-semibold group-hover:underline">{member.name}</span>
