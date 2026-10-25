@@ -140,7 +140,8 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
                 timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
                 format,
                 rosterLimit,
-                allowances, ...points,
+                allowances,
+                ...points,
                 schedule,
               },
             })
