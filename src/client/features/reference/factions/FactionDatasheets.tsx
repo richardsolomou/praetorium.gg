@@ -3,19 +3,18 @@ import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Link, Outlet, useParams, useRouterState } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
-import { ChevronDown, ChevronRight, FileSearch } from 'lucide-react'
+import { ChevronRight, FileSearch } from 'lucide-react'
 import { memo, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
+} from '@/components/ui/combobox'
 import type { FactionDatasheet } from '../../../../contracts/catalogue'
 import { usableDatasheets } from '../../../../core/collection'
 import { collectionCountsAsQuery, collectionQuery, factionDatasheetsQuery, meQuery } from '../../../queries'
@@ -126,46 +125,7 @@ export function FactionDatasheets() {
                 />
               ))
             : null}
-          {keywordChoices.length ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                render={
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={`h-7 rounded-sm px-1.5 text-2xs font-semibold tracking-label uppercase ${
-                      keywords.size ? 'border-parchment bg-parchment/15 text-parchment' : 'border-edge-strong text-dim hover:text-bone'
-                    }`}
-                  />
-                }
-              >
-                {keywords.size ? `Keywords · ${keywords.size}` : 'Keywords'}
-                <ChevronDown className="size-3" aria-hidden />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start" className="max-h-80 min-w-56">
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel className="eyebrow text-faint">Show datasheets with every keyword chosen</DropdownMenuLabel>
-                  {keywordChoices.map(({ keyword, count }) => (
-                    <DropdownMenuCheckboxItem
-                      key={keyword}
-                      closeOnClick={false}
-                      checked={keywords.has(keyword)}
-                      onCheckedChange={() => setKeywords(toggled(keywords, keyword))}
-                    >
-                      <span className="min-w-0 flex-1 truncate">{keyword}</span>
-                      <span className="readout text-2xs text-faint">{count}</span>
-                    </DropdownMenuCheckboxItem>
-                  ))}
-                </DropdownMenuGroup>
-                {keywords.size ? (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => setKeywords(new Set())}>Clear keywords</DropdownMenuItem>
-                  </>
-                ) : null}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null}
+          {keywordChoices.length ? <KeywordFilter choices={keywordChoices} chosen={keywords} onChange={setKeywords} /> : null}
           {filtered ? (
             <Button variant="ghost" size="sm" className="h-7 px-1.5 text-xs text-dim" onClick={clearFilters}>
               Clear filters
@@ -256,4 +216,50 @@ function toggled<T>(set: ReadonlySet<T>, value: T) {
   const next = new Set(set)
   if (!next.delete(value)) next.add(value)
   return next
+}
+
+type KeywordChoice = ReturnType<typeof keywordOptions>[number]
+
+/** A datasheet must carry every keyword chosen here; typing narrows a long faction's list of them. */
+function KeywordFilter({
+  choices,
+  chosen,
+  onChange,
+}: {
+  choices: KeywordChoice[]
+  chosen: ReadonlySet<string>
+  onChange: (keywords: ReadonlySet<string>) => void
+}) {
+  return (
+    <Combobox
+      multiple
+      items={choices}
+      value={choices.filter((choice) => chosen.has(choice.keyword))}
+      onValueChange={(picked) => onChange(new Set(picked.map((choice) => choice.keyword)))}
+      itemToStringLabel={(choice) => choice.keyword}
+      itemToStringValue={(choice) => choice.keyword}
+      isItemEqualToValue={(choice, candidate) => choice.keyword === candidate.keyword}
+    >
+      <ComboboxTrigger
+        aria-label="Keywords"
+        className={`inline-flex h-7 items-center gap-1 rounded-sm border px-1.5 text-2xs font-semibold tracking-label uppercase transition-colors ${
+          chosen.size ? 'border-parchment bg-parchment/15 text-parchment' : 'border-edge-strong text-dim hover:border-dim hover:text-bone'
+        }`}
+      >
+        {chosen.size ? `Keywords · ${chosen.size}` : 'Keywords'}
+      </ComboboxTrigger>
+      <ComboboxContent className="w-64 min-w-64 transition-none">
+        <ComboboxInput placeholder="Find a keyword" showTrigger={false} />
+        <ComboboxEmpty className="text-dim">No keywords match.</ComboboxEmpty>
+        <ComboboxList>
+          {(choice: KeywordChoice) => (
+            <ComboboxItem key={choice.keyword} value={choice} aria-label={choice.keyword} className="data-highlighted:bg-edge">
+              <span className="min-w-0 flex-1 truncate">{choice.keyword}</span>
+              <span className="readout text-2xs text-faint">{choice.count}</span>
+            </ComboboxItem>
+          )}
+        </ComboboxList>
+      </ComboboxContent>
+    </Combobox>
+  )
 }
