@@ -13,7 +13,7 @@ import { groupBy } from './collections'
 import { nicknamedUnit } from './unitNotes'
 import { attachedUnitList, attachedHost, attachedUnits } from './attachedUnits'
 import { refuse, sameSide } from './battlePrimitives'
-import { isPracticeSeat } from './newBattle'
+import { isGuestSeat, isPracticeSeat } from './newBattle'
 import { appliesInMode, cardsDue, cardsDueFromTheirTurn, finalAwardTotal, type MissionAward } from './scoring'
 import type { UnitGroup } from './unitGroups'
 import type { RosterPick } from './roster'
@@ -869,6 +869,8 @@ export type Command =
   | { kind: 'set-side-warlord'; side: number; playerId: PlayerId }
   | ({ kind: 'attach-roster'; roster: Roster; prep?: BattlePrep | null; painted?: boolean } & OnBehalfOf)
   | ({ kind: 'detach-roster' } & OnBehalfOf)
+  /** The club whose table this battle counts on, by internal id since every battle is public and a club's token is its invite. */
+  | { kind: 'set-battle-club'; clubId: string | null }
   | {
       kind: 'lock-league-rosters'
       leagueToken: string
@@ -986,6 +988,8 @@ export type RefusalCode =
   | 'cards-owed'
   | 'cards-settled'
   | 'clock-unchanged'
+  | 'club-ineligible'
+  | 'club-members-only'
   | 'concession-required'
   | 'cp-gain-limit'
   | 'deployment-mismatch'
@@ -1197,6 +1201,7 @@ export type BattleState = {
   deploymentId: string | null
   leagueToken: string | null
   leagueEventToken: string | null
+  clubId: string | null
   settings: BattleSettings
   result: { reason: BattleEndReason; concededBy: PlayerId | null } | null
   players: PlayerState[]
@@ -1337,6 +1342,7 @@ export function emptyBattle(
     deploymentId: null,
     leagueToken: null,
     leagueEventToken: null,
+    clubId: null,
     settings: { ...DEFAULT_SETTINGS },
     result: null,
     players: playerIds.map((id, index) => ({
@@ -1410,14 +1416,15 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       return missionSelectionRefusal(state, by, player, command)
     case 'configure-battle': {
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
-      if (command.manual && state.leagueToken) return refuse('league-sealed', 'league battles play their mission pack')
+      if (command.manual && state.leagueToken) return refuse('league-sealed', 'this battle plays its event’s mission pack')
+      if (command.manual && state.clubId) return refuse('club-ineligible', 'a battle counting for a club keeps its missions and scoring')
       if (command.manual && (command.missionPackId || command.twistId || command.terrainLayoutId))
         return refuse('manual-tracking', 'a manually tracked battle has no mission pack')
-      if (state.leagueToken && command.limit !== state.settings.limit) return refuse('league-sealed', 'league roster battle size is sealed')
+      if (state.leagueToken && command.limit !== state.settings.limit) return refuse('league-sealed', 'this battle’s size is sealed')
       if (state.leagueToken && (command.teamBattle ?? false) !== state.settings.teamBattle)
-        return refuse('league-sealed', 'league battle sides are sealed')
+        return refuse('league-sealed', 'this battle’s sides are sealed')
       if (state.leagueToken && battleCapacity(command) !== battleCapacity(state.settings))
-        return refuse('league-sealed', 'league battle seats are sealed')
+        return refuse('league-sealed', 'this battle’s seats are sealed')
       if (command.playerCount !== undefined && command.playerCount !== 2 && command.playerCount !== 3 && command.playerCount !== 4)
         return refuse('unsupported-player-count', 'choose a supported player count')
       if (battleCapacity(command) > PLAYERS_PER_BATTLE !== Boolean(command.teamBattle))
@@ -1428,7 +1435,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       return null
     }
     case 'reset-setup':
-      if (state.leagueToken) return refuse('league-sealed', 'league rosters are sealed')
+      if (state.leagueToken) return refuse('league-sealed', 'these rosters are sealed')
       return state.status === 'setup' ? null : refuse('battle-started', 'the battle has started')
     case 'set-setup-step':
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
@@ -1447,20 +1454,20 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
         : refuse('unknown-player', 'that player is not in this battle')
     case 'set-side-disposition': {
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
-      if (state.dispositionsSealed) return refuse('league-sealed', 'the league sealed each side’s force disposition')
+      if (state.dispositionsSealed) return refuse('league-sealed', 'each side’s force disposition is sealed')
       return sideDispositionChoices(state, command.side).includes(command.disposition)
         ? null
         : refuse('disposition-not-brought', 'that force disposition is not one this side brought')
     }
     case 'set-side-warlord': {
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
-      if (state.warlordsSealed) return refuse('league-sealed', 'the league sealed each side’s Warlord')
+      if (state.warlordsSealed) return refuse('league-sealed', 'each side’s Warlord is sealed')
       return sideWarlordChoices(state, command.side).includes(command.playerId)
         ? null
         : refuse('warlord-not-brought', 'that army is not on this side or names no Warlord')
     }
     case 'attach-roster': {
-      if (state.leagueToken) return refuse('league-sealed', 'league rosters are sealed')
+      if (state.leagueToken) return refuse('league-sealed', 'these rosters are sealed')
       if (state.status === 'finished') return refuse('battle-over', 'the battle is over')
       // Correcting a list mid-battle stays allowed; bringing a different set of cards with it does not.
       if (state.status === 'playing' && command.prep) return refuse('cards-settled', 'cards are settled before the battle begins')
@@ -1488,7 +1495,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       return null
     }
     case 'detach-roster': {
-      if (state.leagueToken) return refuse('league-sealed', 'league rosters are sealed')
+      if (state.leagueToken) return refuse('league-sealed', 'these rosters are sealed')
       // Correcting a list mid-battle stays allowed, because a corrected list is still
       // an army. Taking one away is not: the units on the table would have nothing
       // behind them, so a seat is only emptied while the table is being set.
@@ -1496,9 +1503,17 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (!player.roster) return refuse('no-roster', 'that seat has no army')
       return null
     }
+    case 'set-battle-club':
+      if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
+      if (command.clubId === null) return null
+      if (state.leagueToken) return refuse('club-ineligible', 'this battle already counts for its event')
+      if (state.settings.manual) return refuse('club-ineligible', 'a manually tracked battle cannot count for a club')
+      if (state.players.some((candidate) => isGuestSeat(candidate.id) || isPracticeSeat(candidate)))
+        return refuse('club-ineligible', 'only members playing each other can count for a club')
+      return null
     case 'lock-league-rosters':
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
-      if (state.leagueToken) return refuse('league-sealed', 'league rosters are already sealed')
+      if (state.leagueToken) return refuse('league-sealed', 'the rosters are already sealed')
       if (!state.players.every((candidate) => candidate.roster)) return refuse('missing-roster', 'every player needs a sealed roster')
       if (command.dispositions?.every(({ side, disposition }) => sideDispositionChoices(state, side).includes(disposition)) === false)
         return refuse('disposition-not-brought', 'that force disposition is not one this side brought')
@@ -2045,6 +2060,9 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       inferBattleSize(state)
       return
     }
+    case 'set-battle-club':
+      state.clubId = command.clubId
+      return
     case 'lock-league-rosters': {
       state.leagueToken = command.leagueToken
       state.leagueEventToken = command.eventToken ?? null

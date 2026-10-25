@@ -4,7 +4,7 @@
 - **Duplicate** in the library makes an independent copy. On someone else's list it's **Duplicate to my rosters**, and the copy notes where it came from.
 - **Lock roster** stops edits until you **Unlock** it; you can still share, export, print and take it to battle. Locking and unlocking need a connection.
 - **Lend to a friend** lets a friend view the list and field it in their battles without editing it. Your notes stay yours, and they can **Return it** at any time.
-- **Archive** in the library hides a list; **Delete** removes it for good. Copies in battles and leagues are kept either way.
+- **Archive** in the library hides a list; **Delete** removes it for good. Copies in battles and tournaments are kept either way.
 
 ## Share, export and print
 

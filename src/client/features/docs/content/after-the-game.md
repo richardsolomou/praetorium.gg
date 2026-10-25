@@ -13,4 +13,4 @@ When the battle finishes, the guest's device shows **Keep this battle**. They ch
 
 ## Who can watch
 
-Anyone can find and watch a battle, league games included. A guest's name shows wherever the battle does.
+Anyone can find and watch a battle, tournament games included. A guest's name shows wherever the battle does.

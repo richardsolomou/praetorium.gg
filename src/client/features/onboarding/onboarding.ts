@@ -26,7 +26,7 @@ export const onboardingTasks: readonly { id: OnboardingTaskId; title: string; de
   },
   {
     id: 'league',
-    title: 'Join or run a league',
+    title: 'Join or run a tournament',
     description: 'Seal rosters in secret, open them together, and play each other with a results table.',
   },
   {
@@ -426,7 +426,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     href: '/battles',
     title: 'Find the table format',
     description:
-      'Choose your armies to find the battle format from their saved sizes. Both sides must match; allies split the points evenly. League battles use their preset size. Choose the mission pack here too.',
+      'Choose your armies to find the battle format from their saved sizes. Both sides must match; allies split the points evenly. Tournament battles use their preset size. Choose the mission pack here too.',
     placement: 'bottom',
     next: 'battle-setup-armies',
     nextLabel: 'Next',
@@ -810,7 +810,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     page: 'friends',
     href: '/friends',
     title: 'Who you can play',
-    description: 'Confirmed friends are the players you can seat in a battle or bring into a league event.',
+    description: 'Confirmed friends are the players you can seat in a battle or bring into a tournament.',
     placement: 'top',
     next: 'friend-invite',
     nextLabel: 'Next',
@@ -884,10 +884,10 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     task: 'league',
     target: 'create-league',
     page: 'leagues',
-    href: '/leagues',
-    title: 'Run a league',
+    href: '/tournaments',
+    title: 'Run a tournament',
     description:
-      'Everyone seals a roster in secret, the rosters open together, then you play each other and the results build up. A public league below can be joined instead.',
+      'Everyone seals a roster in secret, the rosters open together, then you play each other and the results build up. A public tournament below can be joined instead.',
     placement: 'bottom-end',
     next: 'league-name',
   },
@@ -895,9 +895,9 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     task: 'league',
     target: 'league-name',
     page: 'leagues',
-    href: '/leagues',
-    title: 'Name the league',
-    description: 'Players see this on the leagues page and on the invite you send them.',
+    href: '/tournaments',
+    title: 'Name the tournament',
+    description: 'Players see this on the tournaments page and on the invite you send them.',
     placement: 'right',
     next: 'league-format',
     nextLabel: 'Next',
@@ -906,9 +906,9 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     task: 'league',
     target: 'league-format',
     page: 'leagues',
-    href: '/leagues',
+    href: '/tournaments',
     title: 'Format and points',
-    description: 'Each event sets its own table shape and the points every roster is built to. They lock once the first roster is sealed.',
+    description: 'The tournament sets its table shape and the points every roster is built to. They lock once the first roster is sealed.',
     placement: 'right',
     next: 'league-options',
     nextLabel: 'Next',
@@ -917,7 +917,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     task: 'league',
     target: 'league-options',
     page: 'leagues',
-    href: '/leagues',
+    href: '/tournaments',
     title: 'Everything else can wait',
     description:
       'A private link anyone can join is the usual start. Open More options for details, a player limit, a public listing, or approving each player.',
@@ -929,9 +929,9 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     task: 'league',
     target: 'league-create',
     page: 'leagues',
-    href: '/leagues',
+    href: '/tournaments',
     title: 'Create it',
-    description: 'It opens straight away, and you land on its page, where you run the league and play in it.',
+    description: 'It opens straight away, and you land on its page, where you run the tournament and play in it.',
     placement: 'top',
     next: 'league-entrants',
   },
@@ -939,7 +939,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     task: 'league',
     target: 'league-entrants',
     page: 'league',
-    href: '/leagues',
+    href: '/tournaments',
     title: 'Your entrants',
     description: 'Requests to join wait above this list. Accepted players appear here, grouped by side or team when the format has them.',
     placement: 'top',
@@ -950,7 +950,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     task: 'league',
     target: 'league-rosters',
     page: 'league',
-    href: '/leagues',
+    href: '/tournaments',
     title: 'Before the reveal',
     description:
       'Everyone sees whose roster is sealed, and rosters stay hidden, from you as well. Once every roster is in, you or anyone playing can reveal them.',
@@ -962,9 +962,9 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     task: 'league',
     target: 'league-reveal',
     page: 'league',
-    href: '/leagues',
+    href: '/tournaments',
     title: 'Reveal together',
-    description: 'One press opens every sealed roster at once, and entrants can start their league battles from then on.',
+    description: 'One press opens every sealed roster at once, and entrants can start their battles from then on.',
     placement: 'bottom-end',
     next: 'league-status',
     nextLabel: 'Next',
@@ -974,10 +974,9 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     task: 'league',
     target: 'league-status',
     page: 'league',
-    href: '/leagues',
+    href: '/tournaments',
     title: 'Your own place',
-    description:
-      'Players see this same page. This card is where you join, seal your roster, and start battles once the rosters are out. Each new event keeps the earlier ones with their results.',
+    description: 'Players see this same page. This card is where you join, seal your roster, and start battles once the rosters are out.',
     placement: 'bottom',
     final: true,
   },
@@ -1435,8 +1434,8 @@ export function onboardingPage(pathname: string): OnboardingPage | undefined {
   if (pathname === '/rosters' || pathname === '/rosters/') return 'rosters'
   if (/^\/rosters\/[^/]+\/?$/.test(pathname)) return 'roster'
   if (pathname === '/battles' || pathname === '/battles/') return 'battles'
-  if (pathname === '/leagues' || pathname === '/leagues/') return 'leagues'
-  if (/^\/leagues\/[^/]+\/?$/.test(pathname)) return 'league'
+  if (pathname === '/tournaments' || pathname === '/tournaments/') return 'leagues'
+  if (/^\/tournaments\/[^/]+\/?$/.test(pathname)) return 'league'
   if (pathname === '/factions') return 'factions'
   if (/^\/factions\/[^/]+\/detachments\/[^/]+\/?$/.test(pathname)) return 'detachment'
   if (/^\/factions\/[^/]+\/datasheets\/[^/]+\/?$/.test(pathname)) return 'datasheet'

@@ -5,7 +5,7 @@ import {
   battleReplayBatchSchema,
   createBattleSchema,
   createLeagueBattleSchema,
-  createLeagueEventSchema,
+  createClubGameSchema,
   createLeagueSchema,
   leagueBattleOptionsSchema,
   priceSchema,
@@ -164,33 +164,15 @@ describe('league creation input', () => {
   })
 
   it('accepts the supported 2v1 roster-size pair', () => {
-    expect(
-      createLeagueEventSchema.safeParse({
-        ...league,
-        token: 'league',
-        description: '',
-        playerLimit: null,
-        format: '2v1',
-        rosterLimit: 2_000,
-      }).success,
-    ).toBe(true)
+    expect(createLeagueSchema.safeParse({ ...league, format: '2v1', rosterLimit: 2_000 }).success).toBe(true)
   })
 
-  it('rejects a 2v1 size whose allied half is unsupported', () => {
-    expect(
-      createLeagueEventSchema.safeParse({
-        ...league,
-        token: 'league',
-        description: '',
-        playerLimit: null,
-        format: '2v1',
-        rosterLimit: 1_000,
-      }).success,
-    ).toBe(false)
-    expect(
-      createLeagueEventSchema.safeParse({ ...league, token: 'league', description: '', playerLimit: null, format: '2v1', rosterLimit: 600 })
-        .success,
-    ).toBe(false)
+  it('refuses an update carrying only some of a tournament’s details', () => {
+    expect(updateLeagueSchema.safeParse({ token: 'league', name: 'League' }).success).toBe(false)
+  })
+
+  it('refuses Swiss rounds for a club’s sealed game', () => {
+    expect(createClubGameSchema.safeParse({ clubToken: 'club', rounds: 3 }).success).toBe(false)
   })
 
   it('accepts the official doubles force size and rejects a smaller one', () => {

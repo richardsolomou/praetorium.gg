@@ -2,13 +2,13 @@ Your name, picture and profile page are public, and your email is private. Battl
 
 ## Battles
 
-Battles are public. Anyone can find and watch your past and live battles, league games included, and finished ones count on the leaderboard. Spectators can't change anything or see a face-down Secret Mission.
+Battles are public. Anyone can find and watch your past and live battles, tournament games included, and finished ones count on the leaderboard. Spectators can't change anything or see a face-down Secret Mission.
 
 ## Rosters
 
 Each roster has its own access: **Private**, **Unlisted** (anyone with the link) or **Public** (listed on your profile and for anyone to find). New rosters start **Public** unless you change **Roster visibility** under **Roster defaults**. Anyone can copy a public roster into their own rosters.
 
-Making a roster private again stops its link working, but the copies of it already played in battles or sealed in a league stay as they were.
+Making a roster private again stops its link working, but the copies of it already played in battles or sealed in a tournament stay as they were.
 
 ## Collection
 
@@ -24,7 +24,7 @@ The [privacy policy](/privacy) lists what Praetorium stores and who it's shared 
 2. Enter your password under **Confirm your password**. If you only sign in with a provider, your recent sign-in confirms it instead.
 3. Tick **I understand that my account and its battles cannot be recovered.** and choose **Permanently delete account**. **Keep account** backs out.
 
-Deletion removes your profile and sign-in methods, rosters, saved loadouts, ability alerts, collection with its photos and wishlist, favourites, friendships, league entries, leagues you organise, and every battle you played, including games other players were in. It can't be undone.
+Deletion removes your profile and sign-in methods, rosters, saved loadouts, ability alerts, collection with its photos and wishlist, favourites, friendships, tournament entries, tournaments you organise, and every battle you played, including games other players were in. It can't be undone.
 
 It can't reach copies other players have already made: rosters they copied, and anything they downloaded or captured.
 

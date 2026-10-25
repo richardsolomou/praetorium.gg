@@ -442,9 +442,11 @@ test('a player can reject an incoming friend request', async ({ browser }) => {
     const incoming = recipient.locator('section').filter({ hasText: 'Friend requests' }).locator(`[data-person="${requesterName}"]`)
     await expect(incoming).toBeVisible()
     await recipient.screenshot({ path: 'test-results/friend-request-reject.png' })
+    const confirmReject = recipient.getByRole('alertdialog')
     await expect(async () => {
       if ((await incoming.count()) === 0) return
-      await incoming.getByRole('button', { name: 'Reject' }).click({ timeout: 1_000 })
+      if (!(await confirmReject.isVisible())) await incoming.getByRole('button', { name: 'Reject' }).click({ timeout: 1_000 })
+      await confirmReject.getByRole('button', { name: 'Reject' }).click({ timeout: 1_000 })
       await expect(incoming).toHaveCount(0, { timeout: 1_000 })
     }).toPass({ timeout: 15_000 })
     await recipient.goto('/')
@@ -502,7 +504,7 @@ test('onboarding waits in the profile menu and disappears when complete', async 
     'Build your first army',
     'Add someone you play with',
     'Start a battle',
-    'Join or run a league',
+    'Join or run a tournament',
     'Explore the game reference',
     'Follow games and players',
     'Compare units in combat',

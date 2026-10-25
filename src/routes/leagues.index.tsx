@@ -1,15 +1,7 @@
-import { createFileRoute } from '@tanstack/react-router'
-import { LeagueIndex } from '../client/features/leagues/LeagueIndex'
-import { pageHead } from '../client/linkPreview'
-import { leaguesQuery } from '../client/queries'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/leagues/')({
-  loader: ({ context }) => context.queryClient.query({ ...leaguesQuery(), staleTime: 'static' }),
-  head: ({ match }) =>
-    pageHead(match.context.origin, {
-      title: 'Leagues',
-      description: 'Collect sealed rosters for a league, tournament, or private event, then reveal every accepted list together.',
-      path: '/leagues',
-    }),
-  component: LeagueIndex,
+  beforeLoad: () => {
+    throw redirect({ to: '/tournaments', replace: true })
+  },
 })

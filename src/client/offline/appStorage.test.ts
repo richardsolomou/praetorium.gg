@@ -31,15 +31,18 @@ beforeEach(() => {
   vi.stubGlobal('localStorage', { setItem: vi.fn() })
 })
 
-it.each(['browser', 'native'])('migrates older league queries read from %s storage without changing their timestamps', async (surface) => {
+it.each(['browser', 'native'])('drops event queries saved before hosts from %s storage, keeping the rest unchanged', async (surface) => {
+  const kept = [
+    { key: ['league', 'league', 'results', 'event'], data: { rows: [] }, updatedAt: 4 },
+    { key: ['league', 'deleted', 'current'], data: null, updatedAt: 5 },
+  ]
   const legacy: AppSnapshot = {
     ...snapshot,
     queries: [
       ...snapshot.queries,
       { key: ['league', 'league', 'current'], data: { token: 'league', entries: [] }, updatedAt: 2 },
       { key: ['leagues'], data: [{ token: 'league', personal: true }], updatedAt: 3 },
-      { key: ['league', 'league', 'results', 'event'], data: { rows: [] }, updatedAt: 4 },
-      { key: ['league', 'deleted', 'current'], data: null, updatedAt: 5 },
+      ...kept,
     ],
   }
   disk.set('snapshot', { epoch: 'saved', snapshot: legacy })
@@ -48,16 +51,7 @@ it.each(['browser', 'native'])('migrates older league queries read from %s stora
   const storage = await tab()
   const migrated = await storage.readAppSnapshot()
   await storage.writeAppSnapshot(migrated)
-  expect(await storage.readAppSnapshot()).toEqual({
-    ...snapshot,
-    queries: [
-      ...snapshot.queries,
-      { key: ['league', 'league', 'current'], data: { token: 'league', entries: [], admins: [] }, updatedAt: 2 },
-      { key: ['leagues'], data: [{ token: 'league', personal: true, adminIds: [] }], updatedAt: 3 },
-      { key: ['league', 'league', 'results', 'event'], data: { rows: [] }, updatedAt: 4 },
-      { key: ['league', 'deleted', 'current'], data: null, updatedAt: 5 },
-    ],
-  })
+  expect(await storage.readAppSnapshot()).toEqual({ ...snapshot, queries: [...snapshot.queries, ...kept] })
 })
 afterEach(() => vi.unstubAllGlobals())
 

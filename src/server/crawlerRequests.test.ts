@@ -21,7 +21,7 @@ it('leaves the query string out of the recorded address', () => {
   )
 })
 
-it.each(['/battles/secret-token', '/rosters/abc123', '/users/someone', '/leagues/token', '/invite/token', '/sign-in', '/_serverFn/x'])(
+it.each(['/battles/secret-token', '/rosters/abc123', '/users/someone', '/tournaments/token', '/invite/token', '/sign-in', '/_serverFn/x'])(
   'records nothing for %s, whose address can name a player or their data',
   (path) => {
     expect(crawlerRequestEvent(read(`https://praetorium.gg${path}`), 200, DAY)).toBeNull()

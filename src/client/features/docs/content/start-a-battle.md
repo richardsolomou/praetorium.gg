@@ -17,7 +17,7 @@ Open [Battles](/battles) and choose **New battle**, or choose **Start a battle**
 
 ![The Start a battle dialog with the Guided and Manual tracking choices.](screenshot:track-a-battle-tracking 'Tracking: Guided or Manual')
 
-If you and your opponent are both entered in the same league event, Praetorium asks **You are both in a league** and offers to play it there, with your sealed lists. Choose the league, or **Play it casually** to keep it out of the league.
+If you and your opponent are both entered in the same tournament, Praetorium asks **You are both in a tournament** and offers to play it there, with your sealed lists. Choose the tournament, or **Play it casually** to keep it out of the tournament.
 
 ## Guided or manual tracking
 
@@ -25,4 +25,4 @@ If you and your opponent are both entered in the same league event, Praetorium a
 
 **Manual** is a plain scoresheet. Scores and command points are whatever you enter. There are no mission cards, scoring prompts, caps, automatic CP or battle ready bonus, and no stratagem list.
 
-The choice matters after the game: manual battles don't count on the [leaderboard](/leaderboard). League battles are always guided.
+The choice matters after the game: manual battles don't count on the [leaderboard](/leaderboard). Tournament battles are always guided.

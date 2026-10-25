@@ -24,6 +24,7 @@ export type Notice = { actorId: string; recipientIds: readonly string[] } & (
       leagueToken: string
       eventToken?: string
     }
+  | { kind: 'club-member-requested' | 'club-member-accepted'; clubToken: string }
 )
 
 export type NoticeMessage = { title: string; body: string; path: string }
@@ -42,15 +43,15 @@ export function noticeRecipients(notice: Notice): string[] {
  * The words and destination of a notice, or null when its subject has gone.
  *
  * Only what the recipient can already read: a name any player may see, a league
- * they entered, and a path the page behind it would show them anyway.
+ * or club they entered, and a path the page behind it would show them anyway.
  */
-export function noticeMessage(notice: Notice, names: { actor?: string; league?: string }): NoticeMessage | null {
+export function noticeMessage(notice: Notice, names: { actor?: string; league?: string; club?: string }): NoticeMessage | null {
   const actor = names.actor ?? 'A player'
   switch (notice.kind) {
     case 'battle-created':
       return {
         title: 'New battle',
-        body: `${actor} started ${notice.league ? 'a league battle' : 'a battle'} with you.`,
+        body: `${actor} started ${notice.league ? 'a sealed-roster battle' : 'a battle'} with you.`,
         path: `/battles/${encodeURIComponent(notice.battleToken)}`,
       }
     case 'friend-requested':
@@ -72,10 +73,18 @@ export function noticeMessage(notice: Notice, names: { actor?: string; league?: 
         'league-entry-added': `${actor} added you as a player. Seal your list.`,
         'league-entry-rejected': 'The organizer declined your entry.',
         'league-roster-reseal': 'Your sealed list was cleared after a size or team change. Seal a replacement.',
-        'league-revealed': 'The rosters are out. Start your league battles.',
+        'league-revealed': 'The rosters are out. Start your battles.',
         'league-roster-unsealed': 'The organizer unsealed your roster. Seal a replacement.',
       }[notice.kind]
-      return { title: names.league, body, path: `/leagues/${encodeURIComponent(notice.leagueToken)}${query}` }
+      return { title: names.league, body, path: `/tournaments/${encodeURIComponent(notice.leagueToken)}${query}` }
     }
+    case 'club-member-requested':
+    case 'club-member-accepted':
+      if (!names.club) return null
+      return {
+        title: names.club,
+        body: notice.kind === 'club-member-requested' ? `${actor} asked to join. Let them in from the club page.` : 'You’re in the club.',
+        path: `/clubs/${encodeURIComponent(notice.clubToken)}`,
+      }
   }
 }

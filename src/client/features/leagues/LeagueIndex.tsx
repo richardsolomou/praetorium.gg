@@ -7,32 +7,35 @@ import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { CreateLeague } from './CreateLeague'
+import { EventSchedule } from './EventSchedule'
 import { LEAGUE_CARD, LeagueCardActions } from './LeagueActions'
 import { leagueFormat, leaguePhase, leaguePlayers } from './leagueEvent'
 
 export function LeagueIndex() {
   const { data: me } = useQuery(meQuery())
-  const { data: leagues = [] } = useQuery(leaguesQuery())
+  const { data: all = [] } = useQuery(leaguesQuery())
+  // A club's sealed games are reached from its club page; the list keeps them for rosters due and offline saves.
+  const leagues = all.flatMap(({ tournament, ...league }) => (tournament ? [{ ...league, tournament }] : []))
   const mine = leagues.filter((league) => league.personal)
-  const publicLeagues = leagues.filter((league) => league.visibility === 'public' && !mine.includes(league))
+  const publicLeagues = leagues.filter((league) => league.tournament.visibility === 'public' && !mine.includes(league))
 
   return (
     <main className="w-full">
       <PageHeader
-        eyebrow="Organized play"
-        title="Leagues"
-        description="Everyone seals a roster in secret, the rosters open together, then you play each other and the results build up."
+        eyebrow="Events"
+        title="Tournaments"
+        description="One-off events. Everyone seals a list in secret, then the lists are revealed together."
         actions={me ? <CreateLeague /> : null}
       />
       <PageContent className="space-y-6">
-        {mine.length ? <LeagueShelf title="Your leagues" leagues={mine} viewerId={me?.id ?? null} /> : null}
-        {publicLeagues.length ? <LeagueShelf title="Public leagues" leagues={publicLeagues} viewerId={me?.id ?? null} /> : null}
+        {mine.length ? <LeagueShelf title="Your tournaments" leagues={mine} viewerId={me?.id ?? null} /> : null}
+        {publicLeagues.length ? <LeagueShelf title="Public tournaments" leagues={publicLeagues} viewerId={me?.id ?? null} /> : null}
         {!leagues.length ? (
           <PageState
             headingLevel={2}
-            eyebrow="Organized play"
-            title="No leagues yet"
-            explanation={me ? 'Create one and send the link to your group.' : 'Public leagues will appear here. Sign in to create one.'}
+            eyebrow="Sealed rosters"
+            title="No tournaments yet"
+            explanation={me ? 'Create one and send the link to your group.' : 'Public tournaments will appear here. Sign in to create one.'}
             icon={Users}
           />
         ) : null}
@@ -47,7 +50,7 @@ function LeagueShelf({
   viewerId,
 }: {
   title: string
-  leagues: Awaited<ReturnType<NonNullable<ReturnType<typeof leaguesQuery>['queryFn']>>>
+  leagues: (TournamentSummary & { tournament: NonNullable<TournamentSummary['tournament']> })[]
   viewerId: string | null
 }) {
   return (
@@ -57,30 +60,32 @@ function LeagueShelf({
       </h2>
       <div className="grid gap-3 md:grid-cols-2">
         {leagues.map((league) => {
-          const organizer = isLeagueOrganizer(league, league.adminIds, viewerId)
-          // One status: the reader's own place when they have one, otherwise where the league stands.
+          const { tournament } = league
+          const organizer = isLeagueOrganizer(tournament, tournament.adminIds, viewerId)
+          // One status: the reader's own place when they have one, otherwise where the tournament stands.
           const status = league.ownEntry
             ? ownEntryStatus(league.ownEntry, Boolean(league.revealedAt))
             : leaguePhase(league, league.entrantCount, league.occupiedCount)
           const format = leagueFormat(league)
           const card = (
-            <Link to="/leagues/$token" params={{ token: league.token }} className="flex min-w-0 flex-1 flex-col">
+            <Link to="/tournaments/$token" params={{ token: league.token }} className="flex min-w-0 flex-1 flex-col">
               <div className={`flex-1 p-4 ${organizer ? 'pr-12' : ''}`}>
                 <p className="flex items-center gap-2 text-xs text-dim">
-                  {league.visibility === 'private' ? (
+                  {tournament.visibility === 'private' ? (
                     <LockKeyhole className="size-3.5 shrink-0" aria-label="Private" />
                   ) : (
                     <Eye className="size-3.5 shrink-0 text-info" aria-label="Public" />
                   )}
                   <span className="truncate tracking-label uppercase">{format ?? 'Any format'}</span>
                 </p>
-                <h3 className="mt-1.5 truncate text-lg leading-tight font-bold uppercase">{league.name}</h3>
-                {league.description ? (
-                  <p className="mt-1 line-clamp-2 text-sm text-dim">{league.description}</p>
+                <h3 className="mt-1.5 truncate text-lg leading-tight font-bold uppercase">{tournament.name}</h3>
+                <EventSchedule event={league} className="mt-1 text-xs" />
+                {tournament.description ? (
+                  <p className="mt-1 line-clamp-2 text-sm text-dim">{tournament.description}</p>
                 ) : (
                   <p className="mt-1.5 flex min-w-0 items-center gap-1.5 text-sm text-dim">
-                    <PlayerAvatar name={league.ownerName} image={league.ownerImage} className="size-5 text-3xs" />
-                    <span className="truncate">Organized by {league.ownerName}</span>
+                    <PlayerAvatar name={tournament.ownerName} image={tournament.ownerImage} className="size-5 text-3xs" />
+                    <span className="truncate">Organized by {tournament.ownerName}</span>
                   </p>
                 )}
               </div>
@@ -89,23 +94,19 @@ function LeagueShelf({
                   <span aria-hidden className="size-2 shrink-0 rounded-full bg-current" />
                   <span className="truncate">{status.label}</span>
                 </span>
-                <span className="ml-auto shrink-0 text-xs text-dim">
-                  {[leaguePlayers(league, league.entrantCount), league.eventNumber > 1 ? `Event ${league.eventNumber}` : null]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </span>
+                <span className="ml-auto shrink-0 text-xs text-dim">{leaguePlayers(league, league.entrantCount)}</span>
               </div>
             </Link>
           )
           if (!organizer) {
             return (
-              <article key={league.id} data-league={league.token} className={LEAGUE_CARD}>
+              <article key={league.token} data-league={league.token} className={LEAGUE_CARD}>
                 {card}
               </article>
             )
           }
           return (
-            <LeagueCardActions key={league.id} league={league} canDelete={league.ownerId === viewerId}>
+            <LeagueCardActions key={league.token} league={league} canDelete={tournament.ownerId === viewerId}>
               {(menu) => (
                 <>
                   {card}
@@ -120,10 +121,12 @@ function LeagueShelf({
   )
 }
 
+type TournamentSummary = Awaited<ReturnType<NonNullable<ReturnType<typeof leaguesQuery>['queryFn']>>>[number]
+
 /** Where the reader's own entry stands, tinted by whether it needs them: amber to act, green once done. */
 function ownEntryStatus(entry: { status: 'pending' | 'accepted' | 'rejected'; submitted: boolean }, revealed: boolean) {
   if (entry.status === 'pending') return { label: 'Waiting for approval', tint: 'text-dim' }
-  if (entry.status === 'rejected') return { label: 'Not in this league', tint: 'text-faint' }
+  if (entry.status === 'rejected') return { label: 'Not in this tournament', tint: 'text-faint' }
   if (entry.submitted)
     return revealed ? { label: 'Rosters revealed', tint: 'text-achieved' } : { label: 'Your roster is sealed', tint: 'text-achieved' }
   return revealed ? { label: 'No roster', tint: 'text-faint' } : { label: 'Seal your roster', tint: 'text-discarded' }

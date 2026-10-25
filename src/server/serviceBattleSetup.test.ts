@@ -18,7 +18,7 @@ function serviceRecordingCreation() {
   return {
     service,
     created: () => createBattle.mock.calls[0]?.[0],
-    initialCommand: () => createBattle.mock.calls[0]?.[0]?.initialCommand,
+    initialCommand: () => createBattle.mock.calls[0]?.[0]?.initialCommands?.[0],
   }
 }
 
@@ -65,4 +65,41 @@ it('does not report a guest battle as practice', async () => {
 it('refuses a battle with nobody across the table', async () => {
   const { service } = serviceRecordingCreation()
   await expect(service.createBattle('actor', { missionPackId: null, casual: true })).rejects.toMatchObject({ status: 400 })
+})
+
+function clubService(memberIds: string[]) {
+  const createBattle = vi.fn()
+  const repository = {
+    namesByIds: vi.fn().mockResolvedValue(new Map([['stranger', 'Stranger']])),
+    relationships: vi.fn().mockResolvedValue([]),
+    practiceOpponents: vi.fn().mockResolvedValue([]),
+    clubByToken: vi.fn().mockResolvedValue({
+      id: 'club-id',
+      token: 'club',
+      ownerId: 'actor',
+      members: memberIds.map((userId) => ({ userId, status: 'accepted', role: 'member', name: userId, image: null })),
+    }),
+    createBattle,
+  } as unknown as RepositoryPort
+  return {
+    service: new PraetoriumService(
+      repository,
+      () => 0,
+      () => 0,
+    ),
+    createBattle,
+  }
+}
+
+it('starts a club game against a member who is not a friend', async () => {
+  const { service, createBattle } = clubService(['actor', 'stranger'])
+  await service.createBattle('actor', { opponentId: 'stranger', missionPackId: null, clubToken: 'club' })
+  expect(createBattle.mock.calls[0]?.[0]?.initialCommands.at(-1)).toEqual({ kind: 'set-battle-club', clubId: 'club-id' })
+})
+
+it('refuses a club game against someone outside the club', async () => {
+  const { service } = clubService(['actor'])
+  await expect(service.createBattle('actor', { opponentId: 'stranger', missionPackId: null, clubToken: 'club' })).rejects.toMatchObject({
+    status: 403,
+  })
 })

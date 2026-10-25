@@ -6,6 +6,7 @@ const FEATURES = {
   rosters: 'rosters',
   battles: 'battles',
   leagues: 'leagues',
+  tournaments: 'leagues',
   factions: 'factions',
   rules: 'rules',
   missions: 'missions',

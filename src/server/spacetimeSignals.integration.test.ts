@@ -55,7 +55,6 @@ it.skipIf(!url || !database || !token)('streams league entry removal when an acc
         visibility: 'private',
         admission: 'automatic',
         playerLimit: null,
-        recurring: false,
         format: null,
         rosterLimit: null,
         now: Date.now(),

@@ -2,7 +2,7 @@ import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function Terms() {
   return (
-    <LegalPage eyebrow="Legal" title="Terms of service" updated="12 October 2026">
+    <LegalPage eyebrow="Legal" title="Terms of service" updated="25 October 2026">
       <LegalSection title="The service">
         <p>
           Praetorium at praetorium.gg helps you build Warhammer 40,000 army lists and track games between the players seated at them. You
@@ -40,7 +40,7 @@ export function Terms() {
           Your lists stay yours. You grant us only the licence needed to store, price and display them to the people entitled to see them:
           you, the players seated opposite you, and anyone you share an unlisted or public list with. You are responsible for the names,
           tags and text you type. You can export any roster at any time. Deleting a saved roster removes the saved list, while frozen copies
-          in battles and league events remain as described in the{' '}
+          in battles and tournaments remain as described in the{' '}
           <a href="/privacy" className="text-info hover:text-parchment">
             privacy policy
           </a>

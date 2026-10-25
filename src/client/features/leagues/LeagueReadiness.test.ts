@@ -14,7 +14,7 @@ const entry = (userId: string, requiredLimit: number | null): LeagueRevealEntry 
 
 describe('checkDetail', () => {
   it('asks for more players when a 2v1 has one solo and one allied player', () => {
-    const sizes = leagueRevealChecklist({ format: '2v1', rosterLimit: 2_000 }, [entry('a', 2_000), entry('b', 1_000)]).find(
+    const sizes = leagueRevealChecklist({ format: '2v1', rosterLimit: 2_000 }, [entry('a', 2_000), entry('b', 1_000)], 0).find(
       (check) => check.step === 'sizes',
     )
     if (sizes?.step !== 'sizes') throw new Error('A 2v1 has a sizes check.')

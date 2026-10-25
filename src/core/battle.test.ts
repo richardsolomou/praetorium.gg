@@ -21,6 +21,7 @@ import {
   validate,
 } from './battle'
 import { battleView } from './battleView'
+import { guestSeatId } from './newBattle'
 import { ALICE, BOB, CAROL, NAMES, PLAYERS, advance, builtRoster, log, roster, started } from './battle.fixtures'
 
 describe('setup', () => {
@@ -185,15 +186,15 @@ describe('setup', () => {
   })
 
   it('refuses to replace a sealed league roster', () => {
-    expect(validate(leagueBattle(), ALICE, builtRoster('Replacement', ['Terminators']))).toBe('league rosters are sealed')
+    expect(validate(leagueBattle(), ALICE, builtRoster('Replacement', ['Terminators']))).toBe('these rosters are sealed')
   })
 
   it('refuses to remove a sealed league roster', () => {
-    expect(validate(leagueBattle(), ALICE, { kind: 'detach-roster' })).toBe('league rosters are sealed')
+    expect(validate(leagueBattle(), ALICE, { kind: 'detach-roster' })).toBe('these rosters are sealed')
   })
 
   it('refuses to reset sealed league rosters', () => {
-    expect(validate(leagueBattle(), ALICE, { kind: 'reset-setup' })).toBe('league rosters are sealed')
+    expect(validate(leagueBattle(), ALICE, { kind: 'reset-setup' })).toBe('these rosters are sealed')
   })
 
   it('refuses to change a sealed league battle size', () => {
@@ -206,7 +207,7 @@ describe('setup', () => {
         twistId: null,
         clockLimitMinutes: null,
       }),
-    ).toBe('league roster battle size is sealed')
+    ).toBe('this battle’s size is sealed')
   })
 
   it('refuses to add another side to a sealed league battle', () => {
@@ -220,7 +221,7 @@ describe('setup', () => {
         teamBattle: true,
         clockLimitMinutes: null,
       }),
-    ).toBe('league battle sides are sealed')
+    ).toBe('this battle’s sides are sealed')
   })
 
   it('shares the current setup section with every player', () => {
@@ -583,7 +584,7 @@ describe('setup', () => {
 
       it('refuses changing the sealed card in setup', () => {
         expect(validate(sealed, CAROL, { kind: 'set-side-disposition', side: 1, disposition: 'purge-the-foe' })).toBe(
-          'the league sealed each side’s force disposition',
+          'each side’s force disposition is sealed',
         )
       })
 
@@ -1165,5 +1166,43 @@ describe('refusal codes', () => {
 
   it('answers no refusal for a legal command', () => {
     expect(commandRefusal(reduceBattle(PLAYERS, log(...started())), ALICE, advance())).toBeNull()
+  })
+})
+
+describe('club battles', () => {
+  const club: Command = { kind: 'set-battle-club', clubId: 'club' }
+  const configure = (manual: boolean): Command => ({
+    kind: 'configure-battle',
+    limit: 2000,
+    missionPackId: null,
+    terrainLayoutId: null,
+    twistId: null,
+    clockLimitMinutes: null,
+    manual,
+  })
+
+  it('refuses a club once the battle has started', () => {
+    expect(commandRefusal(reduceBattle(PLAYERS, log(...started())), ALICE, club)?.code).toBe('battle-started')
+  })
+
+  it('refuses a club for a battle with a guest', () => {
+    expect(commandRefusal(reduceBattle([ALICE, guestSeatId('battle', 1)], []), ALICE, club)?.code).toBe('club-ineligible')
+  })
+
+  it('refuses a club for a league battle', () => {
+    const state = reduceBattle(PLAYERS, log([ALICE, { kind: 'lock-league-rosters', leagueToken: 'league' }]))
+    expect(commandRefusal(state, ALICE, club)?.code).toBe('club-ineligible')
+  })
+
+  it('refuses a club for a manually tracked battle', () => {
+    expect(commandRefusal(reduceBattle(PLAYERS, log([ALICE, configure(true)])), ALICE, club)?.code).toBe('club-ineligible')
+  })
+
+  it('keeps a club battle on missions and scoring', () => {
+    expect(commandRefusal(reduceBattle(PLAYERS, log([ALICE, club])), ALICE, configure(true))?.code).toBe('club-ineligible')
+  })
+
+  it('forgets the club when its choice is undone', () => {
+    expect(reduceBattle(PLAYERS, log([ALICE, club], [ALICE, { kind: 'undo', target: 1 }])).clubId).toBeNull()
   })
 })

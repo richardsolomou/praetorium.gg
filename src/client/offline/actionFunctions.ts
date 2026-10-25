@@ -1,5 +1,5 @@
 import { boundedProgress, countsAsList, type CollectionProgress } from '../../core/collection'
-import { leagueWarlordRefusal, leagueWarlordValid, waivedWarlordRules } from '../../core/league'
+import { leagueTitle, leagueWarlordRefusal, leagueWarlordValid, waivedWarlordRules } from '../../core/league'
 import { attemptLocalSync } from './localRuntime'
 import { rosterSnapshot } from '../../core/rosterSnapshot'
 import { calculateRosterPrice, savedRosterPriceInput } from '../../shared/pricing'
@@ -86,15 +86,16 @@ export const listLeagues = async (): ReturnType<typeof server.listLeagues> => {
       byToken.delete(operation.resource.slice(7))
       continue
     }
-    if (operation.kind !== 'createLeague' && operation.kind !== 'createLeagueEvent') continue
+    if (operation.kind !== 'createLeague') continue
     const draft = state?.documents[operation.resource]?.data as Awaited<ReturnType<typeof server.openLeague>>
     if (!draft) continue
+    const accepted = draft.entries.filter((entry) => entry.status === 'accepted').length
     byToken.set(draft.token, {
       ...draft,
+      tournament: draft.tournament && { ...draft.tournament, adminIds: draft.tournament.admins.map((admin) => admin.id) },
       personal: true,
-      adminIds: draft.admins.map((admin) => admin.id),
-      format: draft.currentEventFormat,
-      entrantCount: draft.currentAcceptedCount,
+      entrantCount: accepted,
+      currentEntrantCount: draft.entries.length,
       ownEntry: null,
     })
   }
@@ -372,86 +373,39 @@ export async function createLeague(args: Parameters<typeof server.createLeague>[
   const me = localClient()!.getQueryData<{ id: string; name: string; image: string | null }>(meKey())!
   const now = Date.now()
   const draft: NonNullable<Awaited<ReturnType<typeof server.openLeague>>> = {
-    ...input,
-    id: identifiers.leagueId,
+    kind: 'tournament',
     token: identifiers.leagueToken,
-    ownerId: me.id,
-    ownerName: me.name,
-    ownerImage: me.image,
-    admins: [],
-    recurring: true,
-    createdAt: now,
     eventToken: identifiers.eventToken,
-    eventNumber: 1,
-    eventCreatedAt: now,
+    createdAt: now,
+    tournament: {
+      name: input.name,
+      description: input.description,
+      visibility: input.visibility,
+      admission: input.admission,
+      playerLimit: input.playerLimit,
+      ownerId: me.id,
+      ownerName: me.name,
+      ownerImage: me.image,
+      admins: [],
+    },
+    club: null,
+    organizer: true,
+    format: input.format,
+    rosterLimit: input.rosterLimit,
+    allowances: input.allowances,
     revealedAt: null,
     revealedByName: null,
-    eventCount: 1,
-    currentEventFormat: input.format,
-    currentEventRevealedAt: null,
-    currentEntrantCount: 0,
-    currentAcceptedCount: 0,
+    rounds: input.rounds ?? null,
+    pointsBudget: input.pointsBudget ?? null,
+    playsAt: input.schedule?.playsAt ?? null,
+    sealBy: input.schedule?.sealBy ?? null,
+    pairings: [],
     occupiedCount: 0,
     entries: [],
-    events: [
-      {
-        token: identifiers.eventToken,
-        number: 1,
-        format: input.format,
-        rosterLimit: input.rosterLimit,
-        allowances: input.allowances,
-        createdAt: now,
-        revealedAt: null,
-        revealedBy: null,
-      },
-    ],
   }
   await defer('createLeague', input, `league:${identifiers.leagueToken}`, draft, identifiers)
   return { token: identifiers.leagueToken, eventToken: identifiers.eventToken }
 }
-export async function createLeagueEvent(args: Parameters<typeof server.createLeagueEvent>[0]): ReturnType<typeof server.createLeagueEvent> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.createLeagueEvent(args)
-  const identifiers = { eventId: crypto.randomUUID(), eventToken: crypto.randomUUID() }
-  const league = await openLeague({ data: { token: args.data.token } })
-  if (!league) throw new Error('Save this league on the device before starting an event offline.')
-  const input = offlineActionSchemas.createLeagueEvent.parse(args.data)
-  const now = Date.now()
-  const event = {
-    token: identifiers.eventToken,
-    number: league.eventCount + 1,
-    format: input.format,
-    rosterLimit: input.rosterLimit,
-    createdAt: now,
-    revealedAt: null,
-    revealedBy: null,
-  }
-  await defer(
-    'createLeagueEvent',
-    input,
-    `league:${input.token}`,
-    {
-      ...league,
-      ...input,
-      eventToken: event.token,
-      eventNumber: event.number,
-      eventCreatedAt: now,
-      eventCount: event.number,
-      currentEventFormat: input.format,
-      currentEventRevealedAt: null,
-      currentEntrantCount: 0,
-      currentAcceptedCount: 0,
-      occupiedCount: 0,
-      entries: [],
-      revealedAt: null,
-      revealedByName: null,
-      events: [...league.events, event],
-    },
-    identifiers,
-  )
-  return { eventToken: identifiers.eventToken }
-}
-
 export async function requestFriend(args: Parameters<typeof server.requestFriend>[0]): ReturnType<typeof server.requestFriend> {
   const defer = deferredForAccount()
   if (!localEngine()) return server.requestFriend(args)
@@ -599,6 +553,13 @@ export async function assignLeagueRosterRequirement(
   return null
 }
 
+export async function chooseLeagueSide(args: Parameters<typeof server.chooseLeagueSide>[0]): ReturnType<typeof server.chooseLeagueSide> {
+  const defer = deferredForAccount()
+  if (!localEngine()) return server.chooseLeagueSide(args)
+  await defer('chooseLeagueSide', args.data, `league:${args.data.token}`)
+  return null
+}
+
 export async function assignLeagueTeam(args: Parameters<typeof server.assignLeagueTeam>[0]): ReturnType<typeof server.assignLeagueTeam> {
   const defer = deferredForAccount()
   if (!localEngine()) return server.assignLeagueTeam(args)
@@ -673,7 +634,11 @@ export async function leagueBattleOptions(
       .map(async (summary) => {
         const league = await openLeague({ data: { token: summary.token } })
         return league?.revealedAt
-          ? { ...league, entries: league.entries.filter((entry) => entry.status === 'accepted' && entry.submitted) }
+          ? {
+              ...league,
+              name: leagueTitle(league),
+              entries: league.entries.filter((entry) => entry.status === 'accepted' && entry.submitted),
+            }
           : null
       }),
   )

@@ -19,7 +19,8 @@ describe('native application navigation', () => {
   })
 
   it.each([
-    ['/leagues', 'leagues', 'Leagues'],
+    ['/tournaments', 'events', 'Tournaments'],
+    ['/clubs', 'events', 'Clubs'],
     ['/rules', 'rules', 'Rules'],
     ['/leaderboard', 'leaderboard', 'Leaderboard'],
     ['/missions', 'missions', 'Missions'],
@@ -39,8 +40,12 @@ describe('native application navigation', () => {
       { back: { href: '/battles', label: 'Back to battles', preferHistory: true }, section: 'battles', title: 'Battle' },
     ],
     [
-      '/leagues/league-id',
-      { back: { href: '/leagues', label: 'Back to leagues', preferHistory: true }, section: 'leagues', title: 'League' },
+      '/tournaments/league-id',
+      { back: { href: '/tournaments', label: 'Back to tournaments', preferHistory: true }, section: 'events', title: 'Tournament' },
+    ],
+    [
+      '/clubs/club-id/games/game-id',
+      { back: { href: '/clubs/club-id', label: 'Back to club', preferHistory: true }, section: 'events', title: 'Sealed game' },
     ],
     [
       '/factions/necrons',
@@ -100,15 +105,15 @@ describe('native application navigation', () => {
     expect(nativeNavigation(path)).toEqual(expected)
   })
 
-  it('returns a shared roster to the battle or league that opened it', () => {
+  it('returns a shared roster to the battle or tournament that opened it', () => {
     expect(nativeNavigation('/rosters/roster-id', { battle: 'battle-token' }).back).toEqual({
       href: '/battles/battle-token',
       label: 'Back to battle',
       preferHistory: true,
     })
     expect(nativeNavigation('/rosters/roster-id', { league: 'league-token', event: 'event-token' }).back).toEqual({
-      href: '/leagues/league-token?event=event-token',
-      label: 'Back to league',
+      href: '/tournaments/league-token?event=event-token',
+      label: 'Back to event',
       preferHistory: true,
     })
   })

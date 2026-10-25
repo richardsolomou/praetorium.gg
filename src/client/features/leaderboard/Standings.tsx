@@ -16,11 +16,21 @@ export type StandingsTable = { faction: StandingFaction | null; players: number;
  * what the rating was earned from, and the points a battle the player scores.
  * Every width shows all of them.
  */
-export function Standings({ table, viewerId }: { table: StandingsTable; viewerId?: string }) {
+export function Standings({
+  table,
+  viewerId,
+  title = table.faction?.displayName ?? 'Everyone',
+  empty = 'Nobody has finished a public battle here yet.',
+}: {
+  table: StandingsTable
+  viewerId?: string
+  title?: string
+  empty?: string
+}) {
   return (
     <section data-onboarding="standings-table" data-standings>
       <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-        <span>{table.faction?.displayName ?? 'Everyone'}</span>
+        <span>{title}</span>
         <span className="readout">{table.players}</span>
       </h2>
       {table.rows.length ? (
@@ -80,7 +90,7 @@ export function Standings({ table, viewerId }: { table: StandingsTable; viewerId
           </table>
         </div>
       ) : (
-        <p className="mt-2 text-sm text-dim">Nobody has finished a public battle here yet.</p>
+        <p className="mt-2 text-sm text-dim">{empty}</p>
       )}
     </section>
   )

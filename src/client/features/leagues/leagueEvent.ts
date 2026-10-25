@@ -6,7 +6,7 @@ import {
   leagueAllowanceOptions,
   leagueTableShape,
   leagueRegistrationFull,
-  leagueRosterSplit,
+  leagueTitle,
   type LeagueAdmission,
   type LeagueAllowance,
   type LeagueEntryView,
@@ -30,6 +30,11 @@ export function useLeagueRefresh(token: string) {
       queryClient.invalidateQueries({ queryKey: outdatedLeagueEntriesKey() }),
     ])
   }
+}
+
+/** What players call a league: a club's is its casual sealed game, never a tournament. */
+export function leagueNoun(league: { club?: unknown }) {
+  return league.club ? ({ noun: 'sealed game', Noun: 'Sealed game' } as const) : ({ noun: 'tournament', Noun: 'Tournament' } as const)
 }
 
 /** Names a few people outright and counts the rest, so a long waiting list stays one line. */
@@ -112,10 +117,10 @@ export type EntryStep = { label: string; state: 'done' | 'current' | 'upcoming' 
 export type EntryStage = 'join' | 'assign' | 'seal' | 'reveal' | 'play'
 
 /** The path through an event with the stage the reader is on marked current, so it can only restate the status card's own decision. */
-export function entryProgress(league: Pick<League, 'format'>, stage: EntryStage): EntryStep[] {
+export function entryProgress(league: Pick<League, 'format' | 'club'>, stage: EntryStage): EntryStep[] {
   const assignment = league.format === '2v1' ? 'Play solo or get an ally' : league.format === '2v2' ? 'Get paired with a teammate' : null
   const stages: { stage: EntryStage; label: string }[] = [
-    { stage: 'join', label: 'Join the league' },
+    { stage: 'join', label: `Join the ${leagueNoun(league).noun}` },
     ...(assignment ? [{ stage: 'assign' as const, label: assignment }] : []),
     { stage: 'seal', label: 'Seal your roster' },
     { stage: 'reveal', label: 'Rosters revealed' },
@@ -125,19 +130,46 @@ export function entryProgress(league: Pick<League, 'format'>, stage: EntryStage)
   return stages.map(({ label }, index) => ({ label, state: index < current ? 'done' : index === current ? 'current' : 'upcoming' }))
 }
 
-type LeagueFacts = {
-  format: TableShape | null
-  rosterLimit: number | null
-  playerLimit: number | null
-  admission: LeagueAdmission
-  revealedAt: number | null
+export { leagueFormat } from '../../../core/league'
+
+/** An event's host as the helpers here read it: a tournament with its own entry rules, or a club's game. */
+type Host = { tournament: { admission: LeagueAdmission; playerLimit: number | null } | null }
+
+/** Who gets in and how many: a tournament's own rules, while a club game lets its members straight in, with no limit. */
+export function entryRules({ tournament }: Host) {
+  return { admission: tournament?.admission ?? ('automatic' as const), playerLimit: tournament?.playerLimit ?? null }
 }
 
-/** A league's table shape and points, such as "Duel · 2,000 points", or null for an event that fixed neither. */
-export function leagueFormat(league: Pick<LeagueFacts, 'format' | 'rosterLimit'>) {
-  return league.format && league.rosterLimit
-    ? `${TABLE_SHAPE_LABELS[league.format].name} · ${leagueRosterSplit(league.format, league.rosterLimit) ?? pointsLabel(league.rosterLimit)}`
-    : null
+/** Who runs an event, as its copy names them: a tournament's owner, or the club whose game it is. */
+export function organizerName(league: { tournament: { ownerName: string } | null; club: { name: string } | null }) {
+  return league.tournament?.ownerName ?? league.club?.name ?? ''
+}
+
+type NamedEvent = {
+  tournament: { name: string } | null
+  club: { name: string } | null
+  format?: TableShape | null
+  rosterLimit?: number | null
+  pointsBudget?: number | null
+}
+
+/** An event's name where its club is in view: a tournament's own name, or what a sealed game plays. */
+export const eventName = (event: NamedEvent) => namedEvent(event, false)
+
+/** An event's name on its own, such as on Home or an invite: a sealed game reads after its club. */
+export const eventFullName = (event: NamedEvent) => namedEvent(event, true)
+
+function namedEvent(event: NamedEvent, withClub: boolean) {
+  return leagueTitle(
+    {
+      tournament: event.tournament,
+      club: event.club,
+      format: event.format ?? null,
+      rosterLimit: event.rosterLimit ?? null,
+      pointsBudget: event.pointsBudget,
+    },
+    { withClub },
+  )
 }
 
 /**
@@ -162,14 +194,15 @@ export function leagueAllowances(league: {
 }
 
 /** How many players are in, against the limit when there is one. */
-export function leaguePlayers(league: Pick<LeagueFacts, 'playerLimit'>, accepted: number) {
-  return `${accepted}${league.playerLimit ? ` of ${league.playerLimit}` : ''} ${accepted === 1 && !league.playerLimit ? 'player' : 'players'}`
+export function leaguePlayers(league: Host, accepted: number) {
+  const { playerLimit } = entryRules(league)
+  return `${accepted}${playerLimit ? ` of ${playerLimit}` : ''} ${accepted === 1 && !playerLimit ? 'player' : 'players'}`
 }
 
 /** Where the open event stands for someone not in it: still taking players, full, or past its reveal. */
-export function leaguePhase(league: LeagueFacts, accepted: number, occupied: number) {
+export function leaguePhase(league: Host & { revealedAt: number | null }, accepted: number, occupied: number) {
   if (league.revealedAt) return { label: 'Rosters revealed', tint: 'text-achieved' }
-  return leagueRegistrationFull(league, accepted, occupied)
+  return leagueRegistrationFull(entryRules(league), accepted, occupied)
     ? { label: 'Registration full', tint: 'text-dim' }
     : { label: 'Registration open', tint: 'text-parchment' }
 }
@@ -179,8 +212,12 @@ export function leaguePhase(league: LeagueFacts, accepted: number, occupied: num
  * the reveal is already on the status card and the readiness panel, so a player reads one only once their side can
  * start a battle.
  */
-export function leagueNextStep(stage: LeagueStage, viewer: { organizer: boolean; canPlay: boolean }, format: League['format']) {
-  const shape = leagueTableShape(format)
+export function leagueNextStep(
+  stage: LeagueStage,
+  viewer: { organizer: boolean; canPlay: boolean },
+  league: Pick<League, 'format' | 'club'>,
+) {
+  const shape = leagueTableShape(league.format)
   if (viewer.organizer)
     return {
       empty: 'Copy the invite link and send it to your group.',
@@ -191,10 +228,22 @@ export function leagueNextStep(stage: LeagueStage, viewer: { organizer: boolean;
       sealing: 'Players seal their rosters. Nobody sees another list, you included, until the reveal.',
       choosing: 'Each team chooses its Force Disposition. Then you can reveal the rosters.',
       ready: 'Reveal the rosters. That opens every list at once and closes entry.',
-      playing: 'Players start their league battles from this page. Finished ones fill the results table.',
-      results: 'Start the next event once this one’s games are done.',
+      playing: 'Players start their battles from this page. Finished ones fill the results table.',
+      results: `To play again with fresh rosters, start a new ${leagueNoun(league).noun}.`,
     }[stage]
   return (stage === 'playing' || stage === 'results') && viewer.canPlay
     ? `Start a ${TABLE_SHAPE_LABELS[shape].count} battle from your card. Finished battles fill the results table.`
     : null
+}
+
+/** Where an event lives: a club's sealed game under its club, a tournament under tournaments. */
+export function eventPath(league: { token: string; club?: { token: string } | null }) {
+  return league.club ? `/clubs/${league.club.token}/games/${league.token}` : `/tournaments/${league.token}`
+}
+
+/** The same address as `eventPath`, as a route link, with what the page should open on arrival. */
+export function eventLink(league: { token: string; club?: { token: string } | null }, search: { start?: true; choose?: true } = {}) {
+  return league.club
+    ? ({ to: '/clubs/$token/games/$game', params: { token: league.club.token, game: league.token }, search } as const)
+    : ({ to: '/tournaments/$token', params: { token: league.token }, search } as const)
 }

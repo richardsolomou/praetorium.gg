@@ -162,7 +162,7 @@ test('a stale page sends a queued battle command before a route change reloads i
   // Once the command lands, the next route change reloads; alternate destinations so each click changes route.
   let destination = 'Battles'
   await expect(async () => {
-    destination = destination === 'Battles' ? 'Leagues' : 'Battles'
+    destination = destination === 'Battles' ? 'Leaderboard' : 'Battles'
     await page.getByRole('link', { name: destination, exact: true }).first().click({ timeout: 1_000 })
     await expect(page).toHaveURL(staleBuildMarker, { timeout: 1_000 })
   }).toPass({ timeout: 20_000 })

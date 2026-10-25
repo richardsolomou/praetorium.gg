@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from './test'
+import { expect, test, type Page } from './test'
 import { attachRoster, chooseRosterAction, createBattle, PRACTICE_OPPONENT, savedArmy, setupStep, waitForRosterSave } from './account'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
@@ -14,17 +14,9 @@ async function openSetup(page: Page) {
   return page.getByRole('dialog', { name: 'Edit roster setup' })
 }
 
-async function chooseCustomSize(page: Page, setup: Locator) {
-  await setup.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: 'Custom · Strike Force limits' }).click()
-  return setup.getByLabel('Points limit')
-}
-
 async function setBudget(page: Page, budget: string) {
   const setup = await openSetup(page)
-  const field = setup.getByLabel('Points limit')
-  if (!(await field.isVisible())) await chooseCustomSize(page, setup)
-  await field.fill(budget)
+  await setup.getByLabel('Points limit').fill(budget)
   await setup.getByRole('button', { name: 'Review changes' }).click()
   const review = page.getByRole('dialog', { name: 'Review roster changes' })
   await expect(review.getByLabel('Roster change preview')).toBeVisible()
@@ -43,10 +35,10 @@ test('a custom points budget is validated, enforced, saved and fielded', async (
   await expect(points).toContainText('/2000')
 
   const setup = await openSetup(page)
-  await expect(setup.getByLabel('Points limit')).toHaveCount(0)
-  const budget = await chooseCustomSize(page, setup)
-  await expect(setup.getByRole('combobox', { name: 'Battle size' })).toContainText('Custom · Strike Force limits')
-  await expect(budget).toHaveValue('2000')
+  // The size's own points show as the box's placeholder, so an empty box plays the full size.
+  const budget = setup.getByLabel('Points limit')
+  await expect(budget).toHaveValue('')
+  await expect(budget).toHaveAttribute('placeholder', '2000')
   for (const viewport of [desktop, phone]) {
     await page.setViewportSize(viewport)
     for (const [typed, problem] of [

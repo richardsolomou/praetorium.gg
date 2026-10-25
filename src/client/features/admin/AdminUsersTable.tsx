@@ -89,7 +89,7 @@ const columns: (ColumnDef<typeof features, AdminUser> & { meta: AdminColumnMeta 
   numberColumn('rosters', 'Rosters', (user) => user.rosterCount),
   numberColumn('battles', 'Battles', (user) => user.battleCount),
   numberColumn('friends', 'Friends', (user) => user.friendCount),
-  numberColumn('leagues', 'Leagues', (user) => user.leagueCount),
+  numberColumn('leagues', 'Tournaments', (user) => user.leagueCount),
   {
     id: 'joined',
     accessorFn: (user) => user.createdAt,

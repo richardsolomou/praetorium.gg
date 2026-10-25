@@ -49,6 +49,40 @@ beforeEach(() => {
   for (const key of Object.keys(env)) delete env[key]
 })
 
+type Ctx = Parameters<typeof module.init>[0]
+type SealedEvent = Parameters<Ctx['db']['sealedEvents']['insert']>[0]
+
+/** A private tournament `league` its `organizer` runs, whose event's token is `event`. */
+function insertTournament(ctx: Ctx, event: Partial<SealedEvent> = {}) {
+  ctx.db.sealedEvents.insert({
+    id: 'event',
+    token: 'event',
+    format: undefined,
+    rosterLimit: undefined,
+    allowances: undefined,
+    rounds: undefined,
+    pointsBudget: undefined,
+    playsAt: undefined,
+    sealBy: undefined,
+    createdAt: 1n,
+    revealedAt: undefined,
+    revealedBy: undefined,
+    ...event,
+  })
+  ctx.db.tournaments.insert({
+    id: 'league',
+    token: 'league',
+    eventId: 'event',
+    ownerId: 'organizer',
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: undefined,
+    createdAt: 1n,
+  })
+}
+
 describe('sharing a revealed league roster', () => {
   function setup(revealed = true) {
     const host = harness()
@@ -59,30 +93,7 @@ describe('sharing a revealed league roster', () => {
       built: { catalogueId: 'catalogue', revision: 'revision', limit: 1000, detachment: null, disposition: null, picks, units: [] },
     })
     host.call(host.operator, (ctx) => {
-      ctx.db.leagues.insert({
-        id: 'league',
-        token: 'league',
-        ownerId: 'organizer',
-        name: 'League',
-        description: '',
-        visibility: 'private',
-        admission: 'automatic',
-        playerLimit: undefined,
-        recurring: true,
-        createdAt: 1n,
-      })
-      ctx.db.leagueEvents.insert({
-        id: 'event',
-        token: 'event',
-        leagueId: 'league',
-        number: 1,
-        format: '1v1',
-        rosterLimit: 1000,
-        createdAt: 1n,
-        revealedAt: revealed ? 10n : undefined,
-        revealedBy: 'organizer',
-        allowances: undefined,
-      })
+      insertTournament(ctx, { format: '1v1', rosterLimit: 1000, revealedAt: revealed ? 10n : undefined, revealedBy: 'organizer' })
       ctx.db.leagueEventEntries.insert({
         key: '["event","entrant"]',
         eventId: 'event',
@@ -287,30 +298,7 @@ describe('what a league event allows', () => {
   function setup(allowances: string | undefined, format = '1v1') {
     const host = harness()
     host.call(host.operator, (ctx) => {
-      ctx.db.leagues.insert({
-        id: 'league',
-        token: 'league',
-        ownerId: 'organizer',
-        name: 'League',
-        description: '',
-        visibility: 'private',
-        admission: 'automatic',
-        playerLimit: undefined,
-        recurring: true,
-        createdAt: 1n,
-      })
-      ctx.db.leagueEvents.insert({
-        id: 'event',
-        token: 'event',
-        leagueId: 'league',
-        number: 1,
-        format,
-        rosterLimit: 2000,
-        createdAt: 1n,
-        revealedAt: undefined,
-        revealedBy: undefined,
-        allowances,
-      })
+      insertTournament(ctx, { format, rosterLimit: 2000, allowances })
       for (const userId of ['entrant', 'ally'])
         ctx.db.leagueEventEntries.insert({
           key: JSON.stringify(['event', userId]),
@@ -380,20 +368,33 @@ describe('what a league event allows', () => {
       })
     }
     const update = (rule: Record<string, unknown>) =>
-      command({
-        op: 'update',
-        ownerId: 'organizer',
-        name: 'League',
-        description: '',
-        visibility: 'private',
-        admission: 'automatic',
-        playerLimit: null,
-        rule: { format, rosterLimit: 2000, ...rule },
-      })
-    const event = () => host.call(host.operator, (ctx) => ctx.db.leagueEvents.id.find('event'))
+      command({ op: 'update', ownerId: 'organizer', rule: { format, rosterLimit: 2000, ...rule } })
+    const event = () => host.call(host.operator, (ctx) => ctx.db.sealedEvents.id.find('event'))
     const entry = () => host.call(host.operator, (ctx) => ctx.db.leagueEventEntries.key.find('["event","entrant"]'))
-    return { seal, update, event, entry }
+    const set = (fields: { sealBy?: bigint; pointsBudget?: number }) =>
+      host.call(host.operator, (ctx) => ctx.db.sealedEvents.id.update({ ...ctx.db.sealedEvents.id.find('event')!, ...fields }))
+    const reveal = (now: number) => command({ op: 'reveal', ownerId: 'organizer', now })
+    return { seal, update, event, entry, set, reveal }
   }
+
+  it('refuses a list sealed after the roster deadline', () => {
+    const league = setup('[]')
+    league.set({ sealBy: BigInt(NOW - 1) })
+    expect(league.seal([])).toMatchObject({ outcome: 'past-deadline' })
+  })
+
+  it('reveals without the entrants who missed the roster deadline', () => {
+    const league = setup('[]')
+    league.seal([])
+    league.set({ sealBy: BigInt(NOW + 1) })
+    expect(league.reveal(NOW + 2)).toMatchObject({ outcome: 'revealed', entrantIds: ['entrant'] })
+  })
+
+  it('refuses a list built to another points total than the event’s', () => {
+    const league = setup('[]')
+    league.set({ pointsBudget: 1500 })
+    expect(league.seal([])).toMatchObject({ outcome: 'wrong-budget' })
+  })
 
   it('seals a list with a restriction switched off at an event from before allowances', () => {
     expect(setup(undefined).seal(['points-limit'])).toMatchObject({ outcome: 'sealed' })
@@ -413,6 +414,508 @@ describe('what a league event allows', () => {
     const league = setup('[]', '2v2')
     league.update({ allowances: ['legends'] })
     expect(league.entry()?.teamId).toBe('team')
+  })
+})
+
+describe('clubs', () => {
+  function setup(admission: 'automatic' | 'approval' = 'approval', visibility: 'public' | 'private' = 'private') {
+    const host = harness()
+    const command = (input: Record<string, unknown>) =>
+      JSON.parse(module.clubCommand(host.procedure(host.operator), { payload: JSON.stringify({ token: 'club', ...input }) })) as unknown
+    const details = { name: 'Club', description: '', visibility, admission }
+    command({ op: 'create', id: 'club-id', ownerId: 'owner', now: NOW, ...details })
+    const join = (userId: string) => command({ op: 'join', userId, now: NOW + 1 })
+    const member = (userId: string) => (join(userId), command({ op: 'moderate', actorId: 'owner', userId, accept: true }))
+    const members = () =>
+      (
+        JSON.parse(module.clubByToken(host.procedure(host.operator), { token: 'club' })) as {
+          members: { userId: string; status: string; role: string }[]
+        } | null
+      )?.members
+    const listed = (userId: string) =>
+      (JSON.parse(module.clubsVisibleTo(host.procedure(host.operator), { userId, limit: 10 })) as { club: { token: string } }[]).map(
+        (row) => row.club.token,
+      )
+    return { ...host, command, details, join, member, members, listed }
+  }
+
+  it('asks the organizers to approve a join request', () => {
+    expect(setup().join('player')).toEqual({ status: 'pending', organizerIds: ['owner'] })
+  })
+
+  it('lets a player straight in when anyone may join', () => {
+    expect(setup('automatic').join('player')).toEqual({ status: 'accepted', organizerIds: [] })
+  })
+
+  it('refuses moderation by a member who does not run the club', () => {
+    const club = setup()
+    club.member('player')
+    club.join('waiting')
+    expect(club.command({ op: 'moderate', actorId: 'player', userId: 'waiting', accept: true })).toBe('forbidden')
+  })
+
+  it('admits everyone waiting when the club opens to anyone', () => {
+    const club = setup()
+    club.join('waiting')
+    club.command({ op: 'update', actorId: 'owner', ...club.details, admission: 'automatic' })
+    expect(club.members()?.find((member) => member.userId === 'waiting')?.status).toBe('accepted')
+  })
+
+  it('makes admins only of accepted members', () => {
+    const club = setup()
+    club.join('waiting')
+    expect(club.command({ op: 'set-admins', actorId: 'owner', userIds: ['waiting'] })).toBe('not-members')
+  })
+
+  it('stops an admin removing another admin', () => {
+    const club = setup()
+    club.member('first')
+    club.member('second')
+    club.command({ op: 'set-admins', actorId: 'owner', userIds: ['first', 'second'] })
+    expect(club.command({ op: 'remove', actorId: 'first', userId: 'second' })).toBe('forbidden')
+  })
+
+  it('keeps the owner in their own club', () => {
+    expect(setup().command({ op: 'leave', userId: 'owner' })).toBe('owner')
+  })
+
+  it('lists a private club only to its members', () => {
+    const club = setup()
+    club.member('player')
+    expect([club.listed('player'), club.listed('stranger')]).toEqual([['club'], []])
+  })
+
+  it('removes a deleted account’s memberships', () => {
+    const club = setup()
+    club.member('player')
+    club.call(club.operator, (ctx) => module.deleteUserData(ctx, { userId: 'player' }))
+    expect(club.members()?.map((member) => member.userId)).toEqual(['owner'])
+  })
+
+  it('deletes the clubs a deleted account owns', () => {
+    const club = setup()
+    club.call(club.operator, (ctx) => module.deleteUserData(ctx, { userId: 'owner' }))
+    expect(club.members()).toBeUndefined()
+  })
+})
+
+describe('club battles', () => {
+  function setup(members: string[], initialCommands: unknown[] = []) {
+    const host = harness()
+    const command = (input: Record<string, unknown>) =>
+      module.clubCommand(host.procedure(host.operator), { payload: JSON.stringify({ token: 'club', ...input }) })
+    command({
+      op: 'create',
+      id: 'club-id',
+      ownerId: 'creator',
+      name: 'Club',
+      description: '',
+      visibility: 'private',
+      admission: 'automatic',
+      now: NOW,
+    })
+    for (const userId of members) command({ op: 'join', userId, now: NOW })
+    module.createBattle(host.procedure(host.operator), {
+      payload: JSON.stringify({
+        id: 'battle',
+        token: 'battle-token',
+        userId: 'creator',
+        allyIds: [],
+        opponentIds: ['opponent'],
+        initialCommands,
+        now: NOW,
+      }),
+    })
+    const submit = (expectedSeq: number, body: Record<string, unknown>) =>
+      JSON.parse(
+        module.submitBattle(host.procedure(host.operator), {
+          battleId: 'battle',
+          userId: 'creator',
+          expectedSeq,
+          body: JSON.stringify(body),
+          now: BigInt(NOW),
+          externalRefusal: '',
+        }),
+      ) as { result: { outcome: string; reason?: string } }
+    const clubs = () =>
+      JSON.parse(module.battleClubs(host.procedure(host.operator), { battleId: 'battle' })) as {
+        current: { token: string } | null
+        options: { token: string }[]
+      }
+    return { submit, clubs }
+  }
+
+  it('tags a club game started between members from the start', () => {
+    expect(setup(['opponent'], [{ kind: 'set-battle-club', clubId: 'club-id' }]).clubs().current?.token).toBe('club')
+  })
+
+  it('refuses to start a club game with a player outside the club', () => {
+    expect(() => setup([], [{ kind: 'set-battle-club', clubId: 'club-id' }])).toThrow('every player must be a member of the club')
+  })
+
+  it('offers a club only when every player is a member', () => {
+    expect(setup([]).clubs().options).toEqual([])
+  })
+
+  it('refuses a club the opponent is not a member of', () => {
+    expect(setup([]).submit(0, { kind: 'set-battle-club', clubId: 'club-id' }).result.reason).toBe(
+      'every player must be a member of the club',
+    )
+  })
+
+  it('counts a tagged battle for its club', () => {
+    const battle = setup(['opponent'])
+    battle.submit(0, { kind: 'set-battle-club', clubId: 'club-id' })
+    expect(battle.clubs().current?.token).toBe('club')
+  })
+
+  it('stops counting a battle whose club choice is undone', () => {
+    const battle = setup(['opponent'])
+    battle.submit(0, { kind: 'set-battle-club', clubId: 'club-id' })
+    battle.submit(1, { kind: 'undo', target: 1 })
+    expect(battle.clubs().current).toBeNull()
+  })
+})
+
+describe('leagues becoming clubs', () => {
+  function setup() {
+    const host = harness()
+    const league = (ctx: Ctx, id: string, token: string, clubId?: string) =>
+      ctx.db.leagues.insert({
+        id,
+        token,
+        ownerId: 'owner',
+        name: clubId ? '' : 'Club night',
+        description: '',
+        visibility: 'private',
+        admission: 'automatic',
+        playerLimit: undefined,
+        recurring: true,
+        createdAt: 1n,
+        clubId,
+      })
+    const event = (ctx: Ctx, leagueId: string, number: number) =>
+      ctx.db.leagueEvents.insert({
+        id: `event-${number}`,
+        token: `event-token-${number}`,
+        leagueId,
+        number,
+        format: '1v1',
+        rosterLimit: 1000,
+        createdAt: BigInt(number),
+        revealedAt: undefined,
+        revealedBy: undefined,
+        allowances: '[]',
+        rounds: undefined,
+        pointsBudget: undefined,
+        playsAt: undefined,
+        sealBy: undefined,
+      })
+    host.call(host.operator, (ctx) => {
+      league(ctx, 'league', 'league-token')
+      ctx.db.leagueAdmins.insert({ key: JSON.stringify(['league', 'admin']), leagueId: 'league', userId: 'admin', addedAt: 1n })
+      for (const number of [1, 2]) event(ctx, 'league', number)
+      for (const [eventId, userId, status] of [
+        ['event-1', 'player', 'accepted'],
+        ['event-2', 'waiting', 'pending'],
+      ] as const)
+        ctx.db.leagueEventEntries.insert({
+          key: JSON.stringify([eventId, userId]),
+          eventId,
+          userId,
+          status,
+          joinedAt: 1n,
+          rosterId: undefined,
+          rosterName: undefined,
+          rosterSnapshot: undefined,
+          submittedAt: undefined,
+          requiredLimit: undefined,
+          teamId: undefined,
+        })
+    })
+    const migrate = () => module.migrateLeaguesToClubs(host.procedure(host.operator), { now: BigInt(NOW) })
+    const club = () =>
+      JSON.parse(module.clubByToken(host.procedure(host.operator), { token: 'league-token' })) as {
+        members: { userId: string; role: string }[]
+        games: { token: string }[]
+      } | null
+    const address = (token: string, eventToken = '') =>
+      JSON.parse(module.eventAddress(host.procedure(host.operator), { token, eventToken })) as unknown
+    return { ...host, league, event, migrate, club, address }
+  }
+
+  it('makes a club of the owner, admins and accepted entrants', () => {
+    const fixture = setup()
+    fixture.migrate()
+    expect(fixture.club()?.members.map((member) => [member.userId, member.role])).toEqual(
+      expect.arrayContaining([
+        ['owner', 'member'],
+        ['admin', 'admin'],
+        ['player', 'member'],
+      ]),
+    )
+  })
+
+  it('leaves out entrants who were never let in', () => {
+    const fixture = setup()
+    fixture.migrate()
+    expect(fixture.club()?.members.some((member) => member.userId === 'waiting')).toBe(false)
+  })
+
+  it('makes each event one of the club’s games', () => {
+    const fixture = setup()
+    fixture.migrate()
+    expect(fixture.club()?.games.map((game) => game.token)).toEqual(['event-token-2', 'event-token-1'])
+  })
+
+  it('empties the retired tables', () => {
+    const fixture = setup()
+    fixture.migrate()
+    expect(
+      fixture.call(fixture.operator, (ctx) => [ctx.db.leagues.count(), ctx.db.leagueEvents.count(), ctx.db.leagueAdmins.count()]),
+    ).toEqual([0n, 0n, 0n])
+  })
+
+  it('sends an old league link to its club', () => {
+    const fixture = setup()
+    fixture.migrate()
+    expect(fixture.address('league-token')).toEqual({ kind: 'club', clubToken: 'league-token' })
+  })
+
+  it('sends an old link to one of a league’s events to that game', () => {
+    const fixture = setup()
+    fixture.migrate()
+    expect(fixture.address('league-token', 'event-token-2')).toEqual({
+      kind: 'club-game',
+      clubToken: 'league-token',
+      token: 'event-token-2',
+    })
+  })
+
+  it('finds nothing left to convert on a second run', () => {
+    const fixture = setup()
+    fixture.migrate()
+    expect([fixture.migrate(), fixture.club()?.games.length]).toEqual([0, 2])
+  })
+
+  it('moves the events of a league an earlier migration already made a club', () => {
+    const fixture = setup()
+    fixture.migrate()
+    fixture.call(fixture.operator, (ctx) => {
+      fixture.league(ctx, 'later', 'later-token', 'league')
+      fixture.event(ctx, 'later', 3)
+    })
+    fixture.migrate()
+    expect(fixture.club()?.games.map((game) => game.token)).toEqual(['event-token-3', 'event-token-2', 'event-token-1'])
+  })
+})
+
+describe('club games', () => {
+  function setup() {
+    const host = harness()
+    const club = (input: Record<string, unknown>) =>
+      JSON.parse(module.clubCommand(host.procedure(host.operator), { payload: JSON.stringify({ token: 'club', ...input }) })) as unknown
+    club({
+      op: 'create',
+      id: 'club-id',
+      ownerId: 'owner',
+      now: NOW,
+      name: 'Club',
+      description: '',
+      visibility: 'private',
+      admission: 'approval',
+    })
+    club({ op: 'join', userId: 'member', now: NOW })
+    club({ op: 'moderate', actorId: 'owner', userId: 'member', accept: true })
+    const command = (input: Record<string, unknown>) =>
+      JSON.parse(module.leagueCommand(host.procedure(host.operator), { payload: JSON.stringify(input) })) as unknown
+    const create = (ownerId: string, extra: Record<string, unknown> = {}) =>
+      command({
+        op: 'create-club-game',
+        eventId: 'game-id',
+        eventToken: 'game',
+        clubToken: 'club',
+        ownerId,
+        format: '1v1',
+        rosterLimit: 2000,
+        now: NOW,
+        ...extra,
+      })
+    const game = (input: Record<string, unknown>) => command({ token: 'game', ...input })
+    return { ...host, club, create, game }
+  }
+
+  it('starts only for the club’s organizers', () => {
+    expect(setup().create('member')).toBe('forbidden')
+  })
+
+  it('refuses Swiss rounds', () => {
+    expect(setup().create('owner', { rounds: 3 })).toBe('forbidden')
+  })
+
+  it('seats members on their own sides of a team game, one solo player against a pair', () => {
+    const fixture = setup()
+    fixture.create('owner', { format: '2v1' })
+    const sit = (ownerId: string, side: string | null) => fixture.game({ op: 'set-side', ownerId, side, now: NOW })
+    expect([sit('owner', 'solo'), sit('member', 'solo'), sit('member', 'pair'), sit('stranger', 'pair')]).toEqual([
+      'updated',
+      'full',
+      'updated',
+      'members-only',
+    ])
+  })
+
+  it('enters a member who seals a list without joining first', () => {
+    const fixture = setup()
+    fixture.create('owner')
+    module.saveRoster(fixture.procedure(fixture.operator), {
+      payload: JSON.stringify({
+        id: 'saved',
+        userId: 'member',
+        name: 'Club army',
+        automaticName: false,
+        catalogueId: 'catalogue',
+        detachmentId: '[]',
+        disposition: null,
+        limit: 2000,
+        picks: '[]',
+        prep: '{"reminders":[]}',
+        tags: '[]',
+        waivedRules: '[]',
+        optionalRules: '[]',
+        borrowedDetachmentId: null,
+        visibility: 'private',
+        source: 'editable',
+        now: NOW,
+      }),
+    })
+    const captain = { key: 'captain', entryId: 'captain', name: 'Captain', models: 1, points: 80, warlord: true, group: 'character' }
+    const built = { catalogueId: 'catalogue', revision: 'revision', limit: 2000, detachment: null, disposition: null, units: [captain] }
+    expect(
+      fixture.game({
+        op: 'submit',
+        ownerId: 'member',
+        userId: 'member',
+        rosterId: 'saved',
+        rosterName: 'Club army',
+        rosterLimit: 2000,
+        rosterUpdatedAt: NOW,
+        snapshot: JSON.stringify({ name: 'Club army', text: 'Club army', built }),
+        now: NOW,
+      }),
+    ).toMatchObject({ outcome: 'sealed' })
+  })
+
+  it('lets a member straight in, whatever the club’s own admission', () => {
+    const fixture = setup()
+    fixture.create('owner')
+    expect(fixture.game({ op: 'join', userId: 'member', now: NOW, memberLimit: 128 })).toBe('accepted')
+  })
+
+  it('keeps out a player who is not a member', () => {
+    const fixture = setup()
+    fixture.create('owner')
+    expect(fixture.game({ op: 'join', userId: 'stranger', now: NOW, memberLimit: 128 })).toBe('members-only')
+  })
+
+  it('lets its organizers add only the club’s members', () => {
+    const fixture = setup()
+    fixture.create('owner')
+    expect(fixture.game({ op: 'add', ownerId: 'owner', userIds: ['stranger'], memberLimit: 128, now: NOW })).toBe('not-members')
+  })
+
+  it('takes no tournament details', () => {
+    const fixture = setup()
+    fixture.create('owner')
+    const details = { name: 'Named', description: '', visibility: 'public', admission: 'automatic', playerLimit: null }
+    expect(fixture.game({ op: 'update', ownerId: 'owner', details })).toBe('forbidden')
+  })
+
+  it('goes with its club', () => {
+    const fixture = setup()
+    fixture.create('owner')
+    fixture.game({ op: 'join', userId: 'member', now: NOW, memberLimit: 128 })
+    fixture.club({ op: 'delete', actorId: 'owner' })
+    expect(
+      fixture.call(fixture.operator, (ctx) => [ctx.db.sealedEvents.count(), ctx.db.clubGames.count(), ctx.db.leagueEventEntries.count()]),
+    ).toEqual([0n, 0n, 0n])
+  })
+})
+
+describe('swiss rounds', () => {
+  const players = ['a', 'b', 'c', 'd']
+  function setup() {
+    const host = harness()
+    host.call(host.operator, (ctx) => {
+      insertTournament(ctx, { format: '1v1', rosterLimit: 2000, revealedAt: 2n, revealedBy: 'organizer', allowances: '[]', rounds: 3 })
+      for (const userId of players)
+        ctx.db.leagueEventEntries.insert({
+          key: JSON.stringify(['event', userId]),
+          eventId: 'event',
+          userId,
+          status: 'accepted',
+          joinedAt: 1n,
+          rosterId: undefined,
+          rosterName: 'Army',
+          rosterSnapshot: JSON.stringify({ name: 'Army', text: '10 Intercessors' }),
+          submittedAt: 1n,
+          requiredLimit: undefined,
+          teamId: undefined,
+        })
+    })
+    const command = (input: Record<string, unknown>) =>
+      JSON.parse(
+        module.leagueCommand(host.procedure(host.operator), {
+          payload: JSON.stringify({ token: 'league', eventToken: 'event', ownerId: 'organizer', ...input }),
+        }),
+      ) as unknown
+    const pair = (round: number, pairs: [string, string | null][]) => command({ op: 'pair-round', round, pairs })
+    const battle = (userId: string, opponentId: string, pairingKey: string) =>
+      command({
+        op: 'create-battle',
+        ownerId: userId,
+        id: `battle-${userId}`,
+        battleToken: `battle-token-${userId}`,
+        userId,
+        allyIds: [],
+        opponentIds: [opponentId],
+        initialCommands: [],
+        now: NOW,
+        expectedEntries: [userId, opponentId]
+          .toSorted((left, right) => players.indexOf(left) - players.indexOf(right))
+          .map((id) => ({ userId: id, snapshot: JSON.stringify({ name: 'Army', text: '10 Intercessors' }) })),
+        pairingKey,
+      })
+    return { pair, battle }
+  }
+  const table = (round: number, number: number) => JSON.stringify(['event', round, number])
+
+  it('seats every sealed entrant at one table', () => {
+    expect(setup().pair(1, [['a', 'b']])).toBe('stale')
+  })
+
+  it('plays a table only against the paired opponent', () => {
+    const swiss = setup()
+    swiss.pair(1, [
+      ['a', 'b'],
+      ['c', 'd'],
+    ])
+    expect(swiss.battle('a', 'c', table(1, 1))).toBe(false)
+  })
+
+  it('waits for every table before pairing the next round', () => {
+    const swiss = setup()
+    swiss.pair(1, [
+      ['a', 'b'],
+      ['c', 'd'],
+    ])
+    swiss.battle('a', 'b', table(1, 1))
+    expect(
+      swiss.pair(2, [
+        ['a', 'c'],
+        ['b', 'd'],
+      ]),
+    ).toBe('not-ready')
   })
 })
 

@@ -2,7 +2,7 @@ import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage eyebrow="Legal" title="Privacy policy" updated="24 October 2026">
+    <LegalPage eyebrow="Legal" title="Privacy policy" updated="25 October 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
@@ -86,8 +86,8 @@ export function PrivacyPolicy() {
             pages. A photo another player reports is hidden from everyone but you until an administrator reviews it.
           </li>
           <li>
-            Battles are public: anyone can watch past and live battles, including league battles. Spectators cannot change a battle or see a
-            face-down Secret Mission.
+            Battles are public: anyone can watch past and live battles, including tournament battles. Spectators cannot change a battle or
+            see a face-down Secret Mission.
           </li>
           <li>Battles may appear on the home page and in your profile's battle record.</li>
           <li>
@@ -95,14 +95,15 @@ export function PrivacyPolicy() {
             the game with an account, do not count.
           </li>
           <li>
-            Sealing a league roster makes a separate frozen copy. Before reveal, only its assigned allies who are accepted entrants can read
-            it; organizer status grants no extra access. Reveal makes accepted sealed rosters readable to anyone who can open that event.
+            Sealing a tournament roster makes a separate frozen copy. Before reveal, only its assigned allies who are accepted entrants can
+            read it; organizer status grants no extra access. Reveal makes accepted sealed rosters readable to anyone who can open that
+            tournament.
           </li>
         </LegalLinks>
         <p>
           Returning a saved roster to private revokes its shared link. It does not revoke copies already frozen in a battle or revealed
-          league event. We do not maintain a separate anonymous statistical archive of private games. Copies someone has already downloaded
-          or captured cannot be recalled.
+          tournament. We do not maintain a separate anonymous statistical archive of private games. Copies someone has already downloaded or
+          captured cannot be recalled.
         </p>
       </LegalSection>
 
@@ -129,14 +130,16 @@ export function PrivacyPolicy() {
 
       <LegalSection title="Retention and deletion">
         <p>
-          Deleting a saved roster removes the saved list, but keeps the frozen copies already used in battles or sealed in league events.
-          Only a battle's creator can delete it; deletion removes its record and its contribution to public rankings. Deleting a league
-          removes its events and sealed rosters, while battles already played keep their own copies.
+          Deleting a saved roster removes the saved list, but keeps the frozen copies already used in battles or sealed in tournaments. Only
+          a battle's creator can delete it; deletion removes its record and its contribution to public rankings. Deleting a tournament
+          removes its entries and sealed rosters, while battles already played keep their own copies. Deleting a club removes its
+          memberships and table; its battles stay. A club's table shows the results of battles its members chose the club for, to anyone for
+          a public club and to members for a private one.
         </p>
         <p>
-          You can permanently delete your account from your profile. This removes your profile, rosters, friendships, league participation,
-          leagues you organize and every battle you played, including shared battles. Session records expire on their own; usage data is
-          kept by our analytics provider under its retention settings. The{' '}
+          You can permanently delete your account from your profile. This removes your profile, rosters, friendships, tournament entries,
+          tournaments you organize, club memberships, clubs you own and every battle you played, including shared battles. Session records
+          expire on their own; usage data is kept by our analytics provider under its retention settings. The{' '}
           <a href="/delete-account" className="text-info hover:text-parchment">
             account deletion page
           </a>{' '}

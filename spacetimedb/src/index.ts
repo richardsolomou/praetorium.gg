@@ -9,7 +9,16 @@ import { orderVariantGroup } from '../../src/core/rosterVariants'
 import { discoveryPage, rosterDiscoveryQuerySchema } from '../../src/core/rosterDiscovery'
 import { MAX_DATASHEET_PHOTOS, rankCollectionPhotos } from '../../src/core/collectionPhotos'
 import { DEFAULT_PUSH_NOTIFICATIONS, PUSH_TOKENS_PER_USER, PUSH_PLATFORMS } from '../../src/core/notificationConfig'
-import { customPointsBudget, pointsBudgetError, reduceBattle, validate, type FormatRuleId, type LoggedCommand } from '../../src/core/battle'
+import {
+  customPointsBudget,
+  POINTS_BUDGET_MAX,
+  POINTS_BUDGET_MIN,
+  pointsBudgetError,
+  reduceBattle,
+  validate,
+  type FormatRuleId,
+  type LoggedCommand,
+} from '../../src/core/battle'
 import { commandSchema } from '../../src/core/commands'
 import { teamDispositionChoices } from '../../src/core/teamDisposition'
 import { DEFAULT_PLAYER_DEFAULTS, isPlayerDefaults } from '../../src/core/playerDefaults'
@@ -25,15 +34,29 @@ import {
   leagueWarlordWaived,
   leagueRegistrationFull,
   leagueRevealChecklist,
+  leagueTitle,
+  leagueSealingClosed,
   leagueTeams,
   mayRevealLeague,
-  isLeagueOrganizer,
   LEAGUE_ADMIN_MAX,
+  LEAGUE_ADMISSIONS,
+  LEAGUE_VISIBILITIES,
+  type LeagueAdmission,
   type LeagueEntryStatus,
   matchesSealedLeagueRoster,
   requiredLeagueRosterLimit,
 } from '../../src/core/league'
 import { parseRosterSnapshot, rosterPickSchema } from '../../src/core/commands'
+import { SWISS_ROUNDS_MAX } from '../../src/core/swiss'
+import {
+  CLUB_ADMIN_MAX,
+  CLUB_DESCRIPTION_MAX_LENGTH,
+  CLUB_MEMBER_MAX,
+  CLUB_NAME_MAX_LENGTH,
+  isClubOrganizer,
+  type ClubMemberStatus,
+  type ClubRole,
+} from '../../src/core/club'
 import { admitConnection, authConfiguration } from './admission'
 import {
   ABILITY_REMINDERS_MAX,
@@ -215,6 +238,7 @@ type ProductScope =
   | 'onboarding'
   | 'settings'
   | 'leagues'
+  | 'clubs'
   | 'battles'
   | 'simulator'
 
@@ -229,7 +253,7 @@ function touchProduct(ctx: Context, userId: string, ...scopes: ProductScope[]) {
   }
 }
 
-type PublicScope = 'collection' | 'battles' | 'rosters' | 'leagues' | 'invites' | 'standings' | 'opponents'
+type PublicScope = 'collection' | 'battles' | 'rosters' | 'leagues' | 'clubs' | 'invites' | 'standings' | 'opponents'
 
 function touchPublic(ctx: Context, scope: PublicScope) {
   const current = ctx.db.publicRevisions.scope.find(scope)
@@ -271,14 +295,86 @@ function activeLoan(ctx: Context, rosterId: string, borrowerId: string) {
   return loan && friendshipBetween(ctx, loan.ownerId, borrowerId)?.acceptedAt !== undefined ? loan : undefined
 }
 
-function touchLeague(ctx: Context, leagueId: string, eventId?: string) {
-  const league = ctx.db.leagues.id.find(leagueId)
-  if (!league) return
-  const users = new Set([league.ownerId, ...leagueAdminIds(ctx, leagueId)])
-  const event = eventId ? ctx.db.leagueEvents.id.find(eventId) : leagueEventFor(ctx, leagueId, null)
-  if (event) for (const entry of ctx.db.leagueEventEntries.eventId.filter(event.id)) users.add(entry.userId)
+type SealedEventRow = NonNullable<ReturnType<Context['db']['sealedEvents']['id']['find']>>
+type TournamentRow = NonNullable<ReturnType<Context['db']['tournaments']['id']['find']>>
+type ClubGameRow = NonNullable<ReturnType<Context['db']['clubGames']['eventId']['find']>>
+type ClubRow = NonNullable<ReturnType<Context['db']['clubs']['id']['find']>>
+
+/** Who runs a sealed event and on what terms: a tournament, or the club whose game it is. */
+type EventHost =
+  | { kind: 'tournament'; tournament: TournamentRow; event: SealedEventRow }
+  | { kind: 'club'; game: ClubGameRow; club: ClubRow; event: SealedEventRow }
+
+function hostOfEvent(ctx: Context, event: SealedEventRow): EventHost | undefined {
+  const tournament = ctx.db.tournaments.eventId.find(event.id)
+  if (tournament) return { kind: 'tournament', tournament, event }
+  const game = ctx.db.clubGames.eventId.find(event.id)
+  const club = game && ctx.db.clubs.id.find(game.clubId)
+  return game && club ? { kind: 'club', game, club, event } : undefined
+}
+
+/** The event a tournament's token or an event's own token names; a club game's address is its event's token. */
+function eventHost(ctx: Context, token: string) {
+  const tournament = ctx.db.tournaments.token.find(token)
+  const event = tournament ? ctx.db.sealedEvents.id.find(tournament.eventId) : ctx.db.sealedEvents.token.find(token)
+  return event && hostOfEvent(ctx, event)
+}
+
+/**
+ * The event a command or read names. One queued before each event had its own host may name its old league, now its
+ * club, beside the event's own token.
+ */
+function namedHost(ctx: Context, token: string, eventToken: string) {
+  if (!eventToken) return eventHost(ctx, token)
+  const event = ctx.db.sealedEvents.token.find(eventToken)
+  const host = event && hostOfEvent(ctx, event)
+  return host && [hostToken(host), host.event.token, host.kind === 'club' ? host.club.token : null].includes(token) ? host : undefined
+}
+
+/** The address an event's page and its battles' logs name it by. */
+const hostToken = (host: EventHost) => (host.kind === 'tournament' ? host.tournament.token : host.event.token)
+
+function tournamentAdminIds(ctx: Context, tournamentId: string) {
+  return Array.from(ctx.db.tournamentAdmins.tournamentId.filter(tournamentId), (row) => row.userId)
+}
+
+/** Everyone who runs an event: a tournament's owner and admins, or the organizers of the club whose game it is. */
+function hostOrganizerIds(ctx: Context, host: EventHost) {
+  if (host.kind === 'tournament') return [host.tournament.ownerId, ...tournamentAdminIds(ctx, host.tournament.id)]
+  const members = clubMemberRows(ctx, host.club)
+  return members.filter((member) => isClubOrganizer(host.club, members, member.userId)).map((member) => member.userId)
+}
+
+/** A tournament's own entry rules; a club game lets its club's members in outright, with no limit beyond the club's. */
+function hostEntryRules(host: EventHost) {
+  return host.kind === 'tournament'
+    ? { admission: host.tournament.admission as LeagueAdmission, playerLimit: host.tournament.playerLimit ?? null }
+    : { admission: 'automatic' as const, playerLimit: null }
+}
+
+/** What an event is called wherever it is named on its own, as `leagueTitle` reads it. */
+function eventTitle(host: EventHost) {
+  return leagueTitle({
+    tournament: host.kind === 'tournament' ? host.tournament : null,
+    club: host.kind === 'club' ? host.club : null,
+    format: (host.event.format ?? null) as TableShape | null,
+    rosterLimit: host.event.rosterLimit ?? null,
+    pointsBudget: host.event.pointsBudget,
+  })
+}
+
+function touchEvent(ctx: Context, host: EventHost) {
+  const users = new Set(hostOrganizerIds(ctx, host))
+  for (const entry of ctx.db.leagueEventEntries.eventId.filter(host.event.id)) users.add(entry.userId)
   for (const userId of users) touchProduct(ctx, userId, 'leagues', 'onboarding')
   touchPublic(ctx, 'leagues')
+  if (host.kind === 'club') touchClub(ctx, host.club.id)
+}
+
+function touchEventById(ctx: Context, eventId: string) {
+  const event = ctx.db.sealedEvents.id.find(eventId)
+  const host = event && hostOfEvent(ctx, event)
+  if (host) touchEvent(ctx, host)
 }
 
 function deleteBattle(ctx: Context, battleId: string) {
@@ -288,34 +384,107 @@ function deleteBattle(ctx: Context, battleId: string) {
   touchPublic(ctx, 'battles')
   touchPublic(ctx, 'standings')
   touchAdmin(ctx)
-  if (leagueEvent) {
-    const leagueId = ctx.db.leagueEvents.id.find(leagueEvent.eventId)?.leagueId
-    if (leagueId) touchLeague(ctx, leagueId, leagueEvent.eventId)
-  }
+  if (leagueEvent) touchEventById(ctx, leagueEvent.eventId)
   for (const row of Array.from(ctx.db.watchedBattles.battleId.filter(battleId))) ctx.db.watchedBattles.key.delete(row.key)
   for (const row of Array.from(ctx.db.commands.battleId.filter(battleId))) ctx.db.commands.key.delete(row.key)
   for (const row of Array.from(ctx.db.battleUsers.battleId.filter(battleId))) ctx.db.battleUsers.key.delete(row.key)
   for (const row of Array.from(ctx.db.guestSeats.battleId.filter(battleId))) ctx.db.guestSeats.seatId.delete(row.seatId)
+  // A deleted table battle frees its pairing, so the two players can start it again.
+  if (leagueEvent)
+    for (const pairing of Array.from(ctx.db.leagueRoundPairings.eventId.filter(leagueEvent.eventId)))
+      if (pairing.battleId === battleId) ctx.db.leagueRoundPairings.key.update({ ...pairing, battleId: undefined })
   ctx.db.leagueEventBattles.battleId.delete(battleId)
+  ctx.db.clubBattles.battleId.delete(battleId)
   ctx.db.battles.id.delete(battleId)
 }
 
-function deleteLeague(ctx: Context, leagueId: string) {
-  touchLeague(ctx, leagueId)
-  for (const event of Array.from(ctx.db.leagueEvents.leagueId.filter(leagueId))) {
-    for (const row of Array.from(ctx.db.leagueRosterSharing.eventId.filter(event.id))) ctx.db.leagueRosterSharing.key.delete(row.key)
-    for (const row of Array.from(ctx.db.leagueEventEntries.eventId.filter(event.id))) ctx.db.leagueEventEntries.key.delete(row.key)
-    clearTeamPicks(ctx, event.id)
-    for (const row of Array.from(ctx.db.leagueEventBattles.eventId.filter(event.id)))
-      ctx.db.leagueEventBattles.battleId.delete(row.battleId)
-    ctx.db.leagueEvents.id.delete(event.id)
+/** Removes an event and its host with everything sealed, chosen and paired in it; its battles stay. */
+function deleteHost(ctx: Context, host: EventHost) {
+  touchEvent(ctx, host)
+  const eventId = host.event.id
+  for (const row of Array.from(ctx.db.leagueRosterSharing.eventId.filter(eventId))) ctx.db.leagueRosterSharing.key.delete(row.key)
+  for (const row of Array.from(ctx.db.leagueEventEntries.eventId.filter(eventId))) ctx.db.leagueEventEntries.key.delete(row.key)
+  clearTeamPicks(ctx, eventId)
+  for (const row of Array.from(ctx.db.leagueEventBattles.eventId.filter(eventId))) ctx.db.leagueEventBattles.battleId.delete(row.battleId)
+  for (const row of Array.from(ctx.db.leagueRoundPairings.eventId.filter(eventId))) ctx.db.leagueRoundPairings.key.delete(row.key)
+  ctx.db.sealedEvents.id.delete(eventId)
+  if (host.kind === 'club') {
+    ctx.db.clubGames.eventId.delete(eventId)
+    return
   }
-  for (const row of Array.from(ctx.db.leagueAdmins.leagueId.filter(leagueId))) ctx.db.leagueAdmins.key.delete(row.key)
-  ctx.db.leagues.id.delete(leagueId)
+  for (const row of Array.from(ctx.db.tournamentAdmins.tournamentId.filter(host.tournament.id))) ctx.db.tournamentAdmins.key.delete(row.key)
+  ctx.db.tournaments.id.delete(host.tournament.id)
 }
 
-function leagueAdminIds(ctx: Context, leagueId: string) {
-  return Array.from(ctx.db.leagueAdmins.leagueId.filter(leagueId), (row) => row.userId)
+function touchClub(ctx: Context, clubId: string) {
+  const club = ctx.db.clubs.id.find(clubId)
+  if (!club) return
+  touchProduct(ctx, club.ownerId, 'clubs')
+  for (const member of ctx.db.clubMembers.clubId.filter(clubId)) touchProduct(ctx, member.userId, 'clubs')
+  touchPublic(ctx, 'clubs')
+}
+
+const CLUB_MEMBERS_ONLY = 'every player must be a member of the club'
+
+/** A club's games, newest first. */
+function clubGameHosts(ctx: Context, club: ClubRow) {
+  return Array.from(ctx.db.clubGames.clubId.filter(club.id))
+    .flatMap((game) => {
+      const event = ctx.db.sealedEvents.id.find(game.eventId)
+      return event ? [{ kind: 'club' as const, game, club, event }] : []
+    })
+    .sort((a, b) => Number(b.game.createdAt - a.game.createdAt))
+}
+
+/** How many battles a club has and when the latest began, for its card. */
+function clubActivity(ctx: Context, clubId: string) {
+  const ids = new Set(clubBattleIds(ctx, clubId))
+  let lastBattleAt: bigint | null = null
+  for (const id of ids) {
+    const createdAt = ctx.db.battles.id.find(id)?.createdAt
+    if (createdAt !== undefined && (lastBattleAt === null || createdAt > lastBattleAt)) lastBattleAt = createdAt
+  }
+  return { battleCount: ids.size, lastBattleAt }
+}
+
+/** Battles that count for a club: those tagged for it, and those its games started. */
+function* clubBattleIds(ctx: Context, clubId: string) {
+  for (const row of ctx.db.clubBattles.clubId.filter(clubId)) yield row.battleId
+  for (const game of ctx.db.clubGames.clubId.filter(clubId))
+    for (const row of ctx.db.leagueEventBattles.eventId.filter(game.eventId)) yield row.battleId
+}
+
+/** Clubs every seat belongs to, none of them a guest or practice opponent: the clubs this battle may count for. */
+function battleClubIds(ctx: Context, seats: readonly { id: string; automated: boolean }[]) {
+  if (seats.some((seat) => seat.automated || isGuestSeat(seat.id))) return []
+  const [first, ...rest] = seats
+  if (!first) return []
+  return Array.from(ctx.db.clubMembers.userId.filter(first.id))
+    .filter((row) => row.status === 'accepted')
+    .map((row) => row.clubId)
+    .filter((clubId) => rest.every((seat) => ctx.db.clubMembers.key.find(JSON.stringify([clubId, seat.id]))?.status === 'accepted'))
+}
+
+/** Rewrites a battle's club index row from its log, so a choice and its undo both land in the index. */
+function indexClubBattle(ctx: Context, battleId: string) {
+  const { seats, log } = battleData(ctx, battleId)
+  const clubId = reduceBattle(
+    seats.map((seat) => seat.id),
+    log,
+    seats.map((seat) => seat.side),
+    seats.filter((seat) => seat.automated).map((seat) => seat.id),
+  ).clubId
+  ctx.db.clubBattles.battleId.delete(battleId)
+  if (clubId) ctx.db.clubBattles.insert({ battleId, clubId })
+}
+
+/** A club takes its games with it; their battles stay. */
+function deleteClub(ctx: Context, club: ClubRow) {
+  for (const host of clubGameHosts(ctx, club)) deleteHost(ctx, host)
+  touchClub(ctx, club.id)
+  for (const row of Array.from(ctx.db.clubMembers.clubId.filter(club.id))) ctx.db.clubMembers.key.delete(row.key)
+  for (const row of Array.from(ctx.db.clubBattles.clubId.filter(club.id))) ctx.db.clubBattles.battleId.delete(row.battleId)
+  ctx.db.clubs.id.delete(club.id)
 }
 
 export const init = spacetime.init((ctx) => {
@@ -376,10 +545,19 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
   if (!validId(userId)) throw new SenderError('Invalid user ID')
   for (const row of Array.from(ctx.db.sessionAccess.userId.filter(userId))) revoke(ctx, row.subject)
   for (const row of Array.from(ctx.db.battleUsers.userId.filter(userId))) deleteBattle(ctx, row.battleId)
-  for (const row of Array.from(ctx.db.leagues.ownerId.filter(userId))) deleteLeague(ctx, row.id)
-  for (const row of Array.from(ctx.db.leagueAdmins.userId.filter(userId))) {
-    ctx.db.leagueAdmins.key.delete(row.key)
-    touchLeague(ctx, row.leagueId)
+  for (const row of Array.from(ctx.db.tournaments.ownerId.filter(userId))) {
+    const host = eventHost(ctx, row.token)
+    if (host) deleteHost(ctx, host)
+  }
+  for (const row of Array.from(ctx.db.clubs.ownerId.filter(userId))) deleteClub(ctx, row)
+  for (const row of Array.from(ctx.db.clubMembers.userId.filter(userId))) {
+    ctx.db.clubMembers.key.delete(row.key)
+    touchClub(ctx, row.clubId)
+  }
+  for (const row of Array.from(ctx.db.tournamentAdmins.userId.filter(userId))) {
+    const tournament = ctx.db.tournaments.id.find(row.tournamentId)
+    if (tournament) touchEventById(ctx, tournament.eventId)
+    ctx.db.tournamentAdmins.key.delete(row.key)
   }
   for (const row of Array.from(ctx.db.userOnboardingTasks.userId.filter(userId))) ctx.db.userOnboardingTasks.key.delete(row.key)
   ctx.db.userOnboarding.userId.delete(userId)
@@ -416,10 +594,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
     affectedEvents.add(row.eventId)
     ctx.db.leagueEventEntries.key.delete(row.key)
   }
-  for (const eventId of affectedEvents) {
-    const leagueId = ctx.db.leagueEvents.id.find(eventId)?.leagueId
-    if (leagueId) touchLeague(ctx, leagueId, eventId)
-  }
+  for (const eventId of affectedEvents) touchEventById(ctx, eventId)
   for (const row of Array.from(ctx.db.collectionPhotos.userId.filter(userId))) dropCollectionPhoto(ctx, row)
   for (const row of Array.from(ctx.db.collectionPhotoLikes.userId.filter(userId))) setLike(ctx, row.photoId, userId, false, 0n)
   for (const row of Array.from(ctx.db.collection.userId.filter(userId))) ctx.db.collection.key.delete(row.key)
@@ -618,12 +793,14 @@ export const battleByToken = spacetime.procedure({ token: t.string() }, t.string
 )
 
 const battleFeedQuery = z.strictObject({
-  scope: z.enum(['user', 'league', 'public', 'friends', 'watchable', 'profile']),
+  scope: z.enum(['user', 'league', 'club', 'public', 'friends', 'watchable', 'profile']),
   userId: z.string().max(MAX_ID_LENGTH).nullable(),
   viewerId: z.string().max(MAX_ID_LENGTH).nullable(),
   withUserId: z.string().max(MAX_ID_LENGTH).nullable(),
   leagueToken: z.string().max(MAX_ID_LENGTH).nullable(),
   eventToken: z.string().max(MAX_ID_LENGTH).nullable(),
+  // Sent only with the club scope, so a server older than clubs still reads every other feed.
+  clubToken: z.string().max(MAX_ID_LENGTH).optional(),
   since: z.number().int().nonnegative().nullable(),
   before: z.strictObject({ at: z.number().int().nonnegative(), id: z.string().max(MAX_ID_LENGTH) }).nullable(),
   limit: z.number().int().min(1).max(500),
@@ -637,16 +814,16 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
     if (
       ((input.scope === 'user' || input.scope === 'friends' || input.scope === 'profile') && !input.userId) ||
       (input.scope === 'league' && (!input.leagueToken || !input.eventToken)) ||
+      (input.scope === 'club' && !input.clubToken) ||
       (input.scope === 'watchable' && input.since === null)
     ) {
       throw new SenderError('Invalid battle feed scope')
     }
 
-    const league = input.leagueToken ? tx.db.leagues.token.find(input.leagueToken) : undefined
-    const event = input.eventToken ? tx.db.leagueEvents.token.find(input.eventToken) : undefined
-    if (input.scope === 'league' && (!league || !event || event.leagueId !== league.id || event.revealedAt === undefined)) {
-      return productJson({ battles: [], nextCursor: null })
-    }
+    const event = input.scope === 'league' ? namedHost(tx, input.leagueToken!, input.eventToken!)?.event : undefined
+    if (input.scope === 'league' && event?.revealedAt === undefined) return productJson({ battles: [], nextCursor: null })
+    const club = input.clubToken ? tx.db.clubs.token.find(input.clubToken) : undefined
+    if (input.scope === 'club' && !club) return productJson({ battles: [], nextCursor: null })
     const friendIds = input.scope === 'friends' ? acceptedFriendIds(tx, input.userId!) : new Set<string>()
 
     const rows: { id: string; token: string; createdAt: number; at: number }[] = []
@@ -659,6 +836,11 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
       } else if (input.scope === 'league') {
         for (const entry of tx.db.leagueEventBattles.eventId.filter(event!.id)) {
           const battle = tx.db.battles.id.find(entry.battleId)
+          if (battle) yield battle
+        }
+      } else if (input.scope === 'club') {
+        for (const battleId of clubBattleIds(tx, club!.id)) {
+          const battle = tx.db.battles.id.find(battleId)
           if (battle) yield battle
         }
       } else yield* tx.db.battles.iter()
@@ -674,7 +856,7 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
         continue
       if (input.scope === 'profile' && !seatIds.has(input.userId!)) continue
       let activity = battle.createdAt
-      if (input.scope === 'user' || input.scope === 'league' || input.scope === 'watchable' || input.scope === 'profile') {
+      if (input.scope !== 'public' && input.scope !== 'friends') {
         for (const command of tx.db.commands.battleId.filter(battle.id)) if (command.at > activity) activity = command.at
       }
       const at = safeNumber(activity)
@@ -752,7 +934,11 @@ export const submitBattle = spacetime.procedure(
         }
       }
       if (input.expectedSeq !== state.seq) return productJson({ result: { outcome: 'stale', seq: state.seq }, log, ...appliedReport })
-      const refusal = validate(state, input.userId, parsed.data)
+      const refusal =
+        validate(state, input.userId, parsed.data) ??
+        (parsed.data.kind === 'set-battle-club' && parsed.data.clubId && !battleClubIds(tx, seats).includes(parsed.data.clubId)
+          ? CLUB_MEMBERS_ONLY
+          : null)
       if (refusal) return productJson({ result: { outcome: 'refused', reason: refusal }, log, ...appliedReport })
       if (input.externalRefusal) {
         if (input.externalRefusal.length > 1_000) throw new SenderError('Invalid battle refusal')
@@ -770,6 +956,7 @@ export const submitBattle = spacetime.procedure(
       for (const seat of seats) touchProduct(tx, seat.id, 'battles')
       touchPublic(tx, 'battles')
       if (state.status === 'finished' || parsed.data.kind === 'end-battle') touchPublic(tx, 'standings')
+      if (parsed.data.kind === 'set-battle-club' || parsed.data.kind === 'undo') indexClubBattle(tx, input.battleId)
       return productJson({
         result: { outcome: 'appended', seq },
         ...(sync?.reportApplied ? { applied: true } : {}),
@@ -984,7 +1171,7 @@ export const productStats = spacetime.procedure({ userIds: t.array(t.string()) }
         userId,
         rosterCount: Array.from(tx.db.rosters.userId.filter(userId)).length,
         battleCount: Array.from(tx.db.battleUsers.userId.filter(userId)).length,
-        leagueCount: Array.from(tx.db.leagues.ownerId.filter(userId)).length,
+        leagueCount: Array.from(tx.db.tournaments.ownerId.filter(userId)).length,
         friendCount: [...tx.db.friendships.requesterId.filter(userId), ...tx.db.friendships.addresseeId.filter(userId)].filter(
           (row) => row.acceptedAt !== undefined,
         ).length,
@@ -1087,7 +1274,9 @@ function onboardingData(ctx: Context, userId: string) {
       roster,
       friend,
       battle: Boolean(ctx.db.battleUsers.userId.filter(userId).next().value),
-      league: Boolean(ctx.db.leagues.ownerId.filter(userId).next().value || ctx.db.leagueEventEntries.userId.filter(userId).next().value),
+      league: Boolean(
+        ctx.db.tournaments.ownerId.filter(userId).next().value || ctx.db.leagueEventEntries.userId.filter(userId).next().value,
+      ),
     },
   }
 }
@@ -2348,10 +2537,87 @@ export const leagueNames = spacetime.procedure({ tokens: t.array(t.string()) }, 
     if (tokens.length > 100) throw new SenderError('Too many league names')
     return productJson(
       [...new Set(tokens)].flatMap((token) => {
-        const league = tx.db.leagues.token.find(token)
-        return league ? [[league.token, league.name]] : []
+        const host = eventHost(tx, token)
+        return host ? [[token, eventTitle(host)]] : []
       }),
     )
+  }),
+)
+
+export const clubNames = spacetime.procedure({ tokens: t.array(t.string()) }, t.string(), (ctx, { tokens }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (tokens.length > 100) throw new SenderError('Too many club names')
+    return productJson(
+      [...new Set(tokens)].flatMap((token) => {
+        const club = tx.db.clubs.token.find(token)
+        return club ? [[club.token, club.name]] : []
+      }),
+    )
+  }),
+)
+
+/**
+ * Leagues ran as standing groups, each a series of events. Each becomes a club with its people, and each of its events
+ * one of the club's games; a league an earlier migration already tied to a club only moves its events. Every call
+ * converts whatever leagues remain, so the server asks at each start and a second call finds none.
+ */
+export const migrateLeaguesToClubs = spacetime.procedure({ now: t.u64() }, t.u32(), (ctx, { now }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    const leagues = Array.from(tx.db.leagues.iter())
+    for (const league of leagues) {
+      const clubId = league.clubId ?? league.id
+      const adminIds = Array.from(tx.db.leagueAdmins.leagueId.filter(league.id), (row) => row.userId)
+      const events = Array.from(tx.db.leagueEvents.leagueId.filter(league.id))
+      if (!tx.db.clubs.id.find(clubId)) {
+        tx.db.clubs.insert({
+          id: clubId,
+          token: league.token,
+          ownerId: league.ownerId,
+          name: league.name,
+          description: league.description,
+          visibility: league.visibility,
+          admission: league.admission,
+          createdAt: league.createdAt,
+        })
+        const people = new Set([league.ownerId, ...adminIds])
+        for (const event of events)
+          for (const entry of tx.db.leagueEventEntries.eventId.filter(event.id)) if (entry.status === 'accepted') people.add(entry.userId)
+        for (const userId of people)
+          tx.db.clubMembers.insert({
+            key: JSON.stringify([clubId, userId]),
+            clubId,
+            userId,
+            status: 'accepted',
+            role: adminIds.includes(userId) && userId !== league.ownerId ? 'admin' : 'member',
+            joinedAt: now,
+          })
+      }
+      for (const event of events) {
+        tx.db.sealedEvents.insert({
+          id: event.id,
+          token: event.token,
+          format: event.format,
+          rosterLimit: event.rosterLimit,
+          allowances: event.allowances,
+          rounds: event.rounds,
+          pointsBudget: event.pointsBudget,
+          playsAt: event.playsAt,
+          sealBy: event.sealBy,
+          createdAt: event.createdAt,
+          revealedAt: event.revealedAt,
+          revealedBy: event.revealedBy,
+        })
+        tx.db.clubGames.insert({ eventId: event.id, clubId, creatorId: league.ownerId, createdAt: event.createdAt })
+        tx.db.leagueEvents.id.delete(event.id)
+        touchEventById(tx, event.id)
+      }
+      for (const row of Array.from(tx.db.leagueAdmins.leagueId.filter(league.id))) tx.db.leagueAdmins.key.delete(row.key)
+      tx.db.leagues.id.delete(league.id)
+      touchClub(tx, clubId)
+    }
+    return leagues.length
   }),
 )
 
@@ -2369,42 +2635,57 @@ export const publicStandingsRevision = spacetime.procedure({}, t.string(), (ctx)
   }),
 )
 
-function leagueEventsFor(ctx: Context, leagueId: string) {
-  return Array.from(ctx.db.leagueEvents.leagueId.filter(leagueId)).sort((a, b) => b.number - a.number)
-}
-
 function leagueEntriesFor(ctx: Context, eventId: string) {
   return Array.from(ctx.db.leagueEventEntries.eventId.filter(eventId)).sort((a, b) =>
     a.joinedAt < b.joinedAt ? -1 : a.joinedAt > b.joinedAt ? 1 : a.userId.localeCompare(b.userId),
   )
 }
 
-function leagueEventFor(ctx: Context, leagueId: string, token: string | null) {
-  const events = leagueEventsFor(ctx, leagueId)
-  return token ? events.find((event) => event.token === token) : events[0]
+function roundPairings(ctx: Context, eventId: string) {
+  return Array.from(ctx.db.leagueRoundPairings.eventId.filter(eventId)).sort((a, b) => a.round - b.round || a.table - b.table)
 }
 
-function leagueRecord(ctx: Context, token: string, eventToken: string | null) {
-  const league = ctx.db.leagues.token.find(token)
-  if (!league) return null
-  const events = leagueEventsFor(ctx, league.id)
-  const selected = eventToken ? events.find((event) => event.token === eventToken) : events[0]
-  if (!selected) return null
-  const latest = events[0]!
-  const entries = leagueEntriesFor(ctx, selected.id)
-  const latestEntries = latest.id === selected.id ? entries : leagueEntriesFor(ctx, latest.id)
+/** A bye is done as soon as it is paired; a table once its battle has ended. */
+function pairingFinished(ctx: Context, pairing: { bId: string | undefined; battleId: string | undefined }) {
+  if (pairing.bId === undefined) return true
+  if (pairing.battleId === undefined || !ctx.db.battles.id.find(pairing.battleId)) return false
+  const { seats, log } = battleData(ctx, pairing.battleId)
+  return (
+    reduceBattle(
+      seats.map((seat) => seat.id),
+      log,
+      seats.map((seat) => seat.side),
+    ).status === 'finished'
+  )
+}
+
+/** Who hosts an event, as every read names it: a tournament with its admins, or the club whose game it is. */
+function hostFields(ctx: Context, host: EventHost) {
   return {
-    league,
-    selected,
-    latest,
-    events: events.slice(0, 100),
-    eventCount: events.length,
-    entries,
-    teams: Array.from(ctx.db.leagueEventTeams.eventId.filter(selected.id), ({ teamId, disposition }) => ({ teamId, disposition })),
-    teamWarlords: Array.from(ctx.db.leagueEventTeamWarlords.eventId.filter(selected.id), ({ teamId, userId }) => ({ teamId, userId })),
-    adminIds: leagueAdminIds(ctx, league.id),
-    latestEntryCount: latestEntries.length,
-    latestAcceptedCount: latestEntries.filter((entry) => entry.status === 'accepted').length,
+    kind: host.kind,
+    token: hostToken(host),
+    tournament: host.kind === 'tournament' ? { ...host.tournament, adminIds: tournamentAdminIds(ctx, host.tournament.id) } : null,
+    club: host.kind === 'club' ? { token: host.club.token, name: host.club.name } : null,
+    event: host.event,
+  }
+}
+
+function eventRecord(ctx: Context, host: EventHost) {
+  const { event } = host
+  return {
+    ...hostFields(ctx, host),
+    organizerIds: hostOrganizerIds(ctx, host),
+    entries: leagueEntriesFor(ctx, event.id),
+    teams: Array.from(ctx.db.leagueEventTeams.eventId.filter(event.id), ({ teamId, disposition }) => ({ teamId, disposition })),
+    teamWarlords: Array.from(ctx.db.leagueEventTeamWarlords.eventId.filter(event.id), ({ teamId, userId }) => ({ teamId, userId })),
+    pairings: roundPairings(ctx, event.id).map((pairing) => ({
+      key: pairing.key,
+      round: pairing.round,
+      table: pairing.table,
+      aId: pairing.aId,
+      bId: pairing.bId ?? null,
+      battleToken: pairing.battleId ? (ctx.db.battles.id.find(pairing.battleId)?.token ?? null) : null,
+    })),
   }
 }
 
@@ -2412,51 +2693,86 @@ export const leagueByToken = spacetime.procedure({ token: t.string(), eventToken
   ctx.withTx((tx) => {
     requireOperator(tx)
     if (token.length > MAX_ID_LENGTH || eventToken.length > MAX_ID_LENGTH) throw new SenderError('Invalid league token')
-    return productJson(leagueRecord(tx, token, eventToken || null))
+    const host = namedHost(tx, token, eventToken)
+    return productJson(host ? eventRecord(tx, host) : null)
   }),
 )
 
-/** Leagues a player owns, helps run, or has entered in any event. */
-function personalLeagueIds(ctx: Context, userId: string) {
+/**
+ * Where an old link lands: the event its `?event=` names, a tournament, a club (once a league), or a club game by its
+ * event's token, in that order.
+ */
+export const eventAddress = spacetime.procedure({ token: t.string(), eventToken: t.string() }, t.string(), (ctx, { token, eventToken }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (token.length > MAX_ID_LENGTH || eventToken.length > MAX_ID_LENGTH) throw new SenderError('Invalid league token')
+    const address = (host: EventHost | undefined) =>
+      host?.kind === 'tournament'
+        ? { kind: 'tournament', token: host.tournament.token }
+        : host
+          ? { kind: 'club-game', clubToken: host.club.token, token: host.event.token }
+          : null
+    const named = eventToken ? tx.db.sealedEvents.token.find(eventToken) : undefined
+    if (named) return productJson(address(hostOfEvent(tx, named)))
+    const tournament = tx.db.tournaments.token.find(token)
+    if (tournament) return productJson({ kind: 'tournament', token })
+    const club = tx.db.clubs.token.find(token)
+    if (club) return productJson({ kind: 'club', clubToken: club.token })
+    const event = tx.db.sealedEvents.token.find(token)
+    return productJson(event ? address(hostOfEvent(tx, event)) : null)
+  }),
+)
+
+/** Tournaments a player owns, helps run or entered, and the club games they entered or whose club they help run. */
+function personalEventIds(ctx: Context, userId: string) {
   const ids = new Set<string>()
-  for (const row of ctx.db.leagues.ownerId.filter(userId)) ids.add(row.id)
-  for (const row of ctx.db.leagueAdmins.userId.filter(userId)) ids.add(row.leagueId)
-  for (const entry of ctx.db.leagueEventEntries.userId.filter(userId)) {
-    const event = ctx.db.leagueEvents.id.find(entry.eventId)
-    if (event) ids.add(event.leagueId)
+  for (const row of ctx.db.tournaments.ownerId.filter(userId)) ids.add(row.eventId)
+  for (const row of ctx.db.tournamentAdmins.userId.filter(userId)) {
+    const tournament = ctx.db.tournaments.id.find(row.tournamentId)
+    if (tournament) ids.add(tournament.eventId)
+  }
+  for (const entry of ctx.db.leagueEventEntries.userId.filter(userId)) ids.add(entry.eventId)
+  for (const member of ctx.db.clubMembers.userId.filter(userId)) {
+    const club = ctx.db.clubs.id.find(member.clubId)
+    if (club && isClubOrganizer(club, clubMemberRows(ctx, club), userId))
+      for (const game of ctx.db.clubGames.clubId.filter(club.id)) ids.add(game.eventId)
   }
   return ids
 }
 
+/** Public tournaments and every event of a player's own, their own first, then newest. */
 export const leaguesVisibleTo = spacetime.procedure({ userId: t.string(), limit: t.u32() }, t.string(), (ctx, { userId, limit }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
     if (userId.length > MAX_ID_LENGTH || limit < 1 || limit > 100) throw new SenderError('Invalid league list')
-    const personal = userId ? personalLeagueIds(tx, userId) : new Set<string>()
-    const leagues = []
+    const personal = userId ? personalEventIds(tx, userId) : new Set<string>()
+    const hosts: EventHost[] = []
     let scanned = 0
-    for (const league of tx.db.leagues.iter()) {
+    for (const tournament of tx.db.tournaments.iter()) {
       if (++scanned > 100_000) throw new SenderError('League list is too large')
-      if (league.visibility === 'public' || personal.has(league.id)) leagues.push(league)
+      if (tournament.visibility !== 'public' && !personal.has(tournament.eventId)) continue
+      const event = tx.db.sealedEvents.id.find(tournament.eventId)
+      if (event) hosts.push({ kind: 'tournament', tournament, event })
     }
-    leagues.sort((a, b) => Number(personal.has(b.id)) - Number(personal.has(a.id)) || Number(b.createdAt - a.createdAt))
+    for (const eventId of personal) {
+      const event = tx.db.sealedEvents.id.find(eventId)
+      const host = event && hostOfEvent(tx, event)
+      if (host?.kind === 'club') hosts.push(host)
+    }
+    hosts.sort(
+      (a, b) => Number(personal.has(b.event.id)) - Number(personal.has(a.event.id)) || Number(b.event.createdAt - a.event.createdAt),
+    )
     return productJson(
-      leagues.slice(0, limit).flatMap((league) => {
-        const event = leagueEventFor(tx, league.id, null)
-        if (!event) return []
-        const entries = leagueEntriesFor(tx, event.id)
-        return [
-          {
-            league,
-            event,
-            personal: personal.has(league.id),
-            adminIds: leagueAdminIds(tx, league.id),
-            joined: entries.length,
-            accepted: entries.filter((entry) => entry.status === 'accepted').length,
-            occupied: entries.filter((entry) => entry.status !== 'rejected').length,
-            ownEntry: entries.find((entry) => entry.userId === userId) ?? null,
-          },
-        ]
+      hosts.slice(0, limit).map((host) => {
+        const entries = leagueEntriesFor(tx, host.event.id)
+        return {
+          ...hostFields(tx, host),
+          personal: personal.has(host.event.id),
+          joined: entries.length,
+          accepted: entries.filter((entry) => entry.status === 'accepted').length,
+          occupied: entries.filter((entry) => entry.status !== 'rejected').length,
+          ownEntry: entries.find((entry) => entry.userId === userId) ?? null,
+        }
       }),
     )
   }),
@@ -2487,7 +2803,7 @@ export const outdatedLeagueEntriesForRoster = spacetime.procedure(
       for (const entry of tx.db.leagueEventEntries.userId.filter(userId)) {
         if (++scanned > 1_000) throw new SenderError('Too many league entries')
         if (entry.rosterId !== rosterId || entry.status !== 'accepted' || entry.rosterSnapshot === undefined) continue
-        const event = tx.db.leagueEvents.id.find(entry.eventId)
+        const event = tx.db.sealedEvents.id.find(entry.eventId)
         if (!event || event.revealedAt !== undefined) continue
         let sameRoster = false
         try {
@@ -2496,35 +2812,37 @@ export const outdatedLeagueEntriesForRoster = spacetime.procedure(
           // An unreadable snapshot cannot be considered current.
         }
         if (sameRoster) continue
-        const league = tx.db.leagues.id.find(event.leagueId)
-        if (!league) continue
-        matches.push({
-          leagueToken: league.token,
-          leagueName: league.name,
-          eventToken: event.token,
-          eventNumber: event.number,
-        })
+        const host = hostOfEvent(tx, event)
+        if (host)
+          matches.push({ token: hostToken(host), name: eventTitle(host), club: host.kind === 'club' ? { token: host.club.token } : null })
       }
       return productJson(matches)
     }),
 )
 
-/** Friends' sealed lists from revealed events in leagues the viewer can list, newest reveal first. */
+/** Whether a reader may find an event in lists: a public tournament or club, or one of their own. */
+function listsEvent(ctx: Context, host: EventHost, readerId: string, personal: ReadonlySet<string>) {
+  if (personal.has(host.event.id)) return true
+  if (host.kind === 'tournament') return host.tournament.visibility === 'public'
+  return host.club.visibility === 'public' || ctx.db.clubMembers.key.find(JSON.stringify([host.club.id, readerId]))?.status === 'accepted'
+}
+
+/** Friends' sealed lists from revealed events the viewer can list, newest reveal first. */
 export const friendLeagueRosters = spacetime.procedure({ viewerId: t.string() }, t.string(), (ctx, { viewerId }) =>
   ctx.withTx((tx) => {
     requireOperator(tx)
     if (!validId(viewerId)) throw new SenderError('Invalid league roster list')
-    const personal = personalLeagueIds(tx, viewerId)
+    const personal = personalEventIds(tx, viewerId)
     const rosters = []
     let scanned = 0
     for (const friendId of acceptedFriendIds(tx, viewerId)) {
       for (const entry of tx.db.leagueEventEntries.userId.filter(friendId)) {
         if (++scanned > 10_000) throw new SenderError('Too many league entries')
         if (entry.status !== 'accepted' || entry.rosterSnapshot === undefined) continue
-        const event = tx.db.leagueEvents.id.find(entry.eventId)
+        const event = tx.db.sealedEvents.id.find(entry.eventId)
         if (!event || event.revealedAt === undefined) continue
-        const league = tx.db.leagues.id.find(event.leagueId)
-        if (!league || (league.visibility !== 'public' && !personal.has(league.id))) continue
+        const host = hostOfEvent(tx, event)
+        if (!host || !listsEvent(tx, host, viewerId, personal)) continue
         let catalogueId: string | undefined
         try {
           catalogueId = parseRosterSnapshot(entry.rosterSnapshot).built?.catalogueId
@@ -2533,11 +2851,9 @@ export const friendLeagueRosters = spacetime.procedure({ viewerId: t.string() },
         }
         if (!catalogueId) continue
         rosters.push({
-          leagueToken: league.token,
-          leagueName: league.name,
+          leagueToken: hostToken(host),
+          leagueName: eventTitle(host),
           eventToken: event.token,
-          eventNumber: event.number,
-          eventCount: leagueEventsFor(tx, league.id).length,
           userId: friendId,
           rosterName: entry.rosterName ?? '',
           catalogueId,
@@ -2545,7 +2861,7 @@ export const friendLeagueRosters = spacetime.procedure({ viewerId: t.string() },
         })
       }
     }
-    rosters.sort((a, b) => Number(b.revealedAt - a.revealedAt) || b.eventNumber - a.eventNumber)
+    rosters.sort((a, b) => Number(b.revealedAt - a.revealedAt))
     return productJson(rosters.slice(0, 50))
   }),
 )
@@ -2567,17 +2883,17 @@ export const leagueBattleCandidates = spacetime.procedure(
       for (const own of tx.db.leagueEventEntries.userId.filter(userId)) {
         if (candidates.length >= 1_000) throw new SenderError('Too many league candidates')
         if (own.status !== 'accepted' || own.rosterSnapshot === undefined) continue
-        const event = tx.db.leagueEvents.id.find(own.eventId)
+        const event = tx.db.sealedEvents.id.find(own.eventId)
         if (!event || event.revealedAt === undefined) continue
-        const league = tx.db.leagues.id.find(event.leagueId)
-        if (!league) continue
+        const host = hostOfEvent(tx, event)
+        if (!host) continue
         const participants = leagueEntriesFor(tx, event.id).filter(
           (entry) => participantIds.includes(entry.userId) && entry.status === 'accepted' && entry.rosterSnapshot !== undefined,
         )
         if (participants.length !== participantIds.length) continue
-        candidates.push({ league, event, entries: participants })
+        candidates.push({ token: hostToken(host), name: eventTitle(host), event, entries: participants })
       }
-      candidates.sort((a, b) => Number(b.event.revealedAt! - a.event.revealedAt!) || b.event.number - a.event.number)
+      candidates.sort((a, b) => Number(b.event.revealedAt! - a.event.revealedAt!))
       return productJson(candidates.slice(0, 50))
     }),
 )
@@ -2588,26 +2904,17 @@ export const leagueRosters = spacetime.procedure(
   (ctx, { token, userId, eventToken, readerId }) =>
     ctx.withTx((tx) => {
       requireOperator(tx)
-      const league = tx.db.leagues.token.find(token)
-      if (!league) return '[]'
-      return productJson(
-        leagueEventsFor(tx, league.id)
-          .filter((event) => !eventToken || event.token === eventToken)
-          .flatMap((event) => {
-            const entry = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, userId]))
-            if (!entry || entry.status !== 'accepted' || entry.rosterSnapshot === undefined) return []
-            const reader = readerId ? tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, readerId])) : undefined
-            return [{ event, entry, reader: reader ?? null }]
-          })
-          .slice(0, 20),
-      )
+      const event = namedHost(tx, token, eventToken)?.event
+      const entry = event && tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, userId]))
+      if (!entry || entry.status !== 'accepted' || entry.rosterSnapshot === undefined) return 'null'
+      const reader = readerId ? tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, readerId])) : undefined
+      return productJson({ event, entry, reader: reader ?? null })
     }),
 )
 
 type LeagueEntryRow = NonNullable<ReturnType<Context['db']['leagueEventEntries']['key']['find']>>
-type LeagueEventRow = NonNullable<ReturnType<Context['db']['leagueEvents']['id']['find']>>
 
-function leagueRosterSharingState(tx: Context, event: LeagueEventRow, userId: string) {
+function leagueRosterSharingState(tx: Context, event: SealedEventRow, userId: string) {
   if (event.revealedAt === undefined) return null
   const key = JSON.stringify([event.id, userId])
   const entry = tx.db.leagueEventEntries.key.find(key)
@@ -2636,8 +2943,7 @@ export const leagueRosterSharing = spacetime.procedure(
   (ctx, { token, eventToken, userId }) =>
     ctx.withTx((tx) => {
       requireOperator(tx)
-      const league = tx.db.leagues.token.find(token)
-      const event = league && leagueEventFor(tx, league.id, eventToken)
+      const event = namedHost(tx, token, eventToken)?.event
       return productJson(event ? (leagueRosterSharingState(tx, event, userId)?.state ?? null) : null)
     }),
 )
@@ -2691,16 +2997,30 @@ function leagueCommandInput<S extends z.ZodType>(inputSchema: S, value: unknown)
 const leagueTimeInput = z.number().int().nonnegative()
 const leagueFormatInput = z.enum(TABLE_SHAPES)
 // Absent on an update from an older client, which leaves the event's allowances as they stand.
+const leagueRoundsInput = z.number().int().min(1).max(SWISS_ROUNDS_MAX).nullable()
+const leaguePointsBudgetInput = z.number().int().min(POINTS_BUDGET_MIN).max(POINTS_BUDGET_MAX).nullable()
+const leagueScheduleInput = z.object({ playsAt: leagueTimeInput.nullable(), sealBy: leagueTimeInput.nullable() })
+
+/** A duel's own points total, or none when it matches the battle size or the format takes no override. */
+function leaguePointsBudget(format: string | null, rosterLimit: number | null, budget: number | null) {
+  if (budget === null || rosterLimit === null || budget === rosterLimit) return { budget: undefined }
+  if (format !== '1v1' || pointsBudgetError(rosterLimit, budget)) return null
+  return { budget }
+}
 const leagueRuleInput = z.object({
   format: leagueFormatInput,
   rosterLimit: z.number().int().positive().max(10_000),
   allowances: leagueAllowancesSchema.optional(),
+  // Absent from an older client, which leaves the event's pairing and points total as they stand.
+  rounds: leagueRoundsInput.optional(),
+  pointsBudget: leaguePointsBudgetInput.optional(),
 })
 
 /** Null for an event created before allowances were recorded. */
-const leagueEventAllowances = (event: LeagueEventRow) => (event.allowances === undefined ? null : parseLeagueAllowances(event.allowances))
+const leagueEventAllowances = (event: SealedEventRow) => (event.allowances === undefined ? null : parseLeagueAllowances(event.allowances))
+/** A tournament's own details; a club game has none. */
 const leagueDetailsInput = z.object({
-  name: z.string().min(1).max(100),
+  name: z.string().max(100),
   description: z.string().max(2_000),
   visibility: z.enum(['public', 'private']),
   admission: z.enum(['automatic', 'approval']),
@@ -2708,12 +3028,17 @@ const leagueDetailsInput = z.object({
 })
 
 /** Opens every sealed list of an unrevealed event for `actorId`, or says why it cannot, checking the rosters themselves beyond the checklist. */
-function revealLeagueEvent(tx: Context, event: LeagueEventRow, now: number, actorId: string) {
+function revealLeagueEvent(tx: Context, event: SealedEventRow, now: number, actorId: string) {
   const all = leagueEntriesFor(tx, event.id)
-  const entries = all.filter((entry) => entry.status === 'accepted')
+  const sealBy = event.sealBy === undefined ? null : safeNumber(event.sealBy)
+  // Past the roster deadline only those who sealed in time play, so the rest neither hold up the reveal nor join it.
+  const entries = all.filter(
+    (entry) => entry.status === 'accepted' && (!leagueSealingClosed({ sealBy }, now) || entry.rosterSnapshot !== undefined),
+  )
   const checks = leagueRevealChecklist(
-    { format: (event.format ?? null) as TableShape | null, rosterLimit: event.rosterLimit ?? null },
+    { format: (event.format ?? null) as TableShape | null, rosterLimit: event.rosterLimit ?? null, sealBy },
     leagueRevealEntries(tx, event.id, all),
+    now,
   )
   if (!checks.every((check) => check.done)) return { outcome: 'not-ready' as const }
   let snapshots: Roster[] = []
@@ -2749,7 +3074,7 @@ function revealLeagueEvent(tx: Context, event: LeagueEventRow, now: number, acto
     if (team.disposition) setTeamPick(tx, event.id, team.id, team.disposition)
     if (team.warlord) setTeamWarlord(tx, event.id, team.id, team.warlord)
   }
-  tx.db.leagueEvents.id.update({ ...event, revealedAt: BigInt(now), revealedBy: actorId })
+  tx.db.sealedEvents.id.update({ ...event, revealedAt: BigInt(now), revealedBy: actorId })
   return { outcome: 'revealed' as const, entrantIds: entries.map((entry) => entry.userId) }
 }
 
@@ -2818,6 +3143,278 @@ export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.stri
   ctx.withTx((tx) => leagueCommandIn(tx, [payload])),
 )
 
+const clubDetailsInput = z.object({
+  name: z.string().min(1).max(CLUB_NAME_MAX_LENGTH),
+  description: z.string().max(CLUB_DESCRIPTION_MAX_LENGTH),
+  visibility: z.enum(LEAGUE_VISIBILITIES),
+  admission: z.enum(LEAGUE_ADMISSIONS),
+})
+
+const clubCommandInput = z.discriminatedUnion('op', [
+  clubDetailsInput.extend({ op: z.literal('create'), id: idInput, token: idInput, ownerId: idInput, now: leagueTimeInput }),
+  clubDetailsInput.extend({ op: z.literal('update'), token: idInput, actorId: idInput }),
+  z.object({ op: z.literal('delete'), token: idInput, actorId: idInput }),
+  z.object({ op: z.literal('join'), token: idInput, userId: idInput, now: leagueTimeInput }),
+  z.object({ op: z.literal('leave'), token: idInput, userId: idInput }),
+  z.object({ op: z.literal('moderate'), token: idInput, actorId: idInput, userId: idInput, accept: z.boolean() }),
+  z.object({ op: z.literal('remove'), token: idInput, actorId: idInput, userId: idInput }),
+  z.object({ op: z.literal('set-admins'), token: idInput, actorId: idInput, userIds: z.array(idInput).max(CLUB_ADMIN_MAX) }),
+])
+
+function clubMembersOf(ctx: Context, clubId: string) {
+  return Array.from(ctx.db.clubMembers.clubId.filter(clubId)).sort((a, b) =>
+    a.joinedAt < b.joinedAt ? -1 : a.joinedAt > b.joinedAt ? 1 : a.userId.localeCompare(b.userId),
+  )
+}
+
+function clubMemberRows(ctx: Context, club: ClubRow) {
+  return clubMembersOf(ctx, club.id).map((row) => ({
+    userId: row.userId,
+    status: row.status as ClubMemberStatus,
+    role: row.role as ClubRole,
+    joinedAt: row.joinedAt,
+  }))
+}
+
+function insertClubMember(ctx: Context, clubId: string, userId: string, status: ClubMemberStatus, now: number) {
+  ctx.db.clubMembers.insert({ key: JSON.stringify([clubId, userId]), clubId, userId, status, role: 'member', joinedAt: BigInt(now) })
+}
+
+function clubCommandIn(tx: Context, args: unknown[]) {
+  const [payload] = z.tuple([textArg]).parse(args)
+
+  requireOperator(tx)
+  const input = decodePayload(clubCommandInput, payload, 'Invalid club command')
+  if (input.op === 'create') {
+    tx.db.clubs.insert({
+      id: input.id,
+      token: input.token,
+      ownerId: input.ownerId,
+      name: input.name,
+      description: input.description,
+      visibility: input.visibility,
+      admission: input.admission,
+      createdAt: BigInt(input.now),
+    })
+    insertClubMember(tx, input.id, input.ownerId, 'accepted', input.now)
+    touchClub(tx, input.id)
+    return productJson('created')
+  }
+  const club = tx.db.clubs.token.find(input.token)
+  if (!club) return productJson('missing')
+  const members = clubMemberRows(tx, club)
+  const memberKey = (userId: string) => JSON.stringify([club.id, userId])
+
+  if (input.op === 'join') {
+    const existing = tx.db.clubMembers.key.find(memberKey(input.userId))
+    if (existing) return productJson({ status: existing.status, organizerIds: [] })
+    if (members.length >= CLUB_MEMBER_MAX) return productJson('full')
+    const status = club.admission === 'automatic' ? 'accepted' : 'pending'
+    insertClubMember(tx, club.id, input.userId, status, input.now)
+    touchClub(tx, club.id)
+    const organizerIds =
+      status === 'pending' ? members.filter((member) => isClubOrganizer(club, members, member.userId)).map((member) => member.userId) : []
+    return productJson({ status, organizerIds })
+  }
+  if (input.op === 'leave') {
+    if (input.userId === club.ownerId) return productJson('owner')
+    if (!tx.db.clubMembers.key.find(memberKey(input.userId))) return productJson('missing')
+    touchClub(tx, club.id)
+    tx.db.clubMembers.key.delete(memberKey(input.userId))
+    return productJson('left')
+  }
+
+  const owner = input.actorId === club.ownerId
+  if (!(input.op === 'delete' || input.op === 'set-admins' ? owner : isClubOrganizer(club, members, input.actorId)))
+    return productJson('forbidden')
+
+  if (input.op === 'update') {
+    tx.db.clubs.id.update({
+      ...club,
+      name: input.name,
+      description: input.description,
+      visibility: input.visibility,
+      admission: input.admission,
+    })
+    // Opening the door lets in everyone already waiting at it.
+    const admitted = input.admission === 'automatic' ? members.filter((member) => member.status === 'pending') : []
+    for (const member of admitted) {
+      const row = tx.db.clubMembers.key.find(memberKey(member.userId))
+      if (row) tx.db.clubMembers.key.update({ ...row, status: 'accepted' })
+    }
+    touchClub(tx, club.id)
+    return productJson({ admitted: admitted.map((member) => member.userId) })
+  }
+  if (input.op === 'delete') {
+    deleteClub(tx, club)
+    return productJson('deleted')
+  }
+  if (input.op === 'moderate') {
+    const row = tx.db.clubMembers.key.find(memberKey(input.userId))
+    if (!row || row.status !== 'pending') return productJson('missing')
+    if (input.accept) tx.db.clubMembers.key.update({ ...row, status: 'accepted' })
+    else tx.db.clubMembers.key.delete(row.key)
+    touchClub(tx, club.id)
+    touchProduct(tx, input.userId, 'clubs')
+    return productJson(input.accept ? 'accepted' : 'rejected')
+  }
+  if (input.op === 'remove') {
+    const row = tx.db.clubMembers.key.find(memberKey(input.userId))
+    if (!row) return productJson('missing')
+    // Only the owner removes an admin, so admins cannot remove each other.
+    if (input.userId === club.ownerId || (row.role === 'admin' && !owner)) return productJson('forbidden')
+    touchClub(tx, club.id)
+    tx.db.clubMembers.key.delete(row.key)
+    return productJson('removed')
+  }
+  const userIds = new Set(input.userIds)
+  if (
+    [...userIds].some(
+      (userId) => userId === club.ownerId || !members.some((member) => member.userId === userId && member.status === 'accepted'),
+    )
+  )
+    return productJson('not-members')
+  const added: string[] = []
+  for (const member of members) {
+    if (member.userId === club.ownerId) continue
+    const role = userIds.has(member.userId) ? 'admin' : 'member'
+    if (role === member.role) continue
+    if (role === 'admin') added.push(member.userId)
+    const row = tx.db.clubMembers.key.find(memberKey(member.userId))
+    if (row) tx.db.clubMembers.key.update({ ...row, role })
+  }
+  touchClub(tx, club.id)
+  return productJson({ added })
+}
+
+export const clubCommand = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
+  ctx.withTx((tx) => clubCommandIn(tx, [payload])),
+)
+
+export const clubByToken = spacetime.procedure({ token: t.string() }, t.string(), (ctx, { token }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (token.length > MAX_ID_LENGTH) throw new SenderError('Invalid club token')
+    const club = tx.db.clubs.token.find(token)
+    if (!club) return productJson(null)
+    return productJson({
+      club,
+      members: clubMemberRows(tx, club),
+      games: clubGameHosts(tx, club).map(({ event }) => ({
+        token: event.token,
+        createdAt: event.createdAt,
+        revealedAt: event.revealedAt ?? null,
+        playsAt: event.playsAt ?? null,
+        sealBy: event.sealBy ?? null,
+        format: event.format ?? null,
+        rosterLimit: event.rosterLimit ?? null,
+        pointsBudget: event.pointsBudget ?? null,
+        players: leagueEntriesFor(tx, event.id)
+          .filter((entry) => entry.status === 'accepted')
+          .map((entry) => ({
+            userId: entry.userId,
+            sealed: entry.rosterSnapshot !== undefined,
+            teamId: entry.teamId ?? null,
+            requiredLimit: entry.requiredLimit ?? null,
+          })),
+        played: playedPairs(tx, event.id),
+        battles: Array.from(tx.db.leagueEventBattles.eventId.filter(event.id)).length,
+        playing: unfinishedPlayers(tx, event.id),
+      })),
+    })
+  }),
+)
+
+const CLUB_GAME_SIDES = ['solo', 'pair', 'team-1', 'team-2'] as const
+
+/** The seat a side of a club's team game names: one solo player against an allied pair, or two pairs. */
+function clubGameSeat(format: string | undefined, rosterLimit: number | undefined, side: (typeof CLUB_GAME_SIDES)[number]) {
+  if (rosterLimit === undefined) return null
+  const allied = alliedLeagueRosterLimit(rosterLimit)
+  if (format === '2v1' && side === 'solo') return { teamId: undefined, requiredLimit: rosterLimit, places: 1 }
+  if (format === '2v1' && side === 'pair') return { teamId: 'pair', requiredLimit: allied, places: 2 }
+  if (format === '2v2' && (side === 'team-1' || side === 'team-2')) return { teamId: side, requiredLimit: allied, places: 2 }
+  return null
+}
+
+/** Everyone seated at one of an event's battles that has not ended yet. */
+function unfinishedPlayers(ctx: Context, eventId: string) {
+  const players = new Set<string>()
+  for (const row of ctx.db.leagueEventBattles.eventId.filter(eventId)) {
+    if (!ctx.db.battles.id.find(row.battleId)) continue
+    const { seats, log } = battleData(ctx, row.battleId)
+    const ids = seats.map((seat) => seat.id)
+    if (
+      reduceBattle(
+        ids,
+        log,
+        seats.map((seat) => seat.side),
+      ).status !== 'finished'
+    )
+      for (const id of ids) players.add(id)
+  }
+  return [...players]
+}
+
+/** Which entrants have already started a battle against each other in an event, as sorted id pairs. */
+function playedPairs(ctx: Context, eventId: string) {
+  const pairs = new Set<string>()
+  for (const row of ctx.db.leagueEventBattles.eventId.filter(eventId)) {
+    const seats = Array.from(ctx.db.battleUsers.battleId.filter(row.battleId))
+    for (const one of seats)
+      for (const other of seats)
+        if (one.side !== other.side && one.userId < other.userId) pairs.add(JSON.stringify([one.userId, other.userId]))
+  }
+  return [...pairs].map((pair) => JSON.parse(pair) as [string, string])
+}
+
+/** Public clubs and every club a player owns, belongs to, or has asked to join, their own first. */
+export const clubsVisibleTo = spacetime.procedure({ userId: t.string(), limit: t.u32() }, t.string(), (ctx, { userId, limit }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (userId.length > MAX_ID_LENGTH || limit < 1 || limit > 100) throw new SenderError('Invalid club list')
+    const own = new Map(userId ? Array.from(tx.db.clubMembers.userId.filter(userId), (row) => [row.clubId, row] as const) : [])
+    const clubs = []
+    let scanned = 0
+    for (const club of tx.db.clubs.iter()) {
+      if (++scanned > 100_000) throw new SenderError('Club list is too large')
+      if (club.visibility === 'public' || own.has(club.id)) clubs.push(club)
+    }
+    clubs.sort((a, b) => Number(own.has(b.id)) - Number(own.has(a.id)) || Number(b.createdAt - a.createdAt))
+    return productJson(
+      clubs.slice(0, limit).map((club) => {
+        const members = clubMemberRows(tx, club)
+        const ownMember = own.get(club.id)
+        return {
+          club,
+          adminIds: members.filter((member) => member.role === 'admin').map((member) => member.userId),
+          memberCount: members.filter((member) => member.status === 'accepted').length,
+          ...clubActivity(tx, club.id),
+          ownMember: ownMember ? { status: ownMember.status, role: ownMember.role } : null,
+        }
+      }),
+    )
+  }),
+)
+
+/** The club a battle counts for, and the clubs it could, for its setup. */
+export const battleClubs = spacetime.procedure({ battleId: t.string() }, t.string(), (ctx, { battleId }) =>
+  ctx.withTx((tx) => {
+    requireOperator(tx)
+    if (battleId.length > MAX_ID_LENGTH) throw new SenderError('Invalid battle')
+    const summary = (club: ClubRow) => ({ id: club.id, token: club.token, name: club.name, visibility: club.visibility })
+    const currentId = tx.db.clubBattles.battleId.find(battleId)?.clubId
+    const current = currentId ? tx.db.clubs.id.find(currentId) : undefined
+    return productJson({
+      current: current ? summary(current) : null,
+      options: battleClubIds(tx, battleData(tx, battleId).seats).flatMap((clubId) => {
+        const club = tx.db.clubs.id.find(clubId)
+        return club ? [summary(club)] : []
+      }),
+    })
+  }),
+)
+
 /** Saved actions replay through the same functions as live calls, so arguments arrive untyped. */
 const textArg = z.string().max(2_000_000)
 const timestampArg = z.preprocess(
@@ -2865,12 +3462,18 @@ function createBattleIn(tx: Context, args: unknown[]) {
       log,
       seats.map((seat) => seat.side),
     )
-    const refusal = validate(state, userId, command)
+    // A club game started from its club is tagged at birth, for players who all belong to it.
+    const refusal =
+      validate(state, userId, command) ??
+      (command.kind === 'set-battle-club' && command.clubId && !battleClubIds(tx, battleData(tx, id).seats).includes(command.clubId)
+        ? CLUB_MEMBERS_ONLY
+        : null)
     if (refusal) throw new SenderError(`new battle command was refused: ${refusal}`)
     const seq = index + 1
     tx.db.commands.insert({ key: JSON.stringify([id, seq]), battleId: id, seq, userId, at: BigInt(now), body: JSON.stringify(command) })
     log.push({ seq, by: userId, at: now, command })
   }
+  if (initialCommands.some((command) => command.kind === 'set-battle-club')) indexClubBattle(tx, id)
   return productJson(battleData(tx, id))
 }
 
@@ -3232,62 +3835,72 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
   requireOperator(tx)
   const value = decodePayload(z.unknown(), payload, 'Invalid league command')
   const operation = leagueCommandInput(z.object({ op: z.string() }), value).op
-  if (operation === 'create') {
+  if (operation === 'create' || operation === 'create-club-game') {
     const input = leagueCommandInput(
-      leagueDetailsInput.extend({
-        op: z.literal('create'),
-        id: idInput,
-        token: idInput,
+      z.object({
         eventId: idInput,
         eventToken: idInput,
         ownerId: idInput,
-        recurring: z.boolean(),
         format: leagueFormatInput.nullable(),
         rosterLimit: z.number().int().positive().max(10_000).nullable(),
         allowances: leagueAllowancesSchema.default([]),
         ownerPlays: z.boolean().default(false),
+        rounds: leagueRoundsInput.default(null),
+        pointsBudget: leaguePointsBudgetInput.default(null),
+        schedule: leagueScheduleInput.default({ playsAt: null, sealBy: null }),
         now: leagueTimeInput,
       }),
       value,
     )
-    if (!leaguePlacesSeat(input.format, input.playerLimit)) return productJson('too-small')
-    tx.db.leagues.insert({
-      id: input.id,
-      token: input.token,
-      ownerId: input.ownerId,
-      name: input.name,
-      description: input.description,
-      visibility: input.visibility,
-      admission: input.admission,
-      playerLimit: input.playerLimit ?? undefined,
-      recurring: input.recurring,
-      createdAt: BigInt(input.now),
-    })
-    tx.db.leagueEvents.insert({
+    const points = leaguePointsBudget(input.format ?? '1v1', input.rosterLimit, input.pointsBudget)
+    if (!points || (input.rounds !== null && (input.format ?? '1v1') !== '1v1')) return productJson('forbidden')
+    const createdAt = BigInt(input.now)
+    if (operation === 'create') {
+      const tournament = leagueCommandInput(leagueDetailsInput.extend({ id: idInput, token: idInput }), value)
+      if (!tournament.name.trim()) return productJson('forbidden')
+      if (!leaguePlacesSeat(input.format, tournament.playerLimit)) return productJson('too-small')
+      tx.db.tournaments.insert({
+        id: tournament.id,
+        token: tournament.token,
+        eventId: input.eventId,
+        ownerId: input.ownerId,
+        name: tournament.name,
+        description: tournament.description,
+        visibility: tournament.visibility,
+        admission: tournament.admission,
+        playerLimit: tournament.playerLimit ?? undefined,
+        createdAt,
+      })
+    } else {
+      const club = tx.db.clubs.token.find(leagueCommandInput(z.object({ clubToken: idInput }), value).clubToken)
+      // A club's game is casual, so Swiss rounds are a tournament's alone.
+      if (!club || input.rounds !== null || !isClubOrganizer(club, clubMemberRows(tx, club), input.ownerId)) return productJson('forbidden')
+      tx.db.clubGames.insert({ eventId: input.eventId, clubId: club.id, creatorId: input.ownerId, createdAt })
+    }
+    tx.db.sealedEvents.insert({
       id: input.eventId,
       token: input.eventToken,
-      leagueId: input.id,
-      number: 1,
       format: input.format ?? undefined,
       rosterLimit: input.rosterLimit ?? undefined,
-      createdAt: BigInt(input.now),
+      allowances: JSON.stringify(input.allowances),
+      rounds: input.rounds ?? undefined,
+      pointsBudget: points.budget,
+      playsAt: input.schedule.playsAt === null ? undefined : BigInt(input.schedule.playsAt),
+      sealBy: input.schedule.sealBy === null ? undefined : BigInt(input.schedule.sealBy),
+      createdAt,
       revealedAt: undefined,
       revealedBy: undefined,
-      allowances: JSON.stringify(input.allowances),
     })
     if (input.ownerPlays) insertLeagueEntry(tx, input.eventId, input.ownerId, 'accepted', input.now)
-    touchProduct(tx, input.ownerId, 'leagues', 'onboarding')
-    touchPublic(tx, 'leagues')
+    touchEventById(tx, input.eventId)
     return 'null'
   }
-  const base = leagueCommandInput(z.object({ token: idInput }), value)
-  const league = tx.db.leagues.token.find(base.token)
+  const base = leagueCommandInput(z.object({ token: idInput, eventToken: z.string().max(MAX_ID_LENGTH).default('') }), value)
+  const host = namedHost(tx, base.token, base.eventToken)
   if (operation === 'join') {
     const input = leagueCommandInput(
       z.object({
         op: z.literal('join'),
-        token: idInput,
-        eventToken: z.string().max(MAX_ID_LENGTH),
         userId: idInput,
         now: leagueTimeInput,
         memberLimit: z.number().int().min(2).max(128),
@@ -3295,41 +3908,39 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       }),
       value,
     )
-    if (!league) return productJson('missing')
-    const event = leagueEventFor(tx, league.id, input.eventToken || null)
-    if (!event) return productJson('missing')
-    if (event.revealedAt !== undefined) return productJson('closed')
+    if (!host) return productJson('missing')
+    const { event } = host
+    // Past the roster deadline a newcomer could never seal, so entry closes with it.
+    if (event.revealedAt !== undefined || (event.sealBy !== undefined && BigInt(input.now) > event.sealBy)) return productJson('closed')
     const key = JSON.stringify([event.id, input.userId])
     const existing = tx.db.leagueEventEntries.key.find(key)
     if (existing && existing.status !== 'rejected') return productJson(existing.status)
+    if (host.kind === 'club' && tx.db.clubMembers.key.find(JSON.stringify([host.club.id, input.userId]))?.status !== 'accepted')
+      return productJson('members-only')
     const entries = leagueEntriesFor(tx, event.id).filter((entry) => entry.status !== 'rejected')
     const accepted = entries.filter((entry) => entry.status === 'accepted').length
-    if (
-      leagueRegistrationFull(
-        { admission: league.admission as 'automatic' | 'approval', playerLimit: league.playerLimit ?? null },
-        accepted,
-        entries.length,
-        input.memberLimit,
-      )
-    )
-      return productJson('full')
-    const organizers = [league.ownerId, ...leagueAdminIds(tx, league.id)]
-    const status = league.admission === 'automatic' || organizers.includes(input.userId) ? 'accepted' : 'pending'
+    const rules = hostEntryRules(host)
+    if (leagueRegistrationFull(rules, accepted, entries.length, input.memberLimit)) return productJson('full')
+    const organizers = hostOrganizerIds(tx, host)
+    const status = rules.admission === 'automatic' || organizers.includes(input.userId) ? 'accepted' : 'pending'
     if (existing) tx.db.leagueEventEntries.key.update({ ...existing, status, joinedAt: BigInt(input.now) })
     else insertLeagueEntry(tx, event.id, input.userId, status, input.now)
-    touchLeague(tx, league.id, event.id)
+    touchEvent(tx, host)
     return productJson(status === 'pending' && input.noticeResults ? { status, organizerIds: organizers } : status)
   }
-  if (!league) return productJson(operation === 'reveal' ? { outcome: 'not-ready' } : 'missing')
-  // `ownerId` names whoever acts: the owner, an admin, or for sealing, revealing and battles, an entrant.
+  if (!host) return productJson(operation === 'reveal' ? { outcome: 'not-ready' } : 'missing')
+  const { event } = host
+  // `ownerId` names whoever acts: an organizer, or for sealing, revealing and battles, an entrant.
   const ownerId = leagueCommandInput(z.object({ ownerId: idInput }), value).ownerId
-  const organizer = isLeagueOrganizer(league, leagueAdminIds(tx, league.id), ownerId)
-  const ownerOnly = operation === 'delete' || operation === 'set-admins'
+  const organizer = hostOrganizerIds(tx, host).includes(ownerId)
+  // A tournament's owner alone deletes it or chooses its admins; a club game's organizers are the club's.
+  const ownerOnly = host.kind === 'tournament' && (operation === 'delete' || operation === 'set-admins')
   if (
     ownerOnly
-      ? league.ownerId !== ownerId
+      ? host.tournament.ownerId !== ownerId
       : ![
           'submit',
+          'set-side',
           'set-team-disposition',
           'set-team-warlord',
           'create-battle',
@@ -3341,126 +3952,157 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     return productJson('forbidden')
 
   if (operation === 'set-admins') {
+    if (host.kind !== 'tournament') return productJson('forbidden')
+    const { tournament } = host
     const input = leagueCommandInput(
       z.object({ op: z.literal('set-admins'), userIds: z.array(idInput).max(LEAGUE_ADMIN_MAX), now: leagueTimeInput }),
       value,
     )
     const userIds = [...new Set(input.userIds)]
-    if (userIds.some((userId) => userId === league.ownerId || friendshipBetween(tx, league.ownerId, userId)?.acceptedAt === undefined))
+    if (
+      userIds.some((userId) => userId === tournament.ownerId || friendshipBetween(tx, tournament.ownerId, userId)?.acceptedAt === undefined)
+    )
       return productJson('not-friends')
-    const current = Array.from(tx.db.leagueAdmins.leagueId.filter(league.id))
-    for (const row of current) if (!userIds.includes(row.userId)) tx.db.leagueAdmins.key.delete(row.key)
+    const current = Array.from(tx.db.tournamentAdmins.tournamentId.filter(tournament.id))
+    for (const row of current) if (!userIds.includes(row.userId)) tx.db.tournamentAdmins.key.delete(row.key)
     for (const userId of userIds) {
       if (current.some((row) => row.userId === userId)) continue
-      tx.db.leagueAdmins.insert({ key: JSON.stringify([league.id, userId]), leagueId: league.id, userId, addedAt: BigInt(input.now) })
+      tx.db.tournamentAdmins.insert({
+        key: JSON.stringify([tournament.id, userId]),
+        tournamentId: tournament.id,
+        userId,
+        addedAt: BigInt(input.now),
+      })
     }
-    touchLeague(tx, league.id)
+    touchEvent(tx, host)
     for (const row of current) touchProduct(tx, row.userId, 'leagues')
     return productJson({ added: userIds.filter((userId) => !current.some((row) => row.userId === userId)) })
   }
 
-  if (operation === 'create-event') {
+  if (operation === 'update') {
     const input = leagueCommandInput(
-      leagueDetailsInput.extend({
-        op: z.literal('create-event'),
-        id: idInput,
-        eventToken: idInput,
-        format: leagueFormatInput.nullable(),
-        rosterLimit: z.number().int().positive().max(10_000).nullable(),
-        allowances: leagueAllowancesSchema.default([]),
-        ownerPlays: z.boolean().default(false),
-        now: leagueTimeInput,
+      z.object({
+        op: z.literal('update'),
+        // Absent to leave a tournament's details as they stand; a club game has none.
+        details: leagueDetailsInput.nullable().default(null),
+        rule: leagueRuleInput.nullable().default(null),
+        // Absent from an older client, which leaves the date and the roster deadline as they stand.
+        schedule: leagueScheduleInput.optional(),
       }),
       value,
     )
-    if (!leaguePlacesSeat(input.format ?? null, input.playerLimit)) return productJson('too-small')
-    const latest = leagueEventFor(tx, league.id, null)
-    if (!latest || latest.revealedAt === undefined) return productJson('open')
-    tx.db.leagues.id.update({
-      ...league,
-      name: input.name,
-      description: input.description,
-      visibility: input.visibility,
-      admission: input.admission,
-      playerLimit: input.playerLimit ?? undefined,
-      recurring: true,
-    })
-    tx.db.leagueEvents.insert({
-      id: input.id,
-      token: input.eventToken,
-      leagueId: league.id,
-      number: latest.number + 1,
-      format: input.format ?? undefined,
-      rosterLimit: input.rosterLimit ?? undefined,
-      allowances: JSON.stringify(input.allowances),
-      createdAt: BigInt(input.now),
-      revealedAt: undefined,
-      revealedBy: undefined,
-    })
-    if (input.ownerPlays) insertLeagueEntry(tx, input.id, ownerId, 'accepted', input.now)
-    touchLeague(tx, league.id, latest.id)
-    return productJson('created')
-  }
-  if (operation === 'update') {
-    const input = leagueCommandInput(
-      leagueDetailsInput.extend({ op: z.literal('update'), rule: leagueRuleInput.nullable().default(null) }),
-      value,
-    )
-    const current = leagueEventFor(tx, league.id, null)
-    if (!current) return productJson('missing')
-    const entries = leagueEntriesFor(tx, current.id)
+    const { details } = input
+    if (details && (host.kind === 'club' || !details.name.trim())) return productJson('forbidden')
+    const entries = leagueEntriesFor(tx, event.id)
     const accepted = entries.filter((entry) => entry.status === 'accepted').length
     const rule =
       input.rule &&
-      (input.rule.format !== current.format ||
-        input.rule.rosterLimit !== current.rosterLimit ||
-        (input.rule.allowances !== undefined && JSON.stringify(input.rule.allowances) !== JSON.stringify(leagueEventAllowances(current))))
+      (input.rule.format !== event.format ||
+        input.rule.rosterLimit !== event.rosterLimit ||
+        (input.rule.allowances !== undefined && JSON.stringify(input.rule.allowances) !== JSON.stringify(leagueEventAllowances(event))))
         ? input.rule
         : null
     if (rule) {
-      if (current.revealedAt !== undefined) return productJson('closed')
+      if (event.revealedAt !== undefined) return productJson('closed')
       if (entries.some((entry) => entry.rosterSnapshot !== undefined)) return productJson('sealed')
     }
-    const format = (rule?.format ?? current.format ?? null) as TableShape | null
-    if ((rule || input.playerLimit !== (league.playerLimit ?? null)) && current.revealedAt === undefined) {
-      if (!leaguePlacesSeat(format, input.playerLimit)) return productJson('team-minimum')
-      if (input.playerLimit !== null && input.playerLimit < accepted) return productJson('below-accepted')
+    const format = (rule?.format ?? event.format ?? null) as TableShape | null
+    const playerLimit = details ? details.playerLimit : hostEntryRules(host).playerLimit
+    if ((rule || playerLimit !== hostEntryRules(host).playerLimit) && event.revealedAt === undefined) {
+      if (!leaguePlacesSeat(format, playerLimit)) return productJson('team-minimum')
+      if (playerLimit !== null && playerLimit < accepted) return productJson('below-accepted')
     }
     if (rule) {
-      tx.db.leagueEvents.id.update({
-        ...current,
+      const rounds = rule.rounds === undefined ? event.rounds : (rule.rounds ?? undefined)
+      // Swiss rounds pair duels, and a club's game never plays them.
+      if (rounds !== undefined && (host.kind === 'club' || rule.format !== '1v1')) return productJson('forbidden')
+      const points =
+        rule.pointsBudget === undefined
+          ? { budget: rule.format === '1v1' && rule.rosterLimit === event.rosterLimit ? event.pointsBudget : undefined }
+          : leaguePointsBudget(rule.format, rule.rosterLimit, rule.pointsBudget)
+      if (!points) return productJson('forbidden')
+      tx.db.sealedEvents.id.update({
+        ...event,
         format: rule.format,
         rosterLimit: rule.rosterLimit,
-        allowances: rule.allowances === undefined ? current.allowances : JSON.stringify(rule.allowances),
+        allowances: rule.allowances === undefined ? event.allowances : JSON.stringify(rule.allowances),
+        rounds,
+        pointsBudget: points.budget,
       })
       // Sizes and pairs follow the format and points; what lists may waive leaves them standing.
-      if (rule.format !== current.format || rule.rosterLimit !== current.rosterLimit) {
+      if (rule.format !== event.format || rule.rosterLimit !== event.rosterLimit) {
         for (const entry of entries) tx.db.leagueEventEntries.key.update({ ...entry, requiredLimit: undefined, teamId: undefined })
-        clearTeamPicks(tx, current.id)
+        clearTeamPicks(tx, event.id)
       }
     }
-    tx.db.leagues.id.update({
-      ...league,
-      name: input.name,
-      description: input.description,
-      visibility: input.visibility,
-      admission: input.admission,
-      playerLimit: input.playerLimit ?? undefined,
-    })
-    const admitted =
-      input.admission === 'automatic' && league.admission === 'approval' && current.revealedAt === undefined
-        ? admitWaiting(tx, entries, input.playerLimit, () => true)
-        : []
-    touchLeague(tx, league.id)
+    if (input.schedule) {
+      // Read again, so a rule saved above is not written back over.
+      const current = tx.db.sealedEvents.id.find(event.id)!
+      tx.db.sealedEvents.id.update({
+        ...current,
+        playsAt: input.schedule.playsAt === null ? undefined : BigInt(input.schedule.playsAt),
+        sealBy: input.schedule.sealBy === null ? undefined : BigInt(input.schedule.sealBy),
+      })
+    }
+    let admitted: string[] = []
+    if (details && host.kind === 'tournament') {
+      tx.db.tournaments.id.update({
+        ...host.tournament,
+        name: details.name,
+        description: details.description,
+        visibility: details.visibility,
+        admission: details.admission,
+        playerLimit: details.playerLimit ?? undefined,
+      })
+      if (details.admission === 'automatic' && host.tournament.admission === 'approval' && event.revealedAt === undefined)
+        admitted = admitWaiting(tx, entries, details.playerLimit, () => true)
+    }
+    touchEvent(tx, host)
     return productJson({ admitted, ruleChanged: rule !== null })
   }
   if (operation === 'delete') {
-    deleteLeague(tx, league.id)
+    deleteHost(tx, host)
     return productJson('deleted')
   }
-  const eventToken = leagueCommandInput(z.object({ eventToken: z.string().max(MAX_ID_LENGTH) }), value).eventToken
-  const event = leagueEventFor(tx, league.id, eventToken || null)
-  if (!event) return productJson(operation === 'reveal' ? { outcome: 'not-ready' } : 'missing')
+  if (operation === 'pair-round') {
+    const input = leagueCommandInput(
+      z.object({
+        op: z.literal('pair-round'),
+        round: z.number().int().min(1).max(SWISS_ROUNDS_MAX),
+        pairs: z.array(z.tuple([idInput, idInput.nullable()])).max(128),
+      }),
+      value,
+    )
+    if (event.revealedAt === undefined || event.rounds === undefined) return productJson('not-ready')
+    const pairings = roundPairings(tx, event.id)
+    const latest = Math.max(0, ...pairings.map((pairing) => pairing.round))
+    if (input.round !== latest + 1 || input.round > event.rounds) return productJson('stale')
+    if (pairings.some((pairing) => pairing.round === latest && !pairingFinished(tx, pairing))) return productJson('not-ready')
+    // Every entrant who sealed a list sits at exactly one table, and at most one sits the round out.
+    const players = leagueEntriesFor(tx, event.id)
+      .filter((entry) => entry.status === 'accepted' && entry.rosterSnapshot !== undefined)
+      .map((entry) => entry.userId)
+    const seated = input.pairs.flatMap(([a, b]) => (b === null ? [a] : [a, b]))
+    if (
+      seated.length !== players.length ||
+      new Set(seated).size !== seated.length ||
+      seated.some((id) => !players.includes(id)) ||
+      input.pairs.filter(([, b]) => b === null).length > 1
+    )
+      return productJson('stale')
+    for (const [index, [aId, bId]] of input.pairs.entries())
+      tx.db.leagueRoundPairings.insert({
+        key: JSON.stringify([event.id, input.round, index + 1]),
+        eventId: event.id,
+        round: input.round,
+        table: index + 1,
+        aId,
+        bId: bId ?? undefined,
+        battleId: undefined,
+      })
+    touchEvent(tx, host)
+    return productJson('paired')
+  }
   if (operation === 'share-roster' || operation === 'dismiss-roster-sharing') {
     const current = leagueRosterSharingState(tx, event, ownerId)
     if (!current) return productJson('unavailable')
@@ -3502,8 +4144,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const input = leagueCommandInput(z.object({ op: z.literal('admit'), userIds: z.array(idInput).max(128) }), value)
     if (event.revealedAt !== undefined) return productJson('closed')
     const chosen = new Set(input.userIds)
-    const admitted = admitWaiting(tx, leagueEntriesFor(tx, event.id), league.playerLimit ?? null, (entry) => chosen.has(entry.userId))
-    if (admitted.length) touchLeague(tx, league.id, event.id)
+    const admitted = admitWaiting(tx, leagueEntriesFor(tx, event.id), hostEntryRules(host).playerLimit, (entry) => chosen.has(entry.userId))
+    if (admitted.length) touchEvent(tx, host)
     return productJson({ admitted })
   }
   if (operation === 'add') {
@@ -3518,21 +4160,29 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     )
     if (event.revealedAt !== undefined) return productJson('closed')
     const userIds = [...new Set(input.userIds)]
-    if (userIds.some((userId) => userId === ownerId || friendshipBetween(tx, ownerId, userId)?.acceptedAt === undefined))
-      return productJson('not-friends')
+    // A tournament seats the organizer's friends, as a battle does; a club game, the club's members.
+    if (
+      userIds.some((userId) =>
+        host.kind === 'club'
+          ? tx.db.clubMembers.key.find(JSON.stringify([host.club.id, userId]))?.status !== 'accepted'
+          : userId === ownerId || friendshipBetween(tx, ownerId, userId)?.acceptedAt === undefined,
+      )
+    )
+      return productJson(host.kind === 'club' ? 'not-members' : 'not-friends')
     const entries = leagueEntriesFor(tx, event.id)
     const current = new Map(entries.map((entry) => [entry.userId, entry]))
     const added = userIds.filter((userId) => current.get(userId)?.status !== 'accepted')
     const accepted = entries.filter((entry) => entry.status === 'accepted').length + added.length
     const returning = added.filter((userId) => current.get(userId)?.status === 'pending').length
     const active = entries.filter((entry) => entry.status !== 'rejected').length + added.length - returning
-    if ((league.playerLimit !== undefined && accepted > league.playerLimit) || active > input.memberLimit) return productJson('full')
+    const { playerLimit } = hostEntryRules(host)
+    if ((playerLimit !== null && accepted > playerLimit) || active > input.memberLimit) return productJson('full')
     for (const userId of added) {
       const existing = current.get(userId)
       if (existing) tx.db.leagueEventEntries.key.update({ ...existing, status: 'accepted', joinedAt: BigInt(input.now) })
       else insertLeagueEntry(tx, event.id, userId, 'accepted', input.now)
     }
-    if (added.length) touchLeague(tx, league.id, event.id)
+    if (added.length) touchEvent(tx, host)
     return productJson({ added })
   }
   if (operation === 'moderate') {
@@ -3551,8 +4201,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     if (!entry) return productJson('missing')
     const entries = leagueEntriesFor(tx, event.id)
     if (input.status === 'accepted' && entry.status !== 'accepted') {
-      if (league.playerLimit !== undefined && entries.filter((row) => row.status === 'accepted').length >= league.playerLimit)
-        return productJson('full')
+      const { playerLimit } = hostEntryRules(host)
+      if (playerLimit !== null && entries.filter((row) => row.status === 'accepted').length >= playerLimit) return productJson('full')
       if (entry.status === 'rejected' && entries.filter((row) => row.status !== 'rejected').length >= input.memberLimit)
         return productJson('full')
     }
@@ -3587,7 +4237,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         submittedAt: undefined,
       })
     else tx.db.leagueEventEntries.key.update({ ...entry, status: input.status })
-    touchLeague(tx, league.id, event.id)
+    touchEvent(tx, host)
     if (input.status === 'rejected')
       return productJson(input.noticeResults ? { rejected: entry.status !== 'rejected', resealIds } : 'updated')
     return productJson(entry.status !== 'accepted' ? 'admitted' : 'updated')
@@ -3625,7 +4275,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         rosterSnapshot: undefined,
         submittedAt: undefined,
       })
-      touchLeague(tx, league.id, event.id)
+      touchEvent(tx, host)
     }
     return productJson(input.noticeResults ? { resealIds } : 'updated')
   }
@@ -3666,7 +4316,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
             : {}),
         })
       }
-      touchLeague(tx, league.id, event.id)
+      touchEvent(tx, host)
       const resealIds = resized.filter((entry) => entry.rosterSnapshot !== undefined).map((entry) => entry.userId)
       return productJson(input.noticeResults ? { resealIds } : 'updated')
     }
@@ -3692,8 +4342,53 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
           rosterSnapshot: undefined,
           submittedAt: undefined,
         })
-    touchLeague(tx, league.id, event.id)
+    touchEvent(tx, host)
     return productJson(input.noticeResults ? { resealIds } : 'updated')
+  }
+  if (operation === 'set-side') {
+    const input = leagueCommandInput(
+      z.object({ op: z.literal('set-side'), side: z.enum(CLUB_GAME_SIDES).nullable(), now: leagueTimeInput }),
+      value,
+    )
+    // A club's players take their own seats; a tournament's organizer sizes and pairs its entrants.
+    if (host.kind !== 'club') return productJson('forbidden')
+    if (event.revealedAt !== undefined || (event.sealBy !== undefined && BigInt(input.now) > event.sealBy)) return productJson('closed')
+    if (tx.db.clubMembers.key.find(JSON.stringify([host.club.id, ownerId]))?.status !== 'accepted') return productJson('members-only')
+    const key = JSON.stringify([event.id, ownerId])
+    const entry = tx.db.leagueEventEntries.key.find(key)
+    if (input.side === null) {
+      if (entry) {
+        if (entry.teamId) clearTeamPicks(tx, event.id, new Set([entry.teamId]))
+        tx.db.leagueEventEntries.key.delete(key)
+        touchEvent(tx, host)
+      }
+      return productJson('updated')
+    }
+    const seat = clubGameSeat(event.format, event.rosterLimit, input.side)
+    if (!seat) return productJson('wrong-format')
+    if (entry && entry.teamId === seat.teamId && entry.requiredLimit === seat.requiredLimit) return productJson('updated')
+    const taken = leagueEntriesFor(tx, event.id).filter(
+      (row) =>
+        row.userId !== ownerId && row.status === 'accepted' && row.teamId === seat.teamId && row.requiredLimit === seat.requiredLimit,
+    ).length
+    if (taken >= seat.places) return productJson('full')
+    // Both sides' Force Disposition and Warlord picks were made for the old line-up, so each side chooses again.
+    clearTeamPicks(tx, event.id, new Set([entry?.teamId, seat.teamId].filter((id): id is string => id !== undefined)))
+    if (!entry) insertLeagueEntry(tx, event.id, ownerId, 'accepted', input.now)
+    const current = tx.db.leagueEventEntries.key.find(key)!
+    tx.db.leagueEventEntries.key.update({
+      ...current,
+      status: 'accepted',
+      teamId: seat.teamId,
+      requiredLimit: seat.requiredLimit,
+      // A list sealed for another seat may not fit this one, so it is sealed again.
+      rosterId: undefined,
+      rosterName: undefined,
+      rosterSnapshot: undefined,
+      submittedAt: undefined,
+    })
+    touchEvent(tx, host)
+    return productJson('updated')
   }
   if (operation === 'submit') {
     const input = leagueCommandInput(
@@ -3709,9 +4404,20 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       }),
       value,
     )
+    // In a club game sealing a list is how a member takes part, so the first seal also enters them.
+    if (
+      host.kind === 'club' &&
+      event.revealedAt === undefined &&
+      !tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, input.userId])) &&
+      tx.db.clubMembers.key.find(JSON.stringify([host.club.id, input.userId]))?.status === 'accepted'
+    )
+      insertLeagueEntry(tx, event.id, input.userId, 'accepted', input.now)
     const entry = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, input.userId]))
     if (!entry || entry.status !== 'accepted' || (event.revealedAt !== undefined && entry.rosterSnapshot !== undefined))
       return productJson({ outcome: 'missing' })
+    // The deadline closes sealing until the reveal; a list the organizer unseals afterwards can still be replaced.
+    if (event.revealedAt === undefined && event.sealBy !== undefined && BigInt(input.now) > event.sealBy)
+      return productJson({ outcome: 'past-deadline' })
     const requiredLimit = requiredLeagueRosterLimit(
       (event.format ?? null) as TableShape | null,
       event.rosterLimit ?? null,
@@ -3731,6 +4437,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       return productJson({ outcome: 'invalid-warlords', format: event.format ?? null })
     const refusal = leagueAllowanceRefusal(submitted, allowances)
     if (refusal) return productJson({ outcome: 'disallowed', message: refusal })
+    if (event.pointsBudget !== undefined && (submitted.built?.pointsBudget ?? submitted.built?.limit) !== event.pointsBudget)
+      return productJson({ outcome: 'wrong-budget', pointsBudget: event.pointsBudget })
     if (
       event.format === '2v2' &&
       !leagueEntriesFor(tx, event.id).some((row) => row.userId !== input.userId && row.teamId === entry.teamId && row.status === 'accepted')
@@ -3762,7 +4470,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       rosterSnapshot: input.snapshot,
       submittedAt: BigInt(input.now),
     })
-    touchLeague(tx, league.id, event.id)
+    touchEvent(tx, host)
     return productJson({ outcome: 'sealed', format: event.format ?? null, requiredLimit })
   }
   if (operation === 'set-team-disposition') {
@@ -3777,7 +4485,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const team = eventTeams(tx, event.id, entries).find((candidate) => candidate.id === entry.teamId)
     if (!team?.choices.includes(input.disposition)) return productJson({ outcome: 'not-offered' })
     setTeamPick(tx, event.id, team.id, input.disposition)
-    touchLeague(tx, league.id, event.id)
+    touchEvent(tx, host)
     return productJson({ outcome: 'chosen' })
   }
   if (operation === 'set-team-warlord') {
@@ -3789,7 +4497,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const team = eventTeams(tx, event.id, entries).find((candidate) => candidate.id === entry.teamId)
     if (!team?.warlordChoices.includes(input.userId)) return productJson({ outcome: 'not-offered' })
     setTeamWarlord(tx, event.id, team.id, input.userId)
-    touchLeague(tx, league.id, event.id)
+    touchEvent(tx, host)
     return productJson({ outcome: 'chosen' })
   }
   if (operation === 'reveal') {
@@ -3799,7 +4507,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     if (!mayRevealLeague(organizer, actor ? { status: actor.status as LeagueEntryStatus } : null))
       return productJson({ outcome: 'not-ready' })
     const revealed = revealLeagueEvent(tx, event, input.now, ownerId)
-    if (revealed.outcome === 'revealed') touchLeague(tx, league.id, event.id)
+    if (revealed.outcome === 'revealed') touchEvent(tx, host)
     return productJson(revealed)
   }
   if (operation === 'unseal') {
@@ -3808,7 +4516,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const entry = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, input.userId]))
     if (!entry || entry.status !== 'accepted' || entry.rosterSnapshot === undefined) return productJson('missing')
     resetLeagueEntry(tx, entry)
-    touchLeague(tx, league.id, event.id)
+    touchEvent(tx, host)
     return productJson('unsealed')
   }
   if (operation === 'create-battle') {
@@ -3822,13 +4530,32 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         opponentIds: z.array(idInput).min(1).max(3),
         initialCommands: z.array(commandSchema).max(1_000),
         now: leagueTimeInput,
-        expectedLatest: z.boolean(),
         expectedEntries: z.array(z.object({ userId: idInput, snapshot: z.string().max(1_000_000) })).max(128),
+        pairingKey: z
+          .string()
+          .max(MAX_ID_LENGTH * 2)
+          .optional(),
       }),
       value,
     )
     if (event.revealedAt === undefined) return productJson(false)
-    if (input.expectedLatest && leagueEventFor(tx, league.id, null)?.id !== event.id) return productJson(false)
+    // A Swiss tournament plays only the tables its organizer paired, each once.
+    const pairing = input.pairingKey ? tx.db.leagueRoundPairings.key.find(input.pairingKey) : undefined
+    if (event.rounds !== undefined) {
+      const latest = Math.max(0, ...roundPairings(tx, event.id).map((row) => row.round))
+      const players = new Set([pairing?.aId, pairing?.bId])
+      if (
+        !pairing ||
+        pairing.eventId !== event.id ||
+        pairing.round !== latest ||
+        pairing.battleId !== undefined ||
+        !players.has(input.userId) ||
+        !players.has(input.opponentIds[0]) ||
+        input.opponentIds.length !== 1 ||
+        input.allyIds.length
+      )
+        return productJson(false)
+    }
     const seatIds = [input.userId, ...input.allyIds, ...input.opponentIds]
     if (seatIds.length > 4 || new Set(seatIds).size !== seatIds.length) return productJson(false)
     const entries = leagueEntriesFor(tx, event.id).filter(
@@ -3869,7 +4596,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         log,
         seats.map((seat) => seat.side),
       )
-      const refusal = validate(state, input.userId, command)
+      const refusal = command.kind === 'set-battle-club' ? 'a club is chosen during setup' : validate(state, input.userId, command)
       if (refusal) throw new SenderError(`new battle command was refused: ${refusal}`)
       const seq = index + 1
       tx.db.commands.insert({
@@ -3883,7 +4610,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       log.push({ seq, by: input.userId, at: input.now, command })
     }
     tx.db.leagueEventBattles.insert({ battleId: input.id, eventId: event.id })
-    touchLeague(tx, league.id, event.id)
+    if (pairing && event.rounds !== undefined) tx.db.leagueRoundPairings.key.update({ ...pairing, battleId: input.id })
+    touchEvent(tx, host)
     for (const seat of seats) touchProduct(tx, seat.id, 'battles', 'onboarding')
     touchPublic(tx, 'battles')
     touchAdmin(tx)

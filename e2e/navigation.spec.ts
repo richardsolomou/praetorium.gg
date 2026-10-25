@@ -49,20 +49,24 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await more.click()
   await expect(page).toHaveURL('/more')
   await expect(more).toHaveAttribute('aria-current', 'page')
-  expect(
-    await page.locator('main section a').evaluateAll((links) => links.map((link) => new URL((link as HTMLAnchorElement).href).pathname)),
-  ).toEqual([
-    '/simulator',
-    '/missions',
-    '/rules',
-    '/leagues',
-    '/force-dispositions',
-    '/data-updates',
-    '/leaderboard',
-    '/docs',
-    '/whats-new',
-    '/support',
-  ])
+  // The URL can change before the home page has left the screen, so the links are read until the More page alone is there.
+  await expect
+    .poll(() =>
+      page.locator('main section a').evaluateAll((links) => links.map((link) => new URL((link as HTMLAnchorElement).href).pathname)),
+    )
+    .toEqual([
+      '/simulator',
+      '/missions',
+      '/rules',
+      '/force-dispositions',
+      '/clubs',
+      '/tournaments',
+      '/leaderboard',
+      '/docs',
+      '/whats-new',
+      '/data-updates',
+      '/support',
+    ])
   await page.screenshot({ path: 'test-results/more-phone.png', fullPage: true })
   await expect(page.locator('[data-web-app-footer]').getByRole('link', { name: "What's new" })).toBeHidden()
   await mobileHeader.getByRole('button', { name: 'Search Praetorium' }).click()
@@ -94,16 +98,17 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(sections).toBeVisible()
   await page.setViewportSize({ width: 860, height: 844 })
   const reference = page.getByRole('navigation', { name: 'Reference' })
-  await expect(reference.getByRole('link')).toHaveText(['Factions', 'Missions', 'Force dispositions', 'Rules'])
-  await expect(primary.getByRole('link')).toHaveText(['Rosters', 'Battles', 'Simulator', 'Leagues', 'Leaderboard'])
+  await expect(reference.getByRole('link')).toHaveText(['Factions', 'Missions', 'Dispositions', 'Rules'])
+  await expect(primary.getByRole('link')).toHaveText(['Rosters', 'Battles', 'Simulator', 'Leaderboard'])
+  await expect(primary.getByRole('button', { name: 'Events' })).toBeVisible()
   await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
   await page.setViewportSize({ width: 910, height: 844 })
   await expect(primary.getByRole('link', { name: 'Rosters' }).locator('svg')).toHaveCount(1)
-  await expect(reference.getByRole('link', { name: 'Force dispositions' }).locator('svg')).toHaveCount(1)
+  await expect(reference.getByRole('link', { name: 'Dispositions' }).locator('svg')).toHaveCount(1)
   await page.screenshot({ path: 'test-results/navigation-desktop-910.png' })
-  await reference.getByRole('link', { name: 'Force dispositions' }).click()
+  await reference.getByRole('link', { name: 'Dispositions' }).click()
   await expect(page).toHaveURL('/force-dispositions')
-  await expect(reference.getByRole('link', { name: 'Force dispositions' })).toHaveAttribute('aria-current', 'page')
+  await expect(reference.getByRole('link', { name: 'Dispositions' })).toHaveAttribute('aria-current', 'page')
   await expect(sections).toBeHidden()
   await expect(mobileHeader).toBeHidden()
   await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
@@ -184,7 +189,6 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   await expect(sections.getByRole('link', { name: 'Battles' })).toBeVisible()
   await expect(sections.getByRole('link', { name: 'Rosters' })).toBeVisible()
   await expect(sections.getByRole('link', { name: 'Home' })).toBeVisible()
-  await expect(sections.getByRole('link', { name: 'Leagues' })).toHaveCount(0)
   expect((await more.boundingBox())?.width).toBeGreaterThanOrEqual(44)
   expect(hydrationErrors).toEqual([])
   await page.screenshot({ path: 'test-results/native-navigation-phone.png', fullPage: true })
@@ -193,7 +197,8 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   await expect(page).toHaveURL('/more')
   const morePage = page.getByRole('main')
   await expect(morePage.getByRole('heading', { name: 'More' })).toBeVisible()
-  await expect(morePage.getByRole('link', { name: /^Leagues/ })).toBeVisible()
+  await expect(morePage.getByRole('link', { name: /^Clubs/ })).toBeVisible()
+  await expect(morePage.getByRole('link', { name: /^Tournaments/ })).toBeVisible()
   await expect(morePage.getByRole('link', { name: /^Leaderboard/ })).toBeVisible()
   await expect(morePage.getByRole('link', { name: /^Rules/ })).toBeVisible()
   await expect(morePage.getByRole('link', { name: /^Force dispositions/ })).toBeVisible()
@@ -220,8 +225,8 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   await expect(page).toHaveURL('/rules')
   await expect(more).toHaveAttribute('aria-current', 'page')
   await more.click()
-  await morePage.getByRole('link', { name: /^Leagues/ }).click()
-  await expect(page).toHaveURL('/leagues')
+  await morePage.getByRole('link', { name: /^Tournaments/ }).click()
+  await expect(page).toHaveURL('/tournaments')
 
   await page.setViewportSize({ width: 1024, height: 768 })
   await expect(sections).toHaveCSS('flex-direction', 'column')

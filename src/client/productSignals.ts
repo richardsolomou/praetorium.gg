@@ -40,8 +40,9 @@ const queryFamilies = {
   onboarding: ['onboarding'],
   settings: ['notification-settings', 'player-defaults', 'ability-reminders', 'public-battles', 'friend-battles', 'played-armies'],
   leagues: ['leagues', 'league', 'league-roster', 'league-roster-sharing', 'league-battles', 'opponents'],
+  clubs: ['clubs', 'club', 'club-standings', 'battle-clubs'],
   // Standings and rankings change only when a battle finishes, which the public standings signal reports.
-  battles: ['battles', 'public-battles', 'friend-battles', 'player-profile', 'league-battles', 'played-armies'],
+  battles: ['battles', 'public-battles', 'friend-battles', 'player-profile', 'league-battles', 'played-armies', 'battle-clubs'],
   simulator: ['recent-matchups'],
 } as const
 
@@ -49,9 +50,10 @@ const publicQueryFamilies = {
   collection: ['collection-profile', 'datasheet-photos'],
   // An open battle follows its own signal, or polls while it has none, so every command elsewhere does not refetch it.
   battles: ['public-battles', 'friend-battles', 'player-profile', 'league-battles'],
-  standings: ['standings', 'player-rankings'],
+  standings: ['standings', 'player-rankings', 'club-standings'],
   rosters: ['player-rosters', 'shared-roster', 'roster-access', 'discovered-rosters'],
   leagues: ['leagues', 'league', 'league-roster', 'league-roster-sharing', 'league-battles'],
+  clubs: ['clubs', 'club', 'club-standings', 'battle-clubs'],
   invites: ['friend-invite'],
   opponents: ['opponents', 'player-search'],
 } as const
@@ -89,7 +91,6 @@ const operationScopes = {
   createFriendInvite: ['invites'],
   cancelFriendInvite: ['invites'],
   createLeague: ['leagues'],
-  createLeagueEvent: ['leagues'],
   joinLeague: ['leagues'],
   addLeagueEntrants: ['leagues'],
   admitLeagueEntries: ['leagues'],
@@ -101,6 +102,7 @@ const operationScopes = {
   unsealLeagueRoster: ['leagues'],
   assignLeagueRosterRequirement: ['leagues'],
   assignLeagueTeam: ['leagues'],
+  chooseLeagueSide: ['leagues'],
   updateLeague: ['leagues'],
   deleteLeague: ['leagues'],
   deleteBattle: ['battles'],

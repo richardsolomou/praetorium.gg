@@ -193,6 +193,7 @@ export type BattleView = {
   deploymentId: string | null
   leagueToken: string | null
   leagueEventToken: string | null
+  clubId: string | null
   advancePrompt: string | null
   secretMissionActionPlayerId: PlayerId | null
   /** The earlier moments a missed action may still be recorded for, oldest first; absent from older servers. */
@@ -371,6 +372,7 @@ export function battleView(
     deploymentId: state.deploymentId,
     leagueToken: state.leagueToken,
     leagueEventToken: state.leagueEventToken,
+    clubId: state.clubId,
     advancePrompt: advancePrompt(state, viewerId),
     secretMissionActionPlayerId: secretMissionActionPlayerId(state),
     missedMoments: state.settings.manual ? [] : missedMoments(state),

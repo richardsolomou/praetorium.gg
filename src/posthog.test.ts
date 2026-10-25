@@ -19,6 +19,7 @@ it.each([
   ['/rosters/private-roster/edit', 'rosters'],
   ['/battles/private-battle', 'battles'],
   ['/leagues/private-league', 'leagues'],
+  ['/tournaments/private-league', 'leagues'],
   ['/factions/source/datasheets/unit', 'factions'],
   ['/rules/book/section', 'rules'],
   ['/missions/pack/matchups/first/second', 'missions'],
