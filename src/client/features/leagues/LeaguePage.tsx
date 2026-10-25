@@ -8,6 +8,7 @@ import { leagueQuery, meQuery } from '../../queries'
 import { isLeagueOrganizer } from '../../../core/league'
 import { LeaguePageActions, useLeagueActions } from './LeagueActions'
 import { LeagueEventView } from './LeagueEventView'
+import { EventSchedule } from './EventSchedule'
 import { leagueAllowances, leagueFormat, leagueNoun, leaguePhase, leaguePlayers, type League } from './leagueEvent'
 
 export function LeaguePage({
@@ -80,6 +81,7 @@ function LeagueScreen({
             {league.admission === 'approval' ? 'Approval required' : 'Anyone can join'}
           </span>
         </div>
+        <EventSchedule event={league} className="mt-3" />
         {league.club ? (
           <p className="mt-3 flex flex-wrap gap-x-1.5 text-sm text-dim">
             <span>Part of</span>

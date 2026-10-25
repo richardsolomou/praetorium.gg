@@ -47,7 +47,7 @@ function SettingsForm({ club, isOwner, onClose }: { club: Club | null; isOwner: 
   const [value, setValue] = useState<Details>(() => ({
     name: club?.name ?? '',
     description: club?.description ?? '',
-    visibility: club?.visibility ?? 'private',
+    visibility: club?.visibility ?? 'public',
     admission: club?.admission ?? 'automatic',
   }))
   const currentAdmins = club?.members.filter((member) => member.role === 'admin').map((member) => member.userId) ?? []
@@ -119,8 +119,8 @@ function SettingsForm({ club, isOwner, onClose }: { club: Club | null; isOwner: 
             value={value.visibility}
             columns={2}
             options={[
-              { value: 'private', name: 'Private link', detail: 'Only people you send it to.' },
               { value: 'public', name: 'Public', detail: 'Listed on the clubs page.' },
+              { value: 'private', name: 'Private link', detail: 'Only people you send it to.' },
             ]}
             disabled={disabled}
             onChange={(visibility) => setValue({ ...value, visibility })}

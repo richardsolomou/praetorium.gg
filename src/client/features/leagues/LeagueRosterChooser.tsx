@@ -10,7 +10,7 @@ import { savedRosterSummariesQuery } from '../../queries'
 import { RosterChoices } from '../rosters/RosterChoices'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { Problem } from '../../components/Problem'
-import { pointsSize } from '../../../core/battle'
+import { pointsLabel, pointsSize } from '../../../core/battle'
 
 export function RosterChooser({
   open,
@@ -18,6 +18,7 @@ export function RosterChooser({
   error,
   failedRosterId,
   requiredLimit,
+  pointsBudget = null,
   onClose,
   onChoose,
 }: {
@@ -26,13 +27,18 @@ export function RosterChooser({
   error: Error | null
   failedRosterId: string | null
   requiredLimit: number | null
+  /** The event's own points total, which a roster's budget must match; null where the size's full points apply. */
+  pointsBudget?: number | null
   onClose: () => void
   onChoose: (roster: SavedRoster) => void
 }) {
   const rosterQuery = useQuery({ ...savedRosterSummariesQuery(), enabled: open })
   const rosters = (rosterQuery.data ?? []).filter(
-    (roster) => !roster.archived && roster.pointsBudget === null && (requiredLimit === null || roster.limit === requiredLimit),
+    (roster) =>
+      !roster.archived && (roster.pointsBudget ?? null) === pointsBudget && (requiredLimit === null || roster.limit === requiredLimit),
   )
+  const size =
+    requiredLimit === null ? null : pointsBudget ? `${pointsLabel(pointsBudget)} ${pointsSize(requiredLimit)}` : pointsSize(requiredLimit)
   // Picking a roster and sealing it are two presses, because a seal is what every opponent reads at reveal.
   const [selectedId, setSelectedId] = useState<string | null>(null)
   if (!open && selectedId !== null) setSelectedId(null)
@@ -45,9 +51,9 @@ export function RosterChooser({
         <DialogHeader>
           <DialogTitle className="text-2xl">Seal a roster</DialogTitle>
           <DialogDescription>
-            {requiredLimit === null
+            {size === null
               ? 'Hidden until the reveal. You can swap it until then.'
-              : `Your ${pointsSize(requiredLimit)} rosters. Hidden until the reveal; you can swap it until then.`}
+              : `Your ${size} rosters. Hidden until the reveal; you can swap it until then.`}
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
@@ -67,11 +73,9 @@ export function RosterChooser({
             <RosterChoices rosters={rosters} selectedId={selectedId} disabled={pending} onSelect={(roster) => setSelectedId(roster.id)} />
           ) : (
             <div className="space-y-3">
-              <p className="py-2 text-sm text-dim">
-                {requiredLimit === null ? 'No rosters to seal yet.' : `No ${pointsSize(requiredLimit)} rosters to seal yet.`}
-              </p>
+              <p className="py-2 text-sm text-dim">{size === null ? 'No rosters to seal yet.' : `No ${size} rosters to seal yet.`}</p>
               <Link to="/rosters" search={requiredLimit === null ? {} : { limit: requiredLimit }} className={buttonClass()}>
-                {requiredLimit === null ? 'Go to rosters' : `Build a ${pointsSize(requiredLimit)} roster`}
+                {size === null ? 'Go to rosters' : `Build a ${size} roster`}
               </Link>
             </div>
           )}

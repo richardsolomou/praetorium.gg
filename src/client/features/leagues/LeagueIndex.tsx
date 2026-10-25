@@ -8,6 +8,7 @@ import { PageState } from '../../components/PageState'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { EventsTabs } from '../events/EventsTabs'
 import { CreateLeague } from './CreateLeague'
+import { EventSchedule } from './EventSchedule'
 import { LEAGUE_CARD, LeagueCardActions } from './LeagueActions'
 import { leagueFormat, leaguePhase, leaguePlayers } from './leagueEvent'
 
@@ -80,6 +81,7 @@ function LeagueShelf({
                   <span className="truncate tracking-label uppercase">{format ?? 'Any format'}</span>
                 </p>
                 <h3 className="mt-1.5 truncate text-lg leading-tight font-bold uppercase">{league.name}</h3>
+                <EventSchedule event={league} className="mt-1 text-xs" />
                 {league.description ? (
                   <p className="mt-1 line-clamp-2 text-sm text-dim">{league.description}</p>
                 ) : (

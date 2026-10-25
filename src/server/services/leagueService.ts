@@ -1,7 +1,7 @@
 import { buildLeagueBattle, LeagueBattleSetupError } from '../../shared/leagueBattle'
 import { offlineContext, offlineIdentifier } from '../offlineContext'
 import { randomId, randomToken } from 'ras-stack/auth'
-import { type Roster } from '../../core/battle'
+import { pointsBudgetError, type Roster } from '../../core/battle'
 import { commandSchema, parseRosterSnapshot } from '../../core/commands'
 import {
   offeredLeagueAllowances,
@@ -19,7 +19,7 @@ import {
   type LeagueVisibility,
 } from '../../core/league'
 import type { TableShape } from '../../core/tableShape'
-import type { RepositoryPort } from '../spacetimeRepository'
+import type { LeagueSchedule, RepositoryPort } from '../spacetimeRepository'
 import type { BattleFaction } from '../../shared/battleSummary'
 import type { Notifier } from '../pushNotifier'
 import { rosterFromRow } from '../rosterPersistence'
@@ -33,7 +33,7 @@ export class LeagueService {
   ) {}
 
   async createLeague(ownerId: string, input: LeagueDetails & EventRuleInput & { ownerPlays: boolean; clubToken?: string }) {
-    const { format, rosterLimit, allowances, rounds, ...details } = input
+    const { format, rosterLimit, allowances, rounds, pointsBudget, ...details } = input
     if (details.clubToken && rounds != null) throw new Response('a club’s sealed game has no Swiss rounds', { status: 400 })
     const token = offlineIdentifier('leagueToken', randomToken)
     const eventToken = offlineIdentifier('eventToken', randomToken)
@@ -44,7 +44,7 @@ export class LeagueService {
       eventToken,
       ownerId,
       ...details,
-      ...eventRule({ format, rosterLimit, allowances, rounds }),
+      ...eventRule({ format, rosterLimit, allowances, rounds, pointsBudget }),
       recurring: true,
       now: this.clock(),
     })
@@ -146,7 +146,8 @@ export class LeagueService {
       return result.status
     }
     if (result === 'missing') throw new Response('no such event', { status: 404 })
-    if (result === 'closed') throw new Response('this event’s lists are already out', { status: 409 })
+    if (result === 'closed')
+      throw new Response('this event is closed to new players: its rosters are out or past their deadline', { status: 409 })
     if (result === 'full') throw new Response('this event is full', { status: 409 })
     return result
   }
@@ -285,6 +286,9 @@ export class LeagueService {
     if (result.outcome === 'wrong-limit') throw new Response('choose a roster built for your assigned size', { status: 409 })
     if (result.outcome === 'invalid-warlords') throw new Response(leagueWarlordRefusal(snapshot), { status: 409 })
     if (result.outcome === 'disallowed') throw new Response(result.message, { status: 409 })
+    if (result.outcome === 'past-deadline') throw new Response('the roster deadline has passed', { status: 409 })
+    if (result.outcome === 'wrong-budget')
+      throw new Response(`choose a roster built to this event’s ${result.pointsBudget.toLocaleString('en')} points`, { status: 409 })
     throw new Response('the roster could not be sealed; check your entry and roster, then try again', { status: 409 })
   }
 
@@ -428,9 +432,16 @@ type LeagueDetails = {
   visibility: LeagueVisibility
   admission: LeagueAdmission
   playerLimit: number | null
+  schedule?: LeagueSchedule
 }
 
-type EventRuleInput = { format?: TableShape; rosterLimit?: number; allowances?: readonly LeagueAllowance[]; rounds?: number | null }
+type EventRuleInput = {
+  format?: TableShape
+  rosterLimit?: number
+  allowances?: readonly LeagueAllowance[]
+  rounds?: number | null
+  pointsBudget?: number | null
+}
 
 /** Missing allowances stay missing, which an update reads as "leave them as they are". */
 function eventRule(rule: EventRuleInput) {
@@ -440,11 +451,19 @@ function eventRule(rule: EventRuleInput) {
     throw new Response(`choose a supported ${format} roster size`, { status: 400 })
   }
   if (rule.rounds != null && format !== '1v1') throw new Response('Swiss rounds pair duels only', { status: 400 })
+  const pointsBudgetProblem =
+    rule.pointsBudget == null
+      ? null
+      : format !== '1v1'
+        ? 'only a duel takes its own points total'
+        : pointsBudgetError(rosterLimit, rule.pointsBudget)
+  if (pointsBudgetProblem) throw new Response(pointsBudgetProblem, { status: 400 })
   return {
     format,
     rosterLimit,
     allowances: rule.allowances && offeredLeagueAllowances(format, rosterLimit, rule.allowances),
     rounds: rule.rounds,
+    pointsBudget: rule.pointsBudget,
   }
 }
 

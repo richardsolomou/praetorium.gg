@@ -157,8 +157,11 @@ const leagueEvent = z.object({
     .string()
     .nullable()
     .transform((value) => (value === null ? null : parseLeagueAllowances(value))),
-  // Absent from a module deployed before Swiss rounds.
+  // Absent from a module deployed before Swiss rounds, points totals and schedules.
   rounds: z.number().int().nullable().default(null),
+  pointsBudget: z.number().int().nullable().default(null),
+  playsAt: z.number().int().nullable().default(null),
+  sealBy: z.number().int().nullable().default(null),
 })
 const leaguePairing = z.object({
   key: z.string(),

@@ -91,9 +91,17 @@ const leagueEventRuleFields = {
     .refine((value) => GAME_SIZES.some((size) => size.limit === value))
     .default(LEAGUE_DEFAULT_ROSTER_LIMIT),
   allowances: leagueAllowancesSchema.default([]),
-  // Absent from an older client: no Swiss rounds on a new event, and an edit leaves them as they stand.
+  // Absent from an older client: no Swiss rounds or own points total on a new event, and an edit leaves them as they stand.
   rounds: z.number().int().min(1).max(SWISS_ROUNDS_MAX).nullable().optional(),
+  pointsBudget: z.number().int().min(POINTS_BUDGET_MIN).max(POINTS_BUDGET_MAX).nullable().optional(),
 }
+/** When the event is played and the roster deadline, as instants; a deadline after the date would let lists in once play started. */
+const leagueSchedule = z
+  .object({ playsAt: z.number().int().min(0).nullable(), sealBy: z.number().int().min(0).nullable() })
+  .refine(({ playsAt, sealBy }) => playsAt === null || sealBy === null || sealBy <= playsAt, {
+    message: 'set the roster deadline before the date it is played',
+    path: ['sealBy'],
+  })
 function validateLeagueEventRule(value: { format: TableShape; rosterLimit: number; rounds?: number | null }, context: z.RefinementCtx) {
   if ((value.format === '2v1' || value.format === '2v2') && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)) {
     context.addIssue({ code: 'custom', path: ['rosterLimit'], message: `choose a supported ${value.format} roster size` })
@@ -109,6 +117,7 @@ export const createLeagueSchema = z
     ...leagueEventRuleFields,
     ownerPlays: z.boolean().default(false),
     clubToken: token.optional(),
+    schedule: leagueSchedule.optional(),
   })
   .superRefine(validateLeagueEventRule)
 export const updateLeagueSchema = z.object({
@@ -119,6 +128,7 @@ export const updateLeagueSchema = z.object({
     .object({ ...leagueEventRuleFields, allowances: leagueAllowancesSchema.optional() })
     .superRefine(validateLeagueEventRule)
     .optional(),
+  schedule: leagueSchedule.optional(),
 })
 export const leagueEventSchema = z.object({ token, eventToken: token.optional() })
 export const pairLeagueRoundSchema = z.object({ token, eventToken: token.optional() })

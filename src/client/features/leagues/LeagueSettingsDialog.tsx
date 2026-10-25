@@ -71,13 +71,17 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
   const [value, setValue] = useState<LeagueFormValue>(() => ({
     name: league?.name ?? '',
     description: league?.description ?? '',
-    visibility: league?.visibility ?? 'private',
+    // A club's sealed game is reached from its club, so it stays off the open lists; anything else starts listed.
+    visibility: league?.visibility ?? (mode.kind === 'create' && mode.clubToken ? 'private' : 'public'),
     admission: league?.admission ?? 'automatic',
     playerLimit: league?.playerLimit ?? null,
     format: current,
     rosterLimit: league?.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT,
     allowances: league ? [...currentAllowances(league)] : [],
     rounds: league?.rounds ?? null,
+    pointsBudget: league?.pointsBudget ?? null,
+    playsAt: league?.playsAt ?? null,
+    sealBy: league?.sealBy ?? null,
   }))
   const { data: me } = useQuery(meQuery())
   // Whoever opens the form, owner or admin, is the organizer it asks about.
@@ -102,7 +106,11 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
   const limitFormat = mode.kind === 'edit' && league?.revealedAt ? null : value.format
   const shapeChanged = value.format !== current || value.rosterLimit !== league?.rosterLimit
   const ruleChanged =
-    shapeChanged || (league !== null && (!sameAllowances(value.allowances, currentAllowances(league)) || value.rounds !== league.rounds))
+    shapeChanged ||
+    (league !== null &&
+      (!sameAllowances(value.allowances, currentAllowances(league)) ||
+        value.rounds !== league.rounds ||
+        value.pointsBudget !== league.pointsBudget))
   const clearsAssignments =
     mode.kind === 'edit' &&
     shapeChanged &&
@@ -117,11 +125,19 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
       if (mode.kind === 'create') posthog.capture('league_creation_failed', { reason: 'request' })
     },
     mutationFn: async () => {
-      const { format, rosterLimit, allowances, rounds, ...details } = value
+      const { format, rosterLimit, allowances, rounds, pointsBudget, playsAt, sealBy, ...details } = value
+      const schedule = { playsAt, sealBy }
       if (mode.kind === 'create')
-        return createLeague({ data: { ...details, format, rosterLimit, allowances, rounds, ownerPlays, clubToken: mode.clubToken } })
+        return createLeague({
+          data: { ...details, format, rosterLimit, allowances, rounds, pointsBudget, schedule, ownerPlays, clubToken: mode.clubToken },
+        })
       await updateLeague({
-        data: { token: mode.token, ...details, ...(ruleLock || !ruleChanged ? {} : { rule: { format, rosterLimit, allowances, rounds } }) },
+        data: {
+          token: mode.token,
+          ...details,
+          schedule,
+          ...(ruleLock || !ruleChanged ? {} : { rule: { format, rosterLimit, allowances, rounds, pointsBudget } }),
+        },
       })
       if (isOwner && adminsChanged) await setLeagueAdmins({ data: { token: mode.token, userIds: adminIds } })
       return null

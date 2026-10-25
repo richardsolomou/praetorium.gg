@@ -12,7 +12,7 @@ import {
   type LeagueEntryView,
   type LeagueStage,
 } from '../../../core/league'
-import { pointsLabel } from '../../../core/battle'
+import { GAME_SIZES, pointsLabel } from '../../../core/battle'
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import type { openLeague } from '../../functions'
 import { leagueReadsKey, leaguesKey, outdatedLeagueEntriesKey } from '../../queries'
@@ -138,11 +138,17 @@ type LeagueFacts = {
   revealedAt: number | null
 }
 
-/** A league's table shape and points, such as "Duel · 2,000 points", or null for an event that fixed neither. */
-export function leagueFormat(league: Pick<LeagueFacts, 'format' | 'rosterLimit'>) {
-  return league.format && league.rosterLimit
-    ? `${TABLE_SHAPE_LABELS[league.format].name} · ${leagueRosterSplit(league.format, league.rosterLimit) ?? pointsLabel(league.rosterLimit)}`
-    : null
+/**
+ * A league's table shape and points, such as "Duel · 2,000 points" or "Duel · 750 points at Incursion" for its own
+ * total, or null for an event that fixed neither.
+ */
+export function leagueFormat(league: Pick<LeagueFacts, 'format' | 'rosterLimit'> & { pointsBudget?: number | null }) {
+  if (!league.format || !league.rosterLimit) return null
+  const size = GAME_SIZES.find((candidate) => candidate.limit === league.rosterLimit)
+  const points = league.pointsBudget
+    ? `${pointsLabel(league.pointsBudget)}${size ? ` at ${size.name}` : ''}`
+    : (leagueRosterSplit(league.format, league.rosterLimit) ?? pointsLabel(league.rosterLimit))
+  return `${TABLE_SHAPE_LABELS[league.format].name} · ${points}`
 }
 
 /**

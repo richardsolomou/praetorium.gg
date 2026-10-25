@@ -193,6 +193,12 @@ const leagueEvents = table(
     allowances: t.option(t.string()).default(undefined),
     /** How many Swiss rounds the organizer pairs; absent for open play, where entrants choose their own opponents. */
     rounds: t.option(t.u32()).default(undefined),
+    /** A duel's points total when it differs from its battle size's, as a roster's own budget would set it. */
+    pointsBudget: t.option(t.u32()).default(undefined),
+    /** When the event is played, as the organizer announced it. */
+    playsAt: t.option(t.u64()).default(undefined),
+    /** The roster deadline: after it nobody seals, and entrants without a sealed list drop out. */
+    sealBy: t.option(t.u64()).default(undefined),
   },
 )
 

@@ -4,6 +4,8 @@ In a tournament everyone seals a roster in secret, the rosters open together at 
 
 - **Battle format** is **Duel** (1v1), **Solo vs pair** (2v1) or **Doubles** (2v2).
 - **Pairing**, for a duel tournament, is **Open play**, where players choose who to play as often as they like, or **Swiss rounds**, where you pair each round and set how many there are.
+- **Points total**, for a duel, plays a battle size at its own total, such as Incursion at 750 points. Leave it empty for the size's full points. Only rosters built to that total can be sealed.
+- **Played on** and **Seal rosters by** are optional. Players see both in their own timezone. After the deadline nobody can seal or join, and anyone without a sealed roster sits the event out, so they no longer hold up the reveal. You can move either date until the reveal.
 - **Points** sets the size every roster is built to. In a 2v1 the solo player builds to it and each ally to half. In doubles every player builds to half.
 - **House rules** says what lists may do beyond matched play. All off is matched play. Untick a restriction, such as **Points limit** or **Warlord**, to let lists switch it off. Tick **Legends** or **Crucible** to let lists include those datasheets. A list that needs anything you left off can't be sealed. Team tournaments always need a Warlord in every list, because allies choose whose leads.
 - **I'm playing too** enters you as a player. Leave it off to run the tournament without a roster of your own.

@@ -135,10 +135,11 @@ export type LeagueRevealCheck =
   | { step: 'warlords'; done: boolean; waiting: string[] }
 
 export function leagueRevealChecklist(
-  event: { format: TableShape | null; rosterLimit: number | null },
+  event: { format: TableShape | null; rosterLimit: number | null; sealBy?: number | null },
   entries: readonly LeagueRevealEntry[],
+  now: number = Date.now(),
 ): LeagueRevealCheck[] {
-  const accepted = entries.filter((entry) => entry.status === 'accepted')
+  const accepted = leagueEligibleEntries(event, entries, now)
   const checks: LeagueRevealCheck[] = [{ step: 'places', done: accepted.length > 0, accepted: accepted.length }]
   if (event.format === '2v2') {
     const pending = entries.filter((entry) => entry.status === 'pending').map((entry) => entry.userId)
@@ -201,7 +202,7 @@ const STAGE_FOR_CHECK = {
 } as const satisfies Record<LeagueRevealCheck['step'], LeagueStage>
 
 export function leagueStage(
-  event: { format: TableShape | null; rosterLimit: number | null; revealedAt: number | null },
+  event: { format: TableShape | null; rosterLimit: number | null; revealedAt: number | null; sealBy?: number | null },
   entries: readonly LeagueRevealEntry[],
   played: boolean,
 ): LeagueStage {
@@ -220,6 +221,21 @@ export const LEAGUE_ADMIN_MAX = 16
 /** Whether someone runs this league: its owner, or an admin the owner chose. */
 export function isLeagueOrganizer(league: { ownerId: string }, adminIds: readonly string[], userId: string | null) {
   return userId !== null && (userId === league.ownerId || adminIds.includes(userId))
+}
+
+/** Whether the event's roster deadline has passed, after which nobody else can seal. */
+export function leagueSealingClosed(event: { sealBy?: number | null }, now: number) {
+  return event.sealBy != null && now > event.sealBy
+}
+
+/** The accepted entrants still in the event: once the roster deadline passes, those without a sealed list drop out. */
+export function leagueEligibleEntries<T extends { status: LeagueEntryStatus; submitted: boolean }>(
+  event: { sealBy?: number | null },
+  entries: readonly T[],
+  now: number,
+) {
+  const closed = leagueSealingClosed(event, now)
+  return entries.filter((entry) => entry.status === 'accepted' && (!closed || entry.submitted))
 }
 
 /** Who may open a ready event's lists: the organizer, or anyone playing in it, so a group need not wait for one person. */

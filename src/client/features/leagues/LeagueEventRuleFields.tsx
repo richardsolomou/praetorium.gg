@@ -11,7 +11,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { battleSizeOptionLabel, GAME_SIZES, pointsLabel } from '../../../core/battle'
+import { allowsPointsBudget, battleSizeOptionLabel, GAME_SIZES, pointsBudgetError, pointsLabel } from '../../../core/battle'
+import { useState } from 'react'
+import { PointsTotalError, PointsTotalInput } from '../../components/PointsTotalInput'
 import {
   isNonMatchedPlayAllowance,
   leagueAllowanceOptions,
@@ -28,14 +30,22 @@ import { SWISS_ROUNDS_MAX } from '../../../core/swiss'
 import { leagueAllowances } from './leagueEvent'
 
 /** `rounds` is the Swiss rounds the organizer pairs, or null for open play. */
-type LeagueEventRuleValue = { format: TableShape; rosterLimit: number; allowances: LeagueAllowance[]; rounds: number | null }
+type LeagueEventRuleValue = {
+  format: TableShape
+  rosterLimit: number
+  allowances: LeagueAllowance[]
+  rounds: number | null
+  /** A duel's own points total under its battle size, or null for the size's full points. */
+  pointsBudget: number | null
+}
 
 /** Drops what a new format or size no longer offers, so the form never holds an allowance it does not show. */
 const offeredAllowances = (rule: LeagueEventRuleValue): LeagueEventRuleValue => ({
   ...rule,
   allowances: offeredLeagueAllowances(rule.format, rule.rosterLimit, rule.allowances),
-  // Swiss rounds pair duels only.
+  // Swiss rounds and an own points total are for duels only.
   rounds: rule.format === '1v1' ? rule.rounds : null,
+  pointsBudget: rule.format === '1v1' && allowsPointsBudget(rule.rosterLimit) ? rule.pointsBudget : null,
 })
 
 /** What a team shape asks of an entrant's roster; a duel's points say it all. */
@@ -57,6 +67,10 @@ export function LeagueEventRuleFields({
   onChange: (value: LeagueEventRuleValue) => void
 }) {
   const limits = value.format === '1v1' ? GAME_SIZES.map((size) => size.limit) : LEAGUE_TEAM_ROSTER_LIMITS
+  // A duel may play its size at its own total, typed beside the size; the text is kept so a half-typed total stays as typed.
+  const budgeted = value.format === '1v1' && allowsPointsBudget(value.rosterLimit)
+  const [budgetText, setBudgetText] = useState(value.pointsBudget === null ? '' : String(value.pointsBudget))
+  const budgetError = budgetText.trim() ? pointsBudgetError(value.rosterLimit, Number(budgetText)) : null
   const label = (limit: number) => {
     const split = leagueRosterSplit(value.format, limit)
     if (split) return split
@@ -89,22 +103,39 @@ export function LeagueEventRuleFields({
         {limits.length > 1 ? (
           <>
             <Label htmlFor="league-event-roster-limit">Points</Label>
-            <Select
-              value={String(value.rosterLimit)}
-              disabled={disabled}
-              onValueChange={(limit) => limit && onChange(offeredAllowances({ ...value, rosterLimit: Number(limit) }))}
-            >
-              <SelectTrigger id="league-event-roster-limit" className="h-11 w-full">
-                <SelectValue>{() => label(value.rosterLimit)}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {limits.map((limit) => (
-                  <SelectItem key={limit} value={String(limit)}>
-                    {label(limit)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="flex items-stretch gap-2">
+              <Select
+                value={String(value.rosterLimit)}
+                disabled={disabled}
+                onValueChange={(limit) => limit && onChange(offeredAllowances({ ...value, rosterLimit: Number(limit) }))}
+              >
+                <SelectTrigger id="league-event-roster-limit" className="h-11 min-w-0 flex-1">
+                  <SelectValue>{() => label(value.rosterLimit)}</SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {limits.map((limit) => (
+                    <SelectItem key={limit} value={String(limit)}>
+                      {label(limit)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {budgeted ? (
+                <PointsTotalInput
+                  id="league-event-points-budget"
+                  className="h-auto"
+                  limit={value.rosterLimit}
+                  value={budgetText}
+                  error={budgetError}
+                  disabled={disabled}
+                  onChange={(text) => {
+                    setBudgetText(text)
+                    onChange({ ...value, pointsBudget: text.trim() ? Number(text) : null })
+                  }}
+                />
+              ) : null}
+            </div>
+            <PointsTotalError id="league-event-points-budget" error={budgetError} />
           </>
         ) : (
           // One size on offer is a fact to read, not a choice to make.

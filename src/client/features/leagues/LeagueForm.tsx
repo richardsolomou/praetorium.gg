@@ -13,7 +13,7 @@ import {
   type LeagueAllowance,
   type LeagueVisibility,
 } from '../../../core/league'
-import { pointsLabel } from '../../../core/battle'
+import { pointsBudgetError, pointsLabel } from '../../../core/battle'
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { Choice } from '../../components/Choice'
 import { LeagueEventRuleFields, ROSTER_RULE } from './LeagueEventRuleFields'
@@ -30,6 +30,9 @@ export type LeagueFormValue = {
   rosterLimit: number
   allowances: LeagueAllowance[]
   rounds: number | null
+  pointsBudget: number | null
+  playsAt: number | null
+  sealBy: number | null
 }
 
 /**
@@ -126,6 +129,7 @@ export function LeagueFormFields({
           />
         )}
       </div>
+      <ScheduleFields idPrefix={idPrefix} value={value} disabled={disabled} onChange={onChange} />
       {ownerPlays === undefined || !onOwnerPlaysChange ? null : (
         <div className="flex items-center gap-3">
           <Switch id={`${idPrefix}-owner-plays`} checked={ownerPlays} disabled={disabled} onCheckedChange={onOwnerPlaysChange} />
@@ -188,8 +192,8 @@ export function LeagueFormFields({
               value={value.visibility}
               columns={2}
               options={[
-                { value: 'private', name: 'Private link', detail: 'Only people you send it to.' },
                 { value: 'public', name: 'Public', detail: 'Listed on the tournaments page.' },
+                { value: 'private', name: 'Private link', detail: 'Only people you send it to.' },
               ]}
               disabled={disabled}
               onChange={(visibility) => onChange({ ...value, visibility })}
@@ -215,5 +219,67 @@ export function LeagueFormFields({
 
 /** Whether the form can be saved: a name, and a limit that seats the chosen shape and everyone already in. */
 export function leagueFormValid(value: LeagueFormValue, seated = 0, limitFormat: TableShape | null = value.format) {
-  return Boolean(value.name.trim()) && leaguePlacesSeat(limitFormat, value.playerLimit, seated)
+  return (
+    Boolean(value.name.trim()) &&
+    leaguePlacesSeat(limitFormat, value.playerLimit, seated) &&
+    !pointsBudgetError(value.rosterLimit, value.pointsBudget) &&
+    !scheduleProblem(value)
+  )
+}
+
+const scheduleProblem = ({ playsAt, sealBy }: Pick<LeagueFormValue, 'playsAt' | 'sealBy'>) =>
+  playsAt !== null && sealBy !== null && sealBy > playsAt ? 'Set the roster deadline before the date it’s played.' : null
+
+/** A moment as a `datetime-local` field holds it, in the reader's own timezone. */
+const inputMoment = (at: number | null) => {
+  if (at === null) return ''
+  const date = new Date(at)
+  const pad = (part: number) => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+const momentFromInput = (text: string) => (text ? new Date(text).getTime() : null)
+
+/** When the event is played and when rosters must be sealed by, both optional and open to change until the reveal. */
+function ScheduleFields({
+  idPrefix,
+  value,
+  disabled,
+  onChange,
+}: {
+  idPrefix: string
+  value: LeagueFormValue
+  disabled: boolean
+  onChange: (value: LeagueFormValue) => void
+}) {
+  const problem = scheduleProblem(value)
+  return (
+    <div className="space-y-1.5">
+      <div className="grid gap-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-plays-at`}>Played on</Label>
+          <Input
+            id={`${idPrefix}-plays-at`}
+            type="datetime-local"
+            value={inputMoment(value.playsAt)}
+            disabled={disabled}
+            onChange={(event) => onChange({ ...value, playsAt: momentFromInput(event.target.value) })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-seal-by`}>Seal rosters by</Label>
+          <Input
+            id={`${idPrefix}-seal-by`}
+            type="datetime-local"
+            value={inputMoment(value.sealBy)}
+            aria-invalid={problem ? true : undefined}
+            disabled={disabled}
+            onChange={(event) => onChange({ ...value, sealBy: momentFromInput(event.target.value) })}
+          />
+        </div>
+      </div>
+      <p className={`text-xs ${problem ? 'text-destructive' : 'text-dim'}`}>
+        {problem ?? 'Both optional. After the deadline nobody can seal, and anyone without a sealed roster sits the event out.'}
+      </p>
+    </div>
+  )
 }

@@ -258,6 +258,9 @@ export const LeagueEvents = __t.object('LeagueEvents', {
   revealedBy: __t.option(__t.string()),
   allowances: __t.option(__t.string()),
   rounds: __t.option(__t.u32()),
+  pointsBudget: __t.option(__t.u32()),
+  playsAt: __t.option(__t.u64()),
+  sealBy: __t.option(__t.u64()),
 })
 export type LeagueEvents = __Infer<typeof LeagueEvents>
 

@@ -84,6 +84,9 @@ describe('sharing a revealed league roster', () => {
         revealedBy: 'organizer',
         allowances: undefined,
         rounds: undefined,
+        pointsBudget: undefined,
+        playsAt: undefined,
+        sealBy: undefined,
       })
       ctx.db.leagueEventEntries.insert({
         key: '["event","entrant"]',
@@ -314,6 +317,9 @@ describe('what a league event allows', () => {
         revealedBy: undefined,
         allowances,
         rounds: undefined,
+        pointsBudget: undefined,
+        playsAt: undefined,
+        sealBy: undefined,
       })
       for (const userId of ['entrant', 'ally'])
         ctx.db.leagueEventEntries.insert({
@@ -396,8 +402,30 @@ describe('what a league event allows', () => {
       })
     const event = () => host.call(host.operator, (ctx) => ctx.db.leagueEvents.id.find('event'))
     const entry = () => host.call(host.operator, (ctx) => ctx.db.leagueEventEntries.key.find('["event","entrant"]'))
-    return { seal, update, event, entry }
+    const set = (fields: { sealBy?: bigint; pointsBudget?: number }) =>
+      host.call(host.operator, (ctx) => ctx.db.leagueEvents.id.update({ ...ctx.db.leagueEvents.id.find('event')!, ...fields }))
+    const reveal = (now: number) => command({ op: 'reveal', ownerId: 'organizer', now })
+    return { seal, update, event, entry, set, reveal }
   }
+
+  it('refuses a list sealed after the roster deadline', () => {
+    const league = setup('[]')
+    league.set({ sealBy: BigInt(NOW - 1) })
+    expect(league.seal([])).toMatchObject({ outcome: 'past-deadline' })
+  })
+
+  it('reveals without the entrants who missed the roster deadline', () => {
+    const league = setup('[]')
+    league.seal([])
+    league.set({ sealBy: BigInt(NOW + 1) })
+    expect(league.reveal(NOW + 2)).toMatchObject({ outcome: 'revealed', entrantIds: ['entrant'] })
+  })
+
+  it('refuses a list built to another points total than the event’s', () => {
+    const league = setup('[]')
+    league.set({ pointsBudget: 1500 })
+    expect(league.seal([])).toMatchObject({ outcome: 'wrong-budget' })
+  })
 
   it('seals a list with a restriction switched off at an event from before allowances', () => {
     expect(setup(undefined).seal(['points-limit'])).toMatchObject({ outcome: 'sealed' })
@@ -603,6 +631,9 @@ describe('leagues becoming clubs', () => {
           revealedBy: undefined,
           allowances: '[]',
           rounds: undefined,
+          pointsBudget: undefined,
+          playsAt: undefined,
+          sealBy: undefined,
         })
       }
       for (const [eventId, userId, status] of [
@@ -704,6 +735,9 @@ describe('swiss rounds', () => {
         revealedBy: 'organizer',
         allowances: '[]',
         rounds: 3,
+        pointsBudget: undefined,
+        playsAt: undefined,
+        sealBy: undefined,
       })
       for (const userId of players)
         ctx.db.leagueEventEntries.insert({

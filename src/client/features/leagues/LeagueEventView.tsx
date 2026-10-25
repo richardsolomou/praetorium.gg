@@ -19,6 +19,7 @@ import { GAME_SIZES, pointsSize } from '../../../core/battle'
 import {
   leagueRegistrationFull,
   leagueRevealChecklist,
+  leagueSealingClosed,
   leagueStage,
   leagueTableShape,
   mayRevealLeague,
@@ -52,6 +53,7 @@ import { LeagueReadiness, RevealRostersDialog } from './LeagueReadiness'
 import { LeagueBattleSkeleton, RosterChooser } from './LeagueRosterChooser'
 import { LeagueCombatDialog } from './LeagueCombatDialog'
 import { LeagueResults } from './LeagueResults'
+import { useMoment } from './EventSchedule'
 import { LeagueRounds, ownTable, swissProgress } from './LeagueRounds'
 import { TeamDispositionPanel } from './LeagueTeamDisposition'
 import { TeamWarlordPanel } from './LeagueTeamWarlord'
@@ -104,6 +106,7 @@ export function LeagueEventView({
   })
   const { data: results } = useQuery({ ...leagueResultsQuery(token, league.eventToken), enabled: Boolean(league.revealedAt) })
   const { data: gameReferences } = useQuery(gameReferencesQuery())
+  const moment = useMoment()
   const [choosing, setChoosing] = useState(Boolean(chooseRoster))
   const [sealing, setSealing] = useState<SavedRoster | null>(null)
   const [choosingBattle, setChoosingBattle] = useState(Boolean(startBattle))
@@ -233,6 +236,8 @@ export function LeagueEventView({
     choose: openRosterChooser,
     play: swissOpponent ? () => battle.mutate({ opponentId: swissOpponent }) : openBattleChooser,
     playLabel: swissOpponent ? `Start your round ${swissProgressNow.round} battle` : undefined,
+    sealingClosed: leagueSealingClosed(league, Date.now()),
+    sealBy: league.sealBy === null ? null : moment(league.sealBy),
     playing: battle.isPending,
   })
   // Once every check passes, opening the rosters is the event's next step for anyone who may, so it leads their card.
@@ -441,6 +446,7 @@ export function LeagueEventView({
         error={submit.error}
         failedRosterId={submit.variables ?? null}
         requiredLimit={ownEntry?.requiredLimit ?? null}
+        pointsBudget={league.pointsBudget}
         onClose={() => {
           if (submit.isPending) return
           submit.reset()
@@ -561,6 +567,8 @@ function entryStatus({
   choose,
   play,
   playLabel,
+  sealingClosed,
+  sealBy,
   playing,
 }: {
   league: League
@@ -581,6 +589,9 @@ function entryStatus({
   play: () => void
   /** What the play action says when it starts one battle in particular, such as a Swiss table. */
   playLabel?: string
+  /** Whether the roster deadline has passed, and when it falls, read in the viewer's timezone. */
+  sealingClosed: boolean
+  sealBy: string | null
   playing: boolean
 }): Status {
   const steps = (stage: EntryStage) => entryProgress(league, stage)
@@ -602,6 +613,7 @@ function entryStatus({
     if (!signedIn) return { title: 'Registration is open', action: { label: 'Sign in to join', to: '/sign-in' }, steps: steps('join') }
     if (ownEntry?.status === 'pending')
       return { title: 'Waiting for approval', detail: `${league.ownerName} will let you in.`, tone: 'waiting', steps: steps('join') }
+    if (sealingClosed) return { title: 'Entry has closed', detail: 'The roster deadline has passed.', tone: 'closed' }
     const rejoin = ownEntry?.status === 'rejected'
     if (registrationFull) return { title: rejoin ? `You are not in this ${noun}` : `This ${noun} is full`, tone: 'closed' }
     if (isOrganizer && !rejoin)
@@ -637,10 +649,17 @@ function entryStatus({
     }
   }
   const size = ownEntry.requiredLimit ? `${pointsSize(ownEntry.requiredLimit)} ` : ''
+  if (!revealed && !ownEntry.submitted && sealingClosed)
+    return {
+      title: 'The roster deadline has passed',
+      detail: 'Nobody can seal now, so you sit this one out.',
+      tone: 'closed',
+      steps: steps('seal'),
+    }
   if (!ownEntry.submitted)
     return {
       title: revealed ? 'Seal another roster' : `Seal your ${size}roster`,
-      detail: revealed ? 'The organizer unsealed your roster.' : hidden,
+      detail: revealed ? 'The organizer unsealed your roster.' : [hidden, sealBy ? `Seal by ${sealBy}.` : null].filter(Boolean).join(' '),
       action: { label: 'Choose a roster', icon: <FileLock2 />, onClick: choose },
       steps: steps('seal'),
     }

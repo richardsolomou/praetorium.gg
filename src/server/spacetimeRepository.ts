@@ -21,6 +21,9 @@ import { leagueRosterSharingSchema } from '../contracts/leagueRosterSharing'
 type Snapshot = NonNullable<Awaited<ReturnType<SpacetimeOperator['battleByToken']>>>
 type BattlePlayer = NonNullable<Awaited<ReturnType<SqliteAccountRepository['profileByUserId']>>> & { side: number; automated: boolean }
 type RosterSummary = Awaited<ReturnType<SpacetimeOperator['rosterSummariesByUser']>>[number]
+/** When an event is played and when its rosters must be sealed by, either unset. */
+export type LeagueSchedule = { playsAt: number | null; sealBy: number | null }
+
 export type BattleSeats = { battle: Snapshot['battle']; players: BattlePlayer[] }
 export type BattleHistory = BattleSeats & { log: Snapshot['log'] }
 
@@ -294,6 +297,8 @@ export class SpacetimeRepository {
     ownerPlays?: boolean
     clubToken?: string
     rounds?: number | null
+    pointsBudget?: number | null
+    schedule?: LeagueSchedule
     now: number
   }) {
     return this.product.leagueCommand(
@@ -349,7 +354,14 @@ export class SpacetimeRepository {
       visibility: LeagueVisibility
       admission: LeagueAdmission
       playerLimit: number | null
-      rule?: { format: TableShape; rosterLimit: number; allowances?: readonly LeagueAllowance[]; rounds?: number | null }
+      rule?: {
+        format: TableShape
+        rosterLimit: number
+        allowances?: readonly LeagueAllowance[]
+        rounds?: number | null
+        pointsBudget?: number | null
+      }
+      schedule?: LeagueSchedule
     },
   ) {
     return this.product.leagueCommand(
@@ -393,6 +405,9 @@ export class SpacetimeRepository {
         format: event.format,
         rosterLimit: event.rosterLimit,
         revealedAt: event.revealedAt,
+        pointsBudget: event.pointsBudget,
+        playsAt: event.playsAt,
+        sealBy: event.sealBy,
         entrantCount: accepted,
         currentEntrantCount: joined,
         occupiedCount: occupied,
@@ -597,6 +612,9 @@ export class SpacetimeRepository {
       currentAcceptedCount: latestAcceptedCount,
       club,
       rounds: selected.rounds,
+      pointsBudget: selected.pointsBudget,
+      playsAt: selected.playsAt,
+      sealBy: selected.sealBy,
       pairings,
       events: events.map(({ id: _id, leagueId: _leagueId, ...event }) => event),
       occupiedCount: entries.filter((entry) => entry.status !== 'rejected').length,
@@ -707,10 +725,11 @@ export class SpacetimeRepository {
           format: z.enum(TABLE_SHAPES).nullable(),
           requiredLimit: z.number().nullable(),
         }),
-        z.object({ outcome: z.enum(['missing', 'unassigned', 'wrong-limit']) }),
+        z.object({ outcome: z.enum(['missing', 'unassigned', 'wrong-limit', 'past-deadline']) }),
         z.object({ outcome: z.literal('invalid-warlords'), format: z.enum(TABLE_SHAPES).nullable() }),
         z.object({ outcome: z.literal('disposition-dropped'), disposition: z.string() }),
         z.object({ outcome: z.literal('disallowed'), message: z.string() }),
+        z.object({ outcome: z.literal('wrong-budget'), pointsBudget: z.number() }),
       ]),
     )
   }
