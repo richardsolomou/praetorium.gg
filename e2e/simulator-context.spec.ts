@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from './test'
 import { decodeSimulatorState, encodeSimulatorState, type SimulatorState } from '../src/contracts/simulatorState'
-import { addUnit, createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
+import { addUnit, createRoster, retryUntilVisible, signUp, waitForRosterSave, expectNoPageOverflow } from './account'
 import { chooseCombatUnit, openCombatControls } from './combat'
 
 declare global {
@@ -57,7 +57,7 @@ async function settled(scope: Page | Locator) {
 }
 
 async function noOverflow(page: Page, scope: Locator) {
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await expectNoPageOverflow(page)
   expect(await scope.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
 }
 

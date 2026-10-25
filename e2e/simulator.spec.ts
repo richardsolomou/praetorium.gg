@@ -8,7 +8,7 @@ import {
   isCombatCalculationRequest,
 } from './combat'
 import { expect, startUnchosen, test, type Locator, type Page } from './test'
-import { chooseUnit as chooseCatalogueUnit, retryUntilVisible } from './account'
+import { chooseUnit as chooseCatalogueUnit, retryUntilVisible, expectNoPageOverflow } from './account'
 import { waitForOfflineApp } from './offline'
 
 async function choose(page: Page, control: string, name: string) {
@@ -105,7 +105,7 @@ async function matchup(page: Page) {
 }
 
 async function noOverflow(page: Page) {
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await expectNoPageOverflow(page)
   expect(
     await page
       .locator('main section, [role=dialog], [data-slot=scroll-area-viewport]')

@@ -14,6 +14,7 @@ import {
   startBattle,
   takeTheTurn,
   uniqueName,
+  expectNoPageOverflow,
 } from './account'
 import { savedWork } from './storage'
 
@@ -233,7 +234,7 @@ async function inspectDialog(page: Page, dialog: Locator) {
     await page.setViewportSize({ width, height: 900 })
     await expect(dialog).toBeVisible()
     if (width === 390) await expect.poll(async () => (await dialog.boundingBox())?.x).toBe(0)
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expectNoPageOverflow(page)
   }
   await page.setViewportSize({ width: 1440, height: 900 })
 }

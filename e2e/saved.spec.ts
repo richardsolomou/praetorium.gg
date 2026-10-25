@@ -10,8 +10,9 @@ import {
   signUp,
   uniqueName,
   waitForRosterSave,
+  expectNoPageOverflow,
 } from './account'
-import { productOperator, productSql, userIdFor } from './storage'
+import { productOperator, productSql, userIdFor, lastPathSegment } from './storage'
 
 test('the roster library reserves its rows while the first page loads', async ({ browser, page: savedPage }) => {
   await signUp(savedPage, 'Loading')
@@ -27,7 +28,7 @@ test('the roster library reserves its rows while the first page loads', async ({
   await expect(firstFrame.getByLabel('Loading roster creation options')).toHaveCount(0)
   await firstFrame.screenshot({ path: 'test-results/loading-roster-library-no-js.png', fullPage: true })
   await firstFrame.setViewportSize({ width: 390, height: 844 })
-  expect(await firstFrame.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(firstFrame)
   await firstFrame.screenshot({ path: 'test-results/loading-roster-library-no-js-phone.png', fullPage: true })
   await firstFrameContext.close()
 
@@ -61,13 +62,13 @@ test('the roster library reserves its rows while the first page loads', async ({
     await page.keyboard.press('Escape')
     await page.screenshot({ path: 'test-results/loading-roster-library.png', fullPage: true })
     await page.setViewportSize({ width: 390, height: 844 })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await expectNoPageOverflow(page)
     await page.screenshot({ path: 'test-results/loading-roster-library-phone.png', fullPage: true })
     release()
     const row = page.locator(`[data-roster="${rosterName}"]`)
     await expect(row).toBeVisible()
     await expect(row).toContainText('Take and Hold')
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await expectNoPageOverflow(page)
     await page.screenshot({ path: 'test-results/roster-library-disposition-phone.png', fullPage: true })
     await page.unroute('**/_serverFn/**')
   } finally {
@@ -81,7 +82,7 @@ test('the roster library counts every saved list and prices more rows on demand'
   const count = page.locator('main section').last().locator('.rubric .readout')
   await expect(count).toHaveText('0')
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'First roster' })
-  const rosterId = new URL(page.url()).pathname.split('/').at(-1)!
+  const rosterId = lastPathSegment(page.url())
   await page.goto('/rosters')
   await expect(count).toHaveText('1')
   await expect(page.locator('[data-roster]')).toHaveCount(1)
@@ -123,7 +124,7 @@ test('the roster library counts every saved list and prices more rows on demand'
   await expect(page.locator('[data-roster]')).toHaveCount(20)
   await expect(page.getByRole('button', { name: 'Show more rosters' })).toBeVisible()
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   await page.screenshot({ path: 'test-results/roster-library-paged-phone.png' })
 })
 
@@ -266,7 +267,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
 
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(page.getByRole('button', { name: 'Variant 3 of 3' })).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   await page.screenshot({ path: 'test-results/roster-variants-switcher-phone.png' })
   await page.setViewportSize({ width: 1440, height: 900 })
 
@@ -347,7 +348,7 @@ test('a battle’s roster chooser tells a variant apart from its base', async ({
   expect(await points(variant)).toBeGreaterThan(await points(base))
   await page.screenshot({ path: 'test-results/roster-chooser-variants.png' })
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   await page.screenshot({ path: 'test-results/roster-chooser-variants-phone.png' })
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.keyboard.press('Escape')
@@ -438,7 +439,7 @@ test('a visitor opening the roster library sees the rosters page with nothing ke
 test('a roster saved on the root ID of a current book opens its builder from the first frame', async ({ browser, page }) => {
   await signUp(page, 'Root book')
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Root book roster' })
-  const id = new URL(page.url()).pathname.split('/').at(-1)!
+  const id = lastPathSegment(page.url())
   const [stored] = await productSql<{ catalogue_id: string }>`SELECT catalogue_id FROM rosters WHERE id = ${id}`
   await productSql`UPDATE rosters SET catalogue_id = ${stored.catalogue_id.split('~').at(-1)!} WHERE id = ${id}`
 
@@ -668,13 +669,13 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await guest.screenshot({ path: 'test-results/shared-roster-read-only.png', fullPage: true })
   await guest.setViewportSize({ width: 390, height: 844 })
   await expect(guestLoadout).toBeVisible()
-  expect(await guest.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  await expectNoPageOverflow(guest)
   expect(await guestLoadout.evaluate((pane) => pane.scrollWidth <= pane.clientWidth)).toBe(true)
   await guest.screenshot({ path: 'test-results/shared-roster-read-only-phone.png', fullPage: true })
   await guestLoadout.getByRole('button', { name: 'Back to roster' }).click()
   await guest.getByRole('button', { name: 'Roster actions' }).click()
   await expect(guest.getByRole('menuitem', { name: 'Duplicate to this device' })).toBeVisible()
-  expect(await guest.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  await expectNoPageOverflow(guest)
   await guest.screenshot({ path: 'test-results/shared-roster-actions-phone.png', fullPage: true })
   await guest.keyboard.press('Escape')
 

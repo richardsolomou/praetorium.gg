@@ -1,4 +1,5 @@
 import { expect, test } from './test'
+import { expectNoPageOverflow } from './account'
 
 for (const width of [390, 1440]) {
   test(`Marine chapter detachment navigation survives reload at ${width}px @catalogue`, async ({ page }) => {
@@ -30,6 +31,6 @@ for (const width of [390, 1440]) {
     await parentList.getByRole('link', { name: /^Gladius Task Force/ }).click()
     await expect(page).toHaveURL(`/factions/space-marines/rules/${version}/detachments/gladius-task-force`)
     await expect(page.getByRole('heading', { level: 1, name: 'Gladius Task Force', exact: true })).toBeVisible()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expectNoPageOverflow(page)
   })
 }

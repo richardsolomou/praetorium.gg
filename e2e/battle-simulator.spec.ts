@@ -11,6 +11,7 @@ import {
   startBattle,
   uniqueName,
   waitForRosterSave,
+  expectNoPageOverflow,
 } from './account'
 
 test('the battle matchup planner uses live survivors, isolates experiments, and refreshes after another tab records casualties', async ({
@@ -173,7 +174,7 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
   for (const width of [1440, 390, 900]) {
     await page.setViewportSize({ width, height: 1000 })
     if (width < 1024) await page.getByRole('tab', { name: 'Your side', exact: true }).click()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expectNoPageOverflow(page)
     await panel.getByRole('button', { name: `Open ${roster}` }).click()
     if (width === 1440) await squad.getByRole('button', { name: 'Remove a model from Intercessor Squad' }).click()
     await expect(squad.locator('[data-count="models"]')).toHaveText('4/5')
@@ -255,7 +256,7 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
     })
     const serverPage = await serverContext.newPage()
     await serverPage.goto(page.url())
-    expect(await serverPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expectNoPageOverflow(serverPage)
     await serverContext.close()
   }
 })

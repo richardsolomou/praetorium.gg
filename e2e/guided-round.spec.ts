@@ -1,7 +1,7 @@
 import { waitForOfflineApp } from './offline'
 import { expect, test } from './test'
 import { advance, advanceButton, createRoster, desktopContext, setupBattle, signUp, takeTheTurn, uniqueName } from './account'
-import { battleLog, productSql } from './storage'
+import { battleLog, productSql, lastPathSegment } from './storage'
 
 test('New Orders, discard CP and carried cards survive a complete two-player round', async ({ page, browser }) => {
   test.setTimeout(180_000)
@@ -20,7 +20,7 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
     .click()
   await expect(page.getByRole('dialog', { name: 'Your secondary missions', exact: true })).toBeVisible()
   await takeTheTurn(page)
-  const token = new URL(page.url()).pathname.split('/').at(-1)!
+  const token = lastPathSegment(page.url())
   const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
   const recorded = await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${battle.id}`
   const commands = recorded.map((command) => JSON.parse(command.body))

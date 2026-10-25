@@ -11,9 +11,10 @@ import {
   takeTheTurn,
   uniqueName,
   playTurn,
+  expectNoPageOverflow,
 } from './account'
 import { add } from './builder.harness'
-import { productSql, userIdNamed } from './storage'
+import { productSql, userIdNamed, lastPathSegment } from './storage'
 
 const GUEST = uniqueName('Sam the Guest')
 const PHONE = { width: 390, height: 844 }
@@ -23,7 +24,7 @@ const phase = (page: Page) => page.locator('[data-scoreboard] h1')
 const LIVE_MS = 3_000
 
 async function battleId(url: string) {
-  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${new URL(url).pathname.split('/').at(-1)!}`
+  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${lastPathSegment(url)}`
   if (!battle) throw new Error('Battle not found')
   return battle.id
 }
@@ -52,7 +53,7 @@ async function shot(page: Page, name: string) {
     ['phone', PHONE],
   ] as const) {
     await page.setViewportSize(size)
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(size.width)
+    await expectNoPageOverflow(page)
     await page.screenshot({ path: test.info().outputPath(`${name}-${label}.png`), fullPage: true })
   }
   await page.setViewportSize(before)

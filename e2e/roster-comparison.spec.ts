@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from './test'
-import { addUnit, createRoster, retryUntilVisible, signUp } from './account'
+import { addUnit, createRoster, retryUntilVisible, signUp, expectNoPageOverflow } from './account'
 import { holdCombatCalculations } from './combat'
 import { productOperator, userIdFor } from './storage'
 
@@ -112,7 +112,7 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   await page.setViewportSize({ width: 390, height: 844 })
   await expect.poll(async () => (await dialog.boundingBox())?.x).toBe(0)
   await expect.poll(async () => (await dialog.boundingBox())?.width).toBe(390)
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await expectNoPageOverflow(page)
   await page.screenshot({ path: 'test-results/roster-benchmarks-phone.png', animations: 'disabled' })
   await table.getByRole('button', { name: /^Intercessor Squad #1 against Necron Warriors #2:/ }).click()
   const detail = page.getByRole('dialog', { name: 'Combat simulator', exact: true }).last()
@@ -216,7 +216,7 @@ test('long matchup tables keep target headings and attacker names visible while 
     await expect.poll(async () => Math.abs((await corner.boundingBox())!.y - before.y)).toBeLessThan(2)
     await expect.poll(async () => Math.abs((await target.boundingBox())!.y - targetBefore.y)).toBeLessThan(2)
     await expect.poll(async () => Math.abs((await corner.boundingBox())!.x - before.x)).toBeLessThan(2)
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expectNoPageOverflow(page)
     await page.screenshot({ path: test.info().outputPath(`pinned-matchup-headings-${width}.png`) })
   }
 })
@@ -263,7 +263,7 @@ test('saved rosters compare every pairing, reverse direction, and open isolated 
   await page.screenshot({ path: 'test-results/roster-comparison-desktop.png', fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   await expect.poll(async () => (await comparison.boundingBox())?.width).toBeLessThanOrEqual(390)
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await expectNoPageOverflow(page)
   await page.screenshot({ path: 'test-results/roster-comparison-phone.png', fullPage: true })
   await immortalCell.click()
   const matchup = page.getByRole('dialog', { name: 'Combat simulator', exact: true })

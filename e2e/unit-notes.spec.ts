@@ -12,14 +12,13 @@ import {
   waitForRosterSave,
 } from './account'
 import { shot } from './builder.harness'
+import { lastPathSegment } from './storage'
 
 const phone = { viewport: { width: 390, height: 844 } }
 const desktop = { viewport: { width: 1440, height: 900 } }
 const SQUAD = 'Plague Marines'
 const ALPHA_NOTE = 'Hold the home objective'
 const BRAVO_NOTE = 'Screen the left flank'
-
-const rosterId = (page: Page) => new URL(page.url()).pathname.split('/').at(-1)!
 
 async function addSquads(page: Page, count: number) {
   for (let added = 0; added < count; added++) {
@@ -106,14 +105,14 @@ for (const [size, label] of [
     await shot(pack.locator('.pack-unit').first(), `test-results/unit-note-print-${label}.png`)
     await owner.getByRole('button', { name: 'Return to roster' }).click()
 
-    const original = rosterId(owner)
+    const original = lastPathSegment(owner.url())
     const opponentName = uniqueName('Opponent')
     const opponent = await (await browser.newContext(size)).newPage()
     await signUp(opponent, opponentName)
     await befriend(owner, opponent)
     const battle = await createBattle(owner, { opponent: opponentName })
     await attachRoster(owner, roster)
-    const token = new URL(battle).pathname.split('/').at(-1)!
+    const token = lastPathSegment(battle)
     const fielded = `/rosters/${original}?battle=${token}`
 
     await opponent.goto(fielded)

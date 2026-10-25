@@ -2,7 +2,7 @@ import fs from 'node:fs'
 import { join } from 'node:path'
 import { devices, expect, type Page, test } from './test'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
-import { confirmRosterSetup, createRoster, followLink, retryUntilVisible, signUp, visitorSetup } from './account'
+import { confirmRosterSetup, createRoster, followLink, retryUntilVisible, signUp, visitorSetup, expectNoPageOverflow } from './account'
 import { catalogue } from './stackEnv'
 
 test('a standalone datasheet omits detachment-only abilities', async ({ page }) => {
@@ -77,7 +77,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await sections.getByRole('link', { name: 'Rosters' }).click()
   await expect(page.getByRole('button', { name: 'Go back' })).toHaveCount(0)
   await page.setViewportSize({ width: 320, height: 568 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320)
+  await expectNoPageOverflow(page)
 
   await more.click()
   await page
@@ -134,9 +134,9 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   await expect(loadingPage.locator('[data-mobile-app-header]')).toBeVisible()
   await expect(loadingPage.locator('[data-native-app-header]')).toHaveCount(0)
   await expect(loadingPage.locator('[data-native-app-tabs]')).toBeVisible()
-  expect(await loadingPage.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(loadingPage)
   await loadingPage.setViewportSize({ width: 1024, height: 768 })
-  expect(await loadingPage.evaluate(() => document.documentElement.scrollWidth)).toBe(1024)
+  await expectNoPageOverflow(loadingPage)
   await loadingContext.close()
 
   const legacyContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
@@ -171,7 +171,7 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   await expect(page).toHaveTitle(/Take and Hold force disposition — Praetorium/)
   await expectCanonical(page, '/force-dispositions/take-and-hold')
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  await expectNoPageOverflow(page)
   await page.setViewportSize({ width: 1_440, height: 900 })
 
   await page.goto('/factions/necrons/datasheets/overlord')
@@ -329,7 +329,7 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(page.locator('a[href="/force-dispositions/take-and-hold"]')).toContainText('Take and Hold')
   await expectCanonical(page, '/force-dispositions')
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   await page.screenshot({ path: 'test-results/force-dispositions-phone.png', fullPage: true })
   await page.setViewportSize({ width: 1_440, height: 900 })
   await page.goBack()
@@ -341,7 +341,7 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(page.getByRole('heading', { name: secondaryName, exact: true })).toBeVisible()
   await expectCanonical(page, secondaryPath!)
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  await expectNoPageOverflow(page)
   await page.screenshot({ path: 'test-results/secondary-mission-mobile.png', fullPage: true })
   await page.setViewportSize({ width: 1_440, height: 900 })
 
@@ -655,7 +655,7 @@ test('account libraries share their page width and fit a phone', async ({ page }
   await page.setViewportSize({ width: 390, height: 844 })
   for (const path of ['/rosters', '/battles', '/friends', '/factions', '/missions']) {
     await page.goto(path)
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await expectNoPageOverflow(page)
   }
 })
 
@@ -708,7 +708,7 @@ test('terrain layouts show source-backed areas and measurement guidance', async 
   await expect(board.locator('text').filter({ hasText: /″$/ }).first()).toBeVisible()
   await expect(dialog.getByText('Approximate placement coordinates')).toHaveCount(0)
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   await page.screenshot({ path: 'test-results/terrain-layout-tilt-phone.png' })
 })
 
@@ -723,7 +723,7 @@ test('Tipping Point shows five layout objectives with a shared central area', as
   await expect(dialog.locator('svg g[transform^="translate(30 22)"] title').filter({ hasText: /^Objective terrain$/ })).toHaveCount(1)
   await expect(dialog.locator('svg text').filter({ hasText: /^OBJECTIVE$/ })).toHaveCount(5)
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   await page.screenshot({ path: 'test-results/tipping-point-objectives-phone.png' })
 })
 
@@ -738,7 +738,7 @@ test('Purge and Reconnaissance show two independent central objectives', async (
     )
   }
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   await page.screenshot({ path: 'test-results/purge-recon-objectives-phone.png' })
 })
 
@@ -857,7 +857,7 @@ test('a player can enter through the roster library and browse the product', asy
   await page.setViewportSize({ width: 390, height: 844 })
   await dialog.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByPlaceholder('Search factions…').fill('Necr')
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   await page.screenshot({ path: 'test-results/faction-combobox-phone.png', fullPage: true })
   await page.setViewportSize({ width: 1600, height: 900 })
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
@@ -1216,7 +1216,7 @@ test('an officer datasheet shows how many orders it can issue', async ({ page })
   await page.screenshot({ path: 'test-results/officer-orders-datasheet.png', fullPage: true })
 
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   await page.screenshot({ path: 'test-results/officer-orders-datasheet-phone.png', fullPage: true })
 })
 

@@ -1,7 +1,7 @@
 import { expect, type Page, test } from './test'
 import { addUnit, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
 import { expectNoHorizontalOverflow, shot } from './builder.harness'
-import { productOperator, userIdFor } from './storage'
+import { productOperator, userIdFor, lastPathSegment } from './storage'
 
 const UNIT = 'Immortals'
 const LOADOUT = 'Six Immortals'
@@ -9,8 +9,6 @@ const RENAMED = 'Tesla Immortals'
 const NOTE = 'Loadout note stays in its roster'
 const NICKNAME = 'Tesla Wall'
 const RETIRED = 'Retired guard'
-
-const rosterId = (page: Page) => new URL(page.url()).pathname.split('/').at(-1)!
 
 async function openPicker(page: Page) {
   const picker = page.getByLabel('Add a unit')
@@ -56,7 +54,7 @@ for (const [width, label] of [
 
     await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: uniqueName('Loadout destination') })
     const operator = await productOperator()
-    const destinationRoster = await operator.roster(rosterId(page))
+    const destinationRoster = await operator.roster(lastPathSegment(page.url()))
     await operator.saveUnitLoadout(
       crypto.randomUUID(),
       await userIdFor(account.email),
@@ -108,7 +106,7 @@ for (const [width, label] of [
       .getByRole('button', { name: `${NICKNAME} · ${UNIT}`, exact: true })
       .click()
     await expect(page.getByLabel(`${UNIT} models`)).toHaveText('6')
-    const destination = await operator.roster(rosterId(page))
+    const destination = await operator.roster(lastPathSegment(page.url()))
     expect(destination?.picks).not.toContain(NOTE)
 
     await createRoster(page, { faction: 'Orks', detachment: /War Horde/, name: uniqueName('Other army') })

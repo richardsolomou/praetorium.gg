@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from './test'
 import { befriend, createBattle, retryUntilVisible, signInAsPreview, signUp, uniqueName, sealableRoster } from './account'
-import { productSql } from './storage'
+import { productSql, lastPathSegment } from './storage'
 import type { Command } from '../src/core/battle'
 
 test.setTimeout(120_000)
@@ -37,7 +37,7 @@ test('club members choose their club at battle setup', async ({ browser }, testI
   await club.scrollIntoViewIfNeeded()
   await owner.screenshot({ path: testInfo.outputPath('club-setup.png') })
 
-  const token = new URL(battleUrl).pathname.split('/').at(-1)!
+  const token = lastPathSegment(battleUrl)
   const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
   await expect.poll(async () => (await productSql`SELECT club_id FROM club_battles WHERE battle_id = ${battle.id}`).length).toBe(1)
 
@@ -92,7 +92,7 @@ test('members who are not friends start a club game from the club page', async (
   await openNewGame(owner)
   await owner.getByRole('dialog', { name: 'New game', exact: true }).getByRole('button', { name: 'Start battle' }).click()
   await owner.waitForURL(/\/battles\/[^/]+$/)
-  const token = new URL(owner.url()).pathname.split('/').at(-1)!
+  const token = lastPathSegment(owner.url())
   const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
   await expect.poll(async () => (await productSql`SELECT club_id FROM club_battles WHERE battle_id = ${battle.id}`).length).toBe(1)
   await ownerContext.close()
@@ -166,7 +166,7 @@ test('a club seals lists for a game night and plays them from the club page', as
   const battlePath = new URL(owner.url()).pathname
 
   // Sealed games stay off the tournaments page, and their own address opens them on the club, even once played.
-  const token = new URL(clubUrl).pathname.split('/').at(-1)!
+  const token = lastPathSegment(clubUrl)
   await owner.goto('/tournaments')
   await expect(owner.getByRole('heading', { name: 'Tournaments', exact: true })).toBeVisible()
   await expect(owner.locator(`[data-league="${gameToken}"]`)).toHaveCount(0)

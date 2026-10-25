@@ -1,7 +1,7 @@
 import { expect, test } from './test'
 import { savedWork } from './storage'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
-import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
+import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, waitForRosterSave, expectNoPageOverflow } from './account'
 import {
   expectNoHorizontalOverflow,
   expectInsideHorizontalBounds,
@@ -336,7 +336,7 @@ test('native roster details use pane history without adding a route back action'
   expect(await page.evaluate(() => document.activeElement?.closest('aside[aria-label="Loadout"], [data-native-app-tabs]') !== null)).toBe(
     true,
   )
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
 
   await page.goBack()
@@ -345,7 +345,7 @@ test('native roster details use pane history without adding a route back action'
   await expect(unit).toBeVisible()
   await expect(unitButton).toBeFocused()
   await expect(page.getByRole('button', { name: 'Back to rosters' })).toHaveCount(0)
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   expect(await page.locator('[data-slot="roster-units"]').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
 
   await page.goForward()
@@ -393,7 +393,7 @@ test('portrait tablets keep roster details as a full-screen view', async ({ page
   await expect(loadout).toHaveAttribute('aria-modal', 'true')
   await expect(sections).toBeHidden()
   await expect(loadout.getByRole('button', { name: 'Back to roster' })).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(900)
+  await expectNoPageOverflow(page)
   expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
 
   await page.setViewportSize({ width: 1024, height: 768 })
@@ -437,7 +437,7 @@ test('a mixed-model squad shows its own profile instead of an optional model', a
 
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(profile).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
 })
 
@@ -522,7 +522,7 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
   await expect
     .poll(() => page.locator('[data-slot="drawer-popup"]').evaluate((element) => getComputedStyle(element).transform))
     .toBe('matrix(1, 0, 0, 1, 0, 0)')
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   expect(await compactPicker.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   await compactPicker.getByRole('button', { name: 'Close' }).click()
 
@@ -620,7 +620,7 @@ test('contained faction datasheet rows stay accessible and resize without horizo
   await rows.last().scrollIntoViewIfNeeded()
 
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   await expect(rows.last()).toBeVisible()
 })
 

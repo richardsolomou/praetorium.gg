@@ -9,6 +9,7 @@ import {
   signUp,
   uniqueName,
   waitForRosterSave,
+  expectNoPageOverflow,
 } from './account'
 
 async function expectOnboardingProgress(page: Parameters<typeof signUp>[0], resolved: number) {
@@ -129,7 +130,7 @@ test('profile lists sign-in methods and two-factor together without a notificati
   await page.screenshot({ path: 'test-results/profile-settings.png', fullPage: true })
 
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   expect((await password.boundingBox())!.y).toBeLessThan((await twoFactor.boundingBox())!.y)
   await page.screenshot({ path: 'test-results/profile-settings-phone.png', fullPage: true })
 })

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
+import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, waitForRosterSave, expectNoPageOverflow } from './account'
 import { savedWork } from './storage'
 import {
   expectInsideHorizontalBounds,
@@ -656,7 +656,7 @@ test('a model-specific weapon has the same count on its roster card and loadout'
   const card = page.locator('[data-unit="Vanguard Veteran Squad with Jump Packs"]')
   await expect(card).toContainText('4x Master-crafted Power Weapon')
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   const rosterWidths = await page.locator('[data-slot="roster-units"]').evaluate((element) => ({
     client: element.clientWidth,
     scroll: element.scrollWidth,
@@ -678,7 +678,7 @@ test('a model-specific weapon has the same count on its roster card and loadout'
   await expect(card).toContainText('5x Master-crafted Power Weapon')
 
   await loadout.getByRole('button', { name: 'Back to roster' }).click()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
 })
 
 /**
@@ -1193,7 +1193,7 @@ test('Death Guard champions expose their legal wargear', async ({ page }) => {
   await openBuilder(page, 'Death Guard', /Champions of Contagion/)
   await add(page, 'Deathshroud Terminators')
   await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(720)
+  await expectNoPageOverflow(page)
   expect(await page.locator('[data-slot="roster-units"]').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   await page
     .locator('[data-unit="Deathshroud Terminators"]')
@@ -1201,7 +1201,7 @@ test('Death Guard champions expose their legal wargear', async ({ page }) => {
     .click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(720)
+  await expectNoPageOverflow(page)
   expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   const deathshroud = page.locator('[data-unit="Deathshroud Terminators"]')
   await expect(loadout.getByLabel('Deathshroud Terminator Champion models')).toHaveText('1')
@@ -1255,7 +1255,7 @@ test('Death Guard champions expose their legal wargear', async ({ page }) => {
     .first()
     .click()
 
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(720)
+  await expectNoPageOverflow(page)
   expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   const plagueMarinesDatasheet = loadout.getByRole('link', { name: 'Open full datasheet in a new tab' })
   await expect(plagueMarinesDatasheet).toHaveAttribute('href', '/factions/death-guard/rules/mfm-1-6/datasheets/plague-marines')

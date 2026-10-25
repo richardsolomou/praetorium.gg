@@ -1,7 +1,6 @@
 import { expect, test } from './test'
 import { attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, signUp, uniqueName, waitForRosterSave } from './account'
-
-const lastPathSegment = (url: string) => new URL(url).pathname.match(/\/([^/]+)\/?$/)?.[1]
+import { lastPathSegment } from './storage'
 
 test('a fielded roster opens as the frozen read-only roster view', async ({ page }) => {
   await signUp(page, uniqueName('Snapshot'))

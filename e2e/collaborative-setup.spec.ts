@@ -11,6 +11,7 @@ import {
   uniqueName,
   waitForRosterSave,
   makeWarlord,
+  expectNoPageOverflow,
 } from './account'
 
 test('battle setup stays shared and does not wait for the other device', async ({ browser }) => {
@@ -51,7 +52,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await expect(alice.getByRole('button', { name: 'Reset setup' })).toHaveCount(0)
   await expect(alice.getByRole('button', { name: 'Delete battle' })).toHaveCount(0)
   await alice.setViewportSize({ width: 390, height: 844 })
-  expect(await alice.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(alice)
   await alice.screenshot({ path: 'test-results/setup-combined-phone.png', fullPage: true })
   await alice.setViewportSize({ width: 1440, height: 900 })
 
@@ -99,7 +100,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await expect(rosterChooserAgain.getByText('Awakened Dynasty', { exact: true }).first()).toBeVisible()
   await alice.screenshot({ path: 'test-results/setup-roster-dialog.png', fullPage: true })
   await alice.setViewportSize({ width: 390, height: 844 })
-  expect(await alice.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(alice)
   await alice.screenshot({ path: 'test-results/setup-roster-dialog-phone.png', fullPage: true })
   await alice.setViewportSize({ width: 1440, height: 900 })
   await alice.keyboard.press('Escape')
@@ -118,7 +119,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await expect(normalLayout.locator('line[marker-end]')).toHaveCount(42)
   await alice.screenshot({ path: 'test-results/setup-battlefield-dialog.png', fullPage: true })
   await alice.setViewportSize({ width: 390, height: 844 })
-  expect(await alice.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(alice)
   await alice.screenshot({ path: 'test-results/setup-battlefield-dialog-phone.png', fullPage: true })
   await alice.setViewportSize({ width: 1440, height: 900 })
   await alice.keyboard.press('Escape')
@@ -135,7 +136,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await expect(defenderChoice.getByRole('button', { name: new RegExp(bobName) })).toContainText('Attacker · deploys second')
   await bob.screenshot({ path: 'test-results/setup-defender.png', fullPage: true })
   await bob.setViewportSize({ width: 390, height: 844 })
-  expect(await bob.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(bob)
   await bob.screenshot({ path: 'test-results/setup-defender-phone.png', fullPage: true })
   await bob.setViewportSize({ width: 1440, height: 900 })
   await bob.close()
@@ -165,10 +166,10 @@ test('battle setup stays shared and does not wait for the other device', async (
   await expect(aliceArmy.getByText('0/1000 reserve points')).toBeVisible()
   await aliceArmy.getByRole('button', { name: 'Start Immortals in Strategic reserves', exact: true }).click()
   await expect(aliceArmy.getByText(/[1-9]\d*\/1000 reserve points/)).toBeVisible()
-  expect(await alice.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
+  await expectNoPageOverflow(alice)
   await alice.screenshot({ path: 'test-results/setup-reserves.png', fullPage: true })
   await alice.setViewportSize({ width: 390, height: 844 })
-  expect(await alice.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(alice)
   await alice.screenshot({ path: 'test-results/setup-reserves-phone.png', fullPage: true })
   await expect(alice.locator('[data-setup-bar]').getByRole('button', { name: 'Start battle', exact: true })).toBeDisabled()
   await expect(alice.getByRole('region', { name: 'Pre-battle rules', exact: true })).toHaveCSS('opacity', '0.4')
@@ -256,7 +257,7 @@ test('both devices settle mandatory tactical cards without racing', async ({ bro
     })
   await alice.screenshot({ path: 'test-results/setup-colosseum-measurements.png', fullPage: true })
   await alice.setViewportSize({ width: 390, height: 844 })
-  expect(await alice.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(alice)
   await alice.screenshot({ path: 'test-results/setup-colosseum-measurements-phone.png', fullPage: true })
   await alice.keyboard.press('Escape')
   await alice.screenshot({ path: 'test-results/setup-colosseum-battlefield-phone.png', fullPage: true })

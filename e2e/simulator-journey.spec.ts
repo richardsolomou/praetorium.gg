@@ -1,5 +1,15 @@
 import { expect, test } from './test'
-import { addUnit, createRoster, retryUntilVisible, signIn, signInAsPreview, signUp, uniqueName, waitForRosterSave } from './account'
+import {
+  addUnit,
+  createRoster,
+  retryUntilVisible,
+  signIn,
+  signInAsPreview,
+  signUp,
+  uniqueName,
+  waitForRosterSave,
+  expectNoPageOverflow,
+} from './account'
 import { chooseCombatUnit, combatEstimate, holdCombatCalculations } from './combat'
 
 const pairing = 'Intercessor Squad vs Necron Warriors'
@@ -62,7 +72,7 @@ test('recent simulations are accessible from signed-in home at desktop and phone
     await page.goto('/')
     const recent = page.getByRole('region', { name: 'Recent simulations', exact: true })
     await expect(recent.getByRole('link', { name: pairing, exact: true })).toBeVisible()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expectNoPageOverflow(page)
     await recent.screenshot({ path: `test-results/recent-simulations-home-${width}.png` })
     await recent.getByRole('link', { name: pairing, exact: true }).click()
     await expect(page.getByRole('combobox', { name: 'Attacker unit', exact: true })).toContainText('Intercessor Squad')
@@ -105,7 +115,7 @@ test('an invalid shared link leaves the simulator usable', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Try an example', exact: true })).toBeEnabled()
   await expect(page.locator(history)).toHaveCount(0)
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await expectNoPageOverflow(page)
   await page.screenshot({ path: 'test-results/simulator-example-phone.png', fullPage: true })
 })
 
@@ -144,7 +154,7 @@ test(
     await expect(page.getByRole('combobox', { name: 'First roster', exact: true })).toContainText('Ankh Court')
     await expect(enhanced).toBeVisible()
     await page.setViewportSize({ width: 390, height: 844 })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expectNoPageOverflow(page)
     await page.screenshot({ path: 'test-results/simulator-roster-unit-phone.png', fullPage: true })
   },
 )

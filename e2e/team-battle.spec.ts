@@ -12,6 +12,7 @@ import {
   startBattle,
   takeTheTurn,
   uniqueName,
+  expectNoPageOverflow,
 } from './account'
 import { productOperator, withAuthSql } from './storage'
 
@@ -41,7 +42,7 @@ async function inspectBattleDialog(page: Page, dialog: Locator, screenshot: stri
   await expect(dialog.getByRole('button', { name: '2v1', exact: true })).toHaveCount(0)
   await page.screenshot({ path: `test-results/${screenshot}-desktop.png`, fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   expect(await dialog.locator('[data-slot="dialog-body"]').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   await page.screenshot({ path: `test-results/${screenshot}-phone.png`, fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -265,7 +266,7 @@ test('a manual 2v2 seats two armies on each side with one shared pool', async ({
   await expect(side(host, 1).locator('[data-stat="cp"]')).toHaveCount(1)
 
   await host.setViewportSize({ width: 390, height: 844 })
-  expect(await host.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(host)
 })
 
 const sidePanels = (page: Page) => page.locator('[data-panel="player"]')

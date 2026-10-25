@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { createRoster, signUp, waitForRosterSave } from './account'
+import { createRoster, signUp, waitForRosterSave, expectNoPageOverflow } from './account'
 import { shot, expectNoHorizontalOverflow, expectNotAttachable, openBuilder, add, arrangeByRole, attach } from './builder.harness'
 
 test('enhancement choices show descriptions when rule and catalogue names differ', async ({ page }) => {
@@ -351,7 +351,7 @@ test('Canoptek Spyders keep their claws and independent wargear', async ({ page 
 
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(loadout).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   await shot(loadout, 'test-results/canoptek-spyder-wargear-phone.png')
 })

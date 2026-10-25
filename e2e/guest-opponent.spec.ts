@@ -9,14 +9,12 @@ import {
   takeTheTurn,
   uniqueName,
   playTurn,
+  expectNoPageOverflow,
 } from './account'
 import { userIdNamed } from './storage'
 
 const GUEST = 'Alex the Guest'
 const scoreboard = (page: Page) => page.getByRole('region', { name: 'Battle scoreboard' })
-const noOverflow = async (page: Page) =>
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(page.viewportSize()!.width)
-
 test('a host records a real game against a guest without an account', async ({ page }) => {
   test.setTimeout(300_000)
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -48,7 +46,7 @@ test('a host records a real game against a guest without an account', async ({ p
   await expect(page.locator('[data-stat="round"]')).toHaveText('2')
   await takeTheTurn(page)
   await page.setViewportSize({ width: 390, height: 844 })
-  await noOverflow(page)
+  await expectNoPageOverflow(page)
   await page.screenshot({ path: test.info().outputPath('battle-phone.png'), fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
 

@@ -2,6 +2,7 @@ import { waitForOfflineApp } from './offline'
 import { confirmRosterSetup, retryUntilVisible, visitorSetup } from './account'
 import { expect, test, type Locator, type Page } from './test'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
+import { lastPathSegment } from './storage'
 
 const desktop = { width: 1440, height: 900 }
 const phone = { width: 390, height: 900 }
@@ -130,7 +131,7 @@ test('converts the saved roster in place and restores its current choices', asyn
   const { productOperator } = await import('./storage')
   await signUp(page, 'Rules conversion')
   await createRoster(page, { faction: 'Adeptus Custodes', detachment: /Aquilan Shield/, name: 'Conversion roster' })
-  const id = new URL(page.url()).pathname.split('/').at(-1)!
+  const id = lastPathSegment(page.url())
   const operator = await productOperator()
   async function destination(label: string, detachment: string) {
     const dialog = page.getByRole('dialog', { name: 'Edit roster setup' })

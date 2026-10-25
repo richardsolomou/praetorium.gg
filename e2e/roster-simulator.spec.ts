@@ -1,6 +1,6 @@
 import { chooseCombatUnit, combatEstimate, closeCombatBreakdown, openCombatControls, holdCombatCalculations } from './combat'
 import { expect, test, type Page } from './test'
-import { addUnit, createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
+import { addUnit, createRoster, retryUntilVisible, signUp, waitForRosterSave, expectNoPageOverflow } from './account'
 
 async function choose(page: Page, control: string, name: string) {
   const option = page.getByRole('option', { name, exact: true })
@@ -15,7 +15,7 @@ async function choose(page: Page, control: string, name: string) {
 }
 
 async function noOverflow(page: Page) {
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await expectNoPageOverflow(page)
   expect(
     await page
       .locator('aside, [role=dialog], [data-slot=roster-units], [data-slot=scroll-area-viewport]')

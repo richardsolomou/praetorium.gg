@@ -1,6 +1,6 @@
 import { expect, test } from './test'
-import { createRoster, signUp, uniqueName, waitForRosterSave } from './account'
-import { productOperator, savedWork } from './storage'
+import { createRoster, signUp, uniqueName, waitForRosterSave, expectNoPageOverflow } from './account'
+import { productOperator, savedWork, lastPathSegment } from './storage'
 
 const LOCKED = 'This roster is locked. Unlock it to change it, or keep your changes as a new roster.'
 
@@ -8,7 +8,7 @@ test('a locked roster stays read-only until unlocked while its copies stay edita
   test.setTimeout(180_000)
   await signUp(page, uniqueName('Locked list'))
   const name = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Finished list' })
-  const id = new URL(page.url()).pathname.split('/').at(-1)!
+  const id = lastPathSegment(page.url())
   const operator = await productOperator()
   await waitForRosterSave(page, async () => {
     await page.getByLabel('Add a unit').fill('Immortals')
@@ -28,7 +28,7 @@ test('a locked roster stays read-only until unlocked while its copies stay edita
     await expect(page.getByLabel('Add a unit')).toHaveCount(0)
     await expect(page.getByRole('button', { name: 'Unit actions for Immortals' })).toHaveCount(0)
     expect((await operator.roster(id))?.locked).toBe(true)
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+    await expectNoPageOverflow(page)
     await page.screenshot({ path: test.info().outputPath(`locked-builder-${width}.png`) })
   }
 
@@ -57,7 +57,7 @@ test('a locked roster stays read-only until unlocked while its copies stay edita
   await page.getByRole('button', { name: 'Roster actions' }).click()
   await page.getByRole('menuitem', { name: 'Create variant' }).click()
   await page.waitForURL((url) => !url.pathname.endsWith(id))
-  const variantId = new URL(page.url()).pathname.split('/').at(-1)!
+  const variantId = lastPathSegment(page.url())
   await waitForRosterSave(page, () => page.getByLabel('List name').fill('Experimental variant'), 'Experimental variant')
   await expect.poll(async () => (await operator.roster(variantId))?.name).toBe('Experimental variant')
   expect((await operator.roster(id))?.name).toBe(name)
@@ -74,7 +74,7 @@ test('an edit queued offline is refused visibly after another device locks the r
   test.setTimeout(180_000)
   await signUp(page, uniqueName('Two devices'))
   const name = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Shared finished list' })
-  const id = new URL(page.url()).pathname.split('/').at(-1)!
+  const id = lastPathSegment(page.url())
   const operator = await productOperator()
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
 

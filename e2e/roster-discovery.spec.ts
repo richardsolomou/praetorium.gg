@@ -10,12 +10,10 @@ import {
   waitForRosterSave,
 } from './account'
 import { expectNoHorizontalOverflow, shot } from './builder.harness'
-import { productOperator, userIdFor } from './storage'
+import { productOperator, userIdFor, lastPathSegment } from './storage'
 
 const UNIT = 'Immortals'
 const NOTE = 'Discovery note stays with the owner'
-
-const rosterId = (page: Page) => new URL(page.url()).pathname.split('/').at(-1)!
 
 async function setAccess(page: Page, name: string, value: string) {
   await chooseRosterAction(page, 'Edit roster setup')
@@ -80,7 +78,7 @@ for (const [width, label] of [
     await createRoster(owner, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: armyName })
     await addNotedUnit(owner)
     await setAccess(owner, 'Public — listed on your profile', 'public')
-    const sourceId = rosterId(owner)
+    const sourceId = lastPathSegment(owner.url())
     const product = await productOperator()
     const source = await product.roster(sourceId)
 
@@ -112,7 +110,7 @@ for (const [width, label] of [
     }
     await card.getByRole('button', { name: `Duplicate ${armyName}` }).click()
     await reader.waitForURL((url) => /^\/rosters\/[^/]+$/.test(url.pathname))
-    const copyId = rosterId(reader)
+    const copyId = lastPathSegment(reader.url())
     expect(copyId).not.toBe(sourceId)
     await expect(reader.getByLabel('List name')).toHaveValue(`Copy of ${armyName}`)
     await expect(reader.locator('[data-roster-copied-from]')).toHaveText(`Copied from ${armyName} by ${ownerName}`)

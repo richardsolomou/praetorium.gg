@@ -2,13 +2,12 @@ import { expect, test, type Page } from './test'
 import type { LocalState } from '../src/contracts/localState'
 import { createRoster, signUp, uniqueName, waitForRosterSave } from './account'
 import { NATIVE_LOCAL_STATE_SCRIPT } from './native.harness'
-import { productOperator, savedWork } from './storage'
+import { productOperator, savedWork, lastPathSegment } from './storage'
 
 const UNIT = 'Immortals'
 const NOTE = 'Hold the home objective'
 const WAITING = /\d+ changes? waiting to sync/
 
-const rosterId = (page: Page) => new URL(page.url()).pathname.split('/').at(-1)!
 const noteField = (page: Page) => page.getByRole('region', { name: 'Note' }).getByRole('textbox', { name: 'Note', exact: true })
 
 /** The work the emulated shell holds for the signed-in account. */
@@ -87,7 +86,7 @@ for (const width of [390, 1440]) {
     await context.addInitScript({ content: NATIVE_LOCAL_STATE_SCRIPT })
     const page = await context.newPage()
     await rosterWithUnit(page, nativeWork)
-    const id = rosterId(page)
+    const id = lastPathSegment(page.url())
     await expect(page.locator('html')).toHaveAttribute('data-native-app', 'true')
 
     await openUnit(page)
@@ -107,7 +106,7 @@ for (const width of [390, 1440]) {
     const context = await browser.newContext({ viewport: { width, height: 844 } })
     const page = await context.newPage()
     await rosterWithUnit(page)
-    const id = rosterId(page)
+    const id = lastPathSegment(page.url())
     await openUnit(page)
     await expect(noteField(page)).toBeVisible()
     const other = await context.newPage()

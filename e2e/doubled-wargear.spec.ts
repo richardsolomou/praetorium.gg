@@ -1,6 +1,6 @@
 import { expect, test } from './test'
 import { addUnit, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
-import { productOperator } from './storage'
+import { productOperator, lastPathSegment } from './storage'
 import type { RosterPick } from '../src/core/roster'
 
 for (const width of [1440, 390]) {
@@ -59,7 +59,7 @@ for (const width of [1440, 390]) {
     const picker = page.getByRole('dialog', { name: 'Add units', exact: true })
     if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close', exact: true }).click()
     const operator = await productOperator()
-    const id = new URL(page.url()).pathname.split('/').at(-1)!
+    const id = lastPathSegment(page.url())
     await expect.poll(async () => (await operator.roster(id))?.picks ?? '').toContain('8fe6-8fee-a58c-2ed')
     const roster = (await operator.roster(id))!
     const picks = JSON.parse(roster.picks) as RosterPick[]

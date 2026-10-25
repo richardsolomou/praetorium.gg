@@ -55,6 +55,9 @@ export async function withAuthSql<T>(work: (database: DatabaseSync) => T, direct
   }
 }
 
+/** The id or token a page's address ends with. */
+export const lastPathSegment = (url: string | URL) => new URL(url).pathname.split('/').at(-1)!
+
 export async function userIdFor(email: string, directory = root) {
   const user = await withAuthSql(
     (database) => database.prepare('SELECT id FROM user WHERE email = ?').get(email) as { id: string } | undefined,
@@ -104,7 +107,7 @@ export async function productSql<T extends Record<string, unknown> = Record<stri
 
 /** Appends commands to the open battle's log, for journeys that only need to reach a later state. */
 export async function battleLog(page: Page) {
-  const token = new URL(page.url()).pathname.split('/').at(-1)!
+  const token = lastPathSegment(page.url())
   const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
   if (!battle) throw new Error('Battle not found')
   const commands = await productSql<{ seq: number; body: string }>`SELECT seq, body FROM commands WHERE battle_id = ${battle.id}`

@@ -13,6 +13,7 @@ import {
 } from './account'
 import { add, attach } from './builder.harness'
 import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest } from '../mobile/src/nativeActions'
+import { lastPathSegment } from './storage'
 
 test('a full saved army prints selected equipment, both detachments and every page', async ({ page }, testInfo) => {
   await signInAsPreview(page)
@@ -83,7 +84,7 @@ test('a full saved army prints selected equipment, both detachments and every pa
   const battleUrl = await createBattle(page, { practice: true })
   await attachRoster(page, name)
   await attachRoster(page, name, { forPlayer: PRACTICE_OPPONENT })
-  await page.goto(`/rosters/preview-necrons-cursed-skyshroud?battle=${new URL(battleUrl).pathname.split('/').at(-1)}`)
+  await page.goto(`/rosters/preview-necrons-cursed-skyshroud?battle=${lastPathSegment(battleUrl)}`)
   await expect(page.locator('[data-unit]')).toHaveCount(13)
   await expect(page.locator('[data-stat="points"]')).toHaveText(points)
   await expect(page.locator('[data-unit="Immortals"]')).toContainText('10x Gauss blaster')
@@ -157,7 +158,7 @@ test('a saved mixed-equipment pack agrees with export and the fielded army', asy
   await signUp(page, uniqueName('Print mixed equipment'))
   const name = await createRoster(page, { faction: 'Death Guard', detachment: /Champions of Contagion/, name: 'Mixed equipment' })
   await waitForRosterSave(page, () => add(page, 'Plague Marines'))
-  const rosterId = new URL(page.url()).pathname.split('/').at(-1)!
+  const rosterId = lastPathSegment(page.url())
   const card = page.locator('[data-unit="Plague Marines"]')
   await card.getByRole('button', { name: /^Plague Marines/ }).click()
   const loadout = page.locator('aside[aria-label="Loadout"]')
@@ -192,7 +193,7 @@ test('a saved mixed-equipment pack agrees with export and the fielded army', asy
   const battleUrl = await createBattle(page, { practice: true })
   await attachRoster(page, name)
   await attachRoster(page, name, { forPlayer: PRACTICE_OPPONENT })
-  await page.goto(`/rosters/${rosterId}?battle=${new URL(battleUrl).pathname.split('/').at(-1)}&print=true`)
+  await page.goto(`/rosters/${rosterId}?battle=${lastPathSegment(battleUrl)}&print=true`)
   await expect(page.locator('html')).toHaveAttribute('data-printed-cards', '1')
   await expect(page.locator('[data-battle-reference-pack]')).toHaveCount(0)
   const recorded = page.locator('[data-unit="Plague Marines"]')

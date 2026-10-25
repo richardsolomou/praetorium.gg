@@ -1,5 +1,14 @@
 import { expect, test, type Page } from './test'
-import { attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, setupStep, signUp, startBattle } from './account'
+import {
+  attachRoster,
+  createBattle,
+  createRoster,
+  PRACTICE_OPPONENT,
+  setupStep,
+  signUp,
+  startBattle,
+  expectNoPageOverflow,
+} from './account'
 import { chooseCombatUnit } from './combat'
 
 // Controls transition their font size, so measuring before the transitions finish reads the old layout.
@@ -233,7 +242,7 @@ test.describe('a touch device', () => {
     await page.getByRole('menuitem', { name: 'My profile' }).click()
     await expect(page.getByRole('tab', { name: 'Collection' })).toBeVisible()
     await doubleText(page)
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await expectNoPageOverflow(page)
 
     await page.goto('/rosters')
     const views = page.getByRole('navigation', { name: 'Rosters' })

@@ -13,7 +13,7 @@ import {
   startBattle,
   advance,
 } from './account'
-import { battleLog, productOperator, savedWork, userIdFor } from './storage'
+import { battleLog, productOperator, savedWork, userIdFor, lastPathSegment } from './storage'
 import { chooseCombatUnit } from './combat'
 
 test.use({ actionTimeout: 15_000 })
@@ -91,7 +91,7 @@ test('offline roster edits survive a cold reopen and sync after reconnecting', a
   await signUp(page, uniqueName('Plane army'))
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Before flight' })
   const url = page.url()
-  const id = new URL(url).pathname.split('/').at(-1)!
+  const id = lastPathSegment(url)
   const operator = await productOperator()
   await waitForOfflineApp(page)
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
@@ -136,7 +136,7 @@ test('a roster still waiting to sync opens in a new tab and a missing one shows 
   if ((await dispositions.count()) > 1) await dispositions.first().click()
   await dialog.getByRole('button', { name: 'Create roster' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
-  const id = new URL(page.url()).pathname.split('/').at(-1)!
+  const id = lastPathSegment(page.url())
   const name = await page.getByLabel('List name').inputValue()
   expect(await (await productOperator()).roster(id)).toBeFalsy()
   const tab = await context.newPage()
@@ -150,7 +150,7 @@ test('a lost save response retains its identity and later edits sync in order', 
   test.setTimeout(240_000)
   await signUp(page, uniqueName('Intermittent connection'))
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Original army' })
-  const id = new URL(page.url()).pathname.split('/').at(-1)!
+  const id = lastPathSegment(page.url())
   const operator = await productOperator()
   await waitForOfflineApp(page)
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
@@ -203,7 +203,7 @@ test('an offline practice battle and its commands survive reopening and sync tog
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
   await context.setOffline(true)
   const url = await createBattle(page, { practice: true })
-  const token = new URL(url).pathname.split('/').at(-1)!
+  const token = lastPathSegment(url)
   await setupStep(page, 'Armies')
   const chooser = page.getByRole('button', { name: /^(Choose|Change) roster/ }).first()
   await expect(chooser).toBeVisible({ timeout: 15_000 })
@@ -264,7 +264,7 @@ test('a guest battle created offline keeps the guest’s seat when it syncs', as
   await waitForOfflineApp(page)
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
   await context.setOffline(true)
-  const token = new URL(await createBattle(page, { guest: 'Offline Guest' })).pathname.split('/').at(-1)!
+  const token = lastPathSegment(await createBattle(page, { guest: 'Offline Guest' }))
   await attachRoster(page, 'Guest army', { forPlayer: 'Offline Guest' })
   await context.setOffline(false)
   await page.evaluate(() => window.dispatchEvent(new Event('online')))
@@ -290,7 +290,7 @@ test('a battle link opened before its offline creation syncs opens once the batt
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
   await context.setOffline(true)
   const url = await createBattle(page, { opponent: opponentName })
-  const token = new URL(url).pathname.split('/').at(-1)!
+  const token = lastPathSegment(url)
   expect(await (await productOperator()).battleByToken(token)).toBeUndefined()
 
   await opponent.goto(url)
@@ -318,7 +318,7 @@ test('a battle conflict awaiting review does not stop connected play', async ({ 
     now: Date.now(),
   })
   const url = await createBattle(page, { practice: true })
-  const token = new URL(url).pathname.split('/').at(-1)!
+  const token = lastPathSegment(url)
   await attachRoster(page, 'Flight army')
   await attachRoster(page, 'Flight army', { forPlayer: 'Practice Opponent' })
   await startBattle(page)
@@ -343,7 +343,7 @@ test('conflicting roster edits stay saved and export before choosing the server 
   test.setTimeout(240_000)
   await signUp(page, uniqueName('Offline conflict'))
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Original list' })
-  const id = new URL(page.url()).pathname.split('/').at(-1)!
+  const id = lastPathSegment(page.url())
   const operator = await productOperator()
   await waitForOfflineApp(page)
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)

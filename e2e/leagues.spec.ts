@@ -1,8 +1,18 @@
 import { recordEvents } from './telemetry.harness'
 import { expect, test, type Locator, type Page } from './test'
 import { z } from 'zod'
-import { confirmRosterSetup, befriend, createRoster, uniqueName, signUp, waitForRosterSave, makeWarlord, sealableRoster } from './account'
-import { productOperator, productSql, userIdFor, withAuthSql, userIdNamed } from './storage'
+import {
+  confirmRosterSetup,
+  befriend,
+  createRoster,
+  uniqueName,
+  signUp,
+  waitForRosterSave,
+  makeWarlord,
+  sealableRoster,
+  expectNoPageOverflow,
+} from './account'
+import { productOperator, productSql, userIdFor, withAuthSql, userIdNamed, lastPathSegment } from './storage'
 import { holdCombatCalculations } from './combat'
 import type { Command } from '../src/core/battle'
 
@@ -22,7 +32,7 @@ test('players can decline and publish their original league roster across device
   const armyName = uniqueName('The revealed army')
   await sealableRoster(owner, armyName)
   const savedUrl = owner.url()
-  const savedId = new URL(savedUrl).pathname.split('/').at(-1)!
+  const savedId = lastPathSegment(savedUrl)
   const product = await productOperator()
   const saved = (await product.roster(savedId))!
   await product.setRosterVisibility(savedId, saved.userId, 'private', Date.now())
@@ -89,7 +99,7 @@ test('players can decline and publish their original league roster across device
   await expect(sharing).toContainText('including changes since sealing and future edits')
   await sharing.getByRole('button', { name: 'Make public', exact: true }).click()
   await expect(sharing).toHaveCount(0)
-  const leagueToken = new URL(leagueUrl).pathname.split('/').at(-1)!
+  const leagueToken = lastPathSegment(leagueUrl)
   const { event } = (await product.leagueByToken(leagueToken))!
   const publication = await product.leagueRosterSharing(leagueToken, event.token, saved.userId)
   const sharedId = publication!.roster.id
@@ -199,7 +209,7 @@ test('revealed rosters compare every unit using frozen loadouts and preserve lea
   await expect(table).not.toContainText('Skorpekh Destroyers')
   await expect(table.getByRole('columnheader').nth(2)).toContainText('Lokhust Destroyers')
   await owner.setViewportSize({ width: 390, height: 844 })
-  expect(await owner.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await expectNoPageOverflow(owner)
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   const cachedGate = await holdCombatCalculations(owner)
   await plan.click()
@@ -498,7 +508,7 @@ test('a Swiss tournament pairs its rounds and ranks the tables by match points',
   await owner.waitForURL(/\/battles\/[^/]+$/)
 
   // Settle the table in its log, as other specs do: the rounds are under test, not the game.
-  const token = new URL(owner.url()).pathname.split('/').at(-1)!
+  const token = lastPathSegment(owner.url())
   const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
   const seats = await productSql<{ user_id: string; side: number }>`SELECT user_id, side FROM battle_users WHERE battle_id = ${battle.id}`
   const [first, second] = seats.toSorted((left, right) => left.side - right.side).map((seat) => seat.user_id)
@@ -802,7 +812,7 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   await submitLeagueCreation(page, create)
   // An organizer who plays is entered by creating the event, so the first thing they can do is seal a list.
   await expect(page.getByRole('button', { name: 'Choose a roster' })).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
+  await expectNoPageOverflow(page)
   const initialResponse = await page.request.get(page.url())
   expect(await initialResponse.text()).not.toContain(rosterName)
   await page.reload()
@@ -821,14 +831,14 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   await expect(page.getByRole('alert')).toHaveText('fix roster errors before using it: Army: needs a Warlord')
   await expect(chooser.getByRole('link', { name: `Edit ${rosterName}` })).toHaveAttribute('href', /^\/rosters\/[^/]+$/)
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.keyboard.press('Escape')
 
   await expect(page.locator(`[data-person="${ownerName}"]`)).toBeVisible()
 
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
 })
 
 for (const { rules, status } of [
@@ -873,7 +883,7 @@ for (const { rules, status } of [
     await page.locator(`[data-unit="${unit}"]`).getByRole('button', { name: unit, exact: true }).click()
     await makeWarlord(page, unit)
     const operator = await productOperator()
-    const saved = (await operator.roster(new URL(page.url()).pathname.split('/').at(-1)!))!
+    const saved = (await operator.roster(lastPathSegment(page.url())))!
     await page.goto('/tournaments')
     const create = await openLeagueCreation(page)
     await create.getByLabel('Name').fill(uniqueName('Rules league'))
@@ -884,7 +894,7 @@ for (const { rules, status } of [
     await page.reload()
     const entry = page.locator(`[data-person="${ownerName}"]`)
     await expect(entry.getByText('Roster sealed', { exact: true })).toBeVisible()
-    const leagueToken = new URL(page.url()).pathname.split('/').at(-1)!
+    const leagueToken = lastPathSegment(page.url())
     const sealed = await operator.leagueRosters(leagueToken, saved.userId)
     expect(JSON.parse(sealed!.entry.rosterSnapshot!).built.catalogueId).toBe(saved.catalogueId)
     await revealEvent(page)
@@ -910,7 +920,7 @@ test('only a changed roster in an open league event offers replacement', async (
   await join(page)
   await sealOwnRoster(page, 'Original league list')
 
-  const leagueToken = new URL(page.url()).pathname.split('/').at(-1)!
+  const leagueToken = lastPathSegment(page.url())
   await page.goto(`/tournaments/${leagueToken}`)
   await expect(page.getByRole('heading', { name: 'Your roster is sealed' })).toBeVisible()
   const settings = await openEventSettings(page)
@@ -970,7 +980,7 @@ test('only a changed roster in an open league event offers replacement', async (
   await expect(update).toHaveCount(0)
   await waitForRosterSave(page, () => page.getByLabel('List name').fill('Updated league list'), 'Updated league list')
   await expect(update).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   const footerHeight = (await footer.boundingBox())?.height
   await update.click()
   await expect(page.getByText('Your changes are not in the sealed roster yet.')).toBeVisible()
@@ -1173,7 +1183,7 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   await expect(unit.getByText('Mark of the Nekrosor', { exact: true })).toBeVisible()
   await guest.locator('[data-unit="Lokhust Destroyers"]').getByRole('button', { name: 'Lokhust Destroyers', exact: true }).click()
   await expect(unit.getByText('Deepening Madness', { exact: true })).toBeVisible()
-  expect(await guest.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
+  await expectNoPageOverflow(guest)
 
   const rosterUrl = guest.url()
   const lokhustButton = guest.locator('[data-unit="Lokhust Destroyers"]').getByRole('button', {
@@ -1182,11 +1192,11 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   })
   await guest.setViewportSize({ width: 390, height: 844 })
   const rosterUnits = guest.locator('[data-slot="roster-units"]')
-  expect(await guest.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(guest)
   expect(await rosterUnits.evaluate((element) => element.scrollWidth)).toBe(await rosterUnits.evaluate((element) => element.clientWidth))
   await expect(unit).toHaveCSS('position', 'fixed')
   await expect(unit.getByText('Deepening Madness', { exact: true })).toBeVisible()
-  expect(await guest.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(guest)
   expect(await unit.evaluate((element) => element.scrollWidth)).toBe(await unit.evaluate((element) => element.clientWidth))
 
   await guest.goBack()
@@ -1245,7 +1255,7 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   await submitLeagueCreation(owner, create)
   const leagueUrl = new URL(owner.url())
   leagueUrl.search = ''
-  const leagueToken = leagueUrl.pathname.split('/').at(-1)
+  const leagueToken = lastPathSegment(leagueUrl)
   if (!leagueToken) throw new Error('The created league URL has no token.')
   let organizer = owner.locator('main header').getByText('Organized by', { exact: true }).locator('..')
   await expectOrganizerAvatar(organizer, ownerName)
@@ -1372,7 +1382,7 @@ test('a tournament runs one event, and its old league address still finds it', a
   await expect(owner.locator('[data-check="places"]')).toContainText('Accept at least one player.')
   const leagueUrl = new URL(owner.url())
   leagueUrl.search = ''
-  const leagueToken = leagueUrl.pathname.split('/').at(-1)
+  const leagueToken = lastPathSegment(leagueUrl)
   if (!leagueToken) throw new Error('The created league URL has no token.')
 
   await join(owner)
@@ -1396,7 +1406,7 @@ test('a tournament runs one event, and its old league address still finds it', a
 
   await owner.setViewportSize({ width: 390, height: 844 })
   await owner.goto(leagueUrl.toString())
-  expect(await owner.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(owner)
 
   await ownerContext.close()
   await entrantContext.close()
@@ -1416,7 +1426,7 @@ test('an organizer adds friends to an event without waiting for them to ask', as
   await create.getByLabel('Player limit').fill('2')
   await submitLeagueCreation(owner, create)
   const leagueUrl = owner.url()
-  const leagueToken = new URL(leagueUrl).pathname.split('/').at(-1)
+  const leagueToken = lastPathSegment(leagueUrl)
   if (!leagueToken) throw new Error('The created league URL has no token.')
 
   // The organizer holds one of the two places, so only one friend can be picked.
@@ -1565,7 +1575,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await rules.getByRole('button', { name: 'Save changes' }).click()
   await expect(rules).toBeHidden()
   const leagueUrl = owner.url()
-  const leagueToken = new URL(leagueUrl).pathname.split('/').at(-1)
+  const leagueToken = lastPathSegment(leagueUrl)
   if (!leagueToken) throw new Error('The created team league URL has no token.')
 
   await join(owner)
@@ -1834,7 +1844,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await submitLeagueCreation(owner, create)
   await expect(owner.locator('main header').getByText(/^Doubles ·/)).toBeVisible()
   const leagueUrl = owner.url()
-  const leagueToken = new URL(leagueUrl).pathname.split('/').at(-1)
+  const leagueToken = lastPathSegment(leagueUrl)
   if (!leagueToken) throw new Error('The created doubles league URL has no token.')
 
   await join(owner)

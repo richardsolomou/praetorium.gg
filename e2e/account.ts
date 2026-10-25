@@ -4,7 +4,7 @@ import { expect } from '@playwright/test'
 import { PHASES } from '../src/core/battle'
 import type { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { PREVIEW_EMAIL, PREVIEW_PASSWORD } from '../scripts/seedPreview'
-import { productOperator, savedWork, userIdFor } from './storage'
+import { lastPathSegment, productOperator, savedWork, userIdFor } from './storage'
 
 export const desktopContext = { viewport: { width: 1440, height: 900 } } satisfies BrowserContextOptions
 
@@ -656,6 +656,11 @@ export async function scrollSearchResultIntoView(page: Page, result: Locator) {
   }).toPass({ timeout: 15000 })
 }
 
+/** The page is no wider than its viewport; a failure shows by how much it overflows. */
+export async function expectNoPageOverflow(page: Page) {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
+}
+
 /** The smallest Necrons list an event will seal, a Skorpekh Lord as its Warlord, and its roster id. */
 export async function sealableRoster(page: Page, name: string, { size, extraUnit }: { size?: RegExp; extraUnit?: string } = {}) {
   await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name, size })
@@ -672,7 +677,7 @@ export async function sealableRoster(page: Page, name: string, { size, extraUnit
         .click(),
     )
   }
-  return new URL(page.url()).pathname.split('/').at(-1)!
+  return lastPathSegment(page.url())
 }
 
 /** The first eligible character a list adds is its Warlord already, so only another one needs choosing. */

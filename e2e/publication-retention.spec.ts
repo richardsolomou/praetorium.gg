@@ -13,11 +13,11 @@ import {
   waitForRosterSave,
   sealableRoster,
 } from './account'
-import { productOperator, productSql, savedWork, withAuthSql, userIdNamed } from './storage'
+import { productOperator, productSql, savedWork, withAuthSql, userIdNamed, lastPathSegment } from './storage'
 
 test.setTimeout(300_000)
 
-const tokenOf = (url: string) => new URL(url).pathname.split('/').at(-1)!
+const tokenOf = (url: string) => lastPathSegment(url)
 const playedCount = (page: Page) => page.locator('[data-service-record] [data-record-battles]')
 
 async function collectionAndFavourite(page: Page, userId: string) {

@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { befriend, createBattle, createRoster, setupBattle, signUp, uniqueName } from './account'
+import { befriend, createBattle, createRoster, setupBattle, signUp, uniqueName, expectNoPageOverflow } from './account'
 
 test('a visitor browses public battles and opens a spectator view on a phone and a desktop', async ({ page, browser }) => {
   const hostContext = await browser.newContext()
@@ -21,7 +21,7 @@ test('a visitor browses public battles and opens a spectator view on a phone and
     await expect(page.getByRole('link', { name: 'Sign in to play' })).toHaveAttribute('href', '/sign-in?next=%2Fbattles')
     await expect(page.getByRole('button', { name: 'New battle', exact: true })).toHaveCount(0)
     await expect(page.locator(`[data-battle-shelf="Public games"] article > a[href="${battlePath}"]`)).toBeVisible()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+    await expectNoPageOverflow(page)
 
     await page.locator(`[data-battle-shelf="Public games"] article > a[href="${battlePath}"]`).click()
     await expect(page.getByRole('region', { name: 'Battle scoreboard' })).toBeVisible()
@@ -78,7 +78,7 @@ test("a signed-in player's battles page lists their own, their friends' or every
     await page.setViewportSize({ width, height: 900 })
     await expect(page.locator(`[data-battle-shelf="In progress"] a${own}`)).toBeVisible()
     await expect.poll(sections).toBe(1)
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+    await expectNoPageOverflow(page)
   }
   await page.setViewportSize({ width: 1440, height: 900 })
 
@@ -95,7 +95,7 @@ test("a signed-in player's battles page lists their own, their friends' or every
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await expect(page.locator(`[data-battle-shelf="Friends' games"] a${watched}`)).toBeVisible()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+    await expectNoPageOverflow(page)
   }
   await hostContext.close()
   await guestContext.close()

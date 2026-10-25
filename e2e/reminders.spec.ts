@@ -17,6 +17,7 @@ import {
   waitForRosterSave,
   makeWarlord,
   saveAlert,
+  expectNoPageOverflow,
 } from './account'
 
 test('roster reminders cover selected rules and advances from another device', async ({ browser }) => {
@@ -49,7 +50,7 @@ test('roster reminders cover selected rules and advances from another device', a
   const enhancements = page.getByRole('group', { name: 'Plasmancer Enhancements' })
   await waitForRosterSave(page, () => enhancements.getByRole('button', { name: 'Select Nether-realm Casket' }).click())
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  await expectNoPageOverflow(page)
   expect(await enhancements.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   await page.setViewportSize(desktopContext.viewport)
   const enhancementAlert = enhancements.getByLabel('Set alert for Nether-realm Casket')
@@ -89,7 +90,7 @@ test('roster reminders cover selected rules and advances from another device', a
 
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(editor).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  await expectNoPageOverflow(page)
   expect(await editor.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   await editor.getByRole('button', { name: 'Save alert' }).scrollIntoViewIfNeeded()
   await expect(editor.getByRole('button', { name: 'Save alert' })).toBeVisible()
@@ -122,7 +123,7 @@ test('roster reminders cover selected rules and advances from another device', a
   await page.getByRole('tab', { name: 'Battle', exact: true }).click()
   await page.getByRole('button', { name: 'Battle options' }).click()
   await expect(actionReminders).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  await expectNoPageOverflow(page)
   await page.keyboard.press('Escape')
   await expect(actionReminders).toBeHidden()
   await page.setViewportSize(desktopContext.viewport)
@@ -138,7 +139,7 @@ test('roster reminders cover selected rules and advances from another device', a
   await expect(reminder).toContainText('One friendly unit within range of one objective')
   await expect(reminder).toContainText('Start of your Shooting phase')
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  await expectNoPageOverflow(page)
   expect(await reminder.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
   await page.setViewportSize(desktopContext.viewport)
   await reminder.getByRole('button', { name: 'Hide Living Lightning for a period' }).click()
@@ -162,7 +163,7 @@ test('roster reminders cover selected rules and advances from another device', a
   await expect(reminder).toContainText("Start of opponent's Fight phase")
 
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  await expectNoPageOverflow(page)
   expect(await reminder.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
 
   const opponentReminder = opponent.getByRole('dialog', { name: 'Battle reminder' })
@@ -197,7 +198,7 @@ test('round alerts fire once at both boundaries when your opponent takes the fir
   await page.getByRole('option', { name: 'Start of round', exact: true }).click()
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expectNoPageOverflow(page)
   }
   await page.setViewportSize(desktopContext.viewport)
   await saveAlert(editor, 'Battle Focus')
@@ -222,7 +223,7 @@ test('round alerts fire once at both boundaries when your opponent takes the fir
   await expect(reminder.getByRole('heading', { name: 'Battle Focus', exact: true })).toBeVisible()
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expectNoPageOverflow(page)
   }
   await page.setViewportSize(desktopContext.viewport)
   await reminder.getByRole('button', { name: 'Dismiss', exact: true }).click()
@@ -334,7 +335,7 @@ for (const scenario of [
     }
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 900 })
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+      await expectNoPageOverflow(page)
     }
     await saveAlert(editor, scenario.ability)
     await page.setViewportSize(desktopContext.viewport)

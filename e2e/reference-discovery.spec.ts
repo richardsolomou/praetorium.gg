@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from './test'
-import { chooseUnit, confirmRosterSetup, retryUntilVisible, signUp, waitForRosterSave } from './account'
+import { chooseUnit, confirmRosterSetup, retryUntilVisible, signUp, waitForRosterSave, expectNoPageOverflow } from './account'
 import { decodeSimulatorState } from '../src/contracts/simulatorState'
 
 const desktop = { width: 1440, height: 900 }
@@ -21,7 +21,7 @@ test('the prepared reference API includes Brood Brother Auxilia', { tag: '@catal
   for (const viewport of [desktop, phone]) {
     await page.setViewportSize(viewport)
     await expect(page.getByRole('heading', { level: 1, name: 'Brood Brother Auxilia', exact: true })).toBeVisible()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expectNoPageOverflow(page)
     await page.screenshot({ path: testInfo.outputPath(`prepared-detachment-${viewport.width}.png`), fullPage: true })
   }
 })
@@ -41,7 +41,7 @@ test('faction search explains structured matches', async ({ page }) => {
     await expect(technomancer).toContainText('Matches Cryptek keyword · Staff of light weapon')
     await expect(technomancer.locator('mark')).toHaveText(['Cryptek', 'Staff'])
     await page.screenshot({ path: `test-results/reference-search-${viewport.width}.png`, fullPage: true })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expectNoPageOverflow(page)
   }
 
   for (const viewport of [phone, desktop]) {
@@ -92,7 +92,7 @@ test('archived reference identities remain visible in the simulator', async ({ p
       await expect(selected).toContainText(source.name)
       await expect(selected.locator(`[data-rules-version="${source.edition}"]`)).toBeVisible()
       expect(new URL(page.url()).searchParams.get('s')).toBe(state)
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+      await expectNoPageOverflow(page)
       await page.screenshot({ path: `test-results/reference-simulator-${source.edition}-${viewport.width}.png`, fullPage: true })
     }
     await page.setViewportSize(desktop)
@@ -154,7 +154,7 @@ test('reference roster choices distinguish saved rules versions', async ({ page 
     await expect(chooser.getByRole('link')).toHaveCount(2)
     await expect(chooser.locator(`a[href^="${current}?"]`)).toContainText('MFM 1.6 · Current')
     await expect(archivedChoice).toContainText('MFM 1.5 · Archived')
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expectNoPageOverflow(page)
     await page.screenshot({ path: `test-results/reference-roster-chooser-${viewport.width}.png`, fullPage: true })
   }
   await page.setViewportSize(desktop)

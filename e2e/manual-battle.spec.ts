@@ -1,11 +1,19 @@
 import { expect, test, type Page } from './test'
-import { PRACTICE_OPPONENT, advance, attachRoster, createBattle, createRoster, setupStep, signUp, uniqueName } from './account'
+import {
+  PRACTICE_OPPONENT,
+  advance,
+  attachRoster,
+  createBattle,
+  createRoster,
+  setupStep,
+  signUp,
+  uniqueName,
+  expectNoPageOverflow,
+} from './account'
 import { battleLog } from './storage'
 
 const scoreboard = (page: Page) => page.getByRole('region', { name: 'Battle scoreboard' })
 const panel = (page: Page, side: number) => page.locator(`[data-panel="player"][data-side="${side}"]`)
-const noOverflow = async (page: Page, width: number) => expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
-
 test('a table keeps score by hand in a manually tracked battle', async ({ page }) => {
   test.setTimeout(240_000)
   const desktop = { width: 1440, height: 900 }
@@ -34,11 +42,11 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
     if ((await first.getAttribute('aria-pressed')) !== 'true') await first.click({ timeout: 1_000 })
     await expect(first).toHaveAttribute('aria-pressed', 'true', { timeout: 1_000 })
   }).toPass({ timeout: 20_000 })
-  await noOverflow(page, desktop.width)
+  await expectNoPageOverflow(page)
   await page.setViewportSize(phone)
   await setupStep(page, 'First turn')
   await expect(first).toHaveAttribute('aria-pressed', 'true')
-  await noOverflow(page, phone.width)
+  await expectNoPageOverflow(page)
   await page.setViewportSize(desktop)
   await page.getByRole('button', { name: 'Start battle' }).click()
 
@@ -72,7 +80,7 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
   await page.getByRole('button', { name: 'Add note' }).click()
   await expect(page.locator('[data-battle-report-scroll]')).toContainText(`notes: ${note}`)
   await expect(page.locator('[data-battle-report-scroll]')).not.toContainText('gain 1 CP')
-  await noOverflow(page, desktop.width)
+  await expectNoPageOverflow(page)
 
   await page.setViewportSize(phone)
   await page.getByRole('tab', { name: 'Your side' }).click()
@@ -90,7 +98,7 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
   await page.getByRole('tab', { name: 'Battle' }).click()
   await expect(page.locator('[data-battle-report-scroll]')).toContainText(`notes: ${note}`)
   await expect(page.locator('[data-battle-report-scroll]')).not.toContainText('gain 1 CP')
-  await noOverflow(page, phone.width)
+  await expectNoPageOverflow(page)
   await page.setViewportSize(desktop)
 
   for (let step = 0; step < 12; step += 1) await advance(page)
@@ -127,7 +135,7 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
     await page.reload()
     await expect(teams.locator('dl')).toHaveText(`${host}5 VP10 BP${PRACTICE_OPPONENT}6 VP10 BP`)
     await expect(scoreboard(page)).toContainText(`${PRACTICE_OPPONENT} wins`)
-    await noOverflow(page, viewport.width)
+    await expectNoPageOverflow(page)
   }
 
   await page.goto('/battles')

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { createBattle, createRoster, followLink, PRACTICE_OPPONENT, setupBattle, signUp, uniqueName } from './account'
+import { createBattle, createRoster, followLink, PRACTICE_OPPONENT, setupBattle, signUp, uniqueName, expectNoPageOverflow } from './account'
 import { productSql, withAuthSql } from './storage'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
 
@@ -71,7 +71,7 @@ test('offers a secondary account-creation button below sign-in', async ({ page }
   await expect(page.getByLabel('Your name')).toHaveCount(0)
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+    await expectNoPageOverflow(page)
   }
 })
 
@@ -175,7 +175,7 @@ test.describe('the featured battle', () => {
   test('the home page fits a phone at both signed-out and signed-in widths', async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await featurePreviewBattle(page, 'preview-casual-doubles')
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await expectNoPageOverflow(page)
 
     const featuredBattle = page.locator('[data-home-featured]')
     for (const [first, second] of [
@@ -192,7 +192,7 @@ test.describe('the featured battle', () => {
     await signUp(page, uniqueName('Narrow'))
     await page.goto('/')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await expectNoPageOverflow(page)
   })
 
   test('a finished featured battle omits the repeated result', async ({ page }, testInfo) => {
@@ -239,7 +239,7 @@ test('offers native notification permission on home and retries device setup', a
 
   const offer = page.getByRole('region', { name: 'Notifications' })
   await expect(offer.getByRole('button', { name: 'Allow notifications' })).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
   await page.screenshot({ path: 'test-results/home-notification-offer.png' })
 
   await offer.getByRole('button', { name: 'Not now' }).click()
@@ -307,7 +307,7 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     expect((await idleHistory.boundingBox())!.x).toBeLessThan((await host.locator('[data-home-rosters]').boundingBox())!.x)
     await host.setViewportSize({ width: 390, height: 844 })
     expect((await host.locator('[data-home-rosters]').boundingBox())!.y).toBeLessThan((await idleHistory.boundingBox())!.y)
-    expect(await host.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await expectNoPageOverflow(host)
     await host.setViewportSize({ width: 1440, height: 900 })
 
     // A second table, still being set, so the live shelf and the history shelf are both on the page.
@@ -333,7 +333,7 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     await host.setViewportSize({ width: 390, height: 844 })
     expect((await yours.boundingBox())!.y).toBeLessThan((await host.locator('[data-home-rosters]').boundingBox())!.y)
     expect((await host.locator('[data-home-rosters]').boundingBox())!.y).toBeLessThan((await history.boundingBox())!.y)
-    expect(await host.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await expectNoPageOverflow(host)
   } finally {
     await Promise.all([hostContext.close(), guestContext.close()])
   }
@@ -412,5 +412,5 @@ test('a player profile fits a phone', async ({ page }) => {
   await page.locator('[data-standing] a').first().click()
   await expect(page.locator('[data-service-record]')).toBeVisible()
 
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
 })

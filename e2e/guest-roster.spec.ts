@@ -1,7 +1,8 @@
 import { expect, type Page, test } from './test'
-import { retryUntilVisible, signUp, uniqueName, visitorSetup } from './account'
+import { retryUntilVisible, signUp, uniqueName, visitorSetup, expectNoPageOverflow } from './account'
 import { add } from './builder.harness'
 import { SIGN_IN_REQUIRED } from '../src/core/session'
+import { lastPathSegment } from './storage'
 
 /** A visitor starts a Necrons list from the rosters page, with no account behind them, and opens it in the builder. */
 async function startGuestRoster(page: Page) {
@@ -26,7 +27,7 @@ async function shot(page: Page, name: string) {
     ['phone', PHONE],
   ] as const) {
     await page.setViewportSize(size)
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(size.width)
+    await expectNoPageOverflow(page)
     await page.screenshot({ path: test.info().outputPath(`${name}-${label}.png`) })
   }
   await page.setViewportSize(before)
@@ -265,7 +266,7 @@ test('signing up from the second-roster prompt moves the roster into the account
   await startGuestRoster(page)
   await add(page, 'Necron Warriors')
   await expect.poll(() => storedDraft(page)).toContain('"picks":[{')
-  const id = new URL(page.url()).pathname.split('/').at(-1)
+  const id = lastPathSegment(page.url())
   await page.goto('/rosters')
   await page.waitForLoadState('networkidle')
   const prompt = page.getByRole('dialog', { name: 'Keep more than one roster' })

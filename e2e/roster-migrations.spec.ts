@@ -1,6 +1,6 @@
 import { expect, test } from './test'
-import { confirmRosterSetup, retryUntilVisible, signUp, waitForRosterSave } from './account'
-import { productOperator, userIdFor } from './storage'
+import { confirmRosterSetup, retryUntilVisible, signUp, waitForRosterSave, expectNoPageOverflow } from './account'
+import { productOperator, userIdFor, lastPathSegment } from './storage'
 
 test('fixed Sternguard equipment survives migration, saving and reload', { tag: '@catalogue' }, async ({ page }) => {
   const { email } = await signUp(page, 'Fixed equipment')
@@ -91,7 +91,7 @@ test('preserved rules remain explicit and conversion is optional', { tag: '@cata
   expect((await operator.roster(id))?.picks).toBe(JSON.stringify(picks))
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+    await expectNoPageOverflow(page)
     await page.screenshot({ path: `test-results/retained-roster-${width}.png`, fullPage: true })
   }
   for (const width of [390, 1440]) {
@@ -213,7 +213,7 @@ test('library and builder point a roster on earlier released rules at the curren
   await review.getByRole('switch', { name: /Keep the original/ }).click()
   await review.getByRole('button', { name: 'Confirm changes', exact: true }).click()
   await expect(page).not.toHaveURL(new RegExp(earlier))
-  const variant = new URL(page.url()).pathname.split('/').at(-1)!
+  const variant = lastPathSegment(page.url())
   expect((await operator.roster(earlier))?.catalogueId).toBe('legacy-rosters~470a-6daa-9014-12df')
   expect(await operator.roster(variant)).toMatchObject({ catalogueId: 'mfm-1-6~470a-6daa-9014-12df', baseRosterId: earlier })
   await expect(notice).toHaveCount(0)

@@ -8,6 +8,7 @@ import {
   signUp,
   uniqueName,
   waitForRosterSave,
+  expectNoPageOverflow,
 } from './account'
 import { savedWork } from './storage'
 
@@ -161,7 +162,7 @@ test('a private roster can be shared and made private again', async ({ browser }
   expect((await anonymous.request.get(previewPath)).status()).toBe(404)
   await page.setViewportSize({ width: 390, height: 900 })
   await page.goto('/privacy')
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
 })
 
 test('editable detail waits for public access to save before sharing', async ({ browser }) => {

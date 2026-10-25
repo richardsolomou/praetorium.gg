@@ -17,8 +17,9 @@ import {
   takeTheTurn,
   uniqueName,
   waitForRosterSave,
+  expectNoPageOverflow,
 } from './account'
-import { battleLog, productSql } from './storage'
+import { battleLog, productSql, lastPathSegment } from './storage'
 
 test('the opening draw prompt starts at the top, pins its actions and holds the page still on a phone', async ({ page }) => {
   await signUp(page, uniqueName('Opening prompt'))
@@ -70,10 +71,10 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
       expect(stratagems!.x).toBeGreaterThan(missions!.x + missions!.width)
       expect(Math.abs(stratagems!.y - missions!.y)).toBeLessThan(1)
     }
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
+    await expectNoPageOverflow(page)
   }
   await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
+  await expectNoPageOverflow(page)
   await page.setViewportSize({ width: 1440, height: 900 })
 
   for (let step = 0; step < 5; step += 1) await advance(page)
@@ -106,7 +107,7 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await expect(footer.getByRole('button', { name: 'Pass the turn', exact: true })).toBeInViewport()
   const footerBox = (await footer.boundingBox())!
   expect(footerBox.y + footerBox.height).toBeLessThanOrEqual((await applicationTabs.boundingBox())!.y + 1)
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
+  await expectNoPageOverflow(page)
   await page.mouse.wheel(0, -2000)
   await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBe(0)
   await page.screenshot({ path: 'test-results/scoring-mobile.png' })
@@ -130,7 +131,7 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await expect(side.locator('[data-missions] .chip:not([data-disposition])')).toHaveCount(0)
   await expect(side.locator('[data-missions]').getByText(/^(tactical|fixed)$/i)).toHaveCount(0)
   await page.setViewportSize({ width: 1440, height: 900 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
+  await expectNoPageOverflow(page)
   await side.getByRole('button', { name: 'View remaining secondary missions (16)' }).click()
   const remaining = page.getByRole('dialog', { name: 'Remaining secondary missions', exact: true })
   await expect(remaining.getByRole('button', { name: 'Read Cleanse', exact: true })).toHaveCount(0)
@@ -224,7 +225,7 @@ test('a running battle restores mission prompts when its tactical prep is missin
   await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
   await startBattle(page)
 
-  const token = new URL(page.url()).pathname.split('/').at(-1)!
+  const token = lastPathSegment(page.url())
   const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
   if (!battle) throw new Error('Battle is missing')
   const commands = await productSql<{ key: string; body: string }>`SELECT key, body FROM commands WHERE battle_id = ${battle.id}`
@@ -511,7 +512,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
     await nextHand.getByRole('button', { name: 'Undo latest action' }).click()
     await expect(discard).toBeVisible()
     await alice.setViewportSize({ width: 390, height: 844 })
-    expect(await alice.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+    await expectNoPageOverflow(alice)
     expect(await discard.locator('[data-slot="dialog-body"]').evaluate((body) => body.scrollWidth <= body.clientWidth)).toBe(true)
     await expect(discard.getByRole('button', { name: discardedCard, exact: true })).toHaveCount(0)
     await discard.getByRole('button', { name: 'Minimize dialog' }).click()
