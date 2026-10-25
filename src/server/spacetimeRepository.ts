@@ -18,6 +18,7 @@ import type { LeagueSide } from '../contracts/schemas'
 import { SqliteAccountRepository } from './accountRepository'
 import { SpacetimeOperator } from './spacetimeOperator'
 import { leagueRosterSharingSchema } from '../contracts/leagueRosterSharing'
+import { chunks } from '../core/collections'
 
 type Snapshot = NonNullable<Awaited<ReturnType<SpacetimeOperator['battleByToken']>>>
 type BattlePlayer = NonNullable<Awaited<ReturnType<SqliteAccountRepository['profileByUserId']>>> & { side: number; automated: boolean }
@@ -98,8 +99,9 @@ export class SpacetimeRepository {
       return { users: withProductStats(page.users, await this.product.productStats(page.users.map((row) => row.id))), total: page.total }
     }
     const ids = await this.accounts.adminUserIds(input, practice)
-    const batches = Array.from({ length: Math.ceil(ids.length / 100) }, (_, index) => ids.slice(index * 100, (index + 1) * 100))
-    const stats = new Map((await Promise.all(batches.map((batch) => this.product.productStats(batch)))).flatMap((batch) => [...batch]))
+    const stats = new Map(
+      (await Promise.all(chunks(ids, 100).map((batch) => this.product.productStats(batch)))).flatMap((batch) => [...batch]),
+    )
     const field = ADMIN_USER_COUNT_FIELDS[sort]
     const count = (id: string) => stats.get(id)?.[field] ?? 0
     // A stable sort keeps tied players newest first.

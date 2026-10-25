@@ -19,6 +19,9 @@ export function canonicalJson(value: unknown): string {
 
 export const capitalised = (text: string) => text.charAt(0).toLocaleUpperCase() + text.slice(1)
 
+/** A number as a list prints it, thousands separators included: 2,000. */
+export const printedNumber = (text: string) => Number(text.replaceAll(',', ''))
+
 /** Typographic and modifier-letter apostrophes as a plain one. */
 export const plainQuotes = (text: string) => text.replaceAll(/[‘’ʼ]/g, "'")
 

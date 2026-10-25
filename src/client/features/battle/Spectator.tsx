@@ -33,6 +33,7 @@ import { BattlefieldFact } from './BattlefieldFact'
 import { ManualScore } from './ManualScore'
 import { MANUAL_TRACKING_LIMITS } from './manualTracking'
 import { SpectatorInvite } from './SpectatorInvite'
+import { chunks } from '../../../core/collections'
 
 type Props = {
   view: BattleView
@@ -242,9 +243,7 @@ function ReplayTimeline({
     choose(Math.max(0, Math.min(points.length - 1, next)))
   }
   const bucketSize = Math.max(1, Math.ceil(points.length / 100))
-  const bars = Array.from({ length: Math.ceil(points.length / bucketSize) }, (_, bucket) =>
-    points.slice(bucket * bucketSize, (bucket + 1) * bucketSize),
-  )
+  const bars = chunks(points, bucketSize)
   return (
     <nav
       data-replay-timeline

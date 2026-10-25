@@ -32,7 +32,8 @@ import { PROFILE_NAME_MAX_LENGTH } from './profileName'
 
 const id = z.string().min(1).max(64)
 const rosterLimit = z.number().int().min(0).max(POINTS_BUDGET_MAX)
-export { id as idSchema, rosterLimit as rosterLimitSchema }
+const name = z.string().min(1).max(ROSTER_NAME_MAX_LENGTH)
+export { id as idSchema, name as nameSchema, rosterLimit as rosterLimitSchema }
 export const detachmentIdSchema = z.string().min(1).max(128)
 export const rosterPickSchema = z.object({
   entryId: id,
@@ -66,7 +67,7 @@ export const missionAwardSchema = z.object({
 })
 const secondary = z.object({
   key: id,
-  name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
+  name: name,
   awards: z.array(missionAwardSchema).max(20).optional(),
   selection: z.enum(MISSION_SELECTION_KINDS).optional(),
 })
@@ -100,7 +101,7 @@ const missionSelection = z.discriminatedUnion('kind', [
 /** A stratagem as a roster's battle preparation saves it. */
 export const stratagemSchema = z.object({
   key: id,
-  name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
+  name: name,
   cp: z.number().int().min(0).max(STRATAGEM_CP_MAX),
   limit: z.enum(STRATAGEM_LIMITS),
   phases: z.array(phase).max(PHASES.length).optional(),
@@ -196,7 +197,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
             .array(
               z.object({
                 key: id,
-                name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
+                name: name,
                 nickname: z.string().max(UNIT_NICKNAME_MAX_LENGTH).optional(),
                 note: z.string().max(UNIT_NOTE_MAX_LENGTH).optional(),
                 points: z.number().int().min(0).max(10_000),
@@ -207,16 +208,16 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
                 warlord: z.boolean().optional(),
                 warlordEligible: z.boolean().optional(),
                 wargear: z
-                  .array(z.object({ name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH), count: z.number().int().min(1).max(100) }))
+                  .array(z.object({ name: name, count: z.number().int().min(1).max(100) }))
                   .max(200)
                   .optional(),
-                enhancements: z.array(z.string().min(1).max(ROSTER_NAME_MAX_LENGTH)).max(20).optional(),
-                upgrades: z.array(z.string().min(1).max(ROSTER_NAME_MAX_LENGTH)).max(20).optional(),
+                enhancements: z.array(name).max(20).optional(),
+                upgrades: z.array(name).max(20).optional(),
                 joined: z
                   .array(
                     z.object({
-                      label: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
-                      name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH),
+                      label: name,
+                      name: name,
                     }),
                   )
                   .max(20)

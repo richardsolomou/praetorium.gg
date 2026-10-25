@@ -27,6 +27,7 @@ import {
   commandSchema,
   detachmentIdSchema,
   idSchema as id,
+  nameSchema,
   rosterLimitSchema as rosterLimit,
   rosterPickSchema,
   stratagemSchema,
@@ -401,7 +402,7 @@ export const unitWoundsSchema = z
 
 const prepSchema = z.object({
   stratagems: z.array(stratagemSchema).max(STRATAGEMS_MAX),
-  secondaries: z.array(z.object({ key: id, name: z.string().min(1).max(ROSTER_NAME_MAX_LENGTH) })).max(SECONDARIES_MAX),
+  secondaries: z.array(z.object({ key: id, name: nameSchema })).max(SECONDARIES_MAX),
   /** Per-unit alerts from older builds, which the product module moves to the owner's account on save; none is no field. */
   reminders: z
     .array(rosterReminderSchema)

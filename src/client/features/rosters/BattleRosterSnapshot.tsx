@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
-import type { Roster } from '../../../core/battle'
+import type { Roster, BuiltRoster } from '../../../core/battle'
 import type { SimulatorRosterSource } from '../../../contracts/simulatorState'
 import { factionQuery } from '../../queries'
 import { rosterWaivers } from '../../components/FormatWaivers'
@@ -98,7 +98,7 @@ export function BattleRosterSnapshot({
   )
 }
 
-type Built = NonNullable<Roster['built']>
+type Built = BuiltRoster
 
 /**
  * Which of the two readings a fielded list gets.

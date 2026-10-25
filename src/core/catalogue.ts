@@ -1,4 +1,5 @@
 import { countBy } from './collections'
+import { printedNumber } from './text'
 
 /** Model the BattleScribe fields used for pricing, legality, and attachments; display-only fields stay outside core. */
 
@@ -418,7 +419,7 @@ const POINTS_LIMIT = /\b(\d[\d,]*)\s*point limit\b/i
 function collectBattleSizes(root: Catalogue, sizes: Map<number, string>) {
   const visit = (node: Definition) => {
     const printed = node.name?.match(POINTS_LIMIT)
-    const limit = printed ? Number(printed[1]!.replaceAll(',', '')) : null
+    const limit = printed ? printedNumber(printed[1]!) : null
     if (limit !== null && !sizes.has(limit)) sizes.set(limit, node.id)
     for (const child of node.selectionEntries ?? []) visit(child)
     for (const child of node.selectionEntryGroups ?? []) visit(child)

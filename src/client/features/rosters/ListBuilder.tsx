@@ -39,7 +39,7 @@ import {
 import { MENU_ITEM, MenuSection } from '../../components/MenuSection'
 import { attachedUnitCount, attachmentHost } from '../../../core/attachedUnits'
 import { joiningKind } from '../../../core/attachmentRows'
-import type { FormatRuleId, Roster, Secondary, Stratagem } from '../../../core/battle'
+import type { BuiltRoster, FormatRuleId, Secondary, Stratagem } from '../../../core/battle'
 import { canTransport, enforces, type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
 import { joinedUnits } from '../../../core/unitLoadouts'
@@ -202,7 +202,7 @@ type Props = {
 }
 
 export type FrozenRoster = {
-  units: NonNullable<Roster['built']>['units']
+  units: BuiltRoster['units']
   points: number
   detachments: readonly { id?: string; name: string; points?: number | null }[]
 }

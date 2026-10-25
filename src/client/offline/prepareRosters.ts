@@ -5,6 +5,7 @@ import type { savedRosterSummaries } from '../functions'
 import { sortRosters } from '../../core/rosterSort'
 import { localDocument, type LocalRoster } from './localRuntime'
 import { nextTask } from '../../shared/nextTask'
+import { chunks } from '../../core/collections'
 
 export async function prepareRosters(
   client: QueryClient,
@@ -12,12 +13,12 @@ export async function prepareRosters(
   current: () => boolean,
 ) {
   const rosters = sortRosters(summaries, 'updated-desc')
-  for (let index = 0; index < rosters.length; index += ROSTER_LIBRARY_BATCH_SIZE) {
+  for (const batch of chunks(rosters, ROSTER_LIBRARY_BATCH_SIZE)) {
     await nextTask()
     if (!current()) return
     await client
       .query({
-        ...savedRosterPageQuery(rosters.slice(index, index + ROSTER_LIBRARY_BATCH_SIZE).map((roster) => roster.id)),
+        ...savedRosterPageQuery(batch.map((roster) => roster.id)),
         staleTime: Infinity,
       })
       .catch(() => {})

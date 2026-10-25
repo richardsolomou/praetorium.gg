@@ -30,6 +30,7 @@ import {
   atBattleEnd,
   type BattleMoment,
   missedMoments,
+  type BuiltRoster,
 } from './battle'
 import { battleUnitCounts } from './attachedUnits'
 import { withoutUnitNotes } from './unitNotes'
@@ -78,7 +79,7 @@ export type MissionChoiceView = MissionSelectionPrompt & {
  * it sent both armies twice in every read of every battle.
  */
 export type RosterView = Omit<Roster, 'built' | 'reminders' | 'remindersEnabled'> & {
-  built?: Omit<NonNullable<Roster['built']>, 'units'>
+  built?: Omit<BuiltRoster, 'units'>
   reminders?: Roster['reminders']
   remindersEnabled?: boolean
 }

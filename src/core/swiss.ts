@@ -91,7 +91,7 @@ export function swissPairings(players: readonly string[], matches: readonly Swis
   const byes = new Set(matches.filter((match) => match.b === null).map((match) => match.a))
   let bye: string | null = null
   if (order.length % 2) {
-    bye = order.toReversed().find((id) => !byes.has(id)) ?? order.at(-1)!
+    bye = order.findLast((id) => !byes.has(id)) ?? order.at(-1)!
     order.splice(order.indexOf(bye), 1)
   }
   const met = new Set(matches.flatMap((match) => (match.b === null ? [] : [pairKey(match.a, match.b)])))

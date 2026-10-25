@@ -36,6 +36,10 @@ export function uniqueBy<T>(values: readonly T[], keyOf: (value: T) => unknown):
   })
 }
 
+/** `values` in consecutive runs of `size`, the last one shorter when they do not divide evenly. */
+export const chunks = <T>(values: readonly T[], size: number): T[][] =>
+  Array.from({ length: Math.ceil(values.length / size) }, (_, index) => values.slice(index * size, (index + 1) * size))
+
 /** `compute()` once per key of `store`; undefined and null results are cached too. */
 export function remember<K, T>(
   store: { has(key: K): boolean; get(key: K): T | undefined; set(key: K, value: T): unknown },

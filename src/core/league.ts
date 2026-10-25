@@ -16,6 +16,7 @@ import {
   type FormatRule,
   type FormatRuleId,
   type Roster,
+  type BuiltRoster,
 } from './battle'
 import { z } from 'zod'
 import { matchedPlayName, NON_MATCHED_PLAY_KINDS, nonMatchedPlayKind, type NonMatchedPlayKind } from './name'
@@ -425,7 +426,7 @@ export function leagueTeams(
 
 const sealedWarlords = (snapshots: readonly Roster[]) =>
   snapshots.flatMap((snapshot) => snapshot.built?.units.filter((unit) => unit.warlord) ?? [])
-const warlordEligible = (unit: NonNullable<Roster['built']>['units'][number], legacy = false) =>
+const warlordEligible = (unit: BuiltRoster['units'][number], legacy = false) =>
   unit.warlordEligible ?? (legacy || unit.group === 'character' || unit.group === 'epic-hero')
 
 export function leagueWarlords(snapshots: readonly Roster[], legacy = false) {
@@ -560,7 +561,7 @@ export function leagueArmy(roster: Roster): LeagueArmy {
   }
 }
 
-function sealedDetachments(built: NonNullable<Roster['built']>) {
+function sealedDetachments(built: BuiltRoster) {
   const names = built.detachments?.map((detachment) => detachment.name) ?? (built.detachment ? [built.detachment] : [])
   return (built.detachmentIds ?? []).map((id, index) => ({ id, name: names[index] ?? id }))
 }

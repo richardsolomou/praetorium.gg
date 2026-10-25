@@ -89,7 +89,7 @@ export type Roster = {
  * saved list — so carrying it made every read of every log parse a selection tree
  * on behalf of no one.
  */
-type BuiltRoster = {
+export type BuiltRoster = {
   catalogueId: string
   edition?: Pick<CatalogueEdition, 'id' | 'name' | 'status'>
   /** The catalogue revision this list was priced and validated against. */

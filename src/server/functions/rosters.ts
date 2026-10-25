@@ -19,7 +19,7 @@ import { copySavedRoster, saveOwnedRoster } from '../saveOwnedRoster'
 import { rosterActions } from '../rosterActions'
 import { copiedArmy } from '../../core/rosterCopies'
 import { currentCatalogueFamilyId, currentEntryId } from '../../core/retiredCatalogueIds'
-import { groupBy } from '../../core/collections'
+import { groupBy, chunks } from '../../core/collections'
 import type { RosterPick } from '../../core/roster'
 import { wishlistSuggestions as suggestFromRosters } from '../../core/wishlistSuggestions'
 import { ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
@@ -286,8 +286,7 @@ export const savedRosterChangedIds = createServerFn({ method: 'GET' }).handler((
     if (!sets.length) return []
     const latestChangeAt = sets.at(-1)!.recordedAt
     const changed: string[] = []
-    for (let index = 0; index < saved.length; index += CHANGED_COUNT_BATCH_SIZE) {
-      const batch = saved.slice(index, index + CHANGED_COUNT_BATCH_SIZE)
+    for (const batch of chunks(saved, CHANGED_COUNT_BATCH_SIZE)) {
       const uncertain: typeof batch = []
       for (const roster of batch) {
         if (roster.updatedAt >= latestChangeAt) continue

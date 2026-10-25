@@ -1,4 +1,5 @@
 import { attachGroups, type TextRoster, type TextRosterUnit } from './textRoster'
+import { printedNumber } from './text'
 
 const rule = /^─{10,}$/
 const unitLine = /^(?:└\s*(?:Leads|Supports):\s*)?(.+?)(?:\s+×(\d+))?(?:\s+\((\d[\d,]*) pts\))?((?:\s+·\s+[^·]+)*)$/
@@ -78,11 +79,11 @@ export function fromWarmindText(input: string): TextRoster | null {
 
   return {
     name: lines.find((line) => line.trim())!.trim(),
-    ...(total ? { reportedPoints: Number(total.replaceAll(',', '')) } : {}),
+    ...(total ? { reportedPoints: printedNumber(total) } : {}),
     faction,
     detachment: field('Detachment'),
     disposition: field('Disposition'),
-    limit: size ? Number(size[2]!.replaceAll(',', '')) : null,
+    limit: size ? printedNumber(size[2]!) : null,
     ...(size ? { sizeName: size[1]! } : {}),
     units,
     ...(unread.length ? { unread } : {}),

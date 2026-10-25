@@ -1,4 +1,5 @@
 import { attachGroups, type TextRoster, type TextRosterUnit } from './textRoster'
+import { printedNumber } from './text'
 
 const title = /^(.+) \((\d[\d,]*) Points?\)$/i
 // Allies sit under their faction, as "Allies: Imperial Agents:".
@@ -33,11 +34,11 @@ export function fromListForgeText(input: string): TextRoster | null {
   const unread = [...setup.filter((line) => !battleSize.test(line) && !forceDisposition.test(line)), ...(body.unread ?? [])]
   return {
     name: parts.slice(0, disposed ? -3 : -2).join(' - '),
-    reportedPoints: Number(titled[2]!.replaceAll(',', '')),
+    reportedPoints: printedNumber(titled[2]!),
     faction: parts.at(disposed ? -3 : -2)!,
     detachment: /^no detachment$/i.test(parts.at(-1)!) ? null : parts.at(-1)!,
     disposition: setup.map((line) => line.match(forceDisposition)?.[1]).find(Boolean) ?? (disposed ? parts.at(-2)! : null),
-    limit: size ? Number(size[2]!.replaceAll(',', '')) : null,
+    limit: size ? printedNumber(size[2]!) : null,
     ...(size ? { sizeName: size[1]! } : {}),
     units: body.units,
     ...(unread.length ? { unread } : {}),
@@ -60,7 +61,7 @@ export function fromListForgeWtcText(input: string): TextRoster | null {
   const points = field('Army Points')?.match(/^\d[\d,]*/)?.[0]
   return {
     name: field('List Name') ?? 'Imported list',
-    ...(points ? { reportedPoints: Number(points.replaceAll(',', '')) } : {}),
+    ...(points ? { reportedPoints: printedNumber(points) } : {}),
     faction,
     detachment: field('Detachment\\(s\\)'),
     disposition: field('Disposition'),
