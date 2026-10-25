@@ -65,6 +65,12 @@ private final class WatchTransport: NSObject, WCSessionDelegate {
     }
   }
 
+  private func republish() {
+    do { try publish(latest) } catch {
+      logger.error("Watch context failed: \(error.localizedDescription, privacy: .public)")
+    }
+  }
+
   func session(
     _ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState,
     error: Error?
@@ -75,17 +81,13 @@ private final class WatchTransport: NSObject, WCSessionDelegate {
         logger.error("Watch activation failed: \(error.localizedDescription, privacy: .public)")
         return
       }
-      do { try publish(latest) } catch {
-        logger.error("Watch context failed: \(error.localizedDescription, privacy: .public)")
-      }
+      republish()
     }
   }
 
   func sessionReachabilityDidChange(_ session: WCSession) {
     DispatchQueue.main.async { [self] in
-      do { try publish(latest) } catch {
-        logger.error("Watch context failed: \(error.localizedDescription, privacy: .public)")
-      }
+      republish()
     }
   }
 
@@ -93,9 +95,7 @@ private final class WatchTransport: NSObject, WCSessionDelegate {
     DispatchQueue.main.async { [self] in
       if !isAvailable { latest = "" }
       availabilityChanged?()
-      do { try publish(latest) } catch {
-        logger.error("Watch context failed: \(error.localizedDescription, privacy: .public)")
-      }
+      republish()
     }
   }
 
