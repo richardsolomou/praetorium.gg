@@ -17,6 +17,7 @@ import { custodesOfficial } from '../src/core/rosterText.custodes.fixture'
 import { astraMilitarumNewRecruit, kriegGermanOfficial } from '../src/core/rosterText.krieg.fixture'
 import { necronsOfficial } from '../src/core/rosterText.necrons.fixture'
 import { blackTemplarsNewRecruit } from '../src/core/rosterText.blackTemplars.fixture'
+import { chaosSpaceMarinesNewRecruit } from '../src/core/rosterText.chaosSpaceMarines.fixture'
 import { bloodAngelsOfficial } from '../src/core/rosterText.bloodAngels.fixture'
 import { salamandersOfficial } from '../src/core/rosterText.salamanders.fixture'
 import { spaceWolvesOfficial } from '../src/core/rosterText.spaceWolves.fixture'
@@ -247,6 +248,18 @@ Skitarii Rangers (85 Points)
       attached: 4,
       mismatches: [],
       points: '1435 for 1435',
+    })
+  })
+
+  it('places the reported Chaos Space Marines loadouts that share their weapons', () => {
+    expect(summary(chaosSpaceMarinesNewRecruit)).toEqual({
+      format: 'roster-file',
+      faction: 'Chaos - Chaos Space Marines',
+      detachments: 1,
+      units: '7 of 7',
+      attached: 1,
+      mismatches: [],
+      points: '995 for 995',
     })
   })
 
