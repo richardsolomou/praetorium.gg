@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.192.1
+
+### Patch Changes
+
+- a9f61bf: Past sealed games stay open on the club page, with Delete in each game's ⋯ menu.
+- a9f61bf: Sealed games show player and list names in capitals, as battle and roster cards do.
+- a9f61bf: Team sealed games take less room, and you join a side from its open seat.
+
 ## 0.192.0
 
 ### Minor Changes
