@@ -6,7 +6,6 @@ import { leaguesQuery, meQuery } from '../../queries'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
-import { EventsTabs } from '../events/EventsTabs'
 import { CreateLeague } from './CreateLeague'
 import { EventSchedule } from './EventSchedule'
 import { LEAGUE_CARD, LeagueCardActions } from './LeagueActions'
@@ -27,9 +26,7 @@ export function LeagueIndex() {
         title="Tournaments"
         description="One-off events. Everyone seals a list in secret, then the lists are revealed together."
         actions={me ? <CreateLeague /> : null}
-      >
-        <EventsTabs current="tournaments" />
-      </PageHeader>
+      />
       <PageContent className="space-y-6">
         {mine.length ? <LeagueShelf title="Your tournaments" leagues={mine} viewerId={me?.id ?? null} /> : null}
         {publicLeagues.length ? <LeagueShelf title="Public tournaments" leagues={publicLeagues} viewerId={me?.id ?? null} /> : null}

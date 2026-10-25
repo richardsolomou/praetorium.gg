@@ -9,7 +9,6 @@ import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { useDateFormatting } from '../../dates'
 import { clubsQuery, meQuery } from '../../queries'
 import { LEAGUE_CARD } from '../leagues/LeagueActions'
-import { EventsTabs } from '../events/EventsTabs'
 import { ClubSettingsDialog } from './ClubSettingsDialog'
 
 type ClubSummary = Awaited<ReturnType<NonNullable<ReturnType<typeof clubsQuery>['queryFn']>>>[number]
@@ -33,9 +32,7 @@ export function ClubIndex() {
             </Button>
           ) : null
         }
-      >
-        <EventsTabs current="clubs" />
-      </PageHeader>
+      />
       <PageContent className="space-y-6">
         {mine.length ? <ClubShelf title="Your clubs" clubs={mine} /> : null}
         {publicClubs.length ? <ClubShelf title="Public clubs" clubs={publicClubs} /> : null}
