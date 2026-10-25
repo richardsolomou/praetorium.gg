@@ -87,12 +87,12 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
         <Link to="/factions" className="eyebrow flex items-center gap-1 text-info hover:text-bone">
           <ChevronLeft className="size-3.5" /> Factions
         </Link>
-        <section className="divide-y divide-edge border border-edge bg-panel">
+        <section className="grid grid-cols-1 gap-px border border-edge bg-edge sm:grid-cols-3">
           <FactionReferenceLink
             data-onboarding="faction-datasheets"
             to="/factions/$catalogueId/datasheets"
             params={{ catalogueId: faction.slug }}
-            className="flex items-center justify-between px-3 py-3 hover:bg-raised"
+            className="flex items-center justify-between bg-panel px-3 py-3 hover:bg-raised"
           >
             <span className="font-bold uppercase">Datasheets</span>
             <span className="flex items-center gap-3">
@@ -104,7 +104,7 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
             to="/data-updates/$catalogueId"
             params={{ catalogueId: faction.slug }}
             search={{}}
-            className="flex items-center justify-between px-3 py-3 hover:bg-raised"
+            className="flex items-center justify-between bg-panel px-3 py-3 hover:bg-raised"
           >
             <span className="font-bold uppercase">Data updates</span>
             <ChevronRight className="size-4 text-dim" aria-hidden />
@@ -112,7 +112,7 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
           <Link
             to="/rosters"
             search={{ view: 'public', faction: faction.slug }}
-            className="flex items-center justify-between px-3 py-3 hover:bg-raised"
+            className="flex items-center justify-between bg-panel px-3 py-3 hover:bg-raised"
           >
             <span className="font-bold uppercase">Public armies</span>
             <ChevronRight className="size-4 text-dim" aria-hidden />
