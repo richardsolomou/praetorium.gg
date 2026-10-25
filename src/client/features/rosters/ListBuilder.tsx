@@ -426,13 +426,19 @@ export function ListBuilder({
     setVisibility(initial.visibility)
     setSavedPrep(prep)
   }, [annotated, currentDraftKey, initial, listName, prep, resetPicks, save.isPending, savedId, settledListName, settledPicks])
-  useEffect(() => {
+  const saveDraft = () => {
     if (!editable || !catalogueId) return
-    const key = draftKey(draft)
-    if (key === lastSaved.current) return
-    lastSaved.current = key
+    if (currentDraftKey === lastSaved.current) return
+    lastSaved.current = currentDraftKey
     if (guest) guest.onDraftChange(draft)
     else save.mutate()
+  }
+  // Leaving inside a settle pause would otherwise drop the last edit, and a seal right after would read the list without it.
+  const saveDraftOnLeave = useRef(saveDraft)
+  saveDraftOnLeave.current = saveDraft
+  useEffect(() => () => saveDraftOnLeave.current(), [])
+  useEffect(() => {
+    saveDraft()
     // The mutation reads the complete rendered draft. A later render queues behind
     // this one, so the final request always contains the newest state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
