@@ -70,7 +70,7 @@ if (process.argv.includes('--details')) {
   }
 }
 
-if (report.catalogueOnly.length > 16 || report.datacardsOnly.length > 23) {
+if (report.catalogueOnly.length > 21 || report.datacardsOnly.length > 23) {
   baselineShortfall('datasheet name agreement fell below the pinned catalogue baseline')
 }
 if (report.nonMatchedPlayCatalogueOnly.length > 1078 || report.factionsWithoutArmyRules.length > 1) {

@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest'
-import { canonicalDetachmentName } from './detachmentName'
+import { canonicalDetachmentName, detachmentNameVariants } from './detachmentName'
 
 it.each([
   ['Brood Brother Auxilia', 'Brood Brothers Auxilia'],
@@ -10,4 +10,8 @@ it.each([
   ['Brood Brother Vanguard', 'Brood Brother Vanguard'],
 ])('joins %s as %s', (name, expected) => {
   expect(canonicalDetachmentName(name)).toBe(expected)
+})
+
+it('matches a detachment by the unfinished name older lists were exported under', () => {
+  expect(detachmentNameVariants('Deathwatch Support')).toContain('Deathwatch Support (ITS NOT READY)')
 })
