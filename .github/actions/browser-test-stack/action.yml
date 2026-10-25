@@ -34,9 +34,6 @@ runs:
         R2_ACCOUNT_ID: ${{ inputs.r2-account-id }}
         R2_ACCESS_KEY_ID: ${{ inputs.r2-access-key-id }}
         R2_SECRET_ACCESS_KEY: ${{ inputs.r2-secret-access-key }}
-    - name: Require the terrain geometry
-      shell: bash
-      run: pnpm catalogue:terrain
     - uses: actions/download-artifact@v8
       with:
         name: browser-test-build
