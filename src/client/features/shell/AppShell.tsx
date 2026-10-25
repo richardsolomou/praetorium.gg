@@ -7,12 +7,25 @@ import { version } from '../../../../package.json'
 import { useQuery } from '@tanstack/react-query'
 import { HeadContent, Link, Outlet, Scripts, useLocation } from '@tanstack/react-router'
 import { TooltipProvider } from '@/components/ui/tooltip'
-import { BookOpen, Calculator, ChevronDown, Gavel, Layers3, Medal, ScrollText, Swords, Trophy, UsersRound } from 'lucide-react'
+import {
+  BookOpen,
+  Calculator,
+  CalendarDays,
+  ChevronDown,
+  Gavel,
+  Layers3,
+  Medal,
+  ScrollText,
+  Swords,
+  Trophy,
+  Users,
+  UsersRound,
+} from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
-import { useEffect, useLayoutEffect } from 'react'
+import { useEffect, useLayoutEffect, type ReactNode } from 'react'
 import { POSTHOG_BROWSER_OPTIONS } from '../../../posthog'
 import { authClient } from '../../authClient'
 import { Account } from './Account'
@@ -44,16 +57,22 @@ const PRIMARY_LINKS = [
   { to: '/rosters', label: 'Rosters', Icon: ScrollText },
   { to: '/battles', label: 'Battles', Icon: Swords },
   { to: '/simulator', label: 'Simulator', Icon: Calculator },
-  { to: '/leagues', label: 'Leagues', Icon: Trophy },
   { to: '/leaderboard', label: 'Leaderboard', Icon: Medal },
+] as const
+
+const EVENT_LINKS = [
+  { to: '/clubs', label: 'Clubs', Icon: Users },
+  { to: '/tournaments', label: 'Tournaments', Icon: Trophy },
 ] as const
 
 const REFERENCE_LINKS = [
   { to: '/factions', label: 'Factions', Icon: UsersRound },
   { to: '/missions', label: 'Missions', Icon: BookOpen },
-  { to: '/force-dispositions', label: 'Force dispositions', Icon: Layers3 },
+  { to: '/force-dispositions', label: 'Dispositions', Icon: Layers3 },
   { to: '/rules', label: 'Rules', Icon: Gavel },
 ] as const
+
+const within = (path: string, section: string) => path === section || path.startsWith(`${section}/`)
 
 function Tabs({ links, tone }: { links: typeof PRIMARY_LINKS | typeof REFERENCE_LINKS; tone: string }) {
   return links.map(({ to, label, Icon }) => (
@@ -64,19 +83,30 @@ function Tabs({ links, tone }: { links: typeof PRIMARY_LINKS | typeof REFERENCE_
   ))
 }
 
-function ReferenceMenu() {
+function NavMenu({
+  label,
+  links,
+  className,
+  children,
+}: {
+  label: string
+  links: typeof EVENT_LINKS | typeof REFERENCE_LINKS
+  className: string
+  children?: ReactNode
+}) {
   const path = useLocation({ select: (location) => location.pathname })
-  const inReference = REFERENCE_LINKS.some(({ to }) => path === to || path.startsWith(`${to}/`))
+  const inside = links.some(({ to }) => within(path, to))
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="nav-tab text-dim @min-[47rem]:hidden" data-status={inReference ? 'active' : undefined}>
-        Reference <ChevronDown aria-hidden className="block! size-3.5" />
+      <DropdownMenuTrigger openOnHover className={cn('nav-tab', className)} data-status={inside ? 'active' : undefined}>
+        {children}
+        {label} <ChevronDown aria-hidden className="block! size-3.5" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-auto">
-        {REFERENCE_LINKS.map(({ to, label, Icon }) => (
-          <DropdownMenuItem key={to} className="whitespace-nowrap" render={<Link to={to} />}>
-            <Icon aria-hidden className="text-info" />
-            {label}
+        {links.map((link) => (
+          <DropdownMenuItem key={link.to} className="whitespace-nowrap" render={<Link to={link.to} />}>
+            <link.Icon aria-hidden className="text-info" />
+            {link.label}
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
@@ -112,15 +142,18 @@ function SiteHeader() {
           <Account className="size-8" />
         </div>
         {/* Spans the padding as its own row, so its hairline crosses the window; in the bar it sits inside it. */}
-        <div className="-mx-2 flex items-stretch gap-4 border-t border-edge px-2 [grid-area:nav] sm:-mx-4 sm:px-4 @min-[62.5rem]:gap-6 @min-[62.5rem]:[--nav-tab-icon:block] @min-[76rem]:mx-0 @min-[76rem]:border-0 @min-[76rem]:px-0 @min-[76rem]:[--nav-tab-icon:none] @min-[94rem]:[--nav-tab-icon:block]">
+        <div className="-mx-2 flex items-stretch gap-4 border-t border-edge px-2 [grid-area:nav] sm:-mx-4 sm:px-4 @min-[62.5rem]:gap-6 @min-[62.5rem]:[--nav-tab-icon:block] @min-[76rem]:mx-0 @min-[76rem]:border-0 @min-[76rem]:px-0 @min-[76rem]:[--nav-tab-icon:none] @min-[90rem]:[--nav-tab-icon:block]">
           <nav aria-label="Primary" className="flex items-stretch gap-4 @min-[62.5rem]:gap-5">
             <Tabs links={PRIMARY_LINKS} tone="text-bone" />
+            <NavMenu label="Events" links={EVENT_LINKS} className="text-bone">
+              <CalendarDays aria-hidden />
+            </NavMenu>
           </nav>
           <span aria-hidden className="my-3 w-px shrink-0 bg-edge" />
           <nav aria-label="Reference" className="hidden items-stretch gap-4 @min-[47rem]:flex @min-[62.5rem]:gap-5">
             <Tabs links={REFERENCE_LINKS} tone="text-dim" />
           </nav>
-          <ReferenceMenu />
+          <NavMenu label="Reference" links={REFERENCE_LINKS} className="text-dim @min-[47rem]:hidden" />
         </div>
       </div>
     </header>

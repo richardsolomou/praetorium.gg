@@ -24,13 +24,14 @@ import { formatAgo } from '../../dates'
 import { countLabel } from '../../text'
 
 type Person = { id: string; name: string; image?: string | null }
+type Confirming = { kind: 'remove' | 'reject' | 'cancel'; person: Person }
 
 export function FriendsPage() {
   const { data: me } = useQuery(meQuery())
   const { data = { friends: [], incoming: [], outgoing: [] } } = useQuery(friendshipsQuery())
   const { data: profile } = useQuery({ ...playerProfileQuery(me?.id ?? ''), enabled: Boolean(me) })
   const [query, setQuery] = useState('')
-  const [unfriending, setUnfriending] = useState<Person | null>(null)
+  const [confirming, setConfirming] = useState<Confirming | null>(null)
   const [battling, setBattling] = useState<Person | null>(null)
   const settledQuery = useSettled(query.trim())
   const search = playerSearchQuery(settledQuery)
@@ -87,7 +88,7 @@ export function FriendsPage() {
             secondaryAction="Reject"
             pendingId={inFlight(accept) ?? inFlight(reject)}
             onAction={(person) => accept.mutate(person.id)}
-            onSecondaryAction={(person) => reject.mutate(person.id)}
+            onSecondaryAction={(person) => setConfirming({ kind: 'reject', person })}
           />
         ) : null}
 
@@ -146,7 +147,7 @@ export function FriendsPage() {
                       viewerId={me.id}
                       played={played.get(friend.id)}
                       onBattle={() => setBattling(friend)}
-                      onRemove={() => setUnfriending(friend)}
+                      onRemove={() => setConfirming({ kind: 'remove', person: friend })}
                     />
                   ))}
                 </div>
@@ -163,7 +164,7 @@ export function FriendsPage() {
                 people={data.outgoing}
                 action="Cancel"
                 pendingId={inFlight(remove)}
-                onAction={(person) => remove.mutate(person.id)}
+                onAction={(person) => setConfirming({ kind: 'cancel', person })}
               />
             ) : null}
           </div>
@@ -176,21 +177,46 @@ export function FriendsPage() {
           if (!open) setBattling(null)
         }}
       />
-      <ConfirmDialog
-        open={Boolean(unfriending)}
-        title={`Remove ${unfriending?.name}?`}
-        description="You stop seeing each other's friends-only battles, and rosters you lent each other go back to their owners."
-        cancel="Keep friend"
-        confirm="Remove friend"
-        destructive
-        onClose={() => setUnfriending(null)}
-        onConfirm={() => {
-          if (unfriending) remove.mutate(unfriending.id)
-          setUnfriending(null)
-        }}
-      />
+      {confirming ? (
+        <ConfirmDialog
+          {...confirmationCopy(confirming)}
+          destructive
+          onClose={() => setConfirming(null)}
+          onConfirm={() => {
+            const mutation = confirming.kind === 'reject' ? reject : remove
+            mutation.mutate(confirming.person.id)
+            setConfirming(null)
+          }}
+        />
+      ) : null}
     </main>
   )
+}
+
+function confirmationCopy({ kind, person }: Confirming) {
+  switch (kind) {
+    case 'remove':
+      return {
+        title: `Remove ${person.name}?`,
+        description: "You stop seeing each other's friends-only battles, and rosters you lent each other go back to their owners.",
+        cancel: 'Keep friend',
+        confirm: 'Remove friend',
+      }
+    case 'reject':
+      return {
+        title: `Reject ${person.name}?`,
+        description: 'Their friend request goes away. They can send another.',
+        cancel: 'Keep request',
+        confirm: 'Reject',
+      }
+    case 'cancel':
+      return {
+        title: `Cancel your request to ${person.name}?`,
+        description: 'It disappears from their friend requests. You can send another.',
+        cancel: 'Keep request',
+        confirm: 'Cancel request',
+      }
+  }
 }
 
 /** A friend, what you have played against them, and the two things a player does with one. */
@@ -249,6 +275,7 @@ function FriendCard({
 function InviteFriend() {
   const invite = useFriendInvite()
   const shareLabel = useInviteShareLabel()
+  const [cancelling, setCancelling] = useState(false)
 
   return (
     <section>
@@ -265,7 +292,7 @@ function InviteFriend() {
             <Button variant="ghost" disabled={invite.busy} onClick={() => void invite.shareNew()}>
               <RotateCw /> New link
             </Button>
-            <Button variant="ghost" disabled={invite.busy} onClick={invite.cancel}>
+            <Button variant="ghost" disabled={invite.busy} onClick={() => setCancelling(true)}>
               <X /> Cancel
             </Button>
           </>
@@ -276,6 +303,19 @@ function InviteFriend() {
         )}
       </div>
       {invite.problem ? <Problem className="mt-3">{invite.problem}</Problem> : null}
+      <ConfirmDialog
+        open={cancelling}
+        title="Cancel your invite link?"
+        description="A link you already sent stops working. You can make a new one."
+        cancel="Keep link"
+        confirm="Cancel link"
+        destructive
+        onClose={() => setCancelling(false)}
+        onConfirm={() => {
+          invite.cancel()
+          setCancelling(false)
+        }}
+      />
     </section>
   )
 }

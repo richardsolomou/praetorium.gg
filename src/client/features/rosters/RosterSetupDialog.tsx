@@ -44,6 +44,7 @@ import { DetachmentReference } from '../reference/factions/DetachmentReference'
 import { advanceOnboarding } from '../onboarding/onboarding'
 import { SearchField } from '../../components/SearchField'
 import { SearchableSelect, type SearchableGroup } from '../../components/SearchableSelect'
+import { PointsTotalError, PointsTotalInput } from '../../components/PointsTotalInput'
 import { factionSelectGroups } from './builder/factions'
 import { OptionalRulesDialog } from './OptionalRulesDialog'
 import { detachmentConflict, dispositionsFor, dispositionTone } from '../../components/rosterSetup'
@@ -135,18 +136,10 @@ function matchesQuery(detachment: Detachment, query: string) {
   )
 }
 
-const CUSTOM_SIZE = 'custom:'
 const BATTLE_SIZE_GROUPS: SearchableGroup[] = [
   {
     label: '',
     items: GAME_SIZES.map((size) => ({ label: battleSizeOptionLabel(size), value: String(size.limit) })),
-  },
-  {
-    label: 'Custom points',
-    items: GAME_SIZES.filter((size) => allowsPointsBudget(size.limit)).map((size) => ({
-      label: `Custom · ${size.name} limits`,
-      value: `${CUSTOM_SIZE}${size.limit}`,
-    })),
   },
 ]
 
@@ -169,7 +162,6 @@ export function RosterSetupDialog({
   canKeepOriginal = false,
 }: Props) {
   const [draft, setDraft] = useState(value)
-  const [customSize, setCustomSize] = useState(value.pointsBudget != null)
   const [budgetText, setBudgetText] = useState(value.pointsBudget == null ? '' : String(value.pointsBudget))
   const [review, setReview] = useState<SetupReview | null>(null)
   const [keepOriginal, setKeepOriginal] = useState(false)
@@ -329,28 +321,22 @@ export function RosterSetupDialog({
     const budget = typedBudget(text)
     return pointsBudgetError(limit, budget) ? null : customPointsBudget(limit, budget)
   }
-  const budgetError = !customSize
-    ? null
-    : budgetText.trim()
-      ? pointsBudgetError(draft.limit, typedBudget(budgetText))
-      : 'Enter the points limit.'
+  const budgetError = budgetText.trim() ? pointsBudgetError(draft.limit, typedBudget(budgetText)) : null
   const changeBudget = (text: string) => {
     setBudgetText(text)
     changeDraft({ ...draft, pointsBudget: savedBudget(draft.limit, text) })
   }
   const changeSize = (next: string) => {
     advanceOnboarding('roster', 'roster-size', 'roster-detachment')
-    const custom = next.startsWith(CUSTOM_SIZE)
-    const limit = Number(custom ? next.slice(CUSTOM_SIZE.length) : next)
-    // A points limit the player typed survives a change of size; one still at the old size's total follows the new size.
+    const limit = Number(next)
+    // A points limit the player typed survives a change of size, unless the new size takes none or it was the old size's total.
     const typed = typedBudget(budgetText)
-    const text = !custom ? '' : customSize && typed !== draft.limit ? budgetText : String(limit)
-    setCustomSize(custom)
+    const text = allowsPointsBudget(limit) && typed !== draft.limit ? budgetText : ''
     setBudgetText(text)
     changeDraft({
       ...draft,
       limit,
-      pointsBudget: custom ? savedBudget(limit, text) : null,
+      pointsBudget: savedBudget(limit, text),
       detachmentIds: draft.detachmentIds.slice(0, detachmentLimit(limit, draft.waivedRules)),
       disposition: limit === draft.limit ? draft.disposition : null,
     })
@@ -463,43 +449,29 @@ export function RosterSetupDialog({
           <Label className="eyebrow block" htmlFor="setup-size">
             Battle size
           </Label>
-          <SearchableSelect
-            id="setup-size"
-            disabled={mode === 'convert'}
-            ariaLabel="Battle size"
-            value={customSize ? `${CUSTOM_SIZE}${draft.limit}` : String(draft.limit)}
-            groups={BATTLE_SIZE_GROUPS}
-            onValueChange={changeSize}
-            placeholder="Battle size"
-            className="mt-1 h-11"
-          />
-          {customSize ? (
-            <div className="mt-2">
-              <div className="flex items-center gap-2">
-                <Input
-                  id="setup-budget"
-                  aria-label="Points limit"
-                  disabled={mode === 'convert'}
-                  inputMode="numeric"
-                  autoComplete="off"
-                  value={budgetText}
-                  onChange={(event) => changeBudget(event.target.value)}
-                  placeholder={String(draft.limit)}
-                  aria-invalid={Boolean(budgetError)}
-                  aria-describedby={budgetError ? 'setup-budget-error' : undefined}
-                  className="h-11 w-32 text-base"
-                />
-                <Label htmlFor="setup-budget" className="text-sm font-normal text-dim">
-                  points
-                </Label>
-              </div>
-              {budgetError ? (
-                <p id="setup-budget-error" role="alert" className="mt-1.5 text-xs text-destructive">
-                  {budgetError}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
+          <div className="mt-1 flex items-center gap-2">
+            <SearchableSelect
+              id="setup-size"
+              disabled={mode === 'convert'}
+              ariaLabel="Battle size"
+              value={String(draft.limit)}
+              groups={BATTLE_SIZE_GROUPS}
+              onValueChange={changeSize}
+              placeholder="Battle size"
+              className="h-11 min-w-0 flex-1"
+            />
+            {allowsPointsBudget(draft.limit) ? (
+              <PointsTotalInput
+                id="setup-budget"
+                limit={draft.limit}
+                value={budgetText}
+                error={budgetError}
+                disabled={mode === 'convert'}
+                onChange={changeBudget}
+              />
+            ) : null}
+          </div>
+          <PointsTotalError id="setup-budget" error={budgetError} />
         </div>
       </div>
 

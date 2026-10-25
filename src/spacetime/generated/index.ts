@@ -76,10 +76,15 @@ import * as AcceptFriendProcedure from './accept_friend_procedure'
 import * as AcceptFriendInviteProcedure from './accept_friend_invite_procedure'
 import * as AdminCollectionPhotosProcedure from './admin_collection_photos_procedure'
 import * as BattleByTokenProcedure from './battle_by_token_procedure'
+import * as BattleClubsProcedure from './battle_clubs_procedure'
 import * as BattleFeedProcedure from './battle_feed_procedure'
 import * as BattleForOperatorProcedure from './battle_for_operator_procedure'
 import * as CancelFriendInviteProcedure from './cancel_friend_invite_procedure'
 import * as ClaimGuestSeatProcedure from './claim_guest_seat_procedure'
+import * as ClubByTokenProcedure from './club_by_token_procedure'
+import * as ClubCommandProcedure from './club_command_procedure'
+import * as ClubNamesProcedure from './club_names_procedure'
+import * as ClubsVisibleToProcedure from './clubs_visible_to_procedure'
 import * as CollectionByUserProcedure from './collection_by_user_procedure'
 import * as CollectionPhotoProcedure from './collection_photo_procedure'
 import * as CollectionPhotoDeletionsProcedure from './collection_photo_deletions_procedure'
@@ -93,6 +98,7 @@ import * as DeleteBattleForOperatorProcedure from './delete_battle_for_operator_
 import * as DeleteUnitLoadoutProcedure from './delete_unit_loadout_procedure'
 import * as DiscoverRostersProcedure from './discover_rosters_procedure'
 import * as EndRosterLoanProcedure from './end_roster_loan_procedure'
+import * as EventAddressProcedure from './event_address_procedure'
 import * as FavouriteDatasheetsByUserProcedure from './favourite_datasheets_by_user_procedure'
 import * as FavouriteDetachmentsByUserProcedure from './favourite_detachments_by_user_procedure'
 import * as FavouriteFactionsByUserProcedure from './favourite_factions_by_user_procedure'
@@ -115,6 +121,7 @@ import * as LeagueRosterSharingProcedure from './league_roster_sharing_procedure
 import * as LeagueRostersProcedure from './league_rosters_procedure'
 import * as LeaguesVisibleToProcedure from './leagues_visible_to_procedure'
 import * as LendRosterProcedure from './lend_roster_procedure'
+import * as MigrateLeaguesToClubsProcedure from './migrate_leagues_to_clubs_procedure'
 import * as MigrateProductDataProcedure from './migrate_product_data_procedure'
 import * as OnboardingByUserProcedure from './onboarding_by_user_procedure'
 import * as OperatorHealthProcedure from './operator_health_procedure'
@@ -264,10 +271,15 @@ const proceduresSchema = __procedures(
   __procedureSchema('accept_friend_invite', AcceptFriendInviteProcedure.params, AcceptFriendInviteProcedure.returnType),
   __procedureSchema('admin_collection_photos', AdminCollectionPhotosProcedure.params, AdminCollectionPhotosProcedure.returnType),
   __procedureSchema('battle_by_token', BattleByTokenProcedure.params, BattleByTokenProcedure.returnType),
+  __procedureSchema('battle_clubs', BattleClubsProcedure.params, BattleClubsProcedure.returnType),
   __procedureSchema('battle_feed', BattleFeedProcedure.params, BattleFeedProcedure.returnType),
   __procedureSchema('battle_for_operator', BattleForOperatorProcedure.params, BattleForOperatorProcedure.returnType),
   __procedureSchema('cancel_friend_invite', CancelFriendInviteProcedure.params, CancelFriendInviteProcedure.returnType),
   __procedureSchema('claim_guest_seat', ClaimGuestSeatProcedure.params, ClaimGuestSeatProcedure.returnType),
+  __procedureSchema('club_by_token', ClubByTokenProcedure.params, ClubByTokenProcedure.returnType),
+  __procedureSchema('club_command', ClubCommandProcedure.params, ClubCommandProcedure.returnType),
+  __procedureSchema('club_names', ClubNamesProcedure.params, ClubNamesProcedure.returnType),
+  __procedureSchema('clubs_visible_to', ClubsVisibleToProcedure.params, ClubsVisibleToProcedure.returnType),
   __procedureSchema('collection_by_user', CollectionByUserProcedure.params, CollectionByUserProcedure.returnType),
   __procedureSchema('collection_photo', CollectionPhotoProcedure.params, CollectionPhotoProcedure.returnType),
   __procedureSchema('collection_photo_deletions', CollectionPhotoDeletionsProcedure.params, CollectionPhotoDeletionsProcedure.returnType),
@@ -281,6 +293,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('delete_unit_loadout', DeleteUnitLoadoutProcedure.params, DeleteUnitLoadoutProcedure.returnType),
   __procedureSchema('discover_rosters', DiscoverRostersProcedure.params, DiscoverRostersProcedure.returnType),
   __procedureSchema('end_roster_loan', EndRosterLoanProcedure.params, EndRosterLoanProcedure.returnType),
+  __procedureSchema('event_address', EventAddressProcedure.params, EventAddressProcedure.returnType),
   __procedureSchema(
     'favourite_datasheets_by_user',
     FavouriteDatasheetsByUserProcedure.params,
@@ -311,6 +324,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('league_rosters', LeagueRostersProcedure.params, LeagueRostersProcedure.returnType),
   __procedureSchema('leagues_visible_to', LeaguesVisibleToProcedure.params, LeaguesVisibleToProcedure.returnType),
   __procedureSchema('lend_roster', LendRosterProcedure.params, LendRosterProcedure.returnType),
+  __procedureSchema('migrate_leagues_to_clubs', MigrateLeaguesToClubsProcedure.params, MigrateLeaguesToClubsProcedure.returnType),
   __procedureSchema('migrate_product_data', MigrateProductDataProcedure.params, MigrateProductDataProcedure.returnType),
   __procedureSchema('onboarding_by_user', OnboardingByUserProcedure.params, OnboardingByUserProcedure.returnType),
   __procedureSchema('operator_health', OperatorHealthProcedure.params, OperatorHealthProcedure.returnType),

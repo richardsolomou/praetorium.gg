@@ -275,8 +275,9 @@ test('cancelled creation forms report intent without submissions, and opening th
   await page.locator('[data-web-app-chrome]').getByRole('link', { name: 'Battles', exact: true }).click()
   await page.getByRole('button', { name: 'New battle', exact: true }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click()
-  await page.locator('[data-web-app-chrome]').getByRole('link', { name: 'Leagues', exact: true }).click()
-  await page.getByRole('button', { name: 'New league', exact: true }).click()
+  await page.locator('[data-web-app-chrome]').getByRole('button', { name: 'Events', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Tournaments', exact: true }).click()
+  await page.getByRole('button', { name: 'New tournament', exact: true }).click()
   await page.getByRole('dialog').getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.locator('[data-web-app-chrome]').getByRole('link', { name: 'Simulator', exact: true }).click()
   await expect

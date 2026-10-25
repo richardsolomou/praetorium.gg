@@ -83,7 +83,7 @@ export function GuestKeepGame({ view, claimed, onClaimed }: { view: BattleView; 
       <p className="text-sm text-dim">Create a free account and this game moves into it. You also get:</p>
       <ul className="list-disc space-y-1 pl-5 text-sm text-dim">
         <li>Your own record and stats, game after game</li>
-        <li>A place on the leaderboard and in league standings</li>
+        <li>A place on the leaderboard and in tournament results</li>
         <li>Your army saved with your rosters</li>
         {host ? <li>{host.name} as a friend, to start the next battle together</li> : null}
         <li>Your games and lists on any device</li>

@@ -10,8 +10,9 @@ import {
   admitLeagueEntriesSchema,
   assignLeagueRosterRequirementSchema,
   assignLeagueTeamSchema,
+  chooseLeagueSideSchema,
   createLeagueBattleSchema,
-  createLeagueEventSchema,
+  createClubGameSchema,
   createLeagueSchema,
   leagueBattlesSchema,
   leagueEventSchema,
@@ -19,6 +20,7 @@ import {
   leagueRosterSchema,
   moderateLeagueEntrySchema,
   openLeagueSchema,
+  pairLeagueRoundSchema,
   setLeagueAdminsSchema,
   setLeagueTeamDispositionSchema,
   setLeagueTeamWarlordSchema,
@@ -47,6 +49,11 @@ export const openLeague = createServerFn({ method: 'GET' })
       app().service.leagueService.league(data.token, await currentUserId(), data.eventToken, await app().battleFactionsFor()),
     ),
   )
+
+/** Where an old or indirect event link lands now, for the route that received it to redirect to. */
+export const eventAddress = createServerFn({ method: 'GET' })
+  .validator(leagueEventSchema)
+  .handler(({ data }) => rpc(() => app().service.leagueService.eventAddress(data.token, data.eventToken)))
 
 export const listLeagueBattles = createServerFn({ method: 'GET' })
   .validator(leagueBattlesSchema)
@@ -83,6 +90,20 @@ export const createLeague = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       return productActions.createLeague(player.id, data)
+    }),
+  )
+
+export const createClubGame = createServerFn({ method: 'POST' })
+  .validator(createClubGameSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const result = await app().service.leagueService.createClubGame(player.id, data)
+      await app().telemetry.capture(player.id, 'club_game_created', {
+        format: data.format,
+        roster_limit: data.rosterLimit,
+      })
+      return result
     }),
   )
 
@@ -215,15 +236,6 @@ export const unsealLeagueRoster = createServerFn({ method: 'POST' })
     }),
   )
 
-export const createLeagueEvent = createServerFn({ method: 'POST' })
-  .validator(createLeagueEventSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.createLeagueEvent(player.id, data)
-    }),
-  )
-
 export const assignLeagueRosterRequirement = createServerFn({ method: 'POST' })
   .validator(assignLeagueRosterRequirementSchema)
   .handler(({ data }) =>
@@ -239,6 +251,15 @@ export const assignLeagueTeam = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       return productActions.assignLeagueTeam(player.id, data)
+    }),
+  )
+
+export const chooseLeagueSide = createServerFn({ method: 'POST' })
+  .validator(chooseLeagueSideSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      return productActions.chooseLeagueSide(player.id, data)
     }),
   )
 
@@ -277,5 +298,16 @@ export const createLeagueBattle = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       return productActions.createLeagueBattle(player.id, data)
+    }),
+  )
+
+export const pairLeagueRound = createServerFn({ method: 'POST' })
+  .validator(pairLeagueRoundSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const result = await app().service.pairLeagueRound(data.token, data.eventToken, player.id)
+      await app().telemetry.capture(player.id, 'league_round_paired', { round: result.round })
+      return result
     }),
   )

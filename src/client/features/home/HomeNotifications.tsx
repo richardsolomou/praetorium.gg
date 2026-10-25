@@ -44,7 +44,7 @@ export function HomeNotifications() {
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6">
         <div>
           <p className="font-semibold">Get notified about your games</p>
-          <p className="text-sm text-dim">Allow notifications for new battles, friend requests, and league updates.</p>
+          <p className="text-sm text-dim">Allow notifications for new battles, friend requests, and tournament updates.</p>
           {error ? <Problem error={error} className="mt-1" /> : null}
         </div>
         <div className="flex gap-2">

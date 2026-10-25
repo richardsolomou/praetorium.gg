@@ -3,7 +3,7 @@ import { LegalPage, LegalSection } from './LegalPage'
 
 export function DeleteAccount() {
   return (
-    <LegalPage eyebrow="Help" title="Delete account" updated="16 October 2026">
+    <LegalPage eyebrow="Help" title="Delete account" updated="25 October 2026">
       <LegalSection title="Delete from Praetorium">
         <p>
           Sign in, choose Account settings from the account menu, and choose Delete account at the bottom of the page. The confirmation
@@ -29,7 +29,7 @@ export function DeleteAccount() {
 
       <LegalSection title="What deletion removes">
         <p>
-          Deletion removes your profile, credentials, sessions, rosters, friendships, league participation and every battle you played,
+          Deletion removes your profile, credentials, sessions, rosters, friendships, tournament entries and every battle you played,
           including shared battles. The action cannot be undone.
         </p>
       </LegalSection>

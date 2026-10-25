@@ -244,6 +244,28 @@ test('the first-army guide stops after adding a unit', async ({ page }) => {
 })
 
 for (const width of [1440, 390]) {
+  test(`the contextual tournament guide follows creation at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await signUp(page, uniqueName('Tournament Guide'))
+    await page.goto('/tournaments')
+    await page.getByRole('button', { name: 'Tournament guide', exact: true }).click()
+    await expect(prompt(page)).toContainText('Run a tournament')
+    await page.getByRole('button', { name: 'New tournament', exact: true }).click()
+    await expect(prompt(page)).toContainText('Name the tournament')
+    await page.getByRole('dialog').getByLabel('Name', { exact: true }).fill(uniqueName('Guided tournament'))
+    await next(page, 'Name the tournament')
+    await next(page, 'Format and points')
+    await next(page, 'Everything else can wait')
+    await page.locator('[data-onboarding="league-create"]').click()
+    await expect(page).toHaveURL(/\/tournaments\/[^/]+$/)
+    await next(page, 'Your entrants')
+    await next(page, 'Before the reveal')
+    await expect(prompt(page)).toContainText('Your own place')
+    await page.screenshot({ path: test.info().outputPath('tournament-guide-' + width + '.png') })
+    await prompt(page).getByRole('button', { name: 'Finish tour' }).click()
+    await expect(prompt(page)).toBeHidden()
+  })
+
   test(`reference help stays on the current page at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     await page.goto('/factions')

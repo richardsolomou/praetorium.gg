@@ -10,8 +10,6 @@ const known = {
       leagueToken: 'league',
       leagueName: 'Doubles Open',
       eventToken: 'event',
-      eventNumber: 1,
-      eventCount: 1,
       userId: 'cy',
       rosterName: 'Swarm',
       ownerName: 'Cy',

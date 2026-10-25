@@ -16,7 +16,7 @@ const PUBLIC_PAGES = [
   '/force-dispositions',
   '/docs',
   '/leaderboard',
-  '/leagues',
+  '/tournaments',
   '/rosters',
   '/rosters?view=public',
   '/rules',

@@ -55,6 +55,42 @@ export const Battles = __t.object('Battles', {
 })
 export type Battles = __Infer<typeof Battles>
 
+export const ClubBattles = __t.object('ClubBattles', {
+  battleId: __t.string(),
+  clubId: __t.string(),
+})
+export type ClubBattles = __Infer<typeof ClubBattles>
+
+export const ClubGames = __t.object('ClubGames', {
+  eventId: __t.string(),
+  clubId: __t.string(),
+  creatorId: __t.string(),
+  createdAt: __t.u64(),
+})
+export type ClubGames = __Infer<typeof ClubGames>
+
+export const ClubMembers = __t.object('ClubMembers', {
+  key: __t.string(),
+  clubId: __t.string(),
+  userId: __t.string(),
+  status: __t.string(),
+  role: __t.string(),
+  joinedAt: __t.u64(),
+})
+export type ClubMembers = __Infer<typeof ClubMembers>
+
+export const Clubs = __t.object('Clubs', {
+  id: __t.string(),
+  token: __t.string(),
+  ownerId: __t.string(),
+  name: __t.string(),
+  description: __t.string(),
+  visibility: __t.string(),
+  admission: __t.string(),
+  createdAt: __t.u64(),
+})
+export type Clubs = __Infer<typeof Clubs>
+
 export const Collection = __t.object('Collection', {
   key: __t.string(),
   userId: __t.string(),
@@ -116,6 +152,12 @@ export const Commands = __t.object('Commands', {
   body: __t.string(),
 })
 export type Commands = __Infer<typeof Commands>
+
+export const CompletedMigrations = __t.object('CompletedMigrations', {
+  name: __t.string(),
+  at: __t.u64(),
+})
+export type CompletedMigrations = __Infer<typeof CompletedMigrations>
 
 export const FavouriteDatasheets = __t.object('FavouriteDatasheets', {
   key: __t.string(),
@@ -223,6 +265,10 @@ export const LeagueEvents = __t.object('LeagueEvents', {
   revealedAt: __t.option(__t.u64()),
   revealedBy: __t.option(__t.string()),
   allowances: __t.option(__t.string()),
+  rounds: __t.option(__t.u32()),
+  pointsBudget: __t.option(__t.u32()),
+  playsAt: __t.option(__t.u64()),
+  sealBy: __t.option(__t.u64()),
 })
 export type LeagueEvents = __Infer<typeof LeagueEvents>
 
@@ -233,6 +279,17 @@ export const LeagueRosterSharing = __t.object('LeagueRosterSharing', {
   rosterId: __t.option(__t.string()),
 })
 export type LeagueRosterSharing = __Infer<typeof LeagueRosterSharing>
+
+export const LeagueRoundPairings = __t.object('LeagueRoundPairings', {
+  key: __t.string(),
+  eventId: __t.string(),
+  round: __t.u32(),
+  table: __t.u32(),
+  aId: __t.string(),
+  bId: __t.option(__t.string()),
+  battleId: __t.option(__t.string()),
+})
+export type LeagueRoundPairings = __Infer<typeof LeagueRoundPairings>
 
 export const Leagues = __t.object('Leagues', {
   id: __t.string(),
@@ -245,6 +302,7 @@ export const Leagues = __t.object('Leagues', {
   playerLimit: __t.option(__t.u32()),
   recurring: __t.bool(),
   createdAt: __t.u64(),
+  clubId: __t.option(__t.string()),
 })
 export type Leagues = __Infer<typeof Leagues>
 
@@ -401,6 +459,22 @@ export const Rosters = __t.object('Rosters', {
 })
 export type Rosters = __Infer<typeof Rosters>
 
+export const SealedEvents = __t.object('SealedEvents', {
+  id: __t.string(),
+  token: __t.string(),
+  format: __t.option(__t.string()),
+  rosterLimit: __t.option(__t.u32()),
+  allowances: __t.option(__t.string()),
+  rounds: __t.option(__t.u32()),
+  pointsBudget: __t.option(__t.u32()),
+  playsAt: __t.option(__t.u64()),
+  sealBy: __t.option(__t.u64()),
+  createdAt: __t.u64(),
+  revealedAt: __t.option(__t.u64()),
+  revealedBy: __t.option(__t.string()),
+})
+export type SealedEvents = __Infer<typeof SealedEvents>
+
 export const SessionAccess = __t.object('SessionAccess', {
   subject: __t.string(),
   identity: __t.identity(),
@@ -428,6 +502,28 @@ export const SyncReceipts = __t.object('SyncReceipts', {
   message: __t.string(),
 })
 export type SyncReceipts = __Infer<typeof SyncReceipts>
+
+export const TournamentAdmins = __t.object('TournamentAdmins', {
+  key: __t.string(),
+  tournamentId: __t.string(),
+  userId: __t.string(),
+  addedAt: __t.u64(),
+})
+export type TournamentAdmins = __Infer<typeof TournamentAdmins>
+
+export const Tournaments = __t.object('Tournaments', {
+  id: __t.string(),
+  token: __t.string(),
+  eventId: __t.string(),
+  ownerId: __t.string(),
+  name: __t.string(),
+  description: __t.string(),
+  visibility: __t.string(),
+  admission: __t.string(),
+  playerLimit: __t.option(__t.u32()),
+  createdAt: __t.u64(),
+})
+export type Tournaments = __Infer<typeof Tournaments>
 
 export const UnitLoadouts = __t.object('UnitLoadouts', {
   id: __t.string(),

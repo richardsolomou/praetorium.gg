@@ -19,6 +19,7 @@ import {
 import { gameReferencesQuery } from '../../../queries'
 import { fixedHandShort, missionCardsReady, type Side, type SideMission, sideName, sides as foldSides } from '../../../sides'
 import type { SendCommand } from '../useCommand'
+import { ClubChoice } from './ClubChoice'
 import { SearchableSelect, type SearchableGroup } from '../../../components/SearchableSelect'
 import { advanceOnboarding } from '../../onboarding/onboarding'
 import { Battlefield } from './Battlefield'
@@ -276,6 +277,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
           needed={Boolean(owed.length || sizeProblem || leaderless.length)}
         >
           <ArmiesStep view={view} sides={table} send={send} attachRoster={attachRoster} pending={busy} problem={problem} />
+          {view.leagueToken || manual ? null : <ClubChoice view={view} send={send} disabled={busy} />}
           <div data-onboarding="battle-setup-size">
             {formatOpen ? (
               <SetupPanel className="grid gap-4 sm:grid-cols-2">

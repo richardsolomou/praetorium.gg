@@ -206,8 +206,8 @@ export function SyncStatus() {
           <DialogHeader>
             <DialogTitle>Saved changes</DialogTitle>
             <DialogDescription>
-              Edits are saved on this device until they sync; invitations, league admissions, roster sealing and reveals take effect once
-              the server accepts them. {supportsNativeLocalState() ? 'Keep this app installed' : 'Keep this browser’s site data'} until
+              Edits are saved on this device until they sync; invitations, tournament admissions, roster sealing and reveals take effect
+              once the server accepts them. {supportsNativeLocalState() ? 'Keep this app installed' : 'Keep this browser’s site data'} until
               then.
             </DialogDescription>
           </DialogHeader>
@@ -226,7 +226,7 @@ export function SyncStatus() {
                 (resource.startsWith('battle:')
                   ? 'Battle'
                   : resource.startsWith('league:')
-                    ? 'League'
+                    ? 'Tournament'
                     : resource.startsWith('query:')
                       ? 'Preferences'
                       : 'Saved action')

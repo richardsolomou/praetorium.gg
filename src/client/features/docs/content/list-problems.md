@@ -28,4 +28,4 @@ Unlock it from the roster menu, or create a variant.
 
 - A roster holds at most 100 entries, and roster names are up to 80 characters.
 - A clean footer doesn't promise a legal list. Anything under **Could not check every rule**, and your event's own restrictions, are yours to check.
-- Lists already taken into a battle or league keep the version they were fielded with; editing the roster afterwards doesn't change them.
+- Lists already taken into a battle or tournament keep the version they were fielded with; editing the roster afterwards doesn't change them.

@@ -11,10 +11,15 @@ import * as AcceptFriendProcedure from '../accept_friend_procedure'
 import * as AcceptFriendInviteProcedure from '../accept_friend_invite_procedure'
 import * as AdminCollectionPhotosProcedure from '../admin_collection_photos_procedure'
 import * as BattleByTokenProcedure from '../battle_by_token_procedure'
+import * as BattleClubsProcedure from '../battle_clubs_procedure'
 import * as BattleFeedProcedure from '../battle_feed_procedure'
 import * as BattleForOperatorProcedure from '../battle_for_operator_procedure'
 import * as CancelFriendInviteProcedure from '../cancel_friend_invite_procedure'
 import * as ClaimGuestSeatProcedure from '../claim_guest_seat_procedure'
+import * as ClubByTokenProcedure from '../club_by_token_procedure'
+import * as ClubCommandProcedure from '../club_command_procedure'
+import * as ClubNamesProcedure from '../club_names_procedure'
+import * as ClubsVisibleToProcedure from '../clubs_visible_to_procedure'
 import * as CollectionByUserProcedure from '../collection_by_user_procedure'
 import * as CollectionPhotoProcedure from '../collection_photo_procedure'
 import * as CollectionPhotoDeletionsProcedure from '../collection_photo_deletions_procedure'
@@ -28,6 +33,7 @@ import * as DeleteBattleForOperatorProcedure from '../delete_battle_for_operator
 import * as DeleteUnitLoadoutProcedure from '../delete_unit_loadout_procedure'
 import * as DiscoverRostersProcedure from '../discover_rosters_procedure'
 import * as EndRosterLoanProcedure from '../end_roster_loan_procedure'
+import * as EventAddressProcedure from '../event_address_procedure'
 import * as FavouriteDatasheetsByUserProcedure from '../favourite_datasheets_by_user_procedure'
 import * as FavouriteDetachmentsByUserProcedure from '../favourite_detachments_by_user_procedure'
 import * as FavouriteFactionsByUserProcedure from '../favourite_factions_by_user_procedure'
@@ -50,6 +56,7 @@ import * as LeagueRosterSharingProcedure from '../league_roster_sharing_procedur
 import * as LeagueRostersProcedure from '../league_rosters_procedure'
 import * as LeaguesVisibleToProcedure from '../leagues_visible_to_procedure'
 import * as LendRosterProcedure from '../lend_roster_procedure'
+import * as MigrateLeaguesToClubsProcedure from '../migrate_leagues_to_clubs_procedure'
 import * as MigrateProductDataProcedure from '../migrate_product_data_procedure'
 import * as OnboardingByUserProcedure from '../onboarding_by_user_procedure'
 import * as OperatorHealthProcedure from '../operator_health_procedure'
@@ -101,6 +108,8 @@ export type AdminCollectionPhotosArgs = __Infer<typeof AdminCollectionPhotosProc
 export type AdminCollectionPhotosResult = __Infer<typeof AdminCollectionPhotosProcedure.returnType>
 export type BattleByTokenArgs = __Infer<typeof BattleByTokenProcedure.params>
 export type BattleByTokenResult = __Infer<typeof BattleByTokenProcedure.returnType>
+export type BattleClubsArgs = __Infer<typeof BattleClubsProcedure.params>
+export type BattleClubsResult = __Infer<typeof BattleClubsProcedure.returnType>
 export type BattleFeedArgs = __Infer<typeof BattleFeedProcedure.params>
 export type BattleFeedResult = __Infer<typeof BattleFeedProcedure.returnType>
 export type BattleForOperatorArgs = __Infer<typeof BattleForOperatorProcedure.params>
@@ -109,6 +118,14 @@ export type CancelFriendInviteArgs = __Infer<typeof CancelFriendInviteProcedure.
 export type CancelFriendInviteResult = __Infer<typeof CancelFriendInviteProcedure.returnType>
 export type ClaimGuestSeatArgs = __Infer<typeof ClaimGuestSeatProcedure.params>
 export type ClaimGuestSeatResult = __Infer<typeof ClaimGuestSeatProcedure.returnType>
+export type ClubByTokenArgs = __Infer<typeof ClubByTokenProcedure.params>
+export type ClubByTokenResult = __Infer<typeof ClubByTokenProcedure.returnType>
+export type ClubCommandArgs = __Infer<typeof ClubCommandProcedure.params>
+export type ClubCommandResult = __Infer<typeof ClubCommandProcedure.returnType>
+export type ClubNamesArgs = __Infer<typeof ClubNamesProcedure.params>
+export type ClubNamesResult = __Infer<typeof ClubNamesProcedure.returnType>
+export type ClubsVisibleToArgs = __Infer<typeof ClubsVisibleToProcedure.params>
+export type ClubsVisibleToResult = __Infer<typeof ClubsVisibleToProcedure.returnType>
 export type CollectionByUserArgs = __Infer<typeof CollectionByUserProcedure.params>
 export type CollectionByUserResult = __Infer<typeof CollectionByUserProcedure.returnType>
 export type CollectionPhotoArgs = __Infer<typeof CollectionPhotoProcedure.params>
@@ -135,6 +152,8 @@ export type DiscoverRostersArgs = __Infer<typeof DiscoverRostersProcedure.params
 export type DiscoverRostersResult = __Infer<typeof DiscoverRostersProcedure.returnType>
 export type EndRosterLoanArgs = __Infer<typeof EndRosterLoanProcedure.params>
 export type EndRosterLoanResult = __Infer<typeof EndRosterLoanProcedure.returnType>
+export type EventAddressArgs = __Infer<typeof EventAddressProcedure.params>
+export type EventAddressResult = __Infer<typeof EventAddressProcedure.returnType>
 export type FavouriteDatasheetsByUserArgs = __Infer<typeof FavouriteDatasheetsByUserProcedure.params>
 export type FavouriteDatasheetsByUserResult = __Infer<typeof FavouriteDatasheetsByUserProcedure.returnType>
 export type FavouriteDetachmentsByUserArgs = __Infer<typeof FavouriteDetachmentsByUserProcedure.params>
@@ -179,6 +198,8 @@ export type LeaguesVisibleToArgs = __Infer<typeof LeaguesVisibleToProcedure.para
 export type LeaguesVisibleToResult = __Infer<typeof LeaguesVisibleToProcedure.returnType>
 export type LendRosterArgs = __Infer<typeof LendRosterProcedure.params>
 export type LendRosterResult = __Infer<typeof LendRosterProcedure.returnType>
+export type MigrateLeaguesToClubsArgs = __Infer<typeof MigrateLeaguesToClubsProcedure.params>
+export type MigrateLeaguesToClubsResult = __Infer<typeof MigrateLeaguesToClubsProcedure.returnType>
 export type MigrateProductDataArgs = __Infer<typeof MigrateProductDataProcedure.params>
 export type MigrateProductDataResult = __Infer<typeof MigrateProductDataProcedure.returnType>
 export type OnboardingByUserArgs = __Infer<typeof OnboardingByUserProcedure.params>

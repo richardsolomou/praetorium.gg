@@ -3,25 +3,19 @@ import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
-import {
-  effectiveLeagueAllowances,
-  leagueMinimumPlaces,
-  leaguePlacesSeat,
-  leagueTableShape,
-  LEAGUE_DEFAULT_ROSTER_LIMIT,
-} from '../../../core/league'
+import { effectiveLeagueAllowances, leagueTableShape, LEAGUE_DEFAULT_ROSTER_LIMIT } from '../../../core/league'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
-import { createLeague, createLeagueEvent, setLeagueAdmins, updateLeague } from '../../functions'
+import { createClubGame, createLeague, setLeagueAdmins, updateLeague } from '../../functions'
 import { leagueQuery, leagueReadsKey, leaguesQuery, meQuery } from '../../queries'
 import { leagueFormValid, LeagueFormFields, type LeagueFormValue } from './LeagueForm'
-import type { League } from './leagueEvent'
+import { eventLink, leagueNoun, type League } from './leagueEvent'
 import { Problem } from '../../components/Problem'
 
 /**
- * `create` opens a league with its first event, `edit` changes the league and its current event, and
- * `next` starts the event after a revealed one. All three are the same form, so every setting lives in one place.
+ * `create` opens a tournament, or a club's sealed game when given the club's token, and `edit` changes one. Both are
+ * the same form, so every setting lives in one place.
  */
-type LeagueSettingsMode = { kind: 'create' } | { kind: 'edit'; token: string } | { kind: 'next'; token: string }
+type LeagueSettingsMode = { kind: 'create'; clubToken?: string } | { kind: 'edit'; token: string }
 
 const SAVE = ['league-settings']
 
@@ -51,11 +45,12 @@ export function LeagueSettingsDialog({
 function CurrentSettings({ mode, token, onClose }: { mode: LeagueSettingsMode; token: string; onClose: () => void }) {
   const { data: league, isFetchedAfterMount } = useQuery({ ...leagueQuery(token), refetchOnMount: 'always' })
   if (league && isFetchedAfterMount) return <SettingsForm mode={mode} league={league} onClose={onClose} />
+  const { noun } = leagueNoun(league ?? {})
   return (
     <DialogContent aria-busy size="md">
       <DialogHeader>
-        <DialogTitle className="text-2xl">{mode.kind === 'next' ? 'Start the next event' : 'Edit league'}</DialogTitle>
-        <DialogDescription>Loading the league’s current settings…</DialogDescription>
+        <DialogTitle className="text-2xl">Edit {noun}</DialogTitle>
+        <DialogDescription>Loading the {noun}’s current settings…</DialogDescription>
       </DialogHeader>
     </DialogContent>
   )
@@ -72,49 +67,54 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const current = league ? leagueTableShape(league.format) : '1v1'
-  // A next event carries the last one's format forward, raising a limit set since that no longer seats it.
+  const sealedGame = mode.kind === 'create' ? Boolean(mode.clubToken) : Boolean(league?.club)
+  const { noun } = leagueNoun(mode.kind === 'create' ? { club: mode.clubToken } : (league ?? {}))
   const [value, setValue] = useState<LeagueFormValue>(() => ({
-    name: league?.name ?? '',
-    description: league?.description ?? '',
-    visibility: league?.visibility ?? 'private',
-    admission: league?.admission ?? 'automatic',
-    playerLimit:
-      mode.kind === 'next' && league && !leaguePlacesSeat(current, league.playerLimit)
-        ? leagueMinimumPlaces(current, league.playerLimit ?? 0)
-        : (league?.playerLimit ?? null),
+    name: league?.tournament?.name ?? '',
+    description: league?.tournament?.description ?? '',
+    visibility: league?.tournament?.visibility ?? 'public',
+    admission: league?.tournament?.admission ?? 'automatic',
+    playerLimit: league?.tournament?.playerLimit ?? null,
     format: current,
     rosterLimit: league?.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT,
     allowances: league ? [...currentAllowances(league)] : [],
+    rounds: league?.rounds ?? null,
+    pointsBudget: league?.pointsBudget ?? null,
+    playsAt: league?.playsAt ?? null,
+    sealBy: league?.sealBy ?? null,
   }))
   const { data: me } = useQuery(meQuery())
   // Whoever opens the form, owner or admin, is the organizer it asks about.
   const [ownerPlays, setOwnerPlays] = useState(
     () => !league || league.entries.some((entry) => entry.userId === me?.id && entry.status === 'accepted'),
   )
-  const isOwner = Boolean(league && me?.id === league.ownerId)
-  const currentAdmins = league?.admins.map((admin) => admin.id) ?? []
+  const isOwner = Boolean(league?.tournament && me?.id === league.tournament.ownerId)
+  const currentAdmins = league?.tournament?.admins.map((admin) => admin.id) ?? []
   const [adminIds, setAdminIds] = useState(currentAdmins)
   const adminsChanged = adminIds.length !== currentAdmins.length || adminIds.some((id) => !currentAdmins.includes(id))
-  // A fresh event starts with nobody in it, so only the open event's entrants hold places.
   const seated =
     mode.kind === 'edit' && league && !league.revealedAt ? league.entries.filter((entry) => entry.status === 'accepted').length : 0
   const ruleLock =
     mode.kind !== 'edit' || !league
       ? null
       : league.revealedAt
-        ? 'The rosters are out; start the next event to play a different format.'
+        ? `The rosters are out; start a new ${noun} to play a different format.`
         : league.entries.some((entry) => entry.submitted)
           ? 'Locked now that a roster is sealed.'
           : null
-  // A revealed event no longer holds the limit to its shape; the limit only governs the events after it.
+  // A revealed event takes nobody new, so its limit no longer has to seat its shape.
   const limitFormat = mode.kind === 'edit' && league?.revealedAt ? null : value.format
   const shapeChanged = value.format !== current || value.rosterLimit !== league?.rosterLimit
-  const ruleChanged = shapeChanged || (league !== null && !sameAllowances(value.allowances, currentAllowances(league)))
+  const ruleChanged =
+    shapeChanged ||
+    (league !== null &&
+      (!sameAllowances(value.allowances, currentAllowances(league)) ||
+        value.rounds !== league.rounds ||
+        value.pointsBudget !== league.pointsBudget))
   const clearsAssignments =
     mode.kind === 'edit' &&
     shapeChanged &&
     league?.entries.some((entry) => entry.teamId || (league.format === '2v1' && entry.requiredLimit))
-  const next = (league?.eventCount ?? 0) + 1
 
   const save = useMutation({
     mutationKey: SAVE,
@@ -125,14 +125,20 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
       if (mode.kind === 'create') posthog.capture('league_creation_failed', { reason: 'request' })
     },
     mutationFn: async () => {
-      const { format, rosterLimit, allowances, ...details } = value
-      if (mode.kind === 'create') return createLeague({ data: { ...details, format, rosterLimit, allowances, ownerPlays } })
-      if (mode.kind === 'next') {
-        const created = await createLeagueEvent({ data: { token: mode.token, ...details, format, rosterLimit, allowances, ownerPlays } })
-        return { token: mode.token, eventToken: created.eventToken }
-      }
+      const { format, rosterLimit, allowances, rounds, pointsBudget, playsAt, sealBy, ...details } = value
+      const schedule = { playsAt, sealBy }
+      if (mode.kind === 'create')
+        return mode.clubToken
+          ? createClubGame({ data: { clubToken: mode.clubToken, format, rosterLimit, allowances, pointsBudget, schedule } })
+          : createLeague({ data: { ...details, format, rosterLimit, allowances, rounds, pointsBudget, schedule, ownerPlays } })
       await updateLeague({
-        data: { token: mode.token, ...details, ...(ruleLock || !ruleChanged ? {} : { rule: { format, rosterLimit, allowances } }) },
+        data: {
+          token: mode.token,
+          // A club's sealed game has no details of its own.
+          ...(sealedGame ? {} : details),
+          schedule,
+          ...(ruleLock || !ruleChanged ? {} : { rule: { format, rosterLimit, allowances, rounds, pointsBudget } }),
+        },
       })
       if (isOwner && adminsChanged) await setLeagueAdmins({ data: { token: mode.token, userIds: adminIds } })
       return null
@@ -144,29 +150,30 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
       ]),
     onSuccess: async (created) => {
       onClose()
-      if (created) await navigate({ to: '/leagues/$token', params: { token: created.token }, search: { event: created.eventToken } })
+      if (created)
+        await navigate(
+          eventLink({ token: created.token, club: mode.kind === 'create' && mode.clubToken ? { token: mode.clubToken } : null }),
+        )
     },
   })
 
-  const title = mode.kind === 'create' ? 'New league' : mode.kind === 'next' ? `Start event ${next}` : 'Edit league'
+  const title = mode.kind === 'create' ? `New ${noun}` : `Edit ${noun}`
   const description =
     mode.kind === 'create'
-      ? 'Everyone seals a roster in secret, then you reveal them together.'
-      : mode.kind === 'next'
-        ? 'Starts empty: everyone joins and seals a new roster.'
+      ? mode.clubToken
+        ? 'Members seal a list in secret, then you reveal them together. Its battles count on the club’s leaderboard.'
+        : 'Everyone seals a roster in secret, then you reveal them together.'
+      : sealedGame
+        ? 'Applies from now on. Nothing already sealed or played changes.'
         : 'Applies from now on. Nothing already sealed or played changes. Switching to Anyone who joins lets in everyone still waiting.'
   const submit =
     mode.kind === 'create'
       ? save.isPending
         ? 'Creating…'
-        : 'Create league'
-      : mode.kind === 'next'
-        ? save.isPending
-          ? 'Opening…'
-          : `Start event ${next}`
-        : save.isPending
-          ? 'Saving…'
-          : 'Save changes'
+        : `${mode.clubToken ? 'Start' : 'Create'} ${noun}`
+      : save.isPending
+        ? 'Saving…'
+        : 'Save changes'
 
   return (
     <DialogContent showCloseButton={!save.isPending} aria-busy={save.isPending} size="md">
@@ -189,9 +196,13 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
             seated={seated}
             limitFormat={limitFormat}
             ruleLock={ruleLock}
-            ownerPlays={mode.kind === 'edit' ? undefined : ownerPlays}
+            tournament={!sealedGame}
+            // A club game's players enter by sealing a list or taking a seat, its organizer included.
+            ownerPlays={mode.kind === 'edit' || sealedGame ? undefined : ownerPlays}
             admins={
-              mode.kind === 'edit' && isOwner && league ? { selected: adminIds, known: league.admins, onChange: setAdminIds } : undefined
+              mode.kind === 'edit' && isOwner && league?.tournament
+                ? { selected: adminIds, known: league.tournament.admins, onChange: setAdminIds }
+                : undefined
             }
             disabled={save.isPending}
             onChange={setValue}
@@ -207,7 +218,11 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
           <Button type="button" variant="outline" disabled={save.isPending} onClick={onClose}>
             Cancel
           </Button>
-          <Button data-onboarding="league-create" type="submit" disabled={save.isPending || !leagueFormValid(value, seated, limitFormat)}>
+          <Button
+            data-onboarding="league-create"
+            type="submit"
+            disabled={save.isPending || !leagueFormValid(value, seated, limitFormat, !sealedGame)}
+          >
             {submit}
           </Button>
         </DialogFooter>

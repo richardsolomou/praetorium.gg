@@ -159,6 +159,10 @@ const rosterLoans = table(
   },
 )
 
+/**
+ * Retired: each league became a club and each of its events a club game. The server empties these at its start, and
+ * SpacetimeDB refuses to drop a table that still holds rows, so they stay until a later release.
+ */
 const leagues = table(
   { name: 'leagues' },
   {
@@ -172,9 +176,11 @@ const leagues = table(
     playerLimit: t.option(t.u32()),
     recurring: t.bool(),
     createdAt: t.u64(),
+    clubId: t.option(t.string()).default(undefined),
   },
 )
 
+/** Retired with `leagues`. */
 const leagueEvents = table(
   { name: 'league_events' },
   {
@@ -187,8 +193,102 @@ const leagueEvents = table(
     createdAt: t.u64(),
     revealedAt: t.option(t.u64()),
     revealedBy: t.option(t.string()).default(undefined),
-    /** JSON `LeagueAllowance[]`; absent on events created before organizers chose them, which accept any waiver. */
     allowances: t.option(t.string()).default(undefined),
+    rounds: t.option(t.u32()).default(undefined),
+    pointsBudget: t.option(t.u32()).default(undefined),
+    playsAt: t.option(t.u64()).default(undefined),
+    sealBy: t.option(t.u64()).default(undefined),
+  },
+)
+
+/** Retired with `leagues`. */
+const leagueAdmins = table(
+  { name: 'league_admins' },
+  {
+    key: t.string().primaryKey(),
+    leagueId: t.string().index('btree'),
+    userId: t.string().index('btree'),
+    addedAt: t.u64(),
+  },
+)
+
+/**
+ * One sealed-roster event, which either a tournament or a club game hosts; its entries, picks, pairings and battles
+ * are keyed by its id.
+ */
+const sealedEvents = table(
+  { name: 'sealed_events' },
+  {
+    id: t.string().primaryKey(),
+    token: t.string().unique(),
+    format: t.option(t.string()),
+    rosterLimit: t.option(t.u32()),
+    /** JSON `LeagueAllowance[]`; absent on events created before organizers chose them, which accept any waiver. */
+    allowances: t.option(t.string()),
+    /** How many Swiss rounds the organizer pairs; absent for open play, where entrants choose their own opponents. */
+    rounds: t.option(t.u32()),
+    /** A duel's points total when it differs from its battle size's, as a roster's own budget would set it. */
+    pointsBudget: t.option(t.u32()),
+    /** When the event is played, as the organizer announced it. */
+    playsAt: t.option(t.u64()),
+    /** The roster deadline: after it nobody seals, and entrants without a sealed list drop out. */
+    sealBy: t.option(t.u64()),
+    createdAt: t.u64(),
+    revealedAt: t.option(t.u64()),
+    revealedBy: t.option(t.string()),
+  },
+)
+
+/** An organized one-off event: its name, who may find and enter it, and who runs it. */
+const tournaments = table(
+  { name: 'tournaments' },
+  {
+    id: t.string().primaryKey(),
+    token: t.string().unique(),
+    eventId: t.string().unique(),
+    ownerId: t.string().index('btree'),
+    name: t.string(),
+    description: t.string(),
+    visibility: t.string(),
+    admission: t.string(),
+    playerLimit: t.option(t.u32()),
+    createdAt: t.u64(),
+  },
+)
+
+/** Players the owner trusts to run a tournament beside them; the owner alone deletes it or changes who these are. */
+const tournamentAdmins = table(
+  { name: 'tournament_admins' },
+  {
+    key: t.string().primaryKey(),
+    tournamentId: t.string().index('btree'),
+    userId: t.string().index('btree'),
+    addedAt: t.u64(),
+  },
+)
+
+/** A club's casual sealed game: the club's organizers run it and only its members play. Its address is its event's token. */
+const clubGames = table(
+  { name: 'club_games' },
+  {
+    eventId: t.string().primaryKey(),
+    clubId: t.string().index('btree'),
+    creatorId: t.string(),
+    createdAt: t.u64(),
+  },
+)
+
+/** One table of one Swiss round, keyed by event, round and table. `bId` is absent for a bye. */
+const leagueRoundPairings = table(
+  { name: 'league_round_pairings' },
+  {
+    key: t.string().primaryKey(),
+    eventId: t.string().index('btree'),
+    round: t.u32(),
+    table: t.u32(),
+    aId: t.string(),
+    bId: t.option(t.string()),
+    battleId: t.option(t.string()),
   },
 )
 
@@ -241,22 +341,56 @@ const leagueRosterSharing = table(
   },
 )
 
-/** Players the owner trusts to run the league beside them; the owner alone deletes it or changes who these are. */
-const leagueAdmins = table(
-  { name: 'league_admins' },
-  {
-    key: t.string().primaryKey(),
-    leagueId: t.string().index('btree'),
-    userId: t.string().index('btree'),
-    addedAt: t.u64(),
-  },
-)
-
 const leagueEventBattles = table(
   { name: 'league_event_battles' },
   {
     battleId: t.string().primaryKey(),
     eventId: t.string().index('btree'),
+  },
+)
+
+const clubs = table(
+  { name: 'clubs' },
+  {
+    id: t.string().primaryKey(),
+    token: t.string().unique(),
+    ownerId: t.string().index('btree'),
+    name: t.string(),
+    description: t.string(),
+    visibility: t.string(),
+    admission: t.string(),
+    createdAt: t.u64(),
+  },
+)
+
+/** Keyed by club and user. The owner holds an accepted row too, so "every player is a member" is one check; an admin is always a member. */
+const clubMembers = table(
+  { name: 'club_members' },
+  {
+    key: t.string().primaryKey(),
+    clubId: t.string().index('btree'),
+    userId: t.string().index('btree'),
+    status: t.string(),
+    role: t.string(),
+    joinedAt: t.u64(),
+  },
+)
+
+/** Retired: a database that ran the first league migration records it here, and SpacetimeDB refuses to drop a table holding rows. */
+const completedMigrations = table(
+  { name: 'completed_migrations' },
+  {
+    name: t.string().primaryKey(),
+    at: t.u64(),
+  },
+)
+
+/** Which battles count on which club's table: an index of each battle's folded `set-battle-club`, rewritten whenever one could change it. */
+const clubBattles = table(
+  { name: 'club_battles' },
+  {
+    battleId: t.string().primaryKey(),
+    clubId: t.string().index('btree'),
   },
 )
 
@@ -464,12 +598,21 @@ export const productTables = {
   rosterLoans,
   leagues,
   leagueEvents,
+  leagueAdmins,
+  sealedEvents,
+  tournaments,
+  tournamentAdmins,
+  clubGames,
   leagueEventEntries,
   leagueEventTeams,
   leagueEventTeamWarlords,
   leagueRosterSharing,
   leagueEventBattles,
-  leagueAdmins,
+  leagueRoundPairings,
+  clubs,
+  clubMembers,
+  clubBattles,
+  completedMigrations,
   collection,
   collectionWishes,
   collectionStock,

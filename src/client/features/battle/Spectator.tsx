@@ -16,7 +16,7 @@ import { battleOutcome } from '../../battleOutcome'
 import { deploymentFor } from '../../battleSummary'
 import { replayPreloadBatches } from '../../replayPrefetch'
 import { missionCardsByKey } from './missionDeck'
-import { battleReplayKey, deploymentsQuery, gameReferencesQuery, meQuery, replayAtQuery } from '../../queries'
+import { battleClubsQuery, battleReplayKey, deploymentsQuery, gameReferencesQuery, meQuery, replayAtQuery } from '../../queries'
 import { sides, type Side, type SideMission } from '../../sides'
 import { ArmyIdentity } from './ArmyIdentity'
 import { PlayerName } from './PlayerName'
@@ -132,14 +132,15 @@ export function Spectator({
           <div className="flex min-w-0 items-center gap-2 text-xs">
             {view.leagueToken ? (
               <Link
-                to="/leagues/$token"
+                to="/tournaments/$token"
                 params={{ token: view.leagueToken }}
                 search={view.leagueEventToken ? { event: view.leagueEventToken } : {}}
                 className="inline-flex shrink-0 items-center gap-1 text-info hover:text-bone"
               >
-                <ArrowLeft className="size-3.5" /> League
+                <ArrowLeft className="size-3.5" /> Event
               </Link>
             ) : null}
+            {view.clubId ? <ClubLink token={view.token} /> : null}
             {!me ? (
               <Link to="/sign-in" search={{ next: `/battles/${view.token}` }} rel="nofollow" className="shrink-0 text-info hover:text-bone">
                 Sign in to play
@@ -394,5 +395,20 @@ function SpectatorSide({
         </div>
       ) : null}
     </section>
+  )
+}
+
+/** The club a watched battle counts for, when that club is public. */
+function ClubLink({ token }: { token: string }) {
+  const { data } = useQuery(battleClubsQuery(token))
+  if (!data?.current) return null
+  return (
+    <Link
+      to="/clubs/$token"
+      params={{ token: data.current.token }}
+      className="inline-flex min-w-0 items-center gap-1 text-info hover:text-bone"
+    >
+      <ArrowLeft className="size-3.5 shrink-0" /> <span className="truncate">{data.current.name}</span>
+    </Link>
   )
 }

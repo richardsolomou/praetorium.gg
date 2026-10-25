@@ -71,7 +71,6 @@ it.skipIf(!url || !database || !token)('acknowledges and replays a successfully 
         visibility: 'private',
         admission: 'automatic',
         playerLimit: 2,
-        recurring: false,
         format: '1v1',
         rosterLimit: 2000,
         now: row.now,
@@ -111,7 +110,7 @@ it.skipIf(!url || !database || !token)('acknowledges and replays a successfully 
       result,
       retry,
       receipt: (await operator.syncReceipt(id, owner, fingerprint))?.outcome,
-      snapshot: (await operator.leagueRosters(leagueToken, owner))[0]?.entry.rosterSnapshot,
+      snapshot: (await operator.leagueRosters(leagueToken, owner))?.entry.rosterSnapshot,
     }).toEqual({ result: { outcome: 'sealed' }, retry: { outcome: 'sealed' }, receipt: 'applied', snapshot: command.snapshot })
   } finally {
     await operator.deleteUserData(owner)

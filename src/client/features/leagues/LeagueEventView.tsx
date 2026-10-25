@@ -19,6 +19,7 @@ import { GAME_SIZES, pointsSize } from '../../../core/battle'
 import {
   leagueRegistrationFull,
   leagueRevealChecklist,
+  leagueSealingClosed,
   leagueStage,
   leagueTableShape,
   mayRevealLeague,
@@ -38,19 +39,25 @@ import {
   doublesTeams,
   entrantGroups,
   entryProgress,
+  entryRules,
   leagueNextStep,
+  leagueNoun,
   namesPhrase,
+  organizerName,
   useLeagueRefresh,
   type EntryStage,
   type EntryStep,
   type League,
 } from './leagueEvent'
-import { InvitePanel, NextEventPanel, OrganizerEntrants } from './LeagueOrganizer'
+import { InvitePanel, OrganizerEntrants } from './LeagueOrganizer'
 import { LeagueArmies, type ArmyGroup } from './LeagueArmies'
 import { LeagueReadiness, RevealRostersDialog } from './LeagueReadiness'
 import { LeagueBattleSkeleton, RosterChooser } from './LeagueRosterChooser'
 import { LeagueCombatDialog } from './LeagueCombatDialog'
 import { LeagueResults } from './LeagueResults'
+import { useMoment } from './EventSchedule'
+import { useNow } from '../../useNow'
+import { LeagueRounds, ownTable, swissProgress } from './LeagueRounds'
 import { TeamDispositionPanel } from './LeagueTeamDisposition'
 import { TeamWarlordPanel } from './LeagueTeamWarlord'
 import { LeagueRosterSharing } from './LeagueRosterSharing'
@@ -66,7 +73,7 @@ type ClickAction = {
   reveal?: true
   onClick: () => void
 }
-type Action = ClickAction | { label: string; to: '/sign-in' | '/leagues' }
+type Action = ClickAction | { label: string; to: '/sign-in' | '/tournaments' }
 
 type Status = {
   title: string
@@ -102,6 +109,8 @@ export function LeagueEventView({
   })
   const { data: results } = useQuery({ ...leagueResultsQuery(token, league.eventToken), enabled: Boolean(league.revealedAt) })
   const { data: gameReferences } = useQuery(gameReferencesQuery())
+  const moment = useMoment()
+  const now = useNow(league.sealBy)
   const [choosing, setChoosing] = useState(Boolean(chooseRoster))
   const [sealing, setSealing] = useState<SavedRoster | null>(null)
   const [choosingBattle, setChoosingBattle] = useState(Boolean(startBattle))
@@ -188,6 +197,11 @@ export function LeagueEventView({
     ownEntry && !league.revealedAt
       ? accepted.filter((entry) => readsAlliedLeagueRoster(league.format, league.rosterLimit, entry, ownEntry))
       : []
+  const swiss = league.rounds !== null
+  const table = swiss ? ownTable(league, viewerId) : undefined
+  const swissProgressNow = swissProgress(league, eventBattles)
+  // In Swiss rounds the only battle to start is the viewer's own unplayed table.
+  const swissOpponent = table && !table.battleToken ? (table.aId === viewerId ? table.bId : table.aId) : null
   const met = new Set(results?.met.flatMap(([one, other]) => (one === viewerId ? [other] : other === viewerId ? [one] : [])))
   const opponents = oneOnOneEntrants.filter((entry) => entry.userId !== viewerId)
   const yetToPlay = opponents.filter((entry) => !met.has(entry.userId)).map(label)
@@ -195,16 +209,20 @@ export function LeagueEventView({
   const playDetail =
     battleFormat !== '1v1' || !ownEntry?.submitted || !league.revealedAt
       ? undefined
-      : !opponents.length
-        ? 'Nobody else is playing in this event.'
-        : !results
-          ? '\u00a0'
-          : yetToPlay.length
-            ? `Still to play: ${namesPhrase(yetToPlay)}.`
-            : 'You have played everyone. Rematches count too.'
-  const alone = battleFormat === '1v1' && !opponents.length
-  const registrationFull = leagueRegistrationFull(league, accepted.length, league.occupiedCount)
-  const latest = league.events[0]?.token === league.eventToken
+      : swiss
+        ? swissDetail(table, swissProgressNow, () => {
+            const entry = league.entries.find((candidate) => candidate.userId === swissOpponent)
+            return entry ? label(entry) : 'your opponent'
+          })
+        : !opponents.length
+          ? 'Nobody else joined.'
+          : !results
+            ? '\u00a0'
+            : yetToPlay.length
+              ? `Still to play: ${namesPhrase(yetToPlay)}.`
+              : 'You have played everyone. Rematches count too.'
+  const alone = swiss ? !swissOpponent : battleFormat === '1v1' && !opponents.length
+  const registrationFull = leagueRegistrationFull(entryRules(league), accepted.length, league.occupiedCount)
   const entryCard = entryStatus({
     league,
     ownEntry,
@@ -215,18 +233,20 @@ export function LeagueEventView({
     allies: allies.map(label),
     playDetail,
     alone,
-    latest,
     join: () => join.mutate(),
     joining: join.isPending,
     choose: openRosterChooser,
-    play: openBattleChooser,
+    play: swissOpponent ? () => battle.mutate({ opponentId: swissOpponent }) : openBattleChooser,
+    playLabel: swissOpponent ? `Start your round ${swissProgressNow.round} battle` : undefined,
+    sealingClosed: leagueSealingClosed(league, now),
+    sealBy: league.sealBy === null ? null : moment(league.sealBy),
     playing: battle.isPending,
   })
   // Once every check passes, opening the rosters is the event's next step for anyone who may, so it leads their card.
   const revealReady =
     !revealed &&
     mayRevealLeague(isOrganizer, ownEntry ?? null) &&
-    leagueRevealChecklist(league, league.entries).every((check) => check.done)
+    leagueRevealChecklist(league, league.entries, now).every((check) => check.done)
   const status: Status = revealReady
     ? {
         ...entryCard,
@@ -279,22 +299,18 @@ export function LeagueEventView({
       )}
     </section>
   )
-  // A past event has no next step; whoever moves the open one on, the organizer or a player in it, reads its one.
+  // Whoever moves the event on, the organizer or a player in it, reads its next step.
+  // In Swiss rounds the status card and the rounds say what comes next, round by round.
   const nextStep =
-    latest && (isOrganizer || ownEntry?.status === 'accepted')
+    !(swiss && revealed) && (isOrganizer || ownEntry?.status === 'accepted')
       ? leagueNextStep(
-          leagueStage(league, league.entries, Boolean(results?.rows.some((result) => result.played))),
+          leagueStage(league, league.entries, Boolean(results?.rows.some((result) => result.played)), now),
           // The same facts that give the status card its start-battle action.
           { organizer: isOrganizer, canPlay: Boolean(ownEntry?.submitted) && ownSideSealed && !alone },
-          league.format,
+          league,
         )
       : null
-  const aside = isOrganizer ? (
-    <aside className="space-y-3">
-      {latest && !revealed ? <InvitePanel league={league} /> : null}
-      {latest && revealed ? <NextEventPanel league={league} /> : null}
-    </aside>
-  ) : null
+  const aside = isOrganizer ? <aside className="space-y-3">{!revealed ? <InvitePanel league={league} /> : null}</aside> : null
 
   return (
     <>
@@ -377,6 +393,19 @@ export function LeagueEventView({
               onSimulate={ownEntry?.status === 'accepted' && ownEntry.submitted ? setSimulating : null}
             />
           ) : null}
+          {revealed && swiss ? (
+            <LeagueRounds
+              league={league}
+              token={token}
+              battles={eventBattles}
+              viewerId={viewerId}
+              isOrganizer={isOrganizer}
+              entries={league.entries}
+              label={label}
+              onPlay={(opponentId) => battle.mutate({ opponentId })}
+              playing={battle.isPending}
+            />
+          ) : null}
           {revealed ? (
             <section>
               {eventBattles.length || !battleHistory.isPending ? <SectionHeading title="Battles" count={eventBattles.length} /> : null}
@@ -402,7 +431,9 @@ export function LeagueEventView({
               )}
             </section>
           ) : null}
-          {results?.rows.some((result) => result.played) ? (
+          {results?.swiss && league.pairings.length ? (
+            <LeagueResults rows={results.swiss} swiss partial={results.partial} entries={accepted} label={label} />
+          ) : results?.rows.some((result) => result.played) ? (
             <LeagueResults rows={results.rows} partial={results.partial} entries={accepted} label={label} />
           ) : null}
           {entrants}
@@ -417,6 +448,7 @@ export function LeagueEventView({
         error={submit.error}
         failedRosterId={submit.variables ?? null}
         requiredLimit={ownEntry?.requiredLimit ?? null}
+        pointsBudget={league.pointsBudget}
         onClose={() => {
           if (submit.isPending) return
           submit.reset()
@@ -531,11 +563,13 @@ function entryStatus({
   allies,
   playDetail,
   alone,
-  latest,
   join,
   joining,
   choose,
   play,
+  playLabel,
+  sealingClosed,
+  sealBy,
   playing,
 }: {
   league: League
@@ -549,47 +583,53 @@ function entryStatus({
   playDetail: string | undefined
   /** A duel with nobody else in it, where there is no battle to start. */
   alone: boolean
-  latest: boolean
   join: () => void
   joining: boolean
   choose: () => void
   play: () => void
+  /** What the play action says when it starts one battle in particular, such as a Swiss table. */
+  playLabel?: string
+  /** Whether the roster deadline has passed, and when it falls, read in the viewer's timezone. */
+  sealingClosed: boolean
+  sealBy: string | null
   playing: boolean
 }): Status {
   const steps = (stage: EntryStage) => entryProgress(league, stage)
+  const { noun } = leagueNoun(league)
   const revealed = Boolean(league.revealedAt)
   const hidden = allies.length
     ? `Only ${allies.length > 2 ? `${allies.length} allies` : formatList(allies)} can see it before the reveal.`
     : 'Hidden until the reveal.'
   if (!ownEntry || ownEntry.status !== 'accepted') {
     if (revealed && isOrganizer)
-      return { title: 'The rosters are out', detail: 'You run this league without a roster of your own.', tone: 'closed' }
+      return { title: 'The rosters are out', detail: `You run this ${noun} without a roster of your own.`, tone: 'closed' }
     if (revealed)
       return {
         title: 'The rosters are out',
-        detail: `Everyone here sealed a roster in secret, the rosters opened together, and now they play each other. ${league.ownerName} runs it.`,
+        detail: `Everyone here sealed a roster in secret, the rosters opened together, and now they play each other. ${organizerName(league)} runs it.`,
         tone: 'closed',
-        action: signedIn ? { label: 'Start your own league', to: '/leagues' } : undefined,
+        action: signedIn && !league.club ? { label: 'Start your own tournament', to: '/tournaments' } : undefined,
       }
     if (!signedIn) return { title: 'Registration is open', action: { label: 'Sign in to join', to: '/sign-in' }, steps: steps('join') }
     if (ownEntry?.status === 'pending')
-      return { title: 'Waiting for approval', detail: `${league.ownerName} will let you in.`, tone: 'waiting', steps: steps('join') }
+      return { title: 'Waiting for approval', detail: `${organizerName(league)} will let you in.`, tone: 'waiting', steps: steps('join') }
+    if (sealingClosed) return { title: 'Entry has closed', detail: 'The roster deadline has passed.', tone: 'closed' }
     const rejoin = ownEntry?.status === 'rejected'
-    if (registrationFull) return { title: rejoin ? 'You are not in this league' : 'This league is full', tone: 'closed' }
+    if (registrationFull) return { title: rejoin ? `You are not in this ${noun}` : `This ${noun} is full`, tone: 'closed' }
     if (isOrganizer && !rejoin)
       return {
         title: 'You are not playing',
-        detail: 'You run this league without a roster of your own.',
+        detail: `You run this ${noun} without a roster of your own.`,
         action: { label: 'Join as a player', icon: <UserPlus />, variant: 'outline', pending: joining, onClick: join },
       }
     return {
-      title: rejoin ? 'You are not in this league' : 'Join this league',
+      title: rejoin ? `You are not in this ${noun}` : `Join this ${noun}`,
       detail: rejoin
         ? 'Your request was turned down.'
-        : league.admission === 'approval'
-          ? `${league.ownerName} approves each player.`
+        : league.tournament?.admission === 'approval'
+          ? `${league.tournament.ownerName} approves each player.`
           : undefined,
-      action: { label: rejoin ? 'Request to join again' : 'Join league', icon: <UserPlus />, pending: joining, onClick: join },
+      action: { label: rejoin ? 'Request to join again' : `Join ${noun}`, icon: <UserPlus />, pending: joining, onClick: join },
       steps: steps('join'),
     }
   }
@@ -602,17 +642,24 @@ function entryStatus({
           ? 'Pair yourself with a teammate below.'
           : 'Give yourself a solo or allied size below.'
         : doubles
-          ? `${league.ownerName} pairs players into teams.`
-          : `${league.ownerName} decides who plays solo or allied.`,
+          ? `${organizerName(league)} pairs players into teams.`
+          : `${organizerName(league)} decides who plays solo or allied.`,
       tone: 'waiting',
       steps: steps('assign'),
     }
   }
   const size = ownEntry.requiredLimit ? `${pointsSize(ownEntry.requiredLimit)} ` : ''
+  if (!revealed && !ownEntry.submitted && sealingClosed)
+    return {
+      title: 'The roster deadline has passed',
+      detail: 'Nobody can seal now, so you sit this one out.',
+      tone: 'closed',
+      steps: steps('seal'),
+    }
   if (!ownEntry.submitted)
     return {
       title: revealed ? 'Seal another roster' : `Seal your ${size}roster`,
-      detail: revealed ? 'The organizer unsealed your roster.' : hidden,
+      detail: revealed ? 'The organizer unsealed your roster.' : [hidden, sealBy ? `Seal by ${sealBy}.` : null].filter(Boolean).join(' '),
       action: { label: 'Choose a roster', icon: <FileLock2 />, onClick: choose },
       steps: steps('seal'),
     }
@@ -644,11 +691,11 @@ function entryStatus({
   if (!ownSideSealed)
     return { title: 'Waiting for your teammate', detail: 'They are sealing another roster.', tone: 'waiting', steps: steps('seal') }
   return {
-    title: latest ? 'The rosters are out' : 'The rosters are revealed',
+    title: 'The rosters are out',
     detail: playDetail,
     action: alone
       ? undefined
-      : { label: startBattleLabel(leagueTableShape(league.format)), icon: <Swords />, pending: playing, onClick: play },
+      : { label: playLabel ?? startBattleLabel(leagueTableShape(league.format)), icon: <Swords />, pending: playing, onClick: play },
     steps: steps('play'),
   }
 }
@@ -682,10 +729,10 @@ function EntryStatusCard({ status, problem, token }: { status: Status; problem: 
         {action ? (
           'to' in action ? (
             <Link
-              {...(action.to === '/sign-in' ? { to: '/sign-in', search: { next: `/leagues/${token}` } } : { to: '/leagues' })}
+              {...(action.to === '/sign-in' ? { to: '/sign-in', search: { next: `/tournaments/${token}` } } : { to: '/tournaments' })}
               className={buttonClass({
                 size: 'lg',
-                variant: action.to === '/leagues' ? 'outline' : 'default',
+                variant: action.to === '/tournaments' ? 'outline' : 'default',
                 className: 'w-full pointer-coarse:h-11',
               })}
             >
@@ -752,4 +799,17 @@ function EntryProgress({ steps }: { steps: EntryStep[] }) {
       ))}
     </ol>
   )
+}
+
+/** What a Swiss entrant does next: play their table, wait out their bye, or wait for the round. */
+function swissDetail(table: ReturnType<typeof ownTable>, progress: ReturnType<typeof swissProgress>, opponent: () => string) {
+  if (!progress.round) return 'Waiting for the organizer to pair round 1.'
+  if (!table) return `Round ${progress.round} is under way.`
+  if (!table.bId) return `You have a bye in round ${progress.round}: it counts as a win.`
+  if (!table.battleToken) return `Round ${progress.round}: you play ${opponent()}.`
+  return progress.complete
+    ? progress.round < progress.rounds
+      ? `Waiting for the organizer to pair round ${progress.round + 1}.`
+      : 'Every round is played.'
+    : `Round ${progress.round} is under way.`
 }

@@ -51,6 +51,8 @@ import {
   LEAGUE_VISIBILITIES,
 } from '../core/league'
 import { TABLE_SHAPES, type TableShape } from '../core/tableShape'
+import { CLUB_ADMIN_MAX, CLUB_DESCRIPTION_MAX_LENGTH, CLUB_NAME_MAX_LENGTH } from '../core/club'
+import { SWISS_ROUNDS_MAX } from '../core/swiss'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import { PROFILE_NAME_MAX_LENGTH } from '../core/profileName'
 
@@ -74,8 +76,8 @@ const battlesCursor = z.object({ at: z.number().int().min(0), id })
 export const tokenSchema = z.object({ token })
 export const battleReplaySchema = z.object({ token, seq: z.number().int().min(1) })
 export const battleReplayBatchSchema = z.object({ token, seqs: z.array(z.number().int().min(1)).min(1).max(REPLAY_BATCH_SIZE) })
-const leagueFields = {
-  name: z.string().trim().min(1, 'name the league').max(LEAGUE_NAME_MAX_LENGTH),
+const tournamentFields = {
+  name: z.string().trim().min(1, 'add a name').max(LEAGUE_NAME_MAX_LENGTH),
   description: z.string().trim().max(LEAGUE_DESCRIPTION_MAX_LENGTH),
   visibility: z.enum(LEAGUE_VISIBILITIES),
   admission: z.enum(LEAGUE_ADMISSIONS),
@@ -89,34 +91,65 @@ const leagueEventRuleFields = {
     .refine((value) => GAME_SIZES.some((size) => size.limit === value))
     .default(LEAGUE_DEFAULT_ROSTER_LIMIT),
   allowances: leagueAllowancesSchema.default([]),
+  // Absent from an older client: no Swiss rounds or own points total on a new event, and an edit leaves them as they stand.
+  rounds: z.number().int().min(1).max(SWISS_ROUNDS_MAX).nullable().optional(),
+  pointsBudget: z.number().int().min(POINTS_BUDGET_MIN).max(POINTS_BUDGET_MAX).nullable().optional(),
 }
-function validateLeagueEventRule(value: { format: TableShape; rosterLimit: number }, context: z.RefinementCtx) {
+/** When the event is played and the roster deadline, as instants; a deadline after the date would let lists in once play started. */
+const leagueSchedule = z
+  .object({ playsAt: z.number().int().min(0).nullable(), sealBy: z.number().int().min(0).nullable() })
+  .refine(({ playsAt, sealBy }) => playsAt === null || sealBy === null || sealBy <= playsAt, {
+    message: 'set the roster deadline before the date it is played',
+    path: ['sealBy'],
+  })
+function validateLeagueEventRule(value: { format: TableShape; rosterLimit: number; rounds?: number | null }, context: z.RefinementCtx) {
   if ((value.format === '2v1' || value.format === '2v2') && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)) {
     context.addIssue({ code: 'custom', path: ['rosterLimit'], message: `choose a supported ${value.format} roster size` })
   }
+  if (value.rounds != null && value.format !== '1v1')
+    context.addIssue({ code: 'custom', path: ['rounds'], message: 'Swiss rounds pair duels only' })
 }
 export const createLeagueSchema = z
   .object({
-    ...leagueFields,
-    description: leagueFields.description.default(''),
-    playerLimit: leagueFields.playerLimit.default(null),
+    ...tournamentFields,
+    description: tournamentFields.description.default(''),
+    playerLimit: tournamentFields.playerLimit.default(null),
     ...leagueEventRuleFields,
     ownerPlays: z.boolean().default(false),
+    schedule: leagueSchedule.optional(),
   })
   .superRefine(validateLeagueEventRule)
-export const updateLeagueSchema = z.object({
-  token,
-  ...leagueFields,
-  // An older client omits allowances, which must leave the event's house rules as they stand.
-  rule: z
-    .object({ ...leagueEventRuleFields, allowances: leagueAllowancesSchema.optional() })
-    .superRefine(validateLeagueEventRule)
-    .optional(),
-})
-export const leagueEventSchema = z.object({ token, eventToken: token.optional() })
-export const createLeagueEventSchema = z
-  .object({ token, ...leagueFields, ...leagueEventRuleFields, ownerPlays: z.boolean().default(false) })
+/** A club's casual sealed game: no name, visibility, admission or limit of its own, and no Swiss rounds. */
+export const createClubGameSchema = z
+  .object({
+    clubToken: token,
+    ...leagueEventRuleFields,
+    rounds: z.null().optional(),
+    schedule: leagueSchedule.optional(),
+  })
   .superRefine(validateLeagueEventRule)
+const tournamentDetailKeys = Object.keys(tournamentFields) as (keyof typeof tournamentFields)[]
+export const updateLeagueSchema = z
+  .object({
+    token,
+    // A tournament's details, all or none; a club game has none, and an edit without them leaves a tournament's standing.
+    ...z.object(tournamentFields).partial().shape,
+    // An older client omits allowances, which must leave the event's house rules as they stand.
+    rule: z
+      .object({ ...leagueEventRuleFields, allowances: leagueAllowancesSchema.optional() })
+      .superRefine(validateLeagueEventRule)
+      .optional(),
+    schedule: leagueSchedule.optional(),
+  })
+  .refine((value) => new Set(tournamentDetailKeys.map((key) => value[key] === undefined)).size === 1, {
+    message: 'send every tournament detail or none',
+  })
+/**
+ * `token` is the event's host: a tournament's token, or a club game's, which is its event's. `eventToken` names the
+ * event itself, as a client from before each event had its own host sends it beside its old league's token.
+ */
+export const leagueEventSchema = z.object({ token, eventToken: token.optional() })
+export const pairLeagueRoundSchema = z.object({ token, eventToken: token.optional() })
 export const openLeagueSchema = z.object({ token, eventToken: token.optional() })
 export const moderateLeagueEntrySchema = z.object({
   token,
@@ -143,6 +176,13 @@ export const assignLeagueRosterRequirementSchema = z.object({
   userId: id,
   requiredLimit: z.number().int(),
 })
+/** A club game's player takes a seat themselves; `null` steps out before the reveal. */
+export const chooseLeagueSideSchema = z.object({
+  token,
+  eventToken: token.optional(),
+  side: z.enum(['solo', 'pair', 'team-1', 'team-2']).nullable(),
+})
+export type LeagueSide = NonNullable<z.infer<typeof chooseLeagueSideSchema>['side']>
 export const assignLeagueTeamSchema = z.object({
   token,
   eventToken: token.optional(),
@@ -156,6 +196,17 @@ export const leagueRosterSchema = z.object({ token, eventToken: token.optional()
 export const leagueBattlesSchema = z.object({ token, eventToken: token, before: battlesCursor.nullable().default(null) })
 export const leagueResultsSchema = z.object({ token, eventToken: token })
 export const setLeagueAdminsSchema = z.object({ token, userIds: z.array(id).max(LEAGUE_ADMIN_MAX) })
+const clubFields = {
+  name: z.string().trim().min(1, 'name the club').max(CLUB_NAME_MAX_LENGTH),
+  description: z.string().trim().max(CLUB_DESCRIPTION_MAX_LENGTH).default(''),
+  visibility: z.enum(LEAGUE_VISIBILITIES),
+  admission: z.enum(LEAGUE_ADMISSIONS),
+}
+export const createClubSchema = z.object(clubFields)
+export const updateClubSchema = z.object({ token, ...clubFields })
+export const clubMemberSchema = z.object({ token, userId: id })
+export const moderateClubMemberSchema = z.object({ token, userId: id, accept: z.boolean() })
+export const setClubAdminsSchema = z.object({ token, userIds: z.array(id).max(CLUB_ADMIN_MAX) })
 export const createLeagueBattleSchema = z.object({
   token,
   eventToken: token.optional(),
@@ -195,6 +246,7 @@ export const createBattleSchema = z
     missionPackId: id.nullable().default(null),
     casual: z.boolean().default(false),
     manual: z.boolean().default(false),
+    clubToken: token.optional(),
   })
   .refine((value) => opposingSeats(value) <= 2, 'a side seats two players at most')
   .refine((value) => (value.allyId ? 1 : 0) + opposingSeats(value) <= 3, 'a battle seats four players at most')

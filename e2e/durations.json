@@ -318,7 +318,7 @@
   "leagues.spec.ts › a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle": 37.8,
   "leagues.spec.ts › a doubles event pairs teams, filters half-size rosters, and starts a four-seat battle": 37.4,
   "leagues.spec.ts › a full league keeps its lists sealed until someone reveals them": 18.9,
-  "leagues.spec.ts › a league starts each event with fresh registration": 17.8,
+  "leagues.spec.ts › a tournament runs one event, and its old league address still finds it": 17.8,
   "leagues.spec.ts › a new league starts with its first event and can seal a roster": 17.3,
   "leagues.spec.ts › a revealed roster keeps its selected upgrades and reference metadata": 17.6,
   "leagues.spec.ts › an admin the owner chooses runs the league but cannot delete it": 11.6,

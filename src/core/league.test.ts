@@ -317,19 +317,19 @@ describe('leagueRevealChecklist', () => {
   const duel = { format: '1v1' as const, rosterLimit: 2_000 }
 
   it('is ready when every accepted 1v1 entrant has sealed', () => {
-    expect(ready(leagueRevealChecklist(duel, [entry('a'), entry('b'), entry('c', { status: 'pending', submitted: false })]))).toBe(true)
+    expect(ready(leagueRevealChecklist(duel, [entry('a'), entry('b'), entry('c', { status: 'pending', submitted: false })], 0))).toBe(true)
   })
 
   it('refuses an event nobody has been accepted into', () => {
-    expect(leagueRevealChecklist(duel, [entry('a', { status: 'pending' })])[0]).toMatchObject({ step: 'places', done: false })
+    expect(leagueRevealChecklist(duel, [entry('a', { status: 'pending' })], 0)[0]).toMatchObject({ step: 'places', done: false })
   })
 
   it('does not wait for a player limit to fill', () => {
-    expect(leagueRevealChecklist(duel, [entry('a')])[0]).toEqual({ step: 'places', done: true, accepted: 1 })
+    expect(leagueRevealChecklist(duel, [entry('a')], 0)[0]).toEqual({ step: 'places', done: true, accepted: 1 })
   })
 
   it('names the entrants who have not sealed', () => {
-    expect(leagueRevealChecklist(duel, [entry('a'), entry('b', { submitted: false })]).at(-1)).toEqual({
+    expect(leagueRevealChecklist(duel, [entry('a'), entry('b', { submitted: false })], 0).at(-1)).toEqual({
       step: 'lists',
       done: false,
       waiting: ['b'],
@@ -338,26 +338,30 @@ describe('leagueRevealChecklist', () => {
 
   describe('2v1', () => {
     const trial = { format: '2v1' as const, rosterLimit: 2_000 }
-    const sizes = (rows: LeagueRevealEntry[]) => leagueRevealChecklist(trial, rows).find((check) => check.step === 'sizes')
+    const sizes = (rows: LeagueRevealEntry[]) => leagueRevealChecklist(trial, rows, 0).find((check) => check.step === 'sizes')
 
     it('is ready with one solo entrant and an allied pair', () => {
       expect(
         ready(
-          leagueRevealChecklist(trial, [
-            entry('a', { requiredLimit: 2_000 }),
-            entry('b', { requiredLimit: 1_000, teamId: 'pair' }),
-            entry('c', { requiredLimit: 1_000, teamId: 'pair' }),
-          ]),
+          leagueRevealChecklist(
+            trial,
+            [
+              entry('a', { requiredLimit: 2_000 }),
+              entry('b', { requiredLimit: 1_000, teamId: 'pair' }),
+              entry('c', { requiredLimit: 1_000, teamId: 'pair' }),
+            ],
+            0,
+          ),
         ),
       ).toBe(true)
     })
 
     it('names allied entrants without a partner', () => {
-      const teams = leagueRevealChecklist(trial, [
-        entry('a', { requiredLimit: 2_000 }),
-        entry('b', { requiredLimit: 1_000, teamId: 'pair' }),
-        entry('c', { requiredLimit: 1_000 }),
-      ]).find((check) => check.step === 'teams')
+      const teams = leagueRevealChecklist(
+        trial,
+        [entry('a', { requiredLimit: 2_000 }), entry('b', { requiredLimit: 1_000, teamId: 'pair' }), entry('c', { requiredLimit: 1_000 })],
+        0,
+      ).find((check) => check.step === 'teams')
       expect(teams).toEqual({ step: 'teams', done: false, waiting: ['b', 'c'], short: false })
     })
 
@@ -374,7 +378,7 @@ describe('leagueRevealChecklist', () => {
     })
 
     it('is short of players to pair an ally when only two are in', () => {
-      const teams = leagueRevealChecklist(trial, [entry('a', { requiredLimit: 2_000 }), entry('b', { requiredLimit: 1_000 })]).find(
+      const teams = leagueRevealChecklist(trial, [entry('a', { requiredLimit: 2_000 }), entry('b', { requiredLimit: 1_000 })], 0).find(
         (check) => check.step === 'teams',
       )
       expect(teams).toMatchObject({ done: false, short: true })
@@ -395,10 +399,10 @@ describe('leagueRevealChecklist', () => {
     const doubles = { format: '2v2' as const, rosterLimit: 2_000 }
     const paired = ['a', 'b', 'c', 'd'].map((userId, index) => entry(userId, { teamId: index < 2 ? 'team-1' : 'team-2' }))
     const check = (rows: LeagueRevealEntry[], step: string) =>
-      leagueRevealChecklist(doubles, rows).find((candidate) => candidate.step === step)
+      leagueRevealChecklist(doubles, rows, 0).find((candidate) => candidate.step === step)
 
     it('is ready with two full teams and no waiting requests', () => {
-      expect(ready(leagueRevealChecklist(doubles, paired))).toBe(true)
+      expect(ready(leagueRevealChecklist(doubles, paired, 0))).toBe(true)
     })
 
     it('waits for every request to be answered', () => {
@@ -428,7 +432,10 @@ describe('leagueRevealChecklist', () => {
   })
 
   it('ignores sizes and teams for a legacy event', () => {
-    expect(leagueRevealChecklist({ format: null, rosterLimit: null }, [entry('a')]).map((check) => check.step)).toEqual(['places', 'lists'])
+    expect(leagueRevealChecklist({ format: null, rosterLimit: null }, [entry('a')], 0).map((check) => check.step)).toEqual([
+      'places',
+      'lists',
+    ])
   })
 })
 
@@ -447,86 +454,93 @@ describe('leagueStage', () => {
   const revealed = { ...open, revealedAt: 1 }
 
   it('is empty until someone is accepted', () => {
-    expect(leagueStage(open, [], false)).toBe('empty')
+    expect(leagueStage(open, [], false, 0)).toBe('empty')
   })
 
   it('is approving while nobody is in but requests are waiting', () => {
-    expect(leagueStage(open, [entry('a', { status: 'pending' })], false)).toBe('approving')
+    expect(leagueStage(open, [entry('a', { status: 'pending' })], false, 0)).toBe('approving')
   })
 
   it('is approving while a doubles request is unanswered', () => {
     const team = (userId: string) => entry(userId, { teamId: 't1' })
     const teamTwo = (userId: string) => entry(userId, { teamId: 't2' })
     expect(
-      leagueStage({ ...open, format: '2v2' }, [team('a'), team('b'), teamTwo('c'), teamTwo('d'), entry('e', { status: 'pending' })], false),
+      leagueStage(
+        { ...open, format: '2v2' },
+        [team('a'), team('b'), teamTwo('c'), teamTwo('d'), entry('e', { status: 'pending' })],
+        false,
+        0,
+      ),
     ).toBe('approving')
   })
 
   it('is sizing a 2v1 whose rosters are sealed but sizes unassigned', () => {
-    expect(leagueStage({ ...open, format: '2v1' }, [entry('a'), entry('b'), entry('c')], false)).toBe('sizing')
+    expect(leagueStage({ ...open, format: '2v1' }, [entry('a'), entry('b'), entry('c')], false, 0)).toBe('sizing')
   })
 
   it('is pairing a 2v1 whose allies are sized but not paired', () => {
     const allied = (userId: string) => entry(userId, { requiredLimit: 1_000 })
-    expect(leagueStage({ ...open, format: '2v1' }, [entry('a', { requiredLimit: 2_000 }), allied('b'), allied('c')], false)).toBe('pairing')
+    expect(leagueStage({ ...open, format: '2v1' }, [entry('a', { requiredLimit: 2_000 }), allied('b'), allied('c')], false, 0)).toBe(
+      'pairing',
+    )
   })
 
   it('is pairing doubles whose rosters are sealed but teams unassigned', () => {
-    expect(leagueStage({ ...open, format: '2v2' }, [entry('a'), entry('b'), entry('c'), entry('d')], false)).toBe('pairing')
+    expect(leagueStage({ ...open, format: '2v2' }, [entry('a'), entry('b'), entry('c'), entry('d')], false, 0)).toBe('pairing')
   })
 
   it('is approving an approval duel whose one sealed entrant could otherwise be revealed', () => {
-    expect(leagueStage(open, [entry('a'), entry('b', { status: 'pending', submitted: false })], false)).toBe('approving')
+    expect(leagueStage(open, [entry('a'), entry('b', { status: 'pending', submitted: false })], false, 0)).toBe('approving')
   })
 
   it('is recruiting doubles whose only two players are already paired', () => {
     const team = (userId: string) => entry(userId, { teamId: 't1' })
-    expect(leagueStage({ ...open, format: '2v2' }, [team('a'), team('b')], false)).toBe('recruiting')
+    expect(leagueStage({ ...open, format: '2v2' }, [team('a'), team('b')], false, 0)).toBe('recruiting')
   })
 
   it('is recruiting doubles with an odd number of players', () => {
     const team = (userId: string, teamId: string) => entry(userId, { teamId })
     expect(
-      leagueStage({ ...open, format: '2v2' }, [team('a', 't1'), team('b', 't1'), team('c', 't2'), team('d', 't2'), entry('e')], false),
+      leagueStage({ ...open, format: '2v2' }, [team('a', 't1'), team('b', 't1'), team('c', 't2'), team('d', 't2'), entry('e')], false, 0),
     ).toBe('recruiting')
   })
 
   it('is recruiting a 2v1 of two players with one unsized, since no size unblocks it', () => {
-    expect(leagueStage({ ...open, format: '2v1' }, [entry('a', { requiredLimit: 2_000 }), entry('b')], false)).toBe('recruiting')
+    expect(leagueStage({ ...open, format: '2v1' }, [entry('a', { requiredLimit: 2_000 }), entry('b')], false, 0)).toBe('recruiting')
   })
 
   it('is recruiting a 2v1 whose sized players are too few for a solo and two allies', () => {
     expect(
-      leagueStage({ ...open, format: '2v1' }, [entry('a', { requiredLimit: 2_000 }), entry('b', { requiredLimit: 1_000 })], false),
+      leagueStage({ ...open, format: '2v1' }, [entry('a', { requiredLimit: 2_000 }), entry('b', { requiredLimit: 1_000 })], false, 0),
     ).toBe('recruiting')
   })
 
   it('is sizing a 2v1 whose players all have a size but none plays solo', () => {
     const allied = (userId: string) => entry(userId, { requiredLimit: 1_000 })
-    expect(leagueStage({ ...open, format: '2v1' }, [allied('a'), allied('b'), allied('c')], false)).toBe('sizing')
+    expect(leagueStage({ ...open, format: '2v1' }, [allied('a'), allied('b'), allied('c')], false, 0)).toBe('sizing')
   })
 
   it('is sealing while a roster is still owed', () => {
-    expect(leagueStage(open, [entry('a'), entry('b', { submitted: false })], false)).toBe('sealing')
+    expect(leagueStage(open, [entry('a'), entry('b', { submitted: false })], false, 0)).toBe('sealing')
   })
 
   it('is choosing while a team owes its Force Disposition', () => {
     const team = (userId: string, teamId: string) => entry(userId, { teamId, dispositionOwed: teamId === 't1' })
-    expect(leagueStage({ ...open, format: '2v2' }, [team('a', 't1'), team('b', 't1'), team('c', 't2'), team('d', 't2')], false)).toBe(
+    expect(leagueStage({ ...open, format: '2v2' }, [team('a', 't1'), team('b', 't1'), team('c', 't2'), team('d', 't2')], false, 0)).toBe(
       'choosing',
     )
   })
 
   it('is ready whenever the reveal checklist passes, as the reveal command decides', () => {
-    expect(leagueStage(open, [entry('a')], false)).toBe('ready')
+    expect(leagueStage(open, [entry('a')], false, 0)).toBe('ready')
   })
 
   it('is playing once revealed with no finished battle', () => {
-    expect(leagueStage(revealed, [entry('a'), entry('b')], false)).toBe('playing')
+    expect(leagueStage(revealed, [entry('a'), entry('b')], false, 0)).toBe('playing')
   })
 
   it('has results once a battle has finished', () => {
-    expect(leagueStage(revealed, [entry('a'), entry('b')], true)).toBe('results')
+    expect(leagueStage(revealed, [entry('a'), entry('b')], true, 0)).toBe('results')
   })
 })
 
@@ -611,7 +625,7 @@ describe('a pair’s Warlord', () => {
       dispositionOwed: false,
       warlordOwed: true,
     })
-    const checks = leagueRevealChecklist({ format: '2v2', rosterLimit: 2_000 }, [owing('a'), owing('b')])
+    const checks = leagueRevealChecklist({ format: '2v2', rosterLimit: 2_000 }, [owing('a'), owing('b')], 0)
     expect(checks.find((check) => check.step === 'warlords')).toMatchObject({ done: false, waiting: ['a', 'b'] })
   })
 })

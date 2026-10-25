@@ -874,7 +874,7 @@ async function seedInto(
     }
   }) {
     if (!(await repository.leagueByToken(input.token, input.ownerId, input.eventToken))) {
-      await repository.createLeague({
+      await repository.createTournament({
         id: input.id,
         token: input.token,
         eventId: input.eventId,
@@ -885,7 +885,6 @@ async function seedInto(
         visibility: input.visibility,
         admission: 'automatic',
         playerLimit: input.entries.length,
-        recurring: true,
         format: input.format,
         rosterLimit: 2_000,
         now: now(),
@@ -996,7 +995,7 @@ async function seedInto(
     const token = 'preview-league-registration'
     const eventToken = 'preview-event-registration'
     if (await repository.leagueByToken(token, allyUserId, eventToken)) return
-    await repository.createLeague({
+    await repository.createTournament({
       id: 'preview-league-registration',
       token,
       eventId: 'preview-event-registration',
@@ -1007,7 +1006,6 @@ async function seedInto(
       visibility: 'public',
       admission: 'approval',
       playerLimit: 4,
-      recurring: true,
       format: '1v1',
       rosterLimit: 1_000,
       now: now(),

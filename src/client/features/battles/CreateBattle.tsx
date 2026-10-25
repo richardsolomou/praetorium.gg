@@ -201,9 +201,9 @@ export function CreateBattle({
         {leagueMatches.length ? (
           <>
             <DialogHeader>
-              <DialogTitle className="text-2xl">You are both in a league</DialogTitle>
+              <DialogTitle className="text-2xl">You are both in a tournament</DialogTitle>
               <DialogDescription>
-                Pick the league to play it there: the sealed lists go on the table for you, and the result counts in its table.
+                Pick the tournament to play it there: the sealed lists go on the table for you, and the result counts in its table.
               </DialogDescription>
             </DialogHeader>
             <DialogBody>
@@ -216,7 +216,7 @@ export function CreateBattle({
                     disabled={create.isPending}
                     onClick={() =>
                       navigate({
-                        to: '/leagues/$token',
+                        to: '/tournaments/$token',
                         params: { token: match.token },
                         search: { event: match.eventToken, start: true },
                       })
@@ -224,7 +224,7 @@ export function CreateBattle({
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-bold uppercase">{match.name}</span>
-                      <span className="block text-xs text-dim">Event {match.eventNumber} · play it here</span>
+                      <span className="block text-xs text-dim">Play it here</span>
                     </span>
                     <ChevronRight className="size-4 shrink-0 text-parchment" aria-hidden />
                   </button>

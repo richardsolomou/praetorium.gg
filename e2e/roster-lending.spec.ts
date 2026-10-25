@@ -7,6 +7,7 @@ import {
   createBattle,
   createRoster,
   followLink,
+  retryUntilVisible,
   signUp,
   uniqueName,
 } from './account'
@@ -84,8 +85,12 @@ test('a borrower hands a lent roster back', async ({ browser }) => {
   await setLoan(owner, rosterUrl, borrowerName, true)
 
   await borrower.goto(rosterUrl)
-  // The button stays disabled until its navigation finishes, so a repeated press cannot return the roster twice.
-  await followLink(borrower.locator('[data-roster-lent-by]').getByRole('button', { name: 'Return it' }), /\/rosters$/)
+  const confirmReturn = borrower.getByRole('alertdialog', { name: /^Return / })
+  await retryUntilVisible(confirmReturn, () =>
+    borrower.locator('[data-roster-lent-by]').getByRole('button', { name: 'Return it' }).click({ timeout: 1_000 }),
+  )
+  // The confirmation stays disabled until its navigation finishes, so a repeated press cannot return the roster twice.
+  await followLink(confirmReturn.getByRole('button', { name: 'Return it' }), /\/rosters$/)
   await expect(borrower.getByLabel('Loading roster count')).toHaveCount(0)
   await expect(borrower.locator('[data-lent-rosters]')).toHaveCount(0)
   await owner.goto(rosterUrl)

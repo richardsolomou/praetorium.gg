@@ -74,7 +74,7 @@ function seed(): Ticket[] {
       messages: [
         message(
           'player',
-          feedbackTicketMessage({ kind: 'Other', message: 'Is there a way to export a league’s results to a spreadsheet?' }),
+          feedbackTicketMessage({ kind: 'Other', message: 'Is there a way to export a tournament’s results to a spreadsheet?' }),
           3 * DAY,
         ),
         message('team', 'Not yet, but I’m looking at it.', 2 * DAY),

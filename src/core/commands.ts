@@ -140,6 +140,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
     manual: z.boolean().optional(),
   }),
   z.object({ kind: z.literal('reset-setup') }),
+  z.object({ kind: z.literal('set-battle-club'), clubId: id.nullable() }),
   z.object({ kind: z.literal('detach-roster'), playerId: id.optional() }),
   z.object({
     kind: z.literal('lock-league-rosters'),

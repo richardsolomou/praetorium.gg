@@ -2,7 +2,7 @@ import { leagueBattleOptions, savedAbilityReminders } from './actionFunctions'
 import { fieldingReminders } from '../../shared/reminderAbilities'
 import { compactReplayFrames } from '../../core/replayFrames'
 import { REPLAY_BATCH_SIZE } from '../../contracts/battles'
-import { buildLeagueBattle } from '../../shared/leagueBattle'
+import { buildLeagueBattle, openPairing } from '../../shared/leagueBattle'
 import { battleSummary } from '../../shared/battleSummary'
 import type * as Server from '../../server/functions'
 import * as server from '../../server/functions'
@@ -311,12 +311,13 @@ export async function replayBattleBatch(args: Parameters<typeof server.replayBat
 
 export async function createBattle(args: Parameters<typeof server.createBattle>[0]): ReturnType<typeof server.createBattle> {
   const owner = localOwner()
-  if (!localEngine() || !owner || !localConstruction()) return server.createBattle(args)
+  // A club game needs the server to check its players are members, so it is never started on the device alone.
+  if (!localEngine() || !owner || !localConstruction() || args.data.clubToken) return server.createBattle(args)
   const input = createBattleSchema.parse(args.data)
   const guestNames = input.guestNames ?? []
   if (!input.casual && !guestNames.length) {
     const matches = await leagueBattleOptions({ data: input })
-    if (matches.length) throw new Error('Start this matchup from its saved league, or choose a casual battle.')
+    if (matches.length) throw new Error('Start this matchup from its saved tournament, or choose a casual battle.')
   }
   const opponents = await cachedRead(opponentsKey(), () => server.opponents())
   const opponentIds = input.opponentIds ?? (input.opponentId ? [input.opponentId] : [])
@@ -406,6 +407,7 @@ export async function createLeagueBattle(
   const prepared = buildLeagueBattle(
     {
       ...league,
+      paired: Boolean(openPairing(league.pairings, owner.id, args.data.opponentId)),
       entries: rosters.map((entry) => ({
         ...entry,
         snapshot: entry.snapshot ? JSON.stringify(entry.snapshot) : null,
@@ -414,7 +416,6 @@ export async function createLeagueBattle(
       })),
     },
     owner.id,
-    league.token,
     args.data.opponentId,
     args.data.missionPackId ?? null,
     identifiers.battleToken,

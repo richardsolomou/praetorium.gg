@@ -7,7 +7,6 @@ export type LeagueMatchCandidate = {
   token: string
   name: string
   eventToken: string
-  eventNumber: number
   format: TableShape | null
   rosterLimit: number | null
   entries: { userId: string; requiredLimit: number | null; sealedLimit: number | null; teamId: string | null }[]
@@ -58,11 +57,10 @@ export function matchingLeagueBattles(candidates: readonly LeagueMatchCandidate[
       }
       return false
     })
-    .map(({ token, name, eventToken, eventNumber, format }) => ({
+    .map(({ token, name, eventToken, format }) => ({
       token,
       name,
       eventToken,
-      eventNumber,
       format: leagueTableShape(format),
     }))
 }

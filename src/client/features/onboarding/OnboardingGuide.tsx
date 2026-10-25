@@ -519,7 +519,7 @@ function GuidePanel({
             </section>
           )
         })}
-        <p className="text-xs text-dim">Battle, friend, and league guides are available on their own pages.</p>
+        <p className="text-xs text-dim">Battle, friend, and tournament guides are available on their own pages.</p>
       </div>
     </dialog>
   )

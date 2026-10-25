@@ -1,8 +1,17 @@
 import { countBy, groupBy } from './collections'
 import { migratedEditionId, migratedEditionPick } from './editionMigrations'
 import { attachedUnitCount } from './attachedUnits'
-import type { TableShape } from './tableShape'
-import { FORMAT_RULE_IDS, formatRules, waivedFormatRules, type FormatRule, type FormatRuleId, type Roster } from './battle'
+import { TABLE_SHAPE_LABELS, type TableShape } from './tableShape'
+import {
+  FORMAT_RULE_IDS,
+  formatRules,
+  GAME_SIZES,
+  pointsLabel,
+  waivedFormatRules,
+  type FormatRule,
+  type FormatRuleId,
+  type Roster,
+} from './battle'
 import { z } from 'zod'
 import { matchedPlayName, NON_MATCHED_PLAY_KINDS, nonMatchedPlayKind, type NonMatchedPlayKind } from './name'
 import type { RosterPick } from './roster'
@@ -135,10 +144,11 @@ export type LeagueRevealCheck =
   | { step: 'warlords'; done: boolean; waiting: string[] }
 
 export function leagueRevealChecklist(
-  event: { format: TableShape | null; rosterLimit: number | null },
+  event: { format: TableShape | null; rosterLimit: number | null; sealBy?: number | null },
   entries: readonly LeagueRevealEntry[],
+  now: number,
 ): LeagueRevealCheck[] {
-  const accepted = entries.filter((entry) => entry.status === 'accepted')
+  const accepted = leagueEligibleEntries(event, entries, now)
   const checks: LeagueRevealCheck[] = [{ step: 'places', done: accepted.length > 0, accepted: accepted.length }]
   if (event.format === '2v2') {
     const pending = entries.filter((entry) => entry.status === 'pending').map((entry) => entry.userId)
@@ -201,14 +211,15 @@ const STAGE_FOR_CHECK = {
 } as const satisfies Record<LeagueRevealCheck['step'], LeagueStage>
 
 export function leagueStage(
-  event: { format: TableShape | null; rosterLimit: number | null; revealedAt: number | null },
+  event: { format: TableShape | null; rosterLimit: number | null; revealedAt: number | null; sealBy?: number | null },
   entries: readonly LeagueRevealEntry[],
   played: boolean,
+  now: number,
 ): LeagueStage {
   if (event.revealedAt) return played ? 'results' : 'playing'
   // The reveal would turn waiting requests down, so answering them comes first even when nothing else holds it up.
   if (entries.some((entry) => entry.status === 'pending')) return 'approving'
-  const held = leagueRevealChecklist(event, entries).find((check) => !check.done)
+  const held = leagueRevealChecklist(event, entries, now).find((check) => !check.done)
   if (!held) return 'ready'
   if ((held.step === 'sizes' || held.step === 'teams') && held.short) return 'recruiting'
   return STAGE_FOR_CHECK[held.step]
@@ -220,6 +231,21 @@ export const LEAGUE_ADMIN_MAX = 16
 /** Whether someone runs this league: its owner, or an admin the owner chose. */
 export function isLeagueOrganizer(league: { ownerId: string }, adminIds: readonly string[], userId: string | null) {
   return userId !== null && (userId === league.ownerId || adminIds.includes(userId))
+}
+
+/** Whether the event's roster deadline has passed, after which nobody else can seal. */
+export function leagueSealingClosed(event: { sealBy?: number | null }, now: number) {
+  return event.sealBy != null && now > event.sealBy
+}
+
+/** The accepted entrants still in the event: once the roster deadline passes, those without a sealed list drop out. */
+export function leagueEligibleEntries<T extends { status: LeagueEntryStatus; submitted: boolean }>(
+  event: { sealBy?: number | null },
+  entries: readonly T[],
+  now: number,
+) {
+  const closed = leagueSealingClosed(event, now)
+  return entries.filter((entry) => entry.status === 'accepted' && (!closed || entry.submitted))
 }
 
 /** Who may open a ready event's lists: the organizer, or anyone playing in it, so a group need not wait for one person. */
@@ -493,4 +519,36 @@ export function leagueArmy(roster: Roster): LeagueArmy {
 function sealedDetachments(built: NonNullable<Roster['built']>) {
   const names = built.detachments?.map((detachment) => detachment.name) ?? (built.detachment ? [built.detachment] : [])
   return (built.detachmentIds ?? []).map((id, index) => ({ id, name: names[index] ?? id }))
+}
+
+/**
+ * An event's table shape and points, such as "Duel · 2,000 points" or "Duel · 750 points at Incursion" for its own
+ * total, or null for an event that fixed neither.
+ */
+export function leagueFormat(event: { format: TableShape | null; rosterLimit: number | null; pointsBudget?: number | null }) {
+  if (!event.format || !event.rosterLimit) return null
+  const size = GAME_SIZES.find((candidate) => candidate.limit === event.rosterLimit)
+  const points = event.pointsBudget
+    ? `${pointsLabel(event.pointsBudget)}${size ? ` at ${size.name}` : ''}`
+    : (leagueRosterSplit(event.format, event.rosterLimit) ?? pointsLabel(event.rosterLimit))
+  return `${TABLE_SHAPE_LABELS[event.format].name} · ${points}`
+}
+
+/**
+ * What an event is called. A tournament has the name its organizer gave it; a club's sealed game is nobody names, so
+ * it reads as what is being played, after its club wherever the club is not already in view.
+ */
+export function leagueTitle(
+  event: {
+    tournament: { name: string } | null
+    club: { name: string } | null
+    format: TableShape | null
+    rosterLimit: number | null
+    pointsBudget?: number | null
+  },
+  { withClub = true } = {},
+) {
+  if (event.tournament) return event.tournament.name
+  const game = leagueFormat(event) ?? 'Sealed game'
+  return withClub && event.club ? `${event.club.name}: ${game}` : game
 }

@@ -503,7 +503,7 @@ export async function setRosterVisibility(
 export async function shareLeagueRoster(args: Parameters<typeof server.shareLeagueRoster>[0]): ReturnType<typeof server.shareLeagueRoster> {
   const owner = localOwner()?.id
   const resource = `roster:${args.data.rosterId}`
-  if (!navigator.onLine) throw new Error('Connect to the internet to share your league roster.')
+  if (!navigator.onLine) throw new Error('Connect to the internet to share your sealed roster.')
   if (await hasLocalChanges(resource)) {
     await syncLocalWork()
     if (await hasLocalChanges(resource)) throw new Error('This roster has changes waiting to sync. Sync or review them first.')
@@ -835,6 +835,7 @@ export {
   unsealLeagueRoster,
   assignLeagueRosterRequirement,
   assignLeagueTeam,
+  chooseLeagueSide,
   updateLeague,
   deleteLeague,
   deleteBattle,
@@ -856,7 +857,6 @@ export {
   createFriendInvite,
   cancelFriendInvite,
   createLeague,
-  createLeagueEvent,
   leagueBattleOptions,
 } from './offline/actionFunctions'
 

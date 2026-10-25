@@ -184,13 +184,13 @@ it('lists the public pages no reference document names', async () => {
   )
 })
 
-it('lists public docs alongside battles and leagues', async () => {
+it('lists public docs alongside battles and tournaments', async () => {
   const urls = [...(await sitemap()).matchAll(/<loc>(.*?)<\/loc>/g)].map((match) => match[1])
 
   expect(urls).toEqual(
     expect.arrayContaining([
       'https://praetorium.gg/battles',
-      'https://praetorium.gg/leagues',
+      'https://praetorium.gg/tournaments',
       'https://praetorium.gg/docs',
       'https://praetorium.gg/docs/start-a-list',
       'https://praetorium.gg/docs/import-a-list',

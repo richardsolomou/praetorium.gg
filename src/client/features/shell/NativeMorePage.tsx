@@ -30,15 +30,14 @@ const TOOLS: readonly MoreLink[] = [
   { description: 'Damage and kill odds for any attack', icon: Calculator, label: 'Combat simulator', to: '/simulator' },
   { description: 'Packs, scoring and deployments', icon: BookOpen, label: 'Missions', to: '/missions' },
   { description: 'Core rules, missions and event rules', icon: Gavel, label: 'Rules', to: '/rules' },
-  { description: 'Organized play', icon: Trophy, label: 'Leagues', to: '/leagues' },
-]
-
-const REFERENCE: readonly MoreLink[] = [
   { description: 'Primary mission matchups', icon: Layers3, label: 'Force dispositions', to: '/force-dispositions' },
-  { description: 'Points and datasheet changes', icon: History, label: 'Data updates', to: '/data-updates' },
 ]
 
-const COMMUNITY: readonly MoreLink[] = [{ description: 'Player standings', icon: Medal, label: 'Leaderboard', to: '/leaderboard' }]
+const COMMUNITY: readonly MoreLink[] = [
+  { description: 'Your group’s games and table', icon: Users, label: 'Clubs', to: '/clubs' },
+  { description: 'One-off events with sealed lists', icon: Trophy, label: 'Tournaments', to: '/tournaments' },
+  { description: 'Player standings', icon: Medal, label: 'Leaderboard', to: '/leaderboard' },
+]
 
 const FRIENDS: MoreLink = { description: 'Invite friends to private battles', icon: Users, label: 'Friends', to: '/friends' }
 
@@ -50,6 +49,7 @@ const ACCOUNT: readonly MoreLink[] = [
 const HELP: readonly MoreLink[] = [
   { description: 'Army lists, imports and battle tracking', icon: GraduationCap, label: 'Docs', to: '/docs' },
   { description: 'Changes to the app', icon: Sparkles, label: "What's new", to: '/whats-new' },
+  { description: 'Points and datasheet changes', icon: History, label: 'Data updates', to: '/data-updates' },
 ]
 
 const rowClass = 'flex min-h-14 w-full items-center gap-3 px-3 py-2.5 text-left text-bone hover:bg-raised'
@@ -116,9 +116,6 @@ export function NativeMorePage() {
       <PageContent className="grid content-start gap-6">
         <Tools />
         <div className="grid content-start gap-6 sm:grid-cols-2">
-          <Group id="more-reference-heading" title="Reference">
-            <Links links={REFERENCE} />
-          </Group>
           <Group id="more-community-heading" title="Community">
             <Links links={me ? [...COMMUNITY, FRIENDS] : COMMUNITY} />
           </Group>

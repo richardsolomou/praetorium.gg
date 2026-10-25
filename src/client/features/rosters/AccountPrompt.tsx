@@ -42,7 +42,7 @@ function AccountPrompt({ reason, onClose }: { reason: AccountReason | null; onCl
             <li>Links to share them, and lending to friends</li>
             <li>Locking and archiving to keep your library tidy</li>
             <li>Your rosters and battles on any device</li>
-            <li>Your own record, a place on the leaderboard and league standings</li>
+            <li>Your own record, a place on the leaderboard and tournament results</li>
           </ul>
           <div className="flex flex-wrap gap-2">
             <Link

@@ -129,7 +129,7 @@ export function RosterCombatComparison({
       return {
         id: rosterSourceKey({ league }),
         catalogueId: entry.catalogueId,
-        group: "Friends' league rosters",
+        group: "Friends' sealed rosters",
         owners: [owner],
         label: friendLeagueLabel(entry),
         load: async (signal: AbortSignal) => {
@@ -317,7 +317,7 @@ export function RosterCombatComparison({
               <p className="eyebrow mb-1">{index ? 'Targets' : 'Attackers'}</p>
               <RosterPicker
                 ariaLabel={index ? 'Defending roster' : 'Attacking roster'}
-                groups={[undefined, "Friends' rosters", "Friends' league rosters"].map((group) => ({
+                groups={[undefined, "Friends' rosters", "Friends' sealed rosters"].map((group) => ({
                   label: group ?? (sources ? 'Revealed rosters' : 'Rosters and targets'),
                   options: options
                     .filter((source) => source.group === group)

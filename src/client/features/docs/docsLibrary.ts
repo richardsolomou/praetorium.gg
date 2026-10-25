@@ -1,5 +1,5 @@
 import type { LinkProps } from '@tanstack/react-router'
-import { Bot, Calculator, FileInput, type LucideIcon, ScrollText, Swords, Trophy, UserRound } from 'lucide-react'
+import { Bot, Calculator, FileInput, type LucideIcon, ScrollText, Swords, Trophy, UserRound, UsersRound } from 'lucide-react'
 import { DOC_SECTIONS, PRODUCT_DOCS, type ProductDoc } from '../../../contracts/productDocs'
 import { headings } from './docsOutline'
 
@@ -34,10 +34,15 @@ export const AREAS: Record<
     summary: 'Track a game from setup to the final score.',
     action: { to: '/battles', label: 'Open Battles' },
   },
-  Leagues: {
+  Clubs: {
+    icon: UsersRound,
+    summary: 'Keep a running table of the games your group plays.',
+    action: { to: '/clubs', label: 'Open Clubs' },
+  },
+  Tournaments: {
     icon: Trophy,
-    summary: 'Seal rosters in secret, reveal them together, then play the event.',
-    action: { to: '/leagues', label: 'Open Leagues' },
+    summary: 'Seal rosters in secret, reveal them together, then play each other.',
+    action: { to: '/tournaments', label: 'Open Tournaments' },
   },
   'AI assistants': {
     icon: Bot,

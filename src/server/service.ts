@@ -47,7 +47,9 @@ import {
   serviceRecord,
 } from '../core/serviceRecord'
 import { routeSlug } from '../core/slug'
-import { type Standing, type StandingFaction, standings } from '../core/standings'
+import { battleOutcome, sideScore, type Standing, type StandingBattle, type StandingFaction, standings } from '../core/standings'
+import { refuse } from '../core/battlePrimitives'
+import { swissPairings, swissStandings, type SwissMatch } from '../core/swiss'
 import { leagueResults } from '../core/leagueResults'
 import { REPLAY_BATCH_SIZE, type BattlesCursor } from '../contracts/battles'
 import { gameReferencesFor } from '../shared/gameReferences'
@@ -56,6 +58,7 @@ import { currentCatalogueFamilyId } from '../core/retiredCatalogueIds'
 import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type Mission } from './rules'
 import { type Notifier, silentNotifier } from './pushNotifier'
 import { LeagueService } from './services/leagueService'
+import { ClubService } from './services/clubService'
 import { RosterService } from './services/rosterService'
 import { SocialService } from './services/socialService'
 import type { BattleHistory, BattleSeats, RepositoryPort, SpacetimeRepository } from './spacetimeRepository'
@@ -127,6 +130,9 @@ const STANDINGS_WINDOW_MS = 90 * DAY_MS
 const STANDINGS_BATTLE_LIMIT = 500
 /** The battle feed's largest page; an event with more battles than this shows a partial table. */
 const LEAGUE_RESULTS_BATTLE_LIMIT = 500
+/** Pages of 500 battles a club table reads before it reports itself partial. */
+const CLUB_STANDINGS_PAGES = 20
+const CLUB_RECENT_BATTLES = 3
 const STANDINGS_HOLD_MS = 60_000
 
 /** How much of a table is sent. Nobody reads past this, and every faction played costs one. */
@@ -156,6 +162,7 @@ type SubmitArgs = [
 
 export class PraetoriumService {
   readonly leagueService: LeagueService
+  readonly clubService: ClubService
   readonly rosterService: RosterService
   readonly socialService: SocialService
 
@@ -167,6 +174,7 @@ export class PraetoriumService {
     private readonly standingsRevision?: () => Promise<string>,
   ) {
     this.leagueService = new LeagueService(repository, clock, notifier)
+    this.clubService = new ClubService(repository, clock, notifier)
     this.rosterService = new RosterService(repository, clock)
     this.socialService = new SocialService(repository, clock, notifier)
   }
@@ -528,7 +536,94 @@ export class PraetoriumService {
       viewerId,
     )
     const entrantIds = league.entries.filter((entry) => entry.status === 'accepted').map((entry) => entry.userId)
-    return { ...leagueResults(entrantIds, battles), partial: nextCursor !== null }
+    return {
+      ...leagueResults(entrantIds, battles),
+      swiss: league.rounds === null ? null : swissStandings(entrantIds, swissMatches(league.pairings, battles)),
+      partial: nextCursor !== null,
+    }
+  }
+
+  /** Pairs the next Swiss round from the results so far. */
+  async pairLeagueRound(leagueToken: string, eventToken: string | undefined, userId: string) {
+    const league = await this.leagueService.league(leagueToken, userId, eventToken)
+    if (!league) throw new Response('no such event', { status: 404 })
+    if (league.rounds === null || !league.revealedAt) throw new Response('pair rounds once the rosters are out', { status: 409 })
+    const { battles } = await this.leagueBattles(leagueToken, league.eventToken, { limit: LEAGUE_RESULTS_BATTLE_LIMIT }, null, [], userId)
+    const players = league.entries.filter((entry) => entry.status === 'accepted' && entry.submitted).map((entry) => entry.userId)
+    const matches = swissMatches(league.pairings, battles)
+    const round = Math.max(0, ...league.pairings.map((pairing) => pairing.round)) + 1
+    const result = await this.repository.pairLeagueRound({
+      token: leagueToken,
+      eventToken: league.eventToken,
+      ownerId: userId,
+      round,
+      pairs: swissPairings(players, matches, Math.random),
+    })
+    if (result === 'paired') return { round }
+    if (result === 'forbidden') throw new Response('only the organizer pairs rounds', { status: 403 })
+    if (result === 'not-ready') throw new Response('every table must finish its battle before the next round', { status: 409 })
+    if (result === 'missing') throw new Response('no such event', { status: 404 })
+    throw new Response('the round changed while it was being paired; try again', { status: 409 })
+  }
+
+  /**
+   * A club's standing table: every battle tagged for it, rated together, with rows for its current members only, so
+   * someone who leaves drops off and comes back with their record if they rejoin. A private club shows it to members alone.
+   */
+  async clubStandings(token: string, viewerId: string | null, factions: readonly BattleFaction[] = []) {
+    const club = await this.clubService.club(token, viewerId)
+    if (!club) return null
+    const memberIds = new Set(club.members.filter((member) => member.status === 'accepted').map((member) => member.userId))
+    if (club.visibility === 'private' && !(viewerId && memberIds.has(viewerId))) return null
+    const histories: BattleHistory[] = []
+    let before: BattlesCursor | undefined
+    for (let page = 0; page < CLUB_STANDINGS_PAGES; page++) {
+      const { battles, nextCursor } = await this.repository.battlesByClub(token, { limit: LEAGUE_RESULTS_BATTLE_LIMIT, before })
+      histories.push(...battles)
+      before = nextCursor ?? undefined
+      if (!before) break
+    }
+    const practice = await this.repository.practiceOpponents()
+    // A game's battles name its event; one from before events were recorded on battles names only its league, now this club.
+    const gameEvents = new Set(club.games.map((game) => game.token))
+    // A sealed game lists its own battles, so the club's other lists keep to the ones played outside them.
+    const fromGames = new Set<string>()
+    const counted = this.battleSummaries(
+      histories.filter((history) => {
+        const state = foldHistory(history)
+        const fromGame = state.leagueEventToken !== null && gameEvents.has(state.leagueEventToken)
+        if (fromGame) fromGames.add(history.battle.token)
+        return state.clubId === club.id || fromGame || (state.leagueEventToken === null && state.leagueToken === club.token)
+      }),
+      viewerId,
+      null,
+      factions,
+    )
+    const tables = standings(counted, { exclude: practice.map((opponent) => opponent.id) })
+    const rows = tables.overall.filter((row) => memberIds.has(row.id))
+    return {
+      table: { faction: null, players: rows.length, rows },
+      finished: counted.filter((battle) => battle.status === 'finished').length,
+      recent: counted.filter((battle) => battle.status === 'finished' && !fromGames.has(battle.token)).slice(0, CLUB_RECENT_BATTLES),
+      // The reader's own club battles still being set up or played, which is what they most likely came back for.
+      active: viewerId
+        ? counted.filter((battle) => battle.status !== 'finished' && battle.playerIds.includes(viewerId) && !fromGames.has(battle.token))
+        : [],
+      partial: before !== undefined,
+    }
+  }
+
+  /** The club a battle counts for, and for a seated player during setup the clubs it could; a private club's name stays with its players. */
+  async battleClubs(token: string, viewerId: string | null) {
+    const seats = await this.repository.battleByToken(token)
+    if (!seats) throw new Response('no such battle', { status: 404 })
+    const seated = viewerId !== null && this.seated(seats, viewerId)
+    const { current, options } = await this.repository.battleClubs(seats.battle.id)
+    const summary = (club: { token: string; name: string }) => ({ token: club.token, name: club.name })
+    return {
+      current: current && (seated || current.visibility === 'public') ? summary(current) : null,
+      options: seated ? options.map((club) => ({ id: club.id, ...summary(club) })) : [],
+    }
   }
 
   private battleSummaries(
@@ -594,7 +689,14 @@ export class PraetoriumService {
       throw new Response('choose an opponent', { status: 400 })
     }
     const allowed = new Map(invitable.map((opponent) => [opponent.id, opponent]))
-    if (invited.some((id) => !allowed.has(id)))
+    // Joining a club is consent to play its members, so a club game needs no friendship; the product database checks membership again.
+    const clubToken = typeof input === 'object' ? input.clubToken : undefined
+    const club = clubToken ? await this.clubService.club(clubToken, userId) : null
+    if (clubToken) {
+      const members = new Set(club?.members.filter((member) => member.status === 'accepted').map((member) => member.userId))
+      if (!club || !members.has(userId) || guestNames.length || invited.some((id) => !members.has(id)))
+        throw new Response('a club game is played between its members', { status: 403 })
+    } else if (invited.some((id) => !allowed.has(id)))
       throw new Response('battle players must be your friends or a practice opponent', { status: 403 })
     // How many chairs a battle has is `battleCapacity`'s to say, here as everywhere.
     if (invited.length + guestNames.length >= battleCapacity({ teamBattle: true, playerCount: 4 }))
@@ -603,10 +705,10 @@ export class PraetoriumService {
     // who turns up, so a battle without an opponent is not a battle yet.
     if (!opponentIds.length && !guestNames.length) throw new Response('choose an opponent', { status: 400 })
     // A league seats its own entrants, so a table with a guest at it can only be casual.
-    if (invited.length && !guestNames.length && (typeof input !== 'object' || !input.casual)) {
+    if (!club && invited.length && !guestNames.length && (typeof input !== 'object' || !input.casual)) {
       const leagueMatches = await this.leagueBattleOptions(userId, input)
       if (leagueMatches.length) {
-        throw new Response('start this matchup from its league page, or confirm a casual battle', { status: 409 })
+        throw new Response('start this matchup from its event page, or confirm a casual battle', { status: 409 })
       }
     }
     const practice = invited.some((id) => allowed.get(id)?.automated)
@@ -619,17 +721,20 @@ export class PraetoriumService {
       allyIds,
       opponentIds,
       guestNames,
-      initialCommand: {
-        kind: 'configure-battle',
-        limit: settings.limit,
-        missionPackId: settings.manual ? null : settings.missionPackId,
-        terrainLayoutId: null,
-        twistId: null,
-        teamBattle: invited.length + guestNames.length >= 2,
-        playerCount: (invited.length + guestNames.length + 1) as 2 | 3 | 4,
-        clockLimitMinutes: null,
-        ...(settings.manual ? { manual: true } : {}),
-      },
+      initialCommands: [
+        {
+          kind: 'configure-battle',
+          limit: settings.limit,
+          missionPackId: settings.manual ? null : settings.missionPackId,
+          terrainLayoutId: null,
+          twistId: null,
+          teamBattle: invited.length + guestNames.length >= 2,
+          playerCount: (invited.length + guestNames.length + 1) as 2 | 3 | 4,
+          clockLimitMinutes: null,
+          ...(settings.manual ? { manual: true } : {}),
+        },
+        ...(club ? [{ kind: 'set-battle-club' as const, clubId: club.id }] : []),
+      ],
       now: offlineContext.getStore()?.createdAt ?? this.clock(),
     })
     this.notifier.notify([{ kind: 'battle-created', actorId: userId, recipientIds: invited, battleToken: token, league: false }])
@@ -821,7 +926,13 @@ export class PraetoriumService {
     const history = await this.mustFind(token)
     if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
     if (sync) command = restoreOpaqueBattleKeys(history.players, history.log, command)
-    if (command.kind === 'lock-league-rosters') throw new Response('league roster locks are created by the server', { status: 403 })
+    if (command.kind === 'lock-league-rosters') throw new Response('sealed roster locks are created by the server', { status: 403 })
+    // The product database refuses a non-member too; asking first gives the refusal its code.
+    const clubId = command.kind === 'set-battle-club' ? command.clubId : null
+    const clubRefusal =
+      clubId && !(await this.repository.battleClubs(history.battle.id)).options.some((club) => club.id === clubId)
+        ? refuse('club-members-only', 'every player must be a member of the club')
+        : null
     // The log comes back with the answer, so a refusal and a lost race both report
     // the state that refused them rather than the one the caller was holding —
     // and without a second read of a history the append had already in hand.
@@ -836,6 +947,7 @@ export class PraetoriumService {
         ...sync,
       },
       (state) => {
+        if (clubRefusal) return clubRefusal
         if (command.kind === 'begin-battle') return rules ? setupReferenceError(state, rules) : null
         if (command.kind === 'set-prep' && state.status === 'playing') {
           return rules ? repairPrepReferenceError(state, userId, command, rules) : null
@@ -1082,4 +1194,27 @@ export function guestDeviceHash(secret: string) {
 
 function sameHash(left: string, right: string) {
   return left.length === right.length && timingSafeEqual(Buffer.from(left), Buffer.from(right))
+}
+
+/** Each paired table as a Swiss result, read from the battle it started; a table still playing has no outcome yet. */
+function swissMatches(
+  pairings: readonly { round: number; aId: string; bId: string | null; battleToken: string | null }[],
+  battles: readonly (StandingBattle & { token: string })[],
+): SwissMatch[] {
+  const byToken = new Map(battles.map((battle) => [battle.token, battle]))
+  return pairings.map((pairing) => {
+    const battle = pairing.battleToken ? byToken.get(pairing.battleToken) : undefined
+    if (!pairing.bId || battle?.status !== 'finished')
+      return { round: pairing.round, a: pairing.aId, b: pairing.bId, outcome: null, vp: [0, 0] }
+    const sideA = battle.sides[battle.playerIds.indexOf(pairing.aId)] ?? 0
+    const sideB = battle.sides[battle.playerIds.indexOf(pairing.bId)] ?? 1
+    const outcome = battleOutcome(battle, sideA)
+    return {
+      round: pairing.round,
+      a: pairing.aId,
+      b: pairing.bId,
+      outcome: outcome === 'won' ? 'a' : outcome === 'lost' ? 'b' : 'draw',
+      vp: [sideScore(battle, sideA), sideScore(battle, sideB)],
+    }
+  })
 }

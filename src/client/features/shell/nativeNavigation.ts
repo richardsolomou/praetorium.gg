@@ -1,4 +1,4 @@
-export type NativeSection = 'battles' | 'factions' | 'home' | 'leaderboard' | 'leagues' | 'missions' | 'rosters' | 'rules'
+export type NativeSection = 'battles' | 'events' | 'factions' | 'home' | 'leaderboard' | 'missions' | 'rosters' | 'rules'
 
 type NativeNavigation = {
   back?: { href: string; label: string; preferHistory?: boolean }
@@ -29,7 +29,7 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
     if (typeof search.league === 'string') {
       const event = typeof search.event === 'string' ? `?${new URLSearchParams({ event: search.event })}` : ''
       return {
-        back: { href: `/leagues/${search.league}${event}`, label: 'Back to league', preferHistory: true },
+        back: { href: `/tournaments/${search.league}${event}`, label: 'Back to event', preferHistory: true },
         section: 'rosters',
         title: 'Roster',
       }
@@ -41,10 +41,17 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
       ? { back: { href: '/battles', label: 'Back to battles', preferHistory: true }, section: 'battles', title: 'Battle' }
       : { section: 'battles', title: 'Battles' }
   }
-  if (root === 'leagues') {
+  if (root === 'tournaments') {
     return id
-      ? { back: { href: '/leagues', label: 'Back to leagues', preferHistory: true }, section: 'leagues', title: 'League' }
-      : { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'leagues', title: 'Leagues' }
+      ? { back: { href: '/tournaments', label: 'Back to tournaments', preferHistory: true }, section: 'events', title: 'Tournament' }
+      : { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'events', title: 'Tournaments' }
+  }
+  if (root === 'clubs') {
+    if (id && child === 'games' && detail)
+      return { back: { href: `/clubs/${id}`, label: 'Back to club', preferHistory: true }, section: 'events', title: 'Sealed game' }
+    return id
+      ? { back: { href: '/clubs', label: 'Back to clubs', preferHistory: true }, section: 'events', title: 'Club' }
+      : { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'events', title: 'Clubs' }
   }
   if (root === 'factions') {
     if (!id) return { section: 'factions', title: 'Factions' }

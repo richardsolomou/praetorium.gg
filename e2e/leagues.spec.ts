@@ -27,7 +27,7 @@ test('players can decline and publish their original league roster across device
   const saved = (await product.roster(savedId))!
   await product.setRosterVisibility(savedId, saved.userId, 'private', Date.now())
   await sealableRoster(opponent, 'Already public league army')
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('League roster sharing'))
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
@@ -43,7 +43,7 @@ test('players can decline and publish their original league roster across device
   await expect(opponent.getByRole('region', { name: 'Roster sharing', exact: true })).toHaveCount(0)
   await owner.reload()
   const sharing = owner.getByRole('region', { name: 'Roster sharing', exact: true })
-  await expect(sharing.getByRole('heading', { name: 'Share your league roster?' })).toBeVisible()
+  await expect(sharing.getByRole('heading', { name: 'Share your sealed roster?' })).toBeVisible()
   await expect(sharing.getByRole('button')).toHaveText(['Make public', 'No thanks'])
   expect((await sharing.boundingBox())!.y).toBeLessThan((await owner.locator('[data-league-armies]').boundingBox())!.y)
   await sharing.scrollIntoViewIfNeeded()
@@ -66,11 +66,11 @@ test('players can decline and publish their original league roster across device
   await elsewhere.close()
 
   await owner.setViewportSize({ width: 1440, height: 1000 })
-  await owner.getByRole('button', { name: 'Start event 2', exact: true }).click()
-  const nextEvent = owner.getByRole('dialog', { name: 'Start event 2', exact: true })
-  await expect(nextEvent.getByRole('switch', { name: /I’m playing too/ })).toBeChecked()
-  await nextEvent.getByRole('button', { name: 'Start event 2', exact: true }).click()
-  await expect(owner.locator('main header').getByText('League · Event 2')).toBeVisible()
+  await owner.goto('/tournaments')
+  const second = await openLeagueCreation(owner, { ownerPlays: true })
+  await second.getByLabel('Name').fill(uniqueName('Second roster sharing'))
+  await second.getByRole('button', { name: /^Anyone who joins/ }).click()
+  await submitLeagueCreation(owner, second)
   leagueUrl = owner.url()
   await sealOwnRoster(owner, armyName)
   await opponent.goto(leagueUrl)
@@ -78,7 +78,7 @@ test('players can decline and publish their original league roster across device
   await sealOwnRoster(opponent, 'Already public league army')
   await owner.reload()
   await revealEvent(owner)
-  await expect(sharing.getByRole('heading', { name: 'Share your league roster?' })).toBeVisible()
+  await expect(sharing.getByRole('heading', { name: 'Share your sealed roster?' })).toBeVisible()
 
   // Publication changes the saved roster’s visibility without replacing its edits.
   await owner.setViewportSize({ width: 1440, height: 1000 })
@@ -90,7 +90,7 @@ test('players can decline and publish their original league roster across device
   await sharing.getByRole('button', { name: 'Make public', exact: true }).click()
   await expect(sharing).toHaveCount(0)
   const leagueToken = new URL(leagueUrl).pathname.split('/').at(-1)!
-  const event = (await product.leagueByToken(leagueToken))!.selected
+  const { event } = (await product.leagueByToken(leagueToken))!
   const publication = await product.leagueRosterSharing(leagueToken, event.token, saved.userId)
   const sharedId = publication!.roster.id
   expect(sharedId).toBe(savedId)
@@ -133,7 +133,7 @@ test('revealed rosters compare every unit using frozen loadouts and preserve lea
   await sealableRoster(owner, 'Comparison defenders', 'Immortals')
   const savedUrl = owner.url()
   await sealableRoster(opponent, 'Comparison attackers', 'Lokhust Destroyers')
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('Comparison league'))
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
@@ -218,13 +218,17 @@ test('revealed rosters compare every unit using frozen loadouts and preserve lea
   await opponentContext.close()
 })
 
-async function eventForLeague(leagueToken: string) {
-  const [league] = await productSql<{ id: string }>`SELECT id FROM leagues WHERE token = ${leagueToken}`
-  if (!league) throw new Error('The league test league is missing.')
-  const events = await productSql<{ id: string; number: number }>`SELECT id, number FROM league_events WHERE league_id = ${league.id}`
-  const event = events.toSorted((left, right) => right.number - left.number)[0]
-  if (!event) throw new Error('The league test event is missing.')
-  return event
+type TournamentEvent = { id: string; token: string; ownerId: string }
+
+async function tournamentEvent(tournamentToken: string): Promise<TournamentEvent> {
+  const [tournament] = await productSql<{
+    owner_id: string
+    event_id: string
+  }>`SELECT owner_id, event_id FROM tournaments WHERE token = ${tournamentToken}`
+  if (!tournament) throw new Error('The test tournament is missing.')
+  const [event] = await productSql<{ token: string }>`SELECT token FROM sealed_events WHERE id = ${tournament.event_id}`
+  if (!event) throw new Error('The test tournament event is missing.')
+  return { id: tournament.event_id, token: event.token, ownerId: tournament.owner_id }
 }
 
 /** The card a fixture list chose and every card its detachments offered. */
@@ -262,7 +266,7 @@ function option<T>(value: [number, T | []]): T | null {
 
 async function submitFixtureRoster(
   leagueToken: string,
-  eventId: string,
+  event: TournamentEvent,
   userId: string,
   limit: number,
   warlord: boolean,
@@ -271,12 +275,8 @@ async function submitFixtureRoster(
   cards?: FixtureCards,
 ) {
   const product = await productOperator()
-  const [league] = await productSql<{ owner_id: string }>`SELECT owner_id FROM leagues WHERE token = ${leagueToken}`
-  if (!league) throw new Error('The league test league is missing.')
-  const [event] = await productSql<{ token: string }>`SELECT token FROM league_events WHERE id = ${eventId}`
-  if (!event) throw new Error('The league test event is missing.')
   const now = Date.now()
-  const rosterId = `${eventId}-${userId}-fixture`
+  const rosterId = `${event.id}-${userId}-fixture`
   const saved = await product.saveRoster({
     id: rosterId,
     userId,
@@ -299,7 +299,7 @@ async function submitFixtureRoster(
       op: 'submit',
       token: leagueToken,
       eventToken: event.token,
-      ownerId: league.owner_id,
+      ownerId: event.ownerId,
       userId,
       rosterId,
       rosterName: name,
@@ -315,37 +315,33 @@ async function submitFixtureRoster(
 
 /** Asks the server to reveal the current event directly, past the console's disabled button. */
 async function revealThroughServer(leagueToken: string) {
-  const [league] = await productSql<{ owner_id: string }>`SELECT owner_id FROM leagues WHERE token = ${leagueToken}`
-  if (!league) throw new Error('The league test league is missing.')
-  const { id } = await eventForLeague(leagueToken)
-  const [event] = await productSql<{ token: string }>`SELECT token FROM league_events WHERE id = ${id}`
-  if (!event) throw new Error('The league test event is missing.')
+  const event = await tournamentEvent(leagueToken)
   const product = await productOperator()
   const result = await product.leagueCommand(
-    { op: 'reveal', token: leagueToken, ownerId: league.owner_id, eventToken: event.token, now: Date.now() },
+    { op: 'reveal', token: leagueToken, ownerId: event.ownerId, eventToken: event.token, now: Date.now() },
     z.object({ outcome: z.string() }),
   )
   return result.outcome
 }
 
 async function sealEventRosters(leagueToken: string) {
-  const event = await eventForLeague(leagueToken)
+  const event = await tournamentEvent(leagueToken)
   const entries = await productSql<{
     user_id: string
   }>`SELECT user_id FROM league_event_entries WHERE event_id = ${event.id} AND status = 'accepted'`
   if (entries.length !== 2) throw new Error('The league test entrants are missing.')
   for (const entry of entries) {
-    if ((await submitFixtureRoster(leagueToken, event.id, entry.user_id, 2_000, true, 'Sealed roster')) !== 'sealed') {
+    if ((await submitFixtureRoster(leagueToken, event, entry.user_id, 2_000, true, 'Sealed roster')) !== 'sealed') {
       throw new Error('The league fixture roster was not sealed.')
     }
   }
 }
 
-async function createLegacyLeague(ownerName: string, leagueName: string) {
+async function createTournamentWithoutFormat(ownerName: string, leagueName: string) {
   const owner = await withAuthSql(
     (database) => database.prepare('SELECT id FROM user WHERE name = ? LIMIT 1').get(ownerName) as { id: string } | undefined,
   )
-  if (!owner) throw new Error('The legacy league owner is missing.')
+  if (!owner) throw new Error('The tournament owner is missing.')
   const token = crypto.randomUUID()
   const product = await productOperator()
   await product.leagueCommand(
@@ -361,7 +357,6 @@ async function createLegacyLeague(ownerName: string, leagueName: string) {
       visibility: 'public',
       admission: 'automatic',
       playerLimit: null,
-      recurring: false,
       format: null,
       rosterLimit: null,
       now: Date.now(),
@@ -419,7 +414,7 @@ const TEAM_EVENT_CARDS: FixtureCards[] = [
 ]
 
 async function sealTeamEventRosters(leagueToken: string) {
-  const event = await eventForLeague(leagueToken)
+  const event = await tournamentEvent(leagueToken)
   const entries = await productSql<{
     user_id: string
     required_limit: [number, number | []]
@@ -432,13 +427,13 @@ async function sealTeamEventRosters(leagueToken: string) {
     const limit = option(entry.required_limit)!
     const name = `${limit.toLocaleString()}-point roster`
     const cards = limit < 2_000 ? TEAM_EVENT_CARDS[allies++ % 2] : { disposition: 'take-and-hold', dispositions: ['take-and-hold'] }
-    const outcome = await submitFixtureRoster(leagueToken, event.id, entry.user_id, limit, true, name, undefined, cards)
+    const outcome = await submitFixtureRoster(leagueToken, event, entry.user_id, limit, true, name, undefined, cards)
     if (outcome !== 'sealed') throw new Error(`The team league fixture roster returned ${outcome} for ${entry.user_id}.`)
   }
 }
 
 async function sealDoublesEventRosters(leagueToken: string, invalidWarlords = false) {
-  const event = await eventForLeague(leagueToken)
+  const event = await tournamentEvent(leagueToken)
   const entries = await productSql<{
     user_id: string
     team_id: [number, string | []]
@@ -452,7 +447,7 @@ async function sealDoublesEventRosters(leagueToken: string, invalidWarlords = fa
     // Every doubles list names its own Warlord; the pair chooses whose leads it.
     const outcome = await submitFixtureRoster(
       leagueToken,
-      event.id,
+      event,
       entry.user_id,
       1_000,
       true,
@@ -467,7 +462,7 @@ async function sealDoublesEventRosters(leagueToken: string, invalidWarlords = fa
   if (invalidWarlords) {
     const outcome = await submitFixtureRoster(
       leagueToken,
-      event.id,
+      event,
       entries[0].user_id,
       1_000,
       false,
@@ -479,6 +474,60 @@ async function sealDoublesEventRosters(leagueToken: string, invalidWarlords = fa
 }
 
 /** Waits for the event page, which the previous page stays in front of until the league loads. */
+test('a Swiss tournament pairs its rounds and ranks the tables by match points', async ({ browser }, testInfo) => {
+  const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
+  const opponentContext = await browser.newContext()
+  const owner = await ownerContext.newPage()
+  const opponent = await opponentContext.newPage()
+  const ownerName = uniqueName('Swiss organizer')
+  await signUp(owner, ownerName)
+  await signUp(opponent, uniqueName('Swiss opponent'))
+  await sealableRoster(owner, 'Swiss army')
+  await sealableRoster(opponent, 'Swiss opponent army')
+  await owner.goto('/tournaments')
+  const create = await openLeagueCreation(owner)
+  await create.getByLabel('Name').fill(uniqueName('Swiss open'))
+  await create.getByRole('button', { name: /^Swiss rounds/ }).click()
+  await submitLeagueCreation(owner, create)
+  const url = owner.url()
+  await join(owner)
+  await sealOwnRoster(owner, 'Swiss army')
+  await opponent.goto(url)
+  await join(opponent)
+  await sealOwnRoster(opponent, 'Swiss opponent army')
+  await revealEvent(owner)
+
+  const rounds = owner.locator('[data-league-rounds]')
+  await rounds.getByRole('button', { name: 'Pair round 1' }).click()
+  await expect(rounds.locator('[data-table="1"]')).toBeVisible()
+  await rounds.locator('[data-table="1"]').getByRole('button', { name: 'Start battle' }).click()
+  await owner.waitForURL(/\/battles\/[^/]+$/)
+
+  // Settle the table in its log, as other specs do: the rounds are under test, not the game.
+  const token = new URL(owner.url()).pathname.split('/').at(-1)!
+  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
+  const seats = await productSql<{ user_id: string; side: number }>`SELECT user_id, side FROM battle_users WHERE battle_id = ${battle.id}`
+  const [first, second] = seats.toSorted((left, right) => left.side - right.side).map((seat) => seat.user_id)
+  // The open battle page can still be writing its own setup steps, so each line goes after whatever the log ends on then.
+  await owner.goto(url)
+  for (const [by, command] of [
+    [first, { kind: 'begin-battle', firstPlayerId: first }],
+    [second, { kind: 'end-battle', reason: 'conceded', concededBy: second }],
+  ] as [string, Command][]) {
+    const seq =
+      Math.max(...(await productSql<{ seq: number }>`SELECT seq FROM commands WHERE battle_id = ${battle.id}`).map((row) => row.seq)) + 1
+    await productSql`INSERT INTO commands (key, battle_id, seq, user_id, at, body) VALUES (${JSON.stringify([battle.id, seq])}, ${battle.id}, ${seq}, ${by}, ${Date.now() + seq}, ${JSON.stringify(command)})`
+  }
+
+  await owner.reload()
+  await expect(owner.locator('[data-league-results] tbody tr').first()).toContainText(ownerName)
+  await rounds.getByRole('button', { name: 'Pair round 2' }).click()
+  await expect(rounds.getByText('Round 2 of 3')).toBeVisible()
+  await owner.screenshot({ path: testInfo.outputPath('swiss-rounds.png'), fullPage: true })
+  await ownerContext.close()
+  await opponentContext.close()
+})
+
 async function eventLoaded(page: Page) {
   await expect(page.locator('[data-entry-status]')).toBeVisible()
 }
@@ -541,7 +590,7 @@ async function sealableRoster(page: Page, name: string, extraUnit?: string) {
 
 async function join(page: Page) {
   await eventLoaded(page)
-  const button = page.getByRole('button', { name: /^(?:Join league|Join as a player)$/ })
+  const button = page.getByRole('button', { name: /^(?:Join tournament|Join as a player)$/ })
   await expect(async () => {
     if (!(await button.isVisible())) return
     await button.click({ timeout: 2_000 })
@@ -594,16 +643,16 @@ async function expectOrganizerAvatar(row: Locator, ownerName: string) {
 }
 
 async function submitLeagueCreation(page: Page, dialog: Locator) {
-  await dialog.getByRole('button', { name: 'Create league' }).click()
-  await expect(page).toHaveURL(/\/leagues\/[^/?]+/)
+  await dialog.getByRole('button', { name: 'Create tournament' }).click()
+  await expect(page).toHaveURL(/\/tournaments\/[^/?]+/)
   await eventLoaded(page)
 }
 
 /** Opens the new-league form; the organizer stays out of the event unless a test asks them to play, so joining stays explicit. */
 async function openLeagueCreation(page: Page, { ownerPlays = false } = {}) {
-  const dialog = page.getByRole('dialog', { name: 'New league' })
+  const dialog = page.getByRole('dialog', { name: 'New tournament' })
   await expect(async () => {
-    await page.getByRole('button', { name: 'New league' }).click()
+    await page.getByRole('button', { name: 'New tournament' }).click()
     await expect(dialog).toBeVisible({ timeout: 1_000 })
   }).toPass({ timeout: 10_000 })
   const plays = dialog.getByRole('switch', { name: /I’m playing too/ })
@@ -616,22 +665,13 @@ async function openLeagueCreation(page: Page, { ownerPlays = false } = {}) {
 
 async function openEventSettings(page: Page) {
   await eventLoaded(page)
-  const settings = page.getByRole('dialog', { name: 'Edit league' })
+  const settings = page.getByRole('dialog', { name: 'Edit tournament' })
   // A press before hydration does nothing, so retry it until the dialog answers.
   await expect(async () => {
-    if (!(await settings.isVisible())) await page.getByRole('button', { name: 'Edit league' }).click()
+    if (!(await settings.isVisible())) await page.getByRole('button', { name: 'Edit tournament' }).click()
     await expect(settings.getByLabel('Name')).toBeVisible({ timeout: 2_000 })
   }).toPass({ timeout: 20_000 })
   return settings
-}
-
-/** Picks an event from the league's one-line event menu, checking which one the page showed first when asked. */
-async function openEvent(page: Page, name: string, { current }: { current?: string } = {}) {
-  await page.getByRole('button', { name: /^League events/ }).click()
-  const menu = page.getByRole('menu')
-  if (current) await expect(menu.getByRole('menuitem', { name: new RegExp(`^${current}\\b`) })).toHaveAttribute('aria-current', 'page')
-  await menu.getByRole('menuitem', { name: new RegExp(`^${name}\\b`) }).click()
-  await expect(menu).toBeHidden()
 }
 
 function leagueHeader(page: Page) {
@@ -646,7 +686,7 @@ test('an event seals Legends only once its organizer allows them', async ({ page
   await page.getByRole('button', { name: 'Legends', exact: true }).click()
   await page.getByLabel('Add a unit').fill('Tesseract Ark')
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Tesseract Ark [Legends]', exact: true }).click())
-  await page.goto('/leagues')
+  await page.goto('/tournaments')
   const create = await openLeagueCreation(page, { ownerPlays: true })
   await create.getByLabel('Name').fill(uniqueName('Tuesday league'))
   await expect(create.getByRole('button', { name: 'House rules' })).toHaveAccessibleDescription('Matched play')
@@ -680,7 +720,7 @@ test('an admin the owner chooses runs the league but cannot delete it', async ({
   await signUp(owner, ownerName)
   await signUp(admin, adminName)
   await befriend(owner, admin)
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('Shared league'))
   await submitLeagueCreation(owner, create)
@@ -696,7 +736,7 @@ test('an admin the owner chooses runs the league but cannot delete it', async ({
 
   await admin.goto(owner.url())
   await eventLoaded(admin)
-  await expect(admin.getByRole('button', { name: 'Edit league' })).toBeVisible()
+  await expect(admin.getByRole('button', { name: 'Edit tournament' })).toBeVisible()
   await expect(admin.getByRole('button', { name: /^More for / })).toHaveCount(0)
   const adminSettings = await openEventSettings(admin)
   await expect(adminSettings.getByLabel('Admins')).toHaveCount(0)
@@ -713,7 +753,7 @@ test('a full league keeps its lists sealed until someone reveals them', async ({
   await signUp(opponent, opponentName)
   await sealableRoster(owner, 'Full owner list')
   await sealableRoster(opponent, 'Full opponent list')
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner, { ownerPlays: true })
   await create.getByLabel('Name').fill(uniqueName('Full league'))
   await create.getByLabel('Player limit').fill('2')
@@ -743,7 +783,7 @@ test('a league names its next step, which moves on once a player joins', async (
   const player = await playerContext.newPage()
   await signUp(owner, uniqueName('Next step organizer'))
   await signUp(player, uniqueName('Next step player'))
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('Next step league'))
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
@@ -775,7 +815,7 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   await page.locator('[data-unit="Captain"]').getByRole('button', { name: 'Captain', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Remove Captain Warlord' })).toHaveAttribute('aria-pressed', 'true')
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Remove Captain Warlord' }).click())
-  await page.goto('/leagues')
+  await page.goto('/tournaments')
   const create = await openLeagueCreation(page, { ownerPlays: true })
   await create.getByLabel('Name').fill(leagueName)
   await expect(create.getByText('One-off', { exact: true })).toHaveCount(0)
@@ -807,8 +847,6 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.keyboard.press('Escape')
 
-  // A league that has run one event has no archive to switch between.
-  await expect(page.getByRole('button', { name: /^League events/ })).toHaveCount(0)
   await expect(page.locator(`[data-person="${ownerName}"]`)).toBeVisible()
 
   await page.setViewportSize({ width: 390, height: 844 })
@@ -858,7 +896,7 @@ for (const { rules, status } of [
     await makeWarlord(page, unit)
     const operator = await productOperator()
     const saved = (await operator.roster(new URL(page.url()).pathname.split('/').at(-1)!))!
-    await page.goto('/leagues')
+    await page.goto('/tournaments')
     const create = await openLeagueCreation(page)
     await create.getByLabel('Name').fill(uniqueName('Rules league'))
     await create.getByRole('button', { name: /^Anyone who joins/ }).click()
@@ -870,7 +908,7 @@ for (const { rules, status } of [
     await expect(entry.getByText('Roster sealed', { exact: true })).toBeVisible()
     const leagueToken = new URL(page.url()).pathname.split('/').at(-1)!
     const sealed = await operator.leagueRosters(leagueToken, saved.userId)
-    expect(JSON.parse(sealed[0].entry.rosterSnapshot!).built.catalogueId).toBe(saved.catalogueId)
+    expect(JSON.parse(sealed!.entry.rosterSnapshot!).built.catalogueId).toBe(saved.catalogueId)
     await revealEvent(page)
     await viewList(page, ownerName).click()
     await expect(page).toHaveURL(/\/rosters\/[^?]+\?league=/)
@@ -886,7 +924,7 @@ test('only a changed roster in an open league event offers replacement', async (
   await signUp(page, uniqueName('RosterOwner'))
   await sealableRoster(page, 'Original league list')
   const rosterUrl = page.url()
-  await page.goto('/leagues')
+  await page.goto('/tournaments')
   const create = await openLeagueCreation(page)
   await create.getByLabel('Name').fill(uniqueName('Replacement league'))
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
@@ -895,11 +933,12 @@ test('only a changed roster in an open league event offers replacement', async (
   await sealOwnRoster(page, 'Original league list')
 
   const leagueToken = new URL(page.url()).pathname.split('/').at(-1)!
-  await page.goto(`/leagues/${leagueToken}`)
+  await page.goto(`/tournaments/${leagueToken}`)
   await expect(page.getByRole('heading', { name: 'Your roster is sealed' })).toBeVisible()
   const settings = await openEventSettings(page)
   await settings.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.goto('/robots.txt')
+  // The tournament reopens below from the saved app snapshot alone, so wait until the snapshot holds it.
   await expect
     .poll(() =>
       page.evaluate(
@@ -909,28 +948,19 @@ test('only a changed roster in an open league event offers replacement', async (
             opened.onerror = () => reject(opened.error)
             opened.onsuccess = () => {
               const database = opened.result
-              const transaction = database.transaction('state', 'readwrite')
-              const store = transaction.objectStore('state')
-              const request = store.get('snapshot')
-              let found = false
+              const request = database.transaction('state').objectStore('state').get('snapshot')
               request.onsuccess = () => {
-                const saved = request.result
-                for (const query of saved?.snapshot?.queries ?? []) {
-                  if (query.key[0] === 'league' && query.key[1] === token && query.data?.entries) {
-                    delete query.data.admins
-                    if (query.key[2] === 'current') found = true
-                  }
-                  if (query.key[0] === 'leagues') for (const league of query.data) delete league.adminIds
-                }
-                if (found) store.put(saved, 'snapshot')
-              }
-              transaction.oncomplete = () => {
                 database.close()
-                resolve(found)
+                const queries: { key: unknown[]; data?: { entries?: unknown } }[] = request.result?.snapshot?.queries ?? []
+                resolve(
+                  queries.some(
+                    (query) => query.key[0] === 'league' && query.key[1] === token && query.key[2] === 'current' && query.data?.entries,
+                  ),
+                )
               }
-              transaction.onerror = () => {
+              request.onerror = () => {
                 database.close()
-                reject(transaction.error)
+                reject(request.error)
               }
             }
           }),
@@ -940,7 +970,8 @@ test('only a changed roster in an open league event offers replacement', async (
     .toBe(true)
   await page.route('**/_serverFn/**', (route) => (route.request().method() === 'GET' ? route.abort('failed') : route.continue()))
   await page.goto('/')
-  await page.locator('[data-web-app-chrome]').getByRole('link', { name: 'Leagues', exact: true }).click()
+  await page.locator('[data-web-app-chrome]').getByRole('button', { name: 'Events', exact: true }).click()
+  await page.getByRole('menuitem', { name: 'Tournaments', exact: true }).click()
   await page.locator(`[data-league="${leagueToken}"]`).getByRole('link').click()
   await expect(page.getByRole('heading', { name: 'Your roster is sealed' })).toBeVisible()
   const restoredSettings = await openEventSettings(page)
@@ -948,14 +979,14 @@ test('only a changed roster in an open league event offers replacement', async (
   await page.unrouteAll({ behavior: 'wait' })
 
   const editorResponse = await page.request.get(rosterUrl)
-  expect(await editorResponse.text()).not.toContain('League roster out of date')
+  expect(await editorResponse.text()).not.toContain('Sealed roster out of date')
   await page.goto(rosterUrl)
   await expect(page.getByLabel('List name')).toHaveValue('Original league list')
-  await expect(page.getByRole('button', { name: 'League roster out of date' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Sealed roster out of date' })).toHaveCount(0)
   await page.setViewportSize({ width: 390, height: 844 })
   await waitForRosterSave(page, () => page.getByLabel('List name').fill('Updated league list'), 'Updated league list')
   const footer = page.locator('footer')
-  const update = footer.getByRole('button', { name: 'League roster out of date' })
+  const update = footer.getByRole('button', { name: 'Sealed roster out of date' })
   await expect(update).toBeVisible()
   await waitForRosterSave(page, () => page.getByLabel('List name').fill('Original league list'), 'Original league list')
   await expect(update).toHaveCount(0)
@@ -964,16 +995,16 @@ test('only a changed roster in an open league event offers replacement', async (
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   const footerHeight = (await footer.boundingBox())?.height
   await update.click()
-  await expect(page.getByText('Your changes are not in the league roster yet.')).toBeVisible()
+  await expect(page.getByText('Your changes are not in the sealed roster yet.')).toBeVisible()
   expect((await footer.boundingBox())?.height).toBe(footerHeight)
-  await page.getByRole('link', { name: 'Replace league roster' }).click()
+  await page.getByRole('link', { name: 'Replace sealed roster' }).click()
   const chooser = page.getByRole('dialog', { name: 'Seal a roster' })
   await expect(chooser).toBeVisible()
   await chooseRosterToSeal(page, 'Updated league list')
   await expect(chooser).toBeHidden()
   await expect(page.getByRole('heading', { name: 'Your roster is sealed' })).toBeVisible()
   await page.goto(rosterUrl)
-  await expect(page.getByRole('button', { name: 'League roster out of date' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Sealed roster out of date' })).toHaveCount(0)
 })
 
 test('the organizer unseals a revealed roster so its entrant can seal a corrected one', async ({ browser }) => {
@@ -990,7 +1021,7 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   const organizerRosterUrl = owner.url()
   await sealableRoster(entrant, 'Mistaken list')
   await sealableRoster(entrant, 'Corrected list', 'Lokhust Destroyers')
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('Unseal League'))
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
@@ -1006,7 +1037,7 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   await revealEvent(owner)
   await owner.goto(organizerRosterUrl)
   await waitForRosterSave(owner, () => owner.getByLabel('List name').fill('Organizer list revised'), 'Organizer list revised')
-  await expect(owner.getByRole('button', { name: 'League roster out of date' })).toHaveCount(0)
+  await expect(owner.getByRole('button', { name: 'Sealed roster out of date' })).toHaveCount(0)
   await owner.goto(leagueUrl.toString())
   // Revealed players show with their lists, which carry the organizer's unseal control; the entrant list is gone.
   const entrantCard = owner.locator(`[data-army="${entrantName}"]`)
@@ -1059,8 +1090,8 @@ test('an eligible casual matchup is directed through its league event', async ({
   await signUp(owner, ownerName)
   await signUp(entrant, entrantName)
   await befriend(owner, entrant)
-  const leagueToken = await createLegacyLeague(ownerName, leagueName)
-  const leagueUrl = new URL(`/leagues/${leagueToken}`, owner.url())
+  const leagueToken = await createTournamentWithoutFormat(ownerName, leagueName)
+  const leagueUrl = new URL(`/tournaments/${leagueToken}`, owner.url())
   await owner.goto(leagueUrl.toString())
 
   await join(owner)
@@ -1082,7 +1113,7 @@ test('an eligible casual matchup is directed through its league event', async ({
   await casual.getByRole('combobox', { name: 'Opponent' }).click()
   await owner.getByRole('option', { name: entrantName, exact: true }).click()
   await casual.getByRole('button', { name: 'Start battle' }).click()
-  const warning = owner.getByRole('dialog', { name: 'You are both in a league' })
+  const warning = owner.getByRole('dialog', { name: 'You are both in a tournament' })
   await expect(warning.getByRole('button', { name: 'Play it casually' })).toBeVisible()
   await expectNoHorizontalOverflow(owner, warning)
   await owner.setViewportSize({ width: 390, height: 844 })
@@ -1131,7 +1162,7 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   await owner.locator('[data-unit="Lokhust Destroyers"]').getByRole('button', { name: 'Lokhust Destroyers', exact: true }).click()
   await waitForRosterSave(owner, () => owner.getByRole('button', { name: 'Select Deepening Madness' }).click())
 
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('Roster reveal'))
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
@@ -1230,7 +1261,7 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   })
   await owner.getByRole('button', { name: 'Save profile' }).click()
   await expect(owner.getByText('Profile saved.')).toBeVisible()
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(leagueName)
   await submitLeagueCreation(owner, create)
@@ -1244,7 +1275,7 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   await expectOrganizerAvatar(organizer, ownerName)
   await expectNoHorizontalOverflow(owner, organizer)
 
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   await owner.setViewportSize({ width: 1440, height: 900 })
   let card = owner.locator(`[data-league="${leagueToken}"]`)
   // A card without a description names its organizer beside their avatar.
@@ -1257,7 +1288,7 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   await expectNoHorizontalOverflow(owner, card)
   await owner.getByRole('button', { name: `Actions for ${leagueName}` }).click()
   const dropdown = owner.getByRole('menu')
-  await expect(dropdown.getByRole('menuitem', { name: 'View league' })).toBeVisible()
+  await expect(dropdown.getByRole('menuitem', { name: 'View tournament' })).toBeVisible()
   await expectNoHorizontalOverflow(owner, card, dropdown)
   await owner.evaluate(() => {
     Object.defineProperty(navigator, 'clipboard', {
@@ -1271,19 +1302,19 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   await expect(copyError).toBeVisible()
   await expect(copyError).toHaveAttribute('aria-live', 'polite')
   await owner.getByRole('button', { name: `Actions for ${leagueName}` }).click()
-  await owner.getByRole('menuitem', { name: 'Edit league' }).click()
+  await owner.getByRole('menuitem', { name: 'Edit tournament' }).click()
   await expect(copyError).toBeHidden()
-  let edit = owner.getByRole('dialog', { name: 'Edit league' })
+  let edit = owner.getByRole('dialog', { name: 'Edit tournament' })
   await edit.getByRole('button', { name: 'Cancel' }).click()
   await expect(edit).toBeHidden()
 
   await owner.reload()
   await card.click({ button: 'right', position: { x: 2, y: 2 } })
   const contextMenu = owner.getByRole('menu')
-  await expect(contextMenu.getByRole('menuitem', { name: 'Edit league' })).toBeVisible()
+  await expect(contextMenu.getByRole('menuitem', { name: 'Edit tournament' })).toBeVisible()
   await expectNoHorizontalOverflow(owner, card, contextMenu)
-  await owner.getByRole('menuitem', { name: 'Edit league' }).click()
-  edit = owner.getByRole('dialog', { name: 'Edit league' })
+  await owner.getByRole('menuitem', { name: 'Edit tournament' }).click()
+  edit = owner.getByRole('dialog', { name: 'Edit tournament' })
   await expectNoHorizontalOverflow(owner, card, edit)
   await edit.getByLabel('Name').fill(renamed)
   await edit.getByLabel('Details').fill('Updated event details')
@@ -1322,21 +1353,21 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   await ownerMirror.goto(leagueUrl.toString())
   await expect(ownerMirror.getByRole('heading', { name: renamed })).toBeVisible()
   await owner.getByRole('button', { name: `More for ${renamed}` }).click()
-  await owner.getByRole('menuitem', { name: 'Delete league' }).click()
+  await owner.getByRole('menuitem', { name: 'Delete tournament' }).click()
   const confirmation = owner.getByRole('alertdialog', { name: `Delete ${renamed}?` })
   await expect(confirmation.getByText('Battles already started from it stay where they are.', { exact: false })).toBeVisible()
   await expectNoHorizontalOverflow(owner, confirmation)
-  await confirmation.getByRole('button', { name: 'Delete league' }).click()
-  await expect(owner).toHaveURL(/\/leagues\/?$/)
+  await confirmation.getByRole('button', { name: 'Delete tournament' }).click()
+  await expect(owner).toHaveURL(/\/tournaments\/?$/)
   await expect(owner.getByRole('heading', { name: renamed })).toHaveCount(0)
-  await expect(ownerMirror).toHaveURL(/\/leagues\/?$/, { timeout: 10_000 })
+  await expect(ownerMirror).toHaveURL(/\/tournaments\/?$/, { timeout: 10_000 })
   await expect(ownerMirror.getByRole('heading', { name: renamed })).toHaveCount(0)
 
   await ownerContext.close()
   await entrantContext.close()
 })
 
-test('a league starts each event with fresh registration', async ({ browser }) => {
+test('a tournament runs one event, and its old league address still finds it', async ({ browser }) => {
   const ownerContext = await browser.newContext()
   const entrantContext = await browser.newContext()
   const owner = await ownerContext.newPage()
@@ -1348,7 +1379,7 @@ test('a league starts each event with fresh registration', async ({ browser }) =
   await signUp(owner, ownerName)
   await signUp(entrant, entrantName)
 
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(leagueName)
   await expect(create.getByText('One-off', { exact: true })).toHaveCount(0)
@@ -1379,37 +1410,11 @@ test('a league starts each event with fresh registration', async ({ browser }) =
   )
   await expect(owner.getByRole('heading', { name: 'Everyone has sealed' })).toBeVisible()
   await revealEvent(owner)
-  await expect(owner.getByRole('button', { name: 'Start event 2' })).toBeVisible()
+  await expect(owner.locator('main header').getByText('Tournament', { exact: true })).toBeVisible()
+  await expect(owner.getByRole('button', { name: /^Start event/ })).toHaveCount(0)
 
-  await owner.getByRole('button', { name: 'Start event 2' }).click()
-  const nextEvent = owner.getByRole('dialog', { name: 'Start event 2' })
-  // The organizer played last time, so the next event enters them again unless they say otherwise.
-  await expect(nextEvent.getByRole('switch', { name: /I’m playing too/ })).toBeChecked()
-  await nextEvent.getByRole('button', { name: 'Start event 2' }).click()
-  await expect(owner.locator('main header').getByText('League · Event 2')).toBeVisible()
-  await expect(leagueHeader(owner)).toContainText('Registration open')
-  await expect(leagueHeader(owner)).toContainText('1 player')
-  await expect(owner.locator(`[data-person="${entrantName}"]`)).toHaveCount(0)
-  expect(await owner.evaluate(() => document.documentElement.scrollWidth)).toBe(1440)
-
-  await owner.goto('/leagues')
-  await expect(owner.locator(`[data-league="${leagueToken}"]`)).toContainText('Event 2')
-
-  await owner.goto(leagueUrl.toString())
-  await openEvent(owner, 'Event 1', { current: 'Event 2' })
-  await expect(owner.locator('main header').getByText('League · Past event 1')).toBeVisible()
-  await expect(leagueHeader(owner)).toContainText('Rosters revealed')
-
-  await entrant.goto(leagueUrl.toString())
-  await expect(leagueHeader(entrant)).toContainText('Registration open')
-  await join(entrant)
-  // Joining a duel opens the chooser; this entrant browses the past event first.
-  await entrant.getByRole('dialog', { name: 'Seal a roster' }).getByRole('button', { name: 'Cancel' }).click()
-  await expect(entrant.locator(`[data-person="${entrantName}"]`)).toBeVisible()
-
-  await openEvent(entrant, 'Event 1')
-  await expect(entrant.locator(`[data-army="${ownerName}"]`)).toBeVisible()
-  await expect(entrant.locator(`[data-army="${entrantName}"]`)).toBeVisible()
+  await owner.goto(`/leagues/${leagueToken}?choose=1`)
+  await expect(owner).toHaveURL(new RegExp(`/tournaments/${leagueToken}\\?choose=`))
 
   await owner.setViewportSize({ width: 390, height: 844 })
   await owner.goto(leagueUrl.toString())
@@ -1427,7 +1432,7 @@ test('an organizer adds friends to an event without waiting for them to ask', as
   await befriend(owner, first)
   await befriend(owner, second)
 
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner, { ownerPlays: true })
   await create.getByLabel('Name').fill(uniqueName('Friends League'))
   await create.getByLabel('Player limit').fill('2')
@@ -1456,14 +1461,14 @@ test('an organizer adds friends to an event without waiting for them to ask', as
   const strangerRow = await withAuthSql(
     (database) => database.prepare('SELECT id FROM user WHERE name = ? LIMIT 1').get(names[3]) as { id: string } | undefined,
   )
-  const [league] = await productSql<{ owner_id: string }>`SELECT owner_id FROM leagues WHERE token = ${leagueToken}`
-  if (!strangerRow || !league) throw new Error('The stranger or the league is missing.')
+  if (!strangerRow) throw new Error('The stranger is missing.')
+  const { ownerId } = await tournamentEvent(leagueToken)
   const product = await productOperator()
   const outcome = await product.leagueCommand(
     {
       op: 'add',
       token: leagueToken,
-      ownerId: league.owner_id,
+      ownerId,
       userIds: [strangerRow.id],
       memberLimit: 128,
       now: Date.now(),
@@ -1482,7 +1487,7 @@ test('an organizer answers requests, lets a turned-away player back in, and rais
   const [owner, first, second, third] = await Promise.all(contexts.map((context) => context.newPage()))
   for (const [index, page] of [owner, first, second, third].entries()) await signUp(page, names[index])
 
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('Request League'))
   await create.getByRole('button', { name: /^You approve/ }).click()
@@ -1499,6 +1504,7 @@ test('an organizer answers requests, lets a turned-away player back in, and rais
   const requests = owner.locator('section').filter({ has: owner.getByRole('heading', { name: /^Requests/ }) })
   await expect(requests.locator('[data-person]')).toHaveCount(3)
   await requests.getByRole('button', { name: `Turn away ${names[1]}` }).click()
+  await owner.getByRole('alertdialog').getByRole('button', { name: 'Turn away' }).click()
   await expect(requests.locator('[data-person]')).toHaveCount(2)
 
   // A turned-away request stays with the organizer, who can still let that player in.
@@ -1569,7 +1575,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
     { name: wrongRoster, limit: 2_000 },
   ])
 
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(leagueName)
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
@@ -1622,7 +1628,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await reassignment.getByRole('button', { name: 'Change size' }).click()
   await expect
     .poll(async () => {
-      const event = await eventForLeague(leagueToken)
+      const event = await tournamentEvent(leagueToken)
       const entries = await productSql<{
         required_limit: [number, number | []]
       }>`SELECT required_limit FROM league_event_entries WHERE event_id = ${event.id} AND status = 'accepted'`
@@ -1697,9 +1703,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await revealEvent(owner)
   await expect(owner.locator('[data-group="pair-1"]')).toContainText('plays Priority Assets')
   // Once the lists are out the pair's card is fixed, and a replacement list has to leave it on offer.
-  const revealedEvent = await eventForLeague(leagueToken)
-  const [revealedEventRow] = await productSql<{ token: string }>`SELECT token FROM league_events WHERE id = ${revealedEvent.id}`
-  const [leagueRow] = await productSql<{ owner_id: string }>`SELECT owner_id FROM leagues WHERE token = ${leagueToken}`
+  const revealedEvent = await tournamentEvent(leagueToken)
   const sealedEntries = await productSql<{
     user_id: string
     roster_snapshot: [number, string | []]
@@ -1707,13 +1711,13 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const holder = sealedEntries.find((entry) => option(entry.roster_snapshot)?.includes('priority-assets'))!
   const operator = await productOperator()
   const command = (input: Record<string, unknown>) =>
-    operator.leagueCommand({ token: leagueToken, eventToken: revealedEventRow.token, now: Date.now(), ...input }, z.unknown())
+    operator.leagueCommand({ token: leagueToken, eventToken: revealedEvent.token, now: Date.now(), ...input }, z.unknown())
   expect(await command({ op: 'set-team-disposition', ownerId: holder.user_id, disposition: 'take-and-hold' })).toEqual({
     outcome: 'closed',
   })
-  expect(await command({ op: 'unseal', ownerId: leagueRow.owner_id, userId: holder.user_id })).toBe('unsealed')
+  expect(await command({ op: 'unseal', ownerId: revealedEvent.ownerId, userId: holder.user_id })).toBe('unsealed')
   const reseal = (cards: FixtureCards) =>
-    submitFixtureRoster(leagueToken, revealedEvent.id, holder.user_id, 1_000, true, '1,000-point roster', undefined, cards)
+    submitFixtureRoster(leagueToken, revealedEvent, holder.user_id, 1_000, true, '1,000-point roster', undefined, cards)
   expect(await reseal({ disposition: 'take-and-hold', dispositions: ['take-and-hold'] })).toBe('disposition-dropped')
   expect(await reseal(TEAM_EVENT_CARDS[0])).toBe('sealed')
   // A revealed event no longer holds the limit to its shape, so it can drop below what a 2v1 needs.
@@ -1722,18 +1726,6 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await edit.getByLabel('Player limit').fill('2')
   await edit.getByRole('button', { name: 'Save changes' }).click()
   await expect(edit).toBeHidden()
-  // The next event keeps the 2v1 and raises the limit it no longer seats.
-  await owner.getByRole('button', { name: 'Start event 2' }).click()
-  const nextEvent = owner.getByRole('dialog', { name: 'Start event 2' })
-  await expect(nextEvent.getByLabel('Player limit')).toHaveValue('3')
-  await nextEvent.getByRole('button', { name: 'Start event 2' }).click()
-  await expect(leagueHeader(owner)).toContainText('Registration open')
-  await openEvent(owner, 'Event 1')
-  await expect(leagueHeader(owner)).toContainText('Rosters revealed')
-  // Settings belong to the current event even from an archived one.
-  const historicalEdit = await openEventSettings(owner)
-  await expect(historicalEdit.getByLabel('Player limit')).toHaveAttribute('min', '3')
-  await historicalEdit.getByRole('button', { name: 'Cancel' }).click()
   await eventLoaded(owner)
   await owner.getByRole('button', { name: 'Start 2 vs 1 battle' }).click()
   const battleChooser = owner.getByRole('dialog', { name: 'Start 2 vs 1 battle' })
@@ -1815,7 +1807,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const [eventLink] = await productSql<{
     event_id: string
   }>`SELECT event_id FROM league_event_battles WHERE battle_id = ${battleIdentity.id}`
-  const [eventIdentity] = await productSql<{ token: string }>`SELECT token FROM league_events WHERE id = ${eventLink.event_id}`
+  const [eventIdentity] = await productSql<{ token: string }>`SELECT token FROM sealed_events WHERE id = ${eventLink.event_id}`
   const feed = (viewerId?: string) =>
     product.battleFeed({ scope: 'league', leagueToken, eventToken: eventIdentity.token, limit: 1, viewerId })
   expect((await feed()).battles).toHaveLength(1)
@@ -1850,15 +1842,15 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
     { name: 'Wrong doubles roster', limit: 2_000 },
   ])
 
-  await owner.goto('/leagues')
+  await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(uniqueName('Doubles League'))
   // The format is chosen with everything else, and a doubles limit has to seat two full teams.
   await create.getByRole('button', { name: /^Doubles/ }).click()
   await create.getByLabel('Player limit').fill('3')
-  await expect(create.getByRole('button', { name: 'Create league' })).toBeDisabled()
+  await expect(create.getByRole('button', { name: 'Create tournament' })).toBeDisabled()
   await create.getByLabel('Player limit').fill('4')
-  await expect(create.getByRole('button', { name: 'Create league' })).toBeEnabled()
+  await expect(create.getByRole('button', { name: 'Create tournament' })).toBeEnabled()
   await create.getByLabel('Player limit').fill('6')
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
   await owner.setViewportSize({ width: 390, height: 844 })

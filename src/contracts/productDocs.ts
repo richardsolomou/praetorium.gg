@@ -1,4 +1,13 @@
-export const DOC_SECTIONS = ['Army lists', 'Imports', 'Combat simulator', 'Battles', 'Leagues', 'AI assistants', 'Account and app'] as const
+export const DOC_SECTIONS = [
+  'Army lists',
+  'Imports',
+  'Combat simulator',
+  'Battles',
+  'Clubs',
+  'Tournaments',
+  'AI assistants',
+  'Account and app',
+] as const
 
 export const PRODUCT_DOCS = [
   {
@@ -96,7 +105,7 @@ export const PRODUCT_DOCS = [
     slug: 'simulate-from-a-roster',
     section: 'Combat simulator',
     title: 'Simulate from a roster or battle',
-    description: 'Start the simulator from a roster, a battle in progress or a league list.',
+    description: 'Start the simulator from a roster, a battle in progress or a tournament list.',
   },
   {
     slug: 'compare-rosters',
@@ -153,22 +162,28 @@ export const PRODUCT_DOCS = [
     description: 'Greyed-out Start battle, blocked phases and other battle messages.',
   },
   {
-    slug: 'run-a-league',
-    section: 'Leagues',
-    title: 'Run a league',
-    description: 'Format, points and house rules, filling an event, the reveal and the next event.',
+    slug: 'clubs',
+    section: 'Clubs',
+    title: 'Clubs',
+    description: 'Joining a club, playing for its table, and sealed games.',
   },
   {
-    slug: 'play-in-a-league',
-    section: 'Leagues',
-    title: 'Play in a league',
+    slug: 'run-a-tournament',
+    section: 'Tournaments',
+    title: 'Run a tournament',
+    description: 'Format, points and house rules, filling it, the reveal and the results.',
+  },
+  {
+    slug: 'play-in-a-tournament',
+    section: 'Tournaments',
+    title: 'Play in a tournament',
     description: 'Join, seal a roster in secret, then play the other entrants after the reveal.',
   },
   {
-    slug: 'league-problems',
-    section: 'Leagues',
-    title: 'League problems',
-    description: 'Refused seals, locked rules, a greyed-out reveal and other league messages.',
+    slug: 'tournament-problems',
+    section: 'Tournaments',
+    title: 'Tournament problems',
+    description: 'Refused seals, locked rules, a greyed-out reveal and other tournament messages.',
   },
   {
     slug: 'connect-an-assistant',
