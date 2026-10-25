@@ -5,7 +5,7 @@ import type { BattleClock } from '../../../core/battleClock'
 import { type BattleView } from '../../../core/battleView'
 import { tint } from './battleTints'
 import { Elapsed } from './Elapsed'
-import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
+import { UndoLatest } from './UndoLatest'
 
 type Props = {
   view: BattleView
@@ -29,7 +29,6 @@ type Props = {
  * side is taking the turn.
  */
 export function TurnControl({ view, clock, send, pending, blockReason, note, onAdvance, className = '' }: Props) {
-  const undo = useUndoLatest({ undoable: view.undoable, undoableDraw: view.undoableDraw, send })
   const active = view.players.find((player) => player.isActive)
   const activeSide = active?.side ?? 0
   const at = PHASES.indexOf(view.phase)
@@ -73,11 +72,13 @@ export function TurnControl({ view, clock, send, pending, blockReason, note, onA
         >
           {label}
         </Button>
-        <UndoLatestButton
+        <UndoLatest
           compact
           className="h-auto min-h-11 shrink-0 px-3"
-          disabled={view.undoable === null || pending}
-          onClick={undo.request}
+          undoable={view.undoable}
+          undoableDraw={view.undoableDraw}
+          send={send}
+          pending={pending}
         />
       </div>
       {blockReason ? (
@@ -85,7 +86,6 @@ export function TurnControl({ view, clock, send, pending, blockReason, note, onA
       ) : note ? (
         <p className="border border-edge bg-sunken p-2 text-center text-xs text-dim">{note}</p>
       ) : null}
-      <UndoLatestConfirmation pending={pending} control={undo} />
     </section>
   )
 }

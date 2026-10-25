@@ -5,7 +5,7 @@ import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle 
 import type { Command } from '../../../core/battle'
 import type { Side } from '../../sides'
 import { sideName } from '../../sides'
-import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
+import { UndoLatest } from './UndoLatest'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 
 export function DiscardSecondaryDialog({
@@ -32,7 +32,6 @@ export function DiscardSecondaryDialog({
   const cards = side.secondaries.filter((card) => keys.includes(card.key) && card.status === 'active')
   const [chosenKeys, setChosenKeys] = useState<string[]>(() => initialSelection ?? [])
   const selected = chosenKeys.filter((key) => cards.some((card) => card.key === key))
-  const undo = useUndoLatest({ undoable, undoableDraw, send })
 
   const toggle = (key: string) => {
     const next = selected.includes(key) ? selected.filter((candidate) => candidate !== key) : [...selected, key]
@@ -80,7 +79,7 @@ export function DiscardSecondaryDialog({
             </div>
           </DialogBody>
           <DialogFooter>
-            <UndoLatestButton disabled={pending || undoable === null} onClick={undo.request} />
+            <UndoLatest undoable={undoable} undoableDraw={undoableDraw} send={send} pending={pending} />
             <Button
               disabled={pending}
               onClick={() => {
@@ -93,7 +92,6 @@ export function DiscardSecondaryDialog({
           </DialogFooter>
         </BattleDialogContent>
       </BattlePromptDialog>
-      <UndoLatestConfirmation pending={pending} control={undo} />
     </>
   )
 }

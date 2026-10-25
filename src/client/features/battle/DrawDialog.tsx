@@ -8,7 +8,7 @@ import { type Side, sideName } from '../../sides'
 import { redrawOffer, type WhenDrawn } from './drawOffer'
 import { MissionDetailsDialog, MissionName, type MissionDetails, type ReferenceCard } from './MissionCards'
 import { CARD } from './battleTints'
-import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
+import { UndoLatest } from './UndoLatest'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { countLabel } from '../../text'
 import type { SendCommand } from './useCommand'
@@ -77,7 +77,6 @@ export function DrawDialog({
   )
   const [inspected, setInspected] = useState<MissionDetails | null>(null)
   const needsDraw = owed > 0
-  const canUndo = undoable !== null
   const requiredReturn = drawn.some((card) => redrawOffer(whenDrawnFor(card.key), round, held)?.required)
   /**
    * What this prompt has already asked the deck for.
@@ -97,7 +96,6 @@ export function DrawDialog({
     setPaused(true)
     recordSelection({ selecting: false, selected: [] })
   }
-  const undo = useUndoLatest({ undoable, undoableDraw: confirmUndo, send, beforeUndo: resetForUndo })
 
   // A refused ask — the hand filled from elsewhere before this one landed — never
   // appears in `side.secondaries`, so nothing about the view changes to prompt a
@@ -277,7 +275,7 @@ export function DrawDialog({
             {!selecting && !paused && needsDraw ? <p className="text-sm text-discarded">Drawing…</p> : null}
           </DialogBody>
           <DialogFooter>
-            <UndoLatestButton disabled={pending || !canUndo} onClick={undo.request} />
+            <UndoLatest undoable={undoable} undoableDraw={confirmUndo} send={send} pending={pending} beforeUndo={resetForUndo} />
             {selecting && needsDraw ? (
               <>
                 <Button
@@ -312,7 +310,6 @@ export function DrawDialog({
       </BattlePromptDialog>
       {/* Base UI treats nested dialogs as one dismissible region, so details must be a sibling. */}
       {inspected ? <MissionDetailsDialog details={inspected} onOpenChange={(open) => !open && setInspected(null)} /> : null}
-      <UndoLatestConfirmation pending={pending} control={undo} />
     </>
   )
 }

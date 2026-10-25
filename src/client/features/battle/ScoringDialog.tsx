@@ -23,7 +23,7 @@ import { MissionName, type ReferenceCard } from './MissionCards'
 import { MissionSelectionRecords } from './MissionSelectionRecord'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { tint } from './battleTints'
-import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
+import { UndoLatest } from './UndoLatest'
 
 /** Which side a prompt is recording for, in the colours it wears to say so. */
 type Tone = ReturnType<typeof tint>
@@ -81,7 +81,6 @@ export function ScoringDialog({
   onAnswersChange,
 }: Props) {
   const [answers, setAnswers] = useState<ScoringAnswers>(() => initialAnswers ?? {})
-  const undo = useUndoLatest({ undoable, undoableDraw, send })
   const answerFor = (card: DueCard) => answers[card.key] ?? card.awards.map(() => 0)
   const claimedFor = (card: DueCard) => card.awards.reduce((total, award, at) => total + awardTotal(award, answerFor(card)[at] ?? 0), 0)
   const finalClaimedFor = (card: DueCard) =>
@@ -321,7 +320,7 @@ export function ScoringDialog({
               <output className="readout text-sm text-dim">
                 Scoring <span className="font-bold text-bone">{total}</span> VP
               </output>
-              <UndoLatestButton compact disabled={pending || undoable === null} onClick={undo.request} />
+              <UndoLatest compact undoable={undoable} undoableDraw={undoableDraw} send={send} pending={pending} />
             </div>
             <div className="flex gap-2">
               {onCancel ? (
@@ -336,7 +335,6 @@ export function ScoringDialog({
           </DialogFooter>
         </BattleDialogContent>
       </BattlePromptDialog>
-      <UndoLatestConfirmation pending={pending} control={undo} />
     </>
   )
 }

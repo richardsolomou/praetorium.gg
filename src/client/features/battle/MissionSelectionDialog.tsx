@@ -17,7 +17,7 @@ import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import type { ReferenceCard } from './MissionCards'
 import { MissionCardReference } from '../../components/MissionCardReference'
 import { missionUnitChoice, missionUnitChoiceKey } from './missionUnitChoice'
-import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
+import { UndoLatest } from './UndoLatest'
 
 export function MissionSelectionDialog({
   view,
@@ -39,7 +39,6 @@ export function MissionSelectionDialog({
 }) {
   const manualId = useId()
   const noteId = useId()
-  const undo = useUndoLatest({ undoable: view.undoable, undoableDraw: view.undoableDraw, send })
   const records = view.players.find((player) => player.id === choice.playerId)?.missionSelections ?? []
   const latest = records.find(
     (record) => record.cardKey === choice.cardKey && record.occurrence === choice.occurrence && record.selection.kind === choice.kind,
@@ -479,7 +478,7 @@ export function MissionSelectionDialog({
             ) : null}
           </DialogBody>
           <DialogFooter>
-            <UndoLatestButton disabled={pending || view.undoable === null} onClick={undo.request} />
+            <UndoLatest undoable={view.undoable} undoableDraw={view.undoableDraw} send={send} pending={pending} />
             <Button variant="outline" disabled={pending} onClick={onClose}>
               Skip
             </Button>
@@ -501,7 +500,6 @@ export function MissionSelectionDialog({
           </DialogFooter>
         </BattleDialogContent>
       </BattlePromptDialog>
-      <UndoLatestConfirmation pending={pending} control={undo} />
     </>
   )
 }
