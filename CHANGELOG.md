@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.191.1
+
+### Patch Changes
+
+- 25060a5: A faction's datasheets page now counts the datasheets it lists, including Legends and Crucible.
+
 ## 0.191.0
 
 ### Minor Changes
