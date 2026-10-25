@@ -246,6 +246,15 @@ jobs:
           const { waitForWebRevision } = await import(pathToFileURL(`${process.env.RUNNER_TEMP}/web-readiness.mts`).href)
           await waitForWebRevision(process.env.TARGET === 'production' ? 'https://praetorium.gg' : 'https://staging.praetorium.gg', process.env.DEPLOY_SHA)
           NODE
+      # Catalogue discovery and the history baseline follow production, so a rollback also returns current.json to the snapshot it serves.
+      - name: Activate the catalogue snapshot production serves
+        if: inputs.environment == 'production'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: us-east-1
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: python3 scripts/publishCatalogue.py activate "$(jq -r .pointer.id catalogue.json)"
       - name: Verify and schedule production auth backups
         if: inputs.environment == 'production'
         run: node scripts/dokployAuthSchedule.ts
