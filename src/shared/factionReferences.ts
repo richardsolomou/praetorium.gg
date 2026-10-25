@@ -1,10 +1,12 @@
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { datacardsFactionKeys } from './datacards'
 import type { StandingFaction } from '../core/standings'
-import { targetOf } from '../core/catalogue'
+import { nameOf, targetOf } from '../core/catalogue'
+import { isNonMatchedPlayName } from '../core/name'
+import { isOfferedDatasheet } from './catalogueUnit'
 import { routeSlug } from '../core/slug'
 import { detachmentCatalogueDetail } from './catalogueDescriptions'
-import type { LoadedCatalogue } from './catalogueIndex'
+import { datasheetsOf, isReferenceDatasheet, type LoadedCatalogue } from './catalogueIndex'
 import { factionContentOf, factionDisplayName } from './factionNames'
 import { type LoadedRules, rulesFaction } from './rules'
 import { joinKey } from '../core/text'
@@ -79,6 +81,19 @@ function referenceDetachmentRoute(
   }
 }
 
+/** Legends and Crucible pages a faction lists beside its cards, which no card export prints. */
+function nonMatchedPlayPages(loaded: LoadedCatalogue, catalogueId: string) {
+  return [...datasheetsOf(loaded.index, catalogueId)].filter((id) => {
+    const entry = loaded.index.definitions.get(id)
+    return (
+      entry &&
+      isNonMatchedPlayName(nameOf(entry, loaded.index.definitions)) &&
+      isOfferedDatasheet(loaded.index, entry, true) &&
+      isReferenceDatasheet(loaded, catalogueId, id)
+    )
+  }).length
+}
+
 function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | undefined, faction: LoadedCatalogue['factions'][number]) {
   const displayName = factionDisplayName(faction.name, rules?.factionNames)
   const slugId = routeSlug(displayName)
@@ -107,7 +122,7 @@ function factionSummary(loaded: LoadedCatalogue, rules: LoadedRules | null | und
         : null,
       references: faction.references.map((reference) => ({
         ...reference,
-        datasheets: content?.datasheets.size ?? reference.datasheets,
+        datasheets: content ? content.datasheets.size + nonMatchedPlayPages(loaded, faction.id) : reference.datasheets,
         detachments: referenceDetachments.length,
       })),
       detachments: detachments.map((detachment) => ({
