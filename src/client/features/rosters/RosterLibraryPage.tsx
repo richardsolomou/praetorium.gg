@@ -69,7 +69,7 @@ const storedEditingSession = () => readStoredWorkspaceState(WORKSPACE_PATH, EDIT
 /**
  * A visitor's one list on this device, read once the page is in the browser; `pending` holds its row's place until then.
  */
-export type DeviceLibrary = { guest: GuestDraft | null; pending: boolean; onChange: (guest: GuestDraft | null) => void }
+type DeviceLibrary = { guest: GuestDraft | null; pending: boolean; onChange: (guest: GuestDraft | null) => void }
 
 /**
  * A player's rosters, or a visitor's one roster on this device, on the same page.

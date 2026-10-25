@@ -699,7 +699,7 @@ export type FormatRuleId = (typeof FORMAT_RULE_IDS)[number]
 export type FormatRule = { id: FormatRuleId; label: string; hint: string }
 
 /** Whether a rule still applies, given what the roster has waived. */
-export const enforces = (waived: readonly string[] | undefined, rule: FormatRuleId) => !waived?.includes(rule)
+export const enforces = (waived: readonly string[] | null | undefined, rule: FormatRuleId) => !waived?.includes(rule)
 
 export const detachmentLimit = (limit: number, waived: readonly string[] = []) =>
   isKotcLimit(limit) && enforces(waived, 'detachments') ? 1 : DETACHMENTS_MAX
@@ -2907,7 +2907,12 @@ export function mayNameCard(state: BattleState, viewerId: PlayerId | null, playe
   return player.secretSecondary !== key || player.secretRevealed || sameSide(state, viewerId, player.id)
 }
 
-type TableBuilt = { limit: number; pointsBudget?: number | null; waivedRules?: readonly string[]; units?: readonly { points: number }[] }
+type TableBuilt = {
+  limit: number
+  pointsBudget?: number | null
+  waivedRules?: readonly string[] | null
+  units?: readonly { points: number }[]
+}
 /** `units` is the army as fielded, which a battle view carries beside a list whose own units it leaves out. */
 type TableArmies = { players: readonly { side: number; roster: { built?: TableBuilt } | null; units?: readonly { points: number }[] }[] }
 

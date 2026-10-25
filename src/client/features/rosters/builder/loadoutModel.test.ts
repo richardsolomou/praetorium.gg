@@ -19,7 +19,6 @@ import {
   relativeSpread,
   orderedChoices,
   replacementChoice,
-  sameWeapon,
   showLoadoutEntry,
   spreadHandlers,
   uniqueWeaponProfiles,
@@ -30,6 +29,7 @@ import {
   wholeSquadTakes,
   withDraftSpreadCounts,
 } from './loadoutModel'
+import { sameWargear } from '../../../../core/wargear'
 
 const option = (id: string, count: number, max: number) => ({ id, name: id, points: 0, count, min: 0, max })
 
@@ -167,27 +167,27 @@ it('keeps only spread groups changed since the evaluated result', () => {
 
 describe('matching a wargear name to what describes it', () => {
   it('reads a parenthesised mode as the same weapon', () => {
-    expect(sameWeapon('Staff of light', 'Staff of light (Melee)')).toBe(true)
-    expect(sameWeapon('Staff of light (Ranged)', 'Staff of light (Melee)')).toBe(true)
+    expect(sameWargear('Staff of light', 'Staff of light (Melee)')).toBe(true)
+    expect(sameWargear('Staff of light (Ranged)', 'Staff of light (Melee)')).toBe(true)
   })
 
   it.each([
     ['➤ Bellicatus missile array - Frag', 'Bellicatus missile array (Icarus)'],
     ['➤ Plasma pistol - Supercharge', 'Plasma pistol (Standard)'],
   ])('reads marked and parenthesised modes as the same weapon', (marked, parenthesised) => {
-    expect(sameWeapon(marked, parenthesised)).toBe(true)
+    expect(sameWargear(marked, parenthesised)).toBe(true)
   })
 
   it('keeps two different weapons apart', () => {
-    expect(sameWeapon('Gauss flayer', 'Gauss reaper')).toBe(false)
+    expect(sameWargear('Gauss flayer', 'Gauss reaper')).toBe(false)
   })
 
   it('matches straight and curly apostrophes', () => {
-    expect(sameWeapon("Dragon's Breath Flamer", 'Dragon’s breath flamer')).toBe(true)
+    expect(sameWargear("Dragon's Breath Flamer", 'Dragon’s breath flamer')).toBe(true)
   })
 
   it('keeps marked profiles of different weapons apart', () => {
-    expect(sameWeapon('➤ Bellicatus missile array - Frag', 'Multi-melta (Melta)')).toBe(false)
+    expect(sameWargear('➤ Bellicatus missile array - Frag', 'Multi-melta (Melta)')).toBe(false)
   })
 
   it('matches a profile named after the option, with or without a mode', () => {

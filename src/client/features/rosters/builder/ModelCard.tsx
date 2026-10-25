@@ -18,7 +18,6 @@ import {
   poolChangeUpdates,
   pressedCounts,
   replacementChoice,
-  sameWeapon,
   showLoadoutEntry,
   type SpreadCounts,
   type SpreadUpdate,
@@ -28,6 +27,7 @@ import {
 import type { WeaponProfileData } from './loadoutModel'
 import { type OptionNote, PickControl, PoolStepper, WargearRow } from './LoadoutControls'
 import { loadedWords, useSourceTexts } from '../../../sourceText'
+import { sameWargear } from '../../../../core/wargear'
 
 /**
  * One kind of model in the unit, and everything it can carry.
@@ -169,7 +169,7 @@ export function ModelCard({
           const exceedsModelCount = sources.some(({ option: candidate }) => candidate.max > count)
           const direct = sources.filter(({ choice: source }) => source.room <= 1 && !source.carried)
           const replacesAnotherRow = Boolean(
-            row.pieces?.some((piece) => model.rows.some((candidate) => candidate !== row && sameWeapon(candidate.name, piece))),
+            row.pieces?.some((piece) => model.rows.some((candidate) => candidate !== row && sameWargear(candidate.name, piece))),
           )
           const addDirect = direct.find(
             ({ choice: source, option: candidate }) => source.chosen !== candidate.id && candidate.count < candidate.max,

@@ -10,7 +10,8 @@ import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { CreateLeague } from './CreateLeague'
 import { EventSchedule } from './EventSchedule'
 import { LEAGUE_CARD, LeagueCardActions } from './LeagueActions'
-import { leagueFormat, leaguePhase, leaguePlayers } from './leagueEvent'
+import { leaguePhase, leaguePlayers } from './leagueEvent'
+import { leagueFormat } from '../../../core/league'
 
 export function LeagueIndex() {
   const { data: me } = useQuery(meQuery())

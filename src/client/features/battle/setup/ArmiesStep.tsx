@@ -87,7 +87,7 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
   // A size the rosters set is no filter, since any list may change it.
   const chooserLimit = view.settings.sizeFromRosters ? null : view.settings.limit
   const fits = (roster: { limit: number; waivedRules?: readonly string[] | null }) =>
-    fitsBattleSize({ limit: chooserLimit, teamBattle: team }, { ...roster, waivedRules: roster.waivedRules ?? undefined })
+    fitsBattleSize({ limit: chooserLimit, teamBattle: team }, roster)
   const eligible = saved.filter(fits)
   const lent = (lentQuery.data ?? []).filter(({ summary }) => fits(summary))
   const attach = async (savedRoster: SavedRoster) => {

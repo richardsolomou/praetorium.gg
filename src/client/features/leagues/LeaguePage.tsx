@@ -8,8 +8,9 @@ import { leagueQuery, meQuery } from '../../queries'
 import { LeaguePageActions, useLeagueActions } from './LeagueActions'
 import { LeagueEventView } from './LeagueEventView'
 import { EventSchedule } from './EventSchedule'
-import { eventName, leagueAllowances, leagueFormat, leagueNoun, leaguePhase, leaguePlayers, type League } from './leagueEvent'
+import { eventName, leagueAllowances, leagueNoun, leaguePhase, leaguePlayers, type League } from './leagueEvent'
 import { countLabel } from '../../text'
+import { leagueFormat } from '../../../core/league'
 
 export function LeaguePage({ token, startBattle, chooseRoster }: { token: string; startBattle?: boolean; chooseRoster?: boolean }) {
   const navigate = useNavigate()

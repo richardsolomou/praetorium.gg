@@ -5,15 +5,14 @@ import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { nextDraw } from '../../scoring'
 import { type Side, sideName } from '../../sides'
-import { redrawOffer, type WhenDrawn } from './drawOffer'
+import type { WhenDrawn } from '../../../contracts/missions'
+import { redrawOffer } from './drawOffer'
 import { MissionDetailsDialog, MissionName, type MissionDetails, type ReferenceCard } from './MissionCards'
 import { CARD } from './battleTints'
 import { UndoLatest } from './UndoLatest'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { countLabel } from '../../text'
 import type { SendCommand } from './useCommand'
-
-export type { WhenDrawn } from './drawOffer'
 
 type Props = {
   side: Side

@@ -13,8 +13,6 @@ import {
 } from '../../../../core/modelKinds'
 import { sameWargear, wargearBaseName, wargearKey } from '../../../../core/wargear'
 
-export { sameWargear as sameWeapon } from '../../../../core/wargear'
-
 /**
  * What the loadout pane is drawing, and the reasoning that does not need a screen.
  *

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { redrawOffer, type WhenDrawn } from './drawOffer'
+import type { WhenDrawn } from '../../../contracts/missions'
+import { redrawOffer } from './drawOffer'
 
 const roundRule = (roundMax: number): WhenDrawn => ({ operation: 'redraw', roundMax, heldCards: [], condition: null })
 

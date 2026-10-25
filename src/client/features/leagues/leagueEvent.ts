@@ -62,7 +62,7 @@ export function doublesTeams<T extends Pick<LeagueEntryView, 'teamId' | 'status'
 }
 
 /** What each side of a 2v1 means at the table, said where the side is named rather than left to be guessed. */
-export function sideGroups(
+function sideGroups(
   league: Pick<League, 'rosterLimit' | 'soloPoints' | 'allyPoints'>,
 ): Record<'solo' | 'allied' | 'unsized', { title: string; detail?: string }> {
   return {
@@ -80,7 +80,7 @@ export function sideGroups(
  *
  * `teamId` marks a pair, which plays together and seals one Force Disposition; a duel is one untitled run.
  */
-export type EntrantGrouping<T> = { key: string; title?: string; detail?: string; teamId?: string; entries: T[] }
+type EntrantGrouping<T> = { key: string; title?: string; detail?: string; teamId?: string; entries: T[] }
 
 /** The groups the entrant list, the organizer and the revealed rosters all split an event into, so a pairing reads the same everywhere. */
 export function entrantGroups<T extends Pick<LeagueEntryView, 'teamId' | 'status' | 'requiredLimit'>>(
@@ -131,8 +131,6 @@ export function entryProgress(league: Pick<League, 'format' | 'club'>, stage: En
   const current = stages.findIndex((candidate) => candidate.stage === stage)
   return stages.map(({ label }, index) => ({ label, state: index < current ? 'done' : index === current ? 'current' : 'upcoming' }))
 }
-
-export { leagueFormat } from '../../../core/league'
 
 /** An event's host as the helpers here read it: a tournament with its own entry rules, or a club's game. */
 type Host = { tournament: { admission: LeagueAdmission; playerLimit: number | null } | null }
