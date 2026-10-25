@@ -4,7 +4,7 @@ import { ownSearchLists, prepareReferenceSearch, searchAll } from '../../core/re
 import type { QueryClient } from '@tanstack/react-query'
 import type { savedRosterSummaries, myBattles, factionIndex } from '../functions'
 type FactionIndex = NonNullable<Awaited<ReturnType<typeof factionIndex>>>
-import type { UnitSummary } from '../../contracts/catalogue'
+import type { FactionDatasheet } from '../../contracts/catalogue'
 import { decompressReference, type CompressedReference } from './compressedReference'
 import { battlesKey, factionDatasheetsKey, factionIndexKey, meKey, savedRosterSummariesKey } from '../queries/queryKeys'
 
@@ -144,7 +144,7 @@ const datasheetFields = new WeakMap<OfflineReferenceData, Map<string, OfflineRef
 export function offlineDatasheets(catalogueId: string, query: string) {
   const saved = referenceData()
   if (!saved) return null
-  const units = savedQuery<UnitSummary[]>(saved, factionDatasheetsKey(catalogueId, ''))
+  const units = savedQuery<FactionDatasheet[]>(saved, factionDatasheetsKey(catalogueId, ''))
   let fields = datasheetFields.get(saved)
   if (!fields) {
     fields = new Map(saved.search.datasheets.map((entry) => [entry.result.id, entry.fields]))

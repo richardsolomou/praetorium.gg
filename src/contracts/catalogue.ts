@@ -32,6 +32,9 @@ export type UnitSummary = {
   fuzzy?: boolean
 }
 
+/** A row of a faction's datasheet page, which filters by keyword. */
+export type FactionDatasheet = UnitSummary & { keywords: string[] }
+
 export type PickerUnit = UnitSummary & {
   search: DatasheetSearchFields | null
   attachment?: Attachment | null

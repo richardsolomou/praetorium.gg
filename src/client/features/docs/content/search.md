@@ -8,6 +8,8 @@ Search finds factions, datasheets, detachments, missions and rules from anywhere
 
 If no datasheet matches, search offers **Close matches** for a misspelt name. The unit picker in the roster builder and each faction's datasheet list match the same way.
 
+A faction's datasheet list can also be filtered. **Matched play**, **Legends** and **Crucible** hide or show datasheets by where they come from, and **Keywords** keeps only datasheets that have every keyword you choose. Once you're signed in, you can also show only your favourites or the datasheets you own.
+
 ## Search from your browser's address bar
 
 [Search results](/search) have their own page, so you can add Praetorium to your browser as a custom search engine. In your browser's search engine settings, add one with this URL:

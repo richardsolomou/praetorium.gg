@@ -1,11 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
-import { Boxes, EllipsisVertical, Heart, Plus, type LucideIcon } from 'lucide-react'
+import { EllipsisVertical, Heart, Plus, type LucideIcon } from 'lucide-react'
 import { Fragment, memo, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Toggle } from '@/components/ui/toggle'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -21,6 +20,7 @@ import type { UnitSummary } from '../../../../contracts/catalogue'
 import type { NonMatchedPlayKind } from '../../../../core/name'
 import type { RosterPick } from '../../../../core/roster'
 import { SearchField } from '../../../components/SearchField'
+import { ACCOUNT_FILTERS, type AccountFilter, FilterChip } from '../../../components/FilterChip'
 import { DatasheetMatchReasons } from '../../../components/DatasheetMatchReasons'
 import { useFavouriteDatasheets } from '../../../favouriteDatasheets'
 import { searchDatasheetEntries } from '../../../../core/datasheetSearch'
@@ -62,23 +62,15 @@ type Props = {
   onFilterToggle: (filter: PickerFilter) => void
 }
 
-export type PickerFilter = 'fit' | 'limit' | 'owned' | 'favourite' | NonMatchedPlayKind
+export type PickerFilter = 'fit' | 'limit' | AccountFilter | NonMatchedPlayKind
 
-/** Account filters are icons, matching the row hearts and the Collection page, so the row fits a phone. */
-const FILTERS: { id: PickerFilter; label: string; hint: string; icon?: LucideIcon }[] = [
+const FILTERS: { id: PickerFilter; label: string; hint: string; icon?: LucideIcon; empty?: string }[] = [
   { id: 'fit', label: 'Points fit', hint: 'Hide anything that would not fit in the points left' },
   { id: 'limit', label: 'Unit limit', hint: 'Hide anything the roster already holds as many of as it may' },
-  { id: 'favourite', label: 'Favourites', hint: 'Show only your favourite datasheets', icon: Heart },
-  { id: 'owned', label: 'Owned', hint: 'Show only datasheets in your collection', icon: Boxes },
+  ...ACCOUNT_FILTERS,
   { id: 'legends', label: 'Legends', hint: 'Show Legends datasheets' },
   { id: 'crucible', label: 'Crucible', hint: 'Show Crucible datasheets' },
 ]
-
-/** Why an account filter cannot narrow anything yet. */
-const EMPTY_FILTER: Partial<Record<PickerFilter, string>> = {
-  owned: 'Nothing is in your collection yet. Add the datasheets you own on the Collection page.',
-  favourite: 'You have no favourite datasheets yet. Press the heart beside a datasheet to make it one.',
-}
 
 /**
  * The book, to pick from.
@@ -266,12 +258,14 @@ export const Picker = memo(function Picker({
           {FILTERS.filter((filter) => signedIn || !filter.icon).map((filter) => (
             <FilterChip
               key={filter.id}
-              {...filter}
+              label={filter.label}
+              hint={filter.hint}
+              icon={filter.icon}
               pressed={active.has(filter.id)}
               onToggle={() => onFilterToggle(filter.id)}
               unavailable={
                 (filter.id === 'owned' && (!enabled || !collection.size)) || (filter.id === 'favourite' && (!enabled || !favourites.size))
-                  ? EMPTY_FILTER[filter.id]
+                  ? filter.empty
                   : undefined
               }
             />
@@ -515,55 +509,3 @@ const PickerRow = memo(function PickerRow({
 })
 
 /** Unavailable filters stay focusable and open their tooltip on a tap, so a phone can still say why. */
-function FilterChip({
-  label,
-  hint,
-  icon: Icon,
-  pressed,
-  onToggle,
-  unavailable,
-}: {
-  label: string
-  hint: string
-  icon?: LucideIcon
-  pressed: boolean
-  onToggle: () => void
-  unavailable?: string
-}) {
-  const [open, setOpen] = useState(false)
-  const chip = 'rounded-sm border px-1.5 py-px text-2xs font-semibold tracking-label uppercase transition-colors'
-  return (
-    <Tooltip open={open} onOpenChange={setOpen}>
-      <TooltipTrigger
-        closeOnClick={!unavailable}
-        render={
-          unavailable ? (
-            <button
-              type="button"
-              aria-disabled="true"
-              aria-label={label}
-              onClick={() => setOpen(true)}
-              className={`${chip} inline-flex h-7 min-w-7 cursor-not-allowed items-center justify-center border-edge text-faint`}
-            />
-          ) : (
-            <Toggle
-              variant="outline"
-              size="sm"
-              aria-label={Icon ? label : undefined}
-              pressed={pressed}
-              onPressedChange={onToggle}
-              className={`${chip} ${
-                pressed ? 'border-parchment bg-parchment/15 text-parchment' : 'border-edge-strong text-dim hover:border-dim hover:text-bone'
-              }`}
-            />
-          )
-        }
-      >
-        {Icon ? <Icon className={`size-3.5 ${pressed && Icon === Heart ? 'fill-current' : ''}`} /> : label}
-      </TooltipTrigger>
-      <TooltipContent role="tooltip" side="bottom" className="max-w-60 text-xs">
-        {unavailable ?? hint}
-      </TooltipContent>
-    </Tooltip>
-  )
-}
