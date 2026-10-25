@@ -77,7 +77,8 @@ export const tokenSchema = z.object({ token })
 export const battleReplaySchema = z.object({ token, seq: z.number().int().min(1) })
 export const battleReplayBatchSchema = z.object({ token, seqs: z.array(z.number().int().min(1)).min(1).max(REPLAY_BATCH_SIZE) })
 const leagueFields = {
-  name: z.string().trim().min(1, 'add a name').max(LEAGUE_NAME_MAX_LENGTH),
+  // Only a tournament is named; a club's sealed game is labelled from what is played.
+  name: z.string().trim().max(LEAGUE_NAME_MAX_LENGTH).default(''),
   description: z.string().trim().max(LEAGUE_DESCRIPTION_MAX_LENGTH),
   visibility: z.enum(LEAGUE_VISIBILITIES),
   admission: z.enum(LEAGUE_ADMISSIONS),
@@ -120,6 +121,7 @@ export const createLeagueSchema = z
     schedule: leagueSchedule.optional(),
   })
   .superRefine(validateLeagueEventRule)
+  .refine((value) => value.clubToken || value.name, { message: 'add a name', path: ['name'] })
 export const updateLeagueSchema = z.object({
   token,
   ...leagueFields,

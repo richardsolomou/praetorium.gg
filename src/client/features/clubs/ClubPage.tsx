@@ -34,6 +34,8 @@ import { inviteFeedbackText, useInviteShare } from '../leagues/LeagueActions'
 import { SectionHeading } from '../leagues/LeagueEntrants'
 import { LeagueSettingsDialog } from '../leagues/LeagueSettingsDialog'
 import { useMoment } from '../leagues/EventSchedule'
+import { eventName } from '../leagues/leagueEvent'
+import { useDateFormatting } from '../../dates'
 import type { Club } from './club'
 import { ClubSettingsDialog } from './ClubSettingsDialog'
 
@@ -316,7 +318,7 @@ function UpNext({ club, table, viewerId }: { club: Club; table: ClubTable | null
                 className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 p-3 hover:bg-raised"
               >
                 <span className="chip shrink-0 text-discarded">Sealed game</span>
-                <span className="min-w-0 flex-1 truncate font-semibold">{game.name}</span>
+                <span className="min-w-0 flex-1 truncate font-semibold">{eventName({ ...game, club })}</span>
                 <span className="shrink-0 text-sm text-dim">
                   {game.sealBy ? `Lists due ${moment(game.sealBy)}` : game.playsAt ? moment(game.playsAt) : 'Taking lists'}
                 </span>
@@ -364,6 +366,7 @@ function ClubTable({ table, viewerId }: { table: ClubTable; viewerId: string | n
 function SealedGames({ club }: { club: Club }) {
   const refresh = useClubRefresh(club.token)
   const [creating, setCreating] = useState(false)
+  const { date } = useDateFormatting()
   const played = club.tournaments.filter((tournament) => tournament.revealedAt)
   if (!played.length && !club.organizer) return null
   return (
@@ -389,7 +392,8 @@ function SealedGames({ club }: { club: Club }) {
                 className="flex min-w-0 items-center gap-3 p-3 hover:bg-raised"
               >
                 <Trophy className="size-4 shrink-0 text-info" aria-hidden />
-                <span className="min-w-0 flex-1 truncate font-semibold">{game.name}</span>
+                <span className="min-w-0 flex-1 truncate font-semibold">{eventName({ ...game, club })}</span>
+                <span className="shrink-0 text-sm text-dim">{date(game.playsAt ?? game.createdAt)}</span>
               </Link>
             </li>
           ))}

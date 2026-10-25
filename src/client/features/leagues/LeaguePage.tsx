@@ -9,7 +9,7 @@ import { isLeagueOrganizer } from '../../../core/league'
 import { LeaguePageActions, useLeagueActions } from './LeagueActions'
 import { LeagueEventView } from './LeagueEventView'
 import { EventSchedule } from './EventSchedule'
-import { leagueAllowances, leagueFormat, leagueNoun, leaguePhase, leaguePlayers, type League } from './leagueEvent'
+import { eventName, leagueAllowances, leagueFormat, leagueNoun, leaguePhase, leaguePlayers, type League } from './leagueEvent'
 
 export function LeaguePage({
   token,
@@ -62,7 +62,7 @@ function LeagueScreen({
     <main className="w-full">
       <PageHeader
         eyebrow={leagueNoun(league).Noun}
-        title={league.name}
+        title={eventName(league)}
         actions={isOrganizer ? <LeaguePageActions actions={actions} canDelete={isOwner} /> : null}
       >
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">

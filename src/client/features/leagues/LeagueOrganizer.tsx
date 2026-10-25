@@ -18,7 +18,7 @@ import { friendshipsQuery } from '../../queries'
 import { useOrigin } from '../../useOrigin'
 import { inviteFeedbackText, useInviteShare } from './LeagueActions'
 import { EntrantGroup, EntrantList, SectionHeading, sealStatus } from './LeagueEntrants'
-import { entrantGroups, eventPath, leagueNoun, soloOrAllied, useLeagueRefresh, type League } from './leagueEvent'
+import { entrantGroups, eventFullName, eventPath, leagueNoun, soloOrAllied, useLeagueRefresh, type League } from './leagueEvent'
 import { Problem } from '../../components/Problem'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { formatList, countLabel } from '../../text'
@@ -413,7 +413,7 @@ function SizeToggle({
 
 export function InvitePanel({ league }: { league: League }) {
   const origin = useOrigin()
-  const invite = useInviteShare(eventPath(league), league.name, 'league_invite_shared')
+  const invite = useInviteShare(eventPath(league), eventFullName(league), 'league_invite_shared')
   const shareLabel = useInviteShareLabel()
   return (
     <section className="border border-edge bg-panel p-4">

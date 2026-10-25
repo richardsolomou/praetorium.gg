@@ -1,8 +1,17 @@
 import { countBy, groupBy } from './collections'
 import { migratedEditionId, migratedEditionPick } from './editionMigrations'
 import { attachedUnitCount } from './attachedUnits'
-import type { TableShape } from './tableShape'
-import { FORMAT_RULE_IDS, formatRules, waivedFormatRules, type FormatRule, type FormatRuleId, type Roster } from './battle'
+import { TABLE_SHAPE_LABELS, type TableShape } from './tableShape'
+import {
+  FORMAT_RULE_IDS,
+  formatRules,
+  GAME_SIZES,
+  pointsLabel,
+  waivedFormatRules,
+  type FormatRule,
+  type FormatRuleId,
+  type Roster,
+} from './battle'
 import { z } from 'zod'
 import { matchedPlayName, NON_MATCHED_PLAY_KINDS, nonMatchedPlayKind, type NonMatchedPlayKind } from './name'
 import type { RosterPick } from './roster'
@@ -510,4 +519,31 @@ export function leagueArmy(roster: Roster): LeagueArmy {
 function sealedDetachments(built: NonNullable<Roster['built']>) {
   const names = built.detachments?.map((detachment) => detachment.name) ?? (built.detachment ? [built.detachment] : [])
   return (built.detachmentIds ?? []).map((id, index) => ({ id, name: names[index] ?? id }))
+}
+
+/**
+ * An event's table shape and points, such as "Duel · 2,000 points" or "Duel · 750 points at Incursion" for its own
+ * total, or null for an event that fixed neither.
+ */
+export function leagueFormat(event: { format: TableShape | null; rosterLimit: number | null; pointsBudget?: number | null }) {
+  if (!event.format || !event.rosterLimit) return null
+  const size = GAME_SIZES.find((candidate) => candidate.limit === event.rosterLimit)
+  const points = event.pointsBudget
+    ? `${pointsLabel(event.pointsBudget)}${size ? ` at ${size.name}` : ''}`
+    : (leagueRosterSplit(event.format, event.rosterLimit) ?? pointsLabel(event.rosterLimit))
+  return `${TABLE_SHAPE_LABELS[event.format].name} · ${points}`
+}
+
+/**
+ * What an event is called. A tournament has the name its organizer gave it; a club's sealed game is nobody names, so
+ * it reads as what is being played, after its club wherever the club is not already in view.
+ */
+export function leagueTitle(
+  event: { name: string; format: TableShape | null; rosterLimit: number | null; pointsBudget?: number | null },
+  club: { name: string } | null,
+  { withClub = true } = {},
+) {
+  if (!club) return event.name
+  const game = leagueFormat(event) ?? 'Sealed game'
+  return withClub ? `${club.name}: ${game}` : game
 }

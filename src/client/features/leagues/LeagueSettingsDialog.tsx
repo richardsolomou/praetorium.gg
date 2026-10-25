@@ -67,6 +67,7 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const current = league ? leagueTableShape(league.format) : '1v1'
+  const sealedGame = mode.kind === 'create' ? Boolean(mode.clubToken) : Boolean(league?.club)
   const { noun } = leagueNoun(mode.kind === 'create' ? { club: mode.clubToken } : (league ?? {}))
   const [value, setValue] = useState<LeagueFormValue>(() => ({
     name: league?.name ?? '',
@@ -194,7 +195,7 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
             seated={seated}
             limitFormat={limitFormat}
             ruleLock={ruleLock}
-            listing={mode.kind === 'create' ? !mode.clubToken : !league?.club}
+            listing={!sealedGame}
             ownerPlays={mode.kind === 'edit' ? undefined : ownerPlays}
             admins={
               mode.kind === 'edit' && isOwner && league ? { selected: adminIds, known: league.admins, onChange: setAdminIds } : undefined
@@ -213,7 +214,11 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
           <Button type="button" variant="outline" disabled={save.isPending} onClick={onClose}>
             Cancel
           </Button>
-          <Button data-onboarding="league-create" type="submit" disabled={save.isPending || !leagueFormValid(value, seated, limitFormat)}>
+          <Button
+            data-onboarding="league-create"
+            type="submit"
+            disabled={save.isPending || !leagueFormValid(value, seated, limitFormat, !sealedGame)}
+          >
             {submit}
           </Button>
         </DialogFooter>

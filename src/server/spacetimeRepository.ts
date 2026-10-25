@@ -391,7 +391,7 @@ export class SpacetimeRepository {
   async leaguesVisibleTo(userId: string | null, limit = 100) {
     const rows = await this.product.leaguesVisibleTo(userId, Math.min(Math.max(limit, 1), 100))
     const owners = await this.accounts.profilesByIds(rows.map((row) => row.league.ownerId))
-    return rows.map(({ league, event, personal, adminIds, joined, accepted, occupied, ownEntry }) => {
+    return rows.map(({ league, event, personal, club, adminIds, joined, accepted, occupied, ownEntry }) => {
       const owner = owners.get(league.ownerId)
       if (!owner) throw new Error(`League owner ${league.ownerId} is missing from auth database`)
       return {
@@ -399,6 +399,7 @@ export class SpacetimeRepository {
         ownerName: owner.name,
         ownerImage: owner.image,
         personal,
+        club,
         adminIds,
         eventToken: event.token,
         eventNumber: event.number,
@@ -501,10 +502,10 @@ export class SpacetimeRepository {
   async clubsVisibleTo(userId: string | null, limit = 100) {
     const rows = await this.product.clubsVisibleTo(userId, Math.min(Math.max(limit, 1), 100))
     const owners = await this.accounts.profilesByIds(rows.map((row) => row.club.ownerId))
-    return rows.map(({ club, adminIds, memberCount, battleCount, ownMember }) => {
+    return rows.map(({ club, adminIds, memberCount, battleCount, lastBattleAt, ownMember }) => {
       const owner = owners.get(club.ownerId)
       if (!owner) throw new Error(`Club owner ${club.ownerId} is missing from auth database`)
-      return { ...club, ownerName: owner.name, ownerImage: owner.image, adminIds, memberCount, battleCount, ownMember }
+      return { ...club, ownerName: owner.name, ownerImage: owner.image, adminIds, memberCount, battleCount, lastBattleAt, ownMember }
     })
   }
 

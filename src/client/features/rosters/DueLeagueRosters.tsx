@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { eventFullName } from '../leagues/leagueEvent'
 import { Link } from '@tanstack/react-router'
 import { FileLock2 } from 'lucide-react'
 import { buttonClass } from '../../components/buttonClass'
@@ -24,7 +25,7 @@ export function DueLeagueRosters({ limit, pointsBudget, saved }: { limit: number
       className={buttonClass({ variant: 'ghost', size: 'xs', className: 'max-w-48 text-parchment' })}
     >
       <FileLock2 className="size-4" aria-hidden />
-      <span className="truncate">Seal for {league.name}</span>
+      <span className="truncate">Seal for {eventFullName(league)}</span>
     </Link>
   ))
 }

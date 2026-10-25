@@ -89,17 +89,20 @@ export function LeagueFormFields({
     .join(' · ')
   return (
     <>
-      <div data-onboarding="league-name" className="space-y-1.5">
-        <Label htmlFor={`${idPrefix}-name`}>Name</Label>
-        <Input
-          id={`${idPrefix}-name`}
-          value={value.name}
-          maxLength={100}
-          required
-          disabled={disabled}
-          onChange={(event) => onChange({ ...value, name: event.target.value })}
-        />
-      </div>
+      {/* A club's sealed game is labelled from what is played, so only a tournament is named. */}
+      {listing ? (
+        <div data-onboarding="league-name" className="space-y-1.5">
+          <Label htmlFor={`${idPrefix}-name`}>Name</Label>
+          <Input
+            id={`${idPrefix}-name`}
+            value={value.name}
+            maxLength={100}
+            required
+            disabled={disabled}
+            onChange={(event) => onChange({ ...value, name: event.target.value })}
+          />
+        </div>
+      ) : null}
       <div data-onboarding="league-format" className="space-y-4">
         {ruleLock ? (
           <div className="space-y-1.5">
@@ -218,9 +221,9 @@ export function LeagueFormFields({
 }
 
 /** Whether the form can be saved: a name, and a limit that seats the chosen shape and everyone already in. */
-export function leagueFormValid(value: LeagueFormValue, seated = 0, limitFormat: TableShape | null = value.format) {
+export function leagueFormValid(value: LeagueFormValue, seated = 0, limitFormat: TableShape | null = value.format, named = true) {
   return (
-    Boolean(value.name.trim()) &&
+    (!named || Boolean(value.name.trim())) &&
     leaguePlacesSeat(limitFormat, value.playerLimit, seated) &&
     !pointsBudgetError(value.rosterLimit, value.pointsBudget) &&
     !scheduleProblem(value)

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
+import { useDateFormatting } from '../../dates'
 import { clubsQuery, meQuery } from '../../queries'
 import { LEAGUE_CARD } from '../leagues/LeagueActions'
 import { EventsTabs } from '../events/EventsTabs'
@@ -36,8 +37,8 @@ export function ClubIndex() {
         <EventsTabs current="clubs" />
       </PageHeader>
       <PageContent className="space-y-6">
-        {mine.length ? <ClubShelf title="Your clubs" clubs={mine} viewerId={me?.id ?? null} /> : null}
-        {publicClubs.length ? <ClubShelf title="Public clubs" clubs={publicClubs} viewerId={me?.id ?? null} /> : null}
+        {mine.length ? <ClubShelf title="Your clubs" clubs={mine} /> : null}
+        {publicClubs.length ? <ClubShelf title="Public clubs" clubs={publicClubs} /> : null}
         {!clubs.length ? (
           <PageState
             headingLevel={2}
@@ -53,7 +54,8 @@ export function ClubIndex() {
   )
 }
 
-function ClubShelf({ title, clubs, viewerId }: { title: string; clubs: readonly ClubSummary[]; viewerId: string | null }) {
+function ClubShelf({ title, clubs }: { title: string; clubs: readonly ClubSummary[] }) {
+  const { date } = useDateFormatting()
   return (
     <section>
       <h2 className="rubric mb-2 flex items-baseline justify-between border-b border-edge pb-2">
@@ -61,7 +63,6 @@ function ClubShelf({ title, clubs, viewerId }: { title: string; clubs: readonly 
       </h2>
       <div className="grid gap-3 md:grid-cols-2">
         {clubs.map((club) => {
-          const status = clubStatus(club, viewerId)
           return (
             <article key={club.id} data-club={club.token} className={LEAGUE_CARD}>
               <Link to="/clubs/$token" params={{ token: club.token }} className="flex min-w-0 flex-1 flex-col">
@@ -87,14 +88,14 @@ function ClubShelf({ title, clubs, viewerId }: { title: string; clubs: readonly 
                   )}
                 </div>
                 <div className="flex min-w-0 items-center gap-3 border-t border-edge bg-sunken/60 px-4 py-2.5 text-sm">
-                  {status ? (
-                    <span className={`flex min-w-0 items-center gap-2 font-semibold ${status.tint}`}>
-                      <span aria-hidden className="size-2 shrink-0 rounded-full bg-current" />
-                      <span className="truncate">{status.label}</span>
-                    </span>
-                  ) : null}
+                  {/* A request still waiting is the one thing about the reader worth saying; otherwise, how lively the club is. */}
+                  {club.ownMember?.status === 'pending' ? (
+                    <span className="truncate font-semibold text-discarded">Request sent</span>
+                  ) : (
+                    <span className="truncate text-dim">{club.lastBattleAt ? `Last game ${date(club.lastBattleAt)}` : 'No games yet'}</span>
+                  )}
                   <span className="ml-auto shrink-0 text-xs text-dim readout">
-                    {plural(club.memberCount, 'member')} · {plural(club.battleCount, 'battle')}
+                    {plural(club.memberCount, 'member')} · {plural(club.battleCount, 'game')}
                   </span>
                 </div>
               </Link>
@@ -107,12 +108,3 @@ function ClubShelf({ title, clubs, viewerId }: { title: string; clubs: readonly 
 }
 
 const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? '' : 's'}`
-
-/** The reader's own place in the club, when they have one. */
-function clubStatus(club: ClubSummary, viewerId: string | null) {
-  if (club.ownerId === viewerId) return { label: 'You run it', tint: 'text-achieved' }
-  if (club.ownMember?.status === 'pending') return { label: 'Request sent', tint: 'text-dim' }
-  if (club.ownMember?.role === 'admin') return { label: 'Admin', tint: 'text-achieved' }
-  if (club.ownMember) return { label: 'Member', tint: 'text-achieved' }
-  return null
-}

@@ -204,6 +204,8 @@ const visibleLeague = z.object({
   league,
   event: leagueEvent,
   personal: z.boolean(),
+  // Absent from a module deployed before tournaments joined clubs.
+  club: z.object({ token: z.string(), name: z.string() }).nullable().default(null),
   adminIds: z.array(z.string()),
   joined: z.number().int(),
   accepted: z.number().int(),
@@ -255,6 +257,9 @@ const clubTournament = z.object({
   // Absent from a module deployed before events had dates.
   playsAt: z.number().int().nullable().default(null),
   sealBy: z.number().int().nullable().default(null),
+  format: z.enum(TABLE_SHAPES).nullable().default(null),
+  rosterLimit: z.number().int().nullable().default(null),
+  pointsBudget: z.number().int().nullable().default(null),
   eventTokens: z.array(z.string()),
 })
 const clubRecord = z.object({ club, members: z.array(clubMember), tournaments: z.array(clubTournament) })
@@ -264,6 +269,7 @@ const visibleClub = z.object({
   memberCount: z.number().int(),
   // Absent from a module deployed before club tables counted battles.
   battleCount: z.number().int().default(0),
+  lastBattleAt: z.number().int().nullable().default(null),
   ownMember: clubMember.pick({ status: true, role: true }).nullable(),
 })
 

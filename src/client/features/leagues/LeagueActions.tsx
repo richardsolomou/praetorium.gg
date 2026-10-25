@@ -9,11 +9,19 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { deleteLeague } from '../../functions'
 import { shareLink } from '../../nativeBridge'
 import { LeagueSettingsDialog } from './LeagueSettingsDialog'
-import { eventLink, eventPath, leagueNoun, useLeagueRefresh } from './leagueEvent'
+import { eventFullName, eventLink, eventName, eventPath, leagueNoun, useLeagueRefresh } from './leagueEvent'
+import type { TableShape } from '../../../core/tableShape'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useInviteShareLabel } from '../friends/friendInvite'
 
-type ManageableLeague = { token: string; name: string; club?: { token: string; name?: string } | null }
+type ManageableLeague = {
+  token: string
+  name: string
+  club?: { token: string; name?: string } | null
+  format?: TableShape | null
+  rosterLimit?: number | null
+  pointsBudget?: number | null
+}
 
 /** One frame for every league card, so a card with organizer actions looks like one without. */
 export const LEAGUE_CARD = 'relative flex min-w-0 flex-col border border-edge bg-panel transition-colors hover:border-info hover:bg-raised'
@@ -54,7 +62,7 @@ export function LeaguePageActions({ actions, canDelete }: { actions: LeagueActio
       </Button>
       {canDelete ? (
         <DropdownMenu>
-          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`More for ${actions.league.name}`} />}>
+          <DropdownMenuTrigger render={<Button variant="ghost" size="icon" aria-label={`More for ${eventName(actions.league)}`} />}>
             <EllipsisVertical />
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-56">
@@ -82,7 +90,7 @@ function LeagueMenu({
 }) {
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${actions.league.name}`} />}>
+      <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${eventName(actions.league)}`} />}>
         <EllipsisVertical />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
@@ -137,7 +145,7 @@ function LeagueActionDialogs({ actions }: { actions: LeagueActionsController }) 
       <LeagueSettingsDialog mode={{ kind: 'edit', token: actions.league.token }} open={actions.editing} onOpenChange={actions.setEditing} />
       <ConfirmDialog
         open={actions.deleting}
-        title={`Delete ${actions.league.name}?`}
+        title={actions.league.club ? `Delete this ${actions.noun}?` : `Delete ${actions.league.name}?`}
         description="Every entrant and sealed roster goes with it, for good. Battles already started from it stay where they are."
         cancel={`Keep ${actions.noun}`}
         confirm={`Delete ${actions.noun}`}
@@ -202,7 +210,7 @@ export function useLeagueActions(league: ManageableLeague, onDeleted?: () => voi
   const refreshLeague = useLeagueRefresh(league.token)
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const invite = useInviteShare(eventPath(league), league.name, 'league_invite_shared')
+  const invite = useInviteShare(eventPath(league), eventFullName(league), 'league_invite_shared')
   const remove = useMutation({
     mutationFn: () => deleteLeague({ data: { token: league.token } }),
     onSettled: refreshLeague,

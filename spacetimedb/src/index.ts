@@ -34,6 +34,7 @@ import {
   leagueWarlordWaived,
   leagueRegistrationFull,
   leagueRevealChecklist,
+  leagueTitle,
   leagueSealingClosed,
   leagueTeams,
   mayRevealLeague,
@@ -358,6 +359,17 @@ function clubTournaments(ctx: Context, clubId: string) {
   return Array.from(ctx.db.leagues.iter())
     .filter((league) => league.clubId === clubId)
     .sort((a, b) => Number(b.createdAt - a.createdAt))
+}
+
+/** How many battles a club has and when the latest began, for its card. */
+function clubActivity(ctx: Context, clubId: string) {
+  const ids = new Set(clubBattleIds(ctx, clubId))
+  let lastBattleAt: bigint | null = null
+  for (const id of ids) {
+    const createdAt = ctx.db.battles.id.find(id)?.createdAt
+    if (createdAt !== undefined && (lastBattleAt === null || createdAt > lastBattleAt)) lastBattleAt = createdAt
+  }
+  return { battleCount: ids.size, lastBattleAt }
 }
 
 /** Battles that count for a club: those tagged for it, and those its tournaments started. */
@@ -2455,7 +2467,7 @@ export const leagueNames = spacetime.procedure({ tokens: t.array(t.string()) }, 
     return productJson(
       [...new Set(tokens)].flatMap((token) => {
         const league = tx.db.leagues.token.find(token)
-        return league ? [[league.token, league.name]] : []
+        return league ? [[league.token, eventTitle(tx, league)]] : []
       }),
     )
   }),
@@ -2511,15 +2523,14 @@ export const migrateLeaguesToClubs = spacetime.procedure({ now: t.u64() }, t.u32
           role: adminIds.includes(userId) ? 'admin' : 'member',
           joinedAt: now,
         })
-      // A series of events reads as one tournament per event, each named for its place in the series.
-      const name = (number: number) => (events.length > 1 ? `${league.name}, event ${number}` : league.name)
-      tx.db.leagues.id.update({ ...league, name: name(1), clubId: league.id })
+      // A sealed game is labelled from what is played, so the club keeps the league's name and its games keep none.
+      tx.db.leagues.id.update({ ...league, name: '', clubId: league.id })
       for (const event of events.slice(1)) {
         tx.db.leagues.insert({
           ...league,
           id: event.id,
           token: event.token,
-          name: name(event.number),
+          name: '',
           createdAt: event.createdAt,
           clubId: league.id,
         })
@@ -2548,6 +2559,21 @@ export const publicStandingsRevision = spacetime.procedure({}, t.string(), (ctx)
     return (tx.db.publicRevisions.scope.find('standings')?.revision ?? 0n).toString()
   }),
 )
+
+/** What an event is called wherever it is named on its own, as `leagueTitle` reads it. */
+function eventTitle(ctx: Context, league: { id: string; name: string; clubId: string | undefined }) {
+  const club = league.clubId ? ctx.db.clubs.id.find(league.clubId) : undefined
+  const event = leagueEventFor(ctx, league.id, null)
+  return leagueTitle(
+    {
+      name: league.name,
+      format: (event?.format ?? null) as TableShape | null,
+      rosterLimit: event?.rosterLimit ?? null,
+      pointsBudget: event?.pointsBudget,
+    },
+    club ? { name: club.name } : null,
+  )
+}
 
 function leagueEventsFor(ctx: Context, leagueId: string) {
   return Array.from(ctx.db.leagueEvents.leagueId.filter(leagueId)).sort((a, b) => b.number - a.number)
@@ -2665,6 +2691,10 @@ export const leaguesVisibleTo = spacetime.procedure({ userId: t.string(), limit:
             league,
             event,
             personal: personal.has(league.id),
+            club: (() => {
+              const club = league.clubId ? tx.db.clubs.id.find(league.clubId) : undefined
+              return club ? { token: club.token, name: club.name } : null
+            })(),
             adminIds: leagueAdminIds(tx, league.id),
             joined: entries.length,
             accepted: entries.filter((entry) => entry.status === 'accepted').length,
@@ -2715,7 +2745,7 @@ export const outdatedLeagueEntriesForRoster = spacetime.procedure(
         if (!league) continue
         matches.push({
           leagueToken: league.token,
-          leagueName: league.name,
+          leagueName: eventTitle(tx, league),
           eventToken: event.token,
           eventNumber: event.number,
         })
@@ -2749,7 +2779,7 @@ export const friendLeagueRosters = spacetime.procedure({ viewerId: t.string() },
         if (!catalogueId) continue
         rosters.push({
           leagueToken: league.token,
-          leagueName: league.name,
+          leagueName: eventTitle(tx, league),
           eventToken: event.token,
           eventNumber: event.number,
           eventCount: leagueEventsFor(tx, league.id).length,
@@ -2928,7 +2958,8 @@ const leagueRuleInput = z.object({
 /** Null for an event created before allowances were recorded. */
 const leagueEventAllowances = (event: LeagueEventRow) => (event.allowances === undefined ? null : parseLeagueAllowances(event.allowances))
 const leagueDetailsInput = z.object({
-  name: z.string().min(1).max(100),
+  // A club's sealed game is labelled from what is played, so only a tournament needs a name.
+  name: z.string().max(100),
   description: z.string().max(2_000),
   visibility: z.enum(['public', 'private']),
   admission: z.enum(['automatic', 'approval']),
@@ -3219,6 +3250,9 @@ export const clubByToken = spacetime.procedure({ token: t.string() }, t.string()
           revealedAt: event?.revealedAt ?? null,
           playsAt: event?.playsAt ?? null,
           sealBy: event?.sealBy ?? null,
+          format: event?.format ?? null,
+          rosterLimit: event?.rosterLimit ?? null,
+          pointsBudget: event?.pointsBudget ?? null,
           eventTokens: Array.from(tx.db.leagueEvents.leagueId.filter(league.id), (row) => row.token),
         }
       }),
@@ -3247,7 +3281,7 @@ export const clubsVisibleTo = spacetime.procedure({ userId: t.string(), limit: t
           club,
           adminIds: members.filter((member) => member.role === 'admin').map((member) => member.userId),
           memberCount: members.filter((member) => member.status === 'accepted').length,
-          battleCount: new Set(clubBattleIds(tx, club.id)).size,
+          ...clubActivity(tx, club.id),
           ownMember: ownMember ? { status: ownMember.status, role: ownMember.role } : null,
         }
       }),
@@ -3717,6 +3751,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     )
     if (!leaguePlacesSeat(input.format, input.playerLimit)) return productJson('too-small')
     if (input.rounds !== null && (input.clubToken || (input.format ?? '1v1') !== '1v1')) return productJson('forbidden')
+    if (!input.clubToken && !input.name.trim()) return productJson('forbidden')
     const points = leaguePointsBudget(input.format ?? '1v1', input.rosterLimit, input.pointsBudget)
     if (!points) return productJson('forbidden')
     const club = input.clubToken ? tx.db.clubs.token.find(input.clubToken) : undefined

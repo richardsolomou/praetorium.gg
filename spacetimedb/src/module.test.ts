@@ -691,12 +691,12 @@ describe('leagues becoming clubs', () => {
     expect(fixture.club()?.members.some((member) => member.userId === 'waiting')).toBe(false)
   })
 
-  it('makes each event its own tournament in the club', () => {
+  it('makes each event its own unnamed sealed game in the club', () => {
     const fixture = setup()
     fixture.migrate()
     expect(fixture.club()?.tournaments.map((tournament) => [tournament.token, tournament.name])).toEqual([
-      ['event-token-2', 'Club night, event 2'],
-      ['league-token', 'Club night, event 1'],
+      ['event-token-2', ''],
+      ['league-token', ''],
     ])
   })
 

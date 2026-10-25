@@ -6,13 +6,13 @@ import {
   leagueAllowanceOptions,
   leagueTableShape,
   leagueRegistrationFull,
-  leagueRosterSplit,
+  leagueTitle,
   type LeagueAdmission,
   type LeagueAllowance,
   type LeagueEntryView,
   type LeagueStage,
 } from '../../../core/league'
-import { GAME_SIZES, pointsLabel } from '../../../core/battle'
+import { pointsLabel } from '../../../core/battle'
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import type { openLeague } from '../../functions'
 import { leagueReadsKey, leaguesKey, outdatedLeagueEntriesKey } from '../../queries'
@@ -138,17 +138,28 @@ type LeagueFacts = {
   revealedAt: number | null
 }
 
-/**
- * A league's table shape and points, such as "Duel · 2,000 points" or "Duel · 750 points at Incursion" for its own
- * total, or null for an event that fixed neither.
- */
-export function leagueFormat(league: Pick<LeagueFacts, 'format' | 'rosterLimit'> & { pointsBudget?: number | null }) {
-  if (!league.format || !league.rosterLimit) return null
-  const size = GAME_SIZES.find((candidate) => candidate.limit === league.rosterLimit)
-  const points = league.pointsBudget
-    ? `${pointsLabel(league.pointsBudget)}${size ? ` at ${size.name}` : ''}`
-    : (leagueRosterSplit(league.format, league.rosterLimit) ?? pointsLabel(league.rosterLimit))
-  return `${TABLE_SHAPE_LABELS[league.format].name} · ${points}`
+export { leagueFormat } from '../../../core/league'
+
+type NamedEvent = {
+  name: string
+  format?: TableShape | null
+  rosterLimit?: number | null
+  pointsBudget?: number | null
+  club?: { name?: string } | null
+}
+
+/** An event's name where its club is in view: a tournament's own name, or what a sealed game plays. */
+export const eventName = (event: NamedEvent) => namedEvent(event, false)
+
+/** An event's name on its own, such as on Home or an invite: a sealed game reads after its club. */
+export const eventFullName = (event: NamedEvent) => namedEvent(event, true)
+
+function namedEvent(event: NamedEvent, withClub: boolean) {
+  return leagueTitle(
+    { name: event.name, format: event.format ?? null, rosterLimit: event.rosterLimit ?? null, pointsBudget: event.pointsBudget },
+    event.club ? { name: event.club.name ?? '' } : null,
+    { withClub },
+  )
 }
 
 /**

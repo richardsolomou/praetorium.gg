@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { eventFullName } from '../leagues/leagueEvent'
 import { ChevronRight, ScrollText, UserPlus } from 'lucide-react'
 import type { ReactNode } from 'react'
 
@@ -19,7 +20,7 @@ export function HomeWaiting({ rostersDue, friendRequests }: { rostersDue: readon
           <li key={league.token}>
             <Link to="/tournaments/$token" params={{ token: league.token }} className={ROW}>
               <Row icon={<ScrollText className="size-4 text-parchment" aria-hidden />}>
-                <span className="font-bold uppercase">{league.name}</span> needs your roster
+                <span className="font-bold uppercase">{eventFullName(league)}</span> needs your roster
               </Row>
             </Link>
           </li>
