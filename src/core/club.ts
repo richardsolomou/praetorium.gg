@@ -1,3 +1,42 @@
+import { z } from 'zod'
+
+export const clubGameTimeZoneSchema = z
+  .string()
+  .min(1)
+  .max(100)
+  .refine((timeZone) => {
+    try {
+      new Intl.DateTimeFormat('en', { timeZone }).format(0)
+      return true
+    } catch {
+      return false
+    }
+  }, 'choose a valid timezone')
+
+/** The first instant after this calendar day, including days shortened or lengthened by daylight saving. */
+function dayEndsAt(at: number, timeZone: string) {
+  const date = new Intl.DateTimeFormat('en-CA', { timeZone, dateStyle: 'short' })
+  const day = date.format(at)
+  let before = at
+  let after = at + 48 * 60 * 60_000
+  while (after - before > 1) {
+    const middle = Math.floor((before + after) / 2)
+    if (date.format(middle) === day) before = middle
+    else after = middle
+  }
+  return after
+}
+
+export function clubGamePastAt(game: { playsAt: number | null; revealedAt: number | null; supersededAt: number | null; timeZone: string }) {
+  const day = game.playsAt ?? game.revealedAt
+  const endsAt = day === null ? null : dayEndsAt(day, game.timeZone)
+  return game.supersededAt === null ? endsAt : endsAt === null ? game.supersededAt : Math.min(endsAt, game.supersededAt)
+}
+
+export function clubGameOpen(game: { pastAt: number | null }, now: number) {
+  return game.pastAt === null || now < game.pastAt
+}
+
 export const CLUB_MEMBER_STATUSES = ['pending', 'accepted'] as const
 export type ClubMemberStatus = (typeof CLUB_MEMBER_STATUSES)[number]
 

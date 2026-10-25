@@ -66,6 +66,8 @@ export const ClubGames = __t.object('ClubGames', {
   clubId: __t.string(),
   creatorId: __t.string(),
   createdAt: __t.u64(),
+  timeZone: __t.option(__t.string()),
+  supersededAt: __t.option(__t.u64()),
 })
 export type ClubGames = __Infer<typeof ClubGames>
 

@@ -1,5 +1,6 @@
 import { ADMIN_USER_ROLES, ADMIN_USER_SORTS } from '../admin'
 import { z } from 'zod'
+import { clubGameTimeZoneSchema } from '../core/club'
 import { REPLAY_BATCH_SIZE } from '../contracts/battles'
 import { onboardingTaskIds, tourTaskIds } from '../core/onboarding'
 import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
@@ -123,6 +124,7 @@ export const createLeagueSchema = z
 export const createClubGameSchema = z
   .object({
     clubToken: token,
+    timeZone: clubGameTimeZoneSchema.optional(),
     ...leagueEventRuleFields,
     rounds: z.null().optional(),
     schedule: leagueSchedule.optional(),

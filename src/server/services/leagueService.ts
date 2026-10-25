@@ -58,9 +58,11 @@ export class LeagueService {
     {
       clubToken,
       schedule,
+      timeZone,
       ...input
     }: Omit<EventRuleInput, 'rounds'> & {
       clubToken: string
+      timeZone?: string
       schedule?: LeagueSchedule
     },
   ) {
@@ -71,6 +73,7 @@ export class LeagueService {
       clubToken,
       ownerId,
       schedule,
+      timeZone,
       ...eventRule(input),
       now: this.clock(),
     })

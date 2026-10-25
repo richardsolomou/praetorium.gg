@@ -19,3 +19,7 @@ it.each(['cancel_friend_invite', 'remove_battle'])('acknowledges an already abse
 it('retains a league submission with an invalid size as refused', () => {
   expect(productSyncRefusal('league_command', { outcome: 'wrong-limit' })).toBe('The server declined this action (wrong-limit).')
 })
+
+it('retains a queued action for a past club game as refused', () => {
+  expect(productSyncRefusal('league_command', 'past')).toBe('The server declined this action (past).')
+})

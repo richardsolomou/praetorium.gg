@@ -20,6 +20,7 @@ const failures = new Set([
   'disposition-dropped',
   'disallowed',
   'past-deadline',
+  'past',
   'wrong-budget',
   'self',
   'already-friends',

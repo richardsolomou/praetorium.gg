@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Check, ChevronRight, EllipsisVertical, Eye, FileLock2, LogOut, Pencil, Swords, Trash2, UserPlus } from 'lucide-react'
+import { Calculator, Check, ChevronRight, EllipsisVertical, Eye, FileLock2, LogOut, Pencil, Swords, Trash2, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -17,6 +17,7 @@ import { countLabel } from '../../text'
 import { useNow } from '../../useNow'
 import { useMoment } from '../leagues/EventSchedule'
 import { ViewRosterButton } from '../leagues/LeagueEntrants'
+import { LeagueCombatDialog } from '../leagues/LeagueCombatDialog'
 import { RosterChooser } from '../leagues/LeagueRosterChooser'
 import { LeagueSettingsDialog } from '../leagues/LeagueSettingsDialog'
 import { TeamDispositionPanel } from '../leagues/LeagueTeamDisposition'
@@ -88,6 +89,7 @@ export function ClubSealedGame({
   const [revealing, setRevealing] = useState(false)
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [simulating, setSimulating] = useState<string | null>(null)
   // A side to move to, or null to step out, held while a sealed player confirms losing their list.
   const [moving, setMoving] = useState<LeagueSide | null | undefined>(undefined)
 
@@ -116,8 +118,6 @@ export function ClubSealedGame({
   const ownLimit = team
     ? requiredLeagueRosterLimit(game.format, game.rosterLimit, ownEntry?.requiredLimit ?? null, ownEntry?.teamId ?? null)
     : game.rosterLimit
-  // Everyone who sealed and has a battle in this game, so a past game lists only the lists nobody played.
-  const battled = new Set([...game.played.flat(), ...game.playing])
 
   const mayTakeSeat = member && !revealed && !closed
 
@@ -200,46 +200,59 @@ export function ClubSealedGame({
     const name = nameOf(player.userId)
     const list = revealed || player.userId === viewerId ? listName(player.userId) : null
     return (
-      <li key={player.userId} data-person={name} className="flex min-w-0 items-center gap-3 px-4 py-1.5">
+      <li key={player.userId} data-person={name} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2">
         <PlayerAvatar name={name} image={person?.image ?? null} className="size-8 text-2xs" />
-        <span className="min-w-0 flex-1">
+        <span className="min-w-0 flex-1 basis-24">
           <span className="flex min-w-0 items-baseline gap-1.5">
             <span className="truncate text-sm leading-tight font-bold uppercase">{name}</span>
             {player.userId === viewerId ? <span className="eyebrow shrink-0 text-parchment">You</span> : null}
           </span>
           {list ? <span className="mt-0.5 block truncate text-xs text-dim uppercase">{list}</span> : null}
         </span>
-        {revealed ? (
-          <>
-            <ViewRosterButton token={game.token} eventToken={game.token} userId={player.userId} label={name} />
-            {!team && own?.sealed && player.userId !== viewerId && player.sealed ? (
-              hasPlayed(player.userId) ? (
-                // A past game lists its battles above, so only Up next marks who is done.
-                embedded ? null : game.playing.includes(player.userId) && game.playing.includes(viewerId ?? '') ? (
-                  <span className="chip shrink-0">Playing</span>
+        <span className="ml-auto flex shrink-0 flex-wrap items-center justify-end gap-1">
+          {revealed ? (
+            <>
+              {!embedded && !team && own?.sealed && player.userId !== viewerId && player.sealed ? (
+                hasPlayed(player.userId) ? (
+                  game.playing.includes(player.userId) && game.playing.includes(viewerId ?? '') ? (
+                    <span className="chip shrink-0">Playing</span>
+                  ) : (
+                    <span className="chip shrink-0 text-achieved">Played</span>
+                  )
                 ) : (
-                  <span className="chip shrink-0 text-achieved">Played</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    aria-label={`Play ${name}`}
+                    disabled={play.isPending}
+                    onClick={() => play.mutate(player.userId)}
+                  >
+                    <Swords /> Play
+                  </Button>
                 )
-              ) : (
+              ) : null}
+              {member && own?.sealed && player.sealed && player.userId !== viewerId ? (
                 <Button
-                  size="sm"
-                  variant="outline"
-                  aria-label={`Play ${name}`}
-                  disabled={play.isPending}
-                  onClick={() => play.mutate(player.userId)}
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={`Simulate against ${name}`}
+                  title="Simulate"
+                  className="text-dim hover:text-info pointer-coarse:size-11"
+                  onClick={() => setSimulating(player.userId)}
                 >
-                  <Swords /> Play
+                  <Calculator aria-hidden />
                 </Button>
-              )
-            ) : null}
-          </>
-        ) : player.sealed ? (
-          <span className="flex shrink-0 items-center gap-1 text-sm text-achieved">
-            <Check className="size-4" aria-hidden /> Sealed
-          </span>
-        ) : (
-          <span className="shrink-0 text-sm text-faint">Choosing</span>
-        )}
+              ) : null}
+              <ViewRosterButton token={game.token} eventToken={game.token} userId={player.userId} label={name} />
+            </>
+          ) : player.sealed ? (
+            <span className="flex shrink-0 items-center gap-1 text-sm text-achieved">
+              <Check className="size-4" aria-hidden /> Sealed
+            </span>
+          ) : (
+            <span className="shrink-0 text-sm text-faint">Choosing</span>
+          )}
+        </span>
       </li>
     )
   }
@@ -253,7 +266,7 @@ export function ClubSealedGame({
         <EllipsisVertical />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        {revealed ? null : (
+        {revealed || embedded ? null : (
           <DropdownMenuItem onClick={() => setEditing(true)}>
             <Pencil /> Edit
           </DropdownMenuItem>
@@ -266,11 +279,11 @@ export function ClubSealedGame({
   ) : null
   const lists = team ? (
     <div className="border-t border-edge">
-      <div className={`grid gap-px bg-edge ${sides.length > 1 ? 'sm:grid-cols-2' : ''}`}>
+      <div className={`grid grid-cols-1 gap-px bg-edge ${sides.length > 1 ? 'sm:grid-cols-2' : ''}`}>
         {sides.map((entry) => {
           const seated = entry.players.some((player) => player.userId === viewerId)
           return (
-            <section key={entry.key} data-side={entry.title} aria-label={entry.title} className="bg-panel">
+            <section key={entry.key} data-side={entry.title} aria-label={entry.title} className="min-w-0 bg-panel">
               <h4 className="eyebrow px-4 pt-3 pb-1 text-dim">{entry.title}</h4>
               <ul className="divide-y divide-edge">
                 {entry.players.map(row)}
@@ -310,7 +323,6 @@ export function ClubSealedGame({
       {!players.length ? <li className="px-4 py-2.5 text-sm text-dim">Nobody has sealed a list yet.</li> : null}
     </ul>
   )
-  // The lists above already name each player's army, so a battle needs only who met whom and how it stands.
   const gameBattles = battles.length ? (
     <div className={embedded ? '' : 'border-t border-edge'}>
       {embedded ? null : <p className="eyebrow px-4 pt-3 pb-1 text-dim">Battles</p>}
@@ -330,8 +342,6 @@ export function ClubSealedGame({
       className={embedded ? 'bg-panel' : `border bg-panel ${highlighted ? 'border-parchment' : 'border-edge'}`}
     >
       {embedded ? (
-        // A past game is read for what it produced. Its battle cards already name each player's army, so only lists
-        // sealed and never played are listed.
         <>
           <div className="flex min-w-0 items-center gap-3 border-b border-edge py-2 pr-2 pl-4">
             <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-3">
@@ -347,22 +357,14 @@ export function ClubSealedGame({
             {menu}
           </div>
           {gameBattles}
-          {sealed.some((player) => !battled.has(player.userId)) ? (
-            <>
-              <p className={`eyebrow px-4 pt-3 pb-2 text-dim ${battles.length ? 'border-t border-edge' : ''}`}>
-                {battles.length ? 'Sealed, not played' : 'Lists'}
-              </p>
-              <ul className="divide-y divide-edge border-t border-edge">
-                {sealed.filter((player) => !battled.has(player.userId)).map(row)}
-              </ul>
-            </>
-          ) : null}
-          {team && toPlay.length ? (
-            <div className="border-t border-edge p-3">
-              <Button size="sm" disabled={play.isPending} onClick={() => play.mutate(toPlay[0]!.userId)}>
-                <Swords /> Start battle
-              </Button>
-            </div>
+          {sealed.length ? (
+            <details className="group border-t border-edge" open={game.battles === 0}>
+              <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-2 text-sm text-dim hover:text-bone">
+                <ChevronRight className="size-4 shrink-0 group-open:rotate-90" aria-hidden />
+                <span>Lists · {countLabel(sealed.length, 'player')}</span>
+              </summary>
+              <ul className="divide-y divide-edge border-t border-edge">{sealed.map(row)}</ul>
+            </details>
           ) : null}
         </>
       ) : (
@@ -420,6 +422,32 @@ export function ClubSealedGame({
         </>
       )}
       {play.error ? <Problem error={play.error} className="px-4 pb-3" /> : null}
+
+      {simulating && revealed && member && own?.sealed && viewerId ? (
+        <LeagueCombatDialog
+          token={game.token}
+          eventToken={game.token}
+          viewerId={viewerId}
+          opponentId={simulating}
+          entries={sealed.map((player) => ({
+            userId: player.userId,
+            label: nameOf(player.userId),
+            owner: { name: nameOf(player.userId), image: people.get(player.userId)?.image },
+          }))}
+          teams={sides.flatMap((entry) =>
+            entry.players.length > 1 && entry.players.every((player) => player.sealed)
+              ? [
+                  {
+                    id: `team:${entry.key}`,
+                    label: `${entry.title}: ${namesPhrase(entry.players.map((player) => nameOf(player.userId)))}`,
+                    userIds: entry.players.map((player) => player.userId),
+                  },
+                ]
+              : [],
+          )}
+          onClose={() => setSimulating(null)}
+        />
+      ) : null}
 
       <RosterChooser
         open={choosing}
@@ -545,13 +573,4 @@ function unplayedOpponents(game: Game, viewerId: string | null) {
           : true) &&
       !played.has([own.userId, player.userId].toSorted().join('|')),
   )
-}
-
-/**
- * Whether a game belongs under Up next: until its lists are revealed, while the reader has a battle in it still going,
- * and while it is the club's newest game and the reader has someone left to play.
- */
-export function sealedGameOpen(club: Club, game: Game, viewerId: string | null) {
-  if (game.revealedAt === null || (viewerId !== null && game.playing.includes(viewerId))) return true
-  return game.token === club.games[0]?.token && unplayedOpponents(game, viewerId).length > 0
 }
