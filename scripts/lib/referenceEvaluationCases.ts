@@ -59,7 +59,8 @@ export const referenceEvaluationFixtures: readonly Fixture[] = [
     name: 'referenced keyword name',
     expectedDocumentId: 'datasheet:adepta-sororitas:battle-sisters-squad',
     expectedSectionId: 'keyword-rules',
-    query: { kind: 'section-title' },
+    // Every datasheet has a section titled "Keyword rules", so its title alone ties them all; these are keyword names it lists.
+    query: { kind: 'document-title-and-section-text', start: 3, words: 3 },
     kinds: ['datasheet'],
     faction: 'Adepta Sororitas',
   },
