@@ -16,7 +16,7 @@ When the game ends, the result goes on the table. Ratings work as on the [leader
 
 ## Sealed games
 
-An organizer can start one with **New sealed game**. Only members can join, and they're in as soon as they do. Everyone seals a list in secret, then you reveal them together and play. The results go on the club table. Sealing works the same as in a [tournament](/docs/run-a-tournament).
+An organizer can start one with **New sealed game**. It shows under **Up next** on the club page. Any member can seal a list there in secret, and once everyone who sealed is ready, reveal the lists together. Then each of you plays everyone else who sealed, with **Play** beside their name. Sealed games are one-on-one, and the results go on the club table.
 
 ## Leave or delete a club
 

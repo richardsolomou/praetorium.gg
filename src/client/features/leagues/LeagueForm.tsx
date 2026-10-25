@@ -116,6 +116,7 @@ export function LeagueFormFields({
           <LeagueEventRuleFields
             value={value}
             pairing={tournament}
+            duelOnly={!tournament}
             disabled={disabled}
             onChange={(rule) =>
               // A shape the limit cannot seat starts its limit at the fewest places that do.

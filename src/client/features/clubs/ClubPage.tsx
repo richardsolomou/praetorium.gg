@@ -5,14 +5,13 @@ import {
   Clipboard,
   EllipsisVertical,
   Eye,
+  FileLock2,
   LockKeyhole,
   LogOut,
   Pencil,
-  Plus,
   Share2,
   Swords,
   Trash2,
-  Trophy,
   UserPlus,
   X,
 } from 'lucide-react'
@@ -33,16 +32,16 @@ import { Standings } from '../leaderboard/Standings'
 import { inviteFeedbackText, useInviteShare } from '../leagues/LeagueActions'
 import { SectionHeading } from '../leagues/LeagueEntrants'
 import { LeagueSettingsDialog } from '../leagues/LeagueSettingsDialog'
-import { useMoment } from '../leagues/EventSchedule'
 import { eventName } from '../leagues/leagueEvent'
 import { useDateFormatting } from '../../dates'
 import type { Club } from './club'
 import { ClubSettingsDialog } from './ClubSettingsDialog'
+import { ClubSealedGame, sealedGameOpen } from './ClubSealedGame'
 
 type Member = Club['members'][number]
 type ClubTable = NonNullable<Awaited<ReturnType<NonNullable<ReturnType<typeof clubStandingsQuery>['queryFn']>>>>
 
-export function ClubPage({ token }: { token: string }) {
+export function ClubPage({ token, game }: { token: string; game?: string }) {
   const navigate = useNavigate()
   const { data: me } = useQuery(meQuery())
   const { data: club } = useQuery(clubQuery(token))
@@ -50,7 +49,7 @@ export function ClubPage({ token }: { token: string }) {
     if (club === null) void navigate({ to: '/clubs' })
   }, [club, navigate])
   if (!club) return null
-  return <ClubScreen club={club} viewerId={me?.id ?? null} />
+  return <ClubScreen club={club} viewerId={me?.id ?? null} highlight={game} />
 }
 
 function useClubRefresh(token: string) {
@@ -59,7 +58,7 @@ function useClubRefresh(token: string) {
     Promise.all([queryClient.invalidateQueries({ queryKey: clubKey(token) }), queryClient.invalidateQueries({ queryKey: clubsKey() })])
 }
 
-function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null }) {
+function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: string | null; highlight: string | undefined }) {
   const navigate = useNavigate()
   const refresh = useClubRefresh(club.token)
   const { data: table } = useQuery(clubStandingsQuery(club.token))
@@ -161,10 +160,10 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
             )}
           </div>
           <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-span-2 lg:row-start-1">
-            <UpNext club={club} table={table} viewerId={viewerId} />
+            <UpNext club={club} table={table} viewerId={viewerId} highlight={highlight} />
             <RecentGames table={table} viewerId={viewerId} member={member} />
             {table?.finished ? <ClubTable table={table} viewerId={viewerId} /> : null}
-            <SealedGames club={club} />
+            <PastSealedGames club={club} viewerId={viewerId} />
           </div>
           <aside className="space-y-6 lg:col-start-2">
             <Members club={club} viewerId={viewerId} isOwner={isOwner} play={member ? play : null} />
@@ -259,7 +258,30 @@ function NewGame({ club, viewerId, play }: { club: Club; viewerId: string; play:
         <p className="mt-1.5 text-sm text-dim">Nobody else is in the club yet. Copy the invite link to bring people in.</p>
       )}
       {play.error ? <Problem error={play.error} className="mt-2" /> : null}
+      {club.organizer ? <NewSealedGame club={club} /> : null}
     </section>
+  )
+}
+
+/** An organizer's other way to start: a sealed game, where members seal lists for the evening and play each other. */
+function NewSealedGame({ club }: { club: Club }) {
+  const refresh = useClubRefresh(club.token)
+  const [creating, setCreating] = useState(false)
+  return (
+    <div className="mt-4 border-t border-edge pt-4">
+      <Button variant="outline" className="w-full" onClick={() => setCreating(true)}>
+        <FileLock2 /> New sealed game
+      </Button>
+      <p className="mt-2 text-xs text-dim">Everyone seals a list in secret, you reveal them together, then play each other.</p>
+      <LeagueSettingsDialog
+        mode={{ kind: 'create', clubToken: club.token }}
+        open={creating}
+        onOpenChange={(open) => {
+          setCreating(open)
+          if (!open) void refresh()
+        }}
+      />
+    </div>
   )
 }
 
@@ -298,35 +320,28 @@ function JoinClub({ club, viewerId, own }: { club: Club; viewerId: string | null
   )
 }
 
-/** What the reader has coming: their own unfinished club battles, and sealed games still taking lists. */
-function UpNext({ club, table, viewerId }: { club: Club; table: ClubTable | null | undefined; viewerId: string | null }) {
-  const moment = useMoment()
-  const open = club.games.filter((game) => !game.revealedAt)
+/** What the reader has coming: their own unfinished club battles, and sealed games still being sealed or played. */
+function UpNext({
+  club,
+  table,
+  viewerId,
+  highlight,
+}: {
+  club: Club
+  table: ClubTable | null | undefined
+  viewerId: string | null
+  highlight: string | undefined
+}) {
+  const games = club.games.filter((game) => sealedGameOpen(game, viewerId))
   const active = table?.active ?? []
-  if (!open.length && !active.length) return null
+  if (!games.length && !active.length) return null
   return (
     <section className="space-y-3">
       <SectionHeading title="Up next" />
+      {games.map((game) => (
+        <ClubSealedGame key={game.token} club={club} game={game} viewerId={viewerId} highlighted={game.token === highlight} />
+      ))}
       {active.length ? <BattleShelf name="Your club battles" battles={active} viewerId={viewerId ?? undefined} /> : null}
-      {open.length ? (
-        <ul className="divide-y divide-edge border border-edge bg-panel">
-          {open.map((game) => (
-            <li key={game.token}>
-              <Link
-                to="/clubs/$token/games/$game"
-                params={{ token: club.token, game: game.token }}
-                className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 p-3 hover:bg-raised"
-              >
-                <span className="chip shrink-0 text-discarded">Sealed game</span>
-                <span className="min-w-0 flex-1 truncate font-semibold">{eventName({ ...game, tournament: null, club })}</span>
-                <span className="shrink-0 text-sm text-dim">
-                  {game.sealBy ? `Lists due ${moment(game.sealBy)}` : game.playsAt ? moment(game.playsAt) : 'Taking lists'}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : null}
     </section>
   )
 }
@@ -362,53 +377,24 @@ function ClubTable({ table, viewerId }: { table: ClubTable; viewerId: string | n
   )
 }
 
-/** Sealed games whose lists are out; open ones lead the page under Up next. Organizers start new ones here. */
-function SealedGames({ club }: { club: Club }) {
-  const refresh = useClubRefresh(club.token)
-  const [creating, setCreating] = useState(false)
+/** Sealed games the reader has nothing left to do in. Their battles are in Recent games and on the table. */
+function PastSealedGames({ club, viewerId }: { club: Club; viewerId: string | null }) {
   const { date } = useDateFormatting()
-  const played = club.games.filter((game) => game.revealedAt)
-  if (!played.length && !club.organizer) return null
+  const past = club.games.filter((game) => !sealedGameOpen(game, viewerId))
+  if (!past.length) return null
   return (
     <section>
-      <SectionHeading
-        title="Sealed games"
-        count={played.length || undefined}
-        action={
-          club.organizer ? (
-            <Button size="sm" variant="outline" onClick={() => setCreating(true)}>
-              <Plus /> New sealed game
-            </Button>
-          ) : null
-        }
-      />
-      {played.length ? (
-        <ul className="divide-y divide-edge border border-edge bg-panel">
-          {played.map((game) => (
-            <li key={game.token}>
-              <Link
-                to="/clubs/$token/games/$game"
-                params={{ token: club.token, game: game.token }}
-                className="flex min-w-0 items-center gap-3 p-3 hover:bg-raised"
-              >
-                <Trophy className="size-4 shrink-0 text-info" aria-hidden />
-                <span className="min-w-0 flex-1 truncate font-semibold">{eventName({ ...game, tournament: null, club })}</span>
-                <span className="shrink-0 text-sm text-dim">{date(game.playsAt ?? game.createdAt)}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-dim">Everyone seals a list in secret, then you reveal them together and play.</p>
-      )}
-      <LeagueSettingsDialog
-        mode={{ kind: 'create', clubToken: club.token }}
-        open={creating}
-        onOpenChange={(open) => {
-          setCreating(open)
-          if (!open) void refresh()
-        }}
-      />
+      <SectionHeading title="Past sealed games" count={past.length} />
+      <ul className="divide-y divide-edge border border-edge bg-panel">
+        {past.map((game) => (
+          <li key={game.token} className="flex min-w-0 items-center gap-3 p-3">
+            <span className="min-w-0 flex-1 truncate font-semibold">{eventName({ ...game, tournament: null, club })}</span>
+            <span className="shrink-0 text-sm text-dim">
+              {game.players.filter((player) => player.sealed).length} players · {date(game.playsAt ?? game.revealedAt ?? game.createdAt)}
+            </span>
+          </li>
+        ))}
+      </ul>
     </section>
   )
 }

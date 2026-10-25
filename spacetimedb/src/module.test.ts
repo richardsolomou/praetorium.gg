@@ -753,6 +753,51 @@ describe('club games', () => {
     expect(setup().create('owner', { rounds: 3 })).toBe('forbidden')
   })
 
+  it('plays duels only', () => {
+    expect(setup().create('owner', { format: '2v2' })).toBe('forbidden')
+  })
+
+  it('enters a member who seals a list without joining first', () => {
+    const fixture = setup()
+    fixture.create('owner')
+    module.saveRoster(fixture.procedure(fixture.operator), {
+      payload: JSON.stringify({
+        id: 'saved',
+        userId: 'member',
+        name: 'Club army',
+        automaticName: false,
+        catalogueId: 'catalogue',
+        detachmentId: '[]',
+        disposition: null,
+        limit: 2000,
+        picks: '[]',
+        prep: '{"reminders":[]}',
+        tags: '[]',
+        waivedRules: '[]',
+        optionalRules: '[]',
+        borrowedDetachmentId: null,
+        visibility: 'private',
+        source: 'editable',
+        now: NOW,
+      }),
+    })
+    const captain = { key: 'captain', entryId: 'captain', name: 'Captain', models: 1, points: 80, warlord: true, group: 'character' }
+    const built = { catalogueId: 'catalogue', revision: 'revision', limit: 2000, detachment: null, disposition: null, units: [captain] }
+    expect(
+      fixture.game({
+        op: 'submit',
+        ownerId: 'member',
+        userId: 'member',
+        rosterId: 'saved',
+        rosterName: 'Club army',
+        rosterLimit: 2000,
+        rosterUpdatedAt: NOW,
+        snapshot: JSON.stringify({ name: 'Club army', text: 'Club army', built }),
+        now: NOW,
+      }),
+    ).toMatchObject({ outcome: 'sealed' })
+  })
+
   it('lets a member straight in, whatever the club’s own admission', () => {
     const fixture = setup()
     fixture.create('owner')

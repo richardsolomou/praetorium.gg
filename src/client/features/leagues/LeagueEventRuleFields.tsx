@@ -57,10 +57,13 @@ export const ROSTER_RULE: Partial<Record<TableShape, string>> = {
 export function LeagueEventRuleFields({
   value,
   pairing = false,
+  duelOnly = false,
   disabled = false,
   onChange,
 }: {
   value: LeagueEventRuleValue
+  /** A club's sealed game is a round of duels, so it offers no other format. */
+  duelOnly?: boolean
   /** Whether the organizer may choose Swiss rounds, which a club's sealed game never plays. */
   pairing?: boolean
   disabled?: boolean
@@ -80,25 +83,27 @@ export function LeagueEventRuleFields({
 
   return (
     <>
-      <Choice
-        label="Battle format"
-        value={value.format}
-        options={TABLE_SHAPES.map((shape) => ({ value: shape, ...TABLE_SHAPE_LABELS[shape] }))}
-        columns={3}
-        disabled={disabled}
-        onChange={(format) =>
-          onChange(
-            offeredAllowances({
-              ...value,
-              format,
-              rosterLimit:
-                format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)
-                  ? LEAGUE_DEFAULT_ROSTER_LIMIT
-                  : value.rosterLimit,
-            }),
-          )
-        }
-      />
+      {duelOnly ? null : (
+        <Choice
+          label="Battle format"
+          value={value.format}
+          options={TABLE_SHAPES.map((shape) => ({ value: shape, ...TABLE_SHAPE_LABELS[shape] }))}
+          columns={3}
+          disabled={disabled}
+          onChange={(format) =>
+            onChange(
+              offeredAllowances({
+                ...value,
+                format,
+                rosterLimit:
+                  format !== '1v1' && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)
+                    ? LEAGUE_DEFAULT_ROSTER_LIMIT
+                    : value.rosterLimit,
+              }),
+            )
+          }
+        />
+      )}
       <div className="space-y-1.5">
         {limits.length > 1 ? (
           <>

@@ -3309,10 +3309,26 @@ export const clubByToken = spacetime.procedure({ token: t.string() }, t.string()
         format: event.format ?? null,
         rosterLimit: event.rosterLimit ?? null,
         pointsBudget: event.pointsBudget ?? null,
+        players: leagueEntriesFor(tx, event.id)
+          .filter((entry) => entry.status === 'accepted')
+          .map((entry) => ({ userId: entry.userId, sealed: entry.rosterSnapshot !== undefined })),
+        played: playedPairs(tx, event.id),
       })),
     })
   }),
 )
+
+/** Which entrants have already started a battle against each other in an event, as sorted id pairs. */
+function playedPairs(ctx: Context, eventId: string) {
+  const pairs = new Set<string>()
+  for (const row of ctx.db.leagueEventBattles.eventId.filter(eventId)) {
+    const seats = Array.from(ctx.db.battleUsers.battleId.filter(row.battleId))
+    for (const one of seats)
+      for (const other of seats)
+        if (one.side !== other.side && one.userId < other.userId) pairs.add(JSON.stringify([one.userId, other.userId]))
+  }
+  return [...pairs].map((pair) => JSON.parse(pair) as [string, string])
+}
 
 /** Public clubs and every club a player owns, belongs to, or has asked to join, their own first. */
 export const clubsVisibleTo = spacetime.procedure({ userId: t.string(), limit: t.u32() }, t.string(), (ctx, { userId, limit }) =>
@@ -3819,8 +3835,14 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       })
     } else {
       const club = tx.db.clubs.token.find(leagueCommandInput(z.object({ clubToken: idInput }), value).clubToken)
-      // A club's game is casual, so Swiss rounds are a tournament's alone.
-      if (!club || input.rounds !== null || !isClubOrganizer(club, clubMemberRows(tx, club), input.ownerId)) return productJson('forbidden')
+      // A club's game is a casual round of duels between members, so Swiss rounds and team formats are a tournament's alone.
+      if (
+        !club ||
+        input.rounds !== null ||
+        (input.format ?? '1v1') !== '1v1' ||
+        !isClubOrganizer(club, clubMemberRows(tx, club), input.ownerId)
+      )
+        return productJson('forbidden')
       tx.db.clubGames.insert({ eventId: input.eventId, clubId: club.id, creatorId: input.ownerId, createdAt })
     }
     tx.db.sealedEvents.insert({
@@ -3959,7 +3981,9 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     }
     if (rule) {
       const rounds = rule.rounds === undefined ? event.rounds : (rule.rounds ?? undefined)
-      if (rounds !== undefined && (host.kind === 'club' || rule.format !== '1v1')) return productJson('forbidden')
+      // Swiss rounds pair duels; a club game is always a round of duels without them.
+      if (rounds !== undefined && rule.format !== '1v1') return productJson('forbidden')
+      if (host.kind === 'club' && (rounds !== undefined || rule.format !== '1v1')) return productJson('forbidden')
       const points =
         rule.pointsBudget === undefined
           ? { budget: rule.format === '1v1' && rule.rosterLimit === event.rosterLimit ? event.pointsBudget : undefined }
@@ -4303,6 +4327,14 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       }),
       value,
     )
+    // In a club game sealing a list is how a member takes part, so the first seal also enters them.
+    if (
+      host.kind === 'club' &&
+      event.revealedAt === undefined &&
+      !tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, input.userId])) &&
+      tx.db.clubMembers.key.find(JSON.stringify([host.club.id, input.userId]))?.status === 'accepted'
+    )
+      insertLeagueEntry(tx, event.id, input.userId, 'accepted', input.now)
     const entry = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, input.userId]))
     if (!entry || entry.status !== 'accepted' || (event.revealedAt !== undefined && entry.rosterSnapshot !== undefined))
       return productJson({ outcome: 'missing' })

@@ -1,5 +1,5 @@
-import { expect, test } from './test'
-import { befriend, createBattle, retryUntilVisible, signUp, uniqueName } from './account'
+import { expect, test, type Locator, type Page } from './test'
+import { befriend, createBattle, createRoster, makeWarlord, retryUntilVisible, signUp, uniqueName } from './account'
 import { productSql } from './storage'
 import type { Command } from '../src/core/battle'
 
@@ -62,22 +62,6 @@ test('club members choose their club at battle setup', async ({ browser }, testI
   await expect(table.locator('tbody tr').first()).toContainText(ownerName)
   await owner.screenshot({ path: testInfo.outputPath('club-page.png'), fullPage: true })
 
-  // A sealed game the club plays links back to it and is listed on the club page, not under tournaments.
-  const game = owner.getByRole('dialog', { name: 'New sealed game' })
-  await retryUntilVisible(game, () => owner.getByRole('button', { name: 'New sealed game' }).click({ timeout: 1_000 }))
-  await game.getByRole('button', { name: 'Start sealed game' }).click()
-  await expect(owner).toHaveURL(/\/clubs\/[^/]+\/games\/[^/?]+$/)
-  await expect(owner.getByText('Sealed game', { exact: true })).toBeVisible()
-  // A tournament address for the game still finds it, under its club.
-  const gamePath = new URL(owner.url()).pathname
-  const gameToken = gamePath.split('/').at(-1)!
-  await owner.goto(`/tournaments/${gameToken}`)
-  await expect(owner).toHaveURL(new RegExp(`${gamePath}$`))
-  await owner.getByRole('link', { name: clubName }).click()
-  await expect(owner.locator(`a[href="${gamePath}"]`)).toBeVisible()
-  await owner.goto('/tournaments')
-  await expect(owner.getByRole('heading', { name: 'Tournaments', exact: true })).toBeVisible()
-  await expect(owner.locator(`a[href*="${gameToken}"]`)).toHaveCount(0)
   await ownerContext.close()
   await memberContext.close()
 })
@@ -113,3 +97,78 @@ test('members who are not friends start a club game from the club page', async (
   await ownerContext.close()
   await memberContext.close()
 })
+
+test('a club seals lists for a game night and plays them from the club page', async ({ browser }) => {
+  test.setTimeout(180_000)
+  const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
+  const memberContext = await browser.newContext()
+  const owner = await ownerContext.newPage()
+  const member = await memberContext.newPage()
+  const memberName = uniqueName('Sealed regular')
+  await signUp(owner, uniqueName('Sealed host'))
+  await signUp(member, memberName)
+  await sealableRoster(owner, 'Host army')
+  await sealableRoster(member, 'Regular army')
+
+  await owner.goto('/clubs')
+  const create = owner.getByRole('dialog', { name: 'New club' })
+  await retryUntilVisible(create, () => owner.getByRole('button', { name: 'New club' }).click({ timeout: 1_000 }))
+  const clubName = uniqueName('Game night')
+  await create.getByLabel('Name').fill(clubName)
+  await create.getByRole('button', { name: 'Create club' }).click()
+  await expect(owner.getByRole('heading', { name: clubName })).toBeVisible()
+  const clubUrl = owner.url()
+  await member.goto(clubUrl)
+  await retryUntilVisible(member.locator('[data-person]').filter({ hasText: memberName }), () =>
+    member.getByRole('button', { name: 'Join club' }).click({ timeout: 1_000 }),
+  )
+
+  // The game is started, sealed, revealed and played without leaving the club page.
+  await owner.reload()
+  const dialog = owner.getByRole('dialog', { name: 'New sealed game' })
+  await retryUntilVisible(dialog, () => owner.getByRole('button', { name: 'New sealed game' }).click({ timeout: 1_000 }))
+  await dialog.getByRole('button', { name: 'Start sealed game' }).click()
+  await expect(owner).toHaveURL(/\/clubs\/[^/?]+\?game=/)
+  const gameToken = new URL(owner.url()).searchParams.get('game')!
+  const game = owner.locator('[data-sealed-game]')
+  await sealFromClub(owner, game, 'Host army')
+  await member.goto(clubUrl)
+  await sealFromClub(member, member.locator('[data-sealed-game]'), 'Regular army')
+
+  await owner.reload()
+  await game.getByRole('button', { name: 'Reveal lists' }).click()
+  await owner.getByRole('alertdialog', { name: 'Reveal every list?' }).getByRole('button', { name: 'Reveal lists' }).click()
+  await expect(game).toContainText('Regular army')
+  await game.getByRole('button', { name: `Play ${memberName}` }).click()
+  await owner.waitForURL(/\/battles\/[^/]+$/)
+  await expect(owner.getByText('Host army').first()).toBeVisible()
+
+  // Sealed games stay off the tournaments page, and their own address opens them on the club.
+  const token = new URL(clubUrl).pathname.split('/').at(-1)!
+  await owner.goto('/tournaments')
+  await expect(owner.getByRole('heading', { name: 'Tournaments', exact: true })).toBeVisible()
+  await expect(owner.locator(`[data-league="${gameToken}"]`)).toHaveCount(0)
+  await owner.goto(`/tournaments/${gameToken}`)
+  await expect(owner).toHaveURL(new RegExp(`/clubs/${token}\\?game=${gameToken}`))
+  await ownerContext.close()
+  await memberContext.close()
+})
+
+/** Seals a saved roster from the club page's sealed game card, which also enters its player. */
+async function sealFromClub(page: Page, game: Locator, rosterName: string) {
+  const chooser = page.getByRole('dialog', { name: 'Seal a roster' })
+  await retryUntilVisible(chooser, () => game.getByRole('button', { name: /^(Seal|Swap) your list$/ }).click({ timeout: 1_000 }))
+  await chooser.locator(`[data-roster="${rosterName}"]`).click()
+  await chooser.getByRole('button', { name: `Seal ${rosterName}` }).click()
+  await expect(chooser).toBeHidden()
+  await expect(game.getByRole('button', { name: 'Swap your list' })).toBeVisible()
+}
+
+/** A roster a sealed game accepts: one Warlord at Strike Force. */
+async function sealableRoster(page: Page, name: string) {
+  await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name })
+  await page.getByLabel('Add a unit').fill('Skorpekh Lord')
+  await page.getByRole('button', { name: 'Add Skorpekh Lord', exact: true }).first().click()
+  await page.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
+  await makeWarlord(page, 'Skorpekh Lord')
+}
