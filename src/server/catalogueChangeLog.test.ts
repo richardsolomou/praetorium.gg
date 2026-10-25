@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest'
 import type { CatalogueChangeSet } from '../core/catalogueChanges'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
-import { factionHistory, factionsLastUpdated, linkedChanges, referenceHistory, referencesLastUpdated } from './catalogueChangeLog'
+import {
+  factionHistory,
+  factionsLastUpdated,
+  linkedChanges,
+  listedHistory,
+  referenceHistory,
+  referencesLastUpdated,
+} from './catalogueChangeLog'
 
 const canonical = {
   datasheets: [
@@ -93,6 +100,38 @@ describe("a faction's data updates", () => {
 
   it('date no faction the current data cannot address', () => {
     expect(factionsLastUpdated([entry(1, ['squats'])], canonical).size).toBe(0)
+  })
+})
+
+describe('listed data updates', () => {
+  it("leave out a rules version's copy of its army's changes", () => {
+    expect(listedHistory([entry(1, ['orks', 'mfm-1-6~orks'])])[0]!.changes.factions.map((faction) => faction.catalogueId)).toEqual(['orks'])
+  })
+
+  it('keep the changes a rules version made apart from its army', () => {
+    const update = entry(1, ['orks', 'mfm-1-5~orks'])
+    update.changes.factions[1]!.changes = [{ ...repriced, name: 'Boyz (MFM 1.5)' }]
+    expect(listedHistory([update])[0]!.changes.factions.map((faction) => faction.catalogueId)).toEqual(['orks', 'mfm-1-5~orks'])
+  })
+
+  const introduced = (recordedAt: number, catalogueId: string): CatalogueHistoryEntry => ({
+    ...entry(recordedAt, []),
+    changes: {
+      factions: [{ catalogueId, faction: catalogueId, changes: [{ kind: 'datasheet-added', id: 'boyz', name: 'Boyz' }] }],
+      omitted: 0,
+    },
+  })
+
+  it('leave out an update that only introduced a rules version', () => {
+    expect(listedHistory([introduced(1, 'mfm-1-6~orks')])).toEqual([])
+  })
+
+  it('keep datasheets added to a rules version after it was introduced', () => {
+    expect(listedHistory([introduced(1, 'mfm-1-6~orks'), introduced(2, 'mfm-1-6~orks')]).map((update) => update.recordedAt)).toEqual([2])
+  })
+
+  it('keep the first datasheets added to an army', () => {
+    expect(listedHistory([introduced(1, 'orks')])).toHaveLength(1)
   })
 })
 

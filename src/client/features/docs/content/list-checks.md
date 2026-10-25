@@ -1,4 +1,4 @@
-The footer shows your points against the limit and how many are left or over. Checks update as you edit, covering what the army data can express: unit and detachment limits, wargear, enhancements, attachments and Force dispositions.
+The footer shows your points against the limit and how many are left or over. Checks update as you edit, covering what the army data can express: unit and detachment limits, units only a particular detachment allows, points caps such as the 500 points of Deathwatch a chapter may take, wargear, enhancements, attachments and Force dispositions.
 
 - **Red list in the footer**: each line names the unit and the problem, such as "must be attached to a Bodyguard unit" or "cannot lead Intercessor Squad, which is already led by…". The first eight are shown. Where a unit holds choices its datasheet no longer offers, **Reset options** clears them.
 - **Could not check every rule**: restrictions the data states in a form Praetorium can't evaluate. These aren't marked legal; check them yourself before playing.

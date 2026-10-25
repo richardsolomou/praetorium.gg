@@ -26,6 +26,7 @@ Pins live in `catalogue/composition.json`, `catalogue/sources.json`, and `catalo
 
 - `evaluate.ts` reports unsupported semantics in `unhandled` and fails closed on unreadable conditions. Ability prose never applies benefits.
 - `pointsBudget` changes only the points limit and strategic reserve limit.
+- Points caps on keywords are measured with the list's prices (`pointCapErrors`), never the definitions' own costs.
 - Never hide upstream disagreements from `just points` or lower its match rate.
 
 ## Roster migration

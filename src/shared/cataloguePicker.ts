@@ -1,7 +1,15 @@
 import { cachedIn } from '../core/collections'
 import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/catalogue'
 import { formatDatasheetLimit, isKotcLimit, kotcDatasheetRepeatable, kotcUnitExclusions } from '../core/battle'
-import { battleSizeSelection, keywordNames, keywordsBySelection, type ModifierCache, rosterLimit, type Selection } from '../core/evaluate'
+import {
+  battleSizeSelection,
+  hiddenByRules,
+  keywordNames,
+  keywordsBySelection,
+  type ModifierCache,
+  rosterLimit,
+  type Selection,
+} from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
 import { isNonMatchedPlayName, nonMatchedPlayKind } from '../core/name'
 import type { UnitGroup } from '../core/unitGroups'
@@ -156,6 +164,42 @@ export function listedDatasheets(
   })
 }
 
+const gatedCache = new WeakMap<LoadedCatalogue, Map<string, Map<string, string[]>>>()
+
+/**
+ * The datasheets a book's detachments show or hide, each with the names of the detachments it
+ * is offered under, such as the Deathwatch a chapter fields only with Deathwatch Support.
+ * Legends and allies are hidden alike under every detachment, so none of them are here.
+ */
+function detachmentGatedDatasheets(loaded: LoadedCatalogue, catalogueId: string) {
+  return cachedIn(gatedCache, loaded, catalogueId, () => {
+    const options = { primaryCatalogueId: catalogueId, mustering: true }
+    const detachments = (loaded.detachments.get(catalogueId)?.options ?? []).map((option) => ({
+      name: option.name,
+      roster: rosterDetachments(loaded, catalogueId, [option.id]).selections,
+    }))
+    const gated = new Map<string, string[]>()
+    for (const { id, entry } of listedDatasheets(loaded, catalogueId, { nonMatchedPlay: true })) {
+      const shown = detachments.filter(({ roster }) => !hiddenByRules(entry, loaded.index, { ...options, roster }))
+      const hidden = hiddenByRules(entry, loaded.index, options)
+      if (shown.length !== (hidden ? 0 : detachments.length))
+        gated.set(
+          id,
+          shown.map(({ name }) => name),
+        )
+    }
+    return gated
+  })
+}
+
+/** The detachments that would offer a datasheet the roster's own detachments hide, or null when they offer it. */
+export function detachmentsUnlocking(loaded: LoadedCatalogue, catalogueId: string, entryId: string, roster: readonly Selection[]) {
+  const offeredBy = detachmentGatedDatasheets(loaded, catalogueId).get(entryId)
+  const entry = loaded.index.definitions.get(entryId)
+  if (!offeredBy || !entry) return null
+  return hiddenByRules(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster }) ? offeredBy : null
+}
+
 /** The complete priced list `unitsIn` searches, built a datasheet per step and shared by every reader of the same list. */
 export function unitSummaries(
   loaded: LoadedCatalogue,
@@ -202,6 +246,7 @@ function* summarizeUnits(
   const allied = loaded.index.alliedDatasheets.get(catalogueId) ?? new Map<string, { name: string; order: number }>()
 
   for (const { id, entry, name } of listedDatasheets(loaded, catalogueId, { factionCards: included, nonMatchedPlay })) {
+    if (detachments.chosen.length && detachmentsUnlocking(loaded, catalogueId, id, detachments.selections)) continue
     const target = targetOf(entry, loaded.index.definitions)
     const listed = detachmentUnitFacts(loaded, catalogueId, id, detachments.selections)
     // Asked only where a restriction can act on the answer: folding the keywords a

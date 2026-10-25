@@ -12,6 +12,7 @@ import {
   evaluateForces,
   keywordNames,
   keywordsBySelection,
+  pointCapErrors,
   type Selection,
 } from '../core/evaluate'
 import { type ModelKind, modelKindsOf, modelRowSources, choiceOptionWargear, ownChoiceOptionWargear } from '../core/modelKinds'
@@ -28,7 +29,7 @@ import { describedEnhancements } from './catalogueDescriptions'
 import { descriptionKey } from './datacards'
 import { factionDisplayName } from './factionNames'
 import { detachmentNamed } from './factionReferences'
-import { contextualUnitLimit, shelfIn, unitsIn } from './cataloguePicker'
+import { contextualUnitLimit, detachmentsUnlocking, shelfIn, unitsIn } from './cataloguePicker'
 import { isDetachmentWrapperLimit, rosterDetachments } from './rosterDetachments'
 import { detachmentPoints } from './detachmentPoints'
 import { mfmUnitFor, unitPointAdjustment } from './unitPoints'
@@ -195,6 +196,22 @@ function armyWarlordErrors(picked: readonly { toggles: BuiltUnit['toggles'] }[])
   if (!picked.some((unit) => unit.toggles.some((toggle) => toggle.name === 'Warlord'))) return []
   const problem = warlordCountProblem(picked.filter((unit) => hasWarlordToggle(unit.toggles)).length)
   return problem ? [{ entryId: 'warlord', entryName: 'Army', message: problem }] : []
+}
+
+/** Units the chosen detachments do not offer, such as Deathwatch in a chapter army without Deathwatch Support. */
+function detachmentLockErrors(
+  loaded: LoadedCatalogue,
+  data: PriceInput,
+  picked: ReturnType<typeof rosterForces>['picked'],
+  roster: readonly Selection[],
+) {
+  return picked.flatMap((unit) => {
+    if (data.units[unit.key]?.catalogueId) return []
+    const offeredBy = detachmentsUnlocking(loaded, data.catalogueId, unit.entryId, roster)
+    if (!offeredBy) return []
+    const message = offeredBy.length ? `needs the ${offeredBy.join(' or ')} detachment` : 'is not available with the chosen detachments'
+    return [{ entryId: unit.entryId, entryName: unit.name, message }]
+  })
 }
 
 function labelUnitsOf(
@@ -549,6 +566,7 @@ function calculateRoster(
     force.forEach((selection, selectionAt) => selectionPoints.set(selection, whole.selectionPoints[forceAt]?.[selectionAt] ?? 0)),
   )
   const points = whole.points + adjustUnitPoints(loaded, data, picked, selectionPoints)
+  const pointCaps = pointCapErrors(forces, loaded.index, options, (selection) => selectionPoints.get(selection) ?? 0)
   const restrictions = rules?.factionRestrictions.get(factionSlug)
   // Keywords and Toughness are only inputs to these two construction rule sets.
   // Projecting every contextual datasheet for an ordinary roster made pricing
@@ -624,6 +642,8 @@ function calculateRoster(
     ...factionRestrictionViolations(restrictions, constructionUnits),
     ...(isKotcLimit(data.limit) ? kotcViolations(chosen.length, constructionUnits, data.limit, data.waivedRules) : []),
     ...(!isKotcLimit(data.limit) && enforces(data.waivedRules, 'warlord') ? armyWarlordErrors(picked) : []),
+    ...detachmentLockErrors(loaded, data, picked, roster),
+    ...pointCaps.errors,
     ...(enhancementsAllowed !== null && enhancementsHeld > enhancementsAllowed
       ? [
           {
@@ -690,6 +710,7 @@ function calculateRoster(
     errors,
     unhandled: [
       ...whole.unhandled,
+      ...pointCaps.unhandled.filter((note) => !whole.unhandled.includes(note)),
       ...(forceSelections.size > 1 ? ['allied-force eligibility is not present in the synced catalogue data'] : []),
     ],
     selections,

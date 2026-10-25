@@ -12,6 +12,7 @@
 
 import type {
   CatalogueIndex,
+  CategoryEntry,
   Condition,
   ConditionGroup,
   Constraint,
@@ -79,6 +80,8 @@ type Node = {
   fielded: number
   parent: Node | null
   children: Node[]
+  /** Only a force's children carry this: the saved selection it was built from, which the list prices. */
+  selection?: Selection
 }
 
 class Census {
@@ -396,12 +399,62 @@ function rosterContext(
       parent: root,
       children: [],
     }
-    force.children = selections
-      .map((selection) => build(selection, force, index, census, counter))
-      .filter((node): node is Node => node !== null)
+    force.children = selections.flatMap((selection) => {
+      const node = build(selection, force, index, census, counter)
+      if (node) node.selection = selection
+      return node ? [node] : []
+    })
     return force
   })
   return { root, forces: root.children }
+}
+
+const pointCapsCache = new WeakMap<CatalogueIndex, { category: CategoryEntry; constraint: Constraint }[]>()
+
+/**
+ * Keyword points caps, such as the 500 points of Deathwatch a chapter may take, measured by
+ * what each unit costs the list. The data's own costs are not the list's prices, so
+ * `violations` leaves these to the caller that knows them.
+ */
+export function pointCapErrors(
+  forces: readonly (readonly Selection[])[],
+  index: CatalogueIndex,
+  options: EvaluateOptions,
+  pointsOf: (selection: Selection) => number,
+): { errors: EvaluationError[]; unhandled: string[] } {
+  let caps = pointCapsCache.get(index)
+  if (!caps) {
+    caps = [...index.categories.values()].flatMap((category) =>
+      (category.constraints ?? []).flatMap((constraint) =>
+        constraint.type === 'max' && constraint.field === index.pointsTypeId ? [{ category, constraint }] : [],
+      ),
+    )
+    pointCapsCache.set(index, caps)
+  }
+  const census = new Census(0, options.modifierCache)
+  const { root, forces: built } = rosterContext(forces, index, census, options)
+  const errors: EvaluationError[] = []
+  for (const { category, constraint } of caps) {
+    if (constraint.scope !== 'roster' && constraint.scope !== 'force') {
+      census.note(`points cap scope ${constraint.scope}`)
+      continue
+    }
+    const extra = [...(category.modifiers ?? []), ...(category.modifierGroups ?? []).flatMap((group) => group.modifiers ?? [])]
+    for (const units of constraint.scope === 'roster' ? [built.flatMap((force) => force.children)] : built.map((force) => force.children)) {
+      const holding = units.filter((unit) => descendants(unit).some((node) => matches(node, category.id, root, index, census)))
+      if (!holding.length) continue
+      const limit = constraintValue(constraint, holding[0]!, root, index, census, extra)
+      const measured = holding.reduce((total, unit) => total + (unit.selection ? pointsOf(unit.selection) : 0), 0)
+      if (limit >= 0 && measured > limit)
+        errors.push({
+          entryId: category.id,
+          entryName: category.name ?? category.id,
+          message: `allows at most ${limit} points, has ${measured}`,
+          limit: { max: limit, measured },
+        })
+    }
+  }
+  return { errors, unhandled: census.list }
 }
 
 export function evaluate(selections: readonly Selection[], index: CatalogueIndex, options: EvaluateOptions = {}): Evaluation {
@@ -1402,7 +1455,8 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
     if (!category) continue
     const extra = [...(category.modifiers ?? []), ...(category.modifierGroups ?? []).flatMap((group) => group.modifiers ?? [])]
     for (const constraint of category.constraints ?? []) {
-      if (constraint.type === 'max') check(constraint, categoryId, category.id, category.name, extra)
+      if (constraint.type === 'max' && constraint.field !== index.pointsTypeId)
+        check(constraint, categoryId, category.id, category.name, extra)
     }
   }
   return errors

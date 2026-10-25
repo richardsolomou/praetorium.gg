@@ -1,6 +1,7 @@
 import type { CanonicalDatasheet, UnitSummary } from '../contracts/catalogue'
 import type { ReferenceDocument, ReferenceKind } from '../contracts/reference'
 import { routeSlug } from '../core/slug'
+import { catalogueEditionId } from '../core/catalogueEdition'
 import { datasheetPageBySlug } from '../core/datasheetSlug'
 import { unitsIn } from '../shared/cataloguePicker'
 import type { LoadedCatalogue } from './catalogueIndex'
@@ -65,6 +66,7 @@ export function referenceUnits(
   faction: string,
   battleSize?: number,
   detachment?: string,
+  currentCatalogueIds: ReadonlySet<string> = new Set(),
 ) {
   const foundFaction = referenceFaction(corpus, faction)
   if (!foundFaction) return null
@@ -74,11 +76,12 @@ export function referenceUnits(
   const canonicalById = new Map(
     corpus.catalogue.datasheets.filter((sheet) => sheet.catalogueId === foundFaction.id).map((sheet) => [sheet.id, sheet]),
   )
-  const units = unitsIn(loaded, foundFaction.id, '', { restrictions, battleSize, nonMatchedPlay: true }).map((unit) =>
+  const selectedDetachment = detachment ? referenceDetachment(corpus, loaded, foundFaction.id, detachment, currentCatalogueIds) : null
+  if (detachment && !selectedDetachment) return null
+  const detachmentIds = selectedDetachment ? [selectedDetachment.id] : []
+  const units = unitsIn(loaded, foundFaction.id, '', { restrictions, battleSize, detachmentIds, nonMatchedPlay: true }).map((unit) =>
     unitReference(corpus, unit, canonicalById.get(unit.id)),
   )
-  const selectedDetachment = detachment ? referenceDetachment(corpus, foundFaction.id, detachment) : null
-  if (detachment && !selectedDetachment) return null
   return {
     faction: foundFaction,
     battleSize: battleSize ?? null,
@@ -105,12 +108,29 @@ export function referenceFaction(corpus: ReferenceCorpus, faction: string) {
   )
 }
 
-function referenceDetachment(corpus: ReferenceCorpus, factionId: string, detachment: string) {
+/**
+ * A detachment the faction's lists can take, including one its codex holds, such as Gladius for a
+ * chapter. Every rules version keeps its own copy under the same id: a versioned faction takes its
+ * version's, and a current faction takes the codex's current one, which may itself be versioned.
+ */
+function referenceDetachment(
+  corpus: ReferenceCorpus,
+  loaded: LoadedCatalogue,
+  factionId: string,
+  detachment: string,
+  currentCatalogueIds: ReadonlySet<string>,
+) {
   const wanted = detachment.trim().toLocaleLowerCase()
-  return corpus.catalogue.detachments.find(
-    (candidate) =>
-      candidate.catalogueId === factionId &&
-      [candidate.id, candidate.slug, candidate.name].some((value) => value.toLocaleLowerCase() === wanted),
+  const offered = new Set((loaded.detachments.get(factionId)?.options ?? []).map((option) => option.id))
+  const named = corpus.catalogue.detachments.filter((candidate) =>
+    [candidate.id, candidate.slug, candidate.name].some((value) => value.toLocaleLowerCase() === wanted),
+  )
+  const edition = catalogueEditionId(factionId)
+  const sameVersion = (catalogueId: string) =>
+    catalogueEditionId(catalogueId) === edition || (!edition && currentCatalogueIds.has(catalogueId))
+  return (
+    named.find((candidate) => candidate.catalogueId === factionId) ??
+    named.find((candidate) => offered.has(candidate.id) && sameVersion(candidate.catalogueId))
   )
 }
 
