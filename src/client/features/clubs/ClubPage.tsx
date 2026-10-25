@@ -2,7 +2,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
   Check,
-  ChevronDown,
   Clipboard,
   EllipsisVertical,
   Eye,
@@ -18,7 +17,6 @@ import {
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { buttonClass } from '../../components/buttonClass'
@@ -34,9 +32,6 @@ import { Standings } from '../leaderboard/Standings'
 import { inviteFeedbackText, useInviteShare } from '../leagues/LeagueActions'
 import { SectionHeading } from '../leagues/LeagueEntrants'
 import { LeagueSettingsDialog } from '../leagues/LeagueSettingsDialog'
-import { eventName } from '../leagues/leagueEvent'
-import { useDateFormatting } from '../../dates'
-import { countLabel } from '../../text'
 import { useClubRefresh, type Club } from './club'
 import { ClubSettingsDialog } from './ClubSettingsDialog'
 import { ClubSealedGame, sealedGameOpen } from './ClubSealedGame'
@@ -394,7 +389,7 @@ function ClubLeaderboard({ table, viewerId }: { table: ClubTable; viewerId: stri
 
 const PAST_GAMES_SHOWN = 3
 
-/** Sealed games the reader has nothing left to do in, newest first; each opens to its lists and the battles it produced. */
+/** Sealed games the reader has nothing left to do in, newest first, each with the battles it produced. */
 function PastSealedGames({ club, viewerId, highlight }: { club: Club; viewerId: string | null; highlight: string | undefined }) {
   const [all, setAll] = useState(false)
   const past = club.games.filter((game) => !sealedGameOpen(club, game, viewerId))
@@ -406,7 +401,9 @@ function PastSealedGames({ club, viewerId, highlight }: { club: Club; viewerId: 
       <SectionHeading title="Past sealed games" count={past.length} />
       <ul className="divide-y divide-edge border border-edge bg-panel">
         {shown.map((game) => (
-          <PastSealedGame key={game.token} club={club} game={game} viewerId={viewerId} open={game.token === highlight} />
+          <li key={game.token}>
+            <ClubSealedGame club={club} game={game} viewerId={viewerId} embedded />
+          </li>
         ))}
       </ul>
       {past.length > shown.length ? (
@@ -415,41 +412,6 @@ function PastSealedGames({ club, viewerId, highlight }: { club: Club; viewerId: 
         </Button>
       ) : null}
     </section>
-  )
-}
-
-function PastSealedGame({
-  club,
-  game,
-  viewerId,
-  open,
-}: {
-  club: Club
-  game: Club['games'][number]
-  viewerId: string | null
-  open: boolean
-}) {
-  const { date } = useDateFormatting()
-  const players = game.players.filter((player) => player.sealed).length
-  return (
-    <Collapsible defaultOpen={open} render={<li id={`game-${game.token}`} />}>
-      <CollapsibleTrigger className="group flex w-full min-w-0 items-center gap-3 p-3 text-left hover:bg-raised">
-        <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-3">
-          <span className="min-w-0 truncate font-semibold sm:flex-1">{eventName({ ...game, tournament: null, club })}</span>
-          <span className="text-sm text-dim sm:shrink-0">
-            {[
-              countLabel(players, 'player'),
-              countLabel(game.battles, 'battle'),
-              date(game.playsAt ?? game.revealedAt ?? game.createdAt),
-            ].join(' · ')}
-          </span>
-        </span>
-        <ChevronDown aria-hidden className="size-4 shrink-0 text-faint transition-transform group-data-[panel-open]:rotate-180" />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="border-t border-edge">
-        <ClubSealedGame club={club} game={game} viewerId={viewerId} embedded />
-      </CollapsibleContent>
-    </Collapsible>
   )
 }
 
