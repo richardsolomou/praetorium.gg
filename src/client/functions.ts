@@ -856,7 +856,6 @@ export {
   createFriendInvite,
   cancelFriendInvite,
   createLeague,
-  createLeagueEvent,
   leagueBattleOptions,
 } from './offline/actionFunctions'
 

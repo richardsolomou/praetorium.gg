@@ -415,49 +415,6 @@ export async function createLeague(args: Parameters<typeof server.createLeague>[
   await defer('createLeague', input, `league:${identifiers.leagueToken}`, draft, identifiers)
   return { token: identifiers.leagueToken, eventToken: identifiers.eventToken }
 }
-export async function createLeagueEvent(args: Parameters<typeof server.createLeagueEvent>[0]): ReturnType<typeof server.createLeagueEvent> {
-  const defer = deferredForAccount()
-  if (!localEngine()) return server.createLeagueEvent(args)
-  const identifiers = { eventId: crypto.randomUUID(), eventToken: crypto.randomUUID() }
-  const league = await openLeague({ data: { token: args.data.token } })
-  if (!league) throw new Error('Save this tournament on the device before starting an event offline.')
-  const input = offlineActionSchemas.createLeagueEvent.parse(args.data)
-  const now = Date.now()
-  const event = {
-    token: identifiers.eventToken,
-    number: league.eventCount + 1,
-    format: input.format,
-    rosterLimit: input.rosterLimit,
-    createdAt: now,
-    revealedAt: null,
-    revealedBy: null,
-  }
-  await defer(
-    'createLeagueEvent',
-    input,
-    `league:${input.token}`,
-    {
-      ...league,
-      ...input,
-      eventToken: event.token,
-      eventNumber: event.number,
-      eventCreatedAt: now,
-      eventCount: event.number,
-      currentEventFormat: input.format,
-      currentEventRevealedAt: null,
-      currentEntrantCount: 0,
-      currentAcceptedCount: 0,
-      occupiedCount: 0,
-      entries: [],
-      revealedAt: null,
-      revealedByName: null,
-      events: [...league.events, event],
-    },
-    identifiers,
-  )
-  return { eventToken: identifiers.eventToken }
-}
-
 export async function requestFriend(args: Parameters<typeof server.requestFriend>[0]): ReturnType<typeof server.requestFriend> {
   const defer = deferredForAccount()
   if (!localEngine()) return server.requestFriend(args)

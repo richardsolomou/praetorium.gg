@@ -29,7 +29,7 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
     if (typeof search.league === 'string') {
       const event = typeof search.event === 'string' ? `?${new URLSearchParams({ event: search.event })}` : ''
       return {
-        back: { href: `/tournaments/${search.league}${event}`, label: 'Back to tournament', preferHistory: true },
+        back: { href: `/tournaments/${search.league}${event}`, label: 'Back to event', preferHistory: true },
         section: 'rosters',
         title: 'Roster',
       }
@@ -43,7 +43,8 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
   }
   if (root === 'tournaments') {
     return id
-      ? { back: { href: '/tournaments', label: 'Back to tournaments', preferHistory: true }, section: 'events', title: 'Tournament' }
+      ? // The path alone cannot tell a tournament from a club's sealed game, so the header names what both are.
+        { back: { href: '/clubs', label: 'Back to events', preferHistory: true }, section: 'events', title: 'Event' }
       : { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'events', title: 'Tournaments' }
   }
   if (root === 'clubs') {

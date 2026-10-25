@@ -77,10 +77,13 @@ export function LeagueFormFields({
   const minimum = leagueMinimumPlaces(limitFormat, seated)
   const limitValid = leaguePlacesSeat(limitFormat, value.playerLimit, seated)
   const summary = [
-    value.visibility === 'private' ? 'Private link' : 'Public',
-    value.admission === 'automatic' ? 'anyone with it joins' : 'you approve each player',
+    // A club's sealed game is found from its club, so where it is listed is not a choice.
+    listing ? (value.visibility === 'private' ? 'Private link' : 'Public') : null,
+    value.admission === 'automatic' ? (listing ? 'anyone with it joins' : 'anyone joins') : 'you approve each player',
     value.playerLimit === null ? 'no player limit' : `${value.playerLimit} places`,
-  ].join(' · ')
+  ]
+    .filter(Boolean)
+    .join(' · ')
   return (
     <>
       <div data-onboarding="league-name" className="space-y-1.5">
@@ -179,17 +182,19 @@ export function LeagueFormFields({
               </p>
             ) : null}
           </div>
-          <Choice
-            label="Who can find it"
-            value={value.visibility}
-            columns={2}
-            options={[
-              { value: 'private', name: 'Private link', detail: 'Only people you send it to.' },
-              { value: 'public', name: 'Public', detail: listing ? 'Listed on the tournaments page.' : 'Anyone can open it.' },
-            ]}
-            disabled={disabled}
-            onChange={(visibility) => onChange({ ...value, visibility })}
-          />
+          {listing ? (
+            <Choice
+              label="Who can find it"
+              value={value.visibility}
+              columns={2}
+              options={[
+                { value: 'private', name: 'Private link', detail: 'Only people you send it to.' },
+                { value: 'public', name: 'Public', detail: 'Listed on the tournaments page.' },
+              ]}
+              disabled={disabled}
+              onChange={(visibility) => onChange({ ...value, visibility })}
+            />
+          ) : null}
           <Choice
             label="Who gets in"
             value={value.admission}

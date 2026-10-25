@@ -41,7 +41,7 @@ describe('native application navigation', () => {
     ],
     [
       '/tournaments/league-id',
-      { back: { href: '/tournaments', label: 'Back to tournaments', preferHistory: true }, section: 'events', title: 'Tournament' },
+      { back: { href: '/clubs', label: 'Back to events', preferHistory: true }, section: 'events', title: 'Event' },
     ],
     [
       '/factions/necrons',
@@ -109,7 +109,7 @@ describe('native application navigation', () => {
     })
     expect(nativeNavigation('/rosters/roster-id', { league: 'league-token', event: 'event-token' }).back).toEqual({
       href: '/tournaments/league-token?event=event-token',
-      label: 'Back to tournament',
+      label: 'Back to event',
       preferHistory: true,
     })
   })

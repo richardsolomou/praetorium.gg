@@ -964,7 +964,7 @@ export const ONBOARDING_UI: Record<OnboardingStepId, OnboardingStep> = {
     page: 'league',
     href: '/tournaments',
     title: 'Reveal together',
-    description: 'One press opens every sealed roster at once, and entrants can start their tournament battles from then on.',
+    description: 'One press opens every sealed roster at once, and entrants can start their battles from then on.',
     placement: 'bottom-end',
     next: 'league-status',
     nextLabel: 'Next',
