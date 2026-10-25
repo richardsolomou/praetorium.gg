@@ -11,7 +11,10 @@ import type { ReferenceCorpus } from './referenceCorpus'
 
 export const REFERENCE_QUERY_MAX_LENGTH = 120
 export const REFERENCE_RESULT_MAX = 25
+export const REFERENCE_FILTER_MAX_LENGTH = 160
 const EXCERPT_MAX_LENGTH = 320
+/** An excerpt cut from inside a section carries an ellipsis at each end. */
+export const REFERENCE_EXCERPT_MAX_LENGTH = EXCERPT_MAX_LENGTH + 2
 
 export type ReferenceSearchInput = {
   query: string

@@ -1,6 +1,17 @@
-import { TEXT_SOURCES } from '../shared/sourceText'
 import { REFERENCE_KINDS, type ReferenceKind } from '../contracts/reference'
-import { REFERENCE_QUERY_MAX_LENGTH, REFERENCE_RESULT_MAX } from './referenceSearch'
+import { z } from 'zod'
+import { REFERENCE_FILTER_MAX_LENGTH, REFERENCE_QUERY_MAX_LENGTH, REFERENCE_RESULT_MAX } from './referenceSearch'
+import {
+  documentSummarySchema,
+  factionSummarySchema,
+  referenceDocumentSchema,
+  referenceIndexSchema,
+  referenceSearchResponseSchema,
+  referenceSearchResultSchema,
+  referenceSectionSchema,
+  textSourcesSchema,
+  unitSummarySchema,
+} from './referenceSchemas'
 
 export function referenceOpenApi(request: Request) {
   const origin = new URL(request.url).origin
@@ -38,9 +49,9 @@ export function referenceOpenApi(request: Request) {
               in: 'query',
               schema: { type: 'string', description: `Comma-separated ${REFERENCE_KINDS.join(', ')} filters.` },
             },
-            { name: 'faction', in: 'query', schema: { type: 'string', maxLength: 160 } },
-            { name: 'pack', in: 'query', schema: { type: 'string', maxLength: 160 } },
-            { name: 'document', in: 'query', schema: { type: 'string', maxLength: 160 } },
+            { name: 'faction', in: 'query', schema: { type: 'string', maxLength: REFERENCE_FILTER_MAX_LENGTH } },
+            { name: 'pack', in: 'query', schema: { type: 'string', maxLength: REFERENCE_FILTER_MAX_LENGTH } },
+            { name: 'document', in: 'query', schema: { type: 'string', maxLength: REFERENCE_FILTER_MAX_LENGTH } },
             { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: REFERENCE_RESULT_MAX, default: 10 } },
             { name: 'cursor', in: 'query', schema: { type: 'string' } },
           ],
@@ -61,7 +72,7 @@ export function referenceOpenApi(request: Request) {
           parameters: [
             ...pathParameters('catalogueId'),
             { name: 'battleSize', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 10_000 } },
-            { name: 'detachment', in: 'query', schema: { type: 'string', maxLength: 160 } },
+            { name: 'detachment', in: 'query', schema: { type: 'string', maxLength: REFERENCE_FILTER_MAX_LENGTH } },
           ],
           responses: responseSchemas('Faction units', schemaRef('UnitIndex')),
         },
@@ -122,102 +133,14 @@ export function referenceOpenApi(request: Request) {
           },
           ['product', 'capabilities', 'boundaries', 'dataModel', 'agentWorkflow'],
         ),
-        ReferenceDocumentSummary: objectSchema({ id: { type: 'string' }, title: { type: 'string' }, url: { type: 'string' } }, [
-          'id',
-          'title',
-          'url',
-        ]),
-        FactionSummary: objectSchema(
-          {
-            id: { type: 'string' },
-            slug: { type: 'string' },
-            name: { type: 'string' },
-            datasheets: { type: 'integer', minimum: 0 },
-            detachments: { type: 'integer', minimum: 0 },
-          },
-          ['id', 'slug', 'name', 'datasheets', 'detachments'],
-        ),
-        ReferenceIndex: objectSchema(
-          {
-            corpusRevision: { type: 'string' },
-            revisions: schemaRef('Revisions'),
-            kinds: { type: 'object', additionalProperties: { type: 'integer', minimum: 0 } },
-            factions: { type: 'array', items: schemaRef('FactionSummary') },
-            missionPacks: { type: 'array', items: schemaRef('ReferenceDocumentSummary') },
-            ruleDocuments: {
-              type: 'array',
-              items: objectSchema(
-                {
-                  id: { type: 'string' },
-                  slug: { type: 'string' },
-                  title: { type: 'string' },
-                  sections: { type: 'integer', minimum: 0 },
-                  url: { type: 'string' },
-                },
-                ['id', 'slug', 'title', 'sections', 'url'],
-              ),
-            },
-          },
-          ['corpusRevision', 'revisions', 'kinds', 'factions', 'missionPacks', 'ruleDocuments'],
-        ),
-        TextSources: {
-          type: 'array',
-          description:
-            'Where withheld rules text lives upstream: the pinned file, its source, and the id of the record holding it there when the file has one.',
-          items: objectSchema(
-            { source: { type: 'string', enum: TEXT_SOURCES }, url: { type: 'string', format: 'uri' }, id: { type: 'string' } },
-            ['source', 'url'],
-          ),
-        },
-        ReferenceSection: objectSchema(
-          {
-            id: { type: 'string' },
-            title: { type: 'string' },
-            text: { type: 'string' },
-            url: { type: 'string' },
-            textSources: schemaRef('TextSources'),
-          },
-          ['id', 'title', 'text', 'url'],
-        ),
-        ReferenceDocument: objectSchema(
-          {
-            id: { type: 'string' },
-            kind: { type: 'string', enum: REFERENCE_KINDS },
-            title: { type: 'string' },
-            faction: { type: ['string', 'null'] },
-            url: { type: 'string' },
-            sections: { type: 'array', items: schemaRef('ReferenceSection') },
-            revisions: schemaRef('Revisions'),
-            attribution: schemaRef('Attribution'),
-          },
-          ['id', 'kind', 'title', 'faction', 'url', 'sections', 'revisions', 'attribution'],
-        ),
-        ReferenceSearchResult: objectSchema(
-          {
-            id: { type: 'string' },
-            kind: { type: 'string', enum: REFERENCE_KINDS },
-            title: { type: 'string' },
-            faction: { type: ['string', 'null'] },
-            url: { type: 'string' },
-            section: objectSchema(
-              { id: { type: 'string' }, title: { type: 'string' }, url: { type: 'string' }, textSources: schemaRef('TextSources') },
-              ['id', 'title', 'url'],
-            ),
-            excerpt: { type: 'string', maxLength: 322 },
-            revisions: schemaRef('Revisions'),
-            attribution: schemaRef('Attribution'),
-          },
-          ['id', 'kind', 'title', 'faction', 'url', 'section', 'excerpt', 'revisions', 'attribution'],
-        ),
-        ReferenceSearchResponse: objectSchema(
-          {
-            query: { type: 'string' },
-            results: { type: 'array', maxItems: REFERENCE_RESULT_MAX, items: schemaRef('ReferenceSearchResult') },
-            revisions: schemaRef('Revisions'),
-            nextCursor: nullable({ type: 'string' }),
-          },
-          ['query', 'results', 'revisions', 'nextCursor'],
-        ),
+        ReferenceDocumentSummary: jsonSchema(documentSummarySchema),
+        FactionSummary: jsonSchema(factionSummarySchema),
+        ReferenceIndex: jsonSchema(referenceIndexSchema),
+        TextSources: jsonSchema(textSourcesSchema),
+        ReferenceSection: jsonSchema(referenceSectionSchema),
+        ReferenceDocument: jsonSchema(referenceDocumentSchema),
+        ReferenceSearchResult: jsonSchema(referenceSearchResultSchema),
+        ReferenceSearchResponse: jsonSchema(referenceSearchResponseSchema),
         FactionIndex: objectSchema(
           {
             factions: { type: 'array', items: schemaRef('FactionSummary') },
@@ -225,58 +148,7 @@ export function referenceOpenApi(request: Request) {
           },
           ['factions', 'revisions'],
         ),
-        UnitSummary: objectSchema(
-          {
-            id: { type: 'string' },
-            slug: { type: 'string' },
-            name: { type: 'string' },
-            group: { type: 'string' },
-            allied: { type: 'boolean' },
-            alliedFaction: nullable({ type: 'string' }),
-            points: nullable({ type: 'number' }),
-            limit: nullable({ type: 'integer', minimum: 0 }),
-            keywords: stringArray(),
-            composition: stringArray(),
-            costs: {
-              type: 'array',
-              items: objectSchema(
-                {
-                  models: { type: 'string' },
-                  cost: { type: 'string' },
-                  keyword: nullable({ type: 'string' }),
-                  faction: nullable({ type: 'string' }),
-                  detachment: nullable({ type: 'string' }),
-                },
-                ['models', 'cost', 'keyword', 'faction', 'detachment'],
-              ),
-            },
-            canLead: stringArray(),
-            canSupport: stringArray(),
-            canBeLedBy: stringArray(),
-            canBeSupportedBy: stringArray(),
-            url: nullable({ type: 'string' }),
-            referenceId: nullable({ type: 'string' }),
-          },
-          [
-            'id',
-            'slug',
-            'name',
-            'group',
-            'allied',
-            'alliedFaction',
-            'points',
-            'limit',
-            'keywords',
-            'composition',
-            'costs',
-            'canLead',
-            'canSupport',
-            'canBeLedBy',
-            'canBeSupportedBy',
-            'url',
-            'referenceId',
-          ],
-        ),
+        UnitSummary: jsonSchema(unitSummarySchema),
         UnitIndex: objectSchema(
           {
             faction: schemaRef('FactionSummary'),
@@ -584,6 +456,11 @@ const problemResponse = (description: string) => ({
   description,
   content: { 'application/json': { schema: schemaRef('Error') } },
 })
+
+const jsonSchema = (schema: z.ZodType) => {
+  const { $schema: _, ...component } = z.toJSONSchema(schema, { io: 'output' })
+  return component
+}
 
 const schemaRef = (name: string) => ({ $ref: `#/components/schemas/${name}` })
 

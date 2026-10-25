@@ -5,7 +5,13 @@ import { REFERENCE_KINDS, type ReferenceDocument, type ReferenceKind } from '../
 import { app } from './app'
 import { datasheetRoute, referenceCorpusFor, referenceDocumentMarkdown, type ReferenceCorpus } from './referenceCorpus'
 import { PRAETORIUM_GUIDE, praetoriumGuideMarkdown } from './referenceGuide'
-import { REFERENCE_QUERY_MAX_LENGTH, REFERENCE_RESULT_MAX, searchReference, validReferenceCursor } from './referenceSearch'
+import {
+  REFERENCE_FILTER_MAX_LENGTH,
+  REFERENCE_QUERY_MAX_LENGTH,
+  REFERENCE_RESULT_MAX,
+  searchReference,
+  validReferenceCursor,
+} from './referenceSearch'
 import {
   referenceFaction,
   referenceFactions,
@@ -132,7 +138,8 @@ export async function referenceUnitsResponse(request: Request, catalogueId: stri
     return problem('battleSize must be an integer from 1 to 10000', 400)
   }
   const detachment = url.searchParams.get('detachment')?.trim() || undefined
-  if (detachment && detachment.length > 160) return problem('detachment must contain at most 160 characters', 400)
+  if (detachment && detachment.length > REFERENCE_FILTER_MAX_LENGTH)
+    return problem(`detachment must contain at most ${REFERENCE_FILTER_MAX_LENGTH} characters`, 400)
   const corpus = await activeReferenceCorpus(catalogueId)
   const instance = app()
   const selected = corpus && referenceFaction(corpus, catalogueId)
@@ -274,11 +281,14 @@ export function parseReferenceSearch(url: URL):
   const kinds = [...new Set(rawKinds)]
   if (kinds.some((kind) => !(REFERENCE_KINDS as readonly string[]).includes(kind))) return { error: 'kind is not supported' }
   const faction = url.searchParams.get('faction')?.trim() || undefined
-  if (faction && faction.length > 160) return { error: 'faction must contain at most 160 characters' }
+  if (faction && faction.length > REFERENCE_FILTER_MAX_LENGTH)
+    return { error: `faction must contain at most ${REFERENCE_FILTER_MAX_LENGTH} characters` }
   const pack = url.searchParams.get('pack')?.trim() || undefined
-  if (pack && pack.length > 160) return { error: 'pack must contain at most 160 characters' }
+  if (pack && pack.length > REFERENCE_FILTER_MAX_LENGTH)
+    return { error: `pack must contain at most ${REFERENCE_FILTER_MAX_LENGTH} characters` }
   const document = url.searchParams.get('document')?.trim() || undefined
-  if (document && document.length > 160) return { error: 'document must contain at most 160 characters' }
+  if (document && document.length > REFERENCE_FILTER_MAX_LENGTH)
+    return { error: `document must contain at most ${REFERENCE_FILTER_MAX_LENGTH} characters` }
   const cursor = url.searchParams.get('cursor')?.trim() || undefined
   if (!validReferenceCursor(cursor)) return { error: 'cursor is not valid' }
   const rawLimit = url.searchParams.get('limit')

@@ -1436,7 +1436,7 @@ test('an organizer adds friends to an event without waiting for them to ask', as
   await expect(first.getByRole('button', { name: 'Choose a roster' })).toBeVisible()
 
   // The server, not the picker, decides who may be added: a stranger is refused.
-  const strangerId = await userIdNamed(names[3]!)
+  const strangerId = await userIdNamed(names[3])
   const { ownerId } = await tournamentEvent(leagueToken)
   const product = await productOperator()
   const outcome = await product.leagueCommand(
