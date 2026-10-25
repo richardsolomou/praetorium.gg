@@ -1,6 +1,7 @@
 import path from 'node:path'
 import { randomInt } from 'node:crypto'
 import { globalSingleton } from 'ras-stack/server'
+import pRetry from 'p-retry'
 import os from 'node:os'
 import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import { deploymentHost, serverTelemetry } from '../adapters/posthog'
@@ -354,18 +355,18 @@ export function app(): App {
     )
     // Leagues ran as clubs before clubs existed. The module turns whatever leagues remain into clubs and answers 0 once
     // none do; a start under load can time the call out, so it tries a few times before waiting for the next start.
-    void (async () => {
-      for (let attempt = 1; attempt <= 5; attempt++) {
-        try {
-          const count = await operator.migrateLeaguesToClubs(Date.now())
-          if (count) console.info({ event: 'leagues_migrated_to_clubs', count })
-          return
-        } catch (error) {
-          console.error({ event: 'league_club_migration_failed', attempt, error })
-          await new Promise((resolve) => setTimeout(resolve, 30_000))
-        }
-      }
-    })()
+    void pRetry(() => operator.migrateLeaguesToClubs(Date.now()), {
+      retries: 4,
+      minTimeout: 30_000,
+      factor: 1,
+      onFailedAttempt: ({ error, attemptNumber }) =>
+        console.error({ event: 'league_club_migration_failed', attempt: attemptNumber, error }),
+    })
+      .then((count) => {
+        if (count) console.info({ event: 'leagues_migrated_to_clubs', count })
+      })
+      // Every attempt has already been logged; the next start tries again.
+      .catch(() => {})
     const accounts = new SqliteAccountRepository(authDatabase)
     const repository = new SpacetimeRepository(accounts, operator)
     const githubSponsors = githubSponsorRefresh(process.env.GITHUB_SPONSORS_TOKEN?.trim() || undefined, (sponsors) =>

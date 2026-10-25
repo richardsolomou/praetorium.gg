@@ -16,6 +16,7 @@ import {
 } from './catalogueSources'
 import { CANONICAL_CATALOGUE_SOURCE_NAMES } from './canonicalCatalogueSources'
 import pRetry from 'p-retry'
+import { errorHasCode } from 'ras-stack/server'
 import { readCatalogueComposition } from './catalogueComposition'
 import { extractCatalogueArchive, hashCatalogueFile, downloadCatalogueObject } from './catalogueArchive'
 import { PRIVATE_CATALOGUE_BASE, fetchCatalogueObject } from './catalogueStore'
@@ -378,7 +379,7 @@ function installManifestFiles(
       try {
         fs.linkSync(input, target)
       } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'EXDEV') throw error
+        if (!errorHasCode(error, 'EXDEV')) throw error
         fs.copyFileSync(input, target)
       }
       sharedFiles.set(fileHash, target)
@@ -395,10 +396,9 @@ function installManifestFiles(
           try {
             fs.linkSync(entry.file, cached)
           } catch (error) {
-            const code = (error as NodeJS.ErrnoException).code
-            if (code === 'EXDEV') {
+            if (errorHasCode(error, 'EXDEV')) {
               replaceFileSync(cached, (temporary) => fs.copyFileSync(entry.file, temporary))
-            } else if (code !== 'EEXIST') throw error
+            } else if (!errorHasCode(error, 'EEXIST')) throw error
           }
         }
       }

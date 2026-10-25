@@ -1,6 +1,7 @@
 import { hash, randomUUID } from 'node:crypto'
 import { link, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { errorHasCode } from 'ras-stack/server'
 // scripts/nodeServer.ts runs this module under plain Node, which needs the extension.
 import { isSafeRelativePath } from './relativePath.ts'
 
@@ -20,7 +21,7 @@ async function object(root: string, key: string) {
     const bytes = await readFile(objectPath(root, key))
     return { bytes, httpEtag: `"${hash('sha256', bytes)}"` }
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+    if (errorHasCode(error, 'ENOENT')) return null
     throw error
   }
 }
@@ -45,7 +46,7 @@ export function localObjectStore(root: string) {
         try {
           await link(temporary, file)
         } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+          if (!errorHasCode(error, 'EEXIST')) throw error
         }
       } finally {
         await rm(temporary, { force: true })
@@ -57,9 +58,16 @@ export function localObjectStore(root: string) {
   }
 }
 
-/** The on-disk store a local development stack uses in place of R2, or null outside one. */
-export function localDevelopmentObjectStore(environment: NodeJS.ProcessEnv = process.env) {
+/** The on-disk store a local development stack uses in place of R2, shaped like `r2Objects`; null outside one. */
+export function localDevelopmentObjects(environment: NodeJS.ProcessEnv) {
   if (environment.PRAETORIUM_LOCAL_DEV !== 'true') return null
-  if (!environment.LOCAL_OBJECT_DIR) throw new Error('LOCAL_OBJECT_DIR is required for local development')
-  return localObjectStore(environment.LOCAL_OBJECT_DIR)
+  const root = environment.LOCAL_OBJECT_DIR
+  if (!root) throw new Error('LOCAL_OBJECT_DIR is required for local development')
+  const store = localObjectStore(root)
+  return {
+    head: async (key: string) => Boolean(await store.head(key)),
+    get: async (key: string): Promise<Uint8Array | null> => (await object(root, key))?.bytes ?? null,
+    put: (key: string, body: Uint8Array, _headers?: Record<string, string>) => store.put(key, body),
+    delete: (key: string) => store.delete(key),
+  }
 }

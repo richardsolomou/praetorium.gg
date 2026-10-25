@@ -1,4 +1,5 @@
-import { hash, timingSafeEqual } from 'node:crypto'
+import { hash } from 'node:crypto'
+import { constantTimeEqual } from 'better-auth/crypto'
 import type { AuthContext } from 'better-auth'
 import { createAuthEndpoint, getAuthoritativeSessionFromCtx, sessionMiddleware } from 'better-auth/api'
 import { setSessionCookie } from 'better-auth/cookies'
@@ -46,11 +47,8 @@ function exchangeIdentifier(id: string, token: string) {
   return `native-auth:${id}:${digest}`
 }
 
-function hasChallenge(record: ExchangeRecord, verifier: string) {
-  const actual = Buffer.from(hash('sha256', verifier, 'base64url'))
-  const expected = Buffer.from(record.challenge)
-  return actual.length === expected.length && timingSafeEqual(actual, expected)
-}
+const hasChallenge = (record: ExchangeRecord, verifier: string) =>
+  constantTimeEqual(hash('sha256', verifier, 'base64url'), record.challenge)
 
 function exchangeRecord(value: string) {
   try {

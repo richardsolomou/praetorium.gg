@@ -1,4 +1,5 @@
-import { createHash, timingSafeEqual } from 'node:crypto'
+import { createHash } from 'node:crypto'
+import { constantTimeEqual } from 'better-auth/crypto'
 import { isGuestSeat, newBattleSeats, type NewBattlePlayers, type CreateBattleInput } from '../core/newBattle'
 import { guestSessionCurrent } from '../core/guestSession'
 import { matchingLeagueBattles } from '../shared/leagueBattleOptions'
@@ -1034,7 +1035,7 @@ export class PraetoriumService {
   async guestSeat(token: string, held: { seat: string; secret: string }) {
     const device = await this.repository.guestDevice(held.seat)
     if (!device || device.token !== token || !guestSessionCurrent(device.joinedAt, this.clock())) return null
-    return sameHash(device.deviceHash, guestDeviceHash(held.secret)) ? held.seat : null
+    return constantTimeEqual(device.deviceHash, guestDeviceHash(held.secret)) ? held.seat : null
   }
 
   /** Moves the guest seat this device played onto the account that has just signed in, once the battle is over. */
@@ -1190,10 +1191,6 @@ function referencedPlays(
 /** What the service keeps of a guest device's secret, and what that device's realtime token names it by. */
 export function guestDeviceHash(secret: string) {
   return createHash('sha256').update(secret).digest('hex')
-}
-
-function sameHash(left: string, right: string) {
-  return left.length === right.length && timingSafeEqual(Buffer.from(left), Buffer.from(right))
 }
 
 /** Each paired table as a Swiss result, read from the battle it started; a table still playing has no outcome yet. */
