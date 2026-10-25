@@ -171,7 +171,7 @@ export function WargearRow({
   return (
     <li
       aria-label={name}
-      className={`border border-l-[5px] bg-panel/40 ${count && highlightSelection ? 'border-azure/50 border-l-azure' : 'border-edge'}`}
+      className={`border border-l-[5px] bg-panel/40 print:break-inside-avoid ${count && highlightSelection ? 'border-azure/50 border-l-azure' : 'border-edge'}`}
     >
       {instructions?.map((instruction) => (
         <RuleText key={instruction} text={instruction} rules={rules} className="!mt-0 p-2.5 text-xs leading-[1.125rem]" />

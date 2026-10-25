@@ -189,6 +189,7 @@ test.describe('a touch device', () => {
     )
     expect(headingsOverlap).toBe(false)
     await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
+    await page.screenshot({ path: test.info().outputPath('simulator-large-text-controls.png') })
     await expect.poll(() => new URL(page.url()).searchParams.get('s')).not.toBeNull()
     const summary = page.locator('[data-results-summary]')
     await expect(summary.locator('[data-combat-wipe]').first()).toContainText('%')
