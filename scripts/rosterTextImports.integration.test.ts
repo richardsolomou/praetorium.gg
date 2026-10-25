@@ -21,6 +21,7 @@ import { chaosSpaceMarinesNewRecruit } from '../src/core/rosterText.chaosSpaceMa
 import { bloodAngelsOfficial } from '../src/core/rosterText.bloodAngels.fixture'
 import { salamandersOfficial } from '../src/core/rosterText.salamanders.fixture'
 import { spaceWolvesOfficial } from '../src/core/rosterText.spaceWolves.fixture'
+import { whiteScarsOfficialFlattened } from '../src/core/rosterText.whiteScars.fixture'
 import type { LoadedRules } from '../src/shared/rules'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import { importRosterFile } from '../src/shared/rosterFiles'
@@ -248,6 +249,18 @@ Skitarii Rangers (85 Points)
       attached: 4,
       mismatches: [],
       points: '1435 for 1435',
+    })
+  })
+
+  it('imports the reported official-app White Scars roster pasted without blank lines or price brackets', () => {
+    expect(summary(whiteScarsOfficialFlattened)).toEqual({
+      format: 'roster-file',
+      faction: 'Imperium - Adeptus Astartes - White Scars',
+      detachments: 2,
+      units: '18 of 18',
+      attached: 4,
+      mismatches: [],
+      points: '2000 for null',
     })
   })
 

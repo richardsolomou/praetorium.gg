@@ -424,6 +424,10 @@ const modelAliases = (name: string) => [
 ]
 // BSData prefixes weapons the official app does not, as its "Astartes Chainsword" and "Steed's savage claws" are the app's "Chainsword" and "Savage claws".
 const spellingKey = (name: string) => name.replace(/^(?:astartes|\S+'s) /, '').replaceAll(' ', '')
+// The official app prints some datasheets' power weapon as the sword or maul the model holds, as Bladeguard Veterans' "Master-crafted Power Sword".
+const powerWeaponKey = (key: string) => key.replace(/power(?:sword|maul)/, 'powerweapon')
+/** The kind of model a counted group fields, as "1 - 2 Gun Servitors" fields a "Gun Servitor", which the official app names it by. */
+const groupKind = (name: string) => normalized(name).match(/^\d+(?:\s*-\s*\d+)?\s+(.+?)s?$/)?.[1]
 
 function wargearCounts(selection: Selection, index: LoadedCatalogue['index']) {
   const counts = new Map<string, number>()
@@ -446,7 +450,8 @@ function textRosterPick(
   const respelled = respelledNames(entryId, loaded.index)
   for (const selection of unit.selections) {
     const label = selection.name.replace(/^(?:Enhancements?|Upgrade):\s*(.+)$/i, (_, name: string) => upgradeName(name)).trim()
-    const name = respelled.get(spellingKey(normalized(label))) ?? normalized(label)
+    const key = spellingKey(normalized(label))
+    const name = (respelled.has(key) ? respelled.get(key) : respelled.get(powerWeaponKey(key))) ?? normalized(label)
     stated.set(name, (stated.get(name) ?? 0) + selection.count)
     if (!labels.has(name)) labels.set(name, label)
     if (!selection.model) continue
@@ -485,10 +490,20 @@ function textRosterPick(
         if (!under) break
         const model = selectionAt(selection, path.slice(0, depth + 1))
         const own = model ? wargearCounts(model, loaded.index) : new Map<string, number>()
-        return { stated: under, held: own }
+        return { stated: under, held: own, scoped: true }
       }
-      return { stated, held }
+      return { stated, held, scoped: false }
     })
+    // Lines a scoped model claims are not also the rest of the unit's to choose from, as a Scout Sergeant's shotgun is not a Scout's.
+    const claimed = new Set(scopes.flatMap((scope) => (scope.scoped ? [scope.stated] : [])))
+    const unclaimed = new Map(stated)
+    for (const under of claimed)
+      for (const [name, count] of under) {
+        const left = (unclaimed.get(name) ?? 0) - count
+        if (left > 0) unclaimed.set(name, left)
+        else unclaimed.delete(name)
+      }
+    for (const scope of scopes) if (!scope.scoped) scope.stated = unclaimed
     const statedChoiceCounts = new Map(
       choices.map((choice, at) => [choice.key, countsForChoice(choice, aliases[at]!, scopes[at]!.stated, scopes[at]!.held)]),
     )
@@ -500,6 +515,7 @@ function textRosterPick(
     const counted = (choice: (typeof choices)[number]) =>
       choice.room > 1 || choice.options.some((option) => isModel(option.id, loaded.index))
     const placed = new Set([...placeableNames(selection, aliases, models, unit.name, loaded), ...warlordNames])
+    const fieldedKinds = new Set<string>()
     const spreadEntries = choices.filter(counted).flatMap((choice): [string, Record<string, number>][] => {
       const counts = statedChoiceCounts.get(choice.key) ?? new Map<string, number>()
       const explicit = counts.size > 0
@@ -515,7 +531,17 @@ function textRosterPick(
           .flatMap((other) => other.options)
           .filter((option) => isModel(option.id, loaded.index))
           .reduce((total, option) => total + named(option), 0)
-        const asked = bodies >= choice.room ? new Map(choice.options.map((option) => [option.id, named(option)])) : explicit ? counts : null
+        const groupNamed = groupKind(choice.name)
+        const kindBodies = !bodies && groupNamed ? (stated.get(groupNamed) ?? 0) : 0
+        const asked =
+          bodies >= choice.room
+            ? new Map(choice.options.map((option) => [option.id, named(option)]))
+            : kindBodies
+              ? kindCounts(choice.options, counts, kindBodies)
+              : explicit
+                ? counts
+                : null
+        if (kindBodies) fieldedKinds.add(groupNamed!)
         // The official app names a model by its kind alone, as an "Eradicator" for the Eradicator with Multi-melta its wargear marks.
         for (const variant of bodies >= choice.room ? choice.options : []) {
           const kind = normalized(variant.name.replace(/\s+(?:w\/|with)\s*.+$/i, ''))
@@ -578,14 +604,14 @@ function textRosterPick(
       attachedTo: undefined as number | undefined,
       ...(unit.nickname ? { nickname: unit.nickname } : {}),
     }
-    return { pick, placed }
+    return { pick, placed, fieldedKinds }
   }
   const first = pickFrom(built?.selection ?? { id: entryId, count: 1 })
   // Read again from the unit as first picked: a choice can open another, as a Trygon's
   // Character upgrade opens its enhancements, and a default the list swaps away no longer
   // accounts for what it states, as a Lord Commissar's power weapon taken for a power fist.
   const opened = buildUnit(entryId, loaded.index, first.pick.models, first.pick.choices, { ...context, spreads: first.pick.spreads })
-  const { pick, placed } = opened ? pickFrom(opened.selection) : first
+  const { pick, placed, fieldedKinds } = opened ? pickFrom(opened.selection) : first
   const toggles = pick.toggles
 
   // Only the unit the pick builds says what was kept: an option the datasheet offers can
@@ -593,7 +619,14 @@ function textRosterPick(
   const imported = buildUnit(entryId, loaded.index, pick.models, pick.choices, { ...context, spreads: pick.spreads })
   const carried = imported ? carriedNames(imported.selection, loaded.index) : new Set<string>()
   const unplaced = [...stated.keys()]
-    .filter((name) => !isCarried(name, carried) && !warlordNames.has(name) && !namedForUnit(name) && name !== normalized(unit.name))
+    .filter(
+      (name) =>
+        !isCarried(name, carried) &&
+        !warlordNames.has(name) &&
+        !namedForUnit(name) &&
+        !fieldedKinds.has(name) &&
+        name !== normalized(unit.name),
+    )
     .map((name) => {
       const label = labels.get(name) ?? name
       const reason = placed.has(name) ? DROPPED_REASON : unplacedChoiceReason(label, { loaded, catalogueId, detachmentIds })
@@ -608,6 +641,22 @@ function textRosterPick(
     unplaced.push({ name: `${unit.models} models`, reason: squadSizeReason(built.size) })
   }
   return { pick, unplaced }
+}
+
+/**
+ * A group's options brought to the bodies the list states for it: those its wargear marks
+ * keep their count, and the defaults it does not mark give way to them or make up the rest.
+ */
+function kindCounts(options: readonly { id: string; count: number }[], marked: ReadonlyMap<string, number>, bodies: number) {
+  const counts = new Map(options.map((option) => [option.id, marked.get(option.id) ?? option.count]))
+  const defaults = options.filter((option) => !marked.has(option.id)).toSorted((left, right) => right.count - left.count)
+  let rest = bodies - [...counts.values()].reduce((total, count) => total + count, 0)
+  for (const option of defaults) {
+    const change = Math.max(rest, -counts.get(option.id)!)
+    counts.set(option.id, counts.get(option.id)! + change)
+    rest -= change
+  }
+  return counts
 }
 
 const isModel = (id: string, index: LoadedCatalogue['index']) => {
@@ -661,6 +710,8 @@ function isCarried(name: string, carried: ReadonlySet<string>) {
 function modelNames(entryId: string, index: LoadedCatalogue['index']) {
   const names = new Set<string>()
   eachDefinition(entryId, index, (definition, target) => {
+    const kind = groupKind(nameOf(definition, index.definitions))
+    if (kind && childrenOf(target, index).some((child) => resolve(child.definition, index).type === 'model')) names.add(kind)
     if (target.type !== 'model') return
     for (const name of [nameOf(definition, index.definitions), modelProfileOf(definition, index)]) {
       if (!name) continue

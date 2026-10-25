@@ -2,9 +2,10 @@ import { attachGroups, textNickname, type TextRoster, type TextRosterUnit } from
 
 /**
  * A points figure grouped in any locale's style, read as "(1 995 Punkte)", "(1'995 Punkte)" or "(2 Detachment Points)":
- * the name before it, the number, and the first word of its unit.
+ * the name before it, the number, and the first word of its unit. Text pasted through some apps loses the brackets and
+ * the space before a unit's price, as in "Rhino70 points".
  */
-const pricePattern = /^(.+?)\s*\((\d{1,3}(?:[\s.,'’]\d{3})+|\d+)\s+([^\s;)]+)[^)]*\)$/
+const pricePattern = /^(.+?)\s*(?:\((\d{1,3}(?:[\s.,'’]\d{3})+|\d+)\s+([^\s;)]+)[^)]*\)|(\d{1,3}(?:[\s.,'’]\d{3})+|\d+)\s+(\S+))$/
 // The app lists each further piece of a model's wargear under the same bullet, on an unbulleted counted line.
 const selection = /^(?=[•◦]|\d+x\s)(?:[•◦]\s*)?(?:(\d+)x\s+)?(.+?)$/
 const labelled = /^([^:]+):\s*(.+)$/
@@ -12,7 +13,9 @@ const appVersion = /\bv\d+(?:\.\d+)+\s+\(\d+\)/
 
 function price(line: string) {
   const match = line.match(pricePattern)
-  return match ? { name: match[1]!, points: Number(match[2]!.replaceAll(/\D/g, '')), unit: match[3]!.toLowerCase() } : null
+  return match
+    ? { name: match[1]!, points: Number((match[2] ?? match[4])!.replaceAll(/\D/g, '')), unit: (match[3] ?? match[5])!.toLowerCase() }
+    : null
 }
 
 /**
@@ -24,10 +27,8 @@ function price(line: string) {
  * heading. The labels of other tools, which write only English, are still read by name.
  */
 export function fromBattleBaseText(input: string): TextRoster | null {
-  const lines = input
-    .replaceAll('\r', '')
-    .split('\n')
-    .map((line) => line.trim())
+  const raw = input.replaceAll('\r', '').split('\n')
+  const lines = raw.map((line) => line.trim())
   const firstAt = lines.findIndex(Boolean)
   let firstEnd = firstAt
   while (firstEnd < lines.length && lines[firstEnd]) firstEnd++
@@ -41,6 +42,9 @@ export function fromBattleBaseText(input: string): TextRoster | null {
   while (setupEnd < lines.length && !lines[setupEnd]) setupEnd++
   const setupStart = setupEnd
   while (setupEnd < lines.length && lines[setupEnd]) setupEnd++
+  // A paste that lost its blank lines runs on into the units, so its setup ends at the battle size.
+  const pricedInSetup = lines.slice(setupStart, setupEnd).flatMap((line, at) => (price(line)?.unit === pointsWord ? [at] : []))
+  if (pricedInSetup.length > 1) setupEnd = setupStart + pricedInSetup[0]! + 1
   const setup = lines.slice(setupStart, setupEnd).filter((line) => !/^Warhammer 40,?000$/i.test(line))
   const body = lines.slice(setupEnd)
   const isUnit = (line: string) => !selection.test(line) && price(line)?.unit === pointsWord
@@ -74,7 +78,20 @@ export function fromBattleBaseText(input: string): TextRoster | null {
   const bare: { unit: TextRosterUnit; selection: TextRosterUnit['selections'][number] }[] = []
   let group: TextRosterUnit[] | null = null
   let current: TextRosterUnit | null = null
+  // A model's wargear sits under its line on "◦" or more deeply indented bullets, with further pieces on unbulleted lines.
+  const nesting = /^\s*◦|^\s+•/m.test(input)
+  const indentOf = (at: number) => raw[setupEnd + at]!.search(/\S/)
+  let modelLine: { name: string; indent: number } | undefined
+  let model: string | undefined
   const next = (from: number) => body.findIndex((line, at) => at > from && line)
+  // Without nesting, as in a paste that lost its indentation, a counted bullet over another heads a model.
+  const headsModel = (at: number) => {
+    const after = next(at)
+    const following = body[after] ?? ''
+    if (following.startsWith('◦')) return true
+    if (!following.startsWith('•')) return false
+    return nesting ? indentOf(after) > indentOf(at) : /^•\s*\d+x\s/.test(following)
+  }
   const isUnitAt = (at: number) => at >= 0 && isUnit(body[at]!)
   const isGroupHeadingAt = (at: number) => at >= 0 && /\s\d+$/.test(body[at]!) && isUnitAt(next(at))
 
@@ -86,6 +103,7 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     }
     if (isUnit(line)) {
       current = { name: price(line)!.name, selections: [], leading: null, warlord: false }
+      modelLine = model = undefined
       units.push(current)
       group?.push(current)
       continue
@@ -108,6 +126,13 @@ export function fromBattleBaseText(input: string): TextRoster | null {
       continue
     }
     const name = picked[2]!
+    if (line.startsWith('•')) {
+      if (picked[1] && headsModel(at)) {
+        modelLine = { name, indent: indentOf(at) }
+        model = undefined
+      } else if (nesting && (!modelLine || indentOf(at) <= modelLine.indent)) modelLine = model = undefined
+      else model = modelLine?.name
+    } else if (line.startsWith('◦')) model = modelLine?.name
     const numeric = name.match(/^(Models|Roster entry|Attached to entry):\s*(\d+)$/i)
     const modelCount = name.match(/^(\d+) models?$/i)
     const label = picked[1] ? null : name.match(labelled)
@@ -120,7 +145,7 @@ export function fromBattleBaseText(input: string): TextRoster | null {
     else if (/^(?:Leading|Supporting):/i.test(name)) current.leading = name.replace(/^(?:Leading|Supporting):\s*/i, '').trim()
     else if (/^(?:Leader|Support):/i.test(name)) current.leader = name.replace(/^(?:Leader|Support):\s*/i, '').trim()
     else {
-      const chosen = { name: label ? label[2]! : name, count: Number(picked[1] ?? 1) }
+      const chosen = { name: label ? label[2]! : name, count: Number(picked[1] ?? 1), ...(model ? { model } : {}) }
       current.selections.push(chosen)
       if (label) labels.set(current, [...(labels.get(current) ?? []), { label: label[1]!, selection: chosen }])
       else if (!picked[1]) bare.push({ unit: current, selection: chosen })

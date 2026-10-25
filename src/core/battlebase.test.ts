@@ -123,7 +123,7 @@ describe('BattleBase text import', () => {
 
     expect(parsed?.units[1]?.selections).toEqual([
       { name: 'Lokhust Destroyer', count: 6 },
-      { name: 'Gauss cannon', count: 6 },
+      { name: 'Gauss cannon', count: 6, model: 'Lokhust Destroyer' },
     ])
   })
 
@@ -189,7 +189,7 @@ describe('BattleBase text import', () => {
     })
 
     it('reads an enhancement under its translated label', () => {
-      expect(parsed?.units[4]?.selections).toContainEqual({ name: 'Enhancements: Flash Grenades', count: 1 })
+      expect(parsed?.units[4]?.selections).toContainEqual({ name: 'Enhancements: Flash Grenades', count: 1, model: 'Lord Commissar' })
     })
 
     it('leaves nothing unread', () => {
@@ -264,6 +264,14 @@ TOTAL ARMY POINTS: 600pts`
 
     it('leaves no line unread', () => {
       expect(parsed?.units.flatMap((unit) => unit.unread ?? [])).toEqual([])
+    })
+
+    it('reads an indented bullet as the wargear of the model above it', () => {
+      expect(parsed?.units.find((unit) => unit.name === 'Wolf Guard Terminators')?.selections).toContainEqual({
+        name: 'Relic Greataxe',
+        count: 1,
+        model: 'Wolf Guard Terminator Pack Leader',
+      })
     })
 
     it('reads the list setup when the title line was not copied', () => {
