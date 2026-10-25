@@ -1,5 +1,19 @@
 import { expect, test, type Page } from './test'
-import { advance, attachRoster, createBattle, createRoster, desktopContext, retryUntilVisible, signUp, startBattle, takeTheTurn, uniqueName, playTurn, shotAtWidths, PHONE } from './account'
+import {
+  advance,
+  attachRoster,
+  createBattle,
+  createRoster,
+  desktopContext,
+  retryUntilVisible,
+  signUp,
+  startBattle,
+  takeTheTurn,
+  uniqueName,
+  playTurn,
+  shotAtWidths,
+  PHONE,
+} from './account'
 import { add } from './builder.harness'
 import { productSql, userIdNamed, lastPathSegment } from './storage'
 

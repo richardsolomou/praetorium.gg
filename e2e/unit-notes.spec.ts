@@ -1,5 +1,16 @@
 import { expect, type Locator, type Page, test } from './test'
-import { attachRoster, befriend, createBattle, createRoster, PRACTICE_OPPONENT, signUp, startBattle, uniqueName, waitForRosterSave, setRosterAccess } from './account'
+import {
+  attachRoster,
+  befriend,
+  createBattle,
+  createRoster,
+  PRACTICE_OPPONENT,
+  signUp,
+  startBattle,
+  uniqueName,
+  waitForRosterSave,
+  setRosterAccess,
+} from './account'
 import { shot } from './builder.harness'
 import { lastPathSegment } from './storage'
 

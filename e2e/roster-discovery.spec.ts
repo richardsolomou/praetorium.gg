@@ -1,5 +1,14 @@
 import { expect, type Page, test } from './test'
-import { befriend, chooseRosterAction, createRoster, retryUntilVisible, signUp, uniqueName, waitForRosterSave, setRosterAccess } from './account'
+import {
+  befriend,
+  chooseRosterAction,
+  createRoster,
+  retryUntilVisible,
+  signUp,
+  uniqueName,
+  waitForRosterSave,
+  setRosterAccess,
+} from './account'
 import { expectNoHorizontalOverflow, shot } from './builder.harness'
 import { productOperator, userIdFor, lastPathSegment } from './storage'
 
