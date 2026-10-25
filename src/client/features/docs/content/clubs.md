@@ -1,23 +1,23 @@
-A club is a standing table for your club or friend group. It never ends: members play each other whenever they like, and every battle they choose the club for counts toward its ratings. Start one with **New club** on [Clubs](/clubs).
+A club keeps a running table of the games your group plays. There's no end date: play each other whenever you like, and every game you play for the club goes on its table. Start one with **New club** on [Clubs](/clubs).
 
 ## Set up a club
 
-- **Who can find it** is a **Private link** only people you send it to can open, or **Public**, listed on the clubs page.
-- **Who gets in** is **Anyone who joins**, or **You approve** each request. Switching to **Anyone who joins** lets in everyone still waiting.
-- The owner can choose **Admins** from the members in **Edit club**. Admins change settings, let people in and remove members, but only the owner removes an admin or deletes the club.
+- **Who can find it**: **Public** lists the club on the clubs page. **Private link** keeps it to people you send the link to.
+- **Who gets in**: **Anyone who joins**, or **You approve** each request. Switching to **Anyone who joins** lets in everyone waiting.
+- **Admins**: the owner picks them from the members in **Edit club**. Admins can edit the club and manage members. Only the owner can remove an admin or delete the club.
 
-Share the link from **Copy invite link** on the club page. A private club's table is visible to its members only.
+Use **Copy invite link** on the club page to bring people in. Only members can see a private club's table.
 
 ## Play for the table
 
-When you set up a battle, choose the club under **Club**. It's offered only when every player is a member of the club, and never for a battle with a guest or practice opponent, or one tracked manually. A sealed game's battles count through the sealed game instead (see below). You can change the choice until the battle starts, and then it's fixed.
+When you set up a battle, pick the club under **Club**. You'll only see it when everyone in the battle is a member. Games with a guest or practice opponent, and manually tracked games, can't count. You can change the choice until the battle starts.
 
-When the battle finishes, the result counts on the club's table. Ratings work like the [leaderboard](/leaderboard): everyone starts at 1000, beating a higher-rated player gains more, a concession is a loss and allies share their side's result. Club battles count on the leaderboard as usual too.
+When the game ends, the result goes on the table. Ratings work as on the [leaderboard](/leaderboard): everyone starts at 1000, beating a higher-rated player gains more, a concession is a loss, and allies share their side's result. Club games still count on the leaderboard too.
 
-## Play a sealed game
+## Sealed games
 
-An organizer presses **New sealed game** on the club page. Members seal a roster in secret, the rosters open together, then you play each other. Its battles count on the club's table, and the club page lists every sealed game. Sealing works like a [tournament's](/docs/run-a-tournament).
+An organizer can start one with **New sealed game**. Everyone seals a list in secret, then you reveal them together and play. The results go on the club table. Sealing works the same as in a [tournament](/docs/run-a-tournament).
 
 ## Leave or delete a club
 
-**Leave club** takes you off the table. Your battles still count for your opponents, and your row comes back if you rejoin. The owner can't leave their own club. **Delete club** removes the club, its members and its table. Its sealed games and battles stay where they are.
+**Leave club** takes you off the table. Your games still count for your opponents, and your results come back if you rejoin. The owner can't leave their own club. **Delete club** removes the club, its members and its table. Its battles and sealed games stay.

@@ -9,16 +9,16 @@ import type { SendCommand } from '../useCommand'
 export function ClubChoice({ view, send, disabled }: { view: BattleView; send: SendCommand; disabled: boolean }) {
   const { data } = useQuery(battleClubsQuery(view.token))
   if (!data || (!data.options.length && !view.clubId)) return null
-  const options = data.options.map((club) => ({ value: club.id, name: club.name, detail: 'Counts on the club table' }))
+  const options = data.options.map((club) => ({ value: club.id, name: club.name, detail: 'Goes on the club table' }))
   // A club the players no longer share still names itself, so the choice can be seen and cleared.
   if (view.clubId && !options.some((option) => option.value === view.clubId))
-    options.push({ value: view.clubId, name: data.current?.name ?? 'A club', detail: 'Not every player is a member any more' })
+    options.push({ value: view.clubId, name: data.current?.name ?? 'A club', detail: 'Not everyone here is a member now' })
   return (
     <SetupPanel>
       <Choice
         label="Club"
         value={view.clubId ?? ''}
-        options={[{ value: '', name: 'No club', detail: 'A friendly game' }, ...options]}
+        options={[{ value: '', name: 'No club', detail: 'Not for a club table' }, ...options]}
         columns={2}
         disabled={disabled}
         onChange={(clubId) => send({ kind: 'set-battle-club', clubId: clubId || null })}

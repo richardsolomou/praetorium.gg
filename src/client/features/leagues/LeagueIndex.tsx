@@ -25,7 +25,7 @@ export function LeagueIndex() {
       <PageHeader
         eyebrow="Events"
         title="Tournaments"
-        description="Organized one-off events: everyone seals a roster in secret, the rosters open together, then you play each other."
+        description="One-off events. Everyone seals a list in secret, then the lists are revealed together."
         actions={me ? <CreateLeague /> : null}
       >
         <EventsTabs current="tournaments" />

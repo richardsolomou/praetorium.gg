@@ -36,7 +36,7 @@ export const AREAS: Record<
   },
   Clubs: {
     icon: UsersRound,
-    summary: 'Keep a standing table of the battles your club or group plays.',
+    summary: 'Keep a running table of the games your group plays.',
     action: { to: '/clubs', label: 'Open Clubs' },
   },
   Tournaments: {

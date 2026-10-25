@@ -135,15 +135,15 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
       <PageContent>
         {/* As a tournament reads: the reader's own place leads the side column and a phone, the club's play fills the main one. */}
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_1fr]">
-          <div className="lg:col-start-2 lg:row-start-1">
+          <div className="space-y-6 lg:col-start-2 lg:row-start-1">
             <ClubStatus club={club} viewerId={viewerId} own={own} />
+            <ClubFigures club={club} members={accepted.length} table={table} />
           </div>
           <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-span-2 lg:row-start-1">
-            {table ? <TableSection table={table} viewerId={viewerId} member={member} /> : null}
+            {table ? <TableSection table={table} viewerId={viewerId} /> : null}
             <SealedGames club={club} />
           </div>
           <aside className="space-y-6 lg:col-start-2">
-            <ClubFigures club={club} members={accepted.length} table={table} />
             <Members club={club} viewerId={viewerId} isOwner={isOwner} />
           </aside>
         </div>
@@ -153,7 +153,7 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
       <ConfirmDialog
         open={deleting}
         title={`Delete ${club.name}?`}
-        description="The club, its members and its table go for good. Its sealed games and battles stay where they are."
+        description="This removes the club, its members and its table. Its battles and sealed games stay."
         cancel="Keep club"
         confirm="Delete club"
         pendingLabel="Deleting…"
@@ -166,7 +166,7 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
       <ConfirmDialog
         open={leaving}
         title={member ? `Leave ${club.name}?` : 'Withdraw your request?'}
-        description="You drop off the club’s table. Rejoin any time to come back on it with your record."
+        description="You come off the table. Rejoin and your results come back."
         cancel="Stay"
         confirm={member ? 'Leave club' : 'Withdraw'}
         pendingLabel="Leaving…"
@@ -185,30 +185,27 @@ function ClubFigures({ club, members, table }: { club: Club; members: number; ta
   const leader = table?.table.rows[0]
   const figures = [
     { label: 'Members', value: String(members) },
-    { label: 'Battles', value: table ? String(table.finished) : '–' },
-    { label: 'Games', value: String(club.tournaments.length) },
+    { label: 'Games played', value: table ? String(table.finished) : '–' },
+    { label: 'Sealed games', value: String(club.tournaments.length) },
   ]
   return (
-    <dl className="border border-edge bg-panel">
-      <div className="grid grid-cols-3 divide-x divide-edge">
-        {figures.map((figure) => (
-          <div key={figure.label} className="p-3">
-            <dt className="eyebrow truncate">{figure.label}</dt>
-            <dd className="mt-1 figure text-2xl">{figure.value}</dd>
-          </div>
-        ))}
-      </div>
-      <div className="border-t border-edge p-3">
-        <dt className="eyebrow">Leading</dt>
-        <dd className="mt-1 flex min-w-0 items-center gap-2">
+    <dl className="divide-y divide-edge border border-edge bg-panel text-sm">
+      {figures.map((figure) => (
+        <div key={figure.label} className="flex items-baseline justify-between gap-3 px-3 py-2.5">
+          <dt className="text-dim">{figure.label}</dt>
+          <dd className="figure text-base">{figure.value}</dd>
+        </div>
+      ))}
+      <div className="flex items-center justify-between gap-3 px-3 py-2.5">
+        <dt className="text-dim">Leading</dt>
+        <dd className="flex min-w-0 items-center gap-2">
           {leader ? (
             <>
-              <PlayerAvatar name={leader.name} image={leader.image} className="size-7 text-3xs" />
               <span className="min-w-0 truncate font-semibold">{leader.name}</span>
-              <span className="ml-auto figure text-achieved">{Math.round(leader.rating)}</span>
+              <span className="figure text-achieved">{Math.round(leader.rating)}</span>
             </>
           ) : (
-            <span className="text-dim">Nobody yet</span>
+            <span className="text-faint">Nobody yet</span>
           )}
         </dd>
       </div>
@@ -223,20 +220,14 @@ function ClubStatus({ club, viewerId, own }: { club: Club; viewerId: string | nu
   const invite = useInviteShare(`/clubs/${club.token}`, club.name, 'club_invite_shared')
   const shareLabel = useInviteShareLabel()
   const member = own?.status === 'accepted'
-  const title = member
-    ? viewerId === club.ownerId
-      ? 'You run this club'
-      : 'You’re a member'
-    : own
-      ? 'Waiting for approval'
-      : 'Join this club'
+  const title = member ? (viewerId === club.ownerId ? 'You run this club' : 'You’re a member') : own ? 'Request sent' : 'Join this club'
   const detail = member
-    ? 'Choose the club when you set up a battle against another member, and the result counts on its table.'
+    ? 'Pick the club when you set up a game against another member, and the result goes on the table.'
     : own
-      ? `${club.ownerName} or an admin will let you in.`
+      ? `${club.ownerName} or an admin needs to accept you.`
       : club.admission === 'approval'
-        ? 'Ask to join, and an organizer lets you in. Then the battles you play other members count on its table.'
-        : 'Join, and the battles you play other members count on its table.'
+        ? 'An organizer accepts each request. Once you’re in, your games against members go on the table.'
+        : 'Once you’re in, your games against members go on the table.'
   return (
     <section
       data-club-status
@@ -277,16 +268,16 @@ function ClubStatus({ club, viewerId, own }: { club: Club; viewerId: string | nu
 }
 
 /** The table once a battle has counted; until then, how one comes to count. */
-function TableSection({ table, viewerId, member }: { table: ClubTable; viewerId: string | null; member: boolean }) {
+function TableSection({ table, viewerId }: { table: ClubTable; viewerId: string | null }) {
   if (!table.finished && !table.recent.length)
     return (
       <section>
-        <SectionHeading title="How the table fills" />
+        <SectionHeading title="Getting started" />
         <ol className="grid gap-px border border-edge bg-edge sm:grid-cols-3">
           {[
-            ['Bring the group in', 'Send the invite link. Everyone who joins can play for the table.'],
-            ['Choose the club at setup', 'When every player is a member, battle setup offers the club. Pick it before the game starts.'],
-            ['Finish the battle', 'The result counts here, rated from 1000 like the leaderboard.'],
+            ['Invite your group', 'Share the link. Anyone who joins can play for the table.'],
+            ['Pick the club at setup', 'It’s offered when everyone in the battle is a member.'],
+            ['Finish the game', 'The result goes on the table. Everyone starts at 1000.'],
           ].map(([title, detail], index) => (
             <li key={title} className="bg-panel p-4">
               <span className="figure text-sm text-faint">{index + 1}</span>
@@ -295,16 +286,15 @@ function TableSection({ table, viewerId, member }: { table: ClubTable; viewerId:
             </li>
           ))}
         </ol>
-        {member ? null : <p className="mt-2 text-sm text-faint">The table fills as members play each other.</p>}
       </section>
     )
   return (
     <div className="space-y-8">
       <div className="space-y-2">
-        <Standings table={table.table} viewerId={viewerId ?? undefined} title="Table" empty="No club battle has finished yet." />
+        <Standings table={table.table} viewerId={viewerId ?? undefined} title="Table" empty="No games finished yet." />
         <p className="text-sm text-faint">
-          Battles members chose the club for, and the battles of its sealed games, rated from 1000 like the leaderboard. Guest, practice and
-          manually tracked battles never count.{table.partial ? ' Only the most recent 10,000 battles are counted.' : ''}
+          Counts games played for the club and its sealed games. Ratings start at 1000, as on the leaderboard. Guest, practice and manually
+          tracked games don’t count.{table.partial ? ' Only the latest 10,000 games are counted.' : ''}
         </p>
       </div>
       <BattleShelf title="Recent battles" name="Club battles" battles={table.recent} viewerId={viewerId ?? undefined} />
@@ -350,7 +340,7 @@ function SealedGames({ club }: { club: Club }) {
         </ul>
       ) : (
         <p className="text-sm text-dim">
-          Everyone seals a roster in secret, the rosters open together, then you play them. The battles count on the club’s table.
+          Everyone seals a list in secret, then you reveal them together and play. The results go on the table.
         </p>
       )}
       <LeagueSettingsDialog

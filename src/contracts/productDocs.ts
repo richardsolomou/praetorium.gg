@@ -165,7 +165,7 @@ export const PRODUCT_DOCS = [
     slug: 'clubs',
     section: 'Clubs',
     title: 'Clubs',
-    description: 'A standing table for your club or friend group: joining, choosing the club at setup, and what counts.',
+    description: 'Joining a club, playing for its table, and sealed games.',
   },
   {
     slug: 'run-a-tournament',

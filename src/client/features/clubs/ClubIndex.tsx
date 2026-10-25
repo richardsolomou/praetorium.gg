@@ -24,7 +24,7 @@ export function ClubIndex() {
       <PageHeader
         eyebrow="Events"
         title="Clubs"
-        description="Casual play with your friends or local club: tag your battles to the club and they count on its standing table."
+        description="Keep a running table of the games your group plays."
         actions={
           me ? (
             <Button onClick={() => setCreating(true)}>
@@ -43,7 +43,7 @@ export function ClubIndex() {
             headingLevel={2}
             eyebrow="Play with your group"
             title="No clubs yet"
-            explanation={me ? 'Create one and send the link to your group.' : 'Public clubs will appear here. Sign in to create one.'}
+            explanation={me ? 'Start one and send the link to your group.' : 'Public clubs show up here. Sign in to start one.'}
             icon={Users}
           />
         ) : null}
@@ -111,7 +111,7 @@ const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ?
 /** The reader's own place in the club, when they have one. */
 function clubStatus(club: ClubSummary, viewerId: string | null) {
   if (club.ownerId === viewerId) return { label: 'You run it', tint: 'text-achieved' }
-  if (club.ownMember?.status === 'pending') return { label: 'Waiting for approval', tint: 'text-dim' }
+  if (club.ownMember?.status === 'pending') return { label: 'Request sent', tint: 'text-dim' }
   if (club.ownMember?.role === 'admin') return { label: 'Admin', tint: 'text-achieved' }
   if (club.ownMember) return { label: 'Member', tint: 'text-achieved' }
   return null

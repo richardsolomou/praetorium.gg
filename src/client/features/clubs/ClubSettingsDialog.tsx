@@ -79,8 +79,8 @@ function SettingsForm({ club, isOwner, onClose }: { club: Club | null; isOwner: 
         <DialogTitle className="text-2xl">{club ? 'Edit club' : 'New club'}</DialogTitle>
         <DialogDescription>
           {club
-            ? 'Switching to Anyone who joins lets in everyone still waiting.'
-            : 'A standing table for your club or group. Battles count when members choose the club at setup.'}
+            ? 'Switching to “Anyone who joins” lets in everyone waiting.'
+            : 'Keep a running table for your group. A game counts when its players pick the club at setup.'}
         </DialogDescription>
       </DialogHeader>
       <form
@@ -109,7 +109,7 @@ function SettingsForm({ club, isOwner, onClose }: { club: Club | null; isOwner: 
               value={value.description}
               maxLength={CLUB_DESCRIPTION_MAX_LENGTH}
               rows={2}
-              placeholder="Where and when you play, anything else members need to know."
+              placeholder="Where and when you meet, and anything else members should know."
               disabled={disabled}
               onChange={(event) => setValue({ ...value, description: event.target.value })}
             />
@@ -209,7 +209,7 @@ function AdminsField({
           ))}
         </SelectContent>
       </Select>
-      <p className="text-xs text-dim">Admins change settings and manage members. Only you can delete the club.</p>
+      <p className="text-xs text-dim">Admins can edit the club and manage members. Only you can delete it.</p>
     </div>
   )
 }
