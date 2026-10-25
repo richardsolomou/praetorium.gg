@@ -4,14 +4,17 @@ import type { Command } from '../core/battle'
 import type { RepositoryPort } from './spacetimeRepository'
 import { PraetoriumService } from './service'
 
-function fixture({ members = [ALICE, BOB], visibility = 'private', clubId = 'club-id', tagged = true } = {}) {
+const lock = (leagueToken: string, eventToken?: string): Command => ({ kind: 'lock-league-rosters', leagueToken, eventToken })
+const tagged: Command = { kind: 'set-battle-club', clubId: 'club-id' }
+
+function fixture({ members = [ALICE, BOB], visibility = 'private', counted = tagged } = {}) {
   const history = {
     battle: { id: 'battle', token: 'token', createdAt: 0 },
     players: NAMES.map((player, side) => ({ ...player, side, automated: false })),
     log: log(
       [ALICE, builtRoster('Alice army', ['Immortals'])],
       [BOB, builtRoster('Bob army', ['Immortals'])],
-      [ALICE, tagged ? { kind: 'set-battle-club', clubId } : { kind: 'lock-league-rosters', leagueToken: 'league', eventToken: 'event' }],
+      [ALICE, counted],
       [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
       [ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: BOB }] as [string, Command],
     ),
@@ -22,7 +25,7 @@ function fixture({ members = [ALICE, BOB], visibility = 'private', clubId = 'clu
       token: 'club',
       ownerId: ALICE,
       visibility,
-      tournaments: [{ token: 'league', eventTokens: ['event'] }],
+      games: [{ token: 'game' }],
       members: members.map((userId) => ({ userId, status: 'accepted', role: 'member', name: userId, image: null })),
     }),
     battlesByClub: vi.fn().mockResolvedValue({ battles: [history], nextCursor: null }),
@@ -42,8 +45,16 @@ it('rates the battles chosen for the club', async () => {
   expect(await rows(fixture())).toEqual([ALICE, BOB])
 })
 
-it('counts the battles of the club’s tournaments', async () => {
-  expect(await rows(fixture({ tagged: false }))).toEqual([ALICE, BOB])
+it('counts the battles of the club’s games', async () => {
+  expect(await rows(fixture({ counted: lock('game', 'game') }))).toEqual([ALICE, BOB])
+})
+
+it('counts a battle of the league the club once was, which names no event', async () => {
+  expect(await rows(fixture({ counted: lock('club') }))).toEqual([ALICE, BOB])
+})
+
+it('leaves out a battle of another event', async () => {
+  expect(await rows(fixture({ counted: lock('club', 'elsewhere') }))).toEqual([])
 })
 
 it('leaves a player who left the club off its table', async () => {
@@ -51,7 +62,7 @@ it('leaves a player who left the club off its table', async () => {
 })
 
 it('counts only battles whose log still names the club', async () => {
-  expect(await rows(fixture({ clubId: 'another-club' }))).toEqual([])
+  expect(await rows(fixture({ counted: { kind: 'set-battle-club', clubId: 'another-club' } }))).toEqual([])
 })
 
 it('hides a private club’s table from a non-member', async () => {

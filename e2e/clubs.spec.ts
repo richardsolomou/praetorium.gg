@@ -63,22 +63,21 @@ test('club members choose their club at battle setup', async ({ browser }, testI
   await owner.screenshot({ path: testInfo.outputPath('club-page.png'), fullPage: true })
 
   // A sealed game the club plays links back to it and is listed on the club page, not under tournaments.
-  const gameName = uniqueName('Club sealed game')
   const game = owner.getByRole('dialog', { name: 'New sealed game' })
   await retryUntilVisible(game, () => owner.getByRole('button', { name: 'New sealed game' }).click({ timeout: 1_000 }))
-  await game.getByLabel('Name').fill(gameName)
   await game.getByRole('button', { name: 'Start sealed game' }).click()
-  await expect(owner).toHaveURL(/\/clubs\/[^/]+\/games\/[^/?]+/)
+  await expect(owner).toHaveURL(/\/clubs\/[^/]+\/games\/[^/?]+$/)
   await expect(owner.getByText('Sealed game', { exact: true })).toBeVisible()
   // A tournament address for the game still finds it, under its club.
-  const gameToken = new URL(owner.url()).pathname.split('/').at(-1)!
+  const gamePath = new URL(owner.url()).pathname
+  const gameToken = gamePath.split('/').at(-1)!
   await owner.goto(`/tournaments/${gameToken}`)
-  await expect(owner).toHaveURL(new RegExp(`/clubs/[^/]+/games/${gameToken}`))
+  await expect(owner).toHaveURL(new RegExp(`${gamePath}$`))
   await owner.getByRole('link', { name: clubName }).click()
-  await expect(owner.getByRole('link', { name: new RegExp(gameName) })).toBeVisible()
+  await expect(owner.locator(`a[href="${gamePath}"]`)).toBeVisible()
   await owner.goto('/tournaments')
   await expect(owner.getByRole('heading', { name: 'Tournaments', exact: true })).toBeVisible()
-  await expect(owner.getByText(gameName)).toHaveCount(0)
+  await expect(owner.locator(`a[href*="${gameToken}"]`)).toHaveCount(0)
   await ownerContext.close()
   await memberContext.close()
 })

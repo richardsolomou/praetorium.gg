@@ -16,8 +16,8 @@ import { useInviteShareLabel } from '../friends/friendInvite'
 
 type ManageableLeague = {
   token: string
-  name: string
-  club?: { token: string; name?: string } | null
+  tournament: { name: string } | null
+  club: { token: string; name: string } | null
   format?: TableShape | null
   rosterLimit?: number | null
   pointsBudget?: number | null
@@ -26,7 +26,7 @@ type ManageableLeague = {
 /** One frame for every league card, so a card with organizer actions looks like one without. */
 export const LEAGUE_CARD = 'relative flex min-w-0 flex-col border border-edge bg-panel transition-colors hover:border-info hover:bg-raised'
 
-/** `canDelete` is the owner's alone; an admin runs the league but cannot remove it. */
+/** `canDelete` is a tournament owner's alone; an admin runs the tournament but cannot remove it. */
 export function LeagueCardActions({
   league,
   canDelete,
@@ -145,7 +145,7 @@ function LeagueActionDialogs({ actions }: { actions: LeagueActionsController }) 
       <LeagueSettingsDialog mode={{ kind: 'edit', token: actions.league.token }} open={actions.editing} onOpenChange={actions.setEditing} />
       <ConfirmDialog
         open={actions.deleting}
-        title={actions.league.club ? `Delete this ${actions.noun}?` : `Delete ${actions.league.name}?`}
+        title={actions.league.tournament ? `Delete ${actions.league.tournament.name}?` : `Delete this ${actions.noun}?`}
         description="Every entrant and sealed roster goes with it, for good. Battles already started from it stay where they are."
         cancel={`Keep ${actions.noun}`}
         confirm={`Delete ${actions.noun}`}

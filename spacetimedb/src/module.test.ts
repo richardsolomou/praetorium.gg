@@ -49,6 +49,40 @@ beforeEach(() => {
   for (const key of Object.keys(env)) delete env[key]
 })
 
+type Ctx = Parameters<typeof module.init>[0]
+type SealedEvent = Parameters<Ctx['db']['sealedEvents']['insert']>[0]
+
+/** A private tournament `league` its `organizer` runs, whose event's token is `event`. */
+function insertTournament(ctx: Ctx, event: Partial<SealedEvent> = {}) {
+  ctx.db.sealedEvents.insert({
+    id: 'event',
+    token: 'event',
+    format: undefined,
+    rosterLimit: undefined,
+    allowances: undefined,
+    rounds: undefined,
+    pointsBudget: undefined,
+    playsAt: undefined,
+    sealBy: undefined,
+    createdAt: 1n,
+    revealedAt: undefined,
+    revealedBy: undefined,
+    ...event,
+  })
+  ctx.db.tournaments.insert({
+    id: 'league',
+    token: 'league',
+    eventId: 'event',
+    ownerId: 'organizer',
+    name: 'League',
+    description: '',
+    visibility: 'private',
+    admission: 'automatic',
+    playerLimit: undefined,
+    createdAt: 1n,
+  })
+}
+
 describe('sharing a revealed league roster', () => {
   function setup(revealed = true) {
     const host = harness()
@@ -59,35 +93,7 @@ describe('sharing a revealed league roster', () => {
       built: { catalogueId: 'catalogue', revision: 'revision', limit: 1000, detachment: null, disposition: null, picks, units: [] },
     })
     host.call(host.operator, (ctx) => {
-      ctx.db.leagues.insert({
-        id: 'league',
-        token: 'league',
-        ownerId: 'organizer',
-        name: 'League',
-        description: '',
-        visibility: 'private',
-        admission: 'automatic',
-        playerLimit: undefined,
-        recurring: true,
-        createdAt: 1n,
-        clubId: undefined,
-      })
-      ctx.db.leagueEvents.insert({
-        id: 'event',
-        token: 'event',
-        leagueId: 'league',
-        number: 1,
-        format: '1v1',
-        rosterLimit: 1000,
-        createdAt: 1n,
-        revealedAt: revealed ? 10n : undefined,
-        revealedBy: 'organizer',
-        allowances: undefined,
-        rounds: undefined,
-        pointsBudget: undefined,
-        playsAt: undefined,
-        sealBy: undefined,
-      })
+      insertTournament(ctx, { format: '1v1', rosterLimit: 1000, revealedAt: revealed ? 10n : undefined, revealedBy: 'organizer' })
       ctx.db.leagueEventEntries.insert({
         key: '["event","entrant"]',
         eventId: 'event',
@@ -292,35 +298,7 @@ describe('what a league event allows', () => {
   function setup(allowances: string | undefined, format = '1v1') {
     const host = harness()
     host.call(host.operator, (ctx) => {
-      ctx.db.leagues.insert({
-        id: 'league',
-        token: 'league',
-        ownerId: 'organizer',
-        name: 'League',
-        description: '',
-        visibility: 'private',
-        admission: 'automatic',
-        playerLimit: undefined,
-        recurring: true,
-        createdAt: 1n,
-        clubId: undefined,
-      })
-      ctx.db.leagueEvents.insert({
-        id: 'event',
-        token: 'event',
-        leagueId: 'league',
-        number: 1,
-        format,
-        rosterLimit: 2000,
-        createdAt: 1n,
-        revealedAt: undefined,
-        revealedBy: undefined,
-        allowances,
-        rounds: undefined,
-        pointsBudget: undefined,
-        playsAt: undefined,
-        sealBy: undefined,
-      })
+      insertTournament(ctx, { format, rosterLimit: 2000, allowances })
       for (const userId of ['entrant', 'ally'])
         ctx.db.leagueEventEntries.insert({
           key: JSON.stringify(['event', userId]),
@@ -390,20 +368,11 @@ describe('what a league event allows', () => {
       })
     }
     const update = (rule: Record<string, unknown>) =>
-      command({
-        op: 'update',
-        ownerId: 'organizer',
-        name: 'League',
-        description: '',
-        visibility: 'private',
-        admission: 'automatic',
-        playerLimit: null,
-        rule: { format, rosterLimit: 2000, ...rule },
-      })
-    const event = () => host.call(host.operator, (ctx) => ctx.db.leagueEvents.id.find('event'))
+      command({ op: 'update', ownerId: 'organizer', rule: { format, rosterLimit: 2000, ...rule } })
+    const event = () => host.call(host.operator, (ctx) => ctx.db.sealedEvents.id.find('event'))
     const entry = () => host.call(host.operator, (ctx) => ctx.db.leagueEventEntries.key.find('["event","entrant"]'))
     const set = (fields: { sealBy?: bigint; pointsBudget?: number }) =>
-      host.call(host.operator, (ctx) => ctx.db.leagueEvents.id.update({ ...ctx.db.leagueEvents.id.find('event')!, ...fields }))
+      host.call(host.operator, (ctx) => ctx.db.sealedEvents.id.update({ ...ctx.db.sealedEvents.id.find('event')!, ...fields }))
     const reveal = (now: number) => command({ op: 'reveal', ownerId: 'organizer', now })
     return { seal, update, event, entry, set, reveal }
   }
@@ -611,39 +580,41 @@ describe('club battles', () => {
 describe('leagues becoming clubs', () => {
   function setup() {
     const host = harness()
-    host.call(host.operator, (ctx) => {
+    const league = (ctx: Ctx, id: string, token: string, clubId?: string) =>
       ctx.db.leagues.insert({
-        id: 'league',
-        token: 'league-token',
+        id,
+        token,
         ownerId: 'owner',
-        name: 'Club night',
+        name: clubId ? '' : 'Club night',
         description: '',
         visibility: 'private',
         admission: 'automatic',
         playerLimit: undefined,
         recurring: true,
         createdAt: 1n,
-        clubId: undefined,
+        clubId,
       })
+    const event = (ctx: Ctx, leagueId: string, number: number) =>
+      ctx.db.leagueEvents.insert({
+        id: `event-${number}`,
+        token: `event-token-${number}`,
+        leagueId,
+        number,
+        format: '1v1',
+        rosterLimit: 1000,
+        createdAt: BigInt(number),
+        revealedAt: undefined,
+        revealedBy: undefined,
+        allowances: '[]',
+        rounds: undefined,
+        pointsBudget: undefined,
+        playsAt: undefined,
+        sealBy: undefined,
+      })
+    host.call(host.operator, (ctx) => {
+      league(ctx, 'league', 'league-token')
       ctx.db.leagueAdmins.insert({ key: JSON.stringify(['league', 'admin']), leagueId: 'league', userId: 'admin', addedAt: 1n })
-      for (const number of [1, 2]) {
-        ctx.db.leagueEvents.insert({
-          id: `event-${number}`,
-          token: `event-token-${number}`,
-          leagueId: 'league',
-          number,
-          format: '1v1',
-          rosterLimit: 1000,
-          createdAt: BigInt(number),
-          revealedAt: undefined,
-          revealedBy: undefined,
-          allowances: '[]',
-          rounds: undefined,
-          pointsBudget: undefined,
-          playsAt: undefined,
-          sealBy: undefined,
-        })
-      }
+      for (const number of [1, 2]) event(ctx, 'league', number)
       for (const [eventId, userId, status] of [
         ['event-1', 'player', 'accepted'],
         ['event-2', 'waiting', 'pending'],
@@ -666,11 +637,11 @@ describe('leagues becoming clubs', () => {
     const club = () =>
       JSON.parse(module.clubByToken(host.procedure(host.operator), { token: 'league-token' })) as {
         members: { userId: string; role: string }[]
-        tournaments: { token: string; name: string }[]
+        games: { token: string }[]
       } | null
-    const league = (token: string, eventToken = '') =>
-      JSON.parse(module.leagueByToken(host.procedure(host.operator), { token, eventToken })) as { league: { token: string } } | null
-    return { migrate, club, league }
+    const address = (token: string, eventToken = '') =>
+      JSON.parse(module.eventAddress(host.procedure(host.operator), { token, eventToken })) as unknown
+    return { ...host, league, event, migrate, club, address }
   }
 
   it('makes a club of the owner, admins and accepted entrants', () => {
@@ -691,25 +662,130 @@ describe('leagues becoming clubs', () => {
     expect(fixture.club()?.members.some((member) => member.userId === 'waiting')).toBe(false)
   })
 
-  it('makes each event its own unnamed sealed game in the club', () => {
+  it('makes each event one of the club’s games', () => {
     const fixture = setup()
     fixture.migrate()
-    expect(fixture.club()?.tournaments.map((tournament) => [tournament.token, tournament.name])).toEqual([
-      ['event-token-2', ''],
-      ['league-token', ''],
-    ])
+    expect(fixture.club()?.games.map((game) => game.token)).toEqual(['event-token-2', 'event-token-1'])
   })
 
-  it('still opens a later event from a link to its old league', () => {
+  it('empties the retired tables', () => {
     const fixture = setup()
     fixture.migrate()
-    expect(fixture.league('league-token', 'event-token-2')?.league.token).toBe('event-token-2')
+    expect(
+      fixture.call(fixture.operator, (ctx) => [ctx.db.leagues.count(), ctx.db.leagueEvents.count(), ctx.db.leagueAdmins.count()]),
+    ).toEqual([0n, 0n, 0n])
   })
 
-  it('migrates only once', () => {
+  it('sends an old league link to its club', () => {
     const fixture = setup()
     fixture.migrate()
-    expect(fixture.migrate()).toBe(0)
+    expect(fixture.address('league-token')).toEqual({ kind: 'club', clubToken: 'league-token' })
+  })
+
+  it('sends an old link to one of a league’s events to that game', () => {
+    const fixture = setup()
+    fixture.migrate()
+    expect(fixture.address('league-token', 'event-token-2')).toEqual({
+      kind: 'club-game',
+      clubToken: 'league-token',
+      token: 'event-token-2',
+    })
+  })
+
+  it('finds nothing left to convert on a second run', () => {
+    const fixture = setup()
+    fixture.migrate()
+    expect([fixture.migrate(), fixture.club()?.games.length]).toEqual([0, 2])
+  })
+
+  it('moves the events of a league an earlier migration already made a club', () => {
+    const fixture = setup()
+    fixture.migrate()
+    fixture.call(fixture.operator, (ctx) => {
+      fixture.league(ctx, 'later', 'later-token', 'league')
+      fixture.event(ctx, 'later', 3)
+    })
+    fixture.migrate()
+    expect(fixture.club()?.games.map((game) => game.token)).toEqual(['event-token-3', 'event-token-2', 'event-token-1'])
+  })
+})
+
+describe('club games', () => {
+  function setup() {
+    const host = harness()
+    const club = (input: Record<string, unknown>) =>
+      JSON.parse(module.clubCommand(host.procedure(host.operator), { payload: JSON.stringify({ token: 'club', ...input }) })) as unknown
+    club({
+      op: 'create',
+      id: 'club-id',
+      ownerId: 'owner',
+      now: NOW,
+      name: 'Club',
+      description: '',
+      visibility: 'private',
+      admission: 'approval',
+    })
+    club({ op: 'join', userId: 'member', now: NOW })
+    club({ op: 'moderate', actorId: 'owner', userId: 'member', accept: true })
+    const command = (input: Record<string, unknown>) =>
+      JSON.parse(module.leagueCommand(host.procedure(host.operator), { payload: JSON.stringify(input) })) as unknown
+    const create = (ownerId: string, extra: Record<string, unknown> = {}) =>
+      command({
+        op: 'create-club-game',
+        eventId: 'game-id',
+        eventToken: 'game',
+        clubToken: 'club',
+        ownerId,
+        format: '1v1',
+        rosterLimit: 2000,
+        now: NOW,
+        ...extra,
+      })
+    const game = (input: Record<string, unknown>) => command({ token: 'game', ...input })
+    return { ...host, club, create, game }
+  }
+
+  it('starts only for the club’s organizers', () => {
+    expect(setup().create('member')).toBe('forbidden')
+  })
+
+  it('refuses Swiss rounds', () => {
+    expect(setup().create('owner', { rounds: 3 })).toBe('forbidden')
+  })
+
+  it('lets a member straight in, whatever the club’s own admission', () => {
+    const fixture = setup()
+    fixture.create('owner')
+    expect(fixture.game({ op: 'join', userId: 'member', now: NOW, memberLimit: 128 })).toBe('accepted')
+  })
+
+  it('keeps out a player who is not a member', () => {
+    const fixture = setup()
+    fixture.create('owner')
+    expect(fixture.game({ op: 'join', userId: 'stranger', now: NOW, memberLimit: 128 })).toBe('members-only')
+  })
+
+  it('lets its organizers add only the club’s members', () => {
+    const fixture = setup()
+    fixture.create('owner')
+    expect(fixture.game({ op: 'add', ownerId: 'owner', userIds: ['stranger'], memberLimit: 128, now: NOW })).toBe('not-members')
+  })
+
+  it('takes no tournament details', () => {
+    const fixture = setup()
+    fixture.create('owner')
+    const details = { name: 'Named', description: '', visibility: 'public', admission: 'automatic', playerLimit: null }
+    expect(fixture.game({ op: 'update', ownerId: 'owner', details })).toBe('forbidden')
+  })
+
+  it('goes with its club', () => {
+    const fixture = setup()
+    fixture.create('owner')
+    fixture.game({ op: 'join', userId: 'member', now: NOW, memberLimit: 128 })
+    fixture.club({ op: 'delete', actorId: 'owner' })
+    expect(
+      fixture.call(fixture.operator, (ctx) => [ctx.db.sealedEvents.count(), ctx.db.clubGames.count(), ctx.db.leagueEventEntries.count()]),
+    ).toEqual([0n, 0n, 0n])
   })
 })
 
@@ -718,35 +794,7 @@ describe('swiss rounds', () => {
   function setup() {
     const host = harness()
     host.call(host.operator, (ctx) => {
-      ctx.db.leagues.insert({
-        id: 'league',
-        token: 'league',
-        ownerId: 'organizer',
-        name: 'Open',
-        description: '',
-        visibility: 'public',
-        admission: 'automatic',
-        playerLimit: undefined,
-        recurring: false,
-        createdAt: 1n,
-        clubId: undefined,
-      })
-      ctx.db.leagueEvents.insert({
-        id: 'event',
-        token: 'event',
-        leagueId: 'league',
-        number: 1,
-        format: '1v1',
-        rosterLimit: 2000,
-        createdAt: 1n,
-        revealedAt: 2n,
-        revealedBy: 'organizer',
-        allowances: '[]',
-        rounds: 3,
-        pointsBudget: undefined,
-        playsAt: undefined,
-        sealBy: undefined,
-      })
+      insertTournament(ctx, { format: '1v1', rosterLimit: 2000, revealedAt: 2n, revealedBy: 'organizer', allowances: '[]', rounds: 3 })
       for (const userId of players)
         ctx.db.leagueEventEntries.insert({
           key: JSON.stringify(['event', userId]),
@@ -780,7 +828,6 @@ describe('swiss rounds', () => {
         opponentIds: [opponentId],
         initialCommands: [],
         now: NOW,
-        expectedLatest: true,
         expectedEntries: [userId, opponentId]
           .toSorted((left, right) => players.indexOf(left) - players.indexOf(right))
           .map((id) => ({ userId: id, snapshot: JSON.stringify({ name: 'Army', text: '10 Intercessors' }) })),

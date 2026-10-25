@@ -16,8 +16,8 @@ When the game ends, the result goes on the table. Ratings work as on the [leader
 
 ## Sealed games
 
-An organizer can start one with **New sealed game**. Everyone seals a list in secret, then you reveal them together and play. The results go on the club table. Sealing works the same as in a [tournament](/docs/run-a-tournament).
+An organizer can start one with **New sealed game**. Only members can join, and they're in as soon as they do. Everyone seals a list in secret, then you reveal them together and play. The results go on the club table. Sealing works the same as in a [tournament](/docs/run-a-tournament).
 
 ## Leave or delete a club
 
-**Leave club** takes you off the table. Your games still count for your opponents, and your results come back if you rejoin. The owner can't leave their own club. **Delete club** removes the club, its members and its table. Its battles and sealed games stay.
+**Leave club** takes you off the table. Your games still count for your opponents, and your results come back if you rejoin. The owner can't leave their own club. **Delete club** removes the club, its members, its table and its sealed games. Its battles stay.

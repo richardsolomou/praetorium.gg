@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
   capture: vi.fn(),
   syncReceipt: vi.fn(),
   createBattle: vi.fn(),
-  createLeague: vi.fn(),
+  createTournament: vi.fn(),
   createLeagueBattle: vi.fn(),
   battleWorkspace: vi.fn(),
   applied: true,
@@ -26,6 +26,7 @@ vi.mock('../app', () => ({
 const cases = [
   {
     kind: 'createBattle' as const,
+    method: 'createBattle' as const,
     input: { opponentIds: ['private-opponent', 'private-second'], allyId: 'private-ally', limit: 2000, casual: true },
     result: { battleId: 'battle-id', token: 'private-battle', practice: true },
     event: 'battle_created',
@@ -42,6 +43,7 @@ const cases = [
   },
   {
     kind: 'createLeague' as const,
+    method: 'createTournament' as const,
     input: { name: 'Private league', visibility: 'private', admission: 'approval', format: '2v2', rosterLimit: 2000, ownerPlays: true },
     result: { token: 'private-league', eventToken: 'private-event' },
     event: 'league_created',
@@ -49,6 +51,7 @@ const cases = [
   },
   {
     kind: 'createLeagueBattle' as const,
+    method: 'createLeagueBattle' as const,
     input: { token: 'private-league', opponentId: 'private-opponent' },
     result: { battleId: 'battle-id', token: 'private-battle', format: '1v1', requiredLimit: 2000 },
     event: 'league_battle_created',
@@ -72,8 +75,8 @@ beforeEach(() => {
   mocks.applied = true
   mocks.syncReceipt.mockResolvedValueOnce(null).mockResolvedValue({ outcome: 'applied', message: '' })
   mocks.battleWorkspace.mockResolvedValue({ workspace: { serverSeq: 1 } })
-  for (const { kind, result } of cases)
-    mocks[kind].mockImplementation(async () => {
+  for (const { method, result } of cases)
+    mocks[method].mockImplementation(async () => {
       offlineContext.getStore()!.applied = mocks.applied
       return result
     })
@@ -97,8 +100,8 @@ it.each(cases)('does not count $kind when a concurrent request applied it', asyn
   expect(mocks.capture).not.toHaveBeenCalled()
 })
 
-it.each(cases)('does not count a failed $kind write', async ({ kind, input }) => {
-  mocks[kind].mockRejectedValue(new Error('Database unavailable'))
+it.each(cases)('does not count a failed $kind write', async ({ kind, method, input }) => {
+  mocks[method].mockRejectedValue(new Error('Database unavailable'))
   await invoke({ data: dataFor(kind, input) }).catch(() => {})
   expect(mocks.capture).not.toHaveBeenCalled()
 })

@@ -27,6 +27,7 @@ const entrant = (
 })
 
 const trial = (entries: LeagueBattleSetup['entries']): LeagueBattleSetup => ({
+  token: 'league',
   eventToken: 'event',
   format: '2v1',
   rosterLimit: 2_000,
@@ -44,7 +45,7 @@ const paired = trial([
   entrant('other-partner', 1_000, 'take-and-hold', 'second-pair', 'take-and-hold'),
 ])
 const build = (league: LeagueBattleSetup, userId: string, opponentId: string, allyId?: string, secondOpponentId?: string) =>
-  buildLeagueBattle(league, userId, 'league', opponentId, null, 'battle', allyId, secondOpponentId)
+  buildLeagueBattle(league, userId, opponentId, null, 'battle', allyId, secondOpponentId)
 const lock = (prepared: ReturnType<typeof build>) => prepared.initialCommands.find((command) => command.kind === 'lock-league-rosters')
 
 describe('2v1 league battles', () => {
@@ -102,6 +103,7 @@ describe('2v1 league battles', () => {
 
 describe('doubles league battles', () => {
   const doubles: LeagueBattleSetup = {
+    token: 'league',
     eventToken: 'event',
     format: '2v2',
     rosterLimit: 2_000,

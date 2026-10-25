@@ -11,7 +11,6 @@ import {
   LEAGUE_TEAM_ROSTER_LIMITS,
   leagueWarlordRefusal,
   readsSealedLeagueRoster,
-  isLeagueOrganizer,
   visibleLeagueEntries,
   type LeagueAdmission,
   type LeagueAllowance,
@@ -32,53 +31,64 @@ export class LeagueService {
     private readonly notifier: Notifier,
   ) {}
 
-  async createLeague(ownerId: string, input: LeagueDetails & EventRuleInput & { ownerPlays: boolean; clubToken?: string }) {
+  async createTournament(ownerId: string, input: TournamentDetails & EventRuleInput & { ownerPlays: boolean; schedule?: LeagueSchedule }) {
     const { format, rosterLimit, allowances, rounds, pointsBudget, ...details } = input
-    if (details.clubToken && rounds != null) throw new Response('a club’s sealed game has no Swiss rounds', { status: 400 })
     const token = offlineIdentifier('leagueToken', randomToken)
     const eventToken = offlineIdentifier('eventToken', randomToken)
-    const result = await this.repository.createLeague({
+    const rule = eventRule({ format, rosterLimit, allowances, rounds, pointsBudget })
+    const result = await this.repository.createTournament({
       id: offlineIdentifier('leagueId', randomId),
       token,
       eventId: offlineIdentifier('eventId', randomId),
       eventToken,
       ownerId,
       ...details,
-      ...eventRule({ format, rosterLimit, allowances, rounds, pointsBudget }),
-      recurring: true,
-      now: this.clock(),
-    })
-    if (result === 'too-small') throw new Response(tooFewPlaces(leagueTableShape(format)), { status: 409 })
-    if (result === 'forbidden') throw new Response('only the club’s organizers can start its sealed games', { status: 403 })
-    return { token, eventToken }
-  }
-
-  /** Opens the event after a revealed one with the league's details as they should now stand, together or not at all. */
-  async createLeagueEvent(token: string, ownerId: string, input: LeagueDetails & EventRuleInput & { ownerPlays: boolean }) {
-    const { format, rosterLimit, allowances, ...details } = input
-    const eventToken = offlineIdentifier('eventToken', randomToken)
-    const rule = eventRule({ format, rosterLimit, allowances })
-    const result = await this.repository.createLeagueEvent({
-      id: offlineIdentifier('eventId', randomId),
-      token: eventToken,
-      leagueToken: token,
-      ownerId,
-      ...details,
       ...rule,
       now: this.clock(),
     })
-    if (result === 'created') return { eventToken }
-    if (result === 'missing') throw new Response('no such event', { status: 404 })
-    if (result === 'forbidden') throw new Response('only an organizer can start an event', { status: 403 })
     if (result === 'too-small') throw new Response(tooFewPlaces(rule.format), { status: 409 })
-    throw new Response('reveal this event’s lists before starting another', { status: 409 })
+    if (result === 'forbidden') throw new Response('name the tournament', { status: 400 })
+    return { token, eventToken }
   }
 
-  /** Saves the league's details and, when given, the open event's rule, together or not at all. */
+  /** Starts a sealed game in a club its creator helps run; its address is its event's token. */
+  async createClubGame(
+    ownerId: string,
+    {
+      clubToken,
+      schedule,
+      ownerPlays,
+      ...input
+    }: Omit<EventRuleInput, 'rounds'> & {
+      clubToken: string
+      ownerPlays: boolean
+      schedule?: LeagueSchedule
+    },
+  ) {
+    const token = randomToken()
+    const result = await this.repository.createClubGame({
+      eventId: randomId(),
+      eventToken: token,
+      clubToken,
+      ownerId,
+      ownerPlays,
+      schedule,
+      ...eventRule(input),
+      now: this.clock(),
+    })
+    if (result === 'forbidden') throw new Response('only the club’s organizers can start its sealed games', { status: 403 })
+    return { token }
+  }
+
+  /** Saves a tournament's details when given, and the event's rule and schedule, together or not at all. */
   async updateLeague(
     token: string,
     ownerId: string,
-    input: LeagueDetails & { rule?: EventRuleInput & { format: TableShape; rosterLimit: number } },
+    input: {
+      details?: TournamentDetails
+      rule?: EventRuleInput & { format: TableShape; rosterLimit: number }
+      schedule?: LeagueSchedule
+    },
   ) {
     const result = await this.repository.updateLeague(token, ownerId, { ...input, rule: input.rule && eventRule(input.rule) })
     if (typeof result === 'object') {
@@ -101,17 +111,21 @@ export class LeagueService {
     throw new Response('only the organizer can delete this event', { status: 403 })
   }
 
-  /** Replaces who runs the league beside its owner, from the owner's friends. */
+  /** Replaces who runs a tournament beside its owner, from the owner's friends. */
   async setLeagueAdmins(token: string, ownerId: string, userIds: readonly string[]) {
     const result = await this.repository.setLeagueAdmins(token, ownerId, userIds, this.clock())
     if (typeof result === 'object') return result
     if (result === 'missing') throw new Response('no such event', { status: 404 })
-    if (result === 'forbidden') throw new Response('only the owner can choose its admins', { status: 403 })
+    if (result === 'forbidden') throw new Response('only a tournament’s owner can choose its admins', { status: 403 })
     throw new Response('admins must be your friends', { status: 403 })
   }
 
   leagues(userId: string | null) {
     return this.repository.leaguesVisibleTo(userId)
+  }
+
+  eventAddress(token: string, eventToken?: string) {
+    return this.repository.eventAddress(token, eventToken)
   }
 
   outdatedLeagueEntriesForRoster(userId: string, rosterId: string) {
@@ -120,16 +134,14 @@ export class LeagueService {
 
   /** `factions` names each revealed army as battle summaries do, including catalogues the current index no longer lists. */
   async league(token: string, viewerId: string | null, eventToken?: string, factions: readonly BattleFaction[] = []) {
-    const league = await this.repository.leagueByToken(token, viewerId, eventToken)
-    if (!league) return null
+    const record = await this.repository.leagueByToken(token, viewerId, eventToken)
+    if (!record) return null
+    const { organizerIds, ...league } = record
     const factionsById = new Map(factions.map((faction) => [faction.id, faction]))
-    const organizer = isLeagueOrganizer(
-      league,
-      league.admins.map((admin) => admin.id),
-      viewerId,
-    )
+    const organizer = viewerId !== null && organizerIds.includes(viewerId)
     return {
       ...league,
+      organizer,
       entries: visibleLeagueEntries(league.entries, organizer, viewerId).map((entry) => {
         const faction = entry.army?.catalogueId ? factionsById.get(entry.army.catalogueId) : undefined
         return { ...entry, armyFaction: faction ? { slug: faction.slug, displayName: faction.displayName, icon: faction.icon } : null }
@@ -149,10 +161,11 @@ export class LeagueService {
     if (result === 'closed')
       throw new Response('this event is closed to new players: its rosters are out or past their deadline', { status: 409 })
     if (result === 'full') throw new Response('this event is full', { status: 409 })
+    if (result === 'members-only') throw new Response('only the club’s members can play its sealed games', { status: 403 })
     return result
   }
 
-  /** Enters the organizer's friends in the open event outright, as a battle seats friends without asking. */
+  /** Enters players outright, as a battle seats friends without asking: a tournament's organizer's friends, or a club game's members. */
   async addLeagueEntrants(token: string, ownerId: string, userIds: readonly string[], eventToken?: string) {
     const result = await this.repository.addLeagueEntrants(token, ownerId, userIds, LEAGUE_MEMBER_MAX, this.clock(), eventToken)
     if (typeof result === 'object') {
@@ -164,6 +177,7 @@ export class LeagueService {
     if (result === 'forbidden') throw new Response('only the organizer can add players', { status: 403 })
     if (result === 'closed') throw new Response('players cannot be added after reveal', { status: 409 })
     if (result === 'not-friends') throw new Response('you can only add your friends', { status: 403 })
+    if (result === 'not-members') throw new Response('you can only add the club’s members', { status: 403 })
     throw new Response('there are not enough places left', { status: 409 })
   }
 
@@ -337,20 +351,19 @@ export class LeagueService {
   }
 
   /**
-   * One entrant's sealed list, from the newest event this reader may read it in.
+   * One entrant's sealed list, where this reader may read it.
    *
-   * Reveal opens a snapshot to everyone who can open the league; before it, only its owner and
+   * Reveal opens a snapshot to everyone who can open the event; before it, only its owner and
    * an ally who will field a force beside it read it.
    */
   async leagueRoster(token: string, userId: string, eventToken?: string, readerId?: string | null) {
-    const candidates = await this.repository.leagueRosters(token, userId, eventToken, readerId)
-    const readable = candidates.find(
-      (candidate) =>
-        candidate.revealedAt !== null ||
-        readsSealedLeagueRoster(candidate.format, candidate.rosterLimit, candidate.reader, candidate.sealed),
+    const sealed = await this.repository.leagueRoster(token, userId, eventToken, readerId)
+    if (
+      !sealed ||
+      (sealed.revealedAt === null && !readsSealedLeagueRoster(sealed.format, sealed.rosterLimit, sealed.reader, sealed.sealed))
     )
-    if (!readable) return null
-    const { reminders: _reminders, remindersEnabled: _remindersEnabled, ...roster } = parseRosterSnapshot(readable.snapshot)
+      return null
+    const { reminders: _reminders, remindersEnabled: _remindersEnabled, ...roster } = parseRosterSnapshot(sealed.snapshot)
     return rosterWithoutUnitNotes(roster)
   }
 
@@ -411,7 +424,7 @@ export class LeagueService {
       },
       (league) => {
         try {
-          return buildLeagueBattle(league, userId, leagueToken, opponentId, missionPackId, token, allyId, secondOpponentId)
+          return buildLeagueBattle(league, userId, opponentId, missionPackId, token, allyId, secondOpponentId)
         } catch (error) {
           if (error instanceof LeagueBattleSetupError) throw new Response(error.message, { status: error.status })
           throw error
@@ -426,13 +439,12 @@ export class LeagueService {
   }
 }
 
-type LeagueDetails = {
+type TournamentDetails = {
   name: string
   description: string
   visibility: LeagueVisibility
   admission: LeagueAdmission
   playerLimit: number | null
-  schedule?: LeagueSchedule
 }
 
 type EventRuleInput = {

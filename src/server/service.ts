@@ -584,12 +584,14 @@ export class PraetoriumService {
       if (!before) break
     }
     const practice = await this.repository.practiceOpponents()
-    // A battle from before events were recorded on it names only its league, which is the token of that league's first event.
-    const tournamentEvents = new Set(club.tournaments.flatMap((tournament) => [tournament.token, ...tournament.eventTokens]))
+    // A game's battles name its event; one from before events were recorded on battles names only its league, now this club.
+    const gameEvents = new Set(club.games.map((game) => game.token))
     const counted = this.battleSummaries(
       histories.filter((history) => {
         const state = foldHistory(history)
-        return state.clubId === club.id || tournamentEvents.has(state.leagueEventToken ?? state.leagueToken ?? '')
+        return (
+          state.clubId === club.id || (state.leagueEventToken ? gameEvents.has(state.leagueEventToken) : state.leagueToken === club.token)
+        )
       }),
       viewerId,
       null,

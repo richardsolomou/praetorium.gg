@@ -98,6 +98,7 @@ import * as DeleteBattleForOperatorProcedure from './delete_battle_for_operator_
 import * as DeleteUnitLoadoutProcedure from './delete_unit_loadout_procedure'
 import * as DiscoverRostersProcedure from './discover_rosters_procedure'
 import * as EndRosterLoanProcedure from './end_roster_loan_procedure'
+import * as EventAddressProcedure from './event_address_procedure'
 import * as FavouriteDatasheetsByUserProcedure from './favourite_datasheets_by_user_procedure'
 import * as FavouriteDetachmentsByUserProcedure from './favourite_detachments_by_user_procedure'
 import * as FavouriteFactionsByUserProcedure from './favourite_factions_by_user_procedure'
@@ -292,6 +293,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('delete_unit_loadout', DeleteUnitLoadoutProcedure.params, DeleteUnitLoadoutProcedure.returnType),
   __procedureSchema('discover_rosters', DiscoverRostersProcedure.params, DiscoverRostersProcedure.returnType),
   __procedureSchema('end_roster_loan', EndRosterLoanProcedure.params, EndRosterLoanProcedure.returnType),
+  __procedureSchema('event_address', EventAddressProcedure.params, EventAddressProcedure.returnType),
   __procedureSchema(
     'favourite_datasheets_by_user',
     FavouriteDatasheetsByUserProcedure.params,

@@ -11,7 +11,7 @@ import {
   assignLeagueRosterRequirementSchema,
   assignLeagueTeamSchema,
   createLeagueBattleSchema,
-  createLeagueEventSchema,
+  createClubGameSchema,
   createLeagueSchema,
   leagueBattlesSchema,
   leagueEventSchema,
@@ -49,6 +49,11 @@ export const openLeague = createServerFn({ method: 'GET' })
     ),
   )
 
+/** Where an old or indirect event link lands now, for the route that received it to redirect to. */
+export const eventAddress = createServerFn({ method: 'GET' })
+  .validator(leagueEventSchema)
+  .handler(({ data }) => rpc(() => app().service.leagueService.eventAddress(data.token, data.eventToken)))
+
 export const listLeagueBattles = createServerFn({ method: 'GET' })
   .validator(leagueBattlesSchema)
   .handler(({ data }) =>
@@ -84,6 +89,21 @@ export const createLeague = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       return productActions.createLeague(player.id, data)
+    }),
+  )
+
+export const createClubGame = createServerFn({ method: 'POST' })
+  .validator(createClubGameSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const player = await requireUser()
+      const result = await app().service.leagueService.createClubGame(player.id, data)
+      await app().telemetry.capture(player.id, 'club_game_created', {
+        format: data.format,
+        roster_limit: data.rosterLimit,
+        owner_plays: data.ownerPlays,
+      })
+      return result
     }),
   )
 
@@ -213,15 +233,6 @@ export const unsealLeagueRoster = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const player = await requireUser()
       return productActions.unsealLeagueRoster(player.id, data)
-    }),
-  )
-
-export const createLeagueEvent = createServerFn({ method: 'POST' })
-  .validator(createLeagueEventSchema)
-  .handler(({ data }) =>
-    mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.createLeagueEvent(player.id, data)
     }),
   )
 

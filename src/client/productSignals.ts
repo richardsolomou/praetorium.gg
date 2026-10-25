@@ -91,7 +91,6 @@ const operationScopes = {
   createFriendInvite: ['invites'],
   cancelFriendInvite: ['invites'],
   createLeague: ['leagues'],
-  createLeagueEvent: ['leagues'],
   joinLeague: ['leagues'],
   addLeagueEntrants: ['leagues'],
   admitLeagueEntries: ['leagues'],

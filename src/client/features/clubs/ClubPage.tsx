@@ -176,7 +176,7 @@ function ClubScreen({ club, viewerId }: { club: Club; viewerId: string | null })
       <ConfirmDialog
         open={deleting}
         title={`Delete ${club.name}?`}
-        description="This removes the club, its members and its table. Its battles and sealed games stay."
+        description="This removes the club, its members, its table and its sealed games. Its battles stay."
         cancel="Keep club"
         confirm="Delete club"
         pendingLabel="Deleting…"
@@ -301,7 +301,7 @@ function JoinClub({ club, viewerId, own }: { club: Club; viewerId: string | null
 /** What the reader has coming: their own unfinished club battles, and sealed games still taking lists. */
 function UpNext({ club, table, viewerId }: { club: Club; table: ClubTable | null | undefined; viewerId: string | null }) {
   const moment = useMoment()
-  const open = club.tournaments.filter((tournament) => !tournament.revealedAt)
+  const open = club.games.filter((game) => !game.revealedAt)
   const active = table?.active ?? []
   if (!open.length && !active.length) return null
   return (
@@ -318,7 +318,7 @@ function UpNext({ club, table, viewerId }: { club: Club; table: ClubTable | null
                 className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 p-3 hover:bg-raised"
               >
                 <span className="chip shrink-0 text-discarded">Sealed game</span>
-                <span className="min-w-0 flex-1 truncate font-semibold">{eventName({ ...game, club })}</span>
+                <span className="min-w-0 flex-1 truncate font-semibold">{eventName({ ...game, tournament: null, club })}</span>
                 <span className="shrink-0 text-sm text-dim">
                   {game.sealBy ? `Lists due ${moment(game.sealBy)}` : game.playsAt ? moment(game.playsAt) : 'Taking lists'}
                 </span>
@@ -367,7 +367,7 @@ function SealedGames({ club }: { club: Club }) {
   const refresh = useClubRefresh(club.token)
   const [creating, setCreating] = useState(false)
   const { date } = useDateFormatting()
-  const played = club.tournaments.filter((tournament) => tournament.revealedAt)
+  const played = club.games.filter((game) => game.revealedAt)
   if (!played.length && !club.organizer) return null
   return (
     <section>
@@ -392,7 +392,7 @@ function SealedGames({ club }: { club: Club }) {
                 className="flex min-w-0 items-center gap-3 p-3 hover:bg-raised"
               >
                 <Trophy className="size-4 shrink-0 text-info" aria-hidden />
-                <span className="min-w-0 flex-1 truncate font-semibold">{eventName({ ...game, club })}</span>
+                <span className="min-w-0 flex-1 truncate font-semibold">{eventName({ ...game, tournament: null, club })}</span>
                 <span className="shrink-0 text-sm text-dim">{date(game.playsAt ?? game.createdAt)}</span>
               </Link>
             </li>

@@ -33,6 +33,7 @@ import * as DeleteBattleForOperatorProcedure from '../delete_battle_for_operator
 import * as DeleteUnitLoadoutProcedure from '../delete_unit_loadout_procedure'
 import * as DiscoverRostersProcedure from '../discover_rosters_procedure'
 import * as EndRosterLoanProcedure from '../end_roster_loan_procedure'
+import * as EventAddressProcedure from '../event_address_procedure'
 import * as FavouriteDatasheetsByUserProcedure from '../favourite_datasheets_by_user_procedure'
 import * as FavouriteDetachmentsByUserProcedure from '../favourite_detachments_by_user_procedure'
 import * as FavouriteFactionsByUserProcedure from '../favourite_factions_by_user_procedure'
@@ -151,6 +152,8 @@ export type DiscoverRostersArgs = __Infer<typeof DiscoverRostersProcedure.params
 export type DiscoverRostersResult = __Infer<typeof DiscoverRostersProcedure.returnType>
 export type EndRosterLoanArgs = __Infer<typeof EndRosterLoanProcedure.params>
 export type EndRosterLoanResult = __Infer<typeof EndRosterLoanProcedure.returnType>
+export type EventAddressArgs = __Infer<typeof EventAddressProcedure.params>
+export type EventAddressResult = __Infer<typeof EventAddressProcedure.returnType>
 export type FavouriteDatasheetsByUserArgs = __Infer<typeof FavouriteDatasheetsByUserProcedure.params>
 export type FavouriteDatasheetsByUserResult = __Infer<typeof FavouriteDatasheetsByUserProcedure.returnType>
 export type FavouriteDetachmentsByUserArgs = __Infer<typeof FavouriteDetachmentsByUserProcedure.params>

@@ -59,9 +59,7 @@ export function Home() {
     return faction ? [{ faction, ...update }] : []
   })
   // An accepted entry with no list in it, before the reveal that would seal the event without it.
-  const rostersDue = leagues
-    .filter((league) => league.ownEntry?.status === 'accepted' && !league.ownEntry.submitted && !league.revealedAt)
-    .map((league) => ({ token: league.token, name: league.name }))
+  const rostersDue = leagues.filter((league) => league.ownEntry?.status === 'accepted' && !league.ownEntry.submitted && !league.revealedAt)
   const [deleting, setDeleting] = useState<Battle | null>(null)
   return (
     <>

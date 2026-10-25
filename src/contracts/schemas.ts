@@ -76,9 +76,8 @@ const battlesCursor = z.object({ at: z.number().int().min(0), id })
 export const tokenSchema = z.object({ token })
 export const battleReplaySchema = z.object({ token, seq: z.number().int().min(1) })
 export const battleReplayBatchSchema = z.object({ token, seqs: z.array(z.number().int().min(1)).min(1).max(REPLAY_BATCH_SIZE) })
-const leagueFields = {
-  // Only a tournament is named; a club's sealed game is labelled from what is played.
-  name: z.string().trim().max(LEAGUE_NAME_MAX_LENGTH).default(''),
+const tournamentFields = {
+  name: z.string().trim().min(1, 'add a name').max(LEAGUE_NAME_MAX_LENGTH),
   description: z.string().trim().max(LEAGUE_DESCRIPTION_MAX_LENGTH),
   visibility: z.enum(LEAGUE_VISIBILITIES),
   admission: z.enum(LEAGUE_ADMISSIONS),
@@ -112,31 +111,46 @@ function validateLeagueEventRule(value: { format: TableShape; rosterLimit: numbe
 }
 export const createLeagueSchema = z
   .object({
-    ...leagueFields,
-    description: leagueFields.description.default(''),
-    playerLimit: leagueFields.playerLimit.default(null),
+    ...tournamentFields,
+    description: tournamentFields.description.default(''),
+    playerLimit: tournamentFields.playerLimit.default(null),
     ...leagueEventRuleFields,
     ownerPlays: z.boolean().default(false),
-    clubToken: token.optional(),
     schedule: leagueSchedule.optional(),
   })
   .superRefine(validateLeagueEventRule)
-  .refine((value) => value.clubToken || value.name, { message: 'add a name', path: ['name'] })
-export const updateLeagueSchema = z.object({
-  token,
-  ...leagueFields,
-  // An older client omits allowances, which must leave the event's house rules as they stand.
-  rule: z
-    .object({ ...leagueEventRuleFields, allowances: leagueAllowancesSchema.optional() })
-    .superRefine(validateLeagueEventRule)
-    .optional(),
-  schedule: leagueSchedule.optional(),
-})
+/** A club's casual sealed game: no name, visibility, admission or limit of its own, and no Swiss rounds. */
+export const createClubGameSchema = z
+  .object({
+    clubToken: token,
+    ...leagueEventRuleFields,
+    rounds: z.null().optional(),
+    ownerPlays: z.boolean().default(false),
+    schedule: leagueSchedule.optional(),
+  })
+  .superRefine(validateLeagueEventRule)
+const tournamentDetailKeys = Object.keys(tournamentFields) as (keyof typeof tournamentFields)[]
+export const updateLeagueSchema = z
+  .object({
+    token,
+    // A tournament's details, all or none; a club game has none, and an edit without them leaves a tournament's standing.
+    ...z.object(tournamentFields).partial().shape,
+    // An older client omits allowances, which must leave the event's house rules as they stand.
+    rule: z
+      .object({ ...leagueEventRuleFields, allowances: leagueAllowancesSchema.optional() })
+      .superRefine(validateLeagueEventRule)
+      .optional(),
+    schedule: leagueSchedule.optional(),
+  })
+  .refine((value) => new Set(tournamentDetailKeys.map((key) => value[key] === undefined)).size === 1, {
+    message: 'send every tournament detail or none',
+  })
+/**
+ * `token` is the event's host: a tournament's token, or a club game's, which is its event's. `eventToken` names the
+ * event itself, as a client from before each event had its own host sends it beside its old league's token.
+ */
 export const leagueEventSchema = z.object({ token, eventToken: token.optional() })
 export const pairLeagueRoundSchema = z.object({ token, eventToken: token.optional() })
-export const createLeagueEventSchema = z
-  .object({ token, ...leagueFields, ...leagueEventRuleFields, ownerPlays: z.boolean().default(false) })
-  .superRefine(validateLeagueEventRule)
 export const openLeagueSchema = z.object({ token, eventToken: token.optional() })
 export const moderateLeagueEntrySchema = z.object({
   token,

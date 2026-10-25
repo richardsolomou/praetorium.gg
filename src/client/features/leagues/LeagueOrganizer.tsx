@@ -14,11 +14,11 @@ import {
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
-import { friendshipsQuery } from '../../queries'
+import { clubQuery, friendshipsQuery } from '../../queries'
 import { useOrigin } from '../../useOrigin'
 import { inviteFeedbackText, useInviteShare } from './LeagueActions'
 import { EntrantGroup, EntrantList, SectionHeading, sealStatus } from './LeagueEntrants'
-import { entrantGroups, eventFullName, eventPath, leagueNoun, soloOrAllied, useLeagueRefresh, type League } from './leagueEvent'
+import { entrantGroups, entryRules, eventFullName, eventPath, leagueNoun, soloOrAllied, useLeagueRefresh, type League } from './leagueEvent'
 import { Problem } from '../../components/Problem'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { formatList, countLabel } from '../../text'
@@ -81,7 +81,8 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
   // A picked player who was paired or removed since is dropped, so the picker never holds a place for a row it no longer shows.
   const unpairedIds = new Set(groups.filter(pairPool).flatMap((group) => group.entries.map((entry) => entry.userId)))
   const pickedLive = picked ? picked.filter((id) => unpairedIds.has(id)) : unpairedIds.size === 2 ? [...unpairedIds] : []
-  const openPlaces = league.playerLimit === null ? pending.length : Math.max(0, league.playerLimit - accepted.length)
+  const { playerLimit } = entryRules(league)
+  const openPlaces = playerLimit === null ? pending.length : Math.max(0, playerLimit - accepted.length)
 
   const requestAssignment = (entry: LeagueEntryView, requiredLimit: number) => {
     if (entry.requiredLimit === requiredLimit) return
@@ -266,7 +267,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
       ) : null}
 
       <section data-onboarding="league-entrants">
-        <SectionHeading title="Entrants" count={accepted.length} action={<AddFriends league={league} token={token} />} />
+        <SectionHeading title="Entrants" count={accepted.length} action={<AddPlayers league={league} token={token} />} />
         {entrants}
       </section>
 
@@ -421,7 +422,7 @@ export function InvitePanel({ league }: { league: League }) {
       <p className="mt-1 text-xs text-dim">
         {league.club
           ? 'Members also find it on the club page.'
-          : league.visibility === 'private'
+          : league.tournament?.visibility === 'private'
             ? 'Unlisted, so this link is the way in.'
             : 'Also listed on the tournaments page.'}
       </p>
@@ -456,15 +457,27 @@ export function InvitePanel({ league }: { league: League }) {
   )
 }
 
-/** Enters friends in the open event directly, the way a battle seats them, within whatever places are left. */
-function AddFriends({ league, token }: { league: League; token: string }) {
+/**
+ * Enters players in the open event directly, the way a battle seats friends, within whatever places are left: a
+ * tournament's organizer adds their friends, a club game's organizers the club's members.
+ */
+function AddPlayers({ league, token }: { league: League; token: string }) {
   const refresh = useLeagueRefresh(token)
   const [open, setOpen] = useState(false)
   const [picked, setPicked] = useState<string[]>([])
-  const { data: friendships } = useQuery({ ...friendshipsQuery(), enabled: open })
+  const club = league.club
+  const { data: friendships } = useQuery({ ...friendshipsQuery(), enabled: open && !club })
+  const { data: clubRecord } = useQuery({ ...clubQuery(club?.token ?? ''), enabled: open && Boolean(club) })
+  const people = club
+    ? clubRecord?.members
+        .filter((member) => member.status === 'accepted')
+        .map((member) => ({ id: member.userId, name: member.name, image: member.image }))
+    : friendships?.friends
   const accepted = new Set(league.entries.filter((entry) => entry.status === 'accepted').map((entry) => entry.userId))
-  const candidates = (friendships?.friends ?? []).filter((friend) => !accepted.has(friend.id))
-  const places = league.playerLimit === null ? null : Math.max(0, league.playerLimit - accepted.size)
+  const candidates = (people ?? []).filter((person) => !accepted.has(person.id))
+  const { playerLimit } = entryRules(league)
+  const places = playerLimit === null ? null : Math.max(0, playerLimit - accepted.size)
+  const title = club ? 'Add members' : 'Add friends'
   const add = useMutation({
     mutationFn: () => addLeagueEntrants({ data: { token, eventToken: league.eventToken, userIds: picked } }),
     onSuccess: async () => {
@@ -485,20 +498,20 @@ function AddFriends({ league, token }: { league: League; token: string }) {
           setOpen(true)
         }}
       >
-        <UserPlus /> Add friends
+        <UserPlus /> {title}
       </Button>
       <Dialog open={open} onOpenChange={(next) => !add.isPending && setOpen(next)}>
         <DialogContent showCloseButton={!add.isPending} aria-busy={add.isPending}>
           <DialogHeader>
-            <DialogTitle className="text-2xl">Add friends</DialogTitle>
+            <DialogTitle className="text-2xl">{title}</DialogTitle>
             <DialogDescription>
               They are entered straight away, without asking to join.
               {places === null ? '' : ` ${countLabel(places, 'place')} left.`}
             </DialogDescription>
           </DialogHeader>
           <DialogBody>
-            {!friendships ? (
-              <ul aria-label="Loading friends" className="divide-y divide-edge border border-edge bg-panel">
+            {!people ? (
+              <ul aria-label={club ? 'Loading members' : 'Loading friends'} className="divide-y divide-edge border border-edge bg-panel">
                 {Array.from({ length: 3 }, (_, index) => (
                   <li key={index} className="flex items-center gap-3 p-3" aria-hidden>
                     <Skeleton className="size-5" />
@@ -509,24 +522,28 @@ function AddFriends({ league, token }: { league: League; token: string }) {
               </ul>
             ) : !candidates.length ? (
               <p className="text-sm text-dim">
-                {friendships.friends.length ? 'Every friend is already in.' : 'Add friends first, then enter them here.'}
+                {club
+                  ? 'Every member is already in.'
+                  : people.length
+                    ? 'Every friend is already in.'
+                    : 'Add friends first, then enter them here.'}
               </p>
             ) : (
               <ul className="divide-y divide-edge border border-edge bg-panel">
-                {candidates.map((friend) => {
-                  const checked = picked.includes(friend.id)
+                {candidates.map((person) => {
+                  const checked = picked.includes(person.id)
                   return (
-                    <li key={friend.id}>
+                    <li key={person.id}>
                       <label className="flex cursor-pointer items-center gap-3 p-3 pointer-coarse:min-h-11">
                         <input
                           type="checkbox"
                           className="size-5 accent-parchment"
                           checked={checked}
                           disabled={add.isPending || (!checked && places !== null && picked.length >= places)}
-                          onChange={() => setPicked(checked ? picked.filter((id) => id !== friend.id) : [...picked, friend.id])}
+                          onChange={() => setPicked(checked ? picked.filter((id) => id !== person.id) : [...picked, person.id])}
                         />
-                        <PlayerAvatar name={friend.name} image={friend.image} className="size-8 text-3xs" />
-                        <span className="min-w-0 truncate font-bold uppercase">{friend.name}</span>
+                        <PlayerAvatar name={person.name} image={person.image} className="size-8 text-3xs" />
+                        <span className="min-w-0 truncate font-bold uppercase">{person.name}</span>
                       </label>
                     </li>
                   )

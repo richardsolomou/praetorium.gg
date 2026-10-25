@@ -3,7 +3,7 @@ import { useNow } from '../../useNow'
 import { Circle } from 'lucide-react'
 import { leagueRevealChecklist, mayRevealLeague, type LeagueEntryView, type LeagueRevealCheck } from '../../../core/league'
 import { revealLeague } from '../../functions'
-import { namesPhrase, useLeagueRefresh, type League } from './leagueEvent'
+import { entryRules, namesPhrase, useLeagueRefresh, type League } from './leagueEvent'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { countLabel } from '../../text'
 
@@ -51,7 +51,8 @@ export function LeagueReadiness({
   const ownEntry = viewerId ? league.entries.find((entry) => entry.userId === viewerId) : undefined
   const mayReveal = mayRevealLeague(isOrganizer, ownEntry ?? null)
 
-  const openPlaces = league.playerLimit === null ? 0 : league.playerLimit - accepted.length
+  const { playerLimit } = entryRules(league)
+  const openPlaces = playerLimit === null ? 0 : playerLimit - accepted.length
   const title = ready
     ? openPlaces > 0
       ? 'Everyone in has sealed'
@@ -60,7 +61,7 @@ export function LeagueReadiness({
       ? `${sealed.length} of ${accepted.length} rosters sealed`
       : 'Nobody is in yet'
   const revealNow = mayReveal ? 'You can open the rosters now' : 'Anyone playing can open the rosters now'
-  const readyLine = openPlaces > 0 ? `${openPlaces} of ${league.playerLimit} places are still open. ${revealNow}.` : `${revealNow}.`
+  const readyLine = openPlaces > 0 ? `${openPlaces} of ${playerLimit} places are still open. ${revealNow}.` : `${revealNow}.`
   const detail = [
     waiting.length ? `Waiting on ${namesPhrase(waiting.map(label))}.` : null,
     owing.length
@@ -70,7 +71,7 @@ export function LeagueReadiness({
       ? `${namesPhrase(leaderless.map(nameOf))} still ${leaderless.length === 1 ? 'needs' : 'need'} to choose whose Warlord leads their team.`
       : null,
     !isOrganizer && organizerSteps.length
-      ? `${league.admins.length ? 'The organizers still need' : `${league.ownerName} still needs`} to ${namesPhrase(organizerSteps)}.`
+      ? `${league.tournament && !league.tournament.admins.length ? `${league.tournament.ownerName} still needs` : 'The organizers still need'} to ${namesPhrase(organizerSteps)}.`
       : null,
     ready ? readyLine : null,
   ]

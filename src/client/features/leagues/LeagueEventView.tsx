@@ -39,9 +39,11 @@ import {
   doublesTeams,
   entrantGroups,
   entryProgress,
+  entryRules,
   leagueNextStep,
   leagueNoun,
   namesPhrase,
+  organizerName,
   useLeagueRefresh,
   type EntryStage,
   type EntryStep,
@@ -220,8 +222,7 @@ export function LeagueEventView({
               ? `Still to play: ${namesPhrase(yetToPlay)}.`
               : 'You have played everyone. Rematches count too.'
   const alone = swiss ? !swissOpponent : battleFormat === '1v1' && !opponents.length
-  const registrationFull = leagueRegistrationFull(league, accepted.length, league.occupiedCount)
-  const latest = league.events[0]?.token === league.eventToken
+  const registrationFull = leagueRegistrationFull(entryRules(league), accepted.length, league.occupiedCount)
   const entryCard = entryStatus({
     league,
     ownEntry,
@@ -232,7 +233,6 @@ export function LeagueEventView({
     allies: allies.map(label),
     playDetail,
     alone,
-    latest,
     join: () => join.mutate(),
     joining: join.isPending,
     choose: openRosterChooser,
@@ -299,10 +299,10 @@ export function LeagueEventView({
       )}
     </section>
   )
-  // A past event has no next step; whoever moves the open one on, the organizer or a player in it, reads its one.
+  // Whoever moves the event on, the organizer or a player in it, reads its next step.
   // In Swiss rounds the status card and the rounds say what comes next, round by round.
   const nextStep =
-    latest && !(swiss && revealed) && (isOrganizer || ownEntry?.status === 'accepted')
+    !(swiss && revealed) && (isOrganizer || ownEntry?.status === 'accepted')
       ? leagueNextStep(
           leagueStage(league, league.entries, Boolean(results?.rows.some((result) => result.played)), now),
           // The same facts that give the status card its start-battle action.
@@ -310,7 +310,7 @@ export function LeagueEventView({
           league,
         )
       : null
-  const aside = isOrganizer ? <aside className="space-y-3">{latest && !revealed ? <InvitePanel league={league} /> : null}</aside> : null
+  const aside = isOrganizer ? <aside className="space-y-3">{!revealed ? <InvitePanel league={league} /> : null}</aside> : null
 
   return (
     <>
@@ -563,7 +563,6 @@ function entryStatus({
   allies,
   playDetail,
   alone,
-  latest,
   join,
   joining,
   choose,
@@ -584,7 +583,6 @@ function entryStatus({
   playDetail: string | undefined
   /** A duel with nobody else in it, where there is no battle to start. */
   alone: boolean
-  latest: boolean
   join: () => void
   joining: boolean
   choose: () => void
@@ -608,13 +606,13 @@ function entryStatus({
     if (revealed)
       return {
         title: 'The rosters are out',
-        detail: `Everyone here sealed a roster in secret, the rosters opened together, and now they play each other. ${league.ownerName} runs it.`,
+        detail: `Everyone here sealed a roster in secret, the rosters opened together, and now they play each other. ${organizerName(league)} runs it.`,
         tone: 'closed',
         action: signedIn && !league.club ? { label: 'Start your own tournament', to: '/tournaments' } : undefined,
       }
     if (!signedIn) return { title: 'Registration is open', action: { label: 'Sign in to join', to: '/sign-in' }, steps: steps('join') }
     if (ownEntry?.status === 'pending')
-      return { title: 'Waiting for approval', detail: `${league.ownerName} will let you in.`, tone: 'waiting', steps: steps('join') }
+      return { title: 'Waiting for approval', detail: `${organizerName(league)} will let you in.`, tone: 'waiting', steps: steps('join') }
     if (sealingClosed) return { title: 'Entry has closed', detail: 'The roster deadline has passed.', tone: 'closed' }
     const rejoin = ownEntry?.status === 'rejected'
     if (registrationFull) return { title: rejoin ? `You are not in this ${noun}` : `This ${noun} is full`, tone: 'closed' }
@@ -628,8 +626,8 @@ function entryStatus({
       title: rejoin ? `You are not in this ${noun}` : `Join this ${noun}`,
       detail: rejoin
         ? 'Your request was turned down.'
-        : league.admission === 'approval'
-          ? `${league.ownerName} approves each player.`
+        : league.tournament?.admission === 'approval'
+          ? `${league.tournament.ownerName} approves each player.`
           : undefined,
       action: { label: rejoin ? 'Request to join again' : `Join ${noun}`, icon: <UserPlus />, pending: joining, onClick: join },
       steps: steps('join'),
@@ -644,8 +642,8 @@ function entryStatus({
           ? 'Pair yourself with a teammate below.'
           : 'Give yourself a solo or allied size below.'
         : doubles
-          ? `${league.ownerName} pairs players into teams.`
-          : `${league.ownerName} decides who plays solo or allied.`,
+          ? `${organizerName(league)} pairs players into teams.`
+          : `${organizerName(league)} decides who plays solo or allied.`,
       tone: 'waiting',
       steps: steps('assign'),
     }
@@ -693,7 +691,7 @@ function entryStatus({
   if (!ownSideSealed)
     return { title: 'Waiting for your teammate', detail: 'They are sealing another roster.', tone: 'waiting', steps: steps('seal') }
   return {
-    title: latest ? 'The rosters are out' : 'The rosters are revealed',
+    title: 'The rosters are out',
     detail: playDetail,
     action: alone
       ? undefined

@@ -1,10 +1,10 @@
 import { Link } from '@tanstack/react-router'
-import { eventFullName } from '../leagues/leagueEvent'
+import { eventFullName, eventLink } from '../leagues/leagueEvent'
 import { ChevronRight, ScrollText, UserPlus } from 'lucide-react'
 import type { ReactNode } from 'react'
 
-/** A league event that has accepted the player and is still waiting for their list. */
-export type RosterDue = { token: string; name: string }
+/** An event that has accepted the player and is still waiting for their list. */
+export type RosterDue = Parameters<typeof eventFullName>[0] & Parameters<typeof eventLink>[0]
 
 /** Friend requests and accepted event entries still awaiting this player's roster. */
 export function HomeWaiting({ rostersDue, friendRequests }: { rostersDue: readonly RosterDue[]; friendRequests: number }) {
@@ -18,7 +18,7 @@ export function HomeWaiting({ rostersDue, friendRequests }: { rostersDue: readon
       <ul className="divide-y divide-edge border-b border-edge">
         {rostersDue.map((league) => (
           <li key={league.token}>
-            <Link to="/tournaments/$token" params={{ token: league.token }} className={ROW}>
+            <Link {...eventLink(league)} className={ROW}>
               <Row icon={<ScrollText className="size-4 text-parchment" aria-hidden />}>
                 <span className="font-bold uppercase">{eventFullName(league)}</span> needs your roster
               </Row>

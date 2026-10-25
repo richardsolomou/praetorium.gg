@@ -4,6 +4,7 @@ import { TriangleAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
 import { outdatedLeagueEntriesQuery } from '../../queries'
+import { eventLink } from '../leagues/leagueEvent'
 
 export function OutdatedLeagueRosters({ rosterId, saved }: { rosterId: string; saved: boolean }) {
   const { data: entries } = useQuery(outdatedLeagueEntriesQuery(rosterId))
@@ -21,18 +22,13 @@ export function OutdatedLeagueRosters({ rosterId, saved }: { rosterId: string; s
         <PopoverTitle>Sealed roster out of date</PopoverTitle>
         <div className="space-y-3 text-xs">
           {entries.map((entry) => (
-            <div key={`${entry.leagueToken}:${entry.eventToken}`} className="space-y-1">
-              <p className="font-semibold">{entry.leagueName}</p>
+            <div key={entry.token} className="space-y-1">
+              <p className="font-semibold">{entry.name}</p>
               <p className="text-dim">Your changes are not in the sealed roster yet.</p>
               {!saved ? (
                 <p className="text-parchment">Save changes before replacing it.</p>
               ) : (
-                <Link
-                  to="/tournaments/$token"
-                  params={{ token: entry.leagueToken }}
-                  search={{ event: entry.eventToken, choose: true }}
-                  className="text-info underline hover:text-bone"
-                >
+                <Link {...eventLink(entry, { choose: true })} className="text-info underline hover:text-bone">
                   Replace sealed roster
                 </Link>
               )}

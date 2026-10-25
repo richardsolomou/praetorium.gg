@@ -17,6 +17,8 @@ export function openPairing<T extends { round: number; aId: string; bId: string 
 }
 
 export type LeagueBattleSetup = {
+  /** The event's host address, which its battles' logs name it by beside the event's own token. */
+  token: string
   eventToken: string
   format: TableShape | null
   rosterLimit: number | null
@@ -71,7 +73,6 @@ function sealedWarlords(league: LeagueBattleSetup, ...sides: string[][]) {
 export function buildLeagueBattle(
   league: LeagueBattleSetup,
   userId: string,
-  leagueToken: string,
   opponentId: string,
   missionPackId: string | null,
   battleToken: string,
@@ -191,7 +192,7 @@ export function buildLeagueBattle(
       .map((playerId) => ({ kind: 'attach-roster' as const, playerId, roster: rosters.get(playerId)!, prep: null, painted: true })),
     {
       kind: 'lock-league-rosters',
-      leagueToken,
+      leagueToken: league.token,
       eventToken: league.eventToken,
       ...sealedDispositions(league, [userId, ...allyIds], opponentIds),
       ...sealedWarlords(league, [userId, ...allyIds], opponentIds),

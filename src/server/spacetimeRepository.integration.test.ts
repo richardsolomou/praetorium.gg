@@ -43,9 +43,11 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
     expect((await repository.searchPlayers(creatorId, 'Opponent')).map((entry) => entry.id)).toEqual([])
     expect((await repository.relationships(creatorId)).map((entry) => entry.otherName)).toEqual(['Opponent'])
 
-    await repository.createLeague({
+    await repository.createTournament({
       id: leagueId,
       token: leagueToken,
+      eventId: randomUUID(),
+      eventToken: randomUUID(),
       ownerId: creatorId,
       name: 'Test league',
       description: '',
@@ -63,7 +65,7 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
     expect((await repository.leaguesVisibleTo(creatorId)).find((entry) => entry.token === leagueToken)?.entrantCount).toBe(2)
     // Without a limit the organizer reveals; the self-revealing league below fills its places.
     const details = { name: 'Test league', description: '', visibility: 'private', admission: 'automatic', playerLimit: null } as const
-    expect(await repository.updateLeague(leagueToken, creatorId, details)).toEqual({ admitted: [], ruleChanged: false })
+    expect(await repository.updateLeague(leagueToken, creatorId, { details })).toEqual({ admitted: [], ruleChanged: false })
     const seals: { userId: string; rosterId: string; snapshot: string }[] = []
     for (const [userId, name] of [
       [creatorId, 'Creator'],
@@ -121,12 +123,7 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
       expect(await repository.outdatedLeagueEntriesForRoster(userId, rosterId)).toHaveLength(1)
       await operator.saveRoster({ ...savedInput, name: `${name} revised`, now: now.getTime() + 1 })
       expect(await repository.outdatedLeagueEntriesForRoster(userId, rosterId)).toEqual([
-        {
-          leagueToken,
-          leagueName: 'Test league',
-          eventToken: (await operator.leagueByToken(leagueToken))!.selected.token,
-          eventNumber: 1,
-        },
+        { token: leagueToken, name: 'Test league', club: null },
       ])
       await operator.saveRoster({ ...savedInput, now: now.getTime() + 2 })
       expect(await repository.outdatedLeagueEntriesForRoster(userId, rosterId)).toEqual([])
@@ -155,13 +152,15 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
     expect(await repository.setLeagueAdmins(leagueToken, creatorId, [opponentId], now.getTime())).toEqual({ added: [opponentId] })
     expect(await repository.setLeagueAdmins(leagueToken, opponentId, [], now.getTime())).toBe('forbidden')
     expect(await repository.deleteLeague(leagueToken, opponentId)).toBe('forbidden')
-    expect(await repository.updateLeague(leagueToken, opponentId, { ...details, name: 'Renamed by an admin' })).toEqual({
+    expect(await repository.updateLeague(leagueToken, opponentId, { details: { ...details, name: 'Renamed by an admin' } })).toEqual({
       admitted: [],
       ruleChanged: false,
     })
-    expect((await repository.leaguesVisibleTo(opponentId)).find((entry) => entry.token === leagueToken)?.adminIds).toEqual([opponentId])
+    expect((await repository.leaguesVisibleTo(opponentId)).find((entry) => entry.token === leagueToken)?.tournament?.adminIds).toEqual([
+      opponentId,
+    ])
     const revealed = await repository.leagueByToken(leagueToken, null)
-    expect([revealed?.name, revealed?.admins.map((admin) => admin.name), revealed?.revealedByName]).toEqual([
+    expect([revealed?.tournament?.name, revealed?.tournament?.admins.map((admin) => admin.name), revealed?.revealedByName]).toEqual([
       'Renamed by an admin',
       ['Opponent'],
       'Opponent',
@@ -205,9 +204,11 @@ it.skipIf(!url || !database || !token)('joins SQLite profiles with SpacetimeDB b
       ),
     ).toBeUndefined()
 
-    await repository.createLeague({
+    await repository.createTournament({
       id: randomUUID(),
       token: fullLeagueToken,
+      eventId: randomUUID(),
+      eventToken: randomUUID(),
       ownerId: creatorId,
       ...details,
       playerLimit: 2,

@@ -25,7 +25,6 @@ export const offlineActionSchemas = {
   createFriendInvite: z.object({}),
   cancelFriendInvite: z.object({}),
   createLeague: schemas.createLeagueSchema,
-  createLeagueEvent: schemas.createLeagueEventSchema,
   joinLeague: schemas.leagueEventSchema,
   addLeagueEntrants: schemas.addLeagueEntrantsSchema,
   admitLeagueEntries: schemas.admitLeagueEntriesSchema,

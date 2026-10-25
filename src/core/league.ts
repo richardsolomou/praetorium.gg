@@ -539,11 +539,16 @@ export function leagueFormat(event: { format: TableShape | null; rosterLimit: nu
  * it reads as what is being played, after its club wherever the club is not already in view.
  */
 export function leagueTitle(
-  event: { name: string; format: TableShape | null; rosterLimit: number | null; pointsBudget?: number | null },
-  club: { name: string } | null,
+  event: {
+    tournament: { name: string } | null
+    club: { name: string } | null
+    format: TableShape | null
+    rosterLimit: number | null
+    pointsBudget?: number | null
+  },
   { withClub = true } = {},
 ) {
-  if (!club) return event.name
+  if (event.tournament) return event.tournament.name
   const game = leagueFormat(event) ?? 'Sealed game'
-  return withClub ? `${club.name}: ${game}` : game
+  return withClub && event.club ? `${event.club.name}: ${game}` : game
 }

@@ -416,7 +416,6 @@ export async function createLeagueBattle(
       })),
     },
     owner.id,
-    league.token,
     args.data.opponentId,
     args.data.missionPackId ?? null,
     identifiers.battleToken,

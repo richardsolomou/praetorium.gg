@@ -5,7 +5,7 @@ import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { effectiveLeagueAllowances, leagueTableShape, LEAGUE_DEFAULT_ROSTER_LIMIT } from '../../../core/league'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
-import { createLeague, setLeagueAdmins, updateLeague } from '../../functions'
+import { createClubGame, createLeague, setLeagueAdmins, updateLeague } from '../../functions'
 import { leagueQuery, leagueReadsKey, leaguesQuery, meQuery } from '../../queries'
 import { leagueFormValid, LeagueFormFields, type LeagueFormValue } from './LeagueForm'
 import { eventLink, leagueNoun, type League } from './leagueEvent'
@@ -70,12 +70,11 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
   const sealedGame = mode.kind === 'create' ? Boolean(mode.clubToken) : Boolean(league?.club)
   const { noun } = leagueNoun(mode.kind === 'create' ? { club: mode.clubToken } : (league ?? {}))
   const [value, setValue] = useState<LeagueFormValue>(() => ({
-    name: league?.name ?? '',
-    description: league?.description ?? '',
-    // A club's sealed game is reached from its club, so it stays off the open lists; anything else starts listed.
-    visibility: league?.visibility ?? (mode.kind === 'create' && mode.clubToken ? 'private' : 'public'),
-    admission: league?.admission ?? 'automatic',
-    playerLimit: league?.playerLimit ?? null,
+    name: league?.tournament?.name ?? '',
+    description: league?.tournament?.description ?? '',
+    visibility: league?.tournament?.visibility ?? 'public',
+    admission: league?.tournament?.admission ?? 'automatic',
+    playerLimit: league?.tournament?.playerLimit ?? null,
     format: current,
     rosterLimit: league?.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT,
     allowances: league ? [...currentAllowances(league)] : [],
@@ -89,8 +88,8 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
   const [ownerPlays, setOwnerPlays] = useState(
     () => !league || league.entries.some((entry) => entry.userId === me?.id && entry.status === 'accepted'),
   )
-  const isOwner = Boolean(league && me?.id === league.ownerId)
-  const currentAdmins = league?.admins.map((admin) => admin.id) ?? []
+  const isOwner = Boolean(league?.tournament && me?.id === league.tournament.ownerId)
+  const currentAdmins = league?.tournament?.admins.map((admin) => admin.id) ?? []
   const [adminIds, setAdminIds] = useState(currentAdmins)
   const adminsChanged = adminIds.length !== currentAdmins.length || adminIds.some((id) => !currentAdmins.includes(id))
   const seated =
@@ -103,7 +102,7 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
         : league.entries.some((entry) => entry.submitted)
           ? 'Locked now that a roster is sealed.'
           : null
-  // A revealed event no longer holds the limit to its shape; the limit only governs the events after it.
+  // A revealed event takes nobody new, so its limit no longer has to seat its shape.
   const limitFormat = mode.kind === 'edit' && league?.revealedAt ? null : value.format
   const shapeChanged = value.format !== current || value.rosterLimit !== league?.rosterLimit
   const ruleChanged =
@@ -129,13 +128,14 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
       const { format, rosterLimit, allowances, rounds, pointsBudget, playsAt, sealBy, ...details } = value
       const schedule = { playsAt, sealBy }
       if (mode.kind === 'create')
-        return createLeague({
-          data: { ...details, format, rosterLimit, allowances, rounds, pointsBudget, schedule, ownerPlays, clubToken: mode.clubToken },
-        })
+        return mode.clubToken
+          ? createClubGame({ data: { clubToken: mode.clubToken, format, rosterLimit, allowances, pointsBudget, schedule, ownerPlays } })
+          : createLeague({ data: { ...details, format, rosterLimit, allowances, rounds, pointsBudget, schedule, ownerPlays } })
       await updateLeague({
         data: {
           token: mode.token,
-          ...details,
+          // A club's sealed game has no details of its own.
+          ...(sealedGame ? {} : details),
           schedule,
           ...(ruleLock || !ruleChanged ? {} : { rule: { format, rosterLimit, allowances, rounds, pointsBudget } }),
         },
@@ -151,10 +151,9 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
     onSuccess: async (created) => {
       onClose()
       if (created)
-        await navigate({
-          ...eventLink({ token: created.token, club: mode.kind === 'create' && mode.clubToken ? { token: mode.clubToken } : null }),
-          search: { event: created.eventToken },
-        })
+        await navigate(
+          eventLink({ token: created.token, club: mode.kind === 'create' && mode.clubToken ? { token: mode.clubToken } : null }),
+        )
     },
   })
 
@@ -164,7 +163,9 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
       ? mode.clubToken
         ? 'Members seal a roster in secret, then you reveal them together. Its battles count on the club’s table.'
         : 'Everyone seals a roster in secret, then you reveal them together.'
-      : 'Applies from now on. Nothing already sealed or played changes. Switching to Anyone who joins lets in everyone still waiting.'
+      : sealedGame
+        ? 'Applies from now on. Nothing already sealed or played changes.'
+        : 'Applies from now on. Nothing already sealed or played changes. Switching to Anyone who joins lets in everyone still waiting.'
   const submit =
     mode.kind === 'create'
       ? save.isPending
@@ -195,10 +196,12 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
             seated={seated}
             limitFormat={limitFormat}
             ruleLock={ruleLock}
-            listing={!sealedGame}
+            tournament={!sealedGame}
             ownerPlays={mode.kind === 'edit' ? undefined : ownerPlays}
             admins={
-              mode.kind === 'edit' && isOwner && league ? { selected: adminIds, known: league.admins, onChange: setAdminIds } : undefined
+              mode.kind === 'edit' && isOwner && league?.tournament
+                ? { selected: adminIds, known: league.tournament.admins, onChange: setAdminIds }
+                : undefined
             }
             disabled={save.isPending}
             onChange={setValue}

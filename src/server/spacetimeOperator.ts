@@ -129,25 +129,19 @@ const onboarding = z.object({
   facts: z.object({ roster: z.boolean(), friend: z.boolean(), battle: z.boolean(), league: z.boolean() }),
 })
 
-const league = z.object({
-  id: z.string(),
+const tournament = z.object({
   token: z.string(),
   ownerId: z.string(),
   name: z.string(),
   description: z.string(),
-  visibility: z.enum(['public', 'private']),
-  admission: z.enum(['automatic', 'approval']),
+  visibility: z.enum(LEAGUE_VISIBILITIES),
+  admission: z.enum(LEAGUE_ADMISSIONS),
   playerLimit: z.number().int().nullable(),
-  recurring: z.boolean(),
   createdAt: z.number().int(),
-  // Absent from a module deployed before tournaments joined clubs.
-  clubId: z.string().nullable().default(null),
+  adminIds: z.array(z.string()),
 })
-const leagueEvent = z.object({
-  id: z.string(),
+const sealedEvent = z.object({
   token: z.string(),
-  leagueId: z.string(),
-  number: z.number().int(),
   format: z.enum(TABLE_SHAPES).nullable(),
   rosterLimit: z.number().int().nullable(),
   createdAt: z.number().int(),
@@ -157,12 +151,19 @@ const leagueEvent = z.object({
     .string()
     .nullable()
     .transform((value) => (value === null ? null : parseLeagueAllowances(value))),
-  // Absent from a module deployed before Swiss rounds, points totals and schedules.
-  rounds: z.number().int().nullable().default(null),
-  pointsBudget: z.number().int().nullable().default(null),
-  playsAt: z.number().int().nullable().default(null),
-  sealBy: z.number().int().nullable().default(null),
+  rounds: z.number().int().nullable(),
+  pointsBudget: z.number().int().nullable(),
+  playsAt: z.number().int().nullable(),
+  sealBy: z.number().int().nullable(),
 })
+/** Who hosts an event: a tournament, or the club whose game it is, which `token` addresses either way. */
+const eventHost = {
+  kind: z.enum(['tournament', 'club']),
+  token: z.string(),
+  tournament: tournament.nullable(),
+  club: z.object({ token: z.string(), name: z.string() }).nullable(),
+  event: sealedEvent,
+}
 const leaguePairing = z.object({
   key: z.string(),
   round: z.number().int(),
@@ -185,52 +186,38 @@ const leagueEntry = z.object({
   teamId: z.string().nullable(),
 })
 const leagueRecord = z.object({
-  league,
-  selected: leagueEvent,
-  latest: leagueEvent,
-  events: z.array(leagueEvent),
-  eventCount: z.number().int(),
+  ...eventHost,
+  organizerIds: z.array(z.string()),
   entries: z.array(leagueEntry),
   teams: z.array(z.object({ teamId: z.string(), disposition: z.string() })),
-  // Absent from a module deployed before team Warlords, which recorded none.
-  teamWarlords: z.array(z.object({ teamId: z.string(), userId: z.string() })).default([]),
-  adminIds: z.array(z.string()),
-  latestEntryCount: z.number().int(),
-  latestAcceptedCount: z.number().int(),
-  club: z.object({ token: z.string(), name: z.string() }).nullable().default(null),
-  pairings: z.array(leaguePairing).default([]),
+  teamWarlords: z.array(z.object({ teamId: z.string(), userId: z.string() })),
+  pairings: z.array(leaguePairing),
 })
+const eventAddress = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('tournament'), token: z.string() }),
+  z.object({ kind: z.literal('club'), clubToken: z.string() }),
+  z.object({ kind: z.literal('club-game'), clubToken: z.string(), token: z.string() }),
+])
 const visibleLeague = z.object({
-  league,
-  event: leagueEvent,
+  ...eventHost,
   personal: z.boolean(),
-  // Absent from a module deployed before tournaments joined clubs.
-  club: z.object({ token: z.string(), name: z.string() }).nullable().default(null),
-  adminIds: z.array(z.string()),
   joined: z.number().int(),
   accepted: z.number().int(),
   occupied: z.number().int(),
   ownEntry: leagueEntry.nullable(),
 })
-const leagueCandidate = z.object({ league, event: leagueEvent, entries: z.array(leagueEntry) })
-const leagueRoster = z.object({ event: leagueEvent, entry: leagueEntry, reader: leagueEntry.nullable() })
+const leagueCandidate = z.object({ token: z.string(), name: z.string(), event: sealedEvent, entries: z.array(leagueEntry) })
+const leagueRoster = z.object({ event: sealedEvent, entry: leagueEntry, reader: leagueEntry.nullable() })
 const friendLeagueRoster = z.object({
   leagueToken: z.string(),
   leagueName: z.string(),
   eventToken: z.string(),
-  eventNumber: z.number().int(),
-  eventCount: z.number().int(),
   userId: z.string(),
   rosterName: z.string(),
   catalogueId: z.string(),
   revealedAt: z.number(),
 })
-const outdatedLeagueEntry = z.object({
-  leagueToken: z.string(),
-  leagueName: z.string(),
-  eventToken: z.string(),
-  eventNumber: z.number().int(),
-})
+const outdatedLeagueEntry = z.object({ token: z.string(), name: z.string(), club: z.object({ token: z.string() }).nullable() })
 
 const club = z.object({
   id: z.string(),
@@ -249,20 +236,17 @@ const clubMember = z.object({
   joinedAt: z.number().int(),
 })
 const battleClub = club.pick({ id: true, token: true, name: true, visibility: true })
-const clubTournament = z.object({
+const clubGame = z.object({
   token: z.string(),
-  name: z.string(),
   createdAt: z.number().int(),
   revealedAt: z.number().int().nullable(),
-  // Absent from a module deployed before events had dates.
-  playsAt: z.number().int().nullable().default(null),
-  sealBy: z.number().int().nullable().default(null),
-  format: z.enum(TABLE_SHAPES).nullable().default(null),
-  rosterLimit: z.number().int().nullable().default(null),
-  pointsBudget: z.number().int().nullable().default(null),
-  eventTokens: z.array(z.string()),
+  playsAt: z.number().int().nullable(),
+  sealBy: z.number().int().nullable(),
+  format: z.enum(TABLE_SHAPES).nullable(),
+  rosterLimit: z.number().int().nullable(),
+  pointsBudget: z.number().int().nullable(),
 })
-const clubRecord = z.object({ club, members: z.array(clubMember), tournaments: z.array(clubTournament) })
+const clubRecord = z.object({ club, members: z.array(clubMember), games: z.array(clubGame) })
 const visibleClub = z.object({
   club,
   adminIds: z.array(z.string()),
@@ -965,6 +949,10 @@ export class SpacetimeOperator {
     return this.read('league_by_token', [token, eventToken ?? ''], leagueRecord.nullable())
   }
 
+  async eventAddress(token: string, eventToken?: string) {
+    return this.read('event_address', [token, eventToken ?? ''], eventAddress.nullable())
+  }
+
   async leaguesVisibleTo(userId: string | null, limit: number) {
     return this.read('leagues_visible_to', [userId ?? '', limit], z.array(visibleLeague))
   }
@@ -998,7 +986,7 @@ export class SpacetimeOperator {
   }
 
   async leagueRosters(token: string, userId: string, eventToken?: string, readerId?: string | null) {
-    return this.read('league_rosters', [token, userId, eventToken ?? '', readerId ?? ''], z.array(leagueRoster))
+    return this.read('league_rosters', [token, userId, eventToken ?? '', readerId ?? ''], leagueRoster.nullable())
   }
 
   async leagueRosterSharing(token: string, eventToken: string, userId: string) {

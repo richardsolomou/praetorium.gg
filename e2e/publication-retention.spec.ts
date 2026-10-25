@@ -78,7 +78,6 @@ async function leagueFixture(ownerId: string, members: string[]) {
       visibility: 'private',
       admission: 'automatic',
       playerLimit: null,
-      recurring: false,
       format: '1v1',
       rosterLimit: 2_000,
       now: Date.now(),
@@ -215,7 +214,8 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await retryUntilVisible(deleteLeague, () => page.getByRole('button', { name: /^More for Retention league-/ }).click())
   await deleteLeague.click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete tournament', exact: true }).click()
-  await expect.poll(() => productSql`SELECT id FROM league_events WHERE league_id = ${league.id}`).toEqual([])
+  await expect.poll(() => productSql`SELECT id FROM tournaments WHERE id = ${league.id}`).toEqual([])
+  expect(await productSql`SELECT id FROM sealed_events WHERE id = ${league.eventId}`).toEqual([])
   expect(await productSql`SELECT user_id FROM league_event_entries WHERE event_id = ${league.eventId}`).toEqual([])
   expect(await productSql`SELECT seq, body FROM commands WHERE battle_id = ${battle.id}`).toEqual(commandsBefore)
   await page.goto(sealedUrl)
@@ -332,11 +332,11 @@ test('self-account deletion removes populated shared history and sealed entries 
     expect(await productSql`SELECT user_id FROM battle_users WHERE user_id = ${ownerId}`).toEqual([])
     expect(await productSql`SELECT id FROM battles WHERE id = ${finishedBattle.id} OR id = ${otherBattle.id}`).toEqual([])
     expect(await productSql`SELECT seq FROM commands WHERE battle_id = ${finishedBattle.id} OR battle_id = ${otherBattle.id}`).toEqual([])
-    expect(await productSql`SELECT id FROM leagues WHERE owner_id = ${ownerId}`).toEqual([])
-    expect(await productSql`SELECT id FROM league_events WHERE league_id = ${ownLeague.id}`).toEqual([])
+    expect(await productSql`SELECT id FROM tournaments WHERE owner_id = ${ownerId}`).toEqual([])
+    expect(await productSql`SELECT id FROM sealed_events WHERE id = ${ownLeague.eventId}`).toEqual([])
     expect(await productSql`SELECT user_id FROM league_event_entries WHERE user_id = ${ownerId}`).toEqual([])
     expect(await productSql`SELECT id FROM rosters WHERE id = ${opponentRosterId}`).toEqual([{ id: opponentRosterId }])
-    expect(await productSql`SELECT id FROM leagues WHERE id = ${otherLeague.id}`).toEqual([{ id: otherLeague.id }])
+    expect(await productSql`SELECT id FROM tournaments WHERE id = ${otherLeague.id}`).toEqual([{ id: otherLeague.id }])
     expect(await productSql`SELECT token FROM battles WHERE token = ${tokenOf(unrelated)}`).toEqual([{ token: tokenOf(unrelated) }])
     await expect(opponent).toHaveURL('/battles')
     await expect(opponent.locator(`a[href="${new URL(unrelated).pathname}"]`)).toBeVisible()

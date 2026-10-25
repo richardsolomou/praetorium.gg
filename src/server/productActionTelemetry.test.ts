@@ -115,15 +115,10 @@ const cases: Case[] = [
   { kind: 'cancelFriendInvite', input: {}, events: [['friend_invite_cancelled']] },
   {
     kind: 'createLeague',
+    method: 'createTournament',
     input: { ...league, format: '1v1', rosterLimit: 2000, ownerPlays: true },
     result: { token: 'private-created' },
     events: [['league_created', { visibility: 'private', admission: 'approval', format: '1v1', roster_limit: 2000, owner_plays: true }]],
-  },
-  {
-    kind: 'createLeagueEvent',
-    input: { ...league, format: '1v1', rosterLimit: 1000, ownerPlays: false },
-    result: { token: 'private-event' },
-    events: [['league_event_created', { format: '1v1', roster_limit: 1000, owner_plays: false }]],
   },
   { kind: 'joinLeague', input: { token: league.token }, result: 'pending', events: [['league_joined', { status: 'pending' }]] },
   {
@@ -184,6 +179,12 @@ const cases: Case[] = [
     input: league,
     result: { ruleChanged: false },
     events: [['league_updated', { visibility: 'private', admission: 'approval', player_limit_set: false }]],
+  },
+  {
+    kind: 'updateLeague',
+    input: { token: 'private-game', rule: { format: '1v1', rosterLimit: 1000 } },
+    result: { ruleChanged: true },
+    events: [['league_event_updated', { format: '1v1', roster_limit: 1000 }]],
   },
   { kind: 'deleteLeague', input: { token: league.token }, events: [['league_deleted']] },
   {

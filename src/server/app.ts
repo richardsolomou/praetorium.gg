@@ -348,8 +348,8 @@ export function app(): App {
       spacetimeAccess,
       process.env.SPACETIME_INTERNAL_HOST,
     )
-    // Leagues ran as clubs before clubs existed. The module converts them once and answers 0 on every later start;
-    // a start under load can time the call out, so it tries a few times before waiting for the next start.
+    // Leagues ran as clubs before clubs existed. The module turns whatever leagues remain into clubs and answers 0 once
+    // none do; a start under load can time the call out, so it tries a few times before waiting for the next start.
     void (async () => {
       for (let attempt = 1; attempt <= 5; attempt++) {
         try {

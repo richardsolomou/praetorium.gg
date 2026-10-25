@@ -130,18 +130,8 @@ export const productActions = {
     return null
   }),
   createLeague: action(schemas.createLeague, async (owner, data) => {
-    const result = await app().service.leagueService.createLeague(owner, data)
+    const result = await app().service.leagueService.createTournament(owner, data)
     await captureLeagueCreated(owner, data)
-    return result
-  }),
-  createLeagueEvent: action(schemas.createLeagueEvent, async (owner, data) => {
-    const { token, ...input } = data
-    const result = await app().service.leagueService.createLeagueEvent(token, owner, input)
-    await captureMutation(owner, 'league_event_created', {
-      format: data.format,
-      roster_limit: data.rosterLimit,
-      owner_plays: data.ownerPlays,
-    })
     return result
   }),
   joinLeague: action(schemas.joinLeague, async (owner, data) => {
@@ -215,18 +205,19 @@ export const productActions = {
     await captureMutation(owner, 'league_team_assigned', { team_size: result.teamSize })
     return null
   }),
-  updateLeague: action(schemas.updateLeague, async (owner, data) => {
-    const { token, ...input } = data
-    const { ruleChanged } = await app().service.leagueService.updateLeague(token, owner, input)
-    await captureMutation(owner, 'league_updated', {
-      visibility: input.visibility,
-      admission: input.admission,
-      player_limit_set: input.playerLimit !== null,
-    })
-    if (ruleChanged && input.rule)
+  updateLeague: action(schemas.updateLeague, async (owner, { token, rule, schedule, ...details }) => {
+    const tournament = details.name === undefined ? undefined : (details as Required<typeof details>)
+    const { ruleChanged } = await app().service.leagueService.updateLeague(token, owner, { details: tournament, rule, schedule })
+    if (tournament)
+      await captureMutation(owner, 'league_updated', {
+        visibility: tournament.visibility,
+        admission: tournament.admission,
+        player_limit_set: tournament.playerLimit !== null,
+      })
+    if (ruleChanged && rule)
       await captureMutation(owner, 'league_event_updated', {
-        format: input.rule.format,
-        roster_limit: input.rule.rosterLimit,
+        format: rule.format,
+        roster_limit: rule.rosterLimit,
       })
     return null
   }),

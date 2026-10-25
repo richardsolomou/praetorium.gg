@@ -16,9 +16,9 @@ export function LeagueIndex() {
   const { data: me } = useQuery(meQuery())
   const { data: all = [] } = useQuery(leaguesQuery())
   // A club's sealed games are reached from its club page; the list keeps them for rosters due and offline saves.
-  const leagues = all.filter((league) => !league.clubId)
+  const leagues = all.flatMap(({ tournament, ...league }) => (tournament ? [{ ...league, tournament }] : []))
   const mine = leagues.filter((league) => league.personal)
-  const publicLeagues = leagues.filter((league) => league.visibility === 'public' && !mine.includes(league))
+  const publicLeagues = leagues.filter((league) => league.tournament.visibility === 'public' && !mine.includes(league))
 
   return (
     <main className="w-full">
@@ -53,7 +53,7 @@ function LeagueShelf({
   viewerId,
 }: {
   title: string
-  leagues: Awaited<ReturnType<NonNullable<ReturnType<typeof leaguesQuery>['queryFn']>>>
+  leagues: (TournamentSummary & { tournament: NonNullable<TournamentSummary['tournament']> })[]
   viewerId: string | null
 }) {
   return (
@@ -63,7 +63,8 @@ function LeagueShelf({
       </h2>
       <div className="grid gap-3 md:grid-cols-2">
         {leagues.map((league) => {
-          const organizer = isLeagueOrganizer(league, league.adminIds, viewerId)
+          const { tournament } = league
+          const organizer = isLeagueOrganizer(tournament, tournament.adminIds, viewerId)
           // One status: the reader's own place when they have one, otherwise where the tournament stands.
           const status = league.ownEntry
             ? ownEntryStatus(league.ownEntry, Boolean(league.revealedAt))
@@ -73,21 +74,21 @@ function LeagueShelf({
             <Link to="/tournaments/$token" params={{ token: league.token }} className="flex min-w-0 flex-1 flex-col">
               <div className={`flex-1 p-4 ${organizer ? 'pr-12' : ''}`}>
                 <p className="flex items-center gap-2 text-xs text-dim">
-                  {league.visibility === 'private' ? (
+                  {tournament.visibility === 'private' ? (
                     <LockKeyhole className="size-3.5 shrink-0" aria-label="Private" />
                   ) : (
                     <Eye className="size-3.5 shrink-0 text-info" aria-label="Public" />
                   )}
                   <span className="truncate tracking-label uppercase">{format ?? 'Any format'}</span>
                 </p>
-                <h3 className="mt-1.5 truncate text-lg leading-tight font-bold uppercase">{league.name}</h3>
+                <h3 className="mt-1.5 truncate text-lg leading-tight font-bold uppercase">{tournament.name}</h3>
                 <EventSchedule event={league} className="mt-1 text-xs" />
-                {league.description ? (
-                  <p className="mt-1 line-clamp-2 text-sm text-dim">{league.description}</p>
+                {tournament.description ? (
+                  <p className="mt-1 line-clamp-2 text-sm text-dim">{tournament.description}</p>
                 ) : (
                   <p className="mt-1.5 flex min-w-0 items-center gap-1.5 text-sm text-dim">
-                    <PlayerAvatar name={league.ownerName} image={league.ownerImage} className="size-5 text-3xs" />
-                    <span className="truncate">Organized by {league.ownerName}</span>
+                    <PlayerAvatar name={tournament.ownerName} image={tournament.ownerImage} className="size-5 text-3xs" />
+                    <span className="truncate">Organized by {tournament.ownerName}</span>
                   </p>
                 )}
               </div>
@@ -102,13 +103,13 @@ function LeagueShelf({
           )
           if (!organizer) {
             return (
-              <article key={league.id} data-league={league.token} className={LEAGUE_CARD}>
+              <article key={league.token} data-league={league.token} className={LEAGUE_CARD}>
                 {card}
               </article>
             )
           }
           return (
-            <LeagueCardActions key={league.id} league={league} canDelete={league.ownerId === viewerId}>
+            <LeagueCardActions key={league.token} league={league} canDelete={tournament.ownerId === viewerId}>
               {(menu) => (
                 <>
                   {card}
@@ -122,6 +123,8 @@ function LeagueShelf({
     </section>
   )
 }
+
+type TournamentSummary = Awaited<ReturnType<NonNullable<ReturnType<typeof leaguesQuery>['queryFn']>>>[number]
 
 /** Where the reader's own entry stands, tinted by whether it needs them: amber to act, green once done. */
 function ownEntryStatus(entry: { status: 'pending' | 'accepted' | 'rejected'; submitted: boolean }, revealed: boolean) {

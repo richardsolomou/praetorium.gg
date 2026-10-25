@@ -90,7 +90,7 @@ test('players can decline and publish their original league roster across device
   await sharing.getByRole('button', { name: 'Make public', exact: true }).click()
   await expect(sharing).toHaveCount(0)
   const leagueToken = new URL(leagueUrl).pathname.split('/').at(-1)!
-  const event = (await product.leagueByToken(leagueToken))!.selected
+  const { event } = (await product.leagueByToken(leagueToken))!
   const publication = await product.leagueRosterSharing(leagueToken, event.token, saved.userId)
   const sharedId = publication!.roster.id
   expect(sharedId).toBe(savedId)
@@ -218,13 +218,17 @@ test('revealed rosters compare every unit using frozen loadouts and preserve lea
   await opponentContext.close()
 })
 
-async function eventForLeague(leagueToken: string) {
-  const [league] = await productSql<{ id: string }>`SELECT id FROM leagues WHERE token = ${leagueToken}`
-  if (!league) throw new Error('The league test league is missing.')
-  const events = await productSql<{ id: string; number: number }>`SELECT id, number FROM league_events WHERE league_id = ${league.id}`
-  const event = events.toSorted((left, right) => right.number - left.number)[0]
-  if (!event) throw new Error('The league test event is missing.')
-  return event
+type TournamentEvent = { id: string; token: string; ownerId: string }
+
+async function tournamentEvent(tournamentToken: string): Promise<TournamentEvent> {
+  const [tournament] = await productSql<{
+    owner_id: string
+    event_id: string
+  }>`SELECT owner_id, event_id FROM tournaments WHERE token = ${tournamentToken}`
+  if (!tournament) throw new Error('The test tournament is missing.')
+  const [event] = await productSql<{ token: string }>`SELECT token FROM sealed_events WHERE id = ${tournament.event_id}`
+  if (!event) throw new Error('The test tournament event is missing.')
+  return { id: tournament.event_id, token: event.token, ownerId: tournament.owner_id }
 }
 
 /** The card a fixture list chose and every card its detachments offered. */
@@ -262,7 +266,7 @@ function option<T>(value: [number, T | []]): T | null {
 
 async function submitFixtureRoster(
   leagueToken: string,
-  eventId: string,
+  event: TournamentEvent,
   userId: string,
   limit: number,
   warlord: boolean,
@@ -271,12 +275,8 @@ async function submitFixtureRoster(
   cards?: FixtureCards,
 ) {
   const product = await productOperator()
-  const [league] = await productSql<{ owner_id: string }>`SELECT owner_id FROM leagues WHERE token = ${leagueToken}`
-  if (!league) throw new Error('The league test league is missing.')
-  const [event] = await productSql<{ token: string }>`SELECT token FROM league_events WHERE id = ${eventId}`
-  if (!event) throw new Error('The league test event is missing.')
   const now = Date.now()
-  const rosterId = `${eventId}-${userId}-fixture`
+  const rosterId = `${event.id}-${userId}-fixture`
   const saved = await product.saveRoster({
     id: rosterId,
     userId,
@@ -299,7 +299,7 @@ async function submitFixtureRoster(
       op: 'submit',
       token: leagueToken,
       eventToken: event.token,
-      ownerId: league.owner_id,
+      ownerId: event.ownerId,
       userId,
       rosterId,
       rosterName: name,
@@ -315,37 +315,33 @@ async function submitFixtureRoster(
 
 /** Asks the server to reveal the current event directly, past the console's disabled button. */
 async function revealThroughServer(leagueToken: string) {
-  const [league] = await productSql<{ owner_id: string }>`SELECT owner_id FROM leagues WHERE token = ${leagueToken}`
-  if (!league) throw new Error('The league test league is missing.')
-  const { id } = await eventForLeague(leagueToken)
-  const [event] = await productSql<{ token: string }>`SELECT token FROM league_events WHERE id = ${id}`
-  if (!event) throw new Error('The league test event is missing.')
+  const event = await tournamentEvent(leagueToken)
   const product = await productOperator()
   const result = await product.leagueCommand(
-    { op: 'reveal', token: leagueToken, ownerId: league.owner_id, eventToken: event.token, now: Date.now() },
+    { op: 'reveal', token: leagueToken, ownerId: event.ownerId, eventToken: event.token, now: Date.now() },
     z.object({ outcome: z.string() }),
   )
   return result.outcome
 }
 
 async function sealEventRosters(leagueToken: string) {
-  const event = await eventForLeague(leagueToken)
+  const event = await tournamentEvent(leagueToken)
   const entries = await productSql<{
     user_id: string
   }>`SELECT user_id FROM league_event_entries WHERE event_id = ${event.id} AND status = 'accepted'`
   if (entries.length !== 2) throw new Error('The league test entrants are missing.')
   for (const entry of entries) {
-    if ((await submitFixtureRoster(leagueToken, event.id, entry.user_id, 2_000, true, 'Sealed roster')) !== 'sealed') {
+    if ((await submitFixtureRoster(leagueToken, event, entry.user_id, 2_000, true, 'Sealed roster')) !== 'sealed') {
       throw new Error('The league fixture roster was not sealed.')
     }
   }
 }
 
-async function createLegacyLeague(ownerName: string, leagueName: string) {
+async function createTournamentWithoutFormat(ownerName: string, leagueName: string) {
   const owner = await withAuthSql(
     (database) => database.prepare('SELECT id FROM user WHERE name = ? LIMIT 1').get(ownerName) as { id: string } | undefined,
   )
-  if (!owner) throw new Error('The legacy league owner is missing.')
+  if (!owner) throw new Error('The tournament owner is missing.')
   const token = crypto.randomUUID()
   const product = await productOperator()
   await product.leagueCommand(
@@ -361,7 +357,6 @@ async function createLegacyLeague(ownerName: string, leagueName: string) {
       visibility: 'public',
       admission: 'automatic',
       playerLimit: null,
-      recurring: false,
       format: null,
       rosterLimit: null,
       now: Date.now(),
@@ -419,7 +414,7 @@ const TEAM_EVENT_CARDS: FixtureCards[] = [
 ]
 
 async function sealTeamEventRosters(leagueToken: string) {
-  const event = await eventForLeague(leagueToken)
+  const event = await tournamentEvent(leagueToken)
   const entries = await productSql<{
     user_id: string
     required_limit: [number, number | []]
@@ -432,13 +427,13 @@ async function sealTeamEventRosters(leagueToken: string) {
     const limit = option(entry.required_limit)!
     const name = `${limit.toLocaleString()}-point roster`
     const cards = limit < 2_000 ? TEAM_EVENT_CARDS[allies++ % 2] : { disposition: 'take-and-hold', dispositions: ['take-and-hold'] }
-    const outcome = await submitFixtureRoster(leagueToken, event.id, entry.user_id, limit, true, name, undefined, cards)
+    const outcome = await submitFixtureRoster(leagueToken, event, entry.user_id, limit, true, name, undefined, cards)
     if (outcome !== 'sealed') throw new Error(`The team league fixture roster returned ${outcome} for ${entry.user_id}.`)
   }
 }
 
 async function sealDoublesEventRosters(leagueToken: string, invalidWarlords = false) {
-  const event = await eventForLeague(leagueToken)
+  const event = await tournamentEvent(leagueToken)
   const entries = await productSql<{
     user_id: string
     team_id: [number, string | []]
@@ -452,7 +447,7 @@ async function sealDoublesEventRosters(leagueToken: string, invalidWarlords = fa
     // Every doubles list names its own Warlord; the pair chooses whose leads it.
     const outcome = await submitFixtureRoster(
       leagueToken,
-      event.id,
+      event,
       entry.user_id,
       1_000,
       true,
@@ -467,7 +462,7 @@ async function sealDoublesEventRosters(leagueToken: string, invalidWarlords = fa
   if (invalidWarlords) {
     const outcome = await submitFixtureRoster(
       leagueToken,
-      event.id,
+      event,
       entries[0].user_id,
       1_000,
       false,
@@ -913,7 +908,7 @@ for (const { rules, status } of [
     await expect(entry.getByText('Roster sealed', { exact: true })).toBeVisible()
     const leagueToken = new URL(page.url()).pathname.split('/').at(-1)!
     const sealed = await operator.leagueRosters(leagueToken, saved.userId)
-    expect(JSON.parse(sealed[0].entry.rosterSnapshot!).built.catalogueId).toBe(saved.catalogueId)
+    expect(JSON.parse(sealed!.entry.rosterSnapshot!).built.catalogueId).toBe(saved.catalogueId)
     await revealEvent(page)
     await viewList(page, ownerName).click()
     await expect(page).toHaveURL(/\/rosters\/[^?]+\?league=/)
@@ -943,6 +938,7 @@ test('only a changed roster in an open league event offers replacement', async (
   const settings = await openEventSettings(page)
   await settings.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.goto('/robots.txt')
+  // The tournament reopens below from the saved app snapshot alone, so wait until the snapshot holds it.
   await expect
     .poll(() =>
       page.evaluate(
@@ -952,28 +948,19 @@ test('only a changed roster in an open league event offers replacement', async (
             opened.onerror = () => reject(opened.error)
             opened.onsuccess = () => {
               const database = opened.result
-              const transaction = database.transaction('state', 'readwrite')
-              const store = transaction.objectStore('state')
-              const request = store.get('snapshot')
-              let found = false
+              const request = database.transaction('state').objectStore('state').get('snapshot')
               request.onsuccess = () => {
-                const saved = request.result
-                for (const query of saved?.snapshot?.queries ?? []) {
-                  if (query.key[0] === 'league' && query.key[1] === token && query.data?.entries) {
-                    delete query.data.admins
-                    if (query.key[2] === 'current') found = true
-                  }
-                  if (query.key[0] === 'leagues') for (const league of query.data) delete league.adminIds
-                }
-                if (found) store.put(saved, 'snapshot')
-              }
-              transaction.oncomplete = () => {
                 database.close()
-                resolve(found)
+                const queries: { key: unknown[]; data?: { entries?: unknown } }[] = request.result?.snapshot?.queries ?? []
+                resolve(
+                  queries.some(
+                    (query) => query.key[0] === 'league' && query.key[1] === token && query.key[2] === 'current' && query.data?.entries,
+                  ),
+                )
               }
-              transaction.onerror = () => {
+              request.onerror = () => {
                 database.close()
-                reject(transaction.error)
+                reject(request.error)
               }
             }
           }),
@@ -1103,7 +1090,7 @@ test('an eligible casual matchup is directed through its league event', async ({
   await signUp(owner, ownerName)
   await signUp(entrant, entrantName)
   await befriend(owner, entrant)
-  const leagueToken = await createLegacyLeague(ownerName, leagueName)
+  const leagueToken = await createTournamentWithoutFormat(ownerName, leagueName)
   const leagueUrl = new URL(`/tournaments/${leagueToken}`, owner.url())
   await owner.goto(leagueUrl.toString())
 
@@ -1474,14 +1461,14 @@ test('an organizer adds friends to an event without waiting for them to ask', as
   const strangerRow = await withAuthSql(
     (database) => database.prepare('SELECT id FROM user WHERE name = ? LIMIT 1').get(names[3]) as { id: string } | undefined,
   )
-  const [league] = await productSql<{ owner_id: string }>`SELECT owner_id FROM leagues WHERE token = ${leagueToken}`
-  if (!strangerRow || !league) throw new Error('The stranger or the league is missing.')
+  if (!strangerRow) throw new Error('The stranger is missing.')
+  const { ownerId } = await tournamentEvent(leagueToken)
   const product = await productOperator()
   const outcome = await product.leagueCommand(
     {
       op: 'add',
       token: leagueToken,
-      ownerId: league.owner_id,
+      ownerId,
       userIds: [strangerRow.id],
       memberLimit: 128,
       now: Date.now(),
@@ -1641,7 +1628,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await reassignment.getByRole('button', { name: 'Change size' }).click()
   await expect
     .poll(async () => {
-      const event = await eventForLeague(leagueToken)
+      const event = await tournamentEvent(leagueToken)
       const entries = await productSql<{
         required_limit: [number, number | []]
       }>`SELECT required_limit FROM league_event_entries WHERE event_id = ${event.id} AND status = 'accepted'`
@@ -1716,9 +1703,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await revealEvent(owner)
   await expect(owner.locator('[data-group="pair-1"]')).toContainText('plays Priority Assets')
   // Once the lists are out the pair's card is fixed, and a replacement list has to leave it on offer.
-  const revealedEvent = await eventForLeague(leagueToken)
-  const [revealedEventRow] = await productSql<{ token: string }>`SELECT token FROM league_events WHERE id = ${revealedEvent.id}`
-  const [leagueRow] = await productSql<{ owner_id: string }>`SELECT owner_id FROM leagues WHERE token = ${leagueToken}`
+  const revealedEvent = await tournamentEvent(leagueToken)
   const sealedEntries = await productSql<{
     user_id: string
     roster_snapshot: [number, string | []]
@@ -1726,13 +1711,13 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const holder = sealedEntries.find((entry) => option(entry.roster_snapshot)?.includes('priority-assets'))!
   const operator = await productOperator()
   const command = (input: Record<string, unknown>) =>
-    operator.leagueCommand({ token: leagueToken, eventToken: revealedEventRow.token, now: Date.now(), ...input }, z.unknown())
+    operator.leagueCommand({ token: leagueToken, eventToken: revealedEvent.token, now: Date.now(), ...input }, z.unknown())
   expect(await command({ op: 'set-team-disposition', ownerId: holder.user_id, disposition: 'take-and-hold' })).toEqual({
     outcome: 'closed',
   })
-  expect(await command({ op: 'unseal', ownerId: leagueRow.owner_id, userId: holder.user_id })).toBe('unsealed')
+  expect(await command({ op: 'unseal', ownerId: revealedEvent.ownerId, userId: holder.user_id })).toBe('unsealed')
   const reseal = (cards: FixtureCards) =>
-    submitFixtureRoster(leagueToken, revealedEvent.id, holder.user_id, 1_000, true, '1,000-point roster', undefined, cards)
+    submitFixtureRoster(leagueToken, revealedEvent, holder.user_id, 1_000, true, '1,000-point roster', undefined, cards)
   expect(await reseal({ disposition: 'take-and-hold', dispositions: ['take-and-hold'] })).toBe('disposition-dropped')
   expect(await reseal(TEAM_EVENT_CARDS[0])).toBe('sealed')
   // A revealed event no longer holds the limit to its shape, so it can drop below what a 2v1 needs.
@@ -1822,7 +1807,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const [eventLink] = await productSql<{
     event_id: string
   }>`SELECT event_id FROM league_event_battles WHERE battle_id = ${battleIdentity.id}`
-  const [eventIdentity] = await productSql<{ token: string }>`SELECT token FROM league_events WHERE id = ${eventLink.event_id}`
+  const [eventIdentity] = await productSql<{ token: string }>`SELECT token FROM sealed_events WHERE id = ${eventLink.event_id}`
   const feed = (viewerId?: string) =>
     product.battleFeed({ scope: 'league', leagueToken, eventToken: eventIdentity.token, limit: 1, viewerId })
   expect((await feed()).battles).toHaveLength(1)

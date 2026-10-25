@@ -47,7 +47,7 @@ afterEach(() => {
   native.reads = 0
   vi.unstubAllGlobals()
 })
-it.each(['browser', 'native'])('migrates queued leagues read from %s storage and saves the upgraded document', async (surface) => {
+it.each(['browser', 'native'])('drops a queued event saved before hosts from %s storage, keeping its action', async (surface) => {
   const legacy: LocalState = {
     ...emptyLocalState(owner),
     epoch: 'saved',
@@ -66,11 +66,8 @@ it.each(['browser', 'native'])('migrates queued leagues read from %s storage and
   const storage = localStateStorage(owner)
   await storage.read()
   await storage.change((state) => ({ ...state }))
-  expect(await localStateStorage(owner).read()).toEqual({
-    ...legacy,
-    revision: 8,
-    documents: { ...legacy.documents, 'league:league': { data: { token: 'league', entries: [], admins: [] }, serverVersion: null } },
-  })
+  const { 'league:league': _dropped, ...documents } = legacy.documents
+  expect(await localStateStorage(owner).read()).toEqual({ ...legacy, revision: 8, documents })
 })
 it('returns the same empty account generation until its first write', async () => {
   const storage = localStateStorage(owner)

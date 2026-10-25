@@ -38,9 +38,10 @@ export type LeagueFormValue = {
 /**
  * Every setting in one form, so an organizer never looks in two places for one.
  *
- * What a league needs to start comes first: its name, the event's format and points, and whether the
- * organizer plays. Details, a player limit, a public listing and approval fold under More options, whose
- * summary names what they are set to, so the defaults never need reading.
+ * What an event needs to start comes first: a tournament's name, the format and points, and whether the
+ * organizer plays. A tournament's details, player limit, public listing and approval fold under More options,
+ * whose summary names what they are set to, so the defaults never need reading. A club's sealed game has none of
+ * those, so its form is the format, points and schedule alone.
  */
 export function LeagueFormFields({
   idPrefix,
@@ -48,7 +49,7 @@ export function LeagueFormFields({
   seated = 0,
   limitFormat = value.format,
   ruleLock = null,
-  listing,
+  tournament,
   ownerPlays,
   optionsOpen = false,
   admins,
@@ -64,8 +65,8 @@ export function LeagueFormFields({
   limitFormat?: TableShape | null
   /** Why the format and points can no longer change, or null while they can. */
   ruleLock?: string | null
-  /** Whether a public league is listed on the tournaments page, which a club's sealed game never is. */
-  listing: boolean
+  /** Whether the form sets up a tournament rather than a club's sealed game. */
+  tournament: boolean
   /** Whether the organizer enters as a player; omitted where their entry already stands on its own. */
   ownerPlays?: boolean
   /** Whether More options starts unfolded, as it does when editing a league that already has them set. */
@@ -80,17 +81,14 @@ export function LeagueFormFields({
   const minimum = leagueMinimumPlaces(limitFormat, seated)
   const limitValid = leaguePlacesSeat(limitFormat, value.playerLimit, seated)
   const summary = [
-    // A club's sealed game is found from its club, so where it is listed is not a choice.
-    listing ? (value.visibility === 'private' ? 'Private link' : 'Public') : null,
-    value.admission === 'automatic' ? (listing ? 'anyone with it joins' : 'anyone joins') : 'you approve each player',
+    value.visibility === 'private' ? 'Private link' : 'Public',
+    value.admission === 'automatic' ? 'anyone with it joins' : 'you approve each player',
     value.playerLimit === null ? 'no player limit' : `${value.playerLimit} places`,
-  ]
-    .filter(Boolean)
-    .join(' · ')
+  ].join(' · ')
   return (
     <>
       {/* A club's sealed game is labelled from what is played, so only a tournament is named. */}
-      {listing ? (
+      {tournament ? (
         <div data-onboarding="league-name" className="space-y-1.5">
           <Label htmlFor={`${idPrefix}-name`}>Name</Label>
           <Input
@@ -117,7 +115,7 @@ export function LeagueFormFields({
         ) : (
           <LeagueEventRuleFields
             value={value}
-            pairing={listing}
+            pairing={tournament}
             disabled={disabled}
             onChange={(rule) =>
               // A shape the limit cannot seat starts its limit at the fewest places that do.
@@ -142,54 +140,54 @@ export function LeagueFormFields({
         </div>
       )}
       {/* A limit that no longer fits keeps the options open, so the field that needs fixing is in view. */}
-      <details
-        data-onboarding="league-options"
-        className="group border-t border-edge pt-3"
-        open={showOptions || !limitValid}
-        onToggle={(event) => setShowOptions(event.currentTarget.open)}
-      >
-        <summary className="flex cursor-pointer list-none items-baseline gap-3 py-1 pointer-coarse:min-h-11 pointer-coarse:items-center">
-          <span className="eyebrow text-bone">More options</span>
-          <span className="min-w-0 flex-1 truncate text-xs text-dim group-open:hidden">{summary}</span>
-          <ChevronDown className="ml-auto size-4 shrink-0 self-center text-dim transition-transform group-open:rotate-180" aria-hidden />
-        </summary>
-        <div className="mt-3 space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor={`${idPrefix}-description`}>Details</Label>
-            <Textarea
-              id={`${idPrefix}-description`}
-              value={value.description}
-              maxLength={2000}
-              rows={2}
-              placeholder="Dates, venue, anything else players need to know."
-              disabled={disabled}
-              onChange={(event) => onChange({ ...value, description: event.target.value })}
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor={`${idPrefix}-player-limit`}>Player limit</Label>
-            <Input
-              id={`${idPrefix}-player-limit`}
-              type="number"
-              min={minimum}
-              step={limitFormat === '2v2' ? 2 : 1}
-              max={LEAGUE_MEMBER_MAX}
-              value={value.playerLimit ?? ''}
-              placeholder="No limit"
-              disabled={disabled}
-              onChange={(event) => onChange({ ...value, playerLimit: event.target.value ? Number(event.target.value) : null })}
-            />
-            {seated || limitFormat === '2v1' || limitFormat === '2v2' ? (
-              <p className="text-xs text-dim">
-                {seated
-                  ? `No lower than ${minimum} while entry is open.`
-                  : limitFormat === '2v2'
-                    ? 'Doubles needs an even number of places, at least four.'
-                    : '2v1 needs at least three places.'}
-              </p>
-            ) : null}
-          </div>
-          {listing ? (
+      {tournament ? (
+        <details
+          data-onboarding="league-options"
+          className="group border-t border-edge pt-3"
+          open={showOptions || !limitValid}
+          onToggle={(event) => setShowOptions(event.currentTarget.open)}
+        >
+          <summary className="flex cursor-pointer list-none items-baseline gap-3 py-1 pointer-coarse:min-h-11 pointer-coarse:items-center">
+            <span className="eyebrow text-bone">More options</span>
+            <span className="min-w-0 flex-1 truncate text-xs text-dim group-open:hidden">{summary}</span>
+            <ChevronDown className="ml-auto size-4 shrink-0 self-center text-dim transition-transform group-open:rotate-180" aria-hidden />
+          </summary>
+          <div className="mt-3 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor={`${idPrefix}-description`}>Details</Label>
+              <Textarea
+                id={`${idPrefix}-description`}
+                value={value.description}
+                maxLength={2000}
+                rows={2}
+                placeholder="Dates, venue, anything else players need to know."
+                disabled={disabled}
+                onChange={(event) => onChange({ ...value, description: event.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor={`${idPrefix}-player-limit`}>Player limit</Label>
+              <Input
+                id={`${idPrefix}-player-limit`}
+                type="number"
+                min={minimum}
+                step={limitFormat === '2v2' ? 2 : 1}
+                max={LEAGUE_MEMBER_MAX}
+                value={value.playerLimit ?? ''}
+                placeholder="No limit"
+                disabled={disabled}
+                onChange={(event) => onChange({ ...value, playerLimit: event.target.value ? Number(event.target.value) : null })}
+              />
+              {seated || limitFormat === '2v1' || limitFormat === '2v2' ? (
+                <p className="text-xs text-dim">
+                  {seated
+                    ? `No lower than ${minimum} while entry is open.`
+                    : limitFormat === '2v2'
+                      ? 'Doubles needs an even number of places, at least four.'
+                      : '2v1 needs at least three places.'}
+                </p>
+              ) : null}
+            </div>
             <Choice
               label="Who can find it"
               value={value.visibility}
@@ -201,30 +199,29 @@ export function LeagueFormFields({
               disabled={disabled}
               onChange={(visibility) => onChange({ ...value, visibility })}
             />
-          ) : null}
-          <Choice
-            label="Who gets in"
-            value={value.admission}
-            columns={2}
-            options={[
-              { value: 'automatic', name: 'Anyone who joins' },
-              { value: 'approval', name: 'You approve' },
-            ]}
-            disabled={disabled}
-            onChange={(admission) => onChange({ ...value, admission })}
-          />
-          {admins ? <LeagueAdminsField idPrefix={idPrefix} admins={admins} disabled={disabled} /> : null}
-        </div>
-      </details>
+            <Choice
+              label="Who gets in"
+              value={value.admission}
+              columns={2}
+              options={[
+                { value: 'automatic', name: 'Anyone who joins' },
+                { value: 'approval', name: 'You approve' },
+              ]}
+              disabled={disabled}
+              onChange={(admission) => onChange({ ...value, admission })}
+            />
+            {admins ? <LeagueAdminsField idPrefix={idPrefix} admins={admins} disabled={disabled} /> : null}
+          </div>
+        </details>
+      ) : null}
     </>
   )
 }
 
-/** Whether the form can be saved: a name, and a limit that seats the chosen shape and everyone already in. */
-export function leagueFormValid(value: LeagueFormValue, seated = 0, limitFormat: TableShape | null = value.format, named = true) {
+/** Whether the form can be saved: a tournament's name and a limit that seats the chosen shape and everyone already in. */
+export function leagueFormValid(value: LeagueFormValue, seated = 0, limitFormat: TableShape | null = value.format, tournament = true) {
   return (
-    (!named || Boolean(value.name.trim())) &&
-    leaguePlacesSeat(limitFormat, value.playerLimit, seated) &&
+    (!tournament || (Boolean(value.name.trim()) && leaguePlacesSeat(limitFormat, value.playerLimit, seated))) &&
     !pointsBudgetError(value.rosterLimit, value.pointsBudget) &&
     !scheduleProblem(value)
   )

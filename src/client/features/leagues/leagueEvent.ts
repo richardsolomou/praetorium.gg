@@ -130,22 +130,27 @@ export function entryProgress(league: Pick<League, 'format' | 'club'>, stage: En
   return stages.map(({ label }, index) => ({ label, state: index < current ? 'done' : index === current ? 'current' : 'upcoming' }))
 }
 
-type LeagueFacts = {
-  format: TableShape | null
-  rosterLimit: number | null
-  playerLimit: number | null
-  admission: LeagueAdmission
-  revealedAt: number | null
-}
-
 export { leagueFormat } from '../../../core/league'
 
+/** An event's host as the helpers here read it: a tournament with its own entry rules, or a club's game. */
+type Host = { tournament: { admission: LeagueAdmission; playerLimit: number | null } | null }
+
+/** Who gets in and how many: a tournament's own rules, while a club game lets its members straight in, with no limit. */
+export function entryRules({ tournament }: Host) {
+  return { admission: tournament?.admission ?? ('automatic' as const), playerLimit: tournament?.playerLimit ?? null }
+}
+
+/** Who runs an event, as its copy names them: a tournament's owner, or the club whose game it is. */
+export function organizerName(league: { tournament: { ownerName: string } | null; club: { name: string } | null }) {
+  return league.tournament?.ownerName ?? league.club?.name ?? ''
+}
+
 type NamedEvent = {
-  name: string
+  tournament: { name: string } | null
+  club: { name: string } | null
   format?: TableShape | null
   rosterLimit?: number | null
   pointsBudget?: number | null
-  club?: { name?: string } | null
 }
 
 /** An event's name where its club is in view: a tournament's own name, or what a sealed game plays. */
@@ -156,8 +161,13 @@ export const eventFullName = (event: NamedEvent) => namedEvent(event, true)
 
 function namedEvent(event: NamedEvent, withClub: boolean) {
   return leagueTitle(
-    { name: event.name, format: event.format ?? null, rosterLimit: event.rosterLimit ?? null, pointsBudget: event.pointsBudget },
-    event.club ? { name: event.club.name ?? '' } : null,
+    {
+      tournament: event.tournament,
+      club: event.club,
+      format: event.format ?? null,
+      rosterLimit: event.rosterLimit ?? null,
+      pointsBudget: event.pointsBudget,
+    },
     { withClub },
   )
 }
@@ -184,14 +194,15 @@ export function leagueAllowances(league: {
 }
 
 /** How many players are in, against the limit when there is one. */
-export function leaguePlayers(league: Pick<LeagueFacts, 'playerLimit'>, accepted: number) {
-  return `${accepted}${league.playerLimit ? ` of ${league.playerLimit}` : ''} ${accepted === 1 && !league.playerLimit ? 'player' : 'players'}`
+export function leaguePlayers(league: Host, accepted: number) {
+  const { playerLimit } = entryRules(league)
+  return `${accepted}${playerLimit ? ` of ${playerLimit}` : ''} ${accepted === 1 && !playerLimit ? 'player' : 'players'}`
 }
 
 /** Where the open event stands for someone not in it: still taking players, full, or past its reveal. */
-export function leaguePhase(league: LeagueFacts, accepted: number, occupied: number) {
+export function leaguePhase(league: Host & { revealedAt: number | null }, accepted: number, occupied: number) {
   if (league.revealedAt) return { label: 'Rosters revealed', tint: 'text-achieved' }
-  return leagueRegistrationFull(league, accepted, occupied)
+  return leagueRegistrationFull(entryRules(league), accepted, occupied)
     ? { label: 'Registration full', tint: 'text-dim' }
     : { label: 'Registration open', tint: 'text-parchment' }
 }
@@ -230,9 +241,9 @@ export function eventPath(league: { token: string; club?: { token: string } | nu
   return league.club ? `/clubs/${league.club.token}/games/${league.token}` : `/tournaments/${league.token}`
 }
 
-/** The same address as `eventPath`, as a route link. */
-export function eventLink(league: { token: string; club?: { token: string } | null }) {
+/** The same address as `eventPath`, as a route link, with what the page should open on arrival. */
+export function eventLink(league: { token: string; club?: { token: string } | null }, search: { start?: true; choose?: true } = {}) {
   return league.club
-    ? ({ to: '/clubs/$token/games/$game', params: { token: league.club.token, game: league.token } } as const)
-    : ({ to: '/tournaments/$token', params: { token: league.token } } as const)
+    ? ({ to: '/clubs/$token/games/$game', params: { token: league.club.token, game: league.token }, search } as const)
+    : ({ to: '/tournaments/$token', params: { token: league.token }, search } as const)
 }
