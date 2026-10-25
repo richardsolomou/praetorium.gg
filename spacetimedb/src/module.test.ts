@@ -749,6 +749,58 @@ describe('club games', () => {
     expect(setup().create('member')).toBe('forbidden')
   })
 
+  it('keeps replaced games in the past even when the replacement is deleted', () => {
+    const fixture = setup()
+    fixture.create('owner')
+    const before = fixture.game({ op: 'join', userId: 'member', now: NOW, memberLimit: 128 })
+    fixture.create('owner', { eventId: 'next-id', eventToken: 'next-game' })
+    const replaced = fixture.game({ op: 'join', userId: 'member', now: NOW, memberLimit: 128 })
+    fixture.game({ token: 'next-game', op: 'delete', ownerId: 'owner' })
+    const afterDelete = fixture.game({ op: 'join', userId: 'member', now: NOW, memberLimit: 128 })
+    expect([before, replaced, afterDelete]).toEqual(['accepted', 'past', 'past'])
+  })
+
+  it('refuses a new battle after midnight even when its request carries an earlier time', () => {
+    const fixture = setup()
+    const now = Date.parse('2026-10-25T19:00:00Z')
+    fixture.at(now / 1000)
+    fixture.create('owner', { now, timeZone: 'Asia/Nicosia' })
+    const snapshot = JSON.stringify({ name: 'Army', text: '10 Intercessors' })
+    fixture.call(fixture.operator, (ctx) => {
+      ctx.db.sealedEvents.id.update({ ...ctx.db.sealedEvents.id.find('game-id')!, revealedAt: BigInt(now) })
+      for (const [index, userId] of ['owner', 'member'].entries())
+        ctx.db.leagueEventEntries.insert({
+          key: JSON.stringify(['game-id', userId]),
+          eventId: 'game-id',
+          userId,
+          status: 'accepted',
+          joinedAt: BigInt(now + index),
+          rosterId: undefined,
+          rosterName: 'Army',
+          rosterSnapshot: snapshot,
+          submittedAt: BigInt(now),
+          requiredLimit: undefined,
+          teamId: undefined,
+        })
+    })
+    const battle = (id: string) =>
+      fixture.game({
+        op: 'create-battle',
+        ownerId: 'owner',
+        userId: 'owner',
+        id,
+        battleToken: id,
+        allyIds: [],
+        opponentIds: ['member'],
+        initialCommands: [],
+        now,
+        expectedEntries: ['owner', 'member'].map((userId) => ({ userId, snapshot })),
+      })
+    const before = battle('before')
+    fixture.at(Date.parse('2026-10-25T22:00:00Z') / 1000)
+    expect([before, battle('after'), fixture.call(fixture.operator, (ctx) => ctx.db.battles.count())]).toEqual([true, 'past', 1n])
+  })
+
   it('refuses Swiss rounds', () => {
     expect(setup().create('owner', { rounds: 3 })).toBe('forbidden')
   })

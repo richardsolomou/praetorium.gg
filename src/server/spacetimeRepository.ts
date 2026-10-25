@@ -317,6 +317,7 @@ export class SpacetimeRepository {
     eventId: string
     eventToken: string
     clubToken: string
+    timeZone?: string
     ownerId: string
     format?: TableShape
     rosterLimit?: number

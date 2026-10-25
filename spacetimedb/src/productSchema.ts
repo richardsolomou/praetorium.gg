@@ -275,6 +275,8 @@ const clubGames = table(
     clubId: t.string().index('btree'),
     creatorId: t.string(),
     createdAt: t.u64(),
+    timeZone: t.option(t.string()).default(undefined),
+    supersededAt: t.option(t.u64()).default(undefined),
   },
 )
 

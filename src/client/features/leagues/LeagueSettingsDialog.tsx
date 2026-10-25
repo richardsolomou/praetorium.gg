@@ -129,7 +129,17 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
       const schedule = { playsAt, sealBy }
       if (mode.kind === 'create')
         return mode.clubToken
-          ? createClubGame({ data: { clubToken: mode.clubToken, format, rosterLimit, allowances, pointsBudget, schedule } })
+          ? createClubGame({
+              data: {
+                clubToken: mode.clubToken,
+                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+                format,
+                rosterLimit,
+                allowances,
+                pointsBudget,
+                schedule,
+              },
+            })
           : createLeague({ data: { ...details, format, rosterLimit, allowances, rounds, pointsBudget, schedule, ownerPlays } })
       await updateLeague({
         data: {

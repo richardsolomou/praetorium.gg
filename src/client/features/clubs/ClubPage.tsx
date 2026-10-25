@@ -9,6 +9,7 @@ import {
   LockKeyhole,
   LogOut,
   Pencil,
+  Plus,
   Share2,
   Swords,
   Trash2,
@@ -21,6 +22,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { buttonClass } from '../../components/buttonClass'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
+import { Label } from '@/components/ui/label'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
@@ -34,7 +37,9 @@ import { SectionHeading } from '../leagues/LeagueEntrants'
 import { LeagueSettingsDialog } from '../leagues/LeagueSettingsDialog'
 import { useClubRefresh, type Club } from './club'
 import { ClubSettingsDialog } from './ClubSettingsDialog'
-import { ClubSealedGame, sealedGameOpen } from './ClubSealedGame'
+import { ClubSealedGame } from './ClubSealedGame'
+import { clubGameOpen } from '../../../core/club'
+import { useNow } from '../../useNow'
 
 type Member = Club['members'][number]
 type ClubTable = NonNullable<Awaited<ReturnType<NonNullable<ReturnType<typeof clubStandingsQuery>['queryFn']>>>>
@@ -64,6 +69,7 @@ function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: strin
   const admins = accepted.filter((candidate) => candidate.role === 'admin')
   const invite = useInviteShare(`/clubs/${club.token}`, club.name, 'club_invite_shared')
   const shareLabel = useInviteShareLabel()
+  const now = useNow(club.games.map((game) => game.pastAt))
   const remove = useMutation({
     mutationFn: () => deleteClub({ data: { token: club.token } }),
     onSettled: refresh,
@@ -82,6 +88,7 @@ function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: strin
         title={club.name}
         actions={
           <>
+            {member && viewerId ? <NewGame club={club} viewerId={viewerId} /> : null}
             {member ? (
               <Button variant="outline" onClick={invite.share}>
                 {invite.feedback === 'shared' ? <Share2 /> : invite.feedback === 'copied' ? <Check /> : <Clipboard />} {shareLabel}
@@ -141,23 +148,16 @@ function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: strin
       </PageHeader>
 
       <PageContent>
-        {/* Your next move leads the side column and a phone; the main column runs from what is coming up to how the club stands. */}
-        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_1fr]">
-          <div className="lg:col-start-2 lg:row-start-1">
-            {member && viewerId ? (
-              <NewGame club={club} viewerId={viewerId} />
-            ) : (
-              <JoinClub club={club} viewerId={viewerId} own={own} onWithdraw={() => (leave.reset(), setLeaving(true))} />
-            )}
-          </div>
-          <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-span-2 lg:row-start-1">
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+          <div className="min-w-0 space-y-8">
             <JoinRequests club={club} />
-            <UpNext club={club} table={table} viewerId={viewerId} highlight={highlight} />
+            <UpNext club={club} table={table} viewerId={viewerId} highlight={highlight} now={now} />
             <RecentGames club={club} table={table} viewerId={viewerId} member={member} />
-            <PastSealedGames club={club} viewerId={viewerId} highlight={highlight} />
+            <PastSealedGames club={club} viewerId={viewerId} highlight={highlight} now={now} />
             {table?.finished ? <ClubLeaderboard table={table} viewerId={viewerId} /> : null}
           </div>
-          <aside className="lg:col-start-2">
+          <aside className="min-w-0 space-y-6">
+            {!member ? <JoinClub club={club} viewerId={viewerId} own={own} onWithdraw={() => (leave.reset(), setLeaving(true))} /> : null}
             <Members club={club} viewerId={viewerId} isOwner={isOwner} />
           </aside>
         </div>
@@ -210,69 +210,92 @@ function usePlayClubGame(token: string) {
   })
 }
 
-/** A member's way in to a game: pick another member and start an ordinary battle, counted for the club. */
 function NewGame({ club, viewerId }: { club: Club; viewerId: string }) {
   const play = usePlayClubGame(club.token)
+  const refresh = useClubRefresh(club.token)
   const opponents = club.members.filter((member) => member.status === 'accepted' && member.userId !== viewerId)
+  const [creating, setCreating] = useState<'battle' | 'sealed' | null>(null)
   const [opponentId, setOpponentId] = useState<string | null>(null)
   const chosen = opponents.find((member) => member.userId === opponentId) ?? opponents[0]
   return (
-    <section aria-labelledby="club-new-game" className="border border-edge bg-panel p-4 sm:p-5">
-      <h2 id="club-new-game" className="text-xl leading-tight font-bold uppercase">
-        New game
-      </h2>
-      {opponents.length ? (
-        <div className="mt-3 space-y-2">
-          <Select value={chosen?.userId ?? ''} onValueChange={(id) => id && setOpponentId(id)} disabled={play.isPending}>
-            <SelectTrigger aria-label="Opponent" className="h-11 w-full">
-              <SelectValue>{() => chosen?.name ?? 'Choose an opponent'}</SelectValue>
-            </SelectTrigger>
-            <SelectContent>
-              {opponents.map((member) => (
-                <SelectItem key={member.userId} value={member.userId}>
-                  {member.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            size="lg"
-            className="w-full pointer-coarse:h-11"
-            disabled={!chosen || play.isPending}
-            onClick={() => chosen && play.mutate(chosen.userId)}
-          >
-            <Swords /> {play.isPending ? 'Starting…' : 'Start battle'}
-          </Button>
-          <p className="text-xs text-dim">Each of you picks a list at setup. The result goes on the club leaderboard.</p>
-        </div>
-      ) : (
-        <p className="mt-1.5 text-sm text-dim">Nobody else is in the club yet. Copy the invite link to bring people in.</p>
-      )}
-      {play.error ? <Problem error={play.error} className="mt-2" /> : null}
-      {club.organizer ? <NewSealedGame club={club} /> : null}
-    </section>
-  )
-}
-
-/** An organizer's other way to start: a sealed game, where members seal lists for the evening and play each other. */
-function NewSealedGame({ club }: { club: Club }) {
-  const refresh = useClubRefresh(club.token)
-  const [creating, setCreating] = useState(false)
-  return (
-    <div className="mt-4 border-t border-edge pt-4">
-      <Button variant="outline" className="w-full" onClick={() => setCreating(true)}>
-        <FileLock2 /> New sealed game
+    <>
+      <Button onClick={() => (play.reset(), setCreating('battle'))}>
+        <Plus /> New game
       </Button>
-      <p className="mt-2 text-xs text-dim">Everyone seals a list in secret, you reveal them together, then play each other.</p>
-      <LeagueSettingsDialog
-        mode={{ kind: 'create', clubToken: club.token }}
-        open={creating}
-        onOpenChange={(open) => {
-          setCreating(open)
-          if (!open) void refresh()
-        }}
-      />
-    </div>
+      <Dialog open={creating === 'battle'} onOpenChange={(open) => !play.isPending && !open && setCreating(null)}>
+        <DialogContent showCloseButton={!play.isPending} fit>
+          <DialogHeader>
+            <DialogTitle>New game</DialogTitle>
+            <DialogDescription>Play another member for the club leaderboard.</DialogDescription>
+          </DialogHeader>
+          <DialogBody>
+            {opponents.length ? (
+              <div className="space-y-1.5">
+                <Label htmlFor="club-game-opponent">Opponent</Label>
+                <Select value={chosen?.userId ?? ''} onValueChange={(id) => id && setOpponentId(id)} disabled={play.isPending}>
+                  <SelectTrigger id="club-game-opponent" aria-label="Opponent" className="w-full">
+                    <SelectValue className="min-w-0">
+                      {() =>
+                        chosen ? (
+                          <>
+                            <PlayerAvatar name={chosen.name} image={chosen.image} className="size-6 text-3xs" />
+                            <span className="truncate">{chosen.name}</span>
+                          </>
+                        ) : (
+                          'Choose an opponent'
+                        )
+                      }
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {opponents.map((member) => (
+                      <SelectItem key={member.userId} value={member.userId} label={member.name}>
+                        <span className="flex min-w-0 items-center gap-2">
+                          <PlayerAvatar name={member.name} image={member.image} className="size-6 text-3xs" />
+                          <span className="truncate">{member.name}</span>
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-dim">Each of you picks a list at setup.</p>
+              </div>
+            ) : (
+              <p className="text-sm text-dim">Nobody else is in the club yet. Copy the invite link to bring people in.</p>
+            )}
+            {club.organizer ? (
+              <div className="space-y-2 border-t border-edge pt-4">
+                <Button variant="outline" disabled={play.isPending} onClick={() => setCreating('sealed')}>
+                  <FileLock2 /> New sealed game
+                </Button>
+                <p className="text-sm text-dim">Seal lists in secret and reveal them together before playing.</p>
+              </div>
+            ) : null}
+            {play.error ? <Problem error={play.error} /> : null}
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" disabled={play.isPending} onClick={() => setCreating(null)}>
+              Cancel
+            </Button>
+            <Button disabled={!chosen || play.isPending} onClick={() => chosen && play.mutate(chosen.userId)}>
+              <Swords /> {play.isPending ? 'Starting…' : 'Start battle'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {club.organizer ? (
+        <LeagueSettingsDialog
+          mode={{ kind: 'create', clubToken: club.token }}
+          open={creating === 'sealed'}
+          onOpenChange={(open) => {
+            if (!open) {
+              setCreating(null)
+              void refresh()
+            }
+          }}
+        />
+      ) : null}
+    </>
   )
 }
 
@@ -323,19 +346,21 @@ function JoinClub({
   )
 }
 
-/** What the reader has coming: their own unfinished club battles, and sealed games still being sealed or played. */
+/** The current game night and the reader’s unfinished club battles. */
 function UpNext({
   club,
   table,
   viewerId,
   highlight,
+  now,
 }: {
   club: Club
   table: ClubTable | null | undefined
   viewerId: string | null
   highlight: string | undefined
+  now: number
 }) {
-  const games = club.games.filter((game) => sealedGameOpen(club, game, viewerId))
+  const games = club.games.filter((game) => clubGameOpen(game, now))
   const active = table?.active ?? []
   if (!games.length && !active.length) return null
   return (
@@ -389,10 +414,20 @@ function ClubLeaderboard({ table, viewerId }: { table: ClubTable; viewerId: stri
 
 const PAST_GAMES_SHOWN = 3
 
-/** Sealed games the reader has nothing left to do in, newest first, each with the battles it produced. */
-function PastSealedGames({ club, viewerId, highlight }: { club: Club; viewerId: string | null; highlight: string | undefined }) {
+/** Past game nights, newest first, with their battles and frozen lists. */
+function PastSealedGames({
+  club,
+  viewerId,
+  highlight,
+  now,
+}: {
+  club: Club
+  viewerId: string | null
+  highlight: string | undefined
+  now: number
+}) {
   const [all, setAll] = useState(false)
-  const past = club.games.filter((game) => !sealedGameOpen(club, game, viewerId))
+  const past = club.games.filter((game) => !clubGameOpen(game, now))
   if (!past.length) return null
   // A link to an older game shows the whole list, so the game it names is there to open.
   const shown = all || past.findIndex((game) => game.token === highlight) >= PAST_GAMES_SHOWN ? past : past.slice(0, PAST_GAMES_SHOWN)

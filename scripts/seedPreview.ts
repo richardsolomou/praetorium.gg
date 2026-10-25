@@ -5,6 +5,7 @@ import type { Command, Roster } from '../src/core/battle'
 import type { LeagueSide } from '../src/contracts/schemas'
 import type { RosterPick } from '../src/core/roster'
 import { rosterSnapshot } from '../src/core/rosterSnapshot'
+import { clubGameOpen } from '../src/core/club'
 import { routeSlug } from '../src/core/slug'
 import { account as authAccount, user } from '../src/db/authSchema'
 import { createSqliteAuth } from '../src/server/sqliteAuth'
@@ -927,6 +928,8 @@ async function seedInto(
     }) {
       const gameToken = `preview-club-game-${game.key}`
       const existing = await repository.leagueByToken(gameToken, previewUserId)
+      const current = existing && (await repository.clubByToken(token))?.games.find((candidate) => candidate.token === gameToken)
+      if (current && !clubGameOpen(current, Date.now())) return
       if (!existing) {
         const created = await repository.createClubGame({
           eventId: gameToken,
@@ -935,7 +938,7 @@ async function seedInto(
           ownerId: previewUserId,
           format: game.format,
           rosterLimit: 2_000,
-          schedule: game.schedule,
+          schedule: game.reveal ? { playsAt: null, sealBy: null } : game.schedule,
           now: now(),
         })
         if (created) throw new Error(`club game ${game.key} could not be created: ${created}`)
@@ -953,6 +956,7 @@ async function seedInto(
           },
         )
       }
+      if (!existing && game.reveal) await repository.updateLeague(gameToken, previewUserId, { schedule: game.schedule })
     }
 
     /** Seats every player before anyone seals, since a doubles list only seals once its partner is seated. */

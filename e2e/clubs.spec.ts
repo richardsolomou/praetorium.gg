@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from './test'
-import { befriend, createBattle, createRoster, makeWarlord, retryUntilVisible, signUp, uniqueName } from './account'
+import { befriend, createBattle, createRoster, makeWarlord, retryUntilVisible, signInAsPreview, signUp, uniqueName } from './account'
 import { productSql } from './storage'
 import type { Command } from '../src/core/battle'
 
@@ -89,7 +89,8 @@ test('members who are not friends start a club game from the club page', async (
   )
 
   await owner.reload()
-  await owner.getByRole('button', { name: 'Start battle' }).click()
+  await openNewGame(owner)
+  await owner.getByRole('dialog', { name: 'New game', exact: true }).getByRole('button', { name: 'Start battle' }).click()
   await owner.waitForURL(/\/battles\/[^/]+$/)
   const token = new URL(owner.url()).pathname.split('/').at(-1)!
   const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
@@ -98,14 +99,16 @@ test('members who are not friends start a club game from the club page', async (
   await memberContext.close()
 })
 
-test('a club seals lists for a game night and plays them from the club page', async ({ browser }) => {
+test('a club seals lists for a game night and plays them from the club page', async ({ browser }, testInfo) => {
   test.setTimeout(180_000)
-  const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
+  const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 1000 }, timezoneId: 'Asia/Nicosia' })
   const memberContext = await browser.newContext()
   const owner = await ownerContext.newPage()
+  await owner.clock.install({ time: new Date() })
   const member = await memberContext.newPage()
   const memberName = uniqueName('Sealed regular')
-  await signUp(owner, uniqueName('Sealed host'))
+  const ownerName = uniqueName('Sealed host')
+  await signUp(owner, ownerName)
   await signUp(member, memberName)
   await sealableRoster(owner, 'Host army')
   await sealableRoster(member, 'Regular army')
@@ -125,6 +128,7 @@ test('a club seals lists for a game night and plays them from the club page', as
 
   // The game is started, sealed, revealed and played without leaving the club page.
   await owner.reload()
+  await openNewGame(owner)
   const dialog = owner.getByRole('dialog', { name: 'New sealed game' })
   await retryUntilVisible(dialog, () => owner.getByRole('button', { name: 'New sealed game' }).click({ timeout: 1_000 }))
   await dialog.getByRole('button', { name: 'Start sealed game' }).click()
@@ -136,9 +140,26 @@ test('a club seals lists for a game night and plays them from the club page', as
   await sealFromClub(member, member.locator('[data-sealed-game]'), 'Regular army')
 
   await owner.reload()
+  await expect(game.getByRole('button', { name: /^Simulate against/ })).toHaveCount(0)
   await game.getByRole('button', { name: 'Reveal lists' }).click()
   await owner.getByRole('alertdialog', { name: 'Reveal every list?' }).getByRole('button', { name: 'Reveal lists' }).click()
   await expect(game).toContainText('Regular army')
+  await game.getByRole('button', { name: `Simulate against ${memberName}`, exact: true }).click()
+  const simulator = owner.getByRole('dialog', { name: 'Combat simulator', exact: true })
+  await expect(simulator.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText(ownerName)
+  await expect(simulator.getByRole('combobox', { name: 'Defending roster', exact: true })).toContainText(memberName)
+  await simulator.getByRole('button', { name: 'Run all matchups' }).click()
+  await expect(simulator).toContainText('1 / 1 matchups · Complete')
+  await simulator.getByRole('button', { name: 'Close', exact: true }).click()
+  await owner.setViewportSize({ width: 390, height: 844 })
+  await game.scrollIntoViewIfNeeded()
+  await expect(owner.getByRole('heading', { name: 'New game', exact: true })).toHaveCount(0)
+  expect(await game.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expect(game.getByRole('button', { name: `Simulate against ${memberName}`, exact: true })).toBeInViewport()
+  await owner.screenshot({ path: testInfo.outputPath('club-up-next-mobile.png') })
+  await owner.setViewportSize({ width: 1440, height: 1000 })
+  await game.scrollIntoViewIfNeeded()
+  await owner.screenshot({ path: testInfo.outputPath('club-up-next-desktop.png') })
   await game.getByRole('button', { name: `Play ${memberName}` }).click()
   await owner.waitForURL(/\/battles\/[^/]+$/)
   await expect(owner.getByText('Host army').first()).toBeVisible()
@@ -154,6 +175,20 @@ test('a club seals lists for a game night and plays them from the club page', as
   await expect(owner.locator(`[data-sealed-game="${gameToken}"]`)).toContainText('Regular army')
   // A battle still being played shows once, inside its game under Up next.
   await expect(owner.locator(`a[href="${battlePath}"]`)).toHaveCount(1)
+  const midnight = await owner.evaluate(() => {
+    const date = new Date()
+    date.setHours(24, 0, 0, 0)
+    return date.getTime()
+  })
+  await owner.clock.fastForward(midnight - (await owner.evaluate(() => Date.now())) + 1)
+  await expect(game.locator('summary')).toBeVisible()
+  await game.locator('summary').click()
+  await expect(game.getByRole('button', { name: /^Play / })).toHaveCount(0)
+  await expect(game.getByRole('button', { name: `Simulate against ${memberName}`, exact: true })).toBeVisible()
+  await expect(game.locator(`a[href="${battlePath}"]`)).toBeVisible()
+  await owner.screenshot({ path: testInfo.outputPath('club-game-after-midnight.png'), fullPage: true })
+  await game.locator(`a[href="${battlePath}"]`).click()
+  await expect(owner.getByText('Host army').first()).toBeVisible()
   await ownerContext.close()
   await memberContext.close()
 })
@@ -184,6 +219,7 @@ test('a club plays a solo-vs-pair sealed game, its players taking their own side
   }
 
   await solo.reload()
+  await openNewGame(solo)
   const dialog = solo.getByRole('dialog', { name: 'New sealed game' })
   await retryUntilVisible(dialog, () => solo.getByRole('button', { name: 'New sealed game' }).click({ timeout: 1_000 }))
   await dialog.getByRole('button', { name: /^Solo vs pair/ }).click()
@@ -223,6 +259,80 @@ test('a club plays a solo-vs-pair sealed game, its players taking their own side
   await expect(solo.getByText('Solo army').first()).toBeVisible()
   await Promise.all(contexts.map((context) => context.close()))
 })
+
+test('club team rows keep their actions inside the card at narrow widths', async ({ page }, testInfo) => {
+  await signInAsPreview(page)
+  await page.goto('/clubs/preview-club')
+  const game = page.locator('[data-sealed-game="preview-club-game-doubles"]')
+  await game.locator('summary').click()
+  for (const width of [240, 320, 390, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 })
+    await game.scrollIntoViewIfNeeded()
+    expect(await game.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+    for (const action of await game.getByRole('button', { name: /^Simulate against/ }).all()) {
+      const bounds = await action.boundingBox()
+      const card = await game.boundingBox()
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(card!.x + card!.width)
+    }
+  }
+  await game.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true }).click()
+  const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
+  await expect(simulator.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText(
+    'Team 1: Preview Player and Preview Ally',
+  )
+  await expect(simulator.getByRole('combobox', { name: 'Defending roster', exact: true })).toContainText(
+    'Team 2: Preview Opponent and Preview Rival',
+  )
+  await simulator.getByRole('button', { name: 'Close', exact: true }).click()
+  const past = page.locator('[data-sealed-game="preview-club-game-duel-past"]')
+  await past.locator('summary').click()
+  await expect(past.getByRole('button', { name: /^Play / })).toHaveCount(0)
+  await past.getByRole('button', { name: 'Simulate against Preview Opponent', exact: true }).click()
+  await expect(simulator.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText('Preview Player')
+  await expect(simulator.getByRole('combobox', { name: 'Defending roster', exact: true })).toContainText('Preview Opponent')
+  await simulator.getByRole('button', { name: 'Close', exact: true }).click()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await game.scrollIntoViewIfNeeded()
+  await page.screenshot({ path: testInfo.outputPath('club-doubles-mobile.png') })
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.getByRole('heading', { name: 'Up next', exact: true }).scrollIntoViewIfNeeded()
+  await page.screenshot({ path: testInfo.outputPath('club-activity-desktop.png') })
+})
+
+test('a new sealed game replaces the previous one in another open tab', async ({ page }, testInfo) => {
+  await signUp(page, uniqueName('Automatic game host'))
+  await page.goto('/clubs')
+  const club = page.getByRole('dialog', { name: 'New club' })
+  await retryUntilVisible(club, () => page.getByRole('button', { name: 'New club', exact: true }).click({ timeout: 1_000 }))
+  const name = uniqueName('Automatic game nights')
+  await club.getByLabel('Name').fill(name)
+  await club.getByRole('button', { name: 'Create club' }).click()
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+  const clubUrl = page.url()
+  const createGame = async (tab: Page) => {
+    await openNewGame(tab)
+    await tab.getByRole('button', { name: 'New sealed game', exact: true }).click()
+    await tab.getByRole('dialog', { name: 'New sealed game' }).getByRole('button', { name: 'Start sealed game' }).click()
+    await expect(tab).toHaveURL(/\?game=/)
+    return new URL(tab.url()).searchParams.get('game')!
+  }
+  const previous = await createGame(page)
+  const organizer = await page.context().newPage()
+  await organizer.goto(clubUrl)
+  const current = await createGame(organizer)
+  const past = page.getByRole('heading', { name: /^Past sealed games/ }).locator('..')
+  await expect(past.locator(`[data-sealed-game="${previous}"]`)).toBeVisible()
+  await expect(past.getByRole('button', { name: 'Seal your list', exact: true })).toHaveCount(0)
+  const next = page.getByRole('heading', { name: 'Up next', exact: true }).locator('..')
+  await expect(next.locator(`[data-sealed-game="${current}"]`)).toBeVisible()
+  await organizer.close()
+  await page.screenshot({ path: testInfo.outputPath('club-replaced-game.png'), fullPage: true })
+})
+
+async function openNewGame(page: Page) {
+  const dialog = page.getByRole('dialog', { name: 'New game', exact: true })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New game', exact: true }).click({ timeout: 1_000 }))
+}
 
 /** Seals a saved roster from the club page's sealed game card, which also enters its player. */
 async function sealFromClub(page: Page, game: Locator, rosterName: string) {

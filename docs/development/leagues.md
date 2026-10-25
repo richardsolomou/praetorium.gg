@@ -17,3 +17,5 @@
 - A battle counts for a club through `set-battle-club` in its log, which names the club's internal id: every battle is public, and a club's token is its invite link. A club game's battles count through the event its lock names.
 - `club_battles` indexes that choice for reads. The module rewrites it from the folded log on `set-battle-club` and `undo`, and the table still checks each log, so the log stays the authority.
 - Membership needs IO, so the module refuses a non-member club; the core refuses guests, practice opponents, league and manual battles.
+
+- A club game's lifecycle is shared by every reader: a new game permanently supersedes earlier games; a scheduled game expires at the end of its scheduled day, an undated one at the end of its reveal day. The creator's timezone is captured automatically; existing games without one use UTC. Past games refuse mutations except deletion and roster-sharing preferences; existing battles and revealed roster access remain available.

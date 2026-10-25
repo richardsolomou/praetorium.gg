@@ -49,6 +49,9 @@ import {
 import { parseRosterSnapshot, rosterPickSchema } from '../../src/core/commands'
 import { SWISS_ROUNDS_MAX } from '../../src/core/swiss'
 import {
+  clubGameOpen,
+  clubGamePastAt,
+  clubGameTimeZoneSchema,
   CLUB_ADMIN_MAX,
   CLUB_DESCRIPTION_MAX_LENGTH,
   CLUB_MEMBER_MAX,
@@ -433,7 +436,24 @@ function clubGameHosts(ctx: Context, club: ClubRow) {
       const event = ctx.db.sealedEvents.id.find(game.eventId)
       return event ? [{ kind: 'club' as const, game, club, event }] : []
     })
-    .sort((a, b) => Number(b.game.createdAt - a.game.createdAt))
+    .sort(
+      (a, b) =>
+        Number(b.game.createdAt - a.game.createdAt) ||
+        Number(a.game.supersededAt !== undefined) - Number(b.game.supersededAt !== undefined),
+    )
+}
+
+function gamePastAt({ game, event }: Extract<EventHost, { kind: 'club' }>) {
+  return clubGamePastAt({
+    playsAt: event.playsAt === undefined ? null : Number(event.playsAt),
+    revealedAt: event.revealedAt === undefined ? null : Number(event.revealedAt),
+    supersededAt: game.supersededAt === undefined ? null : Number(game.supersededAt),
+    timeZone: game.timeZone ?? 'UTC',
+  })
+}
+
+function pastClubGame(ctx: Context, host: EventHost) {
+  return host.kind === 'club' && !clubGameOpen({ pastAt: gamePastAt(host) }, safeNumber(ctx.timestamp.microsSinceUnixEpoch / 1_000n))
 }
 
 /** How many battles a club has and when the latest began, for its card. */
@@ -2609,13 +2629,31 @@ export const migrateLeaguesToClubs = spacetime.procedure({ now: t.u64() }, t.u32
           revealedAt: event.revealedAt,
           revealedBy: event.revealedBy,
         })
-        tx.db.clubGames.insert({ eventId: event.id, clubId, creatorId: league.ownerId, createdAt: event.createdAt })
+        tx.db.clubGames.insert({
+          eventId: event.id,
+          clubId,
+          creatorId: league.ownerId,
+          createdAt: event.createdAt,
+          timeZone: undefined,
+          supersededAt: undefined,
+        })
         tx.db.leagueEvents.id.delete(event.id)
         touchEventById(tx, event.id)
       }
       for (const row of Array.from(tx.db.leagueAdmins.leagueId.filter(league.id))) tx.db.leagueAdmins.key.delete(row.key)
       tx.db.leagues.id.delete(league.id)
       touchClub(tx, clubId)
+    }
+    for (const club of tx.db.clubs.iter()) {
+      const games = clubGameHosts(tx, club)
+      let changed = false
+      for (let index = 1; index < games.length; index++) {
+        const { game } = games[index]!
+        if (game.supersededAt !== undefined) continue
+        tx.db.clubGames.eventId.update({ ...game, supersededAt: games[index - 1]!.game.createdAt })
+        changed = true
+      }
+      if (changed) touchClub(tx, club.id)
     }
     return leagues.length
   }),
@@ -3300,27 +3338,31 @@ export const clubByToken = spacetime.procedure({ token: t.string() }, t.string()
     return productJson({
       club,
       members: clubMemberRows(tx, club),
-      games: clubGameHosts(tx, club).map(({ event }) => ({
-        token: event.token,
-        createdAt: event.createdAt,
-        revealedAt: event.revealedAt ?? null,
-        playsAt: event.playsAt ?? null,
-        sealBy: event.sealBy ?? null,
-        format: event.format ?? null,
-        rosterLimit: event.rosterLimit ?? null,
-        pointsBudget: event.pointsBudget ?? null,
-        players: leagueEntriesFor(tx, event.id)
-          .filter((entry) => entry.status === 'accepted')
-          .map((entry) => ({
-            userId: entry.userId,
-            sealed: entry.rosterSnapshot !== undefined,
-            teamId: entry.teamId ?? null,
-            requiredLimit: entry.requiredLimit ?? null,
-          })),
-        played: playedPairs(tx, event.id),
-        battles: Array.from(tx.db.leagueEventBattles.eventId.filter(event.id)).length,
-        playing: unfinishedPlayers(tx, event.id),
-      })),
+      games: clubGameHosts(tx, club).map((host) => {
+        const { event } = host
+        return {
+          token: event.token,
+          createdAt: event.createdAt,
+          pastAt: gamePastAt(host),
+          revealedAt: event.revealedAt ?? null,
+          playsAt: event.playsAt ?? null,
+          sealBy: event.sealBy ?? null,
+          format: event.format ?? null,
+          rosterLimit: event.rosterLimit ?? null,
+          pointsBudget: event.pointsBudget ?? null,
+          players: leagueEntriesFor(tx, event.id)
+            .filter((entry) => entry.status === 'accepted')
+            .map((entry) => ({
+              userId: entry.userId,
+              sealed: entry.rosterSnapshot !== undefined,
+              teamId: entry.teamId ?? null,
+              requiredLimit: entry.requiredLimit ?? null,
+            })),
+          played: playedPairs(tx, event.id),
+          battles: Array.from(tx.db.leagueEventBattles.eventId.filter(event.id)).length,
+          playing: unfinishedPlayers(tx, event.id),
+        }
+      }),
     })
   }),
 )
@@ -3875,7 +3917,17 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       const club = tx.db.clubs.token.find(leagueCommandInput(z.object({ clubToken: idInput }), value).clubToken)
       // A club's game is casual, so Swiss rounds are a tournament's alone.
       if (!club || input.rounds !== null || !isClubOrganizer(club, clubMemberRows(tx, club), input.ownerId)) return productJson('forbidden')
-      tx.db.clubGames.insert({ eventId: input.eventId, clubId: club.id, creatorId: input.ownerId, createdAt })
+      const { timeZone } = leagueCommandInput(z.object({ timeZone: clubGameTimeZoneSchema.default('UTC') }), value)
+      for (const { game } of clubGameHosts(tx, club))
+        if (game.supersededAt === undefined) tx.db.clubGames.eventId.update({ ...game, supersededAt: createdAt })
+      tx.db.clubGames.insert({
+        eventId: input.eventId,
+        clubId: club.id,
+        creatorId: input.ownerId,
+        createdAt,
+        timeZone,
+        supersededAt: undefined,
+      })
     }
     tx.db.sealedEvents.insert({
       id: input.eventId,
@@ -3909,6 +3961,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       value,
     )
     if (!host) return productJson('missing')
+    if (pastClubGame(tx, host)) return productJson('past')
     const { event } = host
     // Past the roster deadline a newcomer could never seal, so entry closes with it.
     if (event.revealedAt !== undefined || (event.sealBy !== undefined && BigInt(input.now) > event.sealBy)) return productJson('closed')
@@ -3950,6 +4003,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         ].includes(operation) && !organizer
   )
     return productJson('forbidden')
+
+  if (pastClubGame(tx, host) && !['delete', 'share-roster', 'dismiss-roster-sharing'].includes(operation)) return productJson('past')
 
   if (operation === 'set-admins') {
     if (host.kind !== 'tournament') return productJson('forbidden')

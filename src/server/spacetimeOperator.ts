@@ -239,6 +239,7 @@ const battleClub = club.pick({ id: true, token: true, name: true, visibility: tr
 const clubGame = z.object({
   token: z.string(),
   createdAt: z.number().int(),
+  pastAt: z.number().int().nullable(),
   revealedAt: z.number().int().nullable(),
   playsAt: z.number().int().nullable(),
   sealBy: z.number().int().nullable(),
@@ -1000,7 +1001,9 @@ export class SpacetimeOperator {
   }
 
   async leagueCommand<S extends z.ZodType>(command: Record<string, unknown>, result: S): Promise<z.output<S>> {
-    return this.read('league_command', [JSON.stringify(command)], result)
+    const value = await this.read('league_command', [JSON.stringify(command)], z.unknown())
+    if (value === 'past') throw new Response('This sealed game has moved to Past. Start a new game to play again.', { status: 409 })
+    return result.parse(value)
   }
 
   /** A procedure returns its result as a JSON string. */
