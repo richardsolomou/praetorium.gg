@@ -1,10 +1,11 @@
 import { ChevronLeft, X } from 'lucide-react'
 import type { CSSProperties, ReactNode } from 'react'
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
 import type { OnboardingTarget } from '../../onboarding/onboarding'
 import { useCompactChrome } from '../../shell/useCompactChrome'
+import { useMediaQuery } from '../../../useMediaQuery'
 
 type Props = {
   variant: 'picker' | 'loadout'
@@ -79,22 +80,13 @@ export function Pane({
   const pane = useRef<HTMLElement>(null)
   const closeButton = useRef<HTMLButtonElement>(null)
   const returnFocus = useRef<HTMLElement>(null)
-  const [compactLoadout, setCompactLoadout] = useState(false)
+  const compactLoadout = useMediaQuery('(max-width: 1023px)') && variant === 'loadout'
   /*
    * A compact loadout is a screen wherever the application tab bar is visible and
    * a dialog at intermediate web widths. A screen does not take the page hostage:
    * keeping `aria-modal` and a focus trap here would hide tabs a thumb can reach.
    */
   const screen = useCompactChrome() && compactLoadout
-
-  useLayoutEffect(() => {
-    if (variant !== 'loadout') return
-    const compact = window.matchMedia('(max-width: 1023px)')
-    const sync = () => setCompactLoadout(compact.matches)
-    sync()
-    compact.addEventListener('change', sync)
-    return () => compact.removeEventListener('change', sync)
-  }, [variant])
 
   useEffect(() => {
     if (!open) return
