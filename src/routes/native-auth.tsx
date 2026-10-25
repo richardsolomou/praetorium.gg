@@ -3,6 +3,7 @@ import { localRedirectPath } from 'ras-stack/auth/client'
 import { SOCIAL_PROVIDERS } from '../authConfig'
 import { NativeAuthPage, type NativeAuthSearch } from '../client/features/account/NativeAuthPage'
 import { searchFlag, searchText } from '../client/searchParams'
+import { PKCE_VALUE } from '../contracts/nativeAuth'
 
 export const Route = createFileRoute('/native-auth')({
   validateSearch: (search: Record<string, unknown>): NativeAuthSearch => ({
@@ -22,7 +23,7 @@ export const Route = createFileRoute('/native-auth')({
             : search.bridge === 1 || search.bridge === '1'
               ? 1
               : undefined,
-    challenge: typeof search.challenge === 'string' && /^[\w-]{43}$/.test(search.challenge) ? search.challenge : undefined,
+    challenge: typeof search.challenge === 'string' && PKCE_VALUE.test(search.challenge) ? search.challenge : undefined,
   }),
   component: () => <NativeAuthPage search={Route.useSearch()} />,
 })
