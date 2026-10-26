@@ -3,6 +3,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { app } from '../app'
 import { currentUserId, forSignedIn, requireUserId } from '../playerSession'
+import { BATTLES_PAGE } from '../service'
 import { battleViewerId, requireBattleActor } from '../guestSession'
 import { submitBattleCommand } from '../battleSubmission'
 import { mutationRpc, rpc } from '../rpc'
@@ -28,12 +29,6 @@ async function orNull<T>(work: () => Promise<T>) {
   }
 }
 
-/** A page of the battle list. History grows for an account's lifetime; a page does not. */
-const BATTLES_PAGE = 25
-
-/** A page of a home-page feed. Shorter, because the page shows three of them at once. */
-const FEED_PAGE = 10
-
 export const myBattles = createServerFn({ method: 'GET' })
   .validator(battlesPageSchema)
   .handler(({ data }) =>
@@ -57,7 +52,7 @@ export const publicBattles = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       const [viewerId, rules, factions] = await Promise.all([currentUserId(), app().battleMissionRulesFor(), app().battleFactionsFor()])
-      return app().service.publicBattles(viewerId, rules, { limit: FEED_PAGE, before: data.before ?? undefined }, factions)
+      return app().service.publicBattles(viewerId, rules, { before: data.before ?? undefined }, factions)
     }),
   )
 
@@ -68,7 +63,7 @@ export const friendBattles = createServerFn({ method: 'GET' })
     rpc(() =>
       forSignedIn({ battles: [], nextCursor: null }, async (id) => {
         const [rules, factions] = await Promise.all([app().battleMissionRulesFor(), app().battleFactionsFor()])
-        return app().service.friendBattles(id, rules, { limit: FEED_PAGE, before: data.before ?? undefined }, factions)
+        return app().service.friendBattles(id, rules, { before: data.before ?? undefined }, factions)
       }),
     ),
   )

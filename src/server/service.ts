@@ -118,7 +118,9 @@ type PlayerRankings = {
 
 const SPECTATOR_ID = ''
 
-/** A page of a home-page feed. Small: every row on it costs a folded log. */
+/** A page of the battle list. History grows for an account's lifetime; a page does not. */
+export const BATTLES_PAGE = 25
+/** A page of a home-page feed. Small: every row on it costs a folded log, and the page shows three at once. */
 const PUBLIC_BATTLES_PAGE = 10
 const PLAYED_ARMY_BATTLES = 12
 /** How long one public feed page serves repeated reads, such as a burst of tabs refetching after the same signal. */
@@ -245,7 +247,7 @@ export class PraetoriumService {
   async publicBattles(
     viewerId: string | null,
     rules?: BattleMissionRules | null,
-    page?: { limit: number; before?: BattlesCursor },
+    page?: { limit?: number; before?: BattlesCursor },
     factions?: readonly BattleFaction[],
   ) {
     const now = this.clock()
@@ -297,7 +299,7 @@ export class PraetoriumService {
   async friendBattles(
     userId: string,
     rules?: BattleMissionRules | null,
-    page?: { limit: number; before?: BattlesCursor },
+    page?: { limit?: number; before?: BattlesCursor },
     factions?: readonly BattleFaction[],
   ) {
     const { battles: histories, nextCursor } = await this.repository.battlesByFriends(userId, {

@@ -3,6 +3,7 @@ import { app } from './app'
 import { submitBattleCommand } from './battleSubmission'
 import { productActions } from './productActions'
 import { rosterActions } from './rosterActions'
+import { BATTLES_PAGE } from './service'
 import {
   battlesPageSchema,
   createBattleSchema,
@@ -78,7 +79,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
     'list_my_battles',
     {
       title: 'List my battles',
-      description: 'Lists up to 25 battles with a cursor for the next page. Requires mcp:read.',
+      description: `Lists up to ${BATTLES_PAGE} battles with a cursor for the next page. Requires mcp:read.`,
       inputSchema: battlesPageSchema.shape,
       annotations: READ,
     },
@@ -86,7 +87,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
       resultOf(async () => {
         const instance = app()
         const [rules, factions] = await Promise.all([instance.battleMissionRulesFor(), instance.factionIndexFor()])
-        return instance.service.battles(owner(), rules, { limit: 25, before: before ?? undefined }, factions?.factions ?? [])
+        return instance.service.battles(owner(), rules, { limit: BATTLES_PAGE, before: before ?? undefined }, factions?.factions ?? [])
       }),
   )
   server.registerTool(

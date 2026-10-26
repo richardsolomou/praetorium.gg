@@ -3,6 +3,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { app } from '../app'
 import { currentUserId, requireUserId } from '../playerSession'
+import { BATTLES_PAGE } from '../service'
 import { mutationRpc, rpc } from '../rpc'
 import { shareLeagueRosterSchema } from '../../contracts/leagueRosterSharing'
 import {
@@ -62,7 +63,7 @@ export const listLeagueBattles = createServerFn({ method: 'GET' })
       return app().service.leagueBattles(
         data.token,
         data.eventToken,
-        { limit: 25, before: data.before ?? undefined },
+        { limit: BATTLES_PAGE, before: data.before ?? undefined },
         await app().battleMissionRulesFor(),
         await app().battleFactionsFor(),
         await currentUserId(),
