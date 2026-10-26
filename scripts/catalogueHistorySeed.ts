@@ -33,6 +33,7 @@ import {
   upstreamId,
 } from './lib/catalogueHistoryPlan'
 import type { WorkerResult, WorkerTask } from './catalogueHistoryWorker'
+import { userCacheRoot } from './lib/catalogueCache'
 
 const root = path.join(import.meta.dirname, '..')
 const { values } = parseArgs({
@@ -50,9 +51,7 @@ const upstreamFrom = values['upstream-from']
 const withUpstream = !values['no-upstream']
 // Each compile holds a whole catalogue, so memory bounds the pool as well as the cores do.
 const workers = Number(values.workers ?? Math.max(1, Math.min(os.cpus().length - 2, Math.floor(os.totalmem() / (3 * 1024 ** 3)))))
-const clonesRoot = path.resolve(
-  values.clones ?? path.join(process.env.XDG_CACHE_HOME?.trim() || path.join(os.homedir(), '.cache'), 'praetorium', 'upstream'),
-)
+const clonesRoot = path.resolve(values.clones ?? path.join(userCacheRoot(), 'upstream'))
 
 const started = performance.now()
 const base = catalogueBaseUrl()
