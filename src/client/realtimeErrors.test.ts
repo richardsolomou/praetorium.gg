@@ -1,3 +1,4 @@
+import { IdentityChangedError, UnknownCallResultError } from 'spacetimedb'
 import { expect, it } from 'vitest'
 import { isExpectedRealtimeDisconnect, RealtimeHttpError } from './realtimeErrors'
 
@@ -16,6 +17,8 @@ it.each([
   new TypeError('NetworkError when attempting to fetch resource.'),
   new TypeError('Load failed'),
   new TypeError('fetch failed'),
+  new IdentityChangedError(),
+  new UnknownCallResultError(),
   ...[401, 408, 429, 500, 502, 503, 504].map((status) => new RealtimeHttpError('Spacetime token', status)),
 ])('treats %s as a recoverable realtime failure', (error) => {
   expect(isExpectedRealtimeDisconnect(error)).toBe(true)
