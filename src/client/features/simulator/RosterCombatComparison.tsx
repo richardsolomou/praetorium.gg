@@ -132,30 +132,44 @@ export function RosterCombatComparison({
     }),
   ]
   const selectionKey = `${storageKey}:${currentRoster ? 'draft' : sessionKey}`
-  const [attackerId, setAttackerId] = useState(
-    () => readRosterCombatSelection(selectionKey)?.attacker ?? (initialAttacker || (currentRoster ? 'current' : '')),
-  )
-  const [defenderId, setDefenderId] = useState(
-    () => readRosterCombatSelection(selectionKey)?.defender ?? (initialDefender || (sources ? '' : 'benchmarks')),
-  )
+  const initialSelection = () => {
+    const stored = readRosterCombatSelection(selectionKey)
+    return {
+      attacker: stored?.attacker ?? (initialAttacker || (currentRoster ? 'current' : '')),
+      defender: stored?.defender ?? (initialDefender || (sources ? '' : 'benchmarks')),
+    }
+  }
+  const [attackerId, setAttackerId] = useState(() => initialSelection().attacker)
+  const [defenderId, setDefenderId] = useState(() => initialSelection().defender)
   const [comparison, setComparison] = useState<Comparison | null>(null)
   const [running, setRunning] = useState(false)
   const [problem, setProblem] = useState<string | null>(null)
   const [pair, setPair] = useState<{ row: number; column: number } | null>(null)
   const active = useRef<AbortController | null>(null)
+  const clearComparison = (runningNext: boolean) => {
+    setRunning(runningNext)
+    setComparison(null)
+    setProblem(null)
+    setPair(null)
+  }
+  /** Abandons the run in flight and the comparison it was building. */
+  const stop = () => {
+    active.current?.abort()
+    active.current = null
+    clearComparison(false)
+  }
   const account = useRef(storageKey)
+  const switchAccount = useEffectEvent(() => {
+    stop()
+    const initial = initialSelection()
+    setAttackerId(initial.attacker)
+    setDefenderId(initial.defender)
+  })
   useEffect(() => {
     if (account.current === storageKey) return
     account.current = storageKey
-    active.current?.abort()
-    active.current = null
-    setRunning(false)
-    setComparison(null)
-    setPair(null)
-    setProblem(null)
-    setAttackerId(readRosterCombatSelection(selectionKey)?.attacker ?? (initialAttacker || (currentRoster ? 'current' : '')))
-    setDefenderId(readRosterCombatSelection(selectionKey)?.defender ?? (initialDefender || (sources ? '' : 'benchmarks')))
-  }, [storageKey, sources, currentRoster, selectionKey, initialAttacker, initialDefender])
+    switchAccount()
+  }, [storageKey])
   useEffect(
     () => () => {
       active.current?.abort()
@@ -164,33 +178,18 @@ export function RosterCombatComparison({
     [],
   )
   const change = (side: 'attacker' | 'defender', id: string) => {
-    active.current?.abort()
-    active.current = null
-    setRunning(false)
-    setComparison(null)
-    setProblem(null)
-    setPair(null)
+    stop()
     if (side === 'attacker') setAttackerId(id)
     else setDefenderId(id)
     writeRosterCombatSelection(selectionKey, side === 'attacker' ? id : attackerId, side === 'defender' ? id : defenderId)
   }
   const editTargets = (next: BenchmarkTarget[] | null) => {
-    active.current?.abort()
-    active.current = null
-    setRunning(false)
-    setComparison(null)
-    setProblem(null)
+    stop()
     setStorageProblem(
       writeStoredValue(storageKey, next && JSON.stringify(next))
         ? null
         : 'Benchmark changes could not be saved. They will only last for this session.',
     )
-  }
-  const clearComparison = (runningNext: boolean) => {
-    setRunning(runningNext)
-    setComparison(null)
-    setProblem(null)
-    setPair(null)
   }
   const execute = async (cachedOnly: boolean) => {
     active.current?.abort()
@@ -334,14 +333,10 @@ export function RosterCombatComparison({
             className="col-start-2 row-start-1 mb-1"
             disabled={running || !attackerId || !defenderId}
             onClick={() => {
-              active.current?.abort()
-              active.current = null
-              setPair(null)
+              stop()
               setAttackerId(defenderId)
               setDefenderId(attackerId)
               writeRosterCombatSelection(selectionKey, defenderId, attackerId)
-              setComparison(null)
-              setProblem(null)
             }}
           >
             <ArrowLeftRight aria-hidden />
