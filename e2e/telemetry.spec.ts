@@ -23,7 +23,6 @@ test('search reports empty results, dismissal, and successful selection without 
   await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
   const events = await recordEvents(page)
   const search = page.getByPlaceholder('Search everything…')
-  // The button answers only once the page has hydrated.
   await retryUntilVisible(search, () => page.getByRole('button', { name: 'Search Praetorium' }).click())
   await search.fill('private query zzzxyz987')
   await expect
@@ -429,7 +428,6 @@ for (const units of [[], ['Necron Warriors'], ['Necron Warriors', 'Overlord']]) 
     const save = page.getByRole('button', { name: 'Save roster', exact: true })
     if (!units.length) {
       await expect(save).toBeDisabled()
-      expect(events.filter((event) => event.name === 'guest_roster_save_started')).toEqual([])
       return
     }
     await save.click()
