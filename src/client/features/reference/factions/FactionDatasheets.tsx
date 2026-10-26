@@ -1,7 +1,7 @@
 import { useReferenceFaction } from './useReferenceFaction'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Link, Outlet, useParams, useRouterState } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
 import { ChevronRight, FileSearch } from 'lucide-react'
 import { memo, useMemo, useState } from 'react'
@@ -34,8 +34,6 @@ import { PageState } from '../../../components/PageState'
 import { PageContent, PageHeader } from '../../../components/Page'
 
 export function FactionDatasheets() {
-  const { catalogueId, rulesVersion } = useParams({ strict: false })
-  const path = useRouterState({ select: (state) => state.location.pathname })
   const faction = useReferenceFaction()
   const [query, setQuery] = useState('')
   const settledQuery = useSettled(query.trim())
@@ -68,7 +66,6 @@ export function FactionDatasheets() {
     setKeywords(new Set())
     setAccount(new Set())
   }
-  if (path !== `/factions/${catalogueId}${rulesVersion ? `/rules/${rulesVersion}` : ''}/datasheets`) return <Outlet />
   if (!faction) return null
 
   return (

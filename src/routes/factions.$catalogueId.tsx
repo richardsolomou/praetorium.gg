@@ -1,9 +1,7 @@
 import { createFileRoute, notFound, redirect } from '@tanstack/react-router'
 import { z } from 'zod'
-import { pageHead } from '../client/linkPreview'
-import { loadReferenceFaction, favouriteDetachmentsQuery, favouriteFactionsQuery } from '../client/queries'
+import { loadReferenceFaction } from '../client/queries'
 import { factionReferenceHref, factionReferenceRoute } from '../core/factionReferenceRoute'
-import { FactionPage } from '../client/features/reference/factions/FactionPage'
 
 export const Route = createFileRoute('/factions/$catalogueId')({
   validateSearch: z.object({
@@ -17,17 +15,8 @@ export const Route = createFileRoute('/factions/$catalogueId')({
   }),
   loaderDeps: ({ search }) => ({ rules: search.rules }),
   loader: async ({ context, location, params, deps }) => {
-    const direct = location.pathname === `/factions/${params.catalogueId}`
     const versioned = location.pathname.startsWith(`/factions/${params.catalogueId}/rules/`)
-    const [faction] = await Promise.all([
-      loadReferenceFaction(context.queryClient, params.catalogueId, versioned ? undefined : deps.rules),
-      ...(direct
-        ? [
-            context.queryClient.query({ ...favouriteFactionsQuery(), staleTime: 'static' }),
-            context.queryClient.query({ ...favouriteDetachmentsQuery(), staleTime: 'static' }),
-          ]
-        : []),
-    ])
+    const faction = await loadReferenceFaction(context.queryClient, params.catalogueId, versioned ? undefined : deps.rules)
     if (!faction) throw notFound()
     const route = factionReferenceRoute(faction)
     if (!versioned && (params.catalogueId !== route.catalogueId || deps.rules || route.rulesVersion))
@@ -35,15 +24,6 @@ export const Route = createFileRoute('/factions/$catalogueId')({
         href: factionReferenceHref(faction, location.pathname.slice(`/factions/${params.catalogueId}`.length)),
         replace: true,
       })
-    return { name: faction.displayName, slug: route.catalogueId, faction }
+    return { faction }
   },
-  head: ({ loaderData, match, matches }) =>
-    loaderData && matches.at(-1)?.routeId === match.routeId
-      ? pageHead(match.context.origin, {
-          title: loaderData.name,
-          description: `${loaderData.name} army rules, detachments, datasheets, loadouts and points.`,
-          path: factionReferenceHref(loaderData.faction),
-        })
-      : {},
-  component: () => <FactionPage catalogueId={Route.useLoaderData().faction.id} routeCatalogueId={Route.useParams().catalogueId} />,
 })
