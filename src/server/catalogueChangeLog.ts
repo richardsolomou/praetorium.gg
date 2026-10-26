@@ -4,7 +4,7 @@ import { type CatalogueHistoryEntry, factionAnchors, updateSummary } from '../co
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { IndexedUpdate, LinkedChangeSet, ReferenceLink } from '../contracts/catalogueChanges'
 import { historyAnchor } from './catalogueHistory'
-import { remember } from '../core/collections'
+import { groupBy, remember } from '../core/collections'
 
 type Routes = {
   factions: Map<string, string>
@@ -151,19 +151,18 @@ function referenceHistories(history: readonly CatalogueHistoryEntry[], canonical
     canonical,
     () => {
       const routes = routesOf(canonical)
-      const histories = new Map<string, ReferenceChange[]>()
+      const linked: [string, ReferenceChange][] = []
       for (const entry of history)
         for (const faction of entry.changes.factions)
           for (const change of faction.changes) {
             const link = linkOf(routes, faction.catalogueId, change)
-            if (!link) continue
-            const path = referencePath(link)
-            histories.set(path, [...(histories.get(path) ?? []), { recordedAt: entry.recordedAt, change }])
+            if (link) linked.push([referencePath(link), { recordedAt: entry.recordedAt, change }])
           }
-      for (const [path, changes] of histories)
+      const histories = new Map<string, ReferenceChange[]>()
+      for (const [path, changes] of groupBy(linked, ([pagePath]) => pagePath))
         histories.set(
           path,
-          changes.toSorted((left, right) => right.recordedAt - left.recordedAt),
+          changes.map(([, change]) => change).toSorted((left, right) => right.recordedAt - left.recordedAt),
         )
       return histories
     },

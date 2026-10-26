@@ -1,6 +1,7 @@
 import type { CanonicalDatasheet, UnitSummary } from '../contracts/catalogue'
-import type { ReferenceDocument, ReferenceKind } from '../contracts/reference'
+import type { ReferenceDocument } from '../contracts/reference'
 import { routeSlug } from '../core/slug'
+import { countBy } from '../core/collections'
 import { catalogueEditionId } from '../core/catalogueEdition'
 import { datasheetPageBySlug } from '../core/datasheetSlug'
 import { unitsIn } from '../shared/cataloguePicker'
@@ -35,12 +36,7 @@ export function referenceFactions(corpus: ReferenceCorpus): ReferenceFaction[] {
 }
 
 export function referenceIndex(corpus: ReferenceCorpus) {
-  const kinds = Object.fromEntries(
-    corpus.documents.reduce(
-      (counts, document) => counts.set(document.kind, (counts.get(document.kind) ?? 0) + 1),
-      new Map<ReferenceKind, number>(),
-    ),
-  )
+  const kinds = Object.fromEntries(countBy(corpus.documents, (document) => document.kind))
   return {
     corpusRevision: corpus.revision,
     revisions: corpus.catalogue.revisions,

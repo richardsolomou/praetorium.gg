@@ -11,6 +11,7 @@ import {
   REFERENCE_RESULT_MAX,
   searchReference,
   validReferenceCursor,
+  type ReferenceSearchInput,
 } from './referenceSearch'
 import {
   referenceFaction,
@@ -277,17 +278,7 @@ function recordResponse(request: Request, corpus: ReferenceCorpus, document: Ref
   )
 }
 
-export function parseReferenceSearch(url: URL):
-  | {
-      query: string
-      kinds?: ReferenceKind[]
-      faction?: string
-      pack?: string
-      document?: string
-      limit?: number
-      cursor?: string
-    }
-  | { error: string } {
+export function parseReferenceSearch(url: URL): ReferenceSearchInput | { error: string } {
   const query = url.searchParams.get('q')?.trim() ?? ''
   if (query.length < 2) return { error: 'q must contain at least 2 characters' }
   if (query.length > REFERENCE_QUERY_MAX_LENGTH) return { error: `q must contain at most ${REFERENCE_QUERY_MAX_LENGTH} characters` }
