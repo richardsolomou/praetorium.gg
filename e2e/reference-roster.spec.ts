@@ -11,14 +11,20 @@ async function addFromDatasheet(page: Page, datasheet = DATASHEET) {
   await page.getByRole('button', { name: 'Add to roster', exact: true }).click()
 }
 
+/** Finishes the roster setup a datasheet's Add to roster opened, on a detachment and Take and Hold. */
+async function createFromSetup(page: Page, detachment: string) {
+  const setup = page.getByRole('dialog', { name: 'Create roster' })
+  await setup.getByRole('button', { name: `Select ${detachment}`, exact: true }).click()
+  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold', exact: true }).click()
+  await setup.getByRole('button', { name: 'Create roster', exact: true }).click()
+}
+
 /** A reader of one datasheet reaches the builder with that unit, under the roster's own limits. */
 test('a visitor starts a roster from a datasheet and is told when it cannot take another copy', async ({ page }) => {
   await addFromDatasheet(page)
   const setup = page.getByRole('dialog', { name: 'Create roster' })
   await expect(setup.getByRole('combobox', { name: 'Faction' })).toHaveText(/Necrons/)
-  await setup.getByRole('button', { name: /^Select Awakened Dynasty$/ }).click()
-  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await setup.getByRole('button', { name: 'Create roster' }).click()
+  await createFromSetup(page, 'Awakened Dynasty')
   await expect(page).toHaveURL(/\/rosters\/[^/]+$/)
   await expect(page.locator('[data-unit]').filter({ hasText: 'Imotekh the Stormlord' })).toHaveCount(1)
   // Edits are kept once they settle, so leaving waits for the stored draft to hold the unit.
@@ -66,10 +72,7 @@ test('a datasheet opens the simulator on the side the reader picks', async ({ pa
 test('partial Eradicator squads retain their copy-tier prices through reload, view and export', { tag: '@catalogue' }, async ({ page }) => {
   const name = 'Eradicator Squad with Heavy Bolters'
   await addFromDatasheet(page, '/factions/space-marines/rules/mfm-1-6/datasheets/eradicator-squad-with-heavy-bolters')
-  const setup = page.getByRole('dialog', { name: 'Create roster' })
-  await setup.getByRole('button', { name: 'Select Assault Brethren', exact: true }).click()
-  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold', exact: true }).click()
-  await setup.getByRole('button', { name: 'Create roster', exact: true }).click()
+  await createFromSetup(page, 'Assault Brethren')
   const cards = page.locator(`[data-unit="${name}"]`)
   await expect(cards).toHaveCount(1)
   await add(page, name)
@@ -110,10 +113,7 @@ for (const width of [1440, 390]) {
     test(`${name} fixed weapons remain visible through resizing, reload and view at ${width}px`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 900 })
       await addFromDatasheet(page, `/factions/adeptus-custodes/rules/custodes-codex-2026-10-17/datasheets/${slug}`)
-      const setup = page.getByRole('dialog', { name: 'Create roster' })
-      await setup.getByRole('button', { name: 'Select Aquilan Shield', exact: true }).click()
-      await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold', exact: true }).click()
-      await setup.getByRole('button', { name: 'Create roster', exact: true }).click()
+      await createFromSetup(page, 'Aquilan Shield')
       const card = page.locator(`[data-unit="${name}"]`)
       await card.getByRole('button', { name, exact: true }).click()
       const ranged = page.getByRole('heading', { name: new RegExp(`^\\d+× ${weapon}$`) })
@@ -145,10 +145,7 @@ for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     const name = 'Eradicator Squad with Melta Rifles'
     await addFromDatasheet(page, '/factions/space-marines/datasheets/eradicator-squad-with-melta-rifles')
-    const setup = page.getByRole('dialog', { name: 'Create roster' })
-    await setup.getByRole('button', { name: 'Select Assault Brethren', exact: true }).click()
-    await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold', exact: true }).click()
-    await setup.getByRole('button', { name: 'Create roster', exact: true }).click()
+    await createFromSetup(page, 'Assault Brethren')
     const card = page.locator(`[data-unit="${name}"]`)
     await card.getByRole('button', { name, exact: true }).click()
     const rifles = page.getByRole('listitem', { name: /Melta rifle/i }).first()
