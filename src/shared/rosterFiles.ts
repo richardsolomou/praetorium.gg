@@ -494,8 +494,7 @@ function textRosterPick(
       if (scope.scoped) return
       const { key, options } = choices[at]!
       const namedApart = options.filter((option) => stated.has(normalized(option.name))).length > 1
-      const offered = (claim: { key: string }) =>
-        !namedApart && options.some((option) => claim.key.startsWith(`${key}/${option.id}/`))
+      const offered = (claim: { key: string }) => !namedApart && options.some((option) => claim.key.startsWith(`${key}/${option.id}/`))
       const unclaimed = new Map(stated)
       for (const under of new Set(claims.filter((claim) => !offered(claim)).map((claim) => claim.stated)))
         for (const [name, count] of under) {
