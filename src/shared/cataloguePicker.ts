@@ -118,7 +118,9 @@ export function detachmentUnitFacts(loaded: LoadedCatalogue, catalogueId: string
  * page that silently ends at the letter I.
  */
 export function unitsIn(loaded: LoadedCatalogue, catalogueId: string, query: string, options: UnitListOptions = {}): UnitSummary[] {
-  return searchUnits(loaded, catalogueId, query.trim().toLowerCase(), unitSummaries(loaded, catalogueId, options).get())
+  return searchDatasheetEntries(unitSummaries(loaded, catalogueId, options).get(), query.trim().toLowerCase(), (unit) =>
+    datasheetSearchFieldsIn(loaded, catalogueId, unit.id),
+  )
 }
 
 type UnitListOptions = {
@@ -286,10 +288,6 @@ function* summarizeUnits(
     })
   }
   return summaries
-}
-
-function searchUnits(loaded: LoadedCatalogue, catalogueId: string, query: string, units: UnitSummary[]) {
-  return searchDatasheetEntries(units, query, (unit) => datasheetSearchFieldsIn(loaded, catalogueId, unit.id))
 }
 
 /**
