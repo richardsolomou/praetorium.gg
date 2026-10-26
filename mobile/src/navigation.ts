@@ -7,7 +7,7 @@ export function resolveApplicationUrl(configured = process.env.EXPO_PUBLIC_APP_U
     if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) throw new Error()
     return parsed.origin
   } catch {
-    throw new Error('EXPO_PUBLIC_NATIVE_AUTH_TEST_APP_URL must be a valid HTTP origin.')
+    throw new Error('EXPO_PUBLIC_APP_URL or EXPO_PUBLIC_NATIVE_AUTH_TEST_APP_URL must be a valid HTTP origin.')
   }
 }
 
