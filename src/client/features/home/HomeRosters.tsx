@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronRight, ScrollText } from 'lucide-react'
+import { ShelfLink } from '../../components/ShelfLink'
+import { ScrollText } from 'lucide-react'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { pointsBudgetOf } from '../../../core/battle'
 import { FactionMark } from '../../components/FactionMark'
@@ -58,9 +59,7 @@ export function HomeRosters({ rosters, count, changed }: { rosters: readonly Hom
         </p>
       )}
       <p className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <Link to="/rosters" className="eyebrow inline-flex items-center gap-1 text-info hover:text-parchment">
-          All my rosters <ChevronRight className="size-3.5" />
-        </Link>
+        <ShelfLink to="/rosters">All my rosters</ShelfLink>
         {changed ? (
           <Link to="/rosters" search={{ updates: 'changed' }} className="text-xs font-semibold text-discarded hover:text-bone">
             {countLabel(changed, 'list')} changed by a data update

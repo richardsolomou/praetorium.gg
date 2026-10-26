@@ -1,6 +1,7 @@
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { Link } from '@tanstack/react-router'
-import { ChevronRight, Users } from 'lucide-react'
+import { ShelfLink } from '../../components/ShelfLink'
+import { Users } from 'lucide-react'
 import { buttonClass } from '../../components/buttonClass'
 import type { Battle } from '../battles/battle'
 import { BattleShelf } from '../battles/BattleShelf'
@@ -75,8 +76,8 @@ export function PublicTables({ battles, signedIn }: { battles: readonly Battle[]
 
 function AllGames({ view, children }: { view: 'friends' | 'public'; children: string }) {
   return (
-    <Link to="/battles" search={{ view }} className="eyebrow mt-2 inline-flex items-center gap-1 text-info hover:text-parchment">
-      {children} <ChevronRight className="size-3.5" />
-    </Link>
+    <ShelfLink to="/battles" search={{ view }} className="mt-2">
+      {children}
+    </ShelfLink>
   )
 }

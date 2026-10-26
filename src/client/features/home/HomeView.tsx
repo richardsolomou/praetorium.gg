@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronRight } from 'lucide-react'
+import { ShelfLink } from '../../components/ShelfLink'
 import type { ReactNode } from 'react'
 import { buttonClass } from '../../components/buttonClass'
 import { isPracticeSeat } from '../../../core/newBattle'
@@ -151,9 +151,9 @@ export function HomeView({
 
 function AllMyBattles() {
   return (
-    <Link to="/battles" className="eyebrow mt-2 inline-flex items-center gap-1 text-info hover:text-parchment">
-      All my battles <ChevronRight className="size-3.5" />
-    </Link>
+    <ShelfLink to="/battles" className="mt-2">
+      All my battles
+    </ShelfLink>
   )
 }
 
