@@ -4412,30 +4412,19 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     touchEvent(tx, host)
     return productJson({ outcome: 'sealed', format: event.format ?? null, requiredLimit })
   }
-  if (operation === 'set-team-disposition') {
-    const input = leagueCommandInput(
-      z.object({ op: z.literal('set-team-disposition'), disposition: z.string().min(1).max(64), now: leagueTimeInput }),
-      value,
-    )
+  if (operation === 'set-team-disposition' || operation === 'set-team-warlord') {
+    const warlord = operation === 'set-team-warlord'
+    const choice = warlord
+      ? leagueCommandInput(z.object({ op: z.literal(operation), userId: idInput, now: leagueTimeInput }), value).userId
+      : leagueCommandInput(z.object({ op: z.literal(operation), disposition: z.string().min(1).max(64), now: leagueTimeInput }), value)
+          .disposition
     if (event.revealedAt !== undefined) return productJson({ outcome: 'closed' })
     const entry = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, ownerId]))
     if (!entry || entry.status !== 'accepted' || !entry.teamId) return productJson({ outcome: 'missing' })
-    const entries = leagueEntriesFor(tx, event.id)
-    const team = eventTeams(tx, event.id, entries).find((candidate) => candidate.id === entry.teamId)
-    if (!team?.choices.includes(input.disposition)) return productJson({ outcome: 'not-offered' })
-    setTeamPick(tx, event.id, team.id, input.disposition)
-    touchEvent(tx, host)
-    return productJson({ outcome: 'chosen' })
-  }
-  if (operation === 'set-team-warlord') {
-    const input = leagueCommandInput(z.object({ op: z.literal('set-team-warlord'), userId: idInput, now: leagueTimeInput }), value)
-    if (event.revealedAt !== undefined) return productJson({ outcome: 'closed' })
-    const entry = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, ownerId]))
-    if (!entry || entry.status !== 'accepted' || !entry.teamId) return productJson({ outcome: 'missing' })
-    const entries = leagueEntriesFor(tx, event.id)
-    const team = eventTeams(tx, event.id, entries).find((candidate) => candidate.id === entry.teamId)
-    if (!team?.warlordChoices.includes(input.userId)) return productJson({ outcome: 'not-offered' })
-    setTeamWarlord(tx, event.id, team.id, input.userId)
+    const team = eventTeams(tx, event.id, leagueEntriesFor(tx, event.id)).find((candidate) => candidate.id === entry.teamId)
+    if (!team || !(warlord ? team.warlordChoices : team.choices).includes(choice)) return productJson({ outcome: 'not-offered' })
+    if (warlord) setTeamWarlord(tx, event.id, team.id, choice)
+    else setTeamPick(tx, event.id, team.id, choice)
     touchEvent(tx, host)
     return productJson({ outcome: 'chosen' })
   }
