@@ -23,7 +23,7 @@ import { attachedProfilePrefix } from '../core/combatScenario'
  * What projections of one built roster can share: unit choices and modifiers are keyed by value, and each unit's
  * support abilities by its place in that roster, so share it only between projections of the same `prepared` roster.
  */
-export type RosterProjectionCache = {
+type RosterProjectionCache = {
   choiceCache: UnitChoiceCache
   modifierCache: ModifierCache
   supportSources: Map<number, ReturnType<typeof datasheetAbilitiesIn>>

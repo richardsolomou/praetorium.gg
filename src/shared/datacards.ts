@@ -55,7 +55,7 @@ export type ConstructionDetachment = {
   dispositions: string[]
   globallyValid: boolean
 }
-export type ConstructionEnhancement = {
+type ConstructionEnhancement = {
   ids?: readonly string[]
   name: string
   detachment: string
@@ -65,7 +65,7 @@ export type ConstructionEnhancement = {
 }
 import type { EnhancementEligibility } from '../contracts/factions'
 export type { EnhancementEligibility } from '../contracts/factions'
-export type FactionStratagem = {
+type FactionStratagem = {
   id: string
   name: string
   cp: number
@@ -97,7 +97,7 @@ export type FactionContent = {
   /** Every unit an army rule lists as refused, so a list the restrictions did not read is reported. */
   restrictionLists: readonly { faction: string; names: readonly string[] }[]
 }
-export type FactionRestriction = {
+type FactionRestriction = {
   owner: string
   excludedNames: readonly (readonly [string, string | null])[]
   excludedKeywords: readonly string[]

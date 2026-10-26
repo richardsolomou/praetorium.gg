@@ -13,7 +13,7 @@ import { factionContentsOf } from './factionNames'
  * The book's own faction file is checked by name, then identical cards shared by
  * other files.
  */
-export type DatacardJoin = { details: DatasheetDetails; own: boolean }
+type DatacardJoin = { details: DatasheetDetails; own: boolean }
 
 const cardIndexes = new WeakMap<FactionContent, Map<string, DatasheetDetails>>()
 const joins = new WeakMap<LoadedCatalogue, Map<string, DatacardJoin | null>>()

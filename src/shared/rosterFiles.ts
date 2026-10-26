@@ -46,15 +46,7 @@ import type { RosterExchange } from '../core/rosterExchange'
 import type { RosterPick } from '../core/roster'
 
 /** Which tool or layout wrote an imported text, as `roster_imported` and `roster_import_failed` report it. */
-export type RosterTextFormat =
-  | 'praetorium'
-  | 'newrecruit'
-  | 'battlebase'
-  | 'roster-file'
-  | 'listforge'
-  | 'listforge-wtc'
-  | 'warmind'
-  | 'wtc'
+type RosterTextFormat = 'praetorium' | 'newrecruit' | 'battlebase' | 'roster-file' | 'listforge' | 'listforge-wtc' | 'warmind' | 'wtc'
 
 function parsedImport(file: string): { parsed: TextRoster; format: RosterTextFormat } | null {
   const praetorium = /Exported with Praetorium\.gg/i.test(file)
@@ -213,7 +205,7 @@ export function importRosterExchange(exchange: RosterExchange, loaded: LoadedCat
 }
 
 /** Choices a list states that its unit could not be given, named back per unit with why. */
-export type UnplacedChoices = { unit: string; choices: UnplacedChoice[] }
+type UnplacedChoices = { unit: string; choices: UnplacedChoice[] }
 
 const slug = (value: string) =>
   normalized(value)

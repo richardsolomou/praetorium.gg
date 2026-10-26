@@ -9,7 +9,7 @@ import { catalogueFactionName, factionDisplayName } from './factionNames'
 import type { MfmIndex } from './mfm'
 import type { CatalogueEdition } from '../core/catalogueEdition'
 type CatalogueReference = { id: string; name: string; datasheets: number; detachments: number }
-export type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
+type DetachmentOptions = { wrapperId: string; groupId: string; options: DetachmentOption[] }
 type DetachmentOption = { id: string; name: string; disposition: string | null }
 export type LoadedCatalogue = {
   edition?: CatalogueEdition

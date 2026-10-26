@@ -12,7 +12,7 @@ import { attachedUnitList, attachedUnits } from '../../../../core/attachedUnits'
 import type { KeyedPick } from '../rosterPicks'
 
 /** A card's line saying where its unit rides, or who rides in it; `passenger` is the card whose choice it shows. */
-export type EmbarkRow = { label: string; name: string; action: string; passenger: number }
+type EmbarkRow = { label: string; name: string; action: string; passenger: number }
 
 /** A pairing a card's menu offers, greyed out with `reason` when setup would refuse it. */
 export type EmbarkChoice = { passenger: number; transport: number; name: string; detail: string | null; reason: string | null }
@@ -120,7 +120,7 @@ export function editedPicks(before: readonly KeyedPick[], after: readonly KeyedP
 }
 
 /** A unit an edit put back on the battlefield, and the pick as the edit left it. */
-export type PutBack = { name: string; transport: string; pick: KeyedPick }
+type PutBack = { name: string; transport: string; pick: KeyedPick }
 
 /** The dropped embarks the picks still hold, which the builder puts back. */
 export const putBacks = (dropped: readonly { card: number; name: string; transport: string }[], picks: readonly KeyedPick[]): PutBack[] =>

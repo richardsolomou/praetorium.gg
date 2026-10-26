@@ -40,7 +40,7 @@ export type GuestDraft = {
 let lastWritten: string | null = null
 
 /** The builder's address for a visitor's list, which is the one the list keeps once an account saves it under its id. */
-export const guestDraftPath = (guest: Pick<GuestDraft, 'id'>) => `/rosters/${guest.id}`
+const guestDraftPath = (guest: Pick<GuestDraft, 'id'>) => `/rosters/${guest.id}`
 
 export const EMPTY_SETUP: RosterSetup = {
   name: '',

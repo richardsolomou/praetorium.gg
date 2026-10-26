@@ -16,7 +16,7 @@ export type TextFacts = {
   reserveExemption?: true
   references?: string[]
 }
-export type WeaponAbilityGrant = { keyword: string; recipients: string; exclusions?: string; profileTypes: string[] }
+type WeaponAbilityGrant = { keyword: string; recipients: string; exclusions?: string; profileTypes: string[] }
 
 /** The facts one source text states, with nothing kept for a text that states none. */
 export function textFactsOf(words: string): TextFacts | null {

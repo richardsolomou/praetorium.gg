@@ -6,7 +6,7 @@ import type { LoadedCatalogue } from './catalogueIndex'
 import { cardName, descriptionKey } from './datacards'
 import type { DetachmentRulesDetail } from '../contracts/factions'
 
-export type DetachmentCatalogueDetail = {
+type DetachmentCatalogueDetail = {
   rules: { name: string; description: string | null }[]
   enhancements: { name: string; points: number | null; description: string | null }[]
   forcedEnhancements: { name: string; points: number | null; description: string | null }[]

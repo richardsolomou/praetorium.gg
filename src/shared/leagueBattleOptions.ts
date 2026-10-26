@@ -3,7 +3,7 @@ import { alliedLeagueRosterLimit, leagueTableShape } from '../core/league'
 import { newBattleSeats, type NewBattlePlayers } from '../core/newBattle'
 import type { TableShape } from '../core/tableShape'
 
-export type LeagueMatchCandidate = {
+type LeagueMatchCandidate = {
   token: string
   name: string
   eventToken: string
