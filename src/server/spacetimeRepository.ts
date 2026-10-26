@@ -781,18 +781,21 @@ export class SpacetimeRepository {
     }
   }
 
-  leagueRosterSharing(...args: Parameters<SpacetimeOperator['leagueRosterSharing']>) {
-    return this.product.leagueRosterSharing(...args)
+  leagueRosterSharing(token: string, eventToken: string | undefined, userId: string) {
+    return this.product.leagueRosterSharing(token, eventToken ?? '', userId)
   }
 
   updateLeagueRosterSharing(
     input: {
       token: string
-      eventToken: string
+      eventToken: string | undefined
       ownerId: string
     } & ({ op: 'share-roster'; submittedAt: number; now: number; rosterId: string } | { op: 'dismiss-roster-sharing' }),
   ) {
-    return this.product.leagueCommand(input, z.union([leagueRosterSharingSchema, z.enum(['missing', 'forbidden', 'unavailable', 'stale'])]))
+    return this.product.leagueCommand(
+      { ...input, eventToken: input.eventToken ?? '' },
+      z.union([leagueRosterSharingSchema, z.enum(['missing', 'forbidden', 'unavailable', 'stale'])]),
+    )
   }
 
   async createLeagueBattle<T>(

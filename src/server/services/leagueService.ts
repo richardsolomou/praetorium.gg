@@ -389,11 +389,11 @@ export class LeagueService {
     return this.repository.friendLeagueRosters(viewerId)
   }
 
-  rosterSharing(token: string, eventToken: string, userId: string) {
+  rosterSharing(token: string, eventToken: string | undefined, userId: string) {
     return this.repository.leagueRosterSharing(token, eventToken, userId)
   }
 
-  async shareRoster(token: string, eventToken: string, userId: string, submittedAt: number, rosterId: string) {
+  async shareRoster(token: string, eventToken: string | undefined, userId: string, submittedAt: number, rosterId: string) {
     const result = await this.repository.updateLeagueRosterSharing({
       op: 'share-roster',
       token,
@@ -406,7 +406,7 @@ export class LeagueService {
     return rosterSharingResult(result)
   }
 
-  async dismissRosterSharing(token: string, eventToken: string, userId: string) {
+  async dismissRosterSharing(token: string, eventToken: string | undefined, userId: string) {
     return rosterSharingResult(
       await this.repository.updateLeagueRosterSharing({
         op: 'dismiss-roster-sharing',

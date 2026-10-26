@@ -198,7 +198,7 @@ export const leagueRosterSharing = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       const userId = await requireUserId()
-      return app().service.leagueService.rosterSharing(data.token, data.eventToken ?? '', userId)
+      return app().service.leagueService.rosterSharing(data.token, data.eventToken, userId)
     }),
   )
 
@@ -207,13 +207,7 @@ export const shareLeagueRoster = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const userId = await requireUserId()
-      const result = await app().service.leagueService.shareRoster(
-        data.token,
-        data.eventToken ?? '',
-        userId,
-        data.submittedAt,
-        data.rosterId,
-      )
+      const result = await app().service.leagueService.shareRoster(data.token, data.eventToken, userId, data.submittedAt, data.rosterId)
       await app().telemetry.capture(userId, 'league_roster_published')
       return result
     }),
@@ -224,7 +218,7 @@ export const dismissLeagueRosterSharing = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const userId = await requireUserId()
-      return app().service.leagueService.dismissRosterSharing(data.token, data.eventToken ?? '', userId)
+      return app().service.leagueService.dismissRosterSharing(data.token, data.eventToken, userId)
     }),
   )
 
