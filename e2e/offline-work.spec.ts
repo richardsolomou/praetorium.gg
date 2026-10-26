@@ -1,5 +1,5 @@
 import { waitForOfflineApp } from './offline'
-import { expect, test } from './test'
+import { expect, test, type Page } from './test'
 import {
   befriend,
   createBattle,
@@ -26,6 +26,15 @@ import { chooseCombatUnit } from './combat'
 import type { LocalState } from '../src/contracts/localState'
 
 test.use({ actionTimeout: 15_000 })
+
+/** Opens and closes the New battle dialog once online, so its code is cached before the device goes offline. */
+async function warmBattleDialog(page: Page) {
+  await page.goto('/battles')
+  await retryUntilVisible(page.getByRole('combobox', { name: 'Opponent', exact: true }), () =>
+    page.getByRole('button', { name: 'New battle' }).click(),
+  )
+  await page.keyboard.press('Escape')
+}
 
 test('simulation and loadout optimization work in a cold offline application', async ({ page, context }) => {
   test.setTimeout(240_000)
@@ -192,11 +201,7 @@ test('an offline practice battle and its commands survive reopening and sync tog
   await expect(page.locator('[data-roster="Flight army"]')).toBeVisible()
   await page.goto(`/rosters/${rosterId}`)
   await expect(page.getByLabel('List name')).toHaveValue('Flight army')
-  await page.goto('/battles')
-  await retryUntilVisible(page.getByRole('combobox', { name: 'Opponent', exact: true }), () =>
-    page.getByRole('button', { name: 'New battle' }).click(),
-  )
-  await page.keyboard.press('Escape')
+  await warmBattleDialog(page)
   await waitForOfflineApp(page)
   await expectWorkSynced(page)
   await context.setOffline(true)
@@ -234,11 +239,7 @@ test('an offline practice battle and its commands survive reopening and sync tog
 test('a guest battle created offline keeps the guest’s seat when it syncs', async ({ page, context }) => {
   test.setTimeout(240_000)
   const { operator } = await savedArmy(page, 'Offline guest host', { name: 'Guest army' })
-  await page.goto('/battles')
-  await retryUntilVisible(page.getByRole('combobox', { name: 'Opponent', exact: true }), () =>
-    page.getByRole('button', { name: 'New battle' }).click(),
-  )
-  await page.keyboard.press('Escape')
+  await warmBattleDialog(page)
   await waitForOfflineApp(page)
   await expectWorkSynced(page)
   await context.setOffline(true)
@@ -259,11 +260,7 @@ test('a battle link opened before its offline creation syncs opens once the batt
   await signUp(opponent, opponentName)
   await signUp(page, uniqueName('Offline host'))
   await befriend(page, opponent)
-  await page.goto('/battles')
-  await retryUntilVisible(page.getByRole('combobox', { name: 'Opponent', exact: true }), () =>
-    page.getByRole('button', { name: 'New battle' }).click(),
-  )
-  await page.keyboard.press('Escape')
+  await warmBattleDialog(page)
   await waitForOfflineApp(page)
   await expectWorkSynced(page)
   await context.setOffline(true)
