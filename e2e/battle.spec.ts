@@ -18,15 +18,14 @@ import {
   uniqueName,
   expectNoPageOverflow,
   addUnit,
+  practiceBattle,
 } from './account'
 import { battleLog, productSql, lastPathSegment } from './storage'
 
 test('the opening draw prompt starts at the top, pins its actions and holds the page still on a phone', async ({ page }) => {
   await signUp(page, uniqueName('Opening prompt'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Opening prompt roster' })
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page, undefined, false)
   const prompt = page.getByRole('dialog', { name: /secondary missions$/ })
   await expect(prompt.getByRole('button', { name: 'Draw at random' })).toBeVisible()
@@ -52,9 +51,7 @@ test('the opening draw prompt starts at the top, pins its actions and holds the 
 test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ page }) => {
   await signUp(page, uniqueName('Standard secondaries'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Standard scoring roster' })
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page, undefined, true, ['Cleanse', 'Centre Ground'])
 
   const ongoing = page.locator('[data-panel="player"][data-side="0"]')
@@ -146,9 +143,7 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
 test('native battle controls leave the application tabs reachable', async ({ page }) => {
   await signUp(page, uniqueName('Native controls'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Native battle roster' })
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.evaluate(() => {
@@ -220,9 +215,7 @@ test('native battle controls leave the application tabs reachable', async ({ pag
 test('a running battle restores mission prompts when its tactical prep is missing', async ({ page }) => {
   await signUp(page, uniqueName('Repair'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Repair roster' })
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page)
 
   const token = lastPathSegment(page.url())
@@ -249,9 +242,7 @@ test('a running battle restores mission prompts when its tactical prep is missin
 test('showing every stratagem includes the ones for the other turn, refused', async ({ page }) => {
   await signUp(page, uniqueName('Show all'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Show all roster' })
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page)
 
   const waiting = page.locator('[data-panel="player"]').filter({ hasText: PRACTICE_OPPONENT })
@@ -264,9 +255,7 @@ test('showing every stratagem includes the ones for the other turn, refused', as
 test('the final opponent-turn settlement completes before the battle ends', async ({ page }) => {
   await signUp(page, uniqueName('Final round'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Final round roster' })
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page)
 
   const { append, first: firstPlayerId, second: opponentId } = await battleLog(page)

@@ -9,12 +9,12 @@ import {
   createBattle,
   createRoster,
   desktopContext,
-  PRACTICE_OPPONENT,
   signUp,
   startBattle,
   takeTheTurn,
   uniqueName,
   expectNoPageOverflow,
+  practiceBattle,
 } from './account'
 import { savedWork } from './storage'
 
@@ -173,9 +173,7 @@ test('a skipped choice leaves the turn free and stays on its card until recorded
   await signUp(page, uniqueName('Skipping captain'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Skipped choice roster' })
   await addUnit(page, 'Immortals')
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page, undefined, false)
   await draw(page, ['Burden Of Trust', 'Cleanse'])
   const guards = page.getByRole('dialog', { name: 'Burden Of Trust · choices', exact: true })
@@ -192,9 +190,7 @@ test('manual Beacon nomination persists and a destroyed Beacon cannot be replace
   await signUp(page, uniqueName('Beacon captain'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Beacon nomination roster' })
   await addUnit(page, 'Immortals')
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page, undefined, false)
   await draw(page, ['Beacon', 'Cleanse'])
   const side = page.locator('[data-panel="player"][data-side="0"]')
@@ -257,9 +253,7 @@ test('Consecrate records end-of-turn objectives that stay consecrated into the n
   await addUnit(page, 'Immortals')
   const recon = await createRoster(page, { faction: 'Necrons', detachment: /Hypercrypt Legion/, name: 'Consecrate recon roster' })
   await addUnit(page, 'Immortals')
-  await createBattle(page, { practice: true })
-  await attachRoster(page, purge)
-  await attachRoster(page, recon, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, purge, { opponentRoster: recon })
   await startBattle(page, undefined, false)
   await draw(page, ['Cleanse', 'No Prisoners'])
   const consecrate = page.getByRole('dialog', { name: 'Consecrate · choices', exact: true })
@@ -317,9 +311,7 @@ test('Locate and Deny markers are placed before the first turn and an Extract Re
   await addUnit(page, 'Plague Marines')
   const assets = await createRoster(page, { faction: 'Necrons', detachment: /Cryptek Conclave/, name: 'Relic assets roster' })
   await addUnit(page, 'Immortals')
-  await createBattle(page, { practice: true })
-  await attachRoster(page, disruption)
-  await attachRoster(page, assets, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, disruption, { opponentRoster: assets })
   await startBattle(page, undefined, false)
   await draw(page, ['Cleanse', 'No Prisoners'])
   const locate = page.getByRole('dialog', { name: 'Locate and Deny · choices', exact: true })

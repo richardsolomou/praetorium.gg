@@ -1,9 +1,6 @@
 import { expect, test } from './test'
 import {
-  attachRoster,
-  createBattle,
   createRoster,
-  PRACTICE_OPPONENT,
   signInAsPreview,
   signUp,
   startBattle,
@@ -11,6 +8,7 @@ import {
   waitForRosterSave,
   addUnit,
   chooseRosterAction,
+  practiceBattle,
 } from './account'
 import { attach } from './builder.harness'
 import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest } from '../mobile/src/nativeActions'
@@ -80,9 +78,7 @@ test('a full saved army prints selected equipment, both detachments and every pa
   await page.screenshot({ path: testInfo.outputPath('print-pack-long.png'), fullPage: true })
   await page.emulateMedia({ media: 'screen' })
   await page.getByRole('button', { name: 'Return to roster' }).click()
-  const battleUrl = await createBattle(page, { practice: true })
-  await attachRoster(page, name)
-  await attachRoster(page, name, { forPlayer: PRACTICE_OPPONENT })
+  const battleUrl = await practiceBattle(page, name)
   await page.goto(`/rosters/preview-necrons-cursed-skyshroud?battle=${lastPathSegment(battleUrl)}`)
   await expect(page.locator('[data-unit]')).toHaveCount(13)
   await expect(page.locator('[data-stat="points"]')).toHaveText(points)
@@ -183,9 +179,7 @@ test('a saved mixed-equipment pack agrees with export and the fielded army', asy
   await expect(page.locator('html')).toHaveAttribute('data-printed-cards', '1')
   await page.pdf({ path: testInfo.outputPath('mixed-equipment.pdf'), format: 'A4' })
   await page.getByRole('button', { name: 'Return to roster' }).click()
-  const battleUrl = await createBattle(page, { practice: true })
-  await attachRoster(page, name)
-  await attachRoster(page, name, { forPlayer: PRACTICE_OPPONENT })
+  const battleUrl = await practiceBattle(page, name)
   await page.goto(`/rosters/${rosterId}?battle=${lastPathSegment(battleUrl)}&print=true`)
   await expect(page.locator('html')).toHaveAttribute('data-printed-cards', '1')
   await expect(page.locator('[data-battle-reference-pack]')).toHaveCount(0)

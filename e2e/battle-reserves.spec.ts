@@ -1,16 +1,5 @@
 import { expect, test } from './test'
-import {
-  PRACTICE_OPPONENT,
-  attachRoster,
-  chooseBattlefield,
-  createBattle,
-  createRoster,
-  setupStep,
-  signUp,
-  startBattle,
-  uniqueName,
-  addUnit,
-} from './account'
+import { chooseBattlefield, createRoster, setupStep, signUp, startBattle, uniqueName, addUnit, practiceBattle } from './account'
 
 test('reserve choices over the points limit are disabled with the reason beside them', async ({ page }) => {
   await signUp(page, uniqueName('Reserves'))
@@ -18,9 +7,7 @@ test('reserve choices over the points limit are disabled with the reason beside 
   for (const unit of ['Monolith', 'Doomsday Ark', 'Immortals']) {
     await addUnit(page, unit)
   }
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await chooseBattlefield(page)
   await setupStep(page, 'Reserves')
   const reserves = page.getByRole('region', { name: 'Reserves' })
@@ -45,9 +32,7 @@ test('a unit arriving from reserves mid-battle becomes a combat target', async (
   await signUp(page, player)
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Arriving army', size: /Incursion/ })
   await addUnit(page, 'Immortals')
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await chooseBattlefield(page)
   await setupStep(page, 'Reserves')
   const reserved = page.getByRole('region', { name: 'Reserves' }).locator('article').first()

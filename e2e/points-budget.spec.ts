@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { attachRoster, createBattle, PRACTICE_OPPONENT, savedArmy, setupStep, waitForRosterSave, openRosterSetup } from './account'
+import { savedArmy, setupStep, waitForRosterSave, openRosterSetup, practiceBattle } from './account'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
 async function openArmy(page: Page, name: string) {
@@ -112,9 +112,7 @@ test('a custom points budget is validated, enforced, saved and fielded', async (
   }
   await page.setViewportSize(desktop)
 
-  await createBattle(page, { practice: true })
-  await attachRoster(page, `${name} renamed`)
-  await attachRoster(page, `${name} renamed`, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, `${name} renamed`)
   await setupStep(page, 'Armies')
   const armies = page.getByRole('region', { name: 'Armies' })
   for (const viewport of [desktop, phone]) {

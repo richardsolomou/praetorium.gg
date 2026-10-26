@@ -2,9 +2,7 @@ import { expect, test } from './test'
 import { attach } from './builder.harness'
 import {
   advance,
-  attachRoster,
   chooseBattlefield,
-  createBattle,
   createRoster,
   desktopContext,
   PRACTICE_OPPONENT,
@@ -19,6 +17,7 @@ import {
   saveAlert,
   expectNoPageOverflow,
   addUnit,
+  practiceBattle,
 } from './account'
 
 test('roster reminders cover selected rules and advances from another device', async ({ browser }) => {
@@ -208,9 +207,7 @@ test('round alerts fire once at both boundaries when your opponent takes the fir
   await expect(editor.getByText('Alert: End of round', { exact: true })).toBeVisible()
   await editor.getByRole('button', { name: 'Cancel', exact: true }).click()
 
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await chooseBattlefield(page)
   await setupStep(page, 'Secondaries')
   await expect(page.locator('[data-secondary-deck-ready="false"]')).toHaveCount(0)
@@ -268,9 +265,7 @@ test('a detachment rule alert covers the whole army and fires in battle', async 
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await expect(page.getByLabel('Edit alert for Cold Fervour')).toBeVisible()
 
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await chooseBattlefield(page)
   await setupStep(page, 'Secondaries')
   await expect(page.locator('[data-secondary-deck-ready="false"]')).toHaveCount(0)
@@ -343,9 +338,7 @@ for (const scenario of [
     // reminders.test.ts restricts first-round alerts and battleView.test.ts keeps destroyed-unit alerts for their owner.
     if (scenario.kind !== 'any-phase') return
 
-    await createBattle(page, { practice: true })
-    await attachRoster(page, roster)
-    await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+    await practiceBattle(page, roster)
     await chooseBattlefield(page)
     await setupStep(page, 'Secondaries')
     await expect(page.locator('[data-secondary-deck-ready="false"]')).toHaveCount(0)
@@ -387,9 +380,7 @@ test('an alert set in one roster follows the player into another and fires in ba
   await expect(page.getByLabel('Edit alert for Resurrection orb')).toBeVisible()
   await expect(page.locator(`[data-unit="${unit}"]`).getByLabel(`1 alert set for ${unit}`)).toBeVisible()
 
-  await createBattle(page, { practice: true })
-  await attachRoster(page, second)
-  await attachRoster(page, second, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, second)
   await chooseBattlefield(page)
   await setupStep(page, 'Secondaries')
   await expect(page.locator('[data-secondary-deck-ready="false"]')).toHaveCount(0)

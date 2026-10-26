@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, signUp, uniqueName, addUnit } from './account'
+import { createRoster, signUp, uniqueName, addUnit, practiceBattle } from './account'
 import { lastPathSegment } from './storage'
 
 test('a fielded roster opens as the frozen read-only roster view', async ({ page }) => {
@@ -9,9 +9,7 @@ test('a fielded roster opens as the frozen read-only roster view', async ({ page
   const rosterId = lastPathSegment(page.url())
   expect(rosterId).toBeTruthy()
 
-  const battleUrl = await createBattle(page, { practice: true })
-  await attachRoster(page, rosterName)
-  await attachRoster(page, rosterName, { forPlayer: PRACTICE_OPPONENT })
+  const battleUrl = await practiceBattle(page, rosterName)
   await expect(page.locator('#setup-armies')).toHaveAttribute('data-complete', 'true')
   const token = lastPathSegment(battleUrl)
   await page.goto(`/rosters/${rosterId}?battle=${token}`)

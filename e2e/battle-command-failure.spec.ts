@@ -1,13 +1,11 @@
-import { attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, signUp, startBattle, uniqueName } from './account'
+import { createRoster, signUp, startBattle, uniqueName, practiceBattle } from './account'
 import { expect, test } from './test'
 
 test('a failed mission draw can be retried after the connection returns', async ({ page, context }) => {
   await context.route('**/offline-reference*', (route) => route.abort('internetdisconnected'))
   await signUp(page, uniqueName('Disconnected draw'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page, undefined, false)
   const prompt = page.getByRole('dialog', { name: /secondary missions$/ })
   const draw = prompt.getByRole('button', { name: 'Draw at random', exact: true })

@@ -4,7 +4,6 @@ import {
   befriend,
   createBattle,
   createRoster,
-  PRACTICE_OPPONENT,
   signUp,
   startBattle,
   uniqueName,
@@ -12,6 +11,7 @@ import {
   setRosterAccess,
   addUnit,
   chooseRosterAction,
+  practiceBattle,
 } from './account'
 import { shot } from './builder.harness'
 import { lastPathSegment } from './storage'
@@ -152,9 +152,7 @@ for (const [size, label] of [
     await addSquads(page, 1)
     await annotate(page, page.locator(`[data-unit="${SQUAD}"]`), 'Custom name', 'Rot Alpha')
     await annotate(page, page.locator(`[data-unit="${SQUAD}"]`), 'Note', ALPHA_NOTE)
-    await createBattle(page, { practice: true })
-    await attachRoster(page, roster)
-    await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+    await practiceBattle(page, roster)
     await startBattle(page)
 
     const army = page.locator('[data-army-roster]')

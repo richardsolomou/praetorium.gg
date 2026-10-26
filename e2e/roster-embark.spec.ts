@@ -1,15 +1,5 @@
 import { expect, type Locator, type Page, test } from './test'
-import {
-  addUnit,
-  attachRoster,
-  createBattle,
-  createRoster,
-  PRACTICE_OPPONENT,
-  setupStep,
-  signUp,
-  uniqueName,
-  waitForRosterSave,
-} from './account'
+import { addUnit, createRoster, setupStep, signUp, uniqueName, waitForRosterSave, practiceBattle } from './account'
 import { attach, expectNoHorizontalOverflow, shot } from './builder.harness'
 
 const phone = { viewport: { width: 390, height: 844 } }
@@ -75,9 +65,7 @@ for (const [size, label] of [
       await page.evaluate(() => (document.documentElement.style.fontSize = ''))
     }
 
-    await createBattle(page, { practice: true })
-    await attachRoster(page, roster)
-    await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+    await practiceBattle(page, roster)
     await setupStep(page, 'Reserves')
     const reserves = page.getByRole('region', { name: 'Reserves', exact: true })
     await expect(reserves.getByText(`Embarked: Alpha · ${SQUAD} #1 with Commander · Captain`, { exact: true })).toHaveCount(2)
@@ -107,9 +95,7 @@ for (const [size, label] of [
     await expect((await cards(page)).squad).toContainText('Embarked inRhino')
     await expect(rhino.getByRole('button', { name: 'Disembark', exact: true })).toBeVisible()
 
-    await createBattle(page, { practice: true })
-    await attachRoster(page, roster)
-    await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+    await practiceBattle(page, roster)
     await setupStep(page, 'Reserves')
     const reserves = page.getByRole('region', { name: 'Reserves', exact: true })
     await expect(reserves.getByText('Embarked in Rhino')).toHaveCount(2)

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, retryUntilVisible, signUp, startBattle } from './account'
+import { createRoster, retryUntilVisible, signUp, startBattle, practiceBattle } from './account'
 
 async function inspectMap(page: Page) {
   const trigger = page.getByRole('button', { name: /^View .+ battlefield$/ })
@@ -25,9 +25,7 @@ async function inspectMap(page: Page) {
 test('players and spectators open the saved battlefield as a full-board map', async ({ page, browser }) => {
   await signUp(page, 'Battlefield viewer')
   const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Map army' })
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page)
   await inspectMap(page)
   await page.setViewportSize({ width: 390, height: 844 })

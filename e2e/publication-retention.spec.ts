@@ -1,10 +1,8 @@
 import { expect, test, type Page } from './test'
 import { z } from 'zod'
 import {
-  attachRoster,
   createBattle,
   createRoster,
-  PRACTICE_OPPONENT,
   retryUntilVisible,
   setupBattle,
   signUp,
@@ -12,6 +10,7 @@ import {
   uniqueName,
   waitForRosterSave,
   sealableRoster,
+  practiceBattle,
 } from './account'
 import { productOperator, productSql, savedWork, withAuthSql, userIdNamed, lastPathSegment } from './storage'
 
@@ -131,9 +130,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   expect(sealedBefore).toHaveLength(1)
   expect(z.tuple([z.literal(0), z.string()]).parse(sealedBefore[0]?.roster_snapshot)[1]).toContain('Skorpekh Lord')
 
-  const battleUrl = await createBattle(page, { practice: true })
-  await attachRoster(page, rosterName)
-  await attachRoster(page, rosterName, { forPlayer: PRACTICE_OPPONENT })
+  const battleUrl = await practiceBattle(page, rosterName)
   await startBattle(page)
   await concede(page)
   const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${tokenOf(battleUrl)}`

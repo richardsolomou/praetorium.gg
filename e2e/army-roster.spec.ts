@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, signUp, startBattle, uniqueName, addUnit } from './account'
+import { createRoster, signUp, startBattle, uniqueName, addUnit, practiceBattle } from './account'
 
 test('an army is read and its losses recorded without leaving the battle', async ({ page }) => {
   const player = uniqueName('Attrition')
@@ -9,9 +9,7 @@ test('an army is read and its losses recorded without leaving the battle', async
     await addUnit(page, unit)
   }
 
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page)
 
   // The list opens over the battle rather than on a page of its own.
@@ -106,9 +104,7 @@ test('a multi-wound model is tracked in wounds, and losing them all takes the mo
     await addUnit(page, unit)
   }
 
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page)
 
   const panel = page.locator('[data-panel="player"][data-side="0"]')

@@ -299,6 +299,14 @@ export async function createBattle(
   return page.url()
 }
 
+/** Opens a practice battle with the roster in both seats, or another roster for the practice opponent. */
+export async function practiceBattle(page: Page, roster: string, { opponentRoster = roster }: { opponentRoster?: string } = {}) {
+  const url = await createBattle(page, { practice: true })
+  await attachRoster(page, roster)
+  await attachRoster(page, opponentRoster, { forPlayer: PRACTICE_OPPONENT })
+  return url
+}
+
 /** Presses a choice until the shared answer shows it, unless the table has already answered. */
 async function pressUntilChosen(choice: Locator, button: Locator) {
   await expect(async () => {

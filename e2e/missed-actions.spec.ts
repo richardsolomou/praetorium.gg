@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { advance, attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, rewind, signUp, startBattle, uniqueName } from './account'
+import { advance, createRoster, rewind, signUp, startBattle, uniqueName, practiceBattle } from './account'
 
 /** Narrow screens show one column at a time behind the battle tabs. */
 async function show(page: Page, tab: 'Your side' | 'Battle') {
@@ -27,9 +27,7 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
   const name = uniqueName('Missed')
   await signUp(page, name)
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Missed action roster' })
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page)
 
   const side = page.locator('[data-panel="player"][data-side="0"]')

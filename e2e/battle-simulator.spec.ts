@@ -12,6 +12,7 @@ import {
   uniqueName,
   waitForRosterSave,
   expectNoPageOverflow,
+  practiceBattle,
 } from './account'
 
 test('the battle matchup planner uses live survivors, isolates experiments, and refreshes after another tab records casualties', async ({
@@ -20,9 +21,7 @@ test('the battle matchup planner uses live survivors, isolates experiments, and 
   await signUp(page, 'Live planner')
   const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Planner Marines' })
   for (const name of ['Intercessor Squad', 'Terminator Squad', 'Rhino']) await addUnit(page, name)
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page)
   const panels = [0, 1].map((side) => page.locator(`[data-panel="player"][data-side="${side}"]`))
   for (const [side, panel] of panels.entries()) {
@@ -116,9 +115,7 @@ test('unit-level equipment remains an explicit survivor choice after a casualty'
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Imperial Navy Breachers', exact: true }).click())
   await page.locator('[data-unit="Imperial Navy Breachers"]').getByRole('button', { name: 'Imperial Navy Breachers', exact: true }).click()
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Select Demolition charge', exact: true }).click())
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page)
   const panel = page.locator('[data-panel="player"][data-side="0"]')
   await panel.getByRole('button', { name: /Simulate .*combat/ }).click()
@@ -160,9 +157,7 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
   const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Combat Marines' })
   await addUnit(page, 'Intercessor Squad')
   await page.locator('[data-unit="Intercessor Squad"]').getByRole('button', { name: 'Intercessor Squad', exact: true }).click()
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page)
   const panel = page.locator('[data-panel="player"][data-side="0"]')
   const army = page.locator('[data-army-roster]')
@@ -316,9 +311,7 @@ test('battle support auras respect the recipient, role, conditions, and living s
   for (const name of ['Immortals', 'Nekrosor Ammentar', 'Illuminor Szeras', 'Skorpekh Destroyers', "C'tan Shard of the Nightbringer"]) {
     await addUnit(page, name)
   }
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page)
   const panel = page.locator('[data-panel="player"][data-side="0"]')
   const openedAt = Date.now()

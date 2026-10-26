@@ -8,16 +8,14 @@ import { blackTemplarsNewRecruit } from '../src/core/rosterText.blackTemplars.fi
 import { salamandersOfficial } from '../src/core/rosterText.salamanders.fixture'
 import {
   confirmRosterSetup,
-  attachRoster,
   chooseBattlefield,
-  createBattle,
   createRoster,
-  PRACTICE_OPPONENT,
   retryUntilVisible,
   signUp,
   waitForRosterSave,
   chooseRosterAction,
   desktopContext,
+  practiceBattle,
 } from './account'
 
 test('a list can be copied as Games Workshop text', async ({ browser }) => {
@@ -302,9 +300,7 @@ Exported with BattleBase, Data Version: v20260812`)
     await exported.getByRole('button', { name: 'Close' }).click()
   }
 
-  await createBattle(page, { practice: true })
-  await attachRoster(page, "HLHOTD 2K - C'tan")
-  await attachRoster(page, "HLHOTD 2K - C'tan", { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, "HLHOTD 2K - C'tan")
   await chooseBattlefield(page)
 })
 

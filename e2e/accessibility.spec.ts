@@ -1,14 +1,5 @@
 import { expect, test, type Page } from './test'
-import {
-  attachRoster,
-  createBattle,
-  createRoster,
-  PRACTICE_OPPONENT,
-  setupStep,
-  signUp,
-  startBattle,
-  expectNoPageOverflow,
-} from './account'
+import { createRoster, setupStep, signUp, startBattle, expectNoPageOverflow, practiceBattle } from './account'
 import { chooseCombatUnit } from './combat'
 
 // Controls transition their font size, so measuring before the transitions finish reads the old layout.
@@ -147,9 +138,7 @@ test.describe('a touch device', () => {
   test('keeps reserve counts, the battle scoreboard and phase control readable at double text size', async ({ page }) => {
     await signUp(page, 'Large text battle')
     const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
-    await createBattle(page, { practice: true })
-    await attachRoster(page, roster)
-    await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+    await practiceBattle(page, roster)
     await doubleText(page)
     await setupStep(page, 'Reserves')
     const reserves = page.getByRole('region', { name: 'Reserves', exact: true })

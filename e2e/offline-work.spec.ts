@@ -13,6 +13,7 @@ import {
   startBattle,
   advance,
   openRosterSetup,
+  practiceBattle,
 } from './account'
 import { battleLog, productOperator, savedWork, userIdFor, lastPathSegment } from './storage'
 import { chooseCombatUnit } from './combat'
@@ -203,17 +204,8 @@ test('an offline practice battle and its commands survive reopening and sync tog
   await waitForOfflineApp(page)
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
   await context.setOffline(true)
-  const url = await createBattle(page, { practice: true })
+  const url = await practiceBattle(page, 'Flight army')
   const token = lastPathSegment(url)
-  await setupStep(page, 'Armies')
-  const chooser = page.getByRole('button', { name: /^(Choose|Change) roster/ }).first()
-  await expect(chooser).toBeVisible({ timeout: 15_000 })
-  await chooser.click()
-  const dialog = page.getByRole('dialog', { name: /roster$/ })
-  await dialog.getByRole('button', { name: /^Flight army\b/ }).click()
-  await expect(dialog).toBeHidden()
-  await expect(page.getByText('Flight army', { exact: true }).first()).toBeVisible()
-  await attachRoster(page, 'Flight army', { forPlayer: 'Practice Opponent' })
   await startBattle(page)
   await advance(page)
   await expect(page.getByRole('heading', { name: 'movement phase' })).toBeVisible()
@@ -318,10 +310,7 @@ test('a battle conflict awaiting review does not stop connected play', async ({ 
     automaticName: false,
     now: Date.now(),
   })
-  const url = await createBattle(page, { practice: true })
-  const token = lastPathSegment(url)
-  await attachRoster(page, 'Flight army')
-  await attachRoster(page, 'Flight army', { forPlayer: 'Practice Opponent' })
+  const token = lastPathSegment(await practiceBattle(page, 'Flight army'))
   await startBattle(page)
   await waitForOfflineApp(page)
   const otherDevice = await battleLog(page)
