@@ -16,7 +16,7 @@ import {
   expectNoPageOverflow,
   practiceBattle,
 } from './account'
-import { savedWork } from './storage'
+import { expectWorkSynced } from './storage'
 
 async function draw(page: Page, cards: string[]) {
   const prompt = page.getByRole('dialog', { name: /secondary missions$/ })
@@ -146,7 +146,7 @@ test('source matchup nominations survive undo and reload', async ({ page, browse
   expect(lastGuardBox.y + lastGuardBox.height).toBeLessThanOrEqual((await footer.boundingBox())!.y)
   await guards.getByRole('button', { name: 'Record choice', exact: true }).click()
   await expect(advanceButton(page)).toBeEnabled()
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.reload()
   for (const summary of await page
     .locator('summary')
@@ -203,7 +203,7 @@ test('manual Beacon nomination persists and a destroyed Beacon cannot be replace
   await nomination.getByLabel('Beacon table note').fill('Chosen at the table during the card’s timing.')
   await nomination.getByRole('button', { name: 'Record choice', exact: true }).click()
   await expect(nomination).toBeHidden()
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.reload()
   await side
     .locator('summary')
@@ -219,7 +219,7 @@ test('manual Beacon nomination persists and a destroyed Beacon cannot be replace
   await expect(side.getByRole('button', { name: 'Record Beacon', exact: true })).toHaveCount(0)
   await expect(beacon.getByText('Immortals (destroyed)', { exact: true })).toBeVisible()
   await inspectChoices(page, beacon, 'Beacon')
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.reload()
   await expect(side.getByRole('button', { name: 'Record Beacon', exact: true })).toHaveCount(0)
   await expect(side.locator('[data-stat="secondary"]')).toHaveText('0')
@@ -274,7 +274,7 @@ test('Consecrate records end-of-turn objectives that stay consecrated into the n
   await record.click()
   await expect(consecrate).toBeHidden()
   await expect(advanceButton(page)).toBeEnabled()
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.reload()
   await openChoices(page)
   const card = primaryCard(page, 0)
@@ -346,7 +346,7 @@ test('Locate and Deny markers are placed before the first turn and an Extract Re
   await sweep.getByRole('button', { name: 'Record choice', exact: true }).click()
   await expect(sweep).toBeHidden()
   await expect(relic.getByRole('button', { name: 'Record Sensor Sweep', exact: true })).toHaveCount(0)
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.reload()
   await openChoices(page)
   const card = primaryCard(page, 0)

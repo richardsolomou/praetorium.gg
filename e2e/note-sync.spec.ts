@@ -2,7 +2,7 @@ import { expect, test, type Page } from './test'
 import type { LocalState } from '../src/contracts/localState'
 import { createRoster, signUp, uniqueName, addUnit } from './account'
 import { NATIVE_LOCAL_STATE_SCRIPT } from './native.harness'
-import { productOperator, savedWork, lastPathSegment } from './storage'
+import { productOperator, savedWork, lastPathSegment, expectWorkSynced } from './storage'
 
 const UNIT = 'Immortals'
 const NOTE = 'Hold the home objective'
@@ -23,7 +23,7 @@ async function rosterWithUnit(page: Page, work: (page: Page) => Promise<LocalSta
   await addUnit(page, UNIT)
   const picker = page.getByRole('dialog', { name: 'Add units' })
   if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close' }).click()
-  await expect.poll(async () => (await work(page))?.operations.length, { timeout: 30_000 }).toBe(0)
+  await expectWorkSynced(page, { timeout: 30_000, work })
 }
 
 async function openUnit(page: Page) {
@@ -86,7 +86,7 @@ for (const width of [390, 1440]) {
     await openUnit(page)
     await noteField(page).pressSequentially(NOTE, { delay: 60 })
     await expect.poll(() => savedNote(id), { timeout: 30_000 }).toBe(NOTE)
-    await expect.poll(async () => (await nativeWork(page))?.operations.length).toBe(0)
+    await expectWorkSynced(page, { work: nativeWork })
     await expect(page.getByText(WAITING)).toHaveCount(0)
 
     await page.reload()

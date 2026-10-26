@@ -15,7 +15,7 @@ import {
   openRosterSetup,
   practiceBattle,
 } from './account'
-import { battleLog, productOperator, savedWork, userIdFor, lastPathSegment } from './storage'
+import { battleLog, productOperator, savedWork, userIdFor, lastPathSegment, expectWorkSynced } from './storage'
 import { chooseCombatUnit } from './combat'
 
 test.use({ actionTimeout: 15_000 })
@@ -45,7 +45,7 @@ test('simulation and loadout optimization work in a cold offline application', a
 test('online saves only show sync status when the queue remains pending', async ({ page }) => {
   await signUp(page, uniqueName('Quiet sync'))
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Original list' })
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   for (const slow of [false, true]) {
     const name = `${slow ? 'Slow' : 'Quick'} save`
     let release!: () => void
@@ -76,7 +76,7 @@ test('online saves only show sync status when the queue remains pending', async 
     } finally {
       release()
     }
-    await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+    await expectWorkSynced(page)
     await expect(page.getByText('1 change waiting to sync', { exact: true })).toHaveCount(0)
     const seen = await page.evaluate(() => {
       const observation = (window as unknown as { syncObservation: { seen: boolean; observer: MutationObserver } }).syncObservation
@@ -96,7 +96,7 @@ test('offline roster edits survive a cold reopen and sync after reconnecting', a
   const id = lastPathSegment(url)
   const operator = await productOperator()
   await waitForOfflineApp(page)
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await context.setOffline(true)
   await page.getByLabel('List name').fill('Edited on the plane')
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(1)
@@ -115,7 +115,7 @@ test('offline roster edits survive a cold reopen and sync after reconnecting', a
   await context.setOffline(false)
   await reopened.evaluate(() => window.dispatchEvent(new Event('online')))
   await expect.poll(async () => (await operator.roster(id))?.name, { timeout: 30_000 }).toBe('Edited on the plane')
-  await expect.poll(async () => (await savedWork(reopened))?.operations.length).toBe(0)
+  await expectWorkSynced(reopened)
   expect(JSON.parse((await operator.roster(id))!.picks)).toHaveLength(1)
   await reopened.reload()
   await expect(reopened.getByLabel('List name')).toHaveValue('Edited on the plane')
@@ -155,7 +155,7 @@ test('a lost save response retains its identity and later edits sync in order', 
   const id = lastPathSegment(page.url())
   const operator = await productOperator()
   await waitForOfflineApp(page)
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   let dropAcknowledgement!: () => void
   // Going offline while the response is still held would fail the request before the handler drops it.
   const acknowledgementDropped = new Promise<void>((resolve) => (dropAcknowledgement = resolve))
@@ -180,7 +180,7 @@ test('a lost save response retains its identity and later edits sync in order', 
   await context.setOffline(false)
   await page.evaluate(() => window.dispatchEvent(new Event('online')))
   await expect.poll(async () => (await operator.roster(id))?.name, { timeout: 30_000 }).toBe('Latest offline edit')
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
 })
 
 test('an offline practice battle and its commands survive reopening and sync together', async ({ page, context }) => {
@@ -202,7 +202,7 @@ test('an offline practice battle and its commands survive reopening and sync tog
   )
   await page.keyboard.press('Escape')
   await waitForOfflineApp(page)
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await context.setOffline(true)
   const url = await practiceBattle(page, 'Flight army')
   const token = lastPathSegment(url)
@@ -226,7 +226,7 @@ test('an offline practice battle and its commands survive reopening and sync tog
   expect(await operator.battleByToken(token)).toBeUndefined()
   await context.setOffline(false)
   await reopened.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expect.poll(async () => (await savedWork(reopened))?.operations.length, { timeout: 30_000 }).toBe(0)
+  await expectWorkSynced(reopened, { timeout: 30_000 })
   const synced = await operator.battleByToken(token)
   expect(synced?.log.at(-1)?.operationId).toBe(history.at(-1)?.operationId)
   expect(synced?.log.find((entry) => entry.command.kind === 'attach-roster')?.command).toMatchObject({
@@ -255,13 +255,13 @@ test('a guest battle created offline keeps the guest’s seat when it syncs', as
   )
   await page.keyboard.press('Escape')
   await waitForOfflineApp(page)
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await context.setOffline(true)
   const token = lastPathSegment(await createBattle(page, { guest: 'Offline Guest' }))
   await attachRoster(page, 'Guest army', { forPlayer: 'Offline Guest' })
   await context.setOffline(false)
   await page.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expect.poll(async () => (await savedWork(page))?.operations.length, { timeout: 30_000 }).toBe(0)
+  await expectWorkSynced(page, { timeout: 30_000 })
   const synced = (await operator.battleByToken(token))!
   const guest = synced.seats.find((seat) => seat.guestName === 'Offline Guest')
   expect(synced.log.find((entry) => entry.command.kind === 'attach-roster')?.command).toMatchObject({ playerId: guest?.id })
@@ -280,7 +280,7 @@ test('a battle link opened before its offline creation syncs opens once the batt
   )
   await page.keyboard.press('Escape')
   await waitForOfflineApp(page)
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await context.setOffline(true)
   const url = await createBattle(page, { opponent: opponentName })
   const token = lastPathSegment(url)
@@ -290,7 +290,7 @@ test('a battle link opened before its offline creation syncs opens once the batt
   await expect(opponent.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
   await context.setOffline(false)
   await page.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expect.poll(async () => (await savedWork(page))?.operations.length, { timeout: 30_000 }).toBe(0)
+  await expectWorkSynced(page, { timeout: 30_000 })
   // The link the opponent already opened finds the battle without a reload.
   await expect(opponent.getByRole('heading', { name: 'Set up the battle' })).toBeVisible({ timeout: 30_000 })
   await setupStep(opponent, 'Armies')
@@ -336,7 +336,7 @@ test('conflicting roster edits stay saved and export before choosing the server 
   const id = lastPathSegment(page.url())
   const operator = await productOperator()
   await waitForOfflineApp(page)
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await context.setOffline(true)
   await page.getByLabel('List name').fill('Plane edit')
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(1)
@@ -376,7 +376,7 @@ test('conflicting roster edits stay saved and export before choosing the server 
     .getByRole('alertdialog', { name: 'Discard saved changes?' })
     .getByRole('button', { name: 'Discard changes', exact: true })
     .click()
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.keyboard.press('Escape')
   await page.reload()
   await expect(page.getByLabel('List name')).toHaveValue('Other device edit')

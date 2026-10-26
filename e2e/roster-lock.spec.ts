@@ -1,6 +1,6 @@
 import { expect, test } from './test'
 import { createRoster, signUp, uniqueName, waitForRosterSave, expectNoPageOverflow, chooseRosterAction } from './account'
-import { productOperator, savedWork, lastPathSegment } from './storage'
+import { productOperator, savedWork, lastPathSegment, expectWorkSynced } from './storage'
 
 const LOCKED = 'This roster is locked. Unlock it to change it, or keep your changes as a new roster.'
 
@@ -74,7 +74,7 @@ test('an edit queued offline is refused visibly after another device locks the r
   const name = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Shared finished list' })
   const id = lastPathSegment(page.url())
   const operator = await productOperator()
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
 
   await context.setOffline(true)
   await page.getByLabel('List name').fill('Edited on the plane')
@@ -107,7 +107,7 @@ test('an edit queued offline is refused visibly after another device locks the r
 
   await review.getByRole('button', { name: 'Keep as a new roster' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Discard changes' }).click()
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.keyboard.press('Escape')
   await page.goto('/rosters')
   await expect(page.locator('[data-roster="Edited on the plane (offline copy)"]')).toBeVisible()

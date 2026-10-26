@@ -1,7 +1,7 @@
 import { expect, type Page, test } from './test'
 import { chooseRosterAction, createRoster, desktopContext, retryUntilVisible, signUp, waitForRosterSave, makeWarlord } from './account'
 import { add, attach, shot } from './builder.harness'
-import { savedWork } from './storage'
+import { expectWorkSynced } from './storage'
 
 const phone = { viewport: { width: 390, height: 844 } }
 
@@ -47,7 +47,7 @@ test('an exchange code carries a roster to another account and to a visitor', as
     sender.locator('aside[aria-label="Loadout"]').getByRole('button', { name: 'Select Tesla carbine' }).click(),
   )
   // The save response above can belong to an earlier queued edit; a reload before the last one leaves would export the server's older list.
-  await expect.poll(async () => (await savedWork(sender))?.operations.length).toBe(0)
+  await expectWorkSynced(sender)
   await sender.reload()
   const sent = await exportedText(sender)
 

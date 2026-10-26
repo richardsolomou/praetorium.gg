@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { savedWork } from './storage'
+import { expectWorkSynced } from './storage'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
 import {
   confirmRosterSetup,
@@ -579,7 +579,7 @@ test('collection changes do not reorder roster and reference rows', async ({ pag
   await page.getByPlaceholder('Search datasheets…').fill('Necron Warriors Necrons')
   await page.getByRole('option', { name: /^Necron Warriors, Necrons/ }).click()
   await expect(page.locator('[data-unit="Necron Warriors"]')).toBeVisible()
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.goto(rosterUrl)
 
   await expect(page.locator('[data-unit]').first()).toHaveAttribute('data-unit', 'Immortals')

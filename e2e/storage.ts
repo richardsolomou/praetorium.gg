@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test'
+import { expect, type Page } from '@playwright/test'
 import type { LocalState } from '../src/contracts/localState'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
@@ -28,6 +28,15 @@ export async function savedWork(page: Page) {
       }),
   )
 }
+
+/** Waits until no saved work is left to send; a device that never saved any work does not pass. */
+export async function expectWorkSynced(
+  page: Page,
+  { timeout, work = savedWork }: { timeout?: number; work?: (page: Page) => Promise<LocalState | null> } = {},
+) {
+  await expect.poll(async () => (await work(page))?.operations.length, { timeout }).toBe(0)
+}
+
 type Value = string | number | boolean | null
 type SqlResult = {
   schema: { elements: { name: { some?: string } }[] }

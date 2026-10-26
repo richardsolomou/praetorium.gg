@@ -10,7 +10,7 @@ import {
   chooseRosterAction,
   openRosterSetup,
 } from './account'
-import { savedWork } from './storage'
+import { expectWorkSynced } from './storage'
 import {
   expectInsideHorizontalBounds,
   expectNoHorizontalOverflow,
@@ -172,7 +172,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await datasheetSearch.fill('Lychguard Necrons')
   await page.getByRole('option', { name: /^Lychguard, Necrons/ }).click()
   await expect(page.locator('[data-unit="Lychguard"]')).toBeVisible()
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.goto(rosterUrl)
   await page.getByLabel('Add a unit').fill('Lychguard')
   await expect(ownedFilter).not.toHaveAttribute('aria-disabled')
