@@ -271,17 +271,26 @@ function touchProduct(ctx: Context, userId: string, ...scopes: ProductScope[]) {
 
 type PublicScope = 'collection' | 'battles' | 'rosters' | 'leagues' | 'clubs' | 'invites' | 'standings' | 'opponents'
 
+type ScopeRevision = { scope: string; revision: bigint }
+
+function bumpRevision(
+  revisions: {
+    scope: { find(scope: string): ScopeRevision | null; update(row: ScopeRevision): unknown }
+    insert(row: ScopeRevision): unknown
+  },
+  scope: string,
+) {
+  const current = revisions.scope.find(scope)
+  if (current) revisions.scope.update({ ...current, revision: current.revision + 1n })
+  else revisions.insert({ scope, revision: 1n })
+}
+
 function touchPublic(ctx: Context, scope: PublicScope) {
-  const current = ctx.db.publicRevisions.scope.find(scope)
-  if (current) ctx.db.publicRevisions.scope.update({ ...current, revision: current.revision + 1n })
-  else ctx.db.publicRevisions.insert({ scope, revision: 1n })
+  bumpRevision(ctx.db.publicRevisions, scope)
 }
 
 function touchAdmin(ctx: Context) {
-  const scope = 'admin-users'
-  const current = ctx.db.adminRevisions.scope.find(scope)
-  if (current) ctx.db.adminRevisions.scope.update({ ...current, revision: current.revision + 1n })
-  else ctx.db.adminRevisions.insert({ scope, revision: 1n })
+  bumpRevision(ctx.db.adminRevisions, 'admin-users')
 }
 
 function touchFriends(ctx: Context, leftId: string, rightId: string) {
