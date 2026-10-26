@@ -63,6 +63,12 @@ export async function add(page: Page, name: string) {
     .click()
 }
 
+/** Closes the unit picker where it opens as a dialog over the roster. */
+export async function closePicker(page: Page) {
+  const picker = page.getByRole('dialog', { name: 'Add units' })
+  if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close', exact: true }).click()
+}
+
 /** An absent item proves nothing until the menu has opened, and an Escape pressed before then leaves it open over the roster. */
 export async function expectNotAttachable(card: Locator, unit: string, target: string) {
   const menu = card.page().getByRole('menu')

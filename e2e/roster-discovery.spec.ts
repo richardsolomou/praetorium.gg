@@ -11,7 +11,7 @@ import {
   addUnit,
   chooseOption,
 } from './account'
-import { expectNoHorizontalOverflow, shot } from './builder.harness'
+import { expectNoHorizontalOverflow, shot, closePicker } from './builder.harness'
 import { productOperator, userIdFor, lastPathSegment } from './storage'
 
 const UNIT = 'Immortals'
@@ -19,8 +19,7 @@ const NOTE = 'Discovery note stays with the owner'
 
 async function addNotedUnit(page: Page) {
   await addUnit(page, UNIT)
-  const picker = page.getByRole('dialog', { name: 'Add units' })
-  if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close' }).click()
+  await closePicker(page)
   await page.locator(`[data-unit="${UNIT}"]`).getByRole('button', { name: UNIT, exact: true }).click()
   const fields = page.getByRole('region', { name: 'Note' })
   await waitForRosterSave(page, () => fields.getByRole('textbox', { name: 'Note', exact: true }).fill(NOTE), NOTE)

@@ -2,6 +2,7 @@ import { expect, test } from './test'
 import { addUnit, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
 import { productOperator, lastPathSegment } from './storage'
 import type { RosterPick } from '../src/core/roster'
+import { closePicker } from './builder.harness'
 
 for (const width of [1440, 390]) {
   const unit = 'Sanctifiers'
@@ -16,8 +17,7 @@ for (const width of [1440, 390]) {
       '/factions/adepta-sororitas/rules/mfm-1-6',
     )
     await addUnit(page, unit)
-    const picker = page.getByRole('dialog', { name: 'Add units', exact: true })
-    if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close', exact: true }).click()
+    await closePicker(page)
     const card = page.locator(`[data-unit="${unit}"]`)
     await card.getByRole('button', { name: unit, exact: true }).click()
     await waitForRosterSave(page, () => page.getByRole('button', { name: `More ${model}`, exact: true }).click())
@@ -56,8 +56,7 @@ for (const width of [1440, 390]) {
       '/factions/orks/rules/mfm-1-6',
     )
     await addUnit(page, 'Tankbustas')
-    const picker = page.getByRole('dialog', { name: 'Add units', exact: true })
-    if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close', exact: true }).click()
+    await closePicker(page)
     const operator = await productOperator()
     const id = lastPathSegment(page.url())
     await expect.poll(async () => (await operator.roster(id))?.picks ?? '').toContain('8fe6-8fee-a58c-2ed')

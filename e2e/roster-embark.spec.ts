@@ -1,6 +1,6 @@
 import { expect, type Locator, type Page, test } from './test'
 import { addUnit, createRoster, setupStep, signUp, uniqueName, waitForRosterSave, practiceBattle } from './account'
-import { attach, expectNoHorizontalOverflow, shot } from './builder.harness'
+import { attach, expectNoHorizontalOverflow, shot, closePicker } from './builder.harness'
 
 const phone = { viewport: { width: 390, height: 844 } }
 const desktop = { viewport: { width: 1440, height: 900 } }
@@ -8,8 +8,7 @@ const SQUAD = 'Intercessor Squad'
 
 /** The roster's cards, with the picker or loadout put away on a phone. */
 async function cards(page: Page) {
-  const picker = page.getByRole('dialog', { name: 'Add units' })
-  if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close' }).click()
+  await closePicker(page)
   const back = page.locator('[data-pane="loadout"]').getByRole('button', { name: 'Back to roster' })
   if (await back.isVisible()) await back.click()
   await page.waitForLoadState('networkidle')

@@ -3,6 +3,7 @@ import type { LocalState } from '../src/contracts/localState'
 import { createRoster, signUp, uniqueName, addUnit } from './account'
 import { NATIVE_LOCAL_STATE_SCRIPT } from './native.harness'
 import { productOperator, savedWork, lastPathSegment, expectWorkSynced } from './storage'
+import { closePicker } from './builder.harness'
 
 const UNIT = 'Immortals'
 const NOTE = 'Hold the home objective'
@@ -21,8 +22,7 @@ async function rosterWithUnit(page: Page, work: (page: Page) => Promise<LocalSta
   await signUp(page, uniqueName('Note sync'))
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Noted dynasty' })
   await addUnit(page, UNIT)
-  const picker = page.getByRole('dialog', { name: 'Add units' })
-  if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close' }).click()
+  await closePicker(page)
   await expectWorkSynced(page, { timeout: 30_000, work })
 }
 

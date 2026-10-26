@@ -1,6 +1,6 @@
-import { expect, type Page, test } from './test'
+import { expect, test } from './test'
 import { addUnit, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
-import { expectNoHorizontalOverflow, shot } from './builder.harness'
+import { expectNoHorizontalOverflow, shot, closePicker } from './builder.harness'
 import { productOperator, userIdFor, lastPathSegment } from './storage'
 
 const UNIT = 'Immortals'
@@ -9,17 +9,6 @@ const RENAMED = 'Tesla Immortals'
 const NOTE = 'Loadout note stays in its roster'
 const NICKNAME = 'Tesla Wall'
 const RETIRED = 'Retired guard'
-
-async function openPicker(page: Page) {
-  const picker = page.getByLabel('Add a unit')
-  if (!(await picker.isVisible())) await page.getByRole('button', { name: 'Add units', exact: true }).click()
-  await expect(picker).toBeVisible()
-}
-
-async function closePicker(page: Page) {
-  const dialog = page.getByRole('dialog', { name: 'Add units' })
-  if (await dialog.isVisible()) await dialog.getByRole('button', { name: 'Close' }).click()
-}
 
 for (const [width, label] of [
   [390, 'phone'],
@@ -61,7 +50,6 @@ for (const [width, label] of [
       { name: RETIRED, catalogueId: destinationRoster!.catalogueId, pick: { entryId: 'datasheet-this-rules-version-lacks' } },
       Date.now(),
     )
-    await openPicker(page)
     const savedAs = (name: string) => page.locator(`[data-picker-unit="${UNIT}"] + [data-saved-loadout="${name}"]`)
     const saved = savedAs(LOADOUT)
     await expect(saved.locator('.chip')).toHaveText(/^\d+ pts$/)
@@ -110,7 +98,6 @@ for (const [width, label] of [
     expect(destination?.picks).not.toContain(NOTE)
 
     await createRoster(page, { faction: 'Orks', detachment: /War Horde/, name: uniqueName('Other army') })
-    await openPicker(page)
     await expect(page.getByRole('button', { name: /^Add / }).first()).toBeVisible()
     await expect(page.locator('[data-saved-loadout]')).toHaveCount(0)
   })
@@ -150,7 +137,6 @@ test('an attached unit is saved and added to another roster already attached', a
   await expect(dialog).toBeHidden()
 
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: uniqueName('Attached destination') })
-  await openPicker(page)
   const saved = page.locator(`[data-saved-loadout="${UNIT} + Overlord"]`)
   await expect(saved).toContainText(`${UNIT} · Overlord`)
   await expect(saved.locator('.chip')).toHaveText(/^\d+ pts$/)
