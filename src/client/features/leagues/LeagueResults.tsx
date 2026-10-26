@@ -17,7 +17,7 @@ import { useCopyText } from '../../useCopyText'
  *
  * Narrow columns let a phone show every one; anything narrower still scrolls inside the frame, as the leaderboard does.
  */
-export function LeagueResults<Entry extends { userId: string; name: string; image: string | null }>({
+export function LeagueResults<Entry extends { userId: string; name: string; image: string | null; dropped?: boolean }>({
   event,
   rows,
   swiss = false,
