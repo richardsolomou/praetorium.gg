@@ -438,7 +438,7 @@ export function pointCapErrors(
       census.note(`points cap scope ${constraint.scope}`)
       continue
     }
-    const extra = [...(category.modifiers ?? []), ...(category.modifierGroups ?? []).flatMap((group) => group.modifiers ?? [])]
+    const extra = withGroupModifiers(category)
     for (const units of constraint.scope === 'roster' ? [built.flatMap((force) => force.children)] : built.map((force) => force.children)) {
       const holding = units.filter((unit) => descendants(unit).some((node) => matches(node, category.id, root, index, census)))
       if (!holding.length) continue
@@ -818,7 +818,7 @@ export function enhancementLimit(
   const { root, forces: built } = rosterContext(forces, index, census, options)
   const force = built[0]
   if (!force) return null
-  const extra = [...(entry.modifiers ?? []), ...(entry.modifierGroups ?? []).flatMap((group) => group.modifiers ?? [])]
+  const extra = withGroupModifiers(entry)
   const stated = (entry.constraints ?? [])
     .filter((constraint) => constraint.type === 'max' && constraint.field === type.id)
     .map((constraint) => constraintValue(constraint, force, root, index, census, extra))
@@ -874,7 +874,7 @@ export function rosterLimit(definition: Definition, index: CatalogueIndex, optio
   for (const categoryLink of [...(target.categoryLinks ?? []), ...(definition.categoryLinks ?? [])]) {
     const category = index.categories.get(categoryLink.targetId)
     if (!category) continue
-    const extra = [...(category.modifiers ?? []), ...(category.modifierGroups ?? []).flatMap((group) => group.modifiers ?? [])]
+    const extra = withGroupModifiers(category)
     for (const constraint of category.constraints ?? []) consider(constraint, category.id, extra)
   }
   return limit
@@ -1029,6 +1029,12 @@ function modified(current: number, type: Modifier['type'], amount: number, times
   if (type === 'divide') return amount === 0 ? 0 : current / amount ** times
   return undefined
 }
+
+/** A category's or force's own modifiers and its groups' modifiers, without the groups' gates. */
+const withGroupModifiers = (source: { modifiers?: Modifier[]; modifierGroups?: ModifierGroup[] }) => [
+  ...(source.modifiers ?? []),
+  ...(source.modifierGroups ?? []).flatMap((group) => group.modifiers ?? []),
+]
 
 /** Every modifier that applies to this node, with modifier groups flattened and gated. */
 function modifiersOf(node: Node, census: Census): Modifier[] {
@@ -1455,7 +1461,7 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
   for (const categoryId of linkedCategories(node)) {
     const category = index.categories.get(categoryId)
     if (!category) continue
-    const extra = [...(category.modifiers ?? []), ...(category.modifierGroups ?? []).flatMap((group) => group.modifiers ?? [])]
+    const extra = withGroupModifiers(category)
     for (const constraint of category.constraints ?? []) {
       if (constraint.type === 'max' && constraint.field !== index.pointsTypeId)
         check(constraint, categoryId, category.id, category.name, extra)
