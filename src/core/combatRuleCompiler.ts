@@ -1,3 +1,4 @@
+import { COMBAT_PHASES, type CombatPhase } from './combat'
 import { capitalised, escapeRegExp, plainQuotes } from './text'
 import { chunks } from './collections'
 import { withoutFactionPrefix } from './name'
@@ -6,12 +7,11 @@ import type { CombatRule, CombatRuleChoice, CombatRuleEffect } from './combatRul
 import { compileMortalRule } from './combatMortalRules'
 import { combatKeyword, combatKeywordPhraseMatches } from './combatKeywords'
 
-type Phase = CombatRuleEffect['phases'][number]
 type Clause = { effects: CombatRuleEffect[]; conditions: string[]; instead?: boolean }
 type Context = {
   role: CombatRuleEffect['role']
   enemy?: boolean
-  phases: Phase[]
+  phases: CombatPhase[]
   conditions: string[]
   weapon?: string
   requiresWeaponKeyword?: string
@@ -41,9 +41,9 @@ export const labelledChoice = (name: string, choice: CombatRuleChoice): CombatRu
 })
 export const combatTextKey = (text: string) => withoutFactionPrefix(normalizeCombatText(text)).toLowerCase()
 const stripEnd = (text: string) => text.replace(/[.;, ]+$/, '').trim()
-const phasesOf = (word: string | undefined, fallback: Phase[]): Phase[] =>
+const phasesOf = (word: string | undefined, fallback: CombatPhase[]): CombatPhase[] =>
   /ranged/i.test(word ?? '') ? ['ranged'] : /melee/i.test(word ?? '') ? ['melee'] : fallback
-const actionPhases = (action: string): Phase[] =>
+const actionPhases = (action: string): CombatPhase[] =>
   /shoot.*fight|fight.*shoot/i.test(action) ? ['ranged', 'melee'] : /shoot/i.test(action) ? ['ranged'] : ['melee']
 const characteristic: Record<string, DatasheetCharacteristicKind> = {
   attacks: 'attacks',
@@ -208,7 +208,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
   const initial: Context = {
     role: enemy ? 'defender' : 'attacker',
     enemy,
-    phases: rule.phases?.length ? rule.phases : ['ranged', 'melee'],
+    phases: rule.phases?.length ? rule.phases : [...COMBAT_PHASES],
     conditions: [],
   }
   const effect = (context: Context, fields: Partial<CombatRuleEffect>): Clause[] | null => {

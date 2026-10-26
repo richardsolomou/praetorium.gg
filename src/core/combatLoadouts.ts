@@ -1,6 +1,14 @@
 import { remember } from './collections'
 import type { Datasheet } from './datasheet'
-import { calculateCombat, calculateCombatSequence, type CombatInput, type CombatOptions, type CombatResult } from './combat'
+import {
+  COMBAT_PHASES,
+  calculateCombat,
+  calculateCombatSequence,
+  type CombatInput,
+  type CombatOptions,
+  type CombatResult,
+  type CombatPhase,
+} from './combat'
 import type { RosterPick } from './roster'
 import type { WeaponAdjustment } from './combatAdjustments'
 import { carriedCount, type CombatCarrier } from './combatLoadout'
@@ -9,9 +17,7 @@ import { weaponPhase } from './datasheetStructure'
 import { wargearKey } from './wargear'
 import { activeCombatRules, combatRuleDefences, combatRuleOptions, type CombatRule } from './combatRules'
 
-type Phase = 'ranged' | 'melee'
-export type LoadoutOptimizationMode = 'combined' | Phase
-const PHASES = ['ranged', 'melee'] as const
+export type LoadoutOptimizationMode = 'combined' | CombatPhase
 
 /**
  * One option of a weapon choice, built the way the roster would build it from the current loadout:
@@ -62,7 +68,7 @@ export function applyOptimizedLoadout<T extends RosterPick>(picks: readonly T[],
     return update ? { ...pick, choices: update.choices, spreads: update.spreads } : pick
   })
 }
-export type LoadoutScore = Record<Phase, CombatResult | null>
+export type LoadoutScore = Record<CombatPhase, CombatResult | null>
 
 export const isWeaponProfile = (profile: Datasheet['profiles'][number]) => weaponPhase(profile.type) !== null
 
@@ -116,7 +122,7 @@ export function compareOutcomes(left: CombatResult, right: CombatResult) {
  * A weapon profile alone, on the `models` that carry it or on one model when none does. `best` marks the
  * strongest of one weapon's profiles, so a player knows which mode to use.
  */
-export type ProfileOdds = { phase: Phase; result: CombatResult; models: number; best: boolean; bestBy?: OutcomePriority }
+export type ProfileOdds = { phase: CombatPhase; result: CombatResult; models: number; best: boolean; bestBy?: OutcomePriority }
 
 /** Every weapon profile the unit could carry, resolved alone against the target. */
 export function loadoutProfileOdds(space: LoadoutSpace, scoring: LoadoutScoring) {
@@ -136,7 +142,7 @@ export function loadoutProfileOdds(space: LoadoutSpace, scoring: LoadoutScoring)
   const bearers = (profile: Datasheet['profiles'][number]) =>
     space.carriers.reduce((total, carrier) => total + Math.min(carrier.models, carriedCount(carrier, profile)), 0) || 1
   const odds = new Map<string, ProfileOdds>()
-  for (const phase of PHASES) {
+  for (const phase of COMBAT_PHASES) {
     const setup = scoring.phases[phase]
     if (!setup) continue
     const inputs = combatWeaponInputs(
@@ -179,8 +185,8 @@ export type LoadoutScoring = {
   rules: CombatAttacker['rules']
   opponent: CombatOpponent
   preferences: Readonly<Record<string, string>>
-  excluded: Readonly<Record<Phase, readonly string[]>>
-  phases: Record<Phase, { target: CombatInput['target']; options: CombatOptions; adjustment: WeaponAdjustment } | null>
+  excluded: Readonly<Record<CombatPhase, readonly string[]>>
+  phases: Record<CombatPhase, { target: CombatInput['target']; options: CombatOptions; adjustment: WeaponAdjustment } | null>
 }
 
 function loadoutMember(scoring: LoadoutScoring): CombatAttacker {
@@ -223,7 +229,7 @@ function loadoutScorer(space: LoadoutSpace, scoring: LoadoutScoring) {
       scoring.preferences,
       scoring.excluded,
     )
-    const input = (phase: Phase) => {
+    const input = (phase: CombatPhase) => {
       const setup = scoring.phases[phase]
       return setup ? combatAttackInput(attacks[phase], setup.target, setup.options, setup.adjustment) : null
     }
@@ -241,7 +247,7 @@ function loadoutScorer(space: LoadoutSpace, scoring: LoadoutScoring) {
 /** What one option does to the attack, for the phases its choice affects. */
 export type OptionEstimate = {
   step: LoadoutOption['step']
-  phases: Partial<Record<Phase, { result: CombatResult; best: boolean; bestBy?: OutcomePriority }>>
+  phases: Partial<Record<CombatPhase, { result: CombatResult; best: boolean; bestBy?: OutcomePriority }>>
 }
 
 /** The editor names an option by its group and catalogue entry. */
@@ -259,7 +265,7 @@ export function optionEstimates(
   for (const options of choices)
     for (const { group, entry, step, score } of options) {
       const phases: OptionEstimate['phases'] = {}
-      for (const phase of PHASES) {
+      for (const phase of COMBAT_PHASES) {
         const result = score[phase]
         const before = now[phase]
         const results = options.flatMap((other) => (other.score[phase] ? [other.score[phase]] : []))
@@ -284,12 +290,12 @@ export function optionEstimates(
  * current carriers do not reproduce the matchup's own attack, `expected`, would compare a different unit,
  * so its options get no estimate.
  */
-export function loadoutOdds(space: LoadoutSpace, scoring: LoadoutScoring, expected: Record<Phase, CombatInput | null>) {
+export function loadoutOdds(space: LoadoutSpace, scoring: LoadoutScoring, expected: Record<CombatPhase, CombatInput | null>) {
   const scorer = loadoutScorer(space, scoring)
   const inputs = scorer.inputs(space.carriers)
   const score = scorer.score(space.carriers)
   const now = Object.fromEntries(
-    PHASES.map((phase) => [phase, JSON.stringify(inputs[phase]) === JSON.stringify(expected[phase]) ? score[phase] : null]),
+    COMBAT_PHASES.map((phase) => [phase, JSON.stringify(inputs[phase]) === JSON.stringify(expected[phase]) ? score[phase] : null]),
   ) as LoadoutScore
   const choices = space.choices.map((options) => options.map(({ carriers, ...option }) => ({ ...option, score: scorer.score(carriers) })))
   return { estimates: optionEstimates(choices, now), profiles: loadoutProfileOdds(space, scoring) }
@@ -311,7 +317,7 @@ export function optimizeLoadout(
   mode: LoadoutOptimizationMode = 'combined',
 ): LoadoutOptimization {
   if (mode === 'combined' && scoring.sequenceError) throw new Error(scoring.sequenceError)
-  const phases = mode === 'combined' ? PHASES : [mode]
+  const phases = mode === 'combined' ? COMBAT_PHASES : [mode]
   let best: OptimizedLoadout | undefined
   let skipped = 0
   let reason: string | undefined

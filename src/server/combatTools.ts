@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { CombatResult } from '../core/combat'
+import type { CombatResult, CombatPhase } from '../core/combat'
 import { combatAdjustmentsSchema } from '../core/combatAdjustments'
 import { combatMatchup, resolveCombatRequest, type CombatantSnapshot, type CombatRequest } from '../core/combatMatchup'
 import {
@@ -31,7 +31,6 @@ import { rosterDatasheetSelections } from '../shared/rosterDatasheetContext'
 const COMBAT_TOOL_MAX_WORK = 5_000_000
 const MAX_ATTACHED = 2
 
-type Phase = 'ranged' | 'melee'
 type Role = 'attacker' | 'defender'
 
 const name = z.string().trim().min(1).max(400)
@@ -280,7 +279,7 @@ export async function simulateCombat(input: SimulateCombatInput) {
     sequenceError: matchup.sequenceError,
   }
   const answer = resolveCombatRequest(request, COMBAT_TOOL_MAX_WORK)
-  const phase = (key: Phase) => {
+  const phase = (key: CombatPhase) => {
     const plan = matchup.plans[key]!
     const weapons = plan.active.map((entry) => ({ name: entry.profile.name, count: entry.count }))
     const modes = plan.choices.map((choice) => ({ key: choice.key, label: choice.label, value: choice.value, options: choice.options }))

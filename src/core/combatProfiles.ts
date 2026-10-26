@@ -3,7 +3,7 @@ import type { Datasheet, DatasheetCharacteristicKind } from './datasheet'
 import { datasheetCharacteristicKind, datasheetProfileKind, datasheetProfilesByKind } from './datasheetStructure'
 import { combatEquipmentMatches, type CombatCarrier } from './combatLoadout'
 import { wargearBaseName, wargearKey } from './wargear'
-import { combatSchema, diceExpression, type CombatInput, type CombatWeapon } from './combat'
+import { combatSchema, diceExpression, type CombatInput, type CombatWeapon, type CombatPhase } from './combat'
 import { combatKeyword, combatKeywordApplies, normalizeCombatKeyword as normalized } from './combatKeywords'
 import { splitWeaponKeywords } from './ruleReference'
 
@@ -94,12 +94,12 @@ export function combatTarget(
 const parsedWeapons = new RecentlyUsed<string, ReturnType<typeof parseWeapon>>(5_000)
 
 /** A weapon profile's characteristics and abilities, which depend on everything but how many are carried. */
-const parsedWeapon = (profile: Profile, targetKeywords: readonly string[], phase: CombatInput['options']['phase']) =>
+const parsedWeapon = (profile: Profile, targetKeywords: readonly string[], phase: CombatPhase) =>
   remember(parsedWeapons, JSON.stringify([phase, targetKeywords, profile.name, profile.values]), () =>
     parseWeapon(profile, targetKeywords, phase),
   )
 
-function parseWeapon(profile: Profile, targetKeywords: readonly string[], phase: CombatInput['options']['phase']) {
+function parseWeapon(profile: Profile, targetKeywords: readonly string[], phase: CombatPhase) {
   const unsupported: string[] = []
   const baseSkill = integer(
     profile.values.find((entry) => entry.kind === (phase === 'ranged' ? 'ballistic-skill' : 'weapon-skill'))?.baseValue,
@@ -206,7 +206,7 @@ function parseWeapon(profile: Profile, targetKeywords: readonly string[], phase:
   }
 }
 
-export function combatWeapons(sheet: Datasheet, targetKeywords: readonly string[], phase: CombatInput['options']['phase']) {
+export function combatWeapons(sheet: Datasheet, targetKeywords: readonly string[], phase: CombatPhase) {
   return datasheetProfilesByKind(sheet)[phase].map((profile) => {
     const { weapon, unsupported, valid: characteristics } = parsedWeapon(profile, targetKeywords, phase)
     const count = profile.count ?? 0
@@ -229,7 +229,7 @@ export function combatPlan(
   sheet: Datasheet,
   carriers: readonly CombatCarrier[],
   targetKeywords: readonly string[],
-  phase: CombatInput['options']['phase'],
+  phase: CombatPhase,
   preferences: Readonly<Record<string, string>> = {},
   excluded: ReadonlySet<string> = new Set(),
 ) {

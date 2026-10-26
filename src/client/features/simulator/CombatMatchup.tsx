@@ -18,6 +18,7 @@ import {
   type CombatInput,
   type CombatTargetGroup,
   type CombatOptions,
+  type CombatPhase,
 } from '../../../core/combat'
 import { combatUnitKeywords, combatUnitTarget } from '../../../core/combatUnit'
 import { combatMatchup, type CombatAnswer, type CombatantSnapshot, type CombatRequest } from '../../../core/combatMatchup'
@@ -45,8 +46,7 @@ function weaponToggleGroups(entries: readonly { profile: Datasheet['profiles'][n
   ]
 }
 
-type Phase = CombatOptions['phase']
-type PhaseScope = Phase | 'all'
+type PhaseScope = CombatPhase | 'all'
 type CombatEntryPoint = 'standalone' | 'roster' | 'battle'
 
 export function combatOutcomeEvent(answer: CombatAnswer, source: CombatEntryPoint) {
@@ -142,7 +142,9 @@ export function CombatMatchup({
 }) {
   const [adjustments, setAdjustments] = useState<CombatAdjustments>(initialSettings?.adjustments ?? {})
   const [modifiersOpen, setModifiersOpen] = useState(Boolean(Object.keys(initialSettings?.adjustments ?? {}).length))
-  const [excludedWeapons, setExcludedWeapons] = useState<Record<Phase, string[]>>(initialSettings?.excluded ?? { ranged: [], melee: [] })
+  const [excludedWeapons, setExcludedWeapons] = useState<Record<CombatPhase, string[]>>(
+    initialSettings?.excluded ?? { ranged: [], melee: [] },
+  )
   const [outcome, setOutcome] = useState<{ key: string; attempt: number; answer: CombatAnswer } | null>(null)
   const [retry, setRetry] = useState(0)
   const [invalidatedChoice, setInvalidatedChoice] = useState(false)
@@ -171,7 +173,7 @@ export function CombatMatchup({
   }, [invalidChoices, setPreferences])
   const allocateEarlier = (index: number) =>
     setAllocation(labels.map((label, at) => (at === index - 1 ? labels[index]! : at === index ? labels[index - 1]! : label)))
-  const defencesIn = (phase: Phase, settings: CombatAdjustments = adjustments) => matchup.defencesIn(phase, settings)
+  const defencesIn = (phase: CombatPhase, settings: CombatAdjustments = adjustments) => matchup.defencesIn(phase, settings)
   const rangedDefences = defencesIn('ranged')
   const meleeDefences = defencesIn('melee')
   const extraFeelNoPain = adjustments.feelNoPain ?? null
@@ -180,8 +182,8 @@ export function CombatMatchup({
   const feelNoPain = betterFeelNoPain(
     rangedDefences?.feelNoPain === meleeDefences?.feelNoPain ? rangedDefences?.feelNoPain : target?.target?.feelNoPain,
   )
-  const options = (phase: Phase, settings: CombatAdjustments = adjustments) => matchup.options(phase, settings)
-  const scenario = (phase: Phase, settings: CombatAdjustments = adjustments) => matchup.scenario(phase, settings)
+  const options = (phase: CombatPhase, settings: CombatAdjustments = adjustments) => matchup.options(phase, settings)
+  const scenario = (phase: CombatPhase, settings: CombatAdjustments = adjustments) => matchup.scenario(phase, settings)
   const scenarios = useMemo<CombatRequest>(
     () => ({ ranged: matchup.scenario('ranged', adjustments), melee: matchup.scenario('melee', adjustments), sequenceError }),
     [matchup, adjustments, sequenceError],
@@ -191,7 +193,7 @@ export function CombatMatchup({
     source: 'attack' | 'weapon' | 'target' | 'feelNoPain',
     field: string,
     candidate: unknown,
-    onlyPhase?: Phase,
+    onlyPhase?: CombatPhase,
   ) => {
     const affected = onlyPhase
       ? [onlyPhase]
@@ -235,7 +237,7 @@ export function CombatMatchup({
     scope: PhaseScope,
     source: 'attack' | 'weapon' | 'target' | 'feelNoPain',
     field: string,
-    onlyPhase?: Phase,
+    onlyPhase?: CombatPhase,
   ) => {
     const selected =
       source === 'weapon'
@@ -407,7 +409,7 @@ export function CombatMatchup({
     [...Object.values(adjustments[scope] ?? {}), ...Object.values(weaponAdjustment(scope))].filter(
       (value) => value !== undefined && value !== 'direct',
     ).length
-  const phaseSummary = (phase: Phase) => {
+  const phaseSummary = (phase: CombatPhase) => {
     const applied: string[] = []
     const sourced: string[] = []
     const limits: string[] = []

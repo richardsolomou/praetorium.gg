@@ -1,16 +1,23 @@
 import type { Datasheet, DatasheetCharacteristicKind } from './datasheet'
-import { diceExpression, rerollRank, type CombatInput, type CombatOptions, type CombatWeapon } from './combat'
+import {
+  COMBAT_PHASES,
+  diceExpression,
+  rerollRank,
+  type CombatInput,
+  type CombatOptions,
+  type CombatWeapon,
+  type CombatPhase,
+} from './combat'
 import { combatTextKey, compileCombatRule, labelledChoice, normalizeCombatText, ruleSection } from './combatRuleCompiler'
 import { datasheetCharacteristicKind, weaponPhase } from './datasheetStructure'
 import { combatKeyword, combatKeywordApplies, combatKeywordPhraseMatches } from './combatKeywords'
 
-type Phase = CombatOptions['phase']
 export type CombatRule = {
   id: string
   name: string
   source: string
   description: string
-  phases?: Phase[]
+  phases?: CombatPhase[]
   scope: 'unit' | 'attached' | 'nearby' | 'stratagem' | 'detachment'
   included?: boolean
   appliedDefences?: DatasheetCharacteristicKind[]
@@ -33,7 +40,7 @@ export type CombatRuleJudge = {
 }
 export type CombatRuleEffect = {
   role: 'attacker' | 'defender'
-  phases: Phase[]
+  phases: CombatPhase[]
   keyword?: string
   characteristic?: { kind: DatasheetCharacteristicKind; nonCumulative?: boolean } & (
     | { add: number; set?: never }
@@ -105,7 +112,6 @@ export function combatRuleSelections(rules: readonly CombatRule[], selections: R
   }
 }
 
-const both: Phase[] = ['ranged', 'melee']
 const weaponKey = (value: string) => combatTextKey(value).replace(/^the /, '')
 
 /** False only when the source's explicit keyword restriction rules the unit out. */
@@ -155,7 +161,7 @@ export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
     )
   const text = aura?.[3] ?? selectedAlly?.[2] ?? written
   const range = aura && rule.scope === 'nearby' ? `Within ${aura[2]}"` : ''
-  const phases = rule.phases?.length ? rule.phases : both
+  const phases = rule.phases?.length ? rule.phases : [...COMBAT_PHASES]
   if (
     rule.models !== 1 &&
     /(?:allocated to|equipped by) (?:this model|the bearer)|(?:this model|the bearer) (?:has|have) the Feel No Pain/i.test(text)
@@ -422,7 +428,7 @@ export function combatRuleProfiles(
 export function combatRuleOptions(
   rules: readonly ActiveCombatRule[],
   role: CombatRuleEffect['role'],
-  phase: Phase,
+  phase: CombatPhase,
 ): Partial<CombatOptions> {
   const result: Partial<CombatOptions> = {}
   for (const rule of rules)
@@ -453,7 +459,7 @@ export function combatRuleOptions(
 export function combatRuleDefences(
   target: CombatInput['target'],
   rules: readonly ActiveCombatRule[],
-  phase: Phase,
+  phase: CombatPhase,
   attackRules: readonly ActiveCombatRule[] = [],
 ): CombatInput['target'] {
   const effects = rules.flatMap((rule) => rule.effects).filter((effect) => effect.role === 'defender' && effect.phases.includes(phase))
@@ -518,7 +524,7 @@ function matchesEffectTarget(effect: CombatRuleEffect, keywords: readonly string
 
 export function combatRuleMortals(
   rules: readonly ActiveCombatRule[],
-  phase: Phase,
+  phase: CombatPhase,
   targetKeywords: readonly string[],
   weapons: readonly { profile: { name: string } }[],
   models: number,
@@ -541,7 +547,7 @@ export function combatRuleWeapons(
   used: readonly { weapon: CombatWeapon | null; count: number; profile: { id: string; name: string } }[],
   rules: readonly ActiveCombatRule[],
   role: CombatRuleEffect['role'],
-  phase: Phase,
+  phase: CombatPhase,
   targetKeywords: readonly string[],
   scopedOptions = false,
 ): CombatWeapon[] {

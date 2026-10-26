@@ -1,3 +1,4 @@
+import type { CombatPhase } from '../../../core/combat'
 import { useState, type ReactNode } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
@@ -159,7 +160,7 @@ export function SimulationMode({
 export const PHASE_TITLES = { ranged: 'Shooting', melee: 'Melee' } as const
 
 /** Without a title the icon only decorates a heading that already names the phase. */
-export function PhaseIcon({ phase, title, className = 'size-3.5' }: { phase: 'ranged' | 'melee'; title?: string; className?: string }) {
+export function PhaseIcon({ phase, title, className = 'size-3.5' }: { phase: CombatPhase; title?: string; className?: string }) {
   const Icon = phase === 'ranged' ? Crosshair : Swords
   return <Icon className={cn(className, 'shrink-0 text-info')} aria-label={title} aria-hidden={title ? undefined : true} />
 }

@@ -1,5 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react'
-import type { CombatResult } from '../../../core/combat'
+import { COMBAT_PHASES, type CombatPhase, type CombatResult } from '../../../core/combat'
 import { estimateKey, type LoadoutScoring, type LoadoutOptimizationMode, type OutcomePriority } from '../../../core/combatLoadouts'
 import { HoverTooltip } from '../../components/HoverTooltip'
 import type { OptionNote } from '../rosters/builder/LoadoutControls'
@@ -9,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { countLabel } from '../../text'
 import { PHASE_TITLES, PhaseIcon } from './CombatControls'
 
-type Phase = 'ranged' | 'melee'
 const percent = (value: number) => {
   const chance = value * 100
   if (chance > 0 && chance < 0.01) return '<0.01%'
@@ -27,7 +26,7 @@ export const LoadoutOddsContext = createContext<LoadoutOdds | null>(null)
 export type LoadoutOptimization = {
   key: string
   preferences: Record<string, string>
-  excluded: Record<Phase, string[]>
+  excluded: Record<CombatPhase, string[]>
   results?: Partial<Record<LoadoutOptimizationMode, CombatResult>>
   scoring: LoadoutScoring | null
   expected: CombatRequest
@@ -58,7 +57,7 @@ function Odds({
   subject,
   muted,
 }: {
-  phase: Phase
+  phase: CombatPhase
   result: CombatResult
   best: boolean
   bestBy?: OutcomePriority
@@ -108,7 +107,7 @@ export function useOptionNote(): OptionNote | undefined {
     if (!estimate) return null
     return (
       <span className={noteClass}>
-        {(['ranged', 'melee'] as const).flatMap((phase) => {
+        {COMBAT_PHASES.flatMap((phase) => {
           const shown = estimate.phases[phase]
           return shown
             ? [

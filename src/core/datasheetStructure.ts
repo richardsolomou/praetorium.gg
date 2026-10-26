@@ -1,3 +1,4 @@
+import type { CombatPhase } from './combat'
 import { joinKey } from './text'
 import type { Datasheet, DatasheetCharacteristicKind, DatasheetProfileKind, StructuredDatasheetProfile } from './datasheet'
 import { remember } from './collections'
@@ -9,7 +10,7 @@ const characteristicKindsByName = new Map<string, DatasheetCharacteristicKind>()
 export const datasheetProfileKind = (type: string): DatasheetProfileKind => remember(profileKinds, type, () => profileKindOf(type))
 
 /** The phase a weapon profile type attacks in; null for a profile that is not a weapon. */
-export function weaponPhase(type: string): 'ranged' | 'melee' | null {
+export function weaponPhase(type: string): CombatPhase | null {
   const kind = datasheetProfileKind(type)
   return kind === 'ranged-weapon' ? 'ranged' : kind === 'melee-weapon' ? 'melee' : null
 }

@@ -1,4 +1,4 @@
-import type { CombatInput, CombatOptions } from './combat'
+import type { CombatInput, CombatPhase } from './combat'
 import { combatSchema } from './combat'
 import type { CombatAttacker } from './combatScenario'
 import { combatTarget } from './combatProfiles'
@@ -33,7 +33,7 @@ export function combatUnitKeywords(unit: CombatAttacker) {
   return [...new Set([unit, ...(unit.companions ?? [])].flatMap((member) => member.sheet.keywords))]
 }
 
-export function combatUnitTarget(unit: CombatMember, phase?: CombatOptions['phase'], attackRules: readonly ActiveCombatRule[] = []) {
+export function combatUnitTarget(unit: CombatMember, phase?: CombatPhase, attackRules: readonly ActiveCombatRule[] = []) {
   const members = [unit, ...(unit.companions ?? [])] as readonly CombatMember[]
   if (members.some((member) => member.allocationRequired))
     return { target: null, labels: [], error: "Choose the defender's surviving models." }

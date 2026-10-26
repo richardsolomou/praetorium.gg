@@ -2,6 +2,8 @@ import { z } from 'zod'
 import { remember } from './collections'
 
 export const MAX_COMBAT_MODELS = 100
+export const COMBAT_PHASES = ['ranged', 'melee'] as const
+export type CombatPhase = (typeof COMBAT_PHASES)[number]
 
 const diceSchema = z.object({ dice: z.int().min(0).max(10), sides: z.union([z.literal(3), z.literal(6)]), bonus: z.int().min(0).max(100) })
 const amountSchema = z.union([z.int().min(0).max(100), diceSchema])
@@ -115,7 +117,7 @@ export const combatSchema = z.object({
     .max(60),
   mortalWounds: z.array(mortalWoundsSchema).max(20).optional(),
   options: z.object({
-    phase: z.enum(['ranged', 'melee']),
+    phase: z.enum(COMBAT_PHASES),
     cover: z.boolean(),
     indirectFire: z.enum(['direct', 'unobserved', 'spotted']).optional(),
     halfRange: z.boolean(),
