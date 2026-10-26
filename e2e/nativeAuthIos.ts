@@ -24,6 +24,9 @@ const dataDirectory = stackEnvironment.PLAYWRIGHT_DATA_ROOT
 const backendUrl = `http://127.0.0.1:${backendPort}`
 const readyUrl = `http://127.0.0.1:${stackEnvironment.PLAYWRIGHT_READY_PORT}/ready`
 const publicUrl = `https://localhost:${publicPort}`
+const publicHost = new URL(publicUrl).host
+const appId = 'gg.praetorium'
+const savedGeneration = /^\d+-[\w-]+\.json$/
 const fixtureName = 'Native Auth Simulator'
 const fixtureEmail = `native-auth-${randomUUID()}@example.test`
 const events: string[] = []
@@ -103,7 +106,7 @@ function requestPublic(pathname: string, method: string, headers: Record<string,
         port: publicPort,
         path: pathname,
         method,
-        headers: { ...headers, host: new URL(publicUrl).host },
+        headers: { ...headers, host: publicHost },
         ca: readFileSync(tlsCertificate),
         servername: 'localhost',
       },
@@ -132,8 +135,8 @@ function forward(request: IncomingMessage, response: ServerResponse) {
         method: request.method,
         headers: {
           ...request.headers,
-          host: new URL(publicUrl).host,
-          'x-forwarded-host': new URL(publicUrl).host,
+          host: publicHost,
+          'x-forwarded-host': publicHost,
           'x-forwarded-proto': 'https',
         },
       },
@@ -186,6 +189,11 @@ async function nativeAuth(requestUrl: URL, response: ServerResponse) {
     callback.searchParams.set(name, value)
   }
   response.writeHead(302, { location: callback.toString(), 'cache-control': 'no-store' }).end()
+}
+
+async function closeProxy() {
+  proxy?.closeAllConnections()
+  if (proxy) await new Promise<void>((resolve) => proxy!.close(() => resolve()))
 }
 
 function startProxy() {
@@ -292,19 +300,19 @@ async function seedSavedApp(updated = false) {
 }
 
 async function waitForSavedApp(udid: string) {
-  const container = (await output('xcrun', ['simctl', 'get_app_container', udid, 'gg.praetorium', 'data'])).trim()
+  const container = (await output('xcrun', ['simctl', 'get_app_container', udid, appId, 'data'])).trim()
   const origin = Array.from(publicUrl, (character) => character.charCodeAt(0).toString(16)).join('')
   const referenceDirectory = path.join(container, 'Documents', 'offline-app', origin)
   const snapshotDirectory = path.join(container, 'Documents', 'app-state', origin)
   for (let attempt = 0; attempt < 180; attempt++) {
     try {
       const latest = readdirSync(snapshotDirectory)
-        .filter((name) => /^\d+-[\w-]+\.json$/.test(name))
+        .filter((name) => savedGeneration.test(name))
         .sort()
         .at(-1)
       const snapshot = latest ? parseAppSnapshot(JSON.parse(readFileSync(path.join(snapshotDirectory, latest), 'utf8'))) : null
       const reference = readdirSync(referenceDirectory).some((name) => {
-        if (!/^\d+-[\w-]+\.json$/.test(name)) return false
+        if (!savedGeneration.test(name)) return false
         try {
           return Boolean(parseSavedReference(JSON.parse(readFileSync(path.join(referenceDirectory, name), 'utf8'))))
         } catch {
@@ -359,15 +367,7 @@ function assertFlow() {
 }
 
 async function assertPushRegistered() {
-  const credentials = JSON.parse(readFileSync(path.join(dataDirectory, 'credentials.json'), 'utf8')) as {
-    operator: { token: string }
-  }
-  const operator = new SpacetimeOperator(
-    `http://127.0.0.1:${stackEnvironment.PLAYWRIGHT_SPACETIME_PORT}/`,
-    `praetorium-local-${backendPort}`,
-    credentials.operator.token,
-  )
-  const targets = await operator.pushTargets([fixtureUserId])
+  const targets = await fixtureOperator().pushTargets([fixtureUserId])
   if (targets.length !== 1) throw new Error(`Expected one registered simulator push device, found ${targets.length}.`)
 }
 
@@ -450,9 +450,9 @@ async function main() {
     )
   }
   await run('codesign', ['--force', '--sign', '-', app])
-  await run('xcrun', ['simctl', 'uninstall', udid, 'gg.praetorium']).catch(() => undefined)
+  await run('xcrun', ['simctl', 'uninstall', udid, appId]).catch(() => undefined)
   await run('xcrun', ['simctl', 'install', udid, app])
-  await run('xcrun', ['simctl', 'launch', udid, 'gg.praetorium'])
+  await run('xcrun', ['simctl', 'launch', udid, appId])
   const journey = guestDraftJourney ? 'native-guest-draft-ios' : 'native-auth-ios'
   const javaHome = process.env.JAVA_HOME ?? (existsSync('/opt/homebrew/opt/openjdk@21') ? '/opt/homebrew/opt/openjdk@21' : undefined)
   const maestroEnvironment = {
@@ -476,8 +476,8 @@ async function main() {
       { env: maestroEnvironment },
     )
   const relaunch = async () => {
-    await run('xcrun', ['simctl', 'terminate', udid, 'gg.praetorium'])
-    await run('xcrun', ['simctl', 'launch', udid, 'gg.praetorium'])
+    await run('xcrun', ['simctl', 'terminate', udid, appId])
+    await run('xcrun', ['simctl', 'launch', udid, appId])
   }
   await maestro(journey, journey, ['-e', `NATIVE_OFFLINE_VERIFY=${process.env.NATIVE_OFFLINE_VERIFY ?? '0'}`])
   await delay(1_000)
@@ -494,8 +494,7 @@ async function main() {
     await maestro('native-offline-save-ios', 'native-offline-ios')
     await waitForSavedApp(udid)
     const offlineProxy = proxy
-    proxy?.closeAllConnections()
-    if (proxy) await new Promise<void>((resolve) => proxy!.close(() => resolve()))
+    await closeProxy()
     proxy = undefined
     await relaunch()
     await maestro('native-offline-read-ios', 'native-offline-ios')
@@ -543,8 +542,7 @@ try {
   throw error
 } finally {
   await stopStack?.()
-  proxy?.closeAllConnections()
-  if (proxy) await new Promise<void>((resolve) => proxy!.close(() => resolve()))
+  await closeProxy()
   await publicReservation.release()
   await deviceReservation?.release()
 }
