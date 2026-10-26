@@ -6,6 +6,7 @@ import { catalogueEditionId } from '../core/catalogueEdition'
 import { joinKey } from '../core/text'
 import { datasheetPageBySlug } from '../core/datasheetSlug'
 import { unitsIn } from '../shared/cataloguePicker'
+import { entryFactions } from '../shared/catalogueIndex'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { factionDisplayName } from '../shared/factionNames'
 import { gameReferencesFor } from '../shared/gameReferences'
@@ -105,8 +106,10 @@ export const factionDetachmentNames = (loaded: LoadedCatalogue, factionId: strin
 /**
  * The datasheet behind each unit a faction offers: its own, or else the copy filed under the
  * catalogue that owns the entry at the same rules version, as a chapter fields Intercessors and an
- * army fields an assassin from Agents of the Imperium. Another faction's copy stands in only when it
- * is the one copy at that version; with several, the unit has no citation rather than a wrong one.
+ * army fields an assassin from Agents of the Imperium. A shared library owns some entries and files
+ * no pages, so several factions hold copies; the copy of the one faction the entry's Faction keyword
+ * names wins, as an Armiger cites Imperial Knights. Another faction's copy stands in only when it is
+ * the one copy at that version; otherwise the unit has no citation rather than a wrong one.
  */
 export function factionDatasheets(
   corpus: ReferenceCorpus,
@@ -125,7 +128,9 @@ export function factionDatasheets(
     if (sheets.has(id)) continue
     const owner = loaded.index.catalogueOf.get(id)
     const owned = owner ? candidates.filter((sheet) => bookId(sheet.catalogueId) === bookId(owner)) : []
-    const chosen = owned.length ? owned : candidates
+    const named = entryFactions(loaded, id)
+    const keyworded = named.size === 1 ? candidates.filter((sheet) => named.has(catalogueFaction(loaded, sheet.catalogueId))) : []
+    const chosen = owned.length ? owned : keyworded.length ? keyworded : candidates
     if (chosen.length === 1) sheets.set(id, chosen[0]!)
   }
   return sheets
@@ -133,6 +138,9 @@ export function factionDatasheets(
 
 /** A catalogue id without the rules version that may prefix it. */
 const bookId = (catalogueId: string) => catalogueId.slice(catalogueId.indexOf('~') + 1)
+
+const catalogueFaction = (loaded: LoadedCatalogue, catalogueId: string) =>
+  factionDisplayName((loaded.index.catalogues.get(catalogueId) ?? loaded.index.catalogues.get(bookId(catalogueId)))?.name ?? '')
 
 /** Whether a catalogue holds the rules version a faction reads: its edition's, or for a current faction the current ones. */
 function sameRulesVersion(factionId: string, currentCatalogueIds: ReadonlySet<string>) {
