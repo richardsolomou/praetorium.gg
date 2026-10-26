@@ -312,14 +312,41 @@ export function unitFormationRefusal(
     return refuse('formation-unsupported', 'the roster data does not support that formation')
   }
   if (state.status !== 'setup') return null
-  const keys = new Set(attached.map((unit) => unit.key))
-  const redeployed =
-    Boolean(state.firstPlayerId) &&
-    command.formation === 'strategic-reserves' &&
-    attached.every((unit) => unit.deployedAtRollOff && unit.formation === 'battlefield')
-  const changed = player.units.map((unit) =>
-    keys.has(unit.key) ? changedFormation(unit, command.formation, redeployed, command.transportKey) : unit,
+  return movedReserveError(
+    state,
+    player,
+    attached,
+    command.formation,
+    redeploysToReserves(state, attached, command.formation),
+    command.transportKey,
   )
+}
+
+/** Whether units deployed at the roll-off are being sent to reserves, which the rules count as redeploying them. */
+function redeploysToReserves(
+  state: Pick<BattleState, 'status' | 'firstPlayerId'>,
+  attached: readonly UnitState[],
+  formation: UnitFormation,
+) {
+  return (
+    state.status === 'setup' &&
+    Boolean(state.firstPlayerId) &&
+    formation === 'strategic-reserves' &&
+    attached.every((unit) => unit.deployedAtRollOff && unit.formation === 'battlefield')
+  )
+}
+
+/** The side's reserve refusal once these units move to a formation. */
+function movedReserveError(
+  state: FormationTable,
+  player: FormationArmy,
+  attached: readonly UnitState[],
+  formation: UnitFormation,
+  redeployed = false,
+  transportKey?: string,
+): Refusal | null {
+  const keys = new Set(attached.map((unit) => unit.key))
+  const changed = player.units.map((unit) => (keys.has(unit.key) ? changedFormation(unit, formation, redeployed, transportKey) : unit))
   return strategicReserveSideError(state, player, changed)
 }
 
@@ -1719,13 +1746,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (state.status === 'finished') return refuse('battle-over', 'the battle is over')
       const attached = attachedUnits(player.units, command.unitKey)
       if (!attached.length) return refuse('unknown-unit', 'that is not one of your units')
-      if (state.status === 'setup' && !command.deployed) {
-        const keys = new Set(attached.map((unit) => unit.key))
-        const changed = player.units.map((unit) => (keys.has(unit.key) ? changedFormation(unit, 'strategic-reserves') : unit))
-        const reserveError = strategicReserveSideError(state, player, changed)
-        if (reserveError) return reserveError
-      }
-      return null
+      return state.status === 'setup' && !command.deployed ? movedReserveError(state, player, attached, 'strategic-reserves') : null
     }
     case 'set-unit-formation': {
       if (state.status === 'finished') return refuse('battle-over', 'the battle is over')
@@ -2103,11 +2124,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
     case 'set-unit-formation': {
       // The character and the unit he joined start together, so one press moves both.
       const attached = attachedUnits(player.units, command.unitKey)
-      const redeployed =
-        state.status === 'setup' &&
-        Boolean(state.firstPlayerId) &&
-        command.formation === 'strategic-reserves' &&
-        attached.every((unit) => unit.deployedAtRollOff && unit.formation === 'battlefield')
+      const redeployed = redeploysToReserves(state, attached, command.formation)
       for (const unit of attached) {
         Object.assign(unit, changedFormation(unit, command.formation, redeployed, command.transportKey))
       }
