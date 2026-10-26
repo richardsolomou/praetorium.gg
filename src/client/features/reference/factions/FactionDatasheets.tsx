@@ -1,8 +1,7 @@
 import { useReferenceFaction } from './useReferenceFaction'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Link } from '@tanstack/react-router'
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
+import { FactionBreadcrumb } from './FactionBreadcrumb'
 import { ChevronRight, FileSearch } from 'lucide-react'
 import { memo, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -77,19 +76,7 @@ export function FactionDatasheets() {
         media={<FactionMark faction={faction} />}
       />
       <PageContent className="space-y-6">
-        <Breadcrumb>
-          <BreadcrumbList className="eyebrow gap-1 text-info">
-            <BreadcrumbItem>
-              <BreadcrumbLink render={<Link to="/factions" />}>Factions</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator className="text-dim" />
-            <BreadcrumbItem>
-              <BreadcrumbLink render={<FactionReferenceLink to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} />}>
-                {faction.displayName}
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+        <FactionBreadcrumb faction={faction} />
         <SearchField
           value={query}
           onChange={setQuery}
