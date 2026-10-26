@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Crosshair, Swords } from 'lucide-react'
+import { PHASE_TITLES, PhaseIcon } from './CombatControls'
 import type { CombatResult } from '../../../core/combat'
 import { HoverTooltip } from '../../components/HoverTooltip'
 import { CombatEstimate } from './CombatEstimate'
@@ -102,11 +102,11 @@ export function CombatResults({
               </div>
               {(
                 [
-                  ['Shooting', ranged, Crosshair],
-                  ['Melee', melee, Swords],
+                  [PHASE_TITLES.ranged, ranged, 'ranged'],
+                  [PHASE_TITLES.melee, melee, 'melee'],
                   ['Combined', combined, null],
                 ] as const
-              ).map(([title, result, Icon]) => (
+              ).map(([title, result, phase]) => (
                 <section
                   key={title}
                   aria-label={title === 'Combined' ? 'Combined distributions' : `${title} estimate`}
@@ -115,7 +115,7 @@ export function CombatResults({
                 >
                   <h3 className="text-xs font-semibold">
                     <span className="flex items-center gap-1">
-                      {Icon ? <Icon className="size-3 shrink-0 text-info" aria-hidden /> : null}
+                      {phase ? <PhaseIcon phase={phase} className="size-3" /> : null}
                       {title}
                     </span>
                     <span className="font-normal text-faint">{title === 'Combined' ? 'together' : 'alone'}</span>

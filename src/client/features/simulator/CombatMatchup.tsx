@@ -4,10 +4,11 @@ import { useEffect, useEffectEvent, useMemo, useRef, useState, type Dispatch, ty
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { ArrowUp, Crosshair, RotateCcw, Swords } from 'lucide-react'
+import { ArrowUp, RotateCcw } from 'lucide-react'
 import { ProfileGrid, WeaponProfiles } from '../../components/DatasheetProfiles'
 import type { Datasheet } from '../../../contracts/catalogue'
 import {
+  COMBAT_PHASES,
   combatGroupProtection,
   criticalThresholdMatters,
   halfRangeMatters,
@@ -88,10 +89,7 @@ const situations = {
   ],
   melee: [['charged', 'Charged']],
 } as const
-const phases = [
-  ['ranged', 'Shooting'],
-  ['melee', 'Melee'],
-] as const
+const phases = COMBAT_PHASES.map((phase) => [phase, PHASE_TITLES[phase]] as const)
 
 /** The same matchup surface accepts catalogue picks or already evaluated roster/battle units. */
 export function CombatMatchup({
@@ -584,11 +582,7 @@ export function CombatMatchup({
               return (
                 <section key={phase} aria-label={`${title} results`} aria-busy={valid && updating && !failed} className="min-w-0 space-y-2">
                   <h2 className="rubric flex items-center gap-2">
-                    {phase === 'ranged' ? (
-                      <Crosshair className="size-4 text-info" aria-hidden />
-                    ) : (
-                      <Swords className="size-4 text-info" aria-hidden />
-                    )}
+                    <PhaseIcon phase={phase} className="size-4" />
                     {title}
                   </h2>
                   {!plan?.used.length ? (
