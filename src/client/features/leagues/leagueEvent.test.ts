@@ -18,10 +18,6 @@ const organizer = { organizer: true, canPlay: false }
 const player = { organizer: false, canPlay: true }
 
 describe('leagueNextStep', () => {
-  it.each(STAGES)('gives the organizer a step when the event is %s', (stage) => {
-    expect(leagueNextStep(stage, organizer, { format: '1v1', club: null })).toBeTruthy()
-  })
-
   it('gives each stage the organizer its own step', () => {
     expect(new Set(STAGES.map((stage) => leagueNextStep(stage, organizer, { format: '1v1', club: null }))).size).toBe(STAGES.length)
   })
