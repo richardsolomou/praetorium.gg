@@ -1113,7 +1113,7 @@ function groupHolds(group: ConditionGroup, node: Node, root: Node, index: Catalo
     }
     return met >= (group.min ?? 0) && met <= (group.max ?? Number.POSITIVE_INFINITY)
   }
-  census.note(`condition group type ${String(group.type)}`)
+  census.note(`condition group type ${group.type}`)
   return false
 }
 
@@ -1143,7 +1143,7 @@ function localHolds(group: LocalConditionGroup, node: Node, root: Node, index: C
   if (counted !== undefined) return counted
   if (group.type === 'and') return met === candidates.size
   if (group.type === 'or') return met > 0
-  census.note(`local condition group type ${String(group.type)}`)
+  census.note(`local condition group type ${group.type}`)
   return false
 }
 
