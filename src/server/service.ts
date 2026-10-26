@@ -855,8 +855,7 @@ export class PraetoriumService {
 
   /** A readable account of the battle. Derived from the log, so nothing is stored for it. */
   async report(token: string, userId: string, rules?: BattleReadRules | null) {
-    const history = await this.mustFind(token)
-    if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
+    const history = await this.mustSeatHistory(token, userId)
     return this.viewerReport(history, userId, rules)
   }
 
@@ -865,8 +864,7 @@ export class PraetoriumService {
     userId: string,
     rules?: BattleReadRules | null,
   ): Promise<{ workspace: BattleWorkspace; screen: SeatedScreen }> {
-    const history = await this.mustFind(token)
-    if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
+    const history = await this.mustSeatHistory(token, userId)
     const workspace = this.workspace(history, userId)
     if (!workspace) throw new Response('this battle exceeds the offline history limit', { status: 409 })
     return { workspace, screen: this.seatedScreen(history, userId, rules) }
@@ -891,8 +889,7 @@ export class PraetoriumService {
   }
 
   async hasBattleOperation(token: string, userId: string, operationId: string) {
-    const history = await this.mustFind(token)
-    if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
+    const history = await this.mustSeatHistory(token, userId)
     return history.log.some((entry) => entry.operationId === operationId && entry.by === userId)
   }
 
@@ -919,8 +916,7 @@ export class PraetoriumService {
   }
 
   private async append(...[token, userId, expectedSeq, command, rules, sync]: SubmitArgs) {
-    const history = await this.mustFind(token)
-    if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
+    const history = await this.mustSeatHistory(token, userId)
     if (sync) command = restoreOpaqueBattleKeys(history.players, history.log, command)
     if (command.kind === 'lock-league-rosters') throw new Response('sealed roster locks are created by the server', { status: 403 })
     // The product database refuses a non-member too; asking first gives the refusal its code.
@@ -1087,6 +1083,12 @@ export class PraetoriumService {
     if (!seats) throw new Response('no such battle', { status: 404 })
     if (!this.seated(seats, userId)) throw new Response('you are not in this battle', { status: 403 })
     return seats
+  }
+
+  private async mustSeatHistory(token: string, userId: string) {
+    const history = await this.mustFind(token)
+    if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
+    return history
   }
 
   private async mustFind(token: string): Promise<BattleHistory> {
