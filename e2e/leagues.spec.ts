@@ -184,7 +184,7 @@ test('revealed rosters compare every unit using frozen loadouts and preserve lea
   // Once revealed, each list is a card that opens in full or sets the reader's own list against it.
   const card = owner.locator(`[data-army="${opponentName}"]`)
   await expect(card).toContainText('Comparison attackers')
-  await expect(viewList(card, opponentName)).toBeVisible()
+  await expect(viewRoster(card, opponentName)).toBeVisible()
   await expect(owner.locator(`[data-army="${ownerName}"]`).getByRole('button', { name: /^Simulate against/ })).toHaveCount(0)
   const plan = card.getByRole('button', { name: `Simulate against ${opponentName}`, exact: true })
   await plan.click()
@@ -574,16 +574,12 @@ async function revealEvent(owner: Page) {
   await expect(leagueHeader(owner)).toContainText('Rosters revealed')
 }
 
-/** A revealed list's card action; before the reveal, an ally's row offers the icon `viewRoster` finds. */
-function viewList(scope: Page | Locator, name: string) {
-  return scope.getByRole('link', { name: `View ${name}’s roster` })
-}
-
+/** The link to a player's roster, on a revealed list's card or an ally's row. */
 function viewRoster(scope: Page | Locator, name: string) {
   return scope.getByRole('link', { name: `View ${name}’s roster` })
 }
 
-/** A roster a league accepts: one Warlord, plus whatever else it is asked to field. */
+/** Joins the open event as a player, pressing again while hydration swallows the press. */
 async function join(page: Page) {
   await eventLoaded(page)
   const button = page.getByRole('button', { name: /^(?:Join tournament|Join as a player)$/ })
@@ -905,7 +901,7 @@ for (const { rules, status } of [
     const sealed = await operator.leagueRosters(leagueToken, saved.userId)
     expect(JSON.parse(sealed!.entry.rosterSnapshot!).built.catalogueId).toBe(saved.catalogueId)
     await revealEvent(page)
-    await viewList(page, ownerName).click()
+    await viewRoster(page, ownerName).click()
     await expect(page).toHaveURL(/\/rosters\/[^?]+\?league=/)
     if (status === 'current') await expect(page.locator('main header [data-rules-version]')).toHaveCount(0)
     await expect(page.locator(`[data-unit="${unit}"]`)).toBeVisible()
@@ -1053,7 +1049,7 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   await confirm.getByRole('button', { name: 'Unseal roster' }).click()
 
   await expect(entrantCard.getByText(/^No roster yet/)).toBeVisible()
-  await expect(viewList(owner, entrantName)).toHaveCount(0)
+  await expect(viewRoster(owner, entrantName)).toHaveCount(0)
 
   await entrant.reload()
   await expect(entrant.getByText('The organizer unsealed your roster.')).toBeVisible()
@@ -1064,10 +1060,10 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   await sealOwnRoster(entrant, 'Corrected list')
   await expect(entrant.getByRole('button', { name: 'Start 1 vs 1 battle' })).toBeVisible()
   // After the reveal an entrant reads their own sealed copy like anyone else's.
-  await expect(viewList(entrant, entrantName)).toBeVisible()
+  await expect(viewRoster(entrant, entrantName)).toBeVisible()
   await owner.reload()
   await expect(entrantCard).toContainText('Corrected list')
-  await viewList(owner, entrantName).click()
+  await viewRoster(owner, entrantName).click()
   await expect(owner.locator('[data-unit="Lokhust Destroyers"]')).toBeVisible()
   await ownerContext.close()
   await entrantContext.close()
@@ -1164,7 +1160,7 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   await expect(owner.getByRole('heading', { name: 'Your roster is sealed' })).toBeVisible()
   await revealEvent(owner)
 
-  await viewList(owner, ownerName).click()
+  await viewRoster(owner, ownerName).click()
   await expect(owner).toHaveURL(/\/rosters\//)
   const guestContext = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   const guest = await guestContext.newPage()
