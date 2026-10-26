@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { ReferenceDocument } from '../contracts/reference'
 import type { ReferenceCorpus } from './referenceCorpus'
@@ -111,6 +111,26 @@ it('keeps identical prose inside the requested faction', () => {
   expect(searchReference(isolated, { query: 'set up anywhere', faction: 'Chaos Space Marines' }).results[0]?.id).toBe(
     'datasheet:chaos:scouts',
   )
+})
+
+describe('a faction kept in several rules versions', () => {
+  const copy = (catalogueId: string, faction: string) => ({ ...documents[2]!, id: `datasheet:${catalogueId}:scouts`, faction })
+  const versioned = [copy('archive~marines', 'Marines · MFM 1.5 · Archived'), copy('mfm~marines', 'Marines · MFM 1.6')]
+  const versions = {
+    ...corpus,
+    catalogue: { ...catalogue, datasheets: versioned.map(({ faction }, at) => ({ catalogueId: `${at}`, faction })) },
+    documents: versioned,
+  } as unknown as ReferenceCorpus
+
+  it('filters by its plain name to its current rules', () => {
+    expect(searchReference(versions, { query: 'scouts', faction: 'Marines' }).results.map((result) => result.faction)).toEqual([
+      'Marines · MFM 1.6',
+    ])
+  })
+
+  it('ranks current rules ahead of an equally relevant archived copy', () => {
+    expect(searchReference(versions, { query: 'scouts' }).results[0]?.faction).toBe('Marines · MFM 1.6')
+  })
 })
 
 it('paginates ranked results without repeating them', () => {

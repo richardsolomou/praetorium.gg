@@ -105,6 +105,7 @@ it('rejects a detachment outside the requested faction', () => {
 it('plans a chapter with a detachment its codex holds', () => {
   const loaded = shelfOf(
     {
+      selectionEntries: [{ id: 'intercessors', name: 'Intercessors', type: 'unit' }],
       sharedSelectionEntries: [
         {
           id: 'wrapper',
@@ -136,6 +137,16 @@ it('plans a chapter with a detachment its codex holds', () => {
         leaders: [],
         supporters: [],
       },
+      ...['old~cat', 'current~cat'].map((catalogueId) => ({
+        id: 'intercessors',
+        slug: 'intercessors',
+        catalogueId,
+        faction: 'Codex',
+        referenceRoute: { catalogueId, slug: 'intercessors' },
+        attachments: [],
+        leaders: [],
+        supporters: [],
+      })),
     ],
     detachments: ['old~cat', 'current~cat'].map((catalogueId) => ({
       catalogueId,
@@ -150,9 +161,9 @@ it('plans a chapter with a detachment its codex holds', () => {
   } as unknown as CanonicalCatalogue
   const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot' }
 
-  expect(
-    referenceUnits(corpus, loaded, null, 'chapter', undefined, 'Gladius Task Force', new Set(['cat-1', 'current~cat']))?.detachment,
-  ).toMatchObject({ id: 'gladius', catalogueId: 'current~cat' })
+  const planned = referenceUnits(corpus, loaded, null, 'chapter', undefined, 'Gladius Task Force', new Set(['cat-1', 'current~cat']))
+  expect(planned?.detachment).toMatchObject({ id: 'gladius', catalogueId: 'current~cat' })
+  expect(planned?.units.find((unit) => unit.name === 'Intercessors')?.referenceId).toBe('datasheet:current~cat:intercessors')
 })
 
 it('connects a primary mission to its terrain and deployment records', () => {
@@ -275,6 +286,14 @@ it('resolves an ordinary faction name to current rules even when an archive is l
     detachments: [],
   } as unknown as CanonicalCatalogue
   expect(referenceFaction({ catalogue } as ReferenceCorpus, 'marines')?.id).toBe('current~book')
+})
+
+it.each(['Tau Empire', "T'au Empire"])('resolves %s to the faction however its apostrophe is typed', (name) => {
+  const catalogue = {
+    datasheets: [{ catalogueId: 'tau', faction: 'T’au Empire', referenceRoute: { catalogueId: 'tau-empire', slug: 'unit' } }],
+    detachments: [],
+  } as unknown as CanonicalCatalogue
+  expect(referenceFaction({ catalogue } as ReferenceCorpus, name)?.id).toBe('tau')
 })
 
 it('reads a datasheet record from an id its slug has since moved from', () => {

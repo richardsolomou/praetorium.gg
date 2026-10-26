@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import { decodeSimulatorState } from '../contracts/simulatorState'
-import { bookOf, categories } from './catalogue.fixtures'
+import { categories, shelfOf } from './catalogue.fixtures'
 import { combatUnitsFor } from './combatUnits'
 import type { ReferenceCorpus } from './referenceCorpus'
 
@@ -15,75 +15,79 @@ const sizes = (min: number, max: number) => [
   { id: 'min', type: 'min' as const, value: min, field: 'selections', scope: 'parent' },
   { id: 'max', type: 'max' as const, value: max, field: 'selections', scope: 'parent' },
 ]
-const loaded = bookOf({
-  selectionEntries: [
-    {
-      id: 'squad',
-      name: 'Squad',
-      type: 'unit',
-      selectionEntries: [
-        {
-          id: 'trooper',
-          name: 'Trooper',
-          type: 'model',
-          constraints: sizes(5, 10),
-          profiles: [
-            profile('trooper-stats', 'Trooper', 'Unit', { T: '4', Sv: '3+', W: '2' }),
-            profile('rifle', 'Rifle', 'Ranged Weapons', { A: '2', BS: '3+', S: '4', AP: '-1', D: '1' }),
-            profile('knife', 'Knife', 'Melee Weapons', { A: '1', WS: '3+', S: '4', AP: '0', D: '1' }),
-          ],
-        },
-      ],
-    },
-    {
-      id: 'leader',
-      name: 'Leader',
-      type: 'model',
-      categoryLinks: categories('Character'),
-      profiles: [
-        profile('leader-stats', 'Leader', 'Unit', { T: '4', Sv: '3+', W: '5' }),
-        profile('pistol', 'Pistol', 'Ranged Weapons', { A: '1', BS: '2+', S: '5', AP: '-1', D: '2' }),
-        profile('leader-rule', 'Leader', 'Abilities', { Description: 'This model can be attached to the following units:\n■ Squad' }),
-      ],
-    },
-    {
-      id: 'protector',
-      name: 'Protector',
-      type: 'model',
-      categoryLinks: categories('Character'),
-      profiles: [
-        profile('protector-stats', 'Protector', 'Unit', { T: '6', Sv: '4+', W: '6' }),
-        profile('cleaver', 'Cleaver', 'Melee Weapons', { A: '4', WS: '3+', S: '6', AP: '-1', D: '2' }),
-        profile('protector-rule', 'Loyal', 'Abilities', { Description: 'This model can be attached to the following unit:\n■ Leader' }),
-      ],
-    },
-    {
-      id: 'beast',
-      name: 'Beast',
-      type: 'model',
-      profiles: [
-        profile('beast-stats', 'Beast', 'Unit', { T: '8', Sv: '3+', W: '12' }),
-        profile('claws', 'Claws', 'Melee Weapons', { A: '6', WS: '3+', S: '8', AP: '-2', D: 'D6+2' }),
-      ],
-    },
-    {
-      id: 'wraith',
-      name: 'Wraith',
-      type: 'model',
-      profiles: [profile('wraith-stats', 'Wraith', 'Unit', { T: 'X', Sv: '4+', W: '3' })],
-    },
-    {
-      id: 'oddity',
-      name: 'Oddity',
-      type: 'model',
-      profiles: [
-        profile('oddity-stats', 'Oddity', 'Unit', { T: '4', Sv: '4+', W: '3' }),
-        profile('warp-gun', 'Warp gun', 'Ranged Weapons', { A: '1', BS: '3+', S: '4', AP: '0', D: '1', Keywords: 'Unheard Of' }),
-        profile('warp-blade', 'Warp blade', 'Melee Weapons', { A: '1', WS: '3+', S: '4', AP: '0', D: '1', Keywords: 'Unheard Of' }),
-      ],
-    },
-  ],
-})
+const loaded = shelfOf(
+  {
+    selectionEntries: [
+      {
+        id: 'squad',
+        name: 'Squad',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'trooper',
+            name: 'Trooper',
+            type: 'model',
+            constraints: sizes(5, 10),
+            profiles: [
+              profile('trooper-stats', 'Trooper', 'Unit', { T: '4', Sv: '3+', W: '2' }),
+              profile('rifle', 'Rifle', 'Ranged Weapons', { A: '2', BS: '3+', S: '4', AP: '-1', D: '1' }),
+              profile('knife', 'Knife', 'Melee Weapons', { A: '1', WS: '3+', S: '4', AP: '0', D: '1' }),
+            ],
+          },
+        ],
+      },
+      {
+        id: 'leader',
+        name: 'Leader',
+        type: 'model',
+        categoryLinks: categories('Character'),
+        profiles: [
+          profile('leader-stats', 'Leader', 'Unit', { T: '4', Sv: '3+', W: '5' }),
+          profile('pistol', 'Pistol', 'Ranged Weapons', { A: '1', BS: '2+', S: '5', AP: '-1', D: '2' }),
+          profile('leader-rule', 'Leader', 'Abilities', { Description: 'This model can be attached to the following units:\n■ Squad' }),
+        ],
+      },
+      {
+        id: 'protector',
+        name: 'Protector',
+        type: 'model',
+        categoryLinks: categories('Character'),
+        profiles: [
+          profile('protector-stats', 'Protector', 'Unit', { T: '6', Sv: '4+', W: '6' }),
+          profile('cleaver', 'Cleaver', 'Melee Weapons', { A: '4', WS: '3+', S: '6', AP: '-1', D: '2' }),
+          profile('protector-rule', 'Loyal', 'Abilities', { Description: 'This model can be attached to the following unit:\n■ Leader' }),
+        ],
+      },
+      {
+        id: 'beast',
+        name: 'Beast',
+        type: 'model',
+        profiles: [
+          profile('beast-stats', 'Beast', 'Unit', { T: '8', Sv: '3+', W: '12' }),
+          profile('claws', 'Claws', 'Melee Weapons', { A: '6', WS: '3+', S: '8', AP: '-2', D: 'D6+2' }),
+        ],
+      },
+      {
+        id: 'wraith',
+        name: 'Wraith',
+        type: 'model',
+        profiles: [profile('wraith-stats', 'Wraith', 'Unit', { T: 'X', Sv: '4+', W: '3' })],
+      },
+      {
+        id: 'oddity',
+        name: 'Oddity',
+        type: 'model',
+        profiles: [
+          profile('oddity-stats', 'Oddity', 'Unit', { T: '4', Sv: '4+', W: '3' }),
+          profile('warp-gun', 'Warp gun', 'Ranged Weapons', { A: '1', BS: '3+', S: '4', AP: '0', D: '1', Keywords: 'Unheard Of' }),
+          profile('warp-blade', 'Warp blade', 'Melee Weapons', { A: '1', WS: '3+', S: '4', AP: '0', D: '1', Keywords: 'Unheard Of' }),
+        ],
+      },
+    ],
+  },
+  // A chapter that fields its codex's units, as Ultramarines field Intercessors.
+  { name: 'Chapter', catalogueLinks: [{ targetId: 'cat', importRootEntries: true }] },
+)
 const canonical = (id: string, name: string) => ({
   id,
   slug: name.toLowerCase(),
@@ -115,6 +119,12 @@ const corpus: ReferenceCorpus = {
       canonical('beast', 'Beast'),
       canonical('oddity', 'Oddity'),
       canonical('wraith', 'Wraith'),
+      {
+        ...canonical('banner', 'Banner'),
+        catalogueId: 'cat-1',
+        faction: 'Chapter',
+        referenceRoute: { catalogueId: 'chapter', slug: 'banner' },
+      },
     ],
     detachments: [],
     ruleDocuments: [],
@@ -126,7 +136,10 @@ const corpus: ReferenceCorpus = {
 }
 
 const { reference } = vi.hoisted(() => ({ reference: { corpus: null as ReferenceCorpus | null } }))
-vi.mock('./referenceApi', () => ({ activeReferenceCorpus: async () => reference.corpus }))
+vi.mock('./referenceApi', () => ({
+  activeReferenceCorpus: async () => reference.corpus,
+  currentFactionIds: async () => new Set(['cat', 'cat-1']),
+}))
 vi.mock('./app', () => ({
   app: () => ({
     catalogueFor: async () => loaded,
@@ -209,17 +222,32 @@ it('links to the simulator page with the same matchup', async () => {
   })
 })
 
-it('refuses an unknown unit and faction, naming each', async () => {
-  const result = await simulateCombat({ attacker: { faction: 'test', unit: 'Ghost' }, defender: { faction: 'nowhere', unit: 'Beast' } })
+it('fields a codex unit for a chapter whose lists can take it, citing the codex datasheet', async () => {
+  const result = await simulateCombat({ attacker: { faction: 'Chapter', unit: 'Squad' }, defender: beast })
+  expect(result.structuredContent).toMatchObject({ attacker: { units: [{ name: 'Squad', referenceId: 'datasheet:test:squad' }] } })
+})
+
+it('refuses an unknown unit and faction as not found, suggesting similar units', async () => {
+  const result = await simulateCombat({ attacker: { faction: 'test', unit: 'Squads' }, defender: { faction: 'nowhere', unit: 'Beast' } })
   expect(result).toMatchObject({
     isError: true,
-    structuredContent: { refused: ['Test has no simulated unit named Ghost.', 'Faction not found: nowhere.'] },
+    _meta: { 'gg.praetorium/errorType': 'not_found' },
+    structuredContent: {
+      refused: [
+        'Test has no unit named Squads. Similar units: Squad. Use a unit name or id from list_units for this faction.',
+        'No faction is named nowhere; use a name or id from list_factions.',
+      ],
+    },
   })
 })
 
 it('refuses a unit size the datasheet cannot field', async () => {
   const result = await simulateCombat({ attacker: { ...squad, models: 12 }, defender: beast })
-  expect(result).toMatchObject({ isError: true, structuredContent: { refused: ['Squad cannot field 12 models.'] } })
+  expect(result).toMatchObject({
+    isError: true,
+    _meta: { 'gg.praetorium/errorType': 'refused' },
+    structuredContent: { refused: ['Squad cannot field 12 models; list_units gives its unit sizes.'] },
+  })
 })
 
 it('refuses an attachment the datasheets do not allow', async () => {

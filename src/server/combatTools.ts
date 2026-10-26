@@ -15,11 +15,13 @@ import { admitsHost, attachmentOf } from '../core/attach'
 import { combatUnitKeywords } from '../core/combatUnit'
 import type { RosterPick } from '../core/roster'
 import { encodeSimulatorState } from '../contracts/simulatorState'
-import { READ_ONLY_TOOL, structured, type AgentTools } from './agentTools'
+import { joinKey } from '../core/text'
+import type { ToolErrorType } from '../contracts/agentTools'
+import { READ_ONLY_TOOL, structured, toolError, type AgentTools } from './agentTools'
 import { app } from './app'
-import { activeReferenceCorpus } from './referenceApi'
+import { activeReferenceCorpus, currentFactionIds } from './referenceApi'
 import type { ReferenceCorpus } from './referenceCorpus'
-import { datasheetCitation, referenceFaction } from './referenceService'
+import { datasheetCitation, factionDatasheets, factionUnits, referenceFaction } from './referenceService'
 import type { LoadedCatalogue } from '../shared/catalogueIndex'
 import { rosterCombatant } from '../shared/rosterCombatRules'
 import { rosterDatasheetSelections } from '../shared/rosterDatasheetContext'
@@ -79,19 +81,20 @@ type SideInput = z.infer<typeof sideSchema>
 
 /** Why the named sides cannot be built; each reason names the faction, unit, size, or attachment at fault. */
 class CombatRefusal extends Error {
-  constructor(readonly reasons: string[]) {
+  constructor(
+    readonly reasons: string[],
+    readonly type: ToolErrorType = 'refused',
+  ) {
     super(reasons.join(' '))
   }
 }
 
-function refused(reasons: readonly string[]) {
+function refused(reasons: readonly string[], type: ToolErrorType) {
   const unique = [...new Set(reasons)]
-  return {
-    content: [{ type: 'text' as const, text: `The simulator cannot estimate this matchup: ${unique.join(' ')}` }],
-    structuredContent: { refused: unique },
-    isError: true as const,
-  }
+  return toolError(type, `The simulator cannot estimate this matchup: ${unique.join(' ')}`, { refused: unique })
 }
+
+const REFERENCE_UNAVAILABLE = 'Praetorium reference data is temporarily unavailable.'
 
 const round = (value: number) => Math.round(value * 10_000) / 10_000
 
@@ -111,26 +114,44 @@ function outcome(result: CombatResult) {
   }
 }
 
-/** The picks a side names, refusing a faction or unit the simulator does not offer. */
+/** The picks a side names, refusing a faction the simulator does not offer or a unit its lists cannot take. */
 async function sidePicks(corpus: ReferenceCorpus, side: SideInput) {
-  const shelves = await app().combatUnitsFor()
-  const canonical = new Map(corpus.catalogue.datasheets.map((sheet) => [`${sheet.catalogueId}:${sheet.id}`, sheet]))
-  const resolve = (factionName: string, unitName: string) => {
+  const instance = app()
+  const [shelves, current] = await Promise.all([instance.combatUnitsFor(), currentFactionIds()])
+  const resolve = async (factionName: string, unitName: string) => {
     const faction = referenceFaction(corpus, factionName)
-    const shelf = faction && shelves.find((candidate) => candidate.catalogueId === faction.id)
-    if (!faction || !shelf) throw new CombatRefusal([`Faction not found: ${factionName}.`])
+    if (!faction) throw new CombatRefusal([`No faction is named ${factionName}; use a name or id from list_factions.`], 'not_found')
+    if (!shelves.some((shelf) => shelf.catalogueId === faction.id))
+      throw new CombatRefusal([`The simulator does not offer ${faction.name}.`], 'not_found')
+    const [loaded, rules] = await Promise.all([instance.catalogueFor(faction.id), instance.rulesFor(faction.id)])
+    if (!loaded) throw new CombatRefusal([REFERENCE_UNAVAILABLE], 'unavailable')
+    // The same units list_units offers, so a chapter fields the codex units its lists can take.
+    const units = factionUnits(loaded, rules, faction)
+    const sheets = factionDatasheets(corpus, faction.id, current)
     const wanted = unitName.toLocaleLowerCase()
-    const unit = shelf.units.find((candidate) => {
-      const sheet = canonical.get(`${faction.id}:${candidate.id}`)
-      return [candidate.id, candidate.name, sheet?.slug, datasheetCitation(corpus, sheet).referenceId].some(
-        (value) => value?.toLocaleLowerCase() === wanted,
+    const key = joinKey(unitName)
+    const unit = units.find((candidate) => {
+      const sheet = sheets.get(candidate.id)
+      return (
+        [candidate.id, candidate.slug, sheet?.slug, datasheetCitation(corpus, sheet).referenceId].some(
+          (value) => value?.toLocaleLowerCase() === wanted,
+        ) || joinKey(candidate.name) === key
       )
     })
-    if (!unit) throw new CombatRefusal([`${faction.name} has no simulated unit named ${unitName}.`])
-    return { faction, unit, sheet: canonical.get(`${faction.id}:${unit.id}`) }
+    if (!unit) {
+      const stem = key.length > 4 ? key.replace(/s$/, '') : key
+      const similar = units.filter((candidate) => stem && joinKey(candidate.name).includes(stem)).map((candidate) => candidate.name)
+      throw new CombatRefusal(
+        [
+          `${faction.name} has no unit named ${unitName}.${similar.length ? ` Similar units: ${similar.slice(0, 5).join(', ')}.` : ''} Use a unit name or id from list_units for this faction.`,
+        ],
+        'not_found',
+      )
+    }
+    return { faction, unit, sheet: sheets.get(unit.id) }
   }
-  const host = resolve(side.faction, side.unit)
-  const found = (side.attached ?? []).map((member) => resolve(member.faction ?? side.faction, member.unit))
+  const host = await resolve(side.faction, side.unit)
+  const found = await Promise.all((side.attached ?? []).map((member) => resolve(member.faction ?? side.faction, member.unit)))
   const picks: RosterPick[] = [
     { entryId: host.unit.id, catalogueId: host.faction.id, ...(side.models ? { models: side.models } : {}) },
     ...found.map((member, index) => ({
@@ -163,7 +184,7 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
   const named = await sidePicks(corpus, side)
   const instance = app()
   const [loaded, rules] = await Promise.all([instance.catalogueFor(named.catalogueId), instance.rulesFor(named.catalogueId)])
-  if (!loaded) throw new CombatRefusal(['Praetorium reference data is temporarily unavailable.'])
+  if (!loaded) throw new CombatRefusal([REFERENCE_UNAVAILABLE], 'unavailable')
   const resolved = { ...named, picks: joinedPicks(loaded, named.catalogueId, named.picks) }
   const projection = rosterCombatant(loaded, rules, {
     catalogueId: resolved.catalogueId,
@@ -182,7 +203,7 @@ async function combatant(corpus: ReferenceCorpus, side: SideInput, role: Role) {
         name: member.selected.name,
       })),
     ].flatMap(({ requested, built, name: unit }) =>
-      requested !== undefined && requested !== built ? [`${unit} cannot field ${requested} models.`] : [],
+      requested !== undefined && requested !== built ? [`${unit} cannot field ${requested} models; list_units gives its unit sizes.`] : [],
     ),
   ]
   if (errors.length) throw new CombatRefusal(errors)
@@ -258,14 +279,18 @@ function ruleSummary(side: Combatant, opponent: Combatant) {
 
 export async function simulateCombat(input: SimulateCombatInput) {
   const corpus = await activeReferenceCorpus()
-  if (!corpus) return refused(['Praetorium reference data is temporarily unavailable.'])
+  if (!corpus) return refused([REFERENCE_UNAVAILABLE], 'unavailable')
   const sides = await Promise.allSettled([combatant(corpus, input.attacker, 'attacker'), combatant(corpus, input.defender, 'defender')])
-  const reasons = sides.flatMap((side) => {
+  const refusals = sides.flatMap((side) => {
     if (side.status === 'fulfilled') return []
-    if (side.reason instanceof CombatRefusal) return side.reason.reasons
+    if (side.reason instanceof CombatRefusal) return [side.reason]
     throw side.reason
   })
-  if (reasons.length) return refused(reasons)
+  if (refusals.length)
+    return refused(
+      refusals.flatMap((refusal) => refusal.reasons),
+      refusals[0]!.type,
+    )
   const [attacker, defender] = sides.map((side) => (side as PromiseFulfilledResult<Combatant>).value) as [Combatant, Combatant]
   const matchup = combatMatchup(attacker.snapshot, defender.snapshot, {
     preferences: input.weaponModes ?? {},

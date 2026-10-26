@@ -3,6 +3,7 @@ import type { ReferenceDocument } from '../contracts/reference'
 import { routeSlug } from '../core/slug'
 import { countBy, remember } from '../core/collections'
 import { catalogueEditionId } from '../core/catalogueEdition'
+import { joinKey } from '../core/text'
 import { datasheetPageBySlug } from '../core/datasheetSlug'
 import { unitsIn } from '../shared/cataloguePicker'
 import type { LoadedCatalogue } from './catalogueIndex'
@@ -68,17 +69,12 @@ export function referenceUnits(
 ) {
   const foundFaction = referenceFaction(corpus, faction)
   if (!foundFaction) return null
-  const book = loaded.factions.find((entry) => entry.id === foundFaction.id)
-  const displayName = book ? factionDisplayName(book.name, rules?.factionNames) : foundFaction.name
-  const restrictions = rules?.factionRestrictions.get(routeSlug(displayName))
-  const canonicalById = new Map(
-    corpus.catalogue.datasheets.filter((sheet) => sheet.catalogueId === foundFaction.id).map((sheet) => [sheet.id, sheet]),
-  )
+  const sheets = factionDatasheets(corpus, foundFaction.id, currentCatalogueIds)
   const selectedDetachment = detachment ? referenceDetachment(corpus, loaded, foundFaction.id, detachment, currentCatalogueIds) : null
   if (detachment && !selectedDetachment) return null
   const detachmentIds = selectedDetachment ? [selectedDetachment.id] : []
-  const units = unitsIn(loaded, foundFaction.id, '', { restrictions, battleSize, detachmentIds, nonMatchedPlay: true }).map((unit) =>
-    unitReference(corpus, unit, canonicalById.get(unit.id)),
+  const units = factionUnits(loaded, rules, foundFaction, { battleSize, detachmentIds }).map((unit) =>
+    unitReference(corpus, unit, sheets.get(unit.id)),
   )
   return {
     faction: foundFaction,
@@ -89,20 +85,58 @@ export function referenceUnits(
   }
 }
 
-/** A faction by the id, URL slug, or display name an agent read from the reference. */
+/** The units a faction's lists can take, as list_units offers them. */
+export function factionUnits(
+  loaded: LoadedCatalogue,
+  rules: LoadedRules | null,
+  faction: ReferenceFaction,
+  options: { battleSize?: number; detachmentIds?: readonly string[] } = {},
+) {
+  const book = loaded.factions.find((entry) => entry.id === faction.id)
+  const displayName = book ? factionDisplayName(book.name, rules?.factionNames) : faction.name
+  const restrictions = rules?.factionRestrictions.get(routeSlug(displayName))
+  return unitsIn(loaded, faction.id, '', { restrictions, ...options, nonMatchedPlay: true })
+}
+
+/** The names of the detachments a faction's lists can take, including any its codex holds. */
+export const factionDetachmentNames = (loaded: LoadedCatalogue, factionId: string) =>
+  (loaded.detachments.get(factionId)?.options ?? []).map((option) => option.name)
+
+/**
+ * The datasheet behind each unit a faction offers: its own, or else the one its codex holds at the
+ * same rules version, as a chapter fields Intercessors.
+ */
+export function factionDatasheets(corpus: ReferenceCorpus, factionId: string, currentCatalogueIds: ReadonlySet<string>) {
+  const sameVersion = sameRulesVersion(factionId, currentCatalogueIds)
+  const sheets = new Map<string, CanonicalDatasheet>()
+  for (const sheet of corpus.catalogue.datasheets)
+    if (sheet.catalogueId !== factionId && sameVersion(sheet.catalogueId)) sheets.set(sheet.id, sheet)
+  for (const sheet of corpus.catalogue.datasheets) if (sheet.catalogueId === factionId) sheets.set(sheet.id, sheet)
+  return sheets
+}
+
+/** Whether a catalogue holds the rules version a faction reads: its edition's, or for a current faction the current ones. */
+function sameRulesVersion(factionId: string, currentCatalogueIds: ReadonlySet<string>) {
+  const edition = catalogueEditionId(factionId)
+  return (catalogueId: string) => catalogueEditionId(catalogueId) === edition || (!edition && currentCatalogueIds.has(catalogueId))
+}
+
+/**
+ * A faction by the id, URL slug, or display name an agent read from the reference. A plain name
+ * takes current rules and ignores case, punctuation, and apostrophes, so "Tau Empire" finds T’au Empire.
+ */
 export function referenceFaction(corpus: ReferenceCorpus, faction: string) {
   const wanted = faction.trim().toLocaleLowerCase()
+  const key = joinKey(faction)
   const factions = referenceFactions(corpus)
   return (
     factions.find((candidate) => [candidate.id, candidate.slug, candidate.name].some((value) => value.toLocaleLowerCase() === wanted)) ??
-    factions.find((candidate) => {
-      const name = candidate.name.split(' · ')[0]!
-      return (
+    factions.find(
+      (candidate) =>
         !candidate.name.includes(' · Preview') &&
         !candidate.name.includes(' · Archived') &&
-        [name.toLocaleLowerCase(), routeSlug(name)].includes(wanted)
-      )
-    })
+        joinKey(candidate.name.split(' · ')[0]!) === key,
+    )
   )
 }
 
@@ -123,9 +157,7 @@ function referenceDetachment(
   const named = corpus.catalogue.detachments.filter((candidate) =>
     [candidate.id, candidate.slug, candidate.name].some((value) => value.toLocaleLowerCase() === wanted),
   )
-  const edition = catalogueEditionId(factionId)
-  const sameVersion = (catalogueId: string) =>
-    catalogueEditionId(catalogueId) === edition || (!edition && currentCatalogueIds.has(catalogueId))
+  const sameVersion = sameRulesVersion(factionId, currentCatalogueIds)
   return (
     named.find((candidate) => candidate.catalogueId === factionId) ??
     named.find((candidate) => offered.has(candidate.id) && sameVersion(candidate.catalogueId))

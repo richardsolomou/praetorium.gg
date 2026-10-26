@@ -4,7 +4,7 @@ import { publishedTextLocations } from './publishedTextFiles'
 import { absoluteAgentLinks, absoluteAgentText } from './agentLinks'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { CallToolResult, ToolAnnotations } from '@modelcontextprotocol/sdk/types.js'
-import type { AgentToolDescriptor } from '../contracts/agentTools'
+import { TOOL_ERROR_TYPE_META, type AgentToolDescriptor, type ToolErrorType } from '../contracts/agentTools'
 
 type ToolConfig<Shape extends z.ZodRawShape> = {
   title: string
@@ -46,7 +46,41 @@ function publishedText(text: string, locations: TextLocations) {
   }
 }
 
+/** A thrown Response is a refusal the HTTP routes answer with a status; MCP answers it as a tool error instead. */
+async function mcpResult(execute: () => Promise<CallToolResult>): Promise<CallToolResult> {
+  try {
+    return await execute()
+  } catch (error) {
+    if (error instanceof Response) return responseToolError(error)
+    throw error
+  }
+}
+
 export const READ_ONLY_TOOL: ToolAnnotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+
+export function toolError(type: ToolErrorType, text: string, structuredContent?: Record<string, unknown>) {
+  return {
+    content: [{ type: 'text' as const, text }],
+    ...(structuredContent ? { structuredContent } : {}),
+    isError: true as const,
+    _meta: { [TOOL_ERROR_TYPE_META]: type },
+  }
+}
+
+/** A refused HTTP-style answer as a tool error; server faults keep their detail out of the result. */
+export async function responseToolError(response: Response) {
+  const { status } = response
+  if (status >= 500) return toolError(status === 503 ? 'unavailable' : 'internal', 'Praetorium could not complete this request.')
+  const type: ToolErrorType =
+    status === 401 || status === 403
+      ? 'unauthorized'
+      : status === 404
+        ? 'not_found'
+        : status === 400 || status === 422
+          ? 'validation'
+          : 'refused'
+  return toolError(type, await response.text())
+}
 
 /** An answer whose JSON text mirrors its structured content, for clients that read only the text. */
 export function structured<T extends Record<string, unknown>>(result: T) {
@@ -83,7 +117,7 @@ export class AgentTools {
           // Directory scanners read the listing name from annotations.title, not the tool's own title.
           { ...config, annotations: { title: config.title, ...config.annotations }, inputSchema: schema },
           async (input) => {
-            const result = await published(await execute(await schema.parseAsync(input)))
+            const result = await published(await mcpResult(async () => execute(await schema.parseAsync(input))))
             return {
               ...result,
               content: result.content.map((item) =>
@@ -103,6 +137,11 @@ export class AgentTools {
       ...descriptor,
       account: Object.hasOwn(accountTools, descriptor.name),
     }))
+  }
+
+  /** Every registered name, so analytics can tell a real tool from a probe for one that does not exist. */
+  names(): ReadonlySet<string> {
+    return new Set(this.tools.keys())
   }
 
   registerMcp(server: McpServer, origin: string) {

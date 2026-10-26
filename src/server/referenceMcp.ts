@@ -134,6 +134,6 @@ function referenceMcpServer(userId: string | null, origin: string) {
   }
   server.registerPrompt(rulesQuestionPrompt.name, rulesQuestionPrompt, async (input) => promptMessages(rulesQuestionText(input)))
   server.registerPrompt(missionMatchupPrompt.name, missionMatchupPrompt, async (input) => promptMessages(missionMatchupText(input)))
-  instrumentReferenceMcp(server)
+  instrumentReferenceMcp(server, tools.names())
   return server
 }
