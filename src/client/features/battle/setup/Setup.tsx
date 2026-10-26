@@ -384,7 +384,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                     <span className="text-dim"> · {manual ? 'Manual tracking' : chosenPack?.name}</span>
                   </>
                 }
-                action="Change"
                 actionLabel={manual ? 'Change battle size and tracking' : 'Change battle size and mission pack'}
                 onAction={() => toggle('armies')}
               />
@@ -455,7 +454,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                         <span className="font-bold uppercase">{twist?.name ?? 'No twist'}</span>
                       </>
                     }
-                    action="Change"
                     actionLabel="Change the mission twist"
                     onAction={() => toggle('mission')}
                   />
@@ -673,22 +671,12 @@ function SetupSection({
 }
 
 /** A section's settled answer on one line, with the control that opens it. */
-function FoldedLine({
-  summary,
-  action,
-  actionLabel,
-  onAction,
-}: {
-  summary: ReactNode
-  action: string
-  actionLabel: string
-  onAction: () => void
-}) {
+function FoldedLine({ summary, actionLabel, onAction }: { summary: ReactNode; actionLabel: string; onAction: () => void }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-sm border border-edge bg-panel px-3 py-2">
       <p className="min-w-0 text-sm">{summary}</p>
       <Button variant="outline" size="sm" className="shrink-0" aria-label={actionLabel} onClick={onAction}>
-        {action}
+        Change
       </Button>
     </div>
   )

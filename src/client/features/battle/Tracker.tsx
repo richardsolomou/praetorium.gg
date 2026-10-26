@@ -18,7 +18,7 @@ import {
   missionActionReminders,
   missionActionRemindersEnabled as storedMissionActionRemindersEnabled,
 } from '../../missionActionReminders'
-import { appliesInMode } from '../../missionText'
+import { appliesInMode, type MissionAward } from '../../missionText'
 import { automaticAttemptsExhausted, claimAutomaticAttempt } from './automaticAttempts'
 import type { SendCommand } from './useCommand'
 import {
@@ -47,7 +47,7 @@ import { DrawDialog, type DrawSelection } from './DrawDialog'
 import { MissionSelectionDialog } from './MissionSelectionDialog'
 import { isManualSelection } from '../../../core/missionSelections'
 import { DiscardSecondaryDialog } from './DiscardSecondaryDialog'
-import type { Award, ReferenceCard, StratagemText } from './MissionCards'
+import type { ReferenceCard, StratagemText } from './MissionCards'
 import { Scoreboard } from './Scoreboard'
 import { SecretMissionHandoff } from './SecretMissionHandoff'
 import { turnPrompt, type DueCard } from '../../scoring'
@@ -266,7 +266,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const secondaryDeck = useMemo(() => secondaryCards(references), [references])
   const cardsByKey = useMemo(() => missionCardsByKey(references), [references])
   const awardsFor = useCallback(
-    (key: string, mode?: string): Award[] => (cardsByKey.get(key)?.awards ?? []).filter((award) => appliesInMode(award, mode)),
+    (key: string, mode?: string): MissionAward[] => (cardsByKey.get(key)?.awards ?? []).filter((award) => appliesInMode(award, mode)),
     [cardsByKey],
   )
   const referenceFor = useCallback((key: string): ReferenceCard | undefined => cardsByKey.get(key), [cardsByKey])

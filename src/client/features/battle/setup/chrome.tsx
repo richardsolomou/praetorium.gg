@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
-import type { OnboardingTarget } from '../../../onboardingTargets'
 import type { ReactNode } from 'react'
 import { gameReferencesQuery } from '../../../queries'
 import { sideName, type Side } from '../../../sides'
@@ -18,20 +17,8 @@ import { capitalised } from '../../../../core/text'
  */
 
 /** The surface a step's content sits on. One radius, one border, one padding. */
-export function SetupPanel({
-  children,
-  className = '',
-  onboarding,
-}: {
-  children: ReactNode
-  className?: string
-  onboarding?: OnboardingTarget
-}) {
-  return (
-    <div data-onboarding={onboarding} className={cn('rounded-sm border border-edge bg-panel p-4', className)}>
-      {children}
-    </div>
-  )
+export function SetupPanel({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <div className={cn('rounded-sm border border-edge bg-panel p-4', className)}>{children}</div>
 }
 
 /** Something the step says in passing: what a rule implies, or who may do this. */

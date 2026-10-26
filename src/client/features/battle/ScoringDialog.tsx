@@ -221,119 +221,115 @@ export function ScoringDialog({
   const colours = tint(side.index)
 
   return (
-    <>
-      <BattlePromptDialog open minimizedLabel={`Scoring · ${sideName(side)}`} onOpenChange={(open) => !open && onCancel?.()}>
-        <BattleDialogContent minimizeDisabled={pending} size="md" className={colours.border}>
-          <DialogHeader>
-            <DialogTitle className={colours.text}>
-              Scoring {moment} points · {sideName(side)}
-            </DialogTitle>
-          </DialogHeader>
+    <BattlePromptDialog open minimizedLabel={`Scoring · ${sideName(side)}`} onOpenChange={(open) => !open && onCancel?.()}>
+      <BattleDialogContent minimizeDisabled={pending} size="md" className={colours.border}>
+        <DialogHeader>
+          <DialogTitle className={colours.text}>
+            Scoring {moment} points · {sideName(side)}
+          </DialogTitle>
+        </DialogHeader>
 
-          <DialogBody className="gap-3">
-            <DialogDescription>Press what the board actually paid on each card.</DialogDescription>
-            {finalAwardsDue ? (
-              <p className="text-sm text-dim">
-                Final awards: {finalScoring} VP. Round limits do not apply; the battle limit still applies.
-              </p>
-            ) : null}
-            {finalClaimed > finalScoring && room.primary?.scope === 'round' ? (
-              <p className="text-sm text-dim">
-                The battle cap leaves {finalScoring} VP for final awards; the other {finalClaimed - finalScoring} VP does not score.
-              </p>
-            ) : null}
-            {allowances.length ? (
-              <p className="readout flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-dim">
-                {allowances.map((allowance) => (
-                  <span key={allowance.label}>
-                    {allowance.label} <span className="text-bone">{allowance.standing}</span>/{allowance.cap} {allowance.when}
-                  </span>
-                ))}
-              </p>
-            ) : null}
-            {capNotes.map((note) => (
-              <p key={note} className="text-3xs text-discarded">
-                {note}
-              </p>
-            ))}
-            {due.map((card) => {
-              const taken = answerFor(card)
-              const { claimed, scoring } = settledFor(card)
-              const reference = referenceFor(card.key)
-              return (
-                <section key={card.key} data-due={card.key} className="border border-edge">
-                  <div className="bg-sunken px-3 py-2">
-                    <div className="flex items-baseline justify-between gap-2">
-                      <MissionName
-                        name={card.name}
-                        card={reference}
-                        type={card.category === 'primary' ? 'Primary mission' : 'Secondary mission'}
-                        mode={card.category === 'secondary' ? side.secondaryMode : undefined}
-                        className={colours.text}
-                      />
-                      {/* Which card the ceiling actually took from, so unpicking a payout
-                        elsewhere is a move the player can see is theirs to make. */}
-                      <span className="readout shrink-0 text-xs text-dim">
-                        {claimed > scoring
-                          ? `+${scoring} of ${claimed} VP`
-                          : claimed
-                            ? `+${scoring} VP`
-                            : `${scoredThisRound(roundSoFar, card.category)} VP so far`}
-                      </span>
-                    </div>
-                    <MissionSelectionRecords records={side.captain.missionSelections ?? []} cardKey={card.key} />
+        <DialogBody className="gap-3">
+          <DialogDescription>Press what the board actually paid on each card.</DialogDescription>
+          {finalAwardsDue ? (
+            <p className="text-sm text-dim">Final awards: {finalScoring} VP. Round limits do not apply; the battle limit still applies.</p>
+          ) : null}
+          {finalClaimed > finalScoring && room.primary?.scope === 'round' ? (
+            <p className="text-sm text-dim">
+              The battle cap leaves {finalScoring} VP for final awards; the other {finalClaimed - finalScoring} VP does not score.
+            </p>
+          ) : null}
+          {allowances.length ? (
+            <p className="readout flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-dim">
+              {allowances.map((allowance) => (
+                <span key={allowance.label}>
+                  {allowance.label} <span className="text-bone">{allowance.standing}</span>/{allowance.cap} {allowance.when}
+                </span>
+              ))}
+            </p>
+          ) : null}
+          {capNotes.map((note) => (
+            <p key={note} className="text-3xs text-discarded">
+              {note}
+            </p>
+          ))}
+          {due.map((card) => {
+            const taken = answerFor(card)
+            const { claimed, scoring } = settledFor(card)
+            const reference = referenceFor(card.key)
+            return (
+              <section key={card.key} data-due={card.key} className="border border-edge">
+                <div className="bg-sunken px-3 py-2">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <MissionName
+                      name={card.name}
+                      card={reference}
+                      type={card.category === 'primary' ? 'Primary mission' : 'Secondary mission'}
+                      mode={card.category === 'secondary' ? side.secondaryMode : undefined}
+                      className={colours.text}
+                    />
+                    {/* Which card the ceiling actually took from, so unpicking a payout
+                      elsewhere is a move the player can see is theirs to make. */}
+                    <span className="readout shrink-0 text-xs text-dim">
+                      {claimed > scoring
+                        ? `+${scoring} of ${claimed} VP`
+                        : claimed
+                          ? `+${scoring} VP`
+                          : `${scoredThisRound(roundSoFar, card.category)} VP so far`}
+                    </span>
                   </div>
-                  <div className="divide-y divide-edge">
-                    {card.awards.map((award, at) => (
-                      <AwardRow
-                        key={`${award.vp}-${award.criteria ?? at}`}
-                        card={card}
-                        award={award}
-                        join={payoutJoin(award, card.awards[at - 1])}
-                        times={taken[at] ?? 0}
-                        pending={pending}
-                        tone={colours}
-                        onAnswer={(times) => answer(card, at, times)}
-                      />
-                    ))}
-                    <div className="flex items-center gap-3 px-3 py-2">
-                      <span className="min-w-0 flex-1 text-sm text-dim">Did not score (or chose not to)</span>
-                      <Chip
-                        label="0 VP"
-                        chosen={taken.every((times) => times === 0)}
-                        pending={pending}
-                        tone={colours}
-                        ariaLabel={`${card.name} scored nothing`}
-                        onPress={() => recordAnswers({ ...answers, [card.key]: card.awards.map(() => 0) })}
-                      />
-                    </div>
+                  <MissionSelectionRecords records={side.captain.missionSelections ?? []} cardKey={card.key} />
+                </div>
+                <div className="divide-y divide-edge">
+                  {card.awards.map((award, at) => (
+                    <AwardRow
+                      key={`${award.vp}-${award.criteria ?? at}`}
+                      card={card}
+                      award={award}
+                      join={payoutJoin(award, card.awards[at - 1])}
+                      times={taken[at] ?? 0}
+                      pending={pending}
+                      tone={colours}
+                      onAnswer={(times) => answer(card, at, times)}
+                    />
+                  ))}
+                  <div className="flex items-center gap-3 px-3 py-2">
+                    <span className="min-w-0 flex-1 text-sm text-dim">Did not score (or chose not to)</span>
+                    <Chip
+                      label="0 VP"
+                      chosen={taken.every((times) => times === 0)}
+                      pending={pending}
+                      tone={colours}
+                      ariaLabel={`${card.name} scored nothing`}
+                      onPress={() => recordAnswers({ ...answers, [card.key]: card.awards.map(() => 0) })}
+                    />
                   </div>
-                </section>
-              )
-            })}
-          </DialogBody>
+                </div>
+              </section>
+            )
+          })}
+        </DialogBody>
 
-          <DialogFooter className="flex-col items-stretch sm:flex-row sm:items-center">
-            <div className="flex items-center justify-between gap-3 sm:flex-1">
-              <output className="readout text-sm text-dim">
-                Scoring <span className="font-bold text-bone">{total}</span> VP
-              </output>
-              <UndoLatest compact undo={undo} send={send} pending={pending} />
-            </div>
-            <div className="flex gap-2">
-              {onCancel ? (
-                <Button className="flex-1 sm:flex-none" variant="outline" disabled={pending} onClick={onCancel}>
-                  Back
-                </Button>
-              ) : null}
-              <Button className={`flex-1 sm:flex-none ${colours.fill}`} disabled={pending} onClick={confirm}>
-                {confirmLabel}
+        <DialogFooter className="flex-col items-stretch sm:flex-row sm:items-center">
+          <div className="flex items-center justify-between gap-3 sm:flex-1">
+            <output className="readout text-sm text-dim">
+              Scoring <span className="font-bold text-bone">{total}</span> VP
+            </output>
+            <UndoLatest compact undo={undo} send={send} pending={pending} />
+          </div>
+          <div className="flex gap-2">
+            {onCancel ? (
+              <Button className="flex-1 sm:flex-none" variant="outline" disabled={pending} onClick={onCancel}>
+                Back
               </Button>
-            </div>
-          </DialogFooter>
-        </BattleDialogContent>
-      </BattlePromptDialog>
-    </>
+            ) : null}
+            <Button className={`flex-1 sm:flex-none ${colours.fill}`} disabled={pending} onClick={confirm}>
+              {confirmLabel}
+            </Button>
+          </div>
+        </DialogFooter>
+      </BattleDialogContent>
+    </BattlePromptDialog>
   )
 }
 
@@ -412,7 +408,6 @@ function Chip({
   label,
   chosen,
   pending,
-  disabled,
   ariaLabel,
   tone,
   onPress,
@@ -420,7 +415,6 @@ function Chip({
   label: string
   chosen: boolean
   pending: boolean
-  disabled?: boolean
   ariaLabel: string
   tone: Tone
   onPress: () => void
@@ -430,7 +424,7 @@ function Chip({
       type="button"
       aria-pressed={chosen}
       aria-label={ariaLabel}
-      disabled={pending || disabled}
+      disabled={pending}
       onClick={onPress}
       className={`chip shrink-0 px-2 py-1 ${chosen ? tone.mark : `border-edge-strong ${tone.hint}`}`}
     >

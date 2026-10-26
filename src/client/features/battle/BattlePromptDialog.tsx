@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '../../components/Dialog'
 import { useCompactChrome } from '../shell/useCompactChrome'
 
-type Props = ComponentProps<typeof Dialog> & {
+type Props = Omit<ComponentProps<typeof Dialog>, 'defaultOpen'> & {
   minimizedLabel?: string
   resumeLabel?: string
 }
@@ -17,14 +17,13 @@ export function BattlePromptDialog({
   modal,
   disablePointerDismissal,
   open,
-  defaultOpen,
   onOpenChange,
   minimizedLabel,
   resumeLabel = 'Return to prompt',
   ...props
 }: Props) {
   const applicationNavigation = useCompactChrome()
-  const [internalOpen, setInternalOpen] = useState(defaultOpen ?? false)
+  const [internalOpen, setInternalOpen] = useState(false)
   const [inspecting, setInspecting] = useState(false)
   const [stackIndex, setStackIndex] = useState(0)
   const register = useContext(BattleMinimizeContext)

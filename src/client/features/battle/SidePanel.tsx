@@ -8,7 +8,8 @@ import { PlayerName } from './PlayerName'
 import { ArmyIdentity } from './ArmyIdentity'
 import type { BattleCombatSelection } from '../simulator/BattleCombatDialog'
 import { ArmyRoster } from './ArmyRoster'
-import { type Award, PrimaryMission, type ReferenceCard, SecondaryMissions, type StratagemText } from './MissionCards'
+import type { MissionAward } from '../../missionText'
+import { PrimaryMission, type ReferenceCard, SecondaryMissions, type StratagemText } from './MissionCards'
 import { Stratagems } from './Stratagems'
 import { tint } from './battleTints'
 import { ManualScore } from './ManualScore'
@@ -22,7 +23,7 @@ type Props = {
   /** A parked prompt, which holds controls that otherwise stay usable while a write is in flight. */
   blocked: boolean
   send: SendCommand
-  awardsFor: (key: string, mode?: string) => Award[]
+  awardsFor: (key: string, mode?: string) => MissionAward[]
   referenceFor: (key: string) => ReferenceCard | undefined
   writtenFor: (side: Side, key: string) => StratagemText | undefined
   /** The ceilings this mission actually plays to, which the pack can lower. */
