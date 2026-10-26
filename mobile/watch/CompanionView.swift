@@ -154,8 +154,7 @@ private struct ObjectivesView: View {
               }
               Text(objective.name).font(.system(size: 15, weight: .semibold)).fixedSize(
                 horizontal: false, vertical: true)
-            }.frame(maxWidth: .infinity, alignment: .leading).padding(10)
-              .background(panel, in: RoundedRectangle(cornerRadius: 14))
+            }.card()
           }.buttonStyle(.plain)
         }
         TimelineView(.periodic(from: .now, by: 5)) { timeline in
@@ -207,8 +206,7 @@ private struct RemindersView: View {
               Text(reminder.moment).font(.system(size: 10, weight: .medium)).foregroundStyle(accent)
               Text(reminder.title).font(.system(size: 15, weight: .semibold))
               if let unit = reminder.unit { Text(unit).font(.caption2).foregroundStyle(.secondary) }
-            }.frame(maxWidth: .infinity, alignment: .leading).padding(10)
-              .background(panel, in: RoundedRectangle(cornerRadius: 14))
+            }.card()
           }.buttonStyle(.plain)
         }
         if let battle = store.battle {
@@ -241,6 +239,13 @@ private struct SyncStatus: View {
     .font(.system(size: 10)).foregroundStyle(battle.isFresh(at: now) ? Color.secondary : .orange)
     .multilineTextAlignment(.center).frame(maxWidth: .infinity)
     .accessibilityLabel("Last synced \(Int(battle.age(at: now))) seconds ago")
+  }
+}
+
+extension View {
+  fileprivate func card() -> some View {
+    frame(maxWidth: .infinity, alignment: .leading).padding(10)
+      .background(panel, in: RoundedRectangle(cornerRadius: 14))
   }
 }
 
