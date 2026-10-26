@@ -16,7 +16,7 @@ export type MissionSelectionKind = (typeof MISSION_SELECTION_KINDS)[number]
 export const isManualSelection = (kind: MissionSelectionKind) => kind === 'beacon' || kind === 'sensor-sweep'
 export type MissionUnitRef = { playerId: string; unitKey: string; rosterSeq: number }
 export type MissionObjectiveRef = { key: string; name: string }
-export type MissionMarkerRef = { playerId: string; key: string; name: string }
+type MissionMarkerRef = { playerId: string; key: string; name: string }
 export type MissionSelection =
   | { kind: 'punishment'; units: MissionUnitRef[]; fallback: boolean; qualified: boolean; unavailable?: true }
   | { kind: 'guards'; guards: { objective: MissionObjectiveRef; unit: MissionUnitRef }[] }

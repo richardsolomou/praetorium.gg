@@ -1287,7 +1287,7 @@ export function reduceBattle(
 }
 
 /** One command as it actually happened, and what the fold knew either side of it. */
-export type BattleStep = {
+type BattleStep = {
   entry: LoggedCommand
   before: { round: number; phase: Phase; active: PlayerId | null }
   /** The army the command changed, which is not always the one that sent it. */
@@ -2912,7 +2912,7 @@ const pointsSpent = (built: Pick<TableBuilt, 'units'>) => built.units?.reduce((t
 export const withinArmyPoints = (built: Pick<TableBuilt, 'units' | 'waivedRules'>, points: number) =>
   !enforces(built.waivedRules, 'points-limit') || pointsSpent(built) <= points
 
-export type TeamArmyProblem = { code: 'over-army-points' | 'allies-mismatch'; side: number; message: string }
+type TeamArmyProblem = { code: 'over-army-points' | 'allies-mismatch'; side: number; message: string }
 
 /**
  * What stops a team battle's armies from playing, side by side.
