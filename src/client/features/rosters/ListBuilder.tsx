@@ -148,6 +148,7 @@ import { withMember } from '../../../core/collections'
 import { usePrintWhenReady } from './usePrintWhenReady'
 import { hasWarlordToggle } from '../../../core/unitChoices'
 import { factionDisposition } from '../../components/rosterSetup'
+import { PointsChip } from './builder/PointsChip'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
@@ -1780,7 +1781,7 @@ export function ListBuilder({
                         <Crown className="size-3.5 fill-current" /> Warlord
                       </span>
                     ) : null}
-                    <span className="chip w-[4.5rem] justify-center text-info">{optimisticUnit.points} pts</span>
+                    <PointsChip points={optimisticUnit.points} />
                     {optimisticUnit.size.resizable && inspectorView === 'edit' ? (
                       <Stepper
                         label={`models in ${optimisticUnit.name}`}
@@ -1813,7 +1814,7 @@ export function ListBuilder({
                 ) : frozenSelected ? (
                   // The list as fought, before the price behind it has said anything.
                   <span className="flex shrink-0 flex-wrap items-center justify-start gap-1.5 @max-[30rem]:gap-1">
-                    <span className="chip w-[4.5rem] justify-center text-info">{frozenSelected.points} pts</span>
+                    <PointsChip points={frozenSelected.points} />
                     <span className="chip normal-case">{countLabel(frozenSelected.models, 'model')}</span>
                   </span>
                 ) : null}

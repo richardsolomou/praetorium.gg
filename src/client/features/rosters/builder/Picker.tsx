@@ -38,6 +38,7 @@ import { LoadoutNameDialog } from './LoadoutNameDialog'
 import { LoadoutRow } from './LoadoutRow'
 import { isAttachedUnit, loadoutNoun, type PickerLoadout, pickerRows, shownKind } from './pickerRows'
 import { useUnitLoadouts } from './useUnitLoadouts'
+import { PointsChip } from './PointsChip'
 
 type Props = {
   enabled: boolean
@@ -411,7 +412,7 @@ function PickerSkeleton() {
             <Skeleton className="h-3 w-1/3" />
           </div>
           <Skeleton className="size-6 shrink-0" />
-          <Skeleton className="h-5 w-[4.5rem] shrink-0" />
+          <PointsChip />
           <Skeleton className="h-7 w-14 shrink-0" />
         </div>
       ))}
@@ -483,7 +484,7 @@ const PickerRow = memo(function PickerRow({
             <Heart className={`size-3.5 ${favourite ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
           </Toggle>
         ) : null}
-        {unit.points === null ? null : <span className="chip w-[4.5rem] shrink-0 justify-center text-info">{unit.points} pts</span>}
+        <PointsChip points={unit.points} />
         <Button
           data-onboarding="picker-add"
           size="sm"

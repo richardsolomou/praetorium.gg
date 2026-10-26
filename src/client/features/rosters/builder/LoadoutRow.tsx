@@ -1,10 +1,10 @@
 import { Bookmark, EllipsisVertical, Pencil, Plus, Trash2, Users } from 'lucide-react'
 import { memo } from 'react'
 import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { RosterPick } from '../../../../core/roster'
 import { loadoutNoun, type PickerLoadout } from './pickerRows'
+import { PointsChip } from './PointsChip'
 
 type Props = {
   loadout: PickerLoadout
@@ -84,11 +84,7 @@ export const LoadoutRow = memo(function LoadoutRow({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        {loadout.points === undefined ? (
-          <Skeleton className="h-5 w-[4.5rem] shrink-0" />
-        ) : loadout.points === null ? null : (
-          <span className="chip w-[4.5rem] shrink-0 justify-center text-info">{loadout.points} pts</span>
-        )}
+        <PointsChip points={loadout.points} />
         <Button
           size="sm"
           className="shrink-0 px-2"

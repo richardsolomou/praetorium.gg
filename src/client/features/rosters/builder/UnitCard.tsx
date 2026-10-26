@@ -18,6 +18,7 @@ import { FactionLabel, type FactionPresentation } from '../../../components/Fact
 import { countLabel } from '../../../text'
 import { asSentence } from '../../../text'
 import type { EmbarkChoice } from './embarkModel'
+import { PointsChip } from './PointsChip'
 
 type BuiltUnit = {
   entryId: string
@@ -341,9 +342,7 @@ export function AttachMenu({
                   </span>
                 ) : null}
               </span>
-              {choice.points === null ? null : (
-                <span className="chip w-[4.5rem] shrink-0 justify-center text-info">{choice.points} pts</span>
-              )}
+              <PointsChip points={choice.points} />
             </DropdownMenuItem>
           ))}
         </DropdownMenuGroup>
