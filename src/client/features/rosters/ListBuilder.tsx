@@ -97,7 +97,17 @@ import { cardEmbark, editedPicks, embarkCards, embarkRows, NO_EMBARK, putBacks }
 import { UnitPhoto } from './builder/UnitPhoto'
 import { useDetachmentRules } from './builder/useDetachmentRules'
 import { samePriceContext, survivingUnits } from './builder/pricePlaceholder'
-import { type AttachLink, canAddCopy, settledWarlord, unitLimitMessage, pickEditor, requestedUnit, usePicks } from './builder/usePicks'
+import {
+  type AttachLink,
+  batchFits,
+  canAddCopy,
+  heldWith,
+  settledWarlord,
+  unitLimitMessage,
+  pickEditor,
+  requestedUnit,
+  usePicks,
+} from './builder/usePicks'
 import { RosterSetupDialog, type RosterSetup, type RosterSetupFaction } from './RosterSetupDialog'
 import { RosterExportDialog, type RosterTextExport } from './RosterExportDialog'
 import { RosterExchangeDialog, type RosterExchangeCode } from './RosterExchangeDialog'
@@ -686,14 +696,7 @@ export function ListBuilder({
     setQueuedAdds((current) => {
       const queuedPicks = current.flatMap((entry) => entry.loadout ?? [entry])
       const adding = extra.loadout ?? [{ entryId }]
-      const fits = adding.every((pick, at) =>
-        canAddCopy(
-          pick.entryId,
-          (held[pick.entryId] ?? 0) + [...queuedPicks, ...adding.slice(0, at)].filter((queued) => queued.entryId === pick.entryId).length,
-          unitLimits,
-        ),
-      )
-      if (picks.length + queuedPicks.length + adding.length > 100 || !fits) return current
+      if (picks.length + queuedPicks.length + adding.length > 100 || !batchFits(adding, held, unitLimits, queuedPicks)) return current
       return [...current, { entryId, context: priceRequest.queryKey, ...extra }]
     })
   }
@@ -714,13 +717,7 @@ export function ListBuilder({
     if (!samePriceContext(next.context, priceRequest.queryKey)) return
     const wanted = next.loadout ?? [{ entryId: next.entryId }]
     const outcome = wanted
-      .map((pick, at) =>
-        requestedUnit(
-          pick.entryId,
-          (held[pick.entryId] ?? 0) + wanted.slice(0, at).filter((earlier) => earlier.entryId === pick.entryId).length,
-          unitLimits,
-        ),
-      )
+      .map((pick, at) => requestedUnit(pick.entryId, heldWith(held, wanted, at), unitLimits))
       .find((answer) => answer.kind === 'refused')
     if (outcome?.kind === 'refused') {
       setRequestRefusal(outcome.message)

@@ -29,7 +29,7 @@ import { usableDatasheets } from '../../../../core/collection'
 import { shortName } from './factions'
 import { GROUPS } from '../../../unitGroups'
 import { Section } from './Section'
-import { canAddCopy, requestedUnit, unitLimitMessage } from './usePicks'
+import { batchFits, canAddCopy, requestedUnit, unitLimitMessage } from './usePicks'
 import { Problem } from '../../../components/Problem'
 import { ConfirmDialog } from '../../../components/ConfirmDialog'
 import { loadoutPicks } from '../../../../core/rosterCopies'
@@ -124,14 +124,7 @@ export const Picker = memo(function Picker({
     () => new Map((unitsResult.data ?? []).flatMap((unit) => (unit.nonMatchedPlay ? [[unit.id, unit.nonMatchedPlay] as const] : []))),
     [unitsResult.data],
   )
-  const fits = (picks: readonly RosterPick[]) =>
-    picks.every((pick, at) =>
-      canAddCopy(
-        pick.entryId,
-        (inRoster[pick.entryId] ?? 0) + picks.slice(0, at).filter((earlier) => earlier.entryId === pick.entryId).length,
-        limits,
-      ),
-    )
+  const fits = (picks: readonly RosterPick[]) => batchFits(picks, inRoster, limits)
   const applicable = useMemo(
     () =>
       (savedLoadouts.data ?? []).flatMap((loadout) => {
