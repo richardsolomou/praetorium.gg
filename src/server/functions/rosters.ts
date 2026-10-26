@@ -597,7 +597,7 @@ export const saveUnitLoadout = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.rosterService.saveUnitLoadout(userId, data)
-      await app().telemetry.capture(userId, 'unit_loadout_saved', {})
+      await app().telemetry.capture(userId, 'unit_loadout_saved')
       return null
     }),
   )
@@ -608,7 +608,7 @@ export const deleteUnitLoadout = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.rosterService.deleteUnitLoadout(userId, data.id)
-      await app().telemetry.capture(userId, 'unit_loadout_deleted', {})
+      await app().telemetry.capture(userId, 'unit_loadout_deleted')
       return null
     }),
   )
@@ -619,7 +619,7 @@ export const renameUnitLoadout = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.rosterService.renameUnitLoadout(userId, data.id, data.name)
-      await app().telemetry.capture(userId, 'unit_loadout_renamed', {})
+      await app().telemetry.capture(userId, 'unit_loadout_renamed')
       return null
     }),
   )
