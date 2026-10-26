@@ -2,46 +2,49 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useSyncExternalStore } from 'react'
 import { transformed } from '../shared/datacards'
 import {
-  TEXT_HASH_LENGTH,
   type TextSource,
   type TextSourceFile,
   type TextToken,
   hasTextTokens,
   resolvedText,
-  sourceStrings,
   textTokensIn,
   withoutText,
 } from '../shared/sourceText'
 import { textSources } from './functions'
 import { referenceQuery } from './queries/shared'
-import { type TextSourceChoice, hex, reportTextLoadFailure, textSourceChoice, upstreamBytes, useTextSourceChoice } from './rulesText'
+import { type TextSourceChoice, reportTextLoadFailure, textSourceChoice, upstreamBytes, useTextSourceChoice } from './rulesText'
+import { HASHING_FAILED, hashedSourceStrings } from './sourceStrings'
+import { workerAnswer } from './workerAnswer'
 
-const encoder = new TextEncoder()
-/** Digests run concurrently in batches: one at a time is slow, and every string of a large file at once holds them all in memory. */
-const BATCH = 512
+/** Far longer than the slowest phone takes, so only a worker that has stopped answering reaches it. */
+const HASHING_TIMEOUT_MS = 60_000
+
+/**
+ * Parsing a faction's file and hashing each of its strings held a phone's main thread for hundreds of milliseconds
+ * on every page that shows rules text, so a browser does it in a worker.
+ */
+async function hashedInBackground(bytes: ArrayBuffer) {
+  if (typeof Worker === 'undefined') return hashedSourceStrings(bytes)
+  const { default: SourceStringsWorker } = await import('./sourceStrings.worker?worker&inline')
+  const worker = new SourceStringsWorker()
+  const answer = await workerAnswer<Map<string, string> | null | typeof HASHING_FAILED>(worker, bytes, {
+    timeoutMs: HASHING_TIMEOUT_MS,
+  }).finally(() => worker.terminate())
+  if (answer === HASHING_FAILED) throw new Error('This device could not read the rules text file')
+  return answer
+}
 
 /** Every string a pinned upstream file holds, by the truncated hash a token names it by. */
 async function loadSourceStrings(url: string): Promise<ReadonlyMap<string, string>> {
   // The file is not compared whole: each string answers only a token naming its own hash.
   // It must still parse, or the device would keep the broken answer and serve it on every visit.
-  let file: unknown
+  let strings: Map<string, string> | null = null
   await upstreamBytes(url, async (response) => {
     const bytes = await response.arrayBuffer()
-    try {
-      file = JSON.parse(new TextDecoder().decode(bytes))
-      return bytes
-    } catch {
-      return null
-    }
+    strings = await hashedInBackground(bytes)
+    return strings ? bytes : null
   })
-  const strings = [...sourceStrings(file)]
-  const byHash = new Map<string, string>()
-  for (let at = 0; at < strings.length; at += BATCH) {
-    const batch = strings.slice(at, at + BATCH)
-    const digests = await Promise.all(batch.map((value) => crypto.subtle.digest('SHA-256', encoder.encode(value))))
-    batch.forEach((value, index) => byHash.set(hex(digests[index]!).slice(0, TEXT_HASH_LENGTH), value))
-  }
-  return byHash
+  return strings!
 }
 
 /** Read from the downloaded reference while it is current, so a device can load text it reached offline. */

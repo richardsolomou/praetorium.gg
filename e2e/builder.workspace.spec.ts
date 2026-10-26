@@ -20,6 +20,7 @@ import {
   expectVerticalPanOnly,
   openBuilder,
   add,
+  closePicker,
 } from './builder.harness'
 
 test('the roster workspace reserves the desktop picker while its book loads', async ({ browser, page: savedPage }) => {
@@ -131,6 +132,13 @@ test('the roster header fades whichever end of its facts it is hiding', async ({
 
   await meta.evaluate((node) => node.scrollTo({ left: node.scrollWidth }))
   await expect.poll(() => fadedEdges(meta)).toEqual({ start: true, end: false })
+
+  // Longer counts widen the row without resizing it, and the end they push out of view fades again.
+  await add(page, 'Necron Warriors')
+  await add(page, 'Immortals')
+  await closePicker(page)
+  await expect.poll(() => meta.evaluate((node) => Math.ceil(node.scrollLeft + node.clientWidth) < node.scrollWidth)).toBe(true)
+  await expect.poll(() => fadedEdges(meta)).toEqual({ start: true, end: true })
   await context.close()
 })
 

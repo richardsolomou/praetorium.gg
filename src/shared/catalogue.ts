@@ -24,7 +24,7 @@ import { routeSlug } from '../core/slug'
 import { matchesKeywordSelector, normalizeKeywordSelector } from '../core/keywords'
 import { datasheetIdBySlug, datasheetSlug, datasheetsOf, referenceDatasheetRoute, type LoadedCatalogue } from './catalogueIndex'
 import { type DatasheetSearchFields, dedupeWeapons } from '../core/datasheetSearch'
-import { priceOf } from './catalogueUnit'
+import { listPriceOf } from './catalogueUnit'
 import { datacardOf } from './datasheetJoin'
 import { mergeDetachmentRules } from './catalogueDescriptions'
 import { definitionTokens, displayRuleName, isConditionalModifier, modifiedProfileField } from './catalogueDisplay'
@@ -117,7 +117,6 @@ type Walked = NonNullable<ReturnType<typeof walk>>
 
 const walkCache = new WeakMap<LoadedCatalogue, Map<string, Walked | null>>()
 const sheetCache = new WeakMap<LoadedCatalogue, Map<string, Datasheet | null>>()
-const priceCache = new WeakMap<LoadedCatalogue, Map<string, number | null>>()
 
 /**
  * What a datasheet is on its own, read once per snapshot.
@@ -255,7 +254,7 @@ function assemble(loaded: LoadedCatalogue, catalogueId: string, entryId: string,
     slug: datasheetSlug(loaded, catalogueId, root.id),
     referenceRoute: referenceDatasheetRoute(loaded, name, { catalogueId, entryId }),
     name,
-    points: cachedIn(priceCache, loaded, `${catalogueId}:${entryId}`, () => priceOf(loaded, catalogueId, entryId)),
+    points: listPriceOf(loaded, catalogueId, entryId),
     keywords: walked.keywords,
     ...(walked.modelKeywords.length ? { modelKeywords: walked.modelKeywords } : {}),
     profiles: walked.profiles,

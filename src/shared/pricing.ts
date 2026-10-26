@@ -29,7 +29,7 @@ import { describedEnhancements } from './catalogueDescriptions'
 import { descriptionKey } from './datacards'
 import { factionDisplayName } from './factionNames'
 import { detachmentNamed } from './factionReferences'
-import { contextualUnitLimit, detachmentsUnlocking, shelfIn, unitsIn } from './cataloguePicker'
+import { contextualUnitLimit, detachmentsUnlocking, shelfIn, unitIdsIn } from './cataloguePicker'
 import { isDetachmentWrapperLimit, rosterDetachments } from './rosterDetachments'
 import { detachmentPoints } from './detachmentPoints'
 import { choiceOptionsForPricing, mfmOptionAdjustment, mfmOptionPoints, mfmUnitFor, unitPointAdjustment } from './unitPoints'
@@ -630,12 +630,10 @@ function calculateRoster(
   return {
     kind: 'full' as const,
     unitLimits: data.includeUnitLimits
-      ? unitsIn(loaded, data.catalogueId, '', { battleSize: data.limit, waivedRules: data.waivedRules, nonMatchedPlay: true }).map(
-          (unit) => ({
-            id: unit.id,
-            limit: contextualUnitLimit(loaded, data.catalogueId, unit.id, data.limit, data.waivedRules ?? [], selections),
-          }),
-        )
+      ? unitIdsIn(loaded, data.catalogueId, { battleSize: data.limit, waivedRules: data.waivedRules, nonMatchedPlay: true }).map((id) => ({
+          id,
+          limit: contextualUnitLimit(loaded, data.catalogueId, id, data.limit, data.waivedRules ?? [], selections),
+        }))
       : undefined,
     revision: loaded.index.revision,
     edition: loaded.edition ? { id: loaded.edition.id, name: loaded.edition.name, status: loaded.edition.status } : undefined,

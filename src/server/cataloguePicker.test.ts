@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { datasheetInBySlug } from '../shared/catalogue'
 import { calculateRosterPrice } from '../shared/pricing'
 import { pickerConstruction, pickerUnitsFor } from '../shared/pickerUnits'
-import { groupOfEntry, unitsIn } from '../shared/cataloguePicker'
+import { groupOfEntry, unitIdsIn, unitsIn } from '../shared/cataloguePicker'
 import { ability, bookOf, categories, offered, points, shelfOf, withCards } from './catalogue.fixtures'
 
 describe('the shelf a datasheet is filed under', () => {
@@ -303,6 +303,8 @@ describe('the picker', () => {
       Scouts: 1,
       'Troop Carrier': 2,
     })
+    // A roster's unit limits list exactly what its picker lists, without pricing any of it.
+    expect(unitIdsIn(book, 'cat', { battleSize: 600 })).toEqual(unitsIn(book, 'cat', '', { battleSize: 600 }).map((unit) => unit.id))
 
     // A waived restriction puts the datasheets it was hiding back in the book, and
     // the caps it was imposing back to whatever the catalogue itself says.

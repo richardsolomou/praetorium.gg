@@ -16,6 +16,7 @@ import { rosterDatasheetContext } from '../../shared/rosterDatasheetContext'
 import { rosterCombatant } from '../../shared/rosterCombatRules'
 import { combatLoadoutSpace } from '../../shared/combatLoadouts'
 import { currentUserId, forSignedIn } from '../playerSession'
+import { preparePicker } from '../rosterPicker'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
 import { memoUntilSnapshotChanges } from '../snapshotMemo'
 import { selectedBattleDetachmentData } from '../../shared/battleDetachmentData'
@@ -92,18 +93,30 @@ export const units = createServerFn({ method: 'GET' })
   .validator(unitsSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const instance = app()
-      const loaded = await instance.catalogueFor(data.catalogueId)
-      if (!loaded) return []
+      const prepared = await preparePicker(data)
+      if (!prepared) return []
       return pickerUnitsFor(
-        loaded,
-        await instance.rulesFor(data.catalogueId),
+        prepared.loaded,
+        prepared.rules,
         data.catalogueId,
         data.query,
         data.battleSize,
         data.waivedRules,
         data.detachmentIds,
       )
+    }),
+  )
+
+/**
+ * Builds a roster's picker before the editor asks for `units`, since a first build for a battle size or detachment
+ * takes seconds on a replica. It answers once the build ends, so a caller cannot queue builds without waiting on them.
+ */
+export const preparePickerUnits = createServerFn({ method: 'GET' })
+  .validator(unitsSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      await preparePicker(data)
+      return null
     }),
   )
 

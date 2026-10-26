@@ -1,5 +1,6 @@
 import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/catalogue'
 import { evaluate, type Selection } from '../core/evaluate'
+import { cachedIn } from '../core/collections'
 import { isNonMatchedPlayName } from '../core/name'
 import { buildUnit } from '../core/roster'
 import type { LoadedCatalogue } from './catalogueIndex'
@@ -18,6 +19,12 @@ export function isOfferedDatasheet(index: CatalogueIndex, entry: Definition, non
   const ownerId = index.catalogueOf.get(target.id)
   return !ownerId || index.catalogues.get(ownerId)?.name !== 'Unaligned Forces' || marked
 }
+
+const listPriceCache = new WeakMap<LoadedCatalogue, Map<string, number | null>>()
+
+/** `priceOf` outside any roster, which a book's datasheet pages and its lists without a battle size or detachment all show. */
+export const listPriceOf = (loaded: LoadedCatalogue, catalogueId: string, entryId: string) =>
+  cachedIn(listPriceCache, loaded, `${catalogueId}:${entryId}`, () => priceOf(loaded, catalogueId, entryId))
 
 /** What the smallest legal version of one datasheet costs, or null if it cannot be built. */
 export function priceOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, roster: readonly Selection[] = []) {

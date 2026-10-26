@@ -198,3 +198,19 @@ it('reports a roster missing from both the server and this device as not found',
     client.clear()
   }
 })
+
+it.each([
+  [false, 1],
+  [true, 0],
+])('starts building an editable roster’s picker unless the load is a link preload (preload %s)', async (preload, calls) => {
+  const client = new QueryClient()
+  client.setQueryData(rosterBootstrapQuery('army').queryKey, bootstrap('Army', 0, true))
+  vi.spyOn(functions, 'outdatedLeagueEntriesForRoster').mockResolvedValue([])
+  const prepare = vi.spyOn(functions, 'preparePickerUnits').mockResolvedValue(null)
+  try {
+    await loadRoster(client, 'army', {}, preload)
+    expect(prepare).toHaveBeenCalledTimes(calls)
+  } finally {
+    client.clear()
+  }
+})
