@@ -2,7 +2,7 @@ import type { RosterPick } from '../../../core/roster'
 import { attachmentHost } from '../../../core/attachedUnits'
 import { readableCombatant } from './readableRules'
 import { combatRuleSelections } from '../../../core/combatRules'
-import { combatMatchup, type CombatAnswer, type CombatantSnapshot, type CombatRequest } from '../../../core/combatMatchup'
+import { combatMatchup, noExclusions, type CombatAnswer, type CombatantSnapshot, type CombatRequest } from '../../../core/combatMatchup'
 import { COMBAT_PHASES, type CombatPhase, type CombatResult } from '../../../core/combat'
 import type { combatantDatasheet } from '../../functions'
 import { combatAtHealth } from '../../../core/combatSurvivors'
@@ -92,7 +92,7 @@ export function rosterCombatSnapshot(
 }
 
 export function rosterCombatRequest(attacker: CombatantSnapshot | null, defender: CombatantSnapshot | null, error?: string) {
-  const matchup = combatMatchup(attacker, defender, { preferences: {}, excluded: { ranged: [], melee: [] }, allocation: [] })
+  const matchup = combatMatchup(attacker, defender, { preferences: {}, excluded: noExclusions(), allocation: [] })
   const request: CombatRequest = {
     ranged: matchup.scenario('ranged', {}),
     melee: matchup.scenario('melee', {}),

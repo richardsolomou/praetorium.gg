@@ -22,7 +22,7 @@ import {
   type CombatPhase,
 } from '../../../core/combat'
 import { combatUnitKeywords, combatUnitTarget } from '../../../core/combatUnit'
-import { combatMatchup, type CombatAnswer, type CombatantSnapshot, type CombatRequest } from '../../../core/combatMatchup'
+import { combatMatchup, noExclusions, type CombatAnswer, type CombatantSnapshot, type CombatRequest } from '../../../core/combatMatchup'
 import type { CombatAdjustments, TargetAdjustment, WeaponAdjustment } from '../../../core/combatAdjustments'
 import { wargearKey } from '../../../core/wargear'
 import { Chip, Choice, PHASE_TITLES, PhaseIcon } from './CombatControls'
@@ -46,6 +46,8 @@ function weaponToggleGroups(entries: readonly { profile: Datasheet['profiles'][n
 }
 
 type PhaseScope = CombatPhase | 'all'
+type AdjustmentSource = 'attack' | 'weapon' | 'target' | 'feelNoPain'
+const signed = (value: number) => `${value > 0 ? '+' : '−'}${Math.abs(value)}`
 type CombatEntryPoint = 'standalone' | 'roster' | 'battle'
 
 export function combatOutcomeEvent(answer: CombatAnswer, source: CombatEntryPoint) {
@@ -78,8 +80,7 @@ const grants = [
   ['devastating', 'Devastating Wounds'],
   ['damageReroll', 'Re-roll damage 1s'],
 ] as const
-const signedOptions = (values: readonly number[], name: string) =>
-  values.map((value) => [value, `${value > 0 ? '+' : '−'}${Math.abs(value)} ${name}`] as const)
+const signedOptions = (values: readonly number[], name: string) => values.map((value) => [value, `${signed(value)} ${name}`] as const)
 const rollOptions = (values: readonly number[], prefix: string) => values.map((value) => [value, `${prefix}${value}+`] as const)
 const situations = {
   ranged: [
@@ -136,9 +137,7 @@ export function CombatMatchup({
 }) {
   const [adjustments, setAdjustments] = useState<CombatAdjustments>(initialSettings?.adjustments ?? {})
   const [modifiersOpen, setModifiersOpen] = useState(Boolean(Object.keys(initialSettings?.adjustments ?? {}).length))
-  const [excludedWeapons, setExcludedWeapons] = useState<Record<CombatPhase, string[]>>(
-    initialSettings?.excluded ?? { ranged: [], melee: [] },
-  )
+  const [excludedWeapons, setExcludedWeapons] = useState<Record<CombatPhase, string[]>>(initialSettings?.excluded ?? noExclusions())
   const [outcome, setOutcome] = useState<{ key: string; attempt: number; answer: CombatAnswer } | null>(null)
   const [retry, setRetry] = useState(0)
   const [invalidatedChoice, setInvalidatedChoice] = useState(false)
@@ -182,9 +181,17 @@ export function CombatMatchup({
     () => ({ ranged: matchup.scenario('ranged', adjustments), melee: matchup.scenario('melee', adjustments), sequenceError }),
     [matchup, adjustments, sequenceError],
   )
+  const adjustmentValue = (scope: PhaseScope, source: AdjustmentSource, field: string) =>
+    source === 'weapon'
+      ? adjustments.weapons?.[scope]?.[field as keyof WeaponAdjustment]
+      : source === 'target'
+        ? adjustments.target?.[field as keyof TargetAdjustment]
+        : source === 'feelNoPain'
+          ? adjustments.feelNoPain
+          : adjustments[scope]?.[field as keyof Omit<CombatOptions, 'phase'>]
   const modifierChoiceHasEffect = (
     scope: PhaseScope,
-    source: 'attack' | 'weapon' | 'target' | 'feelNoPain',
+    source: AdjustmentSource,
     field: string,
     candidate: unknown,
     onlyPhase?: CombatPhase,
@@ -195,14 +202,7 @@ export function CombatMatchup({
         ? phases.map(([phase]) => phase)
         : [scope]
     if (!affected.some((phase) => scenarios[phase])) return true
-    const currentValue =
-      source === 'weapon'
-        ? adjustments.weapons?.[scope]?.[field as keyof WeaponAdjustment]
-        : source === 'target'
-          ? adjustments.target?.[field as keyof TargetAdjustment]
-          : source === 'feelNoPain'
-            ? adjustments.feelNoPain
-            : adjustments[scope]?.[field as keyof Omit<CombatOptions, 'phase'>]
+    const currentValue = adjustmentValue(scope, source, field)
     const nextValue = currentValue === candidate ? undefined : candidate
     const changed: CombatAdjustments =
       source === 'weapon'
@@ -227,23 +227,10 @@ export function CombatMatchup({
       return JSON.stringify(current) !== JSON.stringify(next)
     })
   }
-  const modifierHasEffect = (
-    scope: PhaseScope,
-    source: 'attack' | 'weapon' | 'target' | 'feelNoPain',
-    field: string,
-    onlyPhase?: CombatPhase,
-  ) => {
-    const selected =
-      source === 'weapon'
-        ? adjustments.weapons?.[scope]?.[field as keyof WeaponAdjustment]
-        : source === 'target'
-          ? adjustments.target?.[field as keyof TargetAdjustment]
-          : source === 'feelNoPain'
-            ? adjustments.feelNoPain
-            : adjustments[scope]?.[field as keyof Omit<CombatOptions, 'phase'>]
-    return modifierChoiceHasEffect(scope, source, field, selected, onlyPhase)
+  const modifierHasEffect = (scope: PhaseScope, source: AdjustmentSource, field: string, onlyPhase?: CombatPhase) => {
+    return modifierChoiceHasEffect(scope, source, field, adjustmentValue(scope, source, field), onlyPhase)
   }
-  const noEffectReason = (scope: PhaseScope, source: 'attack' | 'weapon' | 'target' | 'feelNoPain', field: string, candidate?: unknown) => {
+  const noEffectReason = (scope: PhaseScope, source: AdjustmentSource, field: string, candidate?: unknown) => {
     const affected = scope === 'all' ? phases.map(([phase]) => phase) : [scope]
     const active = affected.flatMap((phase) => (scenarios[phase] ? [scenarios[phase]] : []))
     if (
@@ -387,7 +374,7 @@ export function CombatMatchup({
       apply: (optimizedPreferences: Record<string, string>) => {
         setPreferences(optimizedPreferences)
         setInvalidatedChoice(false)
-        setExcludedWeapons({ ranged: [], melee: [] })
+        setExcludedWeapons(noExclusions())
       },
     }),
     [optimizationKey, setPreferences],
@@ -407,13 +394,7 @@ export function CombatMatchup({
     const applied: string[] = []
     const sourced: string[] = []
     const limits: string[] = []
-    const add = (
-      scope: PhaseScope,
-      source: 'attack' | 'weapon' | 'target' | 'feelNoPain',
-      field: string,
-      label: string,
-      value: unknown,
-    ) => {
+    const add = (scope: PhaseScope, source: AdjustmentSource, field: string, label: string, value: unknown) => {
       if (value === undefined || value === null) return
       if (modifierHasEffect(scope, source, field, phase)) applied.push(label)
     }
@@ -432,7 +413,7 @@ export function CombatMatchup({
         ['woundModifier', 'to wound'],
       ] as const) {
         const value = attack[field]
-        if (value) applied.push(`${value > 0 ? '+' : '−'}${Math.abs(value)} ${label} (${name})`)
+        if (value) applied.push(`${signed(value)} ${label} (${name})`)
       }
       for (const [field, label] of [
         ['hitReroll', 'hit'],
@@ -468,7 +449,7 @@ export function CombatMatchup({
         ['damage', 'Damage'],
       ] as const) {
         const value = weapon[field]
-        if (value) add(scope, 'weapon', field, `${value > 0 ? '+' : '−'}${Math.abs(value)} ${label} (${name})`, value)
+        if (value) add(scope, 'weapon', field, `${signed(value)} ${label} (${name})`, value)
       }
       if (weapon.criticalHit) add(scope, 'weapon', 'criticalHit', `Critical hits on ${weapon.criticalHit}+ (${name})`, weapon.criticalHit)
       if (weapon.criticalWound)
@@ -489,7 +470,7 @@ export function CombatMatchup({
       ['save', 'Save'],
     ] as const) {
       const value = adjustments.target?.[field]
-      if (value) add('all', 'target', field, `${value > 0 ? '+' : '−'}${Math.abs(value)} defender ${label}`, value)
+      if (value) add('all', 'target', field, `${signed(value)} defender ${label}`, value)
     }
     const targetAdjustments = adjustments.target
     if (targetAdjustments?.invulnerable)
@@ -689,7 +670,7 @@ export function CombatMatchup({
                         setAdjustments({})
                         setPreferences({})
                         setInvalidatedChoice(false)
-                        setExcludedWeapons({ ranged: [], melee: [] })
+                        setExcludedWeapons(noExclusions())
                       }}
                     >
                       <RotateCcw aria-hidden />

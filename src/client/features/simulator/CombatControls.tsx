@@ -159,6 +159,9 @@ export function SimulationMode({
 
 export const PHASE_TITLES = { ranged: 'Shooting', melee: 'Melee' } as const
 
+/** Lets a picker's list grow past a narrow trigger so unit and roster names stay readable. */
+export const PICKER_POPUP = 'min-w-[min(20rem,var(--available-width))]'
+
 /** Without a title the icon only decorates a heading that already names the phase. */
 export function PhaseIcon({ phase, title, className = 'size-3.5' }: { phase: CombatPhase; title?: string; className?: string }) {
   const Icon = phase === 'ranged' ? Crosshair : Swords

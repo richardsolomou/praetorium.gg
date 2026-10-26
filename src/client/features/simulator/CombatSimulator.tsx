@@ -1,3 +1,4 @@
+import { noExclusions } from '../../../core/combatMatchup'
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { posthog } from 'posthog-js'
@@ -9,7 +10,7 @@ import { advanceOnboarding, ONBOARDING_FOCUS_EVENT } from '../onboarding/onboard
 import { CombatantCard } from './CombatantCard'
 import { CombatMatchup } from './CombatMatchup'
 import { CombatBuffControls } from './CombatBuffControls'
-import { SimulationMode } from './CombatControls'
+import { PICKER_POPUP, SimulationMode } from './CombatControls'
 import { RosterPicker } from './RosterPicker'
 import { RosterCombatComparison } from './RosterCombatComparison'
 import { type Combatant, type CombatRoster, useCombatant } from './useCombatant'
@@ -168,7 +169,7 @@ export function CombatSimulator({
         <RosterPicker
           ariaLabel={`${index ? 'Second' : 'First'} roster`}
           className="mt-1"
-          popupClassName="min-w-[min(20rem,var(--available-width))]"
+          popupClassName={PICKER_POPUP}
           searchPlaceholder="Search rosters…"
           groups={[
             {
@@ -360,7 +361,7 @@ export function CombatSimulatorMatchup({
   const matchup = {
     ...((settings.key === matchupKey ? settings.value : undefined) ?? {
       adjustments: {},
-      excluded: { ranged: [], melee: [] },
+      excluded: noExclusions(),
       allocation: [],
     }),
     preferences: attacker.weaponPreferences,

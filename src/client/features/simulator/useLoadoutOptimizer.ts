@@ -1,3 +1,4 @@
+import { noExclusions } from '../../../core/combatMatchup'
 import { loadoutSearch } from '../../functions'
 import CombatWorker from './combatWorker'
 import { useContext, useEffect, useLayoutEffect, useRef, useState } from 'react'
@@ -16,6 +17,8 @@ import { LoadoutOptimizationContext } from './LoadoutOdds'
 import type { Combatant } from './useCombatant'
 import { errorMessage } from '../../queryClient'
 import { workerAnswer } from '../../workerAnswer'
+
+const SEARCH_CUT_SHORT = 'The full search could not finish. The best loadout found so far has been kept.'
 
 export type OptimizeLoadoutRequest = { kind: 'optimize'; space: LoadoutCandidates; scoring: LoadoutScoring; mode: LoadoutOptimizationMode }
 export type OptimizeLoadoutAnswer = { optimized: LoadoutOptimization; error?: never } | { error: string; optimized?: never }
@@ -94,7 +97,7 @@ export function useLoadoutOptimizer(combatant: Combatant) {
     setProgress(0)
     setError(null)
     setNotice(null)
-    timer = setTimeout(() => fail('The full search could not finish. The best loadout found so far has been kept.'), 120_000)
+    timer = setTimeout(() => fail(SEARCH_CUT_SHORT), 120_000)
     try {
       const count = Math.min(4, Math.max(1, navigator.hardwareConcurrency ?? 2))
       for (let at = 0; at < count; at++) workers.push(new CombatWorker())
@@ -117,14 +120,7 @@ export function useLoadoutOptimizer(combatant: Combatant) {
       const started = performance.now()
       const apply = (optimized: OptimizedLoadout) => {
         const picks = applyOptimizedLoadout(combatant.picks.positioned, optimized.picks)
-        job.key = JSON.stringify([
-          combatant.identity,
-          picks,
-          combatant.ruleSelections,
-          context.key,
-          optimized.preferences,
-          { ranged: [], melee: [] },
-        ])
+        job.key = JSON.stringify([combatant.identity, picks, combatant.ruleSelections, context.key, optimized.preferences, noExclusions()])
         applied.current = job.key
         latest.current = job.key
         context.apply(optimized.preferences)
@@ -169,7 +165,7 @@ export function useLoadoutOptimizer(combatant: Combatant) {
           // States explored of those the unit's choices allow, or of those found once the search has found more.
           const states = Math.max(batch.estimated ?? 0, batch.scheduled)
           if (!local) setProgress((previous) => Math.max(previous, Math.min(99, Math.floor((batch.built / states) * 100))))
-          if (discovered > MAX_CANDIDATES) throw new Error('The full search could not finish. The best loadout found so far has been kept.')
+          if (discovered > MAX_CANDIDATES) throw new Error(SEARCH_CUT_SHORT)
           space.candidates.push(...batch.candidates)
           complete = batch.done
           wake?.()
@@ -184,8 +180,7 @@ export function useLoadoutOptimizer(combatant: Combatant) {
               const next = await reader.read()
               if (!current()) return
               received += next.value?.byteLength ?? 0
-              if (received > 64 * 1024 * 1024)
-                throw new Error('The full search could not finish. The best loadout found so far has been kept.')
+              if (received > 64 * 1024 * 1024) throw new Error(SEARCH_CUT_SHORT)
               buffer += decoder.decode(next.value, { stream: !next.done })
               let newline: number
               while ((newline = buffer.indexOf('\n')) >= 0) {
@@ -193,7 +188,7 @@ export function useLoadoutOptimizer(combatant: Combatant) {
                 buffer = buffer.slice(newline + 1)
               }
               if (next.done) {
-                if (!complete) throw new Error('The full search could not finish. The best loadout found so far has been kept.')
+                if (!complete) throw new Error(SEARCH_CUT_SHORT)
                 break
               }
             }

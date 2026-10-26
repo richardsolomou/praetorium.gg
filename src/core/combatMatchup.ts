@@ -20,6 +20,8 @@ export type CombatMatchupChoices = {
   /** Defence-group labels the player moved earlier in the allocation order. */
   allocation: readonly string[]
 }
+/** A matchup that leaves every weapon in. */
+export const noExclusions = (): Record<CombatPhase, string[]> => ({ ranged: [], melee: [] })
 export type CombatRequest = Record<CombatPhase, CombatInput | null> & { sequenceError?: string }
 type CombatPhaseAnswer = { result?: CombatResult; error?: string } | null
 export type CombatAnswer = Record<CombatPhase, CombatPhaseAnswer> & { combined?: CombatPhaseAnswer }
