@@ -144,7 +144,6 @@ export function WargearRow({
   abilities,
   rules,
   control,
-  note,
   annotation,
   highlightSelection = true,
   instructions,
@@ -154,7 +153,6 @@ export function WargearRow({
   count: number
   points?: number
   control?: ReactNode
-  note?: string
   annotation?: ReactNode
   highlightSelection?: boolean
   instructions?: readonly string[]
@@ -163,7 +161,6 @@ export function WargearRow({
   const label = (
     <span className="min-w-0 flex-1">
       <span className="block text-sm font-semibold">{name}</span>
-      {note ? <span className="block text-2xs text-faint">{note}</span> : null}
       {points ? <span className="readout text-2xs text-info">+{points} each</span> : null}
       {annotation}
     </span>
@@ -306,7 +303,6 @@ export function SpecialChoice({
   controlsDisabled = false,
   onChoose,
   showOptions = true,
-  highlightSelection = true,
   reminders,
 }: {
   choice: LoadoutChoice
@@ -315,7 +311,6 @@ export function SpecialChoice({
   controlsDisabled?: boolean
   onChoose: (key: string, optionId: string) => void
   showOptions?: boolean
-  highlightSelection?: boolean
   reminders?: ReminderControls
 }) {
   const heading = choice.kind === 'upgrade' ? 'Unit upgrades' : choice.name
@@ -336,7 +331,7 @@ export function SpecialChoice({
           <DeclineButton
             label={`No ${choice.kind === 'upgrade' ? 'upgrade' : 'enhancement'}`}
             chosen={Boolean(choice.chosen)}
-            highlightSelection={highlightSelection}
+            highlightSelection={showOptions}
             editable={editable}
             disabled={controlsDisabled}
             onDecline={() => choose('')}
@@ -347,7 +342,7 @@ export function SpecialChoice({
             key={option.id}
             option={option}
             selected={choice.chosen === option.id}
-            highlightSelection={highlightSelection}
+            highlightSelection={showOptions}
             disabled={controlsDisabled}
             onSelect={editable ? () => choose(option.id) : undefined}
             action={
@@ -377,7 +372,6 @@ export function EitherChoice({
   abilities,
   rules,
   showOptions = true,
-  highlightSelection = true,
   optionNote,
 }: Described & {
   choice: LoadoutChoice
@@ -386,7 +380,6 @@ export function EitherChoice({
   controlsDisabled?: boolean
   onChoose: (key: string, optionId: string) => void
   showOptions?: boolean
-  highlightSelection?: boolean
   optionNote?: OptionNote
 }) {
   const options = showOptions ? defaultFirst(choice.options) : choice.options.filter((option) => choice.chosen === option.id)
@@ -398,7 +391,7 @@ export function EitherChoice({
           <DeclineButton
             label="None"
             chosen={Boolean(choice.chosen)}
-            highlightSelection={highlightSelection}
+            highlightSelection={showOptions}
             editable={editable}
             disabled={controlsDisabled}
             onDecline={() => onChoose(choice.key, '')}
@@ -409,7 +402,7 @@ export function EitherChoice({
             key={option.id}
             option={option}
             selected={choice.chosen === option.id}
-            highlightSelection={highlightSelection}
+            highlightSelection={showOptions}
             disabled={controlsDisabled}
             onSelect={editable ? () => onChoose(choice.key, option.id) : undefined}
             annotation={optionNote?.(choice.key, option.id)}
@@ -438,7 +431,6 @@ export function SpreadChoice({
   abilities,
   rules,
   showOptions = true,
-  highlightSelection = true,
   optionNote,
   saved,
 }: Described & {
@@ -447,7 +439,6 @@ export function SpreadChoice({
   controlsDisabled?: boolean
   onSpread: (key: string, update: SpreadUpdate) => void
   showOptions?: boolean
-  highlightSelection?: boolean
   optionNote?: OptionNote
   saved?: SpreadCounts
 }) {
@@ -466,7 +457,7 @@ export function SpreadChoice({
         {(showOptions ? defaultFirst(choice.options) : choice.options.filter((option) => option.count)).map((option) => (
           <li
             key={option.id}
-            className={`border border-l-[5px] bg-card ${option.count && highlightSelection ? 'border-azure/50 border-l-azure' : 'border-edge'}`}
+            className={`border border-l-[5px] bg-card ${option.count && showOptions ? 'border-azure/50 border-l-azure' : 'border-edge'}`}
           >
             <div className="flex items-center gap-2 px-2 py-1.5">
               <span className="min-w-0 flex-1">

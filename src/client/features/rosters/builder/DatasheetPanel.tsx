@@ -22,11 +22,9 @@ type Props = {
   detachmentIds: readonly string[]
   picks: readonly RosterPick[]
   pickIndex: number | null
-  showWeapons?: boolean
   embedded?: boolean
   hideSummary?: boolean
   providedSheet?: Datasheet | null
-  showRelationships?: boolean
   onRelationshipSelect?: (entryId: string, name: string) => void
   /** `route` is undefined while the sheet loads and null when the datasheet has no reference page. */
   onReferenceRoute?: (reference: { entryId: string; route: Datasheet['referenceRoute'] | undefined } | null) => void
@@ -40,11 +38,9 @@ export function DatasheetPanel({
   detachmentIds,
   picks,
   pickIndex,
-  showWeapons = false,
   embedded = false,
   hideSummary = false,
   providedSheet,
-  showRelationships = true,
   onRelationshipSelect,
   onReferenceRoute,
   abilityReminders,
@@ -96,12 +92,8 @@ export function DatasheetPanel({
   const content = (
     <div data-slot="datasheet-content" className="w-full min-w-0 space-y-4">
       {!hideSummary && model ? <UnitProfile profile={model} /> : null}
-      {!hideSummary && showWeapons && ranged.length ? (
-        <WeaponSummary title="Ranged weapons" weapons={ranged} rules={sheet.keywordRules} />
-      ) : null}
-      {!hideSummary && showWeapons && melee.length ? (
-        <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} />
-      ) : null}
+      {!hideSummary && ranged.length ? <WeaponSummary title="Ranged weapons" weapons={ranged} rules={sheet.keywordRules} /> : null}
+      {!hideSummary && melee.length ? <WeaponSummary title="Melee weapons" weapons={melee} rules={sheet.keywordRules} /> : null}
       <AbilitySummary
         abilities={referenceAbilities(sheet.abilities, sheet.attachments)}
         rules={sheet.keywordRules}
@@ -122,7 +114,7 @@ export function DatasheetPanel({
           <UnitKeywords className="min-w-0" sheet={sheet} />
         </div>
       ) : null}
-      {showRelationships ? <RelationshipSummary sheet={sheet} onSelect={onRelationshipSelect} /> : null}
+      <RelationshipSummary sheet={sheet} onSelect={onRelationshipSelect} />
     </div>
   )
   return embedded ? (

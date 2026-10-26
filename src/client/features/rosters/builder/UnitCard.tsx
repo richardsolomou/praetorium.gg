@@ -296,13 +296,11 @@ export function JoinedRow({ row, editable }: { row: Joined; editable: boolean })
 export function AttachMenu({
   label,
   ariaLabel,
-  onboarding,
   choices,
   onChoose,
 }: {
   label: string
   ariaLabel: string
-  onboarding?: string
   choices: AttachChoice[]
   onChoose: (choice: AttachChoice) => void
 }) {
@@ -310,7 +308,7 @@ export function AttachMenu({
   const roster = choices.filter((choice) => choice.kind === 'roster')
   const added = choices.filter((choice) => choice.kind === 'new')
   return (
-    <CardMenu label={label} ariaLabel={ariaLabel} onboarding={onboarding}>
+    <CardMenu label={label} ariaLabel={ariaLabel}>
       {roster.length ? (
         <DropdownMenuGroup>
           <DropdownMenuLabel className="eyebrow text-faint">In this roster</DropdownMenuLabel>
@@ -395,17 +393,7 @@ export function EmbarkMenu({
 }
 
 /** A card row opening a menu of what the unit can be paired with. */
-function CardMenu({
-  label,
-  ariaLabel,
-  onboarding,
-  children,
-}: {
-  label: string
-  ariaLabel: string
-  onboarding?: string
-  children: ReactNode
-}) {
+function CardMenu({ label, ariaLabel, children }: { label: string; ariaLabel: string; children: ReactNode }) {
   return (
     <div data-print-hide className={`${ROW} pointer-events-none relative z-10 [&_button]:pointer-events-auto`}>
       <DropdownMenu>
@@ -415,7 +403,6 @@ function CardMenu({
               variant="ghost"
               size="xs"
               className="!px-1 text-2xs tracking-label text-azure uppercase hover:bg-transparent hover:text-bone"
-              data-onboarding={onboarding}
               aria-label={ariaLabel}
             />
           }

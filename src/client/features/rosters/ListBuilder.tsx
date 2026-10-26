@@ -1203,10 +1203,8 @@ export function ListBuilder({
           detachmentIds={detachmentIds}
           picks={positioned}
           pickIndex={selected}
-          showWeapons
           embedded
           hideSummary
-          showRelationships
           onRelationshipSelect={(entryId, unitName) => inspect(datasheetCatalogueId, entryId, unitName)}
           onReferenceRoute={setReference}
           abilityReminders={building && selected !== null ? reminderControls : undefined}
@@ -1222,8 +1220,6 @@ export function ListBuilder({
       detachmentIds={detachmentIds}
       picks={positioned}
       pickIndex={preview ? null : selected}
-      showWeapons
-      showRelationships
       onRelationshipSelect={(entryId, unitName) => inspect(datasheetCatalogueId, entryId, unitName)}
       onReferenceRoute={setReference}
       abilityReminders={building && !preview && selected !== null ? reminderControls : undefined}
@@ -1659,7 +1655,6 @@ export function ListBuilder({
               variant="picker"
               open={pickerOpen}
               drawer={!wideWorkspace}
-              hideBelowDesktop
               title="Add units"
               onClose={closePane}
               actions={

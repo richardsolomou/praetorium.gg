@@ -177,7 +177,6 @@ export function useRosterPanes({ path, workspacePath, picks }: { path: string; w
     showing,
     setShowing,
     wideWorkspace,
-    loadoutInline,
     workspaceMeasured,
     paneHistory,
     closePane,

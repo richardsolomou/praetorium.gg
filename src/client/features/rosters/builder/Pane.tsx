@@ -3,7 +3,6 @@ import type { CSSProperties, ReactNode } from 'react'
 import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
-import type { OnboardingTarget } from '../../onboarding/onboarding'
 import { useCompactChrome } from '../../shell/useCompactChrome'
 import { useMediaQuery } from '../../../useMediaQuery'
 import { LOADOUT_INLINE } from './useRosterPanes'
@@ -19,8 +18,6 @@ type Props = {
   children: ReactNode
   drawer?: boolean
   threeColumn?: boolean
-  hideBelowDesktop?: boolean
-  onboarding?: OnboardingTarget
 }
 
 /** One pane moves between sidebar and overlay so controls and labels stay unique. */
@@ -75,8 +72,6 @@ export function Pane({
   children,
   drawer = false,
   threeColumn = true,
-  hideBelowDesktop = false,
-  onboarding,
 }: Props) {
   const pane = useRef<HTMLElement>(null)
   const closeButton = useRef<HTMLButtonElement>(null)
@@ -183,9 +178,8 @@ export function Pane({
       ref={pane}
       data-print-hide
       data-pane={variant}
-      data-onboarding={onboarding}
       className={`min-h-0 min-w-0 max-w-full flex-col overflow-hidden overscroll-x-none border-edge bg-panel [container-type:inline-size] ${(threeColumn ? VARIANTS : TWO_COLUMN_VARIANTS)[variant]} ${
-        hideBelowDesktop ? 'max-[1299px]:hidden' : ''
+        variant === 'picker' ? 'max-[1299px]:hidden' : ''
       } ${open ? `fixed z-40 flex ${MOBILE_LAYOUT[variant]}` : 'hidden'}`}
       aria-label={ariaLabel ?? title}
       role={open && compactLoadout && !screen ? 'dialog' : undefined}
