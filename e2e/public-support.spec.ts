@@ -1,5 +1,6 @@
 import { PRODUCT_DOCS } from '../src/contracts/productDocs'
 import { expect, test } from './test'
+import { expectNoPageOverflow } from './account'
 
 for (const pageDetails of [
   { path: '/support', heading: 'Support' },
@@ -10,12 +11,8 @@ for (const pageDetails of [
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto(pageDetails.path)
 
-    expect(
-      await page.evaluate(() => ({
-        heading: document.querySelector('h1')?.textContent,
-        hasHorizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-      })),
-    ).toEqual({ heading: pageDetails.heading, hasHorizontalOverflow: false })
+    await expect(page.locator('h1').first()).toHaveText(pageDetails.heading)
+    await expectNoPageOverflow(page)
   })
 }
 

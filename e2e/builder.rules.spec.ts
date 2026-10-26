@@ -351,7 +351,7 @@ test('Canoptek Spyders keep their claws and independent wargear', async ({ page 
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(loadout).toBeVisible()
   await expectNoPageOverflow(page)
-  expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoHorizontalOverflow(loadout)
   await shot(loadout, test.info().outputPath('canoptek-spyder-wargear-phone.png'))
 })
 

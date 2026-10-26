@@ -1222,7 +1222,7 @@ test('an officer datasheet shows how many orders it can issue', async ({ page })
   await page.goto('/factions/astra-militarum/datasheets/leman-russ-commander')
   const orders = page.getByRole('heading', { name: 'Orders', exact: true }).locator('..')
   await expect(orders).toContainText('This Officer can issue 2 Orders to Squadron units.')
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(await page.evaluate(() => window.innerWidth))
+  await expectNoPageOverflow(page)
   await page.screenshot({ path: test.info().outputPath('officer-orders-datasheet.png'), fullPage: true })
 
   await page.setViewportSize({ width: 390, height: 844 })

@@ -341,12 +341,8 @@ test('the leaderboard fits a phone', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/leaderboard')
 
-  expect(
-    await page.evaluate(() => ({
-      heading: document.querySelector('h1')?.textContent,
-      hasHorizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-    })),
-  ).toEqual({ heading: 'Leaderboard', hasHorizontalOverflow: false })
+  await expect(page.locator('h1').first()).toHaveText('Leaderboard')
+  await expectNoPageOverflow(page)
 })
 
 /**

@@ -10,7 +10,7 @@ import {
   visitorSetup,
   waitForRosterSave,
 } from './account'
-import { add, attach } from './builder.harness'
+import { add, attach, expectNoHorizontalOverflow } from './builder.harness'
 import { chooseCombatUnit } from './combat'
 
 test.use({ serviceWorkers: 'block' })
@@ -700,5 +700,5 @@ test('feedback that cannot be sent keeps the message and offers the issue tracke
   )
   await expect(dialog.getByLabel('Message')).toHaveValue('The list will not scroll')
   await expect(page).toHaveURL(/\/factions$/)
-  expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoHorizontalOverflow(dialog)
 })

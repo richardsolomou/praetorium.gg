@@ -15,6 +15,7 @@ import {
   expectNoPageOverflow,
 } from './account'
 import { productOperator, withAuthSql } from './storage'
+import { expectNoHorizontalOverflow } from './builder.harness'
 
 async function connectPlayers(requesterName: string, addresseeNames: string[]) {
   const names = [requesterName, ...addresseeNames]
@@ -43,7 +44,7 @@ async function inspectBattleDialog(page: Page, dialog: Locator, screenshot: stri
   await page.screenshot({ path: test.info().outputPath(`${screenshot}-desktop.png`), fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   await expectNoPageOverflow(page)
-  expect(await dialog.locator('[data-slot="dialog-body"]').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoHorizontalOverflow(dialog.locator('[data-slot="dialog-body"]'))
   await page.screenshot({ path: test.info().outputPath(`${screenshot}-phone.png`), fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
 }

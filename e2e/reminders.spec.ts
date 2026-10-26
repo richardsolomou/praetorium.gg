@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { attach } from './builder.harness'
+import { attach, expectNoHorizontalOverflow } from './builder.harness'
 import {
   advance,
   chooseBattlefield,
@@ -49,7 +49,7 @@ test('roster reminders cover selected rules and advances from another device', a
   await waitForRosterSave(page, () => enhancements.getByRole('button', { name: 'Select Nether-realm Casket' }).click())
   await page.setViewportSize({ width: 390, height: 844 })
   await expectNoPageOverflow(page)
-  expect(await enhancements.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoHorizontalOverflow(enhancements)
   await page.setViewportSize(desktopContext.viewport)
   const enhancementAlert = enhancements.getByLabel('Set alert for Nether-realm Casket')
   await enhancementAlert.hover()
@@ -89,7 +89,7 @@ test('roster reminders cover selected rules and advances from another device', a
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(editor).toBeVisible()
   await expectNoPageOverflow(page)
-  expect(await editor.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoHorizontalOverflow(editor)
   await editor.getByRole('button', { name: 'Save alert' }).scrollIntoViewIfNeeded()
   await expect(editor.getByRole('button', { name: 'Save alert' })).toBeVisible()
   await page.setViewportSize(desktopContext.viewport)
@@ -138,7 +138,7 @@ test('roster reminders cover selected rules and advances from another device', a
   await expect(reminder).toContainText('Start of your Shooting phase')
   await page.setViewportSize({ width: 390, height: 844 })
   await expectNoPageOverflow(page)
-  expect(await reminder.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoHorizontalOverflow(reminder)
   await page.setViewportSize(desktopContext.viewport)
   await reminder.getByRole('button', { name: 'Hide Living Lightning for a period' }).click()
   await page.getByRole('menuitem', { name: 'This turn' }).click()
@@ -162,7 +162,7 @@ test('roster reminders cover selected rules and advances from another device', a
 
   await page.setViewportSize({ width: 390, height: 844 })
   await expectNoPageOverflow(page)
-  expect(await reminder.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoHorizontalOverflow(reminder)
 
   const opponentReminder = opponent.getByRole('dialog', { name: 'Battle reminder' })
   while (await opponentReminder.isVisible()) {

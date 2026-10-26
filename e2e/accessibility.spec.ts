@@ -1,6 +1,7 @@
 import { expect, test, type Page } from './test'
 import { createRoster, setupStep, signUp, startBattle, expectNoPageOverflow, practiceBattle } from './account'
 import { chooseCombatUnit } from './combat'
+import { expectNoHorizontalOverflow } from './builder.harness'
 
 // Controls transition their font size, so measuring before the transitions finish reads the old layout.
 async function doubleText(page: Page) {
@@ -237,6 +238,6 @@ test.describe('a touch device', () => {
     const views = page.getByRole('navigation', { name: 'Rosters' })
     await expect(views).toBeVisible()
     await doubleText(page)
-    expect(await views.evaluate((nav) => nav.scrollWidth <= nav.clientWidth)).toBe(true)
+    await expectNoHorizontalOverflow(views)
   })
 })

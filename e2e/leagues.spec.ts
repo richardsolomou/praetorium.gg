@@ -27,6 +27,7 @@ import {
 } from './storage'
 import { holdCombatCalculations } from './combat'
 import type { Command } from '../src/core/battle'
+import { expectNoHorizontalOverflow } from './builder.harness'
 
 test.setTimeout(180_000)
 
@@ -72,7 +73,7 @@ test('players can decline and publish their original league roster across device
   await owner.screenshot({ path: testInfo.outputPath('league-sharing-desktop.png') })
   await owner.setViewportSize({ width: 390, height: 844 })
   await sharing.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-  await expectNoHorizontalOverflow(owner, sharing)
+  await expectWithinPage(owner, sharing)
   await owner.screenshot({ path: testInfo.outputPath('league-sharing-phone.png') })
   await sharing.getByRole('button', { name: 'No thanks', exact: true }).click()
   await expect(sharing).toHaveCount(0)
@@ -590,7 +591,7 @@ async function join(page: Page) {
   }).toPass({ timeout: 20_000 })
 }
 
-async function expectNoHorizontalOverflow(page: Page, ...elements: Locator[]) {
+async function expectWithinPage(page: Page, ...elements: Locator[]) {
   const documentWidth = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
     scrollWidth: document.documentElement.scrollWidth,
@@ -721,7 +722,7 @@ test('an admin the owner chooses runs the league but cannot delete it', async ({
   await settings.getByLabel('Admins').click()
   await owner.getByRole('option', { name: adminName }).click()
   await expect(settings.getByRole('button', { name: `Remove ${adminName} as an admin` })).toBeVisible()
-  await expectNoHorizontalOverflow(owner, settings)
+  await expectWithinPage(owner, settings)
   await settings.getByRole('button', { name: 'Save changes' }).click()
   await expect(settings).toBeHidden()
   await expect(owner.locator('main header').getByRole('link', { name: adminName })).toBeVisible()
@@ -1035,7 +1036,7 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   await expect(entrantCard).toContainText('sealed')
   await expect(owner.locator(`[data-person="${entrantName}"]`)).toHaveCount(0)
   await owner.setViewportSize({ width: 390, height: 844 })
-  await expectNoHorizontalOverflow(owner)
+  await expectWithinPage(owner)
   await owner.setViewportSize({ width: 1440, height: 900 })
 
   const unseal = entrantCard.getByRole('button', { name: `Unseal ${entrantName}’s roster`, exact: true })
@@ -1045,7 +1046,7 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   await expect(entrantCard.getByRole('button').first()).toHaveAccessibleName(`Unseal ${entrantName}’s roster`)
   await unseal.click()
   const confirm = owner.getByRole('alertdialog', { name: `Unseal ${entrantName}’s roster?` })
-  await expectNoHorizontalOverflow(owner, confirm)
+  await expectWithinPage(owner, confirm)
   await confirm.getByRole('button', { name: 'Unseal roster' }).click()
 
   await expect(entrantCard.getByText(/^No roster yet/)).toBeVisible()
@@ -1055,7 +1056,7 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   await expect(entrant.getByText('The organizer unsealed your roster.')).toBeVisible()
   await expect(entrant.getByRole('button', { name: 'Start 1 vs 1 battle' })).toHaveCount(0)
   await expect(entrant.getByRole('button', { name: /^(?:Unseal|More for) / })).toHaveCount(0)
-  await expectNoHorizontalOverflow(entrant)
+  await expectWithinPage(entrant)
 
   await sealOwnRoster(entrant, 'Corrected list')
   await expect(entrant.getByRole('button', { name: 'Start 1 vs 1 battle' })).toBeVisible()
@@ -1094,7 +1095,7 @@ test('an eligible casual matchup is directed through its league event', async ({
   await owner.reload()
   await eventLoaded(owner)
   await expect(owner.getByRole('button', { name: 'Start 1 vs 1 battle' })).toBeVisible()
-  await expectNoHorizontalOverflow(owner)
+  await expectWithinPage(owner)
 
   await owner.goto('/battles')
   await owner.getByRole('button', { name: 'New battle' }).waitFor()
@@ -1106,9 +1107,9 @@ test('an eligible casual matchup is directed through its league event', async ({
   await casual.getByRole('button', { name: 'Start battle' }).click()
   const warning = owner.getByRole('dialog', { name: 'You are both in a tournament' })
   await expect(warning.getByRole('button', { name: 'Play it casually' })).toBeVisible()
-  await expectNoHorizontalOverflow(owner, warning)
+  await expectWithinPage(owner, warning)
   await owner.setViewportSize({ width: 390, height: 844 })
-  await expectNoHorizontalOverflow(owner, warning)
+  await expectWithinPage(owner, warning)
   await warning.getByRole('button', { name: new RegExp(leagueName) }).click()
 
   const leagueChooser = owner.getByRole('dialog', { name: 'Start 1 vs 1 battle' })
@@ -1194,11 +1195,11 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   await guest.setViewportSize({ width: 390, height: 844 })
   const rosterUnits = guest.locator('[data-slot="roster-units"]')
   await expectNoPageOverflow(guest)
-  expect(await rosterUnits.evaluate((element) => element.scrollWidth)).toBe(await rosterUnits.evaluate((element) => element.clientWidth))
+  await expectNoHorizontalOverflow(rosterUnits)
   await expect(unit).toHaveCSS('position', 'fixed')
   await expect(unit.getByText('Deepening Madness', { exact: true })).toBeVisible()
   await expectNoPageOverflow(guest)
-  expect(await unit.evaluate((element) => element.scrollWidth)).toBe(await unit.evaluate((element) => element.clientWidth))
+  await expectNoHorizontalOverflow(unit)
 
   await guest.goBack()
   await expect(guest).toHaveURL(rosterUrl)
@@ -1262,7 +1263,7 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   await expectOrganizerAvatar(organizer, ownerName)
   await owner.setViewportSize({ width: 390, height: 844 })
   await expectOrganizerAvatar(organizer, ownerName)
-  await expectNoHorizontalOverflow(owner, organizer)
+  await expectWithinPage(owner, organizer)
 
   await owner.goto('/tournaments')
   await owner.setViewportSize({ width: 1440, height: 900 })
@@ -1270,15 +1271,15 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   // A card without a description names its organizer beside their avatar.
   await expect(card.locator('img').first()).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.jpg$/)
   await expect(card).toContainText(`Organized by ${ownerName}`)
-  await expectNoHorizontalOverflow(owner, card)
+  await expectWithinPage(owner, card)
 
   await owner.setViewportSize({ width: 390, height: 844 })
   await expect(card).toContainText(`Organized by ${ownerName}`)
-  await expectNoHorizontalOverflow(owner, card)
+  await expectWithinPage(owner, card)
   await owner.getByRole('button', { name: `Actions for ${leagueName}` }).click()
   const dropdown = owner.getByRole('menu')
   await expect(dropdown.getByRole('menuitem', { name: 'View tournament' })).toBeVisible()
-  await expectNoHorizontalOverflow(owner, card, dropdown)
+  await expectWithinPage(owner, card, dropdown)
   await owner.evaluate(() => {
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
@@ -1301,10 +1302,10 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   await card.click({ button: 'right', position: { x: 2, y: 2 } })
   const contextMenu = owner.getByRole('menu')
   await expect(contextMenu.getByRole('menuitem', { name: 'Edit tournament' })).toBeVisible()
-  await expectNoHorizontalOverflow(owner, card, contextMenu)
+  await expectWithinPage(owner, card, contextMenu)
   await owner.getByRole('menuitem', { name: 'Edit tournament' }).click()
   edit = owner.getByRole('dialog', { name: 'Edit tournament' })
-  await expectNoHorizontalOverflow(owner, card, edit)
+  await expectWithinPage(owner, card, edit)
   await edit.getByLabel('Name').fill(renamed)
   await edit.getByLabel('Details').fill('Updated event details')
   await edit.getByLabel('Player limit').fill('4')
@@ -1316,7 +1317,7 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   await expect(card.getByText('Updated event details', { exact: true })).toBeVisible()
   await expect(card.getByLabel('Public')).toBeVisible()
   await expect(card).toContainText('0 of 4 players')
-  await expectNoHorizontalOverflow(owner, card)
+  await expectWithinPage(owner, card)
 
   await owner.goto(leagueUrl.toString())
   await expect(owner.getByText('Updated event details', { exact: true })).toBeVisible()
@@ -1345,7 +1346,7 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   await owner.getByRole('menuitem', { name: 'Delete tournament' }).click()
   const confirmation = owner.getByRole('alertdialog', { name: `Delete ${renamed}?` })
   await expect(confirmation.getByText('Battles already started from it stay where they are.', { exact: false })).toBeVisible()
-  await expectNoHorizontalOverflow(owner, confirmation)
+  await expectWithinPage(owner, confirmation)
   await confirmation.getByRole('button', { name: 'Delete tournament' }).click()
   await expect(owner).toHaveURL(/\/tournaments\/?$/)
   await expect(owner.getByRole('heading', { name: renamed })).toHaveCount(0)
@@ -1436,7 +1437,7 @@ test('an organizer adds friends to an event without waiting for them to ask', as
   await expect(picker.getByText('1 place left.', { exact: false })).toBeVisible()
   await picker.getByRole('checkbox', { name: names[1] }).check()
   await expect(picker.getByRole('checkbox', { name: names[2] })).toBeDisabled()
-  await expectNoHorizontalOverflow(owner, picker)
+  await expectWithinPage(owner, picker)
   await picker.getByRole('button', { name: 'Add 1 player' }).click()
   await expect(picker).toBeHidden()
   await expect(leagueHeader(owner)).toContainText('2 of 2 players')
@@ -1511,7 +1512,7 @@ test('an organizer answers requests, lets a turned-away player back in, and rais
   const rules = await openEventSettings(owner)
   await rules.getByRole('button', { name: /^Doubles/ }).click()
   await expect(rules.getByLabel('Player limit')).toHaveValue('4')
-  await expectNoHorizontalOverflow(owner, rules)
+  await expectWithinPage(owner, rules)
   await rules.getByRole('button', { name: 'Save changes' }).click()
   await expect(rules).toBeHidden()
   await expect(leagueHeader(owner)).toContainText('2 of 4 players')
@@ -1567,12 +1568,12 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await create.getByLabel('Name').fill(leagueName)
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
   await owner.setViewportSize({ width: 390, height: 844 })
-  await expectNoHorizontalOverflow(owner, create)
+  await expectWithinPage(owner, create)
   await submitLeagueCreation(owner, create)
   const rules = await openEventSettings(owner)
   await rules.getByRole('button', { name: /^Solo vs pair/ }).click()
   await expect(rules.getByText('Points', { exact: true })).toBeVisible()
-  await expectNoHorizontalOverflow(owner, rules)
+  await expectWithinPage(owner, rules)
   await rules.getByRole('button', { name: 'Save changes' }).click()
   await expect(rules).toBeHidden()
   const leagueUrl = owner.url()
@@ -1607,11 +1608,11 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   // Every list is sealed and readable, so only the server's own checklist stands between this event and a reveal.
   expect(await revealThroughServer(leagueToken)).toBe('not-ready')
   const assignmentRows = owner.locator('[data-person]')
-  await expectNoHorizontalOverflow(owner, ...(await assignmentRows.all()))
+  await expectWithinPage(owner, ...(await assignmentRows.all()))
 
   await owner.getByRole('button', { name: `Assign ${alliedLabel} an allied roster` }).click()
   const reassignment = owner.getByRole('alertdialog', { name: `Change ${alliedLabel}’s roster size?` })
-  await expectNoHorizontalOverflow(owner, reassignment)
+  await expectWithinPage(owner, reassignment)
   await reassignment.getByRole('button', { name: 'Change size' }).click()
   await expect
     .poll(async () => {
@@ -1629,11 +1630,11 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expect(alliedPool.getByRole('checkbox', { name: `Pick ${alliedLabel} for a pair` })).toBeChecked()
   await expect(alliedPool.getByRole('checkbox', { name: `Pick ${secondAlliedLabel} for a pair` })).toBeChecked()
   await owner.setViewportSize({ width: 390, height: 844 })
-  await expectNoHorizontalOverflow(owner, alliedPool)
+  await expectWithinPage(owner, alliedPool)
   await owner.setViewportSize({ width: 1440, height: 900 })
   await alliedPool.getByRole('button', { name: /^Pair / }).click()
   await expect(owner.locator('[data-group="pair-1"]')).toContainText(secondAlliedLabel)
-  await expectNoHorizontalOverflow(owner, ...(await owner.locator('[data-person]').all()))
+  await expectWithinPage(owner, ...(await owner.locator('[data-person]').all()))
   await sealTeamEventRosters(leagueToken)
   await owner.reload()
   // The allies' lists chose different cards, so the pair owes its one Force Disposition before anything opens.
@@ -1662,7 +1663,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await partnerWarlord.click()
   await expect(partnerWarlord).toHaveAttribute('aria-pressed', 'true')
   await expect(allied.getByRole('heading', { name: 'Your roster is sealed' })).toBeVisible()
-  await expectNoHorizontalOverflow(allied, teamCard)
+  await expectWithinPage(allied, teamCard)
   // A 2v1 seats the allied rosters together and never against each other, so each ally reads the other's
   // before reveal, while the solo roster they will both face stays sealed.
   const secondAlliedRow = alliedSide.locator(`[data-person="${alliedName}"]`).filter({ hasText: secondAlliedLabel })
@@ -1670,7 +1671,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expect(viewRoster(ownEntrantRow, alliedLabel)).toBeVisible()
   await expect(allied.locator(`[data-person="${ownerName}"]`).getByRole('button', { name: /^View / })).toHaveCount(0)
   await expect(allied.getByText(`Only ${secondAlliedLabel} can see it before the reveal.`)).toBeVisible()
-  await expectNoHorizontalOverflow(allied, ...(await allied.locator('[data-person]').all()))
+  await expectWithinPage(allied, ...(await allied.locator('[data-person]').all()))
   await viewRoster(secondAlliedRow, secondAlliedLabel).click()
   await expect(allied.locator('[data-unit="Test unit"]')).toBeVisible()
   await allied.goBack()
@@ -1682,7 +1683,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const chooser = allied.getByRole('dialog', { name: 'Seal a roster' })
   await expect(chooser.locator(`[data-roster="${alliedRoster}"]`)).toBeVisible()
   await expect(chooser.locator(`[data-roster="${wrongRoster}"]`)).toHaveCount(0)
-  await expectNoHorizontalOverflow(allied, chooser)
+  await expectWithinPage(allied, chooser)
   await allied.keyboard.press('Escape')
 
   await owner.reload()
@@ -1716,7 +1717,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await eventLoaded(owner)
   await owner.getByRole('button', { name: 'Start 2 vs 1 battle' }).click()
   const battleChooser = owner.getByRole('dialog', { name: 'Start 2 vs 1 battle' })
-  await expectNoHorizontalOverflow(owner, battleChooser)
+  await expectWithinPage(owner, battleChooser)
   // The only allied pair in the event is the one possible table, so it is already seated.
   await expect(battleChooser.getByLabel('First opponent')).toContainText(alliedLabel)
   await expect(battleChooser.getByLabel('Second opponent')).toContainText(secondAlliedLabel)
@@ -1745,7 +1746,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const spectatorPlayer = spectator.getByRole('link', { name: ownerName, exact: true })
   await expect(spectatorPlayer).toHaveAttribute('href', /^\/users\/[^/?]+$/)
   await expect(spectator.getByRole('link', { name: '2,000-point roster', exact: true })).toHaveCount(0)
-  await expectNoHorizontalOverflow(spectator)
+  await expectWithinPage(spectator)
   await spectatorPlayer.click()
   await expect(spectator.getByRole('heading', { name: ownerName })).toBeVisible()
   await spectator.goBack()
@@ -1754,20 +1755,20 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const spectatorRoster = spectator.locator('[data-army-roster]')
   await expect(spectatorRoster.locator('[data-unit="Test unit"]')).toBeVisible()
   await expect(spectatorRoster.getByRole('button', { name: /Mark .* destroyed/ })).toHaveCount(0)
-  await expectNoHorizontalOverflow(spectator, spectatorRoster)
+  await expectWithinPage(spectator, spectatorRoster)
   await spectator.keyboard.press('Escape')
   await expect(spectatorRoster).toBeHidden()
   await spectator.setViewportSize({ width: 390, height: 844 })
-  await expectNoHorizontalOverflow(spectator)
+  await expectWithinPage(spectator)
   await spectator.getByRole('button', { name: 'Open 2,000-point roster' }).click()
-  await expectNoHorizontalOverflow(spectator, spectatorRoster)
+  await expectWithinPage(spectator, spectatorRoster)
   await spectator.keyboard.press('Escape')
   await expect(spectatorRoster).toBeHidden()
 
   await allied.reload()
   await allied.getByRole('button', { name: 'Start 2 vs 1 battle' }).click()
   const alliedBattleChooser = allied.getByRole('dialog', { name: 'Start 2 vs 1 battle' })
-  await expectNoHorizontalOverflow(allied, alliedBattleChooser)
+  await expectWithinPage(allied, alliedBattleChooser)
   await expect(alliedBattleChooser.getByLabel('Your ally')).toContainText(secondAlliedLabel)
   await expect(alliedBattleChooser.getByLabel('Opponent')).toContainText(ownerName)
   await alliedBattleChooser.getByRole('button', { name: 'Start battle' }).click()
@@ -1841,7 +1842,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await create.getByLabel('Player limit').fill('6')
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
   await owner.setViewportSize({ width: 390, height: 844 })
-  await expectNoHorizontalOverflow(owner, create)
+  await expectWithinPage(owner, create)
   await submitLeagueCreation(owner, create)
   await expect(owner.locator('main header').getByText(/^Doubles ·/)).toBeVisible()
   const leagueUrl = owner.url()
@@ -1874,7 +1875,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   // A step the organizer has finished leaves the panel.
   await expect(owner.locator('[data-check="teams"]')).toHaveCount(0)
   await owner.setViewportSize({ width: 390, height: 844 })
-  await expectNoHorizontalOverflow(owner, ...(await owner.locator('[data-person]').all()))
+  await expectWithinPage(owner, ...(await owner.locator('[data-person]').all()))
 
   await teammate.setViewportSize({ width: 390, height: 844 })
   await teammate.reload()
@@ -1882,7 +1883,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   const rosterChooser = teammate.getByRole('dialog', { name: 'Seal a roster' })
   await expect(rosterChooser.locator('[data-roster="Eligible doubles roster"]')).toBeVisible()
   await expect(rosterChooser.locator('[data-roster="Wrong doubles roster"]')).toHaveCount(0)
-  await expectNoHorizontalOverflow(teammate, rosterChooser)
+  await expectWithinPage(teammate, rosterChooser)
   await teammate.keyboard.press('Escape')
 
   await sealDoublesEventRosters(leagueToken, true)
@@ -1893,7 +1894,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await teamCard.getByRole('button', { name: 'Priority Assets' }).click()
   await expect(teamCard.getByRole('button', { name: 'Priority Assets' })).toHaveAttribute('aria-pressed', 'true')
   await expect(teammate.locator('[data-group="team-1"]')).toContainText('plays Priority Assets')
-  await expectNoHorizontalOverflow(teammate, teamCard)
+  await expectWithinPage(teammate, teamCard)
   await expect(teammate.locator('[data-team-warlord]').getByRole('button')).toHaveCount(2)
   const opponent = pages[2]
   await opponent.setViewportSize({ width: 1440, height: 900 })
@@ -1913,7 +1914,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   // The organizer's teams carry unpairing and each member's removal together at both widths.
   await owner.reload()
   await expect(owner.getByRole('button', { name: `Remove ${names[0]}`, exact: true })).toBeVisible()
-  await expectNoHorizontalOverflow(owner, ...(await owner.locator('[data-person]').all()))
+  await expectWithinPage(owner, ...(await owner.locator('[data-person]').all()))
   await owner.setViewportSize({ width: 1440, height: 900 })
   await team(1)
     .getByRole('button', { name: `Unpair ${names[0]} and ${names[1]}` })
@@ -1921,13 +1922,13 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   const clearRosters = owner.getByRole('alertdialog', { name: 'Clear sealed doubles rosters?' })
   for (const name of names.slice(0, 2)) await expect(clearRosters).toContainText(name)
   await owner.setViewportSize({ width: 1440, height: 900 })
-  await expectNoHorizontalOverflow(
+  await expectWithinPage(
     owner,
     clearRosters.locator('[data-slot="alert-dialog-header"]'),
     clearRosters.locator('[data-slot="alert-dialog-footer"]'),
   )
   await owner.setViewportSize({ width: 390, height: 844 })
-  await expectNoHorizontalOverflow(
+  await expectWithinPage(
     owner,
     clearRosters.locator('[data-slot="alert-dialog-header"]'),
     clearRosters.locator('[data-slot="alert-dialog-footer"]'),
@@ -1939,13 +1940,13 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   const removeEntrant = owner.getByRole('alertdialog', { name: `Remove ${names[0]}?` })
   await expect(removeEntrant).toContainText(`This also unpairs ${names[1]} and clears both their sealed rosters.`)
   await owner.setViewportSize({ width: 1440, height: 900 })
-  await expectNoHorizontalOverflow(
+  await expectWithinPage(
     owner,
     removeEntrant.locator('[data-slot="alert-dialog-header"]'),
     removeEntrant.locator('[data-slot="alert-dialog-footer"]'),
   )
   await owner.setViewportSize({ width: 390, height: 844 })
-  await expectNoHorizontalOverflow(
+  await expectWithinPage(
     owner,
     removeEntrant.locator('[data-slot="alert-dialog-header"]'),
     removeEntrant.locator('[data-slot="alert-dialog-footer"]'),
@@ -2001,7 +2002,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await owner.getByRole('button', { name: 'Start 2 vs 2 battle' }).click()
   const battleChooser = owner.getByRole('dialog', { name: 'Start 2 vs 2 battle' })
   await expect(battleChooser.getByLabel('Opposing team')).toContainText(`${names[2]} & ${names[3]}`)
-  await expectNoHorizontalOverflow(owner, battleChooser)
+  await expectWithinPage(owner, battleChooser)
   await battleChooser.getByRole('button', { name: 'Start battle' }).click()
   await expect(owner).toHaveURL(/\/battles\/[^/?]+$/)
   const sides = owner.getByRole('region', { name: 'Armies' }).locator('[data-players]')
@@ -2013,7 +2014,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expect(doublesSetup.getByText('Take and Hold', { exact: true })).toHaveCount(0)
   await expect(sides.nth(1)).toContainText(names[2])
   await expect(sides.nth(1)).toContainText(names[3])
-  await expectNoHorizontalOverflow(owner)
+  await expectWithinPage(owner)
 
   await Promise.all(contexts.map((context) => context.close()))
 })

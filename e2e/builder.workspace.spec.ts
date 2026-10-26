@@ -78,7 +78,7 @@ test('the roster workspace reserves the desktop picker while its book loads', as
     await page.setViewportSize({ width: 364, height: 759 })
     await page.reload()
     await expect(page.getByRole('button', { name: 'Add units', exact: true })).toBeVisible()
-    await expectNoHorizontalOverflow(page.locator('html'))
+    await expectNoPageOverflow(page)
     const roster = page.locator('[data-slot="roster-units"]')
     await expectNoHorizontalOverflow(roster)
     await expectVerticalPanOnly(roster)
@@ -91,7 +91,7 @@ test('the roster workspace reserves the desktop picker while its book loads', as
     const loadout = page.locator('aside[aria-label="Loadout"]')
     await expect(loadout).toBeVisible()
     await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
-    await expectNoHorizontalOverflow(page.locator('html'))
+    await expectNoPageOverflow(page)
     await expectNoHorizontalOverflow(loadout)
     const viewport = loadout.locator('[data-slot="scroll-area-viewport"]')
     await expectNoHorizontalOverflow(viewport)
@@ -194,7 +194,7 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)
   await add(page, 'Intercessor Squad')
   await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
-  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoPageOverflow(page)
   const roster = page.locator('[data-slot="roster-units"]')
   await expectNoHorizontalOverflow(roster)
   await expectVerticalPanOnly(roster)
@@ -209,7 +209,7 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
     await sections.evaluate((tabs) => Math.round(tabs.getBoundingClientRect().top)),
   )
   expect(await sections.evaluate((tabs) => (tabs as HTMLElement).inert)).toBe(false)
-  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(loadout)
   const viewport = loadout.locator('[data-slot="scroll-area-viewport"]')
   await expectNoHorizontalOverflow(viewport)
@@ -343,7 +343,7 @@ test('native roster details use pane history without adding a route back action'
     true,
   )
   await expectNoPageOverflow(page)
-  expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoHorizontalOverflow(loadout)
 
   await page.goBack()
   await expect(page).toHaveURL(rosterUrl)
@@ -352,7 +352,7 @@ test('native roster details use pane history without adding a route back action'
   await expect(unitButton).toBeFocused()
   await expect(page.getByRole('button', { name: 'Back to rosters' })).toHaveCount(0)
   await expectNoPageOverflow(page)
-  expect(await page.locator('[data-slot="roster-units"]').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoHorizontalOverflow(page.locator('[data-slot="roster-units"]'))
 
   await page.goForward()
   await expect(loadout).toBeVisible()
@@ -400,7 +400,7 @@ test('portrait tablets keep roster details as a full-screen view', async ({ page
   await expect(sections).toBeHidden()
   await expect(loadout.getByRole('button', { name: 'Back to roster' })).toBeVisible()
   await expectNoPageOverflow(page)
-  expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoHorizontalOverflow(loadout)
 
   await page.setViewportSize({ width: 1024, height: 768 })
   await expect(loadout).toHaveCSS('position', 'static')
@@ -444,7 +444,7 @@ test('a mixed-model squad shows its own profile instead of an optional model', a
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(profile).toBeVisible()
   await expectNoPageOverflow(page)
-  expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoHorizontalOverflow(loadout)
 })
 
 test('datasheet metadata is searchable in the picker and global search', async ({ page }) => {
@@ -529,7 +529,7 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
     .poll(() => page.locator('[data-slot="drawer-popup"]').evaluate((element) => getComputedStyle(element).transform))
     .toBe('matrix(1, 0, 0, 1, 0, 0)')
   await expectNoPageOverflow(page)
-  expect(await compactPicker.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoHorizontalOverflow(compactPicker)
   await compactPicker.getByRole('button', { name: 'Close' }).click()
 
   await page.setViewportSize({ width: 1600, height: 900 })
@@ -749,17 +749,17 @@ test('a waived format restriction cannot widen the mobile roster', async ({ page
   await page.setViewportSize({ width: 390, height: 844 })
   const imotekh = page.locator('[data-unit="Imotekh the Stormlord"]')
   await expect(imotekh).toBeVisible()
-  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoPageOverflow(page)
   await page.evaluate(() => window.scrollTo({ left: 100, behavior: 'instant' }))
   expect(await page.evaluate(() => window.scrollX)).toBe(0)
 
   await imotekh.getByRole('button', { name: 'Imotekh the Stormlord', exact: true }).click()
   const loadout = page.locator('aside[aria-label="Loadout"]')
   await expect(loadout.getByText('Equipped ranged weapons', { exact: true })).toBeVisible()
-  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoPageOverflow(page)
   await expectInsideHorizontalBounds(loadout, loadout.locator('[data-slot="unit-profile"] > div:first-child > div'))
   await expectInsideHorizontalBounds(loadout, loadout.locator('[data-slot="datasheet-content"] [class*="grid-cols-6"] > div'))
 
   await loadout.getByRole('button', { name: 'Back to roster' }).click()
-  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoPageOverflow(page)
 })

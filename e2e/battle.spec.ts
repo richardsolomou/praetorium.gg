@@ -21,6 +21,7 @@ import {
   practiceBattle,
 } from './account'
 import { battleLog, productSql, lastPathSegment, battleIdFor } from './storage'
+import { expectNoHorizontalOverflow } from './builder.harness'
 
 test('the opening draw prompt starts at the top, pins its actions and holds the page still on a phone', async ({ page }) => {
   await signUp(page, uniqueName('Opening prompt'))
@@ -499,7 +500,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
     await expect(discard).toBeVisible()
     await alice.setViewportSize({ width: 390, height: 844 })
     await expectNoPageOverflow(alice)
-    expect(await discard.locator('[data-slot="dialog-body"]').evaluate((body) => body.scrollWidth <= body.clientWidth)).toBe(true)
+    await expectNoHorizontalOverflow(discard.locator('[data-slot="dialog-body"]'))
     await expect(discard.getByRole('button', { name: discardedCard, exact: true })).toHaveCount(0)
     await discard.getByRole('button', { name: 'Minimize dialog' }).click()
     await expect(discard).toBeHidden()

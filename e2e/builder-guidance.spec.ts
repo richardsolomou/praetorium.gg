@@ -1,6 +1,6 @@
 import type { Locator } from '@playwright/test'
 import { expect, type Page, test } from './test'
-import { createRoster, signUp, waitForRosterSave, addUnit } from './account'
+import { createRoster, signUp, waitForRosterSave, addUnit, expectNoPageOverflow } from './account'
 import { arrangeByRole, expectNoHorizontalOverflow, openBuilder, shot } from './builder.harness'
 
 test.use({ hasTouch: true })
@@ -47,7 +47,7 @@ test(`a unit's attach menu adds and attaches a new leader, then offers only its 
     await expect(added.getByRole('menuitem', { name: 'Add new Overlord and attach', exact: true })).toHaveCount(0)
     await expect(added.getByRole('menuitem', { name: 'Add new Imotekh the Stormlord and attach', exact: true })).toHaveCount(0)
     await expectNoHorizontalOverflow(attachMenu(page))
-    await expectNoHorizontalOverflow(page.locator('html'))
+    await expectNoPageOverflow(page)
     await shot(attachMenu(page), test.info().outputPath(`attach-menu-full-${width}.png`))
     await page.keyboard.press('Escape')
 
@@ -78,7 +78,7 @@ test('a unit whose only leader slot is full offers no attach menu', async ({ pag
     await expect(destroyers).toContainText('Skorpekh Lord')
     await expect(attachUnit).toHaveCount(0)
     await expect(lord.getByRole('button', { name: 'Attach Skorpekh Lord to unit', exact: true })).toHaveCount(0)
-    await expectNoHorizontalOverflow(page.locator('html'))
+    await expectNoPageOverflow(page)
     await shot(destroyers, test.info().outputPath(`attach-full-skorpekh-${width}.png`))
     await page.reload()
     await expect(destroyers).toContainText('Skorpekh Lord')

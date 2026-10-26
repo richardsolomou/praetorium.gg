@@ -17,6 +17,7 @@ import {
   practiceBattle,
 } from './account'
 import { expectWorkSynced } from './storage'
+import { expectNoHorizontalOverflow } from './builder.harness'
 
 async function draw(page: Page, cards: string[]) {
   const prompt = page.getByRole('dialog', { name: /secondary missions$/ })
@@ -49,11 +50,8 @@ async function inspectChoices(page: Page, card: Locator, name: string, board = t
         }, name),
       )
       .toBeGreaterThanOrEqual(0)
-    expect(await page.evaluate(() => ({ width: innerWidth, fits: document.documentElement.scrollWidth <= innerWidth }))).toEqual({
-      width,
-      fits: true,
-    })
-    expect(await card.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+    await expectNoPageOverflow(page)
+    await expectNoHorizontalOverflow(card)
     if (width === 390 && board) {
       const box = (await record.boundingBox())!
       expect(box.y + box.height).toBeLessThan((await page.locator('[data-turn-control]').boundingBox())!.y)

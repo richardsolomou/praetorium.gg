@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page } from './test'
 import { befriend, createBattle, retryUntilVisible, signInAsPreview, signUp, uniqueName, sealableRoster } from './account'
 import { productSql, lastPathSegment, battleIdFor, seatsBySide, appendCommand } from './storage'
 import type { Command } from '../src/core/battle'
+import { expectNoHorizontalOverflow } from './builder.harness'
 
 test.setTimeout(120_000)
 
@@ -148,7 +149,7 @@ test('a club seals lists for a game night and plays them from the club page', as
   await owner.setViewportSize({ width: 390, height: 844 })
   await game.scrollIntoViewIfNeeded()
   await expect(owner.getByRole('heading', { name: 'New game', exact: true })).toHaveCount(0)
-  expect(await game.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoHorizontalOverflow(game)
   await expect(game.getByRole('button', { name: `Simulate against ${memberName}`, exact: true })).toBeInViewport()
   await owner.screenshot({ path: testInfo.outputPath('club-up-next-mobile.png') })
   await owner.setViewportSize({ width: 1440, height: 1000 })
@@ -286,7 +287,7 @@ test('club team rows keep their actions inside the card at narrow widths', async
   for (const width of [240, 320, 390, 768, 1280]) {
     await page.setViewportSize({ width, height: 900 })
     await game.scrollIntoViewIfNeeded()
-    expect(await game.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+    await expectNoHorizontalOverflow(game)
     await expect(game.getByRole('button', { name: /^Simulate against/ })).toHaveCount(3)
     for (const action of await game.getByRole('button', { name: /^Simulate against/ }).all()) {
       const bounds = await action.boundingBox()

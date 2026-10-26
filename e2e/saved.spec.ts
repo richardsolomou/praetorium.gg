@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { arrangeByRole } from './builder.harness'
+import { arrangeByRole, expectNoHorizontalOverflow } from './builder.harness'
 import {
   chooseRosterAction,
   confirmRosterSetup,
@@ -667,7 +667,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await guest.setViewportSize({ width: 390, height: 844 })
   await expect(guestLoadout).toBeVisible()
   await expectNoPageOverflow(guest)
-  expect(await guestLoadout.evaluate((pane) => pane.scrollWidth <= pane.clientWidth)).toBe(true)
+  await expectNoHorizontalOverflow(guestLoadout)
   await guest.screenshot({ path: test.info().outputPath('shared-roster-read-only-phone.png'), fullPage: true })
   await guestLoadout.getByRole('button', { name: 'Back to roster' }).click()
   await guest.getByRole('button', { name: 'Roster actions' }).click()

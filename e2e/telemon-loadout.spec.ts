@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { visitorSetup, chooseRosterAction } from './account'
+import { visitorSetup, chooseRosterAction, expectNoPageOverflow } from './account'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
 
 for (const width of [1440, 390]) {
@@ -31,7 +31,7 @@ for (const width of [1440, 390]) {
     await expect(dualOption.getByRole('heading', { name: '2× Twin Neutronium Cascade Projectors', exact: true })).toHaveCount(1)
     await expect(equipped.getByRole('heading', { name: '2× Twin Neutronium Cascade Projectors', exact: true })).toHaveCount(1)
     await expect(card).toContainText('2x Twin Neutronium Cascade Projectors')
-    await expectNoHorizontalOverflow(page.locator('html'))
+    await expectNoPageOverflow(page)
     await expectNoHorizontalOverflow(loadout)
     await page.screenshot({ path: test.info().outputPath(`telemon-dual-${width}.png`) })
 
