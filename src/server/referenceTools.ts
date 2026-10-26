@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import { REFERENCE_KINDS } from '../contracts/reference'
-import { app } from './app'
-import { activeReferenceCorpus, currentFactionIds } from './referenceApi'
+import { activeReferenceCorpus, referenceDocumentFor, referenceRecordFor, referenceUnitsFor } from './referenceApi'
 import { referenceDocumentMarkdown } from './referenceCorpus'
 import {
   REFERENCE_FILTER_MAX_LENGTH,
@@ -18,14 +17,7 @@ import {
   revisionsSchema,
   unitSummarySchema,
 } from './referenceSchemas'
-import {
-  referenceFaction,
-  referenceFactions,
-  referenceIndex,
-  referenceRecord,
-  referenceRecordCatalogueId,
-  referenceUnits,
-} from './referenceService'
+import { referenceFactions, referenceIndex } from './referenceService'
 import type { AgentTools } from './agentTools'
 
 export function registerReferenceTools(server: AgentTools) {
@@ -74,10 +66,9 @@ export function registerReferenceTools(server: AgentTools) {
       annotations: READ_ONLY_TOOL,
     },
     async ({ id }) => {
-      const catalogueId = referenceRecordCatalogueId(id)
-      const corpus = await activeReferenceCorpus(catalogueId)
-      if (!corpus) return unavailable()
-      const document = corpus.byId.get(id)
+      const found = await referenceDocumentFor(id)
+      if (!found) return unavailable()
+      const { document } = found
       if (!document) return { content: [{ type: 'text', text: 'Reference document not found.' }], isError: true }
       return { content: [{ type: 'text', text: referenceDocumentMarkdown(document) }], structuredContent: document }
     },
@@ -93,10 +84,9 @@ export function registerReferenceTools(server: AgentTools) {
       annotations: READ_ONLY_TOOL,
     },
     async ({ id }) => {
-      const catalogueId = referenceRecordCatalogueId(id)
-      const corpus = await activeReferenceCorpus(catalogueId)
-      if (!corpus) return unavailable()
-      const result = referenceRecord(corpus, await app().rulesFor(catalogueId), id)
+      const found = await referenceRecordFor(id)
+      if (!found) return unavailable()
+      const result = found.record
       if (!result) return { content: [{ type: 'text', text: 'Structured reference record not found.' }], isError: true }
       return structured(result)
     },
@@ -157,15 +147,9 @@ export function registerReferenceTools(server: AgentTools) {
       annotations: READ_ONLY_TOOL,
     },
     async ({ faction, battleSize, detachment }) => {
-      const instance = app()
-      const corpus = await activeReferenceCorpus(faction)
-      const selected = corpus && referenceFaction(corpus, faction)
-      const [loaded, rules] = await Promise.all([
-        instance.catalogueFor(selected?.id ?? faction),
-        instance.rulesFor(selected?.id ?? faction),
-      ])
-      if (!corpus || !loaded) return unavailable()
-      const result = referenceUnits(corpus, loaded, rules, faction, battleSize, detachment, await currentFactionIds())
+      const found = await referenceUnitsFor(faction, battleSize, detachment)
+      if (!found) return unavailable()
+      const result = found.units
       if (!result) return { content: [{ type: 'text', text: 'Faction or detachment not found.' }], isError: true }
       return structured(result)
     },

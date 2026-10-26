@@ -43,10 +43,15 @@ const corpus: ReferenceCorpus = {
 
 const { rateLimit } = vi.hoisted(() => ({ rateLimit: vi.fn(() => null as Response | null) }))
 
-vi.mock('./referenceApi', () => ({
-  activeReferenceCorpus: () => corpus,
-  referenceRateLimit: rateLimit,
-}))
+vi.mock('./referenceApi', async () => {
+  const { referenceRecord } = await import('./referenceService')
+  return {
+    activeReferenceCorpus: () => corpus,
+    referenceDocumentFor: async (id: string) => ({ corpus, document: corpus.byId.get(id) }),
+    referenceRecordFor: async (id: string) => ({ corpus, record: referenceRecord(corpus, null, id) }),
+    referenceRateLimit: rateLimit,
+  }
+})
 vi.mock('./publishedTextFiles', () => ({ publishedTextLocations: async () => ({ files: {}, holds: () => false }) }))
 vi.mock('./app', () => ({
   app: () => ({
