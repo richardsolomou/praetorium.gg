@@ -24,6 +24,8 @@ it('does not report an estimate when neither phase was requested', () => {
   expect(combatOutcomeEvent({ ranged: null, melee: null }, 'standalone')).toBeNull()
 })
 
+const slots = { attackerControl: null, defenderControl: null, attackerBuffs: null, defenderBuffs: null, invalidAttachments: {} }
+
 const unit: CombatantSnapshot = {
   models: 1,
   carriers: [],
@@ -62,7 +64,7 @@ const unit: CombatantSnapshot = {
 
 it('calculates zero-attack phases when no weapons are equipped', () => {
   const markup = renderToStaticMarkup(
-    createElement(CombatMatchup, { attacker: unit, defender: unit, preferences: {}, onPreferencesChange: () => {} }),
+    createElement(CombatMatchup, { attacker: unit, defender: unit, preferences: {}, onPreferencesChange: () => {}, ...slots }),
   )
   expect([...markup.matchAll(/aria-label="(?:Shooting|Melee) results" aria-busy="([^"]+)"/g)].map((match) => match[1])).toEqual([
     'true',
@@ -82,7 +84,7 @@ it('does not promise a calculation against unsupported defensive characteristics
     },
   }
   const markup = renderToStaticMarkup(
-    createElement(CombatMatchup, { attacker: unit, defender, preferences: {}, onPreferencesChange: () => {} }),
+    createElement(CombatMatchup, { attacker: unit, defender, preferences: {}, onPreferencesChange: () => {}, ...slots }),
   )
   expect([...markup.matchAll(/aria-label="(?:Shooting|Melee) results" aria-busy="([^"]+)"/g)].map((match) => match[1])).toEqual([
     'false',
@@ -107,6 +109,7 @@ it('includes evaluated companion profile sources in the visible calculation summ
       defender: unit,
       preferences: {},
       onPreferencesChange: () => {},
+      ...slots,
     }),
   )
   expect(markup.slice(markup.indexOf('aria-label="Applied modifiers"'))).toContain('Profile changes: Companion equipment.')
@@ -123,6 +126,7 @@ it('separates sourced re-rolls from explicit manual adjustments in the calculati
       defender: unit,
       preferences: {},
       onPreferencesChange: () => {},
+      ...slots,
       initialSettings: { adjustments: { all: { hitModifier: 1 } }, preferences: {}, excluded: { ranged: [], melee: [] }, allocation: [] },
     }),
   )
@@ -138,6 +142,7 @@ it('explains when equipment invalidates a previously selected weapon profile', (
       defender: unit,
       preferences: {},
       onPreferencesChange: () => {},
+      ...slots,
       invalidatedPreferences: true,
     }),
   )

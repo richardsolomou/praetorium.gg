@@ -24,7 +24,6 @@ import { combatUnitKeywords, combatUnitTarget } from '../../../core/combatUnit'
 import { combatMatchup, type CombatAnswer, type CombatantSnapshot, type CombatRequest } from '../../../core/combatMatchup'
 import type { CombatAdjustments, TargetAdjustment, WeaponAdjustment } from '../../../core/combatAdjustments'
 import { wargearKey } from '../../../core/wargear'
-import { CombatRuleLabel } from './CombatRuleLabel'
 import { Chip, Choice, PHASE_TITLES, PhaseIcon } from './CombatControls'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CombatResults } from './CombatResults'
@@ -34,7 +33,6 @@ import type { MatchupSettings } from '../../../contracts/simulatorState'
 import type { LoadoutSpace } from '../../../core/combatLoadouts'
 import { groupBy } from '../../../core/collections'
 import { Problem } from '../../components/Problem'
-import { countLabel } from '../../text'
 import { calculationInputs } from './calculationInputs'
 
 function weaponToggleGroups(entries: readonly { profile: Datasheet['profiles'][number]; count: number }[]) {
@@ -96,8 +94,6 @@ const phases = [
 ] as const
 
 /** The same matchup surface accepts catalogue picks or already evaluated roster/battle units. */
-const VALID_ATTACHMENTS = {}
-
 export function CombatMatchup({
   entryPoint = 'standalone',
   attacker,
@@ -116,17 +112,17 @@ export function CombatMatchup({
   preferences,
   invalidatedPreferences = false,
   onPreferencesChange: setPreferences,
-  invalidAttachments = VALID_ATTACHMENTS,
+  invalidAttachments,
 }: {
   entryPoint?: CombatEntryPoint
   attacker: CombatantSnapshot | null
   defender: CombatantSnapshot | null
   pending?: boolean
   failed?: boolean
-  attackerControl?: ReactNode
-  defenderControl?: ReactNode
-  attackerBuffs?: ReactNode
-  defenderBuffs?: ReactNode
+  attackerControl: ReactNode
+  defenderControl: ReactNode
+  attackerBuffs: ReactNode
+  defenderBuffs: ReactNode
   inDialog?: boolean
   /** Situational settings restored from a shared link, and where to report changes. */
   initialSettings?: MatchupSettings
@@ -138,7 +134,7 @@ export function CombatMatchup({
   /** The attacker's weapon choices, when its loadout can change in this matchup. */
   loadoutSpace?: LoadoutSpace | null
   /** Which sides have illegal attachments, such as a Support unit without a Bodyguard unit, so they cannot be calculated. */
-  invalidAttachments?: { attacker?: boolean; defender?: boolean }
+  invalidAttachments: { attacker?: boolean; defender?: boolean }
 }) {
   const [adjustments, setAdjustments] = useState<CombatAdjustments>(initialSettings?.adjustments ?? {})
   const [modifiersOpen, setModifiersOpen] = useState(Boolean(Object.keys(initialSettings?.adjustments ?? {}).length))
@@ -542,14 +538,12 @@ export function CombatMatchup({
             className="min-w-0 border-b border-edge @xl:border-r @xl:border-b-0"
           >
             <LoadoutOddsContext.Provider value={loadoutOdds}>
-              <LoadoutOptimizationContext.Provider value={optimizationContext}>
-                {attackerControl ?? <CombatantHeading side="Attacker" unit={attacker} />}
-              </LoadoutOptimizationContext.Provider>
+              <LoadoutOptimizationContext.Provider value={optimizationContext}>{attackerControl}</LoadoutOptimizationContext.Provider>
             </LoadoutOddsContext.Provider>
             <CombatDefences unit={attacker} />
           </section>
           <section data-onboarding="simulator-defender" aria-label="Defender" className="min-w-0">
-            {defenderControl ?? <CombatantHeading side="Defender" unit={defender} />}
+            {defenderControl}
             <CombatDefences
               unit={defender}
               feelNoPain={feelNoPain}
@@ -661,8 +655,8 @@ export function CombatMatchup({
               Rules & buffs
             </summary>
             <div className="grid gap-4 pb-3 @xl:grid-cols-2">
-              {attackerBuffs ?? <CombatUnitRules side="Attacker" unit={attacker} />}
-              {defenderBuffs ?? <CombatUnitRules side="Defender" unit={defender} />}
+              {attackerBuffs}
+              {defenderBuffs}
             </div>
           </details>
           <section aria-label="Modifiers" className="border-t border-edge">
@@ -987,16 +981,6 @@ export function CombatMatchup({
   )
 }
 
-function CombatantHeading({ side, unit }: { side: string; unit: CombatantSnapshot | null }) {
-  return (
-    <div className="min-w-0 p-3 sm:p-4">
-      <h2 className="rubric">{side}</h2>
-      <p className="mt-2 text-sm">{unit?.sheet.name ?? 'Select a unit'}</p>
-      {unit ? <p className="mt-1 text-xs text-dim">{countLabel(unit.models, 'model')}</p> : null}
-    </div>
-  )
-}
-
 function CombatDefences({
   unit,
   feelNoPain,
@@ -1117,22 +1101,4 @@ function ChipFamily<T>({
       }
     />
   ))
-}
-
-function CombatUnitRules({ side, unit }: { side: string; unit: CombatantSnapshot | null }) {
-  if (!unit?.sheet.abilities.length) return null
-  return (
-    <section aria-label={`${side} rules`} className="space-y-2">
-      <h3 className="rubric">{side}</h3>
-      {unit.sheet.abilities.map((ability) => (
-        <CombatRuleLabel
-          key={ability.id}
-          side={side}
-          name={ability.name}
-          description={ability.description}
-          rules={unit.sheet.keywordRules}
-        />
-      ))}
-    </section>
-  )
 }
