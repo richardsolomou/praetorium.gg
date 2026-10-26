@@ -678,8 +678,9 @@ export const ARMY_POINTS_ERROR = `choose between 1 and ${POINTS_BUDGET_MAX.toLoc
 export const allowsPointsBudget = (limit: number | null): boolean =>
   limit !== null && !isKotcLimit(limit) && GAME_SIZES.some((size) => size.limit === limit)
 
-export function pointsBudgetError(limit: number, budget: number | null | undefined): string | null {
-  if (budget === null || budget === undefined || budget === limit) return null
+export function pointsBudgetError(limit: number, requested: number | null | undefined): string | null {
+  const budget = customPointsBudget(limit, requested)
+  if (budget === null) return null
   if (!allowsPointsBudget(limit)) return 'This battle size has a fixed points total.'
   if (!Number.isInteger(budget)) return 'Enter a whole number of points.'
   if (budget < POINTS_BUDGET_MIN || budget > POINTS_BUDGET_MAX)
@@ -1998,7 +1999,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
         terrainLayoutId: command.terrainLayoutId,
         twistId: command.twistId,
         teamBattle: command.teamBattle ?? false,
-        playerCount: command.playerCount ?? (command.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE),
+        playerCount: battleCapacity(command),
         ...(command.armyPoints ? { armyPoints: command.armyPoints } : {}),
         ...(command.manual ? { manual: true } : {}),
       }
