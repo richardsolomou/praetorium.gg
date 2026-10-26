@@ -573,7 +573,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           />
         ) : null}
         <div data-battle-sticky-header className="sticky top-(--app-header) z-20 space-y-2 bg-void/95 pb-2 backdrop-blur lg:contents">
-          <Scoreboard view={view} clock={clock} sides={table} outcome={null} />
+          <Scoreboard view={view} clock={clock} sides={table} />
           <GuideHelp task="battle" step="battle-live-score">
             Playing guide
           </GuideHelp>
@@ -699,7 +699,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                 <div className="mt-3">
                   <BattleNote pending={pending || promptMinimized} send={sendAction} />
                 </div>
-                <Report token={view.token} open players={reportedPlayers} />
+                <Report token={view.token} players={reportedPlayers} />
               </div>
 
               {problem ? <Problem>{problem}</Problem> : null}

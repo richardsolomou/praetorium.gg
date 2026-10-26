@@ -12,7 +12,6 @@ import type { ReplayPoint } from '../../../core/battleReplay'
 import { expandReplayFrames } from '../../../core/replayFrames'
 import type { BattleView } from '../../../core/battleView'
 import { replayBattleBatch } from '../../functions'
-import { battleOutcome } from '../../battleOutcome'
 import { deploymentFor } from '../../battleSummary'
 import { replayPreloadBatches } from '../../replayPrefetch'
 import { missionCardsByKey } from './missionDeck'
@@ -151,7 +150,7 @@ export function Spectator({
         </div>
 
         {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
-        <Scoreboard view={view} clock={clock} sides={table} outcome={view.status === 'finished' ? battleOutcome(table, view) : null} />
+        <Scoreboard view={view} clock={clock} sides={table} />
         {/* A finished game is when a reader is most likely to want their own, so it leads there and waits beside the facts while play goes on. */}
         {currentView.status === 'finished' ? (
           <SpectatorInvite view={currentView} className="mx-auto max-w-7xl rounded-lg border border-primary/40 bg-panel p-3" />
@@ -199,7 +198,7 @@ export function Spectator({
             ) : null}
             <div className="border-t border-edge pt-3">
               <p className="eyebrow">Battle events</p>
-              <Report token={view.token} open players={reportPlayers(view.players)} entries={report} />
+              <Report token={view.token} players={reportPlayers(view.players)} entries={report} />
             </div>
           </section>
         </div>
