@@ -442,6 +442,10 @@ function touchClub(ctx: Context, clubId: string) {
 
 const CLUB_MEMBERS_ONLY = 'every player must be a member of the club'
 
+function isClubMember(ctx: Context, clubId: string, userId: string) {
+  return ctx.db.clubMembers.key.find(JSON.stringify([clubId, userId]))?.status === 'accepted'
+}
+
 /** A club's games, newest first. */
 function clubGameHosts(ctx: Context, club: ClubRow) {
   return Array.from(ctx.db.clubGames.clubId.filter(club.id))
@@ -495,7 +499,7 @@ function battleClubIds(ctx: Context, seats: readonly { id: string; automated: bo
   return Array.from(ctx.db.clubMembers.userId.filter(first.id))
     .filter((row) => row.status === 'accepted')
     .map((row) => row.clubId)
-    .filter((clubId) => rest.every((seat) => ctx.db.clubMembers.key.find(JSON.stringify([clubId, seat.id]))?.status === 'accepted'))
+    .filter((clubId) => rest.every((seat) => isClubMember(ctx, clubId, seat.id)))
 }
 
 /** Rewrites a battle's club index row from its log, so a choice and its undo both land in the index. */
@@ -2799,7 +2803,7 @@ export const outdatedLeagueEntriesForRoster = spacetime.procedure(
 function listsEvent(ctx: Context, host: EventHost, readerId: string, personal: ReadonlySet<string>) {
   if (personal.has(host.event.id)) return true
   if (host.kind === 'tournament') return host.tournament.visibility === 'public'
-  return host.club.visibility === 'public' || ctx.db.clubMembers.key.find(JSON.stringify([host.club.id, readerId]))?.status === 'accepted'
+  return host.club.visibility === 'public' || isClubMember(ctx, host.club.id, readerId)
 }
 
 /** Friends' sealed lists from revealed events the viewer can list, newest reveal first. */
@@ -3838,8 +3842,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const key = JSON.stringify([event.id, input.userId])
     const existing = tx.db.leagueEventEntries.key.find(key)
     if (existing && existing.status !== 'rejected') return productJson(existing.status)
-    if (host.kind === 'club' && tx.db.clubMembers.key.find(JSON.stringify([host.club.id, input.userId]))?.status !== 'accepted')
-      return productJson('members-only')
+    if (host.kind === 'club' && !isClubMember(tx, host.club.id, input.userId)) return productJson('members-only')
     const entries = leagueEntriesFor(tx, event.id).filter((entry) => entry.status !== 'rejected')
     const accepted = entries.filter((entry) => entry.status === 'accepted').length
     const rules = hostEntryRules(host)
@@ -4097,7 +4100,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     if (
       userIds.some((userId) =>
         host.kind === 'club'
-          ? tx.db.clubMembers.key.find(JSON.stringify([host.club.id, userId]))?.status !== 'accepted'
+          ? !isClubMember(tx, host.club.id, userId)
           : userId === ownerId || friendshipBetween(tx, ownerId, userId)?.acceptedAt === undefined,
       )
     )
@@ -4286,7 +4289,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     // A club's players take their own seats; a tournament's organizer sizes and pairs its entrants.
     if (host.kind !== 'club') return productJson('forbidden')
     if (event.revealedAt !== undefined || (event.sealBy !== undefined && BigInt(input.now) > event.sealBy)) return productJson('closed')
-    if (tx.db.clubMembers.key.find(JSON.stringify([host.club.id, ownerId]))?.status !== 'accepted') return productJson('members-only')
+    if (!isClubMember(tx, host.club.id, ownerId)) return productJson('members-only')
     const key = JSON.stringify([event.id, ownerId])
     const entry = tx.db.leagueEventEntries.key.find(key)
     if (input.side === null) {
@@ -4342,7 +4345,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       host.kind === 'club' &&
       event.revealedAt === undefined &&
       !tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, input.userId])) &&
-      tx.db.clubMembers.key.find(JSON.stringify([host.club.id, input.userId]))?.status === 'accepted'
+      isClubMember(tx, host.club.id, input.userId)
     )
       insertLeagueEntry(tx, event.id, input.userId, 'accepted', input.now)
     const entry = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, input.userId]))
