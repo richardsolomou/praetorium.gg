@@ -8,6 +8,7 @@ import {
   type OfflineAppVersion,
 } from '../../contracts/offlineReference'
 import { anySignal } from '../abortSignals'
+import { dataUrl } from '../imageFile'
 import { referenceJsonExpression } from '../../contracts/embeddedReference'
 import { compressReference, updatedReference } from './compressedReference'
 
@@ -113,11 +114,8 @@ async function resource(url: string, signal: AbortSignal) {
   if (!response.ok) throw new Error('The app could not be downloaded. Please try again.')
   const blob = await response.blob()
   if (blob.size > 5_000_000) throw new Error('Reference asset exceeds the download limit')
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = () => reject(new Error('Reference asset could not be read'))
-    reader.readAsDataURL(blob)
+  return dataUrl(blob).catch(() => {
+    throw new Error('Reference asset could not be read')
   })
 }
 
