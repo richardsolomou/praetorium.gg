@@ -6,6 +6,28 @@ import { expectNoHorizontalOverflow } from './builder.harness'
 
 test.setTimeout(120_000)
 
+/** Founds a club from the clubs page and returns its address once its page shows. */
+async function createClub(page: Page, name: string) {
+  await page.goto('/clubs')
+  const create = page.getByRole('dialog', { name: 'New club' })
+  await retryUntilVisible(create, () => page.getByRole('button', { name: 'New club', exact: true }).click({ timeout: 1_000 }))
+  await create.getByLabel('Name').fill(name)
+  await create.getByRole('button', { name: 'Create club' }).click()
+  await expect(page.getByRole('heading', { name })).toBeVisible()
+  return page.url()
+}
+
+/** Joins a club from its page until the member list names the player. */
+async function joinClub(page: Page, clubUrl: string, name: string) {
+  await page.goto(clubUrl)
+  await retryUntilVisible(page.locator('[data-person]').filter({ hasText: name }), () =>
+    page.getByRole('button', { name: 'Join club' }).click({ timeout: 1_000 }),
+  )
+}
+
+const expectClubBattle = (battleId: string) =>
+  expect.poll(async () => (await productSql`SELECT club_id FROM club_battles WHERE battle_id = ${battleId}`).length).toBe(1)
+
 test('club members choose their club at battle setup', async ({ browser }, testInfo) => {
   const ownerContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
   const memberContext = await browser.newContext()
@@ -18,17 +40,9 @@ test('club members choose their club at battle setup', async ({ browser }, testI
   await befriend(owner, member)
 
   const clubName = uniqueName('Thursday club')
-  await owner.goto('/clubs')
-  const create = owner.getByRole('dialog', { name: 'New club' })
-  await retryUntilVisible(create, () => owner.getByRole('button', { name: 'New club' }).click({ timeout: 1_000 }))
-  await create.getByLabel('Name').fill(clubName)
-  await create.getByRole('button', { name: 'Create club' }).click()
-  await expect(owner.getByRole('heading', { name: clubName })).toBeVisible()
-  const clubUrl = owner.url()
+  const clubUrl = await createClub(owner, clubName)
 
-  await member.goto(clubUrl)
-  const join = member.getByRole('button', { name: 'Join club' })
-  await retryUntilVisible(member.locator('[data-person]').filter({ hasText: memberName }), () => join.click({ timeout: 1_000 }))
+  await joinClub(member, clubUrl, memberName)
 
   const battleUrl = await createBattle(owner, { opponent: memberName })
   const club = owner.getByRole('group', { name: 'Club', exact: true })
@@ -39,7 +53,7 @@ test('club members choose their club at battle setup', async ({ browser }, testI
   await owner.screenshot({ path: testInfo.outputPath('club-setup.png') })
 
   const battleId = await battleIdFor(lastPathSegment(battleUrl))
-  await expect.poll(async () => (await productSql`SELECT club_id FROM club_battles WHERE battle_id = ${battleId}`).length).toBe(1)
+  await expectClubBattle(battleId)
 
   // Settle the battle in its log: the table is what is under test, not the game.
   const [first, second] = await seatsBySide(battleId)
@@ -71,25 +85,16 @@ test('members who are not friends start a club game from the club page', async (
   const memberName = uniqueName('Club regular')
   await signUp(member, memberName)
 
-  await owner.goto('/clubs')
-  const create = owner.getByRole('dialog', { name: 'New club' })
-  await retryUntilVisible(create, () => owner.getByRole('button', { name: 'New club' }).click({ timeout: 1_000 }))
   const clubName = uniqueName('Open night')
-  await create.getByLabel('Name').fill(clubName)
-  await create.getByRole('button', { name: 'Create club' }).click()
-  await expect(owner.getByRole('heading', { name: clubName })).toBeVisible()
-  const clubUrl = owner.url()
-  await member.goto(clubUrl)
-  await retryUntilVisible(member.locator('[data-person]').filter({ hasText: memberName }), () =>
-    member.getByRole('button', { name: 'Join club' }).click({ timeout: 1_000 }),
-  )
+  const clubUrl = await createClub(owner, clubName)
+  await joinClub(member, clubUrl, memberName)
 
   await owner.reload()
   await openNewGame(owner)
   await owner.getByRole('dialog', { name: 'New game', exact: true }).getByRole('button', { name: 'Start battle' }).click()
   await owner.waitForURL(/\/battles\/[^/]+$/)
   const battleId = await battleIdFor(lastPathSegment(owner.url()))
-  await expect.poll(async () => (await productSql`SELECT club_id FROM club_battles WHERE battle_id = ${battleId}`).length).toBe(1)
+  await expectClubBattle(battleId)
   await ownerContext.close()
   await memberContext.close()
 })
@@ -108,18 +113,9 @@ test('a club seals lists for a game night and plays them from the club page', as
   await sealableRoster(owner, 'Host army')
   await sealableRoster(member, 'Regular army')
 
-  await owner.goto('/clubs')
-  const create = owner.getByRole('dialog', { name: 'New club' })
-  await retryUntilVisible(create, () => owner.getByRole('button', { name: 'New club' }).click({ timeout: 1_000 }))
   const clubName = uniqueName('Game night')
-  await create.getByLabel('Name').fill(clubName)
-  await create.getByRole('button', { name: 'Create club' }).click()
-  await expect(owner.getByRole('heading', { name: clubName })).toBeVisible()
-  const clubUrl = owner.url()
-  await member.goto(clubUrl)
-  await retryUntilVisible(member.locator('[data-person]').filter({ hasText: memberName }), () =>
-    member.getByRole('button', { name: 'Join club' }).click({ timeout: 1_000 }),
-  )
+  const clubUrl = await createClub(owner, clubName)
+  await joinClub(member, clubUrl, memberName)
 
   // The game is started, sealed, revealed and played without leaving the club page.
   await owner.reload()
@@ -199,13 +195,7 @@ test('a club plays a solo-vs-pair sealed game, its players taking their own side
   await sealableRoster(ally, 'First allied army', { size: /Incursion/ })
   await sealableRoster(partner, 'Second allied army', { size: /Incursion/ })
 
-  await solo.goto('/clubs')
-  const create = solo.getByRole('dialog', { name: 'New club' })
-  await retryUntilVisible(create, () => solo.getByRole('button', { name: 'New club' }).click({ timeout: 1_000 }))
-  await create.getByLabel('Name').fill(uniqueName('Team night'))
-  await create.getByRole('button', { name: 'Create club' }).click()
-  await solo.waitForURL(/\/clubs\/[^/]+$/)
-  const clubUrl = solo.url()
+  const clubUrl = await createClub(solo, uniqueName('Team night'))
   for (const player of [ally, partner]) {
     await player.goto(clubUrl)
     await retryUntilVisible(player.getByRole('button', { name: 'Copy invite link' }), () =>
@@ -320,14 +310,7 @@ test('club team rows keep their actions inside the card at narrow widths', async
 
 test('a new sealed game replaces the previous one in another open tab', async ({ page }, testInfo) => {
   await signUp(page, uniqueName('Automatic game host'))
-  await page.goto('/clubs')
-  const club = page.getByRole('dialog', { name: 'New club' })
-  await retryUntilVisible(club, () => page.getByRole('button', { name: 'New club', exact: true }).click({ timeout: 1_000 }))
-  const name = uniqueName('Automatic game nights')
-  await club.getByLabel('Name').fill(name)
-  await club.getByRole('button', { name: 'Create club' }).click()
-  await expect(page.getByRole('heading', { name })).toBeVisible()
-  const clubUrl = page.url()
+  const clubUrl = await createClub(page, uniqueName('Automatic game nights'))
   const createGame = async (tab: Page) => {
     await openNewGame(tab)
     await tab.getByRole('button', { name: 'New sealed game', exact: true }).click()
@@ -362,5 +345,3 @@ async function sealFromClub(page: Page, game: Locator, rosterName: string) {
   await expect(chooser).toBeHidden()
   await expect(game.getByRole('button', { name: 'Swap your list' })).toBeVisible()
 }
-
-/** A roster a sealed game accepts: one Warlord, at Strike Force unless the seat asks for another size. */
