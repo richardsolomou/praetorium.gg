@@ -6,6 +6,7 @@ import type { CollectionImportRow } from '../core/collection'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES, type RosterSource, type RosterVisibility } from '../core/savedRoster'
 import { commandRefusal, reduceBattle, type Command, type LoggedCommand, type Refusal, type SubmitResult } from '../core/battle'
 import { commandSchema } from '../core/commands'
+import { battleFoldArgs } from '../core/offlineBattle'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, rosterDiscoveryCursorSchema, type RosterDiscoveryQuery } from '../core/rosterDiscovery'
 import type { PlayerDefaults } from '../core/playerDefaults'
@@ -470,13 +471,7 @@ export class SpacetimeOperator {
     resolveCommand: (state: ReturnType<typeof reduceBattle>, command: Command) => Command = (_, command) => command,
   ): Promise<{ result: SubmitResult; log: LoggedCommand[]; applied?: boolean }> {
     const snapshot = input.snapshot ?? (await this.battleForOperator(input.battleId))
-    const fold = (log: LoggedCommand[]) =>
-      reduceBattle(
-        snapshot.seats.map((seat) => seat.id),
-        log,
-        snapshot.seats.map((seat) => seat.side),
-        snapshot.seats.filter((seat) => seat.automated).map((seat) => seat.id),
-      )
+    const fold = (log: LoggedCommand[]) => reduceBattle(...battleFoldArgs(snapshot.seats, log))
     const state = fold(snapshot.log)
     const command = state.seq === input.expectedSeq ? commandSchema.parse(resolveCommand(state, input.command)) : input.command
     const externalRefusal = state.seq === input.expectedSeq ? (validateState?.(state) ?? null) : null

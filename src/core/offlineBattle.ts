@@ -3,13 +3,19 @@ import { mayNameCard, reduceBattle, commandArmy, validate, type Command, type Lo
 import { rosterWithoutUnitNotes } from './unitNotes'
 
 type Players = { id: string; name: string; side: number; automated: boolean }[]
-export function visibleBattleLog(players: Players, log: readonly LoggedCommand[], viewerId: string): LoggedCommand[] {
-  const state = reduceBattle(
-    players.map((player) => player.id),
+
+/** The seats spread into the arguments the battle fold, clock and timeline take. */
+export function battleFoldArgs(seats: readonly { id: string; side: number; automated: boolean }[], log: readonly LoggedCommand[]) {
+  return [
+    seats.map((seat) => seat.id),
     log,
-    players.map((player) => player.side),
-    players.filter((player) => player.automated).map((player) => player.id),
-  )
+    seats.map((seat) => seat.side),
+    seats.filter((seat) => seat.automated).map((seat) => seat.id),
+  ] as const
+}
+
+export function visibleBattleLog(players: Players, log: readonly LoggedCommand[], viewerId: string): LoggedCommand[] {
+  const state = localBattleState(players, log)
   const hidden = new Map<string, string>()
   const hiddenSides = new Set<number>()
   for (const entry of log) {
@@ -56,12 +62,7 @@ export function visibleBattleLog(players: Players, log: readonly LoggedCommand[]
 }
 
 export function localBattleState(players: Players, log: readonly LoggedCommand[]) {
-  return reduceBattle(
-    players.map((player) => player.id),
-    log,
-    players.map((player) => player.side),
-    players.filter((player) => player.automated).map((player) => player.id),
-  )
+  return reduceBattle(...battleFoldArgs(players, log))
 }
 
 export function resolveLocalDraw(

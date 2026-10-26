@@ -13,7 +13,7 @@ import {
   repairPrepReferenceError,
   scoringCapError,
 } from '../shared/battleRules'
-import { restoreOpaqueBattleKeys, visibleBattleLog } from '../core/offlineBattle'
+import { battleFoldArgs, restoreOpaqueBattleKeys, visibleBattleLog } from '../core/offlineBattle'
 import type { BattleWorkspace } from '../contracts/battleWorkspace'
 import { randomId, randomToken } from 'ras-stack/auth'
 import type { AdminBattle } from '../admin'
@@ -810,16 +810,9 @@ export class PraetoriumService {
   }
 
   private replayTimeline(history: BattleHistory, report: readonly ReportEntry[]): ReplayPoint[] {
-    const playerIds = history.players.map((player) => player.id)
-    const sides = history.players.map((player) => player.side)
     const labels = new Map(report.map((entry) => [entry.seq, entry.text]))
     const kinds = new Map(history.log.map((entry) => [entry.seq, entry.command.kind]))
-    return battleTimeline(
-      playerIds,
-      history.log,
-      sides,
-      history.players.filter((player) => player.automated).map((player) => player.id),
-    ).map((point) => ({
+    return battleTimeline(...battleFoldArgs(history.players, history.log)).map((point) => ({
       ...point,
       text: labels.get(point.seq) ?? (kinds.get(point.seq) === 'undo' ? 'Undoes the previous action' : 'Action later undone'),
     }))
@@ -1069,12 +1062,7 @@ export class PraetoriumService {
 
   /** The only place a visibility-filtered battle view is built. */
   private battleScreen(history: BattleHistory, userId: string, rules?: BattleReadRules | null): SeatedScreen {
-    const fold = [
-      history.players.map((player) => player.id),
-      history.log,
-      history.players.map((player) => player.side),
-      history.players.filter((player) => player.automated).map((player) => player.id),
-    ] as const
+    const fold = battleFoldArgs(history.players, history.log)
     const state = reduceBattle(...fold)
     if (rules) hydrateAuthoritativeAwards(state, rules)
     const view = battleView(history.battle, history.players, state, userId, this.clock())
@@ -1127,12 +1115,7 @@ function finishing(result: SubmitResult, previous: BattleHistory, screen: Seated
 }
 
 function foldHistory({ players, log }: BattleHistory) {
-  return reduceBattle(
-    players.map((player) => player.id),
-    log,
-    players.map((player) => player.side),
-    players.filter((player) => player.automated).map((player) => player.id),
-  )
+  return reduceBattle(...battleFoldArgs(players, log))
 }
 
 /**
