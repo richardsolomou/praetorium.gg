@@ -123,7 +123,7 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                       <span className="block py-2 text-sm text-dim">No army chosen</span>
                     )}
                     {/* What the army is, named the same way the battle will name it. */}
-                    {army.roster ? <ArmyIdentity army={army} list={false} className="mt-0.5" /> : null}
+                    {army.roster ? <ArmyIdentity army={army} className="mt-0.5" /> : null}
                     {army.roster?.lentBy ? <span className="mt-0.5 block text-xs text-dim">Lent by {army.roster.lentBy.name}</span> : null}
                     {army.roster ? (
                       <span className="mt-0.5 block text-xs text-dim">

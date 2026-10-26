@@ -95,7 +95,7 @@ export const SidePanel = memo(function SidePanel({
             <h2 className={`text-lg leading-tight font-bold uppercase ${colours.text}`}>
               <PlayerName army={army} />
             </h2>
-            <ArmyIdentity army={army} list={false} className="mt-0.5" />
+            <ArmyIdentity army={army} className="mt-0.5" />
             {/*
              * The list itself, over the battle rather than away from it, and where its
              * losses are recorded. Casualties are a live action, so setup and a finished
