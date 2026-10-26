@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from '@tanstack/react-router'
 import { afterInitialScreen } from './background'
@@ -15,6 +15,7 @@ import { rulesVersionsIn, rulesVersionsInUse } from './rulesVersionsInUse'
 import { PUBLIC_REFERENCE_QUERIES } from '../../contracts/appSnapshot'
 import type { OfflineReferenceVersion } from '../../contracts/offlineReference'
 import { anySignal } from '../abortSignals'
+import { useClientValue } from '../useClientValue'
 
 const RECHECK_MS = 5 * 60_000
 
@@ -24,11 +25,7 @@ export function OfflineReference() {
   const client = useQueryClient()
   const router = useRouter()
   const lastCheck = useRef(0)
-  const available = useSyncExternalStore(
-    () => () => {},
-    () => supportsNativeOffline() || (import.meta.env.PROD && 'serviceWorker' in navigator),
-    () => false,
-  )
+  const available = useClientValue(() => supportsNativeOffline() || (import.meta.env.PROD && 'serviceWorker' in navigator), false)
   useEffect(() => {
     if (!available) return
     let active = true

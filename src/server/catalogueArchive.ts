@@ -8,6 +8,15 @@ import { createGunzip } from 'node:zlib'
 import { byteLimit } from './boundedBody'
 import { isSafeRelativePath } from './relativePath'
 
+export const MAX_ARCHIVE_BYTES = 256 * 1024 * 1024
+export const MAX_EXTRACTED_BYTES = 1024 * 1024 * 1024
+/** Any one file a snapshot carries, other than its manifest. */
+export const MAX_OBJECT_BYTES = 64 * 1024 * 1024
+export const MAX_MANIFEST_BYTES = 1024 * 1024
+export const MAX_SNAPSHOT_FILES = 10_000
+
+export type ExtractedFile = { sha256: string; bytes: number; file: string }
+
 export function hashCatalogueFile(file: string) {
   const hash = createHash('sha256')
   const fd = fs.openSync(file, 'r')
@@ -24,27 +33,26 @@ export function hashCatalogueFile(file: string) {
 export async function downloadCatalogueObject(response: Response, file: string, expected: string) {
   if (!response.body) throw new Error('catalogue object has no body')
   const hash = createHash('sha256')
-  const limit = 64 * 1024 * 1024
   const message = 'catalogue object is too large'
   await pipeline(
     Readable.from(response.body),
-    byteLimit(limit, message),
+    byteLimit(MAX_OBJECT_BYTES, message),
     createGunzip(),
-    byteLimit(limit, message, (chunk) => hash.update(chunk)),
+    byteLimit(MAX_OBJECT_BYTES, message, (chunk) => hash.update(chunk)),
     fs.createWriteStream(file, { flags: 'wx' }),
   )
   if (hash.digest('hex') !== expected) throw new Error('catalogue object checksum does not match')
 }
 
 export function extractCatalogueArchive(archive: string, directory: string) {
-  const files = new Map<string, { sha256: string; bytes: number; file: string }>()
+  const files = new Map<string, ExtractedFile>()
   const open = new Set<number>()
   const names = new Set<string>()
   const archiveHash = createHash('sha256')
   let expanded = 0
   const unzip = new Unzip((entry) => {
     const name = entry.name
-    if (names.size >= 10_000 || names.has(name)) throw new Error('catalogue snapshot has duplicate or excessive entries')
+    if (names.size >= MAX_SNAPSHOT_FILES || names.has(name)) throw new Error('catalogue snapshot has duplicate or excessive entries')
     names.add(name)
     if (name !== 'manifest.json' && !/^objects\/[a-f0-9]{64}$/.test(name) && !name.startsWith('catalogue/')) {
       throw new Error(`catalogue snapshot contains an unexpected entry ${name}`)
@@ -62,7 +70,7 @@ export function extractCatalogueArchive(archive: string, directory: string) {
       if (error) throw error
       bytes += chunk.length
       expanded += chunk.length
-      if (expanded > 1024 * 1024 * 1024 || bytes > (name === 'manifest.json' ? 1024 * 1024 : 64 * 1024 * 1024)) {
+      if (expanded > MAX_EXTRACTED_BYTES || bytes > (name === 'manifest.json' ? MAX_MANIFEST_BYTES : MAX_OBJECT_BYTES)) {
         throw new Error('catalogue snapshot expands beyond its size limit')
       }
       hash.update(chunk)
@@ -79,7 +87,7 @@ export function extractCatalogueArchive(archive: string, directory: string) {
   const fd = fs.openSync(archive, 'r')
   try {
     const size = fs.fstatSync(fd).size
-    if (size > 256 * 1024 * 1024) throw new Error('catalogue snapshot archive is too large')
+    if (size > MAX_ARCHIVE_BYTES) throw new Error('catalogue snapshot archive is too large')
     const buffer = Buffer.alloc(64 * 1024)
     let read = 0
     while (read < size) {

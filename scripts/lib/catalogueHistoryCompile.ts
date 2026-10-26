@@ -2,8 +2,9 @@ import type { ChangeSource } from '../../src/core/catalogueChanges'
 import { compileCanonicalCatalogueFromSnapshot, snapshotRules } from '../../src/server/canonicalCatalogue'
 import { CANONICAL_CATALOGUE_SOURCE_NAMES } from '../../src/server/canonicalCatalogueSources'
 import { datasheetsOf, loadCatalogue } from '../../src/server/catalogueIndex'
-import type { SnapshotSourceName } from '../../src/server/catalogueSources'
+import fs from 'node:fs'
 import path from 'node:path'
+import { isSnapshotSourceName, type SnapshotSourceName } from '../../src/server/catalogueSources'
 import { readCatalogueComposition } from '../../src/server/catalogueComposition'
 import { type CatalogueEdition, editionLabel } from '../../src/core/catalogueEdition'
 import { factionsFor } from '../../src/shared/factionReferences'
@@ -103,3 +104,11 @@ function compiledEditionChangeSource(
     ),
   }
 }
+
+/** The revisions a snapshot says it holds, without any source this code no longer has. */
+export const knownRevisions = (directory: string): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')) as Record<string, string>).filter(([name]) =>
+      isSnapshotSourceName(name),
+    ),
+  )

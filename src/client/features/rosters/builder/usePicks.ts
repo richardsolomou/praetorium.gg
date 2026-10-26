@@ -96,6 +96,20 @@ export function canAddCopy(entryId: string, held: number, limits: ReadonlyMap<st
   return limit !== undefined && (limit === null || held < limit)
 }
 
+type Held = Readonly<Record<string, number>>
+
+/** Copies of `batch[at]`'s datasheet once `before` and the picks ahead of it in `batch` are added to those `held`. */
+export const heldWith = (held: Held, batch: readonly { entryId: string }[], at: number, before: readonly { entryId: string }[] = []) =>
+  (held[batch[at]!.entryId] ?? 0) + [...before, ...batch.slice(0, at)].filter((pick) => pick.entryId === batch[at]!.entryId).length
+
+/** Whether every pick in `batch` fits the unit limits, each counted after the ones ahead of it. */
+export const batchFits = (
+  batch: readonly { entryId: string }[],
+  held: Held,
+  limits: ReadonlyMap<string, number | null>,
+  before: readonly { entryId: string }[] = [],
+) => batch.every((pick, at) => canAddCopy(pick.entryId, heldWith(held, batch, at, before), limits))
+
 export function unitLimitMessage(entryId: string, held: number, limits: ReadonlyMap<string, number | null>) {
   const limit = limits.get(entryId)
   if (limit === undefined) return 'Checking unit limits…'
@@ -238,10 +252,7 @@ export function pickEditor(
           key: keys[at] as number,
           attachedTo: at === 0 || pick.attachedTo === undefined ? undefined : keys[pick.attachedTo],
         }))
-        const fits = added.every((pick, at) =>
-          canAddCopy(pick.entryId, [...current, ...added.slice(0, at)].filter((held) => held.entryId === pick.entryId).length, limits),
-        )
-        return fits ? [...current, ...added] : current
+        return batchFits(added, {}, limits, current) ? [...current, ...added] : current
       })
     },
 

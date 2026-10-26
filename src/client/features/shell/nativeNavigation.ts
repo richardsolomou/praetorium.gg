@@ -1,17 +1,14 @@
 export type NativeSection = 'battles' | 'events' | 'factions' | 'home' | 'leaderboard' | 'missions' | 'rosters' | 'rules'
 
 type NativeNavigation = {
-  back?: { href: string; label: string; preferHistory?: boolean }
+  /**
+   * Where Back leads when history cannot. A tab's own top screen is the bottom of that tab, so it has none:
+   * the tabs, not a back stack, are how a player leaves one section for another.
+   */
+  back?: string
   section?: NativeSection
   title: string
 }
-
-/**
- * A tab's own top screen, which is the bottom of that tab.
- *
- * There is nothing behind it inside the tab, so it carries no Back action: the tabs,
- * not a back stack, are how a player leaves one section for another.
- */
 
 export function nativeNavigation(path: string, search: Record<string, unknown> = {}): NativeNavigation {
   const segments = path.split('/').filter(Boolean)
@@ -21,7 +18,7 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
     if (!id) return { section: 'rosters', title: 'Rosters' }
     if (typeof search.battle === 'string') {
       return {
-        back: { href: `/battles/${search.battle}`, label: 'Back to battle', preferHistory: true },
+        back: `/battles/${search.battle}`,
         section: 'rosters',
         title: 'Roster',
       }
@@ -29,29 +26,24 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
     if (typeof search.league === 'string') {
       const event = typeof search.event === 'string' ? `?${new URLSearchParams({ event: search.event })}` : ''
       return {
-        back: { href: `/tournaments/${search.league}${event}`, label: 'Back to event', preferHistory: true },
+        back: `/tournaments/${search.league}${event}`,
         section: 'rosters',
         title: 'Roster',
       }
     }
-    return { back: { href: '/rosters', label: 'Back to rosters', preferHistory: true }, section: 'rosters', title: 'Roster' }
+    return { back: '/rosters', section: 'rosters', title: 'Roster' }
   }
   if (root === 'battles') {
-    return id
-      ? { back: { href: '/battles', label: 'Back to battles', preferHistory: true }, section: 'battles', title: 'Battle' }
-      : { section: 'battles', title: 'Battles' }
+    return id ? { back: '/battles', section: 'battles', title: 'Battle' } : { section: 'battles', title: 'Battles' }
   }
   if (root === 'tournaments') {
     return id
-      ? { back: { href: '/tournaments', label: 'Back to tournaments', preferHistory: true }, section: 'events', title: 'Tournament' }
-      : { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'events', title: 'Tournaments' }
+      ? { back: '/tournaments', section: 'events', title: 'Tournament' }
+      : { back: '/more', section: 'events', title: 'Tournaments' }
   }
   if (root === 'clubs') {
-    if (id && child === 'games' && detail)
-      return { back: { href: `/clubs/${id}`, label: 'Back to club', preferHistory: true }, section: 'events', title: 'Sealed game' }
-    return id
-      ? { back: { href: '/clubs', label: 'Back to clubs', preferHistory: true }, section: 'events', title: 'Club' }
-      : { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'events', title: 'Clubs' }
+    if (id && child === 'games' && detail) return { back: `/clubs/${id}`, section: 'events', title: 'Sealed game' }
+    return id ? { back: '/clubs', section: 'events', title: 'Club' } : { back: '/more', section: 'events', title: 'Clubs' }
   }
   if (root === 'factions') {
     if (!id) return { section: 'factions', title: 'Factions' }
@@ -62,78 +54,77 @@ export function nativeNavigation(path: string, search: Record<string, unknown> =
     const version = typeof search.rules === 'string' ? `?${new URLSearchParams({ rules: search.rules })}` : ''
     if (referenceChild === 'datasheets' && referenceDetail) {
       return {
-        back: { href: `${factionPath}/datasheets${version}`, label: 'Back to datasheets', preferHistory: true },
+        back: `${factionPath}/datasheets${version}`,
         section: 'factions',
         title: 'Datasheet',
       }
     }
     if (referenceChild) {
       return {
-        back: { href: `${factionPath}${version}`, label: 'Back to faction', preferHistory: true },
+        back: `${factionPath}${version}`,
         section: 'factions',
         title: referenceChild === 'detachments' ? 'Detachment' : 'Datasheets',
       }
     }
-    return { back: { href: '/factions', label: 'Back to factions', preferHistory: true }, section: 'factions', title: 'Faction' }
+    return { back: '/factions', section: 'factions', title: 'Faction' }
   }
   if (root === 'missions') {
     if (child === 'matchups' && detail) {
       return {
-        back: { href: `/missions/${id}`, label: 'Back to mission pack', preferHistory: true },
+        back: `/missions/${id}`,
         section: 'missions',
         title: 'Mission',
       }
     }
     if (child === 'secondaries' && detail) {
       return {
-        back: { href: `/missions/${id}`, label: 'Back to mission pack', preferHistory: true },
+        back: `/missions/${id}`,
         section: 'missions',
         title: 'Secondary mission',
       }
     }
     return id
       ? {
-          back: { href: '/missions', label: 'Back to missions', preferHistory: true },
+          back: '/missions',
           section: 'missions',
           title: 'Mission pack',
         }
-      : { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'missions', title: 'Missions' }
+      : { back: '/more', section: 'missions', title: 'Missions' }
   }
   if (root === 'rules') {
-    if (!id) return { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'rules', title: 'Rules' }
+    if (!id) return { back: '/more', section: 'rules', title: 'Rules' }
     if (child) {
-      return { back: { href: `/rules/${id}`, label: 'Back to contents', preferHistory: true }, section: 'rules', title: 'Rules' }
+      return { back: `/rules/${id}`, section: 'rules', title: 'Rules' }
     }
-    return { back: { href: '/rules', label: 'Back to rules', preferHistory: true }, section: 'rules', title: 'Rules' }
+    return { back: '/rules', section: 'rules', title: 'Rules' }
   }
   if (root === 'force-dispositions') {
     return id
       ? {
-          back: { href: '/force-dispositions', label: 'Back to force dispositions', preferHistory: true },
+          back: '/force-dispositions',
           section: 'missions',
           title: 'Force disposition',
         }
-      : { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'missions', title: 'Force dispositions' }
+      : { back: '/more', section: 'missions', title: 'Force dispositions' }
   }
   if (root === 'more') return { title: 'More' }
-  if (root === 'simulator') return { back: { href: '/more', label: 'Back to more', preferHistory: true }, title: 'Combat simulator' }
-  if (root === 'profile') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Account settings' }
-  if (root === 'leaderboard')
-    return { back: { href: '/more', label: 'Back to more', preferHistory: true }, section: 'leaderboard', title: 'Leaderboard' }
-  if (root === 'users') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Profile' }
-  if (root === 'friends') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Friends' }
-  if (root === 'admin') return { back: { href: '/profile', label: 'Back to profile', preferHistory: true }, title: 'Admin' }
+  if (root === 'simulator') return { back: '/more', title: 'Combat simulator' }
+  if (root === 'profile') return { back: '/', title: 'Account settings' }
+  if (root === 'leaderboard') return { back: '/more', section: 'leaderboard', title: 'Leaderboard' }
+  if (root === 'users') return { back: '/', title: 'Profile' }
+  if (root === 'friends') return { back: '/', title: 'Friends' }
+  if (root === 'admin') return { back: '/profile', title: 'Admin' }
   if (root === 'sign-in') return { title: 'Account' }
   if (root === 'native-auth') return { title: 'Account' }
   if (root === 'reset-password') {
-    return { back: { href: '/sign-in', label: 'Back to sign in', preferHistory: true }, title: 'Reset password' }
+    return { back: '/sign-in', title: 'Reset password' }
   }
-  if (root === 'support') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Support' }
-  if (root === 'privacy') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Privacy' }
-  if (root === 'terms') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Terms' }
-  if (root === 'sources') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Data sources' }
-  if (root === 'data-updates') return { back: { href: '/more', label: 'Back to more', preferHistory: true }, title: 'Data updates' }
-  if (root === 'delete-account') return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Delete account' }
-  if (root) return { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Praetorium' }
+  if (root === 'support') return { back: '/', title: 'Support' }
+  if (root === 'privacy') return { back: '/', title: 'Privacy' }
+  if (root === 'terms') return { back: '/', title: 'Terms' }
+  if (root === 'sources') return { back: '/', title: 'Data sources' }
+  if (root === 'data-updates') return { back: '/more', title: 'Data updates' }
+  if (root === 'delete-account') return { back: '/', title: 'Delete account' }
+  if (root) return { back: '/', title: 'Praetorium' }
   return { section: 'home', title: 'Praetorium' }
 }

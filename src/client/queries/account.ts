@@ -28,6 +28,7 @@ import { SSR_STALE_TIME } from './shared'
 import { anySignal } from '../abortSignals'
 import {
   abilityRemindersKey,
+  adminKey,
   collectionProfileKey,
   friendInviteKey,
   meKey,
@@ -77,35 +78,32 @@ export const accountMethodsQuery = () =>
   queryOptions({ queryKey: ['account-methods'], queryFn: () => accountMethods(), staleTime: SSR_STALE_TIME })
 export const githubSponsorshipQuery = () =>
   queryOptions({ queryKey: ['github-sponsorship'], queryFn: () => githubSponsorship(), staleTime: SSR_STALE_TIME })
-/** Every administration read sits under one key, so an administrator's change refreshes all of them. */
-export const ADMIN_QUERY_KEY = ['admin'] as const
-
 /**
  * Re-reads administration after a change. A fetch already in flight for a query with no data yet would
  * otherwise be reused, and it started before the change it is meant to show.
  */
 export async function refreshAdminQueries(queryClient: QueryClient) {
-  await queryClient.cancelQueries({ queryKey: ADMIN_QUERY_KEY })
-  await queryClient.invalidateQueries({ queryKey: ADMIN_QUERY_KEY })
+  await queryClient.cancelQueries({ queryKey: adminKey() })
+  await queryClient.invalidateQueries({ queryKey: adminKey() })
 }
 export const adminUsersQuery = (request: AdminUsersRequest) =>
   queryOptions({
-    queryKey: [...ADMIN_QUERY_KEY, 'users', request],
+    queryKey: [...adminKey(), 'users', request],
     queryFn: () => adminUsers({ data: request }),
     placeholderData: keepPreviousData,
     staleTime: SSR_STALE_TIME,
   })
 export const adminUserSessionsQuery = (userId: string) =>
-  queryOptions({ queryKey: [...ADMIN_QUERY_KEY, 'sessions', userId], queryFn: () => adminUserSessions({ data: { userId } }) })
+  queryOptions({ queryKey: [...adminKey(), 'sessions', userId], queryFn: () => adminUserSessions({ data: { userId } }) })
 export const adminUserConnectionsQuery = (userId: string) =>
-  queryOptions({ queryKey: [...ADMIN_QUERY_KEY, 'connections', userId], queryFn: () => adminUserConnections({ data: { userId } }) })
+  queryOptions({ queryKey: [...adminKey(), 'connections', userId], queryFn: () => adminUserConnections({ data: { userId } }) })
 export const adminPlayerBattlesQuery = (userId: string) =>
-  queryOptions({ queryKey: [...ADMIN_QUERY_KEY, 'player-battles', userId], queryFn: () => adminPlayerBattles({ data: { userId } }) })
+  queryOptions({ queryKey: [...adminKey(), 'player-battles', userId], queryFn: () => adminPlayerBattles({ data: { userId } }) })
 export const heldCollectionPhotosQuery = () =>
-  queryOptions({ queryKey: [...ADMIN_QUERY_KEY, 'held-photos'], queryFn: () => heldCollectionPhotos() })
+  queryOptions({ queryKey: [...adminKey(), 'held-photos'], queryFn: () => heldCollectionPhotos() })
 export const adminCollectionPhotosQuery = () =>
   infiniteQueryOptions({
-    queryKey: [...ADMIN_QUERY_KEY, 'photos'],
+    queryKey: [...adminKey(), 'photos'],
     queryFn: ({ pageParam }) => adminCollectionPhotos({ data: { before: pageParam } }),
     initialPageParam: null as AdminCollectionPhotosCursor | null,
     getNextPageParam: (page) => page.nextCursor ?? undefined,

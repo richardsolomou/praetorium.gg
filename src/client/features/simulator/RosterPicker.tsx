@@ -5,8 +5,8 @@ import { SearchableSelect } from '../../components/SearchableSelect'
 import { FactionMark } from '../../components/FactionMark'
 import { factionIndexQuery } from '../../queries'
 
-export type RosterOption = { id: string; label: string; catalogueId?: string; icon?: ReactNode }
-export type RosterGroup = { label: string; options: readonly RosterOption[] }
+type RosterOption = { id: string; label: string; catalogueId?: string; icon?: ReactNode }
+type RosterGroup = { label: string; options: readonly RosterOption[] }
 
 /** Chooses a roster by name, marked with its faction; an option without one shows its own icon. */
 export function RosterPicker({
@@ -28,7 +28,7 @@ export function RosterPicker({
               value: option.id,
               label: option.label,
               icon: faction ? (
-                <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
+                <FactionMark faction={faction} size="sm" />
               ) : (
                 (option.icon ?? <ScrollText className="size-4 text-info" aria-hidden />)
               ),

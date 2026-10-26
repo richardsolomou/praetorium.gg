@@ -70,7 +70,7 @@ export function attachedUnitList<T extends Deployable<UnitKey>>(units: readonly 
 export const attachedUnitCount = (units: readonly Attached<UnitKey>[]) => attachedUnitList(units).length
 
 /** A list's picks in the space their `attachedTo` is written in: each one's position. */
-export const byPosition = (picks: readonly { attachedTo?: number }[]) => picks.map(({ attachedTo }, key) => ({ key, attachedTo }))
+const byPosition = (picks: readonly { attachedTo?: number }[]) => picks.map(({ attachedTo }, key) => ({ key, attachedTo }))
 
 /** How many units a list fields, its picks named by position. */
 export const listUnitCount = (picks: readonly { attachedTo?: number }[]) => attachedUnitCount(byPosition(picks))

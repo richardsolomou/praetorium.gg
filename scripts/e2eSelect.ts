@@ -8,8 +8,9 @@
  * history, every spec runs.
  */
 import { execFileSync } from 'node:child_process'
-import { appendFileSync, existsSync, readdirSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { harnessFiles } from './lib/e2eHarness.ts'
+import { stepOutput } from './lib/stepOutput.ts'
 import { importClosures } from './lib/moduleGraph.ts'
 import { builtCatalogue, type E2eMap } from './lib/e2eMap.ts'
 import { changedHunks, lineMoves, selectSpecs, type Graph, type Selection } from './lib/e2eSelection.ts'
@@ -56,6 +57,4 @@ async function selection(): Promise<Selection> {
 const chosen = await selection()
 const specs = chosen.all ? 'all' : JSON.stringify(chosen.specs)
 const reason = chosen.all ? chosen.reason : `${chosen.specs.length} specs exercise the changed code`
-const output = `specs=${specs}\nreason=${reason}\n`
-if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, output)
-else process.stdout.write(output)
+stepOutput({ specs, reason })

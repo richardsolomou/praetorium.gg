@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { reviewRosterSetup, verifySetupReview, type RosterSetupReview as SetupReview } from './rosterSetupReview'
 import { SetupConsequences } from './SetupConsequences'
-import type { RosterDraft } from './rosterDraft'
+import { type RosterDraft, rosterSetupOf } from './rosterDraft'
 import { errorMessage } from '../../queryClient'
 import { RulesVersionLabel } from '../../components/RulesVersionLabel'
 import { prepareFactionUnits } from '../../functions'
@@ -35,7 +35,7 @@ import {
   pointsBudgetError,
   ROSTER_NAME_MAX_LENGTH,
 } from '../../../core/battle'
-import { normalizedName } from '../../../core/name'
+import { matchesSearch } from '../../text'
 import { rosterLabel } from '../../../core/rosterLabel'
 import { ROSTER_VISIBILITIES, type RosterVisibility } from '../../../core/savedRoster'
 import { VISIBILITY_DETAIL, VISIBILITY_NAME, VISIBILITY_REACH } from './visibility'
@@ -128,12 +128,8 @@ type Props = {
  * Whether a detachment answers what was typed, by its own name or a disposition it
  * offers — "reconnaissance" is a reason to pick one, and the chips already say so.
  */
-function matchesQuery(detachment: Detachment, query: string) {
-  const wanted = normalizedName(query)
-  if (!wanted) return true
-  return [detachment.name, ...detachment.dispositions.map((disposition) => disposition.name)].some((text) =>
-    normalizedName(text).includes(wanted),
-  )
+export function matchesQuery(detachment: Pick<Detachment, 'name' | 'dispositions'>, query: string) {
+  return [detachment.name, ...detachment.dispositions.map((disposition) => disposition.name)].some((text) => matchesSearch(text, query))
 }
 
 const BATTLE_SIZE_GROUPS: SearchableGroup[] = [
@@ -173,18 +169,7 @@ export function RosterSetupDialog({
     mutationFn: async () => {
       if (!review) return
       await verifySetupReview(review)
-      await onSave(
-        {
-          ...review.candidate,
-          pointsBudget: review.candidate.pointsBudget ?? null,
-          waivedRules: review.candidate.waivedRules ?? [],
-          optionalRules: review.candidate.optionalRules ?? [],
-          borrowedDetachmentId: review.candidate.borrowedDetachmentId ?? null,
-          visibility: review.candidate.visibility ?? 'private',
-        },
-        review,
-        { keepOriginal: offerKeepOriginal && keepOriginal },
-      )
+      await onSave(rosterSetupOf(review.candidate), review, { keepOriginal: offerKeepOriginal && keepOriginal })
     },
   })
   const [detachmentQuery, setDetachmentQuery] = useState('')
@@ -813,7 +798,6 @@ export function RosterSetupDialog({
   )
 }
 
-/** Stays focusable and opens its reason on a tap, so a phone can still say why it cannot be chosen. */
 function DetachmentSummary({ detachment }: { detachment: Detachment }) {
   return (
     <span className="min-w-0 flex-1 p-3">
@@ -829,6 +813,7 @@ function DetachmentSummary({ detachment }: { detachment: Detachment }) {
   )
 }
 
+/** Stays focusable and opens its reason on a tap, so a phone can still say why it cannot be chosen. */
 function UnavailableDetachment({ name, reason, children }: { name: string; reason: string; children: ReactNode }) {
   const [open, setOpen] = useState(false)
   return (

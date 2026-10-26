@@ -1,5 +1,4 @@
-import { publicAssetsR2Client, r2Objects } from './r2Client'
-import { localDevelopmentObjectStore } from './localObjectStore'
+import { objectsIn, publicAssetsR2Client } from './r2Client'
 
 export const DEFAULT_PUBLIC_ASSETS_BASE_URL = 'https://s3.praetorium.gg'
 
@@ -14,12 +13,8 @@ export function publicAssetsBaseUrl(): string {
 }
 
 export function configuredObjectStore(): ObjectStore | null {
-  const local = localDevelopmentObjectStore()
-  if (local) return { publicBaseUrl: publicAssetsBaseUrl(), head: (key) => local.head(key), put: (key, body) => local.put(key, body) }
-  const r2 = publicAssetsR2Client()
-  if (!r2) return null
-  const { head, put } = r2Objects(r2)
-  return { publicBaseUrl: publicAssetsBaseUrl(), head, put }
+  const objects = objectsIn(process.env, publicAssetsR2Client)
+  return objects && { publicBaseUrl: publicAssetsBaseUrl(), head: objects.head, put: objects.put }
 }
 
 /** Uploads only when the key is not already there — every caller here writes content-addressed keys, so a hit means the bytes already match. */

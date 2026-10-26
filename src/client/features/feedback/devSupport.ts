@@ -1,10 +1,6 @@
 import { posthog, type GetMessagesResponse, type GetTicketsOptions, type Message, type TicketStatus } from 'posthog-js'
 import { feedbackTicketMessage } from './feedback'
 
-/**
- * Stands in for PostHog Support on a local dev server, which never loads the browser SDK: a few conversations to
- * read, kept in this browser across reloads, and a team reply shortly after each message so polling can be watched.
- */
 type Ticket = { id: string; status: TicketStatus; unread: number; messages: Message[] }
 
 const STORAGE_KEY = 'praetorium-dev-support'
@@ -96,6 +92,10 @@ function seed(): Ticket[] {
   ]
 }
 
+/**
+ * Stands in for PostHog Support on a local dev server, which never loads the browser SDK: a few conversations to
+ * read, kept in this browser across reloads, and a team reply shortly after each message so polling can be watched.
+ */
 export function installDevSupport() {
   const stored = window.localStorage.getItem(STORAGE_KEY)
   const tickets: Ticket[] = stored ? (JSON.parse(stored) as Ticket[]) : seed()

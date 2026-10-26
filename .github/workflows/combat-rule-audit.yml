@@ -4,7 +4,6 @@ on:
   # It reads the published catalogue rather than the pushed code, so a daily run keeps the shortlist current.
   schedule:
     - cron: '33 14 * * *'
-  workflow_call:
   workflow_dispatch:
 
 concurrency:

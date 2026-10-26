@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { arrangeByRole } from './builder.harness'
+import { arrangeByRole, expectNoHorizontalOverflow } from './builder.harness'
 import {
   chooseRosterAction,
   confirmRosterSetup,
@@ -10,8 +10,15 @@ import {
   signUp,
   uniqueName,
   waitForRosterSave,
+  expectNoPageOverflow,
+  openRosterSetup,
+  chooseFaction,
+  visitorSetup,
+  recordSaves,
+  chooseLibraryAction,
+  PHONE,
 } from './account'
-import { productOperator, productSql, userIdFor } from './storage'
+import { productOperator, productSql, userIdFor, lastPathSegment, seedRoster } from './storage'
 
 test('the roster library reserves its rows while the first page loads', async ({ browser, page: savedPage }) => {
   await signUp(savedPage, 'Loading')
@@ -25,10 +32,10 @@ test('the roster library reserves its rows while the first page loads', async ({
   await expect(firstFrameRubric.getByLabel('Loading roster count')).toBeVisible()
   await expect(firstFrame.getByRole('button', { name: 'New roster', exact: true })).toBeVisible()
   await expect(firstFrame.getByLabel('Loading roster creation options')).toHaveCount(0)
-  await firstFrame.screenshot({ path: 'test-results/loading-roster-library-no-js.png', fullPage: true })
-  await firstFrame.setViewportSize({ width: 390, height: 844 })
-  expect(await firstFrame.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await firstFrame.screenshot({ path: 'test-results/loading-roster-library-no-js-phone.png', fullPage: true })
+  await firstFrame.screenshot({ path: test.info().outputPath('loading-roster-library-no-js.png'), fullPage: true })
+  await firstFrame.setViewportSize(PHONE)
+  await expectNoPageOverflow(firstFrame)
+  await firstFrame.screenshot({ path: test.info().outputPath('loading-roster-library-no-js-phone.png'), fullPage: true })
   await firstFrameContext.close()
 
   const coldContext = await browser.newContext({ storageState: await savedPage.context().storageState() })
@@ -39,10 +46,7 @@ test('the roster library reserves its rows while the first page loads', async ({
   try {
     // The home page loads a player's lists for its own shelf, so the walk starts from a page that does not.
     await page.goto('/leaderboard')
-    let release: () => void = () => {}
-    const held = new Promise<void>((resolve) => {
-      release = resolve
-    })
+    const { promise: held, resolve: release } = Promise.withResolvers<void>()
     await page.route('**/_serverFn/**', async (route) => {
       await held
       await route.continue()
@@ -59,16 +63,16 @@ test('the roster library reserves its rows while the first page loads', async ({
     await createRosterButton.click()
     await expect(page.getByRole('heading', { name: 'Create roster' })).toBeVisible()
     await page.keyboard.press('Escape')
-    await page.screenshot({ path: 'test-results/loading-roster-library.png', fullPage: true })
-    await page.setViewportSize({ width: 390, height: 844 })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-    await page.screenshot({ path: 'test-results/loading-roster-library-phone.png', fullPage: true })
+    await page.screenshot({ path: test.info().outputPath('loading-roster-library.png'), fullPage: true })
+    await page.setViewportSize(PHONE)
+    await expectNoPageOverflow(page)
+    await page.screenshot({ path: test.info().outputPath('loading-roster-library-phone.png'), fullPage: true })
     release()
     const row = page.locator(`[data-roster="${rosterName}"]`)
     await expect(row).toBeVisible()
     await expect(row).toContainText('Take and Hold')
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-    await page.screenshot({ path: 'test-results/roster-library-disposition-phone.png', fullPage: true })
+    await expectNoPageOverflow(page)
+    await page.screenshot({ path: test.info().outputPath('roster-library-disposition-phone.png'), fullPage: true })
     await page.unroute('**/_serverFn/**')
   } finally {
     await coldContext.close()
@@ -81,7 +85,7 @@ test('the roster library counts every saved list and prices more rows on demand'
   const count = page.locator('main section').last().locator('.rubric .readout')
   await expect(count).toHaveText('0')
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'First roster' })
-  const rosterId = new URL(page.url()).pathname.split('/').at(-1)!
+  const rosterId = lastPathSegment(page.url())
   await page.goto('/rosters')
   await expect(count).toHaveText('1')
   await expect(page.locator('[data-roster]')).toHaveCount(1)
@@ -92,22 +96,11 @@ test('the roster library counts every saved list and prices more rows on demand'
   if (!source) throw new Error('Saved roster missing')
   for (let index = 1; index <= 20; index++) {
     await operator.saveRoster({
+      ...source,
       id: crypto.randomUUID(),
       userId,
       name: `Roster ${index}`,
       automaticName: false,
-      catalogueId: source.catalogueId,
-      detachmentId: source.detachmentId,
-      disposition: source.disposition,
-      limit: source.limit,
-      picks: source.picks,
-      prep: source.prep,
-      tags: source.tags,
-      waivedRules: source.waivedRules,
-      optionalRules: source.optionalRules,
-      borrowedDetachmentId: source.borrowedDetachmentId,
-      visibility: source.visibility,
-      source: source.source,
       now: Date.now() + index,
     })
   }
@@ -122,20 +115,16 @@ test('the roster library counts every saved list and prices more rows on demand'
   await page.getByRole('menuitemradio', { name: 'A to Z' }).click()
   await expect(page.locator('[data-roster]')).toHaveCount(20)
   await expect(page.getByRole('button', { name: 'Show more rosters' })).toBeVisible()
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await page.screenshot({ path: 'test-results/roster-library-paged-phone.png' })
+  await page.setViewportSize(PHONE)
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: test.info().outputPath('roster-library-paged-phone.png') })
 })
 
 test('opening an unchanged list saves nothing, and an edit still saves', async ({ page }) => {
   await signUp(page, 'Unchanged')
   // Creating the list and naming it are both saves; `createRoster` waits for the name's.
   const rosterName = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Unchanged roster' })
-  const saves: string[] = []
-  page.on('request', (request) => {
-    const body = request.postData()
-    if (request.method() === 'POST' && body?.includes('"visibility"') && body.includes('"picks"')) saves.push(body)
-  })
+  const saves = recordSaves(page)
 
   await page.reload()
   await expect(page.getByLabel('List name')).toHaveValue(rosterName)
@@ -149,12 +138,8 @@ test('opening an unchanged list saves nothing, and an edit still saves', async (
 
 test('automatic roster names are saved with edits and a player can override or restore them', async ({ page }) => {
   await signUp(page, 'Automatic roster')
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
-  await dialog.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Necrons')
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  const dialog = await visitorSetup(page)
+  await chooseFaction(dialog, 'Necrons')
   await dialog.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
   await dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await dialog.getByRole('button', { name: 'Create roster' }).click()
@@ -185,7 +170,7 @@ test('automatic roster names are saved with edits and a player can override or r
   await page.reload()
   await expect(name).toHaveValue('')
   await expect(name).toHaveAttribute('placeholder', "AD 2K - C'tan")
-  await page.screenshot({ path: 'test-results/automatic-roster-reloaded.png' })
+  await page.screenshot({ path: test.info().outputPath('automatic-roster-reloaded.png') })
 })
 
 test('a roster variant is numbered and grouped under its base without renaming', async ({ browser, page }) => {
@@ -198,9 +183,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Another list' })
 
   await page.goto('/rosters')
-  const createVariant = page.getByRole('menuitem', { name: 'Create variant' })
-  await retryUntilVisible(createVariant, () => page.getByRole('button', { name: 'Actions for Dynasty 2k' }).click())
-  await createVariant.click()
+  await chooseLibraryAction(page, 'Dynasty 2k', 'Create variant')
   await expect(page.getByLabel('List name')).toHaveValue('Dynasty 2k · 2')
   await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
   const variantMenu = page.getByRole('button', { name: 'Variant 2 of 2' })
@@ -229,30 +212,27 @@ test('a roster variant is numbered and grouped under its base without renaming',
   await expect
     .poll(() => page.locator('[data-roster]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-roster'))))
     .toEqual(['Dynasty 2k', 'Dynasty 2k · 2', 'Another list'])
-  await page.screenshot({ path: 'test-results/roster-variants-library.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('roster-variants-library.png'), fullPage: true })
   const baseVisibility = page.locator('[data-roster="Dynasty 2k"]').getByText('Public', { exact: true })
   await expect(baseVisibility).toBeVisible()
   const baseDetails = page.locator('[data-roster="Dynasty 2k"]').getByText(/^11th edition/)
   await expect(baseDetails).toHaveText(/1 unit · updated/, { useInnerText: true })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   // A chip breaks onto a second line inside itself when the row leaves it too little room.
   const chipHeights = await page
     .locator('[data-variant] .chip')
     .evaluateAll((chips) => chips.map((chip) => chip.getBoundingClientRect().height))
   expect(Math.max(...chipHeights)).toBeLessThan(24)
-  await page.screenshot({ path: 'test-results/roster-variants-library-phone.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('roster-variants-library-phone.png'), fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
 
   await page.getByRole('link', { name: /Dynasty 2k · 2/ }).click()
   await expect(page.getByLabel('List name')).toHaveValue('Dynasty 2k · 2')
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Create variant' }).click()
+  await chooseRosterAction(page, 'Create variant')
   await expect(page.getByLabel('List name')).toHaveValue('Dynasty 2k · 3')
   await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  const setup = await openRosterSetup(page)
   await setup.getByRole('button', { name: 'Select Awakened Dynasty', pressed: true }).click()
   await setup.getByRole('button', { name: 'Select Cursed Legion' }).click()
   await setup.getByRole('button', { name: 'Select Skyshroud Spearhead' }).click()
@@ -264,29 +244,29 @@ test('a roster variant is numbered and grouped under its base without renaming',
   await expect(firstFrame.getByRole('button', { name: 'Variant 3 of 3' })).toBeVisible()
   await firstFrameContext.close()
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect(page.getByRole('button', { name: 'Variant 3 of 3' })).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await page.screenshot({ path: 'test-results/roster-variants-switcher-phone.png' })
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: test.info().outputPath('roster-variants-switcher-phone.png') })
   await page.setViewportSize({ width: 1440, height: 900 })
 
   const header = page.getByLabel('List name').locator('xpath=ancestor::header[1]')
-  const variantHeight = (await header.boundingBox())?.height
+  const variantHeight = (await header.boundingBox())!.height
   await page.getByRole('button', { name: 'Variant 3 of 3' }).click()
   const lists = page.getByRole('navigation', { name: 'Variants' }).getByRole('link')
   await expect(lists).toHaveText([/^Dynasty 2k\s*Base$/, 'Dynasty 2k · 2', 'Dynasty 2k · 3'])
   await expect(lists.nth(2)).toHaveAttribute('aria-current', 'page')
-  await page.screenshot({ path: 'test-results/roster-variants-switcher.png' })
+  await page.screenshot({ path: test.info().outputPath('roster-variants-switcher.png') })
   await lists.first().click()
   await expect(page.getByLabel('List name')).toHaveValue('Dynasty 2k')
   await expect(page.getByRole('button', { name: 'Variant 1 of 3' })).toBeVisible()
-  await page.screenshot({ path: 'test-results/roster-base-refreshed.png' })
+  await page.screenshot({ path: test.info().outputPath('roster-base-refreshed.png') })
 
   await page.goto('/rosters')
   const third = page.locator('[data-roster="Dynasty 2k · 3"]')
   await expect(third).toHaveAttribute('data-variant', 'true')
   await expect(third.locator('[data-slot="roster-differences"]')).toContainText('Skyshroud Spearhead')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   const variantChipHeights = await page
     .locator('[data-variant] .chip')
     .evaluateAll((chips) => chips.map((chip) => chip.getBoundingClientRect().height))
@@ -305,13 +285,13 @@ test('a roster variant is numbered and grouped under its base without renaming',
   const chipLine = await third.locator('[data-slot="roster-differences"]').boundingBox()
   const thirdPoints = await third.getByText(/^\d+\/2000$/).boundingBox()
   expect(chipLine!.x + chipLine!.width).toBeGreaterThan(thirdPoints!.x)
-  await page.screenshot({ path: 'test-results/roster-variants-library-detachments-phone.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('roster-variants-library-detachments-phone.png'), fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.getByRole('link', { name: /Another list/ }).click()
   await expect(page.getByLabel('List name')).toHaveValue('Another list')
   await expect(page.getByRole('button', { name: /^Variant/ })).toHaveCount(0)
   // A variant's place in its group costs the header no extra line.
-  expect((await header.boundingBox())?.height).toBe(variantHeight)
+  expect((await header.boundingBox())!.height).toBe(variantHeight)
 })
 
 test('a battle’s roster chooser tells a variant apart from its base', async ({ page }) => {
@@ -321,8 +301,7 @@ test('a battle’s roster chooser tells a variant apart from its base', async ({
     await page.getByLabel('Add a unit').fill('Immortals')
     await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
   })
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Create variant' }).click()
+  await chooseRosterAction(page, 'Create variant')
   await expect(page.getByLabel('List name')).toHaveValue('Dynasty 2k · 2')
   await waitForRosterSave(page, async () => {
     const picker = page.getByLabel('Add a unit')
@@ -345,10 +324,10 @@ test('a battle’s roster chooser tells a variant apart from its base', async ({
   await expect(variant.locator('[data-slot="roster-differences"]')).toHaveText(/^\+\s*1 unit: Lychguard$/)
   const points = async (roster: typeof variant) => Number((await roster.getByText(/^\d+\/2000$/).innerText()).split('/')[0])
   expect(await points(variant)).toBeGreaterThan(await points(base))
-  await page.screenshot({ path: 'test-results/roster-chooser-variants.png' })
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await page.screenshot({ path: 'test-results/roster-chooser-variants-phone.png' })
+  await page.screenshot({ path: test.info().outputPath('roster-chooser-variants.png') })
+  await page.setViewportSize(PHONE)
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: test.info().outputPath('roster-chooser-variants-phone.png') })
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.keyboard.press('Escape')
   await expect(chooser).toBeHidden()
@@ -381,10 +360,7 @@ test('a connected legacy shell roster follows other tabs without replacing an un
   })
   await expect(viewer.locator('[data-unit="Immortals"]')).toBeVisible()
 
-  let releaseSave = () => {}
-  const heldSave = new Promise<void>((resolve) => {
-    releaseSave = resolve
-  })
+  const { promise: heldSave, resolve: releaseSave } = Promise.withResolvers<void>()
   let localSaveStarted = false
   let remoteUpdateFetched = false
   viewer.on('response', (response) => {
@@ -438,7 +414,7 @@ test('a visitor opening the roster library sees the rosters page with nothing ke
 test('a roster saved on the root ID of a current book opens its builder from the first frame', async ({ browser, page }) => {
   await signUp(page, 'Root book')
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Root book roster' })
-  const id = new URL(page.url()).pathname.split('/').at(-1)!
+  const id = lastPathSegment(page.url())
   const [stored] = await productSql<{ catalogue_id: string }>`SELECT catalogue_id FROM rosters WHERE id = ${id}`
   await productSql`UPDATE rosters SET catalogue_id = ${stored.catalogue_id.split('~').at(-1)!} WHERE id = ${id}`
 
@@ -474,7 +450,7 @@ test('a failed roster library read is not shown as an empty library', async ({ p
  * against the catalogue the instance currently holds — which is what a player
  * expects a saved list to do when the points change.
  */
-test('a list is saved and loaded into another battle', async ({ browser }) => {
+test('a saved list is reopened, duplicated, shared and published', async ({ browser }) => {
   const context = await browser.newContext()
   const page = await context.newPage()
   await arrangeByRole(page)
@@ -532,7 +508,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await expect(loadout.getByText('Gauss blaster', { exact: true }).first()).toBeVisible()
   await expect(page.getByLabel('List name')).toHaveValue('Nurgle 2k')
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
-  await page.screenshot({ path: 'test-results/saved-roster-edge-to-edge.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('saved-roster-edge-to-edge.png'), fullPage: true })
 
   // A second visit, in the same browser, starts from the saved list.
   await page.goto('/rosters')
@@ -548,38 +524,32 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await expect(page.getByText('Awakened Dynasty', { exact: true }).first()).toBeVisible()
 
   await page.goto('/rosters')
-  const duplicate = page.getByRole('menuitem', { name: 'Duplicate' })
-  await retryUntilVisible(duplicate, () => page.getByRole('button', { name: 'Actions for Nurgle 2k' }).click())
-  await duplicate.click()
+  await chooseLibraryAction(page, 'Nurgle 2k', 'Duplicate')
   await page.getByRole('link', { name: /Copy of Nurgle 2k/ }).click()
   await expect(page.getByLabel('List name')).toHaveValue('Copy of Nurgle 2k')
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
   await page.goto('/rosters')
-  const viewItem = page.getByRole('menuitem', { name: 'View' })
-  await retryUntilVisible(viewItem, () => page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click())
   const view = page.waitForEvent('popup')
-  await viewItem.click()
+  await chooseLibraryAction(page, 'Copy of Nurgle 2k', 'View')
   const roster = await view
   await expect(roster.getByLabel('List name')).toHaveValue('Copy of Nurgle 2k')
   await expect(roster.getByRole('button', { name: 'Immortals', exact: true })).toBeVisible()
   await roster.emulateMedia({ media: 'print' })
-  await roster.screenshot({ path: 'test-results/shared-roster-print.png', fullPage: true })
+  await roster.screenshot({ path: test.info().outputPath('shared-roster-print.png'), fullPage: true })
   const sharedUrl = roster.url()
   await roster.close()
 
   await context.addInitScript(() => {
     window.print = () => document.documentElement.setAttribute('data-print-called', 'true')
   })
-  await page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click()
   const print = page.waitForEvent('popup')
-  await page.getByRole('menuitem', { name: 'Print' }).click()
+  await chooseLibraryAction(page, 'Copy of Nurgle 2k', 'Print')
   const printedRoster = await print
   await expect(printedRoster.locator('html')).toHaveAttribute('data-print-called', 'true')
   await printedRoster.close()
 
-  await page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+  await chooseLibraryAction(page, 'Copy of Nurgle 2k', 'Edit roster setup')
   const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Unlisted — anyone with the link' }).click()
@@ -589,8 +559,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
 
   // Public reads exactly as unlisted does. What it adds is being listed on the
   // owner's profile, which is the only place the two values look different.
-  await page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+  await chooseLibraryAction(page, 'Copy of Nurgle 2k', 'Edit roster setup')
   const publishing = page.getByRole('dialog', { name: 'Edit roster setup' })
   await publishing.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Public — listed on your profile' }).click()
@@ -609,9 +578,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
 
   // Back to unlisted, so the rest of this test reads the link the way it did before.
   await page.goto('/rosters')
-  const revertSetup = page.getByRole('menuitem', { name: 'Edit roster setup' })
-  await retryUntilVisible(revertSetup, () => page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click())
-  await revertSetup.click()
+  await chooseLibraryAction(page, 'Copy of Nurgle 2k', 'Edit roster setup')
   const reverting = page.getByRole('dialog', { name: 'Edit roster setup' })
   await reverting.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Unlisted — anyone with the link' }).click()
@@ -638,17 +605,14 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await retryUntilVisible(duplicateHere, () => guest.getByRole('button', { name: 'Roster actions' }).click())
   await expect(guest.getByRole('menuitem', { name: 'Export text' })).toBeVisible()
   await expect(guest.getByRole('menuitem', { name: 'Print' })).toBeVisible()
-  await guest.screenshot({ path: 'test-results/shared-roster-actions.png', fullPage: true })
+  await guest.screenshot({ path: test.info().outputPath('shared-roster-actions.png'), fullPage: true })
   await guest.keyboard.press('Escape')
   await expect(guest.getByLabel('Add units')).toHaveCount(0)
   const guestUnits = guest.locator('[data-slot="roster-units"]')
   await expect(guestUnits.getByText('Characters', { exact: true }).locator('..')).toContainText(/Characters\s*\d+ pts\s*1/)
   await expect(guestUnits.getByText('Battleline', { exact: true }).locator('..')).toContainText(/Battleline\s*\d+ pts\s*1/)
   await expect(guest.getByLabel('Unit actions for Immortals')).toHaveCount(0)
-  let releaseLoadout: () => void = () => {}
-  const loadoutHeld = new Promise<void>((resolve) => {
-    releaseLoadout = resolve
-  })
+  const { promise: loadoutHeld, resolve: releaseLoadout } = Promise.withResolvers<void>()
   await guest.route('**/_serverFn/**', async (route) => {
     await loadoutHeld
     await route.continue()
@@ -665,17 +629,17 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await expect(guestLoadout.getByRole('button', { name: /^Select / })).toHaveCount(0)
   await expect(guestLoadout.getByRole('button', { name: 'More models in Immortals' })).toHaveCount(0)
   await expect(guestLoadout.getByText('Implacable Eradication')).toBeVisible()
-  await guest.screenshot({ path: 'test-results/shared-roster-read-only.png', fullPage: true })
-  await guest.setViewportSize({ width: 390, height: 844 })
+  await guest.screenshot({ path: test.info().outputPath('shared-roster-read-only.png'), fullPage: true })
+  await guest.setViewportSize(PHONE)
   await expect(guestLoadout).toBeVisible()
-  expect(await guest.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
-  expect(await guestLoadout.evaluate((pane) => pane.scrollWidth <= pane.clientWidth)).toBe(true)
-  await guest.screenshot({ path: 'test-results/shared-roster-read-only-phone.png', fullPage: true })
+  await expectNoPageOverflow(guest)
+  await expectNoHorizontalOverflow(guestLoadout)
+  await guest.screenshot({ path: test.info().outputPath('shared-roster-read-only-phone.png'), fullPage: true })
   await guestLoadout.getByRole('button', { name: 'Back to roster' }).click()
   await guest.getByRole('button', { name: 'Roster actions' }).click()
   await expect(guest.getByRole('menuitem', { name: 'Duplicate to this device' })).toBeVisible()
-  expect(await guest.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
-  await guest.screenshot({ path: 'test-results/shared-roster-actions-phone.png', fullPage: true })
+  await expectNoPageOverflow(guest)
+  await guest.screenshot({ path: test.info().outputPath('shared-roster-actions-phone.png'), fullPage: true })
   await guest.keyboard.press('Escape')
 
   await signUp(guest, uniqueName('Reader'))
@@ -694,15 +658,9 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
 
 test('a list saved on the retired Marine codex opens on the current Space Marines book', async ({ page }) => {
   const { email } = await signUp(page, 'Provisional')
-  const userId = await userIdFor(email)
-  const id = crypto.randomUUID()
   // The row as the provisional codex saved it: book, detachment, units and Warlord under its ids.
   const retired = (entry: string) => `profile-unit-e0af-67df-9d63-8fb8-${entry}`
-  const saved = await (
-    await productOperator()
-  ).saveRoster({
-    id,
-    userId,
+  const { id, outcome: saved } = await seedRoster(email, {
     name: 'Provisional Gladius',
     catalogueId: 'e0af-67df-9d63-8fb8',
     detachmentId: JSON.stringify(['profile-detachment-option-e0af-67df-9d63-8fb8-f367-3240-47c1-7e1a']),
@@ -712,12 +670,6 @@ test('a list saved on the retired Marine codex opens on the current Space Marine
       { entryId: retired('024a-3fea-7765-4e82'), toggles: { [`profile-warlord-e0af-67df-9d63-8fb8-024a-3fea-7765-4e82`]: 1 } },
       { entryId: retired('34c7-75dd-fcff-ec94') },
     ]),
-    prep: null,
-    tags: '[]',
-    waivedRules: '[]',
-    visibility: 'private',
-    source: 'editable',
-    now: Date.now(),
   })
   expect(saved).toBe('inserted')
 

@@ -1,5 +1,6 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronRight, ScrollText } from 'lucide-react'
+import { ShelfLink } from '../../components/ShelfLink'
+import { ScrollText } from 'lucide-react'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { pointsBudgetOf } from '../../../core/battle'
 import { FactionMark } from '../../components/FactionMark'
@@ -38,9 +39,7 @@ export function HomeRosters({ rosters, count, changed }: { rosters: readonly Hom
                 params={{ id: roster.id }}
                 className="flex min-w-0 items-center gap-2 -mx-3 px-3 py-3 hover:bg-raised"
               >
-                {faction ? (
-                  <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
-                ) : null}
+                {faction ? <FactionMark faction={faction} size="sm" /> : null}
                 <span className="min-w-0 flex-1 truncate text-sm font-bold uppercase">{rosterTitle(roster, faction, label)}</span>
                 {problem ? (
                   <span className="shrink-0 text-xs font-semibold text-destructive">{PROBLEM_LABEL[problem]}</span>
@@ -60,9 +59,7 @@ export function HomeRosters({ rosters, count, changed }: { rosters: readonly Hom
         </p>
       )}
       <p className="mt-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <Link to="/rosters" className="eyebrow inline-flex items-center gap-1 text-info hover:text-parchment">
-          All my rosters <ChevronRight className="size-3.5" />
-        </Link>
+        <ShelfLink to="/rosters">All my rosters</ShelfLink>
         {changed ? (
           <Link to="/rosters" search={{ updates: 'changed' }} className="text-xs font-semibold text-discarded hover:text-bone">
             {countLabel(changed, 'list')} changed by a data update

@@ -11,11 +11,11 @@ import { detachmentsOffering } from '../../shared/factionReferences'
 import { gameReferencesFor } from '../../shared/gameReferences'
 import { type GlobalSearchResult, searchEverything } from '../globalSearch'
 import { mutationRpc, rpc } from '../rpc'
-import { OWN_SEARCH_BATTLES, ownSearchLists } from '../../core/referenceSearch'
+import { OWN_SEARCH_BATTLES, ownSearchLists, type OwnSearchData } from '../../core/referenceSearch'
 import { rosterDatasheetContext } from '../../shared/rosterDatasheetContext'
 import { rosterCombatant } from '../../shared/rosterCombatRules'
 import { combatLoadoutSpace } from '../../shared/combatLoadouts'
-import { currentUserId } from '../playerSession'
+import { currentUserId, forSignedIn } from '../playerSession'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
 import { memoUntilSnapshotChanges } from '../snapshotMemo'
 import { selectedBattleDetachmentData } from '../../shared/battleDetachmentData'
@@ -43,9 +43,16 @@ import {
   unitWoundsSchema,
 } from '../../contracts/schemas'
 
-export const factionIndex = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
+/** A reference read, cached against the snapshot's ETag when fetched directly. */
+function snapshotRpc<T>(work: () => Promise<T>) {
+  return rpc(() => {
     cacheUntilSnapshotChanges()
+    return work()
+  })
+}
+
+export const factionIndex = createServerFn({ method: 'GET' }).handler(() =>
+  snapshotRpc(async () => {
     return app().factionIndexFor()
   }),
 )
@@ -54,8 +61,7 @@ export const factionIndex = createServerFn({ method: 'GET' }).handler(() =>
 export const faction = createServerFn({ method: 'GET' })
   .validator(factionSchema)
   .handler(({ data }) =>
-    rpc(async () => {
-      cacheUntilSnapshotChanges()
+    snapshotRpc(async () => {
       return app().factionFor(data.catalogueId)
     }),
   )
@@ -69,16 +75,15 @@ export const globalSearch = createServerFn({ method: 'GET' })
         catalogue: null,
         catalogueIndex: catalogueIndex ?? undefined,
         rules: catalogueIndex ? null : await app().rulesFor(),
-        own: async () => {
-          const userId = await currentUserId()
-          if (!userId) return null
-          const rules = await app().rulesFor()
-          const [rosters, page] = await Promise.all([
-            app().service.rosterService.savedRosterSummaries(userId),
-            app().service.battles(userId, rules, { limit: OWN_SEARCH_BATTLES }),
-          ])
-          return ownSearchLists(rosters, page.battles, (await app().factionsFor())?.factions ?? [])
-        },
+        own: () =>
+          forSignedIn<OwnSearchData | null>(null, async (userId) => {
+            const rules = await app().rulesFor()
+            const [rosters, page] = await Promise.all([
+              app().service.rosterService.savedRosterSummaries(userId),
+              app().service.battles(userId, rules, { limit: OWN_SEARCH_BATTLES }),
+            ])
+            return ownSearchLists(rosters, page.battles, (await app().factionsFor())?.factions ?? [])
+          }),
       })
     }),
   )
@@ -106,8 +111,7 @@ export const units = createServerFn({ method: 'GET' })
 export const datasheetOfferedBy = createServerFn({ method: 'GET' })
   .validator(datasheetOfferedBySchema)
   .handler(({ data }) =>
-    rpc(async () => {
-      cacheUntilSnapshotChanges()
+    snapshotRpc(async () => {
       const instance = app()
       const offers = await Promise.all(
         data.catalogueIds.map(async (id) => {
@@ -120,8 +124,7 @@ export const datasheetOfferedBy = createServerFn({ method: 'GET' })
   )
 
 export const combatUnits = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    cacheUntilSnapshotChanges()
+  snapshotRpc(async () => {
     return app().combatUnitsFor()
   }),
 )
@@ -129,8 +132,7 @@ export const combatUnits = createServerFn({ method: 'GET' }).handler(() =>
 export const factionDatasheets = createServerFn({ method: 'GET' })
   .validator(unitsSchema)
   .handler(({ data }) =>
-    rpc(async () => {
-      cacheUntilSnapshotChanges()
+    snapshotRpc(async () => {
       return memoUntilSnapshotChanges('faction-datasheets', data, async () => {
         const loaded = await app().catalogueFor(data.catalogueId)
         if (!loaded) return []
@@ -264,8 +266,7 @@ export const unitBattleDetails = createServerFn({ method: 'GET' })
 export const datasheetBySlug = createServerFn({ method: 'GET' })
   .validator(datasheetSlugSchema)
   .handler(({ data }) =>
-    rpc(async () => {
-      cacheUntilSnapshotChanges()
+    snapshotRpc(async () => {
       return memoUntilSnapshotChanges('datasheet-by-slug', data, async () => {
         const instance = app()
         const canonical = await instance.canonicalCatalogueFor(data.catalogueId)
@@ -289,8 +290,7 @@ export const datasheetBySlug = createServerFn({ method: 'GET' })
 export const detachmentRules = createServerFn({ method: 'GET' })
   .validator(detachmentRulesSchema)
   .handler(({ data }) =>
-    rpc(async () => {
-      cacheUntilSnapshotChanges()
+    snapshotRpc(async () => {
       const selected = await app().battleDetachmentDataFor(data.catalogueId)
       return selected ? selectedBattleDetachmentData(selected, data.detachmentNames) : null
     }),
@@ -299,8 +299,7 @@ export const detachmentRules = createServerFn({ method: 'GET' })
 export const detachmentDetail = createServerFn({ method: 'GET' })
   .validator(detachmentDetailSchema)
   .handler(({ data }) =>
-    rpc(async () => {
-      cacheUntilSnapshotChanges()
+    snapshotRpc(async () => {
       const rules = await app().rulesFor(data.catalogueId)
       const catalogue = await app().catalogueFor(data.catalogueId)
       return rules && catalogue ? publishedDetachmentReference(catalogue, rules, data.catalogueId, data.slug) : null
@@ -310,8 +309,7 @@ export const detachmentDetail = createServerFn({ method: 'GET' })
 export const dispositionDetachments = createServerFn({ method: 'GET' })
   .validator(dispositionSchema)
   .handler(({ data }) =>
-    rpc(async () => {
-      cacheUntilSnapshotChanges()
+    snapshotRpc(async () => {
       const result = await app().factionsFor()
       return result ? detachmentsOffering(result.factions, data.dispositionId) : null
     }),
@@ -319,16 +317,14 @@ export const dispositionDetachments = createServerFn({ method: 'GET' })
 
 /** The battlefields on offer, as polygons, so the interface can draw one. */
 export const deployments = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    cacheUntilSnapshotChanges()
+  snapshotRpc(async () => {
     const rules = await app().battleReadRulesFor()
     return rules?.deployments ?? []
   }),
 )
 
 export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    cacheUntilSnapshotChanges()
+  snapshotRpc(async () => {
     const rules = await app().battleReadRulesFor()
     if (!rules) return null
     return gameReferencesFor(rules)
@@ -337,16 +333,14 @@ export const gameReferences = createServerFn({ method: 'GET' }).handler(() =>
 
 /** Where each source file a rules-text token names lives upstream; Praetorium serves where the words are, never the words. */
 export const textSources = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    cacheUntilSnapshotChanges()
+  snapshotRpc(async () => {
     return publishedTextFiles()
   }),
 )
 
 /** Every rules document and section by name, with the numbers their prose quotes. */
 export const ruleIndex = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    cacheUntilSnapshotChanges()
+  snapshotRpc(async () => {
     const rules = await app().rulesFor()
     const canonical = await app().canonicalCatalogueFor()
     return referenceRuleIndex({ catalogue: () => null, canonicalCatalogue: () => canonical, rules: () => rules })
@@ -357,8 +351,7 @@ export const ruleIndex = createServerFn({ method: 'GET' }).handler(() =>
 export const ruleSection = createServerFn({ method: 'GET' })
   .validator(ruleSectionSchema)
   .handler(({ data }) =>
-    rpc(async () => {
-      cacheUntilSnapshotChanges()
+    snapshotRpc(async () => {
       const rules = await app().rulesFor()
       const canonical = await app().canonicalCatalogueFor()
       return referenceRuleSection({ catalogue: () => null, canonicalCatalogue: () => canonical, rules: () => rules }, data)
@@ -368,8 +361,7 @@ export const ruleSection = createServerFn({ method: 'GET' })
 export const terrainReferences = createServerFn({ method: 'GET' })
   .validator(terrainReferencesSchema)
   .handler(({ data }) =>
-    rpc(async () => {
-      cacheUntilSnapshotChanges()
+    snapshotRpc(async () => {
       const rules = await app().terrainReadRulesFor(data.matchupIds)
       if (!rules) return { layouts: [], templates: [] }
       return {
@@ -379,9 +371,4 @@ export const terrainReferences = createServerFn({ method: 'GET' })
     }),
   )
 
-/**
- * Reads a Praetorium, BattleBase or New Recruit text export into picks this instance
- * can price. Anything that cannot be placed is named in the answer rather than dropped
- * quietly.
- */
 export type { GlobalSearchResult }

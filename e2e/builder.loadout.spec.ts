@@ -1,6 +1,18 @@
 import { expect, test, type Page } from './test'
-import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
-import { savedWork } from './storage'
+import {
+  confirmRosterSetup,
+  createRoster,
+  retryUntilVisible,
+  signUp,
+  waitForRosterSave,
+  expectNoPageOverflow,
+  addUnit,
+  chooseRosterAction,
+  openRosterSetup,
+  chooseOption,
+  PHONE,
+} from './account'
+import { expectWorkSynced } from './storage'
 import {
   expectInsideHorizontalBounds,
   expectNoHorizontalOverflow,
@@ -51,8 +63,7 @@ test('a squad jumps straight to a chosen size', async ({ page }) => {
   await expect(total).toHaveText(/^\d+\/2000$/)
   const startingPoints = Number((await total.innerText()).split('/')[0])
 
-  await page.getByRole('combobox', { name: 'Immortals models' }).click()
-  await page.getByRole('option', { name: '10', exact: true }).click()
+  await chooseOption(page, 'Immortals models', '10')
   await expect(page.getByLabel('Immortals models')).toHaveText('10')
   await expect(page.getByRole('button', { name: 'More models in Immortals' })).toBeDisabled()
   await expect.poll(async () => Number((await total.innerText()).split('/')[0])).toBeGreaterThan(startingPoints)
@@ -72,14 +83,8 @@ test('loadout controls keep their shape while resized constraints load', async (
   const tesla = loadout.getByRole('button', { name: 'Select Tesla carbine' })
   await expect(tesla).toBeEnabled()
 
-  let releasePricing: () => void = () => undefined
-  const pricingHeld = new Promise<void>((resolve) => {
-    releasePricing = resolve
-  })
-  let pricingStarted: () => void = () => undefined
-  const started = new Promise<void>((resolve) => {
-    pricingStarted = resolve
-  })
+  const { promise: pricingHeld, resolve: releasePricing } = Promise.withResolvers<void>()
+  const { promise: started, resolve: pricingStarted } = Promise.withResolvers<void>()
   await page.route('**/_serverFn/**', async (route) => {
     if (route.request().method() === 'POST') {
       pricingStarted()
@@ -100,7 +105,7 @@ test('loadout controls keep their shape while resized constraints load', async (
 
 test('a unit duplicates with its configured model count', async ({ page }) => {
   await openBuilder(page)
-  await waitForRosterSave(page, () => add(page, 'Immortals'))
+  await addUnit(page, 'Immortals')
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await page.getByRole('button', { name: 'More models in Immortals' }).click()
   await page.locator('[data-unit="Immortals"]').click({ button: 'right' })
@@ -162,7 +167,7 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
   await datasheetSearch.fill('Lychguard Necrons')
   await page.getByRole('option', { name: /^Lychguard, Necrons/ }).click()
   await expect(page.locator('[data-unit="Lychguard"]')).toBeVisible()
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.goto(rosterUrl)
   await page.getByLabel('Add a unit').fill('Lychguard')
   await expect(ownedFilter).not.toHaveAttribute('aria-disabled')
@@ -177,31 +182,22 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
 
   // Points fit hides what will not go in the room that is left, and only that.
   await page.getByRole('button', { name: 'Unit limit' }).click()
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
-  await setup.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /^Incursion/ }).click()
-  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await confirmRosterSetup(setup)
+  const playAt = async (size: RegExp) => {
+    const setup = await openRosterSetup(page)
+    await setup.getByRole('combobox', { name: 'Battle size' }).click()
+    await page.getByRole('option', { name: size }).click()
+    await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
+    await confirmRosterSetup(setup)
+  }
+  await playAt(/^Incursion/)
   await expect(page.getByText('3/2 in roster')).toBeVisible()
   await expect(page.getByText('Roster is not legal')).toBeAttached()
   await expect(lychguard).toBeDisabled()
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  await setup.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /King of the Colosseum/ }).click()
-  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await confirmRosterSetup(setup)
+  await playAt(/King of the Colosseum/)
   await expect(page.getByText('3/1 in roster')).toBeVisible()
   await expect(page.getByText('Lychguard: allows at most 1 of this datasheet, has 3')).toBeVisible()
   await expect(lychguard).toBeDisabled()
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  await setup.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /^Incursion/ }).click()
-  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await confirmRosterSetup(setup)
+  await playAt(/^Incursion/)
 
   // The battle size's own restrictions are switched off from the picker's own menu,
   // over the book they act on.
@@ -551,11 +547,7 @@ test('attachment relationships stay inside the two-column unit pane', async ({ p
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
   await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
-  const widths = await loadout.locator('[data-slot="scroll-area-viewport"]').evaluate((element) => ({
-    client: element.clientWidth,
-    scroll: element.scrollWidth,
-  }))
-  expect(widths.scroll).toBe(widths.client)
+  await expectNoHorizontalOverflow(loadout.locator('[data-slot="scroll-area-viewport"]'))
 })
 
 test('the attachment menu stays inside the unopened three-column roster', async ({ page }) => {
@@ -570,16 +562,8 @@ test('the attachment menu stays inside the unopened three-column roster', async 
   const ancient = page.locator('[data-unit="Ancient"]')
   const attachButton = ancient.getByRole('button', { name: 'Attach Ancient to unit' })
   await expect(attachButton).toBeVisible()
-  const rosterWidths = await page.locator('[data-slot="roster-units"]').evaluate((element) => ({
-    client: element.clientWidth,
-    scroll: element.scrollWidth,
-  }))
-  expect(rosterWidths.scroll).toBe(rosterWidths.client)
-  const unopenedWidths = await page.evaluate(() => ({
-    client: document.documentElement.clientWidth,
-    scroll: document.documentElement.scrollWidth,
-  }))
-  expect(unopenedWidths.scroll).toBe(unopenedWidths.client)
+  await expectNoHorizontalOverflow(page.locator('[data-slot="roster-units"]'))
+  await expectNoPageOverflow(page)
 
   await attachButton.click()
   const targets = page.getByRole('menu')
@@ -589,17 +573,13 @@ test('the attachment menu stays inside the unopened three-column roster', async 
   await targets.getByRole('menuitem', { name: 'Intercessor Squad', exact: true }).click()
   await expect(ancient).toContainText('Supporting')
   await expect(ancient).toContainText('Intercessor Squad')
-  const attachedWidths = await page.evaluate(() => ({
-    client: document.documentElement.clientWidth,
-    scroll: document.documentElement.scrollWidth,
-  }))
-  expect(attachedWidths.scroll).toBe(attachedWidths.client)
+  await expectNoPageOverflow(page)
 })
 
 test('mobile roster sheets move directly between units, loadout and datasheet', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
 
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   const loadout = page.locator('aside[aria-label="Loadout"]')
@@ -651,25 +631,17 @@ test('a squad the datasheet keeps identical is asked once, not counted', async (
 
 test('a model-specific weapon has the same count on its roster card and loadout', async ({ page }) => {
   await openBuilder(page, 'Dark Angels', /Inner Circle Task Force/)
-  await waitForRosterSave(page, () => add(page, 'Vanguard Veteran Squad with Jump Packs'))
+  await addUnit(page, 'Vanguard Veteran Squad with Jump Packs')
 
   const card = page.locator('[data-unit="Vanguard Veteran Squad with Jump Packs"]')
   await expect(card).toContainText('4x Master-crafted Power Weapon')
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  const rosterWidths = await page.locator('[data-slot="roster-units"]').evaluate((element) => ({
-    client: element.clientWidth,
-    scroll: element.scrollWidth,
-  }))
-  expect(rosterWidths.scroll).toBe(rosterWidths.client)
+  await page.setViewportSize(PHONE)
+  await expectNoPageOverflow(page)
+  await expectNoHorizontalOverflow(page.locator('[data-slot="roster-units"]'))
   await card.getByRole('button', { name: 'Vanguard Veteran Squad with Jump Packs', exact: true }).click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  const loadoutWidths = await loadout.locator('[data-slot="scroll-area-viewport"]').evaluate((element) => ({
-    client: element.clientWidth,
-    scroll: element.scrollWidth,
-  }))
-  expect(loadoutWidths.scroll).toBe(loadoutWidths.client)
+  await expectNoHorizontalOverflow(loadout.locator('[data-slot="scroll-area-viewport"]'))
   await expect(loadout.getByLabel('Master-crafted Power Weapon count')).toHaveText('4')
   await waitForRosterSave(page, () =>
     loadout.getByRole('button', { name: 'More models in Vanguard Veteran Squad with Jump Packs' }).click(),
@@ -678,7 +650,7 @@ test('a model-specific weapon has the same count on its roster card and loadout'
   await expect(card).toContainText('5x Master-crafted Power Weapon')
 
   await loadout.getByRole('button', { name: 'Back to roster' }).click()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
 })
 
 /**
@@ -870,21 +842,19 @@ test('independent weapon choices are edited separately when the catalogue stores
   await expectNoHorizontalOverflow(page.locator('body'))
   await expectNoHorizontalOverflow(loadout)
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await loadout.getByRole('button', { name: 'Back to roster' }).click()
-  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(page.locator('[data-slot="roster-units"]'))
   await page.locator('[data-unit="Canoptek Wraiths"]').getByRole('button', { name: 'Canoptek Wraiths', exact: true }).click()
-  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(loadout.locator('[data-slot="scroll-area-viewport"]'))
 })
 
 /**
  * Astra Militarum own no datasheets: every one of them, and their detachments, are
- * reached by a link into a library. So a book written that way was offered as no
- * faction at all, and the ones that were offered were missing whatever they borrow.
+ * reached by a link into a library, and the book offers whatever it borrows beside its own.
  */
-
 test('Cadian Shock Troops can take their full special weapon allowance', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page, 'Astra Militarum', /Combined Arms/)
@@ -975,7 +945,7 @@ async function plagueMarineVariants(page: Page, width: number) {
   await createRoster(page, { faction: 'Death Guard', detachment: /Champions of Contagion/ })
   await add(page, 'Plague Marines')
   if (width < 1000) await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()
-  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(page.locator('[data-slot="roster-units"]'))
   const card = page.locator('[data-unit="Plague Marines"]')
   await card.getByRole('button', { name: /^Plague Marines/ }).click()
@@ -988,7 +958,7 @@ async function plagueMarineVariants(page: Page, width: number) {
   await expect(card).toContainText('1x Icon of Despair')
   await expect(card).toContainText('1x Meltagun')
   await expect(loadout.getByLabel('Plague Marine models', { exact: true })).toHaveText('4')
-  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(loadout)
   await page.reload()
   if (width >= 1000) await card.getByRole('button', { name: /^Plague Marines/ }).click()
@@ -1008,7 +978,7 @@ async function orkLoadoutVariants(page: Page, width: number) {
   await add(page, 'Nobz')
   await add(page, 'Boyz')
   if (width < 1000) await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()
-  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(page.locator('[data-slot="roster-units"]'))
 
   const card = page.locator('[data-unit="Nobz"]')
@@ -1061,7 +1031,7 @@ async function orkLoadoutVariants(page: Page, width: number) {
   await expect(card).toContainText('1x Kustom Choppa')
   await expect(card).toContainText('4x Kustom Shoota')
   await expect(loadout.getByLabel('Nob models', { exact: true })).toHaveText('5')
-  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(loadout)
   await page.reload()
   await expect(card).toBeVisible()
@@ -1088,7 +1058,7 @@ async function orkLoadoutVariants(page: Page, width: number) {
   await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Rokkit Launcha', exact: true }).click())
   await expect(boyz).toContainText('1x Rokkit Launcha')
   await expect(boyz).toContainText('8x Shoota')
-  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(loadout)
   await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'Fewer Rokkit Launcha', exact: true }).click())
   await expect(boyz).toContainText('9x Shoota')
@@ -1144,7 +1114,7 @@ async function orkLoadoutVariants(page: Page, width: number) {
   const firingProfiles = page.getByRole('rowgroup', { name: 'kombi-rokkit profiles', exact: true })
   await expect(firingProfiles).toContainText('2 profiles')
   await firingProfiles.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoPageOverflow(page)
 }
 
 test('Plague Marine variants share a model card', async ({ page }) => {
@@ -1174,15 +1144,13 @@ test('Plague Marine cards and exports omit replaced default wargear', async ({ p
   const heavy = loadout.locator('section').filter({ has: page.getByLabel('Plague Marine models', { exact: true }) })
   await waitForRosterSave(page, () => heavy.getByRole('button', { name: 'More Heavy plague weapon' }).click())
   await waitForRosterSave(page, () => heavy.getByRole('button', { name: 'More Heavy plague weapon' }).click())
-  const spewer = heavy
-  await waitForRosterSave(page, () => spewer.getByRole('button', { name: 'More Plague spewer' }).click())
+  await waitForRosterSave(page, () => heavy.getByRole('button', { name: 'More Plague spewer' }).click())
   await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Plasma gun' }).last().click())
 
   await expect(card).toContainText('4x Plague knives')
   await expect(card).not.toContainText('Boltgun')
 
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  await chooseRosterAction(page, 'Export text')
   const exported = page.getByRole('dialog', { name: 'Export roster' }).locator('pre')
   await expect(exported).toContainText('4x Plague knives')
   await expect(exported).not.toContainText('Boltgun')
@@ -1193,16 +1161,16 @@ test('Death Guard champions expose their legal wargear', async ({ page }) => {
   await openBuilder(page, 'Death Guard', /Champions of Contagion/)
   await add(page, 'Deathshroud Terminators')
   await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(720)
-  expect(await page.locator('[data-slot="roster-units"]').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoPageOverflow(page)
+  await expectNoHorizontalOverflow(page.locator('[data-slot="roster-units"]'))
   await page
     .locator('[data-unit="Deathshroud Terminators"]')
     .getByRole('button', { name: /^Deathshroud Terminators/ })
     .click()
 
   const loadout = page.locator('aside[aria-label="Loadout"]')
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(720)
-  expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoPageOverflow(page)
+  await expectNoHorizontalOverflow(loadout)
   const deathshroud = page.locator('[data-unit="Deathshroud Terminators"]')
   await expect(loadout.getByLabel('Deathshroud Terminator Champion models')).toHaveText('1')
   await expect(loadout.getByLabel('Deathshroud Terminator models')).toHaveText('2')
@@ -1214,10 +1182,7 @@ test('Death Guard champions expose their legal wargear', async ({ page }) => {
   await expect(loadout.getByLabel('Icon of Despair count', { exact: true })).toHaveText('0')
   await expect(loadout.getByRole('button', { name: /More Icon of Despair/ })).toHaveCount(0)
 
-  let releasePricing: () => void = () => undefined
-  const pricingHeld = new Promise<void>((resolve) => {
-    releasePricing = resolve
-  })
+  const { promise: pricingHeld, resolve: releasePricing } = Promise.withResolvers<void>()
   let holdPricing = true
   await page.route('**/_serverFn/**', async (route) => {
     if (holdPricing && route.request().method() === 'POST') await pricingHeld
@@ -1255,8 +1220,8 @@ test('Death Guard champions expose their legal wargear', async ({ page }) => {
     .first()
     .click()
 
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(720)
-  expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoPageOverflow(page)
+  await expectNoHorizontalOverflow(loadout)
   const plagueMarinesDatasheet = loadout.getByRole('link', { name: 'Open full datasheet in a new tab' })
   await expect(plagueMarinesDatasheet).toHaveAttribute('href', '/factions/death-guard/rules/mfm-1-6/datasheets/plague-marines')
   const [openedPlagueMarines] = await Promise.all([page.waitForEvent('popup'), plagueMarinesDatasheet.click()])

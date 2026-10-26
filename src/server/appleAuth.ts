@@ -13,7 +13,7 @@ type AppleEnvironment = Partial<
   Record<'APPLE_CLIENT_ID' | 'APPLE_CLIENT_SECRET' | 'APPLE_TEAM_ID' | 'APPLE_KEY_ID' | 'APPLE_PRIVATE_KEY', string>
 >
 
-export type AppleCredentials = {
+type AppleCredentials = {
   clientId: string
   clientSecret: () => Promise<string>
 }

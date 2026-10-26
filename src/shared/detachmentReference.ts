@@ -6,12 +6,10 @@ import { detachmentPoints } from './detachmentPoints'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { type LoadedRules, rulesFaction } from './rules'
 import { detachmentNamed } from './factionReferences'
-import { mfmAttribution, mfmDetachmentFor, mfmEnhancementPoints } from './mfm'
+import { isUpgrade, mfmAttribution, mfmDetachmentFor, mfmEnhancementPoints, withoutUpgrade } from './mfm'
 import { joinKey } from '../core/text'
 import { factionContentOf } from './factionNames'
 
-const withoutUpgrade = (name: string) => name.replace(/\s*\(upgrade\)\s*$/i, '')
-const isUpgrade = (name: string) => /\(upgrade\)\s*$/i.test(name)
 const specialKey = (name: string) => joinKey(name.replace(/\s*\((?:aura|upgrade)\)/gi, ''))
 
 export function detachmentReference(loaded: LoadedCatalogue, rules: LoadedRules, catalogueId: string, detachmentSlug: string) {

@@ -1,6 +1,6 @@
 import { savedApplicationDigest, waitForOfflineApp } from './offline'
 import { expect, test } from './test'
-import { createRoster, scrollSearchResultIntoView, signUp, uniqueName } from './account'
+import { createRoster, scrollSearchResultIntoView, signUp, uniqueName, PHONE } from './account'
 import { add } from './builder.harness'
 
 // The offline downloads mount once in the app shell, so the home page stands for every route.
@@ -95,10 +95,7 @@ test('the complete reference keeps its existing UI after a cold offline launch',
       ),
     )
   })
-  let release!: () => void
-  const delayed = new Promise<void>((resolve) => {
-    release = resolve
-  })
+  const { promise: delayed, resolve: release } = Promise.withResolvers<void>()
   await page.route('**/offline-reference-version.json', async (route) => {
     await delayed
     await route.continue()
@@ -168,7 +165,7 @@ test('the complete reference keeps its existing UI after a cold offline launch',
   await expect(offline.getByRole('tooltip')).toContainText('Lethal Hits')
   await offline.mouse.move(0, 0)
   await expect(offline.getByRole('tooltip')).toBeHidden()
-  await offline.setViewportSize({ width: 390, height: 844 })
+  await offline.setViewportSize(PHONE)
   await offline.goto('/factions/necrons/datasheets')
   await offline.getByRole('textbox', { name: 'Find a datasheet' }).fill('Warriors')
   await expect(offline.locator('[data-datasheet]')).toHaveCount(1)

@@ -33,9 +33,7 @@ export function UnitPicker({
                 value: JSON.stringify([book.catalogueId, unit.id]),
                 label: unit.name,
                 detail: unit.points === null ? undefined : `${unit.points} pts`,
-                icon: faction ? (
-                  <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
-                ) : undefined,
+                icon: faction ? <FactionMark faction={faction} size="sm" /> : undefined,
               })),
             }
           }),

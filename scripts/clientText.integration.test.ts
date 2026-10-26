@@ -47,13 +47,7 @@ describe.skipIf(!exists)('what the browser gets from Praetorium', () => {
 
   beforeAll(async () => {
     const catalogue = loadCatalogue(root)!
-    const rules = loadRules(
-      root,
-      path.join(root, 'battlemaster'),
-      path.join(root, 'faction-icons'),
-      path.join(root, 'datacards', '11th', 'gdc'),
-      catalogue.datacards,
-    )!
+    const rules = loadRules(root, { iconDirectory: path.join(root, 'faction-icons'), loadedDatacards: catalogue.datacards })!
     const canonical = loadCanonicalCatalogue(root) ?? compileCanonicalCatalogueFromSnapshot(catalogue, rules, root)
     const sources = { catalogue: () => catalogue, rules: () => rules, canonicalCatalogue: () => canonical }
     definitions = sourceProse(root, ['definitions'])

@@ -1,24 +1,19 @@
-import { expect, test } from './test'
-import { attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, signUp, startBattle, uniqueName, waitForRosterSave } from './account'
+import { expect, test, type Page } from './test'
+import { createRoster, signUp, startBattle, uniqueName, addUnit, practiceBattle } from './account'
+
+/** A Death Guard list of Plague Marines and a Foetid Bloat-drone, started in a practice battle. */
+async function guardBattle(page: Page, label: string, name: string) {
+  const player = uniqueName(label)
+  await signUp(page, player)
+  const roster = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name })
+  for (const unit of ['Plague Marines', 'Foetid Bloat-drone']) await addUnit(page, unit)
+  await practiceBattle(page, roster)
+  await startBattle(page)
+  return { player, roster }
+}
 
 test('an army is read and its losses recorded without leaving the battle', async ({ page }) => {
-  const player = uniqueName('Attrition')
-  await signUp(page, player)
-  const roster = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Attrition Guard' })
-  for (const unit of ['Plague Marines', 'Foetid Bloat-drone']) {
-    await page.getByLabel('Add a unit').fill(unit)
-    await waitForRosterSave(page, () =>
-      page
-        .getByRole('button', { name: `Add ${unit}`, exact: true })
-        .first()
-        .click(),
-    )
-  }
-
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
-  await startBattle(page)
+  const { player, roster } = await guardBattle(page, 'Attrition', 'Attrition Guard')
 
   // The list opens over the battle rather than on a page of its own.
   const panel = page.locator('[data-panel="player"][data-side="0"]')
@@ -45,14 +40,8 @@ test('an army is read and its losses recorded without leaving the battle', async
   await expect(loadout.locator('[data-slot="unit-profile"]')).toBeVisible()
 
   // Casualty presses count ahead of the service, so a squad can be tapped down while a write is in flight.
-  let releaseSubmit = () => undefined
-  const submitHeld = new Promise<void>((resolve) => {
-    releaseSubmit = resolve
-  })
-  let submitStarted = () => undefined
-  const started = new Promise<void>((resolve) => {
-    submitStarted = resolve
-  })
+  const { promise: submitHeld, resolve: releaseSubmit } = Promise.withResolvers<void>()
+  const { promise: started, resolve: submitStarted } = Promise.withResolvers<void>()
   await page.route('**/_serverFn/**', async (route) => {
     if (route.request().method() === 'POST') {
       submitStarted()
@@ -105,23 +94,7 @@ test('an army is read and its losses recorded without leaving the battle', async
 })
 
 test('a multi-wound model is tracked in wounds, and losing them all takes the model', async ({ page }) => {
-  const player = uniqueName('Wounds')
-  await signUp(page, player)
-  const roster = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Wounded Guard' })
-  for (const unit of ['Plague Marines', 'Foetid Bloat-drone']) {
-    await page.getByLabel('Add a unit').fill(unit)
-    await waitForRosterSave(page, () =>
-      page
-        .getByRole('button', { name: `Add ${unit}`, exact: true })
-        .first()
-        .click(),
-    )
-  }
-
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
-  await startBattle(page)
+  const { roster } = await guardBattle(page, 'Wounds', 'Wounded Guard')
 
   const panel = page.locator('[data-panel="player"][data-side="0"]')
   await panel.getByRole('button', { name: `Open ${roster}` }).click()

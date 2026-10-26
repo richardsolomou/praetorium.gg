@@ -25,13 +25,14 @@ type FullRow = Awaited<ReturnType<RepositoryPort['rostersByUser']>>[number]
 
 function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
   return rows.map((row) => {
-    const unitCount = 'unitCount' in row ? row.unitCount : listUnitCount(picksSchema.parse(JSON.parse(row.picks)))
+    const picks = 'picks' in row ? picksSchema.parse(JSON.parse(row.picks)) : undefined
+    const unitCount = 'unitCount' in row ? row.unitCount : listUnitCount(picks!)
     const identities = currentRosterIds({
       catalogueId: row.catalogueId,
       detachmentIds: detachmentIds(row.detachmentId),
       borrowedDetachmentId: row.borrowedDetachmentId,
       updatedAt: row.updatedAt,
-      ...('picks' in row ? { picks: picksSchema.parse(JSON.parse(row.picks)) } : {}),
+      ...(picks ? { picks } : {}),
     })
     return {
       id: row.id,
@@ -101,9 +102,7 @@ export class RosterService {
     })
     if (!saved) throw new Response('you do not own this roster', { status: 403 })
     if (saved === 'locked') throw new Response(LOCKED_ROSTER_MESSAGE, { status: 409 })
-    const stored = await this.repository.roster(id)
-    if (!stored || stored.userId !== userId) throw new Response('the saved roster is no longer available', { status: 409 })
-    return { id, created: saved === 'inserted', updatedAt: stored.updatedAt }
+    return { id, created: saved === 'inserted', updatedAt: await this.storedUpdatedAt(id, userId) }
   }
 
   /** A user's own saved lists, newest first. Their picks come back parsed. */
@@ -192,17 +191,19 @@ export class RosterService {
   async setRosterLocked(userId: string, id: string, locked: boolean) {
     if (!(await this.repository.setRosterLocked(id, userId, locked, this.clock())))
       throw new Response('you do not own this roster', { status: 403 })
-    const stored = await this.repository.roster(id)
-    if (!stored || stored.userId !== userId) throw new Response('the saved roster is no longer available', { status: 409 })
-    return { updatedAt: stored.updatedAt }
+    return { updatedAt: await this.storedUpdatedAt(id, userId) }
   }
 
   async setRosterArchived(userId: string, id: string, archived: boolean) {
     if (!(await this.repository.setRosterArchived(id, userId, archived, this.clock())))
       throw new Response('you do not own this roster', { status: 403 })
+    return { updatedAt: await this.storedUpdatedAt(id, userId) }
+  }
+
+  private async storedUpdatedAt(id: string, userId: string) {
     const stored = await this.repository.roster(id)
     if (!stored || stored.userId !== userId) throw new Response('the saved roster is no longer available', { status: 409 })
-    return { updatedAt: stored.updatedAt }
+    return stored.updatedAt
   }
 
   async deleteRoster(userId: string, id: string) {

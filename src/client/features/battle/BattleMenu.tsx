@@ -62,7 +62,7 @@ export function BattleMenu({
   return (
     <>
       <DropdownMenu>
-        {/* Named rather than an icon alone: it sits under the log now, where nothing else says what it is. */}
+        {/* Named rather than an icon alone: it sits under the log, where nothing else says what it is. */}
         <DropdownMenuTrigger render={<Button variant="outline" size="sm" aria-label="Battle options" disabled={pending} />}>
           <EllipsisVertical />
           Battle options

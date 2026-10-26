@@ -41,13 +41,7 @@ describe.skipIf(!exists)('what agents get from Praetorium', () => {
 
   beforeAll(async () => {
     const catalogue = loadCatalogue(root)!
-    const rules = loadRules(
-      root,
-      path.join(root, 'battlemaster'),
-      path.join(root, 'faction-icons'),
-      path.join(root, 'datacards', '11th', 'gdc'),
-      catalogue.datacards,
-    )
+    const rules = loadRules(root, { iconDirectory: path.join(root, 'faction-icons'), loadedDatacards: catalogue.datacards })
     const canonical = loadCanonicalCatalogue(root) ?? compileCanonicalCatalogueFromSnapshot(catalogue, rules, root)
     snapshot.value = {
       sync: () => ({ status: 'ready' }),

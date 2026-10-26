@@ -1,17 +1,20 @@
-import { uniqueBy } from './collections'
+import { uniqueBy, remember } from './collections'
 import {
   type Association,
   type CatalogueIndex,
+  compares,
   type Condition,
   type ConditionGroup,
   type Definition,
+  definitionAndTarget,
+  groupCounts,
   type InfoGroup,
   nameOf,
   type Profile,
   targetOf,
 } from './catalogue'
 import type { EvaluationError, Selection } from './evaluate'
-import { normalizedName } from './name'
+import { normalizedName, withoutFactionPrefix } from './name'
 import { sameText } from './text'
 
 /** Only an ability titled "Leader" establishes that role; other attachments default to support. */
@@ -46,7 +49,7 @@ const modelCategoryCache = new WeakMap<CatalogueIndex, WeakMap<Definition, Reado
 const associationTargetCache = new WeakMap<CatalogueIndex, WeakMap<Association, Map<string, string[]>>>()
 
 export function attachmentLimitsOf(definition: Definition, index: CatalogueIndex): AttachmentLimits {
-  const sources = [...new Set([definition, targetOf(definition, index.definitions)])]
+  const sources = definitionAndTarget(definition, index)
   const constraints = sources
     .flatMap((source) => source.constraints ?? [])
     .filter((constraint) => {
@@ -69,8 +72,8 @@ export function attachmentLimitsOf(definition: Definition, index: CatalogueIndex
   return { leader: maximum('leader'), support: maximum('support'), categories }
 }
 
-export function attachmentCategoriesOf(definition: Definition, index: CatalogueIndex): string[] {
-  const sources = [...new Set([definition, targetOf(definition, index.definitions)])]
+function attachmentCategoriesOf(definition: Definition, index: CatalogueIndex): string[] {
+  const sources = definitionAndTarget(definition, index)
   return [
     ...new Set(
       sources.flatMap((source) =>
@@ -97,14 +100,11 @@ const constraintName = (constraint: { childId?: string; childName?: string }, in
  * dropped rather than guessed at.
  */
 export function attachmentOf(definition: Definition, index: CatalogueIndex, selection?: Selection): Attachment | null {
-  const cached = attachmentCache.get(index)
-  let attachment = cached?.get(definition)
-  if (!cached?.has(definition)) {
-    attachment = findAttachment(definition, index)
-    const entries = cached ?? new WeakMap<Definition, Attachment | null>()
-    entries.set(definition, attachment)
-    if (!cached) attachmentCache.set(index, entries)
-  }
+  const attachment = remember(
+    remember(attachmentCache, index, () => new WeakMap()),
+    definition,
+    () => findAttachment(definition, index),
+  )
   if (!selection) return attachment ?? null
 
   const associated = attachmentFromAssociations(definition, selection, index)
@@ -125,7 +125,7 @@ export const referenceAttachmentOf = (definition: Definition, index: CatalogueIn
   attachmentOf(definition, index) ?? attachmentOf(definition, index, { id: definition.id })
 
 function attachmentFromAssociations(definition: Definition, selection: Selection, index: CatalogueIndex): Attachment | null {
-  const sources = [...new Set([definition, targetOf(definition, index.definitions)])]
+  const sources = definitionAndTarget(definition, index)
   const associations = sources.flatMap((source) =>
     (source.associations ?? []).flatMap((association) => {
       const kind = associationKind(association)
@@ -134,28 +134,23 @@ function attachmentFromAssociations(definition: Definition, selection: Selection
   )
   if (!associations.length) return null
 
-  const candidates =
-    associationCandidateCache.get(index) ??
+  const candidates = remember(associationCandidateCache, index, () =>
     [...new Set([...index.datasheets.values()].flatMap((entries) => [...entries]))]
       .map((id) => index.definitions.get(id))
-      .filter((candidate): candidate is Definition => Boolean(candidate))
-  if (!associationCandidateCache.has(index)) associationCandidateCache.set(index, candidates)
-  let byAssociation = associationTargetCache.get(index)
-  if (!byAssociation) associationTargetCache.set(index, (byAssociation = new WeakMap()))
+      .filter((candidate): candidate is Definition => Boolean(candidate)),
+  )
+  const byAssociation = remember(associationTargetCache, index, () => new WeakMap())
   const found: Attachment[] = []
   for (const { association, kind } of associations) {
-    let byAnswers = byAssociation.get(association)
-    if (!byAnswers) byAssociation.set(association, (byAnswers = new Map()))
+    const byAnswers = remember(byAssociation, association, () => new Map<string, string[]>())
     const answers = selfAnswers(association, selection, index).join('')
-    let targets = byAnswers.get(answers)
-    if (!targets) {
-      targets = candidates
+    const targets = remember(byAnswers, answers, () =>
+      candidates
         .filter(
           (candidate) => definitionHas(candidate, association.childId, index) && associationHolds(association, selection, candidate, index),
         )
-        .map((candidate) => nameOf(candidate, index.definitions))
-      byAnswers.set(answers, targets)
-    }
+        .map((candidate) => nameOf(candidate, index.definitions)),
+    )
     if (targets.length) found.push({ kind, targets })
   }
   if (!found.length) return null
@@ -198,9 +193,8 @@ function associationGroupHolds(group: ConditionGroup, selection: Selection, cand
   const met = results.filter(Boolean).length
   if (group.type === 'and') return met === results.length
   if (group.type === 'or') return met > 0
-  if (group.type === 'atLeast') return met >= (group.value ?? 1)
-  if (group.type === 'atMost') return met <= (group.value ?? 0)
-  if (group.type === 'equalTo') return met === (group.value ?? 0)
+  const counted = groupCounts(group.type, met, group.value)
+  if (counted !== undefined) return counted
   if (group.type === 'count') return met >= (group.min ?? 0) && met <= (group.max ?? Number.POSITIVE_INFINITY)
   return false
 }
@@ -215,12 +209,7 @@ function associationConditionHolds(condition: Condition, selection: Selection, c
 
   if (condition.type === 'instanceOf') return measured > 0
   if (condition.type === 'notInstanceOf') return measured === 0
-  if (condition.type === 'atLeast') return measured >= condition.value
-  if (condition.type === 'atMost') return measured <= condition.value
-  if (condition.type === 'equalTo') return measured === condition.value
-  if (condition.type === 'greaterThan') return measured > condition.value
-  if (condition.type === 'lessThan') return measured < condition.value
-  return false
+  return compares(condition.type, measured, condition.value) ?? false
 }
 
 function selectionHas(selection: Selection, childId: string | undefined, deep: boolean, index: CatalogueIndex): boolean {
@@ -243,22 +232,23 @@ function definitionHas(definition: Definition, childId: string | undefined, inde
 
 /** Core rules 02.05.01: a unit has all the keywords of all its models, so a unit is matched by any model it can include. */
 function modelCategoriesOf(unit: Definition, index: CatalogueIndex): ReadonlySet<string> {
-  let byUnit = modelCategoryCache.get(index)
-  if (!byUnit) modelCategoryCache.set(index, (byUnit = new WeakMap()))
-  const cached = byUnit.get(unit)
-  if (cached) return cached
-  const found = new Set<string>()
-  const visit = (entries: readonly Definition[]) => {
-    for (const entry of entries) {
-      const target = targetOf(entry, index.definitions)
-      if (target.type === 'model') {
-        for (const source of [entry, target]) for (const category of source.categoryLinks ?? []) found.add(category.targetId)
-      } else if (target.type !== 'upgrade' && target.type !== 'unit') visit(childrenOf(target))
-    }
-  }
-  if (unit.type === 'unit') visit(childrenOf(unit))
-  byUnit.set(unit, found)
-  return found
+  return remember(
+    remember(modelCategoryCache, index, () => new WeakMap()),
+    unit,
+    () => {
+      const found = new Set<string>()
+      const visit = (entries: readonly Definition[]) => {
+        for (const entry of entries) {
+          const target = targetOf(entry, index.definitions)
+          if (target.type === 'model') {
+            for (const source of [entry, target]) for (const category of source.categoryLinks ?? []) found.add(category.targetId)
+          } else if (target.type !== 'upgrade' && target.type !== 'unit') visit(childrenOf(target))
+        }
+      }
+      if (unit.type === 'unit') visit(childrenOf(unit))
+      return found
+    },
+  )
 }
 
 const childrenOf = (definition: Definition): Definition[] => [
@@ -289,27 +279,25 @@ function findAttachment(definition: Definition, index: CatalogueIndex): Attachme
 }
 
 function attachmentSubstitutions(index: CatalogueIndex) {
-  const cached = substitutionCache.get(index)
-  if (cached) return cached
-
-  const found = new Map<string, string[]>()
-  for (const definition of index.definitions.values()) {
-    const target = targetOf(definition, index.definitions)
-    if (definition.type !== 'unit' && target.type !== 'unit') continue
-    const substitute = nameOf(definition, index.definitions)
-    for (const [, text] of statements(definition, index)) {
-      const readable = text.replaceAll(/[\^*]/g, '').replaceAll('\u00a0', ' ').replaceAll(/\s+/g, ' ')
-      for (const match of readable.matchAll(GENERIC_SUBSTITUTION)) {
-        const base = match[1]?.replace(/\s+unit$/i, '').trim()
-        if (!base) continue
-        const substitutes = found.get(normalizedName(base)) ?? []
-        if (!substitutes.some((name) => normalizedName(name) === normalizedName(substitute))) substitutes.push(substitute)
-        found.set(normalizedName(base), substitutes)
+  return remember(substitutionCache, index, () => {
+    const found = new Map<string, string[]>()
+    for (const definition of index.definitions.values()) {
+      const target = targetOf(definition, index.definitions)
+      if (definition.type !== 'unit' && target.type !== 'unit') continue
+      const substitute = nameOf(definition, index.definitions)
+      for (const [, text] of statements(definition, index)) {
+        const readable = text.replaceAll(/[\^*]/g, '').replaceAll('\u00a0', ' ').replaceAll(/\s+/g, ' ')
+        for (const match of readable.matchAll(GENERIC_SUBSTITUTION)) {
+          const base = match[1]?.replace(/\s+unit$/i, '').trim()
+          if (!base) continue
+          const substitutes = found.get(normalizedName(base)) ?? []
+          if (!substitutes.some((name) => sameText(name, substitute))) substitutes.push(substitute)
+          found.set(normalizedName(base), substitutes)
+        }
       }
     }
-  }
-  substitutionCache.set(index, found)
-  return found
+    return found
+  })
 }
 
 const isKeywordTarget = (name: string) => normalizedName(name).split(' ').toSorted().join(' ') === 'battleline imperium infantry'
@@ -318,23 +306,21 @@ function categoryTargets(name: string, index: CatalogueIndex) {
   if (!isKeywordTarget(name)) return []
   const required = normalizedName(name).split(' ')
 
-  const cached = categoryTargetCache.get(index)
-  if (cached) return cached
-
-  const found: string[] = []
-  for (const definition of index.definitions.values()) {
-    const target = targetOf(definition, index.definitions)
-    if (definition.type !== 'unit' && target.type !== 'unit') continue
-    const categories = new Set(
-      [...(definition.categoryLinks ?? []), ...(target.categoryLinks ?? [])].map((link) =>
-        normalizedName(link.name ?? '').replace(/^faction:\s*/, ''),
-      ),
-    )
-    if (required.every((category) => categories.has(category))) found.push(nameOf(definition, index.definitions))
-  }
-  const targets = uniqueNormalizedNames(found)
-  categoryTargetCache.set(index, targets)
-  return targets
+  return remember(categoryTargetCache, index, () => {
+    const found: string[] = []
+    for (const definition of index.definitions.values()) {
+      const target = targetOf(definition, index.definitions)
+      if (definition.type !== 'unit' && target.type !== 'unit') continue
+      const categories = new Set(
+        [...(definition.categoryLinks ?? []), ...(target.categoryLinks ?? [])].map((link) =>
+          withoutFactionPrefix(normalizedName(link.name ?? '')),
+        ),
+      )
+      if (required.every((category) => categories.has(category))) found.push(nameOf(definition, index.definitions))
+    }
+    const targets = uniqueNormalizedNames(found)
+    return targets
+  })
 }
 
 const uniqueNormalizedNames = (values: readonly string[]) => uniqueBy(values, normalizedName)
@@ -346,7 +332,7 @@ const uniqueNormalizedNames = (values: readonly string[]) => uniqueBy(values, no
  */
 export function admitsHost(attachment: Attachment, hostName: string, hostKeywords: readonly string[] = []): boolean {
   if (attachment.targets.some((target) => sameText(target, hostName))) return true
-  const held = new Set(hostKeywords.map((keyword) => normalizedName(keyword).replace(/^faction:\s*/, '')))
+  const held = new Set(hostKeywords.map((keyword) => withoutFactionPrefix(normalizedName(keyword))))
   return (attachment.keywords ?? []).some((phrase) => phrase.split(' ').every((word) => held.has(word)))
 }
 
@@ -359,7 +345,7 @@ export function admitsHost(attachment: Attachment, hostName: string, hostKeyword
  * player is told which units will take it rather than that a number is short.
  */
 function attachmentRequirement(definition: Definition, index: CatalogueIndex): string | null {
-  const sources = [...new Set([definition, targetOf(definition, index.definitions)])]
+  const sources = definitionAndTarget(definition, index)
   const required = sources
     .flatMap((source) => source.constraints ?? [])
     .find((constraint) => constraint.field === 'associations' && constraint.type === 'min' && constraint.value >= 1)

@@ -1,0 +1,24 @@
+name: Record an iOS delivery
+description: Record a delivered iOS binary or update as a GitHub deployment, so the next plan can compare against it.
+inputs:
+  channel:
+    description: canary or stable.
+    required: true
+  kind:
+    description: binary or update.
+    required: true
+  plan:
+    description: The channel's plan step outputs, as JSON.
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        IOS_RUNTIME_VERSION: ${{ fromJSON(inputs.plan).runtimeVersion }}
+        IOS_APP_VERSION: ${{ fromJSON(inputs.plan).appVersion }}
+        IOS_INPUT_FINGERPRINT: ${{ fromJSON(inputs.plan).inputFingerprint }}
+        CHANNEL: ${{ inputs.channel }}
+        KIND: ${{ inputs.kind }}
+      run: pnpm exec tsx scripts/iosDeliveryPlan.ts record "$CHANNEL" "$KIND"

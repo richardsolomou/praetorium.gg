@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { isKotcLimit } from '../../../../core/battle'
 import type { BattleView } from '../../../../core/battleView'
-import { KOTC_MATCHUP_ID } from '../../../../contracts/terrain'
-import { deploymentsQuery, terrainMatchupIds, terrainReferencesQuery } from '../../../queries'
+import { deploymentsQuery, terrainReferencesQuery } from '../../../queries'
+import { battleMatchupIds } from '../battlefieldLayout'
 import { CHOSEN } from './chrome'
 import { Dialog } from '../../../components/Dialog'
 import { TerrainBoard } from '../../reference/missions/TerrainBoard'
@@ -29,13 +29,8 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
   const [attemptedSeq, setAttemptedSeq] = useState<number | null>(null)
   const patternsQuery = useQuery(deploymentsQuery())
   const allPatterns = patternsQuery.data
-  // The card each side plays, as the domain folded it: an allied pair fields one army
-  // and plays one card, so this is not the same as reading the first seat's list.
-  const dispositions = [...new Set(view.players.map((player) => player.side))]
-    .map((side) => view.players.find((player) => player.side === side)?.disposition)
-    .filter((value): value is string => Boolean(value))
   const kotc = isKotcLimit(view.settings.limit)
-  const matchupIds = kotc ? [KOTC_MATCHUP_ID] : terrainMatchupIds(dispositions)
+  const matchupIds = battleMatchupIds(view)
   const referencesQuery = useQuery(terrainReferencesQuery(matchupIds))
   const references = referencesQuery.data
   const options =
@@ -202,9 +197,9 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
   )
 }
 
-/** The three layout cards at their final geometry, while the pack is still being read. */
 const randomItem = <T,>(items: readonly T[]) => items[Math.floor(Math.random() * items.length)]
 
+/** The three layout cards at their final geometry, while the pack is still being read. */
 function LayoutsLoading() {
   return (
     <div className="mt-3 grid gap-3 sm:grid-cols-3" aria-label="Loading battlefield layouts">

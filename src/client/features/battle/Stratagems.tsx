@@ -6,6 +6,7 @@ import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { type Command, isNewOrders, STRATAGEM_CP_MAX } from '../../../core/battle'
 import { type BattleView } from '../../../core/battleView'
+import { stratagemTiming } from '../../../core/reminders'
 import type { Side } from '../../sides'
 import { hiddenNow, stratagemVisibleNow } from './stratagemVisibility'
 import { RuleText } from '../../components/RuleText'
@@ -18,14 +19,13 @@ type Props = {
   side: Side
   phase: BattleView['phase']
   coreKeys: ReadonlySet<string>
-  actionable: boolean
   pending: boolean
   send: (command: Command) => void
   writtenFor: (key: string) => StratagemText | undefined
 }
 
 /** Only what can be played right now, unless the player asks for the rest; the rest show why they cannot be played. */
-export function Stratagems({ side, phase, coreKeys, actionable, pending, send, writtenFor }: Props) {
+export function Stratagems({ side, phase, coreKeys, pending, send, writtenFor }: Props) {
   const [showAll, setShowAll] = useState(false)
   if (!side.stratagems.length) return null
   const hidden = hiddenNow(side.stratagems, phase, side.isActive)
@@ -55,7 +55,6 @@ export function Stratagems({ side, phase, coreKeys, actionable, pending, send, w
                 key={stratagem.key}
                 stratagem={stratagem}
                 written={writtenFor(stratagem.key)}
-                actionable={actionable}
                 pending={pending}
                 available={side.cp}
                 side={side}
@@ -95,7 +94,6 @@ export function Stratagems({ side, phase, coreKeys, actionable, pending, send, w
 function StratagemCard({
   stratagem,
   written,
-  actionable,
   pending,
   available,
   side,
@@ -104,7 +102,6 @@ function StratagemCard({
 }: {
   stratagem: ViewStratagem
   written: StratagemText | undefined
-  actionable: boolean
   pending: boolean
   available: number
   side: Side
@@ -129,14 +126,7 @@ function StratagemCard({
     if (newOrders) setNewOrdersCost(cp)
     else onUse(cp === stratagem.cp ? undefined : cp)
   }
-  const timing = [
-    written?.type,
-    stratagem.phases?.length ? `${stratagem.phases.map(title).join(', ')} phase` : 'Any phase',
-    stratagem.turn === 'your-turn' ? 'Your turn' : stratagem.turn === 'opponent-turn' ? 'Opponent’s turn' : 'Either turn',
-    stratagem.limit === 'unlimited' ? 'No use limit' : `Once per ${stratagem.limit.replace('-', ' ')}`,
-  ]
-    .filter(Boolean)
-    .join(' · ')
+  const timing = [written?.type, ...stratagemTiming(stratagem)].filter(Boolean).join(' · ')
   return (
     <div className={`${CARD} flex items-center gap-1.5`}>
       <BattlePromptDialog minimizedLabel={stratagem.name} resumeLabel="Return to stratagem">
@@ -170,38 +160,30 @@ function StratagemCard({
           </DialogBody>
         </BattleDialogContent>
       </BattlePromptDialog>
-      {actionable ? (
-        <>
-          {/* Some stratagems cost more or less depending on what is on the board, so the price is a choice. */}
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button variant="ghost" size="icon-xs" disabled={pending} aria-label={`Spend a different amount on ${stratagem.name}`} />
-              }
-            >
-              <EllipsisVertical />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {costChoices(stratagem.cp).map((cost) => (
-                <DropdownMenuItem key={cost} disabled={pending || cost > available || Boolean(newOrdersRefusal)} onClick={() => use(cost)}>
-                  Use for {cost} CP
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button
-            className={`readout font-bold uppercase ${refusal ? 'bg-edge text-dim' : 'bg-azure text-void hover:bg-azure/80'}`}
-            disabled={pending || refusal !== null}
-            title={refusal ?? undefined}
-            aria-label={`Use ${stratagem.name}`}
-            onClick={() => use()}
-          >
-            {stratagem.cp} CP
-          </Button>
-        </>
-      ) : (
-        <span className={`chip readout shrink-0 ${refusal ? 'text-dim' : 'border-azure/60 text-azure'}`}>{stratagem.cp} CP</span>
-      )}
+      {/* Some stratagems cost more or less depending on what is on the board, so the price is a choice. */}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={<Button variant="ghost" size="icon-xs" disabled={pending} aria-label={`Spend a different amount on ${stratagem.name}`} />}
+        >
+          <EllipsisVertical />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {costChoices(stratagem.cp).map((cost) => (
+            <DropdownMenuItem key={cost} disabled={pending || cost > available || Boolean(newOrdersRefusal)} onClick={() => use(cost)}>
+              Use for {cost} CP
+            </DropdownMenuItem>
+          ))}
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <Button
+        className={`readout font-bold uppercase ${refusal ? 'bg-edge text-dim' : 'bg-azure text-void hover:bg-azure/80'}`}
+        disabled={pending || refusal !== null}
+        title={refusal ?? undefined}
+        aria-label={`Use ${stratagem.name}`}
+        onClick={() => use()}
+      >
+        {stratagem.cp} CP
+      </Button>
       <BattlePromptDialog
         open={newOrdersCost !== null}
         onOpenChange={(open) => !open && setNewOrdersCost(null)}
@@ -247,9 +229,6 @@ function StratagemCard({
     </div>
   )
 }
-
-/** The source stores phases in lower case; every other name on screen is titled. */
-const title = (value: string) => value.charAt(0).toLocaleUpperCase() + value.slice(1)
 
 /** The printed price, and the neighbouring ones a board state can move it to. */
 function costChoices(printed: number) {

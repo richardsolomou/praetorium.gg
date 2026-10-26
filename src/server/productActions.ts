@@ -71,7 +71,7 @@ export const productActions = {
   }),
   removeAbilityReminder: action(schemas.removeAbilityReminder, async (owner, data) => {
     await app().service.removeAbilityReminder(owner, data.key)
-    await captureMutation(owner, 'ability_reminder_removed', {})
+    await captureMutation(owner, 'ability_reminder_removed')
     return null
   }),
   setPlayerDefaults: action(schemas.setPlayerDefaults, async (owner, data) => {

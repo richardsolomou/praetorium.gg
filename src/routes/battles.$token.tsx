@@ -7,11 +7,11 @@ import {
   detachmentRulesQuery,
   factionQuery,
   gameReferencesQuery,
-  terrainMatchupIds,
   terrainReferencesQuery,
 } from '../client/queries'
 import { battlePreview, hiddenBattle, pageMeta, previewImage } from '../client/linkPreview'
 import { armyRulesRequest } from '../client/features/battle/sideRules'
+import { battleMatchupIds } from '../client/features/battle/battlefieldLayout'
 
 export const Route = createFileRoute('/battles/$token')({
   loader: async ({ context, params }) => {
@@ -31,10 +31,7 @@ export const Route = createFileRoute('/battles/$token')({
     const screen = await context.queryClient.query({ ...battleQuery(params.token), staleTime: 'static' })
     if (!screen) throw notFound()
     if (screen.kind === 'unavailable') return { preview: null }
-    const dispositions = [...new Set(screen.view.players.map((player) => player.side))]
-      .map((side) => screen.view.players.find((player) => player.side === side)?.disposition)
-      .filter((value): value is string => Boolean(value))
-    const matchupIds = terrainMatchupIds(dispositions)
+    const matchupIds = battleMatchupIds(screen.view)
     // The battle decides which independent reads are needed; start them together once it is known.
     await Promise.all([
       ...instanceData,

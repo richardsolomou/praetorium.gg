@@ -1,6 +1,6 @@
 import { Fragment, useMemo, useState } from 'react'
 import { ChevronDown } from 'lucide-react'
-import { Choice, PhaseIcon } from './CombatControls'
+import { Choice, PHASE_TITLES, PhaseIcon } from './CombatControls'
 import { OwnerName, type RosterOwner } from './rosterOwners'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CombatValue, formatCombatValue, type CombatMetric } from './CombatValue'
@@ -16,8 +16,8 @@ const metrics = [
   ['wipe', 'Destruction chance'],
 ] as const
 const phases = [
-  ['ranged', 'Shooting'],
-  ['melee', 'Melee'],
+  ['ranged', PHASE_TITLES.ranged],
+  ['melee', PHASE_TITLES.melee],
   ['combined', 'Shooting + melee'],
 ] as const
 

@@ -47,9 +47,7 @@ export function BenchmarkTargets({
               const faction = factions.data?.factions.find((entry) => entry.id === target.catalogueId)
               return (
                 <div key={target.key} className="flex min-w-0 items-center gap-2 border border-edge bg-panel p-2">
-                  {faction ? (
-                    <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
-                  ) : null}
+                  {faction ? <FactionMark faction={faction} size="sm" /> : null}
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-semibold">{target.name}</p>
                     <p className="text-xs text-faint">{book?.name}</p>

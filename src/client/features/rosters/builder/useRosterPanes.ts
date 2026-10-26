@@ -1,6 +1,8 @@
 import { useNavigate, useRouter, useRouterState } from '@tanstack/react-router'
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { KeyedPick } from '../rosterPicks'
+import { useMediaQuery } from '../../../useMediaQuery'
+import { useHydrated } from '../../../useClientValue'
 
 type RosterPaneHistory =
   | { workspace: string; pane: 'picker' }
@@ -13,15 +15,19 @@ type RosterLocationState = { rosterPane?: RosterPaneHistory }
 
 const ROSTER_PANE_HASH = 'roster-pane'
 
+/** The width from which the loadout sits beside the roster instead of over it. */
+export const LOADOUT_INLINE = '(min-width: 1024px)'
+
 export function useRosterPanes({ path, workspacePath, picks }: { path: string; workspacePath: string; picks: readonly KeyedPick[] }) {
   const navigate = useNavigate()
   const router = useRouter()
   const [selected, setSelected] = useState<number | null>(null)
   const [preview, setPreview] = useState<{ catalogueId: string; entryId: string; name: string } | null>(null)
   const [showing, setShowing] = useState<'picker' | 'loadout' | null>(null)
-  const [wideWorkspace, setWideWorkspace] = useState(true)
-  const [loadoutInline, setLoadoutInline] = useState(true)
-  const [workspaceMeasured, setWorkspaceMeasured] = useState(false)
+  // The server draws the desktop workspace; the browser corrects it before the first paint.
+  const wideWorkspace = useMediaQuery('(min-width: 1300px)', true)
+  const loadoutInline = useMediaQuery(LOADOUT_INLINE, true)
+  const workspaceMeasured = useHydrated()
   const paneHistory = useRouterState({
     select: (state) => {
       if (state.location.hash !== ROSTER_PANE_HASH) return null
@@ -57,22 +63,6 @@ export function useRosterPanes({ path, workspacePath, picks }: { path: string; w
     [navigate, path, router],
   )
 
-  useLayoutEffect(() => {
-    const wide = window.matchMedia('(min-width: 1300px)')
-    const inline = window.matchMedia('(min-width: 1024px)')
-    const sync = () => {
-      setWideWorkspace(wide.matches)
-      setLoadoutInline(inline.matches)
-      setWorkspaceMeasured(true)
-    }
-    sync()
-    wide.addEventListener('change', sync)
-    inline.addEventListener('change', sync)
-    return () => {
-      wide.removeEventListener('change', sync)
-      inline.removeEventListener('change', sync)
-    }
-  }, [])
   useEffect(() => {
     if (!paneHistory) {
       paneHistoryBackPending.current = false
@@ -187,7 +177,6 @@ export function useRosterPanes({ path, workspacePath, picks }: { path: string; w
     showing,
     setShowing,
     wideWorkspace,
-    loadoutInline,
     workspaceMeasured,
     paneHistory,
     closePane,

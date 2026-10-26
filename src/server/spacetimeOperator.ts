@@ -6,6 +6,7 @@ import type { CollectionImportRow } from '../core/collection'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES, type RosterSource, type RosterVisibility } from '../core/savedRoster'
 import { commandRefusal, reduceBattle, type Command, type LoggedCommand, type Refusal, type SubmitResult } from '../core/battle'
 import { commandSchema } from '../core/commands'
+import { battleFoldArgs } from '../core/offlineBattle'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import { ROSTER_DISCOVERY_MAX_PAGE_SIZE, rosterDiscoveryCursorSchema, type RosterDiscoveryQuery } from '../core/rosterDiscovery'
 import type { PlayerDefaults } from '../core/playerDefaults'
@@ -67,6 +68,7 @@ const collectionRow = z.object({
   photoShows: z.record(z.uuid(), z.string()).default({}),
 })
 const recentMatchupRow = recentMatchupSchema.extend({ at: z.number().int() })
+const photoOwner = z.object({ userId: z.string(), entryId: z.string() })
 const favouriteDatasheetRow = z.object({ userId: z.string(), entryId: z.string(), at: z.number().int() })
 const favouriteFactionRow = z.object({ userId: z.string(), catalogueId: z.string(), at: z.number().int() })
 const favouriteDetachmentRow = z.object({
@@ -99,9 +101,10 @@ const guestInvitation = z.object({
   joined: z.boolean(),
 })
 const joinedGuest = z.object({ battleId: z.string(), token: z.string(), seatId: z.string() })
+const feedCursor = z.object({ at: z.number().int(), id: z.string() })
 const battleFeedResult = z.object({
   battles: z.array(z.object({ ...battleSnapshot.shape, at: z.number().int() })),
-  nextCursor: z.object({ at: z.number().int(), id: z.string() }).nullable(),
+  nextCursor: feedCursor.nullable(),
 })
 const submission = z.object({
   applied: z.boolean().optional(),
@@ -140,6 +143,13 @@ const tournament = z.object({
   createdAt: z.number().int(),
   adminIds: z.array(z.string()),
 })
+// Absent from a module released before events set points per army.
+const eventPoints = z
+  .number()
+  .int()
+  .nullish()
+  .transform((value) => value ?? null)
+
 const sealedEvent = z.object({
   token: z.string(),
   format: z.enum(TABLE_SHAPES).nullable(),
@@ -153,17 +163,8 @@ const sealedEvent = z.object({
     .transform((value) => (value === null ? null : parseLeagueAllowances(value))),
   rounds: z.number().int().nullable(),
   pointsBudget: z.number().int().nullable(),
-  // Absent from a module released before events set points per army.
-  soloPoints: z
-    .number()
-    .int()
-    .nullish()
-    .transform((value) => value ?? null),
-  allyPoints: z
-    .number()
-    .int()
-    .nullish()
-    .transform((value) => value ?? null),
+  soloPoints: eventPoints,
+  allyPoints: eventPoints,
   playsAt: z.number().int().nullable(),
   sealBy: z.number().int().nullable(),
 })
@@ -257,16 +258,8 @@ const clubGame = z.object({
   format: z.enum(TABLE_SHAPES).nullable(),
   rosterLimit: z.number().int().nullable(),
   pointsBudget: z.number().int().nullable(),
-  soloPoints: z
-    .number()
-    .int()
-    .nullish()
-    .transform((value) => value ?? null),
-  allyPoints: z
-    .number()
-    .int()
-    .nullish()
-    .transform((value) => value ?? null),
+  soloPoints: eventPoints,
+  allyPoints: eventPoints,
   players: z.array(
     z.object({ userId: z.string(), sealed: z.boolean(), teamId: z.string().nullable(), requiredLimit: z.number().int().nullable() }),
   ),
@@ -284,6 +277,9 @@ const visibleClub = z.object({
   lastBattleAt: z.number().int().nullable().default(null),
   ownMember: clubMember.pick({ status: true, role: true }).nullable(),
 })
+
+/** A nullable procedure argument as SpacetimeDB's option type. */
+const option = <T>(value: T | null) => (value === null ? { none: [] } : { some: value })
 
 type SaveRosterInput = {
   id: string
@@ -365,7 +361,6 @@ export class SpacetimeOperator {
     allyIds?: string[]
     opponentIds?: string[]
     guestNames?: string[]
-    initialCommand?: Command
     initialCommands?: Command[]
     now: number
   }) {
@@ -379,7 +374,7 @@ export class SpacetimeOperator {
           allyIds: input.allyIds ?? [],
           opponentIds: input.opponentIds ?? [],
           guestNames: input.guestNames ?? [],
-          initialCommands: input.initialCommands ?? (input.initialCommand ? [input.initialCommand] : []),
+          initialCommands: input.initialCommands ?? [],
           now: input.now,
         }),
       ],
@@ -481,13 +476,7 @@ export class SpacetimeOperator {
     resolveCommand: (state: ReturnType<typeof reduceBattle>, command: Command) => Command = (_, command) => command,
   ): Promise<{ result: SubmitResult; log: LoggedCommand[]; applied?: boolean }> {
     const snapshot = input.snapshot ?? (await this.battleForOperator(input.battleId))
-    const fold = (log: LoggedCommand[]) =>
-      reduceBattle(
-        snapshot.seats.map((seat) => seat.id),
-        log,
-        snapshot.seats.map((seat) => seat.side),
-        snapshot.seats.filter((seat) => seat.automated).map((seat) => seat.id),
-      )
+    const fold = (log: LoggedCommand[]) => reduceBattle(...battleFoldArgs(snapshot.seats, log))
     const state = fold(snapshot.log)
     const command = state.seq === input.expectedSeq ? commandSchema.parse(resolveCommand(state, input.command)) : input.command
     const externalRefusal = state.seq === input.expectedSeq ? (validateState?.(state) ?? null) : null
@@ -706,7 +695,7 @@ export class SpacetimeOperator {
   }
 
   async collectionProfile(userId: string, viewerId: string | null) {
-    return this.read('collection_profile', [userId, viewerId === null ? { none: [] } : { some: viewerId }], collectionProfileSchema)
+    return this.read('collection_profile', [userId, option(viewerId)], collectionProfileSchema)
   }
 
   async collectionByUser(userId: string) {
@@ -761,17 +750,13 @@ export class SpacetimeOperator {
   }
 
   async collectionPhoto(photoId: string, viewerId: string | null) {
-    return this.read(
-      'collection_photo',
-      [photoId, viewerId === null ? { none: [] } : { some: viewerId }],
-      z.object({ userId: z.string(), entryId: z.string() }).nullable(),
-    )
+    return this.read('collection_photo', [photoId, option(viewerId)], photoOwner.nullable())
   }
 
   async datasheetPhotos(entryId: string, viewerId: string | null, limit: number) {
     return this.read(
       'datasheet_photos',
-      [entryId, viewerId === null ? { none: [] } : { some: viewerId }, limit],
+      [entryId, option(viewerId), limit],
       z
         .array(
           z.object({
@@ -795,7 +780,7 @@ export class SpacetimeOperator {
   }
 
   async collectionPhotoForAdmin(photoId: string) {
-    return this.read('collection_photo_for_admin', [photoId], z.object({ userId: z.string(), entryId: z.string() }).nullable())
+    return this.read('collection_photo_for_admin', [photoId], photoOwner.nullable())
   }
 
   async reportCollectionPhoto(input: { userId: string; photoId: string }) {
@@ -831,7 +816,7 @@ export class SpacetimeOperator {
             }),
           )
           .max(100),
-        nextCursor: z.object({ at: z.number().int(), id: z.string() }).nullable(),
+        nextCursor: feedCursor.nullable(),
       }),
     )
   }
@@ -841,7 +826,7 @@ export class SpacetimeOperator {
   }
 
   async collectionPhotoIds(after: string | null, limit: number) {
-    return this.read('collection_photo_ids', [after === null ? { none: [] } : { some: after }, limit], z.array(z.uuid()).max(100))
+    return this.read('collection_photo_ids', [option(after), limit], z.array(z.uuid()).max(100))
   }
 
   async clearCollectionPhotoDeletions(photoIds: readonly string[]) {
@@ -961,15 +946,17 @@ export class SpacetimeOperator {
     return this.read('push_targets', [[...new Set(userIds)]], z.array(pushTarget))
   }
 
-  async leagueNames(tokens: readonly string[]) {
-    if (!tokens.length) return new Map<string, string>()
-    const pairs = await this.read('league_names', [[...new Set(tokens)]], z.array(z.tuple([z.string(), z.string()])))
-    return new Map(pairs)
+  leagueNames(tokens: readonly string[]) {
+    return this.namesByToken('league_names', tokens)
   }
 
-  async clubNames(tokens: readonly string[]) {
+  clubNames(tokens: readonly string[]) {
+    return this.namesByToken('club_names', tokens)
+  }
+
+  private async namesByToken(procedure: 'league_names' | 'club_names', tokens: readonly string[]) {
     if (!tokens.length) return new Map<string, string>()
-    const pairs = await this.read('club_names', [[...new Set(tokens)]], z.array(z.tuple([z.string(), z.string()])))
+    const pairs = await this.read(procedure, [[...new Set(tokens)]], z.array(z.tuple([z.string(), z.string()])))
     return new Map(pairs)
   }
 

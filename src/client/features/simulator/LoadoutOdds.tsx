@@ -1,6 +1,5 @@
 import { createContext, useContext, type ReactNode } from 'react'
-import { Crosshair, Swords } from 'lucide-react'
-import type { CombatResult } from '../../../core/combat'
+import { COMBAT_PHASES, type CombatPhase, type CombatResult } from '../../../core/combat'
 import { estimateKey, type LoadoutScoring, type LoadoutOptimizationMode, type OutcomePriority } from '../../../core/combatLoadouts'
 import { HoverTooltip } from '../../components/HoverTooltip'
 import type { OptionNote } from '../rosters/builder/LoadoutControls'
@@ -8,9 +7,8 @@ import type { LoadoutOdds } from './useLoadoutOdds'
 import type { CombatRequest } from '../../../core/combatMatchup'
 import { Button } from '@/components/ui/button'
 import { countLabel } from '../../text'
+import { PHASE_TITLES, PhaseIcon } from './CombatControls'
 
-type Phase = 'ranged' | 'melee'
-const titles: Record<Phase, string> = { ranged: 'Shooting', melee: 'Melee' }
 const percent = (value: number) => {
   const chance = value * 100
   if (chance > 0 && chance < 0.01) return '<0.01%'
@@ -28,7 +26,7 @@ export const LoadoutOddsContext = createContext<LoadoutOdds | null>(null)
 export type LoadoutOptimization = {
   key: string
   preferences: Record<string, string>
-  excluded: Record<Phase, string[]>
+  excluded: Record<CombatPhase, string[]>
   results?: Partial<Record<LoadoutOptimizationMode, CombatResult>>
   scoring: LoadoutScoring | null
   expected: CombatRequest
@@ -49,11 +47,6 @@ export function LoadoutOddsStatus() {
   )
 }
 
-function PhaseIcon({ phase }: { phase: Phase }) {
-  const Icon = phase === 'ranged' ? Crosshair : Swords
-  return <Icon className="size-3 shrink-0 text-info" aria-hidden />
-}
-
 /** One phase's odds in the editor's compact form: destroyed chance and average wounds lost. */
 function Odds({
   phase,
@@ -64,7 +57,7 @@ function Odds({
   subject,
   muted,
 }: {
-  phase: Phase
+  phase: CombatPhase
   result: CombatResult
   best: boolean
   bestBy?: OutcomePriority
@@ -77,13 +70,13 @@ function Odds({
   return (
     <span
       className={`inline-flex flex-wrap items-center gap-1 ${muted ? 'text-faint' : best ? 'text-primary' : 'text-dim'}`}
-      aria-label={`${titles[phase]}, ${subject}: ${destroyed} destroyed, ${wounds} wounds lost on average${best ? ', best' : ''}`}
+      aria-label={`${PHASE_TITLES[phase]}, ${subject}: ${destroyed} destroyed, ${wounds} wounds lost on average${best ? ', best' : ''}`}
     >
-      <PhaseIcon phase={phase} />
+      <PhaseIcon phase={phase} className="size-3" />
       {prefix}: {destroyed} · {wounds} W
       {best ? (
         <HoverTooltip
-          label={`Why this is best for ${titles[phase].toLowerCase()}`}
+          label={`Why this is best for ${PHASE_TITLES[phase].toLowerCase()}`}
           title={bestBy ? bestLabels[bestBy] : 'Tied for best'}
           body={
             <>
@@ -114,7 +107,7 @@ export function useOptionNote(): OptionNote | undefined {
     if (!estimate) return null
     return (
       <span className={noteClass}>
-        {(['ranged', 'melee'] as const).flatMap((phase) => {
+        {COMBAT_PHASES.flatMap((phase) => {
           const shown = estimate.phases[phase]
           return shown
             ? [

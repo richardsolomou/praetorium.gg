@@ -3,7 +3,7 @@
 import fs from 'node:fs'
 
 /** Whether a shortfall fails the run. Read per call so a caller can set it and a test can too. */
-export const baselinesEnforced = () => process.env.CATALOGUE_BASELINES !== 'report'
+const baselinesEnforced = () => process.env.CATALOGUE_BASELINES !== 'report'
 
 /**
  * Records one baseline shortfall.

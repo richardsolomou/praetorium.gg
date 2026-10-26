@@ -3,7 +3,14 @@ import { GUEST_DRAFT_COOKIE } from '../../../contracts/rosterCookies'
 import { setRosterCookie } from './rosterCookie'
 import type { RosterDraft } from './rosterDraft'
 import type { RosterSetup } from './RosterSetupDialog'
-import { parseWorkspaceState, readStoredWorkspaceState, readWorkspaceState, writeWorkspaceState } from './workspaceState'
+import {
+  parseWorkspaceState,
+  readStoredWorkspaceState,
+  readWorkspaceState,
+  SETUP_STATE,
+  WAIVERS_STATE,
+  writeWorkspaceState,
+} from './workspaceState'
 import { currentRosterIds } from '../../../core/retiredCatalogueIds'
 import { listUnitCount } from '../../../core/attachedUnits'
 import { requireReviewedRoster } from '../../offline/reviewedRoster'
@@ -15,7 +22,6 @@ const KEY = 'praetorium.guest-draft'
 const VERSION = 1
 /** How long after asking to save a sign-in still counts as that request, rather than a later visit. */
 const SAVE_REQUEST_WINDOW_MS = 60 * 60 * 1000
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 365
 
 /**
  * A list a visitor is building, kept on this device until an account saves it.
@@ -34,7 +40,7 @@ export type GuestDraft = {
 let lastWritten: string | null = null
 
 /** The builder's address for a visitor's list, which is the one the list keeps once an account saves it under its id. */
-export const guestDraftPath = (guest: Pick<GuestDraft, 'id'>) => `/rosters/${guest.id}`
+const guestDraftPath = (guest: Pick<GuestDraft, 'id'>) => `/rosters/${guest.id}`
 
 export const EMPTY_SETUP: RosterSetup = {
   name: '',
@@ -138,7 +144,7 @@ export function peekGuestDraft(): GuestDraft | null {
 
 /** Tells the server whether this browser holds a list, so a refresh draws the page it will become. */
 export function markGuestDraft(held: boolean) {
-  setRosterCookie(GUEST_DRAFT_COOKIE, held ? '1' : null, COOKIE_MAX_AGE)
+  setRosterCookie(GUEST_DRAFT_COOKIE, held ? '1' : null)
 }
 
 /** Whether the draft was kept; a full or disabled storage keeps nothing and says so. */
@@ -202,7 +208,7 @@ export function clearGuestDraft() {
   forget(() => localStorage.removeItem(KEY))
   lastWritten = null
   writeWorkspaceState(GUEST_PATH, NAME, null)
-  if (kept) for (const name of ['roster-setup', 'waivers-dismissed']) writeWorkspaceState(guestDraftPath(kept), name, null)
+  if (kept) for (const name of [SETUP_STATE, WAIVERS_STATE]) writeWorkspaceState(guestDraftPath(kept), name, null)
   markGuestDraft(false)
 }
 

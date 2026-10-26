@@ -47,6 +47,12 @@ type LabelCorrection = {
   to: 'AB' | 'CD' | 'EF' | 'GH'
 }
 
+/** Whether a correction file was written against the Battlemaster catalogue installed beside it. */
+function matchesBattlemaster(directory: string, revision: string | undefined) {
+  const { catalogKey } = JSON.parse(fs.readFileSync(path.join(directory, 'catalog.json'), 'utf8')) as { catalogKey?: string }
+  return !!catalogKey && revision === hash('sha256', catalogKey)
+}
+
 function labelCorrection(directory: string, id: string, raw: Layout): LabelCorrection | null {
   const file = path.join(directory, 'terrain-labels.json')
   if (!fs.existsSync(file)) return null
@@ -55,11 +61,9 @@ function labelCorrection(directory: string, id: string, raw: Layout): LabelCorre
     battlemasterRevision?: string
     corrections?: LabelCorrection[]
   }
-  const catalog = JSON.parse(fs.readFileSync(path.join(directory, 'catalog.json'), 'utf8')) as { catalogKey?: string }
   if (
     document.format !== 'praetorium.terrain-label-corrections.v1' ||
-    !catalog.catalogKey ||
-    document.battlemasterRevision !== hash('sha256', catalog.catalogKey) ||
+    !matchesBattlemaster(directory, document.battlemasterRevision) ||
     !Array.isArray(document.corrections)
   )
     throw new Error('terrain label corrections do not match the Battlemaster source')
@@ -88,11 +92,9 @@ function terrainAreaGroups(directory: string, id: string, raw: Layout): Map<numb
     battlemasterRevision?: string
     layouts?: { layoutId: string; layoutKey: string; groups: { id: string; name: string }[][] }[]
   }
-  const catalog = JSON.parse(fs.readFileSync(path.join(directory, 'catalog.json'), 'utf8')) as { catalogKey?: string }
   if (
     document.format !== 'praetorium.terrain-area-groups.v1' ||
-    !catalog.catalogKey ||
-    document.battlemasterRevision !== hash('sha256', catalog.catalogKey) ||
+    !matchesBattlemaster(directory, document.battlemasterRevision) ||
     !Array.isArray(document.layouts)
   )
     throw new Error('terrain area groups do not match the Battlemaster source')

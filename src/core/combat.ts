@@ -1,6 +1,9 @@
 import { z } from 'zod'
+import { remember } from './collections'
 
 export const MAX_COMBAT_MODELS = 100
+export const COMBAT_PHASES = ['ranged', 'melee'] as const
+export type CombatPhase = (typeof COMBAT_PHASES)[number]
 
 const diceSchema = z.object({ dice: z.int().min(0).max(10), sides: z.union([z.literal(3), z.literal(6)]), bonus: z.int().min(0).max(100) })
 const amountSchema = z.union([z.int().min(0).max(100), diceSchema])
@@ -114,7 +117,7 @@ export const combatSchema = z.object({
     .max(60),
   mortalWounds: z.array(mortalWoundsSchema).max(20).optional(),
   options: z.object({
-    phase: z.enum(['ranged', 'melee']),
+    phase: z.enum(COMBAT_PHASES),
     cover: z.boolean(),
     indirectFire: z.enum(['direct', 'unobserved', 'spotted']).optional(),
     halfRange: z.boolean(),
@@ -229,22 +232,26 @@ export function attackRolls(weapon: CombatWeapon, options: CombatOptions, toughn
         : 0) +
       Number(!ranged && weapon.lance && options.charged),
   )
-  return { indirect, skill, hitBonus, woundBonus, wound: woundTarget(weapon.strength, toughness) }
+  const hitMinimum = indirect ? (options.indirectFire === 'spotted' ? 4 : 6) : 2
+  return { indirect, skill, hitBonus, hitMinimum, woundBonus, wound: woundTarget(weapon.strength, toughness) }
 }
+
+const criticalThreshold = (weapon: CombatWeapon, kind: 'hit' | 'wound') =>
+  kind === 'hit' ? (weapon.criticalHit ?? 6) : weapon.criticalWound
 
 /** Whether changing a critical threshold changes any possible roll in the current matchup. */
 export function criticalThresholdMatters(current: CombatInput, previous: CombatInput, kind: 'hit' | 'wound') {
   return current.weapons.some((weapon, index) => {
     const before = previous.weapons[index]
     if (!before || (weapon.torrent && kind === 'hit')) return false
-    const threshold = kind === 'hit' ? (weapon.criticalHit ?? 6) : weapon.criticalWound
-    const oldThreshold = kind === 'hit' ? (before.criticalHit ?? 6) : before.criticalWound
+    const threshold = criticalThreshold(weapon, kind)
+    const oldThreshold = criticalThreshold(before, kind)
     if (threshold === oldThreshold) return false
     return current.target.groups.some((group) => {
       const rolls = attackRolls(weapon, current.options, group.toughness)
       const target = kind === 'hit' ? rolls.skill : rolls.wound
       const bonus = kind === 'hit' ? rolls.hitBonus : rolls.woundBonus
-      const minimum = kind === 'hit' && rolls.indirect ? (current.options.indirectFire === 'spotted' ? 4 : 6) : 2
+      const minimum = kind === 'hit' ? rolls.hitMinimum : 2
       for (let value = 2; value <= 6; value++) {
         const success = (critical: number) => rollSucceeds(value, target, bonus, critical, minimum)
         if (success(threshold) !== success(oldThreshold)) return true
@@ -290,10 +297,10 @@ export function rollAdjustmentMatters(current: CombatInput, previous: CombatInpu
       const oldTarget = kind === 'hit' ? old.skill : old.wound
       const bonus = kind === 'hit' ? now.hitBonus : now.woundBonus
       const oldBonus = kind === 'hit' ? old.hitBonus : old.woundBonus
-      const threshold = kind === 'hit' ? (weapon.criticalHit ?? 6) : weapon.criticalWound
-      const oldThreshold = kind === 'hit' ? (before.criticalHit ?? 6) : before.criticalWound
-      const minimum = kind === 'hit' && now.indirect ? (current.options.indirectFire === 'spotted' ? 4 : 6) : 2
-      const oldMinimum = kind === 'hit' && old.indirect ? (previous.options.indirectFire === 'spotted' ? 4 : 6) : 2
+      const threshold = criticalThreshold(weapon, kind)
+      const oldThreshold = criticalThreshold(before, kind)
+      const minimum = kind === 'hit' ? now.hitMinimum : 2
+      const oldMinimum = kind === 'hit' ? old.hitMinimum : 2
       return [2, 3, 4, 5, 6].some(
         (value) =>
           rollSucceeds(value, target, bonus, threshold, minimum) !== rollSucceeds(value, oldTarget, oldBonus, oldThreshold, oldMinimum),
@@ -431,14 +438,9 @@ function inflict(state: State, lost: Weights | readonly Weights[], layout: Alloc
   const result = new Float64Array(state.length)
   result[layout.total] = state[layout.total]!
   const distributions: readonly Weights[] = typeof lost[0] === 'number' ? [lost as Weights] : (lost as readonly Weights[])
-  const tails = distributions.map((points) => {
-    let tail = tailsOf.get(points)
-    if (!tail) {
-      tail = points.map((_, from) => points.slice(from).reduce((total, weight) => total + weight, 0))
-      tailsOf.set(points, tail)
-    }
-    return tail
-  })
+  const tails = distributions.map((points) =>
+    remember(tailsOf, points, () => points.map((_, from) => points.slice(from).reduce((total, weight) => total + weight, 0))),
+  )
   for (let at = 0; at < layout.total; at++) {
     const weight = state[at]!
     if (!weight) continue
@@ -525,13 +527,12 @@ function attackCounts(weapon: CombatWeapon, models: number, halfRange: boolean) 
 function weaponPlan(weapon: CombatWeapon, input: CombatInput, toughness: number, models = targetModels(input.target)) {
   const { target, options } = input
   const halfRange = options.phase === 'ranged' && options.halfRange
-  const { indirect, skill, hitBonus, woundBonus, wound } = attackRolls(weapon, options, toughness)
+  const { indirect, skill, hitBonus, hitMinimum, woundBonus, wound } = attackRolls(weapon, options, toughness)
   let miss = 0
   let hit = weapon.torrent ? 1 : 0
   let criticalHit = 0
   if (!weapon.torrent) {
-    const succeeds = (value: number) =>
-      rollSucceeds(value, skill, hitBonus, weapon.criticalHit ?? 6, indirect ? (options.indirectFire === 'spotted' ? 4 : 6) : 2)
+    const succeeds = (value: number) => rollSucceeds(value, skill, hitBonus, weapon.criticalHit ?? 6, hitMinimum)
     const rerolls = indirect ? 'none' : bestReroll(options.hitReroll, weapon.hitReroll)
     rerolledFaces((value) => (rerolls === 'ones' && value === 1) || (rerolls === 'failed' && !succeeds(value))).forEach((weight, value) => {
       if (!weight) return

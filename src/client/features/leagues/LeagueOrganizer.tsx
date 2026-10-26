@@ -3,7 +3,7 @@ import { Check, Link2, Share2, UserMinus, UserPlus, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { alliedLeagueRosterLimit, type LeagueEntryView } from '../../../core/league'
+import { isTeamFormat, alliedLeagueRosterLimit, type LeagueEntryView } from '../../../core/league'
 import {
   addLeagueEntrants,
   admitLeagueEntries,
@@ -13,11 +13,12 @@ import {
 } from '../../functions'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
-import { disambiguatedPlayerLabels } from '../../playerLabels'
+import { entrantLabels } from '../../playerLabels'
 import { clubQuery, friendshipsQuery } from '../../queries'
 import { useOrigin } from '../../useOrigin'
 import { inviteFeedbackText, useInviteShare } from './LeagueActions'
-import { EntrantGroup, EntrantList, SectionHeading, sealStatus } from './LeagueEntrants'
+import { EntrantGroup, EntrantList, sealStatus } from './LeagueEntrants'
+import { SectionHeading } from '../../components/SectionHeading'
 import { entrantGroups, entryRules, eventFullName, eventPath, leagueNoun, soloOrAllied, useLeagueRefresh, type League } from './leagueEvent'
 import { Problem } from '../../components/Problem'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
@@ -66,7 +67,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
     },
   })
 
-  const labels = disambiguatedPlayerLabels(league.entries.map((entry) => ({ id: entry.userId, name: entry.name })))
+  const labels = entrantLabels(league.entries)
   const label = (entry: LeagueEntryView) => labels.get(entry.userId) ?? entry.name
   const nameOf = (userId: string) => labels.get(userId) ?? league.entries.find((entry) => entry.userId === userId)?.name ?? 'someone'
   const byJoin = [...league.entries].sort((left, right) => left.joinedAt - right.joinedAt)
@@ -160,7 +161,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
 
   const entrants = !accepted.length ? (
     <p className="text-sm text-dim">No entrants yet. Share the invite link to fill it.</p>
-  ) : league.format === '2v1' || league.format === '2v2' ? (
+  ) : isTeamFormat(league.format) ? (
     <div className="space-y-4">
       {groups.map((group) => {
         const pairing = pairPool(group)

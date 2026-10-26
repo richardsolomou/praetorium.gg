@@ -50,18 +50,21 @@ private final class WatchTransport: NSObject, WCSessionDelegate {
     }
     latest = snapshot
     sentAt = max(sentAt + 0.001, Date().timeIntervalSince1970)
-    try WCSession.default.updateApplicationContext([
-      "snapshot": Data(snapshot.utf8), "sentAt": sentAt,
-    ])
+    let payload: [String: Any] = ["snapshot": Data(snapshot.utf8), "sentAt": sentAt]
+    try WCSession.default.updateApplicationContext(payload)
     if WCSession.default.isReachable {
-      WCSession.default.sendMessage(
-        ["snapshot": Data(snapshot.utf8), "sentAt": sentAt], replyHandler: nil
-      ) {
+      WCSession.default.sendMessage(payload, replyHandler: nil) {
         [logger] error in
         logger.error(
           "Watch delivery deferred to application context: \(error.localizedDescription, privacy: .public)"
         )
       }
+    }
+  }
+
+  private func republish() {
+    do { try publish(latest) } catch {
+      logger.error("Watch context failed: \(error.localizedDescription, privacy: .public)")
     }
   }
 
@@ -75,17 +78,13 @@ private final class WatchTransport: NSObject, WCSessionDelegate {
         logger.error("Watch activation failed: \(error.localizedDescription, privacy: .public)")
         return
       }
-      do { try publish(latest) } catch {
-        logger.error("Watch context failed: \(error.localizedDescription, privacy: .public)")
-      }
+      republish()
     }
   }
 
   func sessionReachabilityDidChange(_ session: WCSession) {
     DispatchQueue.main.async { [self] in
-      do { try publish(latest) } catch {
-        logger.error("Watch context failed: \(error.localizedDescription, privacy: .public)")
-      }
+      republish()
     }
   }
 
@@ -93,9 +92,7 @@ private final class WatchTransport: NSObject, WCSessionDelegate {
     DispatchQueue.main.async { [self] in
       if !isAvailable { latest = "" }
       availabilityChanged?()
-      do { try publish(latest) } catch {
-        logger.error("Watch context failed: \(error.localizedDescription, privacy: .public)")
-      }
+      republish()
     }
   }
 

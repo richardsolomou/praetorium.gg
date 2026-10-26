@@ -320,17 +320,18 @@ describe('league places', () => {
   })
 })
 
+const entry = (userId: string, over: Partial<LeagueRevealEntry> = {}): LeagueRevealEntry => ({
+  userId,
+  status: 'accepted',
+  submitted: true,
+  requiredLimit: null,
+  teamId: null,
+  dispositionOwed: false,
+  warlordOwed: false,
+  ...over,
+})
+
 describe('leagueRevealChecklist', () => {
-  const entry = (userId: string, over: Partial<LeagueRevealEntry> = {}): LeagueRevealEntry => ({
-    userId,
-    status: 'accepted',
-    submitted: true,
-    requiredLimit: null,
-    teamId: null,
-    dispositionOwed: false,
-    warlordOwed: false,
-    ...over,
-  })
   const ready = (checks: ReturnType<typeof leagueRevealChecklist>) => checks.every((check) => check.done)
   const duel = { format: '1v1' as const, rosterLimit: 2_000 }
 
@@ -458,16 +459,6 @@ describe('leagueRevealChecklist', () => {
 })
 
 describe('leagueStage', () => {
-  const entry = (userId: string, over: Partial<LeagueRevealEntry> = {}): LeagueRevealEntry => ({
-    userId,
-    status: 'accepted',
-    submitted: true,
-    requiredLimit: null,
-    teamId: null,
-    dispositionOwed: false,
-    warlordOwed: false,
-    ...over,
-  })
   const open = { format: '1v1' as const, rosterLimit: 2_000, revealedAt: null }
   const revealed = { ...open, revealedAt: 1 }
 

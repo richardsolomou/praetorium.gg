@@ -318,7 +318,7 @@ function issuesFor(
       path: '/provenance/datacards',
       message: `${sheet.name} has no matching Game Datacards record`,
     })
-  } else if (joined.method === 'name') {
+  } else {
     issues.push({
       kind: 'source-name-fallback',
       severity: 'notice',
@@ -546,13 +546,7 @@ export function canonicalCataloguePath(directory: string) {
 
 /** The rules a snapshot directory carries, read beside the catalogue already loaded from it. */
 export const snapshotRules = (directory: string, loaded: LoadedCatalogue) =>
-  loadRules(
-    directory,
-    path.join(directory, 'battlemaster'),
-    path.join(directory, 'faction-icons'),
-    path.join(directory, 'datacards', '11th', 'gdc'),
-    loaded.datacards,
-  )
+  loadRules(directory, { iconDirectory: path.join(directory, 'faction-icons'), loadedDatacards: loaded.datacards })
 
 /**
  * A snapshot's reference catalogue: the compiled one it packages, or one compiled from its

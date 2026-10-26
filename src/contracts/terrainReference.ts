@@ -1,6 +1,7 @@
 export const TERRAIN_GEOMETRY_VERSION = 8
 
 export const terrainMatchupIds = (dispositions: readonly string[]) => {
-  const matchup = dispositions.length === 2 ? dispositions : []
-  return matchup.length === 2 ? [...new Set([`${matchup[0]}-vs-${matchup[1]}`, `${matchup[1]}-vs-${matchup[0]}`])].toSorted() : []
+  if (dispositions.length !== 2) return []
+  const [first, second] = dispositions
+  return [...new Set([`${first}-vs-${second}`, `${second}-vs-${first}`])].toSorted()
 }

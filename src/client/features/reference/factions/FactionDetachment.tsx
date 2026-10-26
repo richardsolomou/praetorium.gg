@@ -1,7 +1,6 @@
 import { useReferenceFaction } from './useReferenceFaction'
-import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
-import { Link, useParams } from '@tanstack/react-router'
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
+import { useParams } from '@tanstack/react-router'
+import { FactionBreadcrumb } from './FactionBreadcrumb'
 import { DetachmentReference } from './DetachmentReference'
 import { StartRoster } from '../../rosters/ReferenceRosterActions'
 
@@ -19,21 +18,7 @@ export function FactionDetachment() {
         detachmentId={detachmentId}
         faction={faction}
         action={detachmentId ? <StartRoster faction={faction} detachmentId={detachmentId} /> : null}
-        afterHero={
-          <Breadcrumb>
-            <BreadcrumbList className="eyebrow gap-1 text-info">
-              <BreadcrumbItem>
-                <BreadcrumbLink render={<Link to="/factions" />}>Factions</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator className="text-dim" />
-              <BreadcrumbItem>
-                <BreadcrumbLink render={<FactionReferenceLink to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} />}>
-                  {faction.displayName}
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
-        }
+        afterHero={<FactionBreadcrumb faction={faction} />}
       />
     </main>
   )

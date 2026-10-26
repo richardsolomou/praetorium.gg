@@ -40,7 +40,7 @@ export function RosterChooser({
     requiredLimit === null ||
     (seatPoints === null
       ? (roster.pointsBudget ?? null) === pointsBudget && roster.limit === requiredLimit
-      : fitsBattleSize({ limit: requiredLimit, teamBattle: true }, { ...roster, waivedRules: roster.waivedRules ?? undefined }))
+      : fitsBattleSize({ limit: requiredLimit, teamBattle: true }, roster))
   const rosters = (rosterQuery.data ?? []).filter((roster) => !roster.archived && fits(roster))
   const size =
     requiredLimit === null

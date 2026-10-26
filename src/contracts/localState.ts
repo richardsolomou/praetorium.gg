@@ -6,7 +6,7 @@ import { migrateSavedRoster } from '../core/savedRosterMigrations'
 
 export const MAX_LOCAL_STATE_BYTES = 50_000_000
 export const MAX_LOCAL_OPERATIONS = 2_000
-export const localOperationSchema = z.object({
+const localOperationSchema = z.object({
   id: z.uuid(),
   resource: z.string().min(1).max(256),
   kind: z.string().min(1).max(80),

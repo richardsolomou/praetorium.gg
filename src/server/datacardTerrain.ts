@@ -3,7 +3,8 @@ import path from 'node:path'
 import { routeSlug } from '../core/slug'
 import { compareText } from '../core/text'
 import type { Deployment, Point, TerrainLayout } from '../contracts/terrain'
-import { english, type MissionPack } from './missionPacks'
+import { type MissionPack } from './missionPacks'
+import { english, records } from '../shared/datacards'
 import { battlemasterGeometry } from './rulesTerrain'
 import { joinKey } from '../core/text'
 
@@ -19,9 +20,6 @@ type BattlemasterLayout = {
     objectives?: { center?: Point }[]
   }
 }
-type RecordValue = Record<string, unknown>
-const records = (value: unknown): RecordValue[] =>
-  Array.isArray(value) ? value.filter((entry): entry is RecordValue => Boolean(entry) && typeof entry === 'object') : []
 
 function battlemasterSlots(directory: string) {
   const file = path.join(directory, 'catalog.json')
@@ -81,7 +79,7 @@ export function terrainFromDatacards(packs: readonly MissionPack[], battlemaster
   for (const pack of packs) {
     if (pack.isCombatPatrol === true) continue
     const deploymentIds = new Map<string, string>()
-    for (const raw of records(pack.deployments)) {
+    for (const raw of records(pack, 'deployments')) {
       const name = english(raw.name)
       if (!name || typeof raw.id !== 'string') continue
       deploymentIds.set(name, raw.id)
@@ -95,7 +93,7 @@ export function terrainFromDatacards(packs: readonly MissionPack[], battlemaster
         objectives: geometry?.objectives ?? [],
       })
     }
-    for (const raw of records(pack.layouts)) {
+    for (const raw of records(pack, 'layouts')) {
       const name = english(raw.name)
       if (!name || typeof raw.id !== 'string') continue
       const match = /^(.+) \/ (.+) - Layout ([ABC])$/.exec(name)

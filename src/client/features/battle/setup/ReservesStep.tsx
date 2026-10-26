@@ -1,5 +1,5 @@
 import { MapPin } from 'lucide-react'
-import { useId, useState, type ReactNode } from 'react'
+import { useId, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverDescription, PopoverTitle, PopoverTrigger } from '@/components/ui/popover'
 import type { AttachedUnit } from '../../../../core/attachedUnits'
@@ -18,7 +18,7 @@ import { RuleText } from '../../../components/RuleText'
 import { type Army, type Side } from '../../../sides'
 import { formationLabel, SetupNote, SetupSidePanel } from './chrome'
 import { reserveSections, reserveUnitLabel } from './reservesModel'
-import { asSentence } from '../useCommand'
+import { asSentence } from '../../../text'
 import { Problem } from '../../../components/Problem'
 
 type FormationCommand = Extract<Command, { kind: 'set-unit-formation' }>
@@ -192,38 +192,36 @@ function UnitFormationRow({
        * the same box rather than run together underneath.
        */}
       <div className="mt-1.5">
-        <UnitFact
-          icon={<MapPin className="size-3.5 shrink-0 text-dim" />}
-          label={
+        <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
+          <span className="inline-flex min-w-0 items-center gap-1.5">
+            <MapPin className="size-3.5 shrink-0 text-dim" />
             <span className="text-xs font-bold text-bone uppercase">
               {formationLabel(host.formation)}
               {host.formation === 'embarked' && transportName ? ` in ${transportName}` : ''}
             </span>
-          }
-          action={
-            <span className="flex flex-wrap gap-1">
-              {choices.map(({ formation, command, refusal }) => {
-                const returning =
-                  redeploy && host.deployedAtRollOff === true && host.formation === 'battlefield' && formation === 'strategic-reserves'
-                return (
-                  <Button
-                    key={formation}
-                    variant="outline"
-                    size="xs"
-                    disabled={refusal !== null}
-                    aria-describedby={refusal ? `${reasonId}-${reasons.indexOf(refusal)}` : undefined}
-                    aria-label={`${returning ? 'Redeploy' : 'Start'} ${host.name} ${returning ? 'into' : 'in'} ${formationLabel(formation)}`}
-                    onClick={() => moves.move(row, command)}
-                  >
-                    {formation === 'battlefield'
-                      ? 'Put on the battlefield'
-                      : `${returning ? 'Redeploy into' : 'Start in'} ${formationLabel(formation).toLocaleLowerCase()}`}
-                  </Button>
-                )
-              })}
-            </span>
-          }
-        />
+          </span>
+          <span className="flex flex-wrap gap-1">
+            {choices.map(({ formation, command, refusal }) => {
+              const returning =
+                redeploy && host.deployedAtRollOff === true && host.formation === 'battlefield' && formation === 'strategic-reserves'
+              return (
+                <Button
+                  key={formation}
+                  variant="outline"
+                  size="xs"
+                  disabled={refusal !== null}
+                  aria-describedby={refusal ? `${reasonId}-${reasons.indexOf(refusal)}` : undefined}
+                  aria-label={`${returning ? 'Redeploy' : 'Start'} ${host.name} ${returning ? 'into' : 'in'} ${formationLabel(formation)}`}
+                  onClick={() => moves.move(row, command)}
+                >
+                  {formation === 'battlefield'
+                    ? 'Put on the battlefield'
+                    : `${returning ? 'Redeploy into' : 'Start in'} ${formationLabel(formation).toLocaleLowerCase()}`}
+                </Button>
+              )
+            })}
+          </span>
+        </div>
         {reasons.map((reason, index) => (
           <p key={reason} id={`${reasonId}-${index}`} className="mt-1 px-0.5 text-3xs text-discarded">
             {reason}
@@ -331,19 +329,6 @@ function TransportBoarding({
       {passengers.length ? (
         <p className="mt-2 text-xs text-bone">Embarked: {passengers.map((unit) => reserveUnitLabel(units, unit)).join(', ')}</p>
       ) : null}
-    </div>
-  )
-}
-
-/** One inset line inside a unit: an icon, what it says, and what can be done about it. */
-function UnitFact({ icon, label, action }: { icon: ReactNode; label: ReactNode; action: ReactNode }) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-2 px-0.5">
-      <span className="inline-flex min-w-0 items-center gap-1.5">
-        {icon}
-        {label}
-      </span>
-      {action}
     </div>
   )
 }

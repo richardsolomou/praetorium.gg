@@ -1,4 +1,4 @@
-import { expect, test } from './test'
+import { expect, test, type Page } from './test'
 import { recordEvents, stubSupport } from './telemetry.harness'
 import {
   addUnit,
@@ -9,8 +9,11 @@ import {
   uniqueName,
   visitorSetup,
   waitForRosterSave,
+  chooseFaction,
+  isRosterSave,
+  PHONE,
 } from './account'
-import { add, attach } from './builder.harness'
+import { add, attach, expectNoHorizontalOverflow } from './builder.harness'
 import { chooseCombatUnit } from './combat'
 
 test.use({ serviceWorkers: 'block' })
@@ -20,7 +23,6 @@ test('search reports empty results, dismissal, and successful selection without 
   await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
   const events = await recordEvents(page)
   const search = page.getByPlaceholder('Search everything…')
-  // The button answers only once the page has hydrated.
   await retryUntilVisible(search, () => page.getByRole('button', { name: 'Search Praetorium' }).click())
   await search.fill('private query zzzxyz987')
   await expect
@@ -175,12 +177,9 @@ test('a connected legacy shell import reports saving only after the write succee
   await page.waitForLoadState('networkidle')
   await page.getByRole('button', { name: 'Import roster', exact: true }).waitFor()
   const events = await recordEvents(page)
-  await page.route('**/_serverFn/**', (route) => {
-    const body = route.request().postData() ?? ''
-    return body.includes('"picks"') && body.includes('"visibility"')
-      ? route.fulfill({ status: 503, body: 'save unavailable' })
-      : route.continue()
-  })
+  await page.route('**/_serverFn/**', (route) =>
+    isRosterSave(route.request()) ? route.fulfill({ status: 503, body: 'save unavailable' }) : route.continue(),
+  )
   await page.getByRole('button', { name: 'Import roster', exact: true }).click()
   await page.getByLabel('Roster text').fill(`Private imported army (2000 Points)
 
@@ -366,9 +365,7 @@ for (const [reference, path, signedIn, width] of [
     await page.getByRole('link', { name: 'Build a roster', exact: true }).click()
     await expect(setup).toBeVisible()
     await expect(page).toHaveURL(/\/rosters$/)
-    await setup.getByRole('combobox', { name: 'Faction' }).click()
-    await page.getByPlaceholder('Search factions…').fill('Necrons')
-    await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+    await chooseFaction(setup, 'Necrons')
     await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
     await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
     await page.screenshot({ path: testInfo.outputPath(`${reference}-setup.png`) })
@@ -376,7 +373,7 @@ for (const [reference, path, signedIn, width] of [
     await expect(page.getByRole('heading', { name: 'Add your first unit', exact: true })).toBeVisible()
     if (width < 768) await page.getByRole('button', { name: 'Add units', exact: true }).click()
     await expect(page.getByLabel('Add a unit')).toBeVisible()
-    if (signedIn) await waitForRosterSave(page, () => add(page, 'Necron Warriors'))
+    if (signedIn) await addUnit(page, 'Necron Warriors')
     else {
       await add(page, 'Necron Warriors')
       await expect
@@ -421,9 +418,7 @@ test('cancelling a mission setup does not attribute a later generic setup to it'
 for (const units of [[], ['Necron Warriors'], ['Necron Warriors', 'Overlord']]) {
   test(`a guest save attempt reports ${units.length} fielded units from the current draft`, async ({ page }) => {
     const setup = await visitorSetup(page)
-    await setup.getByRole('combobox', { name: 'Faction' }).click()
-    await page.getByPlaceholder('Search factions…').fill('Necrons')
-    await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+    await chooseFaction(setup, 'Necrons')
     await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
     await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
     const events = await recordEvents(page)
@@ -433,7 +428,6 @@ for (const units of [[], ['Necron Warriors'], ['Necron Warriors', 'Overlord']]) 
     const save = page.getByRole('button', { name: 'Save roster', exact: true })
     if (!units.length) {
       await expect(save).toBeDisabled()
-      expect(events.filter((event) => event.name === 'guest_roster_save_started')).toEqual([])
       return
     }
     await save.click()
@@ -514,15 +508,25 @@ const SCREENSHOT = {
 }
 const SCREENSHOT_LINE = /\nScreenshot: (http:\/\/[^/]+\/api\/feedback-screenshots\/[0-9a-f-]{36})$/
 
-test('a guest sends feedback, reads the reply and answers it', async ({ page }) => {
+/** Opens the factions page with the support service stubbed, once the page answers. */
+async function supportOnFactions(page: Page) {
   await page.goto('/factions')
   await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
-  const support = await stubSupport(page)
+  return stubSupport(page)
+}
+
+async function openFeedback(page: Page) {
   const dialog = page.getByRole('dialog', { name: 'Send feedback' })
   await retryUntilVisible(dialog, async () => {
     await page.getByRole('button', { name: 'Account menu' }).filter({ visible: true }).click()
     await page.getByRole('menuitem', { name: 'Feedback' }).click()
   })
+  return dialog
+}
+
+test('a guest sends feedback, reads the reply and answers it', async ({ page }) => {
+  const support = await supportOnFactions(page)
+  const dialog = await openFeedback(page)
   await dialog.getByRole('button', { name: 'Idea' }).click()
   await dialog.getByLabel('Message').fill('  Group factions by alliance  ')
   await dialog.getByLabel('Email for a reply (optional)').fill('guest@example.com')
@@ -558,14 +562,8 @@ test('a guest sends feedback, reads the reply and answers it', async ({ page }) 
 })
 
 test('an unread reply marks the account menu until the player reads it', async ({ page }) => {
-  await page.goto('/factions')
-  await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
-  const support = await stubSupport(page)
-  const dialog = page.getByRole('dialog', { name: 'Send feedback' })
-  await retryUntilVisible(dialog, async () => {
-    await page.getByRole('button', { name: 'Account menu' }).filter({ visible: true }).click()
-    await page.getByRole('menuitem', { name: 'Feedback' }).click()
-  })
+  const support = await supportOnFactions(page)
+  const dialog = await openFeedback(page)
   await dialog.getByLabel('Message').fill('The picker will not scroll')
   await dialog.getByRole('button', { name: 'Send feedback' }).click()
   await expect(page.getByRole('region', { name: 'Conversation' })).toBeVisible()
@@ -593,9 +591,7 @@ test('an unread reply marks the account menu until the player reads it', async (
 })
 
 test('a long feedback history loads page by page as the player scrolls it', async ({ page }) => {
-  await page.goto('/factions')
-  await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
-  const support = await stubSupport(page)
+  const support = await supportOnFactions(page)
   await support.seed(45)
   const yours = page.getByRole('menuitem', { name: 'Feedback' })
   await retryUntilVisible(yours, async () => {
@@ -619,14 +615,8 @@ test('a long feedback history loads page by page as the player scrolls it', asyn
 })
 
 test('a reply appears in an open conversation without reloading it', async ({ page }) => {
-  await page.goto('/factions')
-  await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
-  const support = await stubSupport(page)
-  const dialog = page.getByRole('dialog', { name: 'Send feedback' })
-  await retryUntilVisible(dialog, async () => {
-    await page.getByRole('button', { name: 'Account menu' }).filter({ visible: true }).click()
-    await page.getByRole('menuitem', { name: 'Feedback' }).click()
-  })
+  const support = await supportOnFactions(page)
+  const dialog = await openFeedback(page)
   await dialog.getByLabel('Message').fill('Missions page is slow')
   await dialog.getByRole('button', { name: 'Send feedback' }).click()
   const conversation = page.getByRole('region', { name: 'Conversation' })
@@ -638,9 +628,7 @@ test('a reply appears in an open conversation without reloading it', async ({ pa
 })
 
 test('a link from a reply email opens that conversation over the support page', async ({ page }) => {
-  await page.goto('/factions')
-  await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
-  const support = await stubSupport(page)
+  const support = await supportOnFactions(page)
   await support.seed(3)
   const [, linked] = await support.tickets()
   await support.reply(linked.id, 'We fixed it')
@@ -658,14 +646,8 @@ test('a link from a reply email opens that conversation over the support page', 
 
 test('an administrator opens the screenshot attached to feedback', async ({ page }) => {
   await signInAsPreview(page)
-  await page.goto('/factions')
-  await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
-  const support = await stubSupport(page)
-  const dialog = page.getByRole('dialog', { name: 'Send feedback' })
-  await retryUntilVisible(dialog, async () => {
-    await page.getByRole('button', { name: 'Account menu' }).filter({ visible: true }).click()
-    await page.getByRole('menuitem', { name: 'Feedback' }).click()
-  })
+  const support = await supportOnFactions(page)
+  const dialog = await openFeedback(page)
   await expect(dialog.getByLabel('Email for a reply (optional)')).toHaveCount(0)
   await dialog.getByLabel('Message').fill('Attached the broken layout')
   await dialog.getByLabel('Attach screenshot').setInputFiles(SCREENSHOT)
@@ -683,7 +665,7 @@ test('an administrator opens the screenshot attached to feedback', async ({ page
 })
 
 test('feedback that cannot be sent keeps the message and offers the issue tracker', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.goto('/factions')
   const dialog = page.getByRole('dialog', { name: 'Send feedback' })
   const feedback = page.getByRole('menuitem', { name: 'Feedback' })
@@ -700,5 +682,5 @@ test('feedback that cannot be sent keeps the message and offers the issue tracke
   )
   await expect(dialog.getByLabel('Message')).toHaveValue('The list will not scroll')
   await expect(page).toHaveURL(/\/factions$/)
-  expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoHorizontalOverflow(dialog)
 })

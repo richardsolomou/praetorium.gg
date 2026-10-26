@@ -10,7 +10,7 @@ import {
   signUp,
   startBattle,
   uniqueName,
-  waitForRosterSave,
+  addUnit,
 } from './account'
 
 test('a built list is priced, deployed and tracked', async ({ browser }) => {
@@ -40,8 +40,7 @@ test('a built list is priced, deployed and tracked', async ({ browser }) => {
     await expect(alice.getByLabel('Plague Marines models')).toHaveText(String(models))
   }
   await expect.poll(points).toBeGreaterThan(atFive)
-  await alice.getByLabel('Add a unit').fill('Lord of Virulence')
-  await waitForRosterSave(alice, () => alice.getByRole('button', { name: 'Add Lord of Virulence', exact: true }).first().click())
+  await addUnit(alice, 'Lord of Virulence')
 
   await befriend(alice, bob)
   const link = await createBattle(alice, { opponent: bobName })
@@ -72,5 +71,5 @@ test('a built list is priced, deployed and tracked', async ({ browser }) => {
       .getByText(/Shamblerot Vectorium/),
   ).toBeVisible()
 
-  await alice.screenshot({ path: 'test-results/tracked.png', fullPage: true })
+  await alice.screenshot({ path: test.info().outputPath('tracked.png'), fullPage: true })
 })

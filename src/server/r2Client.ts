@@ -1,4 +1,6 @@
 import { AwsClient } from 'aws4fetch'
+// scripts/nodeServer.ts runs this module under plain Node, which needs the extension.
+import { localDevelopmentObjects } from './localObjectStore.ts'
 
 function configuredClient(environment: NodeJS.ProcessEnv, prefix: string, bucket: string) {
   const account = environment.R2_ACCOUNT_ID
@@ -41,4 +43,15 @@ export function r2Objects({ client, base }: NonNullable<ReturnType<typeof config
       await request('delete', key, { method: 'DELETE' })
     },
   }
+}
+
+/** A local stack's on-disk objects, else the bucket `r2Client` configures, else null. */
+export function objectsIn(
+  environment: NodeJS.ProcessEnv,
+  r2Client: (environment: NodeJS.ProcessEnv) => ReturnType<typeof configuredClient>,
+) {
+  const local = localDevelopmentObjects(environment)
+  if (local) return local
+  const r2 = r2Client(environment)
+  return r2 ? r2Objects(r2) : null
 }

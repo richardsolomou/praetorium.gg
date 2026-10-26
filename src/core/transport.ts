@@ -1,4 +1,5 @@
 import type { Refusal } from './battle'
+import { withoutFactionPrefix } from './name'
 import { refuse } from './battlePrimitives'
 import { z } from 'zod'
 import { matchesKeywordSelector } from './keywords'
@@ -179,7 +180,7 @@ export function transportRule(
 /** Keywords as a rule prints them: "Necron Warrior models" are units with the Necron Warriors keyword. */
 function spelled(keywords: readonly string[]) {
   return keywords.flatMap((keyword) => {
-    const name = keyword.replace(/^Faction:\s*/iu, '')
+    const name = withoutFactionPrefix(keyword)
     return name.endsWith('s') ? [name, name.slice(0, -1)] : [name, `${name}s`]
   })
 }

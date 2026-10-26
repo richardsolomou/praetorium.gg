@@ -1,4 +1,5 @@
 import { type FrozenRoster, ListBuilder } from './ListBuilder'
+import { NO_PREP } from './rosterDraft'
 
 type ListBuilderProps = Parameters<typeof ListBuilder>[0]
 
@@ -37,8 +38,6 @@ type Props = {
   lentBy?: ListBuilderProps['lentBy']
   requested?: ListBuilderProps['requested']
 }
-
-const NO_PREP = { stratagems: [], secondaries: [], remindersEnabled: true }
 
 export function RosterEditor({
   roster,

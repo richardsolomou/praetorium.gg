@@ -1,6 +1,7 @@
+import { withoutFactionPrefix } from '../core/name'
 import { canonicalDetachmentName } from '../core/detachmentName'
-import { cachedIn, uniqueBy } from '../core/collections'
-import { type Definition, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
+import { cachedIn, remember, uniqueBy } from '../core/collections'
+import { type Definition, definitionAndTarget, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
 import { withoutText } from './sourceText'
 import { referenceAttachmentOf } from '../core/attach'
 import {
@@ -26,9 +27,15 @@ import { type DatasheetSearchFields, dedupeWeapons } from '../core/datasheetSear
 import { priceOf } from './catalogueUnit'
 import { datacardOf } from './datasheetJoin'
 import { mergeDetachmentRules } from './catalogueDescriptions'
-import { definitionTokens, displayRuleName, modifiedProfileField } from './catalogueDisplay'
+import { definitionTokens, displayRuleName, isConditionalModifier, modifiedProfileField } from './catalogueDisplay'
 import { relationshipFor, relationshipsFor } from './catalogueRelationships'
-import { deploymentAbilities, parseAbilityGrants, parsedAbilityGrants, titleCaseAbility } from './catalogueAbilityGrants'
+import {
+  deploymentAbilities,
+  parseAbilityGrants,
+  parsedAbilityGrants,
+  titleCaseAbility,
+  weaponProfileTypes,
+} from './catalogueAbilityGrants'
 import { weaponGrantsIn } from './textFacts'
 import type { AbilityKind, Datasheet } from '../contracts/catalogue'
 
@@ -485,9 +492,10 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     const definition = loaded.index.definitions.get(node.id)
     if (!definition) return
     const target = targetOf(definition, loaded.index.definitions)
-    const lineage = [...ancestors, ...definitionTokens(definition), ...(target === definition ? [] : definitionTokens(target))]
+    const sources = definitionAndTarget(definition, loaded.index)
+    const lineage = [...ancestors, ...sources.flatMap(definitionTokens)]
     const chosen = selected.has(definition.id) || selected.has(target.id)
-    for (const source of new Set([definition, target])) {
+    for (const source of sources) {
       if (visited.has(source.id)) continue
       visited.add(source.id)
       addProfiles(source, lineage, 'wargear', false, !chosen || !withAbilities)
@@ -767,7 +775,7 @@ function weaponAbilitiesFromDetachments(
   const keywordNames = (selectedKeywordIds ?? keywordIds(selections, unitSelectionIndex, loaded.index, { primaryCatalogueId: catalogueId }))
     .flatMap((id) => {
       const category = loaded.index.categories.get(id)
-      const name = category?.name?.replace(/^Faction:\s*/iu, '')
+      const name = category?.name && withoutFactionPrefix(category.name)
       return name && !category?.hidden ? [normalizeKeywordSelector(name)] : []
     })
     .filter(Boolean)
@@ -779,7 +787,7 @@ function weaponAbilitiesFromDetachments(
   ).filter((definition) => optionIds.has(definition.id))
   for (const definition of selectedDefinitions) {
     const catalogueRules: { name: string; description: string }[] = []
-    for (const source of new Set([definition, targetOf(definition, loaded.index.definitions)])) {
+    for (const source of definitionAndTarget(definition, loaded.index)) {
       for (const link of source.infoLinks ?? []) {
         if (link.type !== 'rule' || infoLinkHiddenByRules(link, loaded.index, { primaryCatalogueId: catalogueId, roster: selections }))
           continue
@@ -837,7 +845,7 @@ function grantedAbilitiesInAttachedUnit(
       : []
     const categories = keywordIdsAt.flatMap((id) => {
       const name = index.categories.get(id)?.name
-      return name ? [name.replace(/^Faction:\s*/iu, '')] : []
+      return name ? [withoutFactionPrefix(name)] : []
     })
     const abilities = selection
       ? definitionsInSelections([selection], [0], index).flatMap((selected) =>
@@ -855,13 +863,10 @@ function grantedAbilitiesInAttachedUnit(
     for (const definition of definitions) {
       for (const source of [definition, targetOf(definition, index.definitions)]) {
         const linkedAbilities = linkedAbilityNames(source, index, catalogueId, selections)
+        const hasConditionalAbilityLink = flattenedModifiers([source]).some(
+          (modifier) => modifier.type === 'add' && modifier.field === 'add-info' && isConditionalModifier(modifier),
+        )
         for (const profile of abilityProfilesOf(source, index)) {
-          const hasConditionalAbilityLink = flattenedModifiers([source]).some(
-            (modifier) =>
-              modifier.type === 'add' &&
-              modifier.field === 'add-info' &&
-              Boolean(modifier.conditions?.length || modifier.conditionGroups?.length || modifier.repeats?.length),
-          )
           const grants = parsedAbilityGrants(
             abilityDescription(profile),
             companionIndexes.length > 0,
@@ -908,14 +913,7 @@ function linkedAbilityNames(
     return name && !rule?.hidden ? [name] : []
   })
   const added = flattenedModifiers([definition]).flatMap((modifier) => {
-    if (
-      modifier.type !== 'add' ||
-      modifier.field !== 'add-info' ||
-      typeof modifier.value !== 'string' ||
-      modifier.conditions?.length ||
-      modifier.conditionGroups?.length ||
-      modifier.repeats?.length
-    )
+    if (modifier.type !== 'add' || modifier.field !== 'add-info' || typeof modifier.value !== 'string' || isConditionalModifier(modifier))
       return []
     const rule = index.rules.get(modifier.value)
     return rule?.name && !rule.hidden ? [rule.name] : []
@@ -932,16 +930,10 @@ function contextualInfoLinkHidden(
   selections: readonly Selection[],
 ): boolean {
   if (!flattenedModifiers([link]).some((modifier) => modifier.field === 'hidden')) return Boolean(link.hidden)
-  const byRoster = contextualInfoLinkVisibilityCache.get(index) ?? new WeakMap<readonly Selection[], Map<string, boolean>>()
-  const cached = byRoster.get(selections) ?? new Map<string, boolean>()
-  const key = `${catalogueId}:${link.id}`
-  const found = cached.get(key)
-  if (found !== undefined) return found
-  const hidden = infoLinkHiddenByRules(link, index, { primaryCatalogueId: catalogueId, roster: selections })
-  cached.set(key, hidden)
-  byRoster.set(selections, cached)
-  contextualInfoLinkVisibilityCache.set(index, byRoster)
-  return hidden
+  const byRoster = remember(contextualInfoLinkVisibilityCache, index, () => new WeakMap<readonly Selection[], Map<string, boolean>>())
+  return cachedIn(byRoster, selections, `${catalogueId}:${link.id}`, () =>
+    infoLinkHiddenByRules(link, index, { primaryCatalogueId: catalogueId, roster: selections }),
+  )
 }
 
 function weaponAbilitiesInSelectedUnit(
@@ -952,7 +944,7 @@ function weaponAbilitiesInSelectedUnit(
   if (unitSelectionIndex === undefined) return []
   const found = new Map<string, GrantedWeaponAbility>()
   for (const definition of definitionsInSelections(selections, [unitSelectionIndex], index)) {
-    for (const source of new Set([definition, targetOf(definition, index.definitions)])) {
+    for (const source of definitionAndTarget(definition, index)) {
       for (const profile of abilityProfilesOf(source, index)) {
         const description = normalizedAbilityDescription(profile)
         const match = description?.match(
@@ -969,7 +961,7 @@ function weaponAbilitiesInSelectedUnit(
         const granted = {
           keyword: grant[2]!.replace(/^[^:]+/, (name) => titleCaseAbility(name)),
           source: profile.name,
-          profileTypes: [`${titleCaseAbility(grant[1]!)} Weapons`],
+          profileTypes: weaponProfileTypes(grant[1]),
         }
         found.set(`${granted.keyword.toLowerCase()}:${granted.profileTypes.join(',')}:${granted.source}`, granted)
       }
@@ -994,10 +986,8 @@ function weaponAbilitiesInAttachedUnit(
           /^While this model is leading a unit, (?:(melee|ranged) )?weapons equipped by models in that unit have the \[([\p{L}\p{N} +'’\p{Pd}]+)\] ability\.$/iu,
         )
         if (!match) continue
-        const keyword = match[2]!.toLowerCase().replaceAll(/(^|[\s-])\p{L}/gu, (letter) => letter.toUpperCase())
-        const profileTypes = match[1]
-          ? [`${match[1][0]!.toUpperCase()}${match[1].slice(1).toLowerCase()} Weapons`]
-          : ['Ranged Weapons', 'Melee Weapons']
+        const keyword = titleCaseAbility(match[2]!)
+        const profileTypes = weaponProfileTypes(match[1])
         found.set(`${profile.name}:${keyword}:${profileTypes.join(',')}`, { keyword, source: profile.name, profileTypes })
       }
     }

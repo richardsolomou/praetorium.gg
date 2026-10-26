@@ -7,7 +7,9 @@ import { useVirtualRows } from '../../components/useVirtualRows'
 import { Problem } from '../../components/Problem'
 import { formatAgo } from '../../dates'
 import { messagePreview, ticketSubject } from '../../../contracts/feedback'
-import { openConversation, openingMessageQuery, TICKET_STATUS, unreadReplies, useSupportTickets } from './support'
+import { openConversation, TICKET_STATUS, unreadReplies, useSupportTickets } from './support'
+import { openingMessageQuery } from '../../queries'
+import { countLabel } from '../../text'
 
 /** The player's feedback conversations, newest activity first; hidden until they have one. */
 export function YourFeedback() {
@@ -109,10 +111,10 @@ function TicketRow({ ticket, onOpen }: { ticket: Ticket; onOpen: (ticketId: stri
           <StatusChip status={ticket.status} />
           {unread ? (
             <span className="chip border-discarded/60 bg-discarded/10 text-discarded">
-              {unread === 1 ? '1 new reply' : `${unread} new replies`}
+              {countLabel(unread, 'new reply', 'new replies')}
             </span>
           ) : null}
-          <span className="readout">{ticket.message_count === 1 ? '1 message' : `${ticket.message_count} messages`}</span>
+          <span className="readout">{countLabel(ticket.message_count, 'message')}</span>
         </span>
       </span>
       <ChevronRight className="size-4 shrink-0 self-center text-info group-hover:text-parchment" aria-hidden />

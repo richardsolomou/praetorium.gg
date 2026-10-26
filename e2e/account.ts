@@ -1,18 +1,19 @@
 import { createHmac } from 'node:crypto'
-import type { BrowserContextOptions, Locator, Page } from '@playwright/test'
-import { expect } from '@playwright/test'
+import type { BrowserContextOptions, Locator, Page, Request } from '@playwright/test'
+import { expect, test } from '@playwright/test'
+import { PHASES } from '../src/core/battle'
 import type { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { PREVIEW_EMAIL, PREVIEW_PASSWORD } from '../scripts/seedPreview'
-import { productOperator, savedWork, userIdFor } from './storage'
+import { lastPathSegment, productOperator, savedWork, userIdFor } from './storage'
 
 export const desktopContext = { viewport: { width: 1440, height: 900 } } satisfies BrowserContextOptions
 
 /**
  * Makes an account and leaves the page signed into it.
  *
- * Every journey starts here now: a battle, a roster and a seat all belong to an
- * account, so there is no way to reach any of them otherwise. The email is unique
- * per call because the suite shares one database across specs.
+ * A battle, a roster and a seat all belong to an account, so there is no way to
+ * reach any of them otherwise. The email is unique per call because the suite
+ * shares one database across specs.
  */
 export async function signUp(page: Page, name: string) {
   const email = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${crypto.randomUUID()}@example.test`
@@ -78,6 +79,35 @@ export async function choosePlayerDefault(page: Page, setting: 'Roster visibilit
   await expect.poll(async () => (await savedWork(page))?.operations.length ?? 0).toBe(0)
 }
 
+/** Saves a small picture as the signed-in player's avatar. */
+export async function uploadAvatar(page: Page) {
+  await page.goto('/profile')
+  // A file chosen before hydration never reaches the form, which leaves Save profile disabled.
+  await page.waitForLoadState('networkidle')
+  await page.getByLabel('Choose profile picture').setInputFiles({
+    name: 'avatar.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAAA1BMVEX/W1e1okn/AAAADElEQVQI12NgIA0AAAAwAAHHqoWOAAAAAElFTkSuQmCC',
+      'base64',
+    ),
+  })
+  await page.getByRole('button', { name: 'Save profile' }).click()
+  await expect(page.getByText('Profile saved.')).toBeVisible()
+}
+
+/** Signs out from the account menu, reopening the menu until it shows: a press before hydration opens nothing. */
+export async function signOut(page: Page) {
+  const item = page.getByRole('menuitem', { name: 'Sign out', exact: true })
+  await retryUntilVisible(item, () =>
+    page
+      .getByRole('button', { name: /^Account menu for / })
+      .filter({ visible: true })
+      .click(),
+  )
+  await item.click()
+}
+
 export function uniqueName(base: string) {
   return `${base}-${crypto.randomUUID().slice(0, 8)}`
 }
@@ -104,6 +134,21 @@ export async function visitorSetup(page: Page) {
 export async function chooseRosterAction(page: Page, item: string) {
   const choice = page.getByRole('menuitem', { name: item, exact: true })
   await retryUntilVisible(choice, () => page.getByRole('button', { name: 'Roster actions', exact: true }).click())
+  await choice.click()
+}
+
+/** Opens the import dialog from the rosters page once its text box answers. */
+export async function openImport(page: Page) {
+  await page.goto('/rosters')
+  const dialog = page.getByRole('dialog', { name: 'Import roster', exact: true })
+  await retryUntilVisible(dialog.getByLabel('Roster text'), () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  return dialog
+}
+
+/** Chooses an item from a library row's actions menu, reopening the menu until the item shows. */
+export async function chooseLibraryAction(page: Page, roster: string, item: string | RegExp) {
+  const choice = page.getByRole('menuitem', { name: item, exact: true })
+  await retryUntilVisible(choice, () => page.getByRole('button', { name: `Actions for ${roster}`, exact: true }).click())
   await choice.click()
 }
 
@@ -152,21 +197,36 @@ export async function befriend(requester: Page, recipient: Page, { beforeAccept 
   await expect(requester.locator('section').filter({ hasText: 'Friends' }).filter({ hasText: recipientName })).toBeVisible()
 }
 
+/** A roster save, told apart from a price request by the fields only a saved list carries. */
+export function isRosterSave(request: Request) {
+  const body = request.postData()
+  return request.method() === 'POST' && Boolean(body?.includes('"visibility"') && body.includes('"picks"'))
+}
+
+/** Every roster save a page sends from now on. */
+export function recordSaves(page: Page) {
+  const saves: string[] = []
+  page.on('request', (request) => {
+    if (isRosterSave(request)) saves.push(request.postData()!)
+  })
+  return saves
+}
+
 export async function waitForRosterSave(page: Page, action: () => Promise<unknown>, expectedText?: string) {
   // Autosaves are serialized. Let an earlier render finish before deciding which
   // response belongs to this action, otherwise a fast setup save can satisfy the
   // waiter for a later name or unit change.
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
   // Whichever tab holds the sync lease sends the save, so listen across the whole context.
-  const saved = page.context().waitForEvent('response', (response) => {
-    const postData = response.request().postData()
-    return (
-      response.ok() &&
-      response.request().method() === 'POST' &&
-      Boolean(postData?.includes('"visibility"') && postData.includes('"picks"')) &&
-      (!expectedText || Boolean(postData?.includes(expectedText)))
+  const saved = page
+    .context()
+    .waitForEvent(
+      'response',
+      (response) =>
+        response.ok() &&
+        isRosterSave(response.request()) &&
+        (!expectedText || Boolean(response.request().postData()?.includes(expectedText))),
     )
-  })
   await action()
   await saved
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
@@ -197,6 +257,14 @@ export async function addUnit(page: Page, name: string) {
   )
 }
 
+/** Picks a faction in an open roster setup, reopening the list if hydration swallowed the first press. */
+export async function chooseFaction(setup: Locator, faction: string) {
+  const search = setup.page().getByPlaceholder('Search factions…')
+  await retryUntilVisible(search, () => setup.getByRole('combobox', { name: 'Faction' }).click())
+  await search.fill(faction)
+  await setup.page().getByRole('option', { name: faction, exact: true }).click()
+}
+
 export async function createRoster(
   page: Page,
   { faction, detachment, name, size, rules }: { faction: string; detachment: RegExp; name?: string; size?: RegExp; rules?: string },
@@ -204,9 +272,7 @@ export async function createRoster(
   await page.goto('/rosters')
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
   await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
-  await dialog.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill(faction)
-  await page.getByRole('option', { name: faction, exact: true }).click()
+  await chooseFaction(dialog, faction)
   if (rules) {
     await dialog.getByRole('combobox', { name: 'Rules version' }).click()
     await page.getByRole('option', { name: rules, exact: true }).click()
@@ -298,6 +364,14 @@ export async function createBattle(
   return page.url()
 }
 
+/** Opens a practice battle with the roster in both seats, or another roster for the practice opponent. */
+export async function practiceBattle(page: Page, roster: string, { opponentRoster = roster }: { opponentRoster?: string } = {}) {
+  const url = await createBattle(page, { practice: true })
+  await attachRoster(page, roster)
+  await attachRoster(page, opponentRoster, { forPlayer: PRACTICE_OPPONENT })
+  return url
+}
+
 /** Presses a choice until the shared answer shows it, unless the table has already answered. */
 async function pressUntilChosen(choice: Locator, button: Locator) {
   await expect(async () => {
@@ -308,7 +382,7 @@ async function pressUntilChosen(choice: Locator, button: Locator) {
 }
 
 /** Tests that are not about deployment order use the first side as the defender, unless one was chosen. */
-export async function chooseDefender(page: Page) {
+async function chooseDefender(page: Page) {
   const choice = page.getByRole('group', { name: 'Defender', exact: true })
   await pressUntilChosen(choice, choice.getByRole('button').first())
 }
@@ -381,13 +455,7 @@ export async function chooseBattlefield(page: Page) {
   }).toPass({ timeout: 30_000 })
 }
 
-/**
- * Clears the prompts an advance can raise.
- *
- * A tactical hand is dealt as a turn opens, and a card that pays at the end of the
- * phase or turn asks for its points as that moment passes. Both stand between a
- * press of the advance button and the next phase.
- */
+/** The button that ends the current phase or passes the turn. */
 export const advanceButton = (page: Page) => page.getByRole('button', { name: /^(End the .+ phase|Pass the turn)$/ })
 
 /** The hand being dealt: this table's own, or the practice opponent's it is also playing. */
@@ -395,7 +463,7 @@ const drawPrompt = (page: Page) => page.getByRole('dialog', { name: /secondary m
 /** What the turn the other side just finished owed this one, asked as the turn arrives. */
 const owedPrompt = (page: Page) => page.getByRole('dialog', { name: /^Scoring end of (their turn|battle)/ })
 
-export async function dismissBattleReminder(page: Page) {
+async function dismissBattleReminder(page: Page) {
   const reminder = page.getByRole('dialog', { name: /^Battle reminders?$/ })
   if (!(await reminder.isVisible().catch(() => false))) return false
   await reminder.getByRole('button', { name: /^(Dismiss|End the phase|Continue to end of turn)$/ }).click()
@@ -558,6 +626,21 @@ export async function advance(page: Page, { dismissReminders = true }: { dismiss
   }
 }
 
+export const scoreboard = (page: Page) => page.getByRole('region', { name: 'Battle scoreboard' })
+
+/** Concedes the open battle from its options menu, reopening the menu until it shows: a press before hydration opens nothing. */
+export async function concede(page: Page) {
+  const choice = page.getByRole('menuitem', { name: 'Concede battle', exact: true })
+  await retryUntilVisible(choice, () => page.getByRole('button', { name: 'Battle options', exact: true }).click())
+  await choice.click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Concede battle', exact: true }).click()
+}
+
+/** Ends all six phases of the current turn. */
+export async function playTurn(page: Page) {
+  for (let phase = 0; phase < PHASES.length; phase += 1) await advance(page)
+}
+
 export async function startBattle(page: Page, firstSide?: string, takeOpeningTurn = true, openingSecondaries: readonly string[] = []) {
   await chooseBattlefield(page)
   await setupStep(page, 'Secondaries')
@@ -650,6 +733,79 @@ export async function scrollSearchResultIntoView(page: Page, result: Locator) {
   }).toPass({ timeout: 15000 })
 }
 
+/**
+ * Opens a combobox and picks one of its options, reopening it if hydration swallowed the first press. Waits for the
+ * list to close, so a next pick from a list offering the same option cannot land on this one as it leaves.
+ */
+export async function chooseOption(page: Page, control: string, name: string | RegExp) {
+  const option = page.getByRole('option', { name, exact: true })
+  const combobox = page.getByRole('combobox', { name: control, exact: true })
+  // A retry pressing a list that opened late would close it again.
+  await retryUntilVisible(option, async () => {
+    if ((await combobox.getAttribute('aria-expanded')) !== 'true') await combobox.click()
+  })
+  await option.click()
+  await expect(option).toBeHidden()
+}
+
+/** Moves an open roster setup to another rules version on the given detachment, removing whatever that version lacks. */
+export async function chooseRulesVersion(setup: Locator, rules: string, detachment: string) {
+  await chooseOption(setup.page(), 'Rules version', rules)
+  const select = setup.getByRole('button', { name: `Select ${detachment}`, exact: true })
+  await expect(select).toBeVisible()
+  const unavailable = setup.getByRole('button', { name: 'Remove unavailable', exact: true })
+  if (await unavailable.isVisible()) await unavailable.click()
+  if (!(await setup.getByRole('button', { name: `Select ${detachment}`, exact: true, pressed: true }).isVisible())) await select.click()
+  const dispositions = setup.getByRole('group', { name: 'Force disposition' }).getByRole('button')
+  if ((await dispositions.count()) > 1) await dispositions.first().click()
+}
+
+export async function openRosterSetup(page: Page) {
+  await chooseRosterAction(page, 'Edit roster setup')
+  return page.getByRole('dialog', { name: 'Edit roster setup' })
+}
+
+/** Changes who can open the roster and waits until the saved roster says so. */
+export async function setRosterAccess(page: Page, name: string, value: string) {
+  const setup = await openRosterSetup(page)
+  await setup.getByRole('combobox', { name: 'Access' }).click()
+  await page.getByRole('option', { name }).click()
+  await waitForRosterSave(page, () => confirmRosterSetup(setup), `"${value}"`)
+}
+
+export const PHONE = { width: 390, height: 844 }
+
+/** Saves the page at desktop and phone widths, checking neither scrolls sideways. */
+export async function shotAtWidths(page: Page, name: string, { fullPage = false } = {}) {
+  const before = page.viewportSize()!
+  for (const [label, size] of [
+    ['desktop', { width: 1280, height: 900 }],
+    ['phone', PHONE],
+  ] as const) {
+    await page.setViewportSize(size)
+    await expectNoPageOverflow(page)
+    await page.screenshot({ path: test.info().outputPath(`${name}-${label}.png`), fullPage })
+  }
+  await page.setViewportSize(before)
+}
+
+/** The page is no wider than its viewport; a failure shows by how much it overflows. */
+export async function expectNoPageOverflow(page: Page) {
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
+}
+
+/** The smallest Necrons list an event will seal, a Skorpekh Lord as its Warlord, and its roster id. */
+export async function sealableRoster(page: Page, name: string, { size, extraUnit }: { size?: RegExp; extraUnit?: string } = {}) {
+  await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name, size })
+  await addUnit(page, 'Skorpekh Lord')
+  await page.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
+  await makeWarlord(page, 'Skorpekh Lord')
+  if (extraUnit) {
+    await addUnit(page, extraUnit)
+  }
+  return lastPathSegment(page.url())
+}
+
 /** The first eligible character a list adds is its Warlord already, so only another one needs choosing. */
 export async function makeWarlord(page: Page, unit: string) {
   const make = page.getByRole('button', { name: `Make ${unit} Warlord`, exact: true })
@@ -667,6 +823,10 @@ export async function makeWarlord(page: Page, unit: string) {
     .poll(async () => /"toggles":\{[^}]*:1/.test((await product.roster(id))?.picks ?? ''), { message: `${unit} is the saved Warlord` })
     .toBe(true)
 }
+
+/** Waits two frames, long enough for a layout change to paint. */
+export const nextFrames = (page: Page) =>
+  page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
 
 /**
  * Moves the timeline to its first event once the page answers keys.

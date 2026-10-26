@@ -38,13 +38,10 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
     {
       do { try await Task.sleep(for: .milliseconds(100)) } catch { return }
     }
-    let context = session.receivedApplicationContext
     guard !Task.isCancelled, session.activationState == .activated,
-      let snapshot = decodeContext(context)
+      let delivery = decodeContext(session.receivedApplicationContext)
     else { return }
-    receive(
-      snapshot, deliveredAt: context["sentAt"] as? Double ?? 0,
-      notify: false)
+    receive(delivery.snapshot, deliveredAt: delivery.sentAt, notify: false)
   }
 
   func receive(_ string: String, deliveredAt: Double, notify: Bool = true) {
@@ -67,36 +64,37 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
     _ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState,
     error: Error?
   ) {
-    let context = session.receivedApplicationContext
-    let snapshot = decodeContext(context)
-    let deliveredAt = context["sentAt"] as? Double ?? 0
+    let delivery = decodeContext(session.receivedApplicationContext)
     DispatchQueue.main.async { [self] in
       activationFinished = true
       if let error {
         logger.error("Watch activation failed: \(error.localizedDescription, privacy: .public)")
         connectionError = "Open Praetorium on your iPhone to connect."
-      } else if let snapshot {
-        receive(snapshot, deliveredAt: deliveredAt, notify: false)
+      } else if let delivery {
+        receive(delivery.snapshot, deliveredAt: delivery.sentAt, notify: false)
       }
     }
   }
 
   func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any])
   {
-    guard let snapshot = decodeContext(applicationContext) else { return }
-    let deliveredAt = applicationContext["sentAt"] as? Double ?? 0
-    DispatchQueue.main.async { self.receive(snapshot, deliveredAt: deliveredAt) }
+    deliver(applicationContext)
   }
 
   func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
-    guard let snapshot = decodeContext(message) else { return }
-    let deliveredAt = message["sentAt"] as? Double ?? 0
-    DispatchQueue.main.async { self.receive(snapshot, deliveredAt: deliveredAt) }
+    deliver(message)
   }
 
-  private func decodeContext(_ context: [String: Any]) -> String? {
-    guard let data = context["snapshot"] as? Data, data.count <= 48_000 else { return nil }
-    return String(data: data, encoding: .utf8)
+  private func deliver(_ context: [String: Any]) {
+    guard let delivery = decodeContext(context) else { return }
+    DispatchQueue.main.async { self.receive(delivery.snapshot, deliveredAt: delivery.sentAt) }
+  }
+
+  private func decodeContext(_ context: [String: Any]) -> (snapshot: String, sentAt: Double)? {
+    guard let data = context["snapshot"] as? Data, data.count <= BattleSnapshot.maxBytes,
+      let snapshot = String(data: data, encoding: .utf8)
+    else { return nil }
+    return (snapshot, context["sentAt"] as? Double ?? 0)
   }
 
   #if DEBUG

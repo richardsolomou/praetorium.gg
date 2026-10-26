@@ -87,7 +87,7 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
   // A size the rosters set is no filter, since any list may change it.
   const chooserLimit = view.settings.sizeFromRosters ? null : view.settings.limit
   const fits = (roster: { limit: number; waivedRules?: readonly string[] | null }) =>
-    fitsBattleSize({ limit: chooserLimit, teamBattle: team }, { ...roster, waivedRules: roster.waivedRules ?? undefined })
+    fitsBattleSize({ limit: chooserLimit, teamBattle: team }, roster)
   const eligible = saved.filter(fits)
   const lent = (lentQuery.data ?? []).filter(({ summary }) => fits(summary))
   const attach = async (savedRoster: SavedRoster) => {
@@ -123,7 +123,7 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                       <span className="block py-2 text-sm text-dim">No army chosen</span>
                     )}
                     {/* What the army is, named the same way the battle will name it. */}
-                    {army.roster ? <ArmyIdentity army={army} list={false} className="mt-0.5" /> : null}
+                    {army.roster ? <ArmyIdentity army={army} className="mt-0.5" /> : null}
                     {army.roster?.lentBy ? <span className="mt-0.5 block text-xs text-dim">Lent by {army.roster.lentBy.name}</span> : null}
                     {army.roster ? (
                       <span className="mt-0.5 block text-xs text-dim">
@@ -132,11 +132,6 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                           : 'Imported army'}
                       </span>
                     ) : null}
-                    {/*
-                     * The disposition, in the colour the roster builder gave it. It decides the
-                     * mission this side plays, so it belongs beside the army. Allies who have
-                     * settled one card show it once for the side instead of each list's own.
-                     */}
                     {/* Said under every army rather than only under your own: an opponent
                         deciding whether to play this game needs the same fact its owner has. */}
                     <WaiverNote rules={rosterWaivers(army.roster?.built)} className="mt-1" />
@@ -156,8 +151,8 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                       >
                         {army.roster ? 'Change roster' : 'Choose roster'}
                       </Button>
-                      {/* Bringing the wrong list is as easy as bringing the right one, and
-                        swapping it was the only way back. Emptying the seat is the other. */}
+                      {/* Bringing the wrong list is as easy as bringing the right one, so the
+                        seat can be emptied as well as changed. */}
                       {army.roster ? (
                         <Button
                           variant="ghost"

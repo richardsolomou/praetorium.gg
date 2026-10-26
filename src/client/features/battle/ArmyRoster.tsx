@@ -177,7 +177,7 @@ export function ArmyRoster({ army, side, actionable, pending, blocked = false, s
                 {selected ? <span className="min-[860px]:hidden">{selected.name}</span> : null}
               </DialogTitle>
               <DialogDescription render={<div />}>
-                <ArmyIdentity army={army} list={false} leading={army.playerName} className={selected ? 'max-[859px]:hidden' : ''} />
+                <ArmyIdentity army={army} leading={army.playerName} className={selected ? 'max-[859px]:hidden' : ''} />
                 {selected ? <span className="block truncate text-2xs text-dim min-[860px]:hidden">{roster.name}</span> : null}
               </DialogDescription>
             </div>

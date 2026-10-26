@@ -1,29 +1,42 @@
 import { waitForOfflineApp } from './offline'
-import { confirmRosterSetup, retryUntilVisible, visitorSetup } from './account'
+import {
+  confirmRosterSetup,
+  retryUntilVisible,
+  visitorSetup,
+  addUnit,
+  chooseRosterAction,
+  chooseFaction,
+  chooseOption,
+  chooseLibraryAction,
+  chooseRulesVersion,
+  PHONE,
+  desktopContext,
+  signUp,
+  createRoster,
+  waitForRosterSave,
+} from './account'
 import { expect, test, type Locator, type Page } from './test'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
+import { lastPathSegment, productOperator } from './storage'
 
-const desktop = { width: 1440, height: 900 }
 const phone = { width: 390, height: 900 }
 
 test('Custodes codex presentation', async ({ page, context }) => {
   test.setTimeout(240_000)
-  await page.setViewportSize(desktop)
+  await page.setViewportSize(desktopContext.viewport)
   const setup = await visitorSetup(page)
-  await setup.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Adeptus Custodes')
-  await page.getByRole('option', { name: 'Adeptus Custodes', exact: true }).click()
+  await chooseFaction(setup, 'Adeptus Custodes')
   await expect(setup.getByRole('combobox', { name: 'Rules version' })).toHaveCount(0)
   await expectSetup(setup)
   await setup.getByRole('button', { name: 'Select Aquilan Shield', exact: true }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  for (const viewport of [desktop, phone]) {
+  for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)
     if (viewport === phone) await expectSetup(setup)
     await setup.getByRole('combobox', { name: 'Faction' }).scrollIntoViewIfNeeded()
-    await page.screenshot({ path: `test-results/custodes-setup-${viewport.width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`custodes-setup-${viewport.width}.png`) })
   }
-  await page.setViewportSize(desktop)
+  await page.setViewportSize(desktopContext.viewport)
   await setup.getByRole('button', { name: 'Create roster' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
   const builder = page.url()
@@ -41,7 +54,7 @@ test('Custodes codex presentation', async ({ page, context }) => {
   await expect(page.locator('[data-characteristic="OC"] .readout')).toHaveText('3')
   await expectNoHorizontalOverflow(page.locator('body'))
   await page.locator('[data-slot="unit-profile"]').scrollIntoViewIfNeeded()
-  await page.screenshot({ path: `test-results/custodes-loadout-${desktop.width}.png` })
+  await page.screenshot({ path: test.info().outputPath(`custodes-loadout-${desktopContext.viewport.width}.png`) })
 
   await page.setViewportSize(phone)
   await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
@@ -59,9 +72,9 @@ test('Custodes codex presentation', async ({ page, context }) => {
   await expect(page.locator('[data-characteristic="OC"] .readout')).toHaveText('3')
   await expectNoHorizontalOverflow(page.locator('body'))
   await page.locator('[data-slot="unit-profile"]').scrollIntoViewIfNeeded()
-  await page.screenshot({ path: `test-results/custodes-loadout-${phone.width}.png` })
+  await page.screenshot({ path: test.info().outputPath(`custodes-loadout-${phone.width}.png`) })
   await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
-  await page.setViewportSize(desktop)
+  await page.setViewportSize(desktopContext.viewport)
   await expect
     .poll(() => page.evaluate(() => JSON.parse(localStorage.getItem('praetorium.guest-draft') ?? 'null')?.draft.picks[0]?.models))
     .toBe(2)
@@ -71,29 +84,27 @@ test('Custodes codex presentation', async ({ page, context }) => {
   await expect(page.locator('[data-unit="Allarus Custodians"]')).toContainText('1x Vexilla')
   await page.goto('/factions/adeptus-custodes')
   await expect(page).toHaveURL(/\/factions\/adeptus-custodes\/rules\/mfm-1-6$/)
-  for (const viewport of [desktop, phone]) {
+  for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)
     await expect(page.getByRole('combobox', { name: 'Rules version' })).toHaveText('Current MFM 1.6')
     await expect(page.locator('[data-faction-mark]')).toHaveCSS('background-color', 'rgb(191, 155, 48)')
     await expect(page.locator('main header [data-rules-version]')).toHaveCount(0)
-    await page.screenshot({ path: `test-results/custodes-reference-${viewport.width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`custodes-reference-${viewport.width}.png`) })
   }
-  await page.setViewportSize(desktop)
-  await page.getByRole('combobox', { name: 'Rules version' }).click()
-  await page.getByRole('option', { name: 'MFM 1.5 · Archived', exact: true }).click()
+  await page.setViewportSize(desktopContext.viewport)
+  await chooseOption(page, 'Rules version', 'MFM 1.5 · Archived')
   await expect(page).toHaveURL(/\/factions\/adeptus-custodes\/rules\/space-marines-points-2026-10-13$/)
-  await page.getByRole('combobox', { name: 'Rules version' }).click()
-  await page.getByRole('option', { name: 'Custodes codex · 17 Oct 2026 · Archived', exact: true }).click()
+  await chooseOption(page, 'Rules version', 'Custodes codex · 17 Oct 2026 · Archived')
   await expect(page).toHaveURL(/\/factions\/adeptus-custodes\/rules\/custodes-codex-2026-10-17$/)
   await page.goto('/factions/adeptus-custodes/rules/mfm-1-6/datasheets/allarus-custodians')
-  for (const viewport of [desktop, phone]) {
+  for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)
     await expect(page.locator('[data-rules-version]')).toHaveCount(0)
     await expect(page.locator('[data-faction-mark]')).toHaveCSS('background-color', 'rgb(191, 155, 48)')
     await expectNoHorizontalOverflow(page.locator('body'))
-    await page.screenshot({ path: `test-results/custodes-datasheet-${viewport.width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`custodes-datasheet-${viewport.width}.png`) })
   }
-  await page.setViewportSize(desktop)
+  await page.setViewportSize(desktopContext.viewport)
   await waitForOfflineApp(page)
   await context.setOffline(true)
   await page.goto(builder)
@@ -126,27 +137,17 @@ async function expectLoadout(page: Page) {
 }
 
 test('converts the saved roster in place and restores its current choices', async ({ page }) => {
-  const { signUp, createRoster, waitForRosterSave } = await import('./account')
-  const { productOperator } = await import('./storage')
   await signUp(page, 'Rules conversion')
   await createRoster(page, { faction: 'Adeptus Custodes', detachment: /Aquilan Shield/, name: 'Conversion roster' })
-  const id = new URL(page.url()).pathname.split('/').at(-1)!
+  const id = lastPathSegment(page.url())
   const operator = await productOperator()
   async function destination(label: string, detachment: string) {
     const dialog = page.getByRole('dialog', { name: 'Edit roster setup' })
-    await dialog.getByRole('combobox', { name: 'Rules version' }).click()
-    await page.getByRole('option', { name: label, exact: true }).click()
-    await expect(dialog.getByRole('button', { name: `Select ${detachment}`, exact: true })).toBeVisible()
-    const unavailable = dialog.getByRole('button', { name: 'Remove unavailable', exact: true })
-    if (await unavailable.isVisible()) await unavailable.click()
-    const chosen = dialog.getByRole('button', { name: `Select ${detachment}`, exact: true, pressed: true })
-    if (!(await chosen.isVisible())) await dialog.getByRole('button', { name: `Select ${detachment}`, exact: true }).click()
-    const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
-    if ((await dispositions.count()) > 1) await dispositions.first().click()
+    await chooseRulesVersion(dialog, label, detachment)
     await expect(dialog.getByRole('button', { name: 'Review changes', exact: true })).toBeEnabled()
     return dialog
   }
-  await waitForRosterSave(page, () => add(page, 'Allarus Custodians'))
+  await addUnit(page, 'Allarus Custodians')
   await page.getByRole('button', { name: 'Allarus Custodians', exact: true }).click()
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'More Castellan Axe', exact: true }).click())
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'More Castellan Axe', exact: true }).click())
@@ -156,21 +157,20 @@ test('converts the saved roster in place and restores its current choices', asyn
   const row = page.locator('[data-roster="Conversion roster"]')
   await expect(row).toContainText('180/2000')
   await expect(row.locator('[data-rules-version]')).toHaveCount(0)
-  await row.getByRole('button', { name: 'Actions for Conversion roster', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup', exact: true }).click()
+  await chooseLibraryAction(page, 'Conversion roster', 'Edit roster setup')
   const versions = page.getByRole('dialog', { name: 'Edit roster setup' }).getByRole('combobox', { name: 'Rules version' })
   await versions.click()
   await expect(page.getByRole('option', { name: 'MFM 1.5 · Archived', exact: true })).toBeVisible()
   // The preview folded into the codex, so a roster saved on it would read as current rules.
   await expect(page.getByRole('option', { name: 'Custodes codex · 17 Oct 2026 · Archived', exact: true })).toHaveCount(0)
   await versions.click()
+  await expect(page.getByRole('option')).toHaveCount(0)
   let dialog = await destination('MFM 1.5 · Archived', 'Shield Host')
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
   expect((await operator.roster(id))?.catalogueId).toBe(original.catalogueId)
-  await row.getByRole('button', { name: 'Actions for Conversion roster', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup', exact: true }).click()
+  await chooseLibraryAction(page, 'Conversion roster', 'Edit roster setup')
   dialog = await destination('MFM 1.5 · Archived', 'Shield Host')
-  await dialog.screenshot({ path: 'test-results/custodes-convert-dialog.png' })
+  await dialog.screenshot({ path: test.info().outputPath('custodes-convert-dialog.png') })
   await confirmRosterSetup(dialog)
   await expect.poll(async () => (await operator.roster(id))?.catalogueId).toContain('marine-points-1013~')
   const converted = (await operator.roster(id))!
@@ -186,8 +186,7 @@ test('converts the saved roster in place and restores its current choices', asyn
   await page.goto(`/rosters/${id}`)
   await expect(page.getByLabel('List name')).toHaveValue('Conversion roster')
   await expect(page.locator('[data-rules-version]')).toHaveAttribute('aria-label', 'Rules version: MFM 1.5 · Archived')
-  await page.getByRole('button', { name: 'Roster actions', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup', exact: true }).click()
+  await chooseRosterAction(page, 'Edit roster setup')
   dialog = await destination('MFM 1.6 · Current', 'Aquilan Shield')
   await confirmRosterSetup(dialog)
   await expect(dialog).not.toBeVisible()
@@ -199,11 +198,11 @@ test('converts the saved roster in place and restores its current choices', asyn
   await page.getByRole('button', { name: 'Allarus Custodians', exact: true }).click()
   await expect(page.locator('[data-characteristic="OC"] .readout')).toHaveText('3')
   await expect(page.getByText('Invulnerable save', { exact: true })).toBeVisible()
-  await page.screenshot({ path: 'test-results/custodes-converted-roster.png' })
+  await page.screenshot({ path: test.info().outputPath('custodes-converted-roster.png') })
 })
 
 test('faction index cards and logo tooltips work with touch', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+  const context = await browser.newContext({ viewport: PHONE, isMobile: true, hasTouch: true })
   const page = await context.newPage()
   await page.goto('/factions')
   const row = page.locator('[data-faction="Adeptus Custodes"]')
@@ -212,13 +211,13 @@ test('faction index cards and logo tooltips work with touch', async ({ browser }
   await row.getByRole('link').first().tap()
   await expect(page).toHaveURL(/\/factions\/adeptus-custodes\/rules\/mfm-1-6$/)
   await retryUntilVisible(page.getByRole('option').first(), () => page.getByRole('combobox', { name: 'Rules version' }).tap())
-  await page.screenshot({ path: 'test-results/custodes-faction-versions-phone.png' })
+  await page.screenshot({ path: test.info().outputPath('custodes-faction-versions-phone.png') })
   await page.getByRole('option', { name: /Custodes codex · 17 Oct 2026/ }).tap()
   await expect(page).toHaveURL(/\/factions\/adeptus-custodes\/rules\/custodes-codex-2026-10-17$/)
   await page.locator('[data-rules-version]').tap()
   await expect(page.getByRole('tooltip')).toContainText('Archived Custodes codex · 17 Oct 2026')
   await expect(page.getByRole('tooltip').locator('[data-rules-status="archived"]')).toHaveCSS('width', '72px')
-  await page.screenshot({ path: 'test-results/custodes-touch-tooltip.png' })
+  await page.screenshot({ path: test.info().outputPath('custodes-touch-tooltip.png') })
   await expectNoHorizontalOverflow(page.locator('body'))
   await page.goto('/factions/adeptus-custodes/rules/unknown-version')
   await expect(page.getByRole('heading', { name: 'Nothing here', exact: true })).toBeVisible()

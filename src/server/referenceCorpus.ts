@@ -99,12 +99,7 @@ function missionDocuments(
   const metadata = {
     kind: 'mission' as const,
     faction: null,
-    revisions: Object.fromEntries(
-      [
-        ['rules', revisions.rules],
-        ['datacards', revisions.datacards],
-      ].filter((entry): entry is [string, string] => Boolean(entry[1])),
-    ),
+    revisions: missionRevisions(revisions),
     attribution: [RULES_DATA_ATTRIBUTION, DATACARDS_ATTRIBUTION],
   }
   const matrix = section(
@@ -231,13 +226,7 @@ function terrainDocuments(
       title: layout.name,
       faction: null,
       url,
-      revisions: Object.fromEntries(
-        [
-          ['rules', revisions.rules],
-          ['datacards', revisions.datacards],
-          ['battlemaster', revisions.battlemaster],
-        ].filter((entry): entry is [string, string] => Boolean(entry[1])),
-      ),
+      revisions: definedRevisions({ rules: revisions.rules, datacards: revisions.datacards, battlemaster: revisions.battlemaster }),
       attribution: [RULES_DATA_ATTRIBUTION, ...(layout.geometry ? ['Terrain geometry provided by Battlemaster'] : [])],
       sections: present([
         section(files, url.split('#')[0]!, `terrain-${layout.id}`, layout.name, [
@@ -256,12 +245,12 @@ function terrainDocuments(
 }
 
 function missionRevisions(revisions: CanonicalCatalogue['revisions']) {
-  return Object.fromEntries(
-    [
-      ['rules', revisions.rules],
-      ['datacards', revisions.datacards],
-    ].filter((entry): entry is [string, string] => Boolean(entry[1])),
-  )
+  return definedRevisions({ rules: revisions.rules, datacards: revisions.datacards })
+}
+
+/** The sources that pinned a revision, in the order given. */
+function definedRevisions(revisions: Record<string, string | undefined>) {
+  return Object.fromEntries(Object.entries(revisions).filter((entry): entry is [string, string] => Boolean(entry[1])))
 }
 
 function matchupFor(references: GameReferences, matchupId: string) {
@@ -462,13 +451,11 @@ function datasheetDocument(files: TextLocations, sheet: CanonicalDatasheet, fact
 }
 
 function revisionsForDatasheet(sheet: CanonicalDatasheet) {
-  return Object.fromEntries(
-    [
-      ['definitions', sheet.provenance.definitions.revision],
-      ['datacards', sheet.provenance.datacards?.revision],
-      ['rules', sheet.provenance.rules?.revision],
-    ].filter((entry): entry is [string, string] => Boolean(entry[1])),
-  )
+  return definedRevisions({
+    definitions: sheet.provenance.definitions.revision,
+    datacards: sheet.provenance.datacards?.revision,
+    rules: sheet.provenance.rules?.revision,
+  })
 }
 
 function detachmentDocument(

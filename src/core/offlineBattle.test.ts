@@ -1,6 +1,7 @@
 import { expect, it } from 'vitest'
 import { ALICE, BOB, log, started, turns } from './battle.fixtures'
-import { appendLocalCommand, localBattleState, localBattleView, resolveLocalDraw, visibleBattleLog } from './offlineBattle'
+import { battleView } from './battleView'
+import { appendLocalCommand, localBattleState, resolveLocalDraw, visibleBattleLog } from './offlineBattle'
 import type { Command } from './battle'
 
 const players = [
@@ -46,7 +47,9 @@ it('keeps later revealed secrets hidden in an earlier replay frame', () => {
     { kind: 'reveal-secret' },
   ])
   const saved = visibleBattleLog(players, history, BOB)
-  expect(localBattleView({ token: 'battle' }, players, saved.slice(0, 4), BOB).players[0]?.secondaries[0]?.name).toBe('Secret mission')
+  expect(battleView({ token: 'battle' }, players, localBattleState(players, saved.slice(0, 4)), BOB).players[0]?.secondaries[0]?.name).toBe(
+    'Secret mission',
+  )
 })
 it('strips personal roster reminders from another player’s downloaded log', () => {
   const history = log([
@@ -139,7 +142,9 @@ it('keeps the practice side’s remaining deck usable without naming its face-do
     [BOB, { kind: 'select-secret', secondary: secret }],
   )
   const saved = visibleBattleLog(practice, history, ALICE)
-  expect(localBattleView({ token: 'battle' }, practice, saved, ALICE).players[1]?.remainingSecondaries).toEqual([remaining])
+  expect(battleView({ token: 'battle' }, practice, localBattleState(practice, saved), ALICE).players[1]?.remainingSecondaries).toEqual([
+    remaining,
+  ])
 })
 it('preserves a teammate’s private deck for the shared side', () => {
   const team = players.map((player) => ({ ...player, side: 0 }))

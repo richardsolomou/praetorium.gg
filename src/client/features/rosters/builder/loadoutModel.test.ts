@@ -19,17 +19,15 @@ import {
   relativeSpread,
   orderedChoices,
   replacementChoice,
-  sameWeapon,
-  showLoadoutEntry,
   spreadHandlers,
   uniqueWeaponProfiles,
   unmodeledGrantedWeapons,
-  weaponMatches,
+  optionNameMatches,
   weaponProfilesFor,
-  wargearMatches,
   wholeSquadTakes,
   withDraftSpreadCounts,
 } from './loadoutModel'
+import { sameWargear } from '../../../../core/wargear'
 
 const option = (id: string, count: number, max: number) => ({ id, name: id, points: 0, count, min: 0, max })
 
@@ -133,17 +131,6 @@ describe('loadout instructions', () => {
   })
 })
 
-describe('showing loadout entries', () => {
-  it('hides empty wargear from a finished roster', () => {
-    expect(showLoadoutEntry(0, false)).toBe(false)
-    expect(showLoadoutEntry(2, false)).toBe(true)
-  })
-
-  it('keeps empty wargear available while editing', () => {
-    expect(showLoadoutEntry(0, true)).toBe(true)
-  })
-})
-
 it('does not remove a mandatory copy while allowing an additional copy', () => {
   const gauntlet = { ...option('gauntlet', 1, 2), min: 1 }
   const handlers = spreadHandlers(choice([gauntlet], 2))
@@ -167,52 +154,52 @@ it('keeps only spread groups changed since the evaluated result', () => {
 
 describe('matching a wargear name to what describes it', () => {
   it('reads a parenthesised mode as the same weapon', () => {
-    expect(sameWeapon('Staff of light', 'Staff of light (Melee)')).toBe(true)
-    expect(sameWeapon('Staff of light (Ranged)', 'Staff of light (Melee)')).toBe(true)
+    expect(sameWargear('Staff of light', 'Staff of light (Melee)')).toBe(true)
+    expect(sameWargear('Staff of light (Ranged)', 'Staff of light (Melee)')).toBe(true)
   })
 
   it.each([
     ['➤ Bellicatus missile array - Frag', 'Bellicatus missile array (Icarus)'],
     ['➤ Plasma pistol - Supercharge', 'Plasma pistol (Standard)'],
   ])('reads marked and parenthesised modes as the same weapon', (marked, parenthesised) => {
-    expect(sameWeapon(marked, parenthesised)).toBe(true)
+    expect(sameWargear(marked, parenthesised)).toBe(true)
   })
 
   it('keeps two different weapons apart', () => {
-    expect(sameWeapon('Gauss flayer', 'Gauss reaper')).toBe(false)
+    expect(sameWargear('Gauss flayer', 'Gauss reaper')).toBe(false)
   })
 
   it('matches straight and curly apostrophes', () => {
-    expect(sameWeapon("Dragon's Breath Flamer", 'Dragon’s breath flamer')).toBe(true)
+    expect(sameWargear("Dragon's Breath Flamer", 'Dragon’s breath flamer')).toBe(true)
   })
 
   it('keeps marked profiles of different weapons apart', () => {
-    expect(sameWeapon('➤ Bellicatus missile array - Frag', 'Multi-melta (Melta)')).toBe(false)
+    expect(sameWargear('➤ Bellicatus missile array - Frag', 'Multi-melta (Melta)')).toBe(false)
   })
 
   it('matches a profile named after the option, with or without a mode', () => {
-    expect(weaponMatches('Bolt rifle', 'Bolt rifle')).toBe(true)
-    expect(weaponMatches('Bolt rifle', 'Bolt rifle (Heavy)')).toBe(true)
-    expect(weaponMatches('Bolt rifle', 'Bolt pistol')).toBe(false)
+    expect(optionNameMatches('Bolt rifle', 'Bolt rifle')).toBe(true)
+    expect(optionNameMatches('Bolt rifle', 'Bolt rifle (Heavy)')).toBe(true)
+    expect(optionNameMatches('Bolt rifle', 'Bolt pistol')).toBe(false)
   })
 
   it('matches a profile the option pairs with something else', () => {
-    expect(weaponMatches('Chainsword and bolt pistol', 'Chainsword')).toBe(true)
+    expect(optionNameMatches('Chainsword and bolt pistol', 'Chainsword')).toBe(true)
   })
 
   it('matches spacing differences between an option and its profile', () => {
-    expect(weaponMatches('Veteran w/ Black Shield blades', 'Blackshield blades')).toBe(true)
+    expect(optionNameMatches('Veteran w/ Black Shield blades', 'Blackshield blades')).toBe(true)
   })
 
   it('matches a marked, hyphen-separated mode such as a missile launcher prints', () => {
-    expect(weaponMatches('Missile Launcher', '➤ Missile Launcher - Frag')).toBe(true)
-    expect(weaponMatches('Missile Launcher', '➤ Missile Launcher - Krak')).toBe(true)
-    expect(weaponMatches('Missile Launcher', '➤ Multi-melta - Melta')).toBe(false)
+    expect(optionNameMatches('Missile Launcher', '➤ Missile Launcher - Frag')).toBe(true)
+    expect(optionNameMatches('Missile Launcher', '➤ Missile Launcher - Krak')).toBe(true)
+    expect(optionNameMatches('Missile Launcher', '➤ Multi-melta - Melta')).toBe(false)
   })
 
   it('matches marked modes of one weapon in a combined option', () => {
-    expect(weaponMatches('Cyclone Missile Launcher & Storm Bolter', '➤ Cyclone missile launcher - frag')).toBe(true)
-    expect(weaponMatches('Cyclone Missile Launcher & Storm Bolter', '➤ Cyclone missile launcher - krak')).toBe(true)
+    expect(optionNameMatches('Cyclone Missile Launcher & Storm Bolter', '➤ Cyclone missile launcher - frag')).toBe(true)
+    expect(optionNameMatches('Cyclone Missile Launcher & Storm Bolter', '➤ Cyclone missile launcher - krak')).toBe(true)
   })
 
   it('finds the selected weapons nested inside a composite option', () => {
@@ -280,12 +267,6 @@ describe('matching a wargear name to what describes it', () => {
         weapon('Cannon', 'Ranged Weapons'),
       ]).map((profile) => profile.name),
     ).toEqual(['Cannon', 'Fist', 'Projector'])
-  })
-
-  it('matches a rule the same way a profile is matched', () => {
-    expect(wargearMatches('Storm shield', 'Storm shield')).toBe(true)
-    expect(wargearMatches('Storm shield and thunder hammer', 'Storm shield')).toBe(true)
-    expect(wargearMatches('Storm shield', 'Iron halo')).toBe(false)
   })
 
   it('collapses equivalent profiles whose names differ only in presentation', () => {

@@ -28,13 +28,8 @@ export type SwissRow = {
 
 /** More rounds than this would outlast any event a group runs in a day or a weekend. */
 export const SWISS_ROUNDS_MAX = 12
-export const SWISS_WIN = 3
-export const SWISS_DRAW = 1
-
-/** Rounds enough for one undefeated player to stand alone, which is how many a Swiss event usually plays. */
-export function suggestedSwissRounds(players: number) {
-  return Math.max(1, Math.ceil(Math.log2(Math.max(players, 2))))
-}
+const SWISS_WIN = 3
+const SWISS_DRAW = 1
 
 export function swissStandings(players: readonly string[], matches: readonly SwissMatch[]): SwissRow[] {
   const rows = new Map(
@@ -96,7 +91,7 @@ export function swissPairings(players: readonly string[], matches: readonly Swis
   const byes = new Set(matches.filter((match) => match.b === null).map((match) => match.a))
   let bye: string | null = null
   if (order.length % 2) {
-    bye = order.toReversed().find((id) => !byes.has(id)) ?? order.at(-1)!
+    bye = order.findLast((id) => !byes.has(id)) ?? order.at(-1)!
     order.splice(order.indexOf(bye), 1)
   }
   const met = new Set(matches.flatMap((match) => (match.b === null ? [] : [pairKey(match.a, match.b)])))

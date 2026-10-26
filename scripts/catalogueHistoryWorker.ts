@@ -11,11 +11,14 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import type { ChangeSource } from '../src/core/catalogueChanges'
+import { boundedBytes } from '../src/server/boundedBody'
+import { MAX_ARCHIVE_BYTES } from '../src/server/catalogueArchive'
 import { historicalSnapshotSources, installSnapshotArchive, type SnapshotPointer } from '../src/server/catalogueSnapshot'
 import { isSnapshotSourceName, type SnapshotSourceName } from '../src/server/catalogueSources'
 import { fetchCatalogueObject } from '../src/server/catalogueStore'
 import { extractSourceArchive } from '../src/server/sync'
-import { compiledChangeSource } from './lib/catalogueHistoryCompile'
+import { compiledChangeSource, knownRevisions } from './lib/catalogueHistoryCompile'
+import { errorText } from './lib/errorText'
 
 export type WorkerTask =
   | { kind: 'directory'; directory: string; sources: SnapshotSourceName[] }
@@ -29,20 +32,12 @@ export type WorkerTask =
 
 export type WorkerResult = { ok: true; source: ChangeSource | null; revisions: Record<string, string> } | { ok: false; reason: string }
 
-/** The revisions a snapshot says it holds, without any source this code no longer has. */
-const knownRevisions = (directory: string): Record<string, string> =>
-  Object.fromEntries(
-    Object.entries(JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')) as Record<string, string>).filter(([name]) =>
-      isSnapshotSourceName(name),
-    ),
-  )
-
 async function published(task: Extract<WorkerTask, { kind: 'published' }>, work: string): Promise<WorkerResult> {
   const archive = path.join(work, 'snapshot.zip')
   const directory = path.join(work, 'catalogue')
   const response = await fetchCatalogueObject(`${task.base}/snapshots/${task.id}.zip`)
   if (!response.ok) return { ok: false, reason: `snapshot answered ${response.status}` }
-  const bytes = new Uint8Array(await response.arrayBuffer())
+  const bytes = await boundedBytes(response, MAX_ARCHIVE_BYTES, 'snapshot is too large')
   fs.writeFileSync(archive, bytes)
   // The listing carries no archive checksum; the id is the manifest's hash and the manifest
   // hashes every file, so those still verify what is inside.
@@ -82,7 +77,7 @@ process.on('message', (task: WorkerTask) => {
       if (task.kind === 'directory') return { ok: true, source: compiledChangeSource(task.directory, task.sources), revisions: {} }
       return task.kind === 'published' ? await published(task, work) : upstream(task, work)
     } catch (error) {
-      return { ok: false, reason: error instanceof Error ? error.message : String(error) }
+      return { ok: false, reason: errorText(error) }
     } finally {
       fs.rmSync(work, { recursive: true, force: true })
     }

@@ -6,10 +6,31 @@ import {
   datasheetSlugQuery,
   detachmentDetailQuery,
   favouriteDetachmentsQuery,
+  favouriteFactionsQuery,
   loadReferenceFaction,
   referenceChangesQuery,
   factionDatasheetsQuery,
 } from '../../../queries'
+
+export async function loadFactionPage(queryClient: QueryClient, catalogueId: string, rules?: string) {
+  const [faction] = await Promise.all([
+    loadReferenceFaction(queryClient, catalogueId, rules),
+    queryClient.query({ ...favouriteFactionsQuery(), staleTime: 'static' }),
+    queryClient.query({ ...favouriteDetachmentsQuery(), staleTime: 'static' }),
+  ])
+  if (!faction) throw notFound()
+  return faction
+}
+
+export function factionPageHead(faction: Awaited<ReturnType<typeof loadFactionPage>> | undefined, origin: string) {
+  return faction
+    ? pageHead(origin, {
+        title: faction.displayName,
+        description: `${faction.displayName} army rules, detachments, datasheets, loadouts and points.`,
+        path: factionReferenceHref(faction),
+      })
+    : {}
+}
 
 export async function loadFactionDatasheets(queryClient: QueryClient, catalogueId: string, rules?: string) {
   const faction = await loadReferenceFaction(queryClient, catalogueId, rules)

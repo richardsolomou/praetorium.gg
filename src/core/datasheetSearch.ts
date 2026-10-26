@@ -1,7 +1,7 @@
 import { distance } from 'fastest-levenshtein'
-import { plainQuotes } from './text'
+import { foldedText } from './text'
 import { wargearKey } from './wargear'
-import { uniqueBy } from './collections'
+import { uniqueBy, remember } from './collections'
 
 /**
  * One entry per weapon, keyed by base name so firing modes (`- Standard`) and
@@ -236,14 +236,11 @@ const wordText = (values: readonly string[]) => ` ${[...new Set(values.flatMap((
  * substring search before their fields are ranked; `own` leaves out what its abilities say.
  */
 function searchableText(fields: DatasheetSearchFields) {
-  let text = searchableTextCache.get(fields)
-  if (text === undefined) {
+  return remember(searchableTextCache, fields, () => {
     const own = [fields.name, ...METADATA.flatMap(({ field }) => fields[field])]
     const effects = (fields.abilityDescriptions ?? []).map(({ name, description }) => `${name} ${description}`)
-    text = { all: wordText([...own, ...effects]), own: wordText(own) }
-    searchableTextCache.set(fields, text)
-  }
-  return text
+    return { all: wordText([...own, ...effects]), own: wordText(own) }
+  })
 }
 
 /**
@@ -270,8 +267,7 @@ function indexed(value: string) {
 }
 
 const normalize = (value: string) =>
-  plainQuotes(value.normalize('NFKD').replaceAll(/\p{M}/gu, ''))
-    .toLocaleLowerCase()
+  foldedText(value)
     .replaceAll(/\b(\d+)\s*(?:cp|command points?)\b/g, '$1 cp')
     .replaceAll(/[^\p{L}\p{N}]+/gu, ' ')
     .replaceAll(/\badvance\s+and\s+charge\b/g, 'advance charge')

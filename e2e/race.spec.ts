@@ -1,5 +1,6 @@
 import { expect, test, type Page } from './test'
 import { createRoster, setupBattle, signUp, takeTheTurn, uniqueName } from './account'
+import { lastPathSegment } from './storage'
 
 test('a player tapping twice in a row does not lose the race to themselves', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
@@ -14,7 +15,7 @@ test('a player tapping twice in a row does not lose the race to themselves', asy
   const link = await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
 
   await takeTheTurn(alice)
-  await slowRefetch(alice, token(link))
+  await slowRefetch(alice, lastPathSegment(link))
   const panel = alice.locator('[data-panel="player"]').filter({ hasText: 'Necrons' })
   const score = panel.getByRole('button', { name: '+1 CP' })
   await score.dblclick()
@@ -27,10 +28,6 @@ test('a player tapping twice in a row does not lose the race to themselves', asy
   await expect(alice.getByText('only the last action can be undone')).toBeHidden()
   await expect(cp).toHaveText('1')
 })
-
-function token(link: string) {
-  return link.slice(link.lastIndexOf('/') + 1)
-}
 
 async function slowRefetch(page: Page, battleToken: string) {
   await page.route('**/_serverFn/**', async (route) => {

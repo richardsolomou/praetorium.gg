@@ -1,11 +1,11 @@
-import { expect, test, type Page } from './test'
-import { advance, createRoster, setupBattle, signUp, uniqueName } from './account'
+import { expect, test } from './test'
+import { createRoster, setupBattle, signUp, uniqueName, playTurn, PHONE, scoreboard } from './account'
 import { battleLog } from './storage'
 
 test('two phones finish a five-round battle in step', async ({ browser }) => {
   test.setTimeout(300_000)
-  const aliceContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
-  const bobContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const aliceContext = await browser.newContext({ viewport: PHONE })
+  const bobContext = await browser.newContext({ viewport: PHONE })
   const alice = await aliceContext.newPage()
   const bob = await bobContext.newPage()
   const aliceName = uniqueName('Alice')
@@ -49,13 +49,3 @@ test('two phones finish a five-round battle in step', async ({ browser }) => {
   await expect(alice.getByRole('button', { name: 'Battle options', includeHidden: true })).toHaveCount(0)
   await Promise.all([aliceContext.close(), bobContext.close()])
 })
-
-function scoreboard(page: Page) {
-  return page.getByRole('region', { name: 'Battle scoreboard' })
-}
-
-async function playTurn(page: Page, phase = 0): Promise<void> {
-  if (phase === 6) return
-  await advance(page)
-  await playTurn(page, phase + 1)
-}

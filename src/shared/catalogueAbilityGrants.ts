@@ -274,3 +274,9 @@ export const titleCaseAbility = (name: string) =>
     .trim()
     .toLowerCase()
     .replaceAll(/(^|[\s-])\p{L}/gu, (letter) => letter.toUpperCase())
+
+/** The weapon profiles a granted ability reaches: those of the kind it names, or both kinds when it names neither. */
+export function weaponProfileTypes(kind: string | undefined): string[] {
+  const named = kind?.toLowerCase()
+  return named === 'ranged' ? ['Ranged Weapons'] : named === 'melee' ? ['Melee Weapons'] : ['Ranged Weapons', 'Melee Weapons']
+}

@@ -16,7 +16,8 @@ import os from 'node:os'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 import { type ChangeSource, catalogueChanges } from '../src/core/catalogueChanges'
-import { appendHistory, CATALOGUE_HISTORY_FORMAT, type CatalogueHistoryEntry } from '../src/core/catalogueHistory'
+import { appendHistory, type CatalogueHistoryEntry } from '../src/core/catalogueHistory'
+import { writeCatalogueHistory } from '../src/server/catalogueHistory'
 import { CANONICAL_CATALOGUE_SOURCE_NAMES } from '../src/server/canonicalCatalogueSources'
 import { catalogueBaseUrl, remoteRevocations } from '../src/server/catalogueSnapshot'
 import { catalogueSourcesSchema } from '../src/server/catalogueSources'
@@ -32,10 +33,10 @@ import {
   upstreamId,
 } from './lib/catalogueHistoryPlan'
 import type { WorkerResult, WorkerTask } from './catalogueHistoryWorker'
+import { userCacheRoot } from './lib/catalogueCache'
 
 const root = path.join(import.meta.dirname, '..')
 const { values } = parseArgs({
-  args: process.argv.slice(2).filter((arg) => arg !== '--'),
   options: {
     out: { type: 'string' },
     workers: { type: 'string' },
@@ -50,9 +51,7 @@ const upstreamFrom = values['upstream-from']
 const withUpstream = !values['no-upstream']
 // Each compile holds a whole catalogue, so memory bounds the pool as well as the cores do.
 const workers = Number(values.workers ?? Math.max(1, Math.min(os.cpus().length - 2, Math.floor(os.totalmem() / (3 * 1024 ** 3)))))
-const clonesRoot = path.resolve(
-  values.clones ?? path.join(process.env.XDG_CACHE_HOME?.trim() || path.join(os.homedir(), '.cache'), 'praetorium', 'upstream'),
-)
+const clonesRoot = path.resolve(values.clones ?? path.join(userCacheRoot(), 'upstream'))
 
 const started = performance.now()
 const base = catalogueBaseUrl()
@@ -219,7 +218,7 @@ const { skipped } = await compareInOrder(
 )
 for (const worker of idle) worker.kill()
 for (const { point, reason } of skipped) console.log(`skipped ${point.label}: ${reason}`)
-fs.writeFileSync(out, `${JSON.stringify({ format: CATALOGUE_HISTORY_FORMAT, entries: history })}\n`)
+writeCatalogueHistory(out, history)
 console.log(
   `${history.length} change sets, ${skipped.length} of ${points.length} points skipped, ${out} ${fs.statSync(out).size} bytes, ${Math.round((performance.now() - started) / 1000)}s`,
 )

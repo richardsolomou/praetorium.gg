@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { attachRoster, chooseRosterAction, createBattle, PRACTICE_OPPONENT, savedArmy, setupStep, waitForRosterSave } from './account'
+import { savedArmy, setupStep, waitForRosterSave, openRosterSetup, practiceBattle, desktopContext } from './account'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
 async function openArmy(page: Page, name: string) {
@@ -9,13 +9,8 @@ async function openArmy(page: Page, name: string) {
   return army
 }
 
-async function openSetup(page: Page) {
-  await chooseRosterAction(page, 'Edit roster setup')
-  return page.getByRole('dialog', { name: 'Edit roster setup' })
-}
-
 async function setBudget(page: Page, budget: string) {
-  const setup = await openSetup(page)
+  const setup = await openRosterSetup(page)
   await setup.getByLabel('Points limit').fill(budget)
   await setup.getByRole('button', { name: 'Review changes' }).click()
   const review = page.getByRole('dialog', { name: 'Review roster changes' })
@@ -23,24 +18,31 @@ async function setBudget(page: Page, budget: string) {
   return review
 }
 
-const desktop = { width: 1440, height: 900 }
 const phone = { width: 390, height: 900 }
+
+/** Runs the checks at desktop and then phone width, and leaves the page at desktop. */
+async function atEachWidth(page: Page, check: (width: number) => Promise<void>) {
+  for (const viewport of [desktopContext.viewport, phone]) {
+    await page.setViewportSize(viewport)
+    await check(viewport.width)
+  }
+  await page.setViewportSize(desktopContext.viewport)
+}
 
 test('a custom points budget is validated, enforced, saved and fielded', async ({ page }) => {
   test.setTimeout(180_000)
-  await page.setViewportSize(desktop)
+  await page.setViewportSize(desktopContext.viewport)
   const name = 'Budget army'
   const { id, operator } = await openArmy(page, name)
   const points = page.locator('[data-stat="points"]')
   await expect(points).toContainText('/2000')
 
-  const setup = await openSetup(page)
+  const setup = await openRosterSetup(page)
   // The size's own points show as the box's placeholder, so an empty box plays the full size.
   const budget = setup.getByLabel('Points limit')
   await expect(budget).toHaveValue('')
   await expect(budget).toHaveAttribute('placeholder', '2000')
-  for (const viewport of [desktop, phone]) {
-    await page.setViewportSize(viewport)
+  await atEachWidth(page, async (width) => {
     for (const [typed, problem] of [
       ['abc', 'Enter a whole number of points.'],
       ['1500.5', 'Enter a whole number of points.'],
@@ -53,39 +55,32 @@ test('a custom points budget is validated, enforced, saved and fielded', async (
     }
     await budget.fill('1000')
     await expect(setup.getByRole('alert')).toHaveCount(0)
-    await setup.screenshot({ path: test.info().outputPath(`budget-setup-${viewport.width}.png`) })
-  }
-  await page.setViewportSize(desktop)
+    await setup.screenshot({ path: test.info().outputPath(`budget-setup-${width}.png`) })
+  })
   await setup.getByRole('button', { name: 'Cancel', exact: true }).click()
 
   let review = await setBudget(page, '1000')
-  for (const viewport of [desktop, phone]) {
-    await page.setViewportSize(viewport)
+  await atEachWidth(page, async (width) => {
     await expect(review.getByRole('region', { name: 'Setup changes' })).not.toContainText('Battle size')
     await expect(review).toContainText('2000 → 1000')
     await expect(review).toContainText('Over budget by')
     await expect(review).not.toContainText('Removed:')
     await expect(review).not.toContainText('may cost at most')
     await expectNoHorizontalOverflow(review)
-    await review.screenshot({ path: test.info().outputPath(`budget-review-${viewport.width}.png`) })
-  }
-  await page.setViewportSize(desktop)
+    await review.screenshot({ path: test.info().outputPath(`budget-review-${width}.png`) })
+  })
   await waitForRosterSave(page, () => review.getByRole('button', { name: 'Confirm changes' }).click())
-  for (const viewport of [desktop, phone]) {
-    await page.setViewportSize(viewport)
+  await atEachWidth(page, async (width) => {
     await expect(points).toContainText('/1000')
     await expect(page.getByText('Over the points limit', { exact: true })).toBeAttached()
     await expect(page.locator('[data-slot="roster-meta"]')).toContainText('Strike Force · 1,000-point budget')
-    await page.screenshot({ path: test.info().outputPath(`budget-over-${viewport.width}.png`) })
-  }
-  await page.setViewportSize(desktop)
+    await page.screenshot({ path: test.info().outputPath(`budget-over-${width}.png`) })
+  })
 
   await page.reload()
-  for (const viewport of [desktop, phone]) {
-    await page.setViewportSize(viewport)
+  await atEachWidth(page, async () => {
     await expect(points).toContainText('/1000')
-  }
-  await page.setViewportSize(desktop)
+  })
   expect(await operator.roster(id)).toMatchObject({ limit: 2000, pointsBudget: 1000 })
 
   // A client built before custom budgets saves without one and keeps the stored budget.
@@ -94,40 +89,31 @@ test('a custom points budget is validated, enforced, saved and fielded', async (
   expect(await operator.roster(id)).toMatchObject({ name: `${name} renamed`, pointsBudget: 1000 })
   await page.reload()
   review = await setBudget(page, '2500')
-  for (const viewport of [desktop, phone]) {
-    await page.setViewportSize(viewport)
+  await atEachWidth(page, async () => {
     await expect(page.getByLabel('List name')).toHaveValue(`${name} renamed`)
     await expect(review).toContainText('1000 → 2500')
     await expect(review).toContainText('No reported legality problems.')
-  }
-  await page.setViewportSize(desktop)
+  })
   await waitForRosterSave(page, () => review.getByRole('button', { name: 'Confirm changes' }).click())
-  for (const viewport of [desktop, phone]) {
-    await page.setViewportSize(viewport)
+  await atEachWidth(page, async () => {
     await expect(points).toContainText('/2500')
     await expect(page.getByText('Within the points limit', { exact: true })).toBeAttached()
-  }
-  await page.setViewportSize(desktop)
+  })
 
   await page.goto('/rosters')
-  for (const viewport of [desktop, phone]) {
-    await page.setViewportSize(viewport)
+  await atEachWidth(page, async (width) => {
     await expect(page.locator(`[data-roster="${name} renamed"]`)).toContainText('Strike Force · 2,500-point budget')
-    await page.screenshot({ path: test.info().outputPath(`budget-library-${viewport.width}.png`) })
-  }
-  await page.setViewportSize(desktop)
+    await page.screenshot({ path: test.info().outputPath(`budget-library-${width}.png`) })
+  })
 
-  await createBattle(page, { practice: true })
-  await attachRoster(page, `${name} renamed`)
-  await attachRoster(page, `${name} renamed`, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, `${name} renamed`)
   await setupStep(page, 'Armies')
   const armies = page.getByRole('region', { name: 'Armies' })
-  for (const viewport of [desktop, phone]) {
-    await page.setViewportSize(viewport)
+  await atEachWidth(page, async (width) => {
     await expect(armies).toContainText('Strike Force · 2,500-point budget')
     await expect(armies.getByText(/of 2,500 points$/).first()).toBeVisible()
     await expect(page.locator('#setup-armies')).toHaveAttribute('data-complete', 'true')
     await expectNoHorizontalOverflow(armies)
-    await armies.screenshot({ path: test.info().outputPath(`budget-battle-${viewport.width}.png`) })
-  }
+    await armies.screenshot({ path: test.info().outputPath(`budget-battle-${width}.png`) })
+  })
 })

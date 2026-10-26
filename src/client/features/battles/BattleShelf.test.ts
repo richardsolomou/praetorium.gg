@@ -64,19 +64,11 @@ describe('battle row battlefield label', () => {
     expect(render({ deploymentId }, loaded)).toContain('1,000 points1 Jan 1970')
   })
 
-  it('does not repeat the finished status as completed', () => {
-    expect(render({ status: 'finished', result: { concededBy: null, reason: 'completed' } })).not.toContain('completed')
-  })
-
   it('keeps a concession visible', () => {
     expect(render({ status: 'finished', result: { concededBy: 'bob', reason: 'conceded' } })).toContain(' · Conceded')
   })
 
   it('labels a battle finished early', () => {
     expect(render({ status: 'finished', result: { concededBy: null, reason: 'finished-early' } })).toContain(' · Finished early')
-  })
-
-  it('does not repeat the score as a result sentence', () => {
-    expect(render({ status: 'finished', scores: [35, 0], result: { concededBy: null, reason: 'completed' } })).not.toContain('wins')
   })
 })

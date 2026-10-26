@@ -1,4 +1,4 @@
-import { plainQuotes } from './text'
+import { plainQuotes, printedNumber } from './text'
 import { type TextRoster, type TextRosterUnit, WTC_SECTION } from './textRoster'
 import { GAME_SIZES } from './battle'
 
@@ -20,11 +20,11 @@ export function fromNewRecruitText(input: string): TextRoster | null {
   const detachment = (native ? rawDetachment : rawDetachment?.replace(/\s+\([^()]+\)\s*$/, '')) ?? null
   const disposition = metadata(lines, 'FORCE DISPOSITION')
   const points = metadata(lines, 'TOTAL ARMY POINTS')?.match(/([\d,]+)\s*pts?/i)?.[1]
-  const total = points ? Number(points.replaceAll(',', '')) : null
+  const total = points ? printedNumber(points) : null
   const battleSize = metadata(lines, 'BATTLE SIZE')?.match(/^([\d,]+)pts(?:\s+\((.+)\))?$/i)
   const explicitLimit = battleSize?.[1]
   const limit = explicitLimit
-    ? Number(explicitLimit.replaceAll(',', ''))
+    ? printedNumber(explicitLimit)
     : total === null
       ? null
       : (GAME_SIZES.find((size) => size.limit >= total)?.limit ?? total)

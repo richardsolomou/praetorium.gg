@@ -9,7 +9,10 @@ import { isResizable } from '../core/unitSize'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { datacardOf } from './datasheetJoin'
 import { factionDisplayName } from './factionNames'
-import { mfmPrice, mfmSlugs, type MfmUnit } from './mfm'
+import { ownChoiceOptionWargear } from '../core/modelKinds'
+import type { Selection } from '../core/evaluate'
+import type { ChoiceOptions, UnitChoice } from '../core/unitChoices'
+import { type mfmDetachmentFor, mfmEnhancementPoints, mfmPrice, mfmSlugs, type MfmUnit, mfmWargearOptionPoints } from './mfm'
 
 const cache = new WeakMap<LoadedCatalogue, Map<string, number>>()
 
@@ -96,4 +99,48 @@ function computeUnitPointAdjustment(
       : null
   const cataloguePrice = evaluated?.selectionPoints[0]?.[comparableCopies - 1]
   return evaluated && !evaluated.unhandled.length && cataloguePrice !== undefined ? price! - cataloguePrice : 0
+}
+
+type MfmDetachment = NonNullable<ReturnType<typeof mfmDetachmentFor>>
+
+/** A malformed catalogue choice must not make the whole roster impossible to price. */
+export const choiceOptionsForPricing = (choice: { options?: UnitChoice['options'] }) => choice.options ?? []
+
+function specialPoints(detachments: readonly MfmDetachment[], name: string) {
+  const prices = [...new Set(detachments.flatMap((detachment) => mfmEnhancementPoints(detachment, name) ?? []))]
+  return prices.length === 1 ? prices[0]! : null
+}
+
+export function mfmOptionPoints(
+  detachments: readonly MfmDetachment[],
+  unit: MfmUnit | null,
+  choiceName: string,
+  optionName: string,
+  pieces: readonly { name: string; count: number }[],
+  selectedCount: number,
+) {
+  return (
+    (/enhancement|upgrade/i.test(choiceName) ? specialPoints(detachments, optionName) : null) ??
+    mfmWargearOptionPoints(unit, optionName, pieces, selectedCount || 1)
+  )
+}
+
+/** What the field manual's option prices add to or take off a built unit's catalogue ones. */
+export function mfmOptionAdjustment(
+  index: LoadedCatalogue['index'],
+  unit: { choices: readonly UnitChoice[]; selection: Selection },
+  mfmUnit: MfmUnit | null,
+  detachments: readonly MfmDetachment[],
+  options: ChoiceOptions,
+) {
+  return unit.choices
+    .flatMap((choice) =>
+      choiceOptionsForPricing(choice).flatMap((option) => {
+        if (option.count <= option.min) return []
+        const pieces = ownChoiceOptionWargear(unit.choices, choice.key, option.id, unit.selection, index, options)
+        const price = mfmOptionPoints(detachments, mfmUnit, choice.name, option.name, pieces, option.count)
+        return price === null ? [] : [(price - option.points) * (option.count - option.min)]
+      }),
+    )
+    .reduce((total, value) => total + value, 0)
 }

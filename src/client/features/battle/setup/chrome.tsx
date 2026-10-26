@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
 import { cn } from '@/lib/utils'
-import type { OnboardingTarget } from '../../../onboardingTargets'
 import type { ReactNode } from 'react'
 import { gameReferencesQuery } from '../../../queries'
 import { sideName, type Side } from '../../../sides'
 import { tint } from '../battleTints'
 import { SidePlayers } from '../PlayerName'
 import { dispositionTone } from '../../../components/rosterSetup'
+import { capitalised } from '../../../../core/text'
 
 /**
  * The parts every setup step is built from.
@@ -17,20 +17,8 @@ import { dispositionTone } from '../../../components/rosterSetup'
  */
 
 /** The surface a step's content sits on. One radius, one border, one padding. */
-export function SetupPanel({
-  children,
-  className = '',
-  onboarding,
-}: {
-  children: ReactNode
-  className?: string
-  onboarding?: OnboardingTarget
-}) {
-  return (
-    <div data-onboarding={onboarding} className={cn('rounded-sm border border-edge bg-panel p-4', className)}>
-      {children}
-    </div>
-  )
+export function SetupPanel({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <div className={cn('rounded-sm border border-edge bg-panel p-4', className)}>{children}</div>
 }
 
 /** Something the step says in passing: what a rule implies, or who may do this. */
@@ -67,7 +55,7 @@ export function SetupSidePanel({
  * How a chosen thing looks, wherever setup asks for one.
  *
  * A side, a battlefield layout and a mission pack are the same question three times,
- * and each answered it in a different colour. One ring, one tint, one weight.
+ * so they share one ring, one tint and one weight.
  */
 export const CHOSEN = 'border-parchment bg-parchment/10 ring-1 ring-parchment'
 export const CHOOSABLE = 'border-edge hover:border-edge-strong'
@@ -104,7 +92,4 @@ export function DispositionChip({ disposition, className = '' }: { disposition: 
  * `deep-strike`, `scouts` — read in two sections, so one of them spelling it
  * `Deep strike` and the other `Deep Strike` would be the same fact in two hands.
  */
-export const formationLabel = (value: string) => {
-  const words = value.replaceAll('-', ' ')
-  return words.charAt(0).toLocaleUpperCase() + words.slice(1)
-}
+export const formationLabel = (value: string) => capitalised(value.replaceAll('-', ' '))

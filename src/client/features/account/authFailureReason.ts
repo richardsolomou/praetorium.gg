@@ -1,7 +1,7 @@
 import { classifyAuthCallbackFailure, classifySignInFailure } from 'ras-stack/auth/client'
 import { isFetchNetworkFailure } from '../../networkErrors'
 
-export type AuthFailureReason =
+type AuthFailureReason =
   | 'invalid_credentials'
   | 'rate_limited'
   | 'account_exists'

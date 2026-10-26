@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronRight } from 'lucide-react'
+import { ShelfLink } from '../../components/ShelfLink'
 import type { Standing } from '../../../core/standings'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 
@@ -40,13 +40,9 @@ export function HomeLeaders({ rows, days }: { rows: readonly Standing[]; days: n
           </li>
         ))}
       </ol>
-      <Link
-        to="/leaderboard"
-        search={{ faction: undefined }}
-        className="eyebrow mt-2 inline-flex items-center gap-1 text-info hover:text-parchment"
-      >
-        Full leaderboard <ChevronRight className="size-3.5" />
-      </Link>
+      <ShelfLink to="/leaderboard" search={{ faction: undefined }} className="mt-2">
+        Full leaderboard
+      </ShelfLink>
     </section>
   )
 }

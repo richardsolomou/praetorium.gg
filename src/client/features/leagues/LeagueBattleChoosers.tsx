@@ -1,17 +1,14 @@
 import { useState } from 'react'
-import { Swords } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { alliedLeagueRosterLimit, type LeagueEntryStatus } from '../../../core/league'
 import { TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
-import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
+import { BattleChooserDialog } from '../../components/BattleChooserDialog'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../../components/Seats'
-import { disambiguatedPlayerLabels } from '../../playerLabels'
+import { entrantLabels } from '../../playerLabels'
 import { seatedPlayers, seatsFor, type Seat } from '../../seats'
 import { doublesTeams } from './leagueEvent'
-import { Problem } from '../../components/Problem'
 
 /** One name for the button that starts a shape's battle and the dialog it opens. */
 export function startBattleLabel(format: TableShape) {
@@ -40,7 +37,7 @@ export function OneOnOneBattleChooser({
   const [opponentId, setOpponentId] = useState<string | null>(null)
   // A closed chooser forgets its choice, so reopening it starts again.
   if (!open && opponentId !== null) setOpponentId(null)
-  const labels = disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))
+  const labels = entrantLabels(entries)
   const options = entries
     .filter((entry) => entry.userId !== ownUserId)
     .map((entry) => ({
@@ -50,40 +47,32 @@ export function OneOnOneBattleChooser({
     }))
   const chosen = opponentId ?? soleOption(options)
   return (
-    <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle className="text-2xl">{startBattleLabel('1v1')}</DialogTitle>
-          <DialogDescription>Pick who you are playing. Both sealed rosters are added for you.</DialogDescription>
-        </DialogHeader>
-        <DialogBody>
-          <div className="space-y-1.5">
-            <Label htmlFor="league-opponent">Opponent</Label>
-            <SearchableSelect
-              id="league-opponent"
-              className="h-11"
-              groups={[{ label: '', items: options }]}
-              value={chosen ?? ''}
-              onValueChange={(id) => {
-                onIntentChange()
-                setOpponentId(id)
-              }}
-              placeholder="Choose an opponent"
-              searchPlaceholder="Search entrants…"
-            />
-          </div>
-          {error ? <Problem error={error} /> : null}
-        </DialogBody>
-        <DialogFooter>
-          <Button variant="outline" disabled={pending} onClick={onClose}>
-            Cancel
-          </Button>
-          <Button disabled={!chosen || pending} onClick={() => chosen && onStart(chosen)}>
-            <Swords /> {pending ? 'Starting…' : 'Start battle'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <BattleChooserDialog
+      open={open}
+      title={startBattleLabel('1v1')}
+      description="Pick who you are playing. Both sealed rosters are added for you."
+      pending={pending}
+      error={error}
+      ready={Boolean(chosen)}
+      onClose={onClose}
+      onStart={() => chosen && onStart(chosen)}
+    >
+      <div className="space-y-1.5">
+        <Label htmlFor="league-opponent">Opponent</Label>
+        <SearchableSelect
+          id="league-opponent"
+          className="h-11"
+          groups={[{ label: '', items: options }]}
+          value={chosen ?? ''}
+          onValueChange={(id) => {
+            onIntentChange()
+            setOpponentId(id)
+          }}
+          placeholder="Choose an opponent"
+          searchPlaceholder="Search entrants…"
+        />
+      </div>
+    </BattleChooserDialog>
   )
 }
 
@@ -143,7 +132,7 @@ export function LeagueBattleChooser({
     seat.side === 'yours'
       ? (ownTeammate ?? allyId ?? onlyMatchup?.allyId ?? null)
       : (theirIds[seat.at] ?? onlyMatchup?.theirIds[seat.at] ?? null)
-  const labels = disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))
+  const labels = entrantLabels(entries)
   const candidates = entries.map((entry) => ({
     id: entry.userId,
     name: entry.name,
@@ -164,55 +153,43 @@ export function LeagueBattleChooser({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
-      <DialogContent aria-busy={pending}>
-        <DialogHeader>
-          <DialogTitle className="text-2xl">{startBattleLabel('2v1')}</DialogTitle>
-          <DialogDescription>
-            {isSolo
-              ? paired
-                ? 'Pick the allied pair you are facing.'
-                : 'Pick the two allied entrants you are facing.'
-              : ownTeammate
-                ? 'Pick the solo entrant you and your ally are facing.'
-                : 'Pick your teammate and the solo entrant you are facing.'}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogBody>
-          <SeatRows
-            idPrefix="league-battle"
-            seats={seats}
-            seatedIn={seatedIn}
-            groupsFor={groupsFor}
-            onPick={(seat, id) => {
-              onIntentChange()
-              if (seat.side === 'yours') return setAllyId(id)
-              const partner = id ? teammateOf(id) : null
-              setTheirIds((current) => current.map((held, at) => (at === seat.at ? id : partner && isSolo ? partner : held)))
-            }}
-          />
-          <SeatMatchup seats={seats} labelFor={(seat) => seatLabel(seatedIn(seat), labels, candidates)} />
-          {error ? <Problem error={error} /> : null}
-          {pending ? <output className="sr-only">Starting battle…</output> : null}
-        </DialogBody>
-        <DialogFooter>
-          <Button variant="outline" disabled={pending} onClick={onClose}>
-            Cancel
-          </Button>
-          <Button
-            disabled={!seats.every(seatedIn) || pending}
-            onClick={() => {
-              const players = seatedPlayers(seats, seatedIn)
-              const [opponentId, secondOpponentId] = players.opponentIds
-              if (!opponentId) return
-              onStart(players.allyId ? { opponentId, allyId: players.allyId } : { opponentId, secondOpponentId })
-            }}
-          >
-            <Swords /> {pending ? 'Starting…' : 'Start battle'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <BattleChooserDialog
+      open={open}
+      title={startBattleLabel('2v1')}
+      description={
+        isSolo
+          ? paired
+            ? 'Pick the allied pair you are facing.'
+            : 'Pick the two allied entrants you are facing.'
+          : ownTeammate
+            ? 'Pick the solo entrant you and your ally are facing.'
+            : 'Pick your teammate and the solo entrant you are facing.'
+      }
+      pending={pending}
+      error={error}
+      ready={seats.every(seatedIn)}
+      onClose={onClose}
+      onStart={() => {
+        const players = seatedPlayers(seats, seatedIn)
+        const [opponentId, secondOpponentId] = players.opponentIds
+        if (!opponentId) return
+        onStart(players.allyId ? { opponentId, allyId: players.allyId } : { opponentId, secondOpponentId })
+      }}
+    >
+      <SeatRows
+        idPrefix="league-battle"
+        seats={seats}
+        seatedIn={seatedIn}
+        groupsFor={groupsFor}
+        onPick={(seat, id) => {
+          onIntentChange()
+          if (seat.side === 'yours') return setAllyId(id)
+          const partner = id ? teammateOf(id) : null
+          setTheirIds((current) => current.map((held, at) => (at === seat.at ? id : partner && isSolo ? partner : held)))
+        }}
+      />
+      <SeatMatchup seats={seats} labelFor={(seat) => seatLabel(seatedIn(seat), labels, candidates)} />
+    </BattleChooserDialog>
   )
 }
 
@@ -239,7 +216,7 @@ export function DoublesBattleChooser({
   // A closed chooser forgets its choice, so reopening it starts again.
   if (!open && opponentId !== null) setOpponentId(null)
   const ownTeamId = entries.find((entry) => entry.userId === ownUserId)?.teamId
-  const labels = disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))
+  const labels = entrantLabels(entries)
   const options = doublesTeams(entries)
     .filter((team) => team.id !== ownTeamId && team.members.length === 2 && team.members.every((entry) => entry.submitted))
     .map((team) => ({
@@ -255,41 +232,32 @@ export function DoublesBattleChooser({
     }))
   const chosen = opponentId ?? soleOption(options)
   return (
-    <Dialog open={open} onOpenChange={(next) => !pending && !next && onClose()}>
-      <DialogContent aria-busy={pending}>
-        <DialogHeader>
-          <DialogTitle className="text-2xl">{startBattleLabel('2v2')}</DialogTitle>
-          <DialogDescription>Pick the team you are playing. Your teammate and all four sealed rosters are added for you.</DialogDescription>
-        </DialogHeader>
-        <DialogBody>
-          <div className="space-y-1.5">
-            <Label htmlFor="league-doubles-opponents">Opposing team</Label>
-            <SearchableSelect
-              id="league-doubles-opponents"
-              className="h-11"
-              groups={[{ label: '', items: options }]}
-              value={chosen ?? ''}
-              onValueChange={(id) => {
-                onIntentChange()
-                setOpponentId(id)
-              }}
-              placeholder="Choose an opposing team"
-              searchPlaceholder="Search teams or entrants…"
-            />
-          </div>
-          {error ? <Problem error={error} /> : null}
-          {pending ? <output className="sr-only">Starting doubles battle…</output> : null}
-        </DialogBody>
-        <DialogFooter>
-          <Button variant="outline" disabled={pending} onClick={onClose}>
-            Cancel
-          </Button>
-          <Button disabled={!chosen || pending} onClick={() => chosen && onStart(chosen)}>
-            <Swords /> {pending ? 'Starting…' : 'Start battle'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <BattleChooserDialog
+      open={open}
+      title={startBattleLabel('2v2')}
+      description="Pick the team you are playing. Your teammate and all four sealed rosters are added for you."
+      pending={pending}
+      error={error}
+      ready={Boolean(chosen)}
+      onClose={onClose}
+      onStart={() => chosen && onStart(chosen)}
+    >
+      <div className="space-y-1.5">
+        <Label htmlFor="league-doubles-opponents">Opposing team</Label>
+        <SearchableSelect
+          id="league-doubles-opponents"
+          className="h-11"
+          groups={[{ label: '', items: options }]}
+          value={chosen ?? ''}
+          onValueChange={(id) => {
+            onIntentChange()
+            setOpponentId(id)
+          }}
+          placeholder="Choose an opposing team"
+          searchPlaceholder="Search teams or entrants…"
+        />
+      </div>
+    </BattleChooserDialog>
   )
 }
 

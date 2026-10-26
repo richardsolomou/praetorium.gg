@@ -4,7 +4,7 @@ import type { LoadedRules } from './rules'
 import { rosterDatasheetContext } from './rosterDatasheetContext'
 import { datasheetViewsIn, datasheetIn } from './catalogue'
 import { describeDatasheetAbilities } from './datasheetDescriptions'
-import { datacardJoinOutcome } from './datasheetJoin'
+import { datacardOf } from './datasheetJoin'
 
 export function rosterLoadoutDatasheets(
   loaded: LoadedCatalogue,
@@ -19,15 +19,13 @@ export function rosterLoadoutDatasheets(
 ) {
   const context = rosterDatasheetContext(loaded, data)
   const views = context ? datasheetViewsIn(loaded, data.catalogueId, data.entryId, context) : null
+  // With no roster context everyWeapon changes nothing, so both views are one read.
+  const alone = views ? null : rosterDatasheet(loaded, data, undefined, false, rules)
   return {
-    datacardJoin: datacardJoinOutcome(loaded, data.catalogueId, data.entryId),
+    datacardJoin: datacardOf(loaded, data.catalogueId, data.entryId) ? ('name' as const) : ('missing' as const),
     carriers: views?.carriers ?? [],
-    selected: views
-      ? describeDatasheetAbilities(loaded, data.catalogueId, views.selected, rules)
-      : rosterDatasheet(loaded, data, undefined, false, rules),
-    available: views
-      ? describeDatasheetAbilities(loaded, data.catalogueId, views.available, rules)
-      : rosterDatasheet(loaded, data, undefined, true, rules),
+    selected: views ? describeDatasheetAbilities(loaded, data.catalogueId, views.selected, rules) : alone,
+    available: views ? describeDatasheetAbilities(loaded, data.catalogueId, views.available, rules) : alone,
   }
 }
 

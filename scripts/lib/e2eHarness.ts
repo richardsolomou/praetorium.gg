@@ -24,7 +24,7 @@ const roots = [
  * covers the tools that compile the catalogue runtime and the offline reference; and the terrain
  * check only reads, so it can fail the build but not change what a test sees.
  */
-export const accountedEntries = [
+const accountedEntries = [
   'scripts/seedPreview.ts',
   'spacetimedb/src/index.ts',
   'src/server/combatCalculation.worker.ts',

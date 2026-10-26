@@ -101,7 +101,7 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
   for (const weapon of weapons) {
     if (killed === models) return { damage, killed }
     const defending = toughness()
-    const { indirect, skill, hitBonus, woundBonus, wound } = attackRolls(weapon, options, defending)
+    const { indirect, skill, hitBonus, hitMinimum, woundBonus, wound } = attackRolls(weapon, options, defending)
     const halfRange = ranged && options.halfRange
     const inflict = (mortal = false) => {
       const protection = combatGroupProtection(target, target.groups[current]!)
@@ -154,7 +154,7 @@ export function attackSequence({ target, weapons, options, mortalWounds = [] }: 
               weapon.criticalHit ?? 6,
               indirect ? 'none' : bestReroll(options.hitReroll, weapon.hitReroll),
               random,
-              indirect ? (options.indirectFire === 'spotted' ? 4 : 6) : 2,
+              hitMinimum,
             )
         if (!hit.success) continue
         if (weapon.successfulCriticalHit && hit.value >= weapon.successfulCriticalHit) hit.critical = true

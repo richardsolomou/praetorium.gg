@@ -1,6 +1,18 @@
 import { expect, test, type Page } from './test'
-import { createBattle, createRoster, followLink, PRACTICE_OPPONENT, setupBattle, signUp, uniqueName } from './account'
-import { productSql, withAuthSql } from './storage'
+import {
+  createBattle,
+  createRoster,
+  followLink,
+  PRACTICE_OPPONENT,
+  setupBattle,
+  signUp,
+  uniqueName,
+  expectNoPageOverflow,
+  PHONE,
+  scoreboard,
+  retryUntilVisible,
+} from './account'
+import { productSql, withAuthSql, battleIdFor } from './storage'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
 
 /**
@@ -9,9 +21,7 @@ import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
  * Dated ahead of the public battles other tests open meanwhile, and reloaded past the public feed's short hold.
  */
 async function featurePreviewBattle(page: Page, token: string) {
-  const battles = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
-  if (battles.length !== 1) throw new Error(`The preview battle ${token} is missing.`)
-  await productSql`UPDATE battles SET created_at = ${Date.now() + 60 * 60 * 1000} WHERE id = ${battles[0].id}`
+  await productSql`UPDATE battles SET created_at = ${Date.now() + 60 * 60 * 1000} WHERE id = ${await battleIdFor(token)}`
   await expect(async () => {
     await page.goto('/')
     await expect(page.locator('[data-home-featured]')).toHaveAttribute('href', `/battles/${token}`, { timeout: 1_000 })
@@ -44,7 +54,7 @@ test('greets a signed-in player whose provider supplied no name', async ({ page 
   await page.goto('/')
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Welcome')
-  await page.screenshot({ path: 'test-results/home-nameless-greeting.png' })
+  await page.screenshot({ path: test.info().outputPath('home-nameless-greeting.png') })
 })
 
 test('offers a secondary account-creation button below sign-in', async ({ page }) => {
@@ -57,7 +67,7 @@ test('offers a secondary account-creation button below sign-in', async ({ page }
     const signInBounds = await page.locator('form').getByRole('button', { name: 'Sign in', exact: true }).boundingBox()
     expect(switchBounds!.y).toBeGreaterThan(signInBounds!.y + signInBounds!.height)
     expect(switchBounds!.width).toBeLessThan(signInBounds!.width)
-    await page.screenshot({ path: `test-results/sign-in-account-switch-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`sign-in-account-switch-${width}.png`) })
   }
   await page.setViewportSize({ width: 1440, height: 900 })
 
@@ -71,7 +81,7 @@ test('offers a secondary account-creation button below sign-in', async ({ page }
   await expect(page.getByLabel('Your name')).toHaveCount(0)
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+    await expectNoPageOverflow(page)
   }
 })
 
@@ -79,10 +89,7 @@ test('offers a secondary account-creation button below sign-in', async ({ page }
  * The home page is the front door for both kinds of visitor.
  *
  * A player who already has games opens it to get back to them; somebody who has
- * never signed in opens it to see whether anything is happening here at all. The
- * second half only works if a battle nobody invited them to is genuinely readable,
- * and the last step is the promise that goes with it: the moment a player says
- * otherwise, the same link stops answering.
+ * never signed in sees only public activity, so a practice battle stays off it.
  */
 test('shows active practice battles to their player but not visitors', async ({ page, browser }) => {
   const name = uniqueName('Watcher')
@@ -173,9 +180,9 @@ test.describe('the featured battle', () => {
   test.describe.configure({ mode: 'default' })
 
   test('the home page fits a phone at both signed-out and signed-in widths', async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 })
+    await page.setViewportSize(PHONE)
     await featurePreviewBattle(page, 'preview-casual-doubles')
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await expectNoPageOverflow(page)
 
     const featuredBattle = page.locator('[data-home-featured]')
     for (const [first, second] of [
@@ -192,7 +199,7 @@ test.describe('the featured battle', () => {
     await signUp(page, uniqueName('Narrow'))
     await page.goto('/')
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await expectNoPageOverflow(page)
   })
 
   test('a finished featured battle omits the repeated result', async ({ page }, testInfo) => {
@@ -210,7 +217,7 @@ test.describe('the featured battle', () => {
 })
 
 test('offers native notification permission on home and retries device setup', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.addInitScript({
     content: `window.ReactNativeWebView = {
       postMessage(message) {
@@ -239,8 +246,8 @@ test('offers native notification permission on home and retries device setup', a
 
   const offer = page.getByRole('region', { name: 'Notifications' })
   await expect(offer.getByRole('button', { name: 'Allow notifications' })).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await page.screenshot({ path: 'test-results/home-notification-offer.png' })
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: test.info().outputPath('home-notification-offer.png') })
 
   await offer.getByRole('button', { name: 'Not now' }).click()
   await page.reload()
@@ -254,7 +261,7 @@ test('offers native notification permission on home and retries device setup', a
   await offer.getByRole('button', { name: 'Allow notifications' }).click()
   await expect(offer.getByRole('button', { name: 'Retry notifications' })).toBeVisible()
   await expect(offer.getByText('This device could not be set up for notifications.')).toBeVisible()
-  await page.screenshot({ path: 'test-results/home-notification-retry.png' })
+  await page.screenshot({ path: test.info().outputPath('home-notification-retry.png') })
   await offer.getByRole('button', { name: 'Retry notifications' }).click()
   await expect(offer).toHaveCount(0)
   await page.goto('/profile')
@@ -270,7 +277,7 @@ test('omits the games shelf when the player has no active game', async ({ page }
   await expect(page.locator('[data-home-rosters]')).toBeVisible()
   await expect(page.locator('[data-home-record], [aria-label="Loading your record"]')).toHaveCount(0)
   await expect(page.getByRole('main').getByText('Public games', { exact: true })).toBeVisible()
-  await page.screenshot({ path: 'test-results/home-no-active-game.png' })
+  await page.screenshot({ path: test.info().outputPath('home-no-active-game.png') })
 })
 
 /**
@@ -279,7 +286,7 @@ test('omits the games shelf when the player has no active game', async ({ page }
  * The order is the whole point of the page: the games waiting on the player, then
  * the ones they have finished, then their friends' tables, then everybody else's.
  * A finished game in the first shelf would put a game nobody can act on above one
- * that is live, which is the arrangement this replaces.
+ * that is live.
  */
 test('orders the signed-in home page from the player outwards', async ({ browser }) => {
   const hostContext = await browser.newContext()
@@ -298,16 +305,16 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     await host.getByRole('button', { name: 'Battle options' }).click()
     await host.getByRole('menuitem', { name: 'Concede battle' }).click()
     await host.getByRole('alertdialog').getByRole('button', { name: 'Concede battle' }).click()
-    await expect(host.getByRole('region', { name: 'Battle scoreboard' }).getByRole('heading')).toContainText('wins by concession')
+    await expect(scoreboard(host).getByRole('heading')).toContainText('wins by concession')
     // The record arrives in the server's HTML, not after hydration.
     await expect.poll(async () => (await (await host.request.get('/')).text()).includes('data-home-record')).toBe(true)
     await host.goto('/')
     const idleHistory = host.locator('[data-battle-shelf="Games you have played"]')
     await expect(idleHistory.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(1)
     expect((await idleHistory.boundingBox())!.x).toBeLessThan((await host.locator('[data-home-rosters]').boundingBox())!.x)
-    await host.setViewportSize({ width: 390, height: 844 })
+    await host.setViewportSize(PHONE)
     expect((await host.locator('[data-home-rosters]').boundingBox())!.y).toBeLessThan((await idleHistory.boundingBox())!.y)
-    expect(await host.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await expectNoPageOverflow(host)
     await host.setViewportSize({ width: 1440, height: 900 })
 
     // A second table, still being set, so the live shelf and the history shelf are both on the page.
@@ -330,25 +337,21 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     await expect(history.locator(`a[href="${new URL(going).pathname}"]`)).toHaveCount(0)
     expect((await history.boundingBox())!.x).toBeLessThan((await host.locator('[data-home-rosters]').boundingBox())!.x)
     expect((await history.boundingBox())!.y).toBeGreaterThan((await yours.boundingBox())!.y)
-    await host.setViewportSize({ width: 390, height: 844 })
+    await host.setViewportSize(PHONE)
     expect((await yours.boundingBox())!.y).toBeLessThan((await host.locator('[data-home-rosters]').boundingBox())!.y)
     expect((await host.locator('[data-home-rosters]').boundingBox())!.y).toBeLessThan((await history.boundingBox())!.y)
-    expect(await host.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await expectNoPageOverflow(host)
   } finally {
     await Promise.all([hostContext.close(), guestContext.close()])
   }
 })
 
 test('the leaderboard fits a phone', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.goto('/leaderboard')
 
-  expect(
-    await page.evaluate(() => ({
-      heading: document.querySelector('h1')?.textContent,
-      hasHorizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-    })),
-  ).toEqual({ heading: 'Leaderboard', hasHorizontalOverflow: false })
+  await expect(page.locator('h1').first()).toHaveText('Leaderboard')
+  await expectNoPageOverflow(page)
 })
 
 /**
@@ -362,10 +365,7 @@ test('the leaderboard fits a phone', async ({ page }) => {
 test('the leaderboard gives each faction table an address', async ({ page }) => {
   await page.goto('/leaderboard')
   const chooser = page.getByRole('combobox', { name: 'Faction' })
-  await expect(async () => {
-    await chooser.click()
-    await expect(page.getByRole('option').first()).toBeVisible({ timeout: 1000 })
-  }).toPass()
+  await retryUntilVisible(page.getByRole('option').first(), () => chooser.click())
 
   // Whichever faction the seeded battles produced: the list is what has been played.
   const faction = page.getByRole('option').nth(1)
@@ -379,9 +379,9 @@ test('the leaderboard gives each faction table an address', async ({ page }) => 
 /**
  * A profile answers a visitor with no account, and only with battles they may watch.
  *
- * The page is reached from the leaderboard, which is the link that used to lead
- * nowhere. Only a browser proves the whole chain: the row links to the profile, the
- * profile renders signed out, and its record is folded rather than empty.
+ * The page is reached from the leaderboard. Only a browser proves the whole chain: the
+ * row links to the profile, the profile renders signed out, and its record is folded
+ * rather than empty.
  */
 test('a signed-out visitor opens a player profile from the leaderboard', async ({ page }) => {
   await page.goto('/leaderboard')
@@ -396,21 +396,16 @@ test('a signed-out visitor opens a player profile from the leaderboard', async (
   await expect(page.locator('[data-service-record]')).toContainText('Service record')
   await expect(page.locator('[data-rankings]')).toContainText('Everyone')
 
-  // Retried because a tab click that lands before hydration is swallowed rather
-  // than failing: the panel is controlled by the address, so nothing moves.
-  const battlesTab = page.getByRole('tab', { name: /battles/i })
-  await expect(async () => {
-    await battlesTab.click()
-    await expect(page).toHaveURL(/tab=battles/, { timeout: 1000 })
-  }).toPass()
+  // The panel is controlled by the address, so a tab click before hydration moves nothing.
+  await followLink(page.getByRole('tab', { name: /battles/i }), /tab=battles/)
   await expect(page.locator('[data-battle-shelf]')).toBeVisible()
 })
 
 test('a player profile fits a phone', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.goto('/leaderboard')
   await page.locator('[data-standing] a').first().click()
   await expect(page.locator('[data-service-record]')).toBeVisible()
 
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(page)
 })

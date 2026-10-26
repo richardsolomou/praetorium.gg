@@ -2,10 +2,8 @@ import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/
 import { evaluate, type Selection } from '../core/evaluate'
 import { isNonMatchedPlayName } from '../core/name'
 import { buildUnit } from '../core/roster'
-import { ownChoiceOptionWargear } from '../core/modelKinds'
 import type { LoadedCatalogue } from './catalogueIndex'
-import { mfmUnitFor, unitPointAdjustment } from './unitPoints'
-import { mfmWargearOptionPoints } from './mfm'
+import { mfmOptionAdjustment, mfmUnitFor, unitPointAdjustment } from './unitPoints'
 
 export const isMatchedPlayDatasheet = (index: CatalogueIndex, entry: Definition) => isOfferedDatasheet(index, entry, false)
 
@@ -27,15 +25,7 @@ export function priceOf(loaded: LoadedCatalogue, catalogueId: string, entryId: s
   const built = buildUnit(entryId, loaded.index, undefined, undefined, options)
   if (!built) return null
   const mfmUnit = mfmUnitFor(loaded, catalogueId, entryId)
-  const wargearAdjustment = built.choices
-    .flatMap((choice) =>
-      choice.options.flatMap((option) => {
-        const pieces = ownChoiceOptionWargear(built.choices, choice.key, option.id, built.selection, loaded.index, options)
-        const price = mfmWargearOptionPoints(mfmUnit, option.name, pieces, option.count || 1)
-        return option.count > option.min && price !== null ? [(price - option.points) * (option.count - option.min)] : []
-      }),
-    )
-    .reduce((total, difference) => total + difference, 0)
+  const wargearAdjustment = mfmOptionAdjustment(loaded.index, built, mfmUnit, [], options)
   return (
     evaluate([...roster, built.selection], loaded.index, options).selectionPoints[0]![roster.length]! +
     unitPointAdjustment(loaded, catalogueId, catalogueId, entryId, built.size.models) +

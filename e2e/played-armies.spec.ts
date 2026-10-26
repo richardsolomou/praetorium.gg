@@ -1,7 +1,7 @@
 import { expect, type Page, test } from './test'
 import { chooseRosterAction, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
 import { expectNoHorizontalOverflow, shot } from './builder.harness'
-import { productOperator, userIdFor } from './storage'
+import { productOperator, userIdFor, guestDraft } from './storage'
 
 /** The seeded finished battle's Aeldari army, which this test fields again under its own players. */
 const ARMY = 'Warhost 2K'
@@ -51,7 +51,7 @@ for (const [width, label] of [
       await expect(outcome).toContainText('Conceded')
       await expect(outcome).toContainText('Orks')
       await expectNoHorizontalOverflow(reader.locator('main'))
-      await shot(card, `test-results/played-army-${label}.png`)
+      await shot(card, test.info().outputPath(`played-army-${label}.png`))
 
       await outcome.getByRole('link', { name: 'Open battle' }).click()
       await expect(reader).toHaveURL(new RegExp(`/battles/${token}$`))
@@ -75,7 +75,7 @@ for (const [width, label] of [
         await expect(simulator.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText('Current roster')
         await simulator.getByRole('button', { name: 'Run all matchups' }).click()
         await expect(simulator).toContainText(/(\d+) \/ \1 matchups · Complete/, { timeout: 120_000 })
-        await shot(simulator, `test-results/played-army-simulate-${label}.png`)
+        await shot(simulator, test.info().outputPath(`played-army-simulate-${label}.png`))
         await simulator.getByRole('button', { name: 'Close', exact: true }).click()
       }
       expect(await operator.log(token)).toEqual(fielded)
@@ -92,7 +92,7 @@ test('a visitor copies a played army as the one roster their device keeps, and i
   await card.getByRole('button', { name: `Duplicate ${ARMY}` }).click()
   await page.waitForURL((url) => /^\/rosters\/[^/]+$/.test(url.pathname))
   await expect(page.getByLabel('List name')).toHaveValue(`Copy of ${ARMY}`)
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft') ?? '')).toContain(`Copy of ${ARMY}`)
+  await expect.poll(() => guestDraft(page)).toContain(`Copy of ${ARMY}`)
 
   await page.goto('/rosters?view=played')
   await retryUntilVisible(card, () => page.getByRole('button', { name: 'Show more armies' }).click({ timeout: 1_000 }))

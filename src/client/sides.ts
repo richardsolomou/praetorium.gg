@@ -183,10 +183,12 @@ const unsettledFirst = (cards: ViewPlayer['secondaries']): ViewPlayer['secondari
   ...cards.filter((card) => card.status !== 'active'),
 ]
 
-/** The side the viewer plays on first, then the ones they are playing against. */
-export function facingSides(view: BattleView): { yours: Side | undefined; theirs: Side[] } {
-  const all = sides(view)
-  return { yours: all.find((side) => side.isViewer), theirs: all.filter((side) => !side.isViewer) }
+/** The side a player sits on. */
+export function sideOf<T extends { armies: readonly { playerId: string }[] }>(
+  table: readonly T[],
+  playerId: string | null | undefined,
+): T | undefined {
+  return table.find((side) => side.armies.some((army) => army.playerId === playerId))
 }
 
 /** What a side is called: every player on it, in seating order. */

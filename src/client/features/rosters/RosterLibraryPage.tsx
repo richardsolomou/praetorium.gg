@@ -1,7 +1,7 @@
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { ChevronDown, ScrollText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -30,13 +30,14 @@ import { RosterExportDialog } from './RosterExportDialog'
 import { RosterExchangeDialog } from './RosterExchangeDialog'
 import { RosterImport } from './RosterImport'
 import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
+import { rosterSetupOf } from './rosterDraft'
 import { factionSelectGroups } from './builder/factions'
-import { RosterFilters, type RosterUpdateFilter } from './RosterFilters'
+import { NoFilterMatches, RosterFilters, type RosterUpdateFilter } from './RosterFilters'
 import { RosterRow } from './RosterRow'
 import { type SavedRoster, useRosterActions } from './rosterLibrary'
 import { keepRosterSort } from './rosterSort'
 import { type RosterSort, sortRosters } from '../../../core/rosterSort'
-import { parseWorkspaceState, readStoredWorkspaceState, writeWorkspaceState } from './workspaceState'
+import { SETUP_STATE, useWorkspaceState } from './workspaceState'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import {
   factionIndexQuery,
@@ -49,7 +50,6 @@ import {
 import { LentRosterList } from './LentRosters'
 import { RosterViews } from './RosterViews'
 import { useOrigin } from '../../useOrigin'
-import { useClientValue } from '../../useClientValue'
 import type { RosterVisibility } from '../../../core/savedRoster'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../../core/rosterLibrary'
 import { variantCards, variantGroups } from '../../../core/rosterVariants'
@@ -63,13 +63,11 @@ export type RosterLibrarySearch = { limit?: number; faction?: string; visibility
 type EditingSession = { rosterId: string; draft: RosterSetup }
 
 const WORKSPACE_PATH = '/rosters/'
-const EDITING_STATE = 'roster-setup'
-const storedEditingSession = () => readStoredWorkspaceState(WORKSPACE_PATH, EDITING_STATE)
 
 /**
  * A visitor's one list on this device, read once the page is in the browser; `pending` holds its row's place until then.
  */
-export type DeviceLibrary = { guest: GuestDraft | null; pending: boolean; onChange: (guest: GuestDraft | null) => void }
+type DeviceLibrary = { guest: GuestDraft | null; pending: boolean; onChange: (guest: GuestDraft | null) => void }
 
 /**
  * A player's rosters, or a visitor's one roster on this device, on the same page.
@@ -190,28 +188,9 @@ export function RosterLibraryPage({
   const another = guest ? () => account.ask('another-roster') : undefined
   const { keepImported, saveError: importError } = useNewRoster()
   const [deleting, setDeleting] = useState<SavedRoster | null>(null)
-  const storedSession = useClientValue(storedEditingSession, null)
-  const restoredSession = useMemo(() => parseWorkspaceState<EditingSession>(storedSession), [storedSession])
-  const [chosenSession, setChosenSession] = useState<{ session: EditingSession | null }>()
-  const session = chosenSession ? chosenSession.session : restoredSession
+  const [session, setEditing] = useWorkspaceState<EditingSession>(WORKSPACE_PATH, SETUP_STATE)
   const editing = saved.find((roster) => roster.id === session?.rosterId) ?? null
 
-  const setEditing = (next: EditingSession | null) => {
-    setChosenSession({ session: next })
-    writeWorkspaceState(WORKSPACE_PATH, EDITING_STATE, next)
-  }
-  const setupOf = (roster: SavedRoster): RosterSetup => ({
-    name: roster.automaticName ? '' : roster.name,
-    catalogueId: roster.catalogueId,
-    detachmentIds: roster.detachmentIds,
-    disposition: roster.disposition,
-    limit: roster.limit,
-    pointsBudget: roster.pointsBudget,
-    waivedRules: roster.waivedRules,
-    optionalRules: roster.optionalRules ?? [],
-    borrowedDetachmentId: roster.borrowedDetachmentId ?? null,
-    visibility: roster.visibility,
-  })
   const renderCard = ({ head, variants }: (typeof cards)[number]) => {
     const row = ({ roster, index }: typeof head, layout: 'card' | 'base' | 'variant') => (
       <RosterRow
@@ -230,7 +209,7 @@ export function RosterLibraryPage({
         showVisibility={roster.visibility !== head.roster.visibility}
         actions={actions}
         origin={origin}
-        onEdit={() => setEditing({ rosterId: roster.id, draft: setupOf(roster) })}
+        onEdit={() => setEditing({ rosterId: roster.id, draft: rosterSetupOf(roster) })}
         onDelete={() => setDeleting(roster)}
         onNeedsAccount={guest ? account.ask : undefined}
       />
@@ -393,14 +372,9 @@ export function RosterLibraryPage({
                 ) : null}
               </>
             ) : saved.length ? (
-              <p className="flex flex-wrap items-center gap-x-3 py-2 text-sm text-dim">
+              <NoFilterMatches onClear={filtered ? () => void navigate({ to: '/rosters', search: {} }) : undefined}>
                 {archived.length ? 'Every roster here is archived. Archived rosters are listed below.' : 'No rosters match these filters'}
-                {filtered ? (
-                  <Button variant="outline" size="sm" onClick={() => void navigate({ to: '/rosters', search: {} })}>
-                    Clear filters
-                  </Button>
-                ) : null}
-              </p>
+              </NoFilterMatches>
             ) : (
               <PageState
                 headingLevel={2}
@@ -479,7 +453,7 @@ export function RosterLibraryPage({
             }
           }}
           factionOptions={available?.factions ?? []}
-          value={session?.draft ?? setupOf(editing)}
+          value={session?.draft ?? rosterSetupOf(editing)}
           onDraftChange={(draft) => setEditing({ rosterId: editing.id, draft })}
           hasUnits={Boolean(editing.unitCount)}
           reviewSource={guest ? claimInput(guest) : editing.id}

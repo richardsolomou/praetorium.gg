@@ -1,23 +1,27 @@
 import { expect, type Page, test } from './test'
-import { chooseRosterAction, createRoster, desktopContext, retryUntilVisible, signUp, waitForRosterSave, makeWarlord } from './account'
+import {
+  chooseRosterAction,
+  createRoster,
+  desktopContext,
+  signUp,
+  waitForRosterSave,
+  makeWarlord,
+  chooseLibraryAction,
+  openImport,
+  PHONE,
+} from './account'
 import { add, attach, shot } from './builder.harness'
-import { savedWork } from './storage'
+import { expectWorkSynced, guestDraft } from './storage'
 
-const phone = { viewport: { width: 390, height: 844 } }
+const phone = { viewport: PHONE }
 
+/** The roster's exported text without its Exported with footer. */
 async function exportedText(page: Page) {
   await chooseRosterAction(page, 'Export text')
   const dialog = page.getByRole('dialog', { name: 'Export roster' })
   const text = await dialog.locator('pre').innerText()
   await dialog.getByRole('button', { name: 'Close' }).click()
-  return text
-}
-
-async function openImport(page: Page) {
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(dialog.getByLabel('Roster text'), () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
-  return dialog
+  return text.replace(/^.*Exported with.*$/m, '')
 }
 
 /** A code in the shipped format, for payloads the app itself would never encode. */
@@ -47,7 +51,7 @@ test('an exchange code carries a roster to another account and to a visitor', as
     sender.locator('aside[aria-label="Loadout"]').getByRole('button', { name: 'Select Tesla carbine' }).click(),
   )
   // The save response above can belong to an earlier queued edit; a reload before the last one leaves would export the server's older list.
-  await expect.poll(async () => (await savedWork(sender))?.operations.length).toBe(0)
+  await expectWorkSynced(sender)
   await sender.reload()
   const sent = await exportedText(sender)
 
@@ -58,10 +62,10 @@ test('an exchange code carries a roster to another account and to a visitor', as
   await expect(exchange.getByRole('button', { name: 'Copied' })).toBeVisible()
   const code = await sender.evaluate(() => navigator.clipboard.readText())
   expect(code).toBe(await exchange.getByLabel('Exchange code').innerText())
-  await shot(exchange, 'test-results/roster-exchange-code-desktop.png')
+  await shot(exchange, test.info().outputPath('roster-exchange-code-desktop.png'))
   await sender.setViewportSize(phone.viewport)
   await expect(exchange.getByRole('button', { name: 'Copied' })).toBeInViewport()
-  await shot(exchange, 'test-results/roster-exchange-code-phone.png')
+  await shot(exchange, test.info().outputPath('roster-exchange-code-phone.png'))
 
   // Another account scans the QR code on a phone: the link opens the import review.
   const recipient = await (await browser.newContext(phone)).newPage()
@@ -72,12 +76,12 @@ test('an exchange code carries a roster to another account and to a visitor', as
   await expect(review).toContainText('preparation and reminders are not included')
   await expect(review.getByRole('alert')).toHaveCount(0)
   expect(new URL(recipient.url()).hash).toBe('')
-  await shot(review, 'test-results/roster-exchange-review-phone.png')
+  await shot(review, test.info().outputPath('roster-exchange-review-phone.png'))
   await review.getByRole('button', { name: 'Import roster', exact: true }).click()
   await recipient.waitForURL(/\/rosters\/[^/]+$/)
   await recipient.reload()
   const received = await exportedText(recipient)
-  expect(received.replace(/^.*Exported with.*$/m, '')).toBe(sent.replace(/^.*Exported with.*$/m, ''))
+  expect(received).toBe(sent)
 
   // Importing the same code again makes a second, separate copy.
   await recipient.setViewportSize(desktopContext.viewport)
@@ -85,7 +89,7 @@ test('an exchange code carries a roster to another account and to a visitor', as
   await again.getByLabel('Roster text').fill(code)
   await again.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(again).toContainText('2 of 2 matched entries')
-  await shot(again, 'test-results/roster-exchange-review-desktop.png')
+  await shot(again, test.info().outputPath('roster-exchange-review-desktop.png'))
   await again.getByRole('button', { name: 'Import roster', exact: true }).click()
   await recipient.waitForURL(/\/rosters\/[^/]+$/)
   await recipient.goto('/rosters')
@@ -95,11 +99,7 @@ test('an exchange code carries a roster to another account and to a visitor', as
   await sender.setViewportSize(desktopContext.viewport)
   await sender.goto('/rosters')
   await expect(sender.locator('[data-roster]')).toHaveCount(1)
-  await sender
-    .locator(`[data-roster="${name}"]`)
-    .getByRole('button', { name: `Actions for ${name}` })
-    .click()
-  await sender.getByRole('menuitem', { name: 'Exchange code' }).click()
+  await chooseLibraryAction(sender, name, 'Exchange code')
   await expect(sender.getByRole('dialog', { name: 'Exchange code' }).getByLabel('Exchange code')).toHaveText(code)
 
   // A visitor opens the same link and gets a local draft, no account involved.
@@ -115,18 +115,18 @@ test('an exchange code carries a roster to another account and to a visitor', as
   await expect(attached.locator('[data-unit="Immortals"]')).toBeVisible()
   await expect(attached.locator('[data-unit="Overlord"]')).toBeVisible()
   await visitor.reload()
-  expect((await exportedText(visitor)).replace(/^.*Exported with.*$/m, '')).toBe(sent.replace(/^.*Exported with.*$/m, ''))
+  expect(await exportedText(visitor)).toBe(sent)
 
   // Opening a link again never replaces the one draft a visitor keeps: a second roster asks for an account.
-  const kept = await visitor.evaluate(() => localStorage.getItem('praetorium.guest-draft'))
+  const kept = await guestDraft(visitor)
   await visitor.goto('/')
   await visitor.goto(`/rosters#code=${code}`)
   await expect(draft).toContainText('2 of 2 matched entries')
   await draft.getByRole('button', { name: 'Open imported draft', exact: true }).click()
   const prompt = visitor.getByRole('dialog', { name: 'Keep more than one roster' })
   await expect(prompt).toBeVisible()
-  await shot(prompt, 'test-results/roster-exchange-guest-draft-notice-phone.png')
-  expect(await visitor.evaluate(() => localStorage.getItem('praetorium.guest-draft'))).toBe(kept)
+  await shot(prompt, test.info().outputPath('roster-exchange-guest-draft-notice-phone.png'))
+  expect(await guestDraft(visitor)).toBe(kept)
 })
 
 test('damaged, unsupported and unavailable exchange codes explain why they cannot import', async ({ browser }) => {
@@ -160,7 +160,7 @@ test('damaged, unsupported and unavailable exchange codes explain why they canno
       await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
       await expect(dialog.getByRole('alert')).toContainText(reason)
     }
-    await shot(dialog, `test-results/roster-exchange-unavailable-${width}.png`)
+    await shot(dialog, test.info().outputPath(`roster-exchange-unavailable-${width}.png`))
     await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
     await expect(page.locator('[data-roster], [data-roster-builder]')).toHaveCount(0)
   }
@@ -187,15 +187,11 @@ test('a roster too long for a QR code still offers its exchange code', async ({ 
   await page.waitForURL(/\/rosters\/[^/]+$/)
 
   await page.goto('/rosters')
-  const exchangeItem = page.getByRole('menuitem', { name: 'Exchange code' })
-  await retryUntilVisible(exchangeItem, () =>
-    page.locator('[data-roster="Long army"]').getByRole('button', { name: 'Actions for Long army' }).click(),
-  )
-  await exchangeItem.click()
+  await chooseLibraryAction(page, 'Long army', 'Exchange code')
   const exchange = page.getByRole('dialog', { name: 'Exchange code' })
   await expect(exchange).toContainText('too long for a reliable QR code')
   await expect(exchange.getByRole('img')).toHaveCount(0)
-  await shot(exchange, 'test-results/roster-exchange-too-long-phone.png')
+  await shot(exchange, test.info().outputPath('roster-exchange-too-long-phone.png'))
   const code = await exchange.getByLabel('Exchange code').innerText()
   await exchange.getByRole('button', { name: 'Close' }).click()
 

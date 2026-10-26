@@ -1,9 +1,10 @@
 import { groupBy } from './collections'
-import type { CatalogueIndex, Definition, Profile } from './catalogue'
+import { definitionAndTarget, type CatalogueIndex, type Definition, type Profile } from './catalogue'
 import type { StructuredDatasheetProfile } from './datasheet'
 import { fieldedCount, isCollectiveGroup } from './collective'
 import { resolve } from './definitions'
-import { datasheetProfileKind } from './datasheetStructure'
+import { datasheetProfileKind, weaponPhase } from './datasheetStructure'
+import { withoutFactionPrefix } from './name'
 import { selectionCountBoundsAt, type EvaluateOptions, type Selection } from './evaluate'
 import { wargearKey, wargearOf, type Wargear } from './wargear'
 
@@ -23,12 +24,16 @@ export const referenceOnlyWeapon = (name: string) => /\(ref\.?\s*only\)/i.test(n
 export const combatEquipmentMatches = (piece: CombatEquipment, profile: Pick<StructuredDatasheetProfile, 'id' | 'name'>) =>
   piece.profileIds ? piece.profileIds.includes(profile.id) : wargearKey(piece.name, true) === wargearKey(profile.name, true)
 
+/** How many of a weapon profile one carrier holds. */
+export const carriedCount = (carrier: CombatCarrier, profile: Pick<StructuredDatasheetProfile, 'id' | 'name'>) =>
+  carrier.weapons.reduce((sum, piece) => sum + (combatEquipmentMatches(piece, profile) ? piece.count : 0), 0)
+
 function definitionProfiles(definition: Definition, index: CatalogueIndex): Profile[] {
   const found = new Map<string, Profile>()
   const add = (profile: Profile) => {
     found.set(profile.id, profile)
   }
-  for (const source of new Set([definition, resolve(definition, index)])) {
+  for (const source of definitionAndTarget(definition, index)) {
     source.profiles?.forEach(add)
     for (const link of source.infoLinks ?? []) {
       const shared = index.shared.get(link.targetId)
@@ -40,8 +45,7 @@ function definitionProfiles(definition: Definition, index: CatalogueIndex): Prof
 
 function weaponProfiles(definition: Definition, index: CatalogueIndex): Profile[] {
   return definitionProfiles(definition, index).filter((profile) => {
-    const kind = datasheetProfileKind(profile.typeName ?? '')
-    return (kind === 'ranged-weapon' || kind === 'melee-weapon') && !referenceOnlyWeapon(profile.name ?? '')
+    return weaponPhase(profile.typeName ?? '') !== null && !referenceOnlyWeapon(profile.name ?? '')
   })
 }
 
@@ -86,7 +90,7 @@ export function combatCarriers(selection: Selection, index: CatalogueIndex, opti
           [definition!, target].flatMap((source) =>
             (source.categoryLinks ?? []).flatMap((link) => {
               const name = link.name ?? index.categories.get(link.targetId)?.name
-              return name ? [name.replace(/^Faction:\s*/iu, '')] : []
+              return name ? [withoutFactionPrefix(name)] : []
             }),
           ),
         ),

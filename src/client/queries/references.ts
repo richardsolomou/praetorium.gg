@@ -53,14 +53,12 @@ export const favouriteDetachmentsQuery = () =>
     queryFn: () => favouriteDetachments(),
     staleTime: SSR_STALE_TIME,
   })
-export const gameReferencesQuery = () =>
-  queryOptions({
-    ...referenceQuery(['game-references'], () => gameReferences()),
-    staleTime: ({ state }) => (state.data ? referenceStaleTime() : 0),
-    refetchInterval: ({ state }) => gameReferencesRefreshInterval(state.data),
-  })
-
-export const gameReferencesRefreshInterval = (data: unknown) => (data ? false : 1_000)
+/** Startup data the server may not have read yet, asked for every second until it answers. */
+const untilLoaded = {
+  staleTime: ({ state }: { state: { data: unknown } }) => (state.data ? referenceStaleTime() : 0),
+  refetchInterval: ({ state }: { state: { data: unknown } }) => (state.data ? false : 1_000),
+}
+export const gameReferencesQuery = () => queryOptions({ ...referenceQuery(['game-references'], () => gameReferences()), ...untilLoaded })
 export const globalSearchQuery = (query: string) =>
   queryOptions({
     queryKey: ['global-search', query],
@@ -109,12 +107,7 @@ export const detachmentDetailQuery = (catalogueId: string, slug: string) =>
 export const dispositionDetachmentsQuery = (dispositionId: string) =>
   referenceQuery(['disposition-detachments', dispositionId], () => dispositionDetachments({ data: { dispositionId } }))
 export const deploymentsQuery = () => referenceQuery(['deployments'], () => deployments())
-export const ruleIndexQuery = () =>
-  queryOptions({
-    ...referenceQuery(['rule-index'], () => ruleIndex()),
-    staleTime: ({ state }) => (state.data ? referenceStaleTime() : 0),
-    refetchInterval: ({ state }) => (state.data ? false : 1_000),
-  })
+export const ruleIndexQuery = () => queryOptions({ ...referenceQuery(['rule-index'], () => ruleIndex()), ...untilLoaded })
 export const ruleSectionQuery = (documentId: string, sectionId: string) =>
   queryOptions({
     ...referenceQuery(['rule-section', documentId, sectionId], () => ruleSection({ data: { documentId, sectionId } })),

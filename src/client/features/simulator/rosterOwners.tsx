@@ -42,19 +42,24 @@ export function rosterOwner(source: SimulatorRosterSource | undefined, known: Kn
   return known.friends.find(({ roster }) => roster.id === source.id)?.owner
 }
 
-/** `rosterOwner` over the same reads the simulator's roster picker makes, so it adds no requests of its own. */
-export function useRosterOwners() {
-  const me = useQuery(meQuery())
-  const signedIn = Boolean(me.data)
+/**
+ * The rosters a simulator offers to pick from: the player's own, including archived ones,
+ * the newest page of friends' public rosters as the roster library's Friends tab lists
+ * them, and friends' revealed league lists.
+ */
+export function useSimulatorRosters(enabled = true) {
+  const me = useQuery({ ...meQuery(), enabled })
+  const signedIn = enabled && Boolean(me.data)
   const saved = useQuery({ ...savedRosterSummariesQuery(), enabled: signedIn })
   const friends = useInfiniteQuery({ ...discoveredRostersQuery({}, 'friends', 'updated-desc'), enabled: signedIn })
   const leagues = useQuery({ ...friendLeagueRostersQuery(), enabled: signedIn })
-  const known: KnownRosters = {
-    me: me.data,
-    saved: saved.data ?? [],
-    friends: friends.data?.pages[0]?.rosters ?? [],
-    leagues: leagues.data ?? [],
-  }
+  return { me, saved, friendRosters: friends.data?.pages[0]?.rosters ?? [], leagueRosters: leagues.data ?? [] }
+}
+
+/** `rosterOwner` over the same reads the simulator's roster picker makes, so it adds no requests of its own. */
+export function useRosterOwners() {
+  const { me, saved, friendRosters, leagueRosters } = useSimulatorRosters()
+  const known: KnownRosters = { me: me.data, saved: saved.data ?? [], friends: friendRosters, leagues: leagueRosters }
   return (source: SimulatorRosterSource | undefined) => rosterOwner(source, known)
 }
 

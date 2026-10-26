@@ -14,6 +14,14 @@ import {
 } from '../../../core/collectionCsv'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { importCollection } from '../../functions'
+import {
+  collectionCountsAsKey,
+  collectionCountsKey,
+  collectionKey,
+  collectionProfileKey,
+  collectionProgressKey,
+  collectionWishesKey,
+} from '../../queries/queryKeys'
 import { nativeBridgeVersion } from '../../nativeBridge'
 import { Problem } from '../../components/Problem'
 import { useCopyText } from '../../useCopyText'
@@ -91,15 +99,15 @@ function ImportReview({
   const save = useMutation({
     mutationFn: (rows: CollectionImportRow[]) => importCollection({ data: { rows, replace } }),
     onSuccess: () => {
-      for (const key of [
-        'collection',
-        'collection-counts',
-        'collection-progress',
-        'collection-counts-as',
-        'collection-wishes',
-        'collection-profile',
+      for (const queryKey of [
+        collectionKey(),
+        collectionCountsKey(),
+        collectionProgressKey(),
+        collectionCountsAsKey(),
+        collectionWishesKey(),
+        collectionProfileKey(),
       ])
-        void queryClient.invalidateQueries({ queryKey: [key] })
+        void queryClient.invalidateQueries({ queryKey })
     },
   })
   const close = () => {

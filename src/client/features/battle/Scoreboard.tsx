@@ -11,14 +11,14 @@ import { sideName, type Side } from '../../sides'
 import { tint } from './battleTints'
 import { Elapsed } from './Elapsed'
 
-type Props = { view: BattleView; clock: BattleClock; sides: Side[]; outcome: string | null }
+type Props = { view: BattleView; clock: BattleClock; sides: Side[] }
 
 /**
  * The one line worth glancing at mid-turn: who is ahead, whose turn it is, and how
  * far through the battle everyone is. The same component at every width, so a phone
  * and a laptop never disagree about the score.
  */
-export function Scoreboard({ view, clock, sides, outcome }: Props) {
+export function Scoreboard({ view, clock, sides }: Props) {
   const active = view.players.find((player) => player.isActive)
   const finished = view.status === 'finished'
 
@@ -60,7 +60,7 @@ export function Scoreboard({ view, clock, sides, outcome }: Props) {
           className={`order-2 text-center @max-[16rem]:order-first @max-[16rem]:col-span-full ${finished ? 'min-w-32 sm:min-w-44' : 'min-w-28'}`}
         >
           {finished ? (
-            <Result view={view} sides={sides} outcome={outcome} />
+            <Result view={view} sides={sides} />
           ) : (
             <>
               <p className="eyebrow">
@@ -86,28 +86,20 @@ export function Scoreboard({ view, clock, sides, outcome }: Props) {
  * The winner is named in their own tint, and the score sits under the name rather
  * than inside the sentence. The heading still reads as one line for a screen reader.
  */
-function Result({ view, sides, outcome }: Omit<Props, 'clock'>) {
+function Result({ view, sides }: Omit<Props, 'clock'>) {
   const result = battleResult(sides, view)
   const winner = result.kind === 'win' ? sides.find((side) => side.index === result.side.index) : undefined
-  if (!winner || result.kind !== 'win') {
-    return (
-      <>
-        <h1 className="text-sm leading-tight font-bold text-balance uppercase">{outcome}</h1>
-      </>
-    )
-  }
+  if (!winner || result.kind !== 'win') return <h1 className="text-sm leading-tight font-bold text-balance uppercase">{result.detail}</h1>
   const colours = tint(winner.index)
   return (
-    <>
-      <h1 className="text-base leading-tight font-bold text-balance uppercase sm:text-lg">
-        <span className={colours.text}>{sideName(winner)}</span> <span className="text-dim">{result.verb}</span>{' '}
-        {result.score ? (
-          <span className="figure block text-2xl leading-none">{result.score}</span>
-        ) : (
-          <span className="text-dim">{result.detail}</span>
-        )}
-      </h1>
-    </>
+    <h1 className="text-base leading-tight font-bold text-balance uppercase sm:text-lg">
+      <span className={colours.text}>{sideName(winner)}</span> <span className="text-dim">{result.verb}</span>{' '}
+      {result.score ? (
+        <span className="figure block text-2xl leading-none">{result.score}</span>
+      ) : (
+        <span className="text-dim">{result.detail}</span>
+      )}
+    </h1>
   )
 }
 
@@ -135,11 +127,11 @@ function SideScore({
         {/*
          * Who is on each side, until the panels that say it better are on screen.
          * From `lg` up both panels sit under this strip with their players pictured
-         * and named at the top of each, so repeating them here said nothing twice.
+         * and named at the top of each, so this strip leaves them out there.
          *
          * Below that, a phone gives each side about a third of the strip, which two
-         * names and two pictures do not fit into: they wrapped over four lines and
-         * pushed the score itself off the screen. So the picture identifies each
+         * names and two pictures do not fit into without wrapping over four lines and
+         * pushing the score off the screen. So the picture identifies each
          * player and the name stays behind it for a screen reader, which keeps this
          * link the way out of a battle that it is. From `sm` there is room for both.
          */}

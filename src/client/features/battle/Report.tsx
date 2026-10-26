@@ -40,17 +40,15 @@ const WINDOW = 100
  */
 export function Report({
   token,
-  open,
   players = NO_PLAYERS,
   entries: suppliedEntries,
 }: {
   token: string
-  open: boolean
   players?: readonly ReportPlayer[]
   entries?: readonly ReportEntry[]
 }) {
   const { date, time } = useDateFormatting()
-  const reportResult = useQuery(reportQuery(token, open && suppliedEntries === undefined))
+  const reportResult = useQuery(reportQuery(token, suppliedEntries === undefined))
   const fetchedEntries = reportResult.data
   const entries = suppliedEntries ?? fetchedEntries
   const [filter, setFilter] = useState<'all' | 'cp'>('all')
@@ -64,7 +62,7 @@ export function Report({
   const visible = filtered.slice(0, shownCount)
   const hidden = filtered.length - visible.length
 
-  if (open && suppliedEntries === undefined && reportResult.isPending) return <ReportSkeleton />
+  if (suppliedEntries === undefined && reportResult.isPending) return <ReportSkeleton />
   if (!entries?.length) return <p className="mt-3 text-xs text-dim">Nothing has happened yet.</p>
 
   return (

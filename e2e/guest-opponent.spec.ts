@@ -1,6 +1,5 @@
-import { expect, test, type Page } from './test'
+import { expect, test } from './test'
 import {
-  advance,
   attachRoster,
   createBattle,
   createRoster,
@@ -9,26 +8,14 @@ import {
   startBattle,
   takeTheTurn,
   uniqueName,
+  playTurn,
+  expectNoPageOverflow,
+  PHONE,
+  scoreboard,
 } from './account'
-import { withAuthSql } from './storage'
+import { userIdNamed } from './storage'
 
 const GUEST = 'Alex the Guest'
-const scoreboard = (page: Page) => page.getByRole('region', { name: 'Battle scoreboard' })
-const noOverflow = async (page: Page) =>
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(page.viewportSize()!.width)
-
-async function playerId(name: string) {
-  const row = await withAuthSql(
-    (database) => database.prepare('SELECT id FROM user WHERE name = ?').get(name) as { id: string } | undefined,
-  )
-  if (!row) throw new Error(`Missing test player ${name}`)
-  return row.id
-}
-
-async function playTurn(page: Page) {
-  for (let phase = 0; phase < 6; phase += 1) await advance(page)
-}
-
 test('a host records a real game against a guest without an account', async ({ page }) => {
   test.setTimeout(300_000)
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -59,8 +46,8 @@ test('a host records a real game against a guest without an account', async ({ p
   await playTurn(page)
   await expect(page.locator('[data-stat="round"]')).toHaveText('2')
   await takeTheTurn(page)
-  await page.setViewportSize({ width: 390, height: 844 })
-  await noOverflow(page)
+  await page.setViewportSize(PHONE)
+  await expectNoPageOverflow(page)
   await page.screenshot({ path: test.info().outputPath('battle-phone.png'), fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
 
@@ -73,10 +60,10 @@ test('a host records a real game against a guest without an account', async ({ p
     .click()
   await expect(scoreboard(page).getByRole('heading')).toContainText('wins by concession')
 
-  await page.goto(`/users/${await playerId(host)}`)
+  await page.goto(`/users/${await userIdNamed(host)}`)
   await expect(page.locator('[data-service-record] [data-record-battles]')).toHaveAttribute('data-record-battles', '1')
   await page.screenshot({ path: test.info().outputPath('record-desktop.png'), fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.screenshot({ path: test.info().outputPath('record-phone.png'), fullPage: true })
 
   await page.goto('/leaderboard')

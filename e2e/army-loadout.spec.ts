@@ -37,7 +37,7 @@ for (const token of ['preview-casual-strike-force', 'preview-league-battle-duel'
         ),
       )
       expect(overflowing).toBe(false)
-      await page.screenshot({ path: `test-results/army-loadout-${token}-${width}.png` })
+      await page.screenshot({ path: test.info().outputPath(`army-loadout-${token}-${width}.png`) })
       const list = army.locator('[data-army-list]')
       const second = list.locator('[data-unit]').nth(1).locator('button[aria-pressed]')
       if (width >= 860) {

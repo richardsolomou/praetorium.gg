@@ -31,7 +31,10 @@ vi.mock('../app', () => ({
     },
   }),
 }))
-vi.mock('../playerSession', () => ({ currentUserId: async () => mocks.viewerId }))
+vi.mock('../playerSession', () => ({
+  currentUserId: async () => mocks.viewerId,
+  forSignedIn: async (signedOut: unknown, work: (userId: string) => unknown) => (mocks.viewerId ? work(mocks.viewerId) : signedOut),
+}))
 vi.mock('../rosterPrices', () => ({ cachedRosterAssessmentsFor: mocks.assessments }))
 
 type Discovered = { rosters: { roster: { id: string }; owner: { name: string }; points: number | null; problem: string | null }[] }

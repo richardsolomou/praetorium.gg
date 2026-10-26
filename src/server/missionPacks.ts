@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import type { SourceTexts, TextTransform } from '../shared/sourceText'
 import { publishedTexts } from './sourceTexts'
+import { records } from '../shared/datacards'
 
 /**
  * A mission pack as the datacards source writes one. Card criteria, twists and scoring ceilings all
@@ -38,8 +39,6 @@ export function packText(pack: MissionPack, value: unknown, transform: TextTrans
   return (packTexts.get(pack) ?? publishedTexts('missions'))(raw, transform)
 }
 
-export { english } from '../shared/datacards'
-
 /**
  * Every primary and secondary card a pack prints, in the order it prints them.
  *
@@ -48,9 +47,5 @@ export { english } from '../shared/datacards'
  * traversal lives here rather than once per reading.
  */
 export function missionCards(pack: unknown): Record<string, unknown>[] {
-  if (!pack || typeof pack !== 'object') return []
-  return ['primaryMissions', 'secondaryMissions'].flatMap((field) => {
-    const cards: unknown = (pack as Record<string, unknown>)[field]
-    return Array.isArray(cards) ? cards.filter((card): card is Record<string, unknown> => Boolean(card) && typeof card === 'object') : []
-  })
+  return ['primaryMissions', 'secondaryMissions'].flatMap((field) => records(pack, field))
 }

@@ -6,11 +6,16 @@ import type {
   ReferenceSection,
 } from '../contracts/reference'
 import { distance } from 'fastest-levenshtein'
+import { foldedText } from '../core/text'
 import type { ReferenceCorpus } from './referenceCorpus'
+import { remember } from '../core/collections'
 
 export const REFERENCE_QUERY_MAX_LENGTH = 120
 export const REFERENCE_RESULT_MAX = 25
+export const REFERENCE_FILTER_MAX_LENGTH = 160
 const EXCERPT_MAX_LENGTH = 320
+/** An excerpt cut from inside a section carries an ellipsis at each end. */
+export const REFERENCE_EXCERPT_MAX_LENGTH = EXCERPT_MAX_LENGTH + 2
 
 export type ReferenceSearchInput = {
   query: string
@@ -120,12 +125,8 @@ function encodeCursor(offset: number) {
 
 export function validReferenceCursor(cursor: string | undefined) {
   if (!cursor) return true
-  try {
-    const decoded = Buffer.from(cursor, 'base64url').toString('utf8')
-    return /^\d+$/.test(decoded) && Number(decoded) <= 10_000 && encodeCursor(Number(decoded)) === cursor
-  } catch {
-    return false
-  }
+  const decoded = Buffer.from(cursor, 'base64url').toString('utf8')
+  return /^\d+$/.test(decoded) && Number(decoded) <= 10_000 && encodeCursor(Number(decoded)) === cursor
 }
 
 function decodeCursor(cursor: string | undefined) {
@@ -133,41 +134,40 @@ function decodeCursor(cursor: string | undefined) {
 }
 
 function indexFor(corpus: ReferenceCorpus) {
-  const cached = indices.get(corpus.documents)
-  if (cached) return cached
-  const indexed = corpus.documents.map((document): IndexedDocument => {
-    const id = normalize(document.id)
-    const idWords = words(id)
-    const title = normalize(document.title)
-    const titleWords = words(title)
-    return {
-      document,
-      id,
-      idWords,
-      title,
-      titleWords,
-      sections: document.sections.map((section) => {
-        const sectionId = normalize(section.id)
-        const sectionIdWords = words(sectionId)
-        const heading = normalize(section.title)
-        const headingWords = words(heading)
-        const text = normalize(section.text)
-        const textWords = words(text)
-        return {
-          section,
-          id: sectionId,
-          idWords: sectionIdWords,
-          heading,
-          headingWords,
-          text,
-          textWords,
-          searchableWords: [...idWords, ...sectionIdWords, ...titleWords, ...headingWords, ...textWords],
-        }
-      }),
-    }
+  return remember(indices, corpus.documents, () => {
+    const indexed = corpus.documents.map((document): IndexedDocument => {
+      const id = normalize(document.id)
+      const idWords = words(id)
+      const title = normalize(document.title)
+      const titleWords = words(title)
+      return {
+        document,
+        id,
+        idWords,
+        title,
+        titleWords,
+        sections: document.sections.map((section) => {
+          const sectionId = normalize(section.id)
+          const sectionIdWords = words(sectionId)
+          const heading = normalize(section.title)
+          const headingWords = words(heading)
+          const text = normalize(section.text)
+          const textWords = words(text)
+          return {
+            section,
+            id: sectionId,
+            idWords: sectionIdWords,
+            heading,
+            headingWords,
+            text,
+            textWords,
+            searchableWords: [...idWords, ...sectionIdWords, ...titleWords, ...headingWords, ...textWords],
+          }
+        }),
+      }
+    })
+    return indexed
   })
-  indices.set(corpus.documents, indexed)
-  return indexed
 }
 
 function bestSection(document: IndexedDocument, query: string, tokens: readonly string[]) {
@@ -221,10 +221,6 @@ const singular = (value: string) => {
 }
 
 const normalize = (value: string) =>
-  value
-    .normalize('NFKD')
-    .replaceAll(/\p{M}/gu, '')
-    .replaceAll(/[‘’ʼ]/g, "'")
-    .toLocaleLowerCase()
+  foldedText(value)
     .replaceAll(/[^\p{L}\p{N}]+/gu, ' ')
     .trim()

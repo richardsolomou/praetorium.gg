@@ -3,7 +3,7 @@ import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import { changesTouching } from '../../core/catalogueChanges'
 import { historySince } from '../../core/catalogueHistory'
 import { app } from '../app'
-import { currentUserId, requireUser } from '../playerSession'
+import { currentUserId, forSignedIn, requireUserId } from '../playerSession'
 import { calculateRosterPrice } from '../../shared/pricing'
 import { cachedRosterAssessmentsFor, cachedRosterPrice, cachedRosterTotalsFor, cachedRosterVerdictsFor } from '../rosterPrices'
 import { mutationRpc, rpc } from '../rpc'
@@ -19,7 +19,7 @@ import { copySavedRoster, saveOwnedRoster } from '../saveOwnedRoster'
 import { rosterActions } from '../rosterActions'
 import { copiedArmy } from '../../core/rosterCopies'
 import { currentCatalogueFamilyId, currentEntryId } from '../../core/retiredCatalogueIds'
-import { groupBy } from '../../core/collections'
+import { byId, groupBy, chunks } from '../../core/collections'
 import type { RosterPick } from '../../core/roster'
 import { wishlistSuggestions as suggestFromRosters } from '../../core/wishlistSuggestions'
 import { ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
@@ -66,28 +66,25 @@ export const priceRoster = createServerFn({ method: 'POST' })
   )
 
 export const savedRosterSummaries = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.rosterService.savedRosterSummaries(id) : []
-  }),
+  rpc(() => forSignedIn([], (id) => app().service.rosterService.savedRosterSummaries(id))),
 )
 
 export const homeRosters = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    if (!id) return { count: 0, rosters: [] }
-    const instance = app()
-    const { count, summaries, priceable } = await instance.service.rosterService.homeRosters(id)
-    if (!priceable.length) return { count, rosters: [] }
-    const [totals, verdicts] = await Promise.all([cachedRosterTotalsFor(priceable), cachedRosterVerdictsFor(priceable)])
-    const rosters = priceable.map((_, index) => ({
-      roster: summaries[index]!,
-      points: totals[index]?.points ?? null,
-      label: totals[index]?.label ?? '',
-      problem: verdicts[index]!.problem,
-    }))
-    return { count, rosters }
-  }),
+  rpc(() =>
+    forSignedIn({ count: 0, rosters: [] }, async (id) => {
+      const instance = app()
+      const { count, summaries, priceable } = await instance.service.rosterService.homeRosters(id)
+      if (!priceable.length) return { count, rosters: [] }
+      const [totals, verdicts] = await Promise.all([cachedRosterTotalsFor(priceable), cachedRosterVerdictsFor(priceable)])
+      const rosters = priceable.map((_, index) => ({
+        roster: summaries[index]!,
+        points: totals[index]?.points ?? null,
+        label: totals[index]?.label ?? '',
+        problem: verdicts[index]!.problem,
+      }))
+      return { count, rosters }
+    }),
+  ),
 )
 
 const WISHLIST_ARMIES = 3
@@ -101,51 +98,51 @@ const fieldedEntryIds = (roster: { catalogueId: string; picks: readonly RosterPi
  * public rosters field them, followed by other unused datasheets.
  */
 export const wishlistSuggestions = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const viewerId = await currentUserId()
-    if (!viewerId) return []
-    const instance = app()
-    const [own, factionIndex, books] = await Promise.all([
-      instance.service.rosterService.savedRosters(viewerId),
-      instance.factionIndexFor(),
-      instance.combatUnitsFor(),
-    ])
-    const factions = factionIndex?.factions ?? []
-    const indexed = new Map(factions.map((faction) => [faction.id, faction]))
-    const armies = [
-      ...groupBy(
-        own.filter((roster) => !roster.archived),
-        (roster) => currentCatalogueFamilyId(roster.catalogueId),
-      ).entries(),
-    ]
-      .toSorted(([, a], [, b]) => b.length - a.length)
-      .slice(0, WISHLIST_ARMIES)
-      .map(([faction]) => ({ faction, rules: 'current' as const }))
-    const published = await Promise.all(
-      armies.map(async (filter) => {
-        const scope = discoveryScope(filter, factions)
-        if (!scope) return []
-        const { rosters } = await instance.service.rosterService.discoverRosters({
-          ...scope,
-          audience: 'public',
-          viewerId,
-          sort: 'updated-desc',
-          before: null,
-          limit: ROSTER_DISCOVERY_MAX_PAGE_SIZE,
-        })
-        return rosters
-          .filter(({ summary }) => inDiscoveryScope(summary, filter, indexed))
-          .map(({ priceable }) => fieldedEntryIds(priceable))
-      }),
-    )
-    return suggestFromRosters(
-      own.map(fieldedEntryIds),
-      armies.map((filter, index) => ({
-        rosters: published[index]!,
-        datasheets: books.filter((book) => currentCatalogueFamilyId(book.catalogueId) === filter.faction).flatMap((book) => book.units),
-      })),
-    )
-  }),
+  rpc(() =>
+    forSignedIn([], async (viewerId) => {
+      const instance = app()
+      const [own, factionIndex, books] = await Promise.all([
+        instance.service.rosterService.savedRosters(viewerId),
+        instance.factionIndexFor(),
+        instance.combatUnitsFor(),
+      ])
+      const factions = factionIndex?.factions ?? []
+      const indexed = byId(factions)
+      const armies = [
+        ...groupBy(
+          own.filter((roster) => !roster.archived),
+          (roster) => currentCatalogueFamilyId(roster.catalogueId),
+        ).entries(),
+      ]
+        .toSorted(([, a], [, b]) => b.length - a.length)
+        .slice(0, WISHLIST_ARMIES)
+        .map(([faction]) => ({ faction, rules: 'current' as const }))
+      const published = await Promise.all(
+        armies.map(async (filter) => {
+          const scope = discoveryScope(filter, factions)
+          if (!scope) return []
+          const { rosters } = await instance.service.rosterService.discoverRosters({
+            ...scope,
+            audience: 'public',
+            viewerId,
+            sort: 'updated-desc',
+            before: null,
+            limit: ROSTER_DISCOVERY_MAX_PAGE_SIZE,
+          })
+          return rosters
+            .filter(({ summary }) => inDiscoveryScope(summary, filter, indexed))
+            .map(({ priceable }) => fieldedEntryIds(priceable))
+        }),
+      )
+      return suggestFromRosters(
+        own.map(fieldedEntryIds),
+        armies.map((filter, index) => ({
+          rosters: published[index]!,
+          datasheets: books.filter((book) => currentCatalogueFamilyId(book.catalogueId) === filter.faction).flatMap((book) => book.units),
+        })),
+      )
+    }),
+  ),
 )
 
 /**
@@ -193,7 +190,7 @@ export const discoverRosters = createServerFn({ method: 'GET' })
         before,
         limit: ROSTER_DISCOVERY_PAGE_SIZE,
       })
-      const indexed = new Map(factions.map((faction) => [faction.id, faction]))
+      const indexed = byId(factions)
       const shown = page.rosters.filter(({ summary }) => inDiscoveryScope(summary, filter, indexed))
       const assessments = await cachedRosterAssessmentsFor(shown.map(({ priceable }) => priceable))
       return {
@@ -248,61 +245,62 @@ const CHANGED_COUNT_BATCH_SIZE = 2
 export const savedRosterPage = createServerFn({ method: 'GET' })
   .validator(rosterIdsSchema)
   .handler(({ data }) =>
-    rpc(async () => {
-      const userId = await currentUserId()
-      if (!userId) return []
-      const instance = app()
-      const saved = await instance.service.rosterService.savedRostersByIds(userId, data.ids)
-      if (!saved.length) return []
-      const [assessments, history, differences] = await Promise.all([
-        cachedRosterAssessmentsFor(saved),
-        instance.catalogueHistoryFor(),
-        variantDifferences(userId, saved),
-      ])
-      const needingTotals = saved.filter((roster, index) => !roster.name || assessments[index]!.points === null)
-      const fallbackTotals = await cachedRosterTotalsFor(needingTotals)
-      const totalsById = new Map(needingTotals.map((roster, index) => [roster.id, fallbackTotals[index]]))
-      const sets = historySince(history ?? [], Math.min(...saved.map((roster) => roster.updatedAt)), CHANGE_SETS_READ)
-      return saved.map((roster, index) => ({
-        ...rosterStatus(roster, assessments[index]!.verdict, sets),
-        points: assessments[index]!.points ?? totalsById.get(roster.id)?.points ?? null,
-        label: roster.name || totalsById.get(roster.id)?.label || '',
-        differences: differences.get(roster.id) ?? null,
-      }))
-    }),
+    rpc(() =>
+      forSignedIn([], async (userId) => {
+        const instance = app()
+        const saved = await instance.service.rosterService.savedRostersByIds(userId, data.ids)
+        if (!saved.length) return []
+        const [assessments, history, differences] = await Promise.all([
+          cachedRosterAssessmentsFor(saved),
+          instance.catalogueHistoryFor(),
+          variantDifferences(userId, saved),
+        ])
+        const needingTotals = saved.filter((roster, index) => !roster.name || assessments[index]!.points === null)
+        const fallbackTotals = await cachedRosterTotalsFor(needingTotals)
+        const totalsById = new Map(needingTotals.map((roster, index) => [roster.id, fallbackTotals[index]]))
+        const sets = historySince(history ?? [], Math.min(...saved.map((roster) => roster.updatedAt)), CHANGE_SETS_READ)
+        return saved.map((roster, index) => ({
+          ...rosterStatus(roster, assessments[index]!.verdict, sets),
+          points: assessments[index]!.points ?? totalsById.get(roster.id)?.points ?? null,
+          label: roster.name || totalsById.get(roster.id)?.label || '',
+          differences: differences.get(roster.id) ?? null,
+        }))
+      }),
+    ),
   )
 
 /** The lists a data update changed since they were saved; the full-library banner settles after the visible rows without monopolising the server. */
 export const savedRosterChangedIds = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async (): Promise<string[]> => {
-    const id = await currentUserId()
-    if (!id) return []
-    const instance = app()
-    const history = (await instance.catalogueHistoryFor()) ?? []
-    if (!history.length) return []
-    const saved = await instance.service.rosterService.savedRosters(id)
-    if (!saved.length) return []
-    const sets = historySince(history, Math.min(...saved.map((roster) => roster.updatedAt)), CHANGE_SETS_READ)
-    if (!sets.length) return []
-    const latestChangeAt = sets.at(-1)!.recordedAt
-    const changed: string[] = []
-    for (let index = 0; index < saved.length; index += CHANGED_COUNT_BATCH_SIZE) {
-      const batch = saved.slice(index, index + CHANGED_COUNT_BATCH_SIZE)
-      const uncertain: typeof batch = []
-      for (const roster of batch) {
-        if (roster.updatedAt >= latestChangeAt) continue
-        const result = rosterChangeWithoutPricing(roster, sets)
-        if (result === 'changed') changed.push(roster.id)
-        else if (result === 'needs-price') uncertain.push(roster)
+  rpc(() =>
+    forSignedIn([], async (id): Promise<string[]> => {
+      const instance = app()
+      const history = (await instance.catalogueHistoryFor()) ?? []
+      if (!history.length) return []
+      const saved = await instance.service.rosterService.savedRosters(id)
+      if (!saved.length) return []
+      const sets = historySince(history, Math.min(...saved.map((roster) => roster.updatedAt)), CHANGE_SETS_READ)
+      if (!sets.length) return []
+      const latestChangeAt = sets.at(-1)!.recordedAt
+      const changed: string[] = []
+      for (const batch of chunks(saved, CHANGED_COUNT_BATCH_SIZE)) {
+        const uncertain: typeof batch = []
+        for (const roster of batch) {
+          if (roster.updatedAt >= latestChangeAt) continue
+          const result = rosterChangeWithoutPricing(roster, sets)
+          if (result === 'changed') changed.push(roster.id)
+          else if (result === 'needs-price') uncertain.push(roster)
+        }
+        if (uncertain.length) {
+          const verdicts = await cachedRosterVerdictsFor(uncertain)
+          changed.push(
+            ...uncertain.filter((roster, at) => rosterStatus(roster, verdicts[at]!, sets).changes > 0).map((roster) => roster.id),
+          )
+        }
+        await yieldToEventLoop()
       }
-      if (uncertain.length) {
-        const verdicts = await cachedRosterVerdictsFor(uncertain)
-        changed.push(...uncertain.filter((roster, at) => rosterStatus(roster, verdicts[at]!, sets).changes > 0).map((roster) => roster.id))
-      }
-      await yieldToEventLoop()
-    }
-    return changed
-  }),
+      return changed
+    }),
+  ),
 )
 
 /** The recorded data updates since a list was saved that reached something it holds. */
@@ -342,8 +340,8 @@ export const saveRoster = createServerFn({ method: 'POST' })
   .validator(saveRosterSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      const { id, updatedAt } = await rosterActions.save(player.id, data)
+      const userId = await requireUserId()
+      const { id, updatedAt } = await rosterActions.save(userId, data)
       return { id, updatedAt }
     }),
   )
@@ -365,7 +363,7 @@ export const discoverPlayedArmies = createServerFn({ method: 'GET' })
       const factions = factionIndex?.factions ?? []
       if (!discoveryScope(filter, factions)) return { armies: [], nextCursor: null }
       const page = await instance.service.playedArmies(viewerId, before ?? undefined, battleFactions)
-      const indexed = new Map(factions.map((faction) => [faction.id, faction]))
+      const indexed = byId(factions)
       const shown = page.armies.flatMap((army) => {
         const copy = copiedArmy(army)
         return inDiscoveryScope(copy, filter, indexed) ? [{ army, copy }] : []
@@ -415,12 +413,12 @@ export const copyPlayedArmy = createServerFn({ method: 'POST' })
   .validator(playedArmySchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
+      const userId = await requireUserId()
       const instance = app()
-      const { rosterVisibility } = await instance.service.playerDefaults(player.id)
+      const { rosterVisibility } = await instance.service.playerDefaults(userId)
       const roster = { ...(await playedArmyCopy(data)), visibility: rosterVisibility }
-      const saved = await saveOwnedRoster(player.id, roster)
-      await captureRosterCreated(instance, player.id, roster, { played: true })
+      const saved = await saveOwnedRoster(userId, roster)
+      await captureRosterCreated(instance, userId, roster, { played: true })
       return { id: saved.id }
     }),
   )
@@ -434,10 +432,10 @@ export const copyRoster = createServerFn({ method: 'POST' })
   .validator(copyRosterSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      const copied = await copySavedRoster(player.id, data.id, data.variant, data.setup)
+      const userId = await requireUserId()
+      const copied = await copySavedRoster(userId, data.id, data.variant, data.setup)
       if (!copied) throw new Response('roster not found', { status: 404 })
-      await captureRosterCreated(app(), player.id, copied.data, { variant: data.variant })
+      await captureRosterCreated(app(), userId, copied.data, { variant: data.variant })
       return { id: copied.id }
     }),
   )
@@ -446,9 +444,9 @@ export const deleteRoster = createServerFn({ method: 'POST' })
   .validator(rosterIdSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      await app().service.rosterService.deleteRoster(player.id, data.id)
-      await app().telemetry.capture(player.id, 'roster_deleted')
+      const userId = await requireUserId()
+      await app().service.rosterService.deleteRoster(userId, data.id)
+      await app().telemetry.capture(userId, 'roster_deleted')
       return null
     }),
   )
@@ -457,8 +455,8 @@ export const setRosterVisibility = createServerFn({ method: 'POST' })
   .validator(rosterVisibilitySchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      await rosterActions.setVisibility(player.id, data)
+      const userId = await requireUserId()
+      await rosterActions.setVisibility(userId, data)
       return null
     }),
   )
@@ -467,9 +465,9 @@ export const lendRoster = createServerFn({ method: 'POST' })
   .validator(rosterLoanSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      await app().service.rosterService.lendRoster(player.id, data.id, data.borrowerId)
-      await app().telemetry.capture(player.id, 'roster_lent')
+      const userId = await requireUserId()
+      await app().service.rosterService.lendRoster(userId, data.id, data.borrowerId)
+      await app().telemetry.capture(userId, 'roster_lent')
       return null
     }),
   )
@@ -479,9 +477,9 @@ export const endRosterLoan = createServerFn({ method: 'POST' })
   .validator(rosterLoanSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      await app().service.rosterService.endRosterLoan(player.id, data.id, data.borrowerId)
-      await app().telemetry.capture(player.id, 'roster_loan_ended', { by: player.id === data.borrowerId ? 'borrower' : 'owner' })
+      const userId = await requireUserId()
+      await app().service.rosterService.endRosterLoan(userId, data.id, data.borrowerId)
+      await app().telemetry.capture(userId, 'roster_loan_ended', { by: userId === data.borrowerId ? 'borrower' : 'owner' })
       return null
     }),
   )
@@ -490,33 +488,33 @@ export const rosterLoans = createServerFn({ method: 'GET' })
   .validator(rosterIdSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const player = await requireUser()
-      return app().service.rosterService.rosterLoans(player.id, data.id)
+      const userId = await requireUserId()
+      return app().service.rosterService.rosterLoans(userId, data.id)
     }),
   )
 
 /** Rosters friends have lent this player, with the points and legality their cards show. */
 export const rostersLentToMe = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    if (!id) return []
-    const lent = await app().service.rosterService.rostersLentTo(id)
-    const assessments = await cachedRosterAssessmentsFor(lent.map(({ priceable }) => priceable))
-    return lent.map(({ priceable: _priceable, ...entry }, index) => ({
-      ...entry,
-      points: assessments[index]!.points,
-      problem: assessments[index]!.verdict.problem,
-    }))
-  }),
+  rpc(() =>
+    forSignedIn([], async (id) => {
+      const lent = await app().service.rosterService.rostersLentTo(id)
+      const assessments = await cachedRosterAssessmentsFor(lent.map(({ priceable }) => priceable))
+      return lent.map(({ priceable: _priceable, ...entry }, index) => ({
+        ...entry,
+        points: assessments[index]!.points,
+        problem: assessments[index]!.verdict.problem,
+      }))
+    }),
+  ),
 )
 
 export const setRosterLocked = createServerFn({ method: 'POST' })
   .validator(rosterLockSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      const saved = await app().service.rosterService.setRosterLocked(player.id, data.id, data.locked)
-      await app().telemetry.capture(player.id, 'roster_lock_updated', { locked: data.locked })
+      const userId = await requireUserId()
+      const saved = await app().service.rosterService.setRosterLocked(userId, data.id, data.locked)
+      await app().telemetry.capture(userId, 'roster_lock_updated', { locked: data.locked })
       return saved
     }),
   )
@@ -525,13 +523,18 @@ export const setRosterArchived = createServerFn({ method: 'POST' })
   .validator(rosterArchiveSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      const saved = await app().service.rosterService.setRosterArchived(player.id, data.id, data.archived)
-      await app().telemetry.capture(player.id, 'roster_archive_updated', { archived: data.archived })
+      const userId = await requireUserId()
+      const saved = await app().service.rosterService.setRosterArchived(userId, data.id, data.archived)
+      await app().telemetry.capture(userId, 'roster_archive_updated', { archived: data.archived })
       return saved
     }),
   )
 
+/**
+ * Reads a Praetorium, BattleBase or New Recruit text export into picks this instance
+ * can price. Anything that cannot be placed is named in the answer rather than dropped
+ * quietly.
+ */
 export const importRoster = createServerFn({ method: 'POST' })
   .validator(importRosterSchema)
   .handler(({ data }) =>
@@ -585,19 +588,16 @@ export const exportRoster = createServerFn({ method: 'POST' })
 
 /** The signed-in player's saved unit loadouts; a visitor has none. */
 export const unitLoadouts = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.rosterService.unitLoadouts(id) : []
-  }),
+  rpc(() => forSignedIn([], (id) => app().service.rosterService.unitLoadouts(id))),
 )
 
 export const saveUnitLoadout = createServerFn({ method: 'POST' })
   .validator(saveUnitLoadoutSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      await app().service.rosterService.saveUnitLoadout(player.id, data)
-      await app().telemetry.capture(player.id, 'unit_loadout_saved', {})
+      const userId = await requireUserId()
+      await app().service.rosterService.saveUnitLoadout(userId, data)
+      await app().telemetry.capture(userId, 'unit_loadout_saved')
       return null
     }),
   )
@@ -606,9 +606,9 @@ export const deleteUnitLoadout = createServerFn({ method: 'POST' })
   .validator(unitLoadoutIdSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      await app().service.rosterService.deleteUnitLoadout(player.id, data.id)
-      await app().telemetry.capture(player.id, 'unit_loadout_deleted', {})
+      const userId = await requireUserId()
+      await app().service.rosterService.deleteUnitLoadout(userId, data.id)
+      await app().telemetry.capture(userId, 'unit_loadout_deleted')
       return null
     }),
   )
@@ -617,9 +617,9 @@ export const renameUnitLoadout = createServerFn({ method: 'POST' })
   .validator(renameUnitLoadoutSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      await app().service.rosterService.renameUnitLoadout(player.id, data.id, data.name)
-      await app().telemetry.capture(player.id, 'unit_loadout_renamed', {})
+      const userId = await requireUserId()
+      await app().service.rosterService.renameUnitLoadout(userId, data.id, data.name)
+      await app().telemetry.capture(userId, 'unit_loadout_renamed')
       return null
     }),
   )

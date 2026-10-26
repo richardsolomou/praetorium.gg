@@ -7,8 +7,7 @@ import { constructionDetachment, datacardsFactionKeys, type LoadedDatacards } fr
 import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
 import { joinKey } from '../core/text'
 import type { DetachmentReference, DetachmentRulesDetail, LoadedFactions } from './rulesFactions'
-
-const isUpgrade = (name: string) => /\s*\(upgrade\)\s*$/i.test(name)
+import { isUpgrade, withoutUpgrade } from '../shared/mfm'
 
 export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory: string): LoadedFactions {
   const factionNames = new Map<string, string>()
@@ -86,7 +85,7 @@ export function factionsFromDatacards(datacards: LoadedDatacards, iconDirectory:
           eligibility: card.eligibility,
         })),
         upgrades: upgrades.map((card) => ({
-          name: card.name.replace(/\s*\(upgrade\)\s*$/i, ''),
+          name: withoutUpgrade(card.name),
           points: card.points,
           description: card.description,
         })),

@@ -2,15 +2,11 @@ import { routeSlug } from '../core/slug'
 import { whenDrawnCondition } from '../shared/datacards'
 import { compareText } from '../core/text'
 import type { Mission, MissionCard, Award, AwardTrigger } from './rulesCards'
-import { english, type MissionPack, packText } from './missionPacks'
-import { actionsIn } from './missionActions'
-import { criteriaKey } from './missionCriteria'
+import { type MissionPack, packText } from './missionPacks'
+import { english, records } from '../shared/datacards'
+import { actionsIn, missionCardKey } from './missionActions'
 import type { WhenDrawn } from '../contracts/missions'
 import { missionSelectionKind } from './missionSelections'
-
-type RecordValue = Record<string, unknown>
-const records = (value: unknown): RecordValue[] =>
-  Array.isArray(value) ? value.filter((entry): entry is RecordValue => Boolean(entry) && typeof entry === 'object') : []
 
 const roundOf = (period: string) =>
   ({ firstBattleRound: 1, secondBattleRound: 2, thirdBattleRound: 3, fourthBattleRound: 4, fifthBattleRound: 5 })[
@@ -56,22 +52,22 @@ function whenDrawn(text: string | null, ids: ReadonlyMap<string, string>, condit
       plain,
     )
   if (paired) {
-    const id = ids.get(criteriaKey(paired[1]!))
+    const id = ids.get(missionCardKey(paired[1]!))
     return id ? { operation: 'redraw', roundMax: null, required: false, heldCards: [id], condition: null } : null
   }
   return whenDrawnCondition(plain) && condition ? { operation: 'replace', roundMax: null, heldCards: [], condition } : null
 }
 
 function cardOf(
-  raw: RecordValue,
+  raw: Record<string, unknown>,
   actions: ReturnType<typeof actionsIn>,
   ids: ReadonlyMap<string, string>,
   pack: MissionPack,
 ): MissionCard | null {
   const name = english(raw.name)
   if (!name || typeof raw.id !== 'string') return null
-  const awards: Award[] = records(raw.objectives).flatMap((objective) => {
-    const scorings = records(objective.scoring)
+  const awards: Award[] = records(raw, 'objectives').flatMap((objective) => {
+    const scorings = records(objective, 'scoring')
     const exclusiveModes = new Set(
       scorings
         .filter((scoring) => scoring.isMutuallyExclusive === true)
@@ -99,7 +95,7 @@ function cardOf(
     name,
     text: packText(pack, raw.description),
     awards,
-    actions: actions.get(criteriaKey(name)) ?? [],
+    actions: actions.get(missionCardKey(name)) ?? [],
     whenDrawn: whenDrawn(english(raw.description), ids, packText(pack, raw.description, 'condition')),
     selection: missionSelectionKind(pack.id, raw),
   }
@@ -109,16 +105,16 @@ export function missionCardsFromDatacards(packs: readonly MissionPack[]): { prim
   const actions = actionsIn(packs)
   const ids = new Map(
     packs.flatMap((pack) =>
-      records(pack.secondaryMissions).flatMap((card) => {
+      records(pack, 'secondaryMissions').flatMap((card) => {
         const name = english(card.name)
-        return name && typeof card.id === 'string' ? [[criteriaKey(name), card.id] as const] : []
+        return name && typeof card.id === 'string' ? [[missionCardKey(name), card.id] as const] : []
       }),
     ),
   )
   const collect = (field: 'primaryMissions' | 'secondaryMissions') =>
     packs
       .filter((pack) => pack.isCombatPatrol !== true)
-      .flatMap((pack) => records(pack[field]).flatMap((raw) => cardOf(raw, actions, ids, pack) ?? []))
+      .flatMap((pack) => records(pack, field).flatMap((raw) => cardOf(raw, actions, ids, pack) ?? []))
       .sort((a, b) => compareText(a.name, b.name))
   return { primaries: collect('primaryMissions'), secondaries: collect('secondaryMissions') }
 }
@@ -130,20 +126,20 @@ export function missionsFromDatacards(packs: readonly MissionPack[]): Map<string
     const source = english(pack.name)
     if (!source) continue
     const packId = routeSlug(source)
-    for (const card of records(pack.primaryMissions)) {
+    for (const card of records(pack, 'primaryMissions')) {
       const name = english(card.name)
       if (!name || typeof card.id !== 'string') continue
-      for (const disposition of records(card.forceDispositions)) {
+      for (const disposition of records(card, 'forceDispositions')) {
         const friendly = typeof disposition.friendly === 'string' ? routeSlug(disposition.friendly) : null
         const opposition = typeof disposition.opposition === 'string' ? routeSlug(disposition.opposition) : null
         if (!friendly || !opposition) continue
         const deploymentIds = new Set<string>()
         for (const presetName of Array.isArray(disposition.recommendedPresets) ? disposition.recommendedPresets : []) {
           if (typeof presetName !== 'string') continue
-          const preset = records(pack.presets).find((entry) => english(entry.name) === presetName)
+          const preset = records(pack, 'presets').find((entry) => english(entry.name) === presetName)
           const deployment =
             preset && typeof preset.deployment === 'string'
-              ? records(pack.deployments).find((entry) => english(entry.name) === preset.deployment)
+              ? records(pack, 'deployments').find((entry) => english(entry.name) === preset.deployment)
               : null
           if (deployment && typeof deployment.id === 'string') deploymentIds.add(deployment.id)
         }
@@ -170,7 +166,7 @@ export function missionsFromDatacards(packs: readonly MissionPack[]): Map<string
 export function dispositionsFromDatacards(packs: readonly MissionPack[]) {
   const found = new Map<string, { id: string; name: string; text: string | null }>()
   for (const pack of packs) {
-    for (const value of records(pack.forceDispositions)) {
+    for (const value of records(pack, 'forceDispositions')) {
       const name = english(value.name)
       if (name) found.set(routeSlug(name), { id: routeSlug(name), name, text: packText(pack, value.description) })
     }

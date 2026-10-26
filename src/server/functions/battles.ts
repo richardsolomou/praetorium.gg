@@ -2,7 +2,8 @@ import { productActions } from '../productActions'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { app } from '../app'
-import { currentUserId, requireUser } from '../playerSession'
+import { currentUserId, forSignedIn, requireUserId } from '../playerSession'
+import { BATTLES_PAGE } from '../service'
 import { battleViewerId, requireBattleActor } from '../guestSession'
 import { submitBattleCommand } from '../battleSubmission'
 import { mutationRpc, rpc } from '../rpc'
@@ -28,25 +29,15 @@ async function orNull<T>(work: () => Promise<T>) {
   }
 }
 
-/** A page of the battle list. History grows for an account's lifetime; a page does not. */
-const BATTLES_PAGE = 25
-
-/** A page of a home-page feed. Shorter, because the page shows three of them at once. */
-const FEED_PAGE = 10
-
-async function battleFactions() {
-  return app().battleFactionsFor()
-}
-
 export const myBattles = createServerFn({ method: 'GET' })
   .validator(battlesPageSchema)
   .handler(({ data }) =>
-    rpc(async () => {
-      const id = await currentUserId()
-      if (!id) return { battles: [], nextCursor: null }
-      const [rules, factions] = await Promise.all([app().battleMissionRulesFor(), battleFactions()])
-      return app().service.battles(id, rules, { limit: BATTLES_PAGE, before: data.before ?? undefined }, factions)
-    }),
+    rpc(() =>
+      forSignedIn({ battles: [], nextCursor: null }, async (id) => {
+        const [rules, factions] = await Promise.all([app().battleMissionRulesFor(), app().battleFactionsFor()])
+        return app().service.battles(id, rules, { limit: BATTLES_PAGE, before: data.before ?? undefined }, factions)
+      }),
+    ),
   )
 
 /**
@@ -60,8 +51,8 @@ export const publicBattles = createServerFn({ method: 'GET' })
   .validator(battlesPageSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const [viewerId, rules, factions] = await Promise.all([currentUserId(), app().battleMissionRulesFor(), battleFactions()])
-      return app().service.publicBattles(viewerId, rules, { limit: FEED_PAGE, before: data.before ?? undefined }, factions)
+      const [viewerId, rules, factions] = await Promise.all([currentUserId(), app().battleMissionRulesFor(), app().battleFactionsFor()])
+      return app().service.publicBattles(viewerId, rules, { before: data.before ?? undefined }, factions)
     }),
   )
 
@@ -69,12 +60,12 @@ export const publicBattles = createServerFn({ method: 'GET' })
 export const friendBattles = createServerFn({ method: 'GET' })
   .validator(battlesPageSchema)
   .handler(({ data }) =>
-    rpc(async () => {
-      const id = await currentUserId()
-      if (!id) return { battles: [], nextCursor: null }
-      const [rules, factions] = await Promise.all([app().battleMissionRulesFor(), battleFactions()])
-      return app().service.friendBattles(id, rules, { limit: FEED_PAGE, before: data.before ?? undefined }, factions)
-    }),
+    rpc(() =>
+      forSignedIn({ battles: [], nextCursor: null }, async (id) => {
+        const [rules, factions] = await Promise.all([app().battleMissionRulesFor(), app().battleFactionsFor()])
+        return app().service.friendBattles(id, rules, { before: data.before ?? undefined }, factions)
+      }),
+    ),
   )
 
 /**
@@ -84,7 +75,9 @@ export const friendBattles = createServerFn({ method: 'GET' })
  * faction table is headed with a name a player recognises and addressed by its
  * slug. An instance with no catalogue synced still answers with the overall table.
  */
-export const standings = createServerFn({ method: 'GET' }).handler(() => rpc(async () => app().service.standings(await battleFactions())))
+export const standings = createServerFn({ method: 'GET' }).handler(() =>
+  rpc(async () => app().service.standings(await app().battleFactionsFor())),
+)
 
 /**
  * One player's profile: the battles this reader may see them in, their record, and
@@ -96,7 +89,7 @@ export const playerProfile = createServerFn({ method: 'GET' })
     rpc(async () => {
       const { userId, ...filter } = data
       const viewerId = await currentUserId()
-      const [rules, factions] = await Promise.all([app().battleReadRulesFor(), battleFactions()])
+      const [rules, factions] = await Promise.all([app().battleReadRulesFor(), app().battleFactionsFor()])
       return app().service.playerProfile(userId, viewerId, filter, rules, factions)
     }),
   )
@@ -104,7 +97,7 @@ export const playerProfile = createServerFn({ method: 'GET' })
 /** Where one player sits in the leaderboard's tables. The same fold the leaderboard pages. */
 export const playerRankings = createServerFn({ method: 'GET' })
   .validator(userSchema)
-  .handler(({ data }) => rpc(async () => app().service.playerRankings(data.userId, await battleFactions())))
+  .handler(({ data }) => rpc(async () => app().service.playerRankings(data.userId, await app().battleFactionsFor())))
 
 export const openBattle = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
@@ -131,8 +124,8 @@ export const leagueBattleOptions = createServerFn({ method: 'GET' })
   .validator(leagueBattleOptionsSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const player = await requireUser()
-      return app().service.leagueBattleOptions(player.id, data)
+      const userId = await requireUserId()
+      return app().service.leagueBattleOptions(userId, data)
     }),
   )
 
@@ -140,8 +133,8 @@ export const createBattle = createServerFn({ method: 'POST' })
   .validator(createBattleSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.createBattle(player.id, data)
+      const userId = await requireUserId()
+      return productActions.createBattle(userId, data)
     }),
   )
 
@@ -149,8 +142,8 @@ export const deleteBattle = createServerFn({ method: 'POST' })
   .validator(deleteBattleSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.deleteBattle(player.id, data)
+      const userId = await requireUserId()
+      return productActions.deleteBattle(userId, data)
     }),
   )
 

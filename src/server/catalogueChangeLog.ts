@@ -4,6 +4,7 @@ import { type CatalogueHistoryEntry, factionAnchors, updateSummary } from '../co
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { IndexedUpdate, LinkedChangeSet, ReferenceLink } from '../contracts/catalogueChanges'
 import { historyAnchor } from './catalogueHistory'
+import { groupBy, remember } from '../core/collections'
 
 type Routes = {
   factions: Map<string, string>
@@ -16,28 +17,27 @@ const routesCache = new WeakMap<CanonicalCatalogue, Routes>()
 
 /** Where each faction, datasheet and detachment the current data holds is read. */
 function routesOf(canonical: CanonicalCatalogue): Routes {
-  const cached = routesCache.get(canonical)
-  if (cached) return cached
-  const routes: Routes = { factions: new Map(), datasheets: new Map(), detachments: new Map() }
-  for (const sheet of canonical.datasheets) {
-    if (!sheet.referenceRoute) continue
-    routes.factions.set(sheet.catalogueId, sheet.referenceRoute.catalogueId)
-    routes.datasheets.set(key(sheet.catalogueId, sheet.id), {
-      kind: 'datasheet',
-      faction: sheet.referenceRoute.catalogueId,
-      slug: sheet.referenceRoute.slug,
-    })
-  }
-  for (const detachment of canonical.detachments) {
-    routes.factions.set(detachment.catalogueId, detachment.factionSlug)
-    routes.detachments.set(key(detachment.catalogueId, detachment.id), {
-      kind: 'detachment',
-      faction: detachment.factionSlug,
-      slug: detachment.slug,
-    })
-  }
-  routesCache.set(canonical, routes)
-  return routes
+  return remember(routesCache, canonical, () => {
+    const routes: Routes = { factions: new Map(), datasheets: new Map(), detachments: new Map() }
+    for (const sheet of canonical.datasheets) {
+      if (!sheet.referenceRoute) continue
+      routes.factions.set(sheet.catalogueId, sheet.referenceRoute.catalogueId)
+      routes.datasheets.set(key(sheet.catalogueId, sheet.id), {
+        kind: 'datasheet',
+        faction: sheet.referenceRoute.catalogueId,
+        slug: sheet.referenceRoute.slug,
+      })
+    }
+    for (const detachment of canonical.detachments) {
+      routes.factions.set(detachment.catalogueId, detachment.factionSlug)
+      routes.detachments.set(key(detachment.catalogueId, detachment.id), {
+        kind: 'detachment',
+        faction: detachment.factionSlug,
+        slug: detachment.slug,
+      })
+    }
+    return routes
+  })
 }
 
 function linkOf(routes: Routes, catalogueId: string, change: CatalogueChange): ReferenceLink | null {
@@ -99,24 +99,25 @@ const isAddition = (change: CatalogueChange) => change.kind.endsWith('-added')
  * first row lists everything it holds as added, and the default version repeats its army's row.
  */
 export function listedHistory(history: readonly CatalogueHistoryEntry[]): CatalogueHistoryEntry[] {
-  const cached = listedHistoryCache.get(history)
-  if (cached) return cached
-  const recorded = new Set<string>()
-  const listed = history.flatMap((entry) => {
-    const plain = new Map(
-      entry.changes.factions.filter(({ catalogueId }) => !catalogueId.includes('~')).map((f) => [f.catalogueId, JSON.stringify(f.changes)]),
-    )
-    const factions = entry.changes.factions.filter(({ catalogueId, changes }) => {
-      if (!catalogueId.includes('~')) return true
-      const introduced = !recorded.has(catalogueId) && changes.every(isAddition)
-      recorded.add(catalogueId)
-      return !introduced && plain.get(editionFamilyId(catalogueId)) !== JSON.stringify(changes)
+  return remember(listedHistoryCache, history, () => {
+    const recorded = new Set<string>()
+    const listed = history.flatMap((entry) => {
+      const plain = new Map(
+        entry.changes.factions
+          .filter(({ catalogueId }) => !catalogueId.includes('~'))
+          .map((f) => [f.catalogueId, JSON.stringify(f.changes)]),
+      )
+      const factions = entry.changes.factions.filter(({ catalogueId, changes }) => {
+        if (!catalogueId.includes('~')) return true
+        const introduced = !recorded.has(catalogueId) && changes.every(isAddition)
+        recorded.add(catalogueId)
+        return !introduced && plain.get(editionFamilyId(catalogueId)) !== JSON.stringify(changes)
+      })
+      if (factions.length === entry.changes.factions.length) return [entry]
+      return factions.length ? [{ ...entry, changes: { ...entry.changes, factions } }] : []
     })
-    if (factions.length === entry.changes.factions.length) return [entry]
-    return factions.length ? [{ ...entry, changes: { ...entry.changes, factions } }] : []
+    return listed
   })
-  listedHistoryCache.set(history, listed)
-  return listed
 }
 
 /**
@@ -145,27 +146,27 @@ const referenceHistoriesCache = new WeakMap<readonly CatalogueHistoryEntry[], We
 
 /** Every datasheet and detachment page's recorded changes, newest first, by the page's path. */
 function referenceHistories(history: readonly CatalogueHistoryEntry[], canonical: CanonicalCatalogue) {
-  const byCanonical = referenceHistoriesCache.get(history) ?? new WeakMap()
-  referenceHistoriesCache.set(history, byCanonical)
-  const cached = byCanonical.get(canonical)
-  if (cached) return cached
-  const routes = routesOf(canonical)
-  const histories = new Map<string, ReferenceChange[]>()
-  for (const entry of history)
-    for (const faction of entry.changes.factions)
-      for (const change of faction.changes) {
-        const link = linkOf(routes, faction.catalogueId, change)
-        if (!link) continue
-        const path = referencePath(link)
-        histories.set(path, [...(histories.get(path) ?? []), { recordedAt: entry.recordedAt, change }])
-      }
-  for (const [path, changes] of histories)
-    histories.set(
-      path,
-      changes.toSorted((left, right) => right.recordedAt - left.recordedAt),
-    )
-  byCanonical.set(canonical, histories)
-  return histories
+  return remember(
+    remember(referenceHistoriesCache, history, () => new WeakMap()),
+    canonical,
+    () => {
+      const routes = routesOf(canonical)
+      const linked: [string, ReferenceChange][] = []
+      for (const entry of history)
+        for (const faction of entry.changes.factions)
+          for (const change of faction.changes) {
+            const link = linkOf(routes, faction.catalogueId, change)
+            if (link) linked.push([referencePath(link), { recordedAt: entry.recordedAt, change }])
+          }
+      const histories = new Map<string, ReferenceChange[]>()
+      for (const [path, changes] of groupBy(linked, ([pagePath]) => pagePath))
+        histories.set(
+          path,
+          changes.map(([, change]) => change).toSorted((left, right) => right.recordedAt - left.recordedAt),
+        )
+      return histories
+    },
+  )
 }
 
 /**

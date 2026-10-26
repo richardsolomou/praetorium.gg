@@ -1,12 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useRef } from 'react'
-import type { Roster } from '../../../core/battle'
+import type { Roster, BuiltRoster } from '../../../core/battle'
 import type { SimulatorRosterSource } from '../../../contracts/simulatorState'
 import { factionQuery } from '../../queries'
 import { rosterWaivers } from '../../components/FormatWaivers'
 import type { FrozenRoster } from './ListBuilder'
 import { RosterEditor } from './RosterEditor'
 import { RosterBody, RosterHeader, RosterShell, RosterUnits } from './RosterPresentation'
+import { usePrintWhenReady } from './usePrintWhenReady'
 
 /**
  * A list as a battle or a league reveal holds it.
@@ -30,19 +30,7 @@ export function BattleRosterSnapshot({
   const factionResult = useQuery({ ...factionQuery(built?.catalogueId ?? ''), enabled: Boolean(built) })
   const faction = factionResult.data
   const reading = rosterReading(roster)
-  const printed = useRef(false)
-  useEffect(() => {
-    if (!print || reading.kind !== 'text' || printed.current) return
-    let cancelled = false
-    void document.fonts.ready.then(() => {
-      if (cancelled) return
-      printed.current = true
-      window.print()
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [print, reading.kind])
+  usePrintWhenReady(Boolean(print) && reading.kind === 'text')
 
   if (built && reading.kind === 'roster') {
     return (
@@ -98,7 +86,7 @@ export function BattleRosterSnapshot({
   )
 }
 
-type Built = NonNullable<Roster['built']>
+type Built = BuiltRoster
 
 /**
  * Which of the two readings a fielded list gets.

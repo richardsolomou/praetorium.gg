@@ -5,7 +5,7 @@ import { feedbackEmailSchema, feedbackScreenshotSchema } from '../../contracts/f
 import { app } from '../app'
 import { feedbackEmail } from '../feedbackEmail'
 import { storeFeedbackScreenshot } from '../feedbackScreenshots'
-import { currentUser, currentUserId } from '../playerSession'
+import { currentUser, forSignedIn } from '../playerSession'
 import { fixedWindowRateLimit } from '../rateLimit'
 import { mutationRpc, rpc } from '../rpc'
 
@@ -43,10 +43,10 @@ export const emailFeedback = createServerFn({ method: 'POST' })
  * the player to every device; null for a guest or where this instance has no support secret.
  */
 export const supportIdentity = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const secret = process.env.POSTHOG_SUPPORT_IDENTITY_SECRET
-    if (!secret) return null
-    const id = await currentUserId()
-    return id ? { distinctId: id, hash: createHmac('sha256', secret).update(id).digest('hex') } : null
-  }),
+  rpc(() =>
+    forSignedIn(null, (id) => {
+      const secret = process.env.POSTHOG_SUPPORT_IDENTITY_SECRET
+      return secret ? { distinctId: id, hash: createHmac('sha256', secret).update(id).digest('hex') } : null
+    }),
+  ),
 )

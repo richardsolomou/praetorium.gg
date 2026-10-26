@@ -3,6 +3,7 @@ import { anySignal } from '../../abortSignals'
 import { CombatAnswerCache } from '../../../shared/combatAnswerCache'
 import type { CombatAnswer, CombatRequest } from '../../../core/combatMatchup'
 import CombatWorker from './combatWorker'
+import { WorkerFailure, workerAnswer } from '../../workerAnswer'
 
 const combatAnswerCache = new CombatAnswerCache(8 * 1024 * 1024)
 export const clearCombatAnswerCache = () => combatAnswerCache.clear()
@@ -13,55 +14,35 @@ function localCombatCalculator(onFailure: () => void) {
     worker?.terminate()
     worker = undefined
   }
+  const failed = (request: CombatRequest, message: string): CombatAnswer => {
+    dispose()
+    onFailure()
+    return {
+      ranged: request.ranged ? { error: message } : null,
+      melee: request.melee ? { error: message } : null,
+      combined: { error: message },
+    }
+  }
+  const answer = async (request: CombatRequest, signal: AbortSignal): Promise<CombatAnswer> => {
+    try {
+      worker ??= new CombatWorker()
+      return await workerAnswer<CombatAnswer>(worker, request, { timeoutMs: 15_000, signal })
+    } catch (error) {
+      if (signal.aborted) {
+        dispose()
+        throw signal.reason
+      }
+      if (!(error instanceof WorkerFailure))
+        return failed(request, 'The calculation could not start. This browser must support Web Workers.')
+      if (error.reason === 'timeout') return failed(request, 'The calculation took too long. Try a smaller matchup.')
+      if (error.reason === 'unreadable') return failed(request, 'The calculation response could not be read. Try again.')
+      return failed(request, 'The calculation failed. Try again.')
+    }
+  }
   const calculate = (request: CombatRequest, signal: AbortSignal): Promise<CombatAnswer> => {
     signal.throwIfAborted()
     if (!request.ranged && !request.melee) return Promise.resolve({ ranged: null, melee: null })
-    return new Promise((resolve, reject) => {
-      let active = true
-      let timer: ReturnType<typeof setTimeout> | undefined
-      const stop = () => {
-        if (!active) return
-        active = false
-        clearTimeout(timer)
-        if (worker) {
-          worker.onmessage = null
-          worker.onerror = null
-          worker.onmessageerror = null
-        }
-        signal.removeEventListener('abort', abort)
-      }
-      const fail = (message: string) => {
-        if (!active) return
-        stop()
-        dispose()
-        onFailure()
-        resolve({
-          ranged: request.ranged ? { error: message } : null,
-          melee: request.melee ? { error: message } : null,
-          combined: { error: message },
-        })
-      }
-      const abort = () => {
-        stop()
-        dispose()
-        reject(signal.reason)
-      }
-      signal.addEventListener('abort', abort, { once: true })
-      try {
-        worker ??= new CombatWorker()
-        worker.onmessage = (event: MessageEvent<CombatAnswer>) => {
-          if (!active) return
-          stop()
-          resolve(event.data)
-        }
-        worker.onerror = () => fail('The calculation failed. Try again.')
-        worker.onmessageerror = () => fail('The calculation response could not be read. Try again.')
-        timer = setTimeout(() => fail('The calculation took too long. Try a smaller matchup.'), 15_000)
-        worker.postMessage(request)
-      } catch {
-        fail('The calculation could not start. This browser must support Web Workers.')
-      }
-    })
+    return answer(request, signal)
   }
   return { calculate, dispose }
 }

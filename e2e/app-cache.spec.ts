@@ -9,7 +9,11 @@ import {
   signUp,
   uniqueName,
   waitForRosterSave,
+  signOut,
+  PHONE,
 } from './account'
+import { lastPathSegment } from './storage'
+import { waitForOfflineApp } from './offline'
 
 async function savedState(page: Page) {
   return page.evaluate(
@@ -41,19 +45,11 @@ test(
     const rosterPath = new URL(page.url()).pathname
     const battlePath = new URL(await createBattle(page, { practice: true })).pathname
     await expect(page.getByText(PRACTICE_OPPONENT, { exact: true }).first()).toBeVisible()
-    await expect.poll(() => savedState(page)).toContain(JSON.stringify(['battle', battlePath.split('/').at(-1)!]))
+    await expect.poll(() => savedState(page)).toContain(JSON.stringify(['battle', lastPathSegment(page.url())]))
     await page.goto('/')
     await expect(page.getByRole('heading', { name: `Welcome back, ${player}` })).toBeVisible()
     await expect.poll(() => savedState(page)).toContain(roster)
-    await expect
-      .poll(
-        () => page.evaluate(async () => Boolean(await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html'))),
-        {
-          timeout: 180_000,
-        },
-      )
-      .toBe(true)
-    await expect.poll(() => page.evaluate(() => Boolean(window.PraetoriumReferenceCache?.construction))).toBe(true)
+    await waitForOfflineApp(page)
     await page.goto(rosterPath)
     await expect(page.getByLabel('List name')).toHaveValue(roster)
     const picker = page.getByLabel('Add a unit')
@@ -85,7 +81,7 @@ test(
     const reopened = await context.newPage()
     const errors: string[] = []
     reopened.on('pageerror', (error) => errors.push(error.message))
-    await reopened.setViewportSize({ width: 390, height: 844 })
+    await reopened.setViewportSize(PHONE)
     await reopened.goto('/')
     await expect(reopened.getByRole('heading', { name: `Welcome back, ${player}` })).toBeVisible()
     await expect(reopened.getByRole('main').getByText(roster, { exact: true })).toBeVisible()
@@ -136,21 +132,18 @@ test(
     await reopened.locator('[data-web-app-chrome]').getByRole('link', { name: 'Praetorium', exact: true }).click()
     await reopened.getByRole('main').getByText('Renamed saved army', { exact: true }).click()
     await expect(reopened.getByLabel('List name')).toHaveValue('Renamed saved army')
-    const renamed = context.waitForEvent('response', (response) => {
-      const data = response.request().postData()
-      return response.ok() && Boolean(data?.includes('"picks"') && data.includes('Renamed twice saved army'))
-    })
-    await reopened.getByLabel('List name').fill('Renamed twice saved army')
-    await reopened.getByLabel('List name').press('Tab')
-    await renamed
+    await waitForRosterSave(
+      reopened,
+      async () => {
+        await reopened.getByLabel('List name').fill('Renamed twice saved army')
+        await reopened.getByLabel('List name').press('Tab')
+      },
+      'Renamed twice saved army',
+    )
     await expect(reopened.getByText(/^\d+ changes? waiting to sync$/)).toHaveCount(0)
     await other.reload()
     await expect(other.locator('[data-roster="Renamed twice saved army"]')).toBeVisible()
-    await reopened
-      .locator('[data-web-app-chrome]')
-      .getByRole('button', { name: `Account menu for ${player}` })
-      .click()
-    await reopened.getByRole('menuitem', { name: 'Sign out' }).click()
+    await signOut(reopened)
     await expect(reopened.getByRole('link', { name: 'Sign in', exact: true }).first()).toBeVisible()
     await expect
       .poll(async () => {
@@ -187,11 +180,7 @@ test('sign-out finishes when saved-device storage is unavailable', async ({ page
       throw new Error('IndexedDB unavailable')
     }
   })
-  await page
-    .getByRole('button', { name: `Account menu for ${player}` })
-    .first()
-    .click()
-  await page.getByRole('menuitem', { name: 'Sign out' }).click()
+  await signOut(page)
   await expect(page.getByRole('link', { name: 'Sign in', exact: true }).first()).toBeVisible()
   await expect(page).toHaveURL('/')
   expect(await page.evaluate(() => (window as Window & { failedStorageAttempts?: number }).failedStorageAttempts)).toBeGreaterThan(0)

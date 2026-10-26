@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { chooseRosterAction, retryUntilVisible, signUp } from './account'
+import { chooseRosterAction, signUp, openImport } from './account'
 import { capture, docsScreenshots } from './docsScreenshots'
 import { necronsOfficial } from '../src/core/rosterText.necrons.fixture'
 
@@ -12,9 +12,7 @@ const necronsWithMistakes = necronsOfficial
 
 test('import a roster', async ({ page }) => {
   await signUp(page, 'Docs importer')
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const dialog = await openImport(page)
 
   const pasted = dialog.getByLabel('Roster text')
   await pasted.fill(necronsWithMistakes)

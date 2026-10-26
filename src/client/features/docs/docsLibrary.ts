@@ -2,6 +2,7 @@ import type { LinkProps } from '@tanstack/react-router'
 import { Bot, Calculator, FileInput, type LucideIcon, ScrollText, Swords, Trophy, UserRound, UsersRound } from 'lucide-react'
 import { DOC_SECTIONS, PRODUCT_DOCS, type ProductDoc } from '../../../contracts/productDocs'
 import { headings } from './docsOutline'
+import { matchesSearch } from '../../text'
 
 const bodies = import.meta.glob<string>('./content/*.md', { query: '?raw', import: 'default', eager: true })
 
@@ -72,13 +73,8 @@ const SEARCHABLE = PRODUCT_DOCS.flatMap((doc) => [
     .map((heading) => ({ key: `${doc.slug}#${heading.id}`, doc, text: heading.text, detail: doc.title, hash: heading.id })),
 ])
 
-export function docsMatching(query: string) {
-  const words = query.toLowerCase().split(/\s+/).filter(Boolean)
-  return SEARCHABLE.filter((entry) => {
-    const haystack = `${entry.text} ${entry.detail} ${entry.doc.section}`.toLowerCase()
-    return words.every((word) => haystack.includes(word))
-  })
-}
+export const docsMatching = (query: string) =>
+  SEARCHABLE.filter((entry) => matchesSearch(`${entry.text} ${entry.detail} ${entry.doc.section}`, query))
 
 export const proseLink =
   'text-info underline decoration-info/40 underline-offset-3 transition-colors hover:text-parchment hover:decoration-parchment'

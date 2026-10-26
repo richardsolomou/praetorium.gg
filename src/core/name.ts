@@ -1,5 +1,7 @@
-export const normalizedName = (value: string) =>
-  value.normalize('NFC').toLowerCase().replaceAll('\u00a0', ' ').replaceAll(/\s+/g, ' ').trim()
+export const normalizedName = (value: string) => value.normalize('NFC').toLowerCase().replaceAll(/\s+/g, ' ').trim()
+
+/** A keyword without the "Faction:" the data prefixes faction keywords with. */
+export const withoutFactionPrefix = (keyword: string) => keyword.replace(/^faction:\s*/i, '')
 
 export function normalizedNameVariants(name: string): string[] {
   const normalized = normalizedName(name)

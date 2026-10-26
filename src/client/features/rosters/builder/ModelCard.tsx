@@ -3,6 +3,7 @@ import {
   addsModel,
   changeBy,
   choiceRemoval,
+  findOption,
   increaseBlocked,
   loadoutFixedCount,
   type LoadoutChoice,
@@ -18,7 +19,6 @@ import {
   poolChangeUpdates,
   pressedCounts,
   replacementChoice,
-  sameWeapon,
   showLoadoutEntry,
   type SpreadCounts,
   type SpreadUpdate,
@@ -28,6 +28,7 @@ import {
 import type { WeaponProfileData } from './loadoutModel'
 import { type OptionNote, PickControl, PoolStepper, WargearRow } from './LoadoutControls'
 import { loadedWords, useSourceTexts } from '../../../sourceText'
+import { sameWargear } from '../../../../core/wargear'
 
 /**
  * One kind of model in the unit, and everything it can carry.
@@ -37,7 +38,6 @@ import { loadedWords, useSourceTexts } from '../../../sourceText'
  * rather than in one list the whole squad shares. The count comes from the choices
  * the rows already point at, never from a second copy of the same number.
  */
-
 export function ModelCard({
   model,
   choices,
@@ -73,12 +73,6 @@ export function ModelCard({
   /** The pick's saved counts, which every press folds against. */
   saved?: Record<string, SpreadCounts>
 }) {
-  const optionOf = (choiceKey: string, optionId: string) => {
-    const choice = choices.find((candidate) => candidate.key === choiceKey)
-    const option = choice?.options.find((candidate) => candidate.id === optionId)
-    return choice && option ? { choice, option } : null
-  }
-
   const count = modelCount(model, choices)
   const { spend, free } = poolHandlers(model, choices, weapons)
   const press = (changes: PoolChange | null) => {
@@ -158,7 +152,7 @@ export function ModelCard({
           const row = entry.row
           const pieces = entry.pieces
           if (!pieces.length) return null
-          const found = optionOf(row.choiceKey, row.optionId)
+          const found = findOption(choices, row.choiceKey, row.optionId)
           if (!found) return null
           const { choice, option } = found
           const displayed = loadoutRowCount(row, choices)
@@ -169,7 +163,7 @@ export function ModelCard({
           const exceedsModelCount = sources.some(({ option: candidate }) => candidate.max > count)
           const direct = sources.filter(({ choice: source }) => source.room <= 1 && !source.carried)
           const replacesAnotherRow = Boolean(
-            row.pieces?.some((piece) => model.rows.some((candidate) => candidate !== row && sameWeapon(candidate.name, piece))),
+            row.pieces?.some((piece) => model.rows.some((candidate) => candidate !== row && sameWargear(candidate.name, piece))),
           )
           const addDirect = direct.find(
             ({ choice: source, option: candidate }) => source.chosen !== candidate.id && candidate.count < candidate.max,

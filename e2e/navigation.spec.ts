@@ -1,9 +1,29 @@
 import fs from 'node:fs'
 import { join } from 'node:path'
 import { devices, expect, type Page, test } from './test'
-import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
-import { confirmRosterSetup, createRoster, followLink, retryUntilVisible, signUp, visitorSetup } from './account'
+import { NATIVE_SHELL_SCRIPT } from './native.harness'
+import {
+  confirmRosterSetup,
+  createRoster,
+  followLink,
+  retryUntilVisible,
+  signUp,
+  visitorSetup,
+  expectNoPageOverflow,
+  chooseRosterAction,
+  openRosterSetup,
+  chooseFaction,
+  chooseOption,
+  signOut,
+  nextFrames,
+  PHONE,
+} from './account'
 import { catalogue } from './stackEnv'
+
+/** The page is no taller than its viewport. */
+async function expectNoPageScroll(page: Page) {
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+}
 
 test('a standalone datasheet omits detachment-only abilities', async ({ page }) => {
   await page.goto('/factions/necrons/datasheets/ctan-shard-of-the-nightbringer')
@@ -15,7 +35,7 @@ test('a standalone datasheet omits detachment-only abilities', async ({ page }) 
 })
 
 test('the mobile website uses application navigation below 860 pixels', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.goto('/')
 
   await expect(page.locator('head link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg')
@@ -44,7 +64,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await expect(sections).toBeVisible()
   await expect(sections.getByRole('link')).toHaveText(['Home', 'Rosters', 'Battles', 'Factions', 'More'])
   await expect(sections.getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page')
-  await page.screenshot({ path: 'test-results/navigation-phone.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('navigation-phone.png'), fullPage: true })
 
   await more.click()
   await expect(page).toHaveURL('/more')
@@ -67,7 +87,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
       '/data-updates',
       '/support',
     ])
-  await page.screenshot({ path: 'test-results/more-phone.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('more-phone.png'), fullPage: true })
   await expect(page.locator('[data-web-app-footer]').getByRole('link', { name: "What's new" })).toBeHidden()
   await mobileHeader.getByRole('button', { name: 'Search Praetorium' }).click()
   await expect(page.getByPlaceholder('Search everything…')).toHaveCount(1)
@@ -77,7 +97,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await sections.getByRole('link', { name: 'Rosters' }).click()
   await expect(page.getByRole('button', { name: 'Go back' })).toHaveCount(0)
   await page.setViewportSize({ width: 320, height: 568 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(320)
+  await expectNoPageOverflow(page)
 
   await more.click()
   await page
@@ -85,9 +105,9 @@ test('the mobile website uses application navigation below 860 pixels', async ({
     .getByRole('link', { name: /^Missions/ })
     .click()
   await expect(page).toHaveURL(/\/missions\//)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect(page.getByRole('main').getByRole('link', { name: 'Force dispositions' })).toBeVisible()
-  await page.screenshot({ path: 'test-results/mission-reference-phone.png' })
+  await page.screenshot({ path: test.info().outputPath('mission-reference-phone.png') })
   await page.getByRole('main').getByRole('link', { name: 'Force dispositions' }).click()
   await expect(page).toHaveURL('/force-dispositions')
   await expect(more).toHaveAttribute('aria-current', 'page')
@@ -105,7 +125,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
   await page.setViewportSize({ width: 910, height: 844 })
   await expect(primary.getByRole('link', { name: 'Rosters' }).locator('svg')).toHaveCount(1)
   await expect(reference.getByRole('link', { name: 'Dispositions' }).locator('svg')).toHaveCount(1)
-  await page.screenshot({ path: 'test-results/navigation-desktop-910.png' })
+  await page.screenshot({ path: test.info().outputPath('navigation-desktop-910.png') })
   await reference.getByRole('link', { name: 'Dispositions' }).click()
   await expect(page).toHaveURL('/force-dispositions')
   await expect(reference.getByRole('link', { name: 'Dispositions' })).toHaveAttribute('aria-current', 'page')
@@ -118,14 +138,13 @@ test('the mobile website uses application navigation below 860 pixels', async ({
     await expect(webHeader).toHaveJSProperty('scrollWidth', await webHeader.evaluate((header) => header.clientWidth))
   }
   await page.setViewportSize({ width: 1000, height: 844 })
-  await page.screenshot({ path: 'test-results/navigation-desktop-1000.png' })
+  await page.screenshot({ path: test.info().outputPath('navigation-desktop-1000.png') })
 })
 
 test('the native application has stable route-aware phone and tablet navigation', async ({ browser }) => {
-  const loadingContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const loadingContext = await browser.newContext({ viewport: PHONE })
   await loadingContext.addInitScript({
-    content: `window.ReactNativeWebView = { postMessage: () => {} };
-${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
+    content: NATIVE_SHELL_SCRIPT,
   })
   const loadingPage = await loadingContext.newPage()
   await loadingPage.route('**/*', (route) => (route.request().resourceType() === 'script' ? route.abort() : route.continue()))
@@ -134,15 +153,14 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   await expect(loadingPage.locator('[data-mobile-app-header]')).toBeVisible()
   await expect(loadingPage.locator('[data-native-app-header]')).toHaveCount(0)
   await expect(loadingPage.locator('[data-native-app-tabs]')).toBeVisible()
-  expect(await loadingPage.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await expectNoPageOverflow(loadingPage)
   await loadingPage.setViewportSize({ width: 1024, height: 768 })
-  expect(await loadingPage.evaluate(() => document.documentElement.scrollWidth)).toBe(1024)
+  await expectNoPageOverflow(loadingPage)
   await loadingContext.close()
 
-  const legacyContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const legacyContext = await browser.newContext({ viewport: PHONE })
   await legacyContext.addInitScript({
-    content: `window.ReactNativeWebView = { postMessage: () => {} };
-${NATIVE_BROWSER_BRIDGE_SCRIPT}
+    content: `${NATIVE_SHELL_SCRIPT}
 document.addEventListener('DOMContentLoaded', () => { document.documentElement.dataset.nativeShell = 'true' }, { once: true });`,
   })
   const legacyPage = await legacyContext.newPage()
@@ -152,10 +170,9 @@ document.addEventListener('DOMContentLoaded', () => { document.documentElement.d
   await expect(legacyPage.locator('[data-native-app-tabs]')).toBeHidden()
   await legacyContext.close()
 
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const context = await browser.newContext({ viewport: PHONE })
   await context.addInitScript({
-    content: `window.ReactNativeWebView = { postMessage: () => {} };
-${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
+    content: NATIVE_SHELL_SCRIPT,
   })
   const page = await context.newPage()
   const hydrationErrors: string[] = []
@@ -170,8 +187,8 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   await expect(page.locator('a[href="/factions/necrons/rules/mfm-1-6/detachments/awakened-dynasty"]')).toHaveCount(1)
   await expect(page).toHaveTitle(/Take and Hold force disposition — Praetorium/)
   await expectCanonical(page, '/force-dispositions/take-and-hold')
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  await page.setViewportSize(PHONE)
+  await expectNoPageOverflow(page)
   await page.setViewportSize({ width: 1_440, height: 900 })
 
   await page.goto('/factions/necrons/datasheets/overlord')
@@ -191,7 +208,7 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   await expect(sections.getByRole('link', { name: 'Home' })).toBeVisible()
   expect((await more.boundingBox())?.width).toBeGreaterThanOrEqual(44)
   expect(hydrationErrors).toEqual([])
-  await page.screenshot({ path: 'test-results/native-navigation-phone.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('native-navigation-phone.png'), fullPage: true })
 
   await more.click()
   await expect(page).toHaveURL('/more')
@@ -209,7 +226,7 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   await expect(morePage.getByRole('button', { name: /^Back/ })).toHaveCount(0)
   await expect(sections.getByRole('link', { name: 'Factions' })).not.toHaveAttribute('aria-current', 'page')
   await expect(more).toHaveAttribute('aria-current', 'page')
-  await page.screenshot({ path: 'test-results/native-navigation-more.png' })
+  await page.screenshot({ path: test.info().outputPath('native-navigation-more.png') })
 
   await mobileHeader.getByRole('button', { name: 'Search Praetorium' }).click()
   await page.getByPlaceholder('Search everything…').fill('Overlord')
@@ -236,7 +253,7 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   await expect(page).toHaveURL('/more')
   expect((await morePage.boundingBox())?.x).toBeGreaterThanOrEqual(80)
   await expect(morePage.getByRole('link', { name: /^Leaderboard/ })).toBeVisible()
-  await page.screenshot({ path: 'test-results/native-navigation-tablet.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('native-navigation-tablet.png'), fullPage: true })
 
   await context.close()
 })
@@ -253,9 +270,7 @@ test('a signed-in player cannot return to the sign-in form', async ({ page }) =>
   await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toHaveCount(0)
   await expect(page).not.toHaveURL(/\/sign-in/)
 
-  const signOut = page.getByRole('menuitem', { name: 'Sign out' })
-  await retryUntilVisible(signOut, () => page.getByRole('button', { name: `Account menu for ${name}` }).click())
-  await signOut.click()
+  await signOut(page)
   await page.goto('/support')
   await page.goto('/sign-in?next=%2Ffactions')
   await page.waitForLoadState('networkidle')
@@ -328,9 +343,9 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(page.getByRole('heading', { name: 'Force dispositions', exact: true })).toBeVisible()
   await expect(page.locator('a[href="/force-dispositions/take-and-hold"]')).toContainText('Take and Hold')
   await expectCanonical(page, '/force-dispositions')
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await page.screenshot({ path: 'test-results/force-dispositions-phone.png', fullPage: true })
+  await page.setViewportSize(PHONE)
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: test.info().outputPath('force-dispositions-phone.png'), fullPage: true })
   await page.setViewportSize({ width: 1_440, height: 900 })
   await page.goBack()
 
@@ -340,9 +355,9 @@ test('public reference data renders without client JavaScript', async ({ browser
   await page.goto(secondaryPath!)
   await expect(page.getByRole('heading', { name: secondaryName, exact: true })).toBeVisible()
   await expectCanonical(page, secondaryPath!)
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
-  await page.screenshot({ path: 'test-results/secondary-mission-mobile.png', fullPage: true })
+  await page.setViewportSize(PHONE)
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: test.info().outputPath('secondary-mission-mobile.png'), fullPage: true })
   await page.setViewportSize({ width: 1_440, height: 900 })
 
   await page.goto('/missions/chapter-approved-2026-2027/matchups/disruption/take-and-hold')
@@ -415,9 +430,9 @@ test('rule tooltips open on touch and hover', async ({ browser, page }) => {
   const tooltip = touchPage.getByRole('tooltip')
   await touchPage.getByRole('button', { name: '[RAPID FIRE 1]' }).tap()
   await expect(tooltip).toContainText('Rapid Fire')
-  await touchPage.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+  await nextFrames(touchPage)
   await expect(tooltip).toContainText('Rapid Fire')
-  await touchPage.screenshot({ path: 'test-results/rule-tooltip-touch.png', fullPage: true })
+  await touchPage.screenshot({ path: test.info().outputPath('rule-tooltip-touch.png'), fullPage: true })
   await touchPage.getByRole('heading', { name: 'Hand of the Dynasty', exact: true }).tap()
   await expect(touchPage.getByRole('tooltip')).toHaveCount(0)
 
@@ -427,7 +442,7 @@ test('rule tooltips open on touch and hover', async ({ browser, page }) => {
   await page.waitForLoadState('networkidle')
   await page.getByRole('button', { name: '[RAPID FIRE 1]' }).hover()
   await expect(page.getByRole('tooltip')).toContainText('Rapid Fire')
-  await page.screenshot({ path: 'test-results/rule-tooltip-hover.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('rule-tooltip-hover.png'), fullPage: true })
   await page.getByRole('heading', { name: 'Hand of the Dynasty', exact: true }).hover()
   await expect(page.getByRole('tooltip')).toHaveCount(0)
 
@@ -468,7 +483,7 @@ test('a rule is read by the number the source prints against it', async ({ brows
   // A rule that quotes another rule's number links to it.
   await page.locator('a[href="/rules/core-rules/movement-phase#09.04"]').first().click()
   await expect(page).toHaveURL('/rules/core-rules/movement-phase#09.04')
-  await page.screenshot({ path: 'test-results/rules-section.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('rules-section.png'), fullPage: true })
 
   // The source emphasises its examples in Markdown, which is read rather than shown.
   await page.goto('/rules/core-rules/terrain')
@@ -486,12 +501,12 @@ test('a rule is read by the number the source prints against it', async ({ brows
   await page.goto('/rules/core-rules/core-concepts#01.02.03')
   await expect.poll(() => clarification.evaluate((element: HTMLDetailsElement) => element.open)).toBe(true)
 
-  const mobileContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const mobileContext = await browser.newContext({ viewport: PHONE })
   const mobilePage = await mobileContext.newPage()
   await mobilePage.goto('/rules/core-rules/core-abilities#24.33')
   await mobilePage.waitForTimeout(3_100)
   await expect(mobilePage.locator('[id="24.33"]')).toBeInViewport()
-  await mobilePage.screenshot({ path: 'test-results/rules-anchor-phone.png' })
+  await mobilePage.screenshot({ path: test.info().outputPath('rules-anchor-phone.png') })
   await mobileContext.close()
 
   // The filter answers a number as well as a name, because one rule quotes the other.
@@ -515,13 +530,13 @@ test('a datasheet shows attachment keywords and lists their targets once', async
   await expect(page.getByText('Can lead', { exact: true })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Leader', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Leader', exact: true })).toHaveCount(0)
-  await page.screenshot({ path: 'test-results/datasheet-leader-attachments.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('datasheet-leader-attachments.png'), fullPage: true })
 
   await page.goto('/factions/necrons/datasheets/plasmancer')
   await expect(page.getByRole('button', { name: 'Support', exact: true })).toBeVisible()
 
-  await page.setViewportSize({ width: 390, height: 844 })
-  await page.screenshot({ path: 'test-results/datasheet-leader-attachments-phone.png', fullPage: true })
+  await page.setViewportSize(PHONE)
+  await page.screenshot({ path: test.info().outputPath('datasheet-leader-attachments-phone.png'), fullPage: true })
 })
 
 test('the faction page shows its army rule in full', async ({ page }) => {
@@ -530,10 +545,10 @@ test('the faction page shows its army rule in full', async ({ page }) => {
   const armyRule = page.getByRole('heading', { name: 'Reanimation Protocols', exact: true }).locator('..')
   await expect(armyRule).toContainText('activates its Reanimation Protocols')
   await expect(page.getByRole('button', { name: 'Reanimation Protocols', exact: true })).toHaveCount(0)
-  await page.screenshot({ path: 'test-results/faction-army-rule.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('faction-army-rule.png'), fullPage: true })
 
-  await page.setViewportSize({ width: 390, height: 844 })
-  await page.screenshot({ path: 'test-results/faction-army-rule-phone.png', fullPage: true })
+  await page.setViewportSize(PHONE)
+  await page.screenshot({ path: test.info().outputPath('faction-army-rule-phone.png'), fullPage: true })
 
   await page.goto('/factions/necrons/datasheets/overlord')
   await expect(page.getByRole('button', { name: 'Reanimation Protocols', exact: true })).toBeVisible()
@@ -554,7 +569,7 @@ test('opening faction datasheets does not render the route error boundary', asyn
   await page.getByRole('link', { name: /Datasheets/ }).click()
   await expect(page.getByLabel('Find a datasheet')).toBeVisible()
   await expect(page.locator('html')).toHaveAttribute('data-route-error-seen', 'false')
-  await page.screenshot({ path: 'test-results/faction-datasheets-first-load.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('faction-datasheets-first-load.png'), fullPage: true })
 })
 
 test('signed-out faction browsing does not load account collection data before background warming', async ({ page }) => {
@@ -604,9 +619,9 @@ test('an invalid password reset link explains how to recover', async ({ page }) 
   await page.goto('/reset-password?error=INVALID_TOKEN')
 
   await expect(page.getByText('This password reset link is invalid or has expired.')).toBeVisible()
-  await page.screenshot({ path: 'test-results/password-reset-error.png', fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
-  await page.screenshot({ path: 'test-results/password-reset-error-phone.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('password-reset-error.png'), fullPage: true })
+  await page.setViewportSize(PHONE)
+  await page.screenshot({ path: test.info().outputPath('password-reset-error-phone.png'), fullPage: true })
 })
 
 test('faction routes keep a stable content width', async ({ page }) => {
@@ -648,14 +663,14 @@ test('account libraries share their page width and fit a phone', async ({ page }
   const heroRail = await page.locator('main > header').first().locator('div.relative').last().boundingBox()
   const contentRail = await page.getByLabel('Roster filters').locator('..').boundingBox()
   expect(Math.abs((heroRail?.width ?? 0) - (contentRail?.width ?? 0))).toBeLessThan(4)
-  await page.screenshot({ path: 'test-results/account-library-desktop.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('account-library-desktop.png'), fullPage: true })
   const footer = await page.locator('footer').boundingBox()
   expect(footer ? Math.round(footer.y + footer.height) : 0).toBeGreaterThanOrEqual(800)
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   for (const path of ['/rosters', '/battles', '/friends', '/factions', '/missions']) {
     await page.goto(path)
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await expectNoPageOverflow(page)
   }
 })
 
@@ -677,11 +692,7 @@ test('authentication panels and empty states fill the page above the footer', as
 test('terrain layouts show source-backed areas and measurement guidance', async ({ page }) => {
   await page.goto('/missions/chapter-approved-2026-2027/matchups/purge-the-foe/take-and-hold')
   const dialog = page.getByRole('dialog')
-  await expect(async () => {
-    if (await dialog.isVisible()) return
-    await page.getByRole('button', { name: 'Enlarge terrain layout A: Sweeping Engagement' }).click({ timeout: 1_000 })
-    await expect(dialog).toBeVisible({ timeout: 1_000 })
-  }).toPass({ timeout: 10_000 })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Enlarge terrain layout A: Sweeping Engagement' }).click())
   const board = dialog.locator('svg[aria-label]').first()
   await expect(board).toBeVisible()
   expect(
@@ -690,7 +701,7 @@ test('terrain layouts show source-backed areas and measurement guidance', async 
       .filter({ hasText: /^Objective (terrain|marker)$/ })
       .count(),
   ).toBeGreaterThan(0)
-  await page.screenshot({ path: 'test-results/terrain-layout-objectives.png' })
+  await page.screenshot({ path: test.info().outputPath('terrain-layout-objectives.png') })
   await expect(dialog.getByText('60″ × 44″ board', { exact: false })).toBeVisible()
   await expect(dialog.getByText('Grid: 1″ · heavier line every 5″', { exact: false })).toBeVisible()
   await expect(
@@ -707,9 +718,9 @@ test('terrain layouts show source-backed areas and measurement guidance', async 
   await expect(dialog.getByText('Placement distance · nearest ⅛″', { exact: true })).toBeVisible()
   await expect(board.locator('text').filter({ hasText: /″$/ }).first()).toBeVisible()
   await expect(dialog.getByText('Approximate placement coordinates')).toHaveCount(0)
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await page.screenshot({ path: 'test-results/terrain-layout-tilt-phone.png' })
+  await page.setViewportSize(PHONE)
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: test.info().outputPath('terrain-layout-tilt-phone.png') })
 })
 
 test('Tipping Point shows five layout objectives with a shared central area', async ({ page }) => {
@@ -722,9 +733,9 @@ test('Tipping Point shows five layout objectives with a shared central area', as
   await expect(objectives).toHaveCount(5)
   await expect(dialog.locator('svg g[transform^="translate(30 22)"] title').filter({ hasText: /^Objective terrain$/ })).toHaveCount(1)
   await expect(dialog.locator('svg text').filter({ hasText: /^OBJECTIVE$/ })).toHaveCount(5)
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await page.screenshot({ path: 'test-results/tipping-point-objectives-phone.png' })
+  await page.setViewportSize(PHONE)
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: test.info().outputPath('tipping-point-objectives-phone.png') })
 })
 
 test('Purge and Reconnaissance show two independent central objectives', async ({ page }) => {
@@ -737,22 +748,16 @@ test('Purge and Reconnaissance show two independent central objectives', async (
       1,
     )
   }
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await page.screenshot({ path: 'test-results/purge-recon-objectives-phone.png' })
+  await page.setViewportSize(PHONE)
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: test.info().outputPath('purge-recon-objectives-phone.png') })
 })
 
 test('a mission opens while its terrain layouts load', async ({ page }) => {
   await page.goto('/missions/chapter-approved-2026-2027')
 
-  let releaseTerrain: () => void = () => undefined
-  const terrainHeld = new Promise<void>((resolve) => {
-    releaseTerrain = resolve
-  })
-  let terrainStarted: () => void = () => undefined
-  const started = new Promise<void>((resolve) => {
-    terrainStarted = resolve
-  })
+  const { promise: terrainHeld, resolve: releaseTerrain } = Promise.withResolvers<void>()
+  const { promise: started, resolve: terrainStarted } = Promise.withResolvers<void>()
   await page.route('**/_serverFn/**', async (route) => {
     const url = decodeURIComponent(route.request().url())
     if (url.includes('"matchupIds"') && url.includes('"geometryVersion"')) {
@@ -778,11 +783,7 @@ test('a mission opens while its terrain layouts load', async ({ page }) => {
 test('terrain layout preserves structural corners and source distances', async ({ page }) => {
   await page.goto('/missions/chapter-approved-2026-2027/matchups/take-and-hold/priority-assets')
   const dialog = page.getByRole('dialog')
-  await expect(async () => {
-    if (await dialog.isVisible()) return
-    await page.getByRole('button', { name: 'Enlarge terrain layout C: Dawn of War' }).click({ timeout: 1_000 })
-    await expect(dialog).toBeVisible({ timeout: 1_000 })
-  }).toPass({ timeout: 10_000 })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Enlarge terrain layout C: Dawn of War' }).click())
   const board = dialog.locator('svg[aria-label]').first()
   await expect(board.locator('polyline[stroke-linejoin="miter"]').first()).toBeAttached()
   await expect(board.locator('text').filter({ hasText: /^AB$/ }).first()).toBeVisible()
@@ -819,8 +820,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByText('Create one, or import a list from another app.')).toBeVisible()
   await page.getByRole('button', { name: 'Filter' }).click()
   const filters = page.getByRole('dialog', { name: 'Filter rosters' })
-  await filters.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /Incursion/ }).click()
+  await chooseOption(page, 'Battle size', /Incursion/)
   await expect(page).toHaveURL('/rosters?limit=1000')
   await filters.getByRole('button', { name: 'Clear filters' }).click()
   await expect(page).toHaveURL('/rosters')
@@ -836,29 +836,29 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('menuitemradio', { name: 'Recently updated', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Sort: Recently updated' })).toBeVisible()
   expect((await page.context().cookies()).some((cookie) => cookie.name === 'praetorium_roster_sort')).toBe(false)
-  await page.screenshot({ path: 'test-results/roster-library.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('roster-library.png'), fullPage: true })
   await page.getByRole('button', { name: 'New roster', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
   await expect(dialog).toBeVisible()
   await expect(dialog.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Public')
   await expect(dialog).toContainText('Listed on your profile and for anyone to find')
   await expect(dialog.getByLabel('Tags')).toHaveCount(0)
-  await page.screenshot({ path: 'test-results/create-roster-dialog.png', fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
-  await page.screenshot({ path: 'test-results/create-roster-dialog-phone.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('create-roster-dialog.png'), fullPage: true })
+  await page.setViewportSize(PHONE)
+  await page.screenshot({ path: test.info().outputPath('create-roster-dialog-phone.png'), fullPage: true })
   await page.setViewportSize({ width: 1280, height: 720 })
   await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeDisabled()
   await dialog.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByPlaceholder('Search factions…').fill('Necr')
   await expect(page.getByRole('option', { name: 'Necrons', exact: true })).toBeVisible()
   await expect(page.getByRole('option', { name: 'Death Guard', exact: true })).toBeHidden()
-  await page.screenshot({ path: 'test-results/faction-combobox.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('faction-combobox.png'), fullPage: true })
   await page.keyboard.press('Escape')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await dialog.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByPlaceholder('Search factions…').fill('Necr')
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await page.screenshot({ path: 'test-results/faction-combobox-phone.png', fullPage: true })
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: test.info().outputPath('faction-combobox-phone.png'), fullPage: true })
   await page.setViewportSize({ width: 1600, height: 900 })
   await page.getByRole('option', { name: 'Necrons', exact: true }).click()
   await expect(dialog.getByRole('combobox', { name: 'Battle size' })).toContainText('Strike Force')
@@ -875,15 +875,13 @@ test('a player can enter through the roster library and browse the product', asy
     await body.evaluate((element) => element.scrollTo({ top: element.scrollHeight }))
     await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeInViewport({ timeout: 1_000 })
   }).toPass()
-  await dialog.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /^Onslaught/ }).click()
+  await chooseOption(page, 'Battle size', /^Onslaught/)
   await dialog.getByRole('button', { name: 'Select Cryptek Conclave' }).click()
   await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeDisabled()
   await dialog.getByRole('button', { name: 'Priority Assets', exact: true }).click()
   await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeEnabled()
   await dialog.getByRole('button', { name: 'Select Cryptek Conclave', pressed: true }).click()
-  await dialog.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /^Strike Force/ }).click()
+  await chooseOption(page, 'Battle size', /^Strike Force/)
   await dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await dialog.getByRole('button', { name: 'Create roster' }).click()
   await expect(page).toHaveURL(/\/rosters\/[^/]+$/)
@@ -894,23 +892,19 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('combobox', { name: 'Battle size' })).toHaveCount(0)
   await expect(page.getByRole('combobox', { name: 'Force' })).toHaveCount(0)
   await expect(page.getByText('Take and Hold', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
-  await setup.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /^Incursion/ }).click()
+  const setup = await openRosterSetup(page)
+  await chooseOption(page, 'Battle size', /^Incursion/)
   await setup.getByRole('button', { name: 'Select Awakened Dynasty', pressed: true }).click()
   await setup.getByRole('button', { name: 'Select Cryptek Conclave' }).click()
   await confirmRosterSetup(setup)
   await expect(page.getByText('Incursion', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Add a unit')).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
-  await page.screenshot({ path: 'test-results/roster-editor-phone.png' })
+  await expectNoPageScroll(page)
+  await page.setViewportSize(PHONE)
+  await expectNoPageScroll(page)
+  await page.screenshot({ path: test.info().outputPath('roster-editor-phone.png') })
   await page.setViewportSize({ width: 1600, height: 900 })
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+  await chooseRosterAction(page, 'Edit roster setup')
   await setup.getByRole('button', { name: 'Select Cryptek Conclave', pressed: true }).click()
   await setup.getByRole('button', { name: 'Select Cursed Legion' }).click()
   await confirmRosterSetup(setup)
@@ -927,7 +921,7 @@ test('a player can enter through the roster library and browse the product', asy
   await modifiedStrength.hover()
   await expect(page.getByRole('tooltip')).toContainText('5 → 7')
   await expect(page.getByRole('tooltip')).toContainText('Cursed Legion')
-  await page.screenshot({ path: 'test-results/contextual-datasheet-modifier.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('contextual-datasheet-modifier.png'), fullPage: true })
   await page.getByLabel('Add a unit').fill('Skorpekh Lord')
   await page.getByRole('button', { name: 'Add Skorpekh Lord', exact: true }).first().click()
   await page.getByLabel('Add a unit').fill('Immortals')
@@ -937,7 +931,7 @@ test('a player can enter through the roster library and browse the product', asy
   const gauss = immortalsWeapons.locator('article').filter({ hasText: 'Gauss blaster' }).first()
   await expect(gauss.getByText('5', { exact: true }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: /modified from 5 by Cursed Legion/ })).toHaveCount(0)
-  await page.screenshot({ path: 'test-results/cursed-immortals-base-strength.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('cursed-immortals-base-strength.png'), fullPage: true })
   await page.getByRole('link', { name: 'Rosters', exact: true }).click()
   await page.getByRole('button', { name: 'Import roster' }).click()
   await expect(page.getByRole('dialog', { name: 'Import roster' })).toBeVisible()
@@ -947,14 +941,13 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('heading', { name: 'Battles', exact: true })).toBeVisible()
   await expect(page.getByText('No battles yet.')).toBeVisible()
   await page.getByRole('button', { name: 'New battle' }).click()
-  await page.getByRole('combobox', { name: 'Opponent' }).click()
-  await page.getByRole('option', { name: 'Practice Opponent', exact: true }).click()
+  await chooseOption(page, 'Opponent', 'Practice Opponent')
   await page.getByRole('button', { name: 'Start battle' }).click()
   await expect(page).toHaveURL(/\/battles\/[^/?]+$/)
   await page.getByRole('link', { name: 'Battles' }).click()
   await expect(page.locator('[data-battle-shelf="In progress"]')).toBeVisible()
   await expect(page.getByText('Practice Opponent').first()).toBeVisible()
-  await page.screenshot({ path: 'test-results/battle-library.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('battle-library.png'), fullPage: true })
   await page.locator('[data-battle-shelf="In progress"] article').click({ button: 'right' })
   await page.getByRole('menuitem', { name: 'Delete battle' }).click()
   await page.getByRole('alertdialog').getByRole('button', { name: 'Delete battle' }).click()
@@ -970,7 +963,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(darkAngelsDatasheets).toHaveText(/^Datasheets\s*36$/)
   await expect(page.getByText('Detachments', { exact: true }).locator('..')).toContainText('3')
   await expect(page.getByText('Gladius Task Force', { exact: true })).toHaveCount(0)
-  await page.screenshot({ path: 'test-results/dark-angels-faction-content.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('dark-angels-faction-content.png'), fullPage: true })
   await darkAngelsDatasheets.click()
   await expect(page.locator('main > header [data-faction-mark="mfm-1-6~470a-6daa-9014-12df"]')).toBeVisible()
   await expect(page.getByText('Epic heroes', { exact: true }).locator('..')).toContainText(/Epic heroes\s*\d+/)
@@ -978,18 +971,12 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByText('Vehicles', { exact: true }).locator('..')).toContainText(/Vehicles\s*\d+/)
   await expect(page.getByRole('link', { name: /Asmodai/ })).toBeVisible()
   await expect(page.getByRole('link', { name: /Intercessor Squad/ })).toHaveCount(0)
-  await page.goto('/rosters')
-  const darkAngelsSetup = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(darkAngelsSetup, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
-  await darkAngelsSetup.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Dark Angels')
-  await page.getByRole('option', { name: 'Dark Angels', exact: true }).click()
+  const darkAngelsSetup = await visitorSetup(page)
+  await chooseFaction(darkAngelsSetup, 'Dark Angels')
   await expect(darkAngelsSetup.getByRole('button', { name: 'Select Inner Circle Task Force' })).toBeVisible()
   await expect(darkAngelsSetup.getByRole('button', { name: 'Select Gladius Task Force' })).toBeVisible()
   await expect(darkAngelsSetup.getByRole('button', { name: 'Select Assault Brethren' })).toBeVisible()
-  await darkAngelsSetup.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Blood Angels')
-  await page.getByRole('option', { name: 'Blood Angels', exact: true }).click()
+  await chooseFaction(darkAngelsSetup, 'Blood Angels')
   await expect(darkAngelsSetup.getByRole('button', { name: 'Select Assault Brethren' })).toBeVisible()
   await page.keyboard.press('Escape')
   await page.goto('/factions')
@@ -1004,7 +991,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.locator('[data-shelf="Xenos"] [data-faction]').first()).toHaveAttribute('data-faction', 'Aeldari')
   const serverRenderedFavourites = await (await page.request.get('/factions')).text()
   expect(serverRenderedFavourites).toMatch(/data-shelf="Favourites"[\s\S]+data-faction="Necrons"/)
-  await page.screenshot({ path: 'test-results/faction-index.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('faction-index.png'), fullPage: true })
   await page.getByRole('link', { name: 'Rosters' }).click()
   await page.getByRole('button', { name: 'New roster', exact: true }).click()
   await page.getByRole('dialog', { name: 'Create roster' }).getByRole('combobox', { name: 'Faction' }).click()
@@ -1035,7 +1022,7 @@ test('a player can enter through the roster library and browse the product', asy
     ),
   )
   for (const contents of descriptionPages) expect(contents).not.toContain('Description unavailable')
-  await page.screenshot({ path: 'test-results/faction-reference.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('faction-reference.png'), fullPage: true })
   await page.goto('/factions/necrons/detachments/hand-of-the-dynasty')
   await page.waitForLoadState('networkidle')
   const rapidFire = page.getByRole('button', { name: '[RAPID FIRE 1]' })
@@ -1068,9 +1055,9 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('heading', { name: 'Cryptek Conclave', exact: true })).toBeVisible()
   const detachmentResponse = await page.request.get('/factions/necrons/detachments/cryptek-conclave')
   expect(await detachmentResponse.text()).toContain('Technosorcerous Augmentations')
-  await page.screenshot({ path: 'test-results/detachment.png', fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
-  await page.screenshot({ path: 'test-results/detachment-phone.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('detachment.png'), fullPage: true })
+  await page.setViewportSize(PHONE)
+  await page.screenshot({ path: test.info().outputPath('detachment-phone.png'), fullPage: true })
   await page.setViewportSize({ width: 1280, height: 720 })
   await page.getByRole('link', { name: 'Necrons' }).click()
   await page.getByRole('link', { name: /Datasheets/ }).click()
@@ -1080,7 +1067,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('link', { name: /Overlord/ }).first()).toBeVisible()
   // Both Overlord datasheets, and the Catacomb Command Barge through its Overlord's blade.
   await expect(page.locator('main h2.rubric').filter({ hasText: /^Datasheets\s*\d+$/ })).toHaveText(/^Datasheets\s*3$/)
-  await page.screenshot({ path: 'test-results/faction-datasheets.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('faction-datasheets.png'), fullPage: true })
   await page
     .getByRole('link', { name: /Overlord/ })
     .first()
@@ -1107,23 +1094,23 @@ test('a player can enter through the roster library and browse the product', asy
   await page.getByRole('button', { name: 'Devastating Wounds' }).first().hover()
   await expect(page.getByRole('tooltip').getByText('Devastating Wounds', { exact: true })).toBeVisible()
   await expect(page.getByRole('tooltip')).toContainText('critical wound')
-  await page.screenshot({ path: 'test-results/keyword-tooltip.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('keyword-tooltip.png'), fullPage: true })
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Overlord', exact: true })).toBeVisible()
-  await page.screenshot({ path: 'test-results/datasheet.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('datasheet.png'), fullPage: true })
   await page.goto('/factions/necrons/datasheets/ghost-ark')
   await expect(page.getByRole('heading', { name: 'Transport' })).toBeVisible()
   await expect(page.getByText(/transport capacity of 10/)).toBeVisible()
-  await page.screenshot({ path: 'test-results/transport-datasheet.png', fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
-  await page.screenshot({ path: 'test-results/transport-datasheet-phone.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('transport-datasheet.png'), fullPage: true })
+  await page.setViewportSize(PHONE)
+  await page.screenshot({ path: test.info().outputPath('transport-datasheet-phone.png'), fullPage: true })
   await page.setViewportSize({ width: 1280, height: 720 })
   await page.goto('/factions/necrons/datasheets/overlord-with-translocation-shroud')
   await expect(page.getByRole('heading', { name: 'Overlord with Translocation Shroud', exact: true })).toBeVisible()
   await expect(page.getByText('Invulnerable save', { exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Translocation Shroud', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Resurrection Orb' })).toBeVisible()
-  await page.screenshot({ path: 'test-results/translocation-shroud.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('translocation-shroud.png'), fullPage: true })
 })
 
 test('the first sort choice orders saved rosters and persists on mobile', async ({ page }) => {
@@ -1139,7 +1126,7 @@ test('the first sort choice orders saved rosters and persists on mobile', async 
   await expect(rows.first()).toHaveAttribute('data-roster', 'Zulu roster')
   await expect(page.getByRole('button', { name: 'Sort: Z to A' })).toBeVisible()
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.getByRole('button', { name: /^Sort:/ }).click()
   await page.getByRole('menuitemradio', { name: 'A to Z' }).click()
   await expect(rows.first()).toHaveAttribute('data-roster', 'Alpha roster')
@@ -1149,13 +1136,10 @@ test('the first sort choice orders saved rosters and persists on mobile', async 
 })
 
 test('a guest roster stays within the native mobile builder viewport', async ({ page, context }) => {
-  await context.addInitScript({ content: `window.ReactNativeWebView = { postMessage: () => {} };\n${NATIVE_BROWSER_BRIDGE_SCRIPT}` })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await context.addInitScript({ content: NATIVE_SHELL_SCRIPT })
+  await page.setViewportSize(PHONE)
   const setup = await visitorSetup(page)
-  const search = page.getByPlaceholder('Search factions…')
-  await retryUntilVisible(search, () => setup.getByRole('combobox', { name: 'Faction' }).click())
-  await search.fill('Necrons')
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  await chooseFaction(setup, 'Necrons')
   await page.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
   await page.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await page.getByRole('button', { name: 'Create roster' }).click()
@@ -1163,15 +1147,15 @@ test('a guest roster stays within the native mobile builder viewport', async ({ 
   const content = page.locator('[data-native-app-content]')
   await expect(content).toHaveAttribute('data-immersive', 'true')
   await expect(page.locator('[data-roster-builder]')).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
-  await page.screenshot({ path: 'test-results/guest-roster-mobile-native.png' })
+  await expectNoPageScroll(page)
+  await page.screenshot({ path: test.info().outputPath('guest-roster-mobile-native.png') })
   await page.mouse.wheel(0, 1000)
   expect(await page.evaluate(() => window.scrollY)).toBe(0)
   await page.setViewportSize({ width: 390, height: 568 })
-  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+  await expectNoPageScroll(page)
   await page.reload()
   await expect(content).toHaveAttribute('data-immersive', 'true')
-  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+  await expectNoPageScroll(page)
 })
 
 test('a dense squad datasheet remains readable at desktop and phone widths', async ({ page }) => {
@@ -1191,37 +1175,40 @@ test('a dense squad datasheet remains readable at desktop and phone widths', asy
   await expect(page.getByRole('heading', { name: 'Melee weapons 3', exact: true })).toBeVisible()
   await expect(page.getByText('Captain in Terminator Armour', { exact: true })).toBeVisible()
   await expect(page.getByText(/^Ancient in Terminator Armou?r$/)).toBeVisible()
-  await page.screenshot({ path: 'test-results/deathwing-terminator-datasheet.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('deathwing-terminator-datasheet.png'), fullPage: true })
 
-  await page.setViewportSize({ width: 390, height: 844 })
-  await page.screenshot({ path: 'test-results/deathwing-terminator-datasheet-phone.png', fullPage: true })
+  await page.setViewportSize(PHONE)
+  await page.screenshot({ path: test.info().outputPath('deathwing-terminator-datasheet-phone.png'), fullPage: true })
 })
 
 test('weapon profile modes use readable casing', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.goto('/factions/necrons/datasheets/ctan-shard-of-the-void-dragon')
   const spear = page.getByRole('rowgroup', { name: 'spear of the void dragon profiles' })
   await expect(spear.getByRole('rowheader', { name: 'Strike', exact: true })).toBeVisible()
   await expect(spear.getByRole('rowheader', { name: 'Sweep', exact: true })).toBeVisible()
-  await page.getByRole('heading', { name: 'Melee weapons 2', exact: true }).locator('..').screenshot({
-    path: 'test-results/void-dragon-weapon-profiles.png',
-  })
+  await page
+    .getByRole('heading', { name: 'Melee weapons 2', exact: true })
+    .locator('..')
+    .screenshot({
+      path: test.info().outputPath('void-dragon-weapon-profiles.png'),
+    })
 })
 
 test('an officer datasheet shows how many orders it can issue', async ({ page }) => {
   await page.goto('/factions/astra-militarum/datasheets/leman-russ-commander')
   const orders = page.getByRole('heading', { name: 'Orders', exact: true }).locator('..')
   await expect(orders).toContainText('This Officer can issue 2 Orders to Squadron units.')
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(await page.evaluate(() => window.innerWidth))
-  await page.screenshot({ path: 'test-results/officer-orders-datasheet.png', fullPage: true })
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: test.info().outputPath('officer-orders-datasheet.png'), fullPage: true })
 
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  await page.screenshot({ path: 'test-results/officer-orders-datasheet-phone.png', fullPage: true })
+  await page.setViewportSize(PHONE)
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: test.info().outputPath('officer-orders-datasheet-phone.png'), fullPage: true })
 })
 
 test('a tab never opened before starts at its top', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const context = await browser.newContext({ viewport: PHONE })
   const page = await context.newPage()
   await page.goto('/factions/dark-angels/datasheets/deathwing-terminator-squad')
   // The router scrolls to the top once it hydrates, which would undo an earlier scroll.
@@ -1240,7 +1227,7 @@ test('a tab never opened before starts at its top', async ({ browser }) => {
 })
 
 test('each application tab returns to where it was left', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const context = await browser.newContext({ viewport: PHONE })
   const page = await context.newPage()
   const sections = page.getByRole('navigation', { name: 'Application sections' })
 
@@ -1347,7 +1334,7 @@ test.describe('data update anchors', () => {
 })
 
 test('a tab forgets a page that no longer exists', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.goto('/')
   await page.evaluate(() =>
     sessionStorage.setItem('praetorium.native-tab:rosters', JSON.stringify({ href: '/rosters/deleted-roster', scrollY: 0, regions: {} })),

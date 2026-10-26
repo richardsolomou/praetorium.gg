@@ -8,6 +8,7 @@ import { catalogueCacheRoot } from './catalogueCache'
 import { catalogueDataDirectory } from './catalogueFiles'
 import { downloadArchive, storeHasArchive, storeUrl, uploadArchive } from './catalogueRuntimeDistribution'
 import { writeReferenceBundle } from './offlineReferenceBundle'
+import { errorText } from './errorText'
 
 const STORE_PATH = 'catalogue/offline-reference/by-key'
 const MANIFEST = 'offline-reference-version.json'
@@ -74,7 +75,7 @@ function tryInstall(outDir: string, archive: Uint8Array, origin: string) {
     install(outDir, archive)
     return true
   } catch (error) {
-    console.error(`Offline reference from ${origin} not restored:`, error instanceof Error ? error.message : String(error))
+    console.error(`Offline reference from ${origin} not restored:`, errorText(error))
     return false
   }
 }
@@ -126,6 +127,6 @@ async function share(key: string, archive: Uint8Array, store: ReferenceStore) {
   try {
     await store.upload(key, archive)
   } catch (error) {
-    console.error(`Offline reference ${key} was not shared:`, error instanceof Error ? error.message : String(error))
+    console.error(`Offline reference ${key} was not shared:`, errorText(error))
   }
 }

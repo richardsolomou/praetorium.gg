@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process'
-import { appendFileSync } from 'node:fs'
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { stepOutput } from './lib/stepOutput.ts'
 
 /** Paths that no runtime lane, build or deploy reads; `static` still checks them. CHANGELOG.md is not here: the app imports it. */
 const INERT = [
@@ -27,7 +27,5 @@ if (isEntryPoint(import.meta.url)) {
       .filter(Boolean)
     runtime = needsRuntimeChecks(files)
   }
-  const output = `runtime=${runtime}\n`
-  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, output)
-  else process.stdout.write(output)
+  stepOutput({ runtime })
 }

@@ -6,8 +6,9 @@
  * absent from a default list, and walking only what was built would never offer it.
  */
 
-import type { CatalogueIndex, Definition } from './catalogue'
+import { definitionAndTarget, type CatalogueIndex, type Definition } from './catalogue'
 import { scaleOf } from './collective'
+import { remember } from './collections'
 import {
   childrenOf,
   exclusiveSets,
@@ -105,6 +106,9 @@ export type UnitChoice = {
 /** `required` marks a Warlord the data insists on: a unit that must be the army's Warlord whenever it is taken. */
 export type UnitToggle = { key: string; name: string; selected: boolean; required?: true }
 
+export const hasWarlordToggle = (toggles: readonly Pick<UnitToggle, 'name' | 'selected'>[]) =>
+  toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected)
+
 export type UnitChoiceCache = WeakMap<CatalogueIndex, { choices: Map<string, UnitChoice[]>; forbidden: Map<string, string[][]> }>
 export type ChoiceOptions = EvaluateOptions & { depth?: number; choiceCache?: UnitChoiceCache }
 
@@ -151,7 +155,7 @@ function exclusiveSetsIn(entry: Definition, depth: number, index: CatalogueIndex
     const target = resolve(definition, index)
     if (left <= 0 || seen.has(target.id)) return
     const visited = new Set(seen).add(target.id)
-    forbidden.push(...exclusiveSets(definition), ...(target === definition ? [] : exclusiveSets(target)))
+    forbidden.push(...definitionAndTarget(definition, index).flatMap(exclusiveSets))
     for (const child of childrenOf(target, index)) gather(child.definition, left - 1, visited)
   }
   gather(entry, depth, new Set())
@@ -174,30 +178,25 @@ function collectUnitChoices(
   // Keyed by path: the same entry can be offered by more than one model.
   const visibility = new Map<string, boolean>()
   const minima = new Map<Definition, number>()
-  const visible = (definition: Definition, lineage: readonly Definition[], path: readonly string[]) => {
-    const key = path.join('/')
-    const cached = visibility.get(key)
-    if (cached !== undefined) return cached
+  const visible = (definition: Definition, lineage: readonly Definition[], path: readonly string[]) =>
     // Offered as a fresh candidate, or once the unit's choices open it (Trygon Prime).
     // The built unit alone cannot close an option: what hides it there, such as a
     // squadmate's default bolt rifle, is the player's to change.
-    const value =
-      !hiddenByRules(definition, index, { ...options, roster }, lineage) || !hiddenByRulesAt(definition, selection, path, index, options)
-    visibility.set(key, value)
-    return value
-  }
-  const minimum = (definition: Definition) => {
-    const cached = minima.get(definition)
-    if (cached !== undefined) return cached
-    const value = requiredCount(definition, index, {
-      primaryCatalogueId: options.primaryCatalogueId,
-      mustering: options.mustering,
-      modifierCache: options.modifierCache,
-      roster,
-    })
-    minima.set(definition, value)
-    return value
-  }
+    remember(
+      visibility,
+      path.join('/'),
+      () =>
+        !hiddenByRules(definition, index, { ...options, roster }, lineage) || !hiddenByRulesAt(definition, selection, path, index, options),
+    )
+  const minimum = (definition: Definition) =>
+    remember(minima, definition, () =>
+      requiredCount(definition, index, {
+        primaryCatalogueId: options.primaryCatalogueId,
+        mustering: options.mustering,
+        modifierCache: options.modifierCache,
+        roster,
+      }),
+    )
   const unitSize = sizeOf(selection, index)
   const resizingPath = unitSize.path
   const resizingGroup = resizingPath.slice(0, -1)

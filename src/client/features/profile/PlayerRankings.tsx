@@ -46,9 +46,7 @@ export function PlayerRankings({ rankings }: { rankings: Rankings }) {
             </span>
             <span className="min-w-0 flex-1">
               <span className="flex min-w-0 items-center gap-1.5">
-                {faction ? (
-                  <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
-                ) : null}
+                {faction ? <FactionMark faction={faction} size="sm" /> : null}
                 <span className="truncate text-sm font-bold uppercase">{faction?.displayName ?? 'Everyone'}</span>
               </span>
               <span className="readout mt-0.5 block truncate text-xs text-dim">

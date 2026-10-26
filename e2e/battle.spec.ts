@@ -16,22 +16,25 @@ import {
   startBattle,
   takeTheTurn,
   uniqueName,
-  waitForRosterSave,
+  expectNoPageOverflow,
+  addUnit,
+  practiceBattle,
+  PHONE,
+  uploadAvatar,
 } from './account'
-import { battleLog, productSql } from './storage'
+import { battleLog, productSql, lastPathSegment, battleIdFor } from './storage'
+import { expectNoHorizontalOverflow } from './builder.harness'
 
 test('the opening draw prompt starts at the top, pins its actions and holds the page still on a phone', async ({ page }) => {
   await signUp(page, uniqueName('Opening prompt'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Opening prompt roster' })
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page, undefined, false)
   const prompt = page.getByRole('dialog', { name: /secondary missions$/ })
   await expect(prompt.getByRole('button', { name: 'Draw at random' })).toBeVisible()
   expect(await page.evaluate(() => scrollY)).toBe(0)
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect
     .poll(() =>
       prompt.evaluate(
@@ -51,9 +54,7 @@ test('the opening draw prompt starts at the top, pins its actions and holds the 
 test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ page }) => {
   await signUp(page, uniqueName('Standard secondaries'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Standard scoring roster' })
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page, undefined, true, ['Cleanse', 'Centre Ground'])
 
   const ongoing = page.locator('[data-panel="player"][data-side="0"]')
@@ -70,10 +71,10 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
       expect(stratagems!.x).toBeGreaterThan(missions!.x + missions!.width)
       expect(Math.abs(stratagems!.y - missions!.y)).toBeLessThan(1)
     }
-    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
+    await expectNoPageOverflow(page)
   }
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
+  await page.setViewportSize(PHONE)
+  await expectNoPageOverflow(page)
   await page.setViewportSize({ width: 1440, height: 900 })
 
   for (let step = 0; step < 5; step += 1) await advance(page)
@@ -85,7 +86,7 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true }).click()
   await scoring.getByRole('button', { name: 'Centre Ground plus 3', exact: true }).click()
   await expect(scoring.locator('output').filter({ hasText: 'VP' })).toContainText('Scoring 5 VP')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect(scoring).toBeVisible()
   await page.setViewportSize({ width: 360, height: 644 })
   const applicationTabs = page.getByRole('navigation', { name: 'Application sections' })
@@ -106,11 +107,11 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await expect(footer.getByRole('button', { name: 'Pass the turn', exact: true })).toBeInViewport()
   const footerBox = (await footer.boundingBox())!
   expect(footerBox.y + footerBox.height).toBeLessThanOrEqual((await applicationTabs.boundingBox())!.y + 1)
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
+  await expectNoPageOverflow(page)
   await page.mouse.wheel(0, -2000)
   await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBe(0)
-  await page.screenshot({ path: 'test-results/scoring-mobile.png' })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: test.info().outputPath('scoring-mobile.png') })
+  await page.setViewportSize(PHONE)
   await scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true }).scrollIntoViewIfNeeded()
   await scoring.getByRole('button', { name: 'Pass the turn', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
@@ -130,7 +131,7 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await expect(side.locator('[data-missions] .chip:not([data-disposition])')).toHaveCount(0)
   await expect(side.locator('[data-missions]').getByText(/^(tactical|fixed)$/i)).toHaveCount(0)
   await page.setViewportSize({ width: 1440, height: 900 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0)
+  await expectNoPageOverflow(page)
   await side.getByRole('button', { name: 'View remaining secondary missions (16)' }).click()
   const remaining = page.getByRole('dialog', { name: 'Remaining secondary missions', exact: true })
   await expect(remaining.getByRole('button', { name: 'Read Cleanse', exact: true })).toHaveCount(0)
@@ -145,11 +146,9 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
 test('native battle controls leave the application tabs reachable', async ({ page }) => {
   await signUp(page, uniqueName('Native controls'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Native battle roster' })
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.evaluate(() => {
     document.documentElement.dataset.nativeApp = 'true'
   })
@@ -219,15 +218,11 @@ test('native battle controls leave the application tabs reachable', async ({ pag
 test('a running battle restores mission prompts when its tactical prep is missing', async ({ page }) => {
   await signUp(page, uniqueName('Repair'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Repair roster' })
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page)
 
-  const token = new URL(page.url()).pathname.split('/').at(-1)!
-  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
-  if (!battle) throw new Error('Battle is missing')
-  const commands = await productSql<{ key: string; body: string }>`SELECT key, body FROM commands WHERE battle_id = ${battle.id}`
+  const battleId = await battleIdFor(lastPathSegment(page.url()))
+  const commands = await productSql<{ key: string; body: string }>`SELECT key, body FROM commands WHERE battle_id = ${battleId}`
   for (const command of commands) {
     if (['set-prep', 'draw-secondaries'].includes((JSON.parse(command.body) as { kind: string }).kind)) {
       await productSql`DELETE FROM commands WHERE key = ${command.key}`
@@ -248,9 +243,7 @@ test('a running battle restores mission prompts when its tactical prep is missin
 test('showing every stratagem includes the ones for the other turn, refused', async ({ page }) => {
   await signUp(page, uniqueName('Show all'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Show all roster' })
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page)
 
   const waiting = page.locator('[data-panel="player"]').filter({ hasText: PRACTICE_OPPONENT })
@@ -263,9 +256,7 @@ test('showing every stratagem includes the ones for the other turn, refused', as
 test('the final opponent-turn settlement completes before the battle ends', async ({ page }) => {
   await signUp(page, uniqueName('Final round'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Final round roster' })
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page)
 
   const { append, first: firstPlayerId, second: opponentId } = await battleLog(page)
@@ -297,7 +288,7 @@ test('the final opponent-turn settlement completes before the battle ends', asyn
   }
   await passPhases(firstPlayerId, 6)
   await passPhases(opponentId, 5)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.reload()
 
   const scoreboard = page.locator('[data-scoreboard]')
@@ -334,20 +325,9 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await signUp(bob, bobName)
   const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
   await signUp(alice, aliceName)
-  await alice.goto('/profile')
-  await alice.getByLabel('Choose profile picture').setInputFiles({
-    name: 'avatar.png',
-    mimeType: 'image/png',
-    buffer: Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAAA1BMVEX/W1e1okn/AAAADElEQVQI12NgIA0AAAAwAAHHqoWOAAAAAElFTkSuQmCC',
-      'base64',
-    ),
-  })
-  await alice.getByRole('button', { name: 'Save profile' }).click()
-  await expect(alice.getByText('Profile saved.')).toBeVisible()
+  await uploadAvatar(alice)
   const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
-  await alice.getByLabel('Add a unit').fill('Lord of Virulence')
-  await waitForRosterSave(alice, () => alice.getByRole('button', { name: 'Add Lord of Virulence', exact: true }).first().click())
+  await addUnit(alice, 'Lord of Virulence')
   await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
 
   const hand = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).locator('[data-secondary]')
@@ -391,15 +371,14 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect(detachment).toHaveAttribute('href', '/factions/death-guard/rules/mfm-1-6/detachments/shamblerot-vectorium')
   const factionColour = await faction.evaluate((link) => getComputedStyle(link).color)
   await expect(detachment).toHaveCSS('color', factionColour)
-  const panel = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
   const opponentPanel = bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
-  await expect(panel.locator('[data-stat="cp"]')).toHaveText('1')
+  await expect(ownPanel.locator('[data-stat="cp"]')).toHaveText('1')
   const opponentUse = opponentPanel.locator('button[aria-label^="Use "]:not([disabled])').first()
   await expect(opponentUse).toBeVisible()
   const stratagem = (await opponentUse.getAttribute('aria-label'))?.replace(/^Use /, '') ?? ''
   await opponentUse.click()
   await expect(opponentPanel.locator('[data-stat="cp"]')).toHaveText('0')
-  await expect(panel.locator('[data-stat="cp"]')).toHaveText('0')
+  await expect(ownPanel.locator('[data-stat="cp"]')).toHaveText('0')
   await opponentPanel.getByRole('button', { name: `About ${stratagem}` }).click()
   await expect(bob.getByRole('dialog', { name: stratagem })).toContainText('used 1x this battle')
   await bob.keyboard.press('Escape')
@@ -427,16 +406,16 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect(alice.locator('[data-turn-control] button').first()).toBeDisabled()
   await expect(alice.locator('[data-turn-control] button').last()).toBeDisabled()
   await expect(alice.getByRole('button', { name: 'Battle options' })).toBeDisabled()
-  await expect(panel.getByRole('button', { name: /\+1 CP|Additional CP already gained this round/ })).toBeDisabled()
+  await expect(ownPanel.getByRole('button', { name: /\+1 CP|Additional CP already gained this round/ })).toBeDisabled()
   await expect(alice.getByText('Finish the open prompt to continue.')).toBeVisible()
-  await expect(panel.locator('[data-stat="cp"]')).toHaveText('0')
-  await panel
+  await expect(ownPanel.locator('[data-stat="cp"]')).toHaveText('0')
+  await ownPanel
     .getByRole('button', { name: /^Open / })
     .first()
     .click()
   await expect(alice.locator('[data-army-roster] button[aria-label^="Mark "]').first()).toBeDisabled()
   await alice.keyboard.press('Escape')
-  const readMission = panel.getByRole('button', { name: /^Read / }).first()
+  const readMission = ownPanel.getByRole('button', { name: /^Read / }).first()
   const inspectedMissionName = (await readMission.getAttribute('aria-label'))?.replace(/^Read /, '') ?? ''
   await readMission.click()
   const missionDetails = alice.getByRole('dialog', { name: inspectedMissionName })
@@ -472,14 +451,8 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect.poll(() => bob.evaluate(() => Boolean(window.PraetoriumReferenceCache?.construction))).toBe(true)
   const answerName = await answer.getAttribute('aria-label')
   await bobScoring.getByRole('button', { name: answerName ?? '', exact: true }).click()
-  let releaseBob = () => {}
-  let sawBobSubmit = () => {}
-  const held = new Promise<void>((resolve) => {
-    releaseBob = resolve
-  })
-  const submitted = new Promise<void>((resolve) => {
-    sawBobSubmit = resolve
-  })
+  const { promise: held, resolve: releaseBob } = Promise.withResolvers<void>()
+  const { promise: submitted, resolve: sawBobSubmit } = Promise.withResolvers<void>()
   let holding = true
   await bob.route('**/*', async (route) => {
     if (holding && route.request().method() === 'POST') {
@@ -510,9 +483,9 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
 
     await nextHand.getByRole('button', { name: 'Undo latest action' }).click()
     await expect(discard).toBeVisible()
-    await alice.setViewportSize({ width: 390, height: 844 })
-    expect(await alice.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
-    expect(await discard.locator('[data-slot="dialog-body"]').evaluate((body) => body.scrollWidth <= body.clientWidth)).toBe(true)
+    await alice.setViewportSize(PHONE)
+    await expectNoPageOverflow(alice)
+    await expectNoHorizontalOverflow(discard.locator('[data-slot="dialog-body"]'))
     await expect(discard.getByRole('button', { name: discardedCard, exact: true })).toHaveCount(0)
     await discard.getByRole('button', { name: 'Minimize dialog' }).click()
     await expect(discard).toBeHidden()
@@ -551,8 +524,8 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect(alice.getByText(`${aliceName} reviews the drawn missions for ${bobName}`, { exact: true })).toBeVisible()
   await expect(alice.getByText(new RegExp(`${bobName} marks `))).toHaveCount(0)
   // Both armies arrive battle ready, so every score carries the bonus the battle paid at the start.
-  await expect(panel.locator('[data-stat="vp"]')).toHaveText(String(scored + 10))
-  await expect(panel.locator('[data-stat="cp"]')).toHaveText('2')
+  await expect(ownPanel.locator('[data-stat="vp"]')).toHaveText(String(scored + 10))
+  await expect(ownPanel.locator('[data-stat="cp"]')).toHaveText('2')
   // Nothing is ticked to finish a card: no control for it exists.
   await expect(alice.getByText('take it out of the hand')).toHaveCount(0)
   await expect(bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).locator('[data-stat="vp"]')).toHaveText(
@@ -567,7 +540,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   expect(stackedStratagemPosition!.y).toBeGreaterThan(stackedPrimaryPosition!.y)
   // The same panel on a phone, reached the same way. Only one panel is on screen at
   // a time there, so the scoreboard names the players again.
-  await alice.setViewportSize({ width: 390, height: 844 })
+  await alice.setViewportSize(PHONE)
   await expect(faction).toBeVisible()
   await expect(detachment).toBeVisible()
   await expect(ownPanel.getByRole('button', { name: `Open ${aliceRoster}`, exact: true })).toBeVisible()
@@ -663,7 +636,7 @@ test('paired secondary missions may be kept or put back as they are drawn', asyn
     await expect(confirmation).toBeVisible()
     await confirmation.getByRole('button', { name: 'Undo draw' }).click()
   }
-  await bob.setViewportSize({ width: 390, height: 844 })
+  await bob.setViewportSize(PHONE)
   await confirmUndo()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(returned ? 1 : 0)
   await expect(prompt.getByRole('button', { name: 'Select missions' })).toBeVisible()

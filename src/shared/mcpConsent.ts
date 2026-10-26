@@ -9,7 +9,7 @@ export const MCP_CONSENT_REFUSALS = {
   unknown_client: 'This app is no longer registered.',
 } as const
 
-export type McpConsentRefusal = keyof typeof MCP_CONSENT_REFUSALS
+type McpConsentRefusal = keyof typeof MCP_CONSENT_REFUSALS
 
 export function mcpConsentRefusal(error: unknown): McpConsentRefusal | null {
   if (!(error instanceof Error)) return null

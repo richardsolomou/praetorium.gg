@@ -1,8 +1,9 @@
-import type { AgentTools } from './agentTools'
+import { READ_ONLY_TOOL, structured, type AgentTools } from './agentTools'
 import { app } from './app'
 import { submitBattleCommand } from './battleSubmission'
 import { productActions } from './productActions'
 import { rosterActions } from './rosterActions'
+import { BATTLES_PAGE } from './service'
 import {
   battlesPageSchema,
   createBattleSchema,
@@ -24,13 +25,8 @@ export const ACCOUNT_MCP_SCOPES: Record<string, 'mcp:read' | 'mcp:write'> = {
   submit_battle_action: 'mcp:write',
 }
 
-const READ = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } as const
 // Rosters and battles can be public, so a write may publish to other players.
 const WRITE = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true } as const
-
-function structured(result: Record<string, unknown>) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify(result) }], structuredContent: result }
-}
 
 async function resultOf(work: () => Promise<Record<string, unknown>>) {
   try {
@@ -55,7 +51,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
       title: 'List my saved rosters',
       description: 'Lists the rosters saved to the signed-in Praetorium account. Requires mcp:read.',
       inputSchema: {},
-      annotations: READ,
+      annotations: READ_ONLY_TOOL,
     },
     () => resultOf(async () => ({ rosters: await app().service.rosterService.savedRosterSummaries(owner()) })),
   )
@@ -65,7 +61,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
       title: 'Read my saved roster',
       description: 'Returns the saved choices for one roster owned by the signed-in player. Requires mcp:read.',
       inputSchema: rosterIdSchema.shape,
-      annotations: READ,
+      annotations: READ_ONLY_TOOL,
     },
     ({ id }) =>
       resultOf(async () => {
@@ -78,15 +74,15 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
     'list_my_battles',
     {
       title: 'List my battles',
-      description: 'Lists up to 25 battles with a cursor for the next page. Requires mcp:read.',
+      description: `Lists up to ${BATTLES_PAGE} battles with a cursor for the next page. Requires mcp:read.`,
       inputSchema: battlesPageSchema.shape,
-      annotations: READ,
+      annotations: READ_ONLY_TOOL,
     },
     ({ before }) =>
       resultOf(async () => {
         const instance = app()
         const [rules, factions] = await Promise.all([instance.battleMissionRulesFor(), instance.factionIndexFor()])
-        return instance.service.battles(owner(), rules, { limit: 25, before: before ?? undefined }, factions?.factions ?? [])
+        return instance.service.battles(owner(), rules, { limit: BATTLES_PAGE, before: before ?? undefined }, factions?.factions ?? [])
       }),
   )
   server.registerTool(
@@ -95,7 +91,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
       title: 'Read one of my battles',
       description: 'Returns the current seated view of a battle for the signed-in player. Requires mcp:read.',
       inputSchema: tokenSchema.shape,
-      annotations: READ,
+      annotations: READ_ONLY_TOOL,
     },
     ({ token }) =>
       resultOf(async () => {

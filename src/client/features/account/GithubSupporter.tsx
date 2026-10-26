@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { checkGithubSponsorship } from '../../functions'
 import { SPONSOR } from '../../projectLinks'
-import { githubSponsorshipQuery } from '../../queries'
+import { githubSponsorshipQuery, userProfileKey } from '../../queries'
 import { Problem } from '../../components/Problem'
 
 const SPONSORSHIP_TEXT = {
@@ -19,7 +19,7 @@ export function GithubSupporter() {
   const refresh = async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: githubSponsorshipQuery().queryKey }),
-      queryClient.invalidateQueries({ queryKey: ['user-profile'] }),
+      queryClient.invalidateQueries({ queryKey: userProfileKey() }),
     ])
   }
   const check = useMutation({ mutationFn: () => checkGithubSponsorship(), onSuccess: refresh })

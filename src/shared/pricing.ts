@@ -1,4 +1,4 @@
-import { groupBy, RecentlyUsed, uniqueBy } from '../core/collections'
+import { groupBy, RecentlyUsed, uniqueBy, remember } from '../core/collections'
 import { attachmentErrors, attachmentPartyOf } from '../core/attach'
 import { attachmentHost } from '../core/attachedUnits'
 import { routeSlug } from '../core/slug'
@@ -19,7 +19,7 @@ import { type ModelKind, modelKindsOf, modelRowSources, choiceOptionWargear, own
 import { type LabelUnit, rosterLabel } from '../core/rosterLabel'
 import { buildUnit, type BuiltUnit, resolveUnitChoice } from '../core/roster'
 import { unavailableRosterSelections } from '../core/rosterSelections'
-import { type ChoiceOptions, type UnitChoice, unitChoices } from '../core/unitChoices'
+import { type ChoiceOptions, hasWarlordToggle, type UnitChoice, unitChoices } from '../core/unitChoices'
 import { withUnitSpread } from '../core/unitSpread'
 import { wargearOf } from '../core/wargear'
 import { rulesReferencedIn } from './catalogueRules'
@@ -32,8 +32,8 @@ import { detachmentNamed } from './factionReferences'
 import { contextualUnitLimit, detachmentsUnlocking, shelfIn, unitsIn } from './cataloguePicker'
 import { isDetachmentWrapperLimit, rosterDetachments } from './rosterDetachments'
 import { detachmentPoints } from './detachmentPoints'
-import { mfmUnitFor, unitPointAdjustment } from './unitPoints'
-import { mfmDetachmentFor, mfmEnhancementPoints, mfmWargearOptionPoints } from './mfm'
+import { choiceOptionsForPricing, mfmOptionAdjustment, mfmOptionPoints, mfmUnitFor, unitPointAdjustment } from './unitPoints'
+import { isUpgrade, mfmDetachmentFor, withoutUpgrade } from './mfm'
 import { deploymentRules } from './rosterDeployment'
 import { grantsReserveExemptionIn, reserveSelectorsIn } from './textFacts'
 import { heldWargear, replacementKey, type ReplacementSource } from './heldWargear'
@@ -44,14 +44,8 @@ import type { PriceInput } from '../contracts/schemas'
 
 /** A built unit depends only on its pick, the battle size and the detachments, so every price on one catalogue shares it. */
 const sharedBuiltUnits = new WeakMap<LoadedCatalogue, Map<string, BuiltUnit | null>>()
-function sharedBuiltUnitsFor(loaded: LoadedCatalogue) {
-  let units = sharedBuiltUnits.get(loaded)
-  if (!units) {
-    units = new RecentlyUsed(2_000)
-    sharedBuiltUnits.set(loaded, units)
-  }
-  return units
-}
+const sharedBuiltUnitsFor = (loaded: LoadedCatalogue) =>
+  remember(sharedBuiltUnits, loaded, () => new RecentlyUsed<string, BuiltUnit | null>(2_000))
 
 /** Projections of one built unit, kept for as long as the unit itself is. */
 const builtModelKinds = new WeakMap<BuiltUnit, ModelKind[]>()
@@ -98,7 +92,7 @@ function rosterForces(
   })
   const forceSelections = new Map<string, Selection[]>([[data.catalogueId, [...roster]]])
   for (const unit of picked) {
-    const owner = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+    const owner = unitCatalogueId(loaded, data, unit)
     const force = forceSelections.get(owner) ?? [...configuration]
     force.push(unit.selection)
     forceSelections.set(owner, force)
@@ -110,9 +104,6 @@ type ReplacementChoice = {
   key: string
   options: readonly { id: string; count: number; max: number }[]
 }
-
-/** A malformed catalogue choice must not make the whole roster impossible to price. */
-export const choiceOptionsForPricing = (choice: { options?: UnitChoice['options'] }) => choice.options ?? []
 
 function legalReplacementPairs(
   entryId: string,
@@ -179,16 +170,6 @@ function legalReplacementPairs(
 }
 
 /**
- * What each pick is called, what it cost, and whether it is the Warlord.
- *
- * The three facts `rosterLabel` folds a name out of. Gathered here because the
- * library's cheap total and the builder's whole price both hand them over, and a
- * library row and the editor suggesting different names for one list would be the
- * plainest possible version of the same question answered twice.
- */
-const hasWarlordToggle = (toggles: BuiltUnit['toggles']) => toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected)
-
-/**
  * The Warlord is asked of a list once something in it could be one. A list of squads alone, or an empty one kept to
  * track a game, has nothing the Warlord choice could fix.
  */
@@ -214,6 +195,14 @@ function detachmentLockErrors(
   })
 }
 
+/**
+ * What each pick is called, what it cost, and whether it is the Warlord.
+ *
+ * The three facts `rosterLabel` folds a name out of. Gathered here because the
+ * library's cheap total and the builder's whole price both hand them over, and a
+ * library row and the editor suggesting different names for one list would be the
+ * plainest possible version of the same question answered twice.
+ */
 function labelUnitsOf(
   picked: readonly { name: string; selection: Selection; toggles: BuiltUnit['toggles'] }[],
   pointsBySelection: ReadonlyMap<Selection, number>,
@@ -225,23 +214,19 @@ function labelUnitsOf(
   }))
 }
 
-function specialPoints(detachments: readonly NonNullable<ReturnType<typeof mfmDetachmentFor>>[], name: string) {
-  const prices = [...new Set(detachments.flatMap((detachment) => mfmEnhancementPoints(detachment, name) ?? []))]
-  return prices.length === 1 ? prices[0]! : null
-}
+type PickedUnit = { key: number; entryId: string }
 
-function mfmOptionPoints(
-  detachments: readonly NonNullable<ReturnType<typeof mfmDetachmentFor>>[],
-  unit: ReturnType<typeof mfmUnitFor>,
-  choiceName: string,
-  optionName: string,
-  pieces: readonly { name: string; count: number }[],
-  selectedCount: number,
-) {
-  return (
-    (/enhancement|upgrade/i.test(choiceName) ? specialPoints(detachments, optionName) : null) ??
-    mfmWargearOptionPoints(unit, optionName, pieces, selectedCount || 1)
-  )
+/** The book a picked unit is drawn from: the one the pick names, else the one defining it, else the roster's own. */
+const unitCatalogueId = (loaded: LoadedCatalogue, data: PriceInput, unit: PickedUnit) =>
+  data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+
+const pickedMfmUnit = (loaded: LoadedCatalogue, data: PriceInput, unit: PickedUnit) =>
+  mfmUnitFor(loaded, data.units[unit.key]?.catalogueId ?? data.catalogueId, unit.entryId)
+
+function selectionPointsOf(forces: readonly (readonly Selection[])[], evaluated: { selectionPoints: readonly (readonly number[])[] }) {
+  const points = new Map<Selection, number>()
+  forces.forEach((force, forceAt) => force.forEach((selection, at) => points.set(selection, evaluated.selectionPoints[forceAt]?.[at] ?? 0)))
+  return points
 }
 
 function adjustUnitPoints(
@@ -256,25 +241,16 @@ function adjustUnitPoints(
     (option) => mfmDetachmentFor(loaded, data.catalogueId, option.name) ?? [],
   )
   for (const unit of picked) {
-    const catalogueId = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+    const catalogueId = unitCatalogueId(loaded, data, unit)
     const definition = loaded.index.definitions.get(unit.entryId)
     const sheetId = definition ? targetOf(definition, loaded.index.definitions).id : unit.entryId
     const copy = (copies.get(sheetId) ?? 0) + 1
     copies.set(sheetId, copy)
-    const mfmUnit = mfmUnitFor(loaded, data.units[unit.key]?.catalogueId ?? data.catalogueId, unit.entryId)
-    const optionDifference = unit.choices
-      .flatMap((choice) =>
-        choiceOptionsForPricing(choice).flatMap((option) => {
-          if (option.count <= option.min) return []
-          const pieces = ownChoiceOptionWargear(unit.choices, choice.key, option.id, unit.selection, loaded.index, {
-            primaryCatalogueId: data.catalogueId,
-            mustering: true,
-          })
-          const price = mfmOptionPoints(detachments, mfmUnit, choice.name, option.name, pieces, option.count)
-          return price === null ? [] : [(price - option.points) * (option.count - option.min)]
-        }),
-      )
-      .reduce((total, value) => total + value, 0)
+    const mfmUnit = pickedMfmUnit(loaded, data, unit)
+    const optionDifference = mfmOptionAdjustment(loaded.index, unit, mfmUnit, detachments, {
+      primaryCatalogueId: data.catalogueId,
+      mustering: true,
+    })
     const difference = unitPointAdjustment(loaded, data.catalogueId, catalogueId, unit.entryId, unit.size.models, copy) + optionDifference
     pointsBySelection.set(unit.selection, (pointsBySelection.get(unit.selection) ?? 0) + difference)
     adjustment += difference
@@ -343,10 +319,7 @@ export function calculateRosterTotals(
   if (savedSelectionErrors(data, picked, loaded).length) return null
   const forces = [...forceSelections.values()]
   const evaluated = evaluateForces(forces, loaded.index, { primaryCatalogueId: data.catalogueId })
-  const pointsBySelection = new Map<Selection, number>()
-  forces.forEach((force, forceAt) =>
-    force.forEach((selection, at) => pointsBySelection.set(selection, evaluated.selectionPoints[forceAt]?.[at] ?? 0)),
-  )
+  const pointsBySelection = selectionPointsOf(forces, evaluated)
   const adjustment = adjustUnitPoints(loaded, data, picked, pointsBySelection)
   return {
     points: evaluated.points + adjustment,
@@ -426,16 +399,15 @@ function selectedSpecials(
 function calculateRoster(
   data: PriceInput,
   loaded: LoadedCatalogue | null,
-  loadedRules: LoadedRules | null,
+  rules: LoadedRules | null,
   mode: 'full' | 'assessment',
   unitCache?: Map<string, BuiltUnit | null>,
 ) {
   if (!loaded) return null
 
-  const { chosen, selections: detachmentSelection } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)
   // Enhancements and unit limits can depend on the detachment already being in
   // the roster when units are expanded.
-  const rules = loadedRules
+  const { chosen, selections: detachmentSelection } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)
   const factionSlug = routeSlug(loaded.index.catalogues.get(data.catalogueId)?.name ?? '')
   const factionName = factionNameOf(loaded, data.catalogueId, rules)
   const rulesId = rulesFaction(rules, factionSlug)
@@ -505,9 +477,7 @@ function calculateRoster(
     ...detachmentSpecials.flatMap(({ detail }) => detail?.upgrades.map((upgrade) => routeSlug(upgrade.name)) ?? []),
     ...mfmDetachments.flatMap(
       (detachment) =>
-        detachment.enhancements
-          ?.filter((entry) => /\(upgrade\)\s*$/i.test(entry.name))
-          .map((entry) => routeSlug(entry.name.replace(/\s*\(upgrade\)\s*$/i, ''))) ?? [],
+        detachment.enhancements?.filter((entry) => isUpgrade(entry.name)).map((entry) => routeSlug(withoutUpgrade(entry.name))) ?? [],
     ),
   ])
   const enhancementNames = new Set(
@@ -515,8 +485,7 @@ function calculateRoster(
       ...(detail?.enhancements.map((enhancement) => routeSlug(enhancement.name)) ?? []),
       ...(catalogue?.forcedEnhancements.map((enhancement) => routeSlug(enhancement.name)) ?? []),
       ...mfmDetachments.flatMap(
-        (detachment) =>
-          detachment.enhancements?.filter((entry) => !/\(upgrade\)\s*$/i.test(entry.name)).map((entry) => routeSlug(entry.name)) ?? [],
+        (detachment) => detachment.enhancements?.filter((entry) => !isUpgrade(entry.name)).map((entry) => routeSlug(entry.name)) ?? [],
       ),
     ]),
   )
@@ -533,18 +502,11 @@ function calculateRoster(
   const selections = forces.flat()
   const selectionIndex = new Map(selections.map((selection, at) => [selection, at]))
   const keywordsByCatalogue = new Map<string, ReturnType<typeof keywordsBySelection>>()
-  const rosterKeywordsFor = (catalogueId: string) => {
-    let keywords = keywordsByCatalogue.get(catalogueId)
-    if (!keywords) {
-      keywords = keywordsBySelection(selections, loaded.index, { primaryCatalogueId: catalogueId })
-      keywordsByCatalogue.set(catalogueId, keywords)
-    }
-    return keywords
-  }
+  const rosterKeywordsFor = (catalogueId: string) =>
+    remember(keywordsByCatalogue, catalogueId, () => keywordsBySelection(selections, loaded.index, { primaryCatalogueId: catalogueId }))
   const keywordMatrixFor = (catalogueId: string) => rosterKeywordsFor(catalogueId).map(({ keywords }) => keywords)
   const keywordsFor = (catalogueId: string, at: number) => rosterKeywordsFor(catalogueId)[at]?.keywords ?? []
-  const catalogueOfUnit = (unit: (typeof picked)[number]) =>
-    data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+  const catalogueOfUnit = (unit: (typeof picked)[number]) => unitCatalogueId(loaded, data, unit)
   const keywordNamesOf = (unit: (typeof picked)[number]) => {
     const at = selectionIndex.get(unit.selection)
     return keywordNames(at === undefined ? [] : keywordsFor(catalogueOfUnit(unit), at), loaded.index)
@@ -552,19 +514,10 @@ function calculateRoster(
   // Model kinds are the dear part of a unit's projection, and the price reads them
   // twice: once to find units the catalogue composes itself, and once to draw each
   // unit's card. Project each built unit once and keep the result with it.
-  const modelKindsFor = (unit: (typeof picked)[number]) => {
-    let kinds = builtModelKinds.get(unit.source)
-    if (!kinds) {
-      kinds = modelKindsOf(unit.entryId, unit.selection, loaded.index, options)
-      builtModelKinds.set(unit.source, kinds)
-    }
-    return kinds
-  }
+  const modelKindsFor = (unit: (typeof picked)[number]) =>
+    remember(builtModelKinds, unit.source, () => modelKindsOf(unit.entryId, unit.selection, loaded.index, options))
   const whole = evaluateForces(forces, loaded.index, options)
-  const selectionPoints = new Map<Selection, number>()
-  forces.forEach((force, forceAt) =>
-    force.forEach((selection, selectionAt) => selectionPoints.set(selection, whole.selectionPoints[forceAt]?.[selectionAt] ?? 0)),
-  )
+  const selectionPoints = selectionPointsOf(forces, whole)
   const points = whole.points + adjustUnitPoints(loaded, data, picked, selectionPoints)
   const pointCaps = pointCapErrors(forces, loaded.index, options, (selection) => selectionPoints.get(selection) ?? 0)
   const restrictions = rules?.factionRestrictions.get(factionSlug)
@@ -574,7 +527,7 @@ function calculateRoster(
   const constructionUnits =
     restrictions || isKotcLimit(data.limit)
       ? picked.map((unit) => {
-          const catalogueId = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+          const catalogueId = catalogueOfUnit(unit)
           const sheet = datasheetIn(loaded, catalogueId, unit.entryId, {
             selections,
             unitSelectionIndex: selectionIndex.get(unit.selection),
@@ -716,7 +669,7 @@ function calculateRoster(
     selections,
     units: picked.map((unit) => {
       const catalogueId = catalogueOfUnit(unit)
-      const mfmUnit = mfmUnitFor(loaded, data.units[unit.key]?.catalogueId ?? data.catalogueId, unit.entryId)
+      const mfmUnit = pickedMfmUnit(loaded, data, unit)
       const definition = loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }
       const unitSelectionIndex = selectionIndex.get(unit.selection)
       const unitKeywords = keywordNamesOf(unit)
@@ -790,11 +743,7 @@ function calculateRoster(
             : [],
         ),
       )
-      let attachment = builtAttachments.get(unit.source)
-      if (attachment === undefined) {
-        attachment = attachmentPartyOf(definition, loaded.index, unit.selection)
-        builtAttachments.set(unit.source, attachment)
-      }
+      const attachment = remember(builtAttachments, unit.source, () => attachmentPartyOf(definition, loaded.index, unit.selection))
       return {
         key: unit.key,
         entryId: unit.entryId,

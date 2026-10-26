@@ -8,7 +8,7 @@ import { battleSizeLabel, type FormatRule } from '../../../core/battle'
 import type { OnboardingTarget } from '../onboarding/onboarding'
 import { FactionLabel, type FactionPresentation } from '../../components/FactionMark'
 import { WaiverChip } from '../../components/FormatWaivers'
-import { dispositionTone } from '../../components/rosterSetup'
+import { dispositionTone, factionDisposition } from '../../components/rosterSetup'
 import type { CatalogueEdition } from '../../../core/catalogueEdition'
 import { countLabel } from '../../text'
 
@@ -121,9 +121,7 @@ export function RosterHeader({
   const { ref: metaRef, style: metaStyle } = useScrollEdges<HTMLSpanElement>()
   const hasPoints = points !== null && points !== undefined
   const hasSummary = hasPoints || limit !== undefined
-  const knownDisposition = disposition
-    ? faction?.detachments.flatMap((entry) => entry.dispositions).find((entry) => entry.id === disposition)
-    : undefined
+  const knownDisposition = disposition ? factionDisposition(faction, disposition) : undefined
 
   return (
     <header className="border-b border-edge px-3 py-2">

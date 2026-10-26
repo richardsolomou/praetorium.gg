@@ -1,6 +1,6 @@
 import { expect, test } from './test'
 import { PREVIEW_EMAIL } from '../scripts/seedPreview'
-import { befriend, currentTotp, signIn, signInAsPreview, signUp, uniqueName } from './account'
+import { befriend, currentTotp, signIn, signInAsPreview, signUp, uniqueName, signOut, PHONE } from './account'
 
 // The seeded administrator is shared by every attempt, so these tests never change its
 // security settings and give each player they create a name of its own.
@@ -15,8 +15,8 @@ test('a player secures an account with an authenticator app', async ({ page, req
   await setup.getByLabel('Confirm your password').fill(password)
   await setup.getByRole('button', { name: 'Continue' }).click()
   await expect(setup.getByRole('img', { name: 'Authenticator setup QR code' })).toBeVisible()
-  await page.setViewportSize({ width: 390, height: 844 })
-  await page.screenshot({ path: 'test-results/two-factor-setup-phone.png', fullPage: true })
+  await page.setViewportSize(PHONE)
+  await page.screenshot({ path: test.info().outputPath('two-factor-setup-phone.png'), fullPage: true })
   const uri = await setup.locator('code').textContent()
   if (!uri) throw new Error('The authenticator URI was not rendered.')
   // Verifying replaces the session, and the old one's revocation reaches the page over
@@ -36,8 +36,7 @@ test('a player secures an account with an authenticator app', async ({ page, req
   await expect(page.getByText('Enabled · Protects password sign-in', { exact: true })).toBeVisible()
   await page.unroute('**/api/auth/two-factor/verify-totp')
 
-  await page.getByRole('button', { name: `Account menu for ${name}` }).click()
-  await page.getByRole('menuitem', { name: 'Sign out' }).click()
+  await signOut(page)
   await page.waitForURL('/')
   await signIn(page, email, password)
   await expect(page.getByLabel('Authenticator code')).toBeVisible()
@@ -111,7 +110,7 @@ test('an administrator finds and manages a player', async ({ baseURL, browser, p
   await expect(page.getByText('1 player', { exact: true })).toBeVisible()
   await page.getByLabel('Search users').fill('')
   await expect(table.getByText(PREVIEW_EMAIL, { exact: true })).toBeVisible()
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect(table.getByRole('columnheader', { name: 'Name', exact: true })).toBeVisible()
   await expect(page.locator('body')).toHaveJSProperty('scrollWidth', 390)
   await page.setViewportSize({ width: 1440, height: 900 })

@@ -1,4 +1,5 @@
 import { APP_URL } from './navigation'
+import { PKCE_VALUE } from '../../src/contracts/nativeAuth'
 
 export const NATIVE_AUTH_CALLBACK_URL = 'praetorium://auth'
 const NATIVE_AUTH_EXCHANGE_KEY = 'praetorium.native-auth.exchange'
@@ -58,8 +59,8 @@ export function parseNativeAuthRequest(message: string): NativeAuthRequest | nul
     ) {
       return null
     }
-    if (typeof value.challenge !== 'string' || !/^[\w-]{43}$/.test(value.challenge)) return null
-    if (typeof value.verifier !== 'string' || !/^[\w-]{43}$/.test(value.verifier)) return null
+    if (typeof value.challenge !== 'string' || !PKCE_VALUE.test(value.challenge)) return null
+    if (typeof value.verifier !== 'string' || !PKCE_VALUE.test(value.verifier)) return null
     if (value.sessionToken !== undefined && (typeof value.sessionToken !== 'string' || value.sessionToken.length < 16)) return null
     if (value.action === 'link' && !value.sessionToken) return null
     return {

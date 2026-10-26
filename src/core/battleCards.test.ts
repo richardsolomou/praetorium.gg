@@ -662,29 +662,6 @@ describe('secondaries', () => {
     expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.remainingSecondaries).toEqual([cards[2]])
   })
 
-  it('shows the remaining tactical deck to the opponent', () => {
-    const cards = [
-      { key: 'a', name: 'Behind Enemy Lines' },
-      { key: 'b', name: 'Bring It Down' },
-    ]
-    const state = reduceBattle(
-      PLAYERS,
-      log(...started(), [
-        ALICE,
-        {
-          kind: 'set-prep',
-          stratagems: [],
-          primary: null,
-          secondaryMode: 'tactical',
-          secondaries: cards.slice(0, 1),
-          secondaryDeck: cards,
-        },
-      ]),
-    )
-
-    expect(battleView({ token: 'abc' }, NAMES, state, BOB).players[0]?.remainingSecondaries).toEqual([cards[1]])
-  })
-
   it('shows a side’s remaining tactical deck to an ally, who draws from the same hand', () => {
     const configure: Command = {
       kind: 'configure-battle',

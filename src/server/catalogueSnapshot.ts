@@ -16,8 +16,19 @@ import {
 } from './catalogueSources'
 import { CANONICAL_CATALOGUE_SOURCE_NAMES } from './canonicalCatalogueSources'
 import pRetry from 'p-retry'
+import { errorHasCode } from 'ras-stack/server'
 import { readCatalogueComposition } from './catalogueComposition'
-import { extractCatalogueArchive, hashCatalogueFile, downloadCatalogueObject } from './catalogueArchive'
+import {
+  extractCatalogueArchive,
+  hashCatalogueFile,
+  downloadCatalogueObject,
+  MAX_ARCHIVE_BYTES,
+  MAX_EXTRACTED_BYTES,
+  MAX_MANIFEST_BYTES,
+  MAX_OBJECT_BYTES,
+  MAX_SNAPSHOT_FILES,
+  type ExtractedFile,
+} from './catalogueArchive'
 import { PRIVATE_CATALOGUE_BASE, fetchCatalogueObject } from './catalogueStore'
 import { byteLimit } from './boundedBody'
 import { replaceDirectory } from './replaceDirectory'
@@ -32,8 +43,6 @@ const POINTER_FORMAT = 'praetorium.catalogue-pointer.v1'
 const LOCK_FORMAT = 'praetorium.catalogue-lock.v1'
 const REVOCATIONS_FORMAT = 'praetorium.catalogue-revocations.v1'
 const PROVENANCE_FORMAT = 'praetorium.catalogue-provenance.v1'
-export const MAX_ARCHIVE_BYTES = 256 * 1024 * 1024
-const MAX_EXTRACTED_BYTES = 1024 * 1024 * 1024
 
 type SnapshotManifest = {
   format: typeof FORMAT | typeof SOURCE_FORMAT | typeof COMPLETE_FORMAT | typeof LEGACY_FORMAT
@@ -52,13 +61,13 @@ export type SnapshotPointer = {
   runtime?: { fingerprint: string; archiveSha256: string }
 }
 
-export type CatalogueLock = {
+type CatalogueLock = {
   format: typeof LOCK_FORMAT
   pointer: SnapshotPointer
   revisions: Record<string, string>
 }
 
-export type CatalogueRevocations = {
+type CatalogueRevocations = {
   format: typeof REVOCATIONS_FORMAT
   snapshots: string[]
   sources: SnapshotSourceName[]
@@ -155,7 +164,7 @@ export function catalogueBaseUrl(value = process.env.CATALOGUE_BASE_URL) {
 // The timeout also bounds reading the body, which for a snapshot archive is tens of megabytes.
 const ARTIFACT_REQUEST = { timeoutMs: 60_000 }
 
-function configuredRevocations() {
+export function configuredCatalogueRevocations() {
   return mergeRevocations(catalogueRevocations, {
     format: REVOCATIONS_FORMAT,
     snapshots: [],
@@ -303,20 +312,18 @@ function mergeRevocations(left: CatalogueRevocations, right: CatalogueRevocation
   }
 }
 
-function assertAllowed(pointer: SnapshotPointer, sources: readonly SnapshotSourceName[], revocations: CatalogueRevocations) {
+export function assertCatalogueSnapshotAllowed(
+  pointer: SnapshotPointer,
+  sources: readonly SnapshotSourceName[],
+  revocations: CatalogueRevocations,
+) {
   if (revocations.snapshots.includes(pointer.id)) throw new Error(`catalogue snapshot ${pointer.id} has been revoked`)
-  assertSourcesAllowed(sources, revocations)
+  assertCatalogueSourcesAllowed(sources, revocations)
 }
 
-function assertSourcesAllowed(sources: readonly SnapshotSourceName[], revocations: CatalogueRevocations) {
+export function assertCatalogueSourcesAllowed(sources: readonly SnapshotSourceName[], revocations: CatalogueRevocations) {
   const revokedSource = sources.find((name) => revocations.sources.includes(name))
   if (revokedSource) throw new Error(`catalogue source ${revokedSource} has been revoked`)
-}
-
-export {
-  assertAllowed as assertCatalogueSnapshotAllowed,
-  assertSourcesAllowed as assertCatalogueSourcesAllowed,
-  configuredRevocations as configuredCatalogueRevocations,
 }
 
 function assertReplaceableDirectory(directory: string) {
@@ -328,15 +335,27 @@ function assertReplaceableDirectory(directory: string) {
 
 const objectCache = (directory: string) => path.join(path.dirname(path.resolve(directory)), '.catalogue-objects')
 
-function assertManifestAuthoring(manifest: SnapshotManifest, pointer: SnapshotPointer) {
+/** The manifest a pointer names, refused unless its bytes, authoring revision and format are the ones it promises. */
+function readManifest(raw: Uint8Array, pointer: SnapshotPointer) {
+  if (sha256(raw) !== pointer.id) throw new Error('catalogue snapshot manifest does not match its id')
+  const manifest = JSON.parse(Buffer.from(raw).toString('utf8')) as SnapshotManifest
   if (manifest.authoringRevision && manifest.authoringRevision !== pointer.authoringRevision)
     throw new Error('catalogue authoring revision does not match its manifest')
+  if (![FORMAT, SOURCE_FORMAT, COMPLETE_FORMAT, LEGACY_FORMAT].includes(manifest.format))
+    throw new Error('catalogue snapshot format is unsupported')
+  return manifest
+}
+
+function assertLockedRevisions(revisions: Record<string, string>, locked: Record<string, string> = {}) {
+  for (const [name, revision] of Object.entries(locked)) {
+    if (revisions[name] !== revision) throw new Error(`catalogue snapshot does not match the locked ${name} revision`)
+  }
 }
 
 function installManifestFiles(
   directory: string,
   rawManifest: Uint8Array,
-  entries: Map<string, { sha256: string; bytes: number; file: string }>,
+  entries: Map<string, ExtractedFile>,
   expected: SnapshotPointer,
   revocations: CatalogueRevocations,
   expectedRevisions?: Record<string, string>,
@@ -344,17 +363,12 @@ function installManifestFiles(
   assertReplaceableDirectory(directory)
   if (fs.lstatSync(directory, { throwIfNoEntry: false })?.isSymbolicLink())
     throw new Error('refusing to replace an activated snapshot symlink')
-  if (sha256(rawManifest) !== expected.id) throw new Error('catalogue snapshot manifest does not match its id')
-  const manifest = JSON.parse(Buffer.from(rawManifest).toString('utf8')) as SnapshotManifest
-  assertManifestAuthoring(manifest, expected)
-  if (![FORMAT, SOURCE_FORMAT, COMPLETE_FORMAT, LEGACY_FORMAT].includes(manifest.format))
-    throw new Error('catalogue snapshot format is unsupported')
-  if (!manifest.files || Object.keys(manifest.files).length > 10_000) throw new Error('catalogue snapshot has an invalid file inventory')
+  const manifest = readManifest(rawManifest, expected)
+  if (!manifest.files || Object.keys(manifest.files).length > MAX_SNAPSHOT_FILES)
+    throw new Error('catalogue snapshot has an invalid file inventory')
   revisionsOf(manifest.revisions)
-  assertAllowed(expected, manifestSources(manifest), revocations)
-  for (const [name, revision] of Object.entries(expectedRevisions ?? {})) {
-    if (manifest.revisions[name] !== revision) throw new Error(`catalogue snapshot does not match the locked ${name} revision`)
-  }
+  assertCatalogueSnapshotAllowed(expected, manifestSources(manifest), revocations)
+  assertLockedRevisions(manifest.revisions, expectedRevisions)
   const staging = `${directory}.incoming-${process.pid}-${randomUUID()}`
   try {
     const used = new Set(['manifest.json'])
@@ -378,7 +392,7 @@ function installManifestFiles(
       try {
         fs.linkSync(input, target)
       } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'EXDEV') throw error
+        if (!errorHasCode(error, 'EXDEV')) throw error
         fs.copyFileSync(input, target)
       }
       sharedFiles.set(fileHash, target)
@@ -395,10 +409,9 @@ function installManifestFiles(
           try {
             fs.linkSync(entry.file, cached)
           } catch (error) {
-            const code = (error as NodeJS.ErrnoException).code
-            if (code === 'EXDEV') {
+            if (errorHasCode(error, 'EXDEV')) {
               replaceFileSync(cached, (temporary) => fs.copyFileSync(entry.file, temporary))
-            } else if (code !== 'EEXIST') throw error
+            } else if (!errorHasCode(error, 'EEXIST')) throw error
           }
         }
       }
@@ -462,33 +475,30 @@ async function fetchSnapshotObjects(
   const response = await request(`${base}/manifests/${pointer.id}.json`)
   const manifestFile = path.join(objectCache(directory), `manifest-${pointer.id}-${randomUUID()}`)
   try {
-    await saveResponse(response, manifestFile, 1024 * 1024)
+    await saveResponse(response, manifestFile, MAX_MANIFEST_BYTES)
     const raw = fs.readFileSync(manifestFile)
-    if (sha256(raw) !== pointer.id) throw new Error('catalogue snapshot manifest does not match its id')
-    const manifest = JSON.parse(raw.toString('utf8')) as SnapshotManifest
-    if (manifest.format !== FORMAT || !manifest.files || Object.keys(manifest.files).length > 10_000)
+    const manifest = readManifest(raw, pointer)
+    if (manifest.format !== FORMAT || !manifest.files || Object.keys(manifest.files).length > MAX_SNAPSHOT_FILES)
       throw new Error('catalogue object manifest is invalid')
-    assertAllowed(pointer, manifestSources(manifest), revocations)
-    for (const [name, revision] of Object.entries(revisions ?? {})) {
-      if (manifest.revisions[name] !== revision) throw new Error(`catalogue snapshot does not match the locked ${name} revision`)
-    }
+    assertCatalogueSnapshotAllowed(pointer, manifestSources(manifest), revocations)
+    assertLockedRevisions(manifest.revisions, revisions)
     const hashes = [...new Set(Object.values(manifest.files))]
     if (hashes.some((objectHash) => !/^[a-f0-9]{64}$/.test(objectHash))) throw new Error('catalogue object hash is invalid')
-    const entries = new Map<string, { sha256: string; bytes: number; file: string }>()
+    const entries = new Map<string, ExtractedFile>()
     let cursor = 0
     let total = 0
     const workers = Array.from({ length: Math.min(8, hashes.length) }, async () => {
       while (cursor < hashes.length) {
         const objectHash = hashes[cursor++]!
         const file = path.join(objectCache(directory), objectHash)
-        if (!fs.existsSync(file) || fs.statSync(file).size > 64 * 1024 * 1024 || hashCatalogueFile(file) !== objectHash) {
+        if (!fs.existsSync(file) || fs.statSync(file).size > MAX_OBJECT_BYTES || hashCatalogueFile(file) !== objectHash) {
           await replaceFile(file, async (temporary) =>
             downloadCatalogueObject(await request(`${base}/objects/${objectHash}.gz`), temporary, objectHash),
           )
         }
         const bytes = fs.statSync(file).size
         total += bytes
-        if (bytes > 64 * 1024 * 1024 || total > MAX_EXTRACTED_BYTES) throw new Error('catalogue objects exceed their size limit')
+        if (bytes > MAX_OBJECT_BYTES || total > MAX_EXTRACTED_BYTES) throw new Error('catalogue objects exceed their size limit')
         entries.set(`objects/${objectHash}`, { sha256: objectHash, bytes, file })
       }
     })
@@ -503,7 +513,7 @@ async function fetchSnapshotObjects(
 
 function installedSnapshotDetails(directory: string, historical = false): InstalledSnapshot | null {
   try {
-    const pointer = parsePointer(JSON.parse(fs.readFileSync(path.join(directory, '.snapshot.json'), 'utf8')))
+    const pointer = readSnapshotPointer(path.join(directory, '.snapshot.json'))
     const revisions = revisionsOf(JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')), historical)
     const manifestFile = path.join(directory, '.snapshot-manifest.json')
     const sources = fs.existsSync(manifestFile)
@@ -521,15 +531,11 @@ export function installedSnapshot(directory: string): SnapshotPointer | null {
 }
 
 export function verifyInstalledSnapshot(directory: string): SnapshotPointer {
-  const pointer = parsePointer(JSON.parse(fs.readFileSync(path.join(directory, '.snapshot.json'), 'utf8')))
+  const pointer = readSnapshotPointer(path.join(directory, '.snapshot.json'))
   const rawManifest = fs.readFileSync(path.join(directory, '.snapshot-manifest.json'))
-  if (sha256(rawManifest) !== pointer.id) throw new Error('catalogue snapshot manifest does not match its id')
-  const manifest = JSON.parse(Buffer.from(rawManifest).toString('utf8')) as SnapshotManifest
-  assertManifestAuthoring(manifest, pointer)
-  if (![FORMAT, SOURCE_FORMAT, COMPLETE_FORMAT, LEGACY_FORMAT].includes(manifest.format))
-    throw new Error('catalogue snapshot format is unsupported')
+  const manifest = readManifest(rawManifest, pointer)
   const sources = manifestSources(manifest)
-  assertAllowed(pointer, sources, configuredRevocations())
+  assertCatalogueSnapshotAllowed(pointer, sources, configuredCatalogueRevocations())
   const revisions = revisionsOf(JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')))
   if (JSON.stringify(revisions) !== JSON.stringify(manifest.revisions)) throw new Error('catalogue revisions do not match the manifest')
   let size = 0
@@ -577,9 +583,9 @@ export async function fetchReleasePointer(baseUrl: string, id: string) {
 export async function remoteRevocations(baseUrl: string) {
   const base = baseUrl.replace(/\/$/, '')
   const response = await fetchCatalogueObject(`${base}/revocations.json`, { cache: 'no-store' })
-  if (response.status === 404) return configuredRevocations()
+  if (response.status === 404) return configuredCatalogueRevocations()
   if (!response.ok) throw new Error(`catalogue revocations answered ${response.status}`)
-  return mergeRevocations(configuredRevocations(), parseRevocations(await response.json()))
+  return mergeRevocations(configuredCatalogueRevocations(), parseRevocations(await response.json()))
 }
 
 export async function fetchSnapshot(
@@ -589,15 +595,12 @@ export async function fetchSnapshot(
   report: (message: string) => void = () => {},
   options: { revocations?: CatalogueRevocations; revisions?: Record<string, string> } = {},
 ) {
+  const revocations = options.revocations ?? configuredCatalogueRevocations()
   const current = installedSnapshotDetails(directory)
   if (current?.pointer.id === pointer.id) {
     try {
-      assertAllowed(pointer, current.sources, options.revocations ?? configuredRevocations())
-      if (options.revisions) {
-        for (const [name, revision] of Object.entries(options.revisions)) {
-          if (current.revisions[name] !== revision) throw new Error(`catalogue snapshot does not match the locked ${name} revision`)
-        }
-      }
+      assertCatalogueSnapshotAllowed(pointer, current.sources, revocations)
+      assertLockedRevisions(current.revisions, options.revisions)
       report('catalogue is already at the requested snapshot')
       return false
     } catch (error) {
@@ -608,7 +611,7 @@ export async function fetchSnapshot(
   }
   if (pointer.objects && fs.existsSync(objectCache(directory))) {
     try {
-      await fetchSnapshotObjects(directory, baseUrl, pointer, options.revocations ?? configuredRevocations(), options.revisions)
+      await fetchSnapshotObjects(directory, baseUrl, pointer, revocations, options.revisions)
       report('catalogue snapshot is ready from shared objects')
       return true
     } catch (error) {
@@ -620,7 +623,7 @@ export async function fetchSnapshot(
   const archive = `${directory}.download-${randomUUID()}`
   await saveSnapshotArchive(baseUrl, pointer, archive)
   try {
-    installArchive(directory, archive, pointer, options.revocations ?? configuredRevocations(), options.revisions)
+    installArchive(directory, archive, pointer, revocations, options.revisions)
   } finally {
     fs.rmSync(archive, { force: true })
   }
@@ -629,10 +632,7 @@ export async function fetchSnapshot(
 }
 
 export async function fetchPinnedSnapshot(directory: string, baseUrl: string, report: (message: string) => void = () => {}) {
-  return fetchSnapshot(directory, baseUrl, catalogueLock.pointer, report, {
-    revocations: configuredRevocations(),
-    revisions: catalogueLock.revisions,
-  })
+  return fetchSnapshot(directory, baseUrl, catalogueLock.pointer, report, { revisions: catalogueLock.revisions })
 }
 
 export async function fetchCurrentSnapshot(directory: string, baseUrl: string, report: (message: string) => void = () => {}) {
@@ -648,7 +648,7 @@ export function installSnapshotArchive(
   /** Null installs a snapshot whatever revisions it pins, as a historical one does. */
   revisions: Record<string, string> | null = catalogueLock.revisions,
 ) {
-  installArchive(directory, archiveFile, pointer, configuredRevocations(), revisions ?? undefined)
+  installArchive(directory, archiveFile, pointer, configuredCatalogueRevocations(), revisions ?? undefined)
 }
 
 export async function downloadSnapshotArchive(
@@ -664,7 +664,7 @@ export async function downloadSnapshotArchive(
 }
 
 export function verifySnapshotArchive(archiveFile: string, pointerFile: string) {
-  const pointer = parsePointer(JSON.parse(fs.readFileSync(pointerFile, 'utf8')))
+  const pointer = readSnapshotPointer(pointerFile)
   verifyArchiveFile(archiveFile, pointer)
   return pointer
 }
@@ -719,7 +719,7 @@ async function saveResponse(response: Response, file: string, limit = MAX_ARCHIV
 function verifyArchiveFile(archive: string, pointer: SnapshotPointer, revisions?: Record<string, string>) {
   const work = fs.mkdtempSync(path.join(os.tmpdir(), 'catalogue-verify-'))
   try {
-    installArchive(path.join(work, 'snapshot'), archive, pointer, configuredRevocations(), revisions)
+    installArchive(path.join(work, 'snapshot'), archive, pointer, configuredCatalogueRevocations(), revisions)
   } finally {
     fs.rmSync(work, { recursive: true, force: true })
   }

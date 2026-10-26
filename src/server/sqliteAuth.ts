@@ -22,8 +22,7 @@ import { standardAuthEmails, type EmailDelivery } from 'ras-stack/email'
 import { errorHasCode } from 'ras-stack/server'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import { account, schema, session as sessionTable, user } from '../db/authSchema'
-import { oauthSchema } from '../db/oauthSchema'
-import { oauthAccessToken, oauthClient, oauthConsent, oauthRefreshToken } from '../db/oauthSchema'
+import { oauthAccessToken, oauthClient, oauthConsent, oauthRefreshToken, oauthSchema } from '../db/oauthSchema'
 import type { AdminConnection, AdminSession } from '../admin'
 import { APPLE_AUTH_ORIGIN, appleCredentials, revokeAppleToken } from './appleAuth'
 import { configuredAuthProviderOptions, configuredAuthProviders } from './authProviders'
@@ -103,8 +102,8 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     if (!method || !options.captureAuthentication) return
     try {
       await options.captureAuthentication(userId, event, { method })
-    } catch {
-      ;(await auth.$context).logger.error('Authentication analytics capture failed')
+    } catch (error) {
+      ;(await auth.$context).logger.error('Authentication analytics capture failed', error)
     }
   }
 
@@ -146,9 +145,8 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
           ? { token: accessToken, type: 'access_token' as const }
           : undefined
       if (token) await revokeAppleToken(configuredApple, token)
-    } catch {
-      const context = await auth.$context
-      context.logger.error('Apple token revocation failed before account removal')
+    } catch (error) {
+      ;(await auth.$context).logger.error('Apple token revocation failed before account removal', error)
     }
   }
 
@@ -179,7 +177,10 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
         refreshToken: created.refreshToken ? await decryptOAuthToken(created.refreshToken, context.context) : undefined,
         idToken: created.idToken ?? undefined,
       })
-      .catch(() => null)
+      .catch(async (error: unknown) => {
+        ;(await auth.$context).logger.error('Social profile lookup failed for avatar', error)
+        return null
+      })
     if (!info?.user.image) return
     const stored = await options.storeSocialAvatar(info.user.image)
     if (!stored) return
@@ -258,7 +259,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
             if (created.providerId === 'github')
               await options
                 .githubLinked?.()
-                .catch(async () => (await auth.$context).logger.error('GitHub sponsor refresh failed after linking'))
+                .catch(async (error: unknown) => (await auth.$context).logger.error('GitHub sponsor refresh failed after linking', error))
           },
         },
       },
@@ -346,6 +347,9 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     ],
   })
 
+  const roleOf = async (userId: string) =>
+    (await database.select({ role: user.role }).from(user).where(eq(user.id, userId)).limit(1))[0]?.role
+
   const changeUserRole = async (actorId: string, targetId: string, role: 'admin' | 'user') => {
     if (actorId === targetId) return 'self' as const
     const [changed] = await database
@@ -363,21 +367,18 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
       await (await auth.$context).internalAdapter.refreshUserSessions(changed)
       return 'changed' as const
     }
-    const [actor] = await database.select({ role: user.role }).from(user).where(eq(user.id, actorId)).limit(1)
-    if (actor?.role !== 'admin') return 'forbidden' as const
-    const [target] = await database.select({ role: user.role }).from(user).where(eq(user.id, targetId)).limit(1)
-    if (!target) return 'missing' as const
+    if ((await roleOf(actorId)) !== 'admin') return 'forbidden' as const
+    if (!(await roleOf(targetId))) return 'missing' as const
     return 'last-admin' as const
   }
 
   // Better Auth's own removal skips `beforeDelete`, which would leave the player's product data behind.
   const deleteUserAsAdmin = async (actorId: string, targetId: string) => {
     if (actorId === targetId) return 'self' as const
-    const [actor] = await database.select({ role: user.role }).from(user).where(eq(user.id, actorId)).limit(1)
-    if (actor?.role !== 'admin') return 'forbidden' as const
-    const [target] = await database.select({ role: user.role }).from(user).where(eq(user.id, targetId)).limit(1)
+    if ((await roleOf(actorId)) !== 'admin') return 'forbidden' as const
+    const target = await roleOf(targetId)
     if (!target) return 'missing' as const
-    if (target.role === 'admin') return 'admin' as const
+    if (target === 'admin') return 'admin' as const
     await revokeAppleUser(targetId)
     await options.deleteUserData(targetId)
     await (await auth.$context).internalAdapter.deleteUser(targetId)
@@ -444,11 +445,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     return true
   }
 
-  const grantedMcpResource = (resources: string | null) => {
-    if (!resources) return false
-    const parsed: unknown = JSON.parse(resources)
-    return Array.isArray(parsed) && parsed.includes(mcpResource)
-  }
+  const grantedMcpResource = (resources: string | null) => Boolean(resources) && stringList(resources!).includes(mcpResource)
 
   const mcpConnectionsFor = async (userId: string): Promise<AdminConnection[]> => {
     const rows = await database
@@ -471,7 +468,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
         id,
         clientId,
         name: name || clientId,
-        scopes: (JSON.parse(scopes) as unknown[]).filter((scope): scope is string => typeof scope === 'string'),
+        scopes: stringList(scopes),
         createdAt,
       }))
   }
@@ -497,8 +494,7 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
       .where(and(eq(oauthConsent.userId, userId), eq(oauthConsent.clientId, clientId)))
     return rows.some(({ resources, scopes }) => {
       if (!grantedMcpResource(resources)) return false
-      const grantedScopes: unknown = JSON.parse(scopes)
-      return !scope || (Array.isArray(grantedScopes) && grantedScopes.includes(scope))
+      return !scope || stringList(scopes).includes(scope)
     })
   }
 
@@ -554,9 +550,14 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     mcpConnectionsFor,
     deleteAppleAccount,
     revokeAppleTokens,
-    revokeAppleUser,
     hasMcpConsent,
     revokeMcpConsent,
     spacetimeGuestToken,
   })
+}
+
+/** The strings in a JSON array column; anything else stored there reads as no entries. */
+function stringList(json: string): string[] {
+  const parsed: unknown = JSON.parse(json)
+  return Array.isArray(parsed) ? parsed.filter((entry): entry is string => typeof entry === 'string') : []
 }

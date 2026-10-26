@@ -5,7 +5,14 @@ import { REFERENCE_KINDS, type ReferenceDocument, type ReferenceKind } from '../
 import { app } from './app'
 import { datasheetRoute, referenceCorpusFor, referenceDocumentMarkdown, type ReferenceCorpus } from './referenceCorpus'
 import { PRAETORIUM_GUIDE, praetoriumGuideMarkdown } from './referenceGuide'
-import { REFERENCE_QUERY_MAX_LENGTH, REFERENCE_RESULT_MAX, searchReference, validReferenceCursor } from './referenceSearch'
+import {
+  REFERENCE_FILTER_MAX_LENGTH,
+  REFERENCE_QUERY_MAX_LENGTH,
+  REFERENCE_RESULT_MAX,
+  searchReference,
+  validReferenceCursor,
+  type ReferenceSearchInput,
+} from './referenceSearch'
 import {
   referenceFaction,
   referenceFactions,
@@ -59,6 +66,30 @@ export async function activeReferenceCorpus(catalogueId?: string) {
     textLocations,
     factions,
   })
+}
+
+/** One faction's planning units, with the corpus they came from; null while no snapshot can answer. */
+export async function referenceUnitsFor(faction: string, battleSize?: number, detachment?: string) {
+  const corpus = await activeReferenceCorpus(faction)
+  const instance = app()
+  const selected = corpus && referenceFaction(corpus, faction)
+  const [loaded, rules] = await Promise.all([instance.catalogueFor(selected?.id ?? faction), instance.rulesFor(selected?.id ?? faction)])
+  if (!corpus || !loaded) return null
+  return { corpus, units: referenceUnits(corpus, loaded, rules, faction, battleSize, detachment, await currentFactionIds()) }
+}
+
+/** The structured record behind a reference id, with the corpus it came from; null while no snapshot can answer. */
+export async function referenceRecordFor(id: string) {
+  const catalogueId = referenceRecordCatalogueId(id)
+  const corpus = await activeReferenceCorpus(catalogueId)
+  if (!corpus) return null
+  return { corpus, record: referenceRecord(corpus, await app().rulesFor(catalogueId), id) }
+}
+
+/** The document a reference id names, with the corpus it came from; null while no snapshot can answer. */
+export async function referenceDocumentFor(id: string) {
+  const corpus = await activeReferenceCorpus(referenceRecordCatalogueId(id))
+  return corpus && { corpus, document: corpus.byId.get(id) }
 }
 
 export async function referenceSearchResponse(request: Request) {
@@ -132,16 +163,11 @@ export async function referenceUnitsResponse(request: Request, catalogueId: stri
     return problem('battleSize must be an integer from 1 to 10000', 400)
   }
   const detachment = url.searchParams.get('detachment')?.trim() || undefined
-  if (detachment && detachment.length > 160) return problem('detachment must contain at most 160 characters', 400)
-  const corpus = await activeReferenceCorpus(catalogueId)
-  const instance = app()
-  const selected = corpus && referenceFaction(corpus, catalogueId)
-  const [loaded, rules] = await Promise.all([
-    instance.catalogueFor(selected?.id ?? catalogueId),
-    instance.rulesFor(selected?.id ?? catalogueId),
-  ])
-  if (!corpus || !loaded) return referenceUnavailable()
-  const data = referenceUnits(corpus, loaded, rules, catalogueId, battleSize, detachment, await currentFactionIds())
+  if (detachment && detachment.length > REFERENCE_FILTER_MAX_LENGTH)
+    return problem(`detachment must contain at most ${REFERENCE_FILTER_MAX_LENGTH} characters`, 400)
+  const found = await referenceUnitsFor(catalogueId, battleSize, detachment)
+  if (!found) return referenceUnavailable()
+  const { corpus, units: data } = found
   if (!data) return problem('faction or detachment not found', 404)
   const markdown = [
     `# ${data.faction.name} roster planning`,
@@ -160,10 +186,9 @@ export async function referenceUnitsResponse(request: Request, catalogueId: stri
 export async function referenceRecordResponse(request: Request, id: string) {
   const limited = referenceRateLimit(request, 120)
   if (limited) return limited
-  const catalogueId = referenceRecordCatalogueId(id)
-  const corpus = await activeReferenceCorpus(catalogueId)
-  if (!corpus) return referenceUnavailable()
-  const record = referenceRecord(corpus, await app().rulesFor(catalogueId), id)
+  const found = await referenceRecordFor(id)
+  if (!found) return referenceUnavailable()
+  const { corpus, record } = found
   if (!record) return problem('reference record not found', 404)
   return referenceResponse(request, corpus.revision, `record:${id}`, record, referenceDocumentMarkdown(record.document))
 }
@@ -236,9 +261,9 @@ export async function referenceRuleSectionResponse(request: Request, documentId:
 export async function referenceDocumentResponse(request: Request, id: string) {
   const limited = referenceRateLimit(request, 120)
   if (limited) return limited
-  const corpus = await activeReferenceCorpus(referenceRecordCatalogueId(id))
-  if (!corpus) return referenceUnavailable()
-  const document = corpus.byId.get(id)
+  const found = await referenceDocumentFor(id)
+  if (!found) return referenceUnavailable()
+  const { corpus, document } = found
   if (!document) return problem('reference document not found', 404)
   return referenceResponse(request, corpus.revision, id, document, referenceDocumentMarkdown(document))
 }
@@ -253,17 +278,7 @@ function recordResponse(request: Request, corpus: ReferenceCorpus, document: Ref
   )
 }
 
-export function parseReferenceSearch(url: URL):
-  | {
-      query: string
-      kinds?: ReferenceKind[]
-      faction?: string
-      pack?: string
-      document?: string
-      limit?: number
-      cursor?: string
-    }
-  | { error: string } {
+export function parseReferenceSearch(url: URL): ReferenceSearchInput | { error: string } {
   const query = url.searchParams.get('q')?.trim() ?? ''
   if (query.length < 2) return { error: 'q must contain at least 2 characters' }
   if (query.length > REFERENCE_QUERY_MAX_LENGTH) return { error: `q must contain at most ${REFERENCE_QUERY_MAX_LENGTH} characters` }
@@ -274,11 +289,14 @@ export function parseReferenceSearch(url: URL):
   const kinds = [...new Set(rawKinds)]
   if (kinds.some((kind) => !(REFERENCE_KINDS as readonly string[]).includes(kind))) return { error: 'kind is not supported' }
   const faction = url.searchParams.get('faction')?.trim() || undefined
-  if (faction && faction.length > 160) return { error: 'faction must contain at most 160 characters' }
+  if (faction && faction.length > REFERENCE_FILTER_MAX_LENGTH)
+    return { error: `faction must contain at most ${REFERENCE_FILTER_MAX_LENGTH} characters` }
   const pack = url.searchParams.get('pack')?.trim() || undefined
-  if (pack && pack.length > 160) return { error: 'pack must contain at most 160 characters' }
+  if (pack && pack.length > REFERENCE_FILTER_MAX_LENGTH)
+    return { error: `pack must contain at most ${REFERENCE_FILTER_MAX_LENGTH} characters` }
   const document = url.searchParams.get('document')?.trim() || undefined
-  if (document && document.length > 160) return { error: 'document must contain at most 160 characters' }
+  if (document && document.length > REFERENCE_FILTER_MAX_LENGTH)
+    return { error: `document must contain at most ${REFERENCE_FILTER_MAX_LENGTH} characters` }
   const cursor = url.searchParams.get('cursor')?.trim() || undefined
   if (!validReferenceCursor(cursor)) return { error: 'cursor is not valid' }
   const rawLimit = url.searchParams.get('limit')

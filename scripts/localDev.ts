@@ -7,10 +7,11 @@ import { createServer } from 'node:http'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
-import { assertSavedDevData, localControlPort, readLocalDevPreview, type LocalDevPreview } from './localDevPreview.ts'
+import { assertSavedDevData, localControlPort, localDevPreviewFile, readLocalDevPreview, type LocalDevPreview } from './localDevPreview.ts'
 import { closeServer, reserveLocalPort, startLocalChild, stopLocalChildren } from './lib/localStack.ts'
 import { migrateProductData } from './lib/productDataMigrations.ts'
 import { moduleEnvironment } from './lib/spacetimeEnvironment.ts'
+import { TEST_STACK_NAME } from './lib/testStacks.ts'
 import { installedSpacetimeCli, SPACETIME_VERSION } from './lib/spacetimeCli.ts'
 import { callSpacetime, publishSpacetimeModule } from 'ras-stack/spacetime'
 import { browserTestBuildEnvironment, ensureBrowserTestBuild } from './lib/browserTestBuild.ts'
@@ -18,7 +19,7 @@ import { prepareModuleCoverage } from './lib/moduleCoverage.ts'
 
 const testMode = process.env.LOCAL_TEST_MODE === 'true'
 const worktree = await realpath(process.cwd())
-const previewFile = path.join(worktree, 'data-dev/active-preview.json')
+const previewFile = localDevPreviewFile(worktree)
 const savedPreview = testMode ? undefined : readLocalDevPreview(previewFile)
 if (savedPreview && savedPreview.worktree !== worktree) throw new Error('Preview record belongs to another worktree')
 const root = path.resolve(process.env.LOCAL_DATA_DIR ?? savedPreview?.dataDir ?? 'data-dev/hosted')
@@ -174,7 +175,7 @@ async function main() {
   const startedAt = performance.now()
   const timings: Record<string, number | boolean> = {}
   if (testMode) {
-    if (path.dirname(root) !== '/tmp' || !/^praetorium-(e2e|native-auth-ios)-[a-zA-Z0-9-]+$/.test(path.basename(root))) {
+    if (path.dirname(root) !== '/tmp' || !TEST_STACK_NAME.test(path.basename(root))) {
       throw new Error('Tests require a fresh Praetorium directory directly under /tmp')
     }
     if (existsSync(root)) throw new Error(`Refusing to reset existing test data: ${root}`)

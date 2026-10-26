@@ -18,7 +18,7 @@ For list building, the assistant can pull a whole faction's pickable units in on
 
 > Using Praetorium, plan a 2,000-point Necrons list around two units of Immortals, and tell me which detachments suit it.
 
-The assistant's arithmetic isn't Praetorium's legality check. Build or paste the result into [Rosters](/rosters), which checks points and the construction restrictions it supports; see [/docs/build-an-army](/docs/start-a-list) and [/docs/import-a-roster](/docs/import-a-list).
+The assistant's arithmetic isn't Praetorium's legality check. Build or paste the result into [Rosters](/rosters), which checks points and the construction restrictions it supports; see [Start a list](/docs/start-a-list) and [Import a list](/docs/import-a-list).
 
 ## Simulate combat
 
@@ -28,4 +28,4 @@ The assistant can run Praetorium's combat simulator for one attacking unit, with
 
 It can apply situational modifiers the simulator page offers, such as cover, a hit modifier, having charged or a defender's invulnerable save, and you can ask it to switch a rule or weapon profile on or off and run it again. Datasheet rules that always apply are on by default; stratagems and conditional rules stay off until you ask for them.
 
-Like the standalone simulator, it uses each unit's default loadout and no detachment. To compare specific wargear, use the simulator page directly; see [/docs/compare-loadouts](/docs/set-up-a-matchup).
+Like the standalone simulator, it uses each unit's default loadout and no detachment. To compare specific wargear, use the simulator page directly; see [Set up a matchup](/docs/set-up-a-matchup).

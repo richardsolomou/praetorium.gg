@@ -10,21 +10,28 @@ import {
   signUp,
   uniqueName,
   waitForRosterSave,
+  addUnit,
+  PHONE,
 } from './account'
 import { expectNoHorizontalOverflow } from './builder.harness'
-import { productOperator } from './storage'
-import type { LocalState } from '../src/contracts/localState'
+import { productOperator, savedWork, expectWorkSynced } from './storage'
 import sharp from 'sharp'
 import { collectionPhotoStore } from '../src/server/collectionPhotos'
 import { privateObjects } from '../src/server/privateImages'
 import { root } from './stackEnv'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-async function addDatasheet(page: Page, name: string, faction: string) {
+/** Picks a datasheet from one of the shelf's catalogue searches. */
+async function pickDatasheet(page: Page, list: 'collection' | 'wishlist', name: string, faction: string) {
   const search = page.getByPlaceholder('Search datasheets…')
-  await retryUntilVisible(search, () => page.getByRole('combobox', { name: 'Add a datasheet to your collection', exact: true }).click())
+  await retryUntilVisible(search, () => page.getByRole('combobox', { name: `Add a datasheet to your ${list}`, exact: true }).click())
   await search.fill(`${name} ${faction}`)
   await page.getByRole('option', { name: new RegExp(`^${name}, ${faction}`) }).click()
+}
+
+async function addDatasheet(page: Page, name: string, faction: string) {
+  await pickDatasheet(page, 'collection', name, faction)
   await expect(page.locator(`[data-unit="${name}"]`)).toBeVisible()
 }
 
@@ -50,10 +57,8 @@ test('starts a datasheet at one model and saves multiple', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Fewer Necron Warriors models', exact: true })).toBeDisabled()
   await page.getByRole('button', { name: 'More Necron Warriors models', exact: true }).click()
   await expect(owned(page, 'Necron Warriors')).toHaveValue('2')
-  await owned(page, 'Necron Warriors').fill('100')
-  await owned(page, 'Necron Warriors').press('Enter')
-  await expect(owned(page, 'Necron Warriors')).toHaveValue('100')
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await setCount(owned(page, 'Necron Warriors'), '100')
+  await expectWorkSynced(page)
   await page.reload()
   await expect(owned(page, 'Necron Warriors')).toHaveValue('100')
 })
@@ -66,9 +71,7 @@ test('rapid collection steps keep the latest count while earlier saves finish', 
   const owner = (await savedWork(page))!.owner
   const operator = await productOperator()
   await expect.poll(async () => (await operator.collectionByUser(owner))[0]?.models).toBe(1)
-  await page.getByRole('combobox', { name: 'Add a datasheet to your wishlist', exact: true }).click()
-  await page.getByPlaceholder('Search datasheets…').fill('Necron Warriors Necrons')
-  await page.getByRole('option', { name: /^Necron Warriors, Necrons/ }).click()
+  await pickDatasheet(page, 'wishlist', 'Necron Warriors', 'Necrons')
   await expect(page.getByRole('spinbutton', { name: 'Necron Warriors models wanted', exact: true })).toHaveValue('1')
   await page.evaluate(() => {
     const complete = Object.getOwnPropertyDescriptor(IDBTransaction.prototype, 'oncomplete')!
@@ -162,7 +165,7 @@ test('adds, counts and removes a datasheet from its reference page, and favourit
   const owner = (await savedWork(page))!.owner
   const operator = await productOperator()
   await expect.poll(async () => (await operator.collectionByUser(owner))[0]?.models).toBe(2)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoHorizontalOverflow(page.locator('main'))
   await page.goto('/collection')
   await expect(owned(page, 'Overlord')).toHaveValue('2')
@@ -177,33 +180,10 @@ test('adds, counts and removes a datasheet from its reference page, and favourit
   await expect(menu.getByRole('button', { name: 'Add to collection', exact: true })).toBeVisible()
 })
 
-async function savedWork(page: Page) {
-  return page.evaluate(
-    () =>
-      new Promise<LocalState | null>((resolve, reject) => {
-        const opened = indexedDB.open('praetorium-work')
-        opened.onerror = () => reject(opened.error)
-        opened.onsuccess = () => {
-          const database = opened.result
-          const request = database.transaction('state').objectStore('state').getAll()
-          request.onerror = () => {
-            database.close()
-            reject(request.error)
-          }
-          request.onsuccess = () => {
-            database.close()
-            resolve(request.result.find((entry: { state?: LocalState }) => entry.state)?.state ?? null)
-          }
-        }
-      }),
-  )
-}
-
 test('suggests datasheets fielded in a battle until they are added', async ({ page }) => {
   await signUp(page, uniqueName('Fielded collection'))
   const roster = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Fielded Guard' })
-  await page.getByLabel('Add a unit').fill('Plague Marines')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Plague Marines', exact: true }).first().click())
+  await addUnit(page, 'Plague Marines')
   await createBattle(page, { practice: true })
   await attachRoster(page, roster)
   await page.goto('/collection')
@@ -221,7 +201,7 @@ test('collection counts survive a cold offline reopen and reconnect', async ({ p
   await addDatasheet(page, 'Overlord', 'Necrons')
   await expect(owned(page, 'Overlord')).toHaveValue('1')
   await waitForOfflineApp(page)
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   const owner = (await savedWork(page))!.owner
   const operator = await productOperator()
   const serverCount = async () => (await operator.collectionByUser(owner))[0]?.models
@@ -244,7 +224,7 @@ test('collection counts survive a cold offline reopen and reconnect', async ({ p
   await reopened.evaluate(() => window.dispatchEvent(new Event('online')))
   await expect.poll(serverCount, { timeout: 30_000 }).toBe(2)
   await expect.poll(async () => (await operator.collectionByUser(owner))[0]?.painted, { timeout: 30_000 }).toBe(2)
-  await expect.poll(async () => (await savedWork(reopened))?.operations.length).toBe(0)
+  await expectWorkSynced(reopened)
   await reopened.reload()
   await expect(owned(reopened, 'Overlord')).toHaveValue('2')
 })
@@ -267,7 +247,7 @@ test('direct collection counts reject invalid values and step from an unsaved ed
   await count.press('Escape')
   await expect(count).toHaveValue('31')
   await count.press('Tab')
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.reload()
   await expect(count).toHaveValue('31')
 })
@@ -279,7 +259,7 @@ test('profiles show a new collection', async ({ page, browser }) => {
   await owned(page, 'Overlord').fill('30')
   await owned(page, 'Overlord').press('Enter')
   await addDatasheet(page, 'Intercessor Squad', 'Space Marines')
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   const owner = (await savedWork(page))!.owner
   const operator = await productOperator()
   await expect.poll(async () => (await operator.collectionProfile(owner, null))?.entries.length).toBe(2)
@@ -338,7 +318,7 @@ test('collection photos are added together and removed only after confirmation',
   await expect(page.getByRole('button', { name: 'Photos of your Overlord', exact: true })).toHaveText('2')
 
   const owner = (await savedWork(page))!.owner
-  const guestContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const guestContext = await browser.newContext({ viewport: PHONE })
   const guest = await guestContext.newPage()
   const status = async (reader: Page, src: string) => (await reader.request.get(new URL(src, page.url()).href)).status()
   const served = await guest.request.get(new URL(second, page.url()).href)
@@ -532,6 +512,14 @@ async function setCount(field: Locator, value: string) {
 }
 
 /** Built models are bounded by those owned, so the built count is ready once its bound follows the saved total. */
+async function exportCsv(page: Page) {
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Export CSV', exact: true }).click(),
+  ])
+  return readFile(await download.path(), 'utf8')
+}
+
 async function setOwned(page: Page, name: string, value: string) {
   await setCount(owned(page, name), value)
   await expect(progress(page, name, 'built')).toHaveAttribute('max', value)
@@ -567,7 +555,7 @@ test('built and painted counts stay within the models owned', async ({ page }) =
   await expect(faction.locator('[data-collection-total="owned"]')).toHaveText('15')
   await expect(faction.locator('[data-collection-total="built"]')).toHaveText('11')
   await expect(faction.locator('[data-collection-total="painted"]')).toHaveText('7')
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.reload()
   await expect(progress(page, 'Necron Warriors', 'built')).toHaveValue('5')
   await expect(progress(page, 'Necron Warriors', 'painted')).toHaveValue('5')
@@ -640,7 +628,7 @@ test('imports a reviewed collection file without overwriting saved counts unless
   await signUp(page, uniqueName('Collection import'))
   await page.goto('/collection')
   await addDatasheet(page, 'Overlord', 'Necrons')
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   const file = [
     'faction,datasheet,models,built,painted,wanted',
     'Necrons,Necron Warriors,20,10,5,',
@@ -679,12 +667,8 @@ test('exports a collection that imports back unchanged', async ({ page }) => {
   await addDatasheet(page, 'Necron Warriors', 'Necrons')
   await setOwned(page, 'Necron Warriors', '10')
   await setCount(progress(page, 'Necron Warriors', 'built'), '4')
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Export CSV', exact: true }).click(),
-  ])
-  const exported = await download.path().then((path) => import('node:fs/promises').then((fs) => fs.readFile(path, 'utf8')))
+  await expectWorkSynced(page)
+  const exported = await exportCsv(page)
   expect(exported).toContain('Necrons,Necron Warriors,')
   await page.locator('input[type=file]').setInputFiles(csv(exported))
   const review = page.getByRole('dialog', { name: 'Import collection' })
@@ -698,11 +682,10 @@ test('a saved roster shows shortages its units share and adds them to the wishli
   await addDatasheet(page, 'Necron Warriors', 'Necrons')
   await setOwned(page, 'Necron Warriors', '15')
   await setCount(progress(page, 'Necron Warriors', 'built'), '15')
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Readiness' })
   for (let copy = 0; copy < 2; copy++) {
-    await page.getByLabel('Add a unit').fill('Necron Warriors')
-    await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Necron Warriors', exact: true }).first().click())
+    await addUnit(page, 'Necron Warriors')
   }
   const panel = page.locator('[data-roster-readiness]')
   await expect(panel.locator('[data-readiness-summary]')).toHaveText('5 models short')
@@ -732,29 +715,24 @@ test('models that can also be another datasheet fill it in a roster and show as 
   await dialog.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(dialog).toBeHidden()
   await expect(card.locator('[data-counts-as]')).toContainText('Can also be Immortals')
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.reload()
   await expect(card.locator('[data-counts-as]')).toContainText('Can also be Immortals')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoHorizontalOverflow(page.locator('main'))
   await card.screenshot({ path: test.info().outputPath('counts-as-card-phone.png') })
   await page.setViewportSize({ width: 1440, height: 900 })
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Export CSV', exact: true }).click(),
-  ])
-  const exported = await download.path().then((path) => import('node:fs/promises').then((fs) => fs.readFile(path, 'utf8')))
+  const exported = await exportCsv(page)
   expect(exported).toMatch(/Necrons,Necron Warriors,[^,]+,20,0,0,0,[^,\r\n]+/)
 
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Can also be' })
   await page.getByRole('button', { name: 'Owned', exact: true }).click()
-  await page.getByLabel('Add a unit').fill('Immortals')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
+  await addUnit(page, 'Immortals')
   const panel = page.locator('[data-roster-readiness]')
   await expect(panel.locator('[data-readiness-summary]')).not.toContainText('short')
   await panel.getByRole('button', { name: 'Toggle Your collection', exact: true }).click()
   await expect(panel.locator('[data-readiness-unit="Immortals"] [data-readiness-from]')).toHaveText(/^\d+ from your Necron Warriors$/)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoHorizontalOverflow(page.locator('main'))
   await page.screenshot({ path: test.info().outputPath('counts-as-readiness-phone.png'), fullPage: true })
 })
@@ -819,12 +797,12 @@ test('the wishlist suggests unowned datasheets other players field that none of 
   await addDatasheet(page, 'Immortals', 'Necrons')
   await expect(suggestion).toBeHidden()
   await expect(page.locator('[data-wish-suggestion]')).toHaveCount(6)
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.reload()
   await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
   await expect(suggestion).toBeHidden()
   await page.screenshot({ path: test.info().outputPath('owned-wishlist-desktop.png'), fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect(suggestion).toBeHidden()
   await expectNoHorizontalOverflow(page.locator('main'))
   await page.screenshot({ path: test.info().outputPath('owned-wishlist-phone.png'), fullPage: true })

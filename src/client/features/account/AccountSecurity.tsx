@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, MailCheck, ShieldCheck, Trash2 } from 'lucide-react'
 import { posthog } from 'posthog-js'
@@ -8,12 +8,12 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Skeleton } from '@/components/ui/skeleton'
-import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../../../authConfig'
+import { PASSWORD_MIN_LENGTH, SOCIAL_AUTH_PROVIDER_NAMES, SOCIAL_PROVIDERS, type SocialAuthProvider } from '../../../authConfig'
 import { revokeMcpConnection, setOwnPassword, unlinkOwnAccount } from '../../functions'
 import { authClient } from '../../authClient'
 import { hasNativeAuthBridge, requestNativeAuth, useGithubAuthAvailability } from '../../nativeAuth'
 import { accountMethodsQuery, mcpConnectionsQuery, meQuery } from '../../queries'
-import { AuthMethodIcon, SOCIAL_AUTH_PROVIDER_NAMES, type SocialAuthProvider } from './AuthMethodIcon'
+import { AuthMethodIcon } from './AuthMethodIcon'
 import { ConnectedAppIcon } from './ConnectedAppIcon'
 import { GithubSupporter } from './GithubSupporter'
 import {
@@ -29,6 +29,7 @@ import {
 import { SettingRow } from '../../components/SettingRow'
 import { PageState } from '../../components/PageState'
 import { Problem } from '../../components/Problem'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useCopyText } from '../../useCopyText'
 import { useQrCode } from '../../components/useQrCode'
 
@@ -122,7 +123,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
               </div>
             ) : null}
             <MethodRow
-              method="password"
+              method="credential"
               name="Password"
               linked={hasPassword}
               available
@@ -268,7 +269,9 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
       <section className="border border-destructive/40 bg-panel p-5 md:p-7">
         <h2 className="rubric border-b border-edge pb-2 text-destructive">Delete account</h2>
         <div className="mt-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-dim">Permanently deletes your rosters, friendships, tournaments and every battle you played.</p>
+          <p className="text-sm text-dim">
+            Permanently deletes your rosters, friendships, tournaments, the clubs you own and every battle you played.
+          </p>
           <Button type="button" variant="destructive" disabled={!methods} onClick={() => setDialog('delete-account')}>
             <Trash2 /> Delete account
           </Button>
@@ -317,7 +320,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
       {dialog === 'delete-account' ? (
         <AccountDialog
           title="Delete your account"
-          description="This cannot be undone. Your rosters, friendships, tournament entries and every battle you played will be deleted."
+          description="This cannot be undone. Your rosters, friendships, tournament entries, the clubs you own and every battle you played will be deleted."
           onClose={() => setDialog(undefined)}
         >
           <DeleteAccountForm hasPassword={hasPassword} />
@@ -367,25 +370,21 @@ function AccountMethodsSkeleton() {
 function DeleteAccountForm({ hasPassword }: { hasPassword: boolean }) {
   const [password, setPassword] = useState('')
   const [confirmed, setConfirmed] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const { busy, error, run } = useAuthAction({
+    failureMessage: () =>
+      hasPassword
+        ? 'The account was not deleted. Check your password and try again.'
+        : 'The account was not deleted. Sign out, sign in again, then retry while the session is fresh.',
+  })
 
   return (
     <form
       className="contents"
       onSubmit={async (event) => {
         event.preventDefault()
-        setBusy(true)
-        setError('')
-        const result = await authClient.deleteUser(hasPassword ? { password } : {})
+        const result = await run(() => authClient.deleteUser(hasPassword ? { password } : {}))
         if (result.error) {
           posthog.captureException(result.error, { operation: 'account_delete' })
-          setError(
-            hasPassword
-              ? 'The account was not deleted. Check your password and try again.'
-              : 'The account was not deleted. Sign out, sign in again, then retry while the session is fresh.',
-          )
-          setBusy(false)
           return
         }
         posthog.capture('account_deleted')
@@ -438,7 +437,7 @@ function MethodRow({
   note,
   action,
 }: {
-  method: SocialAuthProvider | 'password'
+  method: 'credential' | SocialAuthProvider
   name: string
   linked: boolean
   available: boolean
@@ -482,23 +481,19 @@ function AccountDialog({
 
 function CreatePasswordForm({ onDone }: { onDone: () => void | Promise<void> }) {
   const [password, setPassword] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const { busy, error, run } = useAuthAction({
+    failureMessage: () => `The password was not created. Use at least ${PASSWORD_MIN_LENGTH} characters and try again.`,
+  })
   return (
     <form
       className="contents"
       onSubmit={async (event) => {
         event.preventDefault()
-        setBusy(true)
-        setError('')
-        try {
+        await run(async () => {
           await setOwnPassword({ data: { password } })
           await onDone()
-        } catch {
-          setError(`The password was not created. Use at least ${PASSWORD_MIN_LENGTH} characters and try again.`)
-        } finally {
-          setBusy(false)
-        }
+          return {}
+        })
       }}
     >
       <DialogBody>
@@ -529,23 +524,18 @@ function CreatePasswordForm({ onDone }: { onDone: () => void | Promise<void> }) 
 function ChangePasswordForm({ onDone }: { onDone: () => void }) {
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const { busy, error, run } = useAuthAction({
+    failureMessage: () => `The password was not changed. Check the current password and use at least ${PASSWORD_MIN_LENGTH} characters.`,
+  })
   return (
     <form
       className="contents"
       onSubmit={async (event) => {
         event.preventDefault()
-        setBusy(true)
-        setError('')
-        const result = await authClient.changePassword({ currentPassword, newPassword, revokeOtherSessions: true })
-        if (result.error)
-          setError(`The password was not changed. Check the current password and use at least ${PASSWORD_MIN_LENGTH} characters.`)
-        else {
-          posthog.capture('password_changed')
-          onDone()
-        }
-        setBusy(false)
+        const result = await run(() => authClient.changePassword({ currentPassword, newPassword, revokeOtherSessions: true }))
+        if (result.error) return
+        posthog.capture('password_changed')
+        onDone()
       }}
     >
       <DialogBody>
@@ -594,40 +584,25 @@ function RemoveMethodDialog({
   onClose: () => void
   onDone: () => void | Promise<void>
 }) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const remove = useMutation({ mutationFn: () => unlinkOwnAccount({ data: { provider: method } }), onSuccess: onDone })
   const label = method === 'credential' ? 'password sign-in' : SOCIAL_AUTH_PROVIDER_NAMES[method]
   return (
-    <AccountDialog title={method === 'credential' ? 'Remove password sign-in' : `Unlink ${label}`} onClose={onClose}>
-      <DialogBody>
-        <p className="text-sm text-dim">You will no longer be able to sign in with {label}. Your other linked method will keep working.</p>
-        {error ? <Problem>{error}</Problem> : null}
-      </DialogBody>
-      <DialogFooter>
-        <DialogClose render={<Button type="button" variant="outline" />}>
-          {method === 'credential' ? 'Keep password' : `Keep ${SOCIAL_AUTH_PROVIDER_NAMES[method]}`}
-        </DialogClose>
-        <Button
-          type="button"
-          variant="destructive"
-          disabled={busy}
-          onClick={async () => {
-            setBusy(true)
-            setError('')
-            try {
-              await unlinkOwnAccount({ data: { provider: method } })
-              await onDone()
-            } catch {
-              setError('That method was not removed. Keep another available method linked and turn off two-factor authentication first.')
-            } finally {
-              setBusy(false)
-            }
-          }}
-        >
-          {busy ? 'Removing…' : method === 'credential' ? 'Remove password' : `Unlink ${label}`}
-        </Button>
-      </DialogFooter>
-    </AccountDialog>
+    <ConfirmDialog
+      title={method === 'credential' ? 'Remove password sign-in' : `Unlink ${label}`}
+      description={`You will no longer be able to sign in with ${label}. Your other linked method will keep working.`}
+      cancel={method === 'credential' ? 'Keep password' : `Keep ${label}`}
+      confirm={method === 'credential' ? 'Remove password' : `Unlink ${label}`}
+      pendingLabel="Removing…"
+      destructive
+      pending={remove.isPending}
+      error={
+        remove.isError
+          ? new Error('That method was not removed. Keep another available method linked and turn off two-factor authentication first.')
+          : null
+      }
+      onClose={onClose}
+      onConfirm={() => remove.mutate()}
+    />
   )
 }
 
@@ -640,39 +615,20 @@ function RevokeConnectionDialog({
   onClose: () => void
   onDone: () => void | Promise<void>
 }) {
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const revoke = useMutation({ mutationFn: () => revokeMcpConnection({ data: { id: connection.id } }), onSuccess: onDone })
   return (
-    <AccountDialog title={`Revoke ${connection.name}?`} onClose={onClose}>
-      <DialogBody>
-        <p className="text-sm text-dim">
-          {connection.name} can no longer read or change your rosters and battles. Connect it again to give it access.
-        </p>
-        {error ? <Problem>{error}</Problem> : null}
-      </DialogBody>
-      <DialogFooter>
-        <DialogClose render={<Button type="button" variant="outline" />}>Keep access</DialogClose>
-        <Button
-          type="button"
-          variant="destructive"
-          disabled={busy}
-          onClick={async () => {
-            setBusy(true)
-            setError('')
-            try {
-              await revokeMcpConnection({ data: { id: connection.id } })
-              await onDone()
-            } catch {
-              setError('Could not revoke access. Try again.')
-            } finally {
-              setBusy(false)
-            }
-          }}
-        >
-          {busy ? 'Revoking…' : 'Revoke access'}
-        </Button>
-      </DialogFooter>
-    </AccountDialog>
+    <ConfirmDialog
+      title={`Revoke ${connection.name}?`}
+      description={`${connection.name} can no longer read or change your rosters and battles. Connect it again to give it access.`}
+      cancel="Keep access"
+      confirm="Revoke access"
+      pendingLabel="Revoking…"
+      destructive
+      pending={revoke.isPending}
+      error={revoke.isError ? new Error('Could not revoke access. Try again.') : null}
+      onClose={onClose}
+      onConfirm={() => revoke.mutate()}
+    />
   )
 }
 
@@ -683,8 +639,8 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
   const [backupCodes, setBackupCodes] = useState<string[]>([])
   const [verified, setVerified] = useState(false)
   const { copy, copied, problem: copyProblem } = useCopyText()
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const start = useAuthAction({ failureMessage: () => 'Setup could not start. Check your password and try again.' })
+  const verify = useAuthAction({ failureMessage: () => 'That authenticator code is invalid. Check the app and try again.' })
   const { image: qrCode } = useQrCode(totpURI || null, 240, 'M', 1)
 
   if (verified) {
@@ -736,17 +692,14 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
         className="contents"
         onSubmit={async (event) => {
           event.preventDefault()
-          setBusy(true)
-          setError('')
-          const result = await authClient.twoFactor.enable({ password, method: 'totp' })
-          if (result.error || !result.data || result.data.method !== 'totp') {
-            setError('Setup could not start. Check your password and try again.')
-          } else {
+          await start.run(async () => {
+            const result = await authClient.twoFactor.enable({ password, method: 'totp' })
+            if (result.error || !result.data || result.data.method !== 'totp') return { error: result.error ?? result }
             setTotpURI(result.data.totpURI)
             setBackupCodes(result.data.backupCodes)
             setPassword('')
-          }
-          setBusy(false)
+            return result
+          })
         }}
       >
         <DialogBody>
@@ -761,12 +714,12 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
               required
             />
           </div>
-          {error ? <Problem>{error}</Problem> : null}
+          {start.error ? <Problem>{start.error}</Problem> : null}
         </DialogBody>
         <DialogFooter>
           <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
-          <Button type="submit" disabled={busy || !password}>
-            {busy ? 'Starting…' : 'Continue'}
+          <Button type="submit" disabled={start.busy || !password}>
+            {start.busy ? 'Starting…' : 'Continue'}
           </Button>
         </DialogFooter>
       </form>
@@ -778,15 +731,10 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
       className="contents"
       onSubmit={async (event) => {
         event.preventDefault()
-        setBusy(true)
-        setError('')
-        const result = await authClient.twoFactor.verifyTotp({ code: code.replaceAll(/\s/g, '') })
-        if (result.error) setError('That authenticator code is invalid. Check the app and try again.')
-        else {
-          posthog.capture('two_factor_enabled')
-          setVerified(true)
-        }
-        setBusy(false)
+        const result = await verify.run(() => authClient.twoFactor.verifyTotp({ code: code.replaceAll(/\s/g, '') }))
+        if (result.error) return
+        posthog.capture('two_factor_enabled')
+        setVerified(true)
       }}
     >
       <DialogBody>
@@ -807,12 +755,12 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
             required
           />
         </div>
-        {error ? <Problem>{error}</Problem> : null}
+        {verify.error ? <Problem>{verify.error}</Problem> : null}
       </DialogBody>
       <DialogFooter>
         <DialogClose render={<Button type="button" variant="outline" />}>Cancel</DialogClose>
-        <Button type="submit" disabled={busy || !code.trim()}>
-          {busy ? 'Verifying…' : 'Verify and enable'}
+        <Button type="submit" disabled={verify.busy || !code.trim()}>
+          {verify.busy ? 'Verifying…' : 'Verify and enable'}
         </Button>
       </DialogFooter>
     </form>
@@ -821,22 +769,21 @@ function TwoFactorSetupForm({ onDone }: { onDone: () => void | Promise<void> }) 
 
 function DisableTwoFactorForm({ onDone }: { onDone: () => void | Promise<void> }) {
   const [password, setPassword] = useState('')
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const { busy, error, run } = useAuthAction({
+    failureMessage: () => 'Two-factor authentication is still on. Check your password and try again.',
+  })
   return (
     <form
       className="contents"
       onSubmit={async (event) => {
         event.preventDefault()
-        setBusy(true)
-        setError('')
-        const result = await authClient.twoFactor.disable({ password })
-        if (result.error) setError('Two-factor authentication is still on. Check your password and try again.')
-        else {
+        await run(async () => {
+          const result = await authClient.twoFactor.disable({ password })
+          if (result.error) return result
           posthog.capture('two_factor_disabled')
           await onDone()
-        }
-        setBusy(false)
+          return result
+        })
       }}
     >
       <DialogBody>

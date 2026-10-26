@@ -1,4 +1,6 @@
-import { createHash, timingSafeEqual } from 'node:crypto'
+import { createHash } from 'node:crypto'
+import { constantTimeEqual } from 'better-auth/crypto'
+import { byId } from '../core/collections'
 import { isGuestSeat, newBattleSeats, type NewBattlePlayers, type CreateBattleInput } from '../core/newBattle'
 import { guestSessionCurrent } from '../core/guestSession'
 import { matchingLeagueBattles } from '../shared/leagueBattleOptions'
@@ -12,7 +14,7 @@ import {
   repairPrepReferenceError,
   scoringCapError,
 } from '../shared/battleRules'
-import { restoreOpaqueBattleKeys, visibleBattleLog } from '../core/offlineBattle'
+import { battleFoldArgs, restoreOpaqueBattleKeys, visibleBattleLog } from '../core/offlineBattle'
 import type { BattleWorkspace } from '../contracts/battleWorkspace'
 import { randomId, randomToken } from 'ras-stack/auth'
 import type { AdminBattle } from '../admin'
@@ -48,7 +50,7 @@ import {
 } from '../core/serviceRecord'
 import { routeSlug } from '../core/slug'
 import { battleOutcome, sideScore, type Standing, type StandingBattle, type StandingFaction, standings } from '../core/standings'
-import { refuse } from '../core/battlePrimitives'
+import { opposingSide, refuse } from '../core/battlePrimitives'
 import { swissPairings, swissStandings, type SwissMatch } from '../core/swiss'
 import { leagueResults } from '../core/leagueResults'
 import { REPLAY_BATCH_SIZE, type BattlesCursor } from '../contracts/battles'
@@ -117,7 +119,9 @@ type PlayerRankings = {
 
 const SPECTATOR_ID = ''
 
-/** A page of a home-page feed. Small: every row on it costs a folded log. */
+/** A page of the battle list. History grows for an account's lifetime; a page does not. */
+export const BATTLES_PAGE = 25
+/** A page of a home-page feed. Small: every row on it costs a folded log, and the page shows three at once. */
 const PUBLIC_BATTLES_PAGE = 10
 const PLAYED_ARMY_BATTLES = 12
 /** How long one public feed page serves repeated reads, such as a burst of tabs refetching after the same signal. */
@@ -208,12 +212,6 @@ export class PraetoriumService {
     return this.repository.adminEmails()
   }
 
-  /**
-   * A new league opens at the default duel size; its rules are the event's to change.
-   *
-   * Registration is what creation is for, so the shape of the games is asked once the
-   * league exists and only until an entrant seals a list against it.
-   */
   unlinkAccount(userId: string, providerId: string, availableProviders: readonly string[]) {
     return this.repository.unlinkAccount(userId, providerId, availableProviders)
   }
@@ -244,7 +242,7 @@ export class PraetoriumService {
   async publicBattles(
     viewerId: string | null,
     rules?: BattleMissionRules | null,
-    page?: { limit: number; before?: BattlesCursor },
+    page?: { limit?: number; before?: BattlesCursor },
     factions?: readonly BattleFaction[],
   ) {
     const now = this.clock()
@@ -285,18 +283,14 @@ export class PraetoriumService {
 
   private playedArmiesOf(history: BattleHistory, factions: readonly BattleFaction[]) {
     const state = foldHistory(history)
-    return playedArmies(
-      history,
-      state,
-      battleSummary(history, state, null, null, new Map(factions.map((faction) => [faction.id, faction]))),
-    )
+    return playedArmies(history, state, battleSummary(history, state, null, null, byId(factions)))
   }
 
   /** The battles this player's friends are in and they are not. */
   async friendBattles(
     userId: string,
     rules?: BattleMissionRules | null,
-    page?: { limit: number; before?: BattlesCursor },
+    page?: { limit?: number; before?: BattlesCursor },
     factions?: readonly BattleFaction[],
   ) {
     const { battles: histories, nextCursor } = await this.repository.battlesByFriends(userId, {
@@ -430,7 +424,6 @@ export class PraetoriumService {
     return [...uses].map(([entryId, battles]) => ({ entryId, battles })).toSorted((a, b) => b.battles - a.battles)
   }
 
-  /** How widely this player's battles may be seen, and their own answer to it. */
   pushEnabled(userId: string) {
     return this.repository.pushEnabled(userId)
   }
@@ -514,10 +507,7 @@ export class PraetoriumService {
     }
   }
 
-  /**
-   * A revealed event's results table and who has met whom, from the battles this reader may watch.
-   * A private battle stays out of everybody else's table, as it stays out of their battle list.
-   */
+  /** A revealed event's results table and who has met whom, from the battles this reader may watch. */
   async leagueResults(
     leagueToken: string,
     eventToken: string,
@@ -632,7 +622,7 @@ export class PraetoriumService {
     rules?: BattleMissionRules | null,
     factions: readonly BattleFaction[] = [],
   ) {
-    const factionsById = new Map(factions.map((faction) => [faction.id, faction]))
+    const factionsById = byId(factions)
     return histories.map((history) => battleSummary(history, foldHistory(history), viewerId, rules, factionsById))
   }
 
@@ -646,7 +636,7 @@ export class PraetoriumService {
     rules: BattleReadRules | null | undefined,
     factions: readonly BattleFaction[],
   ) {
-    const factionsById = new Map(factions.map((faction) => [faction.id, faction]))
+    const factionsById = byId(factions)
     return histories.map((history) => {
       const state = foldHistory(history)
       return {
@@ -749,7 +739,7 @@ export class PraetoriumService {
     return matchingLeagueBattles(candidates, userId, input)
   }
 
-  /** Who sat at each of a player's latest battles and how far it got. The battles themselves still open through `maySpectate`. */
+  /** Who sat at each of a player's latest battles and how far it got. The battles themselves still open through `mayWatch`. */
   async adminPlayerBattles(userId: string): Promise<AdminBattle[]> {
     const { battles } = await this.repository.battlesByUser(userId, { limit: 5 })
     return battles.map(adminBattleSummary)
@@ -807,16 +797,9 @@ export class PraetoriumService {
   }
 
   private replayTimeline(history: BattleHistory, report: readonly ReportEntry[]): ReplayPoint[] {
-    const playerIds = history.players.map((player) => player.id)
-    const sides = history.players.map((player) => player.side)
     const labels = new Map(report.map((entry) => [entry.seq, entry.text]))
     const kinds = new Map(history.log.map((entry) => [entry.seq, entry.command.kind]))
-    return battleTimeline(
-      playerIds,
-      history.log,
-      sides,
-      history.players.filter((player) => player.automated).map((player) => player.id),
-    ).map((point) => ({
+    return battleTimeline(...battleFoldArgs(history.players, history.log)).map((point) => ({
       ...point,
       text: labels.get(point.seq) ?? (kinds.get(point.seq) === 'undo' ? 'Undoes the previous action' : 'Action later undone'),
     }))
@@ -859,8 +842,7 @@ export class PraetoriumService {
 
   /** A readable account of the battle. Derived from the log, so nothing is stored for it. */
   async report(token: string, userId: string, rules?: BattleReadRules | null) {
-    const history = await this.mustFind(token)
-    if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
+    const history = await this.mustSeatHistory(token, userId)
     return this.viewerReport(history, userId, rules)
   }
 
@@ -869,8 +851,7 @@ export class PraetoriumService {
     userId: string,
     rules?: BattleReadRules | null,
   ): Promise<{ workspace: BattleWorkspace; screen: SeatedScreen }> {
-    const history = await this.mustFind(token)
-    if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
+    const history = await this.mustSeatHistory(token, userId)
     const workspace = this.workspace(history, userId)
     if (!workspace) throw new Response('this battle exceeds the offline history limit', { status: 409 })
     return { workspace, screen: this.seatedScreen(history, userId, rules) }
@@ -895,8 +876,7 @@ export class PraetoriumService {
   }
 
   async hasBattleOperation(token: string, userId: string, operationId: string) {
-    const history = await this.mustFind(token)
-    if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
+    const history = await this.mustSeatHistory(token, userId)
     return history.log.some((entry) => entry.operationId === operationId && entry.by === userId)
   }
 
@@ -923,8 +903,7 @@ export class PraetoriumService {
   }
 
   private async append(...[token, userId, expectedSeq, command, rules, sync]: SubmitArgs) {
-    const history = await this.mustFind(token)
-    if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
+    const history = await this.mustSeatHistory(token, userId)
     if (sync) command = restoreOpaqueBattleKeys(history.players, history.log, command)
     if (command.kind === 'lock-league-rosters') throw new Response('sealed roster locks are created by the server', { status: 403 })
     // The product database refuses a non-member too; asking first gives the refusal its code.
@@ -1034,7 +1013,7 @@ export class PraetoriumService {
   async guestSeat(token: string, held: { seat: string; secret: string }) {
     const device = await this.repository.guestDevice(held.seat)
     if (!device || device.token !== token || !guestSessionCurrent(device.joinedAt, this.clock())) return null
-    return sameHash(device.deviceHash, guestDeviceHash(held.secret)) ? held.seat : null
+    return constantTimeEqual(device.deviceHash, guestDeviceHash(held.secret)) ? held.seat : null
   }
 
   /** Moves the guest seat this device played onto the account that has just signed in, once the battle is over. */
@@ -1066,15 +1045,10 @@ export class PraetoriumService {
 
   /** The only place a visibility-filtered battle view is built. */
   private battleScreen(history: BattleHistory, userId: string, rules?: BattleReadRules | null): SeatedScreen {
-    const fold = [
-      history.players.map((player) => player.id),
-      history.log,
-      history.players.map((player) => player.side),
-      history.players.filter((player) => player.automated).map((player) => player.id),
-    ] as const
+    const fold = battleFoldArgs(history.players, history.log)
     const state = reduceBattle(...fold)
     if (rules) hydrateAuthoritativeAwards(state, rules)
-    const view = battleView(history.battle, history.players, state, userId, this.clock())
+    const view = battleView(history.battle, history.players, state, userId)
     const missionForSide = (side: number) => (rules ? resolvedMissionForSide(state, rules, side) : null)
     const viewerSide = view.players.find((player) => player.id === userId)?.side
     return {
@@ -1096,6 +1070,12 @@ export class PraetoriumService {
     if (!seats) throw new Response('no such battle', { status: 404 })
     if (!this.seated(seats, userId)) throw new Response('you are not in this battle', { status: 403 })
     return seats
+  }
+
+  private async mustSeatHistory(token: string, userId: string) {
+    const history = await this.mustFind(token)
+    if (!this.seated(history, userId)) throw new Response('you are not in this battle', { status: 403 })
+    return history
   }
 
   private async mustFind(token: string): Promise<BattleHistory> {
@@ -1124,12 +1104,7 @@ function finishing(result: SubmitResult, previous: BattleHistory, screen: Seated
 }
 
 function foldHistory({ players, log }: BattleHistory) {
-  return reduceBattle(
-    players.map((player) => player.id),
-    log,
-    players.map((player) => player.side),
-    players.filter((player) => player.automated).map((player) => player.id),
-  )
+  return reduceBattle(...battleFoldArgs(players, log))
 }
 
 /**
@@ -1162,9 +1137,9 @@ function referencedPlays(
       const route = faction?.detachments?.find((listed) => listed.name === detachment)?.referenceRoute
       return faction ? { catalogueId: route?.catalogueId ?? faction.slug, detachmentId: route?.slug ?? routeSlug(detachment) } : undefined
     }
-    const opposingSide = state.players.find((candidate) => candidate.side !== player.side)?.side
+    const opposing = opposingSide(state, player.side)
     const you = sideDisposition(state, player.side)
-    const opponent = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
+    const opponent = opposing === undefined ? null : sideDisposition(state, opposing)
     const mission = play.primary && rules && state.status !== 'setup' ? resolvedMissionForSide(state, rules, player.side) : null
     const matchup = pack?.missions.some(
       (candidate) => candidate.id === mission?.id && candidate.matchups.some((pair) => pair[0]?.id === you && pair[1]?.id === opponent),
@@ -1190,10 +1165,6 @@ function referencedPlays(
 /** What the service keeps of a guest device's secret, and what that device's realtime token names it by. */
 export function guestDeviceHash(secret: string) {
   return createHash('sha256').update(secret).digest('hex')
-}
-
-function sameHash(left: string, right: string) {
-  return left.length === right.length && timingSafeEqual(Buffer.from(left), Buffer.from(right))
 }
 
 /** Each paired table as a Swiss result, read from the battle it started; a table still playing has no outcome yet. */

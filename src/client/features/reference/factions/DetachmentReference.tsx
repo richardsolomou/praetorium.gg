@@ -56,9 +56,7 @@ export function DetachmentReference({
         tint={faction ? factionColour(faction.slug, faction.displayName) : undefined}
         eyebrow={faction ? `${faction.displayName} · Detachment` : 'Detachment'}
         title={detachment.name}
-        media={
-          faction ? <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} /> : undefined
-        }
+        media={faction ? <FactionMark faction={faction} /> : undefined}
         actions={
           detachmentId || action ? (
             <div className="flex flex-wrap items-center gap-1">

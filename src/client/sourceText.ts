@@ -21,7 +21,7 @@ const encoder = new TextEncoder()
 const BATCH = 512
 
 /** Every string a pinned upstream file holds, by the truncated hash a token names it by. */
-export async function loadSourceStrings(url: string): Promise<ReadonlyMap<string, string>> {
+async function loadSourceStrings(url: string): Promise<ReadonlyMap<string, string>> {
   // The file is not compared whole: each string answers only a token naming its own hash.
   // It must still parse, or the device would keep the broken answer and serve it on every visit.
   let file: unknown
@@ -45,7 +45,7 @@ export async function loadSourceStrings(url: string): Promise<ReadonlyMap<string
 }
 
 /** Read from the downloaded reference while it is current, so a device can load text it reached offline. */
-export const textSourcesQuery = () => referenceQuery(['text-sources'], () => textSources())
+const textSourcesQuery = () => referenceQuery(['text-sources'], () => textSources())
 
 /**
  * The upstream files this page has loaded, shared by every component and read outside
@@ -112,7 +112,7 @@ export function registerTextSources(table: Readonly<Record<string, TextSourceFil
 /** What stands in for text this device has not chosen to load, is still loading, could not load, or cannot find. */
 export type MissingText = 'unchosen' | 'loading' | 'failed' | 'unavailable' | null
 /** Text as this device can show it. */
-export type LoadedText = { text: string; missing: MissingText }
+type LoadedText = { text: string; missing: MissingText }
 
 /**
  * The sources a text's tokens need that this device has not chosen: the one authority for

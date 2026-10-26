@@ -2,8 +2,8 @@ import type { RosterPick } from '../../../core/roster'
 import { attachmentHost } from '../../../core/attachedUnits'
 import { readableCombatant } from './readableRules'
 import { combatRuleSelections } from '../../../core/combatRules'
-import { combatMatchup, type CombatAnswer, type CombatantSnapshot, type CombatRequest } from '../../../core/combatMatchup'
-import type { CombatResult } from '../../../core/combat'
+import { combatMatchup, noExclusions, type CombatAnswer, type CombatantSnapshot, type CombatRequest } from '../../../core/combatMatchup'
+import { COMBAT_PHASES, type CombatPhase, type CombatResult } from '../../../core/combat'
 import type { combatantDatasheet } from '../../functions'
 import { combatAtHealth } from '../../../core/combatSurvivors'
 import type { CombatRoster } from './useCombatant'
@@ -92,14 +92,14 @@ export function rosterCombatSnapshot(
 }
 
 export function rosterCombatRequest(attacker: CombatantSnapshot | null, defender: CombatantSnapshot | null, error?: string) {
-  const matchup = combatMatchup(attacker, defender, { preferences: {}, excluded: { ranged: [], melee: [] }, allocation: [] })
+  const matchup = combatMatchup(attacker, defender, { preferences: {}, excluded: noExclusions(), allocation: [] })
   const request: CombatRequest = {
     ranged: matchup.scenario('ranged', {}),
     melee: matchup.scenario('melee', {}),
     sequenceError: matchup.sequenceError,
   }
   const unavailable = Object.fromEntries(
-    (['ranged', 'melee'] as const).flatMap((phase) =>
+    COMBAT_PHASES.flatMap((phase) =>
       request[phase]
         ? []
         : [
@@ -114,11 +114,11 @@ export function rosterCombatRequest(attacker: CombatantSnapshot | null, defender
             ],
           ],
     ),
-  ) as Partial<Record<'ranged' | 'melee', string>>
+  ) as Partial<Record<CombatPhase, string>>
   return { request, unavailable }
 }
 
-export function summarizeRosterCombat(answer: CombatAnswer, unavailable: Partial<Record<'ranged' | 'melee', string>>): RosterCombatSummary {
+export function summarizeRosterCombat(answer: CombatAnswer, unavailable: Partial<Record<CombatPhase, string>>): RosterCombatSummary {
   const phase = (name: keyof RosterCombatSummary) => {
     const result = answer[name]?.result
     return result

@@ -17,8 +17,19 @@ export function canonicalJson(value: unknown): string {
   )
 }
 
+export const capitalised = (text: string) => text.charAt(0).toLocaleUpperCase() + text.slice(1)
+
+/** A number as a list prints it, thousands separators included: 2,000. */
+export const printedNumber = (text: string) => Number(text.replaceAll(',', ''))
+
+/** Every dash and the minus sign as a plain hyphen. */
+export const plainDashes = (text: string) => text.replaceAll(/[\p{Pd}\u2212]/gu, '-')
+
 /** Typographic and modifier-letter apostrophes as a plain one. */
 export const plainQuotes = (text: string) => text.replaceAll(/[‘’ʼ]/g, "'")
+
+/** Without diacritics, typographic quotes or case: the form search compares text in. */
+export const foldedText = (text: string) => plainQuotes(text.normalize('NFKD').replaceAll(/\p{M}/gu, '')).toLocaleLowerCase()
 
 /** Letters and digits only, lower case and without diacritics: the key two spellings of one name share. */
 export const joinKey = (nameOrSlug: string) =>

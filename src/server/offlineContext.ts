@@ -1,3 +1,4 @@
+import { SYNC_PRODUCT_ACTION_NAMES } from '../core/syncProductActions'
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { globalSingleton } from 'ras-stack/server'
 
@@ -18,34 +19,4 @@ export function offlineIdentifier(name: string, generate: () => string) {
   if (!id) throw new Error(`The saved action is missing its ${name} identifier.`)
   return id
 }
-export const SYNC_PRODUCT_ACTIONS = new Set([
-  'create_battle',
-  'remove_battle',
-  'request_friend',
-  'accept_friend',
-  'reject_friend',
-  'remove_friend',
-  'replace_friend_invite',
-  'cancel_friend_invite',
-  'accept_friend_invite',
-  'update_onboarding',
-  'add_to_collection',
-  'remove_from_collection',
-  'set_collection_models',
-  'set_collection_progress',
-  'set_collection_counts_as',
-  'set_collection_wanted',
-  'add_favourite_faction',
-  'remove_favourite_faction',
-  'add_favourite_detachment',
-  'remove_favourite_detachment',
-  'add_favourite_datasheet',
-  'remove_favourite_datasheet',
-  'remember_matchup',
-  'forget_matchup',
-  'save_ability_reminder',
-  'delete_ability_reminder',
-  'set_push_enabled',
-  'set_player_defaults',
-  'league_command',
-])
+export const SYNC_PRODUCT_ACTIONS = new Set<string>(SYNC_PRODUCT_ACTION_NAMES)

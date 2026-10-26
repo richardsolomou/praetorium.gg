@@ -16,12 +16,15 @@ import { type LoadedRules, rulesFaction } from './rules'
 import { selectedDetachmentRules } from './selectedDetachmentRules'
 import type { UnitChoiceCache } from '../core/unitChoices'
 import { keywordIdsBySelection, keywordNames, type ModifierCache } from '../core/evaluate'
+import { namespaceCarriers } from '../core/combatLoadouts'
+import { attachedProfilePrefix } from '../core/combatScenario'
+import { remember } from '../core/collections'
 
 /**
  * What projections of one built roster can share: unit choices and modifiers are keyed by value, and each unit's
  * support abilities by its place in that roster, so share it only between projections of the same `prepared` roster.
  */
-export type RosterProjectionCache = {
+type RosterProjectionCache = {
   choiceCache: UnitChoiceCache
   modifierCache: ModifierCache
   supportSources: Map<number, ReturnType<typeof datasheetAbilitiesIn>>
@@ -98,7 +101,7 @@ export function rosterCombatant(
         rules,
       )
       if (!selected) return unavailable()
-      const prefix = `attached:${pickIndex}:`
+      const prefix = attachedProfilePrefix(pickIndex)
       const carriers = combatCarriers(context.selections[unit.selectionIndex]!, loaded.index, {
         primaryCatalogueId: data.catalogueId,
         roster: context.selections.filter((_, at) => at !== unit.selectionIndex),
@@ -108,14 +111,7 @@ export function rosterCombatant(
           pickIndex,
           models: unit.models,
           selected: { ...selected, profiles: selected.profiles.map((profile) => ({ ...profile, id: `${prefix}${profile.id}` })) },
-          carriers: carriers.map((carrier) => ({
-            ...carrier,
-            ...(carrier.modelProfileIds ? { modelProfileIds: carrier.modelProfileIds.map((id) => `${prefix}${id}`) } : {}),
-            weapons: carrier.weapons.map((weapon) => ({
-              ...weapon,
-              ...(weapon.profileIds ? { profileIds: weapon.profileIds.map((id) => `${prefix}${id}`) } : {}),
-            })),
-          })),
+          carriers: namespaceCarriers(carriers, prefix),
           rules: rosterCombatRules(loaded, rules, { ...data, pickIndex }, memberContext, selected),
         },
       ]
@@ -130,11 +126,9 @@ export function rosterCombatant(
     const unit = context.unitSelections.find((candidate) => candidate.pickIndex === index)
     if (!unit) return undefined
     const catalogueId = pick.catalogueId ?? data.catalogueId
-    let ids = keywordIds.get(catalogueId)
-    if (!ids) {
-      ids = keywordIdsBySelection(context.selections, loaded.index, { primaryCatalogueId: catalogueId, modifierCache: cache.modifierCache })
-      keywordIds.set(catalogueId, ids)
-    }
+    const ids = remember(keywordIds, catalogueId, () =>
+      keywordIdsBySelection(context.selections, loaded.index, { primaryCatalogueId: catalogueId, modifierCache: cache.modifierCache }),
+    )
     return keywordNames(ids[unit.selectionIndex] ?? [], loaded.index)
   })
   const hostIndex = attachmentHost(data.picks, data.pickIndex)
@@ -235,17 +229,15 @@ function rosterCombatRules(
   const attached = attachedUnit(data.picks, data.pickIndex!)
   const others = context.unitSelections.flatMap((unit) => {
     if (unit.pickIndex === data.pickIndex || data.inactivePicks?.includes(unit.pickIndex)) return []
-    let source = context.supportSources.get(unit.selectionIndex)
-    if (source === undefined) {
-      const pick = data.picks[unit.pickIndex]!
-      source = datasheetAbilitiesIn(loaded, pick.catalogueId ?? data.catalogueId, pick.entryId, {
+    const pick = data.picks[unit.pickIndex]!
+    const source = remember(context.supportSources, unit.selectionIndex, () =>
+      datasheetAbilitiesIn(loaded, pick.catalogueId ?? data.catalogueId, pick.entryId, {
         selections: context.selections,
         unitSelectionIndex: unit.selectionIndex,
         choiceCache: context.choiceCache,
         modifierCache: context.modifierCache,
-      })
-      context.supportSources.set(unit.selectionIndex, source)
-    }
+      }),
+    )
     return [{ unit, source }]
   })
   const unitKeywords = [

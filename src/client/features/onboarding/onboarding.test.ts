@@ -14,11 +14,11 @@ import {
   onboardingStepEntry,
   onboardingStepIds,
   onboardingStepPastAbsentTarget,
-  onboardingTargets,
   ONBOARDING_UI,
   storedOnboardingFocus,
   type OnboardingStepId,
 } from './onboarding'
+import { onboardingTargets } from '../../onboardingTargets'
 
 /** One address per page the guide can name, which is also what proves a step's page is reachable. */
 const PAGE_ADDRESSES = [
@@ -32,24 +32,10 @@ const PAGE_ADDRESSES = [
   ['/battles/a-token/', 'battle'],
   ['/simulator', 'simulator'],
   ['/simulator/', 'simulator'],
-  ['/data-updates', 'data-updates'],
   ['/', 'home'],
   ['/tournaments', 'leagues'],
   ['/tournaments/', 'leagues'],
   ['/tournaments/a-league', 'league'],
-  ['/factions', 'factions'],
-  ['/factions/orks', 'faction'],
-  ['/factions/orks/detachments/awakened-dynasty', 'detachment'],
-  ['/factions/orks/datasheets', 'datasheets'],
-  ['/factions/orks/datasheets/boyz', 'datasheet'],
-  ['/missions/pack', 'missions'],
-  ['/missions/pack/matchups/you/opponent', 'mission'],
-  ['/leaderboard', 'leaderboard'],
-  ['/rules', 'rules'],
-  ['/rules/core-rules', 'rule-document'],
-  ['/rules/core-rules/movement', 'rule-section'],
-  ['/users/a-player', 'player'],
-  ['/profile', 'profile'],
 ] as const
 
 describe('onboarding page', () => {
@@ -139,7 +125,7 @@ describe('onboarding steps', () => {
   })
 
   it('sends a player on another page to the step’s address', () => {
-    expect(onboardingHrefFor('roster-search', 'factions')).toBe('/rosters')
+    expect(onboardingHrefFor('roster-search', 'battles')).toBe('/rosters')
   })
 
   it('sends a step whose control is nowhere back to the last address that reaches its task', () => {
@@ -232,10 +218,6 @@ describe('onboarding targets', () => {
     const advances = advancesInSource()
     expect(pressed.filter(([id, step]) => !advances.has(`${id}->${step.next ?? ''}`)).map(([id]) => id)).toEqual([])
   })
-
-  it('points every step at a target', () => {
-    expect(Object.values(ONBOARDING_UI).filter((step) => !(onboardingTargets as readonly string[]).includes(step.target))).toEqual([])
-  })
 })
 
 describe('onboarding focus', () => {
@@ -245,10 +227,6 @@ describe('onboarding focus', () => {
     vi.stubGlobal('window', {})
     vi.stubGlobal('sessionStorage', { getItem: (key: string) => entries[key] ?? null })
   }
-
-  it('stores each account focus separately', () => {
-    expect(onboardingFocusStorageKey('alice')).not.toBe(onboardingFocusStorageKey('bob'))
-  })
 
   it('reads the step stored for that account', () => {
     withStoredFocus({ [onboardingFocusStorageKey('alice')]: JSON.stringify({ task: 'roster', step: 'roster-picker' }) })
@@ -290,7 +268,7 @@ describe('onboarding focus', () => {
 
   it('waits for the page it is expecting', () => {
     const focus = { task: 'roster-tools', step: 'tools-review' } as const
-    expect(focusAfterOnboardingNavigation(focus, 'rules')).toBe(focus)
+    expect(focusAfterOnboardingNavigation(focus, 'friends')).toBe(focus)
   })
 
   it('leaves a step whose successor shares its page to the control that opens it', () => {

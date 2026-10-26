@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import {
+  isTeamFormat,
   leagueMinimumPlaces,
   leaguePlacesSeat,
   leagueArmyPointsError,
@@ -180,7 +181,7 @@ export function LeagueFormFields({
                 disabled={disabled}
                 onChange={(event) => onChange({ ...value, playerLimit: event.target.value ? Number(event.target.value) : null })}
               />
-              {seated || limitFormat === '2v1' || limitFormat === '2v2' ? (
+              {seated || isTeamFormat(limitFormat) ? (
                 <p className="text-xs text-dim">
                   {seated
                     ? `No lower than ${minimum} while entry is open.`

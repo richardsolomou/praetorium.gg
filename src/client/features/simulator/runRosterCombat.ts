@@ -1,3 +1,4 @@
+import type { CombatPhase } from '../../../core/combat'
 import { combatantDatasheets } from '../../functions'
 import { combatCalculator, readCombatAnswer } from './combatCalculation'
 import { COMBAT_BATCH_SIZE } from '../../../contracts/combatCalculation'
@@ -130,11 +131,8 @@ export async function runRosterCombat({
   const total = attackers.length * defenders.length
   const results: RosterCombatSummary[] = Array.from({ length: total })
   let cacheable = [...attackers, ...defenders].every((unit) => !unit.error)
-  const jobs = new Map<
-    string,
-    { request: CombatRequest; cells: { index: number; unavailable: Partial<Record<'ranged' | 'melee', string>> }[] }
-  >()
-  const publish = (index: number, answer: CombatAnswer, unavailable: Partial<Record<'ranged' | 'melee', string>>) => {
+  const jobs = new Map<string, { request: CombatRequest; cells: { index: number; unavailable: Partial<Record<CombatPhase, string>> }[] }>()
+  const publish = (index: number, answer: CombatAnswer, unavailable: Partial<Record<CombatPhase, string>>) => {
     signal.throwIfAborted()
     const result = summarizeRosterCombat(answer, unavailable)
     results[index] = result

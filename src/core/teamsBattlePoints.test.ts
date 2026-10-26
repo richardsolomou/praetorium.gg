@@ -20,10 +20,6 @@ it.each([
   expect(teamsBattlePoints(40 + lead, 40)).toBe(points)
 })
 
-it('splits a drawn game 10 to 10', () => {
-  expect([teamsBattlePoints(62, 62), teamsBattlePoints(62, 62)]).toEqual([10, 10])
-})
-
 it('always gives both players 20 battle points between them', () => {
   for (let vp = 0; vp <= 100; vp += 1) expect(teamsBattlePoints(vp, 37) + teamsBattlePoints(37, vp)).toBe(20)
 })

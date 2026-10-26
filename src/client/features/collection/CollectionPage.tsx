@@ -194,7 +194,7 @@ export function CollectionPage() {
                 <section key={first.catalogueId} aria-label={first.faction} className="@container/army space-y-3">
                   <header className="flex flex-wrap items-center gap-3 border-b border-edge pb-2">
                     <div className="flex min-w-0 flex-1 flex-col items-start gap-3 @[15rem]/army:flex-row @[15rem]/army:items-center">
-                      {first.presentation ? <Mark faction={first.presentation} size="md" /> : null}
+                      {first.presentation ? <FactionMark faction={first.presentation} size="md" /> : null}
                       <div className="min-w-0">
                         <h2 className="rubric break-words text-bone">{first.faction}</h2>
                         <p className="mt-1 text-xs text-dim">{countLabel(sheets.length, 'datasheet')}</p>
@@ -242,10 +242,15 @@ export function CollectionPage() {
                   {retired.map((entryId) => (
                     <li key={entryId} className="flex min-h-12 items-center gap-2 py-1.5 pr-1.5 pl-3 text-sm text-dim">
                       <span className="min-w-0 flex-1">A datasheet from earlier rules</span>
-                      <RemoveButton
-                        name="this datasheet"
-                        onRemove={() => setRemoving({ id: entryId, slug: entryId, name: 'this datasheet', catalogueId: '', faction: '' })}
-                      />
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-faint hover:text-destructive"
+                        aria-label="Remove this datasheet from your collection"
+                        onClick={() => setRemoving({ id: entryId, slug: entryId, name: 'this datasheet', catalogueId: '', faction: '' })}
+                      >
+                        <Trash2 />
+                      </Button>
                     </li>
                   ))}
                 </ul>
@@ -264,10 +269,6 @@ export function CollectionPage() {
       />
     </main>
   )
-}
-
-function Mark({ faction, size = 'sm' }: { faction: FactionPresentation; size?: 'sm' | 'md' }) {
-  return <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size={size} />
 }
 
 function Tally({ label, value }: { label: string; value: number | null }) {
@@ -299,19 +300,5 @@ function EntryMenu({ name, onCountsAs, onRemove }: { name: string; onCountsAs: (
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  )
-}
-
-function RemoveButton({ name, onRemove }: { name: string; onRemove: () => void }) {
-  return (
-    <Button
-      variant="ghost"
-      size="icon-sm"
-      className="text-faint hover:text-destructive"
-      aria-label={`Remove ${name} from your collection`}
-      onClick={onRemove}
-    >
-      <Trash2 />
-    </Button>
   )
 }

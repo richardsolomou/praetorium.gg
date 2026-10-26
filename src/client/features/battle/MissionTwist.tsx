@@ -17,10 +17,8 @@ export const changesPrimary = (twist: Twist) => twist.changesPrimary === true
 /**
  * What a twist changes, opened from whatever names it.
  *
- * A twist bends a rule for every turn of the game, so what it says has to be one
- * press away wherever it appears — while it is being chosen, and again mid-battle
- * when someone asks what it was. Only ever one press: printed underneath, its rules
- * text was a wall of prose on a screen that was in the middle of asking a question.
+ * A twist bends a rule for every turn of the game, so its text stays one press away
+ * wherever it appears rather than printed inline on a screen that is asking a question.
  */
 function TwistDialog({ twist, trigger, children }: { twist: Twist; trigger: ReactElement; children: ReactNode }) {
   useSourceTexts([twist.lore])

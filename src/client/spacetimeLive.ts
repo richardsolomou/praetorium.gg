@@ -103,7 +103,8 @@ export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
 
   useEffect(() => {
     if (!enabled) return
-    return maintainSpacetimeConnection({
+    let leaving = false
+    const stop = maintainSpacetimeConnection({
       issue: async () => {
         // A viewer who is not seated is refused every time, so the battle polls instead of asking again.
         const issued = await ticket(token).catch((error: unknown) => {
@@ -116,7 +117,7 @@ export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
       open: (issued, link) => {
         const { failed, isCurrent, ready } = link
         const battleId = issued.battleId
-        return connection(issued, link)
+        const opened = connection(issued, link)
           .onConnect((current) => {
             if (!isCurrent()) return
             current.db.mySession.onDelete(() => failed())
@@ -143,10 +144,25 @@ export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
               .subscribe([tables.mySession, tables.myBattleSignals])
           })
           .build()
+        return {
+          disconnect: () => {
+            if (!leaving) return opened.disconnect()
+            // The server keeps a watch until the session lapses and caps how many one session holds, so leaving gives it back.
+            // A connection that is offline or closed refuses the call, and its watch lapses with the session instead.
+            void opened.reducers
+              .unwatchBattle({ battleId })
+              .catch(() => undefined)
+              .finally(() => opened.disconnect())
+          },
+        }
       },
       inactive: () => setSubscribed(false),
       report,
     })
+    return () => {
+      leaving = true
+      stop()
+    }
   }, [enabled, refresh, token])
 
   useEffect(() => {

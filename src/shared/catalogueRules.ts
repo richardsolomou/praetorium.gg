@@ -1,6 +1,7 @@
 import { normalizeRuleReference, ruleReferenceKeys } from '../core/ruleReference'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { referencesIn } from './textFacts'
+import { remember } from '../core/collections'
 
 type RuleSource = {
   index: Pick<LoadedCatalogue['index'], 'rules'>
@@ -15,25 +16,24 @@ type NamedRule = { name: string; descriptions: Set<string>; order: number }
 const ruleNameIndexCache = new WeakMap<RuleSource, Map<string, NamedRule[]>>()
 
 function ruleNameIndex(loaded: RuleSource) {
-  const cached = ruleNameIndexCache.get(loaded)
-  if (cached) return cached
-  const index = new Map<string, NamedRule[]>()
-  let order = 0
-  for (const rule of loaded.index.rules.values()) {
-    if (!rule.name || !rule.description) continue
-    const key = normalizeRuleReference(rule.name)
-    const bucket = index.get(key) ?? []
-    if (!index.has(key)) index.set(key, bucket)
-    const existing = bucket.find((candidate) => candidate.name === rule.name)
-    if (existing) existing.descriptions.add(rule.description)
-    else bucket.push({ name: rule.name, descriptions: new Set([rule.description]), order: order++ })
-  }
-  for (const rule of loaded.datacards?.keywordRules ?? []) {
-    const key = normalizeRuleReference(rule.name)
-    if (!index.has(key)) index.set(key, [{ name: rule.name, descriptions: new Set([rule.description]), order: order++ }])
-  }
-  ruleNameIndexCache.set(loaded, index)
-  return index
+  return remember(ruleNameIndexCache, loaded, () => {
+    const index = new Map<string, NamedRule[]>()
+    let order = 0
+    for (const rule of loaded.index.rules.values()) {
+      if (!rule.name || !rule.description) continue
+      const key = normalizeRuleReference(rule.name)
+      const bucket = index.get(key) ?? []
+      if (!index.has(key)) index.set(key, bucket)
+      const existing = bucket.find((candidate) => candidate.name === rule.name)
+      if (existing) existing.descriptions.add(rule.description)
+      else bucket.push({ name: rule.name, descriptions: new Set([rule.description]), order: order++ })
+    }
+    for (const rule of loaded.datacards?.keywordRules ?? []) {
+      const key = normalizeRuleReference(rule.name)
+      if (!index.has(key)) index.set(key, [{ name: rule.name, descriptions: new Set([rule.description]), order: order++ }])
+    }
+    return index
+  })
 }
 
 export function rulesNamed(loaded: RuleSource, names: readonly string[]) {

@@ -1,5 +1,6 @@
 import { PRODUCT_DOCS } from '../src/contracts/productDocs'
 import { expect, test } from './test'
+import { expectNoPageOverflow, PHONE } from './account'
 
 for (const pageDetails of [
   { path: '/support', heading: 'Support' },
@@ -7,15 +8,11 @@ for (const pageDetails of [
   { path: '/sources', heading: 'Data sources' },
 ]) {
   test(`${pageDetails.path} fits a phone viewport`, async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 })
+    await page.setViewportSize(PHONE)
     await page.goto(pageDetails.path)
 
-    expect(
-      await page.evaluate(() => ({
-        heading: document.querySelector('h1')?.textContent,
-        hasHorizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-      })),
-    ).toEqual({ heading: pageDetails.heading, hasHorizontalOverflow: false })
+    await expect(page.locator('h1').first()).toHaveText(pageDetails.heading)
+    await expectNoPageOverflow(page)
   })
 }
 
@@ -47,7 +44,7 @@ test('support sends feedback in place and keeps the public issue tracker', async
     await expect(page).toHaveURL(/\/support$/)
     await expect(page.getByRole('heading', { name: 'Report a problem' })).toHaveCount(0)
     await expect(page.getByRole('main').getByRole('textbox')).toHaveAccessibleName('Search docs')
-    await page.screenshot({ path: `test-results/support-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`support-${width}.png`), fullPage: true })
   }
 })
 

@@ -11,7 +11,7 @@ const GUEST_COOKIE = 'praetorium-guest'
 const HELD_SEATS = 8
 
 const heldSeats = z.array(z.object({ token: z.string().max(100), seat: z.string().max(200), secret: z.string().max(100) })).max(HELD_SEATS)
-export type HeldSeat = z.infer<typeof heldSeats>[number]
+type HeldSeat = z.infer<typeof heldSeats>[number]
 
 export function readHeldSeats(cookie: string | undefined): HeldSeat[] {
   if (!cookie) return []

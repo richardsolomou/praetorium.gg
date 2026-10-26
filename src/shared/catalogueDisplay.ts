@@ -1,6 +1,6 @@
 import { uniqueBy } from '../core/collections'
 import { escapeRegExp } from '../core/text'
-import type { Definition, InfoLink } from '../core/catalogue'
+import type { Definition, InfoLink, Modifier } from '../core/catalogue'
 import type { ProfileModifier } from '../core/evaluate'
 
 export function definitionTokens(definition: Definition) {
@@ -72,13 +72,14 @@ const MODIFIER_ORDER: Partial<Record<DisplayModifier['type'], number>> = {
 
 const modifierOrder = (type: DisplayModifier['type']) => MODIFIER_ORDER[type] ?? Number.MAX_SAFE_INTEGER
 
+/** Whether a modifier waits on conditions or repeats rather than always applying. */
+export const isConditionalModifier = (modifier: Pick<Modifier, 'conditions' | 'conditionGroups' | 'repeats'>) =>
+  Boolean(modifier.conditions?.length || modifier.conditionGroups?.length || modifier.repeats?.length)
+
 export function displayRuleName(link: InfoLink, base: string | undefined) {
   if (!base) return
   const modifiers = (link.modifiers ?? [])
-    .filter(
-      (modifier) =>
-        modifier.field === 'name' && !modifier.conditions?.length && !modifier.conditionGroups?.length && !modifier.repeats?.length,
-    )
+    .filter((modifier) => modifier.field === 'name' && !isConditionalModifier(modifier))
     .map((modifier) => ({ ...modifier, times: 1 }))
     .toSorted((left, right) => modifierOrder(left.type) - modifierOrder(right.type))
   return modifiers.reduce((name, modifier) => applyDisplayModifier(name, modifier), base)

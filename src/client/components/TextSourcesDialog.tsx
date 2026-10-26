@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { useId, useState, useSyncExternalStore } from 'react'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
+import { toggled } from '../../core/collections'
 import { TEXT_SOURCES, type TextSource } from '../../shared/sourceText'
 import { TEXT_SOURCE_INFO, chooseTextSources, useTextSourceChoice } from '../rulesText'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from './Dialog'
@@ -109,14 +110,7 @@ function TextSourcesForm({ close }: { close: () => void }) {
               key={source}
               source={source}
               checked={selected.has(source)}
-              onCheckedChange={(on) =>
-                setSelected((current) => {
-                  const next = new Set(current)
-                  if (on) next.add(source)
-                  else next.delete(source)
-                  return next
-                })
-              }
+              onCheckedChange={(on) => setSelected((current) => toggled(current, source, on))}
             />
           ))}
         </div>

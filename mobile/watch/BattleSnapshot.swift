@@ -18,8 +18,10 @@ struct BattleSnapshot: Decodable {
   let reminders: [BattleReminder]
   let moreReminders: Int
 
+  static let maxBytes = 48_000
+
   static func decode(_ string: String) -> BattleSnapshot? {
-    guard let data = string.data(using: .utf8), data.count <= 48_000,
+    guard let data = string.data(using: .utf8), data.count <= maxBytes,
       let snapshot = try? JSONDecoder().decode(Self.self, from: data),
       snapshot.version == 1, snapshot.sides.count <= 2,
       snapshot.objectives.count <= 10, snapshot.reminders.count <= 20,

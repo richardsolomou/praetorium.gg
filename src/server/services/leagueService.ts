@@ -1,5 +1,7 @@
 import { buildLeagueBattle, LeagueBattleSetupError } from '../../shared/leagueBattle'
 import { offlineContext, offlineIdentifier } from '../offlineContext'
+import { byId } from '../../core/collections'
+import type { Notice } from '../../core/notifications'
 import { randomId, randomToken } from 'ras-stack/auth'
 import { pointsBudgetError, pointsLabel, type Roster } from '../../core/battle'
 import { commandSchema, parseRosterSnapshot } from '../../core/commands'
@@ -94,8 +96,7 @@ export class LeagueService {
   ) {
     const result = await this.repository.updateLeague(token, ownerId, { ...input, rule: input.rule && eventRule(input.rule) })
     if (typeof result === 'object') {
-      if (result.admitted.length)
-        this.notifier.notify([{ kind: 'league-entry-accepted', actorId: ownerId, recipientIds: result.admitted, leagueToken: token }])
+      this.notifyLeague('league-entry-accepted', ownerId, result.admitted, token)
       return { ruleChanged: result.ruleChanged }
     }
     if (result === 'missing') throw new Response('no such event', { status: 404 })
@@ -139,7 +140,7 @@ export class LeagueService {
     const record = await this.repository.leagueByToken(token, viewerId, eventToken)
     if (!record) return null
     const { organizerIds, ...league } = record
-    const factionsById = new Map(factions.map((faction) => [faction.id, faction]))
+    const factionsById = byId(factions)
     const organizer = viewerId !== null && organizerIds.includes(viewerId)
     return {
       ...league,
@@ -154,9 +155,7 @@ export class LeagueService {
   async joinLeague(token: string, userId: string, eventToken?: string) {
     const result = await this.repository.joinLeague(token, userId, this.clock(), LEAGUE_MEMBER_MAX, eventToken)
     if (typeof result === 'object') {
-      this.notifier.notify([
-        { kind: 'league-entry-requested', actorId: userId, recipientIds: result.organizerIds, leagueToken: token, eventToken },
-      ])
+      this.notifyLeague('league-entry-requested', userId, result.organizerIds, token, eventToken)
       return result.status
     }
     if (result === 'missing') throw new Response('no such event', { status: 404 })
@@ -171,8 +170,7 @@ export class LeagueService {
   async addLeagueEntrants(token: string, ownerId: string, userIds: readonly string[], eventToken?: string) {
     const result = await this.repository.addLeagueEntrants(token, ownerId, userIds, LEAGUE_MEMBER_MAX, this.clock(), eventToken)
     if (typeof result === 'object') {
-      if (result.added.length)
-        this.notifier.notify([{ kind: 'league-entry-added', actorId: ownerId, recipientIds: result.added, leagueToken: token, eventToken }])
+      this.notifyLeague('league-entry-added', ownerId, result.added, token, eventToken)
       return { added: result.added.length }
     }
     if (result === 'missing') throw new Response('no such event', { status: 404 })
@@ -191,8 +189,7 @@ export class LeagueService {
     eventToken?: string,
   ) {
     const result = await this.repository.moderateLeagueEntry(token, ownerId, userId, status, LEAGUE_MEMBER_MAX, eventToken)
-    if (result === 'admitted')
-      this.notifier.notify([{ kind: 'league-entry-accepted', actorId: ownerId, recipientIds: [userId], leagueToken: token, eventToken }])
+    if (result === 'admitted') this.notifyLeague('league-entry-accepted', ownerId, [userId], token, eventToken)
     if (typeof result === 'object') {
       const notices = []
       if (result.rejected)
@@ -219,10 +216,7 @@ export class LeagueService {
   async admitLeagueEntries(token: string, ownerId: string, userIds: readonly string[], eventToken?: string) {
     const result = await this.repository.admitLeagueEntries(token, ownerId, userIds, eventToken)
     if (typeof result === 'object') {
-      if (result.admitted.length)
-        this.notifier.notify([
-          { kind: 'league-entry-accepted', actorId: ownerId, recipientIds: result.admitted, leagueToken: token, eventToken },
-        ])
+      this.notifyLeague('league-entry-accepted', ownerId, result.admitted, token, eventToken)
       return result
     }
     if (result === 'forbidden') throw new Response('only the organizer can change entrants', { status: 403 })
@@ -233,10 +227,7 @@ export class LeagueService {
   async assignLeagueRosterRequirement(token: string, ownerId: string, userId: string, requiredLimit: number, eventToken?: string) {
     const result = await this.repository.assignLeagueRosterRequirement(token, ownerId, userId, requiredLimit, eventToken)
     if (result === 'updated' || typeof result === 'object') {
-      if (typeof result === 'object' && result.resealIds.length)
-        this.notifier.notify([
-          { kind: 'league-roster-reseal', actorId: ownerId, recipientIds: result.resealIds, leagueToken: token, eventToken },
-        ])
+      if (typeof result === 'object') this.notifyLeague('league-roster-reseal', ownerId, result.resealIds, token, eventToken)
       return { requiredLimit }
     }
     if (result === 'forbidden') throw new Response('only the organizer can assign roster sizes', { status: 403 })
@@ -249,10 +240,7 @@ export class LeagueService {
   async assignLeagueTeam(token: string, ownerId: string, userIds: readonly string[], eventToken?: string) {
     const result = await this.repository.assignLeagueTeam(token, ownerId, userIds, offlineIdentifier('teamId', randomId), eventToken)
     if (result === 'updated' || typeof result === 'object') {
-      if (typeof result === 'object' && result.resealIds.length)
-        this.notifier.notify([
-          { kind: 'league-roster-reseal', actorId: ownerId, recipientIds: result.resealIds, leagueToken: token, eventToken },
-        ])
+      if (typeof result === 'object') this.notifyLeague('league-roster-reseal', ownerId, result.resealIds, token, eventToken)
       return { teamSize: userIds.length }
     }
     if (result === 'forbidden') throw new Response('only the organizer can assign teams', { status: 403 })
@@ -348,7 +336,7 @@ export class LeagueService {
   async revealLeague(token: string, ownerId: string, eventToken?: string) {
     const result = await this.repository.revealLeague(token, ownerId, this.clock(), eventToken)
     if (result.outcome === 'revealed') {
-      this.notifier.notify([{ kind: 'league-revealed', actorId: ownerId, recipientIds: result.entrantIds, leagueToken: token, eventToken }])
+      this.notifyLeague('league-revealed', ownerId, result.entrantIds, token, eventToken)
       return
     }
     if (result.outcome === 'invalid-warlords')
@@ -360,7 +348,7 @@ export class LeagueService {
   async unsealLeagueRoster(token: string, ownerId: string, userId: string, eventToken?: string) {
     const result = await this.repository.unsealLeagueRoster(token, ownerId, userId, eventToken)
     if (result === 'unsealed') {
-      this.notifier.notify([{ kind: 'league-roster-unsealed', actorId: ownerId, recipientIds: [userId], leagueToken: token, eventToken }])
+      this.notifyLeague('league-roster-unsealed', ownerId, [userId], token, eventToken)
       return
     }
     if (result === 'forbidden') throw new Response('only the organizer can unseal a roster', { status: 403 })
@@ -389,11 +377,11 @@ export class LeagueService {
     return this.repository.friendLeagueRosters(viewerId)
   }
 
-  rosterSharing(token: string, eventToken: string, userId: string) {
+  rosterSharing(token: string, eventToken: string | undefined, userId: string) {
     return this.repository.leagueRosterSharing(token, eventToken, userId)
   }
 
-  async shareRoster(token: string, eventToken: string, userId: string, submittedAt: number, rosterId: string) {
+  async shareRoster(token: string, eventToken: string | undefined, userId: string, submittedAt: number, rosterId: string) {
     const result = await this.repository.updateLeagueRosterSharing({
       op: 'share-roster',
       token,
@@ -406,7 +394,7 @@ export class LeagueService {
     return rosterSharingResult(result)
   }
 
-  async dismissRosterSharing(token: string, eventToken: string, userId: string) {
+  async dismissRosterSharing(token: string, eventToken: string | undefined, userId: string) {
     return rosterSharingResult(
       await this.repository.updateLeagueRosterSharing({
         op: 'dismiss-roster-sharing',
@@ -455,7 +443,14 @@ export class LeagueService {
     ])
     return { ...result, battleId: id }
   }
+
+  /** Nobody to tell sends nothing. */
+  private notifyLeague(kind: LeagueNoticeKind, actorId: string, recipientIds: readonly string[], leagueToken: string, eventToken?: string) {
+    if (recipientIds.length) this.notifier.notify([{ kind, actorId, recipientIds, leagueToken, eventToken }])
+  }
 }
+
+type LeagueNoticeKind = Extract<Notice, { leagueToken: string }>['kind']
 
 type TournamentDetails = {
   name: string

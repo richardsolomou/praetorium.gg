@@ -57,6 +57,12 @@ export async function requireUserId(request = getRequest()) {
   return id
 }
 
+/** Runs `work` for the signed-in player; a signed-out request gets `signedOut` instead. */
+export async function forSignedIn<T>(signedOut: NoInfer<T>, work: (userId: string) => T | Promise<T>): Promise<T> {
+  const userId = await currentUserId()
+  return userId ? work(userId) : signedOut
+}
+
 export async function requireUser(request = getRequest()) {
   const user = await currentUser(request)
   if (!user) throw new Response(SIGN_IN_REQUIRED, { status: 401 })
@@ -68,14 +74,5 @@ export async function requireAdmin(request = getRequest()) {
   if (!session) throw new Response(SIGN_IN_REQUIRED, { status: 401 })
   const authoritative = await app().service.userById(session.user.id)
   if (authoritative?.role !== 'admin' || session.session.impersonatedBy) throw new Response('admin access required', { status: 403 })
-  return {
-    id: authoritative.id,
-    name: authoritative.name,
-    image: authoritative.image ?? null,
-    email: authoritative.email,
-    emailVerified: authoritative.emailVerified,
-    role: 'admin' as const,
-    twoFactorEnabled: authoritative.twoFactorEnabled,
-    impersonatedBy: null,
-  }
+  return authoritative.id
 }

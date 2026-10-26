@@ -1,5 +1,4 @@
 import { execFileSync } from 'node:child_process'
-import fs from 'node:fs'
 import path from 'node:path'
 import pRetry from 'p-retry'
 import { catalogueSources } from '../src/server/catalogueSources'
@@ -14,7 +13,6 @@ import {
 } from '../src/server/catalogueSnapshot'
 import { PRIVATE_CATALOGUE_BASE } from '../src/server/catalogueStore'
 import { privateR2Client } from '../src/server/r2Client'
-import { syncFactionIcons } from '../src/server/sync'
 import { readCatalogueComposition } from '../src/server/catalogueComposition'
 import { catalogueCacheRoot } from './lib/catalogueCache'
 import { catalogueDataDirectory } from './lib/catalogueFiles'
@@ -39,9 +37,6 @@ if (argument !== '--check' && argument !== '--upstream') loadCatalogueCredential
 if (argument === '--check') {
   readCatalogueComposition(path.join(root, 'catalogue'))
   console.log('catalogue source definitions are well formed')
-} else if (argument === '--supplemental') {
-  if (!fs.existsSync(path.join(dataDirectory, 'revision.json'))) throw new Error('materialize the pinned catalogue sources first')
-  await syncFactionIcons(dataDirectory, (message) => console.log(message))
 } else if (argument === '--upstream') {
   const next = await resolveCatalogueUpstream(catalogueSources, readCatalogueComposition(path.join(root, 'catalogue')), console.log)
   if (!next.changed) console.log('all configured source revisions match their approved branches')
@@ -72,5 +67,5 @@ if (argument === '--check') {
     console.log(`catalogue-data -> ${cached}`)
   }
 } else {
-  throw new Error('expected --prepare, --check, --supplemental, --upstream, --latest, or no argument')
+  throw new Error('expected --prepare, --check, --upstream, --latest, or no argument')
 }

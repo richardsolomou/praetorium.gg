@@ -1,8 +1,8 @@
 import { RulesVersionLabel } from './RulesVersionLabel'
 import { type CatalogueEdition, editionLabel } from '../../core/catalogueEdition'
 import { Archive, FlaskConical } from 'lucide-react'
-import { useRef, useState } from 'react'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { usePressTooltip } from './HoverTooltip'
 
 const appearances = {
   retired: { Icon: Archive, colour: 'border-edge-strong text-dim' },
@@ -11,20 +11,12 @@ const appearances = {
 
 export function RulesVersionBadge({ edition }: { edition: Pick<CatalogueEdition, 'id' | 'name' | 'status' | 'description'> }) {
   const label = editionLabel(edition)
-  const [open, setOpen] = useState(false)
-  const openedByPress = useRef(false)
+  const { open, onOpenChange, show } = usePressTooltip()
   if (edition.status === 'released') return null
   const { Icon, colour } = appearances[edition.status]
   // oxlint-disable jsx-a11y/prefer-tag-over-role -- A native button would nest inside faction selector buttons.
   return (
-    <Tooltip
-      open={open}
-      onOpenChange={(nextOpen, details) => {
-        if (!nextOpen && openedByPress.current && details.reason !== 'outside-press' && details.reason !== 'escape-key') return
-        if (!nextOpen) openedByPress.current = false
-        setOpen(nextOpen)
-      }}
-    >
+    <Tooltip open={open} onOpenChange={onOpenChange}>
       <TooltipTrigger
         closeOnClick={false}
         render={
@@ -37,15 +29,13 @@ export function RulesVersionBadge({ edition }: { edition: Pick<CatalogueEdition,
             onClick={(event) => {
               event.preventDefault()
               event.stopPropagation()
-              openedByPress.current = true
-              setOpen(true)
+              show(true)
             }}
             onKeyDown={(event) => {
               if (event.key !== 'Enter' && event.key !== ' ') return
               event.preventDefault()
               event.stopPropagation()
-              openedByPress.current = true
-              setOpen(true)
+              show(true)
             }}
           />
         }

@@ -1,7 +1,7 @@
-import { expect, type Page, test } from './test'
+import { expect, test } from './test'
 import { addUnit, createRoster, signUp, uniqueName, waitForRosterSave } from './account'
-import { expectNoHorizontalOverflow, shot } from './builder.harness'
-import { productOperator, userIdFor } from './storage'
+import { expectNoHorizontalOverflow, shot, closePicker } from './builder.harness'
+import { productOperator, userIdFor, lastPathSegment } from './storage'
 
 const UNIT = 'Immortals'
 const LOADOUT = 'Six Immortals'
@@ -9,19 +9,6 @@ const RENAMED = 'Tesla Immortals'
 const NOTE = 'Loadout note stays in its roster'
 const NICKNAME = 'Tesla Wall'
 const RETIRED = 'Retired guard'
-
-const rosterId = (page: Page) => new URL(page.url()).pathname.split('/').at(-1)!
-
-async function openPicker(page: Page) {
-  const picker = page.getByLabel('Add a unit')
-  if (!(await picker.isVisible())) await page.getByRole('button', { name: 'Add units', exact: true }).click()
-  await expect(picker).toBeVisible()
-}
-
-async function closePicker(page: Page) {
-  const dialog = page.getByRole('dialog', { name: 'Add units' })
-  if (await dialog.isVisible()) await dialog.getByRole('button', { name: 'Close' }).click()
-}
 
 for (const [width, label] of [
   [390, 'phone'],
@@ -50,20 +37,19 @@ for (const [width, label] of [
     await page.getByRole('menuitem', { name: 'Save loadout' }).click()
     const dialog = page.getByRole('dialog', { name: 'Save loadout' })
     await dialog.getByLabel('Name').fill(LOADOUT)
-    await shot(dialog, `test-results/unit-loadout-save-${label}.png`)
+    await shot(dialog, test.info().outputPath(`unit-loadout-save-${label}.png`))
     await dialog.getByRole('button', { name: 'Save loadout' }).click()
     await expect(dialog).toBeHidden()
 
     await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: uniqueName('Loadout destination') })
     const operator = await productOperator()
-    const destinationRoster = await operator.roster(rosterId(page))
+    const destinationRoster = await operator.roster(lastPathSegment(page.url()))
     await operator.saveUnitLoadout(
       crypto.randomUUID(),
       await userIdFor(account.email),
       { name: RETIRED, catalogueId: destinationRoster!.catalogueId, pick: { entryId: 'datasheet-this-rules-version-lacks' } },
       Date.now(),
     )
-    await openPicker(page)
     const savedAs = (name: string) => page.locator(`[data-picker-unit="${UNIT}"] + [data-saved-loadout="${name}"]`)
     const saved = savedAs(LOADOUT)
     await expect(saved.locator('.chip')).toHaveText(/^\d+ pts$/)
@@ -78,7 +64,7 @@ for (const [width, label] of [
     await page.getByRole('menuitem', { name: 'Rename loadout' }).click()
     const rename = page.getByRole('dialog', { name: 'Rename loadout' })
     await rename.getByLabel('Name').fill(RENAMED)
-    await shot(rename, `test-results/unit-loadout-rename-${label}.png`)
+    await shot(rename, test.info().outputPath(`unit-loadout-rename-${label}.png`))
     await rename.getByRole('button', { name: 'Rename' }).click()
     await expect(rename).toBeHidden()
     const renamed = savedAs(RENAMED)
@@ -94,9 +80,9 @@ for (const [width, label] of [
     const picker = page.locator('div[data-onboarding="roster-picker"]')
     await expectNoHorizontalOverflow(picker)
     await renamed.scrollIntoViewIfNeeded()
-    await shot(picker, `test-results/unit-loadout-picker-${label}.png`)
+    await shot(picker, test.info().outputPath(`unit-loadout-picker-${label}.png`))
     await retired.scrollIntoViewIfNeeded()
-    await shot(picker, `test-results/unit-loadout-unavailable-${label}.png`)
+    await shot(picker, test.info().outputPath(`unit-loadout-unavailable-${label}.png`))
     await retired.getByRole('button', { name: `Saved loadout actions for ${RETIRED}` }).click()
     await page.getByRole('menuitem', { name: 'Delete loadout' }).click()
     await page.getByRole('alertdialog', { name: 'Delete saved loadout?' }).getByRole('button', { name: 'Delete loadout' }).click()
@@ -108,11 +94,10 @@ for (const [width, label] of [
       .getByRole('button', { name: `${NICKNAME} · ${UNIT}`, exact: true })
       .click()
     await expect(page.getByLabel(`${UNIT} models`)).toHaveText('6')
-    const destination = await operator.roster(rosterId(page))
+    const destination = await operator.roster(lastPathSegment(page.url()))
     expect(destination?.picks).not.toContain(NOTE)
 
     await createRoster(page, { faction: 'Orks', detachment: /War Horde/, name: uniqueName('Other army') })
-    await openPicker(page)
     await expect(page.getByRole('button', { name: /^Add / }).first()).toBeVisible()
     await expect(page.locator('[data-saved-loadout]')).toHaveCount(0)
   })
@@ -139,7 +124,7 @@ test('an attached unit is saved and added to another roster already attached', a
   await expect(leader).toContainText('Leader')
 
   await leader.getByRole('button', { name: 'Unit actions for Overlord' }).click()
-  await shot(page.getByRole('menu'), 'test-results/unit-attached-menu.png')
+  await shot(page.getByRole('menu'), test.info().outputPath('unit-attached-menu.png'))
   await page.getByRole('menuitem', { name: 'Save attached unit' }).click()
   const dialog = page.getByRole('dialog', { name: 'Save attached unit' })
   await expect(dialog.getByLabel('Name')).toHaveValue(`${UNIT} + Overlord`)
@@ -147,19 +132,18 @@ test('an attached unit is saved and added to another roster already attached', a
   await expect(preview.locator('[data-unit]')).toHaveCount(2)
   await expect(preview).toContainText('Gauss blaster')
   await expect(preview).toContainText('Tachyon arrow')
-  await shot(dialog, 'test-results/unit-attached-save.png')
+  await shot(dialog, test.info().outputPath('unit-attached-save.png'))
   await dialog.getByRole('button', { name: 'Save attached unit' }).click()
   await expect(dialog).toBeHidden()
 
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: uniqueName('Attached destination') })
-  await openPicker(page)
   const saved = page.locator(`[data-saved-loadout="${UNIT} + Overlord"]`)
   await expect(saved).toContainText(`${UNIT} · Overlord`)
   await expect(saved.locator('.chip')).toHaveText(/^\d+ pts$/)
   await saved.scrollIntoViewIfNeeded()
-  await shot(page.locator('div[data-onboarding="roster-picker"]'), 'test-results/unit-attached-picker.png')
+  await shot(page.locator('div[data-onboarding="roster-picker"]'), test.info().outputPath('unit-attached-picker.png'))
   await waitForRosterSave(page, () => saved.getByRole('button', { name: `Add saved attached unit ${UNIT} + Overlord` }).click())
   await closePicker(page)
   await expect(leader).toContainText('Leader')
-  await page.screenshot({ path: 'test-results/unit-attached-added.png' })
+  await page.screenshot({ path: test.info().outputPath('unit-attached-added.png') })
 })

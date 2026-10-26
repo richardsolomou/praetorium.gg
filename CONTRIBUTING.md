@@ -8,7 +8,7 @@ Install Node 24.x, pnpm 12.13.0, just 1.58.0, and SpacetimeDB CLI 2.12.0, then r
 
 ## Check a change
 
-Run the checks covering your change: `just test-unit <file>`, `just test-integration <file>`, `just e2e <spec>`, and `just points` after points or legality changes. `just check` runs everything CI does; use it for broad changes. Look at rendered changes in the running app.
+Run the checks covering your change: `just test-unit <file>`, `just test-integration <file>`, `just e2e <spec>`, and `just points` after points or legality changes. `just check` runs formatting, lint, the database and catalogue checks, the build, typecheck and every Vitest and Python test; use it for broad changes. CI also runs the browser tests, the SpacetimeDB bindings check, points, catalogue coverage and the reference evaluation. Look at rendered changes in the running app.
 
 ## Pull requests and releases
 

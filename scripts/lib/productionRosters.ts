@@ -114,7 +114,7 @@ export function compareRosterAudits(current: readonly AuditIdentity[], previous?
 }
 
 // A single read captures all roster rows together, without account data or free-text fields.
-export const productionRosterQuery =
+const productionRosterQuery =
   'SELECT id, catalogueId, detachmentId, disposition, limit, pointsBudget, picks, waivedRules, optionalRules, borrowedDetachmentId, baseRosterId, source, createdAt, updatedAt FROM rosters'
 export const MAX_ROSTER_SNAPSHOT_BYTES = 64 * 1024 * 1024
 

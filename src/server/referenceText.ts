@@ -27,21 +27,3 @@ export function referenceText(markup: string): string {
     .replaceAll(/\n{3,}/g, '\n\n')
     .trim()
 }
-
-export function referenceMarkdown(markup: string): string {
-  return clean(withoutText(markup))
-    .replaceAll('<b>', '**')
-    .replaceAll('</b>', '**')
-    .replaceAll('<i>', '*')
-    .replaceAll('</i>', '*')
-    .replaceAll(/<\/?u>/g, '')
-    .replaceAll('<k>', '`')
-    .replaceAll('</k>', '`')
-    .replaceAll(/<li>/g, '\n- ')
-    .replaceAll(/<\/li>/g, '')
-    .replaceAll(/<\/?(?:ul|table|tbody|appref)>/g, '')
-    .replaceAll(/<\/?tr>/g, '\n')
-    .replaceAll(/<\/?(?:td|th)>/g, ' | ')
-    .replaceAll(/\n{3,}/g, '\n\n')
-    .trim()
-}

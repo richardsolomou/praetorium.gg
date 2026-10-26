@@ -1,25 +1,20 @@
 import { expect, test } from './test'
-import { attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, signUp, uniqueName, waitForRosterSave } from './account'
-
-const lastPathSegment = (url: string) => new URL(url).pathname.match(/\/([^/]+)\/?$/)?.[1]
+import { createRoster, signUp, uniqueName, addUnit, practiceBattle, PHONE } from './account'
+import { lastPathSegment } from './storage'
 
 test('a fielded roster opens as the frozen read-only roster view', async ({ page }) => {
   await signUp(page, uniqueName('Snapshot'))
   const rosterName = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Fielded Death Guard' })
-  await page.getByLabel('Add a unit').fill('Lord of Virulence')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Lord of Virulence', exact: true }).first().click())
+  await addUnit(page, 'Lord of Virulence')
   const rosterId = lastPathSegment(page.url())
-  expect(rosterId).toBeTruthy()
 
-  const battleUrl = await createBattle(page, { practice: true })
-  await attachRoster(page, rosterName)
-  await attachRoster(page, rosterName, { forPlayer: PRACTICE_OPPONENT })
+  const battleUrl = await practiceBattle(page, rosterName)
   await expect(page.locator('#setup-armies')).toHaveAttribute('data-complete', 'true')
   const token = lastPathSegment(battleUrl)
   await page.goto(`/rosters/${rosterId}?battle=${token}`)
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex')
   const rosterUrl = page.url()
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.evaluate(() => {
     document.documentElement.dataset.nativeApp = 'true'
   })

@@ -1,16 +1,24 @@
+import { uniqueBy } from './collections'
 import type { Datasheet, DatasheetCharacteristicKind } from './datasheet'
-import { diceExpression, type CombatInput, type CombatOptions, type CombatWeapon } from './combat'
-import { combatTextKey, compileCombatRule, normalizeCombatText } from './combatRuleCompiler'
-import { datasheetCharacteristicKind, datasheetProfileKind } from './datasheetStructure'
+import {
+  COMBAT_PHASES,
+  diceExpression,
+  rerollRank,
+  type CombatInput,
+  type CombatOptions,
+  type CombatWeapon,
+  type CombatPhase,
+} from './combat'
+import { combatTextKey, compileCombatRule, labelledChoice, normalizeCombatText, ruleSection } from './combatRuleCompiler'
+import { datasheetCharacteristicKind, weaponPhase } from './datasheetStructure'
 import { combatKeyword, combatKeywordApplies, combatKeywordPhraseMatches } from './combatKeywords'
 
-type Phase = CombatOptions['phase']
 export type CombatRule = {
   id: string
   name: string
   source: string
   description: string
-  phases?: Phase[]
+  phases?: CombatPhase[]
   scope: 'unit' | 'attached' | 'nearby' | 'stratagem' | 'detachment'
   included?: boolean
   appliedDefences?: DatasheetCharacteristicKind[]
@@ -33,7 +41,7 @@ export type CombatRuleJudge = {
 }
 export type CombatRuleEffect = {
   role: 'attacker' | 'defender'
-  phases: Phase[]
+  phases: CombatPhase[]
   keyword?: string
   characteristic?: { kind: DatasheetCharacteristicKind; nonCumulative?: boolean } & (
     | { add: number; set?: never }
@@ -92,9 +100,7 @@ export function combatRuleHasSharedDefence(rule: CombatRule, choice: number) {
 
 /** Each rule once by source, with the player's choice by rule id or its default, as the matchup applies it. */
 export function combatRuleSelections(rules: readonly CombatRule[], selections: Readonly<Record<string, number>>) {
-  const sources = new Map<string, CombatRule>()
-  for (const rule of rules) if (!sources.has(combatRuleKey(rule))) sources.set(combatRuleKey(rule), rule)
-  const all = [...sources.values()]
+  const all = uniqueBy(rules, combatRuleKey)
   const choices = Object.fromEntries(all.map((rule) => [combatRuleKey(rule), selections[rule.id] ?? combatRuleDefault(rule)]))
   return {
     rules: all,
@@ -105,13 +111,12 @@ export function combatRuleSelections(rules: readonly CombatRule[], selections: R
   }
 }
 
-const both: Phase[] = ['ranged', 'melee']
 const weaponKey = (value: string) => combatTextKey(value).replace(/^the /, '')
 
 /** False only when the source's explicit keyword restriction rules the unit out. */
 export function combatRuleEligible(description: string, keywords: readonly string[], recipient?: string) {
   description = description.replaceAll('^', '')
-  const target = recipient ?? /\*\*Target:\*\*\s*([\s\S]*?)(?=\n\n\*\*|$)/i.exec(description)?.[1] ?? combatRuleRecipient(description)
+  const target = recipient ?? ruleSection(description, 'Target') ?? combatRuleRecipient(description)
   if (!target) return true
   const known = keywords.map(combatTextKey)
   const matches = (phrase: string) => combatKeywordPhraseMatches(combatTextKey(phrase), known)
@@ -147,7 +152,7 @@ export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
           : []
       }),
     }))
-  const written = normalizeCombatText(/\*\*Effect:\*\*\s*([\s\S]*?)(?=\n\n\*\*|$)/i.exec(rule.description)?.[1] ?? rule.description)
+  const written = normalizeCombatText(ruleSection(rule.description, 'Effect') ?? rule.description)
   const aura = /^While a friendly (.+?) unit(?: \(excluding .+?\))? is within (\d+)" of (?:this model|the bearer), (.+)$/i.exec(written)
   const selectedAlly =
     /^Each time this model destroys an enemy unit, select one other friendly .+? unit within (\d+)" of (?:this model|it)\. Until the end of the phase, (.+)$/i.exec(
@@ -155,7 +160,7 @@ export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
     )
   const text = aura?.[3] ?? selectedAlly?.[2] ?? written
   const range = aura && rule.scope === 'nearby' ? `Within ${aura[2]}"` : ''
-  const phases = rule.phases?.length ? rule.phases : both
+  const phases = rule.phases?.length ? rule.phases : [...COMBAT_PHASES]
   if (
     rule.models !== 1 &&
     /(?:allocated to|equipped by) (?:this model|the bearer)|(?:this model|the bearer) (?:has|have) the Feel No Pain/i.test(text)
@@ -169,17 +174,14 @@ export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
   if (selectedAlly) {
     const selected = compileCombatRule({ ...rule, description: text })
     if (selected)
-      return selected.choices.map((choice) => ({
-        ...choice,
-        label: `After ${rule.source} destroys a unit · Within ${selectedAlly[1]}"${choice.label === 'Active' ? '' : ` · ${choice.label}`}`,
-      }))
+      return selected.choices.map((choice) => labelledChoice(`After ${rule.source} destroys a unit · Within ${selectedAlly[1]}"`, choice))
   }
 
   const conditionalGrant =
     /^Each time a model in that unit makes an attack, if that model has the (.+?) keyword or that enemy unit is the closest eligible target, that attack has the \[([^\]]+)\] ability\.?$/i.exec(
       text,
     )
-  if (conditionalGrant && supportedKeyword(conditionalGrant[2]!)) {
+  if (conditionalGrant && combatKeyword(conditionalGrant[2]!)) {
     const hasKeyword = rule.keywords?.some((keyword) => combatTextKey(keyword) === combatTextKey(conditionalGrant[1]!))
     return [
       {
@@ -213,8 +215,6 @@ export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
   return []
 }
 
-const supportedKeyword = (keyword: string) => Boolean(combatKeyword(keyword))
-
 /** A recipient must be granted an effect; proximity that only protects the source is not an aura. */
 export function combatRuleRecipient(description: string) {
   return (
@@ -232,9 +232,7 @@ export function combatRuleRecipient(description: string) {
 }
 
 export function combatRuleRoles(description: string): CombatRuleEffect['role'][] {
-  const text = normalizeCombatText(
-    (/\*\*Effect:\*\*\s*([\s\S]*?)(?=\n\n\*\*|$)/i.exec(description)?.[1] ?? description).split(/\*{0,3}Example:/i)[0]!,
-  )
+  const text = normalizeCombatText((ruleSection(description, 'Effect') ?? description).split(/\*{0,3}Example:/i)[0]!)
   const offensiveTarget = /select [^.]*enemy|enemy unit hit by|that targets (?:a|an|the closest|your .+? target)/i.test(text)
   const attackingText = text.replace(/(?:until|after|just after) (?:an enemy|the attacking) unit [^.]*?(?:attacks|fought|shot), /gi, '')
   const attacking =
@@ -325,8 +323,7 @@ export function combatRuleProfiles(
   return {
     ...sheet,
     profiles: sheet.profiles.map((profile) => {
-      const profileKind = datasheetProfileKind(profile.type)
-      const phase = profileKind === 'ranged-weapon' ? 'ranged' : profileKind === 'melee-weapon' ? 'melee' : null
+      const phase = weaponPhase(profile.type)
       if (!phase) return profile
       let values = profile.values
       const adjustments = new Map<
@@ -428,10 +425,9 @@ export function combatRuleProfiles(
 export function combatRuleOptions(
   rules: readonly ActiveCombatRule[],
   role: CombatRuleEffect['role'],
-  phase: Phase,
+  phase: CombatPhase,
 ): Partial<CombatOptions> {
   const result: Partial<CombatOptions> = {}
-  const rank = { none: 0, ones: 1, failed: 2 }
   for (const rule of rules)
     for (const effect of rule.effects) {
       if (
@@ -451,7 +447,7 @@ export function combatRuleOptions(
       result.psychicHitModifier = (result.psychicHitModifier ?? 0) + Math.max(0, effect.options.hitModifier ?? 0)
       for (const field of ['hitReroll', 'woundReroll'] as const) {
         const next = effect.options[field]
-        if (next && rank[next] > rank[result[field] ?? 'none']) result[field] = next
+        if (next && rerollRank[next] > rerollRank[result[field] ?? 'none']) result[field] = next
       }
     }
   return result
@@ -460,7 +456,7 @@ export function combatRuleOptions(
 export function combatRuleDefences(
   target: CombatInput['target'],
   rules: readonly ActiveCombatRule[],
-  phase: Phase,
+  phase: CombatPhase,
   attackRules: readonly ActiveCombatRule[] = [],
 ): CombatInput['target'] {
   const effects = rules.flatMap((rule) => rule.effects).filter((effect) => effect.role === 'defender' && effect.phases.includes(phase))
@@ -525,7 +521,7 @@ function matchesEffectTarget(effect: CombatRuleEffect, keywords: readonly string
 
 export function combatRuleMortals(
   rules: readonly ActiveCombatRule[],
-  phase: Phase,
+  phase: CombatPhase,
   targetKeywords: readonly string[],
   weapons: readonly { profile: { name: string } }[],
   models: number,
@@ -548,11 +544,10 @@ export function combatRuleWeapons(
   used: readonly { weapon: CombatWeapon | null; count: number; profile: { id: string; name: string } }[],
   rules: readonly ActiveCombatRule[],
   role: CombatRuleEffect['role'],
-  phase: Phase,
+  phase: CombatPhase,
   targetKeywords: readonly string[],
   scopedOptions = false,
 ): CombatWeapon[] {
-  const rank = { none: 0, ones: 1, failed: 2 }
   return used.flatMap(({ weapon, count, profile }) => {
     if (!weapon) return []
     const next = { ...weapon, count }
@@ -606,7 +601,7 @@ export function combatRuleWeapons(
         next.positiveWoundModifier = (next.positiveWoundModifier ?? 0) + Math.max(0, effect.options?.woundModifier ?? 0)
         for (const field of ['hitReroll', 'woundReroll'] as const) {
           const value = effect.options?.[field]
-          if (value && rank[value] > rank[next[field] ?? 'none']) next[field] = value
+          if (value && rerollRank[value] > rerollRank[next[field] ?? 'none']) next[field] = value
         }
       }
     return [next]

@@ -10,7 +10,7 @@ export type CompressedReference =
   | { encoding: 'gzip-base64'; data: string }
   | { encoding: 'gzip-base64-parts'; reference: string; construction?: string }
 
-export type SerializedQuery = { key: readonly unknown[]; json: string }
+type SerializedQuery = { key: readonly unknown[]; json: string }
 
 /** The JSON a lazily parsed query was restored from, so serializing it again needs no parse. */
 const restoredJson = new WeakMap<object, string>()

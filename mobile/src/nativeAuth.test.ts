@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  nativeAuthCompletionScript,
   nativeAuthConsumeScript,
   nativeAuthExchangeScript,
   nativeAuthStartUrl,
@@ -121,16 +120,6 @@ describe('native authentication bridge', () => {
     expect(script).toContain('form.submit()')
     expect(script).not.toContain('fetch(')
     expect(script).not.toContain('?token=')
-  })
-
-  it('acknowledges only the bound destination after the redirect removes its cache marker', () => {
-    const script = nativeAuthCompletionScript()
-    expect(script).toContain("searchParams.get('__native_auth')")
-    expect(script).toContain("searchParams.get('__native_auth_error')")
-    expect(script).toContain('expected.href !== current.href')
-    expect(script).toContain('history.replaceState')
-    expect(script).toContain("addEventListener('load'")
-    expect(script).toContain("type: 'native-auth-result'")
   })
 
   it('acknowledges the same exchange proof after native persistence succeeds', () => {

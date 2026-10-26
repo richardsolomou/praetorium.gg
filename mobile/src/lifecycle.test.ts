@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { appStateChanged, initialAppLifecycle, WEB_RESUME_SCRIPT } from './lifecycle'
+import { appStateChanged, initialAppLifecycle } from './lifecycle'
 
 describe('app lifecycle', () => {
   it('resumes the web application after a background cycle', () => {
@@ -21,11 +21,5 @@ describe('app lifecycle', () => {
     const inactive = appStateChanged(initialAppLifecycle('active'), 'inactive')
 
     expect(appStateChanged(inactive.lifecycle, 'active').shouldResumeWebApp).toBe(false)
-  })
-
-  it('nudges both realtime and query clients on resume', () => {
-    expect(WEB_RESUME_SCRIPT).toContain("window.dispatchEvent(new Event('offline'))")
-    expect(WEB_RESUME_SCRIPT).toContain("window.dispatchEvent(new Event('online'))")
-    expect(WEB_RESUME_SCRIPT).toContain("document.dispatchEvent(new Event('visibilitychange'))")
   })
 })

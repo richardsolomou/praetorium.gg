@@ -1,5 +1,5 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { ArrowRight, Check, Eye, FileLock2, Pencil, ShieldCheck, Swords, TriangleAlert, UserPlus } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useEffect, useState, type ReactNode } from 'react'
@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { GAME_SIZES, pointsSize } from '../../../core/battle'
 import {
+  isTeamFormat,
   leagueRegistrationFull,
   leagueEntryPoints,
   leagueRevealChecklist,
@@ -30,12 +31,13 @@ import {
 } from '../../../core/league'
 import { createLeagueBattle, joinLeague, submitLeagueRoster } from '../../functions'
 import { rosterWaivers, WaiverList } from '../../components/FormatWaivers'
-import { disambiguatedPlayerLabels } from '../../playerLabels'
-import { battlesFrom, battlesQuery, gameReferencesQuery, leagueBattlesQuery, leagueResultsQuery } from '../../queries'
+import { entrantLabels } from '../../playerLabels'
+import { battlesFrom, gameReferencesQuery, leagueBattlesQuery, leagueResultsQuery } from '../../queries'
 import { BattleShelf } from '../battles/BattleShelf'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { DoublesBattleChooser, LeagueBattleChooser, OneOnOneBattleChooser, startBattleLabel } from './LeagueBattleChoosers'
-import { EntrantGroup, EntrantList, EntrantRow, SectionHeading, sealStatus, ViewRosterButton } from './LeagueEntrants'
+import { EntrantGroup, EntrantList, EntrantRow, sealStatus, ViewRosterButton } from './LeagueEntrants'
+import { SectionHeading } from '../../components/SectionHeading'
 import {
   doublesTeams,
   entrantGroups,
@@ -51,7 +53,7 @@ import {
   type League,
 } from './leagueEvent'
 import { InvitePanel, OrganizerEntrants } from './LeagueOrganizer'
-import { LeagueArmies, type ArmyGroup } from './LeagueArmies'
+import { LeagueArmies } from './LeagueArmies'
 import { LeagueReadiness, RevealRostersDialog } from './LeagueReadiness'
 import { LeagueBattleSkeleton, RosterChooser } from './LeagueRosterChooser'
 import { LeagueCombatDialog } from './LeagueCombatDialog'
@@ -64,6 +66,7 @@ import { TeamWarlordPanel } from './LeagueTeamWarlord'
 import { LeagueRosterSharing } from './LeagueRosterSharing'
 import { Problem } from '../../components/Problem'
 import { formatList } from '../../text'
+import { useStartBattle } from '../battles/useStartBattle'
 
 type ClickAction = {
   label: string
@@ -79,7 +82,7 @@ type Action = ClickAction | { label: string; to: '/sign-in' | '/tournaments' }
 type Status = {
   title: string
   detail?: string
-  tone?: 'sealed' | 'waiting' | 'closed'
+  sealed?: true
   action?: Action
   /** A quieter second press, kept when the reveal takes over the card's action. */
   secondary?: ClickAction
@@ -101,14 +104,11 @@ export function LeagueEventView({
   startBattle?: boolean
   chooseRoster?: boolean
 }) {
-  const queryClient = useQueryClient()
-  const navigate = useNavigate()
+  const { defaultMissionPackId, openBattle } = useStartBattle()
   const refresh = useLeagueRefresh(token)
-  const battleHistory = useInfiniteQuery({
-    ...leagueBattlesQuery(token, league.eventToken),
-    enabled: Boolean(league.revealedAt),
-  })
-  const { data: results } = useQuery({ ...leagueResultsQuery(token, league.eventToken), enabled: Boolean(league.revealedAt) })
+  const revealed = Boolean(league.revealedAt)
+  const battleHistory = useInfiniteQuery({ ...leagueBattlesQuery(token, league.eventToken), enabled: revealed })
+  const { data: results } = useQuery({ ...leagueResultsQuery(token, league.eventToken), enabled: revealed })
   const { data: gameReferences } = useQuery(gameReferencesQuery())
   const moment = useMoment()
   const now = useNow(league.sealBy)
@@ -137,16 +137,11 @@ export function LeagueEventView({
   const battle = useMutation({
     onMutate: () => posthog.capture('battle_creation_submitted', { format: battleFormat, source: 'league' }),
     onError: () => posthog.capture('battle_creation_failed', { format: battleFormat, reason: 'request', source: 'league' }),
-    mutationFn: async (players: { opponentId: string; allyId?: string; secondOpponentId?: string }) => {
-      const references = await queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' })
-      return createLeagueBattle({
-        data: { token, eventToken: league.eventToken, ...players, missionPackId: references?.packs[0]?.id ?? null },
-      })
-    },
-    onSuccess: async ({ token: battleToken }) => {
-      await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
-      await navigate({ to: '/battles/$token', params: { token: battleToken } })
-    },
+    mutationFn: async (players: { opponentId: string; allyId?: string; secondOpponentId?: string }) =>
+      createLeagueBattle({
+        data: { token, eventToken: league.eventToken, ...players, missionPackId: await defaultMissionPackId() },
+      }),
+    onSuccess: ({ token: battleToken }) => openBattle(battleToken),
   })
   // Counted when the chooser appears, whether the page or a casual battle's league prompt opened it.
   useEffect(() => {
@@ -170,14 +165,14 @@ export function LeagueEventView({
   const seatPoints = ownEntry ? leagueEntryPoints(league, ownEntry) : null
   const entryStatusNow = ownEntry?.status
   // A duel needs nothing from the organizer before a roster, so a new entrant's next step opens straight away.
-  const duel = league.format !== '2v1' && league.format !== '2v2'
+  const duel = !isTeamFormat(league.format)
   if (chooseOnEntry && entryStatusNow === 'accepted') {
     setChooseOnEntry(false)
-    if (duel && !league.revealedAt) setChoosing(true)
+    if (duel && !revealed) setChoosing(true)
   }
   const accepted = league.entries.filter((entry) => entry.status === 'accepted')
   const sealedEntrants = accepted.filter((entry) => entry.submitted)
-  const labels = disambiguatedPlayerLabels(league.entries.map((entry) => ({ id: entry.userId, name: entry.name })))
+  const labels = entrantLabels(league.entries)
   const label = (entry: LeagueEntryView) => labels.get(entry.userId) ?? entry.name
   const ownTeam = ownEntry?.teamId ? (doublesTeams(accepted).find((team) => team.id === ownEntry.teamId)?.members ?? []) : []
   const ownSideSealed =
@@ -192,13 +187,10 @@ export function LeagueEventView({
             entry.sealedLimit === ownEntry.sealedLimit,
         )
       : sealedEntrants
-  const revealed = Boolean(league.revealedAt)
   const readsRoster = (entry: LeagueEntryView) =>
     entry.submitted && readsSealedLeagueRoster(league.format, league.rosterLimit, ownEntry ?? null, entry)
   const allies =
-    ownEntry && !league.revealedAt
-      ? accepted.filter((entry) => readsAlliedLeagueRoster(league.format, league.rosterLimit, entry, ownEntry))
-      : []
+    ownEntry && !revealed ? accepted.filter((entry) => readsAlliedLeagueRoster(league.format, league.rosterLimit, entry, ownEntry)) : []
   const swiss = league.rounds !== null
   const table = swiss ? ownTable(league, viewerId) : undefined
   const swissProgressNow = swissProgress(league, eventBattles)
@@ -209,7 +201,7 @@ export function LeagueEventView({
   const yetToPlay = opponents.filter((entry) => !met.has(entry.userId)).map(label)
   // A duel entrant hears who is left to play; a blank line holds its height while results load, so the page does not jump.
   const playDetail =
-    battleFormat !== '1v1' || !ownEntry?.submitted || !league.revealedAt
+    battleFormat !== '1v1' || !ownEntry?.submitted || !revealed
       ? undefined
       : swiss
         ? swissDetail(table, swissProgressNow, () => {
@@ -256,7 +248,7 @@ export function LeagueEventView({
         secondary: entryCard.action && !('to' in entryCard.action) ? entryCard.action : undefined,
       }
     : entryCard
-  const problem = join.error ?? (league.format === '2v1' || league.format === '2v2' ? null : battle.error)
+  const problem = join.error ?? (duel ? battle.error : null)
   const sealWaivers = sealing ? rosterWaivers(sealing) : []
   // Before the reveal a row offers only your own or an ally's roster; once the rosters are out, the cards carry every one.
   const row = (entry: LeagueEntryView, detail: ReactNode = sealStatus(entry, revealed), controls?: ReactNode, last?: ReactNode) => (
@@ -275,9 +267,8 @@ export function LeagueEventView({
     const named = card && gameReferences ? (gameReferences.dispositions.find((disposition) => disposition.id === card)?.name ?? card) : null
     return [formatList(members.map(label)), named && `plays ${named}`].filter(Boolean).join(' · ')
   }
-  const groups = entrantGroups(league, accepted, pairNames)
   // The revealed rosters split by side or pair the way the entrant list does, so a pairing reads the same before and after.
-  const armyGroups: ArmyGroup[] = groups
+  const groups = entrantGroups(league, accepted, pairNames)
   // Once the rosters are out, each player shows with their roster, so the entrant list has nothing left to say.
   const entrants = revealed ? null : isOrganizer ? (
     <OrganizerEntrants league={league} token={token} row={row} />
@@ -387,7 +378,7 @@ export function LeagueEventView({
             <LeagueArmies
               token={token}
               eventToken={league.eventToken}
-              groups={armyGroups}
+              groups={groups}
               viewerId={viewerId}
               revealedBy={league.revealedByName}
               label={label}
@@ -604,21 +595,19 @@ function entryStatus({
     ? `Only ${allies.length > 2 ? `${allies.length} allies` : formatList(allies)} can see it before the reveal.`
     : 'Hidden until the reveal.'
   if (!ownEntry || ownEntry.status !== 'accepted') {
-    if (revealed && isOrganizer)
-      return { title: 'The rosters are out', detail: `You run this ${noun} without a roster of your own.`, tone: 'closed' }
+    if (revealed && isOrganizer) return { title: 'The rosters are out', detail: `You run this ${noun} without a roster of your own.` }
     if (revealed)
       return {
         title: 'The rosters are out',
         detail: `Everyone here sealed a roster in secret, the rosters opened together, and now they play each other. ${organizerName(league)} runs it.`,
-        tone: 'closed',
         action: signedIn && !league.club ? { label: 'Start your own tournament', to: '/tournaments' } : undefined,
       }
     if (!signedIn) return { title: 'Registration is open', action: { label: 'Sign in to join', to: '/sign-in' }, steps: steps('join') }
     if (ownEntry?.status === 'pending')
-      return { title: 'Waiting for approval', detail: `${organizerName(league)} will let you in.`, tone: 'waiting', steps: steps('join') }
-    if (sealingClosed) return { title: 'Entry has closed', detail: 'The roster deadline has passed.', tone: 'closed' }
+      return { title: 'Waiting for approval', detail: `${organizerName(league)} will let you in.`, steps: steps('join') }
+    if (sealingClosed) return { title: 'Entry has closed', detail: 'The roster deadline has passed.' }
     const rejoin = ownEntry?.status === 'rejected'
-    if (registrationFull) return { title: rejoin ? `You are not in this ${noun}` : `This ${noun} is full`, tone: 'closed' }
+    if (registrationFull) return { title: rejoin ? `You are not in this ${noun}` : `This ${noun} is full` }
     if (isOrganizer && !rejoin)
       return {
         title: 'You are not playing',
@@ -636,7 +625,7 @@ function entryStatus({
       steps: steps('join'),
     }
   }
-  if (!revealed && ownEntry.requiredLimit === null && (league.format === '2v1' || league.format === '2v2')) {
+  if (!revealed && ownEntry.requiredLimit === null && isTeamFormat(league.format)) {
     const doubles = league.format === '2v2'
     return {
       title: doubles ? 'Waiting for a teammate' : 'Waiting for your size',
@@ -647,7 +636,6 @@ function entryStatus({
         : doubles
           ? `${organizerName(league)} pairs players into teams.`
           : `${organizerName(league)} decides who plays solo or allied.`,
-      tone: 'waiting',
       steps: steps('assign'),
     }
   }
@@ -657,7 +645,6 @@ function entryStatus({
     return {
       title: 'The roster deadline has passed',
       detail: 'Nobody can seal now, so you sit this one out.',
-      tone: 'closed',
       steps: steps('seal'),
     }
   if (!ownEntry.submitted)
@@ -672,7 +659,6 @@ function entryStatus({
     return {
       title: 'Choose your team’s Force Disposition',
       detail: 'Your team plays one card. Choose it below before the rosters are revealed.',
-      tone: 'waiting',
       action: { label: 'Swap roster', variant: 'outline', onClick: choose },
       steps: steps('reveal'),
     }
@@ -680,7 +666,6 @@ function entryStatus({
     return {
       title: 'Choose your team’s Warlord',
       detail: 'Each roster names its own Warlord and your team fields one. Choose whose below before the rosters are revealed.',
-      tone: 'waiting',
       action: { label: 'Swap roster', variant: 'outline', onClick: choose },
       steps: steps('reveal'),
     }
@@ -688,12 +673,11 @@ function entryStatus({
     return {
       title: 'Your roster is sealed',
       detail: hidden,
-      tone: 'sealed',
+      sealed: true,
       action: { label: 'Swap roster', variant: 'outline', onClick: choose },
       steps: steps('reveal'),
     }
-  if (!ownSideSealed)
-    return { title: 'Waiting for your teammate', detail: 'They are sealing another roster.', tone: 'waiting', steps: steps('seal') }
+  if (!ownSideSealed) return { title: 'Waiting for your teammate', detail: 'They are sealing another roster.', steps: steps('seal') }
   return {
     title: 'The rosters are out',
     detail: playDetail,
@@ -712,7 +696,7 @@ function EntryStatusCard({ status, problem, token }: { status: Status; problem: 
       data-onboarding="league-status"
       data-entry-status
       aria-labelledby="league-entry-status"
-      className={`border bg-panel ${status.tone === 'sealed' ? 'border-achieved/50' : 'border-edge'}`}
+      className={`border bg-panel ${status.sealed ? 'border-achieved/50' : 'border-edge'}`}
     >
       <div className="space-y-3 p-4 sm:p-5">
         {status.steps && current >= 0 ? (
@@ -723,9 +707,9 @@ function EntryStatusCard({ status, problem, token }: { status: Status; problem: 
         <div className="min-w-0">
           <h2
             id="league-entry-status"
-            className={`flex items-center gap-2 text-xl leading-tight font-bold uppercase ${status.tone === 'sealed' ? 'text-achieved' : ''}`}
+            className={`flex items-center gap-2 text-xl leading-tight font-bold uppercase ${status.sealed ? 'text-achieved' : ''}`}
           >
-            {status.tone === 'sealed' ? <ShieldCheck className="size-5 shrink-0" aria-hidden /> : null}
+            {status.sealed ? <ShieldCheck className="size-5 shrink-0" aria-hidden /> : null}
             <span className="min-w-0 break-words">{status.title}</span>
           </h2>
           {status.detail ? <p className="mt-1.5 text-sm text-dim">{status.detail}</p> : null}

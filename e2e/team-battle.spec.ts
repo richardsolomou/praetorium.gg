@@ -12,8 +12,11 @@ import {
   startBattle,
   takeTheTurn,
   uniqueName,
+  expectNoPageOverflow,
+  PHONE,
 } from './account'
 import { productOperator, withAuthSql } from './storage'
+import { expectNoHorizontalOverflow } from './builder.harness'
 
 async function connectPlayers(requesterName: string, addresseeNames: string[]) {
   const names = [requesterName, ...addresseeNames]
@@ -39,13 +42,17 @@ async function inspectBattleDialog(page: Page, dialog: Locator, screenshot: stri
   await expect(dialog.getByRole('button', { name: /^Solo vs pair/ })).toHaveCount(1)
   await expect(dialog.getByRole('button', { name: '1v2', exact: true })).toHaveCount(0)
   await expect(dialog.getByRole('button', { name: '2v1', exact: true })).toHaveCount(0)
-  await page.screenshot({ path: `test-results/${screenshot}-desktop.png`, fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  expect(await dialog.locator('[data-slot="dialog-body"]').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
-  await page.screenshot({ path: `test-results/${screenshot}-phone.png`, fullPage: true })
+  await page.screenshot({ path: test.info().outputPath(`${screenshot}-desktop.png`), fullPage: true })
+  await page.setViewportSize(PHONE)
+  await expectNoPageOverflow(page)
+  await expectNoHorizontalOverflow(dialog.locator('[data-slot="dialog-body"]'))
+  await page.screenshot({ path: test.info().outputPath(`${screenshot}-phone.png`), fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
 }
+
+// Three accounts and three devices, so it needs more room than a duel. Every army comes
+// from one catalogue on purpose: the shared container prices each faction it is shown.
+test.setTimeout(120_000)
 
 /**
  * The whole point of the 2v1 layout: the allied pair is one side.
@@ -53,10 +60,6 @@ async function inspectBattleDialog(page: Page, dialog: Locator, screenshot: stri
  * They share the turn, the command points, the mission cards and the score, so the
  * tracker draws one of each. Only the armies are separate.
  */
-// Three accounts and three devices, so it needs more room than a duel. Every army comes
-// from one catalogue on purpose: the shared container prices each faction it is shown.
-test.setTimeout(120_000)
-
 test('a 2v1 draws the allied pair as one side with one pool of everything', async ({ browser }) => {
   const host = await (await browser.newContext()).newPage()
   const ally = await (await browser.newContext()).newPage()
@@ -148,7 +151,7 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
   await expect(side(host, 1)).toContainText('Battle ready included')
   await expect(side(host, 1).locator('[data-stat="vp"]')).toHaveText('10')
 
-  await ally.screenshot({ path: 'test-results/team-battle-tracker.png', fullPage: true })
+  await ally.screenshot({ path: test.info().outputPath('team-battle-tracker.png'), fullPage: true })
 })
 
 /**
@@ -223,12 +226,12 @@ test('a 2v1 opened from the allied side seats its opener with their ally and pla
   await expect(side(host, 1).getByRole('button', { name: /^About Reanimation Crypts$/i })).toHaveCount(0)
   await expect(sidePanels(host)).toHaveCount(2)
 
-  await host.screenshot({ path: 'test-results/team-battle-allied-opener.png', fullPage: true })
+  await host.screenshot({ path: test.info().outputPath('team-battle-allied-opener.png'), fullPage: true })
   // A phone holds one column, which is where a pair of players had least room.
-  await host.setViewportSize({ width: 390, height: 844 })
+  await host.setViewportSize(PHONE)
   await expect(ours.getByRole('link', { name: hostName })).toBeVisible()
   await expect(ours.getByRole('link', { name: allyName })).toBeVisible()
-  await host.screenshot({ path: 'test-results/team-battle-allied-opener-phone.png', fullPage: true })
+  await host.screenshot({ path: test.info().outputPath('team-battle-allied-opener-phone.png'), fullPage: true })
 })
 
 test('a manual 2v2 seats two armies on each side with one shared pool', async ({ browser, page: host }) => {
@@ -264,8 +267,8 @@ test('a manual 2v2 seats two armies on each side with one shared pool', async ({
   await expect(side(host, 0).locator('[data-stat="cp"]')).toHaveCount(1)
   await expect(side(host, 1).locator('[data-stat="cp"]')).toHaveCount(1)
 
-  await host.setViewportSize({ width: 390, height: 844 })
-  expect(await host.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await host.setViewportSize(PHONE)
+  await expectNoPageOverflow(host)
 })
 
 const sidePanels = (page: Page) => page.locator('[data-panel="player"]')

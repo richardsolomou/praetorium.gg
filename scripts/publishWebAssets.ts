@@ -2,6 +2,8 @@ import { readdir, readFile, lstat } from 'node:fs/promises'
 import { hash, randomUUID } from 'node:crypto'
 import path from 'node:path'
 import pRetry from 'p-retry'
+import { boundedBytes } from '../src/server/boundedBody.ts'
+import { forEachConcurrently } from '../src/shared/forEachConcurrently.ts'
 import { publicAssetsR2Client } from '../src/server/r2Client.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
 
@@ -20,25 +22,7 @@ const TYPES: Record<string, string> = {
 }
 const MAX_BYTES = 10_000_000
 
-async function bytes(response: Response) {
-  if (Number(response.headers.get('content-length')) > MAX_BYTES) throw new Error('Web asset is too large')
-  const reader = response.body?.getReader()
-  const parts: Uint8Array[] = []
-  let size = 0
-  if (reader)
-    try {
-      for (;;) {
-        const result = await reader.read()
-        if (result.done) break
-        size += result.value.length
-        if (size > MAX_BYTES) throw new Error('Web asset is too large')
-        parts.push(result.value)
-      }
-    } finally {
-      await reader.cancel()
-    }
-  return Buffer.concat(parts)
-}
+const bytes = (response: Response) => boundedBytes(response, MAX_BYTES, 'Web asset is too large')
 
 /**
  * PostHog's build plugin stamps each chunk with a random id after its name is hashed,
@@ -89,91 +73,85 @@ export async function publishWebAssets(
   }
   if (!assets.size) throw new Error('No web assets found')
   const entries = [...assets]
-  let next = 0
   let uploaded = 0
-  await Promise.all(
-    Array.from({ length: CONCURRENT_REQUESTS }, async () => {
-      try {
-        while (next < entries.length) {
-          stopped.throwIfAborted()
-          const [name, file] = entries[next++]!
-          const body = await readFile(file)
-          const key = `web-assets/${name}`
-          const url = new URL(key, storage.base)
-          // R2 answers a single-part object's MD5 as its ETag, so a stored asset is compared without downloading it.
-          const etag = await retryTransient(
-            async () => {
-              const existing = await storage.request(url, { method: 'HEAD', signal: signal() })
-              if (transient(existing)) throw new TransientResponse(`Web asset storage answered ${existing.status}`)
-              if (existing.status === 404) return null
-              if (!existing.ok) throw new Error(`Web asset storage read failed: ${name} (${existing.status})`)
-              return existing.headers.get('etag') ?? ''
-            },
-            stopped,
-            retryMs,
-          )
-          if (etag !== null) {
-            if (etag === `"${hash('md5', body)}"`) continue
-            const stored = await retryTransient(
-              async () => {
-                const existing = await storage.request(url, { signal: signal() })
-                if (transient(existing)) throw new TransientResponse(`Web asset storage answered ${existing.status}`)
-                if (!existing.ok) throw new Error(`Web asset storage read failed: ${name} (${existing.status})`)
-                return bytes(existing)
-              },
-              stopped,
-              retryMs,
-            )
-            // Clients may already hold the stored copy, so it stays; the same code under another chunk id is that copy.
-            if (withoutChunkId(stored) !== withoutChunkId(body)) throw new Error(`Stored web asset differs: ${name}`)
-            continue
-          }
-          await retryTransient(
-            async () => {
-              const response = await storage.request(url, {
-                method: 'PUT',
-                body,
-                headers: { 'content-type': TYPES[path.extname(name)]!, 'cache-control': CACHE, 'if-none-match': '*' },
-                signal: signal(),
-              })
-              await response.body?.cancel()
-              if (transient(response)) throw new TransientResponse(`Web asset upload answered ${response.status}`)
-              if (!response.ok && response.status !== 412) throw new Error(`Web asset upload failed: ${name} (${response.status})`)
-            },
-            stopped,
-            retryMs,
-          )
-          for (const request of [storage.request, publicRequest]) {
-            await retryTransient(
-              async () => {
-                const result = await request(request === storage.request ? url : `${publicBase}/${key}`, {
-                  cache: 'no-store',
-                  signal: signal(),
-                })
-                if (transient(result)) {
-                  await result.body?.cancel()
-                  throw new TransientResponse(`Web asset read answered ${result.status}`)
-                }
-                if (
-                  !result.ok ||
-                  result.headers.get('cache-control') !== CACHE ||
-                  result.headers.get('content-type')?.split(';')[0] !== TYPES[path.extname(name)] ||
-                  !(await bytes(result)).equals(body)
-                )
-                  throw new Error(`Web asset verification failed: ${name}`)
-              },
-              stopped,
-              retryMs,
-            )
-          }
-          uploaded++
-        }
-      } catch (error) {
-        cancelled.abort()
-        throw error
+  await forEachConcurrently(entries, CONCURRENT_REQUESTS, async ([name, file]) => {
+    try {
+      stopped.throwIfAborted()
+      const body = await readFile(file)
+      const key = `web-assets/${name}`
+      const url = new URL(key, storage.base)
+      // R2 answers a single-part object's MD5 as its ETag, so a stored asset is compared without downloading it.
+      const etag = await retryTransient(
+        async () => {
+          const existing = await storage.request(url, { method: 'HEAD', signal: signal() })
+          if (transient(existing)) throw new TransientResponse(`Web asset storage answered ${existing.status}`)
+          if (existing.status === 404) return null
+          if (!existing.ok) throw new Error(`Web asset storage read failed: ${name} (${existing.status})`)
+          return existing.headers.get('etag') ?? ''
+        },
+        stopped,
+        retryMs,
+      )
+      if (etag !== null) {
+        if (etag === `"${hash('md5', body)}"`) return
+        const stored = await retryTransient(
+          async () => {
+            const existing = await storage.request(url, { signal: signal() })
+            if (transient(existing)) throw new TransientResponse(`Web asset storage answered ${existing.status}`)
+            if (!existing.ok) throw new Error(`Web asset storage read failed: ${name} (${existing.status})`)
+            return bytes(existing)
+          },
+          stopped,
+          retryMs,
+        )
+        // Clients may already hold the stored copy, so it stays; the same code under another chunk id is that copy.
+        if (withoutChunkId(stored) !== withoutChunkId(body)) throw new Error(`Stored web asset differs: ${name}`)
+        return
       }
-    }),
-  )
+      await retryTransient(
+        async () => {
+          const response = await storage.request(url, {
+            method: 'PUT',
+            body,
+            headers: { 'content-type': TYPES[path.extname(name)]!, 'cache-control': CACHE, 'if-none-match': '*' },
+            signal: signal(),
+          })
+          await response.body?.cancel()
+          if (transient(response)) throw new TransientResponse(`Web asset upload answered ${response.status}`)
+          if (!response.ok && response.status !== 412) throw new Error(`Web asset upload failed: ${name} (${response.status})`)
+        },
+        stopped,
+        retryMs,
+      )
+      for (const request of [storage.request, publicRequest]) {
+        await retryTransient(
+          async () => {
+            const result = await request(request === storage.request ? url : `${publicBase}/${key}`, {
+              cache: 'no-store',
+              signal: signal(),
+            })
+            if (transient(result)) {
+              await result.body?.cancel()
+              throw new TransientResponse(`Web asset read answered ${result.status}`)
+            }
+            if (
+              !result.ok ||
+              result.headers.get('cache-control') !== CACHE ||
+              result.headers.get('content-type')?.split(';')[0] !== TYPES[path.extname(name)] ||
+              !(await bytes(result)).equals(body)
+            )
+              throw new Error(`Web asset verification failed: ${name}`)
+          },
+          stopped,
+          retryMs,
+        )
+      }
+      uploaded++
+    } catch (error) {
+      cancelled.abort()
+      throw error
+    }
+  })
   console.log(`Verified ${assets.size} shared web assets (${uploaded} uploaded)`)
 }
 
@@ -189,34 +167,28 @@ export async function verifyWebAssetRoute(directories: string[], origin: string,
     }
   }
   const entries = [...assets]
-  let next = 0
-  await Promise.all(
-    Array.from({ length: CONCURRENT_REQUESTS }, async () => {
-      try {
-        while (next < entries.length) {
-          stopped.throwIfAborted()
-          const [name, file] = entries[next++]!
-          const expected = await readFile(file)
-          await retryTransient(
-            async () => {
-              const response = await request(new URL(`/assets/${name}`, origin), { cache: 'no-store', signal: signal() })
-              if (transient(response)) {
-                await response.body?.cancel()
-                throw new TransientResponse(`Asset route answered ${response.status}: ${name}`)
-              }
-              if (!response.ok || response.headers.get('cache-control') !== CACHE || !(await bytes(response)).equals(expected))
-                throw new Error(`Asset route verification failed: ${name}`)
-            },
-            stopped,
-            retryMs,
-          )
-        }
-      } catch (error) {
-        cancelled.abort()
-        throw error
-      }
-    }),
-  )
+  await forEachConcurrently(entries, CONCURRENT_REQUESTS, async ([name, file]) => {
+    try {
+      stopped.throwIfAborted()
+      const expected = await readFile(file)
+      await retryTransient(
+        async () => {
+          const response = await request(new URL(`/assets/${name}`, origin), { cache: 'no-store', signal: signal() })
+          if (transient(response)) {
+            await response.body?.cancel()
+            throw new TransientResponse(`Asset route answered ${response.status}: ${name}`)
+          }
+          if (!response.ok || response.headers.get('cache-control') !== CACHE || !(await bytes(response)).equals(expected))
+            throw new Error(`Asset route verification failed: ${name}`)
+        },
+        stopped,
+        retryMs,
+      )
+    } catch (error) {
+      cancelled.abort()
+      throw error
+    }
+  })
   const missing = await retryTransient(
     () => request(new URL(`/assets/deployment-probe-missing-${randomUUID()}.js`, origin), { cache: 'no-store', signal: signal() }),
     stopped,

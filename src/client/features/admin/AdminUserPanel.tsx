@@ -8,7 +8,7 @@ import { Drawer, DrawerContent, DrawerDescription, DrawerTitle } from '@/compone
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { AdminUser } from '../../../admin'
-import type { SocialAuthProvider } from '../../../authConfig'
+import { SOCIAL_AUTH_PROVIDER_NAMES, type SocialAuthProvider } from '../../../authConfig'
 import { PROFILE_NAME_MAX_LENGTH } from '../../../core/profileName'
 import {
   deleteUserAsAdmin,
@@ -37,10 +37,9 @@ import { Fact } from '../../components/Fact'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SettingRow } from '../../components/SettingRow'
 import { AdminBattleRow } from './AdminBattleRow'
-import { MethodIcon, methodName } from './accountText'
+import { AuthMethodIcon } from '../account/AuthMethodIcon'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Problem } from '../../components/Problem'
-import { Notice } from './feedback'
 import { countLabel, formatList } from '../../text'
 import { useCopyText } from '../../useCopyText'
 
@@ -70,7 +69,8 @@ export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; cu
     setConfirming(undefined)
     setNotice({ section, message })
   }
-  const noticeFor = (section: Section) => (notice?.section === section ? <Notice>{notice.message}</Notice> : null)
+  const noticeFor = (section: Section) =>
+    notice?.section === section ? <output className="block text-sm text-achieved">{notice.message}</output> : null
 
   const impersonate = useMutation({
     mutationFn: async () => {
@@ -238,7 +238,7 @@ export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; cu
             {user.signInMethods.map((method) => (
               <SettingRow
                 key={method.providerId}
-                icon={<MethodIcon providerId={method.providerId} />}
+                icon={<AuthMethodIcon method={method.providerId as 'credential' | SocialAuthProvider} />}
                 title={methodName(method.providerId)}
                 detail={`Linked ${dates.date(method.linkedAt)}`}
                 action={
@@ -624,6 +624,10 @@ function deletionImpact(user: AdminUser) {
   const deletes = parts.length ? `Deletes the account, ${formatList(parts)}.` : 'Deletes the account.'
   const shared = user.battleCount ? ' Battles are removed for every player in them.' : ''
   return `${deletes}${shared} This cannot be undone.`
+}
+
+function methodName(providerId: string) {
+  return providerId === 'credential' ? 'Password' : (SOCIAL_AUTH_PROVIDER_NAMES[providerId as SocialAuthProvider] ?? providerId)
 }
 
 /** A device name readable at a glance; the full user agent stays out of the way. */

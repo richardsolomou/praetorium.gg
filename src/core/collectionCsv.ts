@@ -3,16 +3,7 @@ import { countsAsList, MAX_COLLECTION_DATASHEETS, MAX_COLLECTION_MODELS, MAX_COU
 /** A collection file is a few hundred kilobytes at the datasheet limit; anything far larger is not one. */
 export const MAX_COLLECTION_CSV_BYTES = 1_000_000
 
-export const COLLECTION_CSV_COLUMNS = [
-  'faction',
-  'datasheet',
-  'datasheet_id',
-  'models',
-  'built',
-  'painted',
-  'wanted',
-  'counts_as_ids',
-] as const
+const COLLECTION_CSV_COLUMNS = ['faction', 'datasheet', 'datasheet_id', 'models', 'built', 'painted', 'wanted', 'counts_as_ids'] as const
 
 /** Separates the datasheet ids in `counts_as_ids`, which a comma would split into cells. */
 const LINK_SEPARATOR = ';'

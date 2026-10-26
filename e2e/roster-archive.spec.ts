@@ -1,20 +1,19 @@
 import { expect, test } from './test'
-import { createRoster, signUp, uniqueName } from './account'
-import { productOperator } from './storage'
+import { createRoster, signUp, uniqueName, expectNoPageOverflow, chooseLibraryAction } from './account'
+import { productOperator, lastPathSegment } from './storage'
 
 test('deleting offers to archive a roster, which leaves the library list and Home until it is unarchived', async ({ page }) => {
   test.setTimeout(180_000)
   await signUp(page, uniqueName('Archivist'))
   const kept = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Kept list' })
-  const keptId = new URL(page.url()).pathname.split('/').at(-1)!
+  const keptId = lastPathSegment(page.url())
   const name = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Shelved list' })
-  const id = new URL(page.url()).pathname.split('/').at(-1)!
+  const id = lastPathSegment(page.url())
   const operator = await productOperator()
 
   await page.goto('/rosters')
   const row = page.locator(`[data-roster="${name}"]`)
-  await row.getByRole('button', { name: `Actions for ${name}` }).click()
-  await page.getByRole('menuitem', { name: 'Delete' }).click()
+  await chooseLibraryAction(page, name, 'Delete')
   const confirm = page.getByRole('alertdialog')
   await expect(confirm.getByRole('button', { name: 'Delete roster' })).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('archive-instead-1440.png') })
@@ -33,7 +32,7 @@ test('deleting offers to archive a roster, which leaves the library list and Hom
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 })
     await openArchived()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(width)
+    await expectNoPageOverflow(page)
     await page.screenshot({ path: test.info().outputPath(`archived-library-${width}.png`) })
   }
 
@@ -43,17 +42,14 @@ test('deleting offers to archive a roster, which leaves the library list and Hom
   await page.goto('/rosters')
   await page.waitForLoadState('networkidle')
   await openArchived()
-  await row.getByRole('button', { name: `Actions for ${name}` }).click()
-  await page.getByRole('menuitem', { name: 'Unarchive', exact: true }).click()
+  await chooseLibraryAction(page, name, 'Unarchive')
   await expect.poll(async () => (await operator.roster(id))?.archived).toBe(false)
   await expect(archived).toHaveCount(0)
   await expect(row).toBeVisible()
 
-  await row.getByRole('button', { name: `Actions for ${name}` }).click()
-  await page.getByRole('menuitem', { name: 'Archive', exact: true }).click()
+  await chooseLibraryAction(page, name, 'Archive')
   await openArchived()
-  await row.getByRole('button', { name: `Actions for ${name}` }).click()
-  await page.getByRole('menuitem', { name: 'Delete' }).click()
+  await chooseLibraryAction(page, name, 'Delete')
   await expect(confirm.getByRole('button', { name: 'Archive roster' })).toHaveCount(0)
   await confirm.getByRole('button', { name: 'Delete roster' }).click()
   await expect.poll(async () => await operator.roster(id)).toBeUndefined()

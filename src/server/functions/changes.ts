@@ -10,6 +10,8 @@ import { rpc } from '../rpc'
 import { parseReleaseNotes } from '../../core/releaseNotes'
 import changelog from '../../../CHANGELOG.md?raw'
 
+const installedHistory = async () => listedHistory((await app().catalogueHistoryFor()) ?? [])
+
 /** How many data updates one page of the index lists. */
 const CHANGE_LOG_PAGE = 20
 
@@ -24,7 +26,7 @@ export const catalogueChangeLog = createServerFn({ method: 'GET' })
     rpc(async (): Promise<{ updates: IndexedUpdate[]; older: string | null }> => {
       const instance = app()
       const before = data.before ? decodeHistoryCursor(data.before) : null
-      const history = listedHistory((await instance.catalogueHistoryFor()) ?? [])
+      const history = await installedHistory()
       const canonical = history.length ? await instance.canonicalCatalogueFor(data.faction) : null
       const scoped = data.faction ? (canonical ? factionHistory(history, canonical, data.faction) : []) : history
       const page = historyPage(scoped, CHANGE_LOG_PAGE, before ?? undefined)
@@ -41,14 +43,14 @@ export const referenceChanges = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async (): Promise<{ recordedAt: number; change: CatalogueChange }[]> => {
       const instance = app()
-      const history = listedHistory((await instance.catalogueHistoryFor()) ?? [])
+      const history = await installedHistory()
       const canonical = history.length ? await instance.canonicalCatalogueFor(data.faction) : null
       return recentReferenceChanges(history, canonical, data)
     }),
   )
 
 /** How many armies the home page asks after, which is at most one per list it shows. */
-export const ARMY_UPDATE_FACTIONS = 5
+const ARMY_UPDATE_FACTIONS = 5
 
 /**
  * The newest data update that reached each named faction, with only the count of its changes:
@@ -59,7 +61,7 @@ export const armyUpdates = createServerFn({ method: 'GET' })
   .handler(({ data }) =>
     rpc(async () => {
       const instance = app()
-      const history = listedHistory((await instance.catalogueHistoryFor()) ?? [])
+      const history = await installedHistory()
       if (!history.length) return []
       const newest = await Promise.all(
         data.factions.map(async (slug) => {

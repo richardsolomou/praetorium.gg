@@ -2,37 +2,32 @@ import { expect, type Locator, type Page, test } from './test'
 import {
   attachRoster,
   befriend,
-  confirmRosterSetup,
   createBattle,
   createRoster,
-  PRACTICE_OPPONENT,
   signUp,
   startBattle,
   uniqueName,
   waitForRosterSave,
+  setRosterAccess,
+  addUnit,
+  chooseRosterAction,
+  practiceBattle,
+  PHONE,
+  desktopContext,
 } from './account'
-import { shot } from './builder.harness'
+import { shot, closePicker } from './builder.harness'
+import { lastPathSegment } from './storage'
 
-const phone = { viewport: { width: 390, height: 844 } }
-const desktop = { viewport: { width: 1440, height: 900 } }
+const phone = { viewport: PHONE }
 const SQUAD = 'Plague Marines'
 const ALPHA_NOTE = 'Hold the home objective'
 const BRAVO_NOTE = 'Screen the left flank'
 
-const rosterId = (page: Page) => new URL(page.url()).pathname.split('/').at(-1)!
-
 async function addSquads(page: Page, count: number) {
   for (let added = 0; added < count; added++) {
-    await page.getByLabel('Add a unit').fill(SQUAD)
-    await waitForRosterSave(page, () =>
-      page
-        .getByRole('button', { name: `Add ${SQUAD}`, exact: true })
-        .first()
-        .click(),
-    )
+    await addUnit(page, SQUAD)
   }
-  const picker = page.getByRole('dialog', { name: 'Add units' })
-  if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close' }).click()
+  await closePicker(page)
   await expect(page.locator(`[data-unit="${SQUAD}"]`)).toHaveCount(count)
 }
 
@@ -47,18 +42,9 @@ async function annotate(page: Page, card: Locator, field: 'Custom name' | 'Note'
   if (await back.isVisible()) await back.click()
 }
 
-async function setAccess(page: Page, name: string, value: string) {
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
-  await setup.getByRole('combobox', { name: 'Access' }).click()
-  await page.getByRole('option', { name }).click()
-  await waitForRosterSave(page, () => confirmRosterSetup(setup), `"${value}"`)
-}
-
 for (const [size, label] of [
   [phone, 'phone'],
-  [desktop, 'desktop'],
+  [desktopContext, 'desktop'],
 ] as const) {
   test(`repeated units keep their own custom names and private notes from the builder to a frozen battle army (${label})`, async ({
     browser,
@@ -73,7 +59,7 @@ for (const [size, label] of [
     await annotate(owner, cards.nth(0), 'Note', ALPHA_NOTE)
     await squadButton(cards.nth(1)).click()
     await expect(owner.getByRole('switch', { name: /Share unit notes/ })).toHaveCount(0)
-    await shot(owner.getByRole('region', { name: 'Custom name and note' }), `test-results/unit-annotation-fields-${label}.png`)
+    await shot(owner.getByRole('region', { name: 'Custom name and note' }), test.info().outputPath(`unit-annotation-fields-${label}.png`))
     const back = owner.getByRole('button', { name: 'Back to roster' })
     if (await back.isVisible()) await back.click()
     await annotate(owner, cards.nth(1), 'Custom name', 'Rot Bravo')
@@ -84,10 +70,9 @@ for (const [size, label] of [
     await expect(cards.nth(0)).toContainText(ALPHA_NOTE)
     await expect(cards.nth(1)).toContainText(`Rot Bravo${SQUAD}`)
     await expect(cards.nth(1)).toContainText(BRAVO_NOTE)
-    await shot(owner.locator('[data-roster-builder]'), `test-results/unit-annotation-cards-${label}.png`)
+    await shot(owner.locator('[data-roster-builder]'), test.info().outputPath(`unit-annotation-cards-${label}.png`))
 
-    await owner.getByRole('button', { name: 'Roster actions' }).click()
-    await owner.getByRole('menuitem', { name: 'Export text' }).click()
+    await chooseRosterAction(owner, 'Export text')
     const exported = owner.getByRole('dialog', { name: 'Export roster' })
     await expect(exported.locator('pre')).toContainText('• Custom name: Rot Alpha')
     await expect(exported.locator('pre')).toContainText('• Custom name: Rot Bravo')
@@ -97,23 +82,22 @@ for (const [size, label] of [
     await owner.evaluate(() => {
       window.print = () => undefined
     })
-    await owner.getByRole('button', { name: 'Roster actions' }).click()
-    await owner.getByRole('menuitem', { name: 'Print', exact: true }).click()
+    await chooseRosterAction(owner, 'Print')
     const pack = owner.locator('[data-battle-reference-pack]')
     await expect(pack.getByRole('heading', { name: `Rot Alpha · ${SQUAD} ·`, exact: false })).toBeVisible()
     await expect(pack).toContainText(`Note: ${ALPHA_NOTE}`)
     await expect(pack).toContainText(`Note: ${BRAVO_NOTE}`)
-    await shot(pack.locator('.pack-unit').first(), `test-results/unit-note-print-${label}.png`)
+    await shot(pack.locator('.pack-unit').first(), test.info().outputPath(`unit-note-print-${label}.png`))
     await owner.getByRole('button', { name: 'Return to roster' }).click()
 
-    const original = rosterId(owner)
+    const original = lastPathSegment(owner.url())
     const opponentName = uniqueName('Opponent')
     const opponent = await (await browser.newContext(size)).newPage()
     await signUp(opponent, opponentName)
     await befriend(owner, opponent)
     const battle = await createBattle(owner, { opponent: opponentName })
     await attachRoster(owner, roster)
-    const token = new URL(battle).pathname.split('/').at(-1)!
+    const token = lastPathSegment(battle)
     const fielded = `/rosters/${original}?battle=${token}`
 
     await opponent.goto(fielded)
@@ -133,8 +117,7 @@ for (const [size, label] of [
     await expect(opponent.locator('body')).not.toContainText('Rot Prime')
 
     await owner.goto(`/rosters/${original}`)
-    await owner.getByRole('button', { name: 'Roster actions' }).click()
-    await owner.getByRole('menuitem', { name: 'Create variant' }).click()
+    await chooseRosterAction(owner, 'Create variant')
     await owner.waitForURL((url) => !url.pathname.endsWith(original))
     await expect(cards.nth(0)).toContainText(`Rot Prime${SQUAD}`)
     await expect(cards.nth(0)).toContainText('Rush the centre')
@@ -149,7 +132,7 @@ for (const [size, label] of [
     await addSquads(owner, 1)
     await annotate(owner, owner.locator(`[data-unit="${SQUAD}"]`), 'Custom name', 'Rot Alpha')
     await annotate(owner, owner.locator(`[data-unit="${SQUAD}"]`), 'Note', ALPHA_NOTE)
-    await setAccess(owner, 'Public — listed on your profile', 'public')
+    await setRosterAccess(owner, 'Public — listed on your profile', 'public')
     const path = new URL(owner.url()).pathname
 
     const reader = await (await browser.newContext(size)).newPage()
@@ -169,9 +152,7 @@ for (const [size, label] of [
     await addSquads(page, 1)
     await annotate(page, page.locator(`[data-unit="${SQUAD}"]`), 'Custom name', 'Rot Alpha')
     await annotate(page, page.locator(`[data-unit="${SQUAD}"]`), 'Note', ALPHA_NOTE)
-    await createBattle(page, { practice: true })
-    await attachRoster(page, roster)
-    await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+    await practiceBattle(page, roster)
     await startBattle(page)
 
     const army = page.locator('[data-army-roster]')
@@ -182,7 +163,7 @@ for (const [size, label] of [
       .click()
     await expect(squad).toContainText(`Rot Alpha${SQUAD}`)
     await expect(squad).toContainText(ALPHA_NOTE)
-    await shot(army, `test-results/unit-annotation-army-${label}.png`)
+    await shot(army, test.info().outputPath(`unit-annotation-army-${label}.png`))
     await army.getByRole('button', { name: 'Close' }).click()
 
     const opponentTab = page.getByRole('tab', { name: 'Opponent' })

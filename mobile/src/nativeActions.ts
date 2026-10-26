@@ -1,10 +1,12 @@
 import { parseSavedReference, type SavedReference } from './offlineReference'
-import { APP_URL, classifyNavigation } from './navigation'
+import { classifyNavigation } from './navigation'
 import { MAX_APP_SNAPSHOT_BYTES, parseAppSnapshot, type AppSnapshot } from '../../src/contracts/appSnapshot'
 import { MAX_LOCAL_STATE_BYTES, parseLocalState, type LocalState } from '../../src/contracts/localState'
 
 import { MAX_WATCH_MESSAGE_BYTES, parseWatchBattle, type WatchBattle } from '../../src/contracts/watchBattle'
 
+/** The id a request carries so its answer can find it, and the local state epoch, which is shaped the same. */
+const isRequestId = (value: unknown): value is string => typeof value === 'string' && /^[\w-]{1,64}$/.test(value)
 const MAX_SHARE_TITLE_LENGTH = 160
 const MAX_SHARE_URL_LENGTH = 2_048
 const MAX_OPEN_WINDOW_URL_LENGTH = 2_048
@@ -38,12 +40,7 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
   try {
     const value = JSON.parse(message) as Record<string, unknown>
     if (value.version !== 3) return null
-    if (
-      value.type === 'native-export-work' &&
-      typeof value.id === 'string' &&
-      /^[\w-]{1,64}$/.test(value.id) &&
-      message.length <= MAX_LOCAL_STATE_BYTES + 2048
-    ) {
+    if (value.type === 'native-export-work' && isRequestId(value.id) && message.length <= MAX_LOCAL_STATE_BYTES + 2048) {
       const state = parseLocalState(value.state)
       return state ? { kind: 'export-work', id: value.id, state } : null
     }
@@ -52,16 +49,14 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
       typeof value.owner === 'string' &&
       value.owner.length > 0 &&
       value.owner.length <= 128 &&
-      typeof value.id === 'string' &&
-      /^[\w-]{1,64}$/.test(value.id) &&
+      isRequestId(value.id) &&
       message.length <= MAX_LOCAL_STATE_BYTES + 2048
     ) {
       if (!('state' in value)) return { kind: 'local-state', owner: value.owner, id: value.id }
       const state = value.state === null ? null : parseLocalState(value.state)
       if (
         (state?.owner === value.owner || value.state === null) &&
-        typeof value.epoch === 'string' &&
-        /^[\w-]{1,64}$/.test(value.epoch) &&
+        isRequestId(value.epoch) &&
         Number.isSafeInteger(value.expectedRevision) &&
         Number(value.expectedRevision) >= 0
       )
@@ -79,16 +74,11 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
       const snapshot = value.snapshot === null ? null : parseWatchBattle(value.snapshot)
       return value.snapshot === null || snapshot ? { kind: 'watch-battle', snapshot } : null
     }
-    if (
-      value.type === 'native-app-snapshot' &&
-      typeof value.id === 'string' &&
-      /^[\w-]{1,64}$/.test(value.id) &&
-      message.length <= MAX_APP_SNAPSHOT_BYTES + 1024
-    ) {
+    if (value.type === 'native-app-snapshot' && isRequestId(value.id) && message.length <= MAX_APP_SNAPSHOT_BYTES + 1024) {
       const snapshot = value.snapshot === null ? null : parseAppSnapshot(value.snapshot)
       return value.snapshot === null || snapshot ? { kind: 'app-snapshot', id: value.id, snapshot } : null
     }
-    if (value.type === 'native-offline-save' && typeof value.id === 'string' && /^[\w-]{1,64}$/.test(value.id)) {
+    if (value.type === 'native-offline-save' && isRequestId(value.id)) {
       const reference = parseSavedReference({ html: value.html, savedAt: value.savedAt })
       return reference ? { kind: 'offline-save', id: value.id, reference } : null
     }
@@ -106,19 +96,14 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
     if (value.type === 'native-print' && typeof value.html === 'string' && value.html.length <= MAX_PRINT_HTML_LENGTH) {
       return { kind: 'print', html: value.html }
     }
-    if (
-      value.type === 'native-push' &&
-      typeof value.id === 'string' &&
-      /^[\w-]{1,64}$/.test(value.id) &&
-      typeof value.prompt === 'boolean'
-    ) {
+    if (value.type === 'native-push' && isRequestId(value.id) && typeof value.prompt === 'boolean') {
       return { kind: 'push', id: value.id, prompt: value.prompt }
     }
     if (value.type === 'native-share' && typeof value.url === 'string' && value.url.length <= MAX_SHARE_URL_LENGTH) {
-      const url = new URL(value.url)
-      if (url.origin !== APP_URL || url.username || url.password) return null
+      const decision = classifyNavigation(value.url)
+      if (decision.kind !== 'internal') return null
       if (value.title !== undefined && (typeof value.title !== 'string' || value.title.length > MAX_SHARE_TITLE_LENGTH)) return null
-      return { kind: 'share', url: url.href, ...(typeof value.title === 'string' ? { title: value.title } : {}) }
+      return { kind: 'share', url: decision.url, ...(typeof value.title === 'string' ? { title: value.title } : {}) }
     }
     return null
   } catch {

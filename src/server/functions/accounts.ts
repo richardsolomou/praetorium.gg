@@ -12,7 +12,7 @@ import { collectionPhotoReportEmail } from '../collectionPhotos'
 import { COLLECTION_PHOTO_QUESTIONS, recordScreening } from '../photoScreening'
 import { app } from '../app'
 import { configuredAuthProviders, githubLinkConfigured } from '../authProviders'
-import { currentUser, currentUserId, requireUser, requireUserId } from '../playerSession'
+import { currentUser, currentUserId, forSignedIn, requireUser, requireUserId } from '../playerSession'
 import { fixedWindowRateLimit } from '../rateLimit'
 import { mutationRpc, rpc } from '../rpc'
 import { unlinkSignInMethod } from '../signInMethods'
@@ -46,8 +46,8 @@ export const updateOnboardingProgress = createServerFn({ method: 'POST' })
   .validator(onboardingUpdateSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.updateOnboardingProgress(player.id, data)
+      const userId = await requireUserId()
+      return productActions.updateOnboardingProgress(userId, data)
     }),
   )
 
@@ -60,17 +60,17 @@ export const setPlayerDefaults = createServerFn({ method: 'POST' })
   .validator(playerDefaultsSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.setPlayerDefaults(player.id, data)
+      const userId = await requireUserId()
+      return productActions.setPlayerDefaults(userId, data)
     }),
   )
 
 export const accountMethods = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
-    const current = await requireUser()
+    const userId = await requireUserId()
     const [linked, authoritative] = await Promise.all([
       app().auth.api.listUserAccounts({ headers: getRequestHeaders() }),
-      app().service.userById(current.id),
+      app().service.userById(userId),
     ])
     return {
       linked: linked.map((entry) => entry.providerId),
@@ -84,11 +84,11 @@ export const accountMethods = createServerFn({ method: 'GET' }).handler(() =>
 /** Whether this player's linked GitHub account sponsors the project, for their own settings. */
 export const githubSponsorship = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
-    const current = await requireUser()
+    const userId = await requireUserId()
     const instance = app()
     const [linked, sponsorship] = await Promise.all([
       instance.auth.api.listUserAccounts({ headers: getRequestHeaders() }),
-      instance.service.githubSponsorship(current.id),
+      instance.service.githubSponsorship(userId),
     ])
     return {
       available: githubLinkConfigured() && instance.githubSponsors.configured,
@@ -100,15 +100,16 @@ export const githubSponsorship = createServerFn({ method: 'GET' }).handler(() =>
 
 export const checkGithubSponsorship = createServerFn({ method: 'POST' }).handler(() =>
   mutationRpc(async () => {
-    const current = await requireUser()
+    const userId = await requireUserId()
     const instance = app()
     try {
       await instance.githubSponsors.refresh()
-    } catch {
+    } catch (error) {
+      console.error({ event: 'github_sponsor_refresh_failed', error })
       throw new Response('GitHub could not be reached', { status: 502 })
     }
-    const sponsorship = await instance.service.githubSponsorship(current.id)
-    await instance.telemetry.capture(current.id, 'github_sponsorship_checked', { sponsorship: sponsorship ?? 'none' })
+    const sponsorship = await instance.service.githubSponsorship(userId)
+    await instance.telemetry.capture(userId, 'github_sponsorship_checked', { sponsorship: sponsorship ?? 'none' })
     return sponsorship
   }),
 )
@@ -117,12 +118,12 @@ export const setOwnPassword = createServerFn({ method: 'POST' })
   .validator(setOwnPasswordSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const current = await requireUser()
+      const userId = await requireUserId()
       const linked = await app().auth.api.listUserAccounts({ headers: getRequestHeaders() })
       if (linked.some((entry) => entry.providerId === 'credential'))
         throw new Response('this account already has a password', { status: 409 })
       await app().auth.api.setPassword({ body: { newPassword: data.password }, headers: getRequestHeaders() })
-      await app().telemetry.capture(current.id, 'sign_in_method_added', { provider: 'password' })
+      await app().telemetry.capture(userId, 'sign_in_method_added', { provider: 'password' })
       return null
     }),
   )
@@ -131,8 +132,8 @@ export const unlinkOwnAccount = createServerFn({ method: 'POST' })
   .validator(unlinkOwnAccountSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const current = await requireUser()
-      const status = await unlinkSignInMethod(current.id, data.provider)
+      const userId = await requireUserId()
+      const status = await unlinkSignInMethod(userId, data.provider)
       if (status === 'missing') {
         throw new Response('this sign-in method is not linked', { status: 404 })
       } else if (status === 'two-factor') {
@@ -140,7 +141,7 @@ export const unlinkOwnAccount = createServerFn({ method: 'POST' })
       } else if (status === 'last-method') {
         throw new Response('another available sign-in method must stay linked', { status: 409 })
       }
-      await app().telemetry.capture(current.id, 'sign_in_method_removed', { provider: data.provider })
+      await app().telemetry.capture(userId, 'sign_in_method_removed', { provider: data.provider })
       return null
     }),
   )
@@ -150,24 +151,15 @@ export const userProfile = createServerFn({ method: 'GET' })
   .handler(({ data }) => rpc(() => app().service.userProfile(data.userId)))
 
 export const opponents = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.socialService.opponents(id) : []
-  }),
+  rpc(() => forSignedIn([], (id) => app().service.socialService.opponents(id))),
 )
 
 export const friendships = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.socialService.friendships(id) : { friends: [], incoming: [], outgoing: [] }
-  }),
+  rpc(() => forSignedIn({ friends: [], incoming: [], outgoing: [] }, (id) => app().service.socialService.friendships(id))),
 )
 
 export const activeFriendInvite = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.socialService.activeFriendInvite(id) : null
-  }),
+  rpc(() => forSignedIn(null, (id) => app().service.socialService.activeFriendInvite(id))),
 )
 
 export const friendInvite = createServerFn({ method: 'GET' })
@@ -239,93 +231,71 @@ export const removeFriend = createServerFn({ method: 'POST' })
   )
 
 export const collection = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.rosterService.collection(id) : []
-  }),
+  rpc(() => forSignedIn([], (id) => app().service.rosterService.collection(id))),
 )
 
 export const setOwned = createServerFn({ method: 'POST' })
   .validator(ownedSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.setOwned(player.id, data)
+      const userId = await requireUserId()
+      return productActions.setOwned(userId, data)
     }),
   )
 
 export const collectionCounts = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    const counts: Record<string, number> = id ? await app().service.rosterService.collectionCounts(id) : {}
-    return counts
-  }),
+  rpc(() => forSignedIn({}, (id) => app().service.rosterService.collectionCounts(id))),
 )
 
 export const fieldedDatasheets = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.fieldedDatasheets(id) : []
-  }),
+  rpc(() => forSignedIn([], (id) => app().service.fieldedDatasheets(id))),
 )
 
 export const setCollectionModels = createServerFn({ method: 'POST' })
   .validator(collectionModelsSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.setCollectionModels(player.id, data)
+      const userId = await requireUserId()
+      return productActions.setCollectionModels(userId, data)
     }),
   )
 
 export const collectionProgress = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    const progress: Record<string, { built: number; painted: number }> = id ? await app().service.rosterService.collectionProgress(id) : {}
-    return progress
-  }),
+  rpc(() => forSignedIn({}, (id) => app().service.rosterService.collectionProgress(id))),
 )
 
 export const setCollectionProgress = createServerFn({ method: 'POST' })
   .validator(collectionProgressSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.setCollectionProgress(player.id, data)
+      const userId = await requireUserId()
+      return productActions.setCollectionProgress(userId, data)
     }),
   )
 
 export const collectionCountsAs = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    const countsAs: Record<string, string[]> = id ? await app().service.rosterService.collectionCountsAs(id) : {}
-    return countsAs
-  }),
+  rpc(() => forSignedIn({}, (id) => app().service.rosterService.collectionCountsAs(id))),
 )
 
 export const setCollectionCountsAs = createServerFn({ method: 'POST' })
   .validator(collectionCountsAsSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.setCollectionCountsAs(player.id, data)
+      const userId = await requireUserId()
+      return productActions.setCollectionCountsAs(userId, data)
     }),
   )
 
 export const collectionWishes = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    const wishes: Record<string, number> = id ? await app().service.rosterService.collectionWishes(id) : {}
-    return wishes
-  }),
+  rpc(() => forSignedIn({}, (id) => app().service.rosterService.collectionWishes(id))),
 )
 
 export const setCollectionWanted = createServerFn({ method: 'POST' })
   .validator(collectionWantedSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.setCollectionWanted(player.id, data)
+      const userId = await requireUserId()
+      return productActions.setCollectionWanted(userId, data)
     }),
   )
 
@@ -333,28 +303,20 @@ export const importCollection = createServerFn({ method: 'POST' })
   .validator(collectionImportSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      const result = await app().service.rosterService.importCollection(player.id, data.rows, data.replace)
-      await app().telemetry.capture(player.id, 'player_collection_imported', { rows: data.rows.length, replace: data.replace, ...result })
+      const userId = await requireUserId()
+      const result = await app().service.rosterService.importCollection(userId, data.rows, data.replace)
+      await app().telemetry.capture(userId, 'player_collection_imported', { rows: data.rows.length, replace: data.replace, ...result })
       return result
     }),
   )
 
 export const collectionPhotos = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    const photos: Record<string, string[]> = id ? await app().service.rosterService.collectionPhotos(id) : {}
-    return photos
-  }),
+  rpc(() => forSignedIn({}, (id) => app().service.rosterService.collectionPhotos(id))),
 )
 
 /** Photos filed under another datasheet the entry's models count as, by photo id. */
 export const collectionPhotoShows = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    const shows: Record<string, string> = id ? await app().service.rosterService.collectionPhotoShows(id) : {}
-    return shows
-  }),
+  rpc(() => forSignedIn({}, (id) => app().service.rosterService.collectionPhotoShows(id))),
 )
 
 const photoRateLimit = fixedWindowRateLimit('too many photo uploads')
@@ -363,13 +325,13 @@ export const uploadCollectionPhoto = createServerFn({ method: 'POST' })
   .validator(collectionPhotoSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
+      const userId = await requireUserId()
       const limited = photoRateLimit(getRequest(), 12)
       if (limited) throw limited
-      const photoId = await app().collectionPhotos.upload(player.id, data.entryId, data.image, data.shows)
-      await app().telemetry.capture(player.id, 'collection_photo_uploaded')
+      const photoId = await app().collectionPhotos.upload(userId, data.entryId, data.image, data.shows)
+      await app().telemetry.capture(userId, 'collection_photo_uploaded')
       void recordScreening(app().photoScreening, data.image, COLLECTION_PHOTO_QUESTIONS, (properties) =>
-        app().telemetry.capture(player.id, 'collection_photo_screened', properties),
+        app().telemetry.capture(userId, 'collection_photo_screened', properties),
       )
       return photoId
     }),
@@ -379,9 +341,9 @@ export const removeCollectionPhoto = createServerFn({ method: 'POST' })
   .validator(collectionPhotoIdSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      await app().collectionPhotos.remove(player.id, data.photoId)
-      await app().telemetry.capture(player.id, 'collection_photo_removed')
+      const userId = await requireUserId()
+      await app().collectionPhotos.remove(userId, data.photoId)
+      await app().telemetry.capture(userId, 'collection_photo_removed')
       return null
     }),
   )
@@ -394,9 +356,9 @@ export const likeCollectionPhoto = createServerFn({ method: 'POST' })
   .validator(collectionPhotoLikeSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      await app().collectionPhotos.like(player.id, data.photoId, data.liked)
-      await app().telemetry.capture(player.id, 'collection_photo_liked', { liked: data.liked })
+      const userId = await requireUserId()
+      await app().collectionPhotos.like(userId, data.photoId, data.liked)
+      await app().telemetry.capture(userId, 'collection_photo_liked', { liked: data.liked })
       return null
     }),
   )
@@ -426,50 +388,41 @@ export const reportCollectionPhoto = createServerFn({ method: 'POST' })
   )
 
 export const favouriteFactions = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.rosterService.favouriteFactions(id) : []
-  }),
+  rpc(() => forSignedIn([], (id) => app().service.rosterService.favouriteFactions(id))),
 )
 
 export const setFavouriteFaction = createServerFn({ method: 'POST' })
   .validator(favouriteFactionSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.setFavouriteFaction(player.id, data)
+      const userId = await requireUserId()
+      return productActions.setFavouriteFaction(userId, data)
     }),
   )
 
 export const favouriteDatasheets = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.rosterService.favouriteDatasheets(id) : []
-  }),
+  rpc(() => forSignedIn([], (id) => app().service.rosterService.favouriteDatasheets(id))),
 )
 
 export const setFavouriteDatasheet = createServerFn({ method: 'POST' })
   .validator(favouriteDatasheetSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.setFavouriteDatasheet(player.id, data)
+      const userId = await requireUserId()
+      return productActions.setFavouriteDatasheet(userId, data)
     }),
   )
 
 export const favouriteDetachments = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.rosterService.favouriteDetachments(id) : []
-  }),
+  rpc(() => forSignedIn([], (id) => app().service.rosterService.favouriteDetachments(id))),
 )
 
 export const setFavouriteDetachment = createServerFn({ method: 'POST' })
   .validator(favouriteDetachmentSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.setFavouriteDetachment(player.id, data)
+      const userId = await requireUserId()
+      return productActions.setFavouriteDetachment(userId, data)
     }),
   )
 

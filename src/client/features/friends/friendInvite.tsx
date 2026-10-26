@@ -1,16 +1,17 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { QrCode } from 'lucide-react'
 import { useState, type ComponentProps } from 'react'
-import { posthog } from 'posthog-js'
+
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import { activeFriendInviteQuery } from '../../queries'
 import { cancelFriendInvite, createFriendInvite } from '../../functions'
 import { errorMessage } from '../../queryClient'
-import { shareLink, useNativeShare } from '../../nativeBridge'
+import { useNativeShare } from '../../nativeBridge'
 import { useOrigin } from '../../useOrigin'
 import { useQrCode } from '../../components/useQrCode'
 import { Problem } from '../../components/Problem'
+import { useShareLink } from '../../useShareLink'
 
 /** What a share button reads once the link has gone out. */
 export const SHARED_LABEL = { copied: 'Link copied', shared: 'Invite shared' } as const
@@ -23,23 +24,13 @@ export function useFriendInvite() {
   const { data: invite } = useQuery(activeFriendInviteQuery())
   const queryClient = useQueryClient()
   const origin = useOrigin()
-  const [feedback, setFeedback] = useState<'copied' | 'shared' | null>(null)
-  const [shareProblem, setShareProblem] = useState<string | null>(null)
+  const link = useShareLink('friend_invite_shared')
   const refresh = () => queryClient.invalidateQueries({ queryKey: activeFriendInviteQuery().queryKey })
   const create = useMutation({ mutationFn: () => createFriendInvite(), onSuccess: refresh })
   const cancelMutation = useMutation({ mutationFn: () => cancelFriendInvite(), onSuccess: refresh })
-  const shareToken = async (token: string) => {
-    setShareProblem(null)
-    try {
-      const result = await shareLink(`${origin}/invite/${token}`, 'Join me on Praetorium')
-      setFeedback(result)
-      posthog.capture('friend_invite_shared', { method: result })
-    } catch (error) {
-      setShareProblem(errorMessage(error))
-    }
-  }
+  const shareToken = (token: string) => link.share(`${origin}/invite/${token}`, 'Join me on Praetorium')
   const shareNew = async () => {
-    setFeedback(null)
+    link.reset()
     try {
       const created = await create.mutateAsync()
       await shareToken(created.token)
@@ -50,15 +41,15 @@ export function useFriendInvite() {
   const problem = create.error ?? cancelMutation.error
   return {
     url: invite && origin ? `${origin}/invite/${invite.token}` : null,
-    feedback,
+    feedback: link.shared,
     creating: create.isPending,
     busy: !origin || create.isPending || cancelMutation.isPending,
-    problem: problem ? errorMessage(problem) : shareProblem,
+    problem: problem || link.problem ? errorMessage(problem ?? link.problem) : null,
     /** Shares the current link, making one first when there is none. */
     share: () => (invite ? shareToken(invite.token) : shareNew()),
     shareNew,
     cancel: () => {
-      setFeedback(null)
+      link.reset()
       cancelMutation.mutate()
     },
   }

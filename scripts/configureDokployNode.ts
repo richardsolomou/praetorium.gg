@@ -2,24 +2,25 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { verifyWebAssetRoute } from './publishWebAssets.ts'
 import { webAssetRouting } from './lib/webAssetRouting.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { type DokployApi, dokployWebApplication } from './lib/dokployWeb.ts'
 import { requiredEnv } from './lib/requiredEnv.ts'
+import { isSpacetimeInternalHost } from './lib/spacetimeInternalHost.ts'
 import { STARTUP_BUDGET_MS } from './lib/startupBudget.ts'
 
 type Application = {
-  applicationId: string
-  name: string
-  environmentId: string
   env: string | null
   buildArgs: string | null
   buildSecrets: string | null
   dockerImage: string | null
 }
 
+const webHost = (target: 'staging' | 'production') => (target === 'production' ? 'praetorium.gg' : 'staging.praetorium.gg')
+
 export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging' | 'production') {
-  const url = target === 'production' ? 'https://praetorium.gg' : 'https://staging.praetorium.gg'
+  const url = `https://${webHost(target)}`
   const database = `praetorium-${target}`
   const internalHost = requiredEnv('SPACETIME_INTERNAL_HOST', environment)
-  if (!/^[a-z][a-z0-9-]{1,63}$/.test(internalHost)) throw new Error('Invalid SpacetimeDB internal host')
+  if (!isSpacetimeInternalHost(internalHost)) throw new Error('Invalid SpacetimeDB internal host')
   const entries: Record<string, string> = {
     APP_URL: url,
     AUTH_SECRET: requiredEnv('AUTH_SECRET', environment),
@@ -94,7 +95,7 @@ type Domain = {
   enabled: boolean
 }
 
-export async function ensureWebHealthCheck(origin: URL, headers: Record<string, string>, applicationId: string, request = fetch) {
+export async function ensureWebHealthCheck(api: DokployApi, applicationId: string) {
   const healthCheckSwarm = {
     Test: ['CMD', 'node', '/app/scripts/healthcheck.ts'],
     Interval: 10_000_000_000,
@@ -102,18 +103,10 @@ export async function ensureWebHealthCheck(origin: URL, headers: Record<string, 
     StartPeriod: STARTUP_BUDGET_MS * 1_000_000,
     Retries: 3,
   }
-  const response = await request(new URL('/api/application.update', origin), {
-    method: 'POST',
-    headers: { ...headers, 'content-type': 'application/json' },
-    body: JSON.stringify({ applicationId, healthCheckSwarm }),
-    signal: AbortSignal.timeout(30_000),
+  await api('application.update', { body: { applicationId, healthCheckSwarm } })
+  const saved = await api<{ applicationId: string; healthCheckSwarm: typeof healthCheckSwarm | null }>('application.one', {
+    query: { applicationId },
   })
-  if (!response.ok) throw new Error(`Dokploy health check save failed with HTTP ${response.status}`)
-  const url = new URL('/api/application.one', origin)
-  url.searchParams.set('applicationId', applicationId)
-  const readback = await request(url, { headers, signal: AbortSignal.timeout(30_000) })
-  if (!readback.ok) throw new Error(`Dokploy health check read failed with HTTP ${readback.status}`)
-  const saved = (await readback.json()) as { applicationId: string; healthCheckSwarm: typeof healthCheckSwarm | null }
   if (
     saved.applicationId !== applicationId ||
     !saved.healthCheckSwarm ||
@@ -124,22 +117,16 @@ export async function ensureWebHealthCheck(origin: URL, headers: Record<string, 
     throw new Error('Dokploy health check did not persist')
 }
 
-export async function ensureWebDomain(origin: URL, headers: Record<string, string>, applicationId: string, host: string, request = fetch) {
+export async function ensureWebDomain(api: DokployApi, applicationId: string, host: string) {
   const list = async () => {
-    const url = new URL('/api/domain.byApplicationId', origin)
-    url.searchParams.set('applicationId', applicationId)
-    const response = await request(url, { headers, signal: AbortSignal.timeout(30_000) })
-    if (!response.ok) throw new Error(`Dokploy domain read failed with HTTP ${response.status}`)
-    const domains = (await response.json()) as Domain[]
+    const domains = await api<Domain[]>('domain.byApplicationId', { query: { applicationId } })
     if (!Array.isArray(domains)) throw new Error('Dokploy returned invalid domains')
     return domains.filter((domain) => domain.host === host)
   }
   let domains = await list()
   if (domains.length === 0) {
-    const response = await request(new URL('/api/domain.create', origin), {
-      method: 'POST',
-      headers: { ...headers, 'content-type': 'application/json' },
-      body: JSON.stringify({
+    await api('domain.create', {
+      body: {
         applicationId,
         host,
         path: '/',
@@ -147,10 +134,8 @@ export async function ensureWebDomain(origin: URL, headers: Record<string, strin
         https: true,
         certificateType: 'letsencrypt',
         domainType: 'application',
-      }),
-      signal: AbortSignal.timeout(30_000),
+      },
     })
-    if (!response.ok) throw new Error(`Dokploy domain create failed with HTTP ${response.status}`)
     domains = await list()
   }
   if (
@@ -168,19 +153,14 @@ export async function ensureWebDomain(origin: URL, headers: Record<string, strin
 }
 
 export async function configureWebAssetRoute(
-  origin: URL,
-  headers: Record<string, string>,
+  api: DokployApi,
   applicationId: string,
   host: string,
   directories: string[],
-  { request = fetch, wait = (milliseconds: number) => delay(milliseconds), verify = verifyWebAssetRoute } = {},
+  { wait = (milliseconds: number) => delay(milliseconds), verify = verifyWebAssetRoute } = {},
 ) {
-  const url = new URL('/api/application.readTraefikConfig', origin)
-  url.searchParams.set('applicationId', applicationId)
   const read = async () => {
-    const response = await request(url, { headers, signal: AbortSignal.timeout(30_000) })
-    if (!response.ok) throw new Error('Dokploy Traefik read failed')
-    const source = await response.json()
+    const source = await api('application.readTraefikConfig', { query: { applicationId } })
     if (typeof source !== 'string') throw new Error('Missing Dokploy Traefik configuration')
     return source
   }
@@ -188,13 +168,8 @@ export async function configureWebAssetRoute(
   if (!directories.length) throw new Error('Asset directories are required for route verification')
   const traefikConfig = webAssetRouting(previous, host)
   const save = async (config: string) => {
-    const response = await request(new URL('/api/application.updateTraefikConfig', origin), {
-      method: 'POST',
-      headers: { ...headers, 'content-type': 'application/json' },
-      body: JSON.stringify({ applicationId, traefikConfig: config }),
-      signal: AbortSignal.timeout(30_000),
-    })
-    if (!response.ok || (await read()) !== config) throw new Error('Dokploy asset routing did not persist')
+    await api('application.updateTraefikConfig', { body: { applicationId, traefikConfig: config } })
+    if ((await read()) !== config) throw new Error('Dokploy asset routing did not persist')
   }
   try {
     await save(traefikConfig)
@@ -212,25 +187,10 @@ export async function configureWebAssetRoute(
 
 async function run() {
   const [command, target] = process.argv.slice(2)
-  if (!['configure', 'domain', 'image', 'assets'].includes(command ?? '') || (target !== 'staging' && target !== 'production')) {
-    throw new Error('Usage: configureDokployNode.ts configure|domain|image|assets staging|production')
+  if (!['configure', 'image', 'assets'].includes(command ?? '') || (target !== 'staging' && target !== 'production')) {
+    throw new Error('Usage: configureDokployNode.ts configure|image|assets staging|production')
   }
-  const origin = new URL(requiredEnv('DOKPLOY_URL'))
-  if (origin.protocol !== 'https:' || origin.pathname !== '/' || origin.search || origin.hash) throw new Error('Invalid Dokploy URL')
-  const applicationId = requiredEnv('DOKPLOY_APPLICATION_ID')
-  const environmentId = requiredEnv('DOKPLOY_ENVIRONMENT_ID')
-  const headers = { 'x-api-key': requiredEnv('DOKPLOY_API_KEY') }
-  const inspect = async (): Promise<Application> => {
-    const url = new URL('/api/application.one', origin)
-    url.searchParams.set('applicationId', applicationId)
-    const response = await fetch(url, { headers, signal: AbortSignal.timeout(30_000) })
-    if (!response.ok) throw new Error(`Dokploy read failed with HTTP ${response.status}`)
-    const application = (await response.json()) as Application
-    if (application.applicationId !== applicationId || application.environmentId !== environmentId || application.name !== 'web') {
-      throw new Error('Unexpected Dokploy web application')
-    }
-    return application
-  }
+  const { api, applicationId, inspect } = dokployWebApplication<Application>(process.env)
   const application = await inspect()
   if (command === 'image') {
     if (!/^ghcr\.io\/richardsolomou\/praetorium\.gg(?::[a-zA-Z0-9_.-]+)?@sha256:[a-f0-9]{64}$/.test(application.dockerImage ?? ''))
@@ -239,38 +199,20 @@ async function run() {
     return
   }
   if (command === 'assets') {
-    await configureWebAssetRoute(
-      origin,
-      headers,
-      applicationId,
-      target === 'production' ? 'praetorium.gg' : 'staging.praetorium.gg',
-      process.argv.slice(4),
-    )
+    await configureWebAssetRoute(api, applicationId, webHost(target), process.argv.slice(4))
     console.log(`Configured ${target} shared web assets`)
     return
   }
-  if (command === 'domain') {
-    await ensureWebDomain(origin, headers, applicationId, target === 'production' ? 'praetorium.gg' : 'staging.praetorium.gg')
-    console.log(`Configured ${target} web domain`)
-    return
-  }
   const env = nodeEnvironment(process.env, target)
-  const response = await fetch(new URL('/api/application.saveEnvironment', origin), {
-    method: 'POST',
-    headers: { ...headers, 'content-type': 'application/json' },
-    body: JSON.stringify({
-      applicationId,
-      env,
-      buildArgs: application.buildArgs,
-      buildSecrets: application.buildSecrets,
-      createEnvFile: false,
-    }),
-    signal: AbortSignal.timeout(30_000),
+  // The client's error quotes Dokploy's answer, which may echo the secrets sent.
+  await api('application.saveEnvironment', {
+    body: { applicationId, env, buildArgs: application.buildArgs, buildSecrets: application.buildSecrets, createEnvFile: false },
+  }).catch(() => {
+    throw new Error('Dokploy environment save failed')
   })
-  if (!response.ok) throw new Error(`Dokploy environment save failed with HTTP ${response.status}`)
   if ((await inspect()).env !== env) throw new Error('Dokploy environment did not persist')
-  await ensureWebHealthCheck(origin, headers, applicationId)
-  await ensureWebDomain(origin, headers, applicationId, target === 'production' ? 'praetorium.gg' : 'staging.praetorium.gg')
+  await ensureWebHealthCheck(api, applicationId)
+  await ensureWebDomain(api, applicationId, webHost(target))
   console.log(`Configured ${target} web environment`)
 }
 

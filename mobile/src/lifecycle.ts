@@ -1,6 +1,6 @@
 import type { AppStateStatus } from 'react-native'
 
-export type AppLifecycle = {
+type AppLifecycle = {
   status: string | null | undefined
   backgrounded: boolean
 }

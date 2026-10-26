@@ -1,6 +1,6 @@
 import { expect, test } from './test'
-import { savedArmy } from './account'
-import { decodeSimulatorState } from '../src/contracts/simulatorState'
+import { savedArmy, nextFrames } from './account'
+import { simulatorState } from './combat'
 
 for (const choice of ['other side', 'same side', 'example'] as const)
   test(`a delayed roster read preserves the newer ${choice} selection`, async ({ page }) => {
@@ -15,10 +15,7 @@ for (const choice of ['other side', 'same side', 'example'] as const)
     const firstPicker = page.getByRole('combobox', { name: 'First roster', exact: true })
     const secondPicker = page.getByRole('combobox', { name: 'Second roster', exact: true })
     await expect(firstPicker).toBeVisible()
-    let release = () => {}
-    const gate = new Promise<void>((resolve) => {
-      release = resolve
-    })
+    const { promise: gate, resolve: release } = Promise.withResolvers<void>()
     let started = false
     await page.route('**/_serverFn/**', async (route) => {
       if ((decodeURIComponent(route.request().url()) + (route.request().postData() ?? '')).includes(id)) {
@@ -43,10 +40,10 @@ for (const choice of ['other side', 'same side', 'example'] as const)
       release()
       await (await delayedReply).finished()
       await page.unrouteAll({ behavior: 'wait' })
-      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+      await nextFrames(page)
       const expected = choice === 'other side' ? [id, second] : choice === 'same side' ? [second, null] : [null, null]
       const selected = () => {
-        const state = decodeSimulatorState(new URL(page.url()).searchParams.get('s') ?? undefined)
+        const state = simulatorState(page)
         return state?.sides.map((side) => side?.roster?.id ?? null)
       }
       await expect.poll(selected).toEqual(expected)

@@ -5,6 +5,7 @@
  * service that is slow or down must not fail or delay the write that caused it.
  */
 import pRetry from 'p-retry'
+import { chunks } from '../core/collections'
 
 export type PushMessage = { to: string; title: string; body: string; path: string }
 
@@ -12,7 +13,6 @@ export type PushSender = { send: (messages: readonly PushMessage[]) => Promise<v
 
 type PushSenderOptions = {
   accessToken: string
-  checkReceipts?: boolean
   /** Called with devices the service says no longer exist, so they stop being sent to. */
   onUnregistered: (tokens: string[]) => Promise<void> | void
   fetch?: typeof fetch
@@ -99,8 +99,8 @@ export function expoPushSender(options: PushSenderOptions): PushSender {
   async function checkReceipts(tickets: Map<string, string>) {
     const ids = [...tickets.keys()]
     const gone: string[] = []
-    for (let start = 0; start < ids.length; start += RECEIPTS_PER_REQUEST) {
-      const answer = (await post(RECEIPTS_URL, { ids: ids.slice(start, start + RECEIPTS_PER_REQUEST) })) as {
+    for (const batch of chunks(ids, RECEIPTS_PER_REQUEST)) {
+      const answer = (await post(RECEIPTS_URL, { ids: batch })) as {
         data?: Record<string, Outcome>
       } | null
       for (const [id, receipt] of Object.entries(answer?.data ?? {})) {
@@ -116,8 +116,7 @@ export function expoPushSender(options: PushSenderOptions): PushSender {
     async send(messages) {
       const gone: string[] = []
       const tickets = new Map<string, string>()
-      for (let start = 0; start < messages.length; start += MESSAGES_PER_REQUEST) {
-        const chunk = messages.slice(start, start + MESSAGES_PER_REQUEST)
+      for (const chunk of chunks(messages, MESSAGES_PER_REQUEST)) {
         const answer = (await post(
           SEND_URL,
           chunk.map((message) => ({
@@ -139,7 +138,7 @@ export function expoPushSender(options: PushSenderOptions): PushSender {
         })
       }
       await forget(gone)
-      if (tickets.size && options.checkReceipts !== false) later(() => void checkReceipts(tickets), RECEIPT_DELAY_MS)
+      if (tickets.size) later(() => void checkReceipts(tickets), RECEIPT_DELAY_MS)
     },
   }
 }

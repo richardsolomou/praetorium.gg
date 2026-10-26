@@ -1,7 +1,7 @@
 import { readSessionValue } from '../../storedValue'
 import { gettingStartedTaskIds, onboardingTaskIds, type OnboardingProgressOperation, type OnboardingTaskId } from '../../../core/onboarding'
 import type { OnboardingTarget } from '../../onboardingTargets'
-export { onboardingTargets, type OnboardingTarget } from '../../onboardingTargets'
+export type { OnboardingTarget } from '../../onboardingTargets'
 
 export const ONBOARDING_FOCUS_EVENT = 'praetorium:onboarding-focus'
 export const ONBOARDING_EVENT = 'praetorium:onboarding'
@@ -33,30 +33,7 @@ export function storedOnboardingFocus(userId: string): OnboardingFocus | undefin
   }
 }
 
-type OnboardingPage =
-  | 'home'
-  | 'rosters'
-  | 'roster'
-  | 'friends'
-  | 'battles'
-  | 'battle'
-  | 'simulator'
-  | 'leagues'
-  | 'league'
-  | 'factions'
-  | 'faction'
-  | 'detachment'
-  | 'datasheets'
-  | 'datasheet'
-  | 'missions'
-  | 'mission'
-  | 'leaderboard'
-  | 'rules'
-  | 'rule-document'
-  | 'rule-section'
-  | 'player'
-  | 'profile'
-  | 'data-updates'
+type OnboardingPage = 'home' | 'rosters' | 'roster' | 'friends' | 'battles' | 'battle' | 'simulator' | 'leagues' | 'league'
 
 export const onboardingStepIds = [
   'simulator-attacker',
@@ -781,7 +758,6 @@ export function focusAfterOnboardingOperation(focus: OnboardingFocus | undefined
 export function onboardingPage(pathname: string): OnboardingPage | undefined {
   if (pathname === '/') return 'home'
   if (pathname === '/simulator' || pathname === '/simulator/') return 'simulator'
-  if (pathname === '/data-updates' || pathname === '/data-updates/') return 'data-updates'
   if (/^\/battles\/[^/]+\/?$/.test(pathname)) return 'battle'
   if (pathname === '/friends') return 'friends'
   if (pathname === '/rosters' || pathname === '/rosters/') return 'rosters'
@@ -789,18 +765,5 @@ export function onboardingPage(pathname: string): OnboardingPage | undefined {
   if (pathname === '/battles' || pathname === '/battles/') return 'battles'
   if (pathname === '/tournaments' || pathname === '/tournaments/') return 'leagues'
   if (/^\/tournaments\/[^/]+\/?$/.test(pathname)) return 'league'
-  if (pathname === '/factions') return 'factions'
-  if (/^\/factions\/[^/]+\/detachments\/[^/]+\/?$/.test(pathname)) return 'detachment'
-  if (/^\/factions\/[^/]+\/datasheets\/[^/]+\/?$/.test(pathname)) return 'datasheet'
-  if (/^\/factions\/[^/]+\/datasheets\/?$/.test(pathname)) return 'datasheets'
-  if (/^\/factions\/[^/]+\/?$/.test(pathname)) return 'faction'
-  if (pathname === '/missions' || /^\/missions\/[^/]+\/?$/.test(pathname)) return 'missions'
-  if (/^\/missions\/[^/]+\/matchups\/[^/]+\/[^/]+\/?$/.test(pathname)) return 'mission'
-  if (pathname === '/leaderboard') return 'leaderboard'
-  if (pathname === '/rules') return 'rules'
-  if (/^\/rules\/[^/]+\/[^/]+\/?$/.test(pathname)) return 'rule-section'
-  if (/^\/rules\/[^/]+\/?$/.test(pathname)) return 'rule-document'
-  if (/^\/users\/[^/]+\/?$/.test(pathname)) return 'player'
-  if (pathname === '/profile') return 'profile'
   return undefined
 }

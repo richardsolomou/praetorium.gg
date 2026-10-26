@@ -4,10 +4,11 @@ import { useEffect, useEffectEvent, useMemo, useRef, useState, type Dispatch, ty
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
-import { ArrowUp, Crosshair, RotateCcw, Swords } from 'lucide-react'
+import { ArrowUp, RotateCcw } from 'lucide-react'
 import { ProfileGrid, WeaponProfiles } from '../../components/DatasheetProfiles'
 import type { Datasheet } from '../../../contracts/catalogue'
 import {
+  COMBAT_PHASES,
   combatGroupProtection,
   criticalThresholdMatters,
   halfRangeMatters,
@@ -18,13 +19,13 @@ import {
   type CombatInput,
   type CombatTargetGroup,
   type CombatOptions,
+  type CombatPhase,
 } from '../../../core/combat'
 import { combatUnitKeywords, combatUnitTarget } from '../../../core/combatUnit'
-import { combatMatchup, type CombatAnswer, type CombatantSnapshot, type CombatRequest } from '../../../core/combatMatchup'
+import { combatMatchup, noExclusions, type CombatAnswer, type CombatantSnapshot, type CombatRequest } from '../../../core/combatMatchup'
 import type { CombatAdjustments, TargetAdjustment, WeaponAdjustment } from '../../../core/combatAdjustments'
 import { wargearKey } from '../../../core/wargear'
-import { CombatRuleLabel } from './CombatRuleLabel'
-import { Chip, Choice, PhaseIcon } from './CombatControls'
+import { Chip, Choice, PHASE_TITLES, PhaseIcon } from './CombatControls'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { CombatResults } from './CombatResults'
 import { LoadoutOddsContext, LoadoutOptimizationContext, type LoadoutOptimization } from './LoadoutOdds'
@@ -33,7 +34,6 @@ import type { MatchupSettings } from '../../../contracts/simulatorState'
 import type { LoadoutSpace } from '../../../core/combatLoadouts'
 import { groupBy } from '../../../core/collections'
 import { Problem } from '../../components/Problem'
-import { countLabel } from '../../text'
 import { calculationInputs } from './calculationInputs'
 
 function weaponToggleGroups(entries: readonly { profile: Datasheet['profiles'][number]; count: number }[]) {
@@ -45,8 +45,9 @@ function weaponToggleGroups(entries: readonly { profile: Datasheet['profiles'][n
   ]
 }
 
-type Phase = CombatOptions['phase']
-type PhaseScope = Phase | 'all'
+type PhaseScope = CombatPhase | 'all'
+type AdjustmentSource = 'attack' | 'weapon' | 'target' | 'feelNoPain'
+const signed = (value: number) => `${value > 0 ? '+' : '−'}${Math.abs(value)}`
 type CombatEntryPoint = 'standalone' | 'roster' | 'battle'
 
 export function combatOutcomeEvent(answer: CombatAnswer, source: CombatEntryPoint) {
@@ -79,8 +80,7 @@ const grants = [
   ['devastating', 'Devastating Wounds'],
   ['damageReroll', 'Re-roll damage 1s'],
 ] as const
-const signedOptions = (values: readonly number[], name: string) =>
-  values.map((value) => [value, `${value > 0 ? '+' : '−'}${Math.abs(value)} ${name}`] as const)
+const signedOptions = (values: readonly number[], name: string) => values.map((value) => [value, `${signed(value)} ${name}`] as const)
 const rollOptions = (values: readonly number[], prefix: string) => values.map((value) => [value, `${prefix}${value}+`] as const)
 const situations = {
   ranged: [
@@ -90,14 +90,9 @@ const situations = {
   ],
   melee: [['charged', 'Charged']],
 } as const
-const phases = [
-  ['ranged', 'Shooting'],
-  ['melee', 'Melee'],
-] as const
+const phases = COMBAT_PHASES.map((phase) => [phase, PHASE_TITLES[phase]] as const)
 
 /** The same matchup surface accepts catalogue picks or already evaluated roster/battle units. */
-const VALID_ATTACHMENTS = {}
-
 export function CombatMatchup({
   entryPoint = 'standalone',
   attacker,
@@ -116,17 +111,17 @@ export function CombatMatchup({
   preferences,
   invalidatedPreferences = false,
   onPreferencesChange: setPreferences,
-  invalidAttachments = VALID_ATTACHMENTS,
+  invalidAttachments,
 }: {
   entryPoint?: CombatEntryPoint
   attacker: CombatantSnapshot | null
   defender: CombatantSnapshot | null
   pending?: boolean
   failed?: boolean
-  attackerControl?: ReactNode
-  defenderControl?: ReactNode
-  attackerBuffs?: ReactNode
-  defenderBuffs?: ReactNode
+  attackerControl: ReactNode
+  defenderControl: ReactNode
+  attackerBuffs: ReactNode
+  defenderBuffs: ReactNode
   inDialog?: boolean
   /** Situational settings restored from a shared link, and where to report changes. */
   initialSettings?: MatchupSettings
@@ -138,11 +133,11 @@ export function CombatMatchup({
   /** The attacker's weapon choices, when its loadout can change in this matchup. */
   loadoutSpace?: LoadoutSpace | null
   /** Which sides have illegal attachments, such as a Support unit without a Bodyguard unit, so they cannot be calculated. */
-  invalidAttachments?: { attacker?: boolean; defender?: boolean }
+  invalidAttachments: { attacker?: boolean; defender?: boolean }
 }) {
   const [adjustments, setAdjustments] = useState<CombatAdjustments>(initialSettings?.adjustments ?? {})
   const [modifiersOpen, setModifiersOpen] = useState(Boolean(Object.keys(initialSettings?.adjustments ?? {}).length))
-  const [excludedWeapons, setExcludedWeapons] = useState<Record<Phase, string[]>>(initialSettings?.excluded ?? { ranged: [], melee: [] })
+  const [excludedWeapons, setExcludedWeapons] = useState<Record<CombatPhase, string[]>>(initialSettings?.excluded ?? noExclusions())
   const [outcome, setOutcome] = useState<{ key: string; attempt: number; answer: CombatAnswer } | null>(null)
   const [retry, setRetry] = useState(0)
   const [invalidatedChoice, setInvalidatedChoice] = useState(false)
@@ -171,7 +166,7 @@ export function CombatMatchup({
   }, [invalidChoices, setPreferences])
   const allocateEarlier = (index: number) =>
     setAllocation(labels.map((label, at) => (at === index - 1 ? labels[index]! : at === index ? labels[index - 1]! : label)))
-  const defencesIn = (phase: Phase, settings: CombatAdjustments = adjustments) => matchup.defencesIn(phase, settings)
+  const defencesIn = (phase: CombatPhase, settings: CombatAdjustments = adjustments) => matchup.defencesIn(phase, settings)
   const rangedDefences = defencesIn('ranged')
   const meleeDefences = defencesIn('melee')
   const extraFeelNoPain = adjustments.feelNoPain ?? null
@@ -180,18 +175,26 @@ export function CombatMatchup({
   const feelNoPain = betterFeelNoPain(
     rangedDefences?.feelNoPain === meleeDefences?.feelNoPain ? rangedDefences?.feelNoPain : target?.target?.feelNoPain,
   )
-  const options = (phase: Phase, settings: CombatAdjustments = adjustments) => matchup.options(phase, settings)
-  const scenario = (phase: Phase, settings: CombatAdjustments = adjustments) => matchup.scenario(phase, settings)
+  const options = (phase: CombatPhase, settings: CombatAdjustments = adjustments) => matchup.options(phase, settings)
+  const scenario = (phase: CombatPhase, settings: CombatAdjustments = adjustments) => matchup.scenario(phase, settings)
   const scenarios = useMemo<CombatRequest>(
     () => ({ ranged: matchup.scenario('ranged', adjustments), melee: matchup.scenario('melee', adjustments), sequenceError }),
     [matchup, adjustments, sequenceError],
   )
+  const adjustmentValue = (scope: PhaseScope, source: AdjustmentSource, field: string) =>
+    source === 'weapon'
+      ? adjustments.weapons?.[scope]?.[field as keyof WeaponAdjustment]
+      : source === 'target'
+        ? adjustments.target?.[field as keyof TargetAdjustment]
+        : source === 'feelNoPain'
+          ? adjustments.feelNoPain
+          : adjustments[scope]?.[field as keyof Omit<CombatOptions, 'phase'>]
   const modifierChoiceHasEffect = (
     scope: PhaseScope,
-    source: 'attack' | 'weapon' | 'target' | 'feelNoPain',
+    source: AdjustmentSource,
     field: string,
     candidate: unknown,
-    onlyPhase?: Phase,
+    onlyPhase?: CombatPhase,
   ) => {
     const affected = onlyPhase
       ? [onlyPhase]
@@ -199,14 +202,7 @@ export function CombatMatchup({
         ? phases.map(([phase]) => phase)
         : [scope]
     if (!affected.some((phase) => scenarios[phase])) return true
-    const currentValue =
-      source === 'weapon'
-        ? adjustments.weapons?.[scope]?.[field as keyof WeaponAdjustment]
-        : source === 'target'
-          ? adjustments.target?.[field as keyof TargetAdjustment]
-          : source === 'feelNoPain'
-            ? adjustments.feelNoPain
-            : adjustments[scope]?.[field as keyof Omit<CombatOptions, 'phase'>]
+    const currentValue = adjustmentValue(scope, source, field)
     const nextValue = currentValue === candidate ? undefined : candidate
     const changed: CombatAdjustments =
       source === 'weapon'
@@ -231,23 +227,10 @@ export function CombatMatchup({
       return JSON.stringify(current) !== JSON.stringify(next)
     })
   }
-  const modifierHasEffect = (
-    scope: PhaseScope,
-    source: 'attack' | 'weapon' | 'target' | 'feelNoPain',
-    field: string,
-    onlyPhase?: Phase,
-  ) => {
-    const selected =
-      source === 'weapon'
-        ? adjustments.weapons?.[scope]?.[field as keyof WeaponAdjustment]
-        : source === 'target'
-          ? adjustments.target?.[field as keyof TargetAdjustment]
-          : source === 'feelNoPain'
-            ? adjustments.feelNoPain
-            : adjustments[scope]?.[field as keyof Omit<CombatOptions, 'phase'>]
-    return modifierChoiceHasEffect(scope, source, field, selected, onlyPhase)
+  const modifierHasEffect = (scope: PhaseScope, source: AdjustmentSource, field: string, onlyPhase?: CombatPhase) => {
+    return modifierChoiceHasEffect(scope, source, field, adjustmentValue(scope, source, field), onlyPhase)
   }
-  const noEffectReason = (scope: PhaseScope, source: 'attack' | 'weapon' | 'target' | 'feelNoPain', field: string, candidate?: unknown) => {
+  const noEffectReason = (scope: PhaseScope, source: AdjustmentSource, field: string, candidate?: unknown) => {
     const affected = scope === 'all' ? phases.map(([phase]) => phase) : [scope]
     const active = affected.flatMap((phase) => (scenarios[phase] ? [scenarios[phase]] : []))
     if (
@@ -391,7 +374,7 @@ export function CombatMatchup({
       apply: (optimizedPreferences: Record<string, string>) => {
         setPreferences(optimizedPreferences)
         setInvalidatedChoice(false)
-        setExcludedWeapons({ ranged: [], melee: [] })
+        setExcludedWeapons(noExclusions())
       },
     }),
     [optimizationKey, setPreferences],
@@ -407,17 +390,11 @@ export function CombatMatchup({
     [...Object.values(adjustments[scope] ?? {}), ...Object.values(weaponAdjustment(scope))].filter(
       (value) => value !== undefined && value !== 'direct',
     ).length
-  const phaseSummary = (phase: Phase) => {
+  const phaseSummary = (phase: CombatPhase) => {
     const applied: string[] = []
     const sourced: string[] = []
     const limits: string[] = []
-    const add = (
-      scope: PhaseScope,
-      source: 'attack' | 'weapon' | 'target' | 'feelNoPain',
-      field: string,
-      label: string,
-      value: unknown,
-    ) => {
+    const add = (scope: PhaseScope, source: AdjustmentSource, field: string, label: string, value: unknown) => {
       if (value === undefined || value === null) return
       if (modifierHasEffect(scope, source, field, phase)) applied.push(label)
     }
@@ -428,7 +405,7 @@ export function CombatMatchup({
     if (sourceOptions.woundReroll !== 'none' && resolved.woundReroll === sourceOptions.woundReroll)
       sourced.push(`${sourceOptions.woundReroll === 'ones' ? 'Re-roll wound 1s' : 'Re-roll wounds'} from rules`)
     for (const scope of ['all', phase] as const) {
-      const name = scope === 'all' ? 'All' : phase === 'ranged' ? 'Shooting' : 'Melee'
+      const name = scope === 'all' ? 'All' : PHASE_TITLES[phase]
       const attack = adjustments[scope] ?? {}
       const weapon = weaponAdjustment(scope)
       for (const [field, label] of [
@@ -436,7 +413,7 @@ export function CombatMatchup({
         ['woundModifier', 'to wound'],
       ] as const) {
         const value = attack[field]
-        if (value) applied.push(`${value > 0 ? '+' : '−'}${Math.abs(value)} ${label} (${name})`)
+        if (value) applied.push(`${signed(value)} ${label} (${name})`)
       }
       for (const [field, label] of [
         ['hitReroll', 'hit'],
@@ -472,7 +449,7 @@ export function CombatMatchup({
         ['damage', 'Damage'],
       ] as const) {
         const value = weapon[field]
-        if (value) add(scope, 'weapon', field, `${value > 0 ? '+' : '−'}${Math.abs(value)} ${label} (${name})`, value)
+        if (value) add(scope, 'weapon', field, `${signed(value)} ${label} (${name})`, value)
       }
       if (weapon.criticalHit) add(scope, 'weapon', 'criticalHit', `Critical hits on ${weapon.criticalHit}+ (${name})`, weapon.criticalHit)
       if (weapon.criticalWound)
@@ -493,7 +470,7 @@ export function CombatMatchup({
       ['save', 'Save'],
     ] as const) {
       const value = adjustments.target?.[field]
-      if (value) add('all', 'target', field, `${value > 0 ? '+' : '−'}${Math.abs(value)} defender ${label}`, value)
+      if (value) add('all', 'target', field, `${signed(value)} defender ${label}`, value)
     }
     const targetAdjustments = adjustments.target
     if (targetAdjustments?.invulnerable)
@@ -540,14 +517,12 @@ export function CombatMatchup({
             className="min-w-0 border-b border-edge @xl:border-r @xl:border-b-0"
           >
             <LoadoutOddsContext.Provider value={loadoutOdds}>
-              <LoadoutOptimizationContext.Provider value={optimizationContext}>
-                {attackerControl ?? <CombatantHeading side="Attacker" unit={attacker} />}
-              </LoadoutOptimizationContext.Provider>
+              <LoadoutOptimizationContext.Provider value={optimizationContext}>{attackerControl}</LoadoutOptimizationContext.Provider>
             </LoadoutOddsContext.Provider>
             <CombatDefences unit={attacker} />
           </section>
           <section data-onboarding="simulator-defender" aria-label="Defender" className="min-w-0">
-            {defenderControl ?? <CombatantHeading side="Defender" unit={defender} />}
+            {defenderControl}
             <CombatDefences
               unit={defender}
               feelNoPain={feelNoPain}
@@ -588,11 +563,7 @@ export function CombatMatchup({
               return (
                 <section key={phase} aria-label={`${title} results`} aria-busy={valid && updating && !failed} className="min-w-0 space-y-2">
                   <h2 className="rubric flex items-center gap-2">
-                    {phase === 'ranged' ? (
-                      <Crosshair className="size-4 text-info" aria-hidden />
-                    ) : (
-                      <Swords className="size-4 text-info" aria-hidden />
-                    )}
+                    <PhaseIcon phase={phase} className="size-4" />
                     {title}
                   </h2>
                   {!plan?.used.length ? (
@@ -659,8 +630,8 @@ export function CombatMatchup({
               Rules & buffs
             </summary>
             <div className="grid gap-4 pb-3 @xl:grid-cols-2">
-              {attackerBuffs ?? <CombatUnitRules side="Attacker" unit={attacker} />}
-              {defenderBuffs ?? <CombatUnitRules side="Defender" unit={defender} />}
+              {attackerBuffs}
+              {defenderBuffs}
             </div>
           </details>
           <section aria-label="Modifiers" className="border-t border-edge">
@@ -699,7 +670,7 @@ export function CombatMatchup({
                         setAdjustments({})
                         setPreferences({})
                         setInvalidatedChoice(false)
-                        setExcludedWeapons({ ranged: [], melee: [] })
+                        setExcludedWeapons(noExclusions())
                       }}
                     >
                       <RotateCcw aria-hidden />
@@ -985,16 +956,6 @@ export function CombatMatchup({
   )
 }
 
-function CombatantHeading({ side, unit }: { side: string; unit: CombatantSnapshot | null }) {
-  return (
-    <div className="min-w-0 p-3 sm:p-4">
-      <h2 className="rubric">{side}</h2>
-      <p className="mt-2 text-sm">{unit?.sheet.name ?? 'Select a unit'}</p>
-      {unit ? <p className="mt-1 text-xs text-dim">{countLabel(unit.models, 'model')}</p> : null}
-    </div>
-  )
-}
-
 function CombatDefences({
   unit,
   feelNoPain,
@@ -1115,22 +1076,4 @@ function ChipFamily<T>({
       }
     />
   ))
-}
-
-function CombatUnitRules({ side, unit }: { side: string; unit: CombatantSnapshot | null }) {
-  if (!unit?.sheet.abilities.length) return null
-  return (
-    <section aria-label={`${side} rules`} className="space-y-2">
-      <h3 className="rubric">{side}</h3>
-      {unit.sheet.abilities.map((ability) => (
-        <CombatRuleLabel
-          key={ability.id}
-          side={side}
-          name={ability.name}
-          description={ability.description}
-          rules={unit.sheet.keywordRules}
-        />
-      ))}
-    </section>
-  )
 }

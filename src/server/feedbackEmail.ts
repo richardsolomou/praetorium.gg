@@ -1,5 +1,6 @@
 import { version } from '../../package.json'
 import type { FeedbackEmailInput } from '../contracts/feedback'
+import { escapeHtml } from './escapeHtml'
 
 /** Comfortably inside what mail servers accept for one plain-text body. */
 export const FEEDBACK_EMAIL_MAX_BYTES = 64 * 1024
@@ -26,11 +27,9 @@ export function feedbackEmail(input: FeedbackEmailInput, sender: Sender) {
   return { subject: 'Praetorium import failure', text, html: textHtml(text) }
 }
 
-const HTML_ESCAPES: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
-
 /** Some mail clients reflow a plain-text body into one paragraph, so the HTML part keeps every line and links its URLs. */
 function textHtml(text: string) {
-  const escaped = text.replace(/[&<>"']/g, (character) => HTML_ESCAPES[character]!)
+  const escaped = escapeHtml(text)
   const linked = escaped.replace(/https:\/\/[^\s<]+/g, (url) => `<a href="${url}">${url}</a>`)
   return `<div style="font-family:monospace">${linked.replaceAll('\n', '<br>')}</div>`
 }

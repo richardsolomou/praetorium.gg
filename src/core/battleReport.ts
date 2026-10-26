@@ -15,6 +15,7 @@ import {
   type BattleMoment,
   type BattleState,
   type Command,
+  commandTarget,
   emptyBattle,
   type LoggedCommand,
   type Phase,
@@ -25,6 +26,7 @@ import {
   pointsSize,
   transportLabel,
 } from './battle'
+import { capitalised } from './text'
 
 /** One thing that happened, in the words a player would use about it. */
 export type ReportEntry = {
@@ -224,7 +226,7 @@ function describe(
       const scores = command.scores.map((score) => {
         if (score.category === 'primary') return `${score.delta} primary VP`
         const secondary = player?.secondaries.find((candidate) => candidate.key === score.key)
-        const hidden = player?.secretSecondary === score.key && !player.secretRevealed && !sameSide(after, viewerId ?? null, targetId)
+        const hidden = player && !mayNameCard(after, viewerId ?? null, player, score.key)
         return `${score.delta} VP on ${hidden ? 'a secret mission' : (secondary?.name ?? 'a secondary')}`
       })
       return `${who} settles ${scores.join(', ')}${forTarget}`
@@ -245,22 +247,18 @@ function describe(
       return `${who} cancels the phase advance${forTarget}`
     case 'score-secondary': {
       const secondary = player?.secondaries.find((candidate) => candidate.key === command.key)
-      const name =
-        player?.secretSecondary === command.key && !player.secretRevealed && !sameSide(after, viewerId ?? null, targetId)
-          ? 'a secret mission'
-          : secondary?.name
+      const name = player && !mayNameCard(after, viewerId ?? null, player, command.key) ? 'a secret mission' : secondary?.name
       return `${who} scores ${command.delta} on ${name ?? 'a secondary'}${forTarget}`
     }
     case 'set-secondary-status': {
       const secondary = player?.secondaries.find((candidate) => candidate.key === command.key)
-      const hidden = player?.secretSecondary === command.key && !player.secretRevealed && !sameSide(after, viewerId ?? null, targetId)
+      const hidden = player && !mayNameCard(after, viewerId ?? null, player, command.key)
       const name = hidden ? 'a secret mission' : (secondary?.name ?? 'a secondary')
       // Putting a card back is not giving up on it: it goes back in the deck to be drawn again, not to the bin.
       if (command.status === 'returned') return `${who} puts ${name} back in the deck${forTarget}`
       return `${who} marks ${name} ${command.status}${forTarget}`
     }
     case 'draw-secondary':
-      return `${who} ${drawDescription(command, player)}${forTarget}`
     case 'draw-secondaries':
       return `${who} ${drawDescription(command, player)}${forTarget}`
     case 'select-secret': {
@@ -313,10 +311,6 @@ function missedLabel(moment: BattleMoment, named: Map<PlayerId, string>): string
   return `, recorded late for round ${moment.round}, ${named.get(moment.turn) ?? 'another player'}’s ${moment.phase} phase`
 }
 
-function commandTarget(command: Command, by: PlayerId): PlayerId {
-  return 'playerId' in command && command.playerId ? command.playerId : by
-}
-
 function drawDescription(
   command: Extract<Command, { kind: 'draw-secondary' | 'draw-secondaries' }>,
   player: PlayerState | undefined,
@@ -327,8 +321,4 @@ function drawDescription(
 }
 
 /** A slug the data never gave a printed name, put into the case a sentence needs. */
-const titled = (slug: string) =>
-  slug
-    .split('-')
-    .map((word) => word.charAt(0).toLocaleUpperCase() + word.slice(1))
-    .join(' ')
+const titled = (slug: string) => slug.split('-').map(capitalised).join(' ')

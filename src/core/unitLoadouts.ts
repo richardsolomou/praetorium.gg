@@ -5,12 +5,10 @@ import type { RosterPick } from './roster'
 
 export const UNIT_LOADOUT_NAME_MAX_LENGTH = 80
 export const UNIT_LOADOUTS_MAX = 100
-export const UNIT_LOADOUT_JOINED_MAX = 4
+const UNIT_LOADOUT_JOINED_MAX = 4
 
 /** What a saved loadout keeps of a unit: its datasheet, squad size, wargear and nickname. */
-export const unitLoadoutPickSchema = rosterPickSchema
-  .pick({ entryId: true, models: true, choices: true, spreads: true, nickname: true })
-  .strict()
+const unitLoadoutPickSchema = rosterPickSchema.pick({ entryId: true, models: true, choices: true, spreads: true, nickname: true }).strict()
 
 /** A unit attached within the loadout, joining the loadout's own unit (0) or an earlier joined unit (1 onwards). */
 const joinedPickSchema = unitLoadoutPickSchema

@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { signUp, uniqueName } from './account'
+import { signUp, uniqueName, signOut, PHONE } from './account'
 
 async function installInspector(page: Page) {
   await page.addInitScript(() => {
@@ -67,11 +67,7 @@ test('browser agents discover the full MCP surface and account tools disappear o
   await expect.poll(() => names(page)).toHaveLength(19)
   const factions = await call(page, 'list_factions')
   expect(factions.structuredContent?.factions).toBeInstanceOf(Array)
-  await page
-    .locator('[data-web-app-chrome]')
-    .getByRole('button', { name: /Account menu for/ })
-    .click()
-  await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click()
+  await signOut(page)
   await expect.poll(() => names(page)).toHaveLength(11)
 })
 
@@ -84,9 +80,9 @@ test('declining a browser-agent write leaves saved data unchanged; approving wri
   await start(page, 'create_battle', { opponentId: 'practice-opponent-1', limit: 2000 })
   const dialog = page.getByRole('dialog', { name: 'Create a battle' })
   await expect(dialog).toBeVisible()
-  await page.screenshot({ path: 'test-results/webmcp-approval-desktop.png' })
-  await page.setViewportSize({ width: 390, height: 844 })
-  await page.screenshot({ path: 'test-results/webmcp-approval-phone.png' })
+  await page.screenshot({ path: test.info().outputPath('webmcp-approval-desktop.png') })
+  await page.setViewportSize(PHONE)
+  await page.screenshot({ path: test.info().outputPath('webmcp-approval-phone.png') })
   await dialog.getByRole('button', { name: 'Decline', exact: true }).click()
   expect(await call(page, 'list_my_battles')).toEqual(before)
   await start(page, 'create_battle', { opponentId: 'practice-opponent-1', limit: 2000 })

@@ -16,6 +16,10 @@ export const NATIVE_BROWSER_BRIDGE_SCRIPT = `${NATIVE_BRIDGE_SCRIPT}
   };
 })();`
 
+/** A shell that ignores every message, for pages that only need to run as the app. */
+export const NATIVE_SHELL_SCRIPT = `window.ReactNativeWebView = { postMessage: () => {} };
+${NATIVE_BROWSER_BRIDGE_SCRIPT}`
+
 /**
  * The shell's saved-work store as `mobile/src/localStateStorage.ts` keeps it: a write lands only at
  * the revision it was read at, and every answer arrives after a round trip.

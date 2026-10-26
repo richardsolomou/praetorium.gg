@@ -102,6 +102,32 @@ describe('costs', () => {
     expect(result.costs.pts).toBe(150)
   })
 
+  it('are measured by a condition at the price a link charges', () => {
+    const result = evaluateOne(
+      { id: 'squad', selections: [{ id: 'gun-link' }] },
+      {
+        sharedSelectionEntries: [
+          {
+            id: 'squad',
+            name: 'Squad',
+            type: 'unit',
+            entryLinks: [{ id: 'gun-link', targetId: 'gun', type: 'selectionEntry', costs: points(20) }],
+            modifiers: [
+              {
+                type: 'increment',
+                field: PTS,
+                value: 1,
+                conditions: [{ type: 'atLeast', value: 20, field: PTS, scope: 'squad', childId: 'any', includeChildSelections: true }],
+              },
+            ],
+          },
+          { id: 'gun', name: 'Gun', type: 'upgrade', costs: points(10) },
+        ],
+      },
+    )
+    expect(result.points).toBe(21)
+  })
+
   it('applies a conditional base price before multiplying it', () => {
     const result = evaluateOne(
       { id: 'agents', selections: [{ id: 'body', count: 12 }] },

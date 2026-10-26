@@ -1,14 +1,11 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import { INDEXNOW_BATCH, INDEXNOW_KEY_PATH, indexNowKey, sitemapChanges } from '../src/server/indexNow.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { waitForWebRevision } from './lib/webReadiness.ts'
 import { setTimeout as delay } from 'node:timers/promises'
 
 const ENDPOINT = 'https://api.indexnow.org/indexnow'
-
-/** Replicas update one at a time, so the new revision must answer several health checks in a row. */
-const SETTLED_CHECKS = 5
-const HEALTH_ATTEMPTS = 120
-const HEALTH_INTERVAL_MS = 5000
+const HEALTH_INTERVAL_MS = 5_000
 
 type Options = {
   key: string | undefined
@@ -21,18 +18,6 @@ type Options = {
   sleep?: (ms: number) => Promise<void>
 }
 
-/** Waits until every replica serves `revision`, so the sitemap read next is the new one. */
-async function settled(origin: string, revision: string, request: typeof fetch, sleep: (ms: number) => Promise<void>) {
-  let streak = 0
-  for (let attempt = 0; attempt < HEALTH_ATTEMPTS; attempt += 1) {
-    const response = await request(new URL('/api/health', origin), { cache: 'no-store' })
-    streak = response.ok && response.headers.get('x-praetorium-revision') === revision ? streak + 1 : 0
-    if (streak === SETTLED_CHECKS) return
-    await sleep(HEALTH_INTERVAL_MS)
-  }
-  throw new Error(`${origin} did not settle on ${revision}`)
-}
-
 /**
  * Submits the pages a deploy added or re-dated in the sitemap. A missing key, or no earlier
  * sitemap to compare with, submits nothing rather than every page on the site.
@@ -41,7 +26,13 @@ export async function submitIndexNow({ key: configured, revision, origin, before
   const key = indexNowKey(configured)
   if (!key) return console.log('IndexNow is not configured; nothing submitted')
   if (!before.includes('<urlset')) return console.log('No earlier sitemap to compare with; nothing submitted')
-  await settled(origin, revision, request, sleep)
+  // Every replica must serve `revision` before the sitemap read next is the new one.
+  await waitForWebRevision(origin, revision, {
+    request,
+    pause: () => sleep(HEALTH_INTERVAL_MS),
+    timeoutMs: 120 * HEALTH_INTERVAL_MS,
+    consecutive: 5,
+  })
   const keyFile = await request(new URL(INDEXNOW_KEY_PATH, origin), { cache: 'no-store' })
   if (!keyFile.ok || (await keyFile.text()).trim() !== key)
     throw new Error(`${origin}${INDEXNOW_KEY_PATH} does not serve the configured key`)

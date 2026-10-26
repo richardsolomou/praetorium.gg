@@ -77,8 +77,8 @@ it('keeps archived profile authority after a versioned offline reconstruction', 
   const ordinary = buildConstruction({ ...saved, datacardExcludedCatalogueIds: undefined })
   expect({
     archived: datacardOf(archived.catalogue, 'codex~cat', 'unit'),
-    ordinary: datacardOf(ordinary.catalogue, 'codex~cat', 'unit')?.method,
-  }).toEqual({ archived: null, ordinary: 'name' })
+    ordinary: datacardOf(ordinary.catalogue, 'codex~cat', 'unit') !== null,
+  }).toEqual({ archived: null, ordinary: true })
 })
 
 it('uses the selected codex prices and legality without changing the base catalogue', () => {

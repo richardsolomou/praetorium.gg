@@ -1,3 +1,4 @@
+import type { CombatPhase } from '../../../core/combat'
 import { useState, type ReactNode } from 'react'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Switch } from '@/components/ui/switch'
@@ -156,8 +157,13 @@ export function SimulationMode({
   )
 }
 
+export const PHASE_TITLES = { ranged: 'Shooting', melee: 'Melee' } as const
+
+/** Lets a picker's list grow past a narrow trigger so unit and roster names stay readable. */
+export const PICKER_POPUP = 'min-w-[min(20rem,var(--available-width))]'
+
 /** Without a title the icon only decorates a heading that already names the phase. */
-export function PhaseIcon({ phase, title }: { phase: 'ranged' | 'melee'; title?: string }) {
+export function PhaseIcon({ phase, title, className = 'size-3.5' }: { phase: CombatPhase; title?: string; className?: string }) {
   const Icon = phase === 'ranged' ? Crosshair : Swords
-  return <Icon className="size-3.5 shrink-0 text-info" aria-label={title} aria-hidden={title ? undefined : true} />
+  return <Icon className={cn(className, 'shrink-0 text-info')} aria-label={title} aria-hidden={title ? undefined : true} />
 }

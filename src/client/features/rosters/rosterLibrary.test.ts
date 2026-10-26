@@ -5,12 +5,11 @@ import type { RosterPick } from '../../../core/roster'
 import { saveRosterSchema } from '../../../contracts/schemas'
 import { reviewRosterSetup, type RosterSetupReview } from './rosterSetupReview'
 
-const reads = vi.hoisted(() => ({ sharedRoster: vi.fn(), saveRoster: vi.fn(), priceRoster: vi.fn() }))
+const reads = vi.hoisted(() => ({ sharedRoster: vi.fn(), saveRoster: vi.fn(), priceRoster: vi.fn(), exportRoster: vi.fn() }))
 vi.mock('../../functions', () => ({
   ...reads,
   copyRoster: vi.fn(),
   deleteRoster: vi.fn(),
-  exportRoster: vi.fn(),
   setRosterVisibility: vi.fn(),
 }))
 vi.mock('@tanstack/react-query', () => ({ useMutation: (options: unknown) => options, useQueryClient: () => ({}) }))
@@ -124,4 +123,13 @@ it('keeps a refused reviewed library save as a failure', async () => {
   const review = await reviewRosterSetup('saved', { ...setup, limit: 1000 })
   reads.saveRoster.mockRejectedValue(new Error('This roster changed after your review.'))
   await expect(action().mutationFn(review)).rejects.toThrow('changed after your review')
+})
+
+it('exports a library roster with its agreed points limit', async () => {
+  reads.sharedRoster.mockResolvedValue({ ...source, pointsBudget: 1750 })
+  const take = useRosterActions('https://praetorium.gg').take as unknown as {
+    mutationFn: (input: { roster: { id: string }; title: string }) => Promise<unknown>
+  }
+  await take.mutationFn({ roster: { id: 'saved' }, title: 'Untitled' })
+  expect(reads.exportRoster.mock.calls[0]![0].data.pointsBudget).toBe(1750)
 })

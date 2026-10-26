@@ -150,14 +150,16 @@ it.skipIf(!url || !database || !token)('commits offline battle creation and its 
         userId: owner,
         opponentIds: [randomUUID()],
         now: Date.now(),
-        initialCommand: {
-          kind: 'configure-battle',
-          limit: null,
-          missionPackId: null,
-          terrainLayoutId: null,
-          twistId: null,
-          clockLimitMinutes: null,
-        },
+        initialCommands: [
+          {
+            kind: 'configure-battle',
+            limit: null,
+            missionPackId: null,
+            terrainLayoutId: null,
+            twistId: null,
+            clockLimitMinutes: null,
+          },
+        ],
       }),
     )
     expect((await operator.syncReceipt(id, owner, fingerprint))?.outcome).toBe('applied')

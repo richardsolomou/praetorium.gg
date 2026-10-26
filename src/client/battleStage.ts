@@ -1,7 +1,7 @@
 /** Share stage labels and colors across battle lists, with setup amber, live green, and finished grey. */
-export type BattleStatus = 'setup' | 'playing' | 'finished'
+type BattleStatus = 'setup' | 'playing' | 'finished'
 
-export type BattleStage = { name: string; tint: string }
+type BattleStage = { name: string; tint: string }
 
 const STAGES: Record<BattleStatus, BattleStage> = {
   setup: { name: 'Setting up', tint: 'text-discarded' },

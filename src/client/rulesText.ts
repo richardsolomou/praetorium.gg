@@ -3,6 +3,7 @@ import { posthog } from 'posthog-js'
 import { useEffect } from 'react'
 import type { RuleDocument, RuleTextSource } from '../contracts/rules'
 import { ruleDocumentFrom } from '../shared/ruleDocuments'
+import { toggled } from '../core/collections'
 import { TEXT_SOURCES, type TextSource } from '../shared/sourceText'
 import { isFetchNetworkFailure } from './networkErrors'
 import { readStoredValue, subscribeStoredValues, useStoredValue, writeStoredValue } from './storedValue'
@@ -78,12 +79,7 @@ export const chooseTextSources = (sources: Iterable<TextSource>) => {
   writeStoredValue(KEY, TEXT_SOURCES.filter((source) => chosen.has(source)).join(','))
 }
 
-export function chooseTextSource(source: TextSource, load: boolean) {
-  const chosen = new Set(textSourceChoice().sources)
-  if (load) chosen.add(source)
-  else chosen.delete(source)
-  chooseTextSources(chosen)
-}
+export const chooseTextSource = (source: TextSource, load: boolean) => chooseTextSources(toggled(textSourceChoice().sources, source, load))
 
 export const hex = (digest: ArrayBuffer) => Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 
@@ -102,7 +98,7 @@ class UpstreamTextError extends Error {
   }
 }
 
-export type TextLoadFailure = { reason: 'network' | 'http' | 'mismatch' | 'invalid'; status?: number }
+type TextLoadFailure = { reason: 'network' | 'http' | 'mismatch' | 'invalid'; status?: number }
 
 /** Why a rules text file did not load, never the error's message. */
 export function textLoadFailure(error: unknown): TextLoadFailure {

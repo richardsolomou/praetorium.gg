@@ -1,5 +1,5 @@
 import { bracketedRuleReferences } from '../core/ruleReference'
-import { titleCaseAbility } from './catalogueAbilityGrants'
+import { titleCaseAbility, weaponProfileTypes } from './catalogueAbilityGrants'
 import { hasTextTokens, textKey, textTokensIn, withoutText } from './sourceText'
 
 /**
@@ -16,7 +16,7 @@ export type TextFacts = {
   reserveExemption?: true
   references?: string[]
 }
-export type WeaponAbilityGrant = { keyword: string; recipients: string; exclusions?: string; profileTypes: string[] }
+type WeaponAbilityGrant = { keyword: string; recipients: string; exclusions?: string; profileTypes: string[] }
 
 /** The facts one source text states, with nothing kept for a text that states none. */
 export function textFactsOf(words: string): TextFacts | null {
@@ -74,13 +74,11 @@ function unconditionalWeaponAbilityGrants(description: string): WeaponAbilityGra
     /(?:^|[.!?]\s+)(?:[-■]\s*)?(?:In addition,\s+)?(?:(ranged|melee)\s+)?weapons equipped by (.+?) models(?: \((?:excluding|except) (.+?) models\))? from your army have the \[([^\]]+)\] ability(?=[.,]|$)/giu
   const normalized = description.normalize('NFKC').replaceAll(/\^\^|\*\*/g, '')
   for (const match of normalized.matchAll(pattern)) {
-    const weaponType = match[1]?.toLowerCase()
     grants.push({
       keyword: titleCaseAbility(match[4]!),
       recipients: match[2]!,
       ...(match[3] ? { exclusions: match[3] } : {}),
-      profileTypes:
-        weaponType === 'ranged' ? ['Ranged Weapons'] : weaponType === 'melee' ? ['Melee Weapons'] : ['Ranged Weapons', 'Melee Weapons'],
+      profileTypes: weaponProfileTypes(match[1]),
     })
   }
   return grants

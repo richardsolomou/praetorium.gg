@@ -14,20 +14,19 @@ type Rule = 'infiltrators' | 'scouts'
  *
  * An attached unit is one unit and is listed once, carrying only what every part of
  * it carries — both these abilities ask that every model in the unit has them.
+ * Nothing is recorded: where a model stands is the board's business.
  */
 export function PrebattleUnits({ sides, rule, empty }: { sides: Side[]; rule: Rule; empty: string }) {
   return (
-    <>
-      <div className="grid items-start gap-6 lg:grid-cols-2">
-        {sides.map((side) => (
-          <SetupSidePanel key={side.index} side={side} className="space-y-3">
-            {side.armies.map((army) => (
-              <ArmyRules key={army.playerId} army={army} rule={rule} empty={empty} multiple={side.armies.length > 1} />
-            ))}
-          </SetupSidePanel>
-        ))}
-      </div>
-    </>
+    <div className="grid items-start gap-6 lg:grid-cols-2">
+      {sides.map((side) => (
+        <SetupSidePanel key={side.index} side={side} className="space-y-3">
+          {side.armies.map((army) => (
+            <ArmyRules key={army.playerId} army={army} rule={rule} empty={empty} multiple={side.armies.length > 1} />
+          ))}
+        </SetupSidePanel>
+      ))}
+    </div>
   )
 }
 

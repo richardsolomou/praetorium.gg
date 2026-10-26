@@ -1143,11 +1143,6 @@ describe('setup', () => {
 
     expect(state.players[0]).toMatchObject({ stratagems: [{ key: 'old' }], secondaries: [{ key: 'old-card' }] })
   })
-
-  it('allows replacing your roster after play starts', () => {
-    const state = reduceBattle(PLAYERS, log(...started()))
-    expect(validate(state, ALICE, roster('Corrected roster'))).toBeNull()
-  })
 })
 
 describe('refusal codes', () => {

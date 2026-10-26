@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { signUp, uniqueName } from './account'
+import { signUp, uniqueName, signOut } from './account'
 
 test.use({ launchOptions: { args: ['--enable-blink-features=WebMCP,WebMCPTesting'] } })
 
@@ -24,10 +24,6 @@ test('the native browser API registers, executes and removes Praetorium tools', 
     return JSON.parse(await context.executeTool(tool, {}))
   })
   expect(result.structuredContent.rosters).toEqual([])
-  await page
-    .locator('[data-web-app-chrome]')
-    .getByRole('button', { name: /Account menu for/ })
-    .click()
-  await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click()
+  await signOut(page)
   await expect.poll(() => page.evaluate(nativeTools)).toHaveLength(11)
 })

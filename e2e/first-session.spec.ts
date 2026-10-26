@@ -4,13 +4,18 @@ import {
   attachRoster,
   createRoster,
   PRACTICE_OPPONENT,
-  retryUntilVisible,
   setupStep,
   signUp,
   startBattle,
   uniqueName,
   visitorSetup,
+  chooseFaction,
+  chooseOption,
+  concede,
+  openImport,
+  PHONE,
 } from './account'
+import { guestDraft } from './storage'
 
 const rosterText = `First army (65 Points)
 
@@ -29,9 +34,7 @@ Immortals (65 Points)
 Exported with BattleBase, Data Version: v20260812`
 
 test('a guest reviews, imports and saves their first list', async ({ page }, testInfo) => {
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const dialog = await openImport(page)
   await dialog.getByLabel('Roster text').fill(rosterText)
   await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(dialog).toContainText('1 of 1 matched entry')
@@ -42,7 +45,7 @@ test('a guest reviews, imports and saves their first list', async ({ page }, tes
   await page.setViewportSize({ width: 1440, height: 900 })
   await dialog.getByRole('button', { name: 'Open imported draft', exact: true }).click()
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft'))).toContain('"picks":[{')
+  await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
   await page.reload()
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
   const save = page.getByRole('button', { name: 'Save roster', exact: true })
@@ -50,7 +53,7 @@ test('a guest reviews, imports and saves their first list', async ({ page }, tes
     await page.setViewportSize({ width, height: 900 })
     if (width < 1300) {
       const add = page.getByRole('button', { name: 'Add units', exact: true })
-      expect((await save.boundingBox())?.height).toBe((await add.boundingBox())?.height)
+      expect((await save.boundingBox())!.height).toBe((await add.boundingBox())!.height)
     } else {
       expect((await save.boundingBox())!.height).toBeLessThan(44)
     }
@@ -68,13 +71,11 @@ test('a guest reviews, imports and saves their first list', async ({ page }, tes
 })
 
 test('an import names a missing unit and lets the guest correct the text before opening a draft', async ({ page }) => {
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const dialog = await openImport(page)
   await dialog.getByLabel('Roster text').fill(rosterText.replace('Immortals (65 Points)', 'Imaginary unit (65 Points)'))
   await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(dialog.getByRole('alert')).toContainText('Imaginary unit')
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft'))).toBeNull()
+  await expect.poll(() => guestDraft(page)).toBe('')
   await dialog.getByRole('button', { name: 'Edit pasted text', exact: true }).click()
   await dialog.getByLabel('Roster text').fill(rosterText)
   await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
@@ -86,9 +87,7 @@ test('the first roster names each missing setup choice', async ({ page }, testIn
   const setup = await visitorSetup(page)
   const start = setup.getByRole('button', { name: 'Create roster', exact: true })
   await expect(start).toHaveAccessibleDescription('Choose your faction.')
-  await retryUntilVisible(page.getByPlaceholder('Search factions…'), () => setup.getByRole('combobox', { name: 'Faction' }).click())
-  await page.getByPlaceholder('Search factions…').fill('Necrons')
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  await chooseFaction(setup, 'Necrons')
   await expect(start).toHaveAccessibleDescription('Choose a detachment.')
   await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
   await expect(start).toHaveAccessibleDescription('Choose a Force disposition.')
@@ -126,8 +125,7 @@ test('a casual player practises a round, corrects an action and reviews the fini
   await page.goto('/battles')
   await page.getByRole('button', { name: 'New battle', exact: true }).first().click()
   const dialog = page.getByRole('dialog', { name: 'Start a battle', exact: true })
-  await dialog.getByRole('combobox', { name: 'Opponent', exact: true }).click()
-  await page.getByRole('option', { name: PRACTICE_OPPONENT, exact: true }).click()
+  await chooseOption(page, 'Opponent', PRACTICE_OPPONENT)
   await dialog.getByRole('button', { name: 'Start battle', exact: true }).click()
   await attachRoster(page, roster)
   await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
@@ -150,9 +148,7 @@ test('a casual player practises a round, corrects an action and reviews the fini
   await expect(page.getByRole('heading', { name: 'movement phase', exact: true })).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('practice-round.png'), fullPage: true })
   await page.getByRole('tab', { name: 'Battle', exact: true }).click()
-  await page.getByRole('button', { name: 'Battle options', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Concede battle', exact: true }).click()
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Concede battle', exact: true }).click()
+  await concede(page)
   const debrief = page.getByRole('region', { name: 'Battle debrief', exact: true })
   await expect(debrief).toBeHidden()
   await expect(page.locator('[data-scoreboard]')).toContainText('by concession')
@@ -168,7 +164,7 @@ test('a casual player practises a round, corrects an action and reviews the fini
 })
 
 test('a friend invite QR code opens the same one-time invite link', async ({ browser }, testInfo) => {
-  const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'], viewport: { width: 390, height: 844 } })
+  const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'], viewport: PHONE })
   try {
     const page = await context.newPage()
     await signUp(page, uniqueName('QR inviter'))
@@ -210,9 +206,7 @@ test('the first-game landing path fits', async ({ page }, testInfo) => {
 
 test('a saved long roster prints every card without clipping or editing controls', async ({ page }, testInfo) => {
   await signUp(page, uniqueName('Printer'))
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const dialog = await openImport(page)
   const entry = rosterText.slice(rosterText.indexOf('Immortals ('), rosterText.indexOf('Exported with'))
   const longRoster = rosterText.replace(entry, entry.repeat(12))
   await dialog.getByLabel('Roster text').fill(longRoster)

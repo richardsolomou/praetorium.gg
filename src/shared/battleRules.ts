@@ -1,4 +1,4 @@
-import { refuse } from '../core/battlePrimitives'
+import { opposingSide, refuse } from '../core/battlePrimitives'
 import {
   type BattleState,
   type Command,
@@ -17,9 +17,10 @@ import {
   isKotcLimit,
 } from '../core/battle'
 import { KOTC_MATCHUP_ID } from '../contracts/terrain'
+import { terrainMatchupIds } from '../contracts/terrainReference'
 import type { MissionAward } from '../core/scoring'
 import type { MissionSelectionKind } from '../core/missionSelections'
-import { type LoadedRules, type BattleReadRules, missionFor } from './rules'
+import { type LoadedRules, type BattleMissionRules, type BattleReadRules, missionFor } from './rules'
 
 export function withAuthoritativeAwards<
   T extends Pick<Extract<Command, { kind: 'set-prep' }>, 'primary' | 'secondaries' | 'secondaryDeck'>,
@@ -73,11 +74,11 @@ export function hydrateAuthoritativeAwards(state: BattleState, rules: BattleRead
   }
 }
 
-export function resolvedMissionForSide(state: BattleState, rules: BattleReadRules, side: number) {
+export function resolvedMissionForSide(state: BattleState, rules: BattleMissionRules, side: number) {
   if (state.settings.manual) return null
   const ownDisposition = sideDisposition(state, side)
-  const opposingSide = state.players.find((player) => player.side !== side)?.side
-  const opposingDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
+  const opponent = opposingSide(state, side)
+  const opposingDisposition = opponent === undefined ? null : sideDisposition(state, opponent)
   return missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId)
 }
 
@@ -128,7 +129,7 @@ export function setupReferenceError(state: ReturnType<typeof reduceBattle>, rule
   if (!state.settings.terrainLayoutId) return kotc ? refuse('missing-terrain', 'choose the Colosseum battlefield') : null
   const terrain = rules.terrainLayouts.find((layout) => layout.id === state.settings.terrainLayoutId)
   if (!terrain) return refuse('unknown-terrain', 'that terrain layout is not available')
-  const matchups = kotc ? new Set([KOTC_MATCHUP_ID]) : one && two ? new Set([`${one}-vs-${two}`, `${two}-vs-${one}`]) : new Set<string>()
+  const matchups = new Set(kotc ? [KOTC_MATCHUP_ID] : one && two ? terrainMatchupIds([one, two]) : [])
   if (matchups.size && !matchups.has(terrain.matchupId)) return refuse('terrain-mismatch', 'that terrain layout does not match the armies')
   if (terrain.deploymentId && terrain.deploymentId !== state.deploymentId)
     return refuse('terrain-mismatch', 'that terrain layout does not match the deployment')
@@ -149,8 +150,8 @@ export function repairPrepReferenceError(
   const player = commandArmy(state, by, command)
   if (!player) return null
   const ownDisposition = sideDisposition(state, player.side)
-  const opposingSide = state.players.find((candidate) => candidate.side !== player.side)?.side
-  const opposingDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
+  const opponent = opposingSide(state, player.side)
+  const opposingDisposition = opponent === undefined ? null : sideDisposition(state, opponent)
   const mission = missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId)
   const expectedSecondaries = new Set((rules.secondaries ?? []).map((card) => card.key))
   const primaryExists = (rules.primaries ?? []).some((card) => card.key === mission?.id)
@@ -199,9 +200,7 @@ export function scoringCapError(
                 ? command.delta
                 : 0,
         }
-  const opposingSide = state.players.find((player) => player.side !== target.side)?.side
-  const opponentDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
-  const mission = missionFor(rules, target.disposition, opponentDisposition, state.settings.missionPackId)
+  const mission = resolvedMissionForSide(state, rules, target.side)
   if (!mission) return null
   // The round the points land in, which for a settlement of a turn already ended is
   // the round that turn was in rather than the one now being played.

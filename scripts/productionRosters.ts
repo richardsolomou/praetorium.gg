@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { catalogueEditionLoaders } from '../src/server/catalogueEditions'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { PREVIEW_EMAIL, previewAccountId } from './seedPreview'
-import { inspectLocalDevPreview, localControlPort, readLocalDevPreview } from './localDevPreview'
+import { runningLocalDevPreview } from './localDevPreview'
 import { fetchProductionRostersOverSsh, type RosterWriteOutcome, writeNormalisedRostersOverSsh } from './lib/productionRosterSsh'
 import {
   auditProductionRosters,
@@ -67,8 +67,7 @@ export async function productionRostersMain(args: string[]) {
   }
   const snapshot = await readSnapshot(snapshotFile)
   const worktree = await realpath(process.cwd())
-  const saved = readLocalDevPreview(path.join(worktree, 'data-dev/active-preview.json'))
-  const preview = await inspectLocalDevPreview(worktree, saved?.controlPort ?? localControlPort(worktree), saved?.token)
+  const preview = await runningLocalDevPreview(worktree)
   if (command === 'import') {
     if (!preview?.ready) throw new Error('Start this worktree with just dev before importing rosters')
     const credentials = z

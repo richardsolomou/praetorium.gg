@@ -1,5 +1,5 @@
 import { ScheduleAt } from 'spacetimedb'
-import { SenderError, schema, table, t, type InferSchema, type ReducerCtx } from 'spacetimedb/server'
+import { SenderError, schema, table, t, type InferSchema, type ProcedureCtx, type ReducerCtx, type ViewCtx } from 'spacetimedb/server'
 import { detachmentIds, ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../../src/core/savedRoster'
 import { migrateStoredRoster } from '../../src/core/savedRosterMigrations'
 import { LOCKED_ROSTER_MESSAGE, lockedRosterRefusal, storedRosterContent } from '../../src/core/rosterLock'
@@ -18,9 +18,10 @@ import {
   reduceBattle,
   validate,
   type FormatRuleId,
+  type BattleState,
+  type Command,
   type LoggedCommand,
 } from '../../src/core/battle'
-import { commandSchema } from '../../src/core/commands'
 import { teamDispositionChoices } from '../../src/core/teamDisposition'
 import { DEFAULT_PLAYER_DEFAULTS, isPlayerDefaults } from '../../src/core/playerDefaults'
 import { matchupPairingSchema, RECENT_MATCHUP_LIMIT, recentMatchupSchema } from '../../src/core/recentMatchups'
@@ -44,20 +45,24 @@ import {
   mayRevealLeague,
   LEAGUE_ADMIN_MAX,
   LEAGUE_ADMISSIONS,
+  LEAGUE_MEMBER_MAX,
+  LEAGUE_MEMBER_MIN,
   LEAGUE_VISIBILITIES,
   type LeagueAdmission,
   type LeagueEntryStatus,
   matchesSealedLeagueRoster,
   requiredLeagueRosterLimit,
 } from '../../src/core/league'
-import { parseRosterSnapshot, rosterPickSchema } from '../../src/core/commands'
+import { commandSchema, parseRosterSnapshot, rosterPickSchema, rosterSnapshotOrNull } from '../../src/core/commands'
 import { SWISS_ROUNDS_MAX } from '../../src/core/swiss'
+import type { SyncProductActionName } from '../../src/core/syncProductActions'
 import {
   clubGameOpen,
   clubGamePastAt,
   clubGameTimeZoneSchema,
   CLUB_ADMIN_MAX,
   CLUB_DESCRIPTION_MAX_LENGTH,
+  CLUB_GAME_SIDES,
   CLUB_MEMBER_MAX,
   CLUB_NAME_MAX_LENGTH,
   isClubOrganizer,
@@ -180,8 +185,11 @@ const MAX_ID_LENGTH = 128
 const idInput = z.string().min(1).max(MAX_ID_LENGTH)
 
 function validId(value: string) {
-  return value.length > 0 && value.length <= MAX_ID_LENGTH
+  return idInput.safeParse(value).success
 }
+
+/** The last row of the page before, newest first. */
+const pageCursorInput = z.strictObject({ at: z.number().int().nonnegative(), id: z.string().max(MAX_ID_LENGTH) }).nullable()
 
 /** Parses caller JSON against `inputSchema`, refusing malformed or invalid input with `message`. */
 function decodePayload<S extends z.ZodType>(inputSchema: S, text: string, message: string): z.output<S> {
@@ -234,6 +242,13 @@ function requireOperator(ctx: Context) {
   if (ctx.sender.toHexString() !== auth(ctx).operator) throw new SenderError('Operator required')
 }
 
+function operatorTx<T>(ctx: ProcedureCtx<InferSchema<typeof spacetime>>, run: (tx: Context) => T) {
+  return ctx.withTx((tx) => {
+    requireOperator(tx)
+    return run(tx)
+  })
+}
+
 const ROSTER_LOANS_PER_ROSTER = 100
 
 type ProductScope =
@@ -262,17 +277,26 @@ function touchProduct(ctx: Context, userId: string, ...scopes: ProductScope[]) {
 
 type PublicScope = 'collection' | 'battles' | 'rosters' | 'leagues' | 'clubs' | 'invites' | 'standings' | 'opponents'
 
+type ScopeRevision = { scope: string; revision: bigint }
+
+function bumpRevision(
+  revisions: {
+    scope: { find(scope: string): ScopeRevision | null; update(row: ScopeRevision): unknown }
+    insert(row: ScopeRevision): unknown
+  },
+  scope: string,
+) {
+  const current = revisions.scope.find(scope)
+  if (current) revisions.scope.update({ ...current, revision: current.revision + 1n })
+  else revisions.insert({ scope, revision: 1n })
+}
+
 function touchPublic(ctx: Context, scope: PublicScope) {
-  const current = ctx.db.publicRevisions.scope.find(scope)
-  if (current) ctx.db.publicRevisions.scope.update({ ...current, revision: current.revision + 1n })
-  else ctx.db.publicRevisions.insert({ scope, revision: 1n })
+  bumpRevision(ctx.db.publicRevisions, scope)
 }
 
 function touchAdmin(ctx: Context) {
-  const scope = 'admin-users'
-  const current = ctx.db.adminRevisions.scope.find(scope)
-  if (current) ctx.db.adminRevisions.scope.update({ ...current, revision: current.revision + 1n })
-  else ctx.db.adminRevisions.insert({ scope, revision: 1n })
+  bumpRevision(ctx.db.adminRevisions, 'admin-users')
 }
 
 function touchFriends(ctx: Context, leftId: string, rightId: string) {
@@ -396,7 +420,7 @@ function deleteBattle(ctx: Context, battleId: string) {
   if (leagueEvent) touchEventById(ctx, leagueEvent.eventId)
   for (const row of Array.from(ctx.db.watchedBattles.battleId.filter(battleId))) ctx.db.watchedBattles.key.delete(row.key)
   for (const row of Array.from(ctx.db.commands.battleId.filter(battleId))) ctx.db.commands.key.delete(row.key)
-  for (const row of Array.from(ctx.db.battleUsers.battleId.filter(battleId))) ctx.db.battleUsers.key.delete(row.key)
+  for (const seat of seats) ctx.db.battleUsers.key.delete(seat.key)
   for (const row of Array.from(ctx.db.guestSeats.battleId.filter(battleId))) ctx.db.guestSeats.seatId.delete(row.seatId)
   // A deleted table battle frees its pairing, so the two players can start it again.
   if (leagueEvent)
@@ -434,6 +458,10 @@ function touchClub(ctx: Context, clubId: string) {
 }
 
 const CLUB_MEMBERS_ONLY = 'every player must be a member of the club'
+
+function isClubMember(ctx: Context, clubId: string, userId: string) {
+  return ctx.db.clubMembers.key.find(JSON.stringify([clubId, userId]))?.status === 'accepted'
+}
 
 /** A club's games, newest first. */
 function clubGameHosts(ctx: Context, club: ClubRow) {
@@ -488,18 +516,12 @@ function battleClubIds(ctx: Context, seats: readonly { id: string; automated: bo
   return Array.from(ctx.db.clubMembers.userId.filter(first.id))
     .filter((row) => row.status === 'accepted')
     .map((row) => row.clubId)
-    .filter((clubId) => rest.every((seat) => ctx.db.clubMembers.key.find(JSON.stringify([clubId, seat.id]))?.status === 'accepted'))
+    .filter((clubId) => rest.every((seat) => isClubMember(ctx, clubId, seat.id)))
 }
 
 /** Rewrites a battle's club index row from its log, so a choice and its undo both land in the index. */
 function indexClubBattle(ctx: Context, battleId: string) {
-  const { seats, log } = battleData(ctx, battleId)
-  const clubId = reduceBattle(
-    seats.map((seat) => seat.id),
-    log,
-    seats.map((seat) => seat.side),
-    seats.filter((seat) => seat.automated).map((seat) => seat.id),
-  ).clubId
+  const { clubId } = battleState(ctx, battleId).state
   ctx.db.clubBattles.battleId.delete(battleId)
   if (clubId) ctx.db.clubBattles.insert({ battleId, clubId })
 }
@@ -606,7 +628,6 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
     touchPublic(ctx, 'invites')
   }
   for (const row of Array.from(ctx.db.commands.userId.filter(userId))) ctx.db.commands.key.delete(row.key)
-  for (const row of Array.from(ctx.db.battleUsers.userId.filter(userId))) ctx.db.battleUsers.key.delete(row.key)
   for (const row of Array.from(ctx.db.rosterLoans.borrowerId.filter(userId))) endLoan(ctx, row)
   const ownedRosters = Array.from(ctx.db.rosters.userId.filter(userId))
   for (const row of ownedRosters) {
@@ -658,17 +679,22 @@ export const expireRevocation = spacetime.reducer(
   },
 )
 
+/** The reader's session unless revoked; its expiry timer removes it once it lapses. */
+function viewerSession(ctx: ViewCtx<InferSchema<typeof spacetime>>) {
+  const session = ctx.db.sessionAccess.identity.filter(ctx.sender).next().value
+  return session && !ctx.db.revokedSession.subject.find(session.subject) ? session : undefined
+}
+
 export const mySession = spacetime.view({ name: 'my_session', public: true }, t.option(sessionAccess.rowType), (ctx) => {
-  const current = ctx.db.sessionAccess.identity.filter(ctx.sender).next().value
-  return current && !ctx.db.revokedSession.subject.find(current.subject) ? current : undefined
+  return viewerSession(ctx)
 })
 
 export const myProductSignals = spacetime.view(
   { name: 'my_product_signals', public: true },
   t.array(t.row('MyProductSignal', { scope: t.string().primaryKey(), revision: t.u64() })),
   (ctx) => {
-    const session = ctx.db.sessionAccess.identity.filter(ctx.sender).next().value
-    if (!session || ctx.db.revokedSession.subject.find(session.subject)) return []
+    const session = viewerSession(ctx)
+    if (!session) return []
     return Array.from(ctx.db.productRevisions.userId.filter(session.userId), ({ scope, revision }) => ({ scope, revision }))
   },
 )
@@ -677,8 +703,8 @@ export const myAdminSignals = spacetime.view(
   { name: 'my_admin_signals', public: true },
   t.array(t.row('MyAdminSignal', { scope: t.string().primaryKey(), revision: t.u64() })),
   (ctx) => {
-    const session = ctx.db.sessionAccess.identity.filter(ctx.sender).next().value
-    if (!session || !ctx.db.adminSessions.subject.find(session.subject) || ctx.db.revokedSession.subject.find(session.subject)) return []
+    const session = viewerSession(ctx)
+    if (!session || !ctx.db.adminSessions.subject.find(session.subject)) return []
     return Array.from(ctx.db.adminRevisions.iter(), ({ scope, revision }) => ({ scope, revision }))
   },
 )
@@ -707,8 +733,8 @@ export const myBattleSignals = spacetime.view(
   { name: 'my_battle_signals', public: true },
   t.array(t.row('BattleSignal', { battleId: t.string().primaryKey(), seq: t.u32() })),
   (ctx) => {
-    const session = ctx.db.sessionAccess.identity.filter(ctx.sender).next().value
-    if (!session || ctx.db.revokedSession.subject.find(session.subject)) return []
+    const session = viewerSession(ctx)
+    if (!session) return []
     return Array.from(ctx.db.watchedBattles.subject.filter(session.subject)).flatMap(({ battleId }) => {
       if (!ctx.db.battleUsers.key.find(JSON.stringify([battleId, session.userId]))) return []
       let seq = 0
@@ -722,8 +748,8 @@ export const myBattleList = spacetime.view(
   { name: 'my_battle_list', public: true },
   t.array(t.row('MyBattleListEntry', { battleId: t.string().primaryKey(), seq: t.u32() })),
   (ctx) => {
-    const session = ctx.db.sessionAccess.identity.filter(ctx.sender).next().value
-    if (!session || ctx.db.revokedSession.subject.find(session.subject)) return []
+    const session = viewerSession(ctx)
+    if (!session) return []
     const recent: { battleId: string; seq: number; at: bigint }[] = []
     for (const { battleId } of ctx.db.battleUsers.userId.filter(session.userId)) {
       let seq = 0
@@ -743,6 +769,15 @@ export const myBattleList = spacetime.view(
   },
 )
 
+/** What an offline command carries so its retry lands once; the stored body keeps it under `$sync`. */
+const battleSyncSchema = z.object({
+  operationId: z.uuid(),
+  fingerprint: z.string().length(64),
+  at: z.number().int().nonnegative(),
+  reportApplied: z.boolean().optional(),
+})
+type BattleSync = z.infer<typeof battleSyncSchema>
+
 function battleData(ctx: Context, battleId: string) {
   const battle = ctx.db.battles.id.find(battleId)
   if (!battle) throw new SenderError('Battle unavailable')
@@ -754,7 +789,7 @@ function battleData(ctx: Context, battleId: string) {
     .flatMap((row): LoggedCommand[] => {
       const body: unknown = JSON.parse(row.body)
       const command = commandSchema.safeParse(body)
-      const metadata = (body as { $sync?: { operationId?: string } }).$sync
+      const metadata = (body as { $sync?: Partial<BattleSync> }).$sync
       return command.success
         ? [
             {
@@ -788,9 +823,20 @@ function battleData(ctx: Context, battleId: string) {
   }
 }
 
+/** A battle's seats and log with the state they fold to. */
+function battleState(ctx: Context, battleId: string) {
+  const { seats, log } = battleData(ctx, battleId)
+  const state = reduceBattle(
+    seats.map((seat) => seat.id),
+    log,
+    seats.map((seat) => seat.side),
+    seats.filter((seat) => seat.automated).map((seat) => seat.id),
+  )
+  return { seats, log, state }
+}
+
 export const battleForOperator = spacetime.procedure({ battleId: t.string() }, t.string(), (ctx, { battleId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return productJson(battleData(tx, battleId))
   }),
 )
@@ -807,12 +853,11 @@ const newBattle = z.strictObject({
 })
 
 export const createBattle = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
-  ctx.withTx((tx) => createBattleIn(tx, [payload])),
+  operatorTx(ctx, (tx) => createBattleIn(tx, [payload])),
 )
 
 export const battleByToken = spacetime.procedure({ token: t.string() }, t.string(), (ctx, { token }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const battle = tx.db.battles.token.find(token)
     return productJson(battle ? battleData(tx, battle.id) : null)
   }),
@@ -828,13 +873,12 @@ const battleFeedQuery = z.strictObject({
   // Sent only with the club scope, so a server older than clubs still reads every other feed.
   clubToken: z.string().max(MAX_ID_LENGTH).optional(),
   since: z.number().int().nonnegative().nullable(),
-  before: z.strictObject({ at: z.number().int().nonnegative(), id: z.string().max(MAX_ID_LENGTH) }).nullable(),
+  before: pageCursorInput,
   limit: z.number().int().min(1).max(500),
 })
 
 export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (payload.length > 2_000) throw new SenderError('Invalid battle feed')
     const input = decodePayload(battleFeedQuery, payload, 'Invalid battle feed')
     if (
@@ -875,12 +919,10 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
       const seats = Array.from(tx.db.battleUsers.battleId.filter(battle.id))
       const seatIds = new Set(seats.map((seat) => seat.userId))
       const hasPractice = seats.some((seat) => Boolean(tx.db.practiceOpponents.userId.find(seat.userId)))
-      if (input.scope === 'user' && (!seatIds.has(input.userId!) || (input.withUserId && !seatIds.has(input.withUserId)))) continue
-      if (input.scope === 'league' && tx.db.leagueEventBattles.battleId.find(battle.id)?.eventId !== event!.id) continue
+      if (input.scope === 'user' && input.withUserId && !seatIds.has(input.withUserId)) continue
       if (input.scope === 'public' && (hasPractice || (input.viewerId && seatIds.has(input.viewerId)))) continue
       if (input.scope === 'friends' && (hasPractice || seatIds.has(input.userId!) || !seats.some((seat) => friendIds.has(seat.userId))))
         continue
-      if (input.scope === 'profile' && !seatIds.has(input.userId!)) continue
       let activity = battle.createdAt
       if (input.scope !== 'public' && input.scope !== 'friends') {
         for (const command of tx.db.commands.battleId.filter(battle.id)) if (command.at > activity) activity = command.at
@@ -905,12 +947,11 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
 )
 
 export const removeBattle = spacetime.procedure({ battleId: t.string(), userId: t.string() }, t.bool(), (ctx, input) =>
-  ctx.withTx((tx) => removeBattleIn(tx, [input.battleId, input.userId])),
+  operatorTx(ctx, (tx) => removeBattleIn(tx, [input.battleId, input.userId])),
 )
 
 export const deleteBattleForOperator = spacetime.procedure({ battleId: t.string() }, t.bool(), (ctx, { battleId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (!tx.db.battles.id.find(battleId)) return false
     deleteBattle(tx, battleId)
     return true
@@ -921,39 +962,19 @@ export const submitBattle = spacetime.procedure(
   { battleId: t.string(), userId: t.string(), expectedSeq: t.u32(), body: t.string(), now: t.u64(), externalRefusal: t.string() },
   t.string(),
   (ctx, input) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       if (input.body.length > 1_000_000) throw new SenderError('Battle command is too large')
-      const raw = decodePayload(
-        z.looseObject({
-          $sync: z
-            .object({
-              operationId: z.uuid(),
-              fingerprint: z.string().length(64),
-              at: z.number().int().nonnegative(),
-              reportApplied: z.boolean().optional(),
-            })
-            .optional(),
-        }),
-        input.body,
-        'Invalid battle command',
-      )
+      const raw = decodePayload(z.looseObject({ $sync: battleSyncSchema.optional() }), input.body, 'Invalid battle command')
       const sync = raw.$sync
       const parsed = commandSchema.safeParse(raw)
       if (!parsed.success) throw new SenderError('Invalid battle command')
-      const { seats, log } = battleData(tx, input.battleId)
+      const { seats, log, state } = battleState(tx, input.battleId)
       const appliedReport = sync?.reportApplied ? { applied: false } : {}
-      const state = reduceBattle(
-        seats.map((seat) => seat.id),
-        log,
-        seats.map((seat) => seat.side),
-        seats.filter((seat) => seat.automated).map((seat) => seat.id),
-      )
       if (sync) {
         const previous = log.find((entry) => entry.operationId === sync.operationId)
         if (previous) {
           const stored = tx.db.commands.key.find(JSON.stringify([input.battleId, previous.seq]))!
-          const metadata = (JSON.parse(stored.body) as { $sync: { fingerprint: string } }).$sync
+          const metadata = (JSON.parse(stored.body) as { $sync: BattleSync }).$sync
           if (previous.by !== input.userId || metadata.fingerprint !== sync.fingerprint)
             throw new SenderError('Operation ID reused for a different action')
           return productJson({ result: { outcome: 'appended', seq: previous.seq }, log, ...appliedReport })
@@ -1008,8 +1029,7 @@ function guestSeatIn(ctx: Context, battleId: string, seatId: string) {
 
 /** The link a host shares for a guest seat, made the first time it is asked for and kept until the host replaces it. */
 export const guestInvite = spacetime.procedure({ battleId: t.string(), seatId: t.string(), invite: t.string() }, t.string(), (ctx, input) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     guestSeatIn(tx, input.battleId, input.seatId)
     const current = tx.db.guestSeats.seatId.find(input.seatId)
     if (current) return productJson(current.invite)
@@ -1030,8 +1050,7 @@ export const replaceGuestInvite = spacetime.procedure(
   { battleId: t.string(), seatId: t.string(), invite: t.string() },
   t.string(),
   (ctx, input) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       guestSeatIn(tx, input.battleId, input.seatId)
       if (!validId(input.invite)) throw new SenderError('Invalid invite')
       tx.db.guestSeats.seatId.delete(input.seatId)
@@ -1049,8 +1068,7 @@ export const replaceGuestInvite = spacetime.procedure(
 )
 
 export const guestSeatByInvite = spacetime.procedure({ invite: t.string() }, t.string(), (ctx, { invite }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const row = tx.db.guestSeats.invite.find(invite)
     const battle = row && tx.db.battles.id.find(row.battleId)
     if (!row || !battle) return productJson(null)
@@ -1068,8 +1086,7 @@ export const guestSeatByInvite = spacetime.procedure({ invite: t.string() }, t.s
 
 /** The first device to open a link takes the seat; a second device finds it taken until the host shares a new link. */
 export const joinGuestSeat = spacetime.procedure({ invite: t.string(), deviceHash: t.string(), now: t.u64() }, t.string(), (ctx, input) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (!/^[0-9a-f]{64}$/.test(input.deviceHash)) throw new SenderError('Invalid guest device')
     const row = tx.db.guestSeats.invite.find(input.invite)
     const battle = row && tx.db.battles.id.find(row.battleId)
@@ -1082,8 +1099,7 @@ export const joinGuestSeat = spacetime.procedure({ invite: t.string(), deviceHas
 )
 
 export const guestDevice = spacetime.procedure({ seatId: t.string() }, t.string(), (ctx, { seatId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const row = tx.db.guestSeats.seatId.find(seatId)
     const battle = row && tx.db.battles.id.find(row.battleId)
     if (!row?.deviceHash || row.joinedAt === undefined || !battle) return productJson(null)
@@ -1100,8 +1116,7 @@ export const claimGuestSeat = spacetime.procedure(
   { battleId: t.string(), seatId: t.string(), userId: t.string(), deviceHash: t.string(), now: t.u64() },
   t.string(),
   (ctx, input) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       if (!validId(input.userId) || isGuestSeat(input.userId)) throw new SenderError('Invalid user ID')
       const seat = guestSeatIn(tx, input.battleId, input.seatId)
       const device = tx.db.guestSeats.seatId.find(input.seatId)
@@ -1112,13 +1127,7 @@ export const claimGuestSeat = spacetime.procedure(
         !guestSessionCurrent(safeNumber(device.joinedAt), safeNumber(input.now))
       )
         return productJson('this device is not playing that seat')
-      const { seats, log } = battleData(tx, input.battleId)
-      const state = reduceBattle(
-        seats.map((one) => one.id),
-        log,
-        seats.map((one) => one.side),
-        seats.filter((one) => one.automated).map((one) => one.id),
-      )
+      const { seats, state } = battleState(tx, input.battleId)
       const refusal = guestClaimRefusal(
         state,
         seats.map((one) => one.id),
@@ -1177,8 +1186,7 @@ function friendshipBetween(ctx: Context, leftId: string, rightId: string) {
 }
 
 export const friendshipsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (!validId(userId)) throw new SenderError('Invalid user ID')
     const rows = [...Array.from(tx.db.friendships.requesterId.filter(userId)), ...Array.from(tx.db.friendships.addresseeId.filter(userId))]
     if (rows.length > 1_000) throw new SenderError('Too many friendships')
@@ -1189,8 +1197,7 @@ export const friendshipsByUser = spacetime.procedure({ userId: t.string() }, t.s
 )
 
 export const productStats = spacetime.procedure({ userIds: t.array(t.string()) }, t.string(), (ctx, { userIds }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (userIds.length > 100 || userIds.some((id) => !validId(id))) throw new SenderError('Invalid product stats query')
     return productJson(
       [...new Set(userIds)].map((userId) => ({
@@ -1207,11 +1214,12 @@ export const productStats = spacetime.procedure({ userIds: t.array(t.string()) }
   }),
 )
 
+const PRACTICE_OPPONENTS_MAX = 100
+
 export const practiceOpponentIds = spacetime.procedure({}, t.string(), (ctx) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const ids = Array.from(tx.db.practiceOpponents.iter(), (row) => row.userId)
-    if (ids.length > 100) throw new SenderError('Too many practice opponents')
+    if (ids.length > PRACTICE_OPPONENTS_MAX) throw new SenderError('Too many practice opponents')
     return productJson(ids.sort())
   }),
 )
@@ -1220,7 +1228,7 @@ export const registerPracticeOpponent = spacetime.reducer({ userId: t.string() }
   requireOperator(ctx)
   if (!validId(userId)) throw new SenderError('Invalid user ID')
   if (ctx.db.practiceOpponents.userId.find(userId)) return
-  if (Array.from(ctx.db.practiceOpponents.iter()).length >= 100) throw new SenderError('Too many practice opponents')
+  if (Array.from(ctx.db.practiceOpponents.iter()).length >= PRACTICE_OPPONENTS_MAX) throw new SenderError('Too many practice opponents')
   ctx.db.practiceOpponents.insert({ userId })
   touchPublic(ctx, 'opponents')
   touchAdmin(ctx)
@@ -1229,55 +1237,53 @@ export const registerPracticeOpponent = spacetime.reducer({ userId: t.string() }
 export const requestFriend = spacetime.procedure(
   { requesterId: t.string(), addresseeId: t.string(), now: t.u64() },
   t.bool(),
-  (ctx, input) => ctx.withTx((tx) => requestFriendIn(tx, [input.requesterId, input.addresseeId, input.now])),
+  (ctx, input) => operatorTx(ctx, (tx) => requestFriendIn(tx, [input.requesterId, input.addresseeId, input.now])),
 )
 
 export const acceptFriend = spacetime.procedure(
   { requesterId: t.string(), addresseeId: t.string(), now: t.u64() },
   t.bool(),
-  (ctx, input) => ctx.withTx((tx) => acceptFriendIn(tx, [input.requesterId, input.addresseeId, input.now])),
+  (ctx, input) => operatorTx(ctx, (tx) => acceptFriendIn(tx, [input.requesterId, input.addresseeId, input.now])),
 )
 
 export const rejectFriend = spacetime.procedure({ requesterId: t.string(), addresseeId: t.string() }, t.bool(), (ctx, input) =>
-  ctx.withTx((tx) => rejectFriendIn(tx, [input.requesterId, input.addresseeId])),
+  operatorTx(ctx, (tx) => rejectFriendIn(tx, [input.requesterId, input.addresseeId])),
 )
 
 export const removeFriend = spacetime.procedure({ leftId: t.string(), rightId: t.string() }, t.bool(), (ctx, input) =>
-  ctx.withTx((tx) => removeFriendIn(tx, [input.leftId, input.rightId])),
+  operatorTx(ctx, (tx) => removeFriendIn(tx, [input.leftId, input.rightId])),
 )
 
 export const friendInviteByInviter = spacetime.procedure({ inviterId: t.string() }, t.string(), (ctx, { inviterId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return productJson(tx.db.friendInvites.inviterId.find(inviterId)?.token ?? null)
   }),
 )
 
 export const friendInviteByToken = spacetime.procedure({ token: t.string() }, t.string(), (ctx, { token }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const invite = tx.db.friendInvites.token.find(token)
     return productJson(invite ? { token: invite.token, inviterId: invite.inviterId } : null)
   }),
 )
 
 export const replaceFriendInvite = spacetime.reducer({ inviterId: t.string(), token: t.string(), now: t.u64() }, (ctx, input) => {
+  requireOperator(ctx)
   replaceFriendInviteIn(ctx, [input.inviterId, input.token, input.now])
 })
 
 export const cancelFriendInvite = spacetime.procedure({ inviterId: t.string() }, t.bool(), (ctx, { inviterId }) =>
-  ctx.withTx((tx) => cancelFriendInviteIn(tx, [inviterId])),
+  operatorTx(ctx, (tx) => cancelFriendInviteIn(tx, [inviterId])),
 )
 
 export const acceptFriendInvite = spacetime.procedure(
   { token: t.string(), recipientId: t.string(), now: t.u64() },
   t.string(),
-  (ctx, input) => ctx.withTx((tx) => acceptFriendInviteIn(tx, [input.token, input.recipientId, input.now])),
+  (ctx, input) => operatorTx(ctx, (tx) => acceptFriendInviteIn(tx, [input.token, input.recipientId, input.now])),
 )
 
 export const shareBattle = spacetime.procedure({ userId: t.string(), otherId: t.string() }, t.bool(), (ctx, input) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     for (const seat of tx.db.battleUsers.userId.filter(input.userId)) {
       if (tx.db.battleUsers.key.find(JSON.stringify([seat.battleId, input.otherId]))) return true
     }
@@ -1308,8 +1314,7 @@ function onboardingData(ctx: Context, userId: string) {
 }
 
 export const onboardingByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return productJson(onboardingData(tx, userId))
   }),
 )
@@ -1317,7 +1322,7 @@ export const onboardingByUser = spacetime.procedure({ userId: t.string() }, t.st
 export const updateOnboarding = spacetime.procedure(
   { userId: t.string(), operation: t.string(), task: t.string() },
   t.string(),
-  (ctx, input) => ctx.withTx((tx) => updateOnboardingIn(tx, [input.userId, input.operation, input.task])),
+  (ctx, input) => operatorTx(ctx, (tx) => updateOnboardingIn(tx, [input.userId, input.operation, input.task])),
 )
 
 function safeNumber(value: bigint) {
@@ -1334,8 +1339,7 @@ function productJson(value: unknown) {
 }
 
 export const migrateProductData = spacetime.procedure({ table: t.string(), keys: t.array(t.string()) }, t.string(), (ctx, input) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const { table: entity, keys } = z
       .object({ table: z.enum(['rosters', 'collection']), keys: z.array(z.string().min(1).max(512)).max(20) })
       .parse(input)
@@ -1407,8 +1411,7 @@ function parseRoster(payload: string) {
 }
 
 export const rosterById = spacetime.procedure({ id: t.string() }, t.string(), (ctx, { id }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (!validId(id)) throw new SenderError('Invalid roster ID')
     return productJson(tx.db.rosters.id.find(id) ?? null)
   }),
@@ -1418,8 +1421,7 @@ export const rostersByUser = spacetime.procedure(
   { userId: t.string(), publicOnly: t.bool(), limit: t.u32() },
   t.string(),
   (ctx, { userId, publicOnly, limit }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       if (!validId(userId) || limit < 1 || limit > 1_000) throw new SenderError('Invalid roster query')
       const rows = Array.from(tx.db.rosters.userId.filter(userId))
         .filter((row) => !publicOnly || row.visibility === 'public')
@@ -1430,8 +1432,7 @@ export const rostersByUser = spacetime.procedure(
 )
 
 export const discoverRosters = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (payload.length > 200_000) throw new SenderError('Invalid roster discovery')
     const query = decodePayload(rosterDiscoveryQuerySchema, payload, 'Invalid roster discovery')
     const { audience, viewerId } = query
@@ -1470,8 +1471,7 @@ function rosterSummary(row: StoredRoster) {
 }
 
 export const rosterSummariesByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (!validId(userId)) throw new SenderError('Invalid roster query')
     const rows = Array.from(tx.db.rosters.userId.filter(userId))
     if (rows.length > 1_000) throw new SenderError('Roster list exceeds the supported limit')
@@ -1484,8 +1484,7 @@ export const rosterGroupByUser = spacetime.procedure(
   { userId: t.string(), baseRosterId: t.string() },
   t.string(),
   (ctx, { userId, baseRosterId }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       if (!validId(userId) || !validId(baseRosterId)) throw new SenderError('Invalid roster query')
       const rows = Array.from(tx.db.rosters.userId.filter(userId))
       if (rows.length > 1_000) throw new SenderError('Roster list exceeds the supported limit')
@@ -1499,8 +1498,7 @@ export const rosterGroupByUser = spacetime.procedure(
 )
 
 export const rostersByIds = spacetime.procedure({ userId: t.string(), ids: t.array(t.string()) }, t.string(), (ctx, { userId, ids }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (
       !validId(userId) ||
       !ids.length ||
@@ -1519,8 +1517,7 @@ export const rostersByIds = spacetime.procedure({ userId: t.string(), ids: t.arr
 )
 
 export const homeRostersByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (!validId(userId)) throw new SenderError('Invalid roster query')
     const rows: NonNullable<ReturnType<typeof tx.db.rosters.id.find>>[] = []
     let scanned = 0
@@ -1542,6 +1539,40 @@ export const homeRostersByUser = spacetime.procedure({ userId: t.string() }, t.s
 )
 
 type StoredRoster = NonNullable<ReturnType<Context['db']['rosters']['id']['find']>>
+
+function ownedRoster(ctx: Context, id: string, userId: string) {
+  const roster = ctx.db.rosters.id.find(id)
+  return roster?.userId === userId ? roster : null
+}
+
+/** Always past the stored version, so every device sees an edit even when clocks disagree. */
+function nextVersion(current: StoredRoster | null, now: bigint) {
+  return current && current.updatedAt >= now ? current.updatedAt + 1n : now
+}
+
+function deleteRosterRow(ctx: Context, roster: StoredRoster) {
+  endLoans(ctx, roster.id)
+  ctx.db.rosters.id.delete(roster.id)
+  touchProduct(ctx, roster.userId, 'rosters', 'onboarding')
+  if (roster.visibility !== 'private') touchPublic(ctx, 'rosters')
+  touchAdmin(ctx)
+}
+
+function updateOwnedRoster(
+  ctx: Context,
+  id: string,
+  userId: string,
+  now: bigint,
+  patch: Partial<Pick<StoredRoster, 'visibility' | 'locked' | 'archived'>>,
+) {
+  const current = ownedRoster(ctx, id, userId)
+  if (!current) return false
+  const next = { ...current, ...patch, updatedAt: nextVersion(current, now) }
+  ctx.db.rosters.id.update(next)
+  touchProduct(ctx, userId, 'rosters')
+  if (current.visibility !== 'private' || next.visibility !== 'private') touchPublic(ctx, 'rosters')
+  return true
+}
 
 /** A save that does not state a budget keeps the stored one where its battle size still allows it. */
 function savedPointsBudget(current: StoredRoster | null, input: ReturnType<typeof parseRoster>) {
@@ -1590,7 +1621,7 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
     borrowedDetachmentId: input.borrowedDetachmentId ?? undefined,
     visibility: input.visibility,
     source: input.source,
-    updatedAt: current && current.updatedAt >= now ? current.updatedAt + 1n : now,
+    updatedAt: nextVersion(current, now),
   }
   if (current) {
     tx.db.rosters.id.update({ ...current, ...fields })
@@ -1621,8 +1652,7 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
 export const saveRoster = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) => {
   if (payload.length > 1_200_000) throw new SenderError('Roster is too large')
   const input = parseRoster(payload)
-  return ctx.withTx((tx) => {
-    requireOperator(tx)
+  return operatorTx(ctx, (tx) => {
     return saveRosterIn(tx, input)
   })
 })
@@ -1641,8 +1671,7 @@ export const syncRoster = spacetime.procedure({ payload: t.string() }, t.string(
     'Invalid roster',
   )
   const input = parseRoster(parsed.row)
-  return ctx.withTx((tx) => {
-    requireOperator(tx)
+  return operatorTx(ctx, (tx) => {
     const current = tx.db.rosters.id.find(input.id)
     const receipt = tx.db.rosterSync.id.find(input.id)
     if ((current && current.userId !== input.userId) || (receipt && receipt.userId !== input.userId))
@@ -1661,11 +1690,7 @@ export const syncRoster = spacetime.procedure({ payload: t.string() }, t.string(
     let lifecycle: 'created' | 'deleted' | null = null
     if (parsed.deleted) {
       if (current) {
-        endLoans(tx, input.id)
-        tx.db.rosters.id.delete(input.id)
-        touchProduct(tx, input.userId, 'rosters', 'onboarding')
-        if (current.visibility !== 'private') touchPublic(tx, 'rosters')
-        touchAdmin(tx)
+        deleteRosterRow(tx, current)
         lifecycle = 'deleted'
       }
     } else {
@@ -1693,67 +1718,36 @@ export const setRosterVisibility = spacetime.procedure(
   { id: t.string(), userId: t.string(), visibility: t.string(), now: t.u64() },
   t.bool(),
   (ctx, { id, userId, visibility, now }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       if (!(ROSTER_VISIBILITIES as readonly string[]).includes(visibility)) throw new SenderError('Invalid roster visibility')
-      const current = tx.db.rosters.id.find(id)
-      if (!current || current.userId !== userId) return false
-      tx.db.rosters.id.update({ ...current, visibility, updatedAt: current.updatedAt >= now ? current.updatedAt + 1n : now })
-      touchProduct(tx, userId, 'rosters')
-      if (current.visibility !== 'private' || visibility !== 'private') touchPublic(tx, 'rosters')
-      return true
+      return updateOwnedRoster(tx, id, userId, now, { visibility })
     }),
 )
 
 export const setRosterLocked = spacetime.procedure(
   { id: t.string(), userId: t.string(), locked: t.bool(), now: t.u64() },
   t.bool(),
-  (ctx, { id, userId, locked, now }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
-      const current = tx.db.rosters.id.find(id)
-      if (!current || current.userId !== userId) return false
-      tx.db.rosters.id.update({ ...current, locked, updatedAt: current.updatedAt >= now ? current.updatedAt + 1n : now })
-      touchProduct(tx, userId, 'rosters')
-      if (current.visibility !== 'private') touchPublic(tx, 'rosters')
-      return true
-    }),
+  (ctx, { id, userId, locked, now }) => operatorTx(ctx, (tx) => updateOwnedRoster(tx, id, userId, now, { locked })),
 )
 
 export const setRosterArchived = spacetime.procedure(
   { id: t.string(), userId: t.string(), archived: t.bool(), now: t.u64() },
   t.bool(),
-  (ctx, { id, userId, archived, now }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
-      const current = tx.db.rosters.id.find(id)
-      if (!current || current.userId !== userId) return false
-      tx.db.rosters.id.update({ ...current, archived, updatedAt: current.updatedAt >= now ? current.updatedAt + 1n : now })
-      touchProduct(tx, userId, 'rosters')
-      if (current.visibility !== 'private') touchPublic(tx, 'rosters')
-      return true
-    }),
+  (ctx, { id, userId, archived, now }) => operatorTx(ctx, (tx) => updateOwnedRoster(tx, id, userId, now, { archived })),
 )
 
 export const deleteRoster = spacetime.reducer({ id: t.string(), userId: t.string() }, (ctx, { id, userId }) => {
   requireOperator(ctx)
-  const current = ctx.db.rosters.id.find(id)
-  if (current?.userId === userId) {
-    endLoans(ctx, id)
-    ctx.db.rosters.id.delete(id)
-    touchProduct(ctx, userId, 'rosters', 'onboarding')
-    if (current.visibility !== 'private') touchPublic(ctx, 'rosters')
-    touchAdmin(ctx)
-  }
+  const current = ownedRoster(ctx, id, userId)
+  if (current) deleteRosterRow(ctx, current)
 })
 
 export const lendRoster = spacetime.procedure(
   { rosterId: t.string(), ownerId: t.string(), borrowerId: t.string(), now: t.u64() },
   t.string(),
   (ctx, { rosterId, ownerId, borrowerId, now }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
-      if (tx.db.rosters.id.find(rosterId)?.userId !== ownerId) return 'forbidden'
+    operatorTx(ctx, (tx) => {
+      if (!ownedRoster(tx, rosterId, ownerId)) return 'forbidden'
       if (!validId(borrowerId) || borrowerId === ownerId) return 'not-friends'
       if (friendshipBetween(tx, ownerId, borrowerId)?.acceptedAt === undefined) return 'not-friends'
       const key = JSON.stringify([rosterId, borrowerId])
@@ -1771,8 +1765,7 @@ export const endRosterLoan = spacetime.procedure(
   { rosterId: t.string(), userId: t.string(), borrowerId: t.string() },
   t.bool(),
   (ctx, { rosterId, userId, borrowerId }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       const loan = tx.db.rosterLoans.key.find(JSON.stringify([rosterId, borrowerId]))
       if (!loan || (userId !== loan.ownerId && userId !== loan.borrowerId)) return false
       endLoan(tx, loan)
@@ -1781,9 +1774,8 @@ export const endRosterLoan = spacetime.procedure(
 )
 
 export const rosterLoansByRoster = spacetime.procedure({ rosterId: t.string(), ownerId: t.string() }, t.string(), (ctx, input) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
-    if (tx.db.rosters.id.find(input.rosterId)?.userId !== input.ownerId) return productJson([])
+  operatorTx(ctx, (tx) => {
+    if (!ownedRoster(tx, input.rosterId, input.ownerId)) return productJson([])
     return productJson(
       Array.from(tx.db.rosterLoans.rosterId.filter(input.rosterId))
         .filter((loan) => activeLoan(tx, loan.rosterId, loan.borrowerId))
@@ -1794,8 +1786,7 @@ export const rosterLoansByRoster = spacetime.procedure({ rosterId: t.string(), o
 
 /** A roster its owner may field, or a friend may field through an active loan. */
 export const usableRoster = spacetime.procedure({ id: t.string(), userId: t.string() }, t.string(), (ctx, { id, userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const row = tx.db.rosters.id.find(id)
     if (!row || !userId) return productJson(null)
     if (row.userId === userId) return productJson({ roster: row, lentBy: null })
@@ -1804,8 +1795,7 @@ export const usableRoster = spacetime.procedure({ id: t.string(), userId: t.stri
 )
 
 export const rostersLentTo = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (!validId(userId)) throw new SenderError('Invalid roster query')
     const loans = Array.from(tx.db.rosterLoans.borrowerId.filter(userId))
     if (loans.length > 1_000) throw new SenderError('Roster list exceeds the supported limit')
@@ -1822,8 +1812,7 @@ export const rostersLentTo = spacetime.procedure({ userId: t.string() }, t.strin
 )
 
 export const collectionByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     moveHeartsToFavourites(tx, userId)
     return productJson(
       Array.from(tx.db.collection.userId.filter(userId)).map(({ key, userId: ownerId, entryId, at, models, built, painted, countsAs }) => ({
@@ -1841,8 +1830,7 @@ export const collectionByUser = spacetime.procedure({ userId: t.string() }, t.st
 )
 
 export const collectionWishesByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return productJson(collectionWishes(tx, userId))
   }),
 )
@@ -1855,8 +1843,7 @@ export const collectionProfile = spacetime.procedure(
   { userId: t.string(), viewerId: t.option(t.string()) },
   t.string(),
   (ctx, { userId, viewerId }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       moveHeartsToFavourites(tx, userId)
       const entries = []
       for (const row of tx.db.collection.userId.filter(userId)) {
@@ -1879,16 +1866,19 @@ function touchCollection(ctx: Context, userId: string) {
 }
 
 export const addToCollection = spacetime.reducer({ userId: t.string(), entryId: t.string(), at: t.u64() }, (ctx, input) => {
+  requireOperator(ctx)
   addToCollectionIn(ctx, [input.userId, input.entryId, input.at])
 })
 
 export const removeFromCollection = spacetime.reducer({ userId: t.string(), entryId: t.string() }, (ctx, input) => {
+  requireOperator(ctx)
   removeFromCollectionIn(ctx, [input.userId, input.entryId])
 })
 
 export const setCollectionModels = spacetime.reducer(
   { userId: t.string(), entryId: t.string(), models: t.u32(), at: t.u64() },
   (ctx, input) => {
+    requireOperator(ctx)
     setCollectionModelsIn(ctx, [input.userId, input.entryId, input.models, input.at])
   },
 )
@@ -1896,6 +1886,7 @@ export const setCollectionModels = spacetime.reducer(
 export const setCollectionProgress = spacetime.reducer(
   { userId: t.string(), entryId: t.string(), built: t.u32(), painted: t.u32() },
   (ctx, input) => {
+    requireOperator(ctx)
     setCollectionProgressIn(ctx, [input.userId, input.entryId, input.built, input.painted])
   },
 )
@@ -1903,6 +1894,7 @@ export const setCollectionProgress = spacetime.reducer(
 export const setCollectionCountsAs = spacetime.reducer(
   { userId: t.string(), entryId: t.string(), countsAs: t.array(t.string()) },
   (ctx, input) => {
+    requireOperator(ctx)
     setCollectionCountsAsIn(ctx, [input.userId, input.entryId, input.countsAs])
   },
 )
@@ -1910,6 +1902,7 @@ export const setCollectionCountsAs = spacetime.reducer(
 export const setCollectionWanted = spacetime.reducer(
   { userId: t.string(), entryId: t.string(), wanted: t.u32(), at: t.u64() },
   (ctx, input) => {
+    requireOperator(ctx)
     setCollectionWantedIn(ctx, [input.userId, input.entryId, input.wanted, input.at])
   },
 )
@@ -1929,8 +1922,7 @@ export const importCollection = spacetime.procedure(
   { userId: t.string(), rows: t.string(), replace: t.bool(), at: t.u64() },
   t.string(),
   (ctx, input) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       if (!validId(input.userId)) throw new SenderError('Invalid user ID')
       const rows = decodePayload(z.array(importedCollectionRow).max(MAX_COLLECTION_DATASHEETS), input.rows, 'Invalid collection import')
       if (new Set(rows.map((row) => row.entryId)).size !== rows.length) throw new SenderError('Each datasheet can appear once')
@@ -2034,8 +2026,7 @@ export const collectionPhoto = spacetime.procedure(
   { photoId: t.string(), viewerId: t.option(t.string()) },
   t.string(),
   (ctx, { photoId, viewerId }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       const row = tx.db.collectionPhotos.photoId.find(photoId)
       return productJson(row && photoShown(row, viewerId) ? { userId: row.userId, entryId: row.entryId } : null)
     }),
@@ -2043,8 +2034,7 @@ export const collectionPhoto = spacetime.procedure(
 
 /** The photo's owner whatever its visibility, for an administrator reviewing it. */
 export const collectionPhotoForAdmin = spacetime.procedure({ photoId: t.string() }, t.string(), (ctx, { photoId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const row = tx.db.collectionPhotos.photoId.find(photoId)
     return productJson(row ? { userId: row.userId, entryId: row.entryId } : null)
   }),
@@ -2060,8 +2050,7 @@ export const datasheetPhotos = spacetime.procedure(
   { entryId: t.string(), viewerId: t.option(t.string()), limit: t.u32() },
   t.string(),
   (ctx, { entryId, viewerId, limit }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       const visible = Array.from(tx.db.collectionPhotos.entryId.filter(entryId)).filter((row) => photoShown(row, viewerId))
       return productJson(
         rankCollectionPhotos(visible.map((row) => ({ ...row, likes: row.likes ?? 0 })))
@@ -2118,8 +2107,7 @@ export const keepCollectionPhoto = spacetime.reducer({ photoId: t.string() }, (c
 
 /** Reported photos awaiting an administrator's decision, oldest first, and whether each is still shown. */
 export const heldCollectionPhotos = spacetime.procedure({ limit: t.u32() }, t.string(), (ctx, { limit }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const held = []
     for (const row of tx.db.collectionPhotos.iter()) if (awaitsReview(row)) held.push(row)
     return productJson(
@@ -2132,14 +2120,13 @@ export const heldCollectionPhotos = spacetime.procedure({ limit: t.u32() }, t.st
 )
 
 const adminCollectionPhotosQuery = z.strictObject({
-  before: z.strictObject({ at: z.number().int().nonnegative(), id: z.string().max(MAX_ID_LENGTH) }).nullable(),
+  before: pageCursorInput,
   limit: z.number().int().min(1).max(100),
 })
 
 /** Photos awaiting no review, newest first, a page at a time for administrators, with whether others can see each and its likes. */
 export const adminCollectionPhotos = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (payload.length > 1_000) throw new SenderError('Invalid photo list')
     const input = decodePayload(adminCollectionPhotosQuery, payload, 'Invalid photo list')
     const rows = []
@@ -2191,8 +2178,7 @@ export const collectionPhotoIds = spacetime.procedure(
   { after: t.option(t.string()), limit: t.u32() },
   t.string(),
   (ctx, { after, limit }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       return productJson(
         Array.from(tx.db.collectionPhotos.iter(), (photo) => photo.photoId)
           .filter((photoId) => after === undefined || photoId > after)
@@ -2203,8 +2189,7 @@ export const collectionPhotoIds = spacetime.procedure(
 )
 
 export const collectionPhotoDeletions = spacetime.procedure({ limit: t.u32() }, t.string(), (ctx, { limit }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const ids: string[] = []
     for (const row of tx.db.collectionPhotoDeletions.iter()) {
       if (ids.length >= Math.min(limit, 1_000)) break
@@ -2253,8 +2238,7 @@ function dropCollectionRowPhotos(ctx: Context, key: string) {
 }
 
 export const favouriteFactionsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return productJson(
       Array.from(tx.db.favouriteFactions.userId.filter(userId)).map(({ userId: ownerId, catalogueId, at }) => ({
         userId: ownerId,
@@ -2266,8 +2250,7 @@ export const favouriteFactionsByUser = spacetime.procedure({ userId: t.string() 
 )
 
 export const favouriteDatasheetsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     moveHeartsToFavourites(tx, userId)
     return productJson(
       Array.from(tx.db.favouriteDatasheets.userId.filter(userId)).map(({ userId: ownerId, entryId, at }) => ({
@@ -2280,16 +2263,17 @@ export const favouriteDatasheetsByUser = spacetime.procedure({ userId: t.string(
 )
 
 export const addFavouriteDatasheet = spacetime.reducer({ userId: t.string(), entryId: t.string(), at: t.u64() }, (ctx, input) => {
+  requireOperator(ctx)
   addFavouriteDatasheetIn(ctx, [input.userId, input.entryId, input.at])
 })
 
 export const removeFavouriteDatasheet = spacetime.reducer({ userId: t.string(), entryId: t.string() }, (ctx, input) => {
+  requireOperator(ctx)
   removeFavouriteDatasheetIn(ctx, [input.userId, input.entryId])
 })
 
 export const recentMatchupsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return productJson(recentMatchupsOf(tx, userId).map(({ shared, attacker, defender, at }) => ({ shared, attacker, defender, at })))
   }),
 )
@@ -2297,17 +2281,18 @@ export const recentMatchupsByUser = spacetime.procedure({ userId: t.string() }, 
 export const rememberMatchup = spacetime.reducer(
   { userId: t.string(), pairing: t.string(), shared: t.string(), attacker: t.string(), defender: t.string(), at: t.u64() },
   (ctx, input) => {
+    requireOperator(ctx)
     rememberMatchupIn(ctx, [input.userId, input.pairing, input.shared, input.attacker, input.defender, input.at])
   },
 )
 
 export const forgetMatchup = spacetime.reducer({ userId: t.string(), pairing: t.string() }, (ctx, input) => {
+  requireOperator(ctx)
   forgetMatchupIn(ctx, [input.userId, input.pairing])
 })
 
 export const abilityRemindersByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return productJson(
       Array.from(tx.db.abilityReminders.userId.filter(userId))
         .toSorted((left, right) => left.key.localeCompare(right.key))
@@ -2318,25 +2303,22 @@ export const abilityRemindersByUser = spacetime.procedure({ userId: t.string() }
 
 /** `full` changes nothing; replacing an alert the player already has never counts against the limit. */
 export const saveAbilityReminder = spacetime.procedure({ userId: t.string(), payload: t.string(), at: t.u64() }, t.string(), (ctx, input) =>
-  ctx.withTx((tx) => saveAbilityReminderIn(tx, [input.userId, input.payload, input.at])),
+  operatorTx(ctx, (tx) => saveAbilityReminderIn(tx, [input.userId, input.payload, input.at])),
 )
 
 export const deleteAbilityReminder = spacetime.reducer({ userId: t.string(), key: t.string() }, (ctx, input) => {
+  requireOperator(ctx)
   deleteAbilityReminderIn(ctx, [input.userId, input.key])
 })
 
 function saveAbilityReminderIn(tx: Context, args: unknown[]) {
   const [userId, payload, at] = z.tuple([idInput, z.string().max(20_000), timestampArg]).parse(args)
-
-  requireOperator(tx)
   const reminder = decodePayload(abilityReminderSchema.strict(), payload, 'Invalid reminder')
   return productJson(writeAbilityReminder(tx, userId, reminder, at) ? 'saved' : 'full')
 }
 
 function deleteAbilityReminderIn(tx: Context, args: unknown[]) {
   const [userId, key] = z.tuple([idInput, z.string().max(240)]).parse(args)
-
-  requireOperator(tx)
   if (tx.db.abilityReminders.key.delete(JSON.stringify([userId, key]))) touchProduct(tx, userId, 'settings')
 }
 
@@ -2374,16 +2356,17 @@ function adoptRosterReminders(tx: Context, userId: string, prep: string | null |
 }
 
 export const addFavouriteFaction = spacetime.reducer({ userId: t.string(), catalogueId: t.string(), at: t.u64() }, (ctx, input) => {
+  requireOperator(ctx)
   addFavouriteFactionIn(ctx, [input.userId, input.catalogueId, input.at])
 })
 
 export const removeFavouriteFaction = spacetime.reducer({ userId: t.string(), catalogueId: t.string() }, (ctx, input) => {
+  requireOperator(ctx)
   removeFavouriteFactionIn(ctx, [input.userId, input.catalogueId])
 })
 
 export const unitLoadoutsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return productJson(
       Array.from(tx.db.unitLoadouts.userId.filter(userId))
         .toSorted((left, right) => Number(right.createdAt - left.createdAt) || left.id.localeCompare(right.id))
@@ -2404,8 +2387,7 @@ export const saveUnitLoadout = spacetime.procedure(
   { id: t.string(), userId: t.string(), payload: t.string(), at: t.u64() },
   t.string(),
   (ctx, { id, userId, payload, at }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       if (!validId(id) || !validId(userId)) throw new SenderError('Invalid loadout')
       const loadout = decodePayload(unitLoadoutSchema.strict(), payload, 'Invalid loadout')
       const current = tx.db.unitLoadouts.id.find(id)
@@ -2427,8 +2409,7 @@ export const saveUnitLoadout = spacetime.procedure(
 
 /** Only the name changes, so rosters and searches keep finding the same loadout. */
 export const renameUnitLoadout = spacetime.procedure({ id: t.string(), userId: t.string(), name: t.string() }, t.bool(), (ctx, input) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const name = unitLoadoutNameSchema.safeParse(input.name)
     if (!name.success) throw new SenderError('Invalid loadout')
     const current = tx.db.unitLoadouts.id.find(input.id)
@@ -2440,8 +2421,7 @@ export const renameUnitLoadout = spacetime.procedure({ id: t.string(), userId: t
 )
 
 export const deleteUnitLoadout = spacetime.procedure({ id: t.string(), userId: t.string() }, t.bool(), (ctx, { id, userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (tx.db.unitLoadouts.id.find(id)?.userId !== userId) return false
     tx.db.unitLoadouts.id.delete(id)
     touchProduct(tx, userId, 'rosters')
@@ -2450,8 +2430,7 @@ export const deleteUnitLoadout = spacetime.procedure({ id: t.string(), userId: t
 )
 
 export const favouriteDetachmentsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return productJson(
       Array.from(tx.db.favouriteDetachments.userId.filter(userId)).map(({ userId: ownerId, catalogueId, detachmentId, at }) => ({
         userId: ownerId,
@@ -2466,6 +2445,7 @@ export const favouriteDetachmentsByUser = spacetime.procedure({ userId: t.string
 export const addFavouriteDetachment = spacetime.reducer(
   { userId: t.string(), catalogueId: t.string(), detachmentId: t.string(), at: t.u64() },
   (ctx, input) => {
+    requireOperator(ctx)
     addFavouriteDetachmentIn(ctx, [input.userId, input.catalogueId, input.detachmentId, input.at])
   },
 )
@@ -2473,24 +2453,23 @@ export const addFavouriteDetachment = spacetime.reducer(
 export const removeFavouriteDetachment = spacetime.reducer(
   { userId: t.string(), catalogueId: t.string(), detachmentId: t.string() },
   (ctx, input) => {
+    requireOperator(ctx)
     removeFavouriteDetachmentIn(ctx, [input.userId, input.catalogueId, input.detachmentId])
   },
 )
 
 export const pushEnabled = spacetime.procedure({ userId: t.string() }, t.bool(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return tx.db.pushPreferences.userId.find(userId)?.enabled ?? DEFAULT_PUSH_NOTIFICATIONS
   }),
 )
 
 export const setPushEnabled = spacetime.procedure({ userId: t.string(), enabled: t.bool(), now: t.u64() }, t.bool(), (ctx, input) =>
-  ctx.withTx((tx) => setPushEnabledIn(tx, [input.userId, input.enabled, input.now])),
+  operatorTx(ctx, (tx) => setPushEnabledIn(tx, [input.userId, input.enabled, input.now])),
 )
 
 export const playerDefaults = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const row = tx.db.playerDefaults.userId.find(userId)
     return productJson(row ? { rosterVisibility: row.rosterVisibility, battleSize: row.battleSize } : DEFAULT_PLAYER_DEFAULTS)
   }),
@@ -2499,7 +2478,7 @@ export const playerDefaults = spacetime.procedure({ userId: t.string() }, t.stri
 export const setPlayerDefaults = spacetime.procedure(
   { userId: t.string(), rosterVisibility: t.string(), battleSize: t.u32(), now: t.u64() },
   t.string(),
-  (ctx, input) => ctx.withTx((tx) => setPlayerDefaultsIn(tx, [input.userId, input.rosterVisibility, input.battleSize, input.now])),
+  (ctx, input) => operatorTx(ctx, (tx) => setPlayerDefaultsIn(tx, [input.userId, input.rosterVisibility, input.battleSize, input.now])),
 )
 
 export const registerPushToken = spacetime.reducer(
@@ -2545,8 +2524,7 @@ export const deletePushTokens = spacetime.reducer({ tokens: t.array(t.string()) 
 })
 
 export const pushTargets = spacetime.procedure({ userIds: t.array(t.string()) }, t.string(), (ctx, { userIds }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (userIds.length > 100) throw new SenderError('Too many notification recipients')
     const targets: { userId: string; token: string }[] = []
     for (const userId of new Set(userIds)) {
@@ -2558,8 +2536,7 @@ export const pushTargets = spacetime.procedure({ userIds: t.array(t.string()) },
 )
 
 export const leagueNames = spacetime.procedure({ tokens: t.array(t.string()) }, t.string(), (ctx, { tokens }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (tokens.length > 100) throw new SenderError('Too many league names')
     return productJson(
       [...new Set(tokens)].flatMap((token) => {
@@ -2571,8 +2548,7 @@ export const leagueNames = spacetime.procedure({ tokens: t.array(t.string()) }, 
 )
 
 export const clubNames = spacetime.procedure({ tokens: t.array(t.string()) }, t.string(), (ctx, { tokens }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (tokens.length > 100) throw new SenderError('Too many club names')
     return productJson(
       [...new Set(tokens)].flatMap((token) => {
@@ -2589,8 +2565,7 @@ export const clubNames = spacetime.procedure({ tokens: t.array(t.string()) }, t.
  * converts whatever leagues remain, so the server asks at each start and a second call finds none.
  */
 export const migrateLeaguesToClubs = spacetime.procedure({ now: t.u64() }, t.u32(), (ctx, { now }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const leagues = Array.from(tx.db.leagues.iter())
     for (const league of leagues) {
       const clubId = league.clubId ?? league.id
@@ -2667,16 +2642,10 @@ export const migrateLeaguesToClubs = spacetime.procedure({ now: t.u64() }, t.u32
   }),
 )
 
-export const operatorHealth = spacetime.procedure({}, t.bool(), (ctx) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
-    return true
-  }),
-)
+export const operatorHealth = spacetime.procedure({}, t.bool(), (ctx) => operatorTx(ctx, () => true))
 
 export const publicStandingsRevision = spacetime.procedure({}, t.string(), (ctx) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return (tx.db.publicRevisions.scope.find('standings')?.revision ?? 0n).toString()
   }),
 )
@@ -2695,14 +2664,7 @@ function roundPairings(ctx: Context, eventId: string) {
 function pairingFinished(ctx: Context, pairing: { bId: string | undefined; battleId: string | undefined }) {
   if (pairing.bId === undefined) return true
   if (pairing.battleId === undefined || !ctx.db.battles.id.find(pairing.battleId)) return false
-  const { seats, log } = battleData(ctx, pairing.battleId)
-  return (
-    reduceBattle(
-      seats.map((seat) => seat.id),
-      log,
-      seats.map((seat) => seat.side),
-    ).status === 'finished'
-  )
+  return battleState(ctx, pairing.battleId).state.status === 'finished'
 }
 
 /** Who hosts an event, as every read names it: a tournament with its admins, or the club whose game it is. */
@@ -2736,8 +2698,7 @@ function eventRecord(ctx: Context, host: EventHost) {
 }
 
 export const leagueByToken = spacetime.procedure({ token: t.string(), eventToken: t.string() }, t.string(), (ctx, { token, eventToken }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (token.length > MAX_ID_LENGTH || eventToken.length > MAX_ID_LENGTH) throw new SenderError('Invalid league token')
     const host = namedHost(tx, token, eventToken)
     return productJson(host ? eventRecord(tx, host) : null)
@@ -2749,8 +2710,7 @@ export const leagueByToken = spacetime.procedure({ token: t.string(), eventToken
  * event's token, in that order.
  */
 export const eventAddress = spacetime.procedure({ token: t.string(), eventToken: t.string() }, t.string(), (ctx, { token, eventToken }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (token.length > MAX_ID_LENGTH || eventToken.length > MAX_ID_LENGTH) throw new SenderError('Invalid league token')
     const address = (host: EventHost | undefined) =>
       host?.kind === 'tournament'
@@ -2788,8 +2748,7 @@ function personalEventIds(ctx: Context, userId: string) {
 
 /** Public tournaments and every event of a player's own, their own first, then newest. */
 export const leaguesVisibleTo = spacetime.procedure({ userId: t.string(), limit: t.u32() }, t.string(), (ctx, { userId, limit }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (userId.length > MAX_ID_LENGTH || limit < 1 || limit > 100) throw new SenderError('Invalid league list')
     const personal = userId ? personalEventIds(tx, userId) : new Set<string>()
     const hosts: EventHost[] = []
@@ -2828,11 +2787,10 @@ export const outdatedLeagueEntriesForRoster = spacetime.procedure(
   { userId: t.string(), rosterId: t.string() },
   t.string(),
   (ctx, { userId, rosterId }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       if (!validId(userId) || !validId(rosterId)) throw new SenderError('Invalid roster lookup')
-      const saved = tx.db.rosters.id.find(rosterId)
-      if (!saved || saved.userId !== userId) return productJson([])
+      const saved = ownedRoster(tx, rosterId, userId)
+      if (!saved) return productJson([])
       const prep = saved.prep ? (JSON.parse(saved.prep) as { remindersEnabled?: boolean }) : null
       const current = {
         name: saved.name,
@@ -2851,13 +2809,8 @@ export const outdatedLeagueEntriesForRoster = spacetime.procedure(
         if (entry.rosterId !== rosterId || entry.status !== 'accepted' || entry.rosterSnapshot === undefined) continue
         const event = tx.db.sealedEvents.id.find(entry.eventId)
         if (!event || event.revealedAt !== undefined) continue
-        let sameRoster = false
-        try {
-          sameRoster = matchesSealedLeagueRoster(current, parseRosterSnapshot(entry.rosterSnapshot))
-        } catch {
-          // An unreadable snapshot cannot be considered current.
-        }
-        if (sameRoster) continue
+        const sealed = rosterSnapshotOrNull(entry.rosterSnapshot)
+        if (sealed && matchesSealedLeagueRoster(current, sealed)) continue
         const host = hostOfEvent(tx, event)
         if (host)
           matches.push({ token: hostToken(host), name: eventTitle(host), club: host.kind === 'club' ? { token: host.club.token } : null })
@@ -2870,13 +2823,12 @@ export const outdatedLeagueEntriesForRoster = spacetime.procedure(
 function listsEvent(ctx: Context, host: EventHost, readerId: string, personal: ReadonlySet<string>) {
   if (personal.has(host.event.id)) return true
   if (host.kind === 'tournament') return host.tournament.visibility === 'public'
-  return host.club.visibility === 'public' || ctx.db.clubMembers.key.find(JSON.stringify([host.club.id, readerId]))?.status === 'accepted'
+  return host.club.visibility === 'public' || isClubMember(ctx, host.club.id, readerId)
 }
 
 /** Friends' sealed lists from revealed events the viewer can list, newest reveal first. */
 export const friendLeagueRosters = spacetime.procedure({ viewerId: t.string() }, t.string(), (ctx, { viewerId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (!validId(viewerId)) throw new SenderError('Invalid league roster list')
     const personal = personalEventIds(tx, viewerId)
     const rosters = []
@@ -2889,12 +2841,7 @@ export const friendLeagueRosters = spacetime.procedure({ viewerId: t.string() },
         if (!event || event.revealedAt === undefined) continue
         const host = hostOfEvent(tx, event)
         if (!host || !listsEvent(tx, host, viewerId, personal)) continue
-        let catalogueId: string | undefined
-        try {
-          catalogueId = parseRosterSnapshot(entry.rosterSnapshot).built?.catalogueId
-        } catch {
-          // An unreadable snapshot cannot be simulated.
-        }
+        const catalogueId = rosterSnapshotOrNull(entry.rosterSnapshot)?.built?.catalogueId
         if (!catalogueId) continue
         rosters.push({
           leagueToken: hostToken(host),
@@ -2916,8 +2863,7 @@ export const leagueBattleCandidates = spacetime.procedure(
   { userId: t.string(), participantIds: t.array(t.string()) },
   t.string(),
   (ctx, { userId, participantIds }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       if (
         !validId(userId) ||
         participantIds.length < 2 ||
@@ -2948,8 +2894,7 @@ export const leagueRosters = spacetime.procedure(
   { token: t.string(), userId: t.string(), eventToken: t.string(), readerId: t.string() },
   t.string(),
   (ctx, { token, userId, eventToken, readerId }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       const event = namedHost(tx, token, eventToken)?.event
       const entry = event && tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, userId]))
       if (!entry || entry.status !== 'accepted' || entry.rosterSnapshot === undefined) return 'null'
@@ -2987,8 +2932,7 @@ export const leagueRosterSharing = spacetime.procedure(
   { token: t.string(), eventToken: t.string(), userId: t.string() },
   t.string(),
   (ctx, { token, eventToken, userId }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       const event = namedHost(tx, token, eventToken)?.event
       return productJson(event ? (leagueRosterSharingState(tx, event, userId)?.state ?? null) : null)
     }),
@@ -3005,15 +2949,8 @@ function admitWaiting(ctx: Context, entries: LeagueEntryRow[], playerLimit: numb
   })
 }
 
-function resetLeagueEntry(ctx: Context, entry: LeagueEntryRow) {
-  ctx.db.leagueEventEntries.key.update({
-    ...entry,
-    rosterId: undefined,
-    rosterName: undefined,
-    rosterSnapshot: undefined,
-    submittedAt: undefined,
-  })
-}
+/** The fields an entry's sealed list fills, all cleared. */
+const UNSEALED = { rosterId: undefined, rosterName: undefined, rosterSnapshot: undefined, submittedAt: undefined }
 
 function insertLeagueEntry(ctx: Context, eventId: string, userId: string, status: 'accepted' | 'pending', now: number) {
   ctx.db.leagueEventEntries.insert({
@@ -3022,10 +2959,7 @@ function insertLeagueEntry(ctx: Context, eventId: string, userId: string, status
     userId,
     status,
     joinedAt: BigInt(now),
-    rosterId: undefined,
-    rosterName: undefined,
-    rosterSnapshot: undefined,
-    submittedAt: undefined,
+    ...UNSEALED,
     requiredLimit: undefined,
     teamId: undefined,
   })
@@ -3041,8 +2975,9 @@ function leagueCommandInput<S extends z.ZodType>(inputSchema: S, value: unknown)
 }
 
 const leagueTimeInput = z.number().int().nonnegative()
+const leagueRosterLimitInput = z.number().int().positive().max(10_000)
+const leagueMemberLimitInput = z.number().int().min(LEAGUE_MEMBER_MIN).max(LEAGUE_MEMBER_MAX)
 const leagueFormatInput = z.enum(TABLE_SHAPES)
-// Absent on an update from an older client, which leaves the event's allowances as they stand.
 const leagueRoundsInput = z.number().int().min(1).max(SWISS_ROUNDS_MAX).nullable()
 const leaguePointsBudgetInput = z.number().int().min(POINTS_BUDGET_MIN).max(POINTS_BUDGET_MAX).nullable()
 const leagueScheduleInput = z.object({ playsAt: leagueTimeInput.nullable(), sealBy: leagueTimeInput.nullable() })
@@ -3056,7 +2991,7 @@ function leaguePointsBudget(format: string | null, rosterLimit: number | null, b
 const leagueArmyPointsInput = z.number().int().min(1).max(POINTS_BUDGET_MAX).nullable()
 const leagueRuleInput = z.object({
   format: leagueFormatInput,
-  rosterLimit: z.number().int().positive().max(10_000),
+  rosterLimit: leagueRosterLimitInput,
   allowances: leagueAllowancesSchema.optional(),
   // Absent from an older client, which leaves the event's pairing and points as they stand.
   rounds: leagueRoundsInput.optional(),
@@ -3079,9 +3014,9 @@ const leagueEventAllowances = (event: SealedEventRow) => (event.allowances === u
 const leagueDetailsInput = z.object({
   name: z.string().max(100),
   description: z.string().max(2_000),
-  visibility: z.enum(['public', 'private']),
-  admission: z.enum(['automatic', 'approval']),
-  playerLimit: z.number().int().min(2).max(128).nullable(),
+  visibility: z.enum(LEAGUE_VISIBILITIES),
+  admission: z.enum(LEAGUE_ADMISSIONS),
+  playerLimit: leagueMemberLimitInput.nullable(),
 })
 
 /** Opens every sealed list of an unrevealed event for `actorId`, or says why it cannot, checking the rosters themselves beyond the checklist. */
@@ -3159,20 +3094,11 @@ function eventTeams(ctx: Context, eventId: string, entries: LeagueEntryRow[]) {
       userId: entry.userId,
       status: entry.status as LeagueEntryStatus,
       teamId: entry.teamId ?? null,
-      roster: entry.teamId ? sealedRoster(entry) : null,
+      roster: entry.teamId ? rosterSnapshotOrNull(entry.rosterSnapshot) : null,
     })),
     picks,
     warlords,
   )
-}
-
-function sealedRoster(entry: LeagueEntryRow) {
-  if (entry.rosterSnapshot === undefined) return null
-  try {
-    return parseRosterSnapshot(entry.rosterSnapshot)
-  } catch {
-    return null
-  }
 }
 
 function setTeamPick(ctx: Context, eventId: string, teamId: string, disposition: string) {
@@ -3197,7 +3123,7 @@ function clearTeamPicks(ctx: Context, eventId: string, teamIds?: ReadonlySet<str
 }
 
 export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
-  ctx.withTx((tx) => leagueCommandIn(tx, [payload])),
+  operatorTx(ctx, (tx) => leagueCommandIn(tx, [payload])),
 )
 
 const clubDetailsInput = z.object({
@@ -3239,8 +3165,6 @@ function insertClubMember(ctx: Context, clubId: string, userId: string, status: 
 
 function clubCommandIn(tx: Context, args: unknown[]) {
   const [payload] = z.tuple([textArg]).parse(args)
-
-  requireOperator(tx)
   const input = decodePayload(clubCommandInput, payload, 'Invalid club command')
   if (input.op === 'create') {
     tx.db.clubs.insert({
@@ -3345,12 +3269,11 @@ function clubCommandIn(tx: Context, args: unknown[]) {
 }
 
 export const clubCommand = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
-  ctx.withTx((tx) => clubCommandIn(tx, [payload])),
+  operatorTx(ctx, (tx) => clubCommandIn(tx, [payload])),
 )
 
 export const clubByToken = spacetime.procedure({ token: t.string() }, t.string(), (ctx, { token }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (token.length > MAX_ID_LENGTH) throw new SenderError('Invalid club token')
     const club = tx.db.clubs.token.find(token)
     if (!club) return productJson(null)
@@ -3388,9 +3311,7 @@ export const clubByToken = spacetime.procedure({ token: t.string() }, t.string()
   }),
 )
 
-const CLUB_GAME_SIDES = ['solo', 'pair', 'team-1', 'team-2'] as const
-
-/** The seat a side of a club's team game names: one solo player against an allied pair, or two pairs. */
+/** The seat a side of a club's team game names. */
 function clubGameSeat(format: string | undefined, rosterLimit: number | undefined, side: (typeof CLUB_GAME_SIDES)[number]) {
   if (rosterLimit === undefined) return null
   const allied = alliedLeagueRosterLimit(rosterLimit)
@@ -3405,16 +3326,8 @@ function unfinishedPlayers(ctx: Context, eventId: string) {
   const players = new Set<string>()
   for (const row of ctx.db.leagueEventBattles.eventId.filter(eventId)) {
     if (!ctx.db.battles.id.find(row.battleId)) continue
-    const { seats, log } = battleData(ctx, row.battleId)
-    const ids = seats.map((seat) => seat.id)
-    if (
-      reduceBattle(
-        ids,
-        log,
-        seats.map((seat) => seat.side),
-      ).status !== 'finished'
-    )
-      for (const id of ids) players.add(id)
+    const { seats, state } = battleState(ctx, row.battleId)
+    if (state.status !== 'finished') for (const seat of seats) players.add(seat.id)
   }
   return [...players]
 }
@@ -3433,8 +3346,7 @@ function playedPairs(ctx: Context, eventId: string) {
 
 /** Public clubs and every club a player owns, belongs to, or has asked to join, their own first. */
 export const clubsVisibleTo = spacetime.procedure({ userId: t.string(), limit: t.u32() }, t.string(), (ctx, { userId, limit }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (userId.length > MAX_ID_LENGTH || limit < 1 || limit > 100) throw new SenderError('Invalid club list')
     const own = new Map(userId ? Array.from(tx.db.clubMembers.userId.filter(userId), (row) => [row.clubId, row] as const) : [])
     const clubs = []
@@ -3462,8 +3374,7 @@ export const clubsVisibleTo = spacetime.procedure({ userId: t.string(), limit: t
 
 /** The club a battle counts for, and the clubs it could, for its setup. */
 export const battleClubs = spacetime.procedure({ battleId: t.string() }, t.string(), (ctx, { battleId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (battleId.length > MAX_ID_LENGTH) throw new SenderError('Invalid battle')
     const summary = (club: ClubRow) => ({ id: club.id, token: club.token, name: club.name, visibility: club.visibility })
     const currentId = tx.db.clubBattles.battleId.find(battleId)?.clubId
@@ -3485,12 +3396,58 @@ const timestampArg = z.preprocess(
   z.number().int().nonnegative().transform(BigInt),
 )
 
+type BattleSeat = { id: string; side: number; guestName?: string }
+
+/** Seats a new battle and writes its opening commands, each refused against the state those before it leave. */
+function insertBattle(
+  ctx: Context,
+  { id, token, now, by, seats }: { id: string; token: string; now: number; by: string; seats: readonly BattleSeat[] },
+  initialCommands: readonly Command[],
+  refusal: (state: BattleState, command: Command) => string | null,
+) {
+  ctx.db.battles.insert({ id, token, createdAt: BigInt(now) })
+  for (const [index, seat] of seats.entries()) {
+    ctx.db.battleUsers.insert({
+      key: JSON.stringify([id, seat.id]),
+      battleId: id,
+      userId: seat.id,
+      side: seat.side,
+      joinedAt: BigInt(now + index),
+      guestName: seat.guestName,
+      claimedSeat: undefined,
+    })
+    touchProduct(ctx, seat.id, 'battles', 'onboarding')
+  }
+  touchPublic(ctx, 'battles')
+  touchAdmin(ctx)
+  const log: LoggedCommand[] = []
+  for (const [index, command] of initialCommands.entries()) {
+    const refused = refusal(
+      reduceBattle(
+        seats.map((seat) => seat.id),
+        log,
+        seats.map((seat) => seat.side),
+      ),
+      command,
+    )
+    if (refused) throw new SenderError(`new battle command was refused: ${refused}`)
+    const seq = index + 1
+    ctx.db.commands.insert({
+      key: JSON.stringify([id, seq]),
+      battleId: id,
+      seq,
+      userId: by,
+      at: BigInt(now),
+      body: JSON.stringify(command),
+    })
+    log.push({ seq, by, at: now, command })
+  }
+}
+
 function createBattleIn(tx: Context, args: unknown[]) {
   const [payload] = z.tuple([textArg]).parse(args)
-
-  requireOperator(tx)
   const { id, token, userId, allyIds, opponentIds, guestNames, initialCommands, now } = decodePayload(newBattle, payload, 'Invalid battle')
-  const seats: { id: string; side: number; guestName?: string }[] = [
+  const seats: BattleSeat[] = [
     { id: userId, side: 0 },
     ...allyIds.map((seatId) => ({ id: seatId, side: 0 })),
     ...opponentIds.map((seatId) => ({ id: seatId, side: 1 })),
@@ -3503,47 +3460,23 @@ function createBattleIn(tx: Context, args: unknown[]) {
     new Set(seats.map((seat) => seat.id)).size !== seats.length
   )
     throw new SenderError('Invalid battle seats')
-  tx.db.battles.insert({ id, token, createdAt: BigInt(now) })
-  for (const [index, seat] of seats.entries()) {
-    tx.db.battleUsers.insert({
-      key: JSON.stringify([id, seat.id]),
-      battleId: id,
-      userId: seat.id,
-      side: seat.side,
-      joinedAt: BigInt(now + index),
-      guestName: seat.guestName,
-      claimedSeat: undefined,
-    })
-    touchProduct(tx, seat.id, 'battles', 'onboarding')
-  }
-  touchPublic(tx, 'battles')
-  touchAdmin(tx)
-  const log: LoggedCommand[] = []
-  for (const [index, command] of initialCommands.entries()) {
-    const state = reduceBattle(
-      seats.map((seat) => seat.id),
-      log,
-      seats.map((seat) => seat.side),
-    )
-    // A club game started from its club is tagged at birth, for players who all belong to it.
-    const refusal =
+  // A club game started from its club is tagged at birth, for players who all belong to it.
+  insertBattle(
+    tx,
+    { id, token, now, by: userId, seats },
+    initialCommands,
+    (state, command) =>
       validate(state, userId, command) ??
       (command.kind === 'set-battle-club' && command.clubId && !battleClubIds(tx, battleData(tx, id).seats).includes(command.clubId)
         ? CLUB_MEMBERS_ONLY
-        : null)
-    if (refusal) throw new SenderError(`new battle command was refused: ${refusal}`)
-    const seq = index + 1
-    tx.db.commands.insert({ key: JSON.stringify([id, seq]), battleId: id, seq, userId, at: BigInt(now), body: JSON.stringify(command) })
-    log.push({ seq, by: userId, at: now, command })
-  }
+        : null),
+  )
   if (initialCommands.some((command) => command.kind === 'set-battle-club')) indexClubBattle(tx, id)
   return productJson(battleData(tx, id))
 }
 
 function removeBattleIn(tx: Context, args: unknown[]) {
   const [battleId, userId] = z.tuple([textArg, textArg]).parse(args)
-
-  requireOperator(tx)
   const opener = Array.from(tx.db.battleUsers.battleId.filter(battleId))
     .filter((seat) => seat.side === 0)
     .sort((left, right) => (left.joinedAt > right.joinedAt ? 1 : left.joinedAt < right.joinedAt ? -1 : 0))[0]
@@ -3554,8 +3487,6 @@ function removeBattleIn(tx: Context, args: unknown[]) {
 
 function requestFriendIn(tx: Context, args: unknown[]) {
   const [requesterId, addresseeId, now] = z.tuple([textArg, textArg, timestampArg]).parse(args)
-
-  requireOperator(tx)
   const key = friendshipKey(requesterId, addresseeId)
   if (friendshipBetween(tx, requesterId, addresseeId)) return false
   tx.db.friendships.insert({
@@ -3571,8 +3502,6 @@ function requestFriendIn(tx: Context, args: unknown[]) {
 
 function acceptFriendIn(tx: Context, args: unknown[]) {
   const [requesterId, addresseeId, now] = z.tuple([textArg, textArg, timestampArg]).parse(args)
-
-  requireOperator(tx)
   const current = tx.db.friendships.key.find(friendshipKey(requesterId, addresseeId))
   if (!current || current.acceptedAt !== undefined) return false
   tx.db.friendships.key.update({ ...current, acceptedAt: now })
@@ -3582,8 +3511,6 @@ function acceptFriendIn(tx: Context, args: unknown[]) {
 
 function rejectFriendIn(tx: Context, args: unknown[]) {
   const [requesterId, addresseeId] = z.tuple([textArg, textArg]).parse(args)
-
-  requireOperator(tx)
   const current = tx.db.friendships.key.find(friendshipKey(requesterId, addresseeId))
   if (!current || current.requesterId !== requesterId || current.addresseeId !== addresseeId || current.acceptedAt !== undefined)
     return false
@@ -3594,8 +3521,6 @@ function rejectFriendIn(tx: Context, args: unknown[]) {
 
 function removeFriendIn(tx: Context, args: unknown[]) {
   const [leftId, rightId] = z.tuple([textArg, textArg]).parse(args)
-
-  requireOperator(tx)
   const current = friendshipBetween(tx, leftId, rightId)
   if (!current) return false
   const deleted = tx.db.friendships.key.delete(current.key)
@@ -3610,8 +3535,6 @@ function removeFriendIn(tx: Context, args: unknown[]) {
 
 function replaceFriendInviteIn(ctx: Context, args: unknown[]) {
   const [inviterId, token, now] = z.tuple([textArg, textArg, timestampArg]).parse(args)
-
-  requireOperator(ctx)
   if (!validId(inviterId) || !validId(token)) throw new SenderError('Invalid invite')
   const current = ctx.db.friendInvites.inviterId.find(inviterId)
   if (current) ctx.db.friendInvites.token.delete(current.token)
@@ -3622,8 +3545,6 @@ function replaceFriendInviteIn(ctx: Context, args: unknown[]) {
 
 function cancelFriendInviteIn(tx: Context, args: unknown[]) {
   const [inviterId] = z.tuple([textArg]).parse(args)
-
-  requireOperator(tx)
   const current = tx.db.friendInvites.inviterId.find(inviterId)
   if (!current) return false
   const deleted = tx.db.friendInvites.token.delete(current.token)
@@ -3636,8 +3557,6 @@ function cancelFriendInviteIn(tx: Context, args: unknown[]) {
 
 function acceptFriendInviteIn(tx: Context, args: unknown[]) {
   const [token, recipientId, now] = z.tuple([textArg, textArg, timestampArg]).parse(args)
-
-  requireOperator(tx)
   const invite = tx.db.friendInvites.token.find(token)
   if (!invite) return productJson('missing')
   if (invite.inviterId === recipientId) return productJson('self')
@@ -3662,8 +3581,6 @@ function acceptFriendInviteIn(tx: Context, args: unknown[]) {
 
 function updateOnboardingIn(tx: Context, args: unknown[]) {
   const [userId, operation, task] = z.tuple([textArg, textArg, textArg]).parse(args)
-
-  requireOperator(tx)
   if (!validId(userId)) throw new SenderError('Invalid user ID')
   if (operation === 'welcome') {
     const current = tx.db.userOnboarding.userId.find(userId)
@@ -3705,8 +3622,6 @@ function moveHeartsToFavourites(ctx: Context, userId: string) {
 
 function addToCollectionIn(ctx: Context, args: unknown[]) {
   const [userId, entryId, at] = z.tuple([textArg, textArg, timestampArg]).parse(args)
-
-  requireOperator(ctx)
   moveHeartsToFavourites(ctx, userId)
   const key = JSON.stringify([userId, entryId])
   if (!ctx.db.collection.key.find(key)) {
@@ -3717,8 +3632,6 @@ function addToCollectionIn(ctx: Context, args: unknown[]) {
 
 function removeFromCollectionIn(ctx: Context, args: unknown[]) {
   const [userId, entryId] = z.tuple([textArg, textArg]).parse(args)
-
-  requireOperator(ctx)
   moveHeartsToFavourites(ctx, userId)
   const key = JSON.stringify([userId, entryId])
   dropCollectionRowPhotos(ctx, key)
@@ -3729,8 +3642,6 @@ function setCollectionModelsIn(ctx: Context, args: unknown[]) {
   const [userId, entryId, models, at] = z
     .tuple([textArg, textArg, z.number().int().min(1).max(MAX_COLLECTION_MODELS), timestampArg])
     .parse(args)
-
-  requireOperator(ctx)
   moveHeartsToFavourites(ctx, userId)
   const key = JSON.stringify([userId, entryId])
   const current = ctx.db.collection.key.find(key)
@@ -3749,8 +3660,6 @@ function setCollectionProgressIn(ctx: Context, args: unknown[]) {
   const [userId, entryId, built, painted] = z
     .tuple([textArg, textArg, z.number().int().min(0).max(MAX_COLLECTION_MODELS), z.number().int().min(0).max(MAX_COLLECTION_MODELS)])
     .parse(args)
-
-  requireOperator(ctx)
   moveHeartsToFavourites(ctx, userId)
   const current = ctx.db.collection.key.find(JSON.stringify([userId, entryId]))
   if (!current) throw new SenderError('Add this datasheet to your collection before counting built or painted models')
@@ -3760,8 +3669,6 @@ function setCollectionProgressIn(ctx: Context, args: unknown[]) {
 
 function setCollectionCountsAsIn(ctx: Context, args: unknown[]) {
   const [userId, entryId, countsAs] = z.tuple([textArg, textArg, z.array(countsAsId).max(MAX_COUNTS_AS)]).parse(args)
-
-  requireOperator(ctx)
   moveHeartsToFavourites(ctx, userId)
   const current = ctx.db.collection.key.find(JSON.stringify([userId, entryId]))
   if (!current) throw new SenderError('Add this datasheet to your collection before choosing what else its models can be')
@@ -3774,8 +3681,6 @@ function setCollectionWantedIn(ctx: Context, args: unknown[]) {
   const [userId, entryId, wanted, at] = z
     .tuple([textArg, textArg, z.number().int().min(0).max(MAX_COLLECTION_MODELS), timestampArg])
     .parse(args)
-
-  requireOperator(ctx)
   const key = JSON.stringify([userId, entryId])
   const current = ctx.db.collectionWishes.key.find(key)
   if (!wanted) {
@@ -3787,8 +3692,6 @@ function setCollectionWantedIn(ctx: Context, args: unknown[]) {
 
 function addFavouriteFactionIn(ctx: Context, args: unknown[]) {
   const [userId, catalogueId, at] = z.tuple([textArg, textArg, timestampArg]).parse(args)
-
-  requireOperator(ctx)
   const key = JSON.stringify([userId, catalogueId])
   if (!ctx.db.favouriteFactions.key.find(key)) {
     ctx.db.favouriteFactions.insert({ key, userId, catalogueId, at })
@@ -3798,15 +3701,11 @@ function addFavouriteFactionIn(ctx: Context, args: unknown[]) {
 
 function removeFavouriteFactionIn(ctx: Context, args: unknown[]) {
   const [userId, catalogueId] = z.tuple([textArg, textArg]).parse(args)
-
-  requireOperator(ctx)
   if (ctx.db.favouriteFactions.key.delete(JSON.stringify([userId, catalogueId]))) touchProduct(ctx, userId, 'favourites')
 }
 
 function addFavouriteDatasheetIn(ctx: Context, args: unknown[]) {
   const [userId, entryId, at] = z.tuple([textArg, textArg, timestampArg]).parse(args)
-
-  requireOperator(ctx)
   const key = JSON.stringify([userId, entryId])
   if (!ctx.db.favouriteDatasheets.key.find(key)) {
     ctx.db.favouriteDatasheets.insert({ key, userId, entryId, at })
@@ -3816,8 +3715,6 @@ function addFavouriteDatasheetIn(ctx: Context, args: unknown[]) {
 
 function removeFavouriteDatasheetIn(ctx: Context, args: unknown[]) {
   const [userId, entryId] = z.tuple([textArg, textArg]).parse(args)
-
-  requireOperator(ctx)
   if (ctx.db.favouriteDatasheets.key.delete(JSON.stringify([userId, entryId]))) touchProduct(ctx, userId, 'favourites')
 }
 
@@ -3830,8 +3727,6 @@ function rememberMatchupIn(ctx: Context, args: unknown[]) {
   const [userId, pairing, shared, attacker, defender, at] = z
     .tuple([idInput, matchupPairingSchema, shape.shared, shape.attacker, shape.defender, timestampArg])
     .parse(args)
-
-  requireOperator(ctx)
   const key = JSON.stringify([userId, pairing])
   const row = { key, userId, shared, attacker, defender, at }
   if (ctx.db.recentMatchups.key.find(key)) ctx.db.recentMatchups.key.update(row)
@@ -3842,15 +3737,11 @@ function rememberMatchupIn(ctx: Context, args: unknown[]) {
 
 function forgetMatchupIn(ctx: Context, args: unknown[]) {
   const [userId, pairing] = z.tuple([idInput, matchupPairingSchema]).parse(args)
-
-  requireOperator(ctx)
   if (ctx.db.recentMatchups.key.delete(JSON.stringify([userId, pairing]))) touchProduct(ctx, userId, 'simulator')
 }
 
 function addFavouriteDetachmentIn(ctx: Context, args: unknown[]) {
   const [userId, catalogueId, detachmentId, at] = z.tuple([textArg, textArg, textArg, timestampArg]).parse(args)
-
-  requireOperator(ctx)
   const key = JSON.stringify([userId, catalogueId, detachmentId])
   if (!ctx.db.favouriteDetachments.key.find(key)) {
     ctx.db.favouriteDetachments.insert({ key, userId, catalogueId, detachmentId, at })
@@ -3860,15 +3751,11 @@ function addFavouriteDetachmentIn(ctx: Context, args: unknown[]) {
 
 function removeFavouriteDetachmentIn(ctx: Context, args: unknown[]) {
   const [userId, catalogueId, detachmentId] = z.tuple([textArg, textArg, textArg]).parse(args)
-
-  requireOperator(ctx)
   if (ctx.db.favouriteDetachments.key.delete(JSON.stringify([userId, catalogueId, detachmentId]))) touchProduct(ctx, userId, 'favourites')
 }
 
 function setPushEnabledIn(tx: Context, args: unknown[]) {
   const [userId, enabled, now] = z.tuple([textArg, z.boolean(), timestampArg]).parse(args)
-
-  requireOperator(tx)
   if (!validId(userId)) throw new SenderError('Invalid user ID')
   const current = tx.db.pushPreferences.userId.find(userId)
   const row = { userId, enabled, at: now }
@@ -3882,8 +3769,6 @@ function setPlayerDefaultsIn(tx: Context, args: unknown[]) {
   const [userId, rosterVisibility, battleSize, now] = z
     .tuple([textArg, textArg, z.number().int().nonnegative().max(4_294_967_295), timestampArg])
     .parse(args)
-
-  requireOperator(tx)
   if (!validId(userId) || !isPlayerDefaults({ rosterVisibility, battleSize })) throw new SenderError('Invalid player defaults')
   const row = { userId, rosterVisibility, battleSize, at: now }
   if (tx.db.playerDefaults.userId.find(userId)) tx.db.playerDefaults.userId.update(row)
@@ -3894,8 +3779,6 @@ function setPlayerDefaultsIn(tx: Context, args: unknown[]) {
 
 function leagueCommandIn(tx: Context, args: unknown[]) {
   const [payload] = z.tuple([textArg]).parse(args)
-
-  requireOperator(tx)
   const value = decodePayload(z.unknown(), payload, 'Invalid league command')
   const operation = leagueCommandInput(z.object({ op: z.string() }), value).op
   if (operation === 'create' || operation === 'create-club-game') {
@@ -3905,7 +3788,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         eventToken: idInput,
         ownerId: idInput,
         format: leagueFormatInput.nullable(),
-        rosterLimit: z.number().int().positive().max(10_000).nullable(),
+        rosterLimit: leagueRosterLimitInput.nullable(),
         allowances: leagueAllowancesSchema.default([]),
         ownerPlays: z.boolean().default(false),
         rounds: leagueRoundsInput.default(null),
@@ -3981,7 +3864,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         op: z.literal('join'),
         userId: idInput,
         now: leagueTimeInput,
-        memberLimit: z.number().int().min(2).max(128),
+        memberLimit: leagueMemberLimitInput,
         noticeResults: z.boolean().optional(),
       }),
       value,
@@ -3994,8 +3877,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const key = JSON.stringify([event.id, input.userId])
     const existing = tx.db.leagueEventEntries.key.find(key)
     if (existing && existing.status !== 'rejected') return productJson(existing.status)
-    if (host.kind === 'club' && tx.db.clubMembers.key.find(JSON.stringify([host.club.id, input.userId]))?.status !== 'accepted')
-      return productJson('members-only')
+    if (host.kind === 'club' && !isClubMember(tx, host.club.id, input.userId)) return productJson('members-only')
     const entries = leagueEntriesFor(tx, event.id).filter((entry) => entry.status !== 'rejected')
     const accepted = entries.filter((entry) => entry.status === 'accepted').length
     const rules = hostEntryRules(host)
@@ -4207,16 +4089,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         value,
       )
       if (current.state.submittedAt !== input.submittedAt || current.roster.id !== input.rosterId) return productJson('stale')
-      const roster = current.roster
-      if (roster.visibility !== 'public') {
-        tx.db.rosters.id.update({
-          ...roster,
-          visibility: 'public',
-          updatedAt: roster.updatedAt >= BigInt(input.now) ? roster.updatedAt + 1n : BigInt(input.now),
-        })
-        touchProduct(tx, ownerId, 'rosters')
-        touchPublic(tx, 'rosters')
-      }
+      if (current.roster.visibility !== 'public')
+        updateOwnedRoster(tx, current.roster.id, ownerId, BigInt(input.now), { visibility: 'public' })
     }
     const row = {
       key,
@@ -4242,7 +4116,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       z.object({
         op: z.literal('add'),
         userIds: z.array(idInput).min(1).max(128),
-        memberLimit: z.number().int().min(2).max(128),
+        memberLimit: leagueMemberLimitInput,
         now: leagueTimeInput,
       }),
       value,
@@ -4253,7 +4127,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     if (
       userIds.some((userId) =>
         host.kind === 'club'
-          ? tx.db.clubMembers.key.find(JSON.stringify([host.club.id, userId]))?.status !== 'accepted'
+          ? !isClubMember(tx, host.club.id, userId)
           : userId === ownerId || friendshipBetween(tx, ownerId, userId)?.acceptedAt === undefined,
       )
     )
@@ -4280,7 +4154,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         op: z.literal('moderate'),
         userId: idInput,
         status: z.enum(['accepted', 'rejected']),
-        memberLimit: z.number().int().min(2).max(128),
+        memberLimit: leagueMemberLimitInput,
         noticeResults: z.boolean().optional(),
       }),
       value,
@@ -4309,9 +4183,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         tx.db.leagueEventEntries.key.update({
           ...teammate,
           teamId: undefined,
-          ...(sharedTeam
-            ? { requiredLimit: undefined, rosterId: undefined, rosterName: undefined, rosterSnapshot: undefined, submittedAt: undefined }
-            : {}),
+          ...(sharedTeam ? { requiredLimit: undefined, ...UNSEALED } : {}),
         })
     }
     if (input.status === 'rejected')
@@ -4320,10 +4192,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         status: input.status,
         teamId: undefined,
         requiredLimit: undefined,
-        rosterId: undefined,
-        rosterName: undefined,
-        rosterSnapshot: undefined,
-        submittedAt: undefined,
+        ...UNSEALED,
       })
     else tx.db.leagueEventEntries.key.update({ ...entry, status: input.status })
     touchEvent(tx, host)
@@ -4336,7 +4205,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       z.object({
         op: z.literal('assign-limit'),
         userId: idInput,
-        requiredLimit: z.number().int().positive().max(10_000),
+        requiredLimit: leagueRosterLimitInput,
         noticeResults: z.boolean().optional(),
       }),
       value,
@@ -4359,10 +4228,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         ...entry,
         requiredLimit: input.requiredLimit,
         teamId: undefined,
-        rosterId: undefined,
-        rosterName: undefined,
-        rosterSnapshot: undefined,
-        submittedAt: undefined,
+        ...UNSEALED,
       })
       touchEvent(tx, host)
     }
@@ -4400,9 +4266,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         tx.db.leagueEventEntries.key.update({
           ...entry,
           teamId: paired.includes(entry.userId) ? input.teamId : undefined,
-          ...(resize
-            ? { requiredLimit: allied, rosterId: undefined, rosterName: undefined, rosterSnapshot: undefined, submittedAt: undefined }
-            : {}),
+          ...(resize ? { requiredLimit: allied, ...UNSEALED } : {}),
         })
       }
       touchEvent(tx, host)
@@ -4415,10 +4279,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         ...entry,
         teamId: undefined,
         requiredLimit: undefined,
-        rosterId: undefined,
-        rosterName: undefined,
-        rosterSnapshot: undefined,
-        submittedAt: undefined,
+        ...UNSEALED,
       })
     if (userIds.length === 2)
       for (const entry of targets)
@@ -4426,10 +4287,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
           ...entry,
           teamId: input.teamId,
           requiredLimit: alliedLeagueRosterLimit(event.rosterLimit),
-          rosterId: undefined,
-          rosterName: undefined,
-          rosterSnapshot: undefined,
-          submittedAt: undefined,
+          ...UNSEALED,
         })
     touchEvent(tx, host)
     return productJson(input.noticeResults ? { resealIds } : 'updated')
@@ -4442,7 +4300,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     // A club's players take their own seats; a tournament's organizer sizes and pairs its entrants.
     if (host.kind !== 'club') return productJson('forbidden')
     if (event.revealedAt !== undefined || (event.sealBy !== undefined && BigInt(input.now) > event.sealBy)) return productJson('closed')
-    if (tx.db.clubMembers.key.find(JSON.stringify([host.club.id, ownerId]))?.status !== 'accepted') return productJson('members-only')
+    if (!isClubMember(tx, host.club.id, ownerId)) return productJson('members-only')
     const key = JSON.stringify([event.id, ownerId])
     const entry = tx.db.leagueEventEntries.key.find(key)
     if (input.side === null) {
@@ -4471,10 +4329,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       teamId: seat.teamId,
       requiredLimit: seat.requiredLimit,
       // A list sealed for another seat may not fit this one, so it is sealed again.
-      rosterId: undefined,
-      rosterName: undefined,
-      rosterSnapshot: undefined,
-      submittedAt: undefined,
+      ...UNSEALED,
     })
     touchEvent(tx, host)
     return productJson('updated')
@@ -4498,7 +4353,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       host.kind === 'club' &&
       event.revealedAt === undefined &&
       !tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, input.userId])) &&
-      tx.db.clubMembers.key.find(JSON.stringify([host.club.id, input.userId]))?.status === 'accepted'
+      isClubMember(tx, host.club.id, input.userId)
     )
       insertLeagueEntry(tx, event.id, input.userId, 'accepted', input.now)
     const entry = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, input.userId]))
@@ -4516,12 +4371,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const team = event.format === '2v1' || event.format === '2v2'
     if (team && requiredLimit === null) return productJson({ outcome: 'unassigned' })
     if (!team && requiredLimit !== null && input.rosterLimit !== requiredLimit) return productJson({ outcome: 'wrong-limit' })
-    let submitted: Roster
-    try {
-      submitted = parseRosterSnapshot(input.snapshot)
-    } catch {
-      return productJson({ outcome: 'missing' })
-    }
+    const submitted = rosterSnapshotOrNull(input.snapshot)
+    if (!submitted) return productJson({ outcome: 'missing' })
     const allowances = leagueEventAllowances(event)
     if (!leagueWarlordWaived(submitted, allowances) && !leagueWarlordValid(submitted))
       return productJson({ outcome: 'invalid-warlords', format: event.format ?? null })
@@ -4529,6 +4380,12 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     if (refusal) return productJson({ outcome: 'disallowed', message: refusal })
     if (event.pointsBudget !== undefined && (submitted.built?.pointsBudget ?? submitted.built?.limit) !== event.pointsBudget)
       return productJson({ outcome: 'wrong-budget', pointsBudget: event.pointsBudget })
+    const teammate =
+      entry.teamId === undefined
+        ? undefined
+        : leagueEntriesFor(tx, event.id).find(
+            (row) => row.userId !== input.userId && row.teamId === entry.teamId && row.status === 'accepted',
+          )
     if (team) {
       const points = leagueEntryPoints(eventPoints(event), { requiredLimit: entry.requiredLimit ?? null, teamId: entry.teamId ?? null })
       if (!submitted.built || points === null) return productJson({ outcome: 'wrong-limit' })
@@ -4536,26 +4393,16 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       if (seat === 'wrong-limit') return productJson({ outcome: 'wrong-limit' })
       if (seat === 'over-points') return productJson({ outcome: 'over-points', points })
       // Allies bring lists saved to the same points total, so the first to seal sets it for the other.
-      const partner = leagueEntriesFor(tx, event.id).find(
-        (row) => row.userId !== input.userId && row.teamId !== undefined && row.teamId === entry.teamId && row.status === 'accepted',
-      )
-      const partnerBuilt = partner ? sealedRoster(partner)?.built : undefined
+      const partnerBuilt = rosterSnapshotOrNull(teammate?.rosterSnapshot)?.built
       if (partnerBuilt && pointsBudgetOf(partnerBuilt) !== pointsBudgetOf(submitted.built))
         return productJson({ outcome: 'ally-mismatch', pointsBudget: pointsBudgetOf(partnerBuilt) })
     }
-    if (
-      event.format === '2v2' &&
-      !leagueEntriesFor(tx, event.id).some((row) => row.userId !== input.userId && row.teamId === entry.teamId && row.status === 'accepted')
-    )
-      return productJson({ outcome: 'unassigned' })
+    if (event.format === '2v2' && !teammate) return productJson({ outcome: 'unassigned' })
     // After reveal the pair's card is fixed, so a replacement list must leave it one the pair still offers.
     const pick =
       event.revealedAt !== undefined && entry.teamId ? tx.db.leagueEventTeams.key.find(JSON.stringify([event.id, entry.teamId])) : undefined
     if (pick) {
-      const teammate = leagueEntriesFor(tx, event.id).find(
-        (row) => row.userId !== input.userId && row.teamId === entry.teamId && row.status === 'accepted',
-      )
-      const partner = teammate ? sealedRoster(teammate) : null
+      const partner = rosterSnapshotOrNull(teammate?.rosterSnapshot)
       if (partner && !teamDispositionChoices([submitted, partner]).includes(pick.disposition))
         return productJson({ outcome: 'disposition-dropped', disposition: pick.disposition })
     }
@@ -4577,30 +4424,19 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     touchEvent(tx, host)
     return productJson({ outcome: 'sealed', format: event.format ?? null, requiredLimit })
   }
-  if (operation === 'set-team-disposition') {
-    const input = leagueCommandInput(
-      z.object({ op: z.literal('set-team-disposition'), disposition: z.string().min(1).max(64), now: leagueTimeInput }),
-      value,
-    )
+  if (operation === 'set-team-disposition' || operation === 'set-team-warlord') {
+    const warlord = operation === 'set-team-warlord'
+    const choice = warlord
+      ? leagueCommandInput(z.object({ op: z.literal(operation), userId: idInput, now: leagueTimeInput }), value).userId
+      : leagueCommandInput(z.object({ op: z.literal(operation), disposition: z.string().min(1).max(64), now: leagueTimeInput }), value)
+          .disposition
     if (event.revealedAt !== undefined) return productJson({ outcome: 'closed' })
     const entry = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, ownerId]))
     if (!entry || entry.status !== 'accepted' || !entry.teamId) return productJson({ outcome: 'missing' })
-    const entries = leagueEntriesFor(tx, event.id)
-    const team = eventTeams(tx, event.id, entries).find((candidate) => candidate.id === entry.teamId)
-    if (!team?.choices.includes(input.disposition)) return productJson({ outcome: 'not-offered' })
-    setTeamPick(tx, event.id, team.id, input.disposition)
-    touchEvent(tx, host)
-    return productJson({ outcome: 'chosen' })
-  }
-  if (operation === 'set-team-warlord') {
-    const input = leagueCommandInput(z.object({ op: z.literal('set-team-warlord'), userId: idInput, now: leagueTimeInput }), value)
-    if (event.revealedAt !== undefined) return productJson({ outcome: 'closed' })
-    const entry = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, ownerId]))
-    if (!entry || entry.status !== 'accepted' || !entry.teamId) return productJson({ outcome: 'missing' })
-    const entries = leagueEntriesFor(tx, event.id)
-    const team = eventTeams(tx, event.id, entries).find((candidate) => candidate.id === entry.teamId)
-    if (!team?.warlordChoices.includes(input.userId)) return productJson({ outcome: 'not-offered' })
-    setTeamWarlord(tx, event.id, team.id, input.userId)
+    const team = eventTeams(tx, event.id, leagueEntriesFor(tx, event.id)).find((candidate) => candidate.id === entry.teamId)
+    if (!team || !(warlord ? team.warlordChoices : team.choices).includes(choice)) return productJson({ outcome: 'not-offered' })
+    if (warlord) setTeamWarlord(tx, event.id, team.id, choice)
+    else setTeamPick(tx, event.id, team.id, choice)
     touchEvent(tx, host)
     return productJson({ outcome: 'chosen' })
   }
@@ -4619,7 +4455,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     if (event.revealedAt === undefined) return productJson('not-revealed')
     const entry = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, input.userId]))
     if (!entry || entry.status !== 'accepted' || entry.rosterSnapshot === undefined) return productJson('missing')
-    resetLeagueEntry(tx, entry)
+    tx.db.leagueEventEntries.key.update({ ...entry, ...UNSEALED })
     touchEvent(tx, host)
     return productJson('unsealed')
   }
@@ -4682,43 +4518,15 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       ...input.allyIds.map((id) => ({ id, side: 0 })),
       ...input.opponentIds.map((id) => ({ id, side: 1 })),
     ]
-    tx.db.battles.insert({ id: input.id, token: input.battleToken, createdAt: BigInt(input.now) })
-    for (const [index, seat] of seats.entries())
-      tx.db.battleUsers.insert({
-        key: JSON.stringify([input.id, seat.id]),
-        battleId: input.id,
-        userId: seat.id,
-        side: seat.side,
-        joinedAt: BigInt(input.now + index),
-        guestName: undefined,
-        claimedSeat: undefined,
-      })
-    const log: LoggedCommand[] = []
-    for (const [index, command] of input.initialCommands.entries()) {
-      const state = reduceBattle(
-        seats.map((seat) => seat.id),
-        log,
-        seats.map((seat) => seat.side),
-      )
-      const refusal = command.kind === 'set-battle-club' ? 'a club is chosen during setup' : validate(state, input.userId, command)
-      if (refusal) throw new SenderError(`new battle command was refused: ${refusal}`)
-      const seq = index + 1
-      tx.db.commands.insert({
-        key: JSON.stringify([input.id, seq]),
-        battleId: input.id,
-        seq,
-        userId: input.userId,
-        at: BigInt(input.now),
-        body: JSON.stringify(command),
-      })
-      log.push({ seq, by: input.userId, at: input.now, command })
-    }
+    insertBattle(
+      tx,
+      { id: input.id, token: input.battleToken, now: input.now, by: input.userId, seats },
+      input.initialCommands,
+      (state, command) => (command.kind === 'set-battle-club' ? 'a club is chosen during setup' : validate(state, input.userId, command)),
+    )
     tx.db.leagueEventBattles.insert({ battleId: input.id, eventId: event.id })
     if (pairing && event.rounds !== undefined) tx.db.leagueRoundPairings.key.update({ ...pairing, battleId: input.id })
     touchEvent(tx, host)
-    for (const seat of seats) touchProduct(tx, seat.id, 'battles', 'onboarding')
-    touchPublic(tx, 'battles')
-    touchAdmin(tx)
     return productJson(true)
   }
   throw new SenderError('Unknown league command')
@@ -4754,7 +4562,7 @@ const syncProductActions = {
   set_push_enabled: setPushEnabledIn,
   set_player_defaults: setPlayerDefaultsIn,
   league_command: leagueCommandIn,
-}
+} satisfies Record<SyncProductActionName, unknown>
 
 const syncProductInput = z.object({
   id: z.uuid(),
@@ -4768,8 +4576,7 @@ const syncProductInput = z.object({
 const SYNC_RETENTION_MS = 90 * 24 * 60 * 60 * 1_000
 
 export const syncReceipt = spacetime.procedure({ id: t.string(), owner: t.string(), fingerprint: t.string() }, t.string(), (ctx, input) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const receipt = tx.db.syncReceipts.id.find(input.id)
     if (!receipt) return 'null'
     if (receipt.owner !== input.owner || receipt.fingerprint !== input.fingerprint) throw new SenderError('Operation ID reused')
@@ -4778,8 +4585,7 @@ export const syncReceipt = spacetime.procedure({ id: t.string(), owner: t.string
 )
 
 export const syncProduct = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (payload.length > 2_100_000) throw new SenderError('Saved action is too large')
     const input = decodePayload(syncProductInput, payload, 'Invalid saved action')
     const prior = tx.db.syncReceipts.id.find(input.id)
@@ -4799,16 +4605,16 @@ export const syncProduct = spacetime.procedure({ payload: t.string() }, t.string
     const result = action(tx, input.args)
     const decoded: unknown = typeof result === 'string' ? JSON.parse(result) : result
     const refusal = productSyncRefusal(input.name, decoded)
+    const encoded = productJson(result ?? null)
     tx.db.syncReceipts.insert({
       id: input.id,
       owner: input.owner,
       fingerprint: input.fingerprint,
       createdAt: BigInt(now),
-      result: productJson(result ?? null),
+      result: encoded,
       outcome: refusal ? 'refused' : 'applied',
       message: refusal ?? '',
     })
-    const encoded = productJson(result ?? null)
     return input.reportApplied ? productJson({ result: encoded, applied: !refusal }) : encoded
   }),
 )

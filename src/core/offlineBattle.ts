@@ -1,16 +1,21 @@
 import { sameSide, playsSide } from './battlePrimitives'
-import { mayNameCard, reduceBattle, commandArmy, validate, type Command, type LoggedCommand } from './battle'
-import { battleView } from './battleView'
+import { mayNameCard, reduceBattle, commandArmy, undrawnSecondaries, validate, type Command, type LoggedCommand } from './battle'
 import { rosterWithoutUnitNotes } from './unitNotes'
 
 type Players = { id: string; name: string; side: number; automated: boolean }[]
-export function visibleBattleLog(players: Players, log: readonly LoggedCommand[], viewerId: string): LoggedCommand[] {
-  const state = reduceBattle(
-    players.map((player) => player.id),
+
+/** The seats spread into the arguments the battle fold, clock and timeline take. */
+export function battleFoldArgs(seats: readonly { id: string; side: number; automated: boolean }[], log: readonly LoggedCommand[]) {
+  return [
+    seats.map((seat) => seat.id),
     log,
-    players.map((player) => player.side),
-    players.filter((player) => player.automated).map((player) => player.id),
-  )
+    seats.map((seat) => seat.side),
+    seats.filter((seat) => seat.automated).map((seat) => seat.id),
+  ] as const
+}
+
+export function visibleBattleLog(players: Players, log: readonly LoggedCommand[], viewerId: string): LoggedCommand[] {
+  const state = localBattleState(players, log)
   const hidden = new Map<string, string>()
   const hiddenSides = new Set<number>()
   for (const entry of log) {
@@ -32,8 +37,7 @@ export function visibleBattleLog(players: Players, log: readonly LoggedCommand[]
   }
   return log.map((entry) => {
     const command = structuredClone(entry.command)
-    const actor = state.players.find((player) => player.id === entry.by)
-    const target = actor ? commandArmy(state, entry.by, command) : undefined
+    const target = commandArmy(state, entry.by, command)
     if (
       (command.kind === 'set-prep' || command.kind === 'attach-roster') &&
       target &&
@@ -57,16 +61,7 @@ export function visibleBattleLog(players: Players, log: readonly LoggedCommand[]
 }
 
 export function localBattleState(players: Players, log: readonly LoggedCommand[]) {
-  return reduceBattle(
-    players.map((player) => player.id),
-    log,
-    players.map((player) => player.side),
-    players.filter((player) => player.automated).map((player) => player.id),
-  )
-}
-
-export function localBattleView(battle: { token: string }, players: Players, log: readonly LoggedCommand[], viewerId: string) {
-  return battleView(battle, players, localBattleState(players, log), viewerId)
+  return reduceBattle(...battleFoldArgs(players, log))
 }
 
 export function resolveLocalDraw(
@@ -82,7 +77,7 @@ export function resolveLocalDraw(
   const player = commandArmy(state, viewerId, command)
   if (!player?.secondaryDeck)
     throw new Error('This player’s private deck is unavailable on this device. Reconnect or continue on their device.')
-  const available = player.secondaryDeck.filter((candidate) => !player.secondaries.some((secondary) => secondary.key === candidate.key))
+  const available = undrawnSecondaries(player)
   if (!available.length) return command
   if (command.kind === 'draw-secondary' || command.kind === 'use-new-orders')
     return { ...command, secondary: available[randomIndex(available.length)]! }

@@ -46,6 +46,13 @@ function publishedText(text: string, locations: TextLocations) {
   }
 }
 
+export const READ_ONLY_TOOL: ToolAnnotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
+
+/** An answer whose JSON text mirrors its structured content, for clients that read only the text. */
+export function structured<T extends Record<string, unknown>>(result: T) {
+  return { content: [{ type: 'text' as const, text: JSON.stringify(result) }], structuredContent: result }
+}
+
 export class AgentTools {
   private readonly tools = new Map<string, RegisteredTool>()
 

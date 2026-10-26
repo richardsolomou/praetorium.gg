@@ -1,12 +1,14 @@
 import type { Datasheet } from './datasheet'
-import { MAX_COMBAT_MODELS, type CombatInput, type CombatOptions, type CombatWeapon } from './combat'
+import { MAX_COMBAT_MODELS, type CombatInput, type CombatOptions, type CombatWeapon, type CombatPhase } from './combat'
 import { adjustCombatWeapon, type WeaponAdjustment } from './combatAdjustments'
 import type { CombatCarrier } from './combatLoadout'
 import { combatPlan, combatWeapons } from './combatProfiles'
 import { combatRuleMortals, combatRuleProfiles, combatRuleWeapons, type ActiveCombatRule } from './combatRules'
 import type { StructuredDatasheetProfile } from './datasheet'
 
-type Phase = CombatOptions['phase']
+/** Keeps the profile ids of the unit at this position in an attached group apart from the others'. */
+export const attachedProfilePrefix = (index: number) => `attached:${index}:`
+
 export type CombatAttacker = {
   sheet: Datasheet
   carriers: readonly CombatCarrier[]
@@ -15,7 +17,7 @@ export type CombatAttacker = {
   companions?: readonly CombatAttacker[]
 }
 export type CombatOpponent = { keywords: readonly string[]; rules: readonly ActiveCombatRule[] }
-export type CombatAttack = ReturnType<typeof combatAttacks>[Phase]
+export type CombatAttack = ReturnType<typeof combatAttacks>[CombatPhase]
 
 type CarriedWeapon = { weapon: CombatWeapon | null; count: number; profile: StructuredDatasheetProfile }
 
@@ -23,7 +25,7 @@ type CarriedWeapon = { weapon: CombatWeapon | null; count: number; profile: Stru
 function ruledAttack(
   attacker: CombatAttacker,
   defender: CombatOpponent,
-  phase: Phase,
+  phase: CombatPhase,
   active: readonly CarriedWeapon[],
   scopedOptions = false,
 ) {
@@ -49,14 +51,14 @@ export function combatAttacks(
   attacker: CombatAttacker,
   defender: CombatOpponent,
   preferences: Readonly<Record<string, string>>,
-  excluded: Readonly<Record<Phase, readonly string[]>>,
+  excluded: Readonly<Record<CombatPhase, readonly string[]>>,
 ) {
   if (attacker.companions?.length) {
     const members = [attacker, ...attacker.companions]
-    const attack = (phase: Phase) => {
+    const attack = (phase: CombatPhase) => {
       const tooMany = members.reduce((total, member) => total + member.models, 0) > MAX_COMBAT_MODELS
       const parts = members.map((member, index) => {
-        const prefix = index ? `attached:${index}:` : ''
+        const prefix = index ? attachedProfilePrefix(index) : ''
         const rules = member.rules ?? []
         const sheet = combatRuleProfiles(member.sheet, rules, 'attacker', defender.keywords, defender.rules)
         const localPreferences = Object.fromEntries(
@@ -94,7 +96,7 @@ export function combatAttacks(
   }
   const rules = attacker.rules ?? []
   const sheet = combatRuleProfiles(attacker.sheet, rules, 'attacker', defender.keywords, defender.rules)
-  const attack = (phase: Phase) => {
+  const attack = (phase: CombatPhase) => {
     const plan = combatPlan(sheet, attacker.carriers, defender.keywords, phase, preferences, new Set(excluded[phase]))
     return { plan, base: plan.errors.length ? null : ruledAttack(attacker, defender, phase, plan.active) }
   }
@@ -122,7 +124,7 @@ export function combatAttackInput(
 export function combatWeaponInputs(
   attacker: CombatAttacker,
   defender: CombatOpponent,
-  phase: Phase,
+  phase: CombatPhase,
   target: CombatInput['target'],
   options: CombatOptions,
   adjustment: WeaponAdjustment,

@@ -43,6 +43,9 @@ export type ClubMemberStatus = (typeof CLUB_MEMBER_STATUSES)[number]
 export const CLUB_ROLES = ['member', 'admin'] as const
 export type ClubRole = (typeof CLUB_ROLES)[number]
 
+/** The seats a club's team game offers: one solo player against an allied pair, or two pairs. */
+export const CLUB_GAME_SIDES = ['solo', 'pair', 'team-1', 'team-2'] as const
+
 export const CLUB_NAME_MAX_LENGTH = 100
 export const CLUB_DESCRIPTION_MAX_LENGTH = 2_000
 export const CLUB_MEMBER_MAX = 256

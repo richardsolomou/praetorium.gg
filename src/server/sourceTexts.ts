@@ -1,6 +1,7 @@
 import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
+import { remember } from '../core/collections'
 import { type CatalogueComposition, readCatalogueComposition } from './catalogueComposition'
 import { type CatalogueSourceConfig, catalogueSources } from './catalogueSources'
 import { type SourceTexts, TEXT_HASH_LENGTH, type TextSource, type TextSourceFile, textToken } from '../shared/sourceText'
@@ -36,18 +37,12 @@ export const publishedTexts = (file: string): SourceTexts => {
 /** Each snapshot root's addresses, read once: every file a parser reads asks. */
 const roots = new Map<string, (file: string) => string | null>()
 function upstreamOf(root: string) {
-  let resolve = roots.get(root)
-  if (!resolve) {
+  return remember(roots, root, () => {
     const composition = fs.existsSync(path.join(root, 'composition.json')) ? readCatalogueComposition(root) : null
     const retained = retainedSnapshots(root)
     const answered = new Map<string, string | null>()
-    resolve = (file) => {
-      if (!answered.has(file)) answered.set(file, upstreamUrl(file, composition, retained))
-      return answered.get(file)!
-    }
-    roots.set(root, resolve)
-  }
-  return resolve
+    return (file: string) => remember(answered, file, () => upstreamUrl(file, composition, retained))
+  })
 }
 
 type Origin = { repository: string; revision: string }
@@ -83,7 +78,7 @@ export function upstreamUrl(
 }
 
 /** A rules version kept whole from an older snapshot: that snapshot's own composition, or the revisions it recorded. */
-export type RetainedSnapshot = { composition: CatalogueComposition | null; revisions: Readonly<Record<string, string>> }
+type RetainedSnapshot = { composition: CatalogueComposition | null; revisions: Readonly<Record<string, string>> }
 
 /**
  * A retained snapshot's file read from the sources it was built from: its own composition

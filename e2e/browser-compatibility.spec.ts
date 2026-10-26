@@ -1,5 +1,6 @@
 import { chooseCombatUnit } from './combat'
 import { expect, test } from './test'
+import { guestDraft } from './storage'
 
 test('roster creation and loadout odds work without native array-copy methods', async ({ page }) => {
   await page.addInitScript(() => {
@@ -21,7 +22,7 @@ test('roster creation and loadout odds work without native array-copy methods', 
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await setup.getByRole('button', { name: 'Create roster', exact: true }).click()
   await expect(page.locator('[data-unit]').filter({ hasText: 'Imotekh the Stormlord' })).toHaveCount(1)
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft') ?? '')).toContain('"picks":[{')
+  await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
   await page.reload()
   await expect(page.locator('[data-unit]').filter({ hasText: 'Imotekh the Stormlord' })).toHaveCount(1)
   await page.goto('/simulator')
@@ -30,5 +31,5 @@ test('roster creation and loadout odds work without native array-copy methods', 
   await page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
   const loadout = page.getByRole('dialog', { name: 'Attacker · Boyz' })
   await expect(loadout.getByLabel(/^Shooting, unit with one more: <?\d+\.\d+% destroyed/).first()).toBeVisible()
-  await page.screenshot({ path: 'test-results/browser-array-copy-loadouts.png' })
+  await page.screenshot({ path: test.info().outputPath('browser-array-copy-loadouts.png') })
 })

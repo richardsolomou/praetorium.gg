@@ -1,7 +1,7 @@
 import { RulesVersionLabel } from '../../../components/RulesVersionLabel'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
-import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { favouriteDetachmentsFirst, useFavouriteDetachments } from '../../../favouriteDetachments'
 import { discoveredRostersQuery, factionIndexQuery, factionQuery } from '../../../queries'
@@ -18,21 +18,18 @@ import { useDateFormatting } from '../../../dates'
 import { factionReferenceHref } from '../../../../core/factionReferenceRoute'
 import { StartRoster } from '../../rosters/ReferenceRosterActions'
 
-export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { catalogueId: string; routeCatalogueId?: string }) {
-  const path = useRouterState({ select: (state) => state.location.pathname })
+export function FactionPage({ catalogueId }: { catalogueId: string }) {
   const { data: faction } = useQuery(factionQuery(catalogueId))
-  const direct = path === `/factions/${routeCatalogueId}`
-  const { data: index } = useQuery({ ...factionIndexQuery(), enabled: direct })
+  const { data: index } = useQuery(factionIndexQuery())
   const navigate = useNavigate()
   const { date } = useDateFormatting()
-  const { favourites } = useFavouriteDetachments(direct)
+  const { favourites } = useFavouriteDetachments()
   // The rosters page asks for exactly this filter and order, so following the link reuses the answer.
   const { data: publicRosters } = useInfiniteQuery({
     ...discoveredRostersQuery({ faction: faction ? currentCatalogueFamilyId(faction.id) : '' }, 'public', 'updated-desc'),
-    enabled: direct && Boolean(faction),
+    enabled: Boolean(faction),
   })
   const publicArmies = publicRosters?.pages[0]?.total ?? null
-  if (!direct) return <Outlet />
   if (!faction) return null
   const editions = index?.factions.filter((entry) => currentCatalogueFamilyId(entry.id) === currentCatalogueFamilyId(faction.id)) ?? []
   editions.sort((left, right) => Number(right.isDefault) - Number(left.isDefault))
@@ -55,7 +52,7 @@ export function FactionPage({ catalogueId, routeCatalogueId = catalogueId }: { c
         tint={factionColour(faction.slug, faction.displayName)}
         eyebrow="Faction"
         title={faction.displayName}
-        media={<FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="lg" />}
+        media={<FactionMark faction={faction} size="lg" />}
         actions={
           editions.length > 1 ? (
             <div className="grid grid-cols-[minmax(0,20rem)_auto] items-center gap-2">

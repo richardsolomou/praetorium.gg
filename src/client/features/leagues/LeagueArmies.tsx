@@ -1,9 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Calculator, Eye } from 'lucide-react'
+import { Calculator } from 'lucide-react'
 import type { ReactElement, ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
-import { buttonClass } from '../../components/buttonClass'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LeagueArmy, LeagueEntryView } from '../../../core/league'
 import type { FactionPresentation } from '../../components/FactionMark'
@@ -11,11 +10,11 @@ import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { factionFor } from '../../factions'
 import { factionIndexQuery, gameReferencesQuery } from '../../queries'
 import { RosterSummary } from '../rosters/RosterSummary'
-import { EntrantGroup } from './LeagueEntrants'
+import { EntrantGroup, ViewRosterButton } from './LeagueEntrants'
 import { UnsealRoster } from './LeagueUnseal'
 
 /** One titled side or team of rosters, or a duel's single untitled run. */
-export type ArmyGroup = { key: string; title?: string; detail?: string; entries: RevealedEntry[] }
+type ArmyGroup = { key: string; title?: string; detail?: string; entries: RevealedEntry[] }
 
 type RevealedEntry = LeagueEntryView & {
   army: LeagueArmy | null
@@ -109,22 +108,7 @@ export function LeagueArmies({
                 <Calculator aria-hidden />
               </IconAction>
             ) : null}
-            {army ? (
-              <IconAction
-                tooltip="View roster"
-                trigger={
-                  <Link
-                    to="/rosters/$id"
-                    params={{ id: entry.userId }}
-                    search={{ league: token, event: eventToken }}
-                    aria-label={`View ${named}’s roster`}
-                    className={buttonClass({ variant: 'ghost', size: 'icon-sm', className: ICON_ACTION })}
-                  />
-                }
-              >
-                <Eye aria-hidden />
-              </IconAction>
-            ) : null}
+            {army ? <ViewRosterButton token={token} eventToken={eventToken} userId={entry.userId} label={named} /> : null}
           </span>
         </div>
         {army?.limit != null ? (

@@ -3,6 +3,9 @@ import type { OnboardingTarget } from '../onboardingTargets'
 /** One option card. `count` and `detail` are both optional: some choices need neither. */
 export type ChoiceOption<T extends string> = { value: T; name: string; count?: string; detail?: string }
 
+const COLUMNS: Record<number, string> = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3' }
+const WIDE_COLUMNS: Record<number, string> = { 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3' }
+
 /**
  * A small set of options laid out as cards, one of them pressed.
  *
@@ -10,9 +13,6 @@ export type ChoiceOption<T extends string> = { value: T; name: string; count?: s
  * of three is never two cards and an orphan. `columns` fixes the grid at every width
  * instead, for cards short enough to sit across a phone, or one per row for a narrow column.
  */
-const COLUMNS: Record<number, string> = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3' }
-const WIDE_COLUMNS: Record<number, string> = { 2: 'sm:grid-cols-2', 3: 'sm:grid-cols-3' }
-
 export function Choice<T extends string>({
   label,
   value,

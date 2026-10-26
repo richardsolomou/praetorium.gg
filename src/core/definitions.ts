@@ -14,6 +14,7 @@ import {
   type ConditionGroup,
   type Constraint,
   type Definition,
+  definitionAndTarget,
   type Modifier,
   type ModifierGroup,
   targetOf,
@@ -55,6 +56,26 @@ export function childrenOf(definition: Definition, index: CatalogueIndex): Optio
     if (index.definitions.get(link.targetId)) found.push({ id: link.id, definition: link })
   }
   return found
+}
+
+/** Visits each definition reachable from `rootIds` once, by the entry it resolves to, so shared wargear is read once. */
+export function eachDefinition(
+  rootIds: Iterable<string>,
+  index: CatalogueIndex,
+  visit: (definition: Definition, target: Definition) => void,
+) {
+  const seen = new Set<string>()
+  const walk = (definition: Definition) => {
+    const target = resolve(definition, index)
+    if (seen.has(target.id)) return
+    seen.add(target.id)
+    visit(definition, target)
+    for (const child of childrenOf(target, index)) walk(child.definition)
+  }
+  for (const id of rootIds) {
+    const root = index.definitions.get(id)
+    if (root) walk(root)
+  }
 }
 
 /** An option's price, including entries it must hold: a "2 Multi-meltas" option can carry its cost on the weapons. */
@@ -110,8 +131,7 @@ export function hasMutableMinimum(definition: Definition, index: CatalogueIndex,
       .filter(isSelectionMinimum)
       .map((constraint) => constraint.id),
   )
-  const target = resolve(definition, index)
-  return flattenedModifiers([definition, ...(target === definition ? [] : [target])], cache).some(
+  return flattenedModifiers(definitionAndTarget(definition, index), cache).some(
     (modifier) => minimums.has(modifier.field) && ['set', 'increment', 'decrement'].includes(modifier.type),
   )
 }
@@ -122,8 +142,7 @@ export function hasDynamicSelectionLimit(definition: Definition, index: Catalogu
       .filter((constraint) => constraint.type === 'max' && constraint.field === 'selections')
       .map((constraint) => constraint.id),
   )
-  const target = resolve(definition, index)
-  return flattenedModifiers([definition, ...(target === definition ? [] : [target])], cache).some(
+  return flattenedModifiers(definitionAndTarget(definition, index), cache).some(
     (modifier) => modifier.field === 'error' || (maximums.has(modifier.field) && ['set', 'increment', 'decrement'].includes(modifier.type)),
   )
 }
@@ -143,8 +162,7 @@ export function replacesSquadmate(definition: Definition, squadmates: readonly O
         .filter((constraint) => constraint.field === 'selections')
         .map((constraint) => constraint.id),
     )
-    const target = resolve(squadmate.definition, index)
-    return flattenedModifiers([squadmate.definition, ...(target === squadmate.definition ? [] : [target])], cache).some(
+    return flattenedModifiers(definitionAndTarget(squadmate.definition, index), cache).some(
       (modifier) =>
         modifier.type === 'decrement' &&
         limits.has(modifier.field) &&
@@ -155,8 +173,7 @@ export function replacesSquadmate(definition: Definition, squadmates: readonly O
 
 /** What the entry says about itself, plus what the link's target says, without repeating either. */
 function constraintsOn(definition: Definition, index: CatalogueIndex): Constraint[] {
-  const target = resolve(definition, index)
-  return [...(definition.constraints ?? []), ...(target === definition ? [] : (target.constraints ?? []))]
+  return definitionAndTarget(definition, index).flatMap((source) => source.constraints ?? [])
 }
 
 const isSelectionMinimum = (constraint: Constraint) =>

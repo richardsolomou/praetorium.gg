@@ -5,7 +5,7 @@ import {
   battleQuery,
   leagueRosterQuery,
   outdatedLeagueEntriesQuery,
-  priceQuery,
+  setupPriceQuery,
   rosterAccessQuery,
   rosterBootstrapQuery,
   rosterChangesQuery,
@@ -45,21 +45,7 @@ export async function loadRoster(queryClient: QueryClient, id: string, deps: { b
     seed(rosterChangesQuery(id).queryKey, changes)
     // Keyed as the builder asks, so the editor opens on this answer; an owner's needs unit limits, which a price
     // worked out on this device for unsynced edits can lack.
-    if (price && (!editable || price.unitLimits))
-      seed(
-        priceQuery(
-          roster.catalogueId,
-          roster.detachmentIds,
-          roster.disposition,
-          roster.limit,
-          normalisePicks(roster.picks),
-          roster.waivedRules,
-          roster.borrowedDetachmentId,
-          roster.optionalRules,
-          editable,
-        ).queryKey,
-        price,
-      )
+    if (price && (!editable || price.unitLimits)) seed(setupPriceQuery(roster, normalisePicks(roster.picks), editable).queryKey, price)
   }
   if (cachedBootstrap !== undefined)
     void queryClient

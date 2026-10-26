@@ -1,6 +1,14 @@
 import { waitForOfflineApp } from './offline'
 import { expect, test, type Page } from './test'
-import { chooseRosterAction, confirmRosterSetup, retryUntilVisible, savedArmy, waitForRosterSave } from './account'
+import {
+  confirmRosterSetup,
+  retryUntilVisible,
+  savedArmy,
+  waitForRosterSave,
+  openRosterSetup,
+  chooseOption,
+  desktopContext,
+} from './account'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
 async function reviewedArmy(page: Page) {
@@ -16,14 +24,9 @@ async function reviewedArmy(page: Page) {
   if (await back.isVisible()) await back.click()
   return { id, operator, source: (await operator.roster(id))! }
 }
-async function openSetup(page: Page) {
-  await chooseRosterAction(page, 'Edit roster setup')
-  return page.getByRole('dialog', { name: 'Edit roster setup' })
-}
 async function shrink(page: Page) {
-  const setup = await openSetup(page)
-  await setup.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /King of the Colosseum/ }).click()
+  const setup = await openRosterSetup(page)
+  await chooseOption(page, 'Battle size', /King of the Colosseum/)
   const disposition = setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Purge the Foe', exact: true })
   if (await disposition.isVisible()) await disposition.click()
   await setup.getByRole('button', { name: 'Review changes' }).click()
@@ -32,11 +35,10 @@ async function shrink(page: Page) {
   return review
 }
 
-const desktop = { width: 1440, height: 900 }
 const phone = { width: 390, height: 900 }
 
 test('setup preview cancellation and exact saved result', async ({ page }) => {
-  await page.setViewportSize(desktop)
+  await page.setViewportSize(desktopContext.viewport)
   const { id, operator } = await reviewedArmy(page)
   await page.setViewportSize(phone)
   await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
@@ -47,32 +49,32 @@ test('setup preview cancellation and exact saved result', async ({ page }) => {
   await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'Select Mark of the Nekrosor', exact: true }).click())
   await expect(page.locator('[data-unit="Skorpekh Lord"]')).toContainText('Mark of the Nekrosor')
   await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
-  await page.setViewportSize(desktop)
+  await page.setViewportSize(desktopContext.viewport)
   const source = (await operator.roster(id))!
 
-  const setup = await openSetup(page)
+  const setup = await openRosterSetup(page)
   await setup.getByLabel('Roster name').fill('Name-only review')
   await setup.getByRole('button', { name: 'Review changes' }).click()
   const nameReview = page.getByRole('dialog', { name: 'Review roster changes' })
   const unchanged = nameReview.locator('details')
-  for (const viewport of [desktop, phone]) {
+  for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)
     await expect(unchanged.locator('summary')).toHaveText('13 unchanged units')
     await expect(unchanged).not.toHaveAttribute('open')
     await expect(nameReview.getByRole('region', { name: 'Unit changes' })).toHaveCount(0)
   }
-  await page.setViewportSize(desktop)
+  await page.setViewportSize(desktopContext.viewport)
   await unchanged.locator('summary').click()
-  for (const viewport of [desktop, phone]) {
+  for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)
     await expect(unchanged.locator('li')).toHaveCount(13)
     await expect(unchanged.getByText('Kept: Mark of the Nekrosor')).toBeVisible()
     await expectNoHorizontalOverflow(nameReview)
   }
-  await page.setViewportSize(desktop)
+  await page.setViewportSize(desktopContext.viewport)
   await nameReview.getByRole('button', { name: 'Cancel', exact: true }).click()
   let review = await shrink(page)
-  for (const viewport of [desktop, phone]) {
+  for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)
     await expect(review).toContainText('Removed: Skyshroud Spearhead')
     await expect(review).toContainText('Removed choices: Mark of the Nekrosor')
@@ -91,7 +93,7 @@ test('setup preview cancellation and exact saved result', async ({ page }) => {
     await review.getByText('Removed choices: Mark of the Nekrosor', { exact: true }).scrollIntoViewIfNeeded()
     await review.screenshot({ path: test.info().outputPath(`setup-review-${viewport.width}.png`) })
   }
-  await page.setViewportSize(desktop)
+  await page.setViewportSize(desktopContext.viewport)
   await review.getByRole('button', { name: 'Cancel', exact: true }).click()
   expect((await operator.roster(id))!.picks).toBe(source.picks)
   expect((await operator.roster(id))!.limit).toBe(source.limit)
@@ -104,7 +106,7 @@ test('setup preview cancellation and exact saved result', async ({ page }) => {
   expect(saved.limit).toBe(600)
   expect(JSON.parse(saved.detachmentId)).toHaveLength(1)
   expect(JSON.parse(saved.picks)).toHaveLength(JSON.parse(source.picks).length)
-  for (const viewport of [desktop, phone]) {
+  for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)
     await expect(page.locator('[data-unit="Skorpekh Lord"]')).not.toContainText('Mark of the Nekrosor')
     await page.screenshot({ path: test.info().outputPath(`setup-saved-${viewport.width}.png`) })
@@ -182,21 +184,18 @@ test('native-v3 concurrent setup confirmations save only one exact variant candi
   const source = (await operator.roster(variantId))!
   const second = await context.newPage()
   await second.goto(`/rosters/${variantId}`)
-  const firstSetup = await openSetup(page)
+  const firstSetup = await openRosterSetup(page)
   await firstSetup.getByLabel('Roster name').fill('First reviewed candidate')
   await firstSetup.getByRole('button', { name: 'Review changes' }).click()
   const firstReview = page.getByRole('dialog', { name: 'Review roster changes' })
   await expect(firstReview.getByLabel('Roster change preview')).toBeVisible()
-  const secondSetup = await openSetup(second)
+  const secondSetup = await openRosterSetup(second)
   await secondSetup.getByLabel('Roster name').fill('Second reviewed candidate')
   await secondSetup.getByRole('button', { name: 'Review changes' }).click()
   const secondReview = second.getByRole('dialog', { name: 'Review roster changes' })
   await expect(secondReview.getByLabel('Roster change preview')).toBeVisible()
   let concurrentWrites = 0
-  let releaseWrites: () => void = () => undefined
-  const writesHeld = new Promise<void>((resolve) => {
-    releaseWrites = resolve
-  })
+  const { promise: writesHeld, resolve: releaseWrites } = Promise.withResolvers<void>()
   await context.route('**/_serverFn/**', async (route) => {
     const body = route.request().postData()
     if (body?.includes('"operationId"') && body.includes('reviewed candidate')) {
@@ -248,7 +247,7 @@ test('native-v3 lost save acknowledgement cannot overwrite a later source edit o
       await route.abort('failed')
     } else await route.continue()
   })
-  const setup = await openSetup(page)
+  const setup = await openRosterSetup(page)
   await setup.getByLabel('Roster name').fill('Unacknowledged candidate')
   await setup.getByRole('button', { name: 'Review changes' }).click()
   const review = page.getByRole('dialog', { name: 'Review roster changes' })

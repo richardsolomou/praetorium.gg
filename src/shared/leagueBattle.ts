@@ -1,6 +1,7 @@
 import { parseRosterSnapshot } from '../core/commands'
-import { type Command, GAME_SIZES } from '../core/battle'
+import { type Command, isGameSize } from '../core/battle'
 import {
+  isTeamFormat,
   alliedLeagueRosterLimit,
   LEAGUE_TEAM_ROSTER_LIMITS,
   leagueSeatPoints,
@@ -129,8 +130,7 @@ export function buildLeagueBattle(
   if (league.format !== '2v1' && league.format !== '2v2' && (ownRoster.built?.limit !== limit || opponentRoster.built?.limit !== limit)) {
     throw new LeagueBattleSetupError('sealed rosters must use the same battle size', 409)
   }
-  if (!GAME_SIZES.some((size) => size.limit === limit))
-    throw new LeagueBattleSetupError('sealed rosters use an unsupported battle size', 409)
+  if (!isGameSize(limit)) throw new LeagueBattleSetupError('sealed rosters use an unsupported battle size', 409)
 
   if (league.format === '2v1') {
     const requirements = new Map(league.entries.map((entry) => [entry.userId, entry.requiredLimit]))
@@ -190,10 +190,10 @@ export function buildLeagueBattle(
       missionPackId,
       terrainLayoutId: null,
       twistId: null,
-      teamBattle: league.format === '2v1' || league.format === '2v2',
+      teamBattle: isTeamFormat(league.format),
       playerCount: expectedPlayers,
       // The creator's side sits first, so its seat's points do too.
-      ...(league.format === '2v1' || league.format === '2v2'
+      ...(isTeamFormat(league.format)
         ? { armyPoints: [allyIds.length > 0, opponentIds.length > 1].map((pair) => leagueSeatPoints(league, !pair)!) }
         : {}),
       clockLimitMinutes: null,

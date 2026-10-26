@@ -3,11 +3,12 @@ import { useEffect } from 'react'
 import { openConversation } from '../client/features/feedback/support'
 import { Support } from '../client/features/legal/Support'
 import { pageHead } from '../client/linkPreview'
+import { searchText } from '../client/searchParams'
 
 export const Route = createFileRoute('/support')({
   // A reply email links here with the conversation it is about, which opens over the page.
   validateSearch: (search: Record<string, unknown>): { conversation?: string } => ({
-    conversation: typeof search.conversation === 'string' && search.conversation ? search.conversation : undefined,
+    conversation: searchText(search.conversation),
   }),
   head: ({ match }) =>
     pageHead(match.context.origin, {

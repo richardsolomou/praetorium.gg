@@ -45,11 +45,7 @@ export async function expectVerticalPanOnly(element: Locator) {
   expect(style).toEqual({ overflowX: 'hidden', overscrollX: 'none', touchAction: 'pan-y' })
 }
 
-/**
- * The four things a player coming from another builder reaches for: squad size where
- * the roster is, the filters that narrow a book down to today's real options, and
- * characters standing with the units they lead.
- */
+/** Signs up and opens a new roster in the builder. */
 export async function openBuilder(page: Page, faction = 'Necrons', detachment = /Awakened Dynasty/) {
   await signUp(page, 'Richard')
   await createRoster(page, { faction, detachment })
@@ -61,6 +57,12 @@ export async function add(page: Page, name: string) {
     .getByRole('button', { name: `Add ${name}`, exact: true })
     .first()
     .click()
+}
+
+/** Closes the unit picker where it opens as a dialog over the roster. */
+export async function closePicker(page: Page) {
+  const picker = page.getByRole('dialog', { name: 'Add units' })
+  if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close', exact: true }).click()
 }
 
 /** An absent item proves nothing until the menu has opened, and an Escape pressed before then leaves it open over the roster. */

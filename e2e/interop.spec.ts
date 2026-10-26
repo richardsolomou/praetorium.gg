@@ -8,15 +8,16 @@ import { blackTemplarsNewRecruit } from '../src/core/rosterText.blackTemplars.fi
 import { salamandersOfficial } from '../src/core/rosterText.salamanders.fixture'
 import {
   confirmRosterSetup,
-  attachRoster,
   chooseBattlefield,
-  createBattle,
   createRoster,
-  desktopContext,
-  PRACTICE_OPPONENT,
   retryUntilVisible,
   signUp,
   waitForRosterSave,
+  chooseRosterAction,
+  desktopContext,
+  practiceBattle,
+  chooseLibraryAction,
+  openImport,
 } from './account'
 
 test('a list can be copied as Games Workshop text', async ({ browser }) => {
@@ -45,8 +46,7 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
   await loadout.getByRole('button', { name: 'Select Tesla carbine' }).click()
   await expect(page.getByText('10x Tesla carbine')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  await chooseRosterAction(page, 'Export text')
   const dialog = page.getByRole('dialog', { name: 'Export roster' })
   const text = dialog.locator('pre')
   const body = dialog.locator('[data-slot="dialog-body"]')
@@ -67,14 +67,14 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
   await expect(dialog.getByRole('button', { name: 'Copied' })).toBeVisible()
   const readable = await page.evaluate(() => navigator.clipboard.readText())
   expect(readable).toContain('• Models: 10')
-  await dialog.screenshot({ path: 'test-results/gw-text-export-phone.png' })
+  await dialog.screenshot({ path: test.info().outputPath('gw-text-export-phone.png') })
   await page.setViewportSize({ width: 1440, height: 500 })
   await expect.poll(() => dialog.evaluate((element) => element.scrollHeight - element.clientHeight)).toBe(0)
   await expect(dialog.getByRole('button', { name: 'Copied' })).toBeInViewport()
-  await dialog.screenshot({ path: 'test-results/gw-text-export-desktop.png' })
+  await dialog.screenshot({ path: test.info().outputPath('gw-text-export-desktop.png') })
   await page.setViewportSize({ width: 390, height: 500 })
   await body.evaluate((element) => element.scrollTo({ top: element.scrollHeight }))
-  await dialog.screenshot({ path: 'test-results/gw-text-export-footer-phone.png' })
+  await dialog.screenshot({ path: test.info().outputPath('gw-text-export-footer-phone.png') })
   await body.evaluate((element) => element.scrollTo({ top: 0 }))
   await expect(dialog.getByRole('group', { name: 'Text layout' })).toHaveCount(0)
   await expect(dialog.getByRole('button', { name: /^(Readable|Compact|ListForge|Warmind|WTC-style)$/ })).toHaveCount(0)
@@ -83,9 +83,7 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
   await dialog.getByRole('button', { name: 'Download text' }).click()
   const download = await downloaded
   expect(await readFile(await download.path(), 'utf8')).toBe(readable)
-  await page.goto('/rosters')
-  const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(review, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const review = await openImport(page)
   await review.getByLabel('Roster text').fill(readable)
   await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(review).toContainText('2 of 2 matched entries')
@@ -95,8 +93,7 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
   await page.waitForURL(/\/rosters\/[^/]+$/)
   await page.reload()
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  await chooseRosterAction(page, 'Export text')
   const saved = page.getByRole('dialog', { name: 'Export roster' })
   await expect(saved.locator('pre')).toContainText('• Models: 10')
   await expect(saved.locator('pre')).toContainText('• 10x Tesla carbine')
@@ -105,9 +102,7 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
 
 test('an official Custodes roster keeps all units and choices after import and reload', async ({ page }, testInfo) => {
   await signUp(page, 'Custodes importer')
-  await page.goto('/rosters')
-  const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(review, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const review = await openImport(page)
   await review.getByLabel('Roster text').fill(custodesOfficial)
   await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(review).toContainText('10 of 10 matched entries')
@@ -118,8 +113,7 @@ test('an official Custodes roster keeps all units and choices after import and r
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
   await page.reload()
   await expect(page.locator('[data-unit]')).toHaveCount(10)
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  await chooseRosterAction(page, 'Export text')
   const text = page.getByRole('dialog', { name: 'Export roster' }).locator('pre')
   for (const line of [
     'First test (2,000 Points)',
@@ -136,9 +130,7 @@ test('an official Custodes roster keeps all units and choices after import and r
 test('an official Necrons roster keeps leaders and support after import and reload', async ({ page }, testInfo) => {
   await arrangeByRole(page)
   await signUp(page, 'Necrons importer')
-  await page.goto('/rosters')
-  const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(review, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const review = await openImport(page)
   await review.getByLabel('Roster text').fill(necronsOfficial)
   await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(review).toContainText('7 of 7 matched entries')
@@ -152,8 +144,7 @@ test('an official Necrons roster keeps leaders and support after import and relo
   await expect(page.locator('[data-unit]')).toHaveCount(7)
   await expect(page.locator('[data-unit="Chronomancer"]')).toContainText('Supporting')
   await expect(page.locator('[data-unit="Chronomancer"]')).toContainText('Lokhust Heavy Destroyers')
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  await chooseRosterAction(page, 'Export text')
   const exported = page.getByRole('dialog', { name: 'Export roster' })
   const text = exported.locator('pre')
   for (const line of [
@@ -181,9 +172,7 @@ test('an official Necrons roster keeps leaders and support after import and relo
 test('a New Recruit chapter roster keeps its allies and attachments after import and reload', async ({ page }, testInfo) => {
   await arrangeByRole(page)
   await signUp(page, 'Chapter importer')
-  await page.goto('/rosters')
-  const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(review, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const review = await openImport(page)
   await review.getByLabel('Roster text').fill(blackTemplarsNewRecruit)
   await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(review).toContainText('16 of 16 matched entries')
@@ -204,8 +193,7 @@ test('a New Recruit chapter roster keeps its allies and attachments after import
     ['Castellan', 'Sword Brethren Squad'],
   ])
     await expect(page.locator(`[data-unit="${leader}"]`)).toContainText(bodyguard)
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  await chooseRosterAction(page, 'Export text')
   const exported = page.getByRole('dialog', { name: 'Export roster' })
   for (const line of [
     'Test (2,000 Points)',
@@ -226,9 +214,7 @@ test('a New Recruit chapter roster keeps its allies and attachments after import
 
 test('a visitor imports the reported Salamanders detachments and keeps them after reload', async ({ page }, testInfo) => {
   await arrangeByRole(page)
-  await page.goto('/rosters')
-  const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(review, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const review = await openImport(page)
   await review.getByLabel('Roster text').fill(salamandersOfficial)
   await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(review).toContainText('12 of 12 matched entries')
@@ -251,8 +237,7 @@ test('a visitor imports the reported Salamanders detachments and keeps them afte
     await expect(cards).toHaveCount(count)
     for (const card of await cards.all()) await expect(card).toContainText('Infernus Squad')
   }
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  await chooseRosterAction(page, 'Export text')
   const exported = page.getByRole('dialog', { name: 'Export roster' })
   for (const line of ['Dudes (1,435 Points)', 'Salamanders', 'Deathwatch Support', "Forgefather's Seekers", '3 Detachment Points'])
     await expect(exported.locator('pre')).toContainText(line)
@@ -263,7 +248,6 @@ test('an imported roster with disagreeing dispositions asks for one before battl
   await signUp(page, 'Bob')
 
   await page.goto('/rosters')
-  // The button answers only once the page has hydrated.
   await retryUntilVisible(page.getByLabel('Roster text'), () => page.getByRole('button', { name: 'Import roster' }).click())
   await page.getByLabel('Roster text').fill(`HLHOTD 2K - C'tan (1995 Points)
 
@@ -293,43 +277,36 @@ Exported with BattleBase, Data Version: v20260812`)
 
   for (const disposition of ['Take and Hold', 'Reconnaissance']) {
     if (disposition === 'Reconnaissance') {
-      await page.getByRole('button', { name: 'Roster actions' }).click()
-      await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+      await chooseRosterAction(page, 'Edit roster setup')
       await setup.getByRole('button', { name: disposition, exact: true }).click()
       await waitForRosterSave(page, () => confirmRosterSetup(setup))
     }
     await page.reload()
     await expect(page.getByText(disposition, { exact: true })).toBeVisible()
-    await page.getByRole('button', { name: 'Roster actions' }).click()
-    await page.getByRole('menuitem', { name: 'Export text' }).click()
+    await chooseRosterAction(page, 'Export text')
     const exported = page.getByRole('dialog', { name: 'Export roster' })
     await expect(exported.locator('pre')).toContainText(`Force Disposition: ${disposition}\n`)
     await expect(exported.locator('pre')).not.toContainText('Force Dispositions:')
-    await exported.screenshot({ path: `test-results/selected-disposition-export-${disposition.toLowerCase()}.png` })
+    await exported.screenshot({ path: test.info().outputPath(`selected-disposition-export-${disposition.toLowerCase()}.png`) })
     await exported.getByRole('button', { name: 'Close' }).click()
   }
 
-  await createBattle(page, { practice: true })
-  await attachRoster(page, "HLHOTD 2K - C'tan")
-  await attachRoster(page, "HLHOTD 2K - C'tan", { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, "HLHOTD 2K - C'tan")
   await chooseBattlefield(page)
 })
 
 test('a ListForge export imports through review and exports as readable text', async ({ page }) => {
   await signUp(page, 'Switcher')
-  await page.goto('/rosters')
-  const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(review.getByLabel('Roster text'), () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const review = await openImport(page)
   await review.getByLabel('Roster text').fill(listForgeDetailed)
   await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(review).toContainText('Sanitised list · 6 of 6 matched entries')
   await expect(review).toContainText('Reported army: 510 points. Matched entries at selected rules: 510 points.')
-  await review.screenshot({ path: 'test-results/listforge-import-review.png' })
+  await review.screenshot({ path: test.info().outputPath('listforge-import-review.png') })
   await review.getByRole('button', { name: 'Import roster', exact: true }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
   await expect(page.locator('[data-unit="Venom"]')).toHaveCount(2)
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  await chooseRosterAction(page, 'Export text')
   const exported = page.getByRole('dialog', { name: 'Export roster' })
   await expect(exported.locator('pre')).toContainText('Sanitised list (510 Points)\n')
   await expect(exported.locator('pre')).toContainText('Enhancement: Informant Network\n')
@@ -339,11 +316,7 @@ test('a ListForge export imports through review and exports as readable text', a
 for (const count of [0, 1, 3]) {
   test(`an account reviews and saves all ${count} source entries, and cancelling writes nothing`, async ({ page }) => {
     await signUp(page, `Entry count ${count}`)
-    await page.goto('/rosters')
-    const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
-    await retryUntilVisible(review.getByLabel('Roster text'), () =>
-      page.getByRole('button', { name: 'Import roster', exact: true }).click(),
-    )
+    const review = await openImport(page)
     const text = `Saved entries (999 Points)\n\nNecrons\nAwakened Dynasty\nForce Disposition: Take and Hold\nStrike Force (2,000 Points)\n\nBATTLELINE\n\n${'Immortals (65 Points)\n • 5x Gauss blaster\n • 5x Close combat weapon\n • Models: 5\n\n'.repeat(count)}Exported with Praetorium.gg vtest\n`
     await review.getByLabel('Roster text').fill(text)
     await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
@@ -363,8 +336,7 @@ for (const count of [0, 1, 3]) {
     await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(count)
     await page.goto('/rosters')
     await expect(page.locator('[data-roster]')).toHaveCount(1)
-    await page.locator('[data-roster]').getByRole('button', { name: 'Actions for Saved entries' }).click()
-    await page.getByRole('menuitem', { name: 'Export text', exact: true }).click()
+    await chooseLibraryAction(page, 'Saved entries', 'Export text')
     const exported = page.getByRole('dialog', { name: 'Export roster' })
     expect((await exported.locator('pre').innerText()).match(/• Models: 5/g) ?? []).toHaveLength(count)
     if (count === 1) {

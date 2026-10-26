@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { retryUntilVisible } from './account'
+import { retryUntilVisible, expectNoPageOverflow } from './account'
 
 const factions = [
   { name: 'Blood Angels', slug: 'blood-angels', versions: 6 },
@@ -46,7 +46,7 @@ test('Custodes reference retains cards with unsupported battle timing', { tag: '
     await page.setViewportSize({ width, height: 900 })
     await firstCard.scrollIntoViewIfNeeded()
     await expect(firstCard).toBeInViewport()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expectNoPageOverflow(page)
     await page.screenshot({ path: testInfo.outputPath(`guardians-stratagems-${width}.png`) })
   }
   await page.goto(`${factionPath}/detachments/auric-champions`)
@@ -93,7 +93,7 @@ test('rules history labels recorded status dates rather than publisher dates', {
       const events = history.getByRole('listitem')
       await expect(events.first()).toBeVisible()
       for (const event of await events.all()) await expect(event).toHaveText(/ · (Preview|Release|Archive) recorded$/)
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+      await expectNoPageOverflow(page)
       await page.screenshot({ path: testInfo.outputPath(`status-history-${path.split('/').at(-1)}-${width}.png`) })
     }
   }
@@ -124,8 +124,8 @@ test('faction cards open current rules and the rules version menu lists every ve
         await expect(page.getByRole('option').first().locator('[data-rules-status="current"]')).toHaveText('Current')
         await expect(page.getByRole('option').first().locator('[data-rules-status="current"]')).toHaveCSS('color', 'rgb(124, 196, 138)')
       }
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-      await page.screenshot({ path: `test-results/rules-chips-${faction.slug}-${width}.png` })
+      await expectNoPageOverflow(page)
+      await page.screenshot({ path: test.info().outputPath(`rules-chips-${faction.slug}-${width}.png`) })
       if (faction.versions > 1) {
         await page.keyboard.press('Escape')
         await expect(page.getByRole('option')).toHaveCount(0)
@@ -151,8 +151,8 @@ test('faction cards open current rules and the rules version menu lists every ve
       'href',
       '/factions/dark-angels/rules/mfm-1-4-2026-09-30/datasheets',
     )
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-    await page.screenshot({ path: `test-results/dated-faction-rules-${width}.png`, fullPage: true })
+    await expectNoPageOverflow(page)
+    await page.screenshot({ path: test.info().outputPath(`dated-faction-rules-${width}.png`), fullPage: true })
   }
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/factions/dark-angels/rules/470a-6daa-9014-12df')

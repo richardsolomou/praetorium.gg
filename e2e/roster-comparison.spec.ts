@@ -1,12 +1,6 @@
-import { expect, test, type Locator, type Page } from './test'
-import { addUnit, createRoster, retryUntilVisible, signUp } from './account'
-import { holdCombatCalculations } from './combat'
-import { productOperator, userIdFor } from './storage'
-
-async function choose(page: Page, label: string, value: string) {
-  await page.getByRole('combobox', { name: label, exact: true }).click()
-  await page.getByRole('option', { name: value, exact: true }).click()
-}
+import { expect, test, type Locator } from './test'
+import { addUnit, createRoster, signUp, expectNoPageOverflow, chooseOption, chooseRosterAction, PHONE, savedArmy } from './account'
+import { holdCombatCalculations, openCombatBreakdown } from './combat'
 
 test('new rosters compare customizable mixed-faction benchmarks and retain the target set', async ({ page }) => {
   await signUp(page, 'Benchmark builder')
@@ -17,10 +11,7 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   page.on('request', (request) => {
     if (request.url().includes('/_serverFn/') && request.postData()?.includes('pickIndices')) projections++
   })
-  await retryUntilVisible(page.getByRole('menuitem', { name: 'Test targets', exact: true }), () =>
-    page.getByRole('button', { name: 'Roster actions', exact: true }).click(),
-  )
-  await page.getByRole('menuitem', { name: 'Test targets', exact: true }).click()
+  await chooseRosterAction(page, 'Test targets')
   let dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
   await expect(dialog.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText('Current roster')
   await expect(dialog.getByRole('combobox', { name: 'Defending roster', exact: true })).toContainText('Benchmark targets')
@@ -63,9 +54,9 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
     .locator('tbody tr td[data-best-matchup]')
     .filter({ has: page.locator('button[aria-label*="against Cadian Shock Troops #1:"]') })
   expect(Number(await bestAttacker.locator('.readout').first().textContent())).toBe(Math.max(...damages.map(Number)))
-  await choose(page, 'Highlight matchups', 'Best targets per attacker')
+  await chooseOption(page, 'Highlight matchups', 'Best targets per attacker')
   await expect(table.getByText('Best target', { exact: true })).not.toHaveCount(0)
-  await choose(page, 'Highlight matchups', 'Best attackers per target')
+  await chooseOption(page, 'Highlight matchups', 'Best attackers per target')
   await expect(dialog.getByRole('spinbutton', { name: 'Necron Warriors #2 benchmark models', exact: true })).toHaveValue('10')
   await dialog.evaluate((element) => {
     const observation = {
@@ -91,10 +82,10 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
     }),
   ).toBe(false)
   await expect(dialog.locator('[data-faction-mark]')).toHaveCount(10)
-  await page.screenshot({ path: 'test-results/comparison-target-editor-desktop.png', animations: 'disabled' })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: test.info().outputPath('comparison-target-editor-desktop.png'), animations: 'disabled' })
+  await page.setViewportSize(PHONE)
   await expect.poll(async () => (await dialog.boundingBox())?.width).toBe(390)
-  await page.screenshot({ path: 'test-results/comparison-target-editor-phone.png', animations: 'disabled' })
+  await page.screenshot({ path: test.info().outputPath('comparison-target-editor-phone.png'), animations: 'disabled' })
   await page.setViewportSize({ width: 1440, height: 900 })
   await dialog.getByRole('button', { name: 'Remove Rhino #6 benchmark', exact: true }).click()
   await dialog.getByRole('combobox', { name: 'Add benchmark target', exact: true }).click()
@@ -108,12 +99,12 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   await expect(table.getByRole('columnheader').last()).toContainText('Boyz')
   await expect(dialog.getByRole('combobox', { name: 'Attacking roster', exact: true })).toBeVisible()
   await expect(dialog.getByRole('spinbutton', { name: 'Necron Warriors #2 benchmark models', exact: true })).toBeVisible()
-  await page.screenshot({ path: 'test-results/roster-benchmarks-desktop.png', animations: 'disabled' })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: test.info().outputPath('roster-benchmarks-desktop.png'), animations: 'disabled' })
+  await page.setViewportSize(PHONE)
   await expect.poll(async () => (await dialog.boundingBox())?.x).toBe(0)
   await expect.poll(async () => (await dialog.boundingBox())?.width).toBe(390)
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-  await page.screenshot({ path: 'test-results/roster-benchmarks-phone.png', animations: 'disabled' })
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: test.info().outputPath('roster-benchmarks-phone.png'), animations: 'disabled' })
   await table.getByRole('button', { name: /^Intercessor Squad #1 against Necron Warriors #2:/ }).click()
   const detail = page.getByRole('dialog', { name: 'Combat simulator', exact: true }).last()
   await expect(detail.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText('Necron Warriors')
@@ -121,10 +112,7 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   await detail.getByRole('button', { name: 'Close', exact: true }).click()
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   await page.reload()
-  await retryUntilVisible(page.getByRole('menuitem', { name: 'Test targets', exact: true }), () =>
-    page.getByRole('button', { name: 'Roster actions', exact: true }).click(),
-  )
-  await page.getByRole('menuitem', { name: 'Test targets', exact: true }).click()
+  await chooseRosterAction(page, 'Test targets')
   dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
   await dialog.getByRole('button', { name: 'Benchmark targets · 9', exact: true }).click()
   await expect(dialog.getByRole('spinbutton', { name: 'Necron Warriors #2 benchmark models', exact: true })).toHaveValue('20')
@@ -139,10 +127,7 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   await expect(dialog.getByRole('heading', { name: /^Benchmark targets ·/ })).toHaveText('Benchmark targets · 0')
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   await page.reload()
-  await retryUntilVisible(page.getByRole('menuitem', { name: 'Test targets', exact: true }), () =>
-    page.getByRole('button', { name: 'Roster actions', exact: true }).click(),
-  )
-  await page.getByRole('menuitem', { name: 'Test targets', exact: true }).click()
+  await chooseRosterAction(page, 'Test targets')
   dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
   await expect(dialog.getByRole('heading', { name: /^Benchmark targets ·/ })).toHaveText('Benchmark targets · 0')
   await dialog.getByRole('button', { name: 'Run all matchups' }).click()
@@ -155,10 +140,7 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   await expect(dialog).toContainText('2 / 2 matchups · Complete')
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   await page.reload()
-  await retryUntilVisible(page.getByRole('menuitem', { name: 'Test targets', exact: true }), () =>
-    page.getByRole('button', { name: 'Roster actions', exact: true }).click(),
-  )
-  await page.getByRole('menuitem', { name: 'Test targets', exact: true }).click()
+  await chooseRosterAction(page, 'Test targets')
   dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
   await expect(dialog.getByRole('heading', { name: /^Benchmark targets ·/ })).toHaveText('Benchmark targets · 1')
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
@@ -181,17 +163,9 @@ async function settledBox(locator: Locator) {
 }
 
 test('long matchup tables keep target headings and attacker names visible while scrolling', async ({ page }) => {
-  const account = await signUp(page, 'Pinned matchup headings')
-  const operator = await productOperator()
-  const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
-  const userId = await userIdFor(account.email)
-  const id = crypto.randomUUID()
-  await operator.saveRoster({ ...source, id, userId, name: 'Long comparison', automaticName: false, now: Date.now() })
+  const { id } = await savedArmy(page, 'Pinned matchup headings', { name: 'Long comparison' })
   await page.goto(`/rosters/${id}`)
-  await retryUntilVisible(page.getByRole('menuitem', { name: 'Test targets', exact: true }), () =>
-    page.getByRole('button', { name: 'Roster actions', exact: true }).click(),
-  )
-  await page.getByRole('menuitem', { name: 'Test targets', exact: true }).click()
+  await chooseRosterAction(page, 'Test targets')
   const dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
   await dialog.getByRole('button', { name: 'Run all matchups' }).click()
   await expect(dialog).toContainText(/matchups · Complete/, { timeout: 120_000 })
@@ -216,7 +190,7 @@ test('long matchup tables keep target headings and attacker names visible while 
     await expect.poll(async () => Math.abs((await corner.boundingBox())!.y - before.y)).toBeLessThan(2)
     await expect.poll(async () => Math.abs((await target.boundingBox())!.y - targetBefore.y)).toBeLessThan(2)
     await expect.poll(async () => Math.abs((await corner.boundingBox())!.x - before.x)).toBeLessThan(2)
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expectNoPageOverflow(page)
     await page.screenshot({ path: test.info().outputPath(`pinned-matchup-headings-${width}.png`) })
   }
 })
@@ -233,8 +207,8 @@ test('saved rosters compare every pairing, reverse direction, and open isolated 
   const defenderUrl = page.url()
   await page.goto('/simulator')
   await page.getByRole('tab', { name: 'Rosters', exact: true }).click()
-  await choose(page, 'Attacking roster', 'Attacking Necrons')
-  await choose(page, 'Defending roster', 'Defending Marines')
+  await chooseOption(page, 'Attacking roster', 'Attacking Necrons')
+  await chooseOption(page, 'Defending roster', 'Defending Marines')
   const comparison = page.getByRole('region', { name: 'Roster comparison' })
   const firstGate = await holdCombatCalculations(page)
   await comparison.getByRole('button', { name: 'Run all matchups' }).click()
@@ -260,16 +234,16 @@ test('saved rosters compare every pairing, reverse direction, and open isolated 
   const immortalCell = table.getByRole('button', { name: /^Immortals #1 against Intercessor Squad #1:/ })
   const damage = await immortalCell.locator('.readout').textContent()
   expect(Number(damage)).toBeGreaterThan(0)
-  await page.screenshot({ path: 'test-results/roster-comparison-desktop.png', fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: test.info().outputPath('roster-comparison-desktop.png'), fullPage: true })
+  await page.setViewportSize(PHONE)
   await expect.poll(async () => (await comparison.boundingBox())?.width).toBeLessThanOrEqual(390)
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
-  await page.screenshot({ path: 'test-results/roster-comparison-phone.png', fullPage: true })
+  await expectNoPageOverflow(page)
+  await page.screenshot({ path: test.info().outputPath('roster-comparison-phone.png'), fullPage: true })
   await immortalCell.click()
   const matchup = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
   await expect(matchup.getByRole('combobox', { name: 'Attacker unit', exact: true })).toContainText('Immortals')
   await expect(matchup.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText('Intercessor Squad')
-  await matchup.locator('[data-results-summary] summary').click()
+  await openCombatBreakdown(matchup)
   const shooting = matchup.getByRole('region', { name: 'Shooting estimate' })
   await expect(shooting.locator('.readout').first()).toHaveText(damage!)
   await matchup.getByRole('button', { name: 'More attacker models', exact: true }).click()
@@ -278,7 +252,7 @@ test('saved rosters compare every pairing, reverse direction, and open isolated 
   await comparison.getByRole('tab', { name: 'Melee', exact: true }).click()
   await comparison.getByRole('button', { name: 'View options', exact: true }).click()
   await expect(immortalCell.locator('.readout')).not.toHaveText(damage!)
-  await choose(page, 'Comparison metric', 'Destruction chance')
+  await chooseOption(page, 'Comparison metric', 'Destruction chance')
   await expect(immortalCell.locator('.readout')).toHaveText(/%$/)
   await comparison.getByRole('button', { name: 'Reverse direction' }).click()
   await expect(page.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText('Defending Marines')

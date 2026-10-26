@@ -3,6 +3,7 @@ import { readCatalogueComposition } from './catalogueComposition'
 import { catalogueDirectory } from './catalogueIndex'
 import { memoUntilSnapshotChanges } from './snapshotMemo'
 import { recordIdsIn, textFilesFrom, textSourcePaths } from './sourceTexts'
+import { remember } from '../core/collections'
 
 const located = () =>
   memoUntilSnapshotChanges('text-locations', null, async () => {
@@ -13,9 +14,7 @@ const located = () =>
     const holds = (url: string, id: string) => {
       const file = local.get(url)
       if (!file) return false
-      let held = ids.get(url)
-      if (!held) ids.set(url, (held = recordIdsIn(file)))
-      return held.has(id)
+      return remember(ids, url, () => recordIdsIn(file)).has(id)
     }
     return { files: textFilesFrom(paths), holds } satisfies TextLocations
   })

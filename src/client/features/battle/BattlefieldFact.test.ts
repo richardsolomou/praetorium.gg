@@ -6,8 +6,7 @@ import { reduceBattle } from '../../../core/battle'
 import { ALICE, BOB, log, NAMES, started } from '../../../core/battle.fixtures'
 import { battleView } from '../../../core/battleView'
 import type { Deployment, TerrainLayout } from '../../../contracts/terrain'
-import { terrainMatchupIds, terrainReferencesQuery } from '../../queries'
-import { sides } from '../../sides'
+import { terrainReferencesQuery } from '../../queries'
 import { BattlefieldFact } from './BattlefieldFact'
 
 const deployment: Deployment = {
@@ -23,6 +22,8 @@ function render(count: number | null, linked = false, objectives = deployment.ob
   const commands = log(...started())
   const view = battleView({ token: 'test' }, NAMES, reduceBattle([ALICE, BOB], commands), ALICE)
   view.settings.terrainLayoutId = 'layout'
+  view.players[0]!.disposition = 'purge-the-foe'
+  view.players[1]!.disposition = 'reconnaissance'
   const client = new QueryClient()
   if (count !== null) {
     const layout: TerrainLayout = {
@@ -47,8 +48,10 @@ function render(count: number | null, linked = false, objectives = deployment.ob
         })),
       },
     }
-    const ids = terrainMatchupIds(sides(view).flatMap((side) => (side.disposition ? [side.disposition] : [])))
-    client.setQueryData(terrainReferencesQuery(ids).queryKey, { layouts: [layout], templates: [] })
+    client.setQueryData(terrainReferencesQuery(['purge-the-foe-vs-reconnaissance', 'reconnaissance-vs-purge-the-foe']).queryKey, {
+      layouts: [layout],
+      templates: [],
+    })
   }
   return renderToStaticMarkup(
     createElement(

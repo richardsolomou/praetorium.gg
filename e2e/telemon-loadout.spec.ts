@@ -1,14 +1,13 @@
 import { expect, test } from './test'
-import { visitorSetup } from './account'
+import { visitorSetup, chooseRosterAction, expectNoPageOverflow, chooseFaction } from './account'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
+import { guestDraft } from './storage'
 
 for (const width of [1440, 390]) {
   test(`Telemon bundles select and persist at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     const setup = await visitorSetup(page)
-    await setup.getByRole('combobox', { name: 'Faction' }).click()
-    await page.getByPlaceholder('Search factions…').fill('Adeptus Custodes')
-    await page.getByRole('option', { name: 'Adeptus Custodes', exact: true }).click()
+    await chooseFaction(setup, 'Adeptus Custodes')
     await setup.getByRole('button', { name: 'Select Aquilan Shield', exact: true }).click()
     await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
     await setup.getByRole('button', { name: 'Create roster' }).click()
@@ -31,9 +30,9 @@ for (const width of [1440, 390]) {
     await expect(dualOption.getByRole('heading', { name: '2× Twin Neutronium Cascade Projectors', exact: true })).toHaveCount(1)
     await expect(equipped.getByRole('heading', { name: '2× Twin Neutronium Cascade Projectors', exact: true })).toHaveCount(1)
     await expect(card).toContainText('2x Twin Neutronium Cascade Projectors')
-    await expectNoHorizontalOverflow(page.locator('html'))
+    await expectNoPageOverflow(page)
     await expectNoHorizontalOverflow(loadout)
-    await page.screenshot({ path: `test-results/telemon-dual-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`telemon-dual-${width}.png`) })
 
     for (const gun of ['Adrathic Desolator', 'Arachnus Storm Cannon', 'Iliastus Accelerator Culverin']) {
       const label =
@@ -42,7 +41,7 @@ for (const width of [1440, 390]) {
           : `${gun} + Caestus Fist + Twin Neutronium Cascade Projectors`
       const gunOption = weapons.locator('article').filter({ has: page.getByRole('button', { name: `Select ${label}`, exact: true }) })
       await expect(gunOption.getByRole('heading', { name: gun, exact: true })).toHaveCount(1)
-      const before = await page.evaluate(() => localStorage.getItem('praetorium.guest-draft'))
+      const before = await guestDraft(page)
       await gunOption.getByRole('button', { name: `Select ${label}`, exact: true }).click()
       await expect(card).toContainText(`1x ${gun}`)
       await expect(card).toContainText('1x Twin Neutronium Cascade Projectors')
@@ -50,10 +49,10 @@ for (const width of [1440, 390]) {
       await expect(gunOption.getByRole('heading', { name: 'Caestus Fist', exact: true })).toHaveCount(1)
       await expect(gunOption.getByRole('heading', { name: 'Dual Caestus Fists', exact: true })).toHaveCount(0)
       await expect(gunOption.getByRole('heading', { name: 'Twin Neutronium Cascade Projectors', exact: true })).toHaveCount(1)
-      await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft'))).not.toBe(before)
+      await expect.poll(() => guestDraft(page)).not.toBe(before)
     }
     await expectNoHorizontalOverflow(loadout)
-    await page.screenshot({ path: `test-results/telemon-gun-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`telemon-gun-${width}.png`) })
     await page.reload()
     await expect(card).toContainText('1x Iliastus Accelerator Culverin')
     if (width >= 1300 || !(await loadout.getByRole('button', { name: 'Back to roster', exact: true }).isVisible())) {
@@ -69,8 +68,7 @@ for (const width of [1440, 390]) {
     await expect(equipped.getByRole('heading', { name: '2× Twin Neutronium Cascade Projectors', exact: true })).toHaveCount(1)
     await expect(weapons.getByRole('button', { name: /^Select / })).toHaveCount(0)
     if (width < 1300) await loadout.getByRole('button', { name: 'Back to roster', exact: true }).click()
-    await page.getByRole('button', { name: 'Roster actions' }).click()
-    await page.getByRole('menuitem', { name: 'Export text' }).click()
+    await chooseRosterAction(page, 'Export text')
     const exported = page.getByRole('dialog', { name: 'Export roster' }).locator('pre')
     await expect(exported).toContainText('2x Twin Neutronium Cascade Projectors')
     await expect(exported).not.toContainText('Iliastus Accelerator Culverin')

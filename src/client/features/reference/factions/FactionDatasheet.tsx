@@ -2,7 +2,7 @@ import { useReferenceFaction } from './useReferenceFaction'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from '@tanstack/react-router'
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
+import { FactionBreadcrumb } from './FactionBreadcrumb'
 import { datasheetCharacteristicKindOf, datasheetProfileKindOf, datasheetProfilesByKind } from '../../../../core/datasheetStructure'
 import type { Datasheet, DatasheetCharacteristicKind, StructuredDatasheetProfile } from '../../../../contracts/catalogue'
 import {
@@ -56,7 +56,7 @@ export function FactionDatasheet() {
         tint={factionColour(faction.slug, faction.displayName)}
         eyebrow={`${faction.displayName} · Datasheet`}
         title={sheet.name}
-        media={<FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} />}
+        media={<FactionMark faction={faction} />}
         actions={
           <div className="flex flex-wrap items-center gap-1">
             <AddToRoster faction={faction} entryId={sheet.id} name={sheet.name} />
@@ -74,27 +74,7 @@ export function FactionDatasheet() {
         <UnitKeywords id="keyword-rules" className="mt-2" sheet={sheet} />
       </PageHeader>
       <PageContent className="space-y-6">
-        <Breadcrumb>
-          <BreadcrumbList className="eyebrow gap-1 text-info">
-            <BreadcrumbItem>
-              <BreadcrumbLink render={<Link to="/factions" />}>Factions</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator className="text-dim" />
-            <BreadcrumbItem>
-              <BreadcrumbLink render={<FactionReferenceLink to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} />}>
-                {faction.displayName}
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator className="text-dim" />
-            <BreadcrumbItem>
-              <BreadcrumbLink
-                render={<FactionReferenceLink to="/factions/$catalogueId/datasheets" params={{ catalogueId: faction.slug }} />}
-              >
-                Datasheets
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+        <FactionBreadcrumb faction={faction} datasheets />
 
         {unit.length === 1 && unit[0] ? <UnitCharacteristics profile={unit[0]} anchorIds={unitAnchorIds.get(unit[0].id)} /> : null}
         {unit.length > 1 ? (

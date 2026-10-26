@@ -1,4 +1,5 @@
 import { countBy } from './collections'
+import { printedNumber } from './text'
 
 /** Model the BattleScribe fields used for pricing, legality, and attachments; display-only fields stay outside core. */
 
@@ -57,6 +58,20 @@ export type LocalConditionGroup = {
   conditions?: Condition[]
   conditionGroups?: ConditionGroup[]
 }
+
+/** Compares a count with a condition's value; undefined for a type that is not a comparison. */
+export function compares(type: string, measured: number, value: number): boolean | undefined {
+  if (type === 'atLeast') return measured >= value
+  if (type === 'atMost') return measured <= value
+  if (type === 'equalTo') return measured === value
+  if (type === 'greaterThan') return measured > value
+  if (type === 'lessThan') return measured < value
+  return undefined
+}
+
+/** A counting group's verdict on how many members held; without a value it asks for at least one, or for none. */
+export const groupCounts = (type: string, met: number, value: number | undefined) =>
+  type === 'atLeast' || type === 'atMost' || type === 'equalTo' ? compares(type, met, value ?? (type === 'atLeast' ? 1 : 0)) : undefined
 
 /** Applies a modifier once per `repeats` of whatever it counts — how per-model costs are expressed. */
 export type Repeat = {
@@ -418,7 +433,7 @@ const POINTS_LIMIT = /\b(\d[\d,]*)\s*point limit\b/i
 function collectBattleSizes(root: Catalogue, sizes: Map<number, string>) {
   const visit = (node: Definition) => {
     const printed = node.name?.match(POINTS_LIMIT)
-    const limit = printed ? Number(printed[1]!.replaceAll(',', '')) : null
+    const limit = printed ? printedNumber(printed[1]!) : null
     if (limit !== null && !sizes.has(limit)) sizes.set(limit, node.id)
     for (const child of node.selectionEntries ?? []) visit(child)
     for (const child of node.selectionEntryGroups ?? []) visit(child)
@@ -430,6 +445,12 @@ function collectBattleSizes(root: Catalogue, sizes: Map<number, string>) {
 /** A link stands for its target: what an entry _is_ comes from there, not from the link. */
 export function targetOf(definition: Definition, definitions: ReadonlyMap<string, Definition>): Definition {
   return 'targetId' in definition ? (definitions.get(definition.targetId) ?? definition) : definition
+}
+
+/** An entry, and its target when it is a link: the two places its own data can be written. */
+export function definitionAndTarget(definition: Definition, index: CatalogueIndex): Definition[] {
+  const target = targetOf(definition, index.definitions)
+  return target === definition ? [definition] : [definition, target]
 }
 
 /** What to call an entry. A link usually repeats its target's name, and may replace it. */

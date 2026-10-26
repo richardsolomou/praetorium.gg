@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate, useRouterState } from '@tanstack/react-router'
-import { Copy, Eye, ListFilter, ScrollText, Swords, Users } from 'lucide-react'
+import { Copy, Eye, ScrollText, Swords, Users } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
@@ -14,17 +14,6 @@ import {
 import { currentCatalogueFamilyId } from '../../../core/retiredCatalogueIds'
 import type { RosterSort } from '../../../core/rosterSort'
 import { rulesVersionStatus } from '../../../core/rosterDiscoveryScope'
-import {
-  Dialog,
-  DialogBody,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '../../components/Dialog'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import type { SearchableGroup } from '../../components/SearchableSelect'
@@ -34,7 +23,7 @@ import { discoveredRostersQuery, factionIndexQuery, invalidateSavedRosters, meQu
 import { errorMessage } from '../../queryClient'
 import { factionSelectGroups } from './builder/factions'
 import { CreateRoster } from './CreateRoster'
-import { FilterField, RosterSortMenu } from './RosterFilters'
+import { FilterDialog, FilterField, NoFilterMatches, RosterSortMenu } from './RosterFilters'
 import { RosterImport } from './RosterImport'
 import { RosterSummary, rosterTitle } from './RosterSummary'
 import { RosterViews } from './RosterViews'
@@ -45,6 +34,7 @@ import { useClientValue } from '../../useClientValue'
 import { Problem } from '../../components/Problem'
 import { FactionMark } from '../../components/FactionMark'
 import { BATTLE_ENDINGS, battleOutcomeStage } from '../../battleStage'
+import { OwnerLink } from './OwnerLink'
 
 export type RosterDiscoverySearch = { faction?: string; detachment?: string; rules?: RulesVersionStatus; sort?: RosterSort }
 
@@ -177,46 +167,31 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
       </PageHeader>
       <PageContent className="space-y-6">
         <div className="flex flex-wrap items-center gap-2">
-          <Dialog>
-            <DialogTrigger render={<Button variant="outline" />}>
-              <ListFilter />
-              Filter
-              {active ? <span className="chip readout">{active}</span> : null}
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Filter rosters</DialogTitle>
-                <DialogDescription>Narrow the {listed} to a faction, detachment or rules version.</DialogDescription>
-              </DialogHeader>
-              <DialogBody className="gap-3">
-                <FilterField
-                  label="Faction"
-                  value={family?.slug ?? 'all'}
-                  groups={factionGroups}
-                  onChange={(chosen) => choose({ rules: search.rules, ...(chosen === 'all' ? {} : { faction: chosen }) })}
-                />
-                <FilterField
-                  label="Detachment"
-                  value={filter.detachment ?? 'all'}
-                  groups={detachmentGroups}
-                  disabled={!family}
-                  onChange={(chosen) => choose({ ...search, detachment: chosen === 'all' ? undefined : chosen })}
-                />
-                <FilterField
-                  label="Rules version"
-                  value={filter.rules ?? 'all'}
-                  groups={RULES_GROUPS}
-                  onChange={(chosen) => choose({ ...search, rules: chosen === 'all' ? undefined : (chosen as RulesVersionStatus) })}
-                />
-              </DialogBody>
-              <DialogFooter>
-                <Button variant="ghost" disabled={!active} onClick={() => choose({})} className="sm:mr-auto sm:ml-0">
-                  Clear filters
-                </Button>
-                <DialogClose render={<Button variant="outline" />}>Done</DialogClose>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <FilterDialog
+            active={active}
+            description={`Narrow the ${listed} to a faction, detachment or rules version.`}
+            onClear={() => choose({})}
+          >
+            <FilterField
+              label="Faction"
+              value={family?.slug ?? 'all'}
+              groups={factionGroups}
+              onChange={(chosen) => choose({ rules: search.rules, ...(chosen === 'all' ? {} : { faction: chosen }) })}
+            />
+            <FilterField
+              label="Detachment"
+              value={filter.detachment ?? 'all'}
+              groups={detachmentGroups}
+              disabled={!family}
+              onChange={(chosen) => choose({ ...search, detachment: chosen === 'all' ? undefined : chosen })}
+            />
+            <FilterField
+              label="Rules version"
+              value={filter.rules ?? 'all'}
+              groups={RULES_GROUPS}
+              onChange={(chosen) => choose({ ...search, rules: chosen === 'all' ? undefined : (chosen as RulesVersionStatus) })}
+            />
+          </FilterDialog>
           {played ? null : (
             <RosterSortMenu
               value={sort}
@@ -296,12 +271,7 @@ export function RosterDiscoveryPage({ view, search }: { view: RosterAudience | '
                   ) : null}
                 </>
               ) : active ? (
-                <p className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2 text-sm text-dim">
-                  No {listed} match these filters
-                  <Button variant="outline" size="sm" onClick={() => choose({})}>
-                    Clear filters
-                  </Button>
-                </p>
+                <NoFilterMatches onClear={() => choose({})}>No {listed} match these filters</NoFilterMatches>
               ) : view === 'friends' ? (
                 <div data-friends-empty>
                   <PageState
@@ -416,10 +386,7 @@ function PlayedArmies({
                   <PlayedOutcome outcome={army.outcome} token={army.battle} />
                   <div className="flex flex-wrap items-center justify-between gap-2 border-t border-edge px-3 py-2">
                     <span className="min-w-0 truncate text-xs text-dim">
-                      By{' '}
-                      <Link to="/users/$userId" params={{ userId: army.player.id }} className="font-semibold text-info hover:text-bone">
-                        {army.player.name}
-                      </Link>
+                      By <OwnerLink owner={army.player} />
                     </span>
                     <Button
                       variant="outline"
@@ -441,12 +408,7 @@ function PlayedArmies({
             ) : null}
           </>
         ) : filtered ? (
-          <p className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2 text-sm text-dim">
-            No played armies match these filters
-            <Button variant="outline" size="sm" onClick={onClearFilters}>
-              Clear filters
-            </Button>
-          </p>
+          <NoFilterMatches onClear={onClearFilters}>No played armies match these filters</NoFilterMatches>
         ) : (
           <PageState
             headingLevel={2}
@@ -478,7 +440,7 @@ function PlayedOutcome({ outcome, token }: { outcome: PlayedArmy['outcome']; tok
           <span className="text-faint">vs</span>
           {outcome.opponents.map((faction) => (
             <span key={faction.slug} className="flex min-w-0 items-center gap-1.5">
-              <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
+              <FactionMark faction={faction} size="sm" />
               <span className="truncate">{faction.displayName}</span>
             </span>
           ))}
@@ -513,10 +475,7 @@ function DiscoveredRoster({
       </Link>
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-edge px-3 py-2">
         <span className="min-w-0 truncate text-xs text-dim">
-          By{' '}
-          <Link to="/users/$userId" params={{ userId: owner.id }} className="font-semibold text-info hover:text-bone">
-            {owner.name}
-          </Link>
+          By <OwnerLink owner={owner} />
         </span>
         <Button variant="outline" size="sm" disabled={disabled} onClick={onDuplicate} aria-label={`Duplicate ${title}`}>
           <Copy /> {duplicating ? 'Duplicating…' : 'Duplicate'}

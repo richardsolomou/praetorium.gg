@@ -6,60 +6,24 @@ import { routeSlug } from '../../../core/slug'
 import { factionQuery } from '../../queries'
 import { armyRulesRequest } from './sideRules'
 import type { Army } from '../../sides'
-import { FactionMark, type FactionPresentation } from '../../components/FactionMark'
+import { FactionMark } from '../../components/FactionMark'
 
 /** Reuse one army identity across setup and battle; frozen lists remain named even when their saved roster no longer exists. */
 export function ArmyIdentity({
   army,
-  list = true,
   leading,
-  linked = true,
   className = '',
 }: {
   army: Army
   /** Read first, as one more part of the line. */
   leading?: ReactNode
-  /** Whether to name the list too. Off where the list is already the headline above. */
-  list?: boolean
-  /** Off where the card around it is a control: a link inside a button cannot be pressed. */
-  linked?: boolean
   className?: string
 }) {
   // One small read for this army's own faction, not the whole catalogue's worth.
-  const { data: faction } = useQuery({ ...factionQuery(army.roster?.built?.catalogueId ?? ''), enabled: Boolean(army.roster?.built) })
+  const { data } = useQuery({ ...factionQuery(army.roster?.built?.catalogueId ?? ''), enabled: Boolean(army.roster?.built) })
+  const faction = data ? { ...data, edition: army.roster?.built?.edition ?? null } : undefined
   const { detachmentNames } = armyRulesRequest(army.roster)
 
-  return (
-    <IdentityLine
-      faction={faction ? { ...faction, edition: army.roster?.built?.edition ?? null } : undefined}
-      detachmentNames={detachmentNames}
-      leading={leading}
-      trailing={list ? <span className="truncate">{army.roster?.name ?? 'No list'}</span> : null}
-      linked={linked}
-      className={className}
-    />
-  )
-}
-
-type Faction = FactionPresentation & {
-  detachments: { id: string; name: string; slug?: string; referenceRoute?: { catalogueId: string; slug: string } | null }[]
-}
-
-function IdentityLine({
-  faction,
-  detachmentNames,
-  leading,
-  trailing,
-  linked,
-  className,
-}: {
-  faction: Faction | undefined
-  detachmentNames: readonly string[]
-  leading: ReactNode
-  trailing: ReactNode
-  linked: boolean
-  className: string
-}) {
   const parts = [
     leading ? (
       <span key="leading" className="truncate">
@@ -67,29 +31,22 @@ function IdentityLine({
       </span>
     ) : null,
     faction ? (
-      linked ? (
-        <FactionReferenceLink
-          key="faction"
-          to="/factions/$catalogueId"
-          params={{ catalogueId: faction.slug }}
-          aria-label={`${faction.displayName} faction`}
-          title={faction.displayName}
-          className="inline-flex min-w-0 items-center gap-1 text-bone hover:text-azure"
-        >
-          <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
-          <span aria-hidden className="truncate">
-            {faction.displayName}
-          </span>
-        </FactionReferenceLink>
-      ) : (
-        <span key="faction" className="inline-flex min-w-0 items-center gap-1 text-bone">
-          <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
-          <span className="truncate">{faction.displayName}</span>
+      <FactionReferenceLink
+        key="faction"
+        to="/factions/$catalogueId"
+        params={{ catalogueId: faction.slug }}
+        aria-label={`${faction.displayName} faction`}
+        title={faction.displayName}
+        className="inline-flex min-w-0 items-center gap-1 text-bone hover:text-azure"
+      >
+        <FactionMark faction={faction} size="sm" />
+        <span aria-hidden className="truncate">
+          {faction.displayName}
         </span>
-      )
+      </FactionReferenceLink>
     ) : null,
     ...detachmentNames.map((name) => {
-      const detachment = linked ? faction?.detachments.find((candidate) => candidate.name === name) : undefined
+      const detachment = faction?.detachments.find((candidate) => candidate.name === name)
       return detachment && detachment.referenceRoute !== null ? (
         <FactionReferenceLink
           key={name}
@@ -109,7 +66,6 @@ function IdentityLine({
         </span>
       )
     }),
-    trailing ? <span key="trailing">{trailing}</span> : null,
   ].filter(Boolean)
 
   return (

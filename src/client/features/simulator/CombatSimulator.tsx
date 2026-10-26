@@ -1,15 +1,16 @@
+import { noExclusions } from '../../../core/combatMatchup'
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { posthog } from 'posthog-js'
 import { ArrowLeftRight, BookOpen } from 'lucide-react'
-import { useInfiniteQuery, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
 import { PageContent, PageHeader } from '../../components/Page'
 import { advanceOnboarding, ONBOARDING_FOCUS_EVENT } from '../onboarding/onboarding'
 import { CombatantCard } from './CombatantCard'
 import { CombatMatchup } from './CombatMatchup'
 import { CombatBuffControls } from './CombatBuffControls'
-import { SimulationMode } from './CombatControls'
+import { PICKER_POPUP, SimulationMode } from './CombatControls'
 import { RosterPicker } from './RosterPicker'
 import { RosterCombatComparison } from './RosterCombatComparison'
 import { type Combatant, type CombatRoster, useCombatant } from './useCombatant'
@@ -23,22 +24,13 @@ import {
   type SimulatorRosterSource,
   type SimulatorState,
 } from '../../../contracts/simulatorState'
-import {
-  combatUnitsQuery,
-  discoveredRostersQuery,
-  factionIndexQuery,
-  friendLeagueRostersQuery,
-  leagueRosterQuery,
-  meQuery,
-  savedRosterSummariesQuery,
-  sharedRosterQuery,
-} from '../../queries'
+import { combatUnitsQuery, factionIndexQuery, leagueRosterQuery, sharedRosterQuery } from '../../queries'
 import type { LocalRoster } from '../../offline/localRuntime'
 import { rosterTitle } from '../rosters/RosterSummary'
 import { exampleMatchup, useMatchupHistory } from './matchupHistory'
 import { RecentSimulations } from './RecentSimulations'
 import { sealedCombatRoster } from './rosterCombat'
-import { friendLeagueLabel, friendLeagueSource, OwnerName, useRosterOwners } from './rosterOwners'
+import { friendLeagueLabel, friendLeagueSource, OwnerName, useRosterOwners, useSimulatorRosters } from './rosterOwners'
 import type { RecentMatchup } from '../../../core/recentMatchups'
 
 const NO_ROSTER = 'none'
@@ -74,8 +66,7 @@ export function CombatSimulator({
   const queryClient = useQueryClient()
   const units = useQuery(combatUnitsQuery())
   const history = useMatchupHistory()
-  const me = useQuery(meQuery())
-  const saved = useQuery({ ...savedRosterSummariesQuery(), enabled: Boolean(me.data) })
+  const { saved, friendRosters, leagueRosters } = useSimulatorRosters()
   const factions = useQuery(factionIndexQuery())
   const titled = (roster: Parameters<typeof rosterTitle>[0] & { catalogueId: string }) =>
     rosterTitle(
@@ -83,16 +74,12 @@ export function CombatSimulator({
       factions.data?.factions.find((faction) => faction.id === roster.catalogueId),
     )
   const savedRosters = (saved.data ?? []).filter((roster) => !roster.archived)
-  // The newest page of friends' public rosters, as the Friends tab of the roster library lists them.
-  const friends = useInfiniteQuery({ ...discoveredRostersQuery({}, 'friends', 'updated-desc'), enabled: Boolean(me.data) })
   useEffect(() => {
     if (session.shared !== shared) onShare(session.shared)
   }, [session.shared, shared, onShare])
-  const friendRosters = friends.data?.pages[0]?.rosters ?? []
-  const leagues = useQuery({ ...friendLeagueRostersQuery(), enabled: Boolean(me.data) })
   const ownerOf = useRosterOwners()
   const leagueSources = new Map<string, SimulatorRosterSource>(
-    (leagues.data ?? []).map((entry) => {
+    leagueRosters.map((entry) => {
       const source = friendLeagueSource(entry)
       return [rosterSourceKey(source), source]
     }),
@@ -182,7 +169,7 @@ export function CombatSimulator({
         <RosterPicker
           ariaLabel={`${index ? 'Second' : 'First'} roster`}
           className="mt-1"
-          popupClassName="min-w-[min(20rem,var(--available-width))]"
+          popupClassName={PICKER_POPUP}
           searchPlaceholder="Search rosters…"
           groups={[
             {
@@ -204,7 +191,7 @@ export function CombatSimulator({
             },
             {
               label: "Friends' sealed rosters",
-              options: (leagues.data ?? []).map((entry) => ({
+              options: leagueRosters.map((entry) => ({
                 id: rosterSourceKey(friendLeagueSource(entry)),
                 label: friendLeagueLabel(entry),
                 catalogueId: entry.catalogueId,
@@ -374,7 +361,7 @@ export function CombatSimulatorMatchup({
   const matchup = {
     ...((settings.key === matchupKey ? settings.value : undefined) ?? {
       adjustments: {},
-      excluded: { ranged: [], melee: [] },
+      excluded: noExclusions(),
       allocation: [],
     }),
     preferences: attacker.weaponPreferences,

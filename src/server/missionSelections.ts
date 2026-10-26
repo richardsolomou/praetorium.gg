@@ -1,6 +1,6 @@
 import { hash } from 'node:crypto'
 import type { MissionSelectionKind } from '../core/missionSelections'
-import { english } from './missionPacks'
+import { english, records } from '../shared/datacards'
 
 const chapterApproved = '4f285f2e-3c40-40fb-8b2f-bfccd173f1fd'
 const selections: Record<string, { kind: MissionSelectionKind; wording: string }> = {
@@ -43,8 +43,7 @@ const actionFields = ['name', 'startsText', 'completesText', 'effectText', 'unit
 
 /** The card's own description and printed actions, so a changed action also withdraws the capability. */
 function wording(raw: Record<string, unknown>): string {
-  const actions = Array.isArray(raw.actions) ? (raw.actions as Record<string, unknown>[]) : []
-  return [english(raw.description), ...actions.flatMap((action) => actionFields.map((field) => english(action?.[field])))]
+  return [english(raw.description), ...records(raw, 'actions').flatMap((action) => actionFields.map((field) => english(action[field])))]
     .filter(Boolean)
     .join('\n')
 }

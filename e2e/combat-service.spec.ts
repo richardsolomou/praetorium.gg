@@ -1,7 +1,6 @@
 import { expect, test, type Page } from './test'
 import { chooseCombatUnit, isCombatCalculationRequest, openCombatBreakdown } from './combat'
-import { chooseRosterAction, signUp } from './account'
-import { productOperator, userIdFor } from './storage'
+import { chooseRosterAction, chooseOption, PHONE, savedArmy } from './account'
 
 async function countLocalCalculations(page: Page) {
   await page.addInitScript(() => {
@@ -51,12 +50,7 @@ test('unit estimates run on the server across reloads and fall back locally when
 
 test('a full roster matrix batches projections and uses the server without browser scoring', async ({ page }) => {
   await countLocalCalculations(page)
-  const account = await signUp(page, 'Server matchup matrix')
-  const operator = await productOperator()
-  const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
-  const userId = await userIdFor(account.email)
-  const id = crypto.randomUUID()
-  await operator.saveRoster({ ...source, id, userId, name: 'Server comparison', automaticName: false, now: Date.now() })
+  const { id } = await savedArmy(page, 'Server matchup matrix', { name: 'Server comparison' })
   await page.goto(`/rosters/${id}`)
   let projections = 0
   let calculations = 0
@@ -80,14 +74,13 @@ test('a full roster matrix batches projections and uses the server without brows
   await dialog.getByRole('button', { name: 'Run again' }).click()
   await expect(dialog).toContainText('117 / 117 matchups · Complete')
   expect(calculations).toBe(before)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   const options = dialog.getByRole('button', { name: 'View options', exact: true })
   await expect(options).toHaveAttribute('aria-expanded', 'false')
   await expect(dialog.getByRole('combobox', { name: 'Comparison metric' })).toBeHidden()
   await expect(dialog.getByRole('tab', { name: 'Shooting', exact: true })).toBeVisible()
   await options.click()
-  await dialog.getByRole('combobox', { name: 'Comparison metric' }).click()
-  await page.getByRole('option', { name: 'Models lost', exact: true }).click()
+  await chooseOption(page, 'Comparison metric', 'Models lost')
   await options.click()
   await expect(options).toContainText('Models lost · Best attackers')
   expect(calculations).toBe(before)

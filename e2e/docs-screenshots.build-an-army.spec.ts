@@ -1,18 +1,13 @@
 import { expect, test } from './test'
-import { retryUntilVisible, signUp, waitForRosterSave } from './account'
-import { add } from './builder.harness'
+import { signUp, waitForRosterSave, addUnit, chooseFaction, visitorSetup } from './account'
 import { capture, docsScreenshots } from './docsScreenshots'
 
 docsScreenshots()
 
 test('build an army screenshots', async ({ page }) => {
   await signUp(page, 'Docs player')
-  await page.goto('/rosters')
-  const setup = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(setup, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
-  await setup.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Space Marines')
-  await page.getByRole('option', { name: 'Space Marines', exact: true }).click()
+  const setup = await visitorSetup(page)
+  await chooseFaction(setup, 'Space Marines')
   await setup.getByRole('button', { name: /^Select Gladius Task Force$/ }).click()
   const dispositions = setup.getByRole('group', { name: 'Force disposition' })
   await dispositions.getByRole('button').first().click()
@@ -25,9 +20,9 @@ test('build an army screenshots', async ({ page }) => {
   const picker = page.getByLabel('Add a unit')
   if (!(await picker.isVisible())) await page.getByRole('button', { name: 'Add units', exact: true }).click()
   await expect(picker).toBeVisible()
-  await waitForRosterSave(page, () => add(page, 'Intercessor Squad'))
-  await waitForRosterSave(page, () => add(page, 'Captain'))
-  await waitForRosterSave(page, () => add(page, 'Ancient'))
+  await addUnit(page, 'Intercessor Squad')
+  await addUnit(page, 'Captain')
+  await addUnit(page, 'Ancient')
   await page.getByLabel('Add a unit').fill('')
   await page.setViewportSize({ width: 1280, height: 620 })
   const pickerPane = page.locator('div[data-onboarding="roster-picker"]')

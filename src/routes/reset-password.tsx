@@ -1,11 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { localRedirectPath } from 'ras-stack/auth/client'
 import { ResetPasswordPage } from '../client/features/account/ResetPasswordPage'
+import { searchText } from '../client/searchParams'
 
 export const Route = createFileRoute('/reset-password')({
   validateSearch: (search: Record<string, unknown>) => ({
-    token: typeof search.token === 'string' ? search.token : undefined,
-    error: typeof search.error === 'string' ? search.error : undefined,
+    token: searchText(search.token),
+    error: searchText(search.error),
     next: localRedirectPath(search.next),
   }),
   component: ResetPasswordRoute,

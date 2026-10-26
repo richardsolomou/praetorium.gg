@@ -1,5 +1,5 @@
 import { waitForOfflineApp } from './offline'
-import { expect, test } from './test'
+import { expect, test, type Page } from './test'
 import {
   befriend,
   createBattle,
@@ -12,11 +12,29 @@ import {
   attachRoster,
   startBattle,
   advance,
+  openRosterSetup,
+  practiceBattle,
+  chooseFaction,
+  visitorSetup,
+  signOut,
+  chooseRulesVersion,
+  PHONE,
+  savedArmy,
 } from './account'
-import { battleLog, productOperator, savedWork, userIdFor } from './storage'
+import { battleLog, productOperator, savedWork, lastPathSegment, expectWorkSynced } from './storage'
 import { chooseCombatUnit } from './combat'
+import type { LocalState } from '../src/contracts/localState'
 
 test.use({ actionTimeout: 15_000 })
+
+/** Opens and closes the New battle dialog once online, so its code is cached before the device goes offline. */
+async function warmBattleDialog(page: Page) {
+  await page.goto('/battles')
+  await retryUntilVisible(page.getByRole('combobox', { name: 'Opponent', exact: true }), () =>
+    page.getByRole('button', { name: 'New battle' }).click(),
+  )
+  await page.keyboard.press('Escape')
+}
 
 test('simulation and loadout optimization work in a cold offline application', async ({ page, context }) => {
   test.setTimeout(240_000)
@@ -43,11 +61,10 @@ test('simulation and loadout optimization work in a cold offline application', a
 test('online saves only show sync status when the queue remains pending', async ({ page }) => {
   await signUp(page, uniqueName('Quiet sync'))
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Original list' })
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   for (const slow of [false, true]) {
     const name = `${slow ? 'Slow' : 'Quick'} save`
-    let release!: () => void
-    const pending = new Promise<void>((resolve) => (release = resolve))
+    const { promise: pending, resolve: release } = Promise.withResolvers<void>()
     await page.route('**/_serverFn/**', async (route) => {
       const body = route.request().postData() ?? ''
       if (body.includes(name) && body.includes('operationId')) await pending
@@ -74,7 +91,7 @@ test('online saves only show sync status when the queue remains pending', async 
     } finally {
       release()
     }
-    await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+    await expectWorkSynced(page)
     await expect(page.getByText('1 change waiting to sync', { exact: true })).toHaveCount(0)
     const seen = await page.evaluate(() => {
       const observation = (window as unknown as { syncObservation: { seen: boolean; observer: MutationObserver } }).syncObservation
@@ -91,10 +108,10 @@ test('offline roster edits survive a cold reopen and sync after reconnecting', a
   await signUp(page, uniqueName('Plane army'))
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Before flight' })
   const url = page.url()
-  const id = new URL(url).pathname.split('/').at(-1)!
+  const id = lastPathSegment(url)
   const operator = await productOperator()
   await waitForOfflineApp(page)
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await context.setOffline(true)
   await page.getByLabel('List name').fill('Edited on the plane')
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(1)
@@ -108,12 +125,12 @@ test('offline roster edits survive a cold reopen and sync after reconnecting', a
   await reopened.goto(url)
   await expect(reopened.getByLabel('List name')).toHaveValue('Edited on the plane')
   await expect(reopened.locator('[data-unit="Immortals"]')).toHaveCount(1)
-  await reopened.setViewportSize({ width: 390, height: 844 })
+  await reopened.setViewportSize(PHONE)
   expect(await operator.roster(id).then((row) => row?.name)).toBe('Before flight')
   await context.setOffline(false)
   await reopened.evaluate(() => window.dispatchEvent(new Event('online')))
   await expect.poll(async () => (await operator.roster(id))?.name, { timeout: 30_000 }).toBe('Edited on the plane')
-  await expect.poll(async () => (await savedWork(reopened))?.operations.length).toBe(0)
+  await expectWorkSynced(reopened)
   expect(JSON.parse((await operator.roster(id))!.picks)).toHaveLength(1)
   await reopened.reload()
   await expect(reopened.getByLabel('List name')).toHaveValue('Edited on the plane')
@@ -125,18 +142,14 @@ test('a roster still waiting to sync opens in a new tab and a missing one shows 
   await context.route('**/_serverFn/**', (route) =>
     (route.request().postData() ?? '').includes('operationId') ? route.abort() : route.continue(),
   )
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
-  await dialog.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Necrons')
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  const dialog = await visitorSetup(page)
+  await chooseFaction(dialog, 'Necrons')
   await dialog.getByRole('button', { name: /^Select Awakened Dynasty$/ }).click()
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
   if ((await dispositions.count()) > 1) await dispositions.first().click()
   await dialog.getByRole('button', { name: 'Create roster' }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
-  const id = new URL(page.url()).pathname.split('/').at(-1)!
+  const id = lastPathSegment(page.url())
   const name = await page.getByLabel('List name').inputValue()
   expect(await (await productOperator()).roster(id)).toBeFalsy()
   const tab = await context.newPage()
@@ -150,13 +163,12 @@ test('a lost save response retains its identity and later edits sync in order', 
   test.setTimeout(240_000)
   await signUp(page, uniqueName('Intermittent connection'))
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Original army' })
-  const id = new URL(page.url()).pathname.split('/').at(-1)!
+  const id = lastPathSegment(page.url())
   const operator = await productOperator()
   await waitForOfflineApp(page)
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
-  let dropAcknowledgement!: () => void
+  await expectWorkSynced(page)
   // Going offline while the response is still held would fail the request before the handler drops it.
-  const acknowledgementDropped = new Promise<void>((resolve) => (dropAcknowledgement = resolve))
+  const { promise: acknowledgementDropped, resolve: dropAcknowledgement } = Promise.withResolvers<void>()
   await page.route('**/_serverFn/**', async (route) => {
     const body = route.request().postData() ?? ''
     if (body.includes('Lost acknowledgement') && body.includes('operationId')) {
@@ -178,41 +190,23 @@ test('a lost save response retains its identity and later edits sync in order', 
   await context.setOffline(false)
   await page.evaluate(() => window.dispatchEvent(new Event('online')))
   await expect.poll(async () => (await operator.roster(id))?.name, { timeout: 30_000 }).toBe('Latest offline edit')
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
 })
 
 test('an offline practice battle and its commands survive reopening and sync together', async ({ page, context }) => {
   test.setTimeout(240_000)
-  const account = await signUp(page, uniqueName('Offline battle'))
-  const operator = await productOperator()
-  const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
-  const userId = await userIdFor(account.email)
-  const rosterId = crypto.randomUUID()
-  await operator.saveRoster({ ...source, id: rosterId, userId, name: 'Flight army', automaticName: false, now: Date.now() })
+  const { id: rosterId, operator } = await savedArmy(page, 'Offline battle', { name: 'Flight army' })
   await page.goto('/rosters')
   await page.reload()
   await expect(page.locator('[data-roster="Flight army"]')).toBeVisible()
   await page.goto(`/rosters/${rosterId}`)
   await expect(page.getByLabel('List name')).toHaveValue('Flight army')
-  await page.goto('/battles')
-  await retryUntilVisible(page.getByRole('combobox', { name: 'Opponent', exact: true }), () =>
-    page.getByRole('button', { name: 'New battle' }).click(),
-  )
-  await page.keyboard.press('Escape')
+  await warmBattleDialog(page)
   await waitForOfflineApp(page)
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await context.setOffline(true)
-  const url = await createBattle(page, { practice: true })
-  const token = new URL(url).pathname.split('/').at(-1)!
-  await setupStep(page, 'Armies')
-  const chooser = page.getByRole('button', { name: /^(Choose|Change) roster/ }).first()
-  await expect(chooser).toBeVisible({ timeout: 15_000 })
-  await chooser.click()
-  const dialog = page.getByRole('dialog', { name: /roster$/ })
-  await dialog.getByRole('button', { name: /^Flight army\b/ }).click()
-  await expect(dialog).toBeHidden()
-  await expect(page.getByText('Flight army', { exact: true }).first()).toBeVisible()
-  await attachRoster(page, 'Flight army', { forPlayer: 'Practice Opponent' })
+  const url = await practiceBattle(page, 'Flight army')
+  const token = lastPathSegment(url)
   await startBattle(page)
   await advance(page)
   await expect(page.getByRole('heading', { name: 'movement phase' })).toBeVisible()
@@ -233,7 +227,7 @@ test('an offline practice battle and its commands survive reopening and sync tog
   expect(await operator.battleByToken(token)).toBeUndefined()
   await context.setOffline(false)
   await reopened.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expect.poll(async () => (await savedWork(reopened))?.operations.length, { timeout: 30_000 }).toBe(0)
+  await expectWorkSynced(reopened, { timeout: 30_000 })
   const synced = await operator.battleByToken(token)
   expect(synced?.log.at(-1)?.operationId).toBe(history.at(-1)?.operationId)
   expect(synced?.log.find((entry) => entry.command.kind === 'attach-roster')?.command).toMatchObject({
@@ -244,31 +238,16 @@ test('an offline practice battle and its commands survive reopening and sync tog
 
 test('a guest battle created offline keeps the guest’s seat when it syncs', async ({ page, context }) => {
   test.setTimeout(240_000)
-  const account = await signUp(page, uniqueName('Offline guest host'))
-  const operator = await productOperator()
-  const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
-  const rosterId = crypto.randomUUID()
-  await operator.saveRoster({
-    ...source,
-    id: rosterId,
-    userId: await userIdFor(account.email),
-    name: 'Guest army',
-    automaticName: false,
-    now: Date.now(),
-  })
-  await page.goto('/battles')
-  await retryUntilVisible(page.getByRole('combobox', { name: 'Opponent', exact: true }), () =>
-    page.getByRole('button', { name: 'New battle' }).click(),
-  )
-  await page.keyboard.press('Escape')
+  const { operator } = await savedArmy(page, 'Offline guest host', { name: 'Guest army' })
+  await warmBattleDialog(page)
   await waitForOfflineApp(page)
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await context.setOffline(true)
-  const token = new URL(await createBattle(page, { guest: 'Offline Guest' })).pathname.split('/').at(-1)!
+  const token = lastPathSegment(await createBattle(page, { guest: 'Offline Guest' }))
   await attachRoster(page, 'Guest army', { forPlayer: 'Offline Guest' })
   await context.setOffline(false)
   await page.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expect.poll(async () => (await savedWork(page))?.operations.length, { timeout: 30_000 }).toBe(0)
+  await expectWorkSynced(page, { timeout: 30_000 })
   const synced = (await operator.battleByToken(token))!
   const guest = synced.seats.find((seat) => seat.guestName === 'Offline Guest')
   expect(synced.log.find((entry) => entry.command.kind === 'attach-roster')?.command).toMatchObject({ playerId: guest?.id })
@@ -281,23 +260,19 @@ test('a battle link opened before its offline creation syncs opens once the batt
   await signUp(opponent, opponentName)
   await signUp(page, uniqueName('Offline host'))
   await befriend(page, opponent)
-  await page.goto('/battles')
-  await retryUntilVisible(page.getByRole('combobox', { name: 'Opponent', exact: true }), () =>
-    page.getByRole('button', { name: 'New battle' }).click(),
-  )
-  await page.keyboard.press('Escape')
+  await warmBattleDialog(page)
   await waitForOfflineApp(page)
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await context.setOffline(true)
   const url = await createBattle(page, { opponent: opponentName })
-  const token = new URL(url).pathname.split('/').at(-1)!
+  const token = lastPathSegment(url)
   expect(await (await productOperator()).battleByToken(token)).toBeUndefined()
 
   await opponent.goto(url)
   await expect(opponent.getByRole('heading', { name: 'Nothing here' })).toBeVisible()
   await context.setOffline(false)
   await page.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expect.poll(async () => (await savedWork(page))?.operations.length, { timeout: 30_000 }).toBe(0)
+  await expectWorkSynced(page, { timeout: 30_000 })
   // The link the opponent already opened finds the battle without a reload.
   await expect(opponent.getByRole('heading', { name: 'Set up the battle' })).toBeVisible({ timeout: 30_000 })
   await setupStep(opponent, 'Armies')
@@ -305,22 +280,8 @@ test('a battle link opened before its offline creation syncs opens once the batt
 
 test('a battle conflict awaiting review does not stop connected play', async ({ page, context }) => {
   test.setTimeout(240_000)
-  const account = await signUp(page, uniqueName('Battle conflict'))
-  const operator = await productOperator()
-  const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
-  const userId = await userIdFor(account.email)
-  await operator.saveRoster({
-    ...source,
-    id: crypto.randomUUID(),
-    userId,
-    name: 'Flight army',
-    automaticName: false,
-    now: Date.now(),
-  })
-  const url = await createBattle(page, { practice: true })
-  const token = new URL(url).pathname.split('/').at(-1)!
-  await attachRoster(page, 'Flight army')
-  await attachRoster(page, 'Flight army', { forPlayer: 'Practice Opponent' })
+  const { operator } = await savedArmy(page, 'Battle conflict', { name: 'Flight army' })
+  const token = lastPathSegment(await practiceBattle(page, 'Flight army'))
   await startBattle(page)
   await waitForOfflineApp(page)
   const otherDevice = await battleLog(page)
@@ -343,18 +304,14 @@ test('conflicting roster edits stay saved and export before choosing the server 
   test.setTimeout(240_000)
   await signUp(page, uniqueName('Offline conflict'))
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Original list' })
-  const id = new URL(page.url()).pathname.split('/').at(-1)!
+  const id = lastPathSegment(page.url())
   const operator = await productOperator()
   await waitForOfflineApp(page)
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await context.setOffline(true)
   await page.getByLabel('List name').fill('Plane edit')
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(1)
-  await page
-    .getByRole('button', { name: /Account menu for/ })
-    .first()
-    .click()
-  await page.getByRole('menuitem', { name: 'Sign out' }).click()
+  await signOut(page)
   await expect(page.getByRole('dialog', { name: 'Saved changes', exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('button', { name: /Account menu for/ }).first()).toBeVisible()
@@ -371,7 +328,7 @@ test('conflicting roster edits stay saved and export before choosing the server 
   await expect(dialog.getByRole('status')).toHaveText(
     'Some saved changes need review. Choose how to keep or discard them below before they can sync.',
   )
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   const download = page.waitForEvent('download')
   await dialog.getByRole('button', { name: 'Export saved changes' }).click()
   const file = await download
@@ -386,7 +343,7 @@ test('conflicting roster edits stay saved and export before choosing the server 
     .getByRole('alertdialog', { name: 'Discard saved changes?' })
     .getByRole('button', { name: 'Discard changes', exact: true })
     .click()
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.keyboard.press('Escape')
   await page.reload()
   await expect(page.getByLabel('List name')).toHaveValue('Other device edit')
@@ -400,18 +357,8 @@ test('a roster on another rules version saves that version for offline edits', a
   await waitForOfflineApp(page)
   // A device without rosters on other versions downloads construction data for the current rules alone.
   expect(await page.evaluate(() => window.PraetoriumReferenceCache?.constructionBundle)).toBe(construction.current)
-  await page.getByRole('button', { name: 'Roster actions', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup', exact: true }).click()
-  const dialog = page.getByRole('dialog', { name: 'Edit roster setup' })
-  await dialog.getByRole('combobox', { name: 'Rules version' }).click()
-  await page.getByRole('option', { name: 'MFM 1.5 · Archived', exact: true }).click()
-  await expect(dialog.getByRole('button', { name: 'Select Shield Host', exact: true })).toBeVisible()
-  const unavailable = dialog.getByRole('button', { name: 'Remove unavailable', exact: true })
-  if (await unavailable.isVisible()) await unavailable.click()
-  const chosen = dialog.getByRole('button', { name: 'Select Shield Host', exact: true, pressed: true })
-  if (!(await chosen.isVisible())) await dialog.getByRole('button', { name: 'Select Shield Host', exact: true }).click()
-  const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
-  if ((await dispositions.count()) > 1) await dispositions.first().click()
+  const dialog = await openRosterSetup(page)
+  await chooseRulesVersion(dialog, 'MFM 1.5 · Archived', 'Shield Host')
   await confirmRosterSetup(dialog)
   await expect(page.locator('[data-rules-version]')).toHaveAttribute('aria-label', 'Rules version: MFM 1.5 · Archived')
   await expect

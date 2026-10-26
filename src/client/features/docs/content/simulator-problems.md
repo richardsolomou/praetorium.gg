@@ -42,4 +42,4 @@ Roster comparisons use saved lists. Sign in, then save or [import](/docs/import-
 - Rules it can't calculate are left out or named, never guessed. A result with a rule missing isn't the full picture.
 - It calculates one attacking unit against one target. The roster comparison doesn't plan target assignment across your army.
 
-See [Build an army](/docs/start-a-list) for the lists themselves and [Track a battle](/docs/start-a-battle) for live games.
+See [Start a list](/docs/start-a-list) for the lists themselves and [Start a battle](/docs/start-a-battle) for live games.

@@ -3,9 +3,9 @@ import { nativeNavigation, type NativeSection } from './nativeNavigation'
 
 const TAB_PREFIX = 'praetorium.native-tab:'
 
-export type NativeTabState = { rosterPane?: unknown; rosterSnapshotPane?: unknown }
+type NativeTabState = { rosterPane?: unknown; rosterSnapshotPane?: unknown }
 
-export type NativeTabMemory = {
+type NativeTabMemory = {
   href: string
   scrollY: number
   regions: Record<string, number>
@@ -29,7 +29,6 @@ function stored(section: NativeSection): NativeTabMemory | null {
   try {
     const value = readSessionValue(`${TAB_PREFIX}${section}`)
     if (!value) return null
-    if (!value.startsWith('{')) return { href: value, scrollY: 0, regions: {} }
     const parsed = JSON.parse(value) as Partial<NativeTabMemory>
     if (typeof parsed.href !== 'string') return null
     const state = rememberedState(parsed.state)

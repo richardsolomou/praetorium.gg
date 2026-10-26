@@ -1,5 +1,5 @@
-import { combatEstimate, holdCombatCalculations, openCombatControls } from './combat'
-import { expect, test } from './test'
+import { combatEstimate, holdCombatCalculations, openCombatControls, combatDamage } from './combat'
+import { expect, test, type Locator } from './test'
 import {
   addUnit,
   attachRoster,
@@ -11,6 +11,10 @@ import {
   startBattle,
   uniqueName,
   waitForRosterSave,
+  expectNoPageOverflow,
+  practiceBattle,
+  chooseOption,
+  PHONE,
 } from './account'
 
 test('the battle matchup planner uses live survivors, isolates experiments, and refreshes after another tab records casualties', async ({
@@ -19,9 +23,7 @@ test('the battle matchup planner uses live survivors, isolates experiments, and 
   await signUp(page, 'Live planner')
   const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Planner Marines' })
   for (const name of ['Intercessor Squad', 'Terminator Squad', 'Rhino']) await addUnit(page, name)
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page)
   const panels = [0, 1].map((side) => page.locator(`[data-panel="player"][data-side="${side}"]`))
   for (const [side, panel] of panels.entries()) {
@@ -53,24 +55,23 @@ test('the battle matchup planner uses live survivors, isolates experiments, and 
   await expect(detail.getByLabel('Attacker models', { exact: true })).toHaveText('4')
   await expect(detail.getByLabel('Defender models', { exact: true })).toHaveText('3')
   await expect(detail.getByLabel('Defender remaining wounds', { exact: true })).toHaveText('1')
-  await expect((await combatEstimate(detail, 'Shooting')).locator('.readout').first()).toHaveText(baseline!)
+  await expect(await combatDamage(detail, 'Shooting')).toHaveText(baseline!)
   await expect(detail.getByRole('button', { name: /^Optimize/ })).toHaveCount(0)
   await detail.getByRole('button', { name: 'More defender remaining wounds', exact: true }).click()
   await detail.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(cell.locator('.readout')).toHaveText(baseline!)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect.poll(async () => (await planner.boundingBox())?.width).toBe(390)
   expect(await planner.locator('[data-simulator-scroll]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
   await page.setViewportSize({ width: 1440, height: 900 })
   await planner.getByRole('button', { name: 'Close', exact: true }).click()
   await panels[0].getByRole('button', { name: "Simulate Live planner's combat", exact: true }).click()
-  await expect((await combatEstimate(planner, 'Shooting')).locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
+  await expect(await combatDamage(planner, 'Shooting')).toHaveText(/^\d+\.\d+$/)
   const cachedGate = await holdCombatCalculations(page)
   await planner.getByRole('tab', { name: 'Rosters', exact: true }).click()
   await expect(planner).toContainText('4 / 4 matchups · Complete')
   expect(await page.evaluate(() => window.PraetoriumCombatGate?.pending.length)).toBe(0)
   await cachedGate.release()
-  await page.setViewportSize({ width: 1440, height: 900 })
   const referee = await page.context().newPage()
   await referee.goto(page.url())
   const otherPanels = [0, 1].map((side) => referee.locator(`[data-panel="player"][data-side="${side}"]`))
@@ -115,9 +116,7 @@ test('unit-level equipment remains an explicit survivor choice after a casualty'
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Imperial Navy Breachers', exact: true }).click())
   await page.locator('[data-unit="Imperial Navy Breachers"]').getByRole('button', { name: 'Imperial Navy Breachers', exact: true }).click()
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'Select Demolition charge', exact: true }).click())
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page)
   const panel = page.locator('[data-panel="player"][data-side="0"]')
   await panel.getByRole('button', { name: /Simulate .*combat/ }).click()
@@ -140,14 +139,14 @@ test('unit-level equipment remains an explicit survivor choice after a casualty'
   }
   await survivors.getByRole('button', { name: 'Use survivors', exact: true }).click()
   const shooting = simulator.getByRole('region', { name: 'Shooting results' })
-  await expect((await combatEstimate(simulator, 'Shooting')).locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
+  await expect(await combatDamage(simulator, 'Shooting')).toHaveText(/^\d+\.\d+$/)
   await expect(shooting).toContainText('Demolition charge')
   await simulator.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Survivors', exact: true }).click()
   await equipment.getByRole('button', { name: 'Fewer Imperial Navy Breachers equipment surviving Demolition charge', exact: true }).click()
   await expect(count).toHaveText('0')
   await survivors.getByRole('button', { name: 'Use survivors', exact: true }).click()
   await expect(shooting).not.toContainText('Demolition charge')
-  await expect((await combatEstimate(simulator, 'Shooting')).locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
+  await expect(await combatDamage(simulator, 'Shooting')).toHaveText(/^\d+\.\d+$/)
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
   await panel.getByRole('button', { name: `Open ${roster}`, exact: true }).click()
   await expect(page.locator('[data-army-roster] [data-unit="Imperial Navy Breachers"] [data-count="models"]')).toHaveText('10/10')
@@ -157,12 +156,8 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
   test.setTimeout(240_000)
   await signUp(page, 'Combat')
   const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Combat Marines' })
-  await page.getByLabel('Add a unit').fill('Intercessor Squad')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Intercessor Squad', exact: true }).first().click())
-  await page.locator('[data-unit="Intercessor Squad"]').getByRole('button', { name: 'Intercessor Squad', exact: true }).click()
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await addUnit(page, 'Intercessor Squad')
+  await practiceBattle(page, roster)
   await startBattle(page)
   const panel = page.locator('[data-panel="player"][data-side="0"]')
   const army = page.locator('[data-army-roster]')
@@ -173,7 +168,7 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
   for (const width of [1440, 390, 900]) {
     await page.setViewportSize({ width, height: 1000 })
     if (width < 1024) await page.getByRole('tab', { name: 'Your side', exact: true }).click()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expectNoPageOverflow(page)
     await panel.getByRole('button', { name: `Open ${roster}` }).click()
     if (width === 1440) await squad.getByRole('button', { name: 'Remove a model from Intercessor Squad' }).click()
     await expect(squad.locator('[data-count="models"]')).toHaveText('4/5')
@@ -255,7 +250,7 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
     })
     const serverPage = await serverContext.newPage()
     await serverPage.goto(page.url())
-    expect(await serverPage.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expectNoPageOverflow(serverPage)
     await serverContext.close()
   }
 })
@@ -272,8 +267,7 @@ test('a team matchup switches allied armies and carries both sides through a swa
     name: 'Allied Necrons',
     size: /Incursion/,
   })
-  await ally.getByLabel('Add a unit').fill('Canoptek Reanimator')
-  await waitForRosterSave(ally, () => ally.getByRole('button', { name: 'Add Canoptek Reanimator', exact: true }).first().click())
+  await addUnit(ally, 'Canoptek Reanimator')
   await signUp(page, hostName)
   const roster = await createRoster(page, {
     faction: 'Space Marines',
@@ -281,11 +275,9 @@ test('a team matchup switches allied armies and carries both sides through a swa
     name: 'Allied Marines',
     size: /Incursion/,
   })
-  await page.getByLabel('Add a unit').fill('Intercessor Squad')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Intercessor Squad', exact: true }).first().click())
+  await addUnit(page, 'Intercessor Squad')
   const opponentRoster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Opposing Marines' })
-  await page.getByLabel('Add a unit').fill('Intercessor Squad')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Intercessor Squad', exact: true }).first().click())
+  await addUnit(page, 'Intercessor Squad')
   await befriend(page, ally)
   const url = await createBattle(page, { yourAlly: allyName, practice: true })
   await ally.goto(url)
@@ -296,13 +288,12 @@ test('a team matchup switches allied armies and carries both sides through a swa
   await startBattle(page, `${hostName} & ${allyName}`)
   await page.getByRole('button', { name: `Simulate ${hostName}'s combat`, exact: true }).click()
   const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
-  await simulator.getByRole('combobox', { name: 'First army', exact: true }).click()
-  await page.getByRole('option', { name: allyName, exact: true }).click()
+  await chooseOption(page, 'First army', allyName)
   await expect(simulator.getByRole('region', { name: 'Attacker', exact: true }).locator('[data-combat-member]').first()).toContainText(
     'Canoptek Reanimator',
   )
   await expect(simulator.getByLabel('Defender faction', { exact: true })).toContainText('Space Marines')
-  await expect((await combatEstimate(simulator, 'Shooting')).locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
+  await expect(await combatDamage(simulator, 'Shooting')).toHaveText(/^\d+\.\d+$/)
   await simulator.getByRole('button', { name: 'Swap attacker and defender' }).click()
   await openCombatControls(simulator)
   await expect(simulator.getByRole('region', { name: 'Defender', exact: true }).locator('[data-combat-member]').first()).toContainText(
@@ -317,25 +308,15 @@ test('battle support auras respect the recipient, role, conditions, and living s
   await signUp(page, 'Auras')
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name: 'Aura Necrons' })
   for (const name of ['Immortals', 'Nekrosor Ammentar', 'Illuminor Szeras', 'Skorpekh Destroyers', "C'tan Shard of the Nightbringer"]) {
-    await page.getByLabel('Add a unit').fill(name)
-    await waitForRosterSave(page, () =>
-      page
-        .getByRole('button', { name: `Add ${name}`, exact: true })
-        .first()
-        .click(),
-    )
+    await addUnit(page, name)
   }
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page)
   const panel = page.locator('[data-panel="player"][data-side="0"]')
-  const openedAt = Date.now()
   await panel.getByRole('button', { name: /Simulate .*combat/ }).click()
   const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
-  const damage = (await combatEstimate(simulator, 'Shooting')).locator('.readout').first()
+  const damage = await combatDamage(simulator, 'Shooting')
   await expect(damage).toHaveText(/^\d+\.\d+$/)
-  console.log(`Battle simulator first result: ${Date.now() - openedAt} ms`)
   const baseline = Number(await damage.textContent())
   const attacker = simulator.getByRole('region', { name: 'Attacker buffs', exact: true })
   const defender = simulator.getByRole('region', { name: 'Defender buffs', exact: true })
@@ -367,30 +348,18 @@ test('battle support auras respect the recipient, role, conditions, and living s
     expect(await simulator.locator('[data-simulator-scroll]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
   }
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await simulator.getByRole('combobox', { name: 'Attacker unit', exact: true }).click()
-  await page.getByRole('option', { name: 'Skorpekh Destroyers', exact: true }).click()
-  await expect(
-    simulator.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }),
-  ).toBeEnabled()
-  await openCombatControls(simulator)
+  await chooseAttacker(simulator, 'Skorpekh Destroyers')
   await expect(attacker).toContainText('Within 6"')
   await expect(attacker).not.toContainText('Closest eligible target')
   await expect(attacker.getByRole('switch', { name: /Prophet of Destruction/ })).toBeVisible()
   await expect(attacker.getByRole('switch', { name: /Cold Fervour/ })).toBeChecked()
   const melee = simulator.getByRole('region', { name: 'Melee results' })
   await expect(melee).toHaveAttribute('aria-busy', 'false')
-  const beforePlasmacyte = Number(await (await combatEstimate(simulator, 'Melee')).locator('.readout').first().textContent())
+  const beforePlasmacyte = Number(await (await combatDamage(simulator, 'Melee')).textContent())
   await attacker.getByRole('switch', { name: /Plasmacyte/ }).click()
-  await expect
-    .poll(async () => Number(await (await combatEstimate(simulator, 'Melee')).locator('.readout').first().textContent()))
-    .toBeGreaterThan(beforePlasmacyte)
+  await expect.poll(async () => Number(await (await combatDamage(simulator, 'Melee')).textContent())).toBeGreaterThan(beforePlasmacyte)
   await expect(attacker).not.toContainText('Not calculated')
-  await simulator.getByRole('combobox', { name: 'Attacker unit', exact: true }).click()
-  await page.getByRole('option', { name: "C'tan Shard of the Nightbringer", exact: true }).click()
-  await expect(
-    simulator.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }),
-  ).toBeEnabled()
-  await openCombatControls(simulator)
+  await chooseAttacker(simulator, "C'tan Shard of the Nightbringer")
   await expect(attacker).not.toContainText('Infectious Murder')
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
   await panel.getByRole('button', { name: `Open ${roster}` }).click()
@@ -407,3 +376,12 @@ test('battle support auras respect the recipient, role, conditions, and living s
   await expect(attacker).not.toContainText('Infectious Murder')
   await expect(defender.getByRole('switch', { name: /Nullstone Field Generator/ })).toBeVisible()
 })
+
+/** Swaps the simulator's attacker for another unit from the army and reopens its controls once its loadout loads. */
+async function chooseAttacker(simulator: Locator, unit: string) {
+  await chooseOption(simulator.page(), 'Attacker unit', unit)
+  await expect(
+    simulator.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }),
+  ).toBeEnabled()
+  await openCombatControls(simulator)
+}

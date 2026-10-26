@@ -8,13 +8,15 @@ import {
   formatRules,
   GAME_SIZES,
   isKotcLimit,
-  POINTS_BUDGET_MAX,
+  ARMY_POINTS_ERROR,
+  validArmyPoints,
   pointsLabel,
   withinArmyPoints,
   waivedFormatRules,
   type FormatRule,
   type FormatRuleId,
   type Roster,
+  type BuiltRoster,
 } from './battle'
 import { z } from 'zod'
 import { matchedPlayName, NON_MATCHED_PLAY_KINDS, nonMatchedPlayKind, type NonMatchedPlayKind } from './name'
@@ -29,12 +31,15 @@ export type LeagueVisibility = (typeof LEAGUE_VISIBILITIES)[number]
 export const LEAGUE_ADMISSIONS = ['automatic', 'approval'] as const
 export type LeagueAdmission = (typeof LEAGUE_ADMISSIONS)[number]
 
-export const LEAGUE_ENTRY_STATUSES = ['pending', 'accepted', 'rejected'] as const
+const LEAGUE_ENTRY_STATUSES = ['pending', 'accepted', 'rejected'] as const
 export type LeagueEntryStatus = (typeof LEAGUE_ENTRY_STATUSES)[number]
 
 export const LEAGUE_DEFAULT_ROSTER_LIMIT = 2_000
 /** The battle sizes a team event plays at; King of the Colosseum is a duel. */
 export const LEAGUE_TEAM_ROSTER_LIMITS = GAME_SIZES.flatMap((size) => (isKotcLimit(size.limit) ? [] : [size.limit]))
+
+/** A 2v1 or 2v2 event, where entrants are seated into sides rather than playing duels. */
+export const isTeamFormat = (format: TableShape | null | undefined) => format === '2v1' || format === '2v2'
 
 export function leagueTableShape(format: TableShape | null | undefined): TableShape {
   return format ?? '1v1'
@@ -58,8 +63,7 @@ export function leagueArmyPointsError(format: TableShape, points: Partial<League
   const given = [points.soloPoints, points.allyPoints].filter((value) => value !== null && value !== undefined)
   if (format === '1v1' && given.length) return 'only a team event sets points per army'
   if (format === '2v2' && points.soloPoints != null) return 'a doubles event has no solo player'
-  if (given.some((value) => !Number.isInteger(value) || value < 1 || value > POINTS_BUDGET_MAX))
-    return `choose between 1 and ${POINTS_BUDGET_MAX.toLocaleString('en')} points per army`
+  if (!given.every(validArmyPoints)) return ARMY_POINTS_ERROR
   return null
 }
 
@@ -119,23 +123,16 @@ export const LEAGUE_DESCRIPTION_MAX_LENGTH = 2_000
 export const LEAGUE_MEMBER_MAX = 128
 export const LEAGUE_MEMBER_MIN = 2
 
-export type LeagueEntryView = {
-  userId: string
+export type LeagueEntryView = LeagueRevealEntry & {
   name: string
   image: string | null
-  status: LeagueEntryStatus
   joinedAt: number
-  submitted: boolean
   rosterName: string | null
-  requiredLimit: number | null
   sealedLimit: number | null
-  teamId: string | null
-  dispositionOwed: boolean
-  warlordOwed: boolean
 }
 
 /** The fewest places each table shape can seat. */
-export const LEAGUE_SHAPE_PLACES: Record<TableShape, number> = { '1v1': 2, '2v1': 3, '2v2': 4 }
+const LEAGUE_SHAPE_PLACES: Record<TableShape, number> = { '1v1': 2, '2v1': 3, '2v2': 4 }
 
 /** The lowest player limit an event of this shape can have, never below its accepted entrants and even for doubles, whose teams are pairs. */
 export function leagueMinimumPlaces(format: TableShape | null, accepted = 0) {
@@ -213,18 +210,24 @@ export function leagueRevealChecklist(
   if (event.format === '2v1') {
     const alliedLimit = alliedLeagueRosterLimit(event.rosterLimit ?? 0)
     const solo = accepted.filter((entry) => entry.requiredLimit !== null && entry.requiredLimit === event.rosterLimit).length
-    const allied = accepted.filter((entry) => entry.requiredLimit !== null && entry.requiredLimit === alliedLimit).length
+    const allies = accepted.filter((entry) => entry.requiredLimit === alliedLimit)
     const unsized = accepted.filter((entry) => entry.requiredLimit === null).map((entry) => entry.userId)
     // One solo player and two allies are the fewest a 2v1 seats.
     const short = accepted.length < 3
-    checks.push({ step: 'sizes', done: unsized.length === 0 && solo > 0 && allied >= 2, waiting: unsized, solo, allied, short })
-    const allies = accepted.filter((entry) => entry.requiredLimit !== null && entry.requiredLimit === alliedLimit)
+    checks.push({
+      step: 'sizes',
+      done: unsized.length === 0 && solo > 0 && allies.length >= 2,
+      waiting: unsized,
+      solo,
+      allied: allies.length,
+      short,
+    })
     const unpaired = allies.filter((entry) => !entry.teamId || allies.filter((ally) => ally.teamId === entry.teamId).length !== 2)
     checks.push({ step: 'teams', done: unpaired.length === 0, waiting: unpaired.map((entry) => entry.userId), short })
   }
   const unsealed = accepted.filter((entry) => !entry.submitted).map((entry) => entry.userId)
   checks.push({ step: 'lists', done: unsealed.length === 0, waiting: unsealed })
-  if (event.format === '2v1' || event.format === '2v2') {
+  if (isTeamFormat(event.format)) {
     const owing = accepted.filter((entry) => entry.dispositionOwed).map((entry) => entry.userId)
     checks.push({ step: 'dispositions', done: owing.length === 0, waiting: owing })
     const leaderless = accepted.filter((entry) => entry.warlordOwed).map((entry) => entry.userId)
@@ -288,7 +291,7 @@ export function leagueSealingClosed(event: { sealBy?: number | null }, now: numb
 }
 
 /** The accepted entrants still in the event: once the roster deadline passes, those without a sealed list drop out. */
-export function leagueEligibleEntries<T extends { status: LeagueEntryStatus; submitted: boolean }>(
+function leagueEligibleEntries<T extends { status: LeagueEntryStatus; submitted: boolean }>(
   event: { sealBy?: number | null },
   entries: readonly T[],
   now: number,
@@ -335,12 +338,7 @@ export function matchesSealedLeagueRoster(
 }
 
 /** The two facts about an entry that decide whether its reader is on the same side of the table. */
-export type LeagueAllyEntry = {
-  userId: string
-  status: LeagueEntryStatus
-  requiredLimit: number | null
-  teamId: string | null
-}
+export type LeagueAllyEntry = Pick<LeagueRevealEntry, 'userId' | 'status' | 'requiredLimit' | 'teamId'>
 
 /** Before reveal, doubles teammates and 2v1 allies may read each other’s sealed rosters; solo and 1v1 entrants cannot. */
 export function readsAlliedLeagueRoster(
@@ -425,7 +423,7 @@ export function leagueTeams(
 
 const sealedWarlords = (snapshots: readonly Roster[]) =>
   snapshots.flatMap((snapshot) => snapshot.built?.units.filter((unit) => unit.warlord) ?? [])
-const warlordEligible = (unit: NonNullable<Roster['built']>['units'][number], legacy = false) =>
+const warlordEligible = (unit: BuiltRoster['units'][number], legacy = false) =>
   unit.warlordEligible ?? (legacy || unit.group === 'character' || unit.group === 'epic-hero')
 
 export function leagueWarlords(snapshots: readonly Roster[], legacy = false) {
@@ -447,7 +445,7 @@ export function leagueWarlordValid(roster: Roster, legacy = false) {
  * Legends or Crucible datasheets. An event created before organizers chose this records none (null) and keeps sealing
  * whatever a list switches off, as it always did; a new one starts from strict matched play.
  */
-export const LEAGUE_ALLOWANCES = [...FORMAT_RULE_IDS, ...NON_MATCHED_PLAY_KINDS] as const
+const LEAGUE_ALLOWANCES = [...FORMAT_RULE_IDS, ...NON_MATCHED_PLAY_KINDS] as const
 export type LeagueAllowance = (typeof LEAGUE_ALLOWANCES)[number]
 export type LeagueAllowanceOption = Omit<FormatRule, 'id'> & { id: LeagueAllowance }
 export const leagueAllowancesSchema = z.array(z.enum(LEAGUE_ALLOWANCES)).max(LEAGUE_ALLOWANCES.length)
@@ -560,7 +558,7 @@ export function leagueArmy(roster: Roster): LeagueArmy {
   }
 }
 
-function sealedDetachments(built: NonNullable<Roster['built']>) {
+function sealedDetachments(built: BuiltRoster) {
   const names = built.detachments?.map((detachment) => detachment.name) ?? (built.detachment ? [built.detachment] : [])
   return (built.detachmentIds ?? []).map((id, index) => ({ id, name: names[index] ?? id }))
 }

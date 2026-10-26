@@ -8,15 +8,16 @@ import {
   type OfflineAppVersion,
 } from '../../contracts/offlineReference'
 import { anySignal } from '../abortSignals'
+import { dataUrl } from '../imageFile'
 import { referenceJsonExpression } from '../../contracts/embeddedReference'
 import { compressReference, updatedReference } from './compressedReference'
 
+/** An app file, fetched without cookies and abandoned after 30 seconds. */
+const fetchAsset = (url: string | URL, signal: AbortSignal, init: RequestInit = {}) =>
+  fetch(url, { ...init, credentials: 'omit', signal: anySignal([signal, AbortSignal.timeout(30_000)]) })
+
 async function fetchManifest(url: string, signal: AbortSignal) {
-  const response = await fetch(url, {
-    credentials: 'omit',
-    cache: 'no-store',
-    signal: anySignal([signal, AbortSignal.timeout(30_000)]),
-  })
+  const response = await fetchAsset(url, signal, { cache: 'no-store' })
   if (!response.ok) throw new Error('The saved app manifest is unavailable')
   return response.json()
 }
@@ -109,25 +110,19 @@ export async function constructionBundle(url: string, signal: AbortSignal) {
 }
 
 async function resource(url: string, signal: AbortSignal) {
-  const response = await fetch(url, { credentials: 'omit', signal: anySignal([signal, AbortSignal.timeout(30_000)]) })
+  const response = await fetchAsset(url, signal)
   if (!response.ok) throw new Error('The app could not be downloaded. Please try again.')
   const blob = await response.blob()
   if (blob.size > 5_000_000) throw new Error('Reference asset exceeds the download limit')
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result as string)
-    reader.onerror = () => reject(new Error('Reference asset could not be read'))
-    reader.readAsDataURL(blob)
+  return dataUrl(blob).catch(() => {
+    throw new Error('Reference asset could not be read')
   })
 }
 
 /** The offline application around a complete saved reference, for the service worker or native shell to store. */
 export async function offlineApplication(data: OfflineReferenceData, version: OfflineAppVersion, signal: AbortSignal, origin: string) {
   const saved = updatedReference(data, { appRevision: version.revision })
-  const cssResponse = await fetch(new URL(version.css, origin), {
-    credentials: 'omit',
-    signal: anySignal([signal, AbortSignal.timeout(30_000)]),
-  })
+  const cssResponse = await fetchAsset(new URL(version.css, origin), signal)
   if (!cssResponse.ok) throw new Error('The app styles could not be downloaded.')
   let css = await cssResponse.text()
   for (const match of css.matchAll(/url\(["']?([^"')]+)["']?\)/g)) {
@@ -136,10 +131,7 @@ export async function offlineApplication(data: OfflineReferenceData, version: Of
   }
   saved.css = css
   saved.logo = await resource(new URL('/logo.svg', origin).href, signal)
-  const scriptResponse = await fetch(new URL(version.script, origin), {
-    credentials: 'omit',
-    signal: anySignal([signal, AbortSignal.timeout(30_000)]),
-  })
+  const scriptResponse = await fetchAsset(new URL(version.script, origin), signal)
   if (!scriptResponse.ok) throw new Error('The offline app is unavailable. Please try again.')
   const script = await scriptResponse.text()
   const json = referenceJsonExpression(JSON.stringify(await compressReference(saved, signal)))

@@ -23,6 +23,7 @@ import type { ReactNode } from 'react'
 import { meQuery } from '../../queries'
 import { PageContent } from '../../components/Page'
 import { openConversations, unreadReplies, useSupportTickets } from '../feedback/support'
+import { countLabel } from '../../text'
 
 type MoreLink = { description: string; icon: LucideIcon; label: string; to: LinkProps['to'] }
 
@@ -39,7 +40,7 @@ const COMMUNITY: readonly MoreLink[] = [
   { description: 'Player standings', icon: Medal, label: 'Leaderboard', to: '/leaderboard' },
 ]
 
-const FRIENDS: MoreLink = { description: 'Invite friends to private battles', icon: Users, label: 'Friends', to: '/friends' }
+const FRIENDS: MoreLink = { description: 'Invite friends to battles', icon: Users, label: 'Friends', to: '/friends' }
 
 const ACCOUNT: readonly MoreLink[] = [
   { description: 'Your name, picture and account', icon: UserRound, label: 'Profile', to: '/profile' },
@@ -137,7 +138,7 @@ export function NativeMorePage() {
                 label="Feedback"
                 description={
                   unread
-                    ? `${unread} new ${unread === 1 ? 'reply' : 'replies'} to read`
+                    ? `${countLabel(unread, 'new reply', 'new replies')} to read`
                     : 'Report a problem, suggest a change or read our replies'
                 }
               />

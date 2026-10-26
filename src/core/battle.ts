@@ -12,7 +12,7 @@
 import { groupBy } from './collections'
 import { nicknamedUnit } from './unitNotes'
 import { attachedUnitList, attachedHost, attachedUnits } from './attachedUnits'
-import { refuse, sameSide } from './battlePrimitives'
+import { refuse, sameSide, sidePlayers } from './battlePrimitives'
 import { isGuestSeat, isPracticeSeat } from './newBattle'
 import { appliesInMode, cardsDue, cardsDueFromTheirTurn, finalAwardTotal, type MissionAward } from './scoring'
 import type { UnitGroup } from './unitGroups'
@@ -51,8 +51,8 @@ export const DETACHMENTS_MAX = 3
  * The longest label naming where a stratagem came from.
  *
  * An army fielding several detachments names them together, so this is what those
- * names join to — bounding it at one name refused the pool outright, and a refused
- * pool is a side playing with no stratagems at all.
+ * names join to. Bounded at one name it would refuse the pool outright, and a
+ * refused pool is a side playing with no stratagems at all.
  */
 export const STRATAGEM_SOURCE_MAX_LENGTH = DETACHMENTS_MAX * (ROSTER_NAME_MAX_LENGTH + 3)
 export const ROSTER_MAX_LENGTH = 20_000
@@ -86,10 +86,10 @@ export type Roster = {
  *
  * The expansion the price came from is deliberately not here. Nothing reads it —
  * the fold keeps `units`, the opponent reads `text`, and `id` points back at the
- * saved list — so carrying it made every read of every log parse a selection tree
- * on behalf of no one.
+ * saved list — and carrying it would make every read of every log parse a
+ * selection tree on behalf of no one.
  */
-type BuiltRoster = {
+export type BuiltRoster = {
   catalogueId: string
   edition?: Pick<CatalogueEdition, 'id' | 'name' | 'status'>
   /** The catalogue revision this list was priced and validated against. */
@@ -312,19 +312,46 @@ export function unitFormationRefusal(
     return refuse('formation-unsupported', 'the roster data does not support that formation')
   }
   if (state.status !== 'setup') return null
-  const keys = new Set(attached.map((unit) => unit.key))
-  const redeployed =
-    Boolean(state.firstPlayerId) &&
-    command.formation === 'strategic-reserves' &&
-    attached.every((unit) => unit.deployedAtRollOff && unit.formation === 'battlefield')
-  const changed = player.units.map((unit) =>
-    keys.has(unit.key) ? changedFormation(unit, command.formation, redeployed, command.transportKey) : unit,
+  return movedReserveError(
+    state,
+    player,
+    attached,
+    command.formation,
+    redeploysToReserves(state, attached, command.formation),
+    command.transportKey,
   )
+}
+
+/** Whether units deployed at the roll-off are being sent to reserves, which the rules count as redeploying them. */
+function redeploysToReserves(
+  state: Pick<BattleState, 'status' | 'firstPlayerId'>,
+  attached: readonly UnitState[],
+  formation: UnitFormation,
+) {
+  return (
+    state.status === 'setup' &&
+    Boolean(state.firstPlayerId) &&
+    formation === 'strategic-reserves' &&
+    attached.every((unit) => unit.deployedAtRollOff && unit.formation === 'battlefield')
+  )
+}
+
+/** The side's reserve refusal once these units move to a formation. */
+function movedReserveError(
+  state: FormationTable,
+  player: FormationArmy,
+  attached: readonly UnitState[],
+  formation: UnitFormation,
+  redeployed = false,
+  transportKey?: string,
+): Refusal | null {
+  const keys = new Set(attached.map((unit) => unit.key))
+  const changed = player.units.map((unit) => (keys.has(unit.key) ? changedFormation(unit, formation, redeployed, transportKey) : unit))
   return strategicReserveSideError(state, player, changed)
 }
 
 function strategicReserveSideError(state: FormationTable, player: FormationArmy, changed?: readonly ReserveUnit[]): Refusal | null {
-  const armies = state.players.filter((candidate) => candidate.side === player.side)
+  const armies = sidePlayers(state, player.side)
   const totals = strategicReserveSideTotals(armies)
   if (!totals) return null
   const points = changed ? totals.points - strategicReservePoints(player.units) + strategicReservePoints(changed) : totals.points
@@ -432,7 +459,7 @@ export type UnitState = SubmittedUnit & {
 }
 
 /** What is left of a unit, in wounds, which is the one number both halves fold to. */
-export function unitWoundsLeft(unit: UnitState): number | null {
+function unitWoundsLeft(unit: UnitState): number | null {
   return unit.wounds ? unit.alive * unit.wounds - unit.damage : null
 }
 
@@ -515,6 +542,9 @@ export const STRATAGEM_CP_MAX = 6
 
 /** A secondary mission, named by the player because the deck is not in the data either. */
 export type Secondary = { key: string; name: string; awards?: MissionAward[]; selection?: MissionSelectionKind }
+
+/** A card as a `set-prep` command carries it, without whatever else its reference holds. */
+export const asSecondary = ({ key, name, awards }: Pick<Secondary, 'key' | 'name' | 'awards'>): Secondary => ({ key, name, awards })
 export type SecondaryStatus = 'active' | 'achieved' | 'discarded' | 'returned'
 
 /**
@@ -538,6 +568,7 @@ export const FIXED_SECONDARIES = 2
  * this is not, and tightening it is a migration.
  */
 export const SECONDARIES_MAX = 6
+export const SECONDARY_DECK_MAX = 60
 const SECONDARY_HISTORY_MAX = 30
 /** One primary score plus every secondary the bounded battle history can hold. */
 export const SCORE_SETTLEMENT_MAX = SECONDARY_HISTORY_MAX + 1
@@ -606,7 +637,7 @@ export const PAINTED_ARMY_POINTS = 10
  */
 export function sidePaintedPoints(state: BattleState, side: number): number {
   if (state.settings.manual) return 0
-  const seated = state.players.filter((player) => player.side === side)
+  const seated = sidePlayers(state, side)
   return seated.length && seated.every((player) => player.painted) ? PAINTED_ARMY_POINTS : 0
 }
 
@@ -630,6 +661,7 @@ export const GAME_SIZES = [
   { name: 'Onslaught', limit: 3000, detachmentPoints: null },
 ] as const
 
+export const isGameSize = (limit: number | null) => GAME_SIZES.some((size) => size.limit === limit)
 export const detachmentPointBudget = (limit: number) => GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null
 export const isKotcLimit = (limit: number | null): boolean =>
   limit !== null && [...KOTC_LIMITS, ...RETIRED_KOTC_LIMITS].some((candidate) => candidate === limit)
@@ -643,12 +675,16 @@ export const isKotcLimit = (limit: number | null): boolean =>
 export const POINTS_BUDGET_MIN = 500
 export const POINTS_BUDGET_MAX = 10_000
 
-/** King of the Colosseum fixes its points total, so only the core battle sizes take a custom budget. */
-export const allowsPointsBudget = (limit: number | null): boolean =>
-  limit !== null && !isKotcLimit(limit) && GAME_SIZES.some((size) => size.limit === limit)
+/** Points for one army in a team battle: any whole number up to the roster contract's bound. */
+export const validArmyPoints = (points: number) => Number.isInteger(points) && points >= 1 && points <= POINTS_BUDGET_MAX
+export const ARMY_POINTS_ERROR = `choose between 1 and ${POINTS_BUDGET_MAX.toLocaleString('en')} points per army`
 
-export function pointsBudgetError(limit: number, budget: number | null | undefined): string | null {
-  if (budget === null || budget === undefined || budget === limit) return null
+/** King of the Colosseum fixes its points total, so only the core battle sizes take a custom budget. */
+export const allowsPointsBudget = (limit: number | null): boolean => limit !== null && !isKotcLimit(limit) && isGameSize(limit)
+
+export function pointsBudgetError(limit: number, requested: number | null | undefined): string | null {
+  const budget = customPointsBudget(limit, requested)
+  if (budget === null) return null
   if (!allowsPointsBudget(limit)) return 'This battle size has a fixed points total.'
   if (!Number.isInteger(budget)) return 'Enter a whole number of points.'
   if (budget < POINTS_BUDGET_MIN || budget > POINTS_BUDGET_MAX)
@@ -695,7 +731,7 @@ export type FormatRuleId = (typeof FORMAT_RULE_IDS)[number]
 export type FormatRule = { id: FormatRuleId; label: string; hint: string }
 
 /** Whether a rule still applies, given what the roster has waived. */
-export const enforces = (waived: readonly string[] | undefined, rule: FormatRuleId) => !waived?.includes(rule)
+export const enforces = (waived: readonly string[] | null | undefined, rule: FormatRuleId) => !waived?.includes(rule)
 
 export const detachmentLimit = (limit: number, waived: readonly string[] = []) =>
   isKotcLimit(limit) && enforces(waived, 'detachments') ? 1 : DETACHMENTS_MAX
@@ -1130,7 +1166,6 @@ export type PlayerState = {
   /** Every use, with when it happened, so a limit can be judged against the log. */
   uses: StratagemUse[]
   secondaries: Secondary[]
-  /** Cards drawn since this side's turn began, reset when it begins again. A card kept from an earlier turn does not count against it. */
   /**
    * The cards this side's current turn has dealt, in the order they came off the deck.
    *
@@ -1224,10 +1259,6 @@ export type BattleState = {
 }
 
 /**
- * Folds the log into current state. Undo is itself a command, so history is only
- * ever appended to; a command it names is skipped by the fold rather than removed.
- */
-/**
  * How many players a battle seats.
  *
  * Its own settings decide it, and only here, so a third player following the link
@@ -1238,6 +1269,10 @@ export function battleCapacity(settings: { teamBattle?: boolean; playerCount?: 2
   return settings.playerCount ?? (settings.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE)
 }
 
+/**
+ * Folds the log into current state. Undo is itself a command, so history is only
+ * ever appended to; a command it names is skipped by the fold rather than removed.
+ */
 export function reduceBattle(
   playerIds: readonly PlayerId[],
   log: readonly LoggedCommand[],
@@ -1252,7 +1287,7 @@ export function reduceBattle(
 }
 
 /** One command as it actually happened, and what the fold knew either side of it. */
-export type BattleStep = {
+type BattleStep = {
   entry: LoggedCommand
   before: { round: number; phase: Phase; active: PlayerId | null }
   /** The army the command changed, which is not always the one that sent it. */
@@ -1279,7 +1314,7 @@ export function* replay(state: BattleState, log: readonly LoggedCommand[]): Gene
     const before = { round: state.round, phase: state.phase, active: state.activePlayerId }
     applyEntry(state, entry)
     const actor = state.players.find((candidate) => candidate.id === entry.by)
-    const targetId = 'playerId' in entry.command && entry.command.playerId ? entry.command.playerId : entry.by
+    const targetId = commandTarget(entry.command, entry.by)
     yield {
       entry,
       before,
@@ -1289,7 +1324,7 @@ export function* replay(state: BattleState, log: readonly LoggedCommand[]): Gene
 }
 
 /** Commands that change what is left of a unit, which the table corrects by pressing the opposite control. */
-export const CASUALTY_COMMANDS: readonly Command['kind'][] = ['set-unit', 'wound-unit', 'damage-unit']
+const CASUALTY_COMMANDS: readonly Command['kind'][] = ['set-unit', 'wound-unit', 'damage-unit']
 
 /** Applies one command that is standing when it is folded, and records whether undo may name it. */
 export function applyEntry(state: BattleState, entry: LoggedCommand) {
@@ -1318,6 +1353,49 @@ export function applyEntry(state: BattleState, entry: LoggedCommand) {
     ].includes(entry.command.kind)
   ) {
     state.undoable = { seq: entry.seq, by: entry.by, kind: entry.command.kind }
+  }
+}
+
+/** A seat before anything has happened to it. */
+function freshPlayer(id: PlayerId, side: number, automated: boolean): PlayerState {
+  return {
+    id,
+    side,
+    automated,
+    cp: 0,
+    cpGained: 0,
+    cpSpent: 0,
+    cpByRound: Array(BATTLE_ROUNDS).fill(0),
+    bonusCpByRound: Array(BATTLE_ROUNDS).fill(0),
+    cpByMoment: {},
+    primary: 0,
+    secondary: 0,
+    roster: null,
+    rosterSeq: null,
+    units: [],
+    stratagems: [],
+    uses: [],
+    secondaries: [],
+    secondariesDrawnThisTurn: [],
+    additionalSecondaryDrawsThisTurn: 0,
+    secondariesToReview: [],
+    secondaryDrawSeq: {},
+    secondaryDrawnAt: {},
+    missionSelections: [],
+    primaryCard: null,
+    secondaryMode: 'tactical',
+    secondaryDeck: null,
+    scored: {},
+    primaryByRound: Array(BATTLE_ROUNDS).fill(0),
+    finalPrimary: 0,
+    secondaryByRound: Array(BATTLE_ROUNDS).fill(0),
+    scoredByRound: {},
+    secondaryStatus: {},
+    secretSecondary: null,
+    secretRevealed: false,
+    painted: false,
+    corrections: { cp: 0, primary: 0, secondary: 0 },
+    correctionByRound: { primary: Array(BATTLE_ROUNDS).fill(0), secondary: Array(BATTLE_ROUNDS).fill(0) },
   }
 }
 
@@ -1352,45 +1430,7 @@ export function emptyBattle(
     clubId: null,
     settings: { ...DEFAULT_SETTINGS },
     result: null,
-    players: playerIds.map((id, index) => ({
-      id,
-      side: playerSides?.[index] ?? index,
-      automated: automatedPlayerIds.includes(id),
-      cp: 0,
-      cpGained: 0,
-      cpSpent: 0,
-      cpByRound: Array(BATTLE_ROUNDS).fill(0),
-      bonusCpByRound: Array(BATTLE_ROUNDS).fill(0),
-      cpByMoment: {},
-      primary: 0,
-      secondary: 0,
-      roster: null,
-      rosterSeq: null,
-      units: [],
-      stratagems: [],
-      uses: [],
-      secondaries: [],
-      secondariesDrawnThisTurn: [],
-      additionalSecondaryDrawsThisTurn: 0,
-      secondariesToReview: [],
-      secondaryDrawSeq: {},
-      secondaryDrawnAt: {},
-      missionSelections: [],
-      primaryCard: null,
-      secondaryMode: 'tactical',
-      secondaryDeck: null,
-      scored: {},
-      primaryByRound: Array(BATTLE_ROUNDS).fill(0),
-      finalPrimary: 0,
-      secondaryByRound: Array(BATTLE_ROUNDS).fill(0),
-      scoredByRound: {},
-      secondaryStatus: {},
-      secretSecondary: null,
-      secretRevealed: false,
-      painted: false,
-      corrections: { cp: 0, primary: 0, secondary: 0 },
-      correctionByRound: { primary: Array(BATTLE_ROUNDS).fill(0), secondary: Array(BATTLE_ROUNDS).fill(0) },
-    })),
+    players: playerIds.map((id, index) => freshPlayer(id, playerSides?.[index] ?? index, automatedPlayerIds.includes(id))),
     undoable: null,
     seq: 0,
     clockPaused: false,
@@ -1437,18 +1477,14 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (battleCapacity(command) > PLAYERS_PER_BATTLE !== Boolean(command.teamBattle))
         return refuse('seat-count-mismatch', 'choose matching battle sides and seats')
       if (battleCapacity(command) < state.players.length) return refuse('too-few-seats', 'choose enough seats for every player')
-      if (command.limit !== null && !GAME_SIZES.some((size) => size.limit === command.limit))
-        return refuse('unsupported-battle-size', 'choose a supported battle size')
+      if (command.limit !== null && !isGameSize(command.limit)) return refuse('unsupported-battle-size', 'choose a supported battle size')
       if (command.teamBattle && isKotcLimit(command.limit)) return refuse('unsupported-battle-size', 'choose a supported battle size')
       if (state.leagueToken && JSON.stringify(command.armyPoints ?? null) !== JSON.stringify(state.settings.armyPoints ?? null))
         return refuse('league-sealed', 'this battle’s points are sealed')
       if (command.armyPoints) {
         if (!command.teamBattle) return refuse('invalid-army-points', 'only a team battle sets points per army')
-        if (
-          command.armyPoints.length !== 2 ||
-          command.armyPoints.some((points) => !Number.isInteger(points) || points < 1 || points > POINTS_BUDGET_MAX)
-        )
-          return refuse('invalid-army-points', `choose between 1 and ${POINTS_BUDGET_MAX.toLocaleString('en')} points per army`)
+        if (command.armyPoints.length !== 2 || !command.armyPoints.every(validArmyPoints))
+          return refuse('invalid-army-points', ARMY_POINTS_ERROR)
       }
       return null
     }
@@ -1538,9 +1574,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       const requiredPlayers = battleCapacity(state.settings)
       if (state.players.length < requiredPlayers) return refuse('missing-player', 'waiting for an opponent')
       if (state.players.length > requiredPlayers) return refuse('too-many-players', 'too many players are seated')
-      const sideSizes = [...new Set(state.players.map((candidate) => candidate.side))].map(
-        (side) => state.players.filter((candidate) => candidate.side === side).length,
-      )
+      const sideSizes = [...new Set(state.players.map((candidate) => candidate.side))].map((side) => sidePlayers(state, side).length)
       if (
         sideSizes.length !== 2 ||
         (requiredPlayers === 2 && sideSizes.some((size) => size !== 1)) ||
@@ -1592,29 +1626,20 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       }
       if (player.cp + command.delta < 0) return refuse('not-enough-cp', 'not enough command points')
       if (state.settings.manual) return null
-      const round = command.missed?.round ?? state.round
-      if (command.delta > 0 && (player.bonusCpByRound[round - 1] ?? 0) + command.delta > 1) {
-        return refuse('cp-gain-limit', 'a side can gain at most 1 additional command point per battle round')
-      }
-      return null
+      return command.delta > 0 ? bonusCpRefusal(player, command.missed?.round ?? state.round, command.delta) : null
     }
     case 'resolve-tactical-hand': {
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
       if (state.phase !== 'end' || !sameSide(state, state.activePlayerId, player.id))
         return refuse('not-end-of-turn', 'resolve tactical missions at the end of your turn')
       if (player.secondaryMode !== 'tactical') return refuse('not-tactical', 'only tactical secondaries are resolved each turn')
-      const active = player.secondaries.filter(
-        (secondary) => secondary.key !== player.secretSecondary && player.secondaryStatus[secondary.key] === 'active',
-      )
+      const active = activeTacticalSecondaries(player)
       if (!active.length) return refuse('no-active-secondaries', 'there are no active tactical secondaries to resolve')
       const keys = command.keys ?? []
       if (keys.some((key) => !active.some((secondary) => secondary.key === key)))
         return refuse('secondary-not-active', 'that secondary is not active')
       if (command.gainCp && !keys.length) return refuse('nothing-discarded', 'discard a secondary to gain a command point')
-      if (command.gainCp && (player.bonusCpByRound[state.round - 1] ?? 0) >= 1) {
-        return refuse('cp-gain-limit', 'a side can gain at most 1 additional command point per battle round')
-      }
-      return null
+      return command.gainCp ? bonusCpRefusal(player, state.round, 1) : null
     }
     case 'score': {
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
@@ -1681,11 +1706,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (due.length && !state.advanceRequested) return refuse('scoring-unreviewed', 'review mission scoring before ending the phase')
       if (due.length && !state.scoringAcknowledged) return refuse('scoring-unreviewed', 'finish mission scoring before ending the phase')
       const unresolvedTactical =
-        state.phase === 'end' &&
-        player.secondaryMode === 'tactical' &&
-        player.secondaries.some(
-          (secondary) => secondary.key !== player.secretSecondary && player.secondaryStatus[secondary.key] === 'active',
-        )
+        state.phase === 'end' && player.secondaryMode === 'tactical' && activeTacticalSecondaries(player).length > 0
       if (unresolvedTactical && !state.advanceRequested)
         return refuse('tactical-hand-unreviewed', 'review the tactical hand before ending the turn')
       return null
@@ -1721,13 +1742,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (state.status === 'finished') return refuse('battle-over', 'the battle is over')
       const attached = attachedUnits(player.units, command.unitKey)
       if (!attached.length) return refuse('unknown-unit', 'that is not one of your units')
-      if (state.status === 'setup' && !command.deployed) {
-        const keys = new Set(attached.map((unit) => unit.key))
-        const changed = player.units.map((unit) => (keys.has(unit.key) ? changedFormation(unit, 'strategic-reserves') : unit))
-        const reserveError = strategicReserveSideError(state, player, changed)
-        if (reserveError) return reserveError
-      }
-      return null
+      return state.status === 'setup' && !command.deployed ? movedReserveError(state, player, attached, 'strategic-reserves') : null
     }
     case 'set-unit-formation': {
       if (state.status === 'finished') return refuse('battle-over', 'the battle is over')
@@ -1893,12 +1908,9 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
     case 'draw-secondaries': {
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
       if (player.secondaryMode !== 'tactical') return refuse('not-tactical', 'only tactical missions are drawn')
-      const remaining = (player.secondaryDeck ?? []).filter(
-        (candidate) => !player.secondaries.some((secondary) => secondary.key === candidate.key),
-      ).length
       const refill = Math.min(
         secondaryDrawTarget(player) - player.secondariesDrawnThisTurn.length,
-        remaining,
+        undrawnSecondaries(player).length,
         SECONDARY_HISTORY_MAX - player.secondaries.length,
       )
       if (!command.secondaries.length || command.secondaries.length !== refill)
@@ -1984,7 +1996,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
         terrainLayoutId: command.terrainLayoutId,
         twistId: command.twistId,
         teamBattle: command.teamBattle ?? false,
-        playerCount: command.playerCount ?? (command.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE),
+        playerCount: battleCapacity(command),
         ...(command.armyPoints ? { armyPoints: command.armyPoints } : {}),
         ...(command.manual ? { manual: true } : {}),
       }
@@ -2013,7 +2025,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       state.sideWarlords = {}
       state.deploymentId = null
       state.settings = { ...state.settings, terrainLayoutId: null, twistId: null }
-      state.players.forEach(resetPlayer)
+      for (const seat of state.players) Object.assign(seat, freshPlayer(seat.id, seat.side, seat.automated))
       inferBattleSize(state)
       return
     }
@@ -2029,8 +2041,8 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
      * The roll-off both sides watched, recorded before the battle begins.
      *
      * Logged rather than held on the device that saw it, because the section that
-     * asks for it and the section that starts the battle are two steps apart now:
-     * a private answer would have let two devices show the table different ones.
+     * asks for it and the section that starts the battle are two steps apart: a
+     * private answer would let two devices show the table different ones.
      */
     case 'set-first-turn': {
       if (!state.firstPlayerId) {
@@ -2108,11 +2120,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
     case 'set-unit-formation': {
       // The character and the unit he joined start together, so one press moves both.
       const attached = attachedUnits(player.units, command.unitKey)
-      const redeployed =
-        state.status === 'setup' &&
-        Boolean(state.firstPlayerId) &&
-        command.formation === 'strategic-reserves' &&
-        attached.every((unit) => unit.deployedAtRollOff && unit.formation === 'battlefield')
+      const redeployed = redeploysToReserves(state, attached, command.formation)
       for (const unit of attached) {
         Object.assign(unit, changedFormation(unit, command.formation, redeployed, command.transportKey))
       }
@@ -2152,12 +2160,9 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       player.secondaryStatus = { ...player.secondaryStatus, [command.secondaryKey]: 'discarded' }
       player.secondariesDrawnThisTurn = player.secondariesDrawnThisTurn.filter((key) => key !== command.secondaryKey)
       player.secondariesToReview = player.secondariesToReview.filter((key) => key !== command.secondaryKey)
-      const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === command.secondary.key) ?? command.secondary) }
-      player.secondaries.push(secondary)
-      markDrawn(state, player, secondary.key, seq)
-      player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
-      player.secondariesDrawnThisTurn.push(secondary.key)
-      player.secondariesToReview.push(secondary.key)
+      const key = drawCard(state, player, command.secondary, seq)
+      player.secondariesDrawnThisTurn.push(key)
+      player.secondariesToReview.push(key)
       state.drawAcknowledged = false
       return
     }
@@ -2199,22 +2204,14 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       return
     }
     case 'draw-secondary': {
-      const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === command.secondary.key) ?? command.secondary) }
-      player.secondaries.push(secondary)
-      markDrawn(state, player, secondary.key, seq)
-      player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
-      player.secondariesDrawnThisTurn = [...player.secondariesDrawnThisTurn, secondary.key]
-      player.secondariesToReview = [...player.secondariesToReview, secondary.key]
+      const key = drawCard(state, player, command.secondary, seq)
+      player.secondariesDrawnThisTurn = [...player.secondariesDrawnThisTurn, key]
+      player.secondariesToReview = [...player.secondariesToReview, key]
       state.drawAcknowledged = false
       return
     }
     case 'draw-secondaries': {
-      for (const drawn of command.secondaries) {
-        const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === drawn.key) ?? drawn) }
-        player.secondaries.push(secondary)
-        markDrawn(state, player, secondary.key, seq)
-        player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
-      }
+      for (const drawn of command.secondaries) drawCard(state, player, drawn, seq)
       player.secondariesDrawnThisTurn = [...player.secondariesDrawnThisTurn, ...command.secondaries.map((drawn) => drawn.key)]
       player.secondariesToReview = [...player.secondariesToReview, ...command.secondaries.map((drawn) => drawn.key)]
       state.drawAcknowledged = false
@@ -2230,11 +2227,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       return
     }
     case 'select-secret': {
-      const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === command.secondary.key) ?? command.secondary) }
-      player.secondaries.push(secondary)
-      markDrawn(state, player, secondary.key, seq)
-      player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
-      player.secretSecondary = secondary.key
+      player.secretSecondary = drawCard(state, player, command.secondary, seq)
       player.secretRevealed = false
       return
     }
@@ -2252,13 +2245,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       return
     }
     case 'adjust-cp': {
-      const round = command.missed?.round ?? state.round
-      player.cp += command.delta
-      if (command.delta > 0) {
-        player.cpGained += command.delta
-        player.bonusCpByRound[round - 1] = (player.bonusCpByRound[round - 1] ?? 0) + command.delta
-      } else player.cpSpent += Math.abs(command.delta)
-      recordCpChange(state, player, command.delta, command.missed)
+      adjustCp(state, player, command.delta, command.missed)
       return
     }
     case 'resolve-tactical-hand': {
@@ -2267,12 +2254,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
         ...player.secondaryStatus,
         ...Object.fromEntries(keys.map((key) => [key, 'discarded' as const])),
       }
-      if (command.gainCp) {
-        player.cp += 1
-        player.cpGained += 1
-        player.bonusCpByRound[state.round - 1] = (player.bonusCpByRound[state.round - 1] ?? 0) + 1
-        player.cpByRound[state.round - 1] = player.cp
-      }
+      if (command.gainCp) adjustCp(state, player, 1)
       return
     }
     case 'score': {
@@ -2302,10 +2284,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       state.pendingSettlement = null
       if (state.completionPending) {
         state.completionPending = false
-        state.status = 'finished'
-        state.result = { reason: 'completed', concededBy: null }
-        state.resumePlayerId = state.activePlayerId
-        state.activePlayerId = null
+        finishBattle(state, { reason: 'completed', concededBy: null })
       }
       return
     }
@@ -2339,10 +2318,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       }
       if (state.round === BATTLE_ROUNDS) {
         if ((endsFirstTurn && !opponent) || state.settings.manual) {
-          state.status = 'finished'
-          state.result = { reason: 'completed', concededBy: null }
-          state.resumePlayerId = state.activePlayerId
-          state.activePlayerId = null
+          finishBattle(state, { reason: 'completed', concededBy: null })
           return
         }
         const firstPlayer = state.players.find((candidate) => sameSide(state, candidate.id, state.firstPlayerId ?? ''))
@@ -2361,10 +2337,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       state.advanceRequested = false
       state.scoringAcknowledged = false
       state.completionPending = false
-      state.status = 'finished'
-      state.result = { reason: command.reason ?? 'finished-early', concededBy: command.concededBy ?? null }
-      state.resumePlayerId = state.activePlayerId
-      state.activePlayerId = null
+      finishBattle(state, { reason: command.reason ?? 'finished-early', concededBy: command.concededBy ?? null })
       return
     }
     case 'add-note':
@@ -2417,38 +2390,6 @@ function detachRoster(state: BattleState, player: PlayerState) {
   player.units = []
   player.painted = false
   applyPrep(player, null)
-}
-
-function resetPlayer(player: PlayerState) {
-  player.cp = 0
-  player.cpGained = 0
-  player.cpSpent = 0
-  player.cpByRound = Array(BATTLE_ROUNDS).fill(0)
-  player.bonusCpByRound = Array(BATTLE_ROUNDS).fill(0)
-  player.primary = 0
-  player.secondary = 0
-  player.roster = null
-  player.units = []
-  player.stratagems = []
-  player.uses = []
-  player.secondaries = []
-  player.secondariesDrawnThisTurn = []
-  player.additionalSecondaryDrawsThisTurn = 0
-  player.secondariesToReview = []
-  player.secondaryDeck = null
-  player.primaryCard = null
-  player.secondaryMode = 'tactical'
-  player.scored = {}
-  player.primaryByRound = Array(BATTLE_ROUNDS).fill(0)
-  player.finalPrimary = 0
-  player.secondaryByRound = Array(BATTLE_ROUNDS).fill(0)
-  player.scoredByRound = {}
-  player.secondaryStatus = {}
-  player.secretSecondary = null
-  player.secretRevealed = false
-  player.painted = false
-  player.corrections = { cp: 0, primary: 0, secondary: 0 }
-  player.correctionByRound = { primary: Array(BATTLE_ROUNDS).fill(0), secondary: Array(BATTLE_ROUNDS).fill(0) }
 }
 
 function applyPrep(player: PlayerState, prep: BattlePrep | null | undefined) {
@@ -2640,6 +2581,23 @@ function fewestCpSince(state: BattleState, player: PlayerState, moment: BattleMo
 }
 
 /** Carries a CP change through every moment since the one it belongs to. */
+/** A gain beyond the side's own Command phase, which the rules cap at one a battle round. */
+function bonusCpRefusal(player: PlayerState, round: number, delta: number): Refusal | null {
+  return (player.bonusCpByRound[round - 1] ?? 0) + delta > 1
+    ? refuse('cp-gain-limit', 'a side can gain at most 1 additional command point per battle round')
+    : null
+}
+
+function adjustCp(state: BattleState, player: PlayerState, delta: number, missed?: BattleMoment) {
+  const round = missed?.round ?? state.round
+  player.cp += delta
+  if (delta > 0) {
+    player.cpGained += delta
+    player.bonusCpByRound[round - 1] = (player.bonusCpByRound[round - 1] ?? 0) + delta
+  } else player.cpSpent += Math.abs(delta)
+  recordCpChange(state, player, delta, missed)
+}
+
 function recordCpChange(state: BattleState, player: PlayerState, delta: number, missed?: BattleMoment) {
   if (missed) {
     const from = momentOrder(state, missed)
@@ -2656,10 +2614,23 @@ export function pointsRound(state: BattleState, command: Extract<Command, { kind
   return command.missed?.round ?? command.round ?? state.round
 }
 
-function markDrawn(state: BattleState, player: PlayerState, key: string, seq: number) {
-  player.secondaryDrawSeq[key] = seq
+/** Ends the battle, remembering whose turn it was so reopening it resumes there. */
+function finishBattle(state: BattleState, result: NonNullable<BattleState['result']>) {
+  state.status = 'finished'
+  state.result = result
+  state.resumePlayerId = state.activePlayerId
+  state.activePlayerId = null
+}
+
+/** Puts a card into the hand as the side's own deck holds it, and returns its key. */
+function drawCard(state: BattleState, player: PlayerState, card: Secondary, seq: number): string {
+  const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === card.key) ?? card) }
+  player.secondaries.push(secondary)
+  player.secondaryDrawSeq[secondary.key] = seq
   const now = playedMoment(state)
-  if (now) player.secondaryDrawnAt[key] = momentOrder(state, now)
+  if (now) player.secondaryDrawnAt[secondary.key] = momentOrder(state, now)
+  player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
+  return secondary.key
 }
 
 function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: number | null, seq: number) {
@@ -2694,7 +2665,10 @@ function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: numb
  * played one ally's choice for both of them without ever saying so.
  */
 export function sideDisposition(state: BattleState, side: number): string | null {
-  const disposition = teamDisposition(sideRosters(state, side), state.sideDispositions[side] ?? null)
+  const disposition = teamDisposition(
+    sidePlayers(state, side).map((player) => player.roster),
+    state.sideDispositions[side] ?? null,
+  )
   // A battle already being played is never left without a mission. Setup refuses to
   // start one until each side has said, so this only answers for battles begun before
   // the question was asked — and it answers what they were already being played on.
@@ -2704,7 +2678,7 @@ export function sideDisposition(state: BattleState, side: number): string | null
 
 /** The cards a side could play, which is what it is asked to choose between. */
 export function sideDispositionChoices(state: BattleState, side: number): string[] {
-  return teamDispositionChoices(sideRosters(state, side))
+  return teamDispositionChoices(sidePlayers(state, side).map((player) => player.roster))
 }
 
 /** The player whose Warlord leads a side; null while allies have not said which of their Warlords it is. */
@@ -2715,12 +2689,6 @@ export function sideWarlord(state: BattleState, side: number): PlayerId | null {
 /** The players on a side whose lists name a Warlord, which allies choose between. */
 export function sideWarlordChoices(state: BattleState, side: number): PlayerId[] {
   return teamWarlordChoices(sidePlayers(state, side))
-}
-
-const sidePlayers = (state: BattleState, side: number) => state.players.filter((player) => player.side === side)
-
-function sideRosters(state: BattleState, side: number) {
-  return state.players.filter((player) => player.side === side).map((player) => player.roster)
 }
 
 export function sideCaptain(state: BattleState, side: number): PlayerState {
@@ -2752,6 +2720,11 @@ function armyCommand(command: Command): boolean {
  * and that is this question: asking it a second way there would let the cards come
  * off one deck and be recorded against another.
  */
+/** The player a command names, or whoever sent it. */
+export function commandTarget(command: Command, by: PlayerId): PlayerId {
+  return 'playerId' in command && command.playerId ? command.playerId : by
+}
+
 export function commandArmy(state: BattleState, by: PlayerId, command: Command): PlayerState | undefined {
   const actor = state.players.find((candidate) => candidate.id === by)
   return actor ? targetArmy(state, actor, command) : undefined
@@ -2779,19 +2752,14 @@ export function scoringTarget(
   state: BattleState,
   by: PlayerId,
   command: Command,
-): {
-  side: number
-  disposition: string | null
-  primary: number
-  secondary: number
-  primaryByRound: number[]
-  secondaryByRound: number[]
-  finalPrimary: number
-  /** How this side draws its cards, which is what says whether a fixed card's own ceiling applies. */
-  secondaryMode: SecondaryMode
-  /** What each named card has scored so far, keyed the way the card is named. */
-  scored: Record<string, number>
-} | null {
+):
+  | (Pick<
+      PlayerState,
+      'side' | 'primary' | 'secondary' | 'primaryByRound' | 'secondaryByRound' | 'finalPrimary' | 'secondaryMode' | 'scored'
+    > & {
+      disposition: string | null
+    })
+  | null {
   const actor = state.players.find((candidate) => candidate.id === by)
   if (!actor) return null
   const target = targetArmy(state, actor, command)
@@ -2822,12 +2790,11 @@ function mayNameSecondary(state: BattleState, by: PlayerId, player: PlayerState,
  */
 export function sideOwes(state: BattleState, player: PlayerState): 'settlement' | 'cards' | 'secret' | null {
   if (state.phase === 'command' && state.pendingSettlement?.playerId === player.id) return 'settlement'
-  const hasUndrawnCard = player.secondaryDeck?.some((candidate) => !player.secondaries.some((secondary) => secondary.key === candidate.key))
   if (
     state.phase === 'command' &&
     player.secondaryMode === 'tactical' &&
     player.secondariesDrawnThisTurn.length < secondaryDrawTarget(player) &&
-    hasUndrawnCard
+    undrawnSecondaries(player).length
   ) {
     return 'cards'
   }
@@ -2835,8 +2802,25 @@ export function sideOwes(state: BattleState, player: PlayerState): 'settlement' 
   return null
 }
 
-function secondaryDrawTarget(player: PlayerState): number {
-  return TACTICAL_HAND_SIZE + (player.additionalSecondaryDrawsThisTurn ?? 0)
+export function secondaryDrawTarget(player: PlayerState): number {
+  return TACTICAL_HAND_SIZE + player.additionalSecondaryDrawsThisTurn
+}
+
+/** The cards still in a side's deck. */
+export function undrawnSecondaries(player: Pick<PlayerState, 'secondaryDeck' | 'secondaries'>): Secondary[] {
+  return (player.secondaryDeck ?? []).filter((candidate) => !player.secondaries.some((secondary) => secondary.key === candidate.key))
+}
+
+/** The cards in hand still in play, apart from a secret mission. */
+function activeTacticalSecondaries(player: PlayerState): Secondary[] {
+  return player.secondaries.filter(
+    (secondary) => secondary.key !== player.secretSecondary && player.secondaryStatus[secondary.key] === 'active',
+  )
+}
+
+/** A secondary as scoring reads it: only the awards its side's way of playing pays. */
+function dueSecondary(player: PlayerState, secondary: Secondary, awards: MissionAward[]) {
+  return { ...secondary, category: 'secondary' as const, awards: awards.filter((award) => appliesInMode(award, player.secondaryMode)) }
 }
 
 export function scoringDue(state: BattleState, player: PlayerState) {
@@ -2845,13 +2829,7 @@ export function scoringDue(state: BattleState, player: PlayerState) {
     : []
   const secondaries = player.secondaries.flatMap((secondary) => {
     if (player.secondaryStatus[secondary.key] !== 'active' || !secondary.awards) return []
-    return [
-      {
-        ...secondary,
-        category: 'secondary' as const,
-        awards: secondary.awards.filter((award) => appliesInMode(award, player.secondaryMode)),
-      },
-    ]
+    return [dueSecondary(player, secondary, secondary.awards)]
   })
   return cardsDue(
     {
@@ -2886,18 +2864,7 @@ export function secretSettlementActionPlayerId(state: BattleState): PlayerId | n
   if (!pending || !player || !key || player.secretRevealed || player.secondaryStatus[key] !== 'active') return null
   const secondary = player.secondaries.find((candidate) => candidate.key === key)
   if (!secondary?.awards) return player.id
-  const due = cardsDueFromTheirTurn(
-    pending.round,
-    BATTLE_ROUNDS,
-    [
-      {
-        ...secondary,
-        category: 'secondary',
-        awards: secondary.awards.filter((award) => appliesInMode(award, player.secondaryMode)),
-      },
-    ],
-    [key],
-  )
+  const due = cardsDueFromTheirTurn(pending.round, BATTLE_ROUNDS, [dueSecondary(player, secondary, secondary.awards)], [key])
   return due.length ? player.id : null
 }
 
@@ -2906,7 +2873,12 @@ export function mayNameCard(state: BattleState, viewerId: PlayerId | null, playe
   return player.secretSecondary !== key || player.secretRevealed || sameSide(state, viewerId, player.id)
 }
 
-type TableBuilt = { limit: number; pointsBudget?: number | null; waivedRules?: readonly string[]; units?: readonly { points: number }[] }
+type TableBuilt = {
+  limit: number
+  pointsBudget?: number | null
+  waivedRules?: readonly string[] | null
+  units?: readonly { points: number }[]
+}
 /** `units` is the army as fielded, which a battle view carries beside a list whose own units it leaves out. */
 type TableArmies = { players: readonly { side: number; roster: { built?: TableBuilt } | null; units?: readonly { points: number }[] }[] }
 
@@ -2925,7 +2897,7 @@ export function fitsBattleSize(settings: Pick<BattleSettings, 'limit' | 'teamBat
 
 /** An even share of the battle size for each army on a side, which a team battle plays unless the table sets its own. */
 export function evenArmyPoints(state: TableArmies & { settings: BattleSettings }, side: number): number | null {
-  const armies = state.players.filter((player) => player.side === side).length
+  const armies = sidePlayers(state, side).length
   return state.settings.limit === null ? null : state.settings.limit / Math.max(1, armies)
 }
 
@@ -2933,13 +2905,13 @@ export function evenArmyPoints(state: TableArmies & { settings: BattleSettings }
 export const armyPointsFor = (state: TableArmies & { settings: BattleSettings }, side: number): number | null =>
   state.settings.armyPoints?.[side] ?? evenArmyPoints(state, side)
 
-export const pointsSpent = (built: Pick<TableBuilt, 'units'>) => built.units?.reduce((total, unit) => total + unit.points, 0) ?? 0
+const pointsSpent = (built: Pick<TableBuilt, 'units'>) => built.units?.reduce((total, unit) => total + unit.points, 0) ?? 0
 
 /** Whether a list spends no more than the points its army may, unless it waives its points limit. */
 export const withinArmyPoints = (built: Pick<TableBuilt, 'units' | 'waivedRules'>, points: number) =>
   !enforces(built.waivedRules, 'points-limit') || pointsSpent(built) <= points
 
-export type TeamArmyProblem = { code: 'over-army-points' | 'allies-mismatch'; side: number; message: string }
+type TeamArmyProblem = { code: 'over-army-points' | 'allies-mismatch'; side: number; message: string }
 
 /**
  * What stops a team battle's armies from playing, side by side.
@@ -3003,7 +2975,7 @@ export function armyPointsText(state: TableArmies & { settings: BattleSettings }
   return [0, 1]
     .map((side) => {
       const points = armyPointsFor(state, side)?.toLocaleString('en') ?? '?'
-      const armies = Math.max(1, state.players.filter((player) => player.side === side).length)
+      const armies = Math.max(1, sidePlayers(state, side).length)
       return Array.from({ length: armies }, () => points).join(' + ')
     })
     .join(' vs ')
@@ -3033,7 +3005,7 @@ function validatePrep(prep: BattlePrep): Refusal | null {
   if (new Set(prep.secondaries.map((secondary) => secondary.key)).size !== prep.secondaries.length) {
     return refuse('invalid-prep', 'the selected secondaries contain duplicates')
   }
-  if ((prep.secondaryDeck?.length ?? 0) > 60) return refuse('invalid-prep', 'that secondary deck is too large')
+  if ((prep.secondaryDeck?.length ?? 0) > SECONDARY_DECK_MAX) return refuse('invalid-prep', 'that secondary deck is too large')
   if (prep.secondaryDeck?.some((secondary) => !secondary.name.trim())) return refuse('invalid-prep', 'name every secondary in the deck')
   if (prep.secondaryDeck && new Set(prep.secondaryDeck.map((secondary) => secondary.key)).size !== prep.secondaryDeck.length) {
     return refuse('invalid-prep', 'the secondary deck contains duplicates')

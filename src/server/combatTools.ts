@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { CombatResult } from '../core/combat'
+import type { CombatResult, CombatPhase } from '../core/combat'
 import { combatAdjustmentsSchema } from '../core/combatAdjustments'
 import { combatMatchup, resolveCombatRequest, type CombatantSnapshot, type CombatRequest } from '../core/combatMatchup'
 import {
@@ -15,7 +15,7 @@ import { admitsHost, attachmentOf } from '../core/attach'
 import { combatUnitKeywords } from '../core/combatUnit'
 import type { RosterPick } from '../core/roster'
 import { encodeSimulatorState } from '../contracts/simulatorState'
-import type { AgentTools } from './agentTools'
+import { READ_ONLY_TOOL, structured, type AgentTools } from './agentTools'
 import { app } from './app'
 import { activeReferenceCorpus } from './referenceApi'
 import type { ReferenceCorpus } from './referenceCorpus'
@@ -31,7 +31,6 @@ import { rosterDatasheetSelections } from '../shared/rosterDatasheetContext'
 const COMBAT_TOOL_MAX_WORK = 5_000_000
 const MAX_ATTACHED = 2
 
-type Phase = 'ranged' | 'melee'
 type Role = 'attacker' | 'defender'
 
 const name = z.string().trim().min(1).max(400)
@@ -280,7 +279,7 @@ export async function simulateCombat(input: SimulateCombatInput) {
     sequenceError: matchup.sequenceError,
   }
   const answer = resolveCombatRequest(request, COMBAT_TOOL_MAX_WORK)
-  const phase = (key: Phase) => {
+  const phase = (key: CombatPhase) => {
     const plan = matchup.plans[key]!
     const weapons = plan.active.map((entry) => ({ name: entry.profile.name, count: entry.count }))
     const modes = plan.choices.map((choice) => ({ key: choice.key, label: choice.label, value: choice.value, options: choice.options }))
@@ -322,7 +321,7 @@ export async function simulateCombat(input: SimulateCombatInput) {
     revisions: corpus.catalogue.revisions,
     attribution: [...new Set(documents.flatMap((document) => document.attribution))],
   }
-  return { content: [{ type: 'text' as const, text: JSON.stringify(result) }], structuredContent: result }
+  return structured(result)
 }
 
 function sharedSide({ resolved }: Combatant, rules: SideInput['rules']) {
@@ -346,7 +345,7 @@ export function registerCombatTools(tools: AgentTools) {
       description:
         "Runs Praetorium's exact combat simulator for one attacking unit, with any attached leaders, against one defending unit at full strength: shooting, melee, and shooting followed by melee. Returns expected models destroyed, expected wounds lost, the chance to destroy the unit, cumulative odds, weapons used, the rule and weapon-mode choices each side can change, datasheet citations, and a simulator link. Passive datasheet rules apply by default; stratagems and conditional rules stay off until chosen. Rules the simulator cannot calculate are never approximated: a phase it cannot estimate has status refused with its reasons, and recognised rules it leaves out are listed under notCalculated, so explain those gaps rather than retrying. Errors are reserved for unknown factions or units, illegal unit sizes or attachments, and unavailable reference data. Like the standalone simulator page, it uses default loadouts and no detachment; unit sizes and attachments must be legal.",
       inputSchema: simulateCombatInputSchema,
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      annotations: READ_ONLY_TOOL,
     },
     simulateCombat,
   )

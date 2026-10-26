@@ -1,8 +1,10 @@
 import { Directory, File, Paths } from 'expo-file-system'
 import { APP_URL } from './navigation'
 
+export const hexCodes = (text: string) => Array.from(text, (character) => character.charCodeAt(0).toString(16))
+
 function directory(name: string) {
-  return new Directory(Paths.document, name, Array.from(APP_URL, (character) => character.charCodeAt(0).toString(16)).join(''))
+  return new Directory(Paths.document, name, hexCodes(APP_URL).join(''))
 }
 const generations = (root: Directory) =>
   root

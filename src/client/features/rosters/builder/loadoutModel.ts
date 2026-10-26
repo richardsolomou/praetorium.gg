@@ -13,8 +13,6 @@ import {
 } from '../../../../core/modelKinds'
 import { sameWargear, wargearBaseName, wargearKey } from '../../../../core/wargear'
 
-export { sameWargear as sameWeapon } from '../../../../core/wargear'
-
 /**
  * What the loadout pane is drawing, and the reasoning that does not need a screen.
  *
@@ -115,18 +113,24 @@ export function loadoutInstructions(
 
 type LoadoutRowSource = { choice: LoadoutChoice; option: LoadoutOption }
 
-export function loadoutRowSources(row: ModelRow, choices: readonly LoadoutChoice[]): LoadoutRowSource[] {
-  return modelRowSources(row).flatMap((source) => {
-    const choice = choices.find((candidate) => candidate.key === source.choiceKey)
-    const option = choice?.options.find((candidate) => candidate.id === source.optionId)
-    return choice && option ? [{ choice, option }] : []
-  })
+/** The choice keyed `key` and its option `id`, when the choices hold both. */
+export function findOption<C extends { key: string; options: readonly { id: string }[] }>(
+  choices: readonly C[],
+  key: string | null | undefined,
+  id: string | null | undefined,
+): { choice: C; option: C['options'][number] } | null {
+  const choice = choices.find((candidate) => candidate.key === key)
+  const option = choice?.options.find((candidate) => candidate.id === id)
+  return choice && option ? { choice, option } : null
 }
+
+export const loadoutRowSources = (row: ModelRow, choices: readonly LoadoutChoice[]): LoadoutRowSource[] =>
+  modelRowSources(row).flatMap((source) => findOption(choices, source.choiceKey, source.optionId) ?? [])
 
 const optionCount =
   (choices: readonly LoadoutChoice[]) =>
   ({ choiceKey, optionId }: ModelRowSource) =>
-    choices.find((candidate) => candidate.key === choiceKey)?.options.find((candidate) => candidate.id === optionId)?.count ?? 0
+    findOption(choices, choiceKey, optionId)?.option.count ?? 0
 
 export const loadoutRowCount = (row: ModelRow, choices: readonly LoadoutChoice[]) => modelRowCount(row, optionCount(choices))
 
@@ -228,16 +232,8 @@ export function showLoadoutEntry(count: number, showOptions: boolean) {
   return showOptions || count > 0
 }
 
-export function weaponMatches(optionName: string, profileName: string) {
-  return named(optionName, profileName)
-}
-
 export const weaponPieceMatches = (pieceName: string, profileName: string) =>
   sameWargear(pieceName, profileName) || wargearKey(pieceName) === wargearKey(profileName, true)
-
-export function wargearMatches(optionName: string, abilityName: string) {
-  return named(optionName, abilityName)
-}
 
 export function uniqueWeaponProfiles(profiles: readonly WeaponProfileData[]) {
   return uniqueBy(profiles, (profile) =>
@@ -254,7 +250,7 @@ export function weaponProfilesFor(option: { name: string; pieces?: readonly stri
       ? option.pieces.flatMap((name) =>
           profiles.filter((profile) => weaponProfileNames(profile).some((candidate) => weaponPieceMatches(name, candidate))),
         )
-      : profiles.filter((profile) => weaponProfileNames(profile).some((name) => weaponMatches(option.name, name))),
+      : profiles.filter((profile) => weaponProfileNames(profile).some((name) => optionNameMatches(option.name, name))),
   )
 }
 
@@ -265,7 +261,7 @@ export function weaponProfilesFor(option: { name: string; pieces?: readonly stri
  * name, and the profile can be the option plus a mode — parenthesised, or marked and
  * suffixed the way the source prints a missile launcher's "➤ Missile Launcher - Frag".
  */
-function named(optionName: string, candidateName: string) {
+export function optionNameMatches(optionName: string, candidateName: string) {
   const normalize = (name: string) =>
     name
       .replace(/^[^\p{L}\p{N}]+/u, '')
@@ -319,7 +315,7 @@ export function ordered<T extends { name: string }>(
 }
 
 const profilesFor = (name: string, weapons: readonly WeaponProfileData[]) =>
-  weapons.filter((weapon) => weaponProfileNames(weapon).some((candidate) => weaponMatches(name, candidate)))
+  weapons.filter((weapon) => weaponProfileNames(weapon).some((candidate) => optionNameMatches(name, candidate)))
 
 // A combi-weapon has a melee profile and is still a gun, so what it also does cannot
 // decide where it goes.
@@ -480,8 +476,7 @@ export type PoolChange = [string, SpreadCounts][]
 export function modelCount(model: LoadoutModel, choices: readonly LoadoutChoice[]) {
   return model.members.reduce((total, member) => {
     if (!member.choiceKey) return total + member.baseCount
-    const choice = choices.find((candidate) => candidate.key === member.choiceKey)
-    return total + (choice?.options.find((candidate) => candidate.id === member.id)?.count ?? 0)
+    return total + (findOption(choices, member.choiceKey, member.id)?.option.count ?? 0)
   }, 0)
 }
 
@@ -562,8 +557,7 @@ export function poolHandlers(model: LoadoutModel, choices: readonly LoadoutChoic
     ]) {
       const carrier = model.members.find((member) => member.id === entry.choice.owner?.id && member.choiceKey)
       if (!carrier || !others.some((other) => addsModel(model, other) && other.option.id !== carrier.id)) continue
-      const held =
-        choices.find((choice) => choice.key === carrier.choiceKey)?.options.find((option) => option.id === carrier.id)?.count ?? 0
+      const held = findOption(choices, carrier.choiceKey, carrier.id)?.option.count ?? 0
       for (const choice of choices) {
         if (choice.owner?.id !== carrier.id || wanted.has(choice.key)) continue
         if (delta < 0 ? takenIn(choice) < held : choice.optional || takenIn(choice) > held) continue
@@ -579,9 +573,8 @@ export function poolHandlers(model: LoadoutModel, choices: readonly LoadoutChoic
 
   const carrierOf = (choice: LoadoutChoice) => {
     const member = model.members.find((candidate) => candidate.id === choice.owner?.id && candidate.choiceKey)
-    const group = choices.find((candidate) => candidate.key === member?.choiceKey)
-    const option = group?.options.find((candidate) => candidate.id === member?.id)
-    return group && option ? { group, option } : null
+    const found = findOption(choices, member?.choiceKey, member?.id)
+    return found && { group: found.choice, option: found.option }
   }
   const enclosingSquad = (key: string) =>
     choices

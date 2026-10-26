@@ -1,22 +1,24 @@
-import { hash, timingSafeEqual } from 'node:crypto'
+import { hash } from 'node:crypto'
+import { constantTimeEqual } from 'better-auth/crypto'
 import type { AuthContext } from 'better-auth'
 import { createAuthEndpoint, getAuthoritativeSessionFromCtx, sessionMiddleware } from 'better-auth/api'
 import { setSessionCookie } from 'better-auth/cookies'
 import { randomToken } from 'ras-stack/auth'
 import { z } from 'zod'
 import { SOCIAL_PROVIDERS } from '../authConfig'
+import { PKCE_VALUE } from '../contracts/nativeAuth'
 
 const EXCHANGE_MINUTES = 3
 const NULL_ORIGIN_ENDPOINTS = new Set(['/native-auth-token/exchange', '/native-auth-token/consume'])
 const exchangeBody = z.object({
   id: z.string().min(32).max(128),
   token: z.string().min(32).max(128),
-  verifier: z.string().regex(/^[\w-]{43}$/),
+  verifier: z.string().regex(PKCE_VALUE),
   navigation: z.literal('1').optional(),
 })
 const generateBody = z.object({
   action: z.enum(['link', 'sign-in']),
-  challenge: z.string().regex(/^[\w-]{43}$/),
+  challenge: z.string().regex(PKCE_VALUE),
   provider: z.enum(SOCIAL_PROVIDERS),
   next: z
     .string()
@@ -46,11 +48,8 @@ function exchangeIdentifier(id: string, token: string) {
   return `native-auth:${id}:${digest}`
 }
 
-function hasChallenge(record: ExchangeRecord, verifier: string) {
-  const actual = Buffer.from(hash('sha256', verifier, 'base64url'))
-  const expected = Buffer.from(record.challenge)
-  return actual.length === expected.length && timingSafeEqual(actual, expected)
-}
+const hasChallenge = (record: ExchangeRecord, verifier: string) =>
+  constantTimeEqual(hash('sha256', verifier, 'base64url'), record.challenge)
 
 function exchangeRecord(value: string) {
   try {

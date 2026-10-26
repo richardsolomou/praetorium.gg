@@ -27,12 +27,11 @@ import { ListBuilder } from './ListBuilder'
 import { RosterOutline } from './RosterPresentation'
 import { saveFailureReason } from './saveFailure'
 import { countLabel } from '../../text'
-import { readGuestBattle } from '../battles/guestBattle'
+import { useGuestBattle } from '../battles/guestBattle'
 import { normalisePicks } from './rosterPicks'
 import { adoptVisitorReminders, claimVisitorReminders } from './visitorReminders'
 import { rosterUseProblem } from '../../../core/rosterLegality'
-
-const NO_PREP = { stratagems: [], secondaries: [], remindersEnabled: true }
+import { NO_PREP } from './rosterDraft'
 
 /**
  * A visitor's list, read once the page is in the browser, the only place it lives.
@@ -274,7 +273,7 @@ export function ClaimGuestRoster({ guest, onDiscard }: { guest: GuestDraft; onDi
 
 /** The way back for a guest who left their battle to build the list they bring to it. */
 export function GuestBattleLink({ className = 'border' }: { className?: string }) {
-  const battle = useClientValue(readGuestBattle, null)
+  const battle = useGuestBattle()
   if (!battle) return null
   return (
     <div className={`flex flex-wrap items-center gap-2 border-primary/40 bg-primary/5 px-3 py-2 text-xs ${className}`}>

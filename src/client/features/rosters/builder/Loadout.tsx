@@ -214,7 +214,6 @@ export function Loadout({
                       controlsDisabled={controlsDisabled}
                       onChoose={onChoose}
                       showOptions={showOptions}
-                      highlightSelection={showOptions}
                       reminders={reminders}
                     />
                   ) : choice.room > 1 && !choice.uniform ? (
@@ -228,7 +227,6 @@ export function Loadout({
                       abilities={availableSheet.abilities}
                       rules={rules}
                       showOptions={showOptions}
-                      highlightSelection={showOptions}
                       optionNote={optionNote}
                       saved={saved?.[choice.key]}
                     />
@@ -245,7 +243,6 @@ export function Loadout({
                       abilities={availableSheet.abilities}
                       rules={rules}
                       showOptions={showOptions}
-                      highlightSelection={showOptions}
                       optionNote={optionNote}
                     />
                   ),

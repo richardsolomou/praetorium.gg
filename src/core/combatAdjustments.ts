@@ -5,7 +5,7 @@ const step = z.int().min(-10).max(10)
 const roll = z.int().min(2).max(6)
 
 /** Situational changes to one phase's attacks, from rules the datasheet and its switches do not already apply. */
-export const weaponAdjustmentSchema = z.object({
+const weaponAdjustmentSchema = z.object({
   skill: step.optional(),
   strength: step.optional(),
   attacks: step.optional(),
@@ -21,7 +21,7 @@ export const weaponAdjustmentSchema = z.object({
 export type WeaponAdjustment = z.infer<typeof weaponAdjustmentSchema>
 
 /** Situational changes to the defending unit, for both phases. */
-export const targetAdjustmentSchema = z.object({
+const targetAdjustmentSchema = z.object({
   toughness: step.optional(),
   save: step.optional(),
   invulnerable: roll.nullable().optional(),

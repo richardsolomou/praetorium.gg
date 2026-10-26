@@ -51,7 +51,6 @@ export function ArmyLoadout({ army, unit }: { army: Army; unit: UnitState }) {
                 detachmentIds={detachmentIds}
                 picks={picks}
                 pickIndex={selected?.key ?? null}
-                showWeapons
                 embedded
                 hideSummary
                 detachmentRules={detachmentRules}

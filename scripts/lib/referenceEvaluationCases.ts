@@ -20,7 +20,7 @@ type Fixture = {
   faction?: string
 }
 
-export const referenceEvaluationFixtures: readonly Fixture[] = [
+const referenceEvaluationFixtures: readonly Fixture[] = [
   {
     name: 'stable rule id',
     expectedDocumentId: 'rule:core-rules:09.00',

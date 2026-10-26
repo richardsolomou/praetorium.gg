@@ -1,3 +1,4 @@
+import { SectionHeading } from '../../components/SectionHeading'
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -134,10 +135,7 @@ export function FriendsPage() {
 
           <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-start-1">
             <section data-onboarding="friend-list">
-              <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-                <span>Friends</span>
-                <span className="readout">{data.friends.length}</span>
-              </h2>
+              <SectionHeading title="Friends" count={data.friends.length} />
               {data.friends.length ? (
                 <div className="mt-3 grid gap-2">
                   {data.friends.map((friend) => (
@@ -341,10 +339,7 @@ function People({
 }) {
   return (
     <section data-onboarding={onboarding}>
-      <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-        <span>{title}</span>
-        <span className="readout">{people.length}</span>
-      </h2>
+      <SectionHeading title={title} count={people.length} />
       <div className="mt-3 grid gap-2">
         {people.map((person) => (
           <PersonRow

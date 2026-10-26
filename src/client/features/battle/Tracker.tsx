@@ -18,7 +18,7 @@ import {
   missionActionReminders,
   missionActionRemindersEnabled as storedMissionActionRemindersEnabled,
 } from '../../missionActionReminders'
-import { appliesInMode } from '../../missionText'
+import { appliesInMode, type MissionAward } from '../../missionText'
 import { automaticAttemptsExhausted, claimAutomaticAttempt } from './automaticAttempts'
 import type { SendCommand } from './useCommand'
 import {
@@ -33,7 +33,7 @@ import {
 } from './reminderDismissals'
 import { armyRulesRequest } from './sideRules'
 import { type Side, type SideMission, sides } from '../../sides'
-import { battleSizeText } from '../../../core/battle'
+import { asSecondary, battleSizeText } from '../../../core/battle'
 import type { BattleClock } from '../../../core/battleClock'
 import type { BattleView, MissionChoiceView } from '../../../core/battleView'
 import { remindersDueAt, reminderTimingLabel, roundReminderMoment, type ReminderTiming, type RosterReminder } from '../../../core/reminders'
@@ -42,11 +42,12 @@ import { watchBattle } from './watchBattle'
 import { BattleMenu } from './BattleMenu'
 import { MissedActionDialog } from './MissedActionDialog'
 import { ReminderDialog } from './ReminderDialog'
-import { DrawDialog, type DrawSelection, type WhenDrawn } from './DrawDialog'
+import type { WhenDrawn } from '../../../contracts/missions'
+import { DrawDialog, type DrawSelection } from './DrawDialog'
 import { MissionSelectionDialog } from './MissionSelectionDialog'
 import { isManualSelection } from '../../../core/missionSelections'
 import { DiscardSecondaryDialog } from './DiscardSecondaryDialog'
-import type { Award, ReferenceCard, StratagemText } from './MissionCards'
+import type { ReferenceCard, StratagemText } from './MissionCards'
 import { Scoreboard } from './Scoreboard'
 import { SecretMissionHandoff } from './SecretMissionHandoff'
 import { turnPrompt, type DueCard } from '../../scoring'
@@ -85,16 +86,29 @@ type ReminderPrompt = {
   advanceAfterDismissal?: boolean
 }
 
-/** Queued prompts keep only reminders still on the roster; mission action reminders come from the cards, not the roster. */
-function withRosterReminders(prompts: readonly ReminderPrompt[], rosterReminders: readonly RosterReminder[]) {
-  const available = new Set(rosterReminders.map((reminder) => reminder.key))
+/** Each queued prompt with only the reminders `keep` passes, dropping prompts left with none. */
+function keepReminders(prompts: readonly ReminderPrompt[], keep: (reminder: RosterReminder, prompt: ReminderPrompt) => boolean) {
   return prompts.flatMap((prompt) => {
-    const reminders = prompt.reminders.filter(
-      (reminder) => reminder.key.startsWith(MISSION_ACTION_REMINDER_PREFIX) || available.has(reminder.key),
-    )
+    const reminders = prompt.reminders.filter((reminder) => keep(reminder, prompt))
     return reminders.length ? [{ ...prompt, reminders }] : []
   })
 }
+
+/** Queued prompts keep only reminders still on the roster; mission action reminders come from the cards, not the roster. */
+function withRosterReminders(prompts: readonly ReminderPrompt[], rosterReminders: readonly RosterReminder[]) {
+  const available = new Set(rosterReminders.map((reminder) => reminder.key))
+  return keepReminders(prompts, (reminder) => reminder.key.startsWith(MISSION_ACTION_REMINDER_PREFIX) || available.has(reminder.key))
+}
+
+/** The moment of the turn a reminder belongs to. */
+const momentOf = (view: Pick<BattleView, 'round' | 'activePlayerId' | 'phase'>): ReminderDismissalContext => ({
+  round: view.round,
+  activePlayerId: view.activePlayerId,
+  phase: view.phase,
+})
+
+const sameMoment = (left: ReminderDismissalContext, right: ReminderDismissalContext) =>
+  left.round === right.round && left.activePlayerId === right.activePlayerId && left.phase === right.phase
 
 /** Narrow screens cannot hold three columns, so they hold one at a time. */
 const VIEWS = ['yours', 'battle', 'theirs'] as const
@@ -175,12 +189,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     (enabled: boolean) => {
       writeStoredValue(actionReminderStorageKey, enabled ? 'on' : 'off')
       if (!enabled)
-        setReminderPrompts((current) =>
-          current.flatMap((prompt) => {
-            const reminders = prompt.reminders.filter((reminder) => !reminder.key.startsWith(MISSION_ACTION_REMINDER_PREFIX))
-            return reminders.length ? [{ ...prompt, reminders }] : []
-          }),
-        )
+        setReminderPrompts((current) => keepReminders(current, (reminder) => !reminder.key.startsWith(MISSION_ACTION_REMINDER_PREFIX)))
     },
     [actionReminderStorageKey],
   )
@@ -195,12 +204,10 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
       const dismissed = parseReminderDismissals(readStoredValue(dismissalStorageKey)).add(reminderDismissalKey(reminderKey, scope, context))
       writeStoredValue(dismissalStorageKey, serializeReminderDismissals(dismissed))
       setReminderPrompts((current) =>
-        current.flatMap((prompt) => {
-          const reminders = prompt.reminders.filter(
-            (candidate) => !reminderDismissalKeys(candidate.key, prompt.context).some((key) => dismissed.has(key)),
-          )
-          return reminders.length ? [{ ...prompt, reminders }] : []
-        }),
+        keepReminders(
+          current,
+          (candidate, prompt) => !reminderDismissalKeys(candidate.key, prompt.context).some((key) => dismissed.has(key)),
+        ),
       )
     },
     [dismissalStorageKey],
@@ -212,13 +219,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   )
   const enqueueReminderPrompt = useCallback((prompt: ReminderPrompt) => {
     setReminderPrompts((current) => {
-      const duplicate = current.some(
-        (queued) =>
-          queued.moment === prompt.moment &&
-          queued.context.round === prompt.context.round &&
-          queued.context.activePlayerId === prompt.context.activePlayerId &&
-          queued.context.phase === prompt.context.phase,
-      )
+      const duplicate = current.some((queued) => queued.moment === prompt.moment && sameMoment(queued.context, prompt.context))
       return duplicate ? current : [...current, prompt]
     })
   }, [])
@@ -238,7 +239,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const { data: deployments } = useQuery(deploymentsQuery())
   const referencesQuery = useQuery(gameReferencesQuery())
   const references = referencesQuery.data
-  // What a card pays is read out of the references now, not out of a side's own rules,
+  // What a card pays is read out of the references, not out of a side's own rules,
   // so "do we know what the cards say yet" has to watch this query too. An instance
   // with nothing synced answers null and is not waiting on anything; a request still
   // in flight or one that failed is, and neither may be read as a card that pays nothing.
@@ -265,7 +266,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const secondaryDeck = useMemo(() => secondaryCards(references), [references])
   const cardsByKey = useMemo(() => missionCardsByKey(references), [references])
   const awardsFor = useCallback(
-    (key: string, mode?: string): Award[] => (cardsByKey.get(key)?.awards ?? []).filter((award) => appliesInMode(award, mode)),
+    (key: string, mode?: string): MissionAward[] => (cardsByKey.get(key)?.awards ?? []).filter((award) => appliesInMode(award, mode)),
     [cardsByKey],
   )
   const referenceFor = useCallback((key: string): ReferenceCard | undefined => cardsByKey.get(key), [cardsByKey])
@@ -346,11 +347,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
       kind: 'set-prep',
       playerId: repairSide.captain.id,
       stratagems: repairSide.stratagems,
-      secondaries:
-        repairSide.secondaryMode === 'fixed'
-          ? repairSide.secondaries.filter((card) => !card.secret).map(({ key: cardKey, name, awards }) => ({ key: cardKey, name, awards }))
-          : [],
-      secondaryDeck: secondaryDeck.map(({ key: cardKey, name, awards }) => ({ key: cardKey, name, awards })),
+      secondaries: repairSide.secondaryMode === 'fixed' ? repairSide.secondaries.filter((card) => !card.secret).map(asSecondary) : [],
+      secondaryDeck: secondaryDeck.map(asSecondary),
       primary: repairPrimary,
       secondaryMode: repairSide.secondaryMode,
     })
@@ -420,10 +418,11 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             ? 'Loading the active side’s mission cards…'
             : null
   const advanceBlocked = Boolean(blockReason)
+  const discardable = active ? discardableSecondaries(active) : []
+  const secretMissionActionSide = table.find((side) => side.captain.id === view.secretMissionActionPlayerId)
+  const activeSecretMissionAction = Boolean(settlementRound === null && active && secretMissionActionSide?.captain.id === active.captain.id)
   const advanceNow = () => {
     if (promptMinimized || advanceBlocked || !active) return
-    const discardable = discardableSecondaries(active)
-    const activeSecretMissionAction = view.settlementRound === null && view.secretMissionActionPlayerId === active.captain.id
     if (due.length || activeSecretMissionAction || (view.phase === 'end' && discardable.length)) {
       send({ kind: 'request-advance', playerId: active.captain.id })
       return
@@ -437,7 +436,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
       return
     }
     const moment: ReminderTiming = { moment: 'phase-end', phase: view.phase, turn: reminderTurn }
-    const context = { round: view.round, activePlayerId: view.activePlayerId, phase: view.phase }
+    const context = momentOf(view)
     const reminders = remindersAt([moment], context)
     if (!reminders.length) {
       advanceNow()
@@ -452,12 +451,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     })
   }
   const settlementSide = table.find((side) => side.captain.id === view.settlementPlayerId)
-  const secretMissionActionSide = table.find((side) => side.captain.id === view.secretMissionActionPlayerId)
-  const activeSecretMissionAction = Boolean(
-    view.settlementRound === null && active && secretMissionActionSide?.captain.id === active.captain.id,
-  )
   const settlementSecretMissionAction = Boolean(
-    view.settlementRound !== null && settlementSide && secretMissionActionSide?.captain.id === settlementSide.captain.id,
+    settlementRound !== null && settlementSide && secretMissionActionSide?.captain.id === settlementSide.captain.id,
   )
   const settlementRuleResults = ruleResults.filter((_, index) => ruleRequests[index]?.side === settlementSide?.index)
   const settlementNeedsReferences = Boolean(
@@ -499,42 +494,17 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
       },
     )
   }, [emptySettlementKey, emptySettlementReady, pending, promptMinimized, send])
-  // The win is this device's to celebrate only when the side it is seated on took it.
   const prompt = settlementRound !== null ? (owedCards.length ? 'owed' : null) : turnPrompt(0, needsDraw || needsDrawAcknowledgement)
-  const discardable = active ? discardableSecondaries(active) : []
 
   // A phase that ends queues its reminders ahead of the next moment's, so they show in the order they happened.
-  const reminderMoment = {
-    status: view.status,
-    round: view.round,
-    activePlayerId: view.activePlayerId,
-    phase: view.phase,
-    turn: reminderTurn,
-  }
+  const reminderMoment = { ...momentOf(view), turn: reminderTurn }
   const [previousReminderMoment, setPreviousReminderMoment] = useState(reminderMoment)
-  if (
-    previousReminderMoment.status !== reminderMoment.status ||
-    previousReminderMoment.round !== reminderMoment.round ||
-    previousReminderMoment.activePlayerId !== reminderMoment.activePlayerId ||
-    previousReminderMoment.phase !== reminderMoment.phase ||
-    previousReminderMoment.turn !== reminderMoment.turn
-  ) {
+  if (!sameMoment(previousReminderMoment, reminderMoment) || previousReminderMoment.turn !== reminderMoment.turn) {
     const previous = previousReminderMoment
     setPreviousReminderMoment(reminderMoment)
-    const phaseChanged =
-      previous.round !== reminderMoment.round ||
-      previous.activePlayerId !== reminderMoment.activePlayerId ||
-      previous.phase !== reminderMoment.phase
-    if (
-      dismissalsReady &&
-      phaseChanged &&
-      previous.status === 'playing' &&
-      reminderMoment.status === 'playing' &&
-      previous.phase !== 'end' &&
-      previous.turn
-    ) {
+    if (dismissalsReady && !sameMoment(previous, reminderMoment) && previous.phase !== 'end' && previous.turn) {
       const moment: ReminderTiming = { moment: 'phase-end', phase: previous.phase, turn: previous.turn }
-      const context = { round: previous.round, activePlayerId: previous.activePlayerId, phase: previous.phase }
+      const context = momentOf(previous)
       const reminders = remindersAt([moment], context)
       if (reminders.length) enqueueReminderPrompt({ reminders, moment: reminderTimingLabel(moment), confirmLabel: 'Dismiss', context })
     }
@@ -548,8 +518,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
 
   // The reminders due at this moment of the turn join the queue once no prompt is showing; each is dismissed when shown.
   const momentPrompt = ((): ReminderPrompt | null => {
-    if (view.status !== 'playing' || !reminderTurn) return null
-    const context = { round: view.round, activePlayerId: view.activePlayerId, phase: view.phase }
+    if (!reminderTurn) return null
+    const context = momentOf(view)
     const firstSide = view.players.find((player) => player.id === view.firstPlayerId)?.side
     const roundMoment = firstSide === undefined || !active ? null : roundReminderMoment(view.phase, active.index, firstSide)
     const roundReminders = roundMoment ? remindersAt([roundMoment], context) : []
@@ -600,7 +570,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
           />
         ) : null}
         <div data-battle-sticky-header className="sticky top-(--app-header) z-20 space-y-2 bg-void/95 pb-2 backdrop-blur lg:contents">
-          <Scoreboard view={view} clock={clock} sides={table} outcome={null} />
+          <Scoreboard view={view} clock={clock} sides={table} />
           <GuideHelp task="battle" step="battle-live-score">
             Playing guide
           </GuideHelp>
@@ -656,8 +626,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
               note={view.advancePrompt}
               /*
                * `mb-0` because the column spaces its children with a bottom margin, and
-               * a margin on a fixed box sits between it and the edge it is pinned to —
-               * which held the bar that far off the bottom of every phone and tablet.
+               * a margin on a fixed box sits between it and the edge it is pinned to.
                * At `lg` it is an ordinary box in the column again and takes the gap back.
                */
               className="fixed inset-x-0 bottom-0 z-40 mb-0 border-t border-edge bg-panel/98 px-3 py-2 backdrop-blur lg:static lg:mb-3 lg:rounded-lg lg:border lg:bg-panel lg:p-3 lg:backdrop-filter-none"
@@ -727,7 +696,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                 <div className="mt-3">
                   <BattleNote pending={pending || promptMinimized} send={sendAction} />
                 </div>
-                <Report token={view.token} open players={reportedPlayers} />
+                <Report token={view.token} players={reportedPlayers} />
               </div>
 
               {problem ? <Problem>{problem}</Problem> : null}
@@ -768,8 +737,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             send={send}
             referenceFor={referenceFor}
             round={view.round}
-            undoable={view.undoable}
-            undoableDraw={view.undoableDraw}
+            undo={view}
             onCancel={() => send({ kind: 'cancel-advance', playerId: active.captain.id })}
             onDone={(completedSecondaryKeys, scored) => {
               const unresolved = discardableSecondaries(active).filter((key) => !completedSecondaryKeys.includes(key))
@@ -794,8 +762,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
               activeSecretMissionAction ? () => send({ kind: 'cancel-advance', playerId: secretMissionActionSide.captain.id }) : undefined
             }
             onReveal={() => send({ kind: 'reveal-secret', playerId: secretMissionActionSide.captain.id })}
-            undoable={view.undoable}
-            undoableDraw={view.undoableDraw}
+            undo={view}
             send={send}
           />
         ) : null}
@@ -813,8 +780,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             send={send}
             referenceFor={referenceFor}
             round={settlementRound ?? view.round}
-            undoable={view.undoable}
-            undoableDraw={view.undoableDraw}
+            undo={view}
             onDone={() => send({ kind: 'settle-opponent-turn' })}
           />
         ) : null}
@@ -833,8 +799,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             onSelectionChange={(selected) => setDiscardDrafts((current) => new Map(current).set(turnDraftKey, selected))}
             pending={pending}
             send={send}
-            undoable={view.undoable}
-            undoableDraw={view.undoableDraw}
+            undo={view}
             onDone={() => {
               send({ kind: 'advance', playerId: active.captain.id })
             }}
@@ -848,8 +813,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             initialSelection={drawDrafts.get(turnDraftKey)}
             onSelectionChange={(selection) => setDrawDrafts((current) => new Map(current).set(turnDraftKey, selection))}
             round={view.round}
-            undoable={view.undoable}
-            confirmUndo={view.undoableDraw}
+            undo={view}
             pending={pending}
             send={send}
             referenceFor={referenceFor}
@@ -878,26 +842,11 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             onDismiss={(reminder, scope) => {
               const last = reminderPrompt.reminders.length === 1
               rememberReminder(reminder.key, scope, reminderPrompt.context)
-              if (
-                last &&
-                reminderPrompt.advanceAfterDismissal &&
-                reminderPrompt.context.round === view.round &&
-                reminderPrompt.context.activePlayerId === view.activePlayerId &&
-                reminderPrompt.context.phase === view.phase
-              ) {
-                advanceNow()
-              }
+              if (last && reminderPrompt.advanceAfterDismissal && sameMoment(reminderPrompt.context, momentOf(view))) advanceNow()
             }}
             onDone={() => {
               for (const reminder of reminderPrompt.reminders) rememberReminder(reminder.key, 'phase', reminderPrompt.context)
-              if (
-                reminderPrompt.advanceAfterDismissal &&
-                reminderPrompt.context.round === view.round &&
-                reminderPrompt.context.activePlayerId === view.activePlayerId &&
-                reminderPrompt.context.phase === view.phase
-              ) {
-                advanceNow()
-              }
+              if (reminderPrompt.advanceAfterDismissal && sameMoment(reminderPrompt.context, momentOf(view))) advanceNow()
             }}
           />
         ) : null}
@@ -911,13 +860,7 @@ const discardableSecondaries = (side: Side) =>
     ? side.secondaries.filter((card) => !card.secret && card.status === 'active').map((card) => card.key)
     : []
 
-/**
- * The shape of the table, and only that.
- *
- * A seat nobody signs in to does not change what is being played — a 2v1 with one in
- * it is a 2v1 — and the seat is already named after what it is, so saying "practice"
- * here was the same fact told twice.
- */
+/** The shape of the table only: a seat nobody signs in to is already named for what it is. */
 function formatName(table: Side[]) {
   return table
     .map((side) => side.armies.length)

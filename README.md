@@ -16,11 +16,11 @@ Warhammer 40,000 army building and game tracking, from setup to final score.
 
 Praetorium is a free, open source Warhammer 40,000 army builder and battle tracker. Build and share lists, browse the community catalogue, and compare units in the combat simulator. Play 1v1, 2v1, or 2v2 games with friends, or run a practice game. Track setup, turns, turn times, scoring, and casualties.
 
-Anyone can watch battles and see the leaderboard. Players can run leagues where everyone seals a list in secret and plays from a shared results table.
+Anyone can watch battles and see the leaderboard. Clubs keep a running leaderboard for a regular group, and tournaments have everyone seal a list in secret before playing from a shared results table, in open play or Swiss rounds.
 
 ## Scope
 
-Praetorium does not provide matchmaking, chat, tournament pairings, or rules written by this project. An account is required to play or to keep a list, though not to watch a public battle, read the leaderboard, or try the roster builder.
+Praetorium does not provide matchmaking, chat, or rules written by this project. An account is required to start a battle or to keep a list, though not to play as an invited guest, watch a battle, read the leaderboard, or try the roster builder.
 
 This repository contains source pins and authored correction patches in `catalogue/`, but no fetched upstream catalogues, copied rules prose, or generated snapshots. The service uses verified snapshots from the configured community sources.
 

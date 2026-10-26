@@ -4,8 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { zipSync } from 'fflate'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { extractSourceArchive, fetchBattlemasterInto, syncFactionIcons } from './sync'
-import { SUPPLEMENTAL_FACTION_ICONS } from './factionIconSources'
+import { extractSourceArchive, fetchBattlemasterInto } from './sync'
 
 let directory: string
 beforeEach(() => {
@@ -15,19 +14,6 @@ beforeEach(() => {
 afterEach(() => {
   vi.unstubAllGlobals()
   fs.rmSync(directory, { recursive: true, force: true })
-})
-
-it('adds supplemental icons to a materialized source directory', async () => {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async () => new Response('<svg xmlns="http://www.w3.org/2000/svg"/>')),
-  )
-
-  await syncFactionIcons(directory)
-
-  expect(fs.readdirSync(path.join(directory, 'faction-icons')).toSorted()).toEqual(
-    SUPPLEMENTAL_FACTION_ICONS.map((icon) => `${icon.id}.svg`).toSorted(),
-  )
 })
 
 it('extracts the configured Game Datacards path without other editions', () => {

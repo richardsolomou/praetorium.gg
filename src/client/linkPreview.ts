@@ -11,6 +11,7 @@ import { datasheetDescription, datasheetPoints } from './datasheet'
 import { recordSummary } from './features/profile/recordSummary'
 import type { Rankings } from './features/profile/PlayerRankings'
 import { sides } from './sides'
+import { capitalised } from '../core/text'
 
 /**
  * What a page says about itself to something unfurling its link.
@@ -19,7 +20,7 @@ import { sides } from './sides'
  * reader may see and these are built from that. The same builders feed the preview
  * images, which read with no session at all, so a picture and its caption agree.
  */
-export type LinkPreview = { title: string; description: string; card: PreviewCard }
+type LinkPreview = { title: string; description: string; card: PreviewCard }
 
 type Page = {
   title: string
@@ -43,9 +44,7 @@ const TEXT_LIMIT = 80
 
 const clip = (text: string) => (text.length > TEXT_LIMIT ? `${text.slice(0, TEXT_LIMIT - 1)}…` : text)
 
-const capitalised = (word: string) => `${word.charAt(0).toUpperCase()}${word.slice(1)}`
-
-export const sitePreviewPath = '/api/previews/site'
+const sitePreviewPath = '/api/previews/site'
 
 /** The tags every page shares, which a page's own tags replace one by one. */
 export function siteMeta(origin: string) {

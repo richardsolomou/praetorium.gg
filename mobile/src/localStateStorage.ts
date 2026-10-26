@@ -1,13 +1,14 @@
 import { MAX_LOCAL_STATE_BYTES, parseLocalState, type LocalState } from '../../src/contracts/localState'
-import { readSavedState, writeSavedState } from './savedStateStorage'
+import { hexCodes, readSavedState, writeSavedState } from './savedStateStorage'
 
 type StoredState = { epoch: string; state: LocalState | null }
+const STORED_STATE_LIMIT = MAX_LOCAL_STATE_BYTES + 1024
 const storageId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
-const storageName = (owner: string) => `local-work-${Array.from(owner, (character) => character.charCodeAt(0).toString(16)).join('-')}`
+const storageName = (owner: string) => `local-work-${hexCodes(owner).join('-')}`
 
 export function readLocalState(owner: string): StoredState {
-  const saved = readSavedState<StoredState>(storageName(owner), MAX_LOCAL_STATE_BYTES + 1024, (value) => {
+  const saved = readSavedState<StoredState>(storageName(owner), STORED_STATE_LIMIT, (value) => {
     const data = value as StoredState | null
     if (!data || typeof data.epoch !== 'string') return null
     const state = data.state === null ? null : parseLocalState(data.state)
@@ -15,7 +16,7 @@ export function readLocalState(owner: string): StoredState {
   })
   if (saved) return saved
   const initial = { epoch: storageId(), state: null }
-  writeSavedState(storageName(owner), initial, storageId(), MAX_LOCAL_STATE_BYTES + 1024)
+  writeSavedState(storageName(owner), initial, storageId(), STORED_STATE_LIMIT)
   return initial
 }
 
@@ -24,6 +25,6 @@ export function storeLocalState(owner: string, state: LocalState | null, epoch: 
   const previous = readLocalState(owner)
   if (previous.epoch !== epoch || (previous.state?.revision ?? 0) !== expectedRevision) return { ...previous, saved: false }
   const next = state ? { epoch, state } : { epoch: storageId(), state: null }
-  writeSavedState(storageName(owner), next, id, MAX_LOCAL_STATE_BYTES + 1024, { retainPrevious: Boolean(state) })
+  writeSavedState(storageName(owner), next, id, STORED_STATE_LIMIT, { retainPrevious: Boolean(state) })
   return { ...next, saved: true }
 }

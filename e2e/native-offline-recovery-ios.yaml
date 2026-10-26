@@ -5,7 +5,6 @@ appId: gg.praetorium
 - extendedWaitUntil:
     visible: 03. Moving
     timeout: 30000
-- assertVisible: 03. Moving
 - takeScreenshot: native-renderer-recovered
 - tapOn: Praetorium home
 - assertVisible: '(?i)Welcome back, Native.*'
@@ -16,13 +15,4 @@ appId: gg.praetorium
 - tapOn: More
 - tapOn:
     text: '(?i)^Rules Core rules.*'
-- scrollUntilVisible:
-    element:
-      text: '03\. Moving.*'
-    direction: DOWN
-    centerElement: true
-- tapOn: '03\. Moving.*'
-- extendedWaitUntil:
-    notVisible: Find a rule
-    timeout: 30000
-- assertVisible: 03. Moving
+- runFlow: native-open-moving-rule.yaml

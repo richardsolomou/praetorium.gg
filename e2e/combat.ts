@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page, type Request, type Route } from '@playwright/test'
+import { decodeSimulatorState } from '../src/contracts/simulatorState'
 import { chooseUnit } from './account'
 
 declare global {
@@ -80,7 +81,21 @@ export async function combatEstimate(scope: Page | Locator, phase: 'Shooting' | 
   return scope.getByRole('region', { name: `${phase} estimate`, includeHidden: true })
 }
 
+/** The average damage a phase's estimate reads. */
+export async function combatDamage(scope: Page | Locator, phase: 'Shooting' | 'Melee') {
+  return (await combatEstimate(scope, phase)).locator('.readout').first()
+}
+
 export async function closeCombatBreakdown(scope: Page | Locator) {
   const details = scope.locator('[data-results-summary] details')
   if (await details.evaluate((element) => (element as HTMLDetailsElement).open)) await details.locator('summary').click()
+}
+
+/** The simulator state the page's address carries, or undefined when it carries none that parses. */
+export const simulatorState = (page: Page) => decodeSimulatorState(new URL(page.url()).searchParams.get('s') ?? undefined)
+
+/** Every simulator result region on the page, or within `scope`, has finished calculating. */
+export async function combatSettled(scope: Page | Locator) {
+  for (const name of ['Shooting results', 'Melee results', 'Combined estimate'])
+    await expect(scope.getByRole('region', { name, exact: true })).toHaveAttribute('aria-busy', 'false')
 }

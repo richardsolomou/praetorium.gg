@@ -37,6 +37,7 @@ import { refreshBattleFeed } from './refreshBattleFeed'
 import { prepareRosters } from './prepareRosters'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../core/rosterLibrary'
 import { meKey } from '../queries/queryKeys'
+import { chunks } from '../../core/collections'
 
 /**
  * Whether a refresh of saved screens asks for this query again. A roster price depends only on its key, which holds
@@ -94,35 +95,32 @@ export function AppPersistence() {
           predicate: ({ queryKey }) => refreshesSavedQuery(queryKey),
         })
         if (!active || (client.getQueryData<{ id: string } | null>(meKey())?.id ?? null) !== (me?.id ?? null)) return
+        const stillSignedInAs = (id: string) => active && client.getQueryData<{ id: string }>(meKey())?.id === id
         await Promise.allSettled([
           refreshBattleFeed(client, publicBattlesQuery()),
           ...(me
             ? [
                 refreshBattleFeed(client, battlesQuery()).then(async (feed) => {
                   const recent = battlesFrom(feed).slice(0, ROSTER_LIBRARY_BATCH_SIZE)
-                  for (let index = 0; index < recent.length; index += 3) {
-                    if (!active || client.getQueryData<{ id: string }>(meKey())?.id !== me.id) break
-                    await Promise.allSettled(
-                      recent.slice(index, index + 3).map((battle) => client.query({ ...battleQuery(battle.token), staleTime: Infinity })),
-                    )
+                  for (const batch of chunks(recent, 3)) {
+                    if (!stillSignedInAs(me.id)) break
+                    await Promise.allSettled(batch.map((battle) => client.query({ ...battleQuery(battle.token), staleTime: Infinity })))
                   }
                 }),
                 refreshBattleFeed(client, friendBattlesQuery()),
                 client.query({ ...homeRostersQuery(), staleTime: Infinity }),
                 client.query({ ...leaguesQuery(), staleTime: Infinity }).then(async (leagues) => {
                   for (const league of leagues.filter((summary) => summary.personal)) {
-                    if (!active || client.getQueryData<{ id: string }>(meKey())?.id !== me.id) break
+                    if (!stillSignedInAs(me.id)) break
                     const saved = await client.query({ ...leagueQuery(league.token), staleTime: Infinity })
                     if (!saved) continue
                     const entries = saved.entries.filter((entry) => entry.submitted && (saved.revealedAt || entry.userId === me.id))
-                    for (let index = 0; index < entries.length; index += 3) {
-                      if (!active || client.getQueryData<{ id: string }>(meKey())?.id !== me.id) break
+                    for (const batch of chunks(entries, 3)) {
+                      if (!stillSignedInAs(me.id)) break
                       await Promise.allSettled(
-                        entries
-                          .slice(index, index + 3)
-                          .map((entry) =>
-                            client.query({ ...leagueRosterQuery(league.token, saved.eventToken, entry.userId), staleTime: Infinity }),
-                          ),
+                        batch.map((entry) =>
+                          client.query({ ...leagueRosterQuery(league.token, saved.eventToken, entry.userId), staleTime: Infinity }),
+                        ),
                       )
                     }
                   }
@@ -142,7 +140,7 @@ export function AppPersistence() {
                 client.query({ ...recentMatchupsQuery(), staleTime: Infinity }),
                 client.query({ ...abilityRemindersQuery(), staleTime: Infinity }),
                 client.query({ ...savedRosterSummariesQuery(), staleTime: Infinity }).then(async (summaries) => {
-                  await prepareRosters(client, summaries, () => active && client.getQueryData<{ id: string }>(meKey())?.id === me.id)
+                  await prepareRosters(client, summaries, () => stillSignedInAs(me.id))
                 }),
               ]
             : [client.query({ ...standingsQuery(), staleTime: Infinity })]),

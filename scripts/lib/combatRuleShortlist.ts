@@ -1,6 +1,7 @@
 import { hash } from 'node:crypto'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { replaceFile } from '../../src/server/replaceFile'
+import { forEachConcurrently } from '../../src/shared/forEachConcurrently'
 import path from 'node:path'
 import { APIError, noul, TypeSafeClient } from '@typesafe-ai/sdk'
 import { z } from 'zod'
@@ -31,7 +32,7 @@ const common = {
   exclusions:
     'Exclude rules whose only effect is movement, deployment, range, visibility, target selection/protection, shoot/fight/charge eligibility, firing order, objectives, actions, CP, leadership, healing or resurrection outside this attack sequence, or flavour text. Assault, Pistol/Close-Quarters, Precision, Fights First and Lone Operative alone are not damage modifiers here. Merely triggering after a hit, wound, attack or kill is not enough. A narrative claim to be deadly or durable without a stated mechanic is not evidence.',
 }
-export const combatRuleQuestions = {
+const combatRuleQuestions = {
   attacker: noul(
     {
       ...common,
@@ -132,11 +133,10 @@ export async function classifyCombatRules(
     outputTokens: 0,
   }
   const stopped = new AbortController()
-  let cursor = 0
-  const workers = Array.from({ length: concurrency }, async () => {
-    while (cursor < rows.length && !options.signal?.aborted && !stopped.signal.aborted) {
-      const index = cursor++
-      const rule = rows[index]!
+  await forEachConcurrently(
+    rows,
+    concurrency,
+    async (rule, index) => {
       const key = combatRuleCacheKey(rule, model)
       const cacheFile = path.join(options.cacheDirectory, `${key}.json`)
       let result: z.infer<typeof responseSchema> | undefined
@@ -150,11 +150,11 @@ export async function classifyCombatRules(
         if (!(error instanceof SyntaxError) && (error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
       }
       if (!result) {
-        if (summary.requested >= maxRequests || options.signal?.aborted || stopped.signal.aborted) continue
+        if (summary.requested >= maxRequests || options.signal?.aborted || stopped.signal.aborted) return
         if (Buffer.byteLength(JSON.stringify(stateFor(rule))) > 24_000) {
           classified[index]!.error = 'Rule exceeds the 24,000-byte state limit; review it separately.'
           summary.failed++
-          continue
+          return
         }
         summary.requested++
         try {
@@ -172,7 +172,7 @@ export async function classifyCombatRules(
               : 'TypeSafe request failed, timed out, was cancelled, or returned an invalid judgment.'
           summary.failed++
           stopped.abort()
-          continue
+          return
         }
         await replaceFile(cacheFile, (temporary) => writeFile(temporary, JSON.stringify({ key, result })))
       }
@@ -190,11 +190,9 @@ export async function classifyCombatRules(
         disagreementRoles: rule.calculatedRoles.filter((role) => probabilities[role] <= 0.2),
       }
       summary.classified++
-    }
-  })
-  const outcomes = await Promise.allSettled(workers)
-  const failure = outcomes.find((outcome) => outcome.status === 'rejected')
-  if (failure?.status === 'rejected') throw failure.reason
+    },
+    AbortSignal.any([stopped.signal, ...(options.signal ? [options.signal] : [])]),
+  )
   const priority = (left: ClassifiedRule, right: ClassifiedRule) =>
     right.sources.length - left.sources.length ||
     Math.max(...Object.values(right.probabilities!)) - Math.max(...Object.values(left.probabilities!)) ||

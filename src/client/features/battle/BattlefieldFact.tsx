@@ -1,15 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { isKotcLimit } from '../../../core/battle'
 import type { BattleView } from '../../../core/battleView'
-import { KOTC_MATCHUP_ID, type Deployment } from '../../../contracts/terrain'
-import { terrainMatchupIds, terrainReferencesQuery } from '../../queries'
-import { sides } from '../../sides'
+import type { Deployment } from '../../../contracts/terrain'
+import { terrainReferencesQuery } from '../../queries'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import { Fact } from '../../components/Fact'
 import { deploymentObjectiveMarkers, objectiveTerrainMarkers } from '../reference/missions/terrainGeometry'
 import { TerrainBoard } from '../reference/missions/TerrainBoard'
-import { battlefieldLayout } from './battlefieldLayout'
+import { battleMatchupIds, battlefieldLayout } from './battlefieldLayout'
 import { countLabel } from '../../text'
 
 export function BattlefieldFact({
@@ -22,10 +20,7 @@ export function BattlefieldFact({
   objectives?: boolean
 }) {
   const [open, setOpen] = useState(false)
-  const matchupIds = isKotcLimit(view.settings.limit)
-    ? [KOTC_MATCHUP_ID]
-    : terrainMatchupIds(sides(view).flatMap((side) => (side.disposition ? [side.disposition] : [])))
-  const query = terrainReferencesQuery(matchupIds)
+  const query = terrainReferencesQuery(battleMatchupIds(view))
   const references = useQuery({ ...query, enabled: (open || objectives) && Boolean(view.settings.terrainLayoutId) && query.enabled })
   const layout = battlefieldLayout(view.settings.terrainLayoutId, references.data?.layouts)
 

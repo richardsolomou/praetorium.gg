@@ -3,7 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { posthog } from 'posthog-js'
 import { playedArmyDraft, saveRoster, sharedRoster } from '../../functions'
 import { ROSTER_NAME_MAX_LENGTH } from '../../../core/battle'
-import { savedDraft } from './rosterDraft'
+import { NO_PREP, savedDraft } from './rosterDraft'
 import { invalidateSavedRosters, meQuery } from '../../queries'
 import { useState } from 'react'
 import { EMPTY_SETUP, guestDraftOf, newGuestDraft, writeGuestDraft } from './guestDraft'
@@ -69,7 +69,7 @@ export function useNewRoster(reference?: RosterReference) {
 export async function copyRosterToDevice(id: string) {
   const roster = await sharedRoster({ data: { id } })
   if (!roster) throw new Error('That roster could not be loaded.')
-  const { id: _source, ...draft } = savedDraft(roster, roster.prep ?? { stratagems: [], secondaries: [] })
+  const { id: _source, ...draft } = savedDraft(roster, roster.prep ?? NO_PREP)
   const kept = guestDraftOf({ ...draft, name: draft.name ? `Copy of ${draft.name}`.slice(0, ROSTER_NAME_MAX_LENGTH) : '' })
   if (!writeGuestDraft(kept)) throw new Error('This browser is not keeping lists.')
   return { id: kept.id }

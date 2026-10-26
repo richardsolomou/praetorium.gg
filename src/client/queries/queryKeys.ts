@@ -37,6 +37,16 @@ export const collectionWishesKey = () => ['collection-wishes']
 export const collectionCountsAsKey = () => ['collection-counts-as']
 export const fieldedDatasheetsKey = () => ['fielded-datasheets']
 export const wishlistSuggestionsKey = () => ['wishlist-suggestions']
+/** Every administration read sits under one key, so an administrator's change refreshes all of them. */
+export const adminKey = () => ['admin']
+/** Every Support read sits under one key, so a change of identity resets all of them. */
+export const supportKey = () => ['support']
+export const supportTicketsKey = () => ['support', 'tickets']
+/** Without a conversation, every conversation's messages. */
+export const supportMessagesKey = (ticketId?: string) =>
+  ticketId === undefined ? ['support', 'messages'] : ['support', 'messages', ticketId]
+export const supportOpeningKey = (ticketId: string) => ['support', 'opening', ticketId]
+export const supportIdentityKey = (userId: string | undefined) => ['support-identity', userId]
 /** Without an entry, every datasheet's photos. */
 export const datasheetPhotosKey = (entryId?: string) => (entryId === undefined ? ['datasheet-photos'] : ['datasheet-photos', entryId])
 /** Without a player, every player's collection. */
@@ -47,7 +57,7 @@ export const friendshipsKey = () => ['friendships']
 export const opponentsKey = () => ['opponents']
 /** `'active'` names the signed-in player's own open invite. */
 export const friendInviteKey = (token: string) => ['friend-invite', token]
-export const userProfileKey = (userId: string) => ['user-profile', userId]
+export const userProfileKey = (userId?: string) => (userId === undefined ? ['user-profile'] : ['user-profile', userId])
 export const playerRostersKey = (userId: string) => ['player-rosters', userId]
 export const playerRankingsKey = (userId: string) => ['player-rankings', userId]
 export const playerProfileKey = (userId: string, filter: PlayerProfileFilter) => ['player-profile', userId, filter]

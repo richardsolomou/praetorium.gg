@@ -8,7 +8,7 @@ vi.mock('@tanstack/react-start', () => {
 })
 vi.mock('@tanstack/react-start/server', () => ({ getRequest: () => new Request('https://praetorium.gg') }))
 vi.mock('../rpc', () => ({ rpc: (work: () => unknown) => work(), mutationRpc: (work: () => unknown) => work() }))
-vi.mock('../playerSession', () => ({ requireUser: async () => ({ id: 'actor' }) }))
+vi.mock('../playerSession', () => ({ requireUserId: async () => 'actor' }))
 vi.mock('../rateLimit', () => ({ fixedWindowRateLimit: () => () => undefined }))
 vi.mock('../photoScreening', () => ({
   COLLECTION_PHOTO_QUESTIONS: [],

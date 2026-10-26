@@ -1,5 +1,6 @@
+import { withoutFactionPrefix } from '../core/name'
 import { canonicalDetachmentName } from '../core/detachmentName'
-import { uniqueBy } from '../core/collections'
+import { remember, uniqueBy } from '../core/collections'
 import { PHASES, type Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
 import { catalogueFactionName } from './factionNames'
@@ -54,7 +55,7 @@ export type ConstructionDetachment = {
   dispositions: string[]
   globallyValid: boolean
 }
-export type ConstructionEnhancement = {
+type ConstructionEnhancement = {
   ids?: readonly string[]
   name: string
   detachment: string
@@ -64,7 +65,7 @@ export type ConstructionEnhancement = {
 }
 import type { EnhancementEligibility } from '../contracts/factions'
 export type { EnhancementEligibility } from '../contracts/factions'
-export type FactionStratagem = {
+type FactionStratagem = {
   id: string
   name: string
   cp: number
@@ -96,7 +97,7 @@ export type FactionContent = {
   /** Every unit an army rule lists as refused, so a list the restrictions did not read is reported. */
   restrictionLists: readonly { faction: string; names: readonly string[] }[]
 }
-export type FactionRestriction = {
+type FactionRestriction = {
   owner: string
   excludedNames: readonly (readonly [string, string | null])[]
   excludedKeywords: readonly string[]
@@ -202,12 +203,7 @@ export function factionContent(
 ): FactionContent {
   // Army rules are read twice, as words and as tokens, and the catalogue is asked once for each section.
   const asked = new Map<string, ReadonlyMap<string, string>>()
-  const sectionsOnce: SectionProse = (section) => {
-    const key = JSON.stringify(section)
-    const found = asked.get(key) ?? sections(section)
-    asked.set(key, found)
-    return found
-  }
+  const sectionsOnce: SectionProse = (section) => remember(asked, JSON.stringify(section), () => sections(section))
   const datasheets = records(parsed, 'datasheets').flatMap((entry) => {
     const datasheetName = localizedField(entry, 'name')
     return datasheetName ? [{ id: stringField(entry, 'id'), name: datasheetName, details: datasheetDetails(entry, texts) }] : []
@@ -684,7 +680,7 @@ export function restrictedBy(
   name: string,
   keywords: readonly string[],
 ): { keyword: string | null } | null {
-  const carried = keywords.map((keyword) => keyword.replace(/^faction:\s*/i, '').trim())
+  const carried = keywords.map((keyword) => withoutFactionPrefix(keyword).trim())
   const keyword = carried.find((candidate) => restrictions.excludedKeywords.has(candidate.toLowerCase()))
   if (keyword) return { keyword }
   const lowered = name.trim().toLowerCase()
@@ -878,9 +874,9 @@ function datasheetDetails(value: unknown, texts: SourceTexts): DatasheetDetails 
             {
               models,
               cost,
-              keyword: nullableStringField(point, 'keyword'),
-              faction: nullableStringField(point, 'faction'),
-              detachment: nullableStringField(point, 'detachment'),
+              keyword: stringField(point, 'keyword'),
+              faction: stringField(point, 'faction'),
+              detachment: stringField(point, 'detachment'),
             },
           ]
         : []
@@ -915,7 +911,4 @@ export function integerField(value: Record<string, unknown>, field: string): num
   const found = value[field]
   const parsed = typeof found === 'number' ? found : typeof found === 'string' && /^\d+$/.test(found) ? Number(found) : Number.NaN
   return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null
-}
-function nullableStringField(value: Record<string, unknown>, field: string): string | null {
-  return value[field] === null || value[field] === undefined ? null : stringField(value, field)
 }

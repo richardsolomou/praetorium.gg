@@ -7,7 +7,7 @@ export function resolveApplicationUrl(configured = process.env.EXPO_PUBLIC_APP_U
     if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) throw new Error()
     return parsed.origin
   } catch {
-    throw new Error('EXPO_PUBLIC_NATIVE_AUTH_TEST_APP_URL must be a valid HTTP origin.')
+    throw new Error('EXPO_PUBLIC_APP_URL or EXPO_PUBLIC_NATIVE_AUTH_TEST_APP_URL must be a valid HTTP origin.')
   }
 }
 
@@ -18,7 +18,7 @@ type NavigationDecision = { kind: 'internal'; url: string } | { kind: 'external'
 const WEB_PROTOCOLS = new Set(['http:', 'https:'])
 const EXTERNAL_PROTOCOLS = new Set([...WEB_PROTOCOLS, 'mailto:', 'tel:'])
 
-export type ExternalOpenStrategy = 'system' | 'in-app-browser'
+type ExternalOpenStrategy = 'system' | 'in-app-browser'
 
 // An external link opens in the operating system when a handler exists. A web
 // page also lists the in-app browser as a fallback, so a device that cannot

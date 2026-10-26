@@ -13,6 +13,21 @@ async function request(path: string, init?: RequestInit) {
   return response
 }
 
+async function mcp<T>(id: number, method: string, params?: object) {
+  const response = await request('/mcp', {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json, text/event-stream',
+      'Content-Type': 'application/json',
+      'MCP-Protocol-Version': '2025-06-18',
+    },
+    body: JSON.stringify({ jsonrpc: '2.0', id, method, params }),
+  })
+  return { ok: response.ok, body: (await response.json()) as T }
+}
+
+const callTool = <T>(id: number, name: string, args: object) => mcp<T>(id, 'tools/call', { name, arguments: args })
+
 async function search(query: string, kinds?: string) {
   const parameters = new URLSearchParams({ q: query, limit: '5' })
   if (kinds) parameters.set('kind', kinds)
@@ -84,22 +99,12 @@ if (!documentResponse.ok || !(await documentResponse.text()).includes(movementRe
 const markdown = await request(documentPath, { headers: { Accept: 'text/markdown' } })
 if (!markdown.ok || !(await markdown.text()).includes('Canonical URL:')) throw new Error('Markdown retrieval omitted its canonical URL')
 
-const mcp = await request('/mcp', {
-  method: 'POST',
-  headers: {
-    Accept: 'application/json, text/event-stream',
-    'Content-Type': 'application/json',
-    'MCP-Protocol-Version': '2025-06-18',
-  },
-  body: JSON.stringify({
-    jsonrpc: '2.0',
-    id: 1,
-    method: 'tools/call',
-    params: { name: 'get_reference', arguments: { id: movementResult.id } },
-  }),
+const mcpReference = await callTool<{ result?: { structuredContent?: { id?: string; url?: string } } }>(1, 'get_reference', {
+  id: movementResult.id,
 })
-const mcpBody = (await mcp.json()) as { result?: { structuredContent?: { id?: string; url?: string } } }
-if (!mcp.ok || mcpBody.result?.structuredContent?.id !== movementResult.id) throw new Error('MCP retrieval disagreed with the HTTP API')
+const mcpBody = mcpReference.body
+if (!mcpReference.ok || mcpBody.result?.structuredContent?.id !== movementResult.id)
+  throw new Error('MCP retrieval disagreed with the HTTP API')
 if (mcpBody.result.structuredContent.url !== new URL(movementResult.url, base).href) {
   throw new Error('MCP retrieval omitted its absolute canonical citation')
 }
@@ -174,61 +179,25 @@ if (!packSearch.ok || !((await packSearch.json()) as { results?: unknown[] }).re
   throw new Error('mission-pack search filter returned no results')
 }
 
-const mcpMissionSearch = await request('/mcp', {
-  method: 'POST',
-  headers: {
-    Accept: 'application/json, text/event-stream',
-    'Content-Type': 'application/json',
-    'MCP-Protocol-Version': '2025-06-18',
-  },
-  body: JSON.stringify({
-    jsonrpc: '2.0',
-    id: 2,
-    method: 'tools/call',
-    params: { name: 'search_reference', arguments: { query: 'Force disposition mission matrix', kinds: ['mission'] } },
-  }),
-})
-const mcpMissionBody = (await mcpMissionSearch.json()) as {
+const mcpMissionSearch = await callTool<{
   result?: { structuredContent?: { results?: { id?: string; section?: { id?: string } }[] } }
+}>(2, 'search_reference', { query: 'Force disposition mission matrix', kinds: ['mission'] })
+const mcpMission = mcpMissionSearch.body.result?.structuredContent?.results?.[0]
+if (!mcpMissionSearch.ok || mcpMission?.id !== missionMatrix.id || mcpMission.section?.id !== 'matrix') {
+  throw new Error('MCP mission search disagreed with the HTTP API')
 }
 
-const mcpTools = await request('/mcp', {
-  method: 'POST',
-  headers: {
-    Accept: 'application/json, text/event-stream',
-    'Content-Type': 'application/json',
-    'MCP-Protocol-Version': '2025-06-18',
-  },
-  body: JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/list' }),
-})
-const mcpToolsBody = (await mcpTools.json()) as {
+const { body: mcpToolsBody } = await mcp<{
   result?: { tools?: { name?: string; annotations?: { readOnlyHint?: boolean }; outputSchema?: unknown }[] }
-}
+}>(3, 'tools/list')
 for (const name of ['list_reference', 'list_units', 'get_reference_record']) {
   const tool = mcpToolsBody.result?.tools?.find((candidate) => candidate.name === name)
   if (!tool?.annotations?.readOnlyHint || !tool.outputSchema) throw new Error(`MCP omitted the ${name} contract`)
 }
 
-const mcpUnits = await request('/mcp', {
-  method: 'POST',
-  headers: {
-    Accept: 'application/json, text/event-stream',
-    'Content-Type': 'application/json',
-    'MCP-Protocol-Version': '2025-06-18',
-  },
-  body: JSON.stringify({
-    jsonrpc: '2.0',
-    id: 4,
-    method: 'tools/call',
-    params: {
-      name: 'list_units',
-      arguments: { faction: detachmentFaction, battleSize: 2_000, detachment: detachmentSlug },
-    },
-  }),
-})
-const mcpUnitsBody = (await mcpUnits.json()) as {
+const { body: mcpUnitsBody } = await callTool<{
   result?: { structuredContent?: { detachment?: { name?: string }; units?: { costs?: unknown[] }[] } }
-}
+}>(4, 'list_units', { faction: detachmentFaction, battleSize: 2_000, detachment: detachmentSlug })
 if (
   mcpUnitsBody.result?.structuredContent?.detachment?.name !== detachment.title ||
   !mcpUnitsBody.result.structuredContent.units?.some((unit) => unit.costs?.length)
@@ -236,43 +205,17 @@ if (
   throw new Error('MCP bulk unit index disagreed with the HTTP API')
 }
 
-const mcpRecord = await request('/mcp', {
-  method: 'POST',
-  headers: {
-    Accept: 'application/json, text/event-stream',
-    'Content-Type': 'application/json',
-    'MCP-Protocol-Version': '2025-06-18',
-  },
-  body: JSON.stringify({
-    jsonrpc: '2.0',
-    id: 5,
-    method: 'tools/call',
-    params: { name: 'get_reference_record', arguments: { id: primaryMission.id } },
-  }),
-})
-const mcpRecordBody = (await mcpRecord.json()) as {
-  result?: { structuredContent?: { data?: { setups?: unknown[] } } }
-}
+const { body: mcpRecordBody } = await callTool<{ result?: { structuredContent?: { data?: { setups?: unknown[] } } } }>(
+  5,
+  'get_reference_record',
+  { id: primaryMission.id },
+)
 if (!mcpRecordBody.result?.structuredContent?.data?.setups?.length) {
   throw new Error('MCP structured mission omitted matchup setup references')
 }
 
 async function simulateCombat(id: number, attacker: object, defender: object) {
-  const response = await request('/mcp', {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json, text/event-stream',
-      'Content-Type': 'application/json',
-      'MCP-Protocol-Version': '2025-06-18',
-    },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id,
-      method: 'tools/call',
-      params: { name: 'simulate_combat', arguments: { attacker, defender } },
-    }),
-  })
-  return (await response.json()) as {
+  const { body } = await callTool<{
     result?: {
       isError?: boolean
       structuredContent?: {
@@ -282,7 +225,8 @@ async function simulateCombat(id: number, attacker: object, defender: object) {
         simulatorUrl?: string
       }
     }
-  }
+  }>(id, 'simulate_combat', { attacker, defender })
+  return body
 }
 const marines = { faction: 'space-marines' }
 const mcpCombat = await simulateCombat(7, { ...marines, unit: 'intercessor-squad' }, { ...marines, unit: 'terminator-squad' })
@@ -299,25 +243,9 @@ if (!mcpRefusal.result?.isError || !mcpRefusal.result.structuredContent?.refused
   throw new Error('MCP combat simulator did not refuse an unknown unit by name')
 }
 
-const mcpResources = await request('/mcp', {
-  method: 'POST',
-  headers: {
-    Accept: 'application/json, text/event-stream',
-    'Content-Type': 'application/json',
-    'MCP-Protocol-Version': '2025-06-18',
-  },
-  body: JSON.stringify({ jsonrpc: '2.0', id: 6, method: 'resources/list' }),
-})
-const mcpResourcesBody = (await mcpResources.json()) as { result?: { resources?: { uri?: string }[] } }
+const { body: mcpResourcesBody } = await mcp<{ result?: { resources?: { uri?: string }[] } }>(6, 'resources/list')
 if (!mcpResourcesBody.result?.resources?.some((resource) => resource.uri === 'praetorium://guide')) {
   throw new Error('MCP omitted the Praetorium guide resource')
-}
-if (
-  !mcpMissionSearch.ok ||
-  mcpMissionBody.result?.structuredContent?.results?.[0]?.id !== missionMatrix.id ||
-  mcpMissionBody.result.structuredContent.results[0]?.section?.id !== 'matrix'
-) {
-  throw new Error('MCP mission search disagreed with the HTTP API')
 }
 
 for (const result of [movementResult, datasheet, detachment, missionMatrix, primaryMission, secondary]) {

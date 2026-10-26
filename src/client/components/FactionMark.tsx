@@ -54,18 +54,15 @@ export type FactionPresentation = {
 }
 
 export function FactionMark({
-  id,
-  name,
-  edition,
-  icon,
+  faction,
+  edition = faction.edition,
   size = 'md',
 }: {
-  id: string
-  name?: string
+  faction: FactionPresentation
   edition?: FactionPresentation['edition']
-  icon: string | null
   size?: 'sm' | 'md' | 'lg'
 }) {
+  const { slug: id, displayName: name, icon } = faction
   const colour = factionColour(id, name)
   const mask = icon ? `url(${JSON.stringify(icon)})` : undefined
   const style = {
@@ -113,7 +110,7 @@ export function FactionLabel({
       className={`inline-flex min-w-0 items-center gap-1.5 ${chip ? 'chip' : ''}`}
       style={chip ? { borderColor: factionColour(faction.slug, faction.displayName) } : undefined}
     >
-      <FactionMark id={faction.slug} name={faction.displayName} edition={edition} icon={faction.icon} size="sm" />
+      <FactionMark faction={faction} edition={edition} size="sm" />
       <span className="truncate">{faction.displayName}</span>
     </span>
   )

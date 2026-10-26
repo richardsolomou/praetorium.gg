@@ -9,13 +9,16 @@ import {
   createBattle,
   createRoster,
   desktopContext,
-  PRACTICE_OPPONENT,
   signUp,
   startBattle,
   takeTheTurn,
   uniqueName,
+  expectNoPageOverflow,
+  practiceBattle,
+  chooseOption,
 } from './account'
-import { savedWork } from './storage'
+import { expectWorkSynced } from './storage'
+import { expectNoHorizontalOverflow } from './builder.harness'
 
 async function draw(page: Page, cards: string[]) {
   const prompt = page.getByRole('dialog', { name: /secondary missions$/ })
@@ -48,11 +51,8 @@ async function inspectChoices(page: Page, card: Locator, name: string, board = t
         }, name),
       )
       .toBeGreaterThanOrEqual(0)
-    expect(await page.evaluate(() => ({ width: innerWidth, fits: document.documentElement.scrollWidth <= innerWidth }))).toEqual({
-      width,
-      fits: true,
-    })
-    expect(await card.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+    await expectNoPageOverflow(page)
+    await expectNoHorizontalOverflow(card)
     if (width === 390 && board) {
       const box = (await record.boundingBox())!
       expect(box.y + box.height).toBeLessThan((await page.locator('[data-turn-control]').boundingBox())!.y)
@@ -145,13 +145,9 @@ test('source matchup nominations survive undo and reload', async ({ page, browse
   expect(lastGuardBox.y + lastGuardBox.height).toBeLessThanOrEqual((await footer.boundingBox())!.y)
   await guards.getByRole('button', { name: 'Record choice', exact: true }).click()
   await expect(advanceButton(page)).toBeEnabled()
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.reload()
-  for (const summary of await page
-    .locator('summary')
-    .filter({ hasText: /^Choices$/ })
-    .all())
-    if ((await summary.locator('..').getAttribute('open')) === null) await summary.click()
+  await openChoices(page)
   await expect(page.getByText('1 guard nomination', { exact: true })).toBeVisible()
   await expect(page.getByText('1 condemned unit · fallback', { exact: true })).toBeVisible()
   const hostSide = page.locator('[data-panel="player"][data-side="0"]')
@@ -172,9 +168,7 @@ test('a skipped choice leaves the turn free and stays on its card until recorded
   await signUp(page, uniqueName('Skipping captain'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Skipped choice roster' })
   await addUnit(page, 'Immortals')
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page, undefined, false)
   await draw(page, ['Burden Of Trust', 'Cleanse'])
   const guards = page.getByRole('dialog', { name: 'Burden Of Trust · choices', exact: true })
@@ -191,9 +185,7 @@ test('manual Beacon nomination persists and a destroyed Beacon cannot be replace
   await signUp(page, uniqueName('Beacon captain'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Beacon nomination roster' })
   await addUnit(page, 'Immortals')
-  await createBattle(page, { practice: true })
-  await attachRoster(page, roster)
-  await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, roster)
   await startBattle(page, undefined, false)
   await draw(page, ['Beacon', 'Cleanse'])
   const side = page.locator('[data-panel="player"][data-side="0"]')
@@ -201,12 +193,11 @@ test('manual Beacon nomination persists and a destroyed Beacon cannot be replace
   await side.getByRole('button', { name: 'Record Beacon', exact: true }).click()
   const nomination = page.getByRole('dialog', { name: 'Beacon · choices', exact: true })
   await expect(nomination).toContainText('Optional.')
-  await nomination.getByRole('combobox', { name: 'Beacon unit', exact: true }).click()
-  await page.getByRole('option', { name: / · Immortals$/ }).click()
+  await chooseOption(page, 'Beacon unit', / · Immortals$/)
   await nomination.getByLabel('Beacon table note').fill('Chosen at the table during the card’s timing.')
   await nomination.getByRole('button', { name: 'Record choice', exact: true }).click()
   await expect(nomination).toBeHidden()
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.reload()
   await side
     .locator('summary')
@@ -222,7 +213,7 @@ test('manual Beacon nomination persists and a destroyed Beacon cannot be replace
   await expect(side.getByRole('button', { name: 'Record Beacon', exact: true })).toHaveCount(0)
   await expect(beacon.getByText('Immortals (destroyed)', { exact: true })).toBeVisible()
   await inspectChoices(page, beacon, 'Beacon')
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.reload()
   await expect(side.getByRole('button', { name: 'Record Beacon', exact: true })).toHaveCount(0)
   await expect(side.locator('[data-stat="secondary"]')).toHaveText('0')
@@ -233,7 +224,7 @@ async function inspectDialog(page: Page, dialog: Locator) {
     await page.setViewportSize({ width, height: 900 })
     await expect(dialog).toBeVisible()
     if (width === 390) await expect.poll(async () => (await dialog.boundingBox())?.x).toBe(0)
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expectNoPageOverflow(page)
   }
   await page.setViewportSize({ width: 1440, height: 900 })
 }
@@ -256,9 +247,7 @@ test('Consecrate records end-of-turn objectives that stay consecrated into the n
   await addUnit(page, 'Immortals')
   const recon = await createRoster(page, { faction: 'Necrons', detachment: /Hypercrypt Legion/, name: 'Consecrate recon roster' })
   await addUnit(page, 'Immortals')
-  await createBattle(page, { practice: true })
-  await attachRoster(page, purge)
-  await attachRoster(page, recon, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, purge, { opponentRoster: recon })
   await startBattle(page, undefined, false)
   await draw(page, ['Cleanse', 'No Prisoners'])
   const consecrate = page.getByRole('dialog', { name: 'Consecrate · choices', exact: true })
@@ -279,7 +268,7 @@ test('Consecrate records end-of-turn objectives that stay consecrated into the n
   await record.click()
   await expect(consecrate).toBeHidden()
   await expect(advanceButton(page)).toBeEnabled()
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.reload()
   await openChoices(page)
   const card = primaryCard(page, 0)
@@ -316,9 +305,7 @@ test('Locate and Deny markers are placed before the first turn and an Extract Re
   await addUnit(page, 'Plague Marines')
   const assets = await createRoster(page, { faction: 'Necrons', detachment: /Cryptek Conclave/, name: 'Relic assets roster' })
   await addUnit(page, 'Immortals')
-  await createBattle(page, { practice: true })
-  await attachRoster(page, disruption)
-  await attachRoster(page, assets, { forPlayer: PRACTICE_OPPONENT })
+  await practiceBattle(page, disruption, { opponentRoster: assets })
   await startBattle(page, undefined, false)
   await draw(page, ['Cleanse', 'No Prisoners'])
   const locate = page.getByRole('dialog', { name: 'Locate and Deny · choices', exact: true })
@@ -343,8 +330,7 @@ test('Locate and Deny markers are placed before the first turn and an Extract Re
   const relic = primaryCard(page, 1)
   await relic.getByRole('button', { name: 'Record Sensor Sweep', exact: true }).click()
   const sweep = page.getByRole('dialog', { name: 'Extract Relic · choices', exact: true })
-  await sweep.getByRole('combobox', { name: 'Operation marker to remove', exact: true }).click()
-  await page.getByRole('option', { name: `${name} · Ruin B`, exact: true }).click()
+  await chooseOption(page, 'Operation marker to remove', `${name} · Ruin B`)
   await expect(sweep.getByRole('button', { name: 'Record choice', exact: true })).toBeDisabled()
   await sweep
     .getByRole('switch', { name: 'The sweeping unit started within range of a central objective and controls it at the end of my turn' })
@@ -353,7 +339,7 @@ test('Locate and Deny markers are placed before the first turn and an Extract Re
   await sweep.getByRole('button', { name: 'Record choice', exact: true }).click()
   await expect(sweep).toBeHidden()
   await expect(relic.getByRole('button', { name: 'Record Sensor Sweep', exact: true })).toHaveCount(0)
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.reload()
   await openChoices(page)
   const card = primaryCard(page, 0)

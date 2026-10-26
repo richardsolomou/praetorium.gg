@@ -1,7 +1,13 @@
 import { hash } from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import { type CatalogueHistoryEntry, catalogueHistorySchema, historyKey, updateAnchor } from '../core/catalogueHistory'
+import {
+  CATALOGUE_HISTORY_FORMAT,
+  type CatalogueHistoryEntry,
+  catalogueHistorySchema,
+  historyKey,
+  updateAnchor,
+} from '../core/catalogueHistory'
 import { compareText } from '../core/text'
 
 /** Where a catalogue directory carries its history, packed and hashed with everything else. */
@@ -36,6 +42,14 @@ export function parseCatalogueHistory(text: string, label: string): CatalogueHis
   return result.data.entries.toSorted(
     (left, right) => left.recordedAt - right.recordedAt || compareText(historyKey(left), historyKey(right)),
   )
+}
+
+/** Writes a history as `parseCatalogueHistory` reads it, refusing one an instance would refuse. */
+export function writeCatalogueHistory(file: string, entries: readonly CatalogueHistoryEntry[]) {
+  const json = JSON.stringify({ format: CATALOGUE_HISTORY_FORMAT, entries })
+  if (!parseCatalogueHistory(json, file)) throw new Error(`${file} exceeds the catalogue history schema or size limit`)
+  fs.mkdirSync(path.dirname(file), { recursive: true })
+  fs.writeFileSync(file, `${json}\n`)
 }
 
 /** The history a catalogue directory carries, or null when it carries none that validates. */

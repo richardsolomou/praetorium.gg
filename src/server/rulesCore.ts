@@ -5,6 +5,7 @@ import type { RuleDocument, RuleEntry, RuleIndex, RuleReference } from '../contr
 import { catalogueSources } from './catalogueSources'
 import { coreRulesFirst, ruleDocumentFrom, ruleOutline } from '../shared/ruleDocuments'
 import { readSharedJson } from './sharedJson'
+import { remember } from '../core/collections'
 
 export type {
   RuleBlock,
@@ -57,13 +58,7 @@ export function loadRuleDocuments(datacardsDirectory: string, origin: TextOrigin
  *
  * Built once per snapshot, because every rules page asks for it.
  */
-export function ruleIndexOf(documents: readonly RuleDocument[]): RuleIndex {
-  const cached = indexes.get(documents)
-  if (cached) return cached
-  const index = buildRuleIndex(documents)
-  indexes.set(documents, index)
-  return index
-}
+export const ruleIndexOf = (documents: readonly RuleDocument[]): RuleIndex => remember(indexes, documents, () => buildRuleIndex(documents))
 
 const indexes = new WeakMap<readonly RuleDocument[], RuleIndex>()
 

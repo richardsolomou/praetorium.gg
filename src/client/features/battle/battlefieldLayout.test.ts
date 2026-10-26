@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { TerrainLayout } from '../../../contracts/terrain'
-import { battlefieldLayout } from './battlefieldLayout'
+import { battleMatchupIds, battlefieldLayout } from './battlefieldLayout'
 
 const layout: TerrainLayout = {
   id: '329d6325-40a7-4bbb-9bed-565556ff8a98',
@@ -33,4 +33,16 @@ describe('saved battlefield layout', () => {
   it('leaves an ambiguous older layout unresolved', () => {
     expect(battlefieldLayout('bm-take-vs-recon-03', [layout, { ...layout, id: 'other-pack' }])).toBeNull()
   })
+})
+
+it('reads one disposition per side in a 2v1', () => {
+  const view = {
+    settings: { limit: 2000 },
+    players: [
+      { side: 0, disposition: 'take-and-hold' },
+      { side: 1, disposition: 'reconnaissance' },
+      { side: 1, disposition: 'reconnaissance' },
+    ],
+  }
+  expect(battleMatchupIds(view)).toEqual(['reconnaissance-vs-take-and-hold', 'take-and-hold-vs-reconnaissance'])
 })

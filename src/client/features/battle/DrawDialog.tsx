@@ -5,21 +5,19 @@ import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { nextDraw } from '../../scoring'
 import { type Side, sideName } from '../../sides'
-import { redrawOffer, type WhenDrawn } from './drawOffer'
+import type { WhenDrawn } from '../../../contracts/missions'
+import { redrawOffer } from './drawOffer'
 import { MissionDetailsDialog, MissionName, type MissionDetails, type ReferenceCard } from './MissionCards'
 import { CARD } from './battleTints'
-import { UndoLatestButton, UndoLatestConfirmation, useUndoLatest } from './UndoLatest'
+import { UndoLatest, type UndoTarget } from './UndoLatest'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { countLabel } from '../../text'
 import type { SendCommand } from './useCommand'
 
-export type { WhenDrawn } from './drawOffer'
-
 type Props = {
   side: Side
   round: number
-  undoable: number | null
-  confirmUndo: boolean
+  undo: UndoTarget
   pending: boolean
   send: SendCommand
   referenceFor: (key: string) => ReferenceCard | undefined
@@ -41,8 +39,7 @@ export type DrawSelection = { selecting: boolean; selected: string[] }
 export function DrawDialog({
   side,
   round,
-  undoable,
-  confirmUndo,
+  undo,
   pending,
   send,
   referenceFor,
@@ -63,8 +60,8 @@ export function DrawDialog({
    *
    * A hand keeps its unscored cards from turn to turn, so most turns open with cards
    * that were not drawn now — and a card may only be put back the moment it is drawn.
-   * Listing all of them as one deal said the turn had dealt four cards when it dealt
-   * two, and offered a card from two turns ago back to the deck.
+   * Listing all of them as one deal would say the turn dealt four cards when it dealt
+   * two, and offer a card from two turns ago back to the deck.
    */
   const dealtNow = new Set(side.secondariesToReview)
   const drawn = held.filter((card) => dealtNow.has(card.key))
@@ -77,7 +74,6 @@ export function DrawDialog({
   )
   const [inspected, setInspected] = useState<MissionDetails | null>(null)
   const needsDraw = owed > 0
-  const canUndo = undoable !== null
   const requiredReturn = drawn.some((card) => redrawOffer(whenDrawnFor(card.key), round, held)?.required)
   /**
    * What this prompt has already asked the deck for.
@@ -93,11 +89,10 @@ export function DrawDialog({
     onSelectionChange(next)
   }
   const resetForUndo = () => {
-    if (!confirmUndo) return
+    if (!undo.undoableDraw) return
     setPaused(true)
     recordSelection({ selecting: false, selected: [] })
   }
-  const undo = useUndoLatest({ undoable, undoableDraw: confirmUndo, send, beforeUndo: resetForUndo })
 
   // A refused ask — the hand filled from elsewhere before this one landed — never
   // appears in `side.secondaries`, so nothing about the view changes to prompt a
@@ -147,6 +142,10 @@ export function DrawDialog({
   const stillInDeck = selected.filter((key) => side.remainingSecondaries.some((card) => card.key === key))
   if (stillInDeck.length !== selected.length) setSelected(stillInDeck)
 
+  const cardName = (card: { key: string; name: string }) => (
+    <MissionName name={card.name} card={referenceFor(card.key)} type="Secondary mission" mode={side.secondaryMode} onRead={setInspected} />
+  )
+
   const toggleSelected = (key: string) =>
     recordSelection({
       selecting: true,
@@ -195,13 +194,7 @@ export function DrawDialog({
                         key={card.key}
                         className={`flex items-center justify-between gap-2 rounded-sm px-2.5 py-1.5 ${chosen ? 'bg-parchment/10' : 'bg-sunken'}`}
                       >
-                        <MissionName
-                          name={card.name}
-                          card={referenceFor(card.key)}
-                          type="Secondary mission"
-                          mode={side.secondaryMode}
-                          onRead={setInspected}
-                        />
+                        {cardName(card)}
                         <Button
                           variant="outline"
                           size="xs"
@@ -227,13 +220,7 @@ export function DrawDialog({
                 const offer = redrawOffer(rule, round, held)
                 return (
                   <div key={card.key} data-drawn={card.key} className={`${CARD} space-y-1.5`}>
-                    <MissionName
-                      name={card.name}
-                      card={referenceFor(card.key)}
-                      type="Secondary mission"
-                      mode={side.secondaryMode}
-                      onRead={setInspected}
-                    />
+                    {cardName(card)}
                     {offer ? (
                       <>
                         <p className="text-2xs text-dim">{offer.message}</p>
@@ -263,13 +250,7 @@ export function DrawDialog({
                 <p className="eyebrow pt-1">Still in hand</p>
                 {carried.map((card) => (
                   <div key={card.key} data-held={card.key} className={`${CARD} space-y-1.5`}>
-                    <MissionName
-                      name={card.name}
-                      card={referenceFor(card.key)}
-                      type="Secondary mission"
-                      mode={side.secondaryMode}
-                      onRead={setInspected}
-                    />
+                    {cardName(card)}
                   </div>
                 ))}
               </>
@@ -277,7 +258,7 @@ export function DrawDialog({
             {!selecting && !paused && needsDraw ? <p className="text-sm text-discarded">Drawing…</p> : null}
           </DialogBody>
           <DialogFooter>
-            <UndoLatestButton disabled={pending || !canUndo} onClick={undo.request} />
+            <UndoLatest undo={undo} send={send} pending={pending} beforeUndo={resetForUndo} />
             {selecting && needsDraw ? (
               <>
                 <Button
@@ -312,7 +293,6 @@ export function DrawDialog({
       </BattlePromptDialog>
       {/* Base UI treats nested dialogs as one dismissible region, so details must be a sibling. */}
       {inspected ? <MissionDetailsDialog details={inspected} onOpenChange={(open) => !open && setInspected(null)} /> : null}
-      <UndoLatestConfirmation pending={pending} control={undo} />
     </>
   )
 }

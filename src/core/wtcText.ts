@@ -1,5 +1,5 @@
 import { newRecruitUnits } from './newRecruit'
-import { plainQuotes } from './text'
+import { plainQuotes, printedNumber } from './text'
 import { attachGroups, type TextRoster, type TextRosterUnit, WTC_SECTION } from './textRoster'
 
 const compactHeader = /^(?:Char\d+:\s*)?\d+x\s+.+\(\d[\d,]*\s*pts?\)/i
@@ -32,7 +32,7 @@ export function fromWtcText(input: string): TextRoster | null {
   }
 
   const points = field('TOTAL ARMY POINTS')?.match(/^(\d[\d,]*)\s*pts?/i)?.[1]
-  const reportedPoints = points ? Number(points.replaceAll(',', '')) : undefined
+  const reportedPoints = points ? printedNumber(points) : undefined
   const size = battleSize(field('BATTLE SIZE'))
   const detachment = field('DETACHMENT')?.replace(/\s+\([^()]+\)\.?$/, '') ?? null
   const factionName = faction.split(' - ').at(-1)!.trim()
@@ -52,9 +52,9 @@ export function fromWtcText(input: string): TextRoster | null {
 /** "Strike Force (2000 point limit)", or "2000pts (Strike Force)", or "2000pts". */
 function battleSize(value: string | null) {
   const named = value?.match(/^(.+?)\s*\((\d[\d,]*) points? limit\)$/i)
-  if (named) return { name: named[1]!, limit: Number(named[2]!.replaceAll(',', '')) }
+  if (named) return { name: named[1]!, limit: printedNumber(named[2]!) }
   const numeric = value?.match(/^(\d[\d,]*)\s*pts(?:\s+\((.+)\))?$/i)
-  if (numeric) return { name: numeric[2], limit: Number(numeric[1]!.replaceAll(',', '')) }
+  if (numeric) return { name: numeric[2], limit: printedNumber(numeric[1]!) }
   return null
 }
 

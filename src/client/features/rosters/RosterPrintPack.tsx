@@ -1,11 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { attachedUnitList } from '../../../core/attachedUnits'
 import { ATTACHMENT_LABELS } from '../../../core/attachmentRows'
 import { rulesVersionLabel } from '../../../core/catalogueEdition'
 import { datasheetProfilesByKind } from '../../../core/datasheetStructure'
 import type { RosterPick } from '../../../core/roster'
+import { stratagemTiming } from '../../../core/reminders'
 import { nicknamedUnit } from '../../../core/unitNotes'
 import type { FormatRuleId, OptionalRuleId } from '../../../core/battle'
 import { pickedOptionalRules, pointsBudgetOf, waivedFormatRules } from '../../../core/battle'
@@ -19,6 +20,10 @@ import { ProfileRules } from './ProfileRules'
 import { normalisePicks } from './rosterPicks'
 import { countLabel } from '../../text'
 import { unitKeywordsText } from '../../components/Keyword'
+import { usePrintWhenReady } from './usePrintWhenReady'
+import { chunks } from '../../../core/collections'
+import { hasWarlordToggle } from '../../../core/unitChoices'
+import { factionDisposition } from '../../components/rosterSetup'
 
 type Price = NonNullable<Awaited<ReturnType<typeof priceRoster>>>
 
@@ -41,7 +46,6 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
   const client = useQueryClient()
   const picks = useMemo(() => normalisePicks(input.picks), [input.picks])
   const title = (unit: { key: number; name: string }) => nicknamedUnit(unit.name, input.picks[unit.key]?.nickname)
-  const printed = useRef(false)
   const { data, isError, refetch } = useQuery({
     queryKey: ['roster-print-pack', input],
     retry: false,
@@ -68,10 +72,10 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
       if (!cards) throw new Error('The stratagem reference is unavailable.')
       const units = []
       // A full army's contextual reads are expensive; keep at most three in flight.
-      for (let start = 0; start < input.price.units.length; start += 3) {
+      for (const chunk of chunks(input.price.units, 3)) {
         signal.throwIfAborted()
         const batch = await Promise.all(
-          input.price.units.slice(start, start + 3).map(async (unit) => {
+          chunk.map(async (unit) => {
             const pick = input.picks[unit.key]
             const sheets = await client.query({
               ...loadoutDatasheetsQuery(pick?.catalogueId ?? input.catalogueId, unit.entryId, input.detachmentIds, picks, unit.key),
@@ -105,18 +109,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
     },
   })
 
-  useEffect(() => {
-    if (!data || printed.current) return
-    let cancelled = false
-    void document.fonts.ready.then(() => {
-      if (cancelled) return
-      printed.current = true
-      window.print()
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [data])
+  usePrintWhenReady(Boolean(data))
 
   if (!data)
     return (
@@ -214,12 +207,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
               .join(' · ')}
           </p>
           {input.price.disposition ? (
-            <p>
-              Force disposition:{' '}
-              {data.faction.detachments
-                .flatMap((detachment) => detachment.dispositions)
-                .find((disposition) => disposition.id === input.price.disposition)?.name ?? input.price.disposition}
-            </p>
+            <p>Force disposition: {factionDisposition(data.faction, input.price.disposition)?.name ?? input.price.disposition}</p>
           ) : null}
           <ol>
             {data.groups.map(({ host, joined }, index) => (
@@ -229,7 +217,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
                   {[host, ...joined]
                     .map(
                       (unit) =>
-                        `${title(unit)} (${countLabel(unit.size.models, 'model')}, ${unit.points} pts)${unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected) ? ', Warlord' : ''}`,
+                        `${title(unit)} (${countLabel(unit.size.models, 'model')}, ${unit.points} pts)${hasWarlordToggle(unit.toggles) ? ', Warlord' : ''}`,
                     )
                     .join(' + ')}
                 </a>
@@ -247,7 +235,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
               <div key={unit.key} data-print-datasheet={unit.name}>
                 <h3>
                   {title(unit)} · {countLabel(unit.size.models, 'model')} · {unit.points} pts
-                  {unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected) ? ' · Warlord' : ''}
+                  {hasWarlordToggle(unit.toggles) ? ' · Warlord' : ''}
                 </h3>
                 {input.picks[unit.key]?.note ? (
                   <p className="ph-no-capture whitespace-pre-line" data-print-note>
@@ -349,19 +337,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
                 <h3>
                   {stratagem.name} · {stratagem.cp} CP
                 </h3>
-                <p>
-                  {[
-                    stratagem.detachment,
-                    written?.type,
-                    stratagem.phases?.length
-                      ? `${stratagem.phases.map((phase) => phase[0]!.toUpperCase() + phase.slice(1)).join(', ')} phase`
-                      : 'Any phase',
-                    stratagem.turn === 'your-turn' ? 'Your turn' : stratagem.turn === 'opponent-turn' ? 'Opponent’s turn' : 'Either turn',
-                    stratagem.limit === 'unlimited' ? 'No use limit' : `Once per ${stratagem.limit.replace('-', ' ')}`,
-                  ]
-                    .filter(Boolean)
-                    .join(' · ')}
-                </p>
+                <p>{[stratagem.detachment, written?.type, ...stratagemTiming(stratagem)].filter(Boolean).join(' · ')}</p>
                 {written?.description ? <RuleText text={written.description} /> : <p>No description is available.</p>}
               </section>
             )

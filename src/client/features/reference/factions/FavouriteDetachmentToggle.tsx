@@ -1,4 +1,5 @@
-import { favouriteDetachmentKey, useFavouriteDetachments } from '../../../favouriteDetachments'
+import { favouriteDetachmentKey } from '../../../../core/favouriteDetachments'
+import { useFavouriteDetachments } from '../../../favouriteDetachments'
 import { FavouriteToggle } from './FavouriteToggle'
 
 /** The account-backed favourite action shared by every detachment surface. */

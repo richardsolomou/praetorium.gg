@@ -18,8 +18,6 @@ import type { MissionAction } from '../../../contracts/missions'
 import type { MissionAward as Award } from '../../missionText'
 import { countLabel } from '../../text'
 
-export type { MissionAward as Award } from '../../missionText'
-
 /** A card, and the action it names, because the reader prints both. */
 export type ReferenceCard = ComponentProps<typeof MissionCardReference>['card'] & { actions: MissionAction[] }
 export type MissionDetails = { name: string; card: ReferenceCard; type: string; mode?: string }

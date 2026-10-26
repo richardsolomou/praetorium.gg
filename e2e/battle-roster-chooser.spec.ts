@@ -1,5 +1,31 @@
 import { expect, test, type Page } from './test'
-import { createBattle, PRACTICE_OPPONENT, retryUntilVisible, savedArmy, setupStep } from './account'
+import {
+  createBattle,
+  PRACTICE_OPPONENT,
+  retryUntilVisible,
+  savedArmy,
+  setupStep,
+  chooseRosterAction,
+  chooseOption,
+  PHONE,
+} from './account'
+import type { SpacetimeOperator } from '../src/server/spacetimeOperator'
+
+/** A practice battle at 2,000 points, opened straight in the product, and its token. */
+async function strikeForceBattle(operator: SpacetimeOperator, userId: string, prefix: string) {
+  const token = `${prefix}-${crypto.randomUUID()}`
+  await operator.createBattle({
+    id: token,
+    token,
+    userId,
+    opponentIds: (await operator.practiceOpponentIds()).slice(0, 1),
+    now: Date.now(),
+    initialCommands: [
+      { kind: 'configure-battle', limit: 2000, missionPackId: null, terrainLayoutId: null, twistId: null, clockLimitMinutes: null },
+    ],
+  })
+  return token
+}
 
 const openChooser = async (page: Page) => {
   await setupStep(page, 'Armies')
@@ -16,22 +42,7 @@ const openChooser = async (page: Page) => {
 test('a roster chooser with no list for the battle size hands over to the battle size control', async ({ page }) => {
   const name = 'Incursion army'
   const { userId, operator } = await savedArmy(page, 'Roster chooser', { name, limit: 1000, pointsBudget: null })
-  const token = `chooser-size-${crypto.randomUUID()}`
-  await operator.createBattle({
-    id: token,
-    token,
-    userId,
-    opponentIds: (await operator.practiceOpponentIds()).slice(0, 1),
-    now: Date.now(),
-    initialCommand: {
-      kind: 'configure-battle',
-      limit: 2000,
-      missionPackId: null,
-      terrainLayoutId: null,
-      twistId: null,
-      clockLimitMinutes: null,
-    },
-  })
+  const token = await strikeForceBattle(operator, userId, 'chooser-size')
   await page.goto(`/battles/${token}`)
 
   const chooser = await openChooser(page)
@@ -41,8 +52,7 @@ test('a roster chooser with no list for the battle size hands over to the battle
   const size = page.getByRole('combobox', { name: 'Battle size' })
   await expect(size).toBeFocused()
 
-  await size.click()
-  await page.getByRole('option', { name: /Incursion/ }).click()
+  await chooseOption(page, 'Battle size', /Incursion/)
   await expect(size).toContainText('Incursion')
   const again = await openChooser(page)
   await expect(again.locator(`[data-roster="${name}"]`)).toBeVisible()
@@ -82,11 +92,9 @@ test('a battle started from a saved roster opens with that roster on the playerâ
   await page.waitForLoadState('networkidle')
   const dialog = page.getByRole('dialog', { name: 'Start a battle' })
   await retryUntilVisible(dialog, async () => {
-    await page.getByRole('button', { name: 'Roster actions' }).click()
-    await page.getByRole('menuitem', { name: 'Start a battle' }).click()
+    await chooseRosterAction(page, 'Start a battle')
   })
-  await dialog.getByRole('combobox', { name: 'Opponent' }).click()
-  await page.getByRole('option', { name: PRACTICE_OPPONENT, exact: true }).click()
+  await chooseOption(page, 'Opponent', PRACTICE_OPPONENT)
   await dialog.getByRole('button', { name: 'Start battle' }).click()
   await page.waitForURL(/\/battles\/[^/]+$/)
 
@@ -100,24 +108,9 @@ test('a battle started from a saved roster opens with that roster on the playerâ
 
 /** Opens a battle on a phone, one history entry after another page, with one saved list for the battle size. */
 const phoneBattle = async (page: Page, name: string, pointsBudget: number | null = null) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   const { userId, operator } = await savedArmy(page, 'Roster chooser back', { name, limit: 2000, pointsBudget })
-  const token = `chooser-back-${crypto.randomUUID()}`
-  await operator.createBattle({
-    id: token,
-    token,
-    userId,
-    opponentIds: (await operator.practiceOpponentIds()).slice(0, 1),
-    now: Date.now(),
-    initialCommand: {
-      kind: 'configure-battle',
-      limit: 2000,
-      missionPackId: null,
-      terrainLayoutId: null,
-      twistId: null,
-      clockLimitMinutes: null,
-    },
-  })
+  const token = await strikeForceBattle(operator, userId, 'chooser-back')
   await page.goto('/support')
   await page.goto(`/battles/${token}`)
   return new RegExp(`/battles/${token}$`)

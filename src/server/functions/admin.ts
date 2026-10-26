@@ -38,13 +38,13 @@ export const setAdminRole = createServerFn({ method: 'POST' })
   .validator(setAdminRoleSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const current = await requireAdmin()
-      const result = await app().auth.changeUserRole(current.id, data.userId, data.role)
+      const adminId = await requireAdmin()
+      const result = await app().auth.changeUserRole(adminId, data.userId, data.role)
       if (result === 'forbidden') throw new Response('admin access required', { status: 403 })
       if (result === 'self') throw new Response('you cannot change your own administrator role', { status: 409 })
       if (result === 'last-admin') throw new Response('at least one administrator must remain', { status: 409 })
       found(result !== 'missing')
-      await track(current.id, 'role-changed')
+      await track(adminId, 'role-changed')
       return null
     }),
   )
@@ -53,13 +53,13 @@ export const deleteUserAsAdmin = createServerFn({ method: 'POST' })
   .validator(userSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const current = await requireAdmin()
-      const result = await app().auth.deleteUserAsAdmin(current.id, data.userId)
+      const adminId = await requireAdmin()
+      const result = await app().auth.deleteUserAsAdmin(adminId, data.userId)
       if (result === 'forbidden') throw new Response('admin access required', { status: 403 })
       if (result === 'self') throw new Response('delete your own account from your profile', { status: 409 })
       if (result === 'admin') throw new Response('remove the administrator role before deleting the account', { status: 409 })
       found(result !== 'missing')
-      await track(current.id, 'user-deleted')
+      await track(adminId, 'user-deleted')
       return null
     }),
   )
@@ -77,9 +77,9 @@ export const revokeSessionAsAdmin = createServerFn({ method: 'POST' })
   .validator(adminSessionSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const current = await requireAdmin()
+      const adminId = await requireAdmin()
       found(await app().auth.revokeUserSession(data.userId, data.sessionId), 'that session has already ended')
-      await track(current.id, 'session-revoked')
+      await track(adminId, 'session-revoked')
       return null
     }),
   )
@@ -88,9 +88,9 @@ export const revokeSessionsAsAdmin = createServerFn({ method: 'POST' })
   .validator(userSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const current = await requireAdmin()
+      const adminId = await requireAdmin()
       await app().auth.revokeAllUserSessions(data.userId)
-      await track(current.id, 'sessions-revoked')
+      await track(adminId, 'sessions-revoked')
       return null
     }),
   )
@@ -99,11 +99,11 @@ export const renameUserAsAdmin = createServerFn({ method: 'POST' })
   .validator(adminRenameSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const current = await requireAdmin()
+      const adminId = await requireAdmin()
       found(await app().service.userById(data.userId))
       const result = await app().auth.moderateProfile(data.userId, { name: data.name })
       if (!result.ok) throw new Response(result.error, { status: 400 })
-      await track(current.id, 'profile-renamed')
+      await track(adminId, 'profile-renamed')
       return null
     }),
   )
@@ -112,10 +112,10 @@ export const removeUserImageAsAdmin = createServerFn({ method: 'POST' })
   .validator(userSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const current = await requireAdmin()
+      const adminId = await requireAdmin()
       const result = await app().auth.moderateProfile(data.userId, { image: null })
       if (!result.ok) throw new Response(result.error, { status: 404 })
-      await track(current.id, 'profile-image-removed')
+      await track(adminId, 'profile-image-removed')
       return null
     }),
   )
@@ -124,9 +124,9 @@ export const markEmailVerifiedAsAdmin = createServerFn({ method: 'POST' })
   .validator(userSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const current = await requireAdmin()
+      const adminId = await requireAdmin()
       found(await app().auth.markEmailVerified(data.userId))
-      await track(current.id, 'email-verified')
+      await track(adminId, 'email-verified')
       return null
     }),
   )
@@ -135,10 +135,10 @@ export const sendVerificationEmailAsAdmin = createServerFn({ method: 'POST' })
   .validator(userSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const current = await requireAdmin()
+      const adminId = await requireAdmin()
       if (!app().email) throw new Response('this instance does not send email', { status: 409 })
       found(await app().auth.sendVerificationEmailTo(data.userId))
-      await track(current.id, 'verification-sent')
+      await track(adminId, 'verification-sent')
       return null
     }),
   )
@@ -147,10 +147,10 @@ export const sendPasswordResetAsAdmin = createServerFn({ method: 'POST' })
   .validator(userSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const current = await requireAdmin()
+      const adminId = await requireAdmin()
       if (!app().email) throw new Response('this instance does not send email', { status: 409 })
       found(await app().auth.sendPasswordResetTo(data.userId))
-      await track(current.id, 'password-reset-sent')
+      await track(adminId, 'password-reset-sent')
       return null
     }),
   )
@@ -159,13 +159,13 @@ export const unlinkSignInMethodAsAdmin = createServerFn({ method: 'POST' })
   .validator(adminUnlinkSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const current = await requireAdmin()
+      const adminId = await requireAdmin()
       const status = await unlinkSignInMethod(data.userId, data.provider)
       found(status !== 'missing', 'that sign-in method is not linked')
       if (status === 'two-factor')
         throw new Response('the player must turn off two-factor before their password is removed', { status: 409 })
       if (status === 'last-method') throw new Response('another available sign-in method must stay linked', { status: 409 })
-      await track(current.id, 'sign-in-method-unlinked')
+      await track(adminId, 'sign-in-method-unlinked')
       return null
     }),
   )
@@ -183,9 +183,9 @@ export const revokeConnectionAsAdmin = createServerFn({ method: 'POST' })
   .validator(adminConnectionSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const current = await requireAdmin()
+      const adminId = await requireAdmin()
       await app().auth.revokeMcpConsent(data.userId, data.connectionId)
-      await track(current.id, 'connection-revoked')
+      await track(adminId, 'connection-revoked')
       return null
     }),
   )
@@ -203,9 +203,9 @@ export const deleteBattleAsAdmin = createServerFn({ method: 'POST' })
   .validator(adminBattleSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const current = await requireAdmin()
+      const adminId = await requireAdmin()
       found(await app().service.deleteBattleAsAdmin(data.battle), 'that battle does not exist')
-      await track(current.id, 'battle-deleted')
+      await track(adminId, 'battle-deleted')
       return null
     }),
   )
@@ -244,9 +244,9 @@ export const keepCollectionPhotoAsAdmin = createServerFn({ method: 'POST' })
   .validator(collectionPhotoIdSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const current = await requireAdmin()
+      const adminId = await requireAdmin()
       await app().collectionPhotos.keep(data.photoId)
-      await track(current.id, 'collection-photo-kept')
+      await track(adminId, 'collection-photo-kept')
       return null
     }),
   )
@@ -255,9 +255,9 @@ export const removeCollectionPhotoAsAdmin = createServerFn({ method: 'POST' })
   .validator(collectionPhotoIdSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const current = await requireAdmin()
+      const adminId = await requireAdmin()
       await app().collectionPhotos.removeById(data.photoId)
-      await track(current.id, 'collection-photo-removed')
+      await track(adminId, 'collection-photo-removed')
       return null
     }),
   )

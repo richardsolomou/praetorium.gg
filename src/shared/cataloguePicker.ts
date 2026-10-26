@@ -1,4 +1,4 @@
-import { cachedIn } from '../core/collections'
+import { cachedIn, remember } from '../core/collections'
 import { type CatalogueIndex, type Definition, nameOf, targetOf } from '../core/catalogue'
 import { formatDatasheetLimit, isKotcLimit, kotcDatasheetRepeatable, kotcUnitExclusions } from '../core/battle'
 import {
@@ -33,12 +33,7 @@ const unitSummaryCache = new WeakMap<LoadedCatalogue, Map<string, Stepwise<UnitS
 const restrictionsKeys = new WeakMap<FactionRestrictions, string>()
 let nextRestrictionsKey = 0
 function restrictionsKey(restrictions: FactionRestrictions | undefined) {
-  if (!restrictions) return 'none'
-  const existing = restrictionsKeys.get(restrictions)
-  if (existing) return existing
-  const key = `r${++nextRestrictionsKey}`
-  restrictionsKeys.set(restrictions, key)
-  return key
+  return restrictions ? remember(restrictionsKeys, restrictions, () => `r${++nextRestrictionsKey}`) : 'none'
 }
 
 const GROUP_BY_CATEGORY = new Map<string, UnitGroup>([
@@ -81,7 +76,7 @@ function groupOf(entry: Definition, target: Definition): UnitGroup {
   return 'other'
 }
 
-export const shelfOfCategory = (name: string | undefined) => GROUP_BY_CATEGORY.get((name ?? '').trim().toLowerCase())
+const shelfOfCategory = (name: string | undefined) => GROUP_BY_CATEGORY.get((name ?? '').trim().toLowerCase())
 
 /** The same shelf by entry id, so a roster and the picker cannot sort a unit differently. */
 export function groupOfEntry(index: CatalogueIndex, entryId: string): UnitGroup {
@@ -94,7 +89,7 @@ export const shelfIn = (index: CatalogueIndex, entryId: string, primaries: reado
   primaries.map((id) => shelfOfCategory(index.categories.get(id)?.name)).find(Boolean) ?? groupOfEntry(index, entryId)
 
 /** A datasheet's keywords and shelf as one more copy of it in the roster would have them, which its detachments can change. */
-export function listedUnitFacts(loaded: LoadedCatalogue, catalogueId: string, entryId: string, roster: readonly Selection[]) {
+function listedUnitFacts(loaded: LoadedCatalogue, catalogueId: string, entryId: string, roster: readonly Selection[]) {
   const selection = defaultSelection(entryId, loaded.index, { primaryCatalogueId: catalogueId })
   if (!selection) return null
   const held = keywordsBySelection([...roster, selection], loaded.index, { primaryCatalogueId: catalogueId }).at(-1)!
@@ -123,7 +118,9 @@ export function detachmentUnitFacts(loaded: LoadedCatalogue, catalogueId: string
  * page that silently ends at the letter I.
  */
 export function unitsIn(loaded: LoadedCatalogue, catalogueId: string, query: string, options: UnitListOptions = {}): UnitSummary[] {
-  return searchUnits(loaded, catalogueId, query.trim().toLowerCase(), unitSummaries(loaded, catalogueId, options).get())
+  return searchDatasheetEntries(unitSummaries(loaded, catalogueId, options).get(), query.trim().toLowerCase(), (unit) =>
+    datasheetSearchFieldsIn(loaded, catalogueId, unit.id),
+  )
 }
 
 type UnitListOptions = {
@@ -293,10 +290,6 @@ function* summarizeUnits(
   return summaries
 }
 
-function searchUnits(loaded: LoadedCatalogue, catalogueId: string, query: string, units: UnitSummary[]) {
-  return searchDatasheetEntries(units, query, (unit) => datasheetSearchFieldsIn(loaded, catalogueId, unit.id))
-}
-
 /**
  * How many of one datasheet the roster may hold, or null when nothing limits it.
  *
@@ -323,8 +316,7 @@ export function contextualUnitLimit(
 ) {
   const entry = loaded.index.definitions.get(entryId)
   if (!entry) return 0
-  let modifierCache = modifierCaches.get(loaded)
-  if (!modifierCache) modifierCaches.set(loaded, (modifierCache = new WeakMap()))
+  const modifierCache = remember(modifierCaches, loaded, () => new WeakMap())
   const limit = rosterLimit(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster, modifierCache })
   if (!isKotcLimit(battleSize)) return limit
   const listed = listedUnitFacts(loaded, catalogueId, entryId, roster)

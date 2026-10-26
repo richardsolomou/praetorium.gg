@@ -1,45 +1,33 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import {
-  Check,
-  Clipboard,
-  EllipsisVertical,
-  Eye,
-  FileLock2,
-  LockKeyhole,
-  LogOut,
-  Pencil,
-  Plus,
-  Share2,
-  Swords,
-  Trash2,
-  UserPlus,
-  X,
-} from 'lucide-react'
+import { Check, Clipboard, EllipsisVertical, FileLock2, LogOut, Pencil, Plus, Share2, Trash2, UserPlus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { buttonClass } from '../../components/buttonClass'
+import { BattleChooserDialog } from '../../components/BattleChooserDialog'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
-import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Label } from '@/components/ui/label'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
 import { createBattle, deleteClub, joinClub, leaveClub, moderateClubMember, removeClubMember } from '../../functions'
-import { battlesQuery, clubQuery, clubStandingsQuery, gameReferencesQuery, meQuery } from '../../queries'
+import { clubQuery, clubStandingsQuery, meQuery } from '../../queries'
+import { useStartBattle } from '../battles/useStartBattle'
 import { BattleShelf } from '../battles/BattleShelf'
 import { useInviteShareLabel } from '../friends/friendInvite'
 import { Standings } from '../leaderboard/Standings'
 import { inviteFeedbackText, useInviteShare } from '../leagues/LeagueActions'
-import { SectionHeading } from '../leagues/LeagueEntrants'
+import { SectionHeading } from '../../components/SectionHeading'
+import { accessSummary, OrganizerLinks, VisibilityIcon } from '../leagues/EventAccess'
 import { LeagueSettingsDialog } from '../leagues/LeagueSettingsDialog'
 import { useClubRefresh, type Club } from './club'
 import { ClubSettingsDialog } from './ClubSettingsDialog'
 import { ClubSealedGame } from './ClubSealedGame'
 import { clubGameOpen } from '../../../core/club'
 import { useNow } from '../../useNow'
+import { countLabel } from '../../text'
 
 type Member = Club['members'][number]
 type ClubTable = NonNullable<Awaited<ReturnType<NonNullable<ReturnType<typeof clubStandingsQuery>['queryFn']>>>>
@@ -121,25 +109,17 @@ function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: strin
         }
       >
         <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-dim">
-          {club.visibility === 'private' ? <LockKeyhole className="size-3.5" aria-hidden /> : <Eye className="size-3.5" aria-hidden />}
-          {accepted.length === 1 ? '1 member' : `${accepted.length} members`} · {club.visibility === 'private' ? 'Private link' : 'Public'}{' '}
-          · {club.admission === 'approval' ? 'Approval required' : 'Anyone can join'}
+          <VisibilityIcon visibility={club.visibility} />
+          {countLabel(accepted.length, 'member')} · {accessSummary(club.visibility, club.admission)}
         </p>
         {club.description ? <p className="mt-3 max-w-2xl font-rules text-sm whitespace-pre-wrap text-dim">{club.description}</p> : null}
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-dim">
-          <span>Run by</span>
-          {[{ userId: club.ownerId, name: club.ownerName, image: club.ownerImage }, ...admins].map((organizer) => (
-            <Link
-              key={organizer.userId}
-              to="/users/$userId"
-              params={{ userId: organizer.userId }}
-              className="group flex w-fit items-center gap-2"
-            >
-              <PlayerAvatar name={organizer.name} image={organizer.image} className="size-7 text-3xs" />
-              <span className="text-bone group-hover:underline">{organizer.name}</span>
-            </Link>
-          ))}
-        </div>
+        <OrganizerLinks
+          title="Run by"
+          organizers={[
+            { id: club.ownerId, name: club.ownerName, image: club.ownerImage },
+            ...admins.map(({ userId, name, image }) => ({ id: userId, name, image })),
+          ]}
+        />
         {invite.feedback ? (
           <p aria-live="polite" className="mt-2 text-xs text-dim">
             {inviteFeedbackText(invite.feedback)}
@@ -196,17 +176,11 @@ function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: strin
 
 /** Starts a battle against a member, counted for the club from the start, and opens it. */
 function usePlayClubGame(token: string) {
-  const queryClient = useQueryClient()
-  const navigate = useNavigate()
+  const { defaultMissionPackId, openBattle } = useStartBattle()
   return useMutation({
-    mutationFn: async (opponentId: string) => {
-      const references = await queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' })
-      return createBattle({ data: { opponentId, clubToken: token, missionPackId: references?.packs[0]?.id ?? null } })
-    },
-    onSuccess: async ({ token: battleToken }) => {
-      await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
-      await navigate({ to: '/battles/$token', params: { token: battleToken } })
-    },
+    mutationFn: async (opponentId: string) =>
+      createBattle({ data: { opponentId, clubToken: token, missionPackId: await defaultMissionPackId() } }),
+    onSuccess: ({ token: battleToken }) => openBattle(battleToken),
   })
 }
 
@@ -222,67 +196,60 @@ function NewGame({ club, viewerId }: { club: Club; viewerId: string }) {
       <Button onClick={() => (play.reset(), setCreating('battle'))}>
         <Plus /> New game
       </Button>
-      <Dialog open={creating === 'battle'} onOpenChange={(open) => !play.isPending && !open && setCreating(null)}>
-        <DialogContent showCloseButton={!play.isPending} fit>
-          <DialogHeader>
-            <DialogTitle>New game</DialogTitle>
-            <DialogDescription>Play another member for the club leaderboard.</DialogDescription>
-          </DialogHeader>
-          <DialogBody>
-            {opponents.length ? (
-              <div className="space-y-1.5">
-                <Label htmlFor="club-game-opponent">Opponent</Label>
-                <Select value={chosen?.userId ?? ''} onValueChange={(id) => id && setOpponentId(id)} disabled={play.isPending}>
-                  <SelectTrigger id="club-game-opponent" aria-label="Opponent" className="w-full">
-                    <SelectValue className="min-w-0">
-                      {() =>
-                        chosen ? (
-                          <>
-                            <PlayerAvatar name={chosen.name} image={chosen.image} className="size-6 text-3xs" />
-                            <span className="truncate">{chosen.name}</span>
-                          </>
-                        ) : (
-                          'Choose an opponent'
-                        )
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {opponents.map((member) => (
-                      <SelectItem key={member.userId} value={member.userId} label={member.name}>
-                        <span className="flex min-w-0 items-center gap-2">
-                          <PlayerAvatar name={member.name} image={member.image} className="size-6 text-3xs" />
-                          <span className="truncate">{member.name}</span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-sm text-dim">Each of you picks a list at setup.</p>
-              </div>
-            ) : (
-              <p className="text-sm text-dim">Nobody else is in the club yet. Copy the invite link to bring people in.</p>
-            )}
-            {club.organizer ? (
-              <div className="space-y-2 border-t border-edge pt-4">
-                <Button variant="outline" disabled={play.isPending} onClick={() => setCreating('sealed')}>
-                  <FileLock2 /> New sealed game
-                </Button>
-                <p className="text-sm text-dim">Seal lists in secret and reveal them together before playing.</p>
-              </div>
-            ) : null}
-            {play.error ? <Problem error={play.error} /> : null}
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="outline" disabled={play.isPending} onClick={() => setCreating(null)}>
-              Cancel
+      <BattleChooserDialog
+        open={creating === 'battle'}
+        title="New game"
+        description="Play another member for the club leaderboard."
+        pending={play.isPending}
+        error={play.error}
+        ready={Boolean(chosen)}
+        fit
+        onClose={() => setCreating(null)}
+        onStart={() => chosen && play.mutate(chosen.userId)}
+      >
+        {opponents.length ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="club-game-opponent">Opponent</Label>
+            <Select value={chosen?.userId ?? ''} onValueChange={(id) => id && setOpponentId(id)} disabled={play.isPending}>
+              <SelectTrigger id="club-game-opponent" aria-label="Opponent" className="w-full">
+                <SelectValue className="min-w-0">
+                  {() =>
+                    chosen ? (
+                      <>
+                        <PlayerAvatar name={chosen.name} image={chosen.image} className="size-6 text-3xs" />
+                        <span className="truncate">{chosen.name}</span>
+                      </>
+                    ) : (
+                      'Choose an opponent'
+                    )
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {opponents.map((member) => (
+                  <SelectItem key={member.userId} value={member.userId} label={member.name}>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <PlayerAvatar name={member.name} image={member.image} className="size-6 text-3xs" />
+                      <span className="truncate">{member.name}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-dim">Each of you picks a list at setup.</p>
+          </div>
+        ) : (
+          <p className="text-sm text-dim">Nobody else is in the club yet. Copy the invite link to bring people in.</p>
+        )}
+        {club.organizer ? (
+          <div className="space-y-2 border-t border-edge pt-4">
+            <Button variant="outline" disabled={play.isPending} onClick={() => setCreating('sealed')}>
+              <FileLock2 /> New sealed game
             </Button>
-            <Button disabled={!chosen || play.isPending} onClick={() => chosen && play.mutate(chosen.userId)}>
-              <Swords /> {play.isPending ? 'Starting…' : 'Start battle'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <p className="text-sm text-dim">Seal lists in secret and reveal them together before playing.</p>
+          </div>
+        ) : null}
+      </BattleChooserDialog>
       {club.organizer ? (
         <LeagueSettingsDialog
           mode={{ kind: 'create', clubToken: club.token }}

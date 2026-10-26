@@ -1,4 +1,5 @@
 import type { NativeAuthProof } from './nativeAuth'
+import { PKCE_VALUE } from '../../src/contracts/nativeAuth'
 
 const PROVIDER_AUTH_MILLISECONDS = 15 * 60 * 1000
 const EXCHANGE_MILLISECONDS = 3 * 60 * 1000
@@ -19,9 +20,9 @@ export function parsePendingNativeAuth(value: string | null, now = Date.now()): 
     const parsed = JSON.parse(value) as Record<string, unknown>
     if (
       typeof parsed.challenge !== 'string' ||
-      !/^[\w-]{43}$/.test(parsed.challenge) ||
+      !PKCE_VALUE.test(parsed.challenge) ||
       typeof parsed.verifier !== 'string' ||
-      !/^[\w-]{43}$/.test(parsed.verifier) ||
+      !PKCE_VALUE.test(parsed.verifier) ||
       typeof parsed.expiresAt !== 'number' ||
       parsed.expiresAt <= now ||
       (parsed.callbackUrl !== undefined && typeof parsed.callbackUrl !== 'string')

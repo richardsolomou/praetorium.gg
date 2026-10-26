@@ -17,6 +17,4 @@ export const shareLeagueRosterSchema = leagueEventSchema.extend({
   rosterId: z.string().min(1).max(128),
 })
 
-export const dismissLeagueRosterSharingSchema = leagueEventSchema
-
 export type LeagueRosterSharing = z.infer<typeof leagueRosterSharingSchema>

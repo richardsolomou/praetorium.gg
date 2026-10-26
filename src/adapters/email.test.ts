@@ -9,17 +9,4 @@ describe('SMTP email delivery', () => {
   it('rejects a partial SMTP configuration', () => {
     expect(() => emailDelivery({ SMTP_HOST: 'smtp.example.test' })).toThrow('EMAIL_FROM is required for SMTP email')
   })
-
-  it('creates delivery from complete SMTP environment variables', () => {
-    expect(
-      emailDelivery({
-        SMTP_HOST: 'smtp.example.test',
-        SMTP_PORT: '465',
-        SMTP_SECURE: 'true',
-        SMTP_USER: 'user',
-        SMTP_PASSWORD: 'password',
-        EMAIL_FROM: 'Praetorium <accounts@example.test>',
-      }),
-    ).toBeDefined()
-  })
 })

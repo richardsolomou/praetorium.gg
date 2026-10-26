@@ -10,22 +10,26 @@
  * a wrong points total presented confidently is worse than an honest gap.
  */
 
-import type {
-  CatalogueIndex,
-  CategoryEntry,
-  Condition,
-  ConditionGroup,
-  Constraint,
-  Cost,
-  Definition,
-  EntryLink,
-  InfoLink,
-  LocalConditionGroup,
-  Modifier,
-  ModifierGroup,
-  Repeat,
+import {
+  compares,
+  groupCounts,
+  type CatalogueIndex,
+  type CategoryEntry,
+  type Condition,
+  type ConditionGroup,
+  type Constraint,
+  type Cost,
+  type Definition,
+  type EntryLink,
+  type InfoLink,
+  type LocalConditionGroup,
+  type Modifier,
+  type ModifierGroup,
+  type Repeat,
 } from './catalogue'
 import { fieldedCount, scaleOf } from './collective'
+import { remember } from './collections'
+import { withoutFactionPrefix } from './name'
 
 /** What the player picked: an entry, group or link id, how many, and what sits under it. */
 export type Selection = { id: string; count?: number; selections?: readonly Selection[] }
@@ -188,7 +192,7 @@ export function profileModifiers(
   const found = new Map<string, ProfileModifier>()
 
   const add = (node: Node, modifier: Modifier, exact?: { id: string; type: string }) => {
-    if (!isProfileModifierType(modifier.type)) return
+    if (!PROFILE_MODIFIER_TYPES.has(modifier.type)) return
     const times = repeatCount(modifier, node, root, index, census)
     if (times === 0) return
     const source = (modifier.conditions ?? [])
@@ -328,8 +332,6 @@ const PROFILE_MODIFIER_TYPES = new Set<Modifier['type']>([
   'replace',
 ])
 
-const isProfileModifierType = (type: Modifier['type']) => PROFILE_MODIFIER_TYPES.has(type)
-
 const AFFECTS_CONTROLS = new Set(['self', 'entries', 'forces', 'recursive', 'group'])
 
 function parseProfileAffects(affects: string) {
@@ -422,15 +424,13 @@ export function pointCapErrors(
   options: EvaluateOptions,
   pointsOf: (selection: Selection) => number,
 ): { errors: EvaluationError[]; unhandled: string[] } {
-  let caps = pointCapsCache.get(index)
-  if (!caps) {
-    caps = [...index.categories.values()].flatMap((category) =>
+  const caps = remember(pointCapsCache, index, () =>
+    [...index.categories.values()].flatMap((category) =>
       (category.constraints ?? []).flatMap((constraint) =>
         constraint.type === 'max' && constraint.field === index.pointsTypeId ? [{ category, constraint }] : [],
       ),
-    )
-    pointCapsCache.set(index, caps)
-  }
+    ),
+  )
   const census = new Census(0, options.modifierCache)
   const { root, forces: built } = rosterContext(forces, index, census, options)
   const errors: EvaluationError[] = []
@@ -439,7 +439,7 @@ export function pointCapErrors(
       census.note(`points cap scope ${constraint.scope}`)
       continue
     }
-    const extra = [...(category.modifiers ?? []), ...(category.modifierGroups ?? []).flatMap((group) => group.modifiers ?? [])]
+    const extra = withGroupModifiers(category)
     for (const units of constraint.scope === 'roster' ? [built.flatMap((force) => force.children)] : built.map((force) => force.children)) {
       const holding = units.filter((unit) => descendants(unit).some((node) => matches(node, category.id, root, index, census)))
       if (!holding.length) continue
@@ -500,7 +500,7 @@ export function keywordIdsBySelection(selections: readonly Selection[], index: C
 export const keywordNames = (ids: readonly string[], index: CatalogueIndex): string[] =>
   ids.flatMap((id) => {
     const category = index.categories.get(id)
-    return category?.hidden || !category?.name ? [] : [category.name.replace(/^Faction:\s*/iu, '')]
+    return category?.hidden || !category?.name ? [] : [withoutFactionPrefix(category.name)]
   })
 
 /** Each selection's keywords, and the ones the list's own rules shelve it under ahead of its datasheet's. */
@@ -751,22 +751,18 @@ const dependence = new WeakMap<Definition, { hidden: boolean; limits: boolean }>
  * same in every roster, so answering needs no roster tree.
  */
 function rosterDependent(sources: readonly Definition[]) {
-  const key = sources.at(-1)!
-  let found = dependence.get(key)
-  if (!found) {
+  return remember(dependence, sources.at(-1)!, () => {
     const modifiers = flattenedModifiers(sources)
     const limits = new Set(
       sources
         .flatMap((source) => source.constraints ?? [])
         .flatMap((constraint) => (constraint.field === 'selections' ? [constraint.id] : [])),
     )
-    found = {
+    return {
       hidden: modifiers.some((modifier) => modifier.field === 'hidden'),
       limits: modifiers.some((modifier) => limits.has(modifier.field)),
     }
-    dependence.set(key, found)
-  }
-  return found
+  })
 }
 
 /** The definitions a node built for this candidate reads, as `candidateContext` resolves it. */
@@ -823,7 +819,7 @@ export function enhancementLimit(
   const { root, forces: built } = rosterContext(forces, index, census, options)
   const force = built[0]
   if (!force) return null
-  const extra = [...(entry.modifiers ?? []), ...(entry.modifierGroups ?? []).flatMap((group) => group.modifiers ?? [])]
+  const extra = withGroupModifiers(entry)
   const stated = (entry.constraints ?? [])
     .filter((constraint) => constraint.type === 'max' && constraint.field === type.id)
     .map((constraint) => constraintValue(constraint, force, root, index, census, extra))
@@ -879,7 +875,7 @@ export function rosterLimit(definition: Definition, index: CatalogueIndex, optio
   for (const categoryLink of [...(target.categoryLinks ?? []), ...(definition.categoryLinks ?? [])]) {
     const category = index.categories.get(categoryLink.targetId)
     if (!category) continue
-    const extra = [...(category.modifiers ?? []), ...(category.modifierGroups ?? []).flatMap((group) => group.modifiers ?? [])]
+    const extra = withGroupModifiers(category)
     for (const constraint of category.constraints ?? []) consider(constraint, category.id, extra)
   }
   return limit
@@ -959,6 +955,13 @@ const isLink = (definition: Definition): definition is EntryLink => 'targetId' i
 /** Only entries carry an entry type; a group is the container around them. */
 const isGroup = (node: Node) => node.target.type === undefined
 
+/** The nearest selection above a node, skipping groups: they organise the catalogue, not the roster. */
+function entryParent(node: Node): Node | null {
+  let parent = node.parent
+  while (parent && isGroup(parent)) parent = parent.parent
+  return parent
+}
+
 /** Selection groups organize the catalogue but do not add roster depth. Preserve their ancestry for group conditions; `deep` follows `includeChildSelections`. */
 function selectionsUnder(node: Node, deep: boolean): Node[] {
   const cached = node.under?.[deep ? 1 : 0]
@@ -1017,17 +1020,29 @@ function costsOf(node: Node, root: Node, index: CatalogueIndex, census: Census):
       census.note(`cost modifier ${modifier.type} with non-numeric value`)
       continue
     }
-    const current = base.get(modifier.field) ?? 0
-    if (modifier.type === 'set') base.set(modifier.field, value)
-    else if (modifier.type === 'increment') base.set(modifier.field, current + value * times)
-    else if (modifier.type === 'decrement') base.set(modifier.field, current - value * times)
-    else if (modifier.type === 'multiply') base.set(modifier.field, current * value ** times)
-    else if (modifier.type === 'divide') base.set(modifier.field, value === 0 ? 0 : current / value ** times)
-    else census.note(`cost modifier type ${modifier.type}`)
+    const next = modified(base.get(modifier.field) ?? 0, modifier.type, value, times)
+    if (next === undefined) census.note(`cost modifier type ${modifier.type}`)
+    else base.set(modifier.field, next)
   }
 
   return base
 }
+
+/** A number after an arithmetic modifier applies `times` over; undefined for any other type. */
+function modified(current: number, type: Modifier['type'], amount: number, times: number): number | undefined {
+  if (type === 'set') return amount
+  if (type === 'increment') return current + amount * times
+  if (type === 'decrement') return current - amount * times
+  if (type === 'multiply') return current * amount ** times
+  if (type === 'divide') return amount === 0 ? 0 : current / amount ** times
+  return undefined
+}
+
+/** A category's or force's own modifiers and its groups' modifiers, without the groups' gates. */
+const withGroupModifiers = (source: { modifiers?: Modifier[]; modifierGroups?: ModifierGroup[] }) => [
+  ...(source.modifiers ?? []),
+  ...(source.modifierGroups ?? []).flatMap((group) => group.modifiers ?? []),
+]
 
 /** Every modifier that applies to this node, with modifier groups flattened and gated. */
 function modifiersOf(node: Node, census: Census): Modifier[] {
@@ -1089,9 +1104,8 @@ function groupHolds(group: ConditionGroup, node: Node, root: Node, index: Catalo
   if (group.type === 'and') return results.every(Boolean)
   if (group.type === 'or') return results.some(Boolean)
   const met = results.filter(Boolean).length
-  if (group.type === 'atLeast') return met >= (group.value ?? 1)
-  if (group.type === 'atMost') return met <= (group.value ?? 0)
-  if (group.type === 'equalTo') return met === (group.value ?? 0)
+  const counted = groupCounts(group.type, met, group.value)
+  if (counted !== undefined) return counted
   if (group.type === 'count') {
     if (group.min === undefined && group.max === undefined) {
       census.note('count condition group without bounds')
@@ -1099,7 +1113,7 @@ function groupHolds(group: ConditionGroup, node: Node, root: Node, index: Catalo
     }
     return met >= (group.min ?? 0) && met <= (group.max ?? Number.POSITIVE_INFINITY)
   }
-  census.note(`condition group type ${String(group.type)}`)
+  census.note(`condition group type ${group.type}`)
   return false
 }
 
@@ -1125,12 +1139,11 @@ function localHolds(group: LocalConditionGroup, node: Node, root: Node, index: C
   // Each candidate is judged against the node being priced, which is what lets
   // "is there one of these before me" be answered at all.
   const met = [...candidates].filter((candidate) => passes(group, candidate, root, index, census, node)).length
-  if (group.type === 'atLeast') return met >= (group.value ?? 1)
-  if (group.type === 'atMost') return met <= (group.value ?? 0)
-  if (group.type === 'equalTo') return met === (group.value ?? 0)
+  const counted = groupCounts(group.type, met, group.value)
+  if (counted !== undefined) return counted
   if (group.type === 'and') return met === candidates.size
   if (group.type === 'or') return met > 0
-  census.note(`local condition group type ${String(group.type)}`)
+  census.note(`local condition group type ${group.type}`)
   return false
 }
 
@@ -1150,15 +1163,11 @@ function holds(condition: Condition, node: Node, root: Node, index: CatalogueInd
     case 'notInstanceOf':
       return measured === 0
     case 'atLeast':
-      return measured >= condition.value
     case 'atMost':
-      return measured <= condition.value
     case 'equalTo':
-      return measured === condition.value
     case 'greaterThan':
-      return measured > condition.value
     case 'lessThan':
-      return measured < condition.value
+      return compares(condition.type, measured, condition.value)!
     // A new condition type breaks this rather than being quietly treated as met.
     default: {
       const unhandled: never = condition.type
@@ -1216,10 +1225,11 @@ function measure(spec: Measurable, node: Node, root: Node, index: CatalogueIndex
   return 0
 }
 
+/** The base cost `costsOf` starts from: a link's cost replaces its target's. */
 const costOf = (node: Node, typeId: string) =>
   sourcesOf(node)
     .flatMap((source) => source.costs ?? [])
-    .find((cost: Cost) => cost.typeId === typeId)?.value
+    .findLast((cost: Cost) => cost.typeId === typeId)?.value
 
 function matches(node: Node, childId: string | undefined, root: Node, index: CatalogueIndex, census: Census): boolean {
   if (!childId || childId === 'any') return true
@@ -1345,8 +1355,7 @@ function resolveScope(scope: string, node: Node, root: Node, index: CatalogueInd
       // one link — is catalogue organisation rather than a roster selection, so it
       // is not the parent either: skipping past it is what keeps "the bearer's
       // unit" reaching the bearer instead of stopping at the library it chose from.
-      let parent = node.parent
-      while (parent && isGroup(parent)) parent = parent.parent
+      const parent = entryParent(node)
       if (!parent || parent.force || parent === root) return [node]
       return [parent]
     }
@@ -1418,8 +1427,7 @@ function rootEntry(node: Node): Node {
 function ownLimit(constraint: Constraint, node: Node, root: Node): Constraint {
   if (constraint.scope !== 'parent' || constraint.type !== 'max' || constraint.field !== 'selections' || constraint.childId)
     return constraint
-  let parent = node.parent
-  while (parent && isGroup(parent)) parent = parent.parent
+  const parent = entryParent(node)
   return !parent || parent.force || parent === root ? { ...constraint, scope: 'force' } : constraint
 }
 
@@ -1453,7 +1461,7 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
   for (const categoryId of linkedCategories(node)) {
     const category = index.categories.get(categoryId)
     if (!category) continue
-    const extra = [...(category.modifiers ?? []), ...(category.modifierGroups ?? []).flatMap((group) => group.modifiers ?? [])]
+    const extra = withGroupModifiers(category)
     for (const constraint of category.constraints ?? []) {
       if (constraint.type === 'max' && constraint.field !== index.pointsTypeId)
         check(constraint, categoryId, category.id, category.name, extra)
@@ -1469,8 +1477,7 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
  */
 function carriers(constraint: Constraint, node: Node, index: CatalogueIndex): number {
   if (constraint.scope !== 'parent') return 1
-  let holder = node.parent
-  while (holder && isGroup(holder)) holder = holder.parent
+  const holder = entryParent(node)
   return scaleOf(
     node.link ?? node.target,
     node.parent ? index.definitions.get(node.parent.id) : undefined,
@@ -1495,11 +1502,7 @@ function constraintValue(
     if (times === 0) continue
     const amount = Number(modifier.value)
     if (!Number.isFinite(amount)) continue
-    if (modifier.type === 'set') value = amount
-    else if (modifier.type === 'increment') value += amount * times
-    else if (modifier.type === 'decrement') value -= amount * times
-    else if (modifier.type === 'multiply') value *= amount ** times
-    else if (modifier.type === 'divide') value = amount === 0 ? 0 : value / amount ** times
+    value = modified(value, modifier.type, amount, times) ?? value
   }
   return value
 }

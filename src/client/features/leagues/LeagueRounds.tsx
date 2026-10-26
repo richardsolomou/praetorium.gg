@@ -6,7 +6,7 @@ import type { LeagueEntryView } from '../../../core/league'
 import { Problem } from '../../components/Problem'
 import { pairLeagueRound } from '../../functions'
 import type { Battle } from '../battles/battle'
-import { SectionHeading } from './LeagueEntrants'
+import { SectionHeading } from '../../components/SectionHeading'
 import { useLeagueRefresh, type League } from './leagueEvent'
 
 type Pairing = League['pairings'][number]

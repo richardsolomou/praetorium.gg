@@ -1,3 +1,4 @@
+import { sameSet } from '../../../core/collections'
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
@@ -60,9 +61,6 @@ function CurrentSettings({ mode, token, onClose }: { mode: LeagueSettingsMode; t
 const currentAllowances = (league: League) =>
   effectiveLeagueAllowances(leagueTableShape(league.format), league.rosterLimit ?? LEAGUE_DEFAULT_ROSTER_LIMIT, league.allowances)
 
-const sameAllowances = (left: readonly string[], right: readonly string[]) =>
-  left.length === right.length && left.every((id) => right.includes(id))
-
 function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; league: League | null; onClose: () => void }) {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
@@ -93,7 +91,7 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
   const isOwner = Boolean(league?.tournament && me?.id === league.tournament.ownerId)
   const currentAdmins = league?.tournament?.admins.map((admin) => admin.id) ?? []
   const [adminIds, setAdminIds] = useState(currentAdmins)
-  const adminsChanged = adminIds.length !== currentAdmins.length || adminIds.some((id) => !currentAdmins.includes(id))
+  const adminsChanged = !sameSet(adminIds, currentAdmins)
   const seated =
     mode.kind === 'edit' && league && !league.revealedAt ? league.entries.filter((entry) => entry.status === 'accepted').length : 0
   const ruleLock =
@@ -110,7 +108,7 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
   const ruleChanged =
     shapeChanged ||
     (league !== null &&
-      (!sameAllowances(value.allowances, currentAllowances(league)) ||
+      (!sameSet(value.allowances, currentAllowances(league)) ||
         value.rounds !== league.rounds ||
         value.pointsBudget !== league.pointsBudget ||
         value.soloPoints !== league.soloPoints ||

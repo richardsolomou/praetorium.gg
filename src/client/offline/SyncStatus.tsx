@@ -16,6 +16,7 @@ import { invalidateSyncedQueries } from '../productSignals'
 import { downloadFile } from '../downloadFile'
 import { errorMessage } from '../queryClient'
 import { localWorkKey } from '../queries/queryKeys'
+import { countLabel } from '../text'
 
 /** Opens the sync dialog; a `'sign-out'` detail asks before signing out with local changes. */
 export const OPEN_SYNC_EVENT = 'praetorium-open-sync'
@@ -181,7 +182,7 @@ export function SyncStatus() {
   const label = conflicts.length
     ? 'Review saved changes'
     : operations.length && (!online || pendingOwner === me.id)
-      ? `${operations.length} change${operations.length === 1 ? '' : 's'} waiting to sync`
+      ? `${countLabel(operations.length, 'change')} waiting to sync`
       : !online
         ? 'Offline · Saved data'
         : null
@@ -236,7 +237,7 @@ export function SyncStatus() {
                     {title} · {failed ? 'Needs review' : 'Waiting to sync'}
                   </p>
                   <p className="text-sm text-dim">
-                    {failed?.message || `${group.length} saved action${group.length === 1 ? '' : 's'} waiting for a connection.`}
+                    {failed?.message || `${countLabel(group.length, 'saved action')} waiting for a connection.`}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {failed && resource.startsWith('roster:') && document ? (

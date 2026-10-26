@@ -78,88 +78,105 @@ beforeEach(() => {
 })
 afterEach(() => vi.useRealTimers())
 
-it('sends the current scoring request to its worker', () => {
+/** Lets the worker's answer reach the hook, which hears it a few promise steps after the event. */
+const settled = async () => {
+  for (let step = 0; step < 5; step++) await Promise.resolve()
+}
+
+it('sends the current scoring request to its worker', async () => {
   const current = worker()
   hooks.createWorker.mockReturnValue(current)
   render().start()
+  await settled()
   expect(current.postMessage).toHaveBeenCalledWith({ kind: 'loadouts', space, scoring, expected })
 })
 
-it('settles a worker constructor failure as a retryable error', () => {
+it('settles a worker constructor failure as a retryable error', async () => {
   hooks.createWorker.mockImplementation(() => {
     throw new Error('Worker unavailable')
   })
   render().start()
+  await settled()
   expect(render().found).toMatchObject({ error: expect.stringContaining('could not start'), retry: expect.any(Function), updating: false })
 })
 
-it('settles a postMessage failure without throwing from the effect', () => {
+it('settles a postMessage failure without throwing from the effect', async () => {
   const current = worker()
   current.postMessage.mockImplementation(() => {
     throw new Error('DataCloneError')
   })
   hooks.createWorker.mockReturnValue(current)
+  await settled()
   expect(() => render().start()).not.toThrow()
 })
 
-it('terminates a worker whose request could not be posted', () => {
+it('terminates a worker whose request could not be posted', async () => {
   const current = worker()
   current.postMessage.mockImplementation(() => {
     throw new Error('DataCloneError')
   })
   hooks.createWorker.mockReturnValue(current)
   render().start()
+  await settled()
   expect(current.terminate).toHaveBeenCalledOnce()
 })
 
-it('settles a worker execution error with a retry action', () => {
+it('settles a worker execution error with a retry action', async () => {
   const current = worker()
   hooks.createWorker.mockReturnValue(current)
   render().start()
   current.onerror!()
+  await settled()
   expect(render().found).toMatchObject({ error: expect.stringContaining('failed'), retry: expect.any(Function), updating: false })
 })
 
-it('settles an unreadable worker response with a retry action', () => {
+it('settles an unreadable worker response with a retry action', async () => {
   const current = worker()
   hooks.createWorker.mockReturnValue(current)
   render().start()
   current.onmessageerror?.()
+  await settled()
   expect(render().found).toMatchObject({ error: expect.stringContaining('failed'), retry: expect.any(Function), updating: false })
 })
 
-it('bounds an unresponsive worker and terminates it at the deadline', () => {
+it('bounds an unresponsive worker and terminates it at the deadline', async () => {
   const current = worker()
   hooks.createWorker.mockReturnValue(current)
   render().start()
   vi.advanceTimersByTime(15_000)
+  await settled()
   expect(current.terminate).toHaveBeenCalledOnce()
 })
 
-it('retries a timed out request and accepts its successful answer', () => {
+it('retries a timed out request and accepts its successful answer', async () => {
   const first = worker()
   const next = worker()
   hooks.createWorker.mockReturnValueOnce(first).mockReturnValueOnce(next)
   render().start()
   vi.advanceTimersByTime(15_000)
+  await settled()
   const failed = render().found
+  await settled()
   expect(failed?.retry).toBeTypeOf('function')
   failed!.retry!()
   render().start()
+  await settled()
   expect(next.postMessage).toHaveBeenCalledOnce()
   next.onmessage!(new MessageEvent<LoadoutOdds>('message', { data: odds }))
+  await settled()
   expect(render().found).toEqual(odds)
 })
 
-it('keeps a previous answer marked as updating during an edit', () => {
+it('keeps a previous answer marked as updating during an edit', async () => {
   const first = worker()
   hooks.createWorker.mockReturnValue(first)
   render().start()
-  first.onmessage!(new MessageEvent<LoadoutOdds>('message', { data: odds }))
+  first.onmessage?.(new MessageEvent<LoadoutOdds>('message', { data: odds }))
+  await settled()
   expect(render(2).found).toEqual({ ...odds, updating: true })
 })
 
-it('cannot replace a newer answer with a callback from a cancelled worker', () => {
+it('cannot replace a newer answer with a callback from a cancelled worker', async () => {
   const first = worker()
   const next = worker()
   const newer = { estimates: new Map(), profiles: new Map(), updating: false }
@@ -168,11 +185,12 @@ it('cannot replace a newer answer with a callback from a cancelled worker', () =
   cancel!()
   render(2).start()
   next.onmessage!(new MessageEvent<LoadoutOdds>('message', { data: newer }))
-  first.onmessage!(new MessageEvent<LoadoutOdds>('message', { data: odds }))
+  first.onmessage?.(new MessageEvent<LoadoutOdds>('message', { data: odds }))
+  await settled()
   expect(render(2).found).toEqual(newer)
 })
 
-it('ignores an execution error from a cancelled request', () => {
+it('ignores an execution error from a cancelled request', async () => {
   const first = worker()
   const next = worker()
   hooks.createWorker.mockReturnValueOnce(first).mockReturnValueOnce(next)
@@ -180,48 +198,53 @@ it('ignores an execution error from a cancelled request', () => {
   cancel!()
   render(2).start()
   next.onmessage!(new MessageEvent<LoadoutOdds>('message', { data: odds }))
-  first.onerror!()
+  first.onerror?.()
+  await settled()
   expect(render(2).found).toEqual(odds)
 })
 
-it('does not expose a previous answer when alternative scoring is disabled', () => {
+it('does not expose a previous answer when alternative scoring is disabled', async () => {
   const current = worker()
   hooks.createWorker.mockReturnValue(current)
   render().start()
   current.onmessage!(new MessageEvent<LoadoutOdds>('message', { data: odds }))
+  await settled()
   expect(render(1, false).found).toBeNull()
 })
 
-it('clears its deadline after receiving an answer', () => {
+it('clears its deadline after receiving an answer', async () => {
   const current = worker()
   hooks.createWorker.mockReturnValue(current)
   render().start()
   current.onmessage!(new MessageEvent<LoadoutOdds>('message', { data: odds }))
   vi.advanceTimersByTime(15_000)
+  await settled()
   expect(current.terminate).toHaveBeenCalledOnce()
 })
 
-it('keeps prior odds stale after an edited request fails', () => {
+it('keeps prior odds stale after an edited request fails', async () => {
   const first = worker()
   const next = worker()
   hooks.createWorker.mockReturnValueOnce(first).mockReturnValueOnce(next)
   const cancel = render().start()
-  first.onmessage!(new MessageEvent<LoadoutOdds>('message', { data: odds }))
+  first.onmessage?.(new MessageEvent<LoadoutOdds>('message', { data: odds }))
   cancel!()
   render(2).start()
   next.onerror!()
+  await settled()
   expect(render(2).found).toMatchObject({ ...odds, error: expect.stringContaining('failed'), updating: false })
 })
 
-it('does not leave a deadline running after cancellation', () => {
+it('does not leave a deadline running after cancellation', async () => {
   const current = worker()
   hooks.createWorker.mockReturnValue(current)
   const cancel = render().start()
   cancel!()
+  await settled()
   expect(vi.getTimerCount()).toBe(0)
 })
 
-it('restarts a failed request without changing the selected loadouts', () => {
+it('restarts a failed request without changing the selected loadouts', async () => {
   hooks.createWorker.mockImplementationOnce(() => {
     throw new Error('Worker unavailable')
   })
@@ -229,5 +252,6 @@ it('restarts a failed request without changing the selected loadouts', () => {
   render().start()
   render().found!.retry!()
   render().start()
+  await settled()
   expect(hooks.createWorker).toHaveBeenCalledTimes(2)
 })

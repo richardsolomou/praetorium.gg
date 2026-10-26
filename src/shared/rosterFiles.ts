@@ -4,7 +4,7 @@ import type { Attachment } from '../core/attach'
 import { attachmentRows } from '../core/attachmentRows'
 import { fromBattleBaseText } from '../core/battlebase'
 import { type Definition, nameOf } from '../core/catalogue'
-import { childrenOf, isRosterToggle, modelProfileOf, resolve } from '../core/definitions'
+import { childrenOf, eachDefinition, isRosterToggle, modelProfileOf, resolve } from '../core/definitions'
 import { detachmentNameVariants } from '../core/detachmentName'
 import type { Selection } from '../core/evaluate'
 import { fromNewRecruitText } from '../core/newRecruit'
@@ -21,7 +21,7 @@ import { wargearOf } from '../core/wargear'
 import { textNickname, type TextRoster, type TextRosterUnit } from '../core/textRoster'
 import { toGwText, type GwTextRoster } from '../core/gwText'
 import type { UnitGroup } from '../core/unitGroups'
-import { allowsPointsBudget, customPointsBudget, GAME_SIZES, pointsBudgetError } from '../core/battle'
+import { allowsPointsBudget, customPointsBudget, GAME_SIZES, isGameSize, pointsBudgetError } from '../core/battle'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
 import {
   attachmentReason,
@@ -46,15 +46,7 @@ import type { RosterExchange } from '../core/rosterExchange'
 import type { RosterPick } from '../core/roster'
 
 /** Which tool or layout wrote an imported text, as `roster_imported` and `roster_import_failed` report it. */
-export type RosterTextFormat =
-  | 'praetorium'
-  | 'newrecruit'
-  | 'battlebase'
-  | 'roster-file'
-  | 'listforge'
-  | 'listforge-wtc'
-  | 'warmind'
-  | 'wtc'
+type RosterTextFormat = 'praetorium' | 'newrecruit' | 'battlebase' | 'roster-file' | 'listforge' | 'listforge-wtc' | 'warmind' | 'wtc'
 
 function parsedImport(file: string): { parsed: TextRoster; format: RosterTextFormat } | null {
   const praetorium = /Exported with Praetorium\.gg/i.test(file)
@@ -213,7 +205,7 @@ export function importRosterExchange(exchange: RosterExchange, loaded: LoadedCat
 }
 
 /** Choices a list states that its unit could not be given, named back per unit with why. */
-export type UnplacedChoices = { unit: string; choices: UnplacedChoice[] }
+type UnplacedChoices = { unit: string; choices: UnplacedChoice[] }
 
 const slug = (value: string) =>
   normalized(value)
@@ -335,7 +327,7 @@ function importedBattleSize(parsed: TextRoster, unknown: UnmatchedName[]): { lim
     })
     return { limit: named.limit, pointsBudget: null }
   }
-  if (GAME_SIZES.some((size) => size.limit === parsed.limit)) return { limit: parsed.limit, pointsBudget: null }
+  if (isGameSize(parsed.limit)) return { limit: parsed.limit, pointsBudget: null }
   unknown.push({
     name: `${parsed.limit} point battle size`,
     reason: 'this battle size is not supported; choose a supported size in setup',
@@ -709,7 +701,7 @@ function isCarried(name: string, carried: ReadonlySet<string>) {
  */
 function modelNames(entryId: string, index: LoadedCatalogue['index']) {
   const names = new Set<string>()
-  eachDefinition(entryId, index, (definition, target) => {
+  eachDefinition([entryId], index, (definition, target) => {
     const kind = groupKind(nameOf(definition, index.definitions))
     if (kind && childrenOf(target, index).some((child) => resolve(child.definition, index).type === 'model')) names.add(kind)
     if (target.type !== 'model') return
@@ -724,26 +716,13 @@ function modelNames(entryId: string, index: LoadedCatalogue['index']) {
 /** A datasheet's names keyed by spellingKey, as BSData's "Relic Great Axe" is the app's "Relic Greataxe"; null where two collide. */
 function respelledNames(entryId: string, index: LoadedCatalogue['index']) {
   const names = new Map<string, string | null>()
-  eachDefinition(entryId, index, (definition, target) => {
+  eachDefinition([entryId], index, (definition, target) => {
     for (const name of new Set([nameOf(definition, index.definitions), target.name ?? ''].filter(Boolean).map(normalized))) {
       const key = spellingKey(name)
       names.set(key, names.has(key) && names.get(key) !== name ? null : name)
     }
   })
   return names
-}
-
-function eachDefinition(entryId: string, index: LoadedCatalogue['index'], visit: (definition: Definition, target: Definition) => void) {
-  const seen = new Set<string>()
-  const walk = (definition: Definition) => {
-    const target = resolve(definition, index)
-    if (seen.has(target.id)) return
-    seen.add(target.id)
-    visit(definition, target)
-    for (const child of childrenOf(target, index)) walk(child.definition)
-  }
-  const root = index.definitions.get(entryId)
-  if (root) walk(root)
 }
 
 /** What a datasheet's Warlord entries are renamed to, such as "Militarum Tempestus Warlord", which exporters list as wargear. */
@@ -785,7 +764,7 @@ function optionAliases(
       for (const [name, count] of selection ? wargearCounts(selection, loaded.index) : []) names.set(name, count)
       // A loadout also answers to the swaps it holds, as a Watchmaster's plasma pistol is taken through "Laspistol and chainsword".
       if (!isModel(option.id, loaded.index)) {
-        eachDefinition(option.id, loaded.index, (definition, target) => {
+        eachDefinition([option.id], loaded.index, (definition, target) => {
           if (target.type === undefined) return
           for (const name of nameVariants(nameOf(definition, loaded.index.definitions))) if (!names.has(name)) names.set(name, 1)
         })

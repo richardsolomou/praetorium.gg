@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { bookOf, card, points, withCards } from './catalogue.fixtures'
-import { datacardJoinOutcome, datacardJoinReport, datacardOf } from '../shared/datasheetJoin'
+import { datacardJoinReport, datacardOf } from '../shared/datasheetJoin'
 
 const book = () =>
   bookOf({
@@ -23,10 +23,7 @@ describe('the join from a datasheet to its card', () => {
     const loaded = book()
     loaded.factionContents.set('test-catalogue', withCards('Test catalogue', ['Rhino']))
     loaded.datacardExcludedCatalogueIds = new Set(['other'])
-    expect(datacardOf(loaded, 'cat', 'rhino')?.method).toBe('name')
-  })
-  it('reports a missing datacard as the join outcome', () => {
-    expect(datacardJoinOutcome(book(), 'cat', 'rhino')).toBe('missing')
+    expect(datacardOf(loaded, 'cat', 'rhino')).not.toBeNull()
   })
 
   it("reads the book's own file first, apostrophes folded", () => {
@@ -34,7 +31,7 @@ describe('the join from a datasheet to its card', () => {
     loaded.factionContents.set('test-catalogue', withCards('Test catalogue', new Map([['Transcendent C’tan', card({ baseSize: '80mm' })]])))
     loaded.factionContents.set('other', withCards('Other', new Map([['Transcendent C’tan', card({ baseSize: '60mm' })]])))
 
-    expect(datacardOf(loaded, 'cat', 'ctan')).toEqual({ details: card({ baseSize: '80mm' }), own: true, method: 'name' })
+    expect(datacardOf(loaded, 'cat', 'ctan')).toEqual({ details: card({ baseSize: '80mm' }), own: true })
   })
 
   it('takes another file’s card when every file that prints the name agrees', () => {
@@ -43,7 +40,7 @@ describe('the join from a datasheet to its card', () => {
     loaded.factionContents.set('one', withCards('One', new Map([['Rhino', card({ transport: 'Twelve models.' })]])))
     loaded.factionContents.set('two', withCards('Two', new Map([['Rhino', card({ transport: 'Twelve models.' })]])))
 
-    expect(datacardOf(loaded, 'cat', 'rhino')).toEqual({ details: card({ transport: 'Twelve models.' }), own: false, method: 'name' })
+    expect(datacardOf(loaded, 'cat', 'rhino')).toEqual({ details: card({ transport: 'Twelve models.' }), own: false })
   })
 
   it('leaves a name the files disagree on unjoined', () => {
@@ -65,7 +62,7 @@ describe('the join from a datasheet to its card', () => {
     const loaded = bookOf({ selectionEntries: [{ id: 'captain', name: 'Space   Marine Captain', type: 'model' }] })
     loaded.factionContents.set('test-catalogue', withCards('Test catalogue', ['Space  Marine Captain']))
 
-    expect(datacardOf(loaded, 'cat', 'captain')).toEqual({ details: card(), own: true, method: 'name' })
+    expect(datacardOf(loaded, 'cat', 'captain')).toEqual({ details: card(), own: true })
   })
 
   it('joins a datacard name that uses a nonbreaking hyphen', () => {

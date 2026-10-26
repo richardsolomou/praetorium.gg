@@ -5,6 +5,7 @@ import { routeSlug } from '../core/slug'
 import { normalizedNameVariants } from '../core/name'
 import { factionDisplayName } from './factionNames'
 import type { LoadedCatalogue } from './catalogueIndex'
+import { grantedWargear } from './heldWargear'
 const costSchema = z.object({ models: z.number().int().positive(), points: z.number().int().nonnegative(), addon: z.boolean().optional() })
 const tierSchema = z.object({ range: z.string(), label: z.string().optional(), costs: z.array(costSchema) })
 const unitSchema = z.object({
@@ -59,6 +60,11 @@ function mfmDetachment(index: MfmIndex | null | undefined, slugs: readonly strin
   }
   return null
 }
+const UPGRADE_MARK = /\s*\(upgrade\)\s*$/i
+/** Upgrades are listed among a detachment's enhancements, their names marked "(upgrade)". */
+export const isUpgrade = (name: string) => UPGRADE_MARK.test(name)
+export const withoutUpgrade = (name: string) => name.replace(UPGRADE_MARK, '')
+
 export function mfmEnhancementPoints(detachment: NonNullable<ReturnType<typeof mfmDetachment>>, name: string) {
   const key = (value: string) => joinKey(value.replace(/\s*\((?:aura|upgrade|one per army)\)/gi, ''))
   const matched = detachment.enhancements?.filter((enhancement) => key(enhancement.name) === key(name)) ?? []
@@ -82,7 +88,7 @@ export function mfmWargearOptionPoints(
   if (costs.length) return costs.reduce((total, price) => total + price, 0)
   const direct = mfmWargearPoints(unit, name)
   if (direct !== null) return direct
-  const item = /\b(?:replaced|equipped) with\s+\d+\s+(.+)$/i.exec(name)?.[1]?.replace(/\.$/, '')
+  const item = grantedWargear(name)
   return item ? mfmWargearPoints(unit, item) : null
 }
 export function mfmDetachmentFor(loaded: LoadedCatalogue, catalogueId: string, name: string) {

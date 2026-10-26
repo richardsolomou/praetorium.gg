@@ -1,3 +1,4 @@
+import { SectionHeading } from '../../components/SectionHeading'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronRight, X } from 'lucide-react'
@@ -25,14 +26,16 @@ export function RecentSimulations({
   const mark = (catalogueId: string | undefined) => {
     if (!catalogueId) return null
     const faction = index?.factions.find((candidate) => candidate.id === catalogueId)
-    return <FactionMark id={faction?.slug ?? catalogueId} name={faction?.displayName} icon={faction?.icon ?? null} size="sm" />
+    return (
+      <FactionMark
+        faction={{ slug: faction?.slug ?? catalogueId, displayName: faction?.displayName ?? '', icon: faction?.icon ?? null }}
+        size="sm"
+      />
+    )
   }
   return (
     <section aria-label="Recent simulations" className="min-w-0">
-      <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-        <span>Recent simulations</span>
-        <span className="readout">{recent.length}</span>
-      </h2>
+      <SectionHeading title="Recent simulations" count={recent.length} />
       {/* A row bleeds to the window on a phone, so the cut-off card reads as a scroller. */}
       <ul className={limit ? 'mt-3 grid gap-2' : '-mx-3 mt-3 flex snap-x gap-2 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0'}>
         {recent.slice(0, limit).map((entry) => {

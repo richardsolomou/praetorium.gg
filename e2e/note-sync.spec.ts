@@ -1,14 +1,14 @@
 import { expect, test, type Page } from './test'
 import type { LocalState } from '../src/contracts/localState'
-import { createRoster, signUp, uniqueName, waitForRosterSave } from './account'
+import { createRoster, signUp, uniqueName, addUnit } from './account'
 import { NATIVE_LOCAL_STATE_SCRIPT } from './native.harness'
-import { productOperator, savedWork } from './storage'
+import { productOperator, savedWork, lastPathSegment, expectWorkSynced } from './storage'
+import { closePicker } from './builder.harness'
 
 const UNIT = 'Immortals'
 const NOTE = 'Hold the home objective'
 const WAITING = /\d+ changes? waiting to sync/
 
-const rosterId = (page: Page) => new URL(page.url()).pathname.split('/').at(-1)!
 const noteField = (page: Page) => page.getByRole('region', { name: 'Note' }).getByRole('textbox', { name: 'Note', exact: true })
 
 /** The work the emulated shell holds for the signed-in account. */
@@ -21,16 +21,9 @@ const nativeWork = (page: Page) =>
 async function rosterWithUnit(page: Page, work: (page: Page) => Promise<LocalState | null> = savedWork) {
   await signUp(page, uniqueName('Note sync'))
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Noted dynasty' })
-  await page.getByLabel('Add a unit').fill(UNIT)
-  await waitForRosterSave(page, () =>
-    page
-      .getByRole('button', { name: `Add ${UNIT}`, exact: true })
-      .first()
-      .click(),
-  )
-  const picker = page.getByRole('dialog', { name: 'Add units' })
-  if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close' }).click()
-  await expect.poll(async () => (await work(page))?.operations.length, { timeout: 30_000 }).toBe(0)
+  await addUnit(page, UNIT)
+  await closePicker(page)
+  await expectWorkSynced(page, { timeout: 30_000, work })
 }
 
 async function openUnit(page: Page) {
@@ -87,13 +80,13 @@ for (const width of [390, 1440]) {
     await context.addInitScript({ content: NATIVE_LOCAL_STATE_SCRIPT })
     const page = await context.newPage()
     await rosterWithUnit(page, nativeWork)
-    const id = rosterId(page)
+    const id = lastPathSegment(page.url())
     await expect(page.locator('html')).toHaveAttribute('data-native-app', 'true')
 
     await openUnit(page)
     await noteField(page).pressSequentially(NOTE, { delay: 60 })
     await expect.poll(() => savedNote(id), { timeout: 30_000 }).toBe(NOTE)
-    await expect.poll(async () => (await nativeWork(page))?.operations.length).toBe(0)
+    await expectWorkSynced(page, { work: nativeWork })
     await expect(page.getByText(WAITING)).toHaveCount(0)
 
     await page.reload()
@@ -107,7 +100,7 @@ for (const width of [390, 1440]) {
     const context = await browser.newContext({ viewport: { width, height: 844 } })
     const page = await context.newPage()
     await rosterWithUnit(page)
-    const id = rosterId(page)
+    const id = lastPathSegment(page.url())
     await openUnit(page)
     await expect(noteField(page)).toBeVisible()
     const other = await context.newPage()

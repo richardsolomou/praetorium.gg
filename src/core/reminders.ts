@@ -1,6 +1,6 @@
-import { plainQuotes } from './text'
+import { capitalised, plainQuotes } from './text'
 import { z } from 'zod'
-import { type Phase, TURN_SCOPES, type TurnScope } from './battle'
+import { type Phase, type Stratagem, TURN_SCOPES, type TurnScope } from './battle'
 import { routeSlug } from './slug'
 
 const REMINDER_MOMENTS = ['phase-start', 'phase-end', 'turn-start', 'turn-end', 'round-start', 'round-end'] as const
@@ -169,20 +169,20 @@ const turnAt = (value: string | undefined): TurnScope => {
   return 'either'
 }
 
+/** Whose turn or phase a timing names, captured for `turnAt`. */
+const WHOSE = String.raw`(your opponent[’']s|the opponent[’']s|each player[’']s|either player[’']s|your|any|the)?`
+const PHASE = '(command|movement|shooting|charge|fight)'
+
 /** Suggest action timings while excluding duration and expiry clauses such as "until the start". */
 export function suggestReminderTimings(description: string): ReminderTiming[] {
   const text = description.replaceAll(/\s+/gu, ' ')
   const candidates: Candidate[] = []
-  const phasePattern =
-    /\bat (?:the )?(start|end) of (your opponent[’']s|the opponent[’']s|each player[’']s|either player[’']s|your|any|the)?\s*(command|movement|shooting|charge|fight) phase\b/giu
-  const turnPattern =
-    /\bat (?:the )?(start|end) of (your opponent[’']s|the opponent[’']s|each player[’']s|either player[’']s|your|any|the)?\s*turn\b/giu
+  const phasePattern = new RegExp(String.raw`\bat (?:the )?(start|end) of ${WHOSE}\s*${PHASE} phase\b`, 'giu')
+  const turnPattern = new RegExp(String.raw`\bat (?:the )?(start|end) of ${WHOSE}\s*turn\b`, 'giu')
   const roundPattern = /\bat (?:the )?(start|end) of (?:the |each |every |a )?(first )?battle round\b/giu
   const genericPhasePattern = /\bat (?:the )?(start|end) of (?:any|each|a|the) phase\b/giu
-  const broadPhasePattern =
-    /\b(?:in|during) (your opponent[’']s|the opponent[’']s|each player[’']s|either player[’']s|your|any|the)?\s*(?:first |next )?(command|movement|shooting|charge|fight) phase\b/giu
-  const additionalPhasePattern =
-    /\b(?:or|and) (your opponent[’']s|the opponent[’']s|each player[’']s|either player[’']s|your|any|the)?\s*(command|movement|shooting|charge|fight) phase\b/giu
+  const broadPhasePattern = new RegExp(String.raw`\b(?:in|during) ${WHOSE}\s*(?:first |next )?${PHASE} phase\b`, 'giu')
+  const additionalPhasePattern = new RegExp(String.raw`\b(?:or|and) ${WHOSE}\s*${PHASE} phase\b`, 'giu')
 
   for (const match of text.matchAll(phasePattern)) {
     const phase = phaseAt(match[3] ?? '')
@@ -281,4 +281,17 @@ function reminderTimingLabelWithoutRestriction(timing: ReminderTiming): string {
 }
 
 /** "Shooting" for `shooting`. */
-export const phaseName = (phase: string) => `${phase.charAt(0).toLocaleUpperCase()}${phase.slice(1)}`
+export const phaseName = capitalised
+
+export const TURN_LABELS: Record<TurnScope, string> = {
+  'your-turn': 'Your turn',
+  'opponent-turn': 'Opponent’s turn',
+  either: 'Either turn',
+}
+
+/** When a stratagem can be used, as "Shooting, Fight phase · Your turn · Once per battle". */
+export const stratagemTiming = (stratagem: Pick<Stratagem, 'phases' | 'turn' | 'limit'>) => [
+  stratagem.phases?.length ? `${stratagem.phases.map(phaseName).join(', ')} phase` : 'Any phase',
+  TURN_LABELS[stratagem.turn ?? 'either'],
+  stratagem.limit === 'unlimited' ? 'No use limit' : `Once per ${stratagem.limit.replace('-', ' ')}`,
+]

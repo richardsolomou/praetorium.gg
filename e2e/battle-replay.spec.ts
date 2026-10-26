@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from './test'
-import { rewind } from './account'
+import { rewind, PHONE } from './account'
 
 test('the full replay preloads before scrubbing', async ({ page }) => {
   let replayRequests = 0
@@ -55,7 +55,7 @@ test('a long battle report does not extend the page past its footer', async ({ p
 })
 
 test('dragging the replay timeline on a phone changes the event without scrolling the page', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
+  const context = await browser.newContext({ viewport: PHONE, isMobile: true, hasTouch: true })
   try {
     const page = await context.newPage()
     await page.goto('/battles/preview-league-battle-duel')
@@ -99,7 +99,7 @@ test('dragging the replay timeline on a phone changes the event without scrollin
       await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
       expect(await page.evaluate(() => window.scrollY)).toBe(scrollY)
       await expect(page.getByRole('region', { name: 'Battle scoreboard' })).toContainText('Round 1 of 5')
-      await page.screenshot({ path: native ? '/tmp/praetorium-replay-native-phone.png' : '/tmp/praetorium-replay-phone.png' })
+      await page.screenshot({ path: test.info().outputPath(native ? 'replay-native-phone.png' : 'replay-phone.png') })
     }
   } finally {
     await context.close()
@@ -137,7 +137,7 @@ test('a spectator scrubs a finished five-round battle by event', async ({ page }
 })
 
 test('the native app keeps the replay timeline above the application tabs', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.goto('/battles/preview-league-battle-duel')
   await page.evaluate(() => {
     document.documentElement.dataset.nativeApp = 'true'

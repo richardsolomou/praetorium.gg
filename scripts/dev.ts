@@ -8,12 +8,13 @@ import {
   assertSavedDevData,
   inspectLocalDevPreview,
   localControlPort,
+  localDevPreviewFile,
   readLocalDevPreview,
   type LocalDevPreview,
 } from './localDevPreview.ts'
 
 const worktree = await realpath(process.cwd())
-const recordFile = path.join(worktree, 'data-dev/active-preview.json')
+const recordFile = localDevPreviewFile(worktree)
 const logFile = path.join(worktree, 'data-dev/dev.log')
 const saved = readLocalDevPreview(recordFile)
 if (saved && saved.worktree !== worktree) throw new Error('Preview record belongs to another worktree')

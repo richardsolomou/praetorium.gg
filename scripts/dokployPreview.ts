@@ -8,6 +8,7 @@ import { DokployClient, dokployPreviewFromEnvironment, loadPreviewAppSecrets, pu
 import { callSpacetime, deleteSpacetimeDatabase, publishSpacetimeModule, type SpacetimeConnection } from 'ras-stack/spacetime'
 import { moduleEnvironment } from './lib/spacetimeEnvironment.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { isSpacetimeInternalHost } from './lib/spacetimeInternalHost.ts'
 import { requiredEnv } from './lib/requiredEnv.ts'
 import { waitForWebRevision } from './lib/webReadiness.ts'
 
@@ -40,7 +41,7 @@ function spacetimeOrigin() {
 
 function internalSpacetimeHost() {
   const host = requiredEnv('SPACETIME_INTERNAL_HOST')
-  if (!/^[a-z][a-z0-9-]{1,63}$/.test(host)) throw new Error('Invalid SpacetimeDB internal host')
+  if (!isSpacetimeInternalHost(host)) throw new Error('Invalid SpacetimeDB internal host')
   return host
 }
 

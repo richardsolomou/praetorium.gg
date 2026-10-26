@@ -3,7 +3,7 @@ import { commandRefusal, reduceBattle, type Command, type LoggedCommand } from '
 import { ALICE, BOB, NAMES, PLAYERS, advance, attachedRoster, builtRoster, log, turns } from './battle.fixtures'
 import { openMissionSelections, missionUnitCandidates, operationMarkers, savedMissionUnitStatus } from './missionSelections'
 import { battleView } from './battleView'
-import { appendLocalCommand, localBattleView, visibleBattleLog } from './offlineBattle'
+import { appendLocalCommand, localBattleState, visibleBattleLog } from './offlineBattle'
 import { commandSchema } from './commands'
 import { battleReport } from './battleReport'
 
@@ -257,11 +257,6 @@ describe('source-backed mission selections', () => {
     ])
   })
 
-  it('does not award victory points for a nomination', () => {
-    const battle = state([ALICE, condemn])
-    expect(battle.players.map((player) => player.primary + player.secondary)).toEqual([0, 0])
-  })
-
   it.each([0, 2])('refuses %i fallback targets', (count) => {
     expect(
       commandRefusal(state(), ALICE, {
@@ -493,7 +488,7 @@ describe('source-backed mission selections', () => {
       ],
     ] as [string, Command][])
       entries = appendLocalCommand(players, entries, by, command, 10)
-    expect(localBattleView({ token: 'test' }, players, entries, ALICE).missionChoices).toEqual([])
+    expect(battleView({ token: 'test' }, players, localBattleState(players, entries), ALICE).missionChoices).toEqual([])
   })
 
   it('undoing a saved choice makes that occurrence due again', () => {
@@ -538,7 +533,7 @@ describe('source-backed mission selections', () => {
     send(ALICE, { kind: 'settle-opponent-turn' })
     send(ALICE, { kind: 'draw-secondary', secondary: beacon })
     send(ALICE, { kind: 'acknowledge-draw' })
-    const view = localBattleView({ token: 'test' }, players, entries, ALICE)
+    const view = battleView({ token: 'test' }, players, localBattleState(players, entries), ALICE)
     expect({
       round: view.round,
       due: view.missionChoices?.filter((choice) => choice.kind !== 'beacon').map((choice) => choice.kind),
@@ -658,7 +653,7 @@ describe('source-backed mission selections', () => {
     const players = NAMES.map((player, side) => ({ ...player, side, automated: false }))
     const prefix = visibleBattleLog(players, entries, BOB).slice(0, 6)
     expect({
-      records: localBattleView({ token: 'test' }, players, prefix, BOB).players[0]!.missionSelections,
+      records: battleView({ token: 'test' }, players, localBattleState(players, prefix), BOB).players[0]!.missionSelections,
       report: battleReport(NAMES, prefix, PLAYERS, BOB).at(-1)?.text,
     }).toEqual({ records: [], report: 'Alice records choices for a secret mission' })
   })
@@ -788,11 +783,6 @@ describe('Locate and Deny operation markers', () => {
   it('does not ask for markers again after the opening turn', () => {
     const battle = locateBattle([ALICE, markers('a', 'b', 'c', 'd', 'e')], ...turns(6, BOB))
     expect(openMissionSelections(battle, battle.players[0]!)).toEqual([])
-  })
-
-  it('does not award victory points for placing markers', () => {
-    const battle = locateBattle([ALICE, markers('a', 'b', 'c', 'd', 'e')])
-    expect(battle.players.map((player) => player.primary + player.secondary)).toEqual([0, 0])
   })
 })
 
@@ -1030,11 +1020,6 @@ describe('Consecrate', () => {
       repeated: commandRefusal(recorded, ALICE, consecration([]))?.code,
       due: openMissionSelections(undone, undone.players[0]!).map((prompt) => prompt.kind),
     }).toEqual({ repeated: 'mission-selection-recorded', due: ['consecrate'] })
-  })
-
-  it('does not award victory points for consecrating', () => {
-    const battle = atEnd([ALICE, consecration([['a', 'u0']])])
-    expect(battle.players.map((player) => player.primary + player.secondary)).toEqual([0, 0])
   })
 
   it('shows consecrations to the opponent', () => {

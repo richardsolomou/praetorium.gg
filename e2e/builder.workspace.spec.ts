@@ -1,7 +1,18 @@
 import { expect, test } from './test'
-import { savedWork } from './storage'
-import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
-import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, waitForRosterSave } from './account'
+import { expectWorkSynced } from './storage'
+import { NATIVE_SHELL_SCRIPT } from './native.harness'
+import {
+  confirmRosterSetup,
+  createRoster,
+  signUp,
+  waitForRosterSave,
+  expectNoPageOverflow,
+  addUnit,
+  openRosterSetup,
+  chooseFaction,
+  visitorSetup,
+  PHONE,
+} from './account'
 import {
   expectNoHorizontalOverflow,
   expectInsideHorizontalBounds,
@@ -13,8 +24,7 @@ import {
 
 test('the roster workspace reserves the desktop picker while its book loads', async ({ browser, page: savedPage }) => {
   await openBuilder(savedPage)
-  await savedPage.getByLabel('Add a unit').fill('Immortals')
-  await waitForRosterSave(savedPage, () => savedPage.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
+  await addUnit(savedPage, 'Immortals')
   await expect(savedPage.locator('[data-unit="Immortals"]')).toBeVisible()
   await savedPage.getByLabel('Add a unit').fill('')
   await expect(savedPage.getByRole('button', { name: 'Add Lychguard', exact: true }).first()).toBeVisible()
@@ -70,7 +80,7 @@ test('the roster workspace reserves the desktop picker while its book loads', as
     await page.setViewportSize({ width: 364, height: 759 })
     await page.reload()
     await expect(page.getByRole('button', { name: 'Add units', exact: true })).toBeVisible()
-    await expectNoHorizontalOverflow(page.locator('html'))
+    await expectNoPageOverflow(page)
     const roster = page.locator('[data-slot="roster-units"]')
     await expectNoHorizontalOverflow(roster)
     await expectVerticalPanOnly(roster)
@@ -83,7 +93,7 @@ test('the roster workspace reserves the desktop picker while its book loads', as
     const loadout = page.locator('aside[aria-label="Loadout"]')
     await expect(loadout).toBeVisible()
     await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
-    await expectNoHorizontalOverflow(page.locator('html'))
+    await expectNoPageOverflow(page)
     await expectNoHorizontalOverflow(loadout)
     const viewport = loadout.locator('[data-slot="scroll-area-viewport"]')
     await expectNoHorizontalOverflow(viewport)
@@ -110,7 +120,7 @@ test('an edit made just before leaving the roster still saves', async ({ page })
 })
 
 test('the roster header fades whichever end of its facts it is hiding', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const context = await browser.newContext({ viewport: PHONE })
   const page = await context.newPage()
   await openBuilder(page)
   const meta = page.locator('[data-slot="roster-meta"]')
@@ -151,12 +161,8 @@ test('the roster header fits its facts and opens its force disposition', async (
 
 test('a three-point detachment lets the player choose either disposition', async ({ page }) => {
   await signUp(page, 'Disposition chooser')
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
-  await dialog.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Necrons')
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  const dialog = await visitorSetup(page)
+  await chooseFaction(dialog, 'Necrons')
   await dialog.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
 
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' })
@@ -169,9 +175,7 @@ test('a three-point detachment lets the player choose either disposition', async
   await page.reload()
   await expect(page.locator('[data-slot="roster-meta"]').getByRole('link', { name: 'Priority Assets' })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  const setup = await openRosterSetup(page)
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await waitForRosterSave(page, () => confirmRosterSetup(setup))
   await page.reload()
@@ -181,14 +185,13 @@ test('a three-point detachment lets the player choose either disposition', async
 test('a native unit screen keeps the tab bar beside it', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 364, height: 759 } })
   await context.addInitScript({
-    content: `window.ReactNativeWebView = { postMessage: () => {} };
-${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
+    content: NATIVE_SHELL_SCRIPT,
   })
   const page = await context.newPage()
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)
   await add(page, 'Intercessor Squad')
   await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
-  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoPageOverflow(page)
   const roster = page.locator('[data-slot="roster-units"]')
   await expectNoHorizontalOverflow(roster)
   await expectVerticalPanOnly(roster)
@@ -203,7 +206,7 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
     await sections.evaluate((tabs) => Math.round(tabs.getBoundingClientRect().top)),
   )
   expect(await sections.evaluate((tabs) => (tabs as HTMLElement).inert)).toBe(false)
-  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(loadout)
   const viewport = loadout.locator('[data-slot="scroll-area-viewport"]')
   await expectNoHorizontalOverflow(viewport)
@@ -220,7 +223,7 @@ test('a mobile web unit screen keeps the tab bar beside it', async ({ browser })
   const context = await browser.newContext({ viewport: { width: 364, height: 759 } })
   const page = await context.newPage()
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)
-  await waitForRosterSave(page, () => add(page, 'Intercessor Squad'))
+  await addUnit(page, 'Intercessor Squad')
   await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
   await page.locator('[data-unit="Intercessor Squad"]').getByRole('button', { name: 'Intercessor Squad', exact: true }).click()
 
@@ -241,14 +244,13 @@ test('a mobile web unit screen keeps the tab bar beside it', async ({ browser })
 })
 
 test('the roster tab comes back to the unit it was left on', { tag: '@catalogue' }, async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const context = await browser.newContext({ viewport: PHONE })
   await context.addInitScript({
-    content: `window.ReactNativeWebView = { postMessage: () => {} };
-${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
+    content: NATIVE_SHELL_SCRIPT,
   })
   const page = await context.newPage()
   await openBuilder(page)
-  await waitForRosterSave(page, () => add(page, 'Immortals'))
+  await addUnit(page, 'Immortals')
   await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
   const rosterUrl = page.url()
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
@@ -279,15 +281,14 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
 })
 
 test('a unit that moved while the roster was open does not eject the roster tab', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const context = await browser.newContext({ viewport: PHONE })
   await context.addInitScript({
-    content: `window.ReactNativeWebView = { postMessage: () => {} };
-${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
+    content: NATIVE_SHELL_SCRIPT,
   })
   const page = await context.newPage()
   await openBuilder(page)
-  await waitForRosterSave(page, () => add(page, 'Immortals'))
-  await waitForRosterSave(page, () => add(page, 'Lychguard'))
+  await addUnit(page, 'Immortals')
+  await addUnit(page, 'Lychguard')
   await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
   const rosterUrl = page.url()
 
@@ -311,7 +312,7 @@ test('native roster details use pane history without adding a route back action'
   await openBuilder(page)
   await add(page, 'Immortals')
   await add(page, 'Lychguard')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.evaluate(() => {
     document.documentElement.dataset.nativeApp = 'true'
   })
@@ -336,8 +337,8 @@ test('native roster details use pane history without adding a route back action'
   expect(await page.evaluate(() => document.activeElement?.closest('aside[aria-label="Loadout"], [data-native-app-tabs]') !== null)).toBe(
     true,
   )
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoPageOverflow(page)
+  await expectNoHorizontalOverflow(loadout)
 
   await page.goBack()
   await expect(page).toHaveURL(rosterUrl)
@@ -345,8 +346,8 @@ test('native roster details use pane history without adding a route back action'
   await expect(unit).toBeVisible()
   await expect(unitButton).toBeFocused()
   await expect(page.getByRole('button', { name: 'Back to rosters' })).toHaveCount(0)
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  expect(await page.locator('[data-slot="roster-units"]').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoPageOverflow(page)
+  await expectNoHorizontalOverflow(page.locator('[data-slot="roster-units"]'))
 
   await page.goForward()
   await expect(loadout).toBeVisible()
@@ -393,8 +394,8 @@ test('portrait tablets keep roster details as a full-screen view', async ({ page
   await expect(loadout).toHaveAttribute('aria-modal', 'true')
   await expect(sections).toBeHidden()
   await expect(loadout.getByRole('button', { name: 'Back to roster' })).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(900)
-  expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoPageOverflow(page)
+  await expectNoHorizontalOverflow(loadout)
 
   await page.setViewportSize({ width: 1024, height: 768 })
   await expect(loadout).toHaveCSS('position', 'static')
@@ -435,10 +436,10 @@ test('a mixed-model squad shows its own profile instead of an optional model', a
   const profile = loadout.locator('[data-slot="unit-profile"]')
   await expect(profile).toContainText(/M\s*12"\s*T\s*6\s*Sv\s*3\+\s*W\s*4\s*LD\s*6\+\s*OC\s*2/)
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect(profile).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoPageOverflow(page)
+  await expectNoHorizontalOverflow(loadout)
 })
 
 test('datasheet metadata is searchable in the picker and global search', async ({ page }) => {
@@ -470,7 +471,7 @@ test('datasheet metadata is searchable in the picker and global search', async (
   await expect(page.getByRole('option', { name: /Hexmark Destroyer Necrons/ })).not.toContainText('**')
 
   await page.keyboard.press('Escape')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.reload()
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
   await page.getByLabel('Add a unit').fill('cryptek')
@@ -513,7 +514,7 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
   const loadout = page.locator('aside[aria-label="Loadout"]')
   await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await loadout.getByRole('button', { name: 'Back to roster' }).click()
   await expect(page.getByRole('button', { name: 'Add units', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
@@ -522,8 +523,8 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
   await expect
     .poll(() => page.locator('[data-slot="drawer-popup"]').evaluate((element) => getComputedStyle(element).transform))
     .toBe('matrix(1, 0, 0, 1, 0, 0)')
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
-  expect(await compactPicker.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await expectNoPageOverflow(page)
+  await expectNoHorizontalOverflow(compactPicker)
   await compactPicker.getByRole('button', { name: 'Close' }).click()
 
   await page.setViewportSize({ width: 1600, height: 900 })
@@ -564,8 +565,8 @@ test('adding or deleting a unit keeps the rest of the roster visible while prici
 
 test('collection changes do not reorder roster and reference rows', async ({ page }) => {
   await openBuilder(page)
-  await waitForRosterSave(page, () => add(page, 'Necron Warriors'))
-  await waitForRosterSave(page, () => add(page, 'Immortals'))
+  await addUnit(page, 'Necron Warriors')
+  await addUnit(page, 'Immortals')
 
   const rosterUrl = page.url()
   await page.goto('/collection')
@@ -573,7 +574,7 @@ test('collection changes do not reorder roster and reference rows', async ({ pag
   await page.getByPlaceholder('Search datasheets…').fill('Necron Warriors Necrons')
   await page.getByRole('option', { name: /^Necron Warriors, Necrons/ }).click()
   await expect(page.locator('[data-unit="Necron Warriors"]')).toBeVisible()
-  await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
+  await expectWorkSynced(page)
   await page.goto(rosterUrl)
 
   await expect(page.locator('[data-unit]').first()).toHaveAttribute('data-unit', 'Immortals')
@@ -619,19 +620,15 @@ test('contained faction datasheet rows stay accessible and resize without horizo
   ).toBe(true)
   await rows.last().scrollIntoViewIfNeeded()
 
-  await page.setViewportSize({ width: 390, height: 844 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+  await page.setViewportSize(PHONE)
+  await expectNoPageOverflow(page)
   await expect(rows.last()).toBeVisible()
 })
 
 test('favourite detachments rise to the top of roster setup', async ({ page }) => {
   await signUp(page, 'Richard')
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
-  await dialog.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Necrons')
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  const dialog = await visitorSetup(page)
+  await chooseFaction(dialog, 'Necrons')
 
   const favourite = dialog.getByRole('button', { name: 'Add Cursed Legion to favourite detachments' })
   const favourited = page.waitForResponse((response) => response.ok() && response.request().method() === 'POST')
@@ -649,12 +646,8 @@ test('favourite detachments rise to the top of roster setup', async ({ page }) =
 
 test('King of the Colosseum creation keeps exactly one detachment selected', async ({ page }) => {
   await signUp(page, 'Richard')
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
-  await dialog.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Necrons')
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  const dialog = await visitorSetup(page)
+  await chooseFaction(dialog, 'Necrons')
   await dialog.getByRole('combobox', { name: 'Battle size' }).click()
   await expect(page.getByRole('option', { name: /King of the Colosseum/ })).toHaveCount(1)
   await page.getByRole('option', { name: /King of the Colosseum/ }).click()
@@ -720,7 +713,7 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
   await page.keyboard.press('Escape')
   await expect(page.getByRole('region', { name: 'Format restrictions switched off' })).toContainText('Toughness cap')
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
   const mobilePicker = page.getByRole('dialog', { name: 'Add units' })
   await expect(mobilePicker.getByText('2/2 in roster')).toBeVisible()
@@ -740,20 +733,20 @@ test('a waived format restriction cannot widen the mobile roster', async ({ page
   await expect(page.getByText('1 format restriction is switched off', { exact: true })).toBeVisible()
   await add(page, 'Imotekh the Stormlord')
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   const imotekh = page.locator('[data-unit="Imotekh the Stormlord"]')
   await expect(imotekh).toBeVisible()
-  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoPageOverflow(page)
   await page.evaluate(() => window.scrollTo({ left: 100, behavior: 'instant' }))
   expect(await page.evaluate(() => window.scrollX)).toBe(0)
 
   await imotekh.getByRole('button', { name: 'Imotekh the Stormlord', exact: true }).click()
   const loadout = page.locator('aside[aria-label="Loadout"]')
   await expect(loadout.getByText('Equipped ranged weapons', { exact: true })).toBeVisible()
-  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoPageOverflow(page)
   await expectInsideHorizontalBounds(loadout, loadout.locator('[data-slot="unit-profile"] > div:first-child > div'))
   await expectInsideHorizontalBounds(loadout, loadout.locator('[data-slot="datasheet-content"] [class*="grid-cols-6"] > div'))
 
   await loadout.getByRole('button', { name: 'Back to roster' }).click()
-  await expectNoHorizontalOverflow(page.locator('html'))
+  await expectNoPageOverflow(page)
 })

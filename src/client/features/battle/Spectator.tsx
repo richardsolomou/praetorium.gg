@@ -12,7 +12,6 @@ import type { ReplayPoint } from '../../../core/battleReplay'
 import { expandReplayFrames } from '../../../core/replayFrames'
 import type { BattleView } from '../../../core/battleView'
 import { replayBattleBatch } from '../../functions'
-import { battleOutcome } from '../../battleOutcome'
 import { deploymentFor } from '../../battleSummary'
 import { replayPreloadBatches } from '../../replayPrefetch'
 import { missionCardsByKey } from './missionDeck'
@@ -33,6 +32,7 @@ import { BattlefieldFact } from './BattlefieldFact'
 import { ManualScore } from './ManualScore'
 import { MANUAL_TRACKING_LIMITS } from './manualTracking'
 import { SpectatorInvite } from './SpectatorInvite'
+import { chunks } from '../../../core/collections'
 
 type Props = {
   view: BattleView
@@ -150,7 +150,7 @@ export function Spectator({
         </div>
 
         {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
-        <Scoreboard view={view} clock={clock} sides={table} outcome={view.status === 'finished' ? battleOutcome(table, view) : null} />
+        <Scoreboard view={view} clock={clock} sides={table} />
         {/* A finished game is when a reader is most likely to want their own, so it leads there and waits beside the facts while play goes on. */}
         {currentView.status === 'finished' ? (
           <SpectatorInvite view={currentView} className="mx-auto max-w-7xl rounded-lg border border-primary/40 bg-panel p-3" />
@@ -198,7 +198,7 @@ export function Spectator({
             ) : null}
             <div className="border-t border-edge pt-3">
               <p className="eyebrow">Battle events</p>
-              <Report token={view.token} open players={reportPlayers(view.players)} entries={report} />
+              <Report token={view.token} players={reportPlayers(view.players)} entries={report} />
             </div>
           </section>
         </div>
@@ -242,9 +242,7 @@ function ReplayTimeline({
     choose(Math.max(0, Math.min(points.length - 1, next)))
   }
   const bucketSize = Math.max(1, Math.ceil(points.length / 100))
-  const bars = Array.from({ length: Math.ceil(points.length / bucketSize) }, (_, bucket) =>
-    points.slice(bucket * bucketSize, (bucket + 1) * bucketSize),
-  )
+  const bars = chunks(points, bucketSize)
   return (
     <nav
       data-replay-timeline
@@ -355,7 +353,7 @@ function SpectatorSide({
             <h2 className={`text-lg leading-tight font-bold uppercase ${colours.text}`}>
               <PlayerName army={army} />
             </h2>
-            <ArmyIdentity army={army} list={false} className="mt-0.5" />
+            <ArmyIdentity army={army} className="mt-0.5" />
             <ArmyRoster onSimulate={onSimulate} army={army} side={side} actionable={false} pending={false} send={ignoreCommand} />
           </div>
         ))}

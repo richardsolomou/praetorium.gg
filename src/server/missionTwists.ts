@@ -1,5 +1,8 @@
 import { routeSlug } from '../core/slug'
-import { english, type MissionPack, packText } from './missionPacks'
+import { type MissionPack, packText } from './missionPacks'
+import { english, records } from '../shared/datacards'
+import type { MissionTwist } from '../contracts/missions'
+export type { MissionTwist } from '../contracts/missions'
 
 /**
  * The optional twist a pack offers, which changes one rule for the whole battle.
@@ -9,20 +12,15 @@ import { english, type MissionPack, packText } from './missionPacks'
  * itself and keyed by the name it shares with the missions in it.
  *
  * Nothing is invented: a pack with no twists offers none.
+ *
+ * Twists come back by pack, under the same slug `gameReferences` gives that pack.
  */
-import type { MissionTwist } from '../contracts/missions'
-export type { MissionTwist } from '../contracts/missions'
-
-/** Twists by pack, under the same slug `gameReferences` gives that pack. */
 export function twistsIn(packs: readonly MissionPack[]): Map<string, MissionTwist[]> {
   const found = new Map<string, MissionTwist[]>()
   for (const pack of packs) {
     const packName = english(pack.name)
-    const twists = Array.isArray(pack.missionTwists) ? pack.missionTwists : []
-    if (!packName || !twists.length) continue
-    const read = twists.flatMap((entry: unknown) => {
-      if (!entry || typeof entry !== 'object') return []
-      const twist = entry as Record<string, unknown>
+    if (!packName) continue
+    const read = records(pack, 'missionTwists').flatMap((twist) => {
       const name = english(twist.name)
       return typeof twist.id === 'string' && name
         ? [

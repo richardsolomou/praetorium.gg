@@ -1,12 +1,10 @@
 import { expect, type Page, test } from './test'
-import { visitorSetup } from './account'
+import { visitorSetup, chooseFaction } from './account'
 import { add } from './builder.harness'
 
 async function openImmortals(page: Page) {
   const setup = await visitorSetup(page)
-  await setup.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Necrons')
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  await chooseFaction(setup, 'Necrons')
   await setup.getByRole('button', { name: /^Select (?:Awakened Dynasty)$/ }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await setup.getByRole('button', { name: 'Create roster' }).click()

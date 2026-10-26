@@ -1,18 +1,19 @@
 import { expect, test } from './test'
 import {
-  attachRoster,
-  createBattle,
   createRoster,
-  PRACTICE_OPPONENT,
-  retryUntilVisible,
   signInAsPreview,
   signUp,
   startBattle,
   uniqueName,
   waitForRosterSave,
+  addUnit,
+  chooseRosterAction,
+  practiceBattle,
+  PHONE,
 } from './account'
-import { add, attach } from './builder.harness'
+import { attach } from './builder.harness'
 import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest } from '../mobile/src/nativeActions'
+import { lastPathSegment } from './storage'
 
 test('a full saved army prints selected equipment, both detachments and every page', async ({ page }, testInfo) => {
   await signInAsPreview(page)
@@ -21,8 +22,7 @@ test('a full saved army prints selected equipment, both detachments and every pa
   await expect(page.locator('[data-unit]')).toHaveCount(13)
   const name = await page.getByLabel('List name').inputValue()
   const points = await page.locator('[data-stat="points"]').innerText()
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text', exact: true }).click()
+  await chooseRosterAction(page, 'Export text')
   const exportDialog = page.getByRole('dialog', { name: 'Export roster' })
   const exported = await exportDialog.locator('pre').innerText()
   await exportDialog.getByRole('button', { name: 'Close', exact: true }).click()
@@ -31,8 +31,7 @@ test('a full saved army prints selected equipment, both detachments and every pa
       document.documentElement.dataset.printedDatasheets = String(document.querySelectorAll('[data-print-datasheet]').length)
     }
   })
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Print', exact: true }).click()
+  await chooseRosterAction(page, 'Print')
   const pack = page.locator('[data-battle-reference-pack]')
   await expect(pack.locator('[data-print-datasheet]')).toHaveCount(13)
   await expect(page.locator('html')).toHaveAttribute('data-printed-datasheets', '13')
@@ -48,7 +47,7 @@ test('a full saved army prints selected equipment, both detachments and every pa
   const immortals = pack.locator('[data-print-datasheet="Immortals"]')
   await expect(immortals).toContainText('10× Gauss blaster')
   expect(exported).toContain('10x Gauss blaster')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect(page.getByRole('button', { name: 'Print battle reference pack', exact: true })).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('print-pack-phone.png') })
   await page.evaluate(() => {
@@ -63,7 +62,6 @@ test('a full saved army prints selected equipment, both detachments and every pa
   await page.evaluate(NATIVE_BRIDGE_SCRIPT)
   await page.getByRole('button', { name: 'Print battle reference pack', exact: true }).click()
   const nativeAction = parseNativeActionRequest(await page.evaluate(() => localStorage.getItem('e2e-print-action')!))
-  expect(nativeAction?.kind).toBe('print')
   if (nativeAction?.kind !== 'print') throw new Error('Native print request missing')
   expect(nativeAction.html.match(/data-print-datasheet=/g)).toHaveLength(13)
   expect(nativeAction.html).not.toContain('<script')
@@ -80,10 +78,8 @@ test('a full saved army prints selected equipment, both detachments and every pa
   await page.screenshot({ path: testInfo.outputPath('print-pack-long.png'), fullPage: true })
   await page.emulateMedia({ media: 'screen' })
   await page.getByRole('button', { name: 'Return to roster' }).click()
-  const battleUrl = await createBattle(page, { practice: true })
-  await attachRoster(page, name)
-  await attachRoster(page, name, { forPlayer: PRACTICE_OPPONENT })
-  await page.goto(`/rosters/preview-necrons-cursed-skyshroud?battle=${new URL(battleUrl).pathname.split('/').at(-1)}`)
+  const battleUrl = await practiceBattle(page, name)
+  await page.goto(`/rosters/preview-necrons-cursed-skyshroud?battle=${lastPathSegment(battleUrl)}`)
   await expect(page.locator('[data-unit]')).toHaveCount(13)
   await expect(page.locator('[data-stat="points"]')).toHaveText(points)
   await expect(page.locator('[data-unit="Immortals"]')).toContainText('10x Gauss blaster')
@@ -99,30 +95,23 @@ test('a full saved army prints selected equipment, both detachments and every pa
 })
 
 test('attached datasheets stay grouped and a missing reference never prints a partial pack', async ({ page }) => {
-  await signUp(page, uniqueName('Print attachments'))
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Attached army' })
-  await page.evaluate(() => {
+  await page.addInitScript(() => {
     window.print = () => {
       document.documentElement.dataset.printed = 'true'
     }
   })
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Print', exact: true }).click()
+  await signUp(page, uniqueName('Print attachments'))
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Attached army' })
+  await chooseRosterAction(page, 'Print')
   const pack = page.locator('[data-battle-reference-pack]')
   await expect(pack).toContainText('0 units · 0 models')
   await expect(pack.locator('[data-print-datasheet]')).toHaveCount(0)
   await expect(page.locator('html')).toHaveAttribute('data-printed', 'true')
   await page.getByRole('button', { name: 'Return to roster' }).click()
-  await waitForRosterSave(page, () => add(page, 'Immortals'))
-  await waitForRosterSave(page, () => add(page, 'Technomancer'))
+  await addUnit(page, 'Immortals')
+  await addUnit(page, 'Technomancer')
   await waitForRosterSave(page, () => attach(page, 'Technomancer', 'Immortals'))
-  await page.evaluate(() => {
-    window.print = () => {
-      document.documentElement.dataset.printed = 'true'
-    }
-  })
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Print', exact: true }).click()
+  await chooseRosterAction(page, 'Print')
   await expect(pack.locator('[data-print-unit]')).toHaveCount(1)
   await expect(pack.locator('[data-print-datasheet]')).toHaveCount(2)
   await expect(pack).toContainText('Supporting Immortals (Unit 1)')
@@ -130,19 +119,11 @@ test('attached datasheets stay grouped and a missing reference never prints a pa
   await page.getByRole('button', { name: 'Return to roster' }).click()
   await page.reload()
   await expect(page.locator('[data-unit]')).toHaveCount(2)
-  await page.evaluate(() => {
-    window.print = () => {
-      document.documentElement.dataset.printed = 'true'
-    }
-  })
   await page.route('**/_serverFn/**', async (route) => {
     if (route.request().method() === 'POST') await route.abort()
     else await route.continue()
   })
-  await retryUntilVisible(page.getByRole('menuitem', { name: 'Print', exact: true }), () =>
-    page.getByRole('button', { name: 'Roster actions' }).click(),
-  )
-  await page.getByRole('menuitem', { name: 'Print', exact: true }).click()
+  await chooseRosterAction(page, 'Print')
   await expect(page.getByRole('alert')).toContainText('could not be prepared')
   await expect(page.locator('html')).not.toHaveAttribute('data-printed', 'true')
   await expect(pack).toHaveCount(0)
@@ -156,8 +137,8 @@ test('a saved mixed-equipment pack agrees with export and the fielded army', asy
   await page.setViewportSize({ width: 1600, height: 900 })
   await signUp(page, uniqueName('Print mixed equipment'))
   const name = await createRoster(page, { faction: 'Death Guard', detachment: /Champions of Contagion/, name: 'Mixed equipment' })
-  await waitForRosterSave(page, () => add(page, 'Plague Marines'))
-  const rosterId = new URL(page.url()).pathname.split('/').at(-1)!
+  await addUnit(page, 'Plague Marines')
+  const rosterId = lastPathSegment(page.url())
   const card = page.locator('[data-unit="Plague Marines"]')
   await card.getByRole('button', { name: /^Plague Marines/ }).click()
   const loadout = page.locator('aside[aria-label="Loadout"]')
@@ -166,8 +147,7 @@ test('a saved mixed-equipment pack agrees with export and the fielded army', asy
   const marines = loadout.locator('section').filter({ has: page.getByLabel('Plague Marine models', { exact: true }) })
   await waitForRosterSave(page, () => marines.getByRole('button', { name: 'More Plague spewer' }).click())
   const points = await page.locator('[data-stat="points"]').innerText()
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text', exact: true }).click()
+  await chooseRosterAction(page, 'Export text')
   const dialog = page.getByRole('dialog', { name: 'Export roster' })
   const exported = await dialog.locator('pre').innerText()
   expect(exported).toContain('3x Boltgun')
@@ -189,10 +169,8 @@ test('a saved mixed-equipment pack agrees with export and the fielded army', asy
   await expect(page.locator('html')).toHaveAttribute('data-printed-cards', '1')
   await page.pdf({ path: testInfo.outputPath('mixed-equipment.pdf'), format: 'A4' })
   await page.getByRole('button', { name: 'Return to roster' }).click()
-  const battleUrl = await createBattle(page, { practice: true })
-  await attachRoster(page, name)
-  await attachRoster(page, name, { forPlayer: PRACTICE_OPPONENT })
-  await page.goto(`/rosters/${rosterId}?battle=${new URL(battleUrl).pathname.split('/').at(-1)}&print=true`)
+  const battleUrl = await practiceBattle(page, name)
+  await page.goto(`/rosters/${rosterId}?battle=${lastPathSegment(battleUrl)}&print=true`)
   await expect(page.locator('html')).toHaveAttribute('data-printed-cards', '1')
   await expect(page.locator('[data-battle-reference-pack]')).toHaveCount(0)
   const recorded = page.locator('[data-unit="Plague Marines"]')

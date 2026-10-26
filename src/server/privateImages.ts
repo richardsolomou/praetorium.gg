@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { localDevelopmentObjectStore } from './localObjectStore'
 import { notFound } from './notFound'
-import { privateR2Client, r2Objects } from './r2Client'
+import { objectsIn, privateR2Client } from './r2Client'
 
 const DATA_URL = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/
 const FORMATS = {
@@ -37,26 +36,8 @@ export type PrivateObjects = {
  * Local stacks keep objects on disk, where only allowlisted public keys are served.
  */
 export function privateObjects(environment: NodeJS.ProcessEnv = process.env): PrivateObjects | null {
-  const local = localDevelopmentObjectStore(environment)
-  if (local)
-    return {
-      head: async (key) => Boolean(await local.head(key)),
-      put: (key, body) => local.put(key, body),
-      get: async (key) => {
-        const object = await local.get(key)
-        return object && new Uint8Array(await new Response(object.body).arrayBuffer())
-      },
-      delete: (key) => local.delete(key),
-    }
-  const r2 = privateR2Client(environment)
-  if (!r2) return null
-  const objects = r2Objects(r2)
-  return {
-    head: objects.head,
-    put: (key, body, contentType) => objects.put(key, body, { 'content-type': contentType }),
-    get: objects.get,
-    delete: objects.delete,
-  }
+  const objects = objectsIn(environment, privateR2Client)
+  return objects && { ...objects, put: (key, body, contentType) => objects.put(key, body, { 'content-type': contentType }) }
 }
 
 /** Stores an uploaded image under `prefix` and a random id after checking its bytes match its declared type; returns the id. */

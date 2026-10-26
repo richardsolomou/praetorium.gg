@@ -1,16 +1,16 @@
-import { criteriaKey } from './missionCriteria'
-import { english, type MissionPack, missionCards, packText, readMissionPacks } from './missionPacks'
+import { type MissionPack, missionCards, packText } from './missionPacks'
+import { english, records } from '../shared/datacards'
 import type { MissionAction } from '../contracts/missions'
 
 export type { MissionAction } from '../contracts/missions'
 
-/** Keep mission actions in the pack’s own words; omit fields the pack does not state rather than inferring limits. */
-/** Every card's actions in every pack under `missions`, keyed by card name. */
-export function loadMissionActions(directory: string): Map<string, MissionAction[]> {
-  return actionsIn(readMissionPacks(directory))
-}
+/** Cards are keyed by name because the rules source and the mission pack give them unrelated ids. */
+export const missionCardKey = (name: string) => name.toLowerCase().replaceAll(/\s+/g, ' ').trim()
 
-/** The same reading, for a caller that has already parsed the packs. */
+/**
+ * Every card's actions, keyed by card name, in the pack's own words; fields the pack
+ * does not state are omitted rather than inferred.
+ */
 export function actionsIn(packs: readonly MissionPack[]): Map<string, MissionAction[]> {
   const found = new Map<string, MissionAction[]>()
   // A name in two packs is two cards until proven otherwise, so neither is used.
@@ -18,9 +18,9 @@ export function actionsIn(packs: readonly MissionPack[]): Map<string, MissionAct
   for (const pack of packs) {
     for (const card of missionCards(pack)) {
       const name = english(card.name)
-      const actions = readActions(card.actions, pack)
+      const actions = readActions(card, pack)
       if (!name || !actions.length) continue
-      const key = criteriaKey(name)
+      const key = missionCardKey(name)
       if (found.has(key)) contested.add(key)
       found.set(key, actions)
     }
@@ -29,11 +29,8 @@ export function actionsIn(packs: readonly MissionPack[]): Map<string, MissionAct
   return found
 }
 
-function readActions(actions: unknown, pack: MissionPack): MissionAction[] {
-  if (!Array.isArray(actions)) return []
-  return actions.flatMap((entry: unknown) => {
-    if (!entry || typeof entry !== 'object') return []
-    const action = entry as Record<string, unknown>
+function readActions(card: Record<string, unknown>, pack: MissionPack): MissionAction[] {
+  return records(card, 'actions').flatMap((action) => {
     // An unnamed action cannot be told apart from another on the same card.
     const name = english(action.name)
     return name

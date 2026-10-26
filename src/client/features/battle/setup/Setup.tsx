@@ -22,7 +22,7 @@ import {
 } from '../../../../core/battle'
 import { ArmyPoints } from './ArmyPoints'
 import { gameReferencesQuery } from '../../../queries'
-import { fixedHandShort, missionCardsReady, type Side, type SideMission, sideName, sides as foldSides } from '../../../sides'
+import { fixedHandShort, missionCardsReady, type Side, type SideMission, sideName, sideOf, sides as foldSides } from '../../../sides'
 import type { SendCommand } from '../useCommand'
 import { ClubChoice } from './ClubChoice'
 import { SearchableSelect, type SearchableGroup } from '../../../components/SearchableSelect'
@@ -33,8 +33,7 @@ import { BATTLE_SIZE_CONTROL, CHOOSABLE, CHOSEN, SetupPanel, useDispositionNames
 import { TwistChoice } from './TwistChoice'
 import { DefenderStep } from './DefenderStep'
 import { FirstTurnStep } from './FirstTurnStep'
-import { DeployStep } from './DeployStep'
-import { PreBattleRulesStep } from './PreBattleRulesStep'
+import { PrebattleUnits } from './PrebattleUnits'
 import { SideDispositionChoice } from './SideDispositionChoice'
 import { ReservesStep } from './ReservesStep'
 import { SecondariesStep } from './SecondariesStep'
@@ -44,6 +43,7 @@ import { TableStrip } from './TableStrip'
 import { Choice } from '../../../components/Choice'
 import { MANUAL_TRACKING_LIMITS } from '../manualTracking'
 import { formatList } from '../../../text'
+import { withMember } from '../../../../core/collections'
 
 type Props = {
   view: BattleView
@@ -104,11 +104,11 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   const yours = table.find((side) => side.isViewer)
   const { data: references } = useQuery(gameReferencesQuery())
   const nameDisposition = useDispositionNames()
-  const attacker = table.find((side) => side.armies.some((army) => army.playerId === view.attackerId))
+  const attacker = sideOf(table, view.attackerId)
   const defender = attacker ? table.find((side) => side.index !== attacker.index) : undefined
   // Pre-battle rules resolve starting with whoever takes the first turn, so it is read
   // from the log rather than from the device that recorded the roll-off.
-  const firstSide = table.find((side) => side.armies.some((army) => army.playerId === view.firstPlayerId))
+  const firstSide = sideOf(table, view.firstPlayerId)
   /** The reserve row whose move the latest refusal answers, which says it beside the row rather than in the bar. */
   const [reserveRow, setReserveRow] = useState<string | null>(null)
   // Any other command the player sends takes the latest refusal back to the bar.
@@ -121,8 +121,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   /** Sections this device has opened past their one-line summary. Local, because reading is not a table decision. */
   const [opened, setOpened] = useState<SectionId[]>([])
   const isOpen = (id: SectionId) => opened.includes(id)
-  const toggle = (id: SectionId) =>
-    setOpened((current) => (current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]))
+  const toggle = (id: SectionId) => setOpened((current) => withMember(current, id))
   const attached = view.players.filter((player) => player.roster).length
   const ready = attached === view.players.length
   const format = rosterBattleFormat(view)
@@ -385,7 +384,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                     <span className="text-dim"> · {manual ? 'Manual tracking' : chosenPack?.name}</span>
                   </>
                 }
-                action="Change"
                 actionLabel={manual ? 'Change battle size and tracking' : 'Change battle size and mission pack'}
                 onAction={() => toggle('armies')}
               />
@@ -456,7 +454,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
                         <span className="font-bold uppercase">{twist?.name ?? 'No twist'}</span>
                       </>
                     }
-                    action="Change"
                     actionLabel="Change the mission twist"
                     onAction={() => toggle('mission')}
                   />
@@ -551,7 +548,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
           onboarding="battle-setup-deploy"
           hint={`Sides alternate setting up one unit at a time${defender ? `, ${sideName(defender)} first` : ''}. Units in strategic reserves stay off the table.`}
         >
-          {youHaveAnArmy ? <DeployStep sides={table} /> : null}
+          {youHaveAnArmy ? <PrebattleUnits sides={table} rule="infiltrators" empty="No unit sets up outside the deployment zone." /> : null}
         </SetupSection>
 
         <SetupSection
@@ -586,7 +583,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
           complete={complete['pre-battle']}
           hint={`Sides alternate resolving pre-battle rules${firstSide ? `, ${sideName(firstSide)} first` : ''}. Start battle opens the first Command phase.`}
         >
-          {youHaveAnArmy ? <PreBattleRulesStep sides={table} /> : null}
+          {youHaveAnArmy ? <PrebattleUnits sides={table} rule="scouts" empty="No unit has a pre-battle move." /> : null}
         </SetupSection>
 
         <div data-setup-bar className="flex items-center justify-between gap-3 border-t border-edge pt-6">
@@ -674,22 +671,12 @@ function SetupSection({
 }
 
 /** A section's settled answer on one line, with the control that opens it. */
-function FoldedLine({
-  summary,
-  action,
-  actionLabel,
-  onAction,
-}: {
-  summary: ReactNode
-  action: string
-  actionLabel: string
-  onAction: () => void
-}) {
+function FoldedLine({ summary, actionLabel, onAction }: { summary: ReactNode; actionLabel: string; onAction: () => void }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-sm border border-edge bg-panel px-3 py-2">
       <p className="min-w-0 text-sm">{summary}</p>
       <Button variant="outline" size="sm" className="shrink-0" aria-label={actionLabel} onClick={onAction}>
-        {action}
+        Change
       </Button>
     </div>
   )

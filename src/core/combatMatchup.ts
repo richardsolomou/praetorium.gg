@@ -2,27 +2,29 @@ import {
   DEFAULT_COMBAT_OPTIONS,
   calculateCombat,
   calculateCombatSequence,
-  rerollRank,
+  bestReroll,
   type CombatInput,
   type CombatOptions,
   type CombatResult,
+  type CombatPhase,
 } from './combat'
 import { adjustCombatTarget, combineAttackAdjustments, combineWeaponAdjustments, type CombatAdjustments } from './combatAdjustments'
 import { combatRuleDefences, combatRuleOptions } from './combatRules'
 import { combatAttackInput, combatAttacks } from './combatScenario'
 import { combatUnitKeywords, combatUnitSequenceError, combatUnitTarget, type CombatMember } from './combatUnit'
 
-type Phase = CombatOptions['phase']
 export type CombatantSnapshot = CombatMember & { ruleChoices?: Readonly<Record<string, number>> }
 export type CombatMatchupChoices = {
   preferences: Readonly<Record<string, string>>
-  excluded: Readonly<Record<Phase, readonly string[]>>
+  excluded: Readonly<Record<CombatPhase, readonly string[]>>
   /** Defence-group labels the player moved earlier in the allocation order. */
   allocation: readonly string[]
 }
-export type CombatRequest = Record<Phase, CombatInput | null> & { sequenceError?: string }
+/** A matchup that leaves every weapon in. */
+export const noExclusions = (): Record<CombatPhase, string[]> => ({ ranged: [], melee: [] })
+export type CombatRequest = Record<CombatPhase, CombatInput | null> & { sequenceError?: string }
 type CombatPhaseAnswer = { result?: CombatResult; error?: string } | null
-export type CombatAnswer = Record<Phase, CombatPhaseAnswer> & { combined?: CombatPhaseAnswer }
+export type CombatAnswer = Record<CombatPhase, CombatPhaseAnswer> & { combined?: CombatPhaseAnswer }
 
 /**
  * How one unit's attacks meet another: the defender's allocation order, both units' rule options, and the
@@ -57,14 +59,14 @@ export function combatMatchup(
       : built
   const attackRules = attacker?.rules ?? []
   const defenceRules = defender?.rules ?? []
-  const unitDefences = (phase: Phase) => {
+  const unitDefences = (phase: CombatPhase) => {
     if (!target?.target || !defender) return null
     if (!defender.companions?.length) return combatRuleDefences(target.target, defenceRules, phase, attackRules)
     const calculated = combatUnitTarget(defender, phase, attackRules)
     return calculated.target ? { ...calculated.target, groups: order.map((index) => calculated.target!.groups[index]!) } : null
   }
   const ruleDefences = { ranged: unitDefences('ranged'), melee: unitDefences('melee') }
-  const defencesIn = (phase: Phase, adjustments: CombatAdjustments) =>
+  const defencesIn = (phase: CombatPhase, adjustments: CombatAdjustments) =>
     ruleDefences[phase] ? adjustCombatTarget(ruleDefences[phase], adjustments.target ?? {}) : null
   const withExtraFeelNoPain = (defences: CombatInput['target'], adjustments: CombatAdjustments) => {
     const extra = adjustments.feelNoPain ?? null
@@ -89,16 +91,15 @@ export function combatMatchup(
     ranged: { ...DEFAULT_COMBAT_OPTIONS, ...attackOptions.ranged, ...defenceOptions.ranged },
     melee: { ...DEFAULT_COMBAT_OPTIONS, ...attackOptions.melee, ...defenceOptions.melee },
   }
-  const inheritedOptions = (phase: Phase) => inherited[phase]
-  const options = (phase: Phase, adjustments: CombatAdjustments): CombatOptions => {
+  const inheritedOptions = (phase: CombatPhase) => inherited[phase]
+  const options = (phase: CombatPhase, adjustments: CombatAdjustments): CombatOptions => {
     const attack = attackOptions[phase]
     const defence = defenceOptions[phase]
     const base = inheritedOptions(phase)
     const shared = adjustments.all ?? {}
     const specific = adjustments[phase] ?? {}
     const extra = combineAttackAdjustments(shared, specific)
-    const better = (field: 'hitReroll' | 'woundReroll') =>
-      rerollRank[extra[field] ?? 'none'] > rerollRank[base[field]] ? extra[field]! : base[field]
+    const better = (field: 'hitReroll' | 'woundReroll') => bestReroll(base[field], extra[field])
     return {
       ...base,
       cover: base.cover || Boolean(extra.cover),
@@ -127,9 +128,9 @@ export function combatMatchup(
   const attacks = attacker
     ? combatAttacks(attacker, { keywords: defender ? combatUnitKeywords(defender) : [], rules: defenceRules }, preferences, excluded)
     : null
-  const weaponAdjustment = (phase: Phase, adjustments: CombatAdjustments) =>
+  const weaponAdjustment = (phase: CombatPhase, adjustments: CombatAdjustments) =>
     combineWeaponAdjustments(adjustments.weapons?.all ?? {}, adjustments.weapons?.[phase] ?? {})
-  const scenario = (phase: Phase, adjustments: CombatAdjustments): CombatInput | null => {
+  const scenario = (phase: CombatPhase, adjustments: CombatAdjustments): CombatInput | null => {
     const defences = defencesIn(phase, adjustments)
     if (!attacks || attacker?.allocationRequired || attacker?.companions?.some((member) => member.allocationRequired) || !defences)
       return null
@@ -142,7 +143,7 @@ export function combatMatchup(
         : null)
     )
   }
-  const phaseSetup = (phase: Phase, adjustments: CombatAdjustments) => {
+  const phaseSetup = (phase: CombatPhase, adjustments: CombatAdjustments) => {
     const defences = defencesIn(phase, adjustments)
     return defences
       ? {

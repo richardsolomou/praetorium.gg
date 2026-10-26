@@ -1,4 +1,4 @@
-import { uniqueBy } from './collections'
+import { uniqueBy, remember } from './collections'
 import type { DatasheetSearchFields, DatasheetSearchReason } from './datasheetSearch'
 import type { CatalogueEdition } from './catalogueEdition'
 import { rosterLabel } from './rosterLabel'
@@ -108,14 +108,8 @@ function detachmentResults(query: string, entries: IndexedDetachment[]): GlobalS
 const cardTexts = new WeakMap<NonNullable<IndexedDetachment['cards']>[number], string>()
 
 /** A card's name and effect as one searched text, built once so its normalization is looked up rather than redone. */
-function cardText(card: NonNullable<IndexedDetachment['cards']>[number]) {
-  let text = cardTexts.get(card)
-  if (text === undefined) {
-    text = `${card.name} ${card.description}`
-    cardTexts.set(card, text)
-  }
-  return text
-}
+const cardText = (card: NonNullable<IndexedDetachment['cards']>[number]) =>
+  remember(cardTexts, card, () => `${card.name} ${card.description}`)
 
 /** Normalizes an index's searched text ahead of the first query, yielding between slices so it can run while idle. */
 export function* prepareReferenceSearch(index: GlobalSearchIndex) {

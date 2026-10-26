@@ -1,8 +1,7 @@
 import { useReferenceFaction } from './useReferenceFaction'
 import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Link, Outlet, useParams, useRouterState } from '@tanstack/react-router'
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbSeparator } from '@/components/ui/breadcrumb'
+import { FactionBreadcrumb } from './FactionBreadcrumb'
 import { ChevronRight, FileSearch } from 'lucide-react'
 import { memo, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -17,6 +16,7 @@ import {
 } from '@/components/ui/combobox'
 import type { FactionDatasheet } from '../../../../contracts/catalogue'
 import { usableDatasheets } from '../../../../core/collection'
+import { toggled } from '../../../../core/collections'
 import { collectionCountsAsQuery, collectionQuery, factionDatasheetsQuery, meQuery } from '../../../queries'
 import { ACCOUNT_FILTERS, type AccountFilter, FilterChip } from '../../../components/FilterChip'
 import { DATASHEET_SOURCES, type DatasheetSource, filterDatasheets, keywordOptions, sourceOf } from './datasheetFilters'
@@ -33,8 +33,6 @@ import { PageState } from '../../../components/PageState'
 import { PageContent, PageHeader } from '../../../components/Page'
 
 export function FactionDatasheets() {
-  const { catalogueId, rulesVersion } = useParams({ strict: false })
-  const path = useRouterState({ select: (state) => state.location.pathname })
   const faction = useReferenceFaction()
   const [query, setQuery] = useState('')
   const settledQuery = useSettled(query.trim())
@@ -67,7 +65,6 @@ export function FactionDatasheets() {
     setKeywords(new Set())
     setAccount(new Set())
   }
-  if (path !== `/factions/${catalogueId}${rulesVersion ? `/rules/${rulesVersion}` : ''}/datasheets`) return <Outlet />
   if (!faction) return null
 
   return (
@@ -76,22 +73,10 @@ export function FactionDatasheets() {
         tint={factionColour(faction.slug, faction.displayName)}
         eyebrow={faction.displayName}
         title="Datasheets"
-        media={<FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} />}
+        media={<FactionMark faction={faction} />}
       />
       <PageContent className="space-y-6">
-        <Breadcrumb>
-          <BreadcrumbList className="eyebrow gap-1 text-info">
-            <BreadcrumbItem>
-              <BreadcrumbLink render={<Link to="/factions" />}>Factions</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator className="text-dim" />
-            <BreadcrumbItem>
-              <BreadcrumbLink render={<FactionReferenceLink to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} />}>
-                {faction.displayName}
-              </BreadcrumbLink>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
+        <FactionBreadcrumb faction={faction} />
         <SearchField
           value={query}
           onChange={setQuery}
@@ -209,12 +194,6 @@ const FactionDatasheetRow = memo(function FactionDatasheetRow({
     </div>
   )
 })
-
-function toggled<T>(set: ReadonlySet<T>, value: T) {
-  const next = new Set(set)
-  if (!next.delete(value)) next.add(value)
-  return next
-}
 
 type KeywordChoice = ReturnType<typeof keywordOptions>[number]
 

@@ -111,22 +111,6 @@ describe('nativePushAnswerScript', () => {
 })
 
 describe('NATIVE_BRIDGE_SCRIPT', () => {
-  it('publishes only the version 3 capabilities the shell handles', () => {
-    expect(NATIVE_BRIDGE_SCRIPT).toContain(
-      "const capabilities = ['app-navigation', 'app-snapshot', 'local-state', 'back-gesture', 'battle-active', 'github-auth', 'haptic', 'notifications', 'offline-reference', 'open-window', 'print', 'share']",
-    )
-    expect(NATIVE_BRIDGE_SCRIPT).toContain('bridgeVersion: 3')
-  })
-
-  it('marks documents for the native application layout before they render', () => {
-    expect(NATIVE_BRIDGE_SCRIPT).toContain("document.documentElement.dataset.nativeApp = 'true'")
-    expect(NATIVE_BRIDGE_SCRIPT).not.toContain('dataset.nativeShell')
-  })
-
-  it('disables document zoom in the native application', () => {
-    expect(NATIVE_BRIDGE_SCRIPT).toContain('maximum-scale=1, user-scalable=no')
-  })
-
   it('waits for the document root when the WebView injects the bridge first', () => {
     let mutationCallback: (() => void) | undefined
     const disconnect = vi.fn()
@@ -205,10 +189,6 @@ describe('NATIVE_BRIDGE_SCRIPT', () => {
     expect(JSON.parse(messages[1]!)).toEqual({ version: 3, type: 'native-open-window', url: anchor.href })
     expect(click.preventDefault).toHaveBeenCalledOnce()
     expect(click.stopImmediatePropagation).toHaveBeenCalledOnce()
-  })
-
-  it('removes executable embedded content before printing', () => {
-    expect(NATIVE_BRIDGE_SCRIPT).toContain("querySelectorAll('script, iframe')")
   })
 })
 

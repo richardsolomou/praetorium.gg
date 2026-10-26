@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { CANONICAL_CATALOGUE_COMPILER_VERSION } from './canonicalCatalogue'
 import { parseSharedJson } from './sharedJson'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
-import type { GlobalSearchIndex } from '../contracts/referenceSearch'
+import type { GlobalSearchIndex } from '../core/referenceSearch'
 import type { factionsFor } from '../shared/factionReferences'
 import type { combatUnitsFor } from './combatUnits'
 
@@ -28,8 +28,8 @@ export type RuntimeStartup = {
   searchIndex: GlobalSearchIndex
   combatUnits: ReturnType<typeof combatUnitsFor>
 }
-export type RuntimeKey = 'startup' | `${string}.canonical`
-export type RuntimeCanonical = Omit<CanonicalCatalogue, 'datasheets' | 'detachments' | 'issues'> & {
+type RuntimeKey = 'startup' | `${string}.canonical`
+type RuntimeCanonical = Omit<CanonicalCatalogue, 'datasheets' | 'detachments' | 'issues'> & {
   datasheets: number[]
   detachments: number[]
   issues: number[]

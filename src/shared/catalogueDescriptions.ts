@@ -1,4 +1,4 @@
-import { groupBy } from '../core/collections'
+import { groupBy, remember } from '../core/collections'
 import type { Condition, Definition, ModifierGroup, SelectionEntry } from '../core/catalogue'
 import { routeSlug } from '../core/slug'
 import { compareText } from '../core/text'
@@ -6,7 +6,7 @@ import type { LoadedCatalogue } from './catalogueIndex'
 import { cardName, descriptionKey } from './datacards'
 import type { DetachmentRulesDetail } from '../contracts/factions'
 
-export type DetachmentCatalogueDetail = {
+type DetachmentCatalogueDetail = {
   rules: { name: string; description: string | null }[]
   enhancements: { name: string; points: number | null; description: string | null }[]
   forcedEnhancements: { name: string; points: number | null; description: string | null }[]
@@ -78,27 +78,25 @@ export function detachmentCatalogueDetail(
 }
 
 function enhancementIndex(loaded: LoadedCatalogue): EnhancementIndex {
-  const existing = enhancementIndexes.get(loaded)
-  if (existing) return existing
-
-  const upgrades = [...loaded.index.definitions.values()].filter((entry): entry is SelectionEntry => entry.type === 'upgrade')
-  // Keyed once: a price asks for every enhancement of every chosen detachment.
-  const byCardName = groupBy(
-    upgrades.filter((entry) => entry.name),
-    (entry) => cardName(entry.name!),
-  )
-  const forced = new Map<string, SelectionEntry[]>()
-  for (const entry of upgrades) {
-    const catalogueId = loaded.index.catalogueOf.get(entry.id)
-    if (!catalogueId) continue
-    for (const detachmentId of forcedFor(entry)) {
-      const key = `${catalogueId}:${detachmentId}`
-      forced.set(key, [...(forced.get(key) ?? []), entry])
+  return remember(enhancementIndexes, loaded, () => {
+    const upgrades = [...loaded.index.definitions.values()].filter((entry): entry is SelectionEntry => entry.type === 'upgrade')
+    // Keyed once: a price asks for every enhancement of every chosen detachment.
+    const byCardName = groupBy(
+      upgrades.filter((entry) => entry.name),
+      (entry) => cardName(entry.name!),
+    )
+    const forced = new Map<string, SelectionEntry[]>()
+    for (const entry of upgrades) {
+      const catalogueId = loaded.index.catalogueOf.get(entry.id)
+      if (!catalogueId) continue
+      for (const detachmentId of forcedFor(entry)) {
+        const key = `${catalogueId}:${detachmentId}`
+        forced.set(key, [...(forced.get(key) ?? []), entry])
+      }
     }
-  }
-  const indexed = { byCardName, forced }
-  enhancementIndexes.set(loaded, indexed)
-  return indexed
+    const indexed = { byCardName, forced }
+    return indexed
+  })
 }
 
 function forcedFor(entry: SelectionEntry): Set<string> {

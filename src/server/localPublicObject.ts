@@ -1,3 +1,5 @@
+import { ifNoneMatch } from './ifNoneMatch.ts'
+
 type PublicObjectBucket = {
   head: (key: string) => Promise<{ httpEtag: string } | null>
   get: (key: string) => Promise<{ httpEtag: string } | null>
@@ -31,6 +33,6 @@ export async function localPublicObject(request: Request, bucket: PublicObjectBu
     'X-Praetorium-Object-Source': 'local',
     ETag: object.httpEtag,
   })
-  if (request.headers.get('if-none-match') === object.httpEtag) return new Response(null, { status: 304, headers })
+  if (ifNoneMatch(request, object.httpEtag)) return new Response(null, { status: 304, headers })
   return new Response(request.method === 'GET' && 'body' in object ? (object.body as ReadableStream) : null, { headers })
 }

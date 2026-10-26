@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { imageDataUrlMaxLength } from '../core/base64'
 import { idSchema } from '../core/commands'
 import { MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS } from '../core/collection'
 import { MAX_DATASHEET_PHOTOS } from '../core/collectionPhotos'
@@ -27,14 +28,11 @@ export const collectionProfileSchema = z
 /** Browsers downscale a photo to about 1280 pixels before upload, which keeps a typical one well under this. */
 export const COLLECTION_PHOTO_MAX_BYTES = 600_000
 
-/** Base64 grows bytes by a third; the prefix is at most `data:image/jpeg;base64,`. */
-const COLLECTION_PHOTO_MAX_LENGTH = Math.ceil(COLLECTION_PHOTO_MAX_BYTES / 3) * 4 + 32
-
 export const collectionPhotoSchema = z.object({
   entryId: idSchema,
   /** Another datasheet the entry's models count as, when the photo shows that build. */
   shows: idSchema.optional(),
-  image: z.string().max(COLLECTION_PHOTO_MAX_LENGTH),
+  image: z.string().max(imageDataUrlMaxLength(COLLECTION_PHOTO_MAX_BYTES)),
 })
 
 export const collectionPhotoIdSchema = z.object({ photoId: z.uuid() })
@@ -43,7 +41,7 @@ export const collectionPhotoLikeSchema = collectionPhotoIdSchema.extend({ liked:
 
 export const collectionPhotoReportSchema = collectionPhotoIdSchema.extend({ reason: z.string().trim().max(500) })
 
-export const adminCollectionPhotosCursorSchema = z.object({ at: z.number().int().nonnegative(), id: z.uuid() })
+const adminCollectionPhotosCursorSchema = z.object({ at: z.number().int().nonnegative(), id: z.uuid() })
 
 export type AdminCollectionPhotosCursor = z.infer<typeof adminCollectionPhotosCursorSchema>
 

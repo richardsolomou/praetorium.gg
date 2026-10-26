@@ -10,7 +10,7 @@ In a 2v1 or doubles tournament the organizer gives you your size and teammate fi
 
 ## After the reveal
 
-Every roster opens at once. Each player's card has **View roster** and **Simulate against** for their list. Start a tournament battle from the tournament page against another entrant, and both sealed rosters are added for you. If you and an opponent are both in a tournament, starting a battle anywhere offers to play it in the tournament. Finished battles fill the results table, which counts the tournament's latest 500 battles.
+Every roster opens at once. Each player's card has **View roster** and **Simulate** for their list. Start a tournament battle from the tournament page against another entrant, and both sealed rosters are added for you. If you and an opponent are both in a tournament, starting a battle anywhere offers to play it in the tournament. Finished battles fill the results table, which counts the tournament's latest 500 battles.
 
 In a tournament with Swiss rounds you don't choose your opponent: when the organizer pairs a round, your table shows on the tournament page with **Start battle**. A bye counts as a win. The next round is paired once every table has finished.
 

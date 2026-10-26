@@ -1,3 +1,4 @@
+import { PICKER_POPUP } from './CombatControls'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useContext, useState, type ReactNode } from 'react'
 import { ChevronDown, Plus, Settings, WandSparkles, X } from 'lucide-react'
@@ -17,6 +18,7 @@ import { UnitPicker } from '../../components/UnitPicker'
 import { LoadoutOddsContext, LoadoutOddsStatus, LoadoutOptimizationContext, useOptionNote, useProfileNote } from './LoadoutOdds'
 import { useLoadoutOdds } from './useLoadoutOdds'
 import { namespaceLoadoutSpace } from '../../../core/combatLoadouts'
+import { attachedProfilePrefix } from '../../../core/combatScenario'
 import { WeaponProfileNote } from '../../components/DatasheetProfiles'
 import type { Combatant } from './useCombatant'
 import { useLoadoutOptimizer } from './useLoadoutOptimizer'
@@ -75,9 +77,7 @@ export function CombatantCard({
     const faction =
       factions.data?.factions.find((entry) => entry.id === catalogueId || entry.slug === catalogueId) ??
       (catalogueId === combatant.faction ? selectedFaction : undefined)
-    return faction ? (
-      <FactionMark id={faction.slug} name={faction.displayName} edition={faction.edition} icon={faction.icon} size="sm" />
-    ) : undefined
+    return faction ? <FactionMark faction={faction} size="sm" /> : undefined
   }
   const failed = factions.isError || catalogueUnits.isError || combatant.price.isError || combatant.sheets.isError
   const unavailable =
@@ -116,7 +116,7 @@ export function CombatantCard({
   const unitPicker = combatant.roster ? (
     <SearchableSelect
       ariaLabel={`${side} unit`}
-      popupClassName="min-w-[min(20rem,var(--available-width))]"
+      popupClassName={PICKER_POPUP}
       loading={Boolean(pick) && !ready}
       placeholder="Choose a unit"
       value={String(pickIndex)}
@@ -141,7 +141,7 @@ export function CombatantCard({
   ) : (
     <UnitPicker
       ariaLabel={`${side} unit`}
-      popupClassName="min-w-[min(20rem,var(--available-width))]"
+      popupClassName={PICKER_POPUP}
       loading={Boolean(pick) && !ready}
       placeholder="Choose a unit"
       searchPlaceholder="Search units…"
@@ -278,131 +278,129 @@ export function CombatantCard({
         </div>
       ) : null}
       <div className="min-h-8 space-y-2">
-        <>
-          <div className="space-y-1" aria-label={`${side} unit members`}>
-            {members.map((member) => (
-              <div key={member.index} className="flex min-w-0 flex-wrap items-center gap-2 text-sm" data-combat-member={member.name}>
-                <div className="min-w-12 flex-1 [&_[data-slot=combobox-trigger]>span]:truncate">
-                  {member.index === pickIndex ? (
-                    unitPicker
-                  ) : (
-                    <SearchableSelect
-                      ariaLabel={`${side} ${member.name} unit`}
-                      popupClassName="min-w-[min(20rem,var(--available-width))]"
-                      placeholder={member.name}
-                      loading={!ready}
-                      value={picks.positioned[member.index]?.entryId ?? ''}
-                      disabled={combatant.roster || !ready || optimizer.busy}
-                      searchPlaceholder="Search leaders and support…"
-                      onValueChange={(entryId) => combatant.replaceAttachment(member.index, entryId)}
-                      groups={[
-                        {
-                          label: 'Unit members',
-                          items: combatant.sheets.data?.attachmentReplacements?.[member.index]?.map((option) => ({
-                            value: option.entryId,
-                            label: option.name,
-                            icon: factionIcon(option.factionSlug ?? option.catalogueId),
-                          })) ?? [
-                            {
-                              value: picks.positioned[member.index]?.entryId ?? '',
-                              label: member.name,
-                              icon: factionIcon(
-                                combatant.sheets.data?.companions.find((companion) => companion.pickIndex === member.index)?.selected
-                                  .referenceRoute?.catalogueId ?? picks.positioned[member.index]?.catalogueId,
-                              ),
-                            },
-                          ],
-                        },
-                      ]}
-                    />
-                  )}
-                </div>
-                <div className="ml-auto flex max-w-full shrink-0 flex-wrap items-center gap-2">
-                  {member.index === pickIndex && (battleUnit || !unit || unit.size.resizable) ? (
-                    <Stepper
-                      label={`${side.toLowerCase()} models`}
-                      countLabel={`${side} models`}
-                      count={pick ? models : null}
-                      loading={Boolean(pick) && !unit}
-                      onRemove={
-                        unit && unit.entryId === pick?.entryId && fewer < models && fewer >= (battleUnit ? 1 : unit.size.min)
-                          ? () =>
-                              battleUnit ? combatant.setHealth({ models: fewer }) : edit.resize(pickIndex, (count) => nextSize(count, -1))
-                          : undefined
-                      }
-                      onAdd={
-                        unit && unit.entryId === pick?.entryId && more > models && more <= maximum
-                          ? () =>
-                              battleUnit
-                                ? combatant.setHealth({ models: more })
-                                : edit.resize(pickIndex, (count) => Math.min(maximum, nextSize(count, 1)))
-                          : undefined
-                      }
-                      choices={
-                        unit && unit.entryId === pick?.entryId
-                          ? modelCountChoices(battleUnit ? { min: 1, max: maximum } : { ...unit.size, max: maximum })
-                          : undefined
-                      }
-                      onChoose={(count) => (battleUnit ? combatant.setHealth({ models: count }) : edit.resize(pickIndex, () => count))}
-                    />
-                  ) : (
-                    <span
-                      aria-label={member.index === pickIndex ? `${side} models` : `${side} ${member.name} models`}
-                      aria-busy={!combatant.price.data?.units[member.index]}
-                      className="readout w-8 shrink-0 text-center text-sm text-dim"
-                    >
-                      {combatant.price.data?.units[member.index] ? (
-                        member.models
-                      ) : (
-                        <span aria-hidden className="inline-block h-4 w-5 animate-pulse bg-muted align-middle" />
-                      )}
-                    </span>
-                  )}
+        <div className="space-y-1" aria-label={`${side} unit members`}>
+          {members.map((member) => (
+            <div key={member.index} className="flex min-w-0 flex-wrap items-center gap-2 text-sm" data-combat-member={member.name}>
+              <div className="min-w-12 flex-1 [&_[data-slot=combobox-trigger]>span]:truncate">
+                {member.index === pickIndex ? (
+                  unitPicker
+                ) : (
+                  <SearchableSelect
+                    ariaLabel={`${side} ${member.name} unit`}
+                    popupClassName={PICKER_POPUP}
+                    placeholder={member.name}
+                    loading={!ready}
+                    value={picks.positioned[member.index]?.entryId ?? ''}
+                    disabled={combatant.roster || !ready || optimizer.busy}
+                    searchPlaceholder="Search leaders and support…"
+                    onValueChange={(entryId) => combatant.replaceAttachment(member.index, entryId)}
+                    groups={[
+                      {
+                        label: 'Unit members',
+                        items: combatant.sheets.data?.attachmentReplacements?.[member.index]?.map((option) => ({
+                          value: option.entryId,
+                          label: option.name,
+                          icon: factionIcon(option.factionSlug ?? option.catalogueId),
+                        })) ?? [
+                          {
+                            value: picks.positioned[member.index]?.entryId ?? '',
+                            label: member.name,
+                            icon: factionIcon(
+                              combatant.sheets.data?.companions.find((companion) => companion.pickIndex === member.index)?.selected
+                                .referenceRoute?.catalogueId ?? picks.positioned[member.index]?.catalogueId,
+                            ),
+                          },
+                        ],
+                      },
+                    ]}
+                  />
+                )}
+              </div>
+              <div className="ml-auto flex max-w-full shrink-0 flex-wrap items-center gap-2">
+                {member.index === pickIndex && (battleUnit || !unit || unit.size.resizable) ? (
+                  <Stepper
+                    label={`${side.toLowerCase()} models`}
+                    countLabel={`${side} models`}
+                    count={pick ? models : null}
+                    loading={Boolean(pick) && !unit}
+                    onRemove={
+                      unit && unit.entryId === pick?.entryId && fewer < models && fewer >= (battleUnit ? 1 : unit.size.min)
+                        ? () =>
+                            battleUnit ? combatant.setHealth({ models: fewer }) : edit.resize(pickIndex, (count) => nextSize(count, -1))
+                        : undefined
+                    }
+                    onAdd={
+                      unit && unit.entryId === pick?.entryId && more > models && more <= maximum
+                        ? () =>
+                            battleUnit
+                              ? combatant.setHealth({ models: more })
+                              : edit.resize(pickIndex, (count) => Math.min(maximum, nextSize(count, 1)))
+                        : undefined
+                    }
+                    choices={
+                      unit && unit.entryId === pick?.entryId
+                        ? modelCountChoices(battleUnit ? { min: 1, max: maximum } : { ...unit.size, max: maximum })
+                        : undefined
+                    }
+                    onChoose={(count) => (battleUnit ? combatant.setHealth({ models: count }) : edit.resize(pickIndex, () => count))}
+                  />
+                ) : (
+                  <span
+                    aria-label={member.index === pickIndex ? `${side} models` : `${side} ${member.name} models`}
+                    aria-busy={!combatant.price.data?.units[member.index]}
+                    className="readout w-8 shrink-0 text-center text-sm text-dim"
+                  >
+                    {combatant.price.data?.units[member.index] ? (
+                      member.models
+                    ) : (
+                      <span aria-hidden className="inline-block h-4 w-5 animate-pulse bg-muted align-middle" />
+                    )}
+                  </span>
+                )}
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  title="Loadout"
+                  disabled={!ready}
+                  onPointerEnter={() => warmLoadout(member.index)}
+                  onFocus={() => warmLoadout(member.index)}
+                  aria-label={member.index === pickIndex ? 'Loadout' : `${side} ${member.name} loadout`}
+                  onClick={() => setLoadoutIndex(member.index)}
+                >
+                  <Settings className="size-4" aria-hidden />
+                </Button>
+                {battleUnit &&
+                (member.index === pickIndex
+                  ? models < battleUnit.startingModels
+                  : combatant.companionSurvivors.some(
+                      (candidate) =>
+                        candidate.pickIndex === member.index &&
+                        candidate.models < candidate.original.reduce((total, carrier) => total + carrier.models, 0),
+                    )) ? (
                   <Button
                     variant="outline"
-                    size="icon-sm"
-                    title="Loadout"
-                    disabled={!ready}
-                    onPointerEnter={() => warmLoadout(member.index)}
-                    onFocus={() => warmLoadout(member.index)}
-                    aria-label={member.index === pickIndex ? 'Loadout' : `${side} ${member.name} loadout`}
-                    onClick={() => setLoadoutIndex(member.index)}
+                    size="sm"
+                    aria-label={member.index === pickIndex ? undefined : `${side} ${member.name} survivors`}
+                    onClick={() => setSurvivorIndex(member.index)}
                   >
-                    <Settings className="size-4" aria-hidden />
+                    Survivors
                   </Button>
-                  {battleUnit &&
-                  (member.index === pickIndex
-                    ? models < battleUnit.startingModels
-                    : combatant.companionSurvivors.some(
-                        (candidate) =>
-                          candidate.pickIndex === member.index &&
-                          candidate.models < candidate.original.reduce((total, carrier) => total + carrier.models, 0),
-                      )) ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      aria-label={member.index === pickIndex ? undefined : `${side} ${member.name} survivors`}
-                      onClick={() => setSurvivorIndex(member.index)}
-                    >
-                      Survivors
-                    </Button>
-                  ) : null}
-                  {!combatant.roster ? (
-                    <Button
-                      variant="ghost"
-                      size="icon-sm"
-                      disabled={members.length < 2 || !ready || optimizer.busy}
-                      aria-label={`Remove ${side.toLowerCase()} ${member.name}`}
-                      onClick={() => combatant.removeMember(member.index)}
-                    >
-                      <X aria-hidden />
-                    </Button>
-                  ) : null}
-                </div>
+                ) : null}
+                {!combatant.roster ? (
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={members.length < 2 || !ready || optimizer.busy}
+                    aria-label={`Remove ${side.toLowerCase()} ${member.name}`}
+                    onClick={() => combatant.removeMember(member.index)}
+                  >
+                    <X aria-hidden />
+                  </Button>
+                ) : null}
               </div>
-            ))}
-          </div>
-        </>
+            </div>
+          ))}
+        </div>
         {!unit && (failed || unavailable) ? (
           <p className="text-sm text-faint">
             {failed ? 'Unit data could not load.' : 'This unit cannot be configured. Choose another unit.'}
@@ -514,7 +512,7 @@ function CombatMemberLoadout({ combatant, index, busy }: { combatant: Combatant;
   const context = useContext(LoadoutOptimizationContext)
   const primary = index === combatant.pickIndex
   const memberIndex = (combatant.sheets.data?.companions.findIndex((member) => member.pickIndex === index) ?? -1) + 1
-  const prefix = primary ? '' : `attached:${index}:`
+  const prefix = primary ? '' : attachedProfilePrefix(index)
   const loadouts = useQuery({
     ...combatLoadoutsQuery({
       catalogueId: combatant.catalogueId,

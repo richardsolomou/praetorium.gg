@@ -1,5 +1,7 @@
-import { parseLocalState } from '../contracts/localState'
+import { parseLocalState, type LocalState } from '../contracts/localState'
 import { useSyncExternalStore } from 'react'
+import type { AppSnapshot } from '../contracts/appSnapshot'
+import type { WatchBattle } from '../contracts/watchBattle'
 
 type NativeCapability =
   | 'local-state'
@@ -58,6 +60,7 @@ function askNative<T>(
   timeoutMs: number,
   read: (answer: NativeAnswer) => T | null,
 ): Promise<T | 'timeout' | 'unsent'> {
+  if (!supports(capability)) return Promise.resolve('unsent')
   const id = crypto.randomUUID()
   return new Promise((resolve) => {
     const finish = (result: T | 'timeout' | 'unsent') => {
@@ -77,14 +80,14 @@ function askNative<T>(
   })
 }
 
-export type NativeLocalState = { epoch: string; state: import('../contracts/localState').LocalState | null; saved: boolean }
+type NativeLocalState = { epoch: string; state: LocalState | null; saved: boolean }
 export function supportsNativeLocalState() {
   return supports('local-state')
 }
 
 export async function requestNativeLocalState(
   owner: string,
-  write?: { state: import('../contracts/localState').LocalState | null; epoch: string; expectedRevision: number },
+  write?: { state: LocalState | null; epoch: string; expectedRevision: number },
 ): Promise<NativeLocalState> {
   const answer = await askNative(
     'local-state',
@@ -104,8 +107,7 @@ export async function requestNativeLocalState(
   return answer
 }
 
-export async function exportNativeWork(state: import('../contracts/localState').LocalState): Promise<boolean> {
-  if (!supportsNativeLocalState()) return false
+export async function exportNativeWork(state: LocalState): Promise<boolean> {
   const answer = await askNative(
     'local-state',
     'praetorium-native-export-work',
@@ -178,7 +180,6 @@ function nativePushAnswer(answer: NativeAnswer): NativePushAnswer | null {
  * waits on a person, a silent check only on the operating system.
  */
 export async function requestNativePush(prompt: boolean, timeoutMs = prompt ? 120_000 : 10_000): Promise<NativePushAnswer | null> {
-  if (!supportsNativePush()) return null
   const answer = await askNative('notifications', NATIVE_PUSH_EVENT, { type: 'native-push', prompt }, timeoutMs, nativePushAnswer)
   return typeof answer === 'string' ? null : answer
 }
@@ -199,8 +200,7 @@ export function supportsNativeAppSnapshot() {
 
 const savedAnswer = (answer: NativeAnswer) => answer.saved === true
 
-export async function requestNativeAppSnapshot(snapshot: import('../contracts/appSnapshot').AppSnapshot | null): Promise<boolean> {
-  if (!supportsNativeAppSnapshot()) return false
+export async function requestNativeAppSnapshot(snapshot: AppSnapshot | null): Promise<boolean> {
   return (
     (await askNative('app-snapshot', 'praetorium-native-app-snapshot', { type: 'native-app-snapshot', snapshot }, 15_000, savedAnswer)) ===
     true
@@ -208,19 +208,14 @@ export async function requestNativeAppSnapshot(snapshot: import('../contracts/ap
 }
 
 export async function requestNativeOfflineSave(doc: { html: string; savedAt: number }): Promise<boolean> {
-  if (!supportsNativeOffline()) return false
   return (
     (await askNative('offline-reference', 'praetorium-native-offline', { type: 'native-offline-save', ...doc }, 60_000, savedAnswer)) ===
     true
   )
 }
 
-export function setNativeWatchBattle(snapshot: import('../contracts/watchBattle').WatchBattle | null) {
+export function setNativeWatchBattle(snapshot: WatchBattle | null) {
   return send('watch-battle', { type: 'native-watch-battle', snapshot })
-}
-
-export function supportsNativeWatchBattle() {
-  return supports('watch-battle')
 }
 
 function subscribeCapabilities(changed: () => void) {
@@ -229,7 +224,11 @@ function subscribeCapabilities(changed: () => void) {
 }
 
 export function useNativeWatchBattleAvailability() {
-  return useSyncExternalStore(subscribeCapabilities, supportsNativeWatchBattle, () => false)
+  return useSyncExternalStore(
+    subscribeCapabilities,
+    () => supports('watch-battle'),
+    () => false,
+  )
 }
 
 /** Whether `shareLink` opens the system share sheet rather than copying the link. */

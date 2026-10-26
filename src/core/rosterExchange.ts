@@ -16,7 +16,7 @@ import type { RosterPick } from './roster'
 import { withoutUnitNotes } from './unitNotes'
 
 /** Format 2 adds a custom points budget, so a code without one stays format 1 and older apps still read it. */
-export const ROSTER_EXCHANGE_VERSION = 2
+const ROSTER_EXCHANGE_VERSION = 2
 const ROSTER_EXCHANGE_BUDGET_VERSION = 2
 /** Longer codes are refused before decompression; QR codes hold far less. */
 export const ROSTER_EXCHANGE_MAX_CODE_LENGTH = 12_000

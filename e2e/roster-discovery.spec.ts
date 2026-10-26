@@ -2,39 +2,25 @@ import { expect, type Page, test } from './test'
 import {
   befriend,
   chooseRosterAction,
-  confirmRosterSetup,
   createRoster,
   retryUntilVisible,
   signUp,
   uniqueName,
   waitForRosterSave,
+  setRosterAccess,
+  addUnit,
+  chooseOption,
+  PHONE,
 } from './account'
-import { expectNoHorizontalOverflow, shot } from './builder.harness'
-import { productOperator, userIdFor } from './storage'
+import { expectNoHorizontalOverflow, shot, closePicker } from './builder.harness'
+import { productOperator, userIdFor, lastPathSegment } from './storage'
 
 const UNIT = 'Immortals'
 const NOTE = 'Discovery note stays with the owner'
 
-const rosterId = (page: Page) => new URL(page.url()).pathname.split('/').at(-1)!
-
-async function setAccess(page: Page, name: string, value: string) {
-  await chooseRosterAction(page, 'Edit roster setup')
-  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
-  await setup.getByRole('combobox', { name: 'Access' }).click()
-  await page.getByRole('option', { name }).click()
-  await waitForRosterSave(page, () => confirmRosterSetup(setup), `"${value}"`)
-}
-
 async function addNotedUnit(page: Page) {
-  await page.getByLabel('Add a unit').fill(UNIT)
-  await waitForRosterSave(page, () =>
-    page
-      .getByRole('button', { name: `Add ${UNIT}`, exact: true })
-      .first()
-      .click(),
-  )
-  const picker = page.getByRole('dialog', { name: 'Add units' })
-  if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close' }).click()
+  await addUnit(page, UNIT)
+  await closePicker(page)
   await page.locator(`[data-unit="${UNIT}"]`).getByRole('button', { name: UNIT, exact: true }).click()
   const fields = page.getByRole('region', { name: 'Note' })
   await waitForRosterSave(page, () => fields.getByRole('textbox', { name: 'Note', exact: true }).fill(NOTE), NOTE)
@@ -51,8 +37,7 @@ async function filterTo(page: Page, choices: { faction: string; detachment: stri
     ['Detachment', choices.detachment],
     ['Rules version', choices.rules],
   ] as const) {
-    await dialog.getByRole('combobox', { name: label }).click()
-    await page.getByRole('option', { name: option, exact: true }).click()
+    await chooseOption(page, label, option)
     await expect(dialog.getByRole('combobox', { name: label })).toContainText(option, { timeout: 60_000 })
   }
   await dialog.getByRole('button', { name: 'Done' }).click()
@@ -75,12 +60,12 @@ for (const [width, label] of [
       'aria-current',
       'page',
     )
-    await shot(owner.locator('main header'), `test-results/roster-library-header-${label}.png`)
+    await shot(owner.locator('main header'), test.info().outputPath(`roster-library-header-${label}.png`))
     const armyName = uniqueName('Found army')
     await createRoster(owner, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: armyName })
     await addNotedUnit(owner)
-    await setAccess(owner, 'Public — listed on your profile', 'public')
-    const sourceId = rosterId(owner)
+    await setRosterAccess(owner, 'Public — listed on your profile', 'public')
+    const sourceId = lastPathSegment(owner.url())
     const product = await productOperator()
     const source = await product.roster(sourceId)
 
@@ -99,7 +84,7 @@ for (const [width, label] of [
     await expect(card).toContainText('Legal')
     await expect(reader.locator('main')).not.toContainText(NOTE)
     await expectNoHorizontalOverflow(reader.locator('main'))
-    await shot(reader.locator('main'), `test-results/roster-discovery-${label}.png`)
+    await shot(reader.locator('main'), test.info().outputPath(`roster-discovery-${label}.png`))
 
     if (width === 1440) {
       await reader.goto(`/rosters/${sourceId}`)
@@ -112,7 +97,7 @@ for (const [width, label] of [
     }
     await card.getByRole('button', { name: `Duplicate ${armyName}` }).click()
     await reader.waitForURL((url) => /^\/rosters\/[^/]+$/.test(url.pathname))
-    const copyId = rosterId(reader)
+    const copyId = lastPathSegment(reader.url())
     expect(copyId).not.toBe(sourceId)
     await expect(reader.getByLabel('List name')).toHaveValue(`Copy of ${armyName}`)
     await expect(reader.locator('[data-roster-copied-from]')).toHaveText(`Copied from ${armyName} by ${ownerName}`)
@@ -124,7 +109,7 @@ for (const [width, label] of [
 
     await reader.goto(filtered)
     await expect(card).toBeVisible()
-    await setAccess(owner, 'Private', 'private')
+    await setRosterAccess(owner, 'Private', 'private')
     await expect(card).toHaveCount(0)
     await reader.reload()
     await expect(reader.getByRole('heading', { name: 'Public rosters', exact: true })).toBeVisible()
@@ -136,14 +121,14 @@ for (const [width, label] of [
 }
 
 test('a faction page leads to its public armies, and a filter none match explains how armies are listed (phone)', async ({ browser }) => {
-  const page = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage()
+  const page = await (await browser.newContext({ viewport: PHONE })).newPage()
   await page.goto('/factions/necrons')
   await page.getByRole('link', { name: 'Public armies' }).click()
   await expect(page).toHaveURL(/\/rosters\?view=public&faction=necrons$/)
   await page.goto('/rosters?view=public&rules=preview&faction=necrons')
   await expect(page.getByText('No public rosters match these filters')).toBeVisible()
   await expectNoHorizontalOverflow(page.locator('main'))
-  await shot(page.locator('main'), 'test-results/roster-discovery-empty-phone.png')
+  await shot(page.locator('main'), test.info().outputPath('roster-discovery-empty-phone.png'))
   await page.getByRole('button', { name: 'Clear filters' }).click()
   await expect(page).toHaveURL(/\/rosters\?view=public$/)
 })
@@ -171,7 +156,7 @@ test("a friend's public roster is listed to friends, and a player's own stays of
   await befriend(owner, friend)
   const armyName = uniqueName('Friend army')
   await createRoster(owner, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: armyName })
-  await setAccess(owner, 'Public — listed on your profile', 'public')
+  await setRosterAccess(owner, 'Public — listed on your profile', 'public')
 
   await friend.goto('/rosters?view=friends')
   await expect(friend.locator(`[data-discovered-roster="${armyName}"]`)).toBeVisible()
@@ -219,7 +204,7 @@ for (const [width, label] of [
       await page.mouse.wheel(0, 20_000)
       await expect(more).toBeInViewport({ timeout: 1_000 })
     }).toPass({ timeout: 10_000 })
-    await page.screenshot({ path: `test-results/roster-discovery-scrolled-${label}.png` })
+    await page.screenshot({ path: test.info().outputPath(`roster-discovery-scrolled-${label}.png`) })
     const seeded = page.locator(`[data-discovered-roster^="${prefix} "]`)
     // The last page removes the button, so a slow page must not be asked for again.
     await expect(async () => {

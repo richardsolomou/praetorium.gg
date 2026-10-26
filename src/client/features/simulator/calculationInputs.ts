@@ -1,10 +1,10 @@
 import type { CombatantSnapshot } from '../../../core/combatMatchup'
 import type { CombatWeaponChoice } from '../../../core/combatProfiles'
-import type { CombatOptions } from '../../../core/combat'
+import type { CombatPhase } from '../../../core/combat'
 
 /** What a phase estimate takes into account besides manual modifiers: both sides' active rules, the weapon choices made, and the weapons left out. */
 export function calculationInputs(
-  phase: CombatOptions['phase'],
+  phase: CombatPhase,
   {
     attacker,
     defender,

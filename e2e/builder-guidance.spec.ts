@@ -1,7 +1,7 @@
 import type { Locator } from '@playwright/test'
 import { expect, type Page, test } from './test'
-import { createRoster, signUp, waitForRosterSave } from './account'
-import { add, arrangeByRole, expectNoHorizontalOverflow, openBuilder, shot } from './builder.harness'
+import { createRoster, signUp, waitForRosterSave, addUnit, expectNoPageOverflow } from './account'
+import { arrangeByRole, expectNoHorizontalOverflow, openBuilder, shot } from './builder.harness'
 
 test.use({ hasTouch: true })
 // These tests read the rows on each card that name the unit it joined.
@@ -19,8 +19,8 @@ test(`a unit's attach menu adds and attaches a new leader, then offers only its 
     await page.setViewportSize({ width, height: 900 })
     await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
     await expect(page.getByRole('combobox', { name: 'Unit relationships' })).toHaveCount(0)
-    await waitForRosterSave(page, () => add(page, 'Immortals'))
-    await waitForRosterSave(page, () => add(page, 'Overlord'))
+    await addUnit(page, 'Immortals')
+    await addUnit(page, 'Overlord')
     await closePickerOnPhone(page, width)
 
     const immortals = page.locator('[data-unit="Immortals"]')
@@ -33,7 +33,7 @@ test(`a unit's attach menu adds and attaches a new leader, then offers only its 
     await expect(imotekh).toContainText(/\d+ pts/)
     await expect(added.getByRole('menuitem', { name: 'Add new Immortals and attach', exact: true })).toHaveCount(0)
     await expectNoHorizontalOverflow(attachMenu(page))
-    await shot(attachMenu(page), `test-results/attach-menu-bodyguard-${width}.png`)
+    await shot(attachMenu(page), test.info().outputPath(`attach-menu-bodyguard-${width}.png`))
 
     await waitForRosterSave(page, () => imotekh.click())
     const leader = page.locator('[data-unit="Imotekh the Stormlord"]')
@@ -47,14 +47,14 @@ test(`a unit's attach menu adds and attaches a new leader, then offers only its 
     await expect(added.getByRole('menuitem', { name: 'Add new Overlord and attach', exact: true })).toHaveCount(0)
     await expect(added.getByRole('menuitem', { name: 'Add new Imotekh the Stormlord and attach', exact: true })).toHaveCount(0)
     await expectNoHorizontalOverflow(attachMenu(page))
-    await expectNoHorizontalOverflow(page.locator('html'))
-    await shot(attachMenu(page), `test-results/attach-menu-full-${width}.png`)
+    await expectNoPageOverflow(page)
+    await shot(attachMenu(page), test.info().outputPath(`attach-menu-full-${width}.png`))
     await page.keyboard.press('Escape')
 
     await page.reload()
     await expect(leader).toHaveCount(1)
     await expect(leader).toContainText('Immortals')
-    await page.screenshot({ path: `test-results/attach-roster-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`attach-roster-${width}.png`) })
     await expect(page.locator('[data-unit="Overlord"]')).not.toContainText('Leading')
   }
 })
@@ -64,7 +64,7 @@ test('a unit whose only leader slot is full offers no attach menu', async ({ pag
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
-    await waitForRosterSave(page, () => add(page, 'Skorpekh Destroyers'))
+    await addUnit(page, 'Skorpekh Destroyers')
     await closePickerOnPhone(page, width)
 
     const destroyers = page.locator('[data-unit="Skorpekh Destroyers"]')
@@ -78,8 +78,8 @@ test('a unit whose only leader slot is full offers no attach menu', async ({ pag
     await expect(destroyers).toContainText('Skorpekh Lord')
     await expect(attachUnit).toHaveCount(0)
     await expect(lord.getByRole('button', { name: 'Attach Skorpekh Lord to unit', exact: true })).toHaveCount(0)
-    await expectNoHorizontalOverflow(page.locator('html'))
-    await shot(destroyers, `test-results/attach-full-skorpekh-${width}.png`)
+    await expectNoPageOverflow(page)
+    await shot(destroyers, test.info().outputPath(`attach-full-skorpekh-${width}.png`))
     await page.reload()
     await expect(destroyers).toContainText('Skorpekh Lord')
     await expect(attachUnit).toHaveCount(0)
@@ -91,7 +91,7 @@ test(`a character's attach menu adds and joins a new bodyguard`, async ({ page }
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
-    await waitForRosterSave(page, () => add(page, 'Overlord'))
+    await addUnit(page, 'Overlord')
     await closePickerOnPhone(page, width)
 
     const overlord = page.locator('[data-unit="Overlord"]')
@@ -101,7 +101,7 @@ test(`a character's attach menu adds and joins a new bodyguard`, async ({ page }
       .getByRole('group', { name: 'Add a new unit' })
       .getByRole('menuitem', { name: 'Add new Immortals and attach', exact: true })
     await expect(immortals).toContainText(/\d+ pts/)
-    await shot(attachMenu(page), `test-results/attach-menu-leader-${width}.png`)
+    await shot(attachMenu(page), test.info().outputPath(`attach-menu-leader-${width}.png`))
     await waitForRosterSave(page, () => immortals.click())
 
     await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
@@ -117,24 +117,24 @@ test(`a character's attach menu adds and joins a new bodyguard`, async ({ page }
 test('a Loyal Protector joins a Command Squad', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await openBuilder(page, 'Astra Militarum', /Combined Arms/)
-  await waitForRosterSave(page, () => add(page, 'Ogryn Bodyguard'))
+  await addUnit(page, 'Ogryn Bodyguard')
 
   const ogryn = page.locator('[data-unit="Ogryn Bodyguard"]')
   await ogryn.getByRole('button', { name: 'Attach Ogryn Bodyguard to unit', exact: true }).click()
   const squad = attachMenu(page)
     .getByRole('group', { name: 'Add a new unit' })
     .getByRole('menuitem', { name: 'Add new Cadian Command Squad and attach', exact: true })
-  await shot(attachMenu(page), 'test-results/attach-menu-loyal-protector.png')
+  await shot(attachMenu(page), test.info().outputPath('attach-menu-loyal-protector.png'))
   await waitForRosterSave(page, () => squad.click())
 
   await expect(ogryn).toContainText('Cadian Command Squad')
-  await page.screenshot({ path: 'test-results/attach-loyal-protector-roster.png' })
+  await page.screenshot({ path: test.info().outputPath('attach-loyal-protector-roster.png') })
 })
 
 test('a unit attaches a character already in the roster from its own card', async ({ page }) => {
   await openBuilder(page)
-  await waitForRosterSave(page, () => add(page, 'Immortals'))
-  await waitForRosterSave(page, () => add(page, 'Overlord'))
+  await addUnit(page, 'Immortals')
+  await addUnit(page, 'Overlord')
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Attach a unit to Immortals', exact: true }).click()
   await waitForRosterSave(page, () =>
     attachMenu(page).getByRole('group', { name: 'In this roster' }).getByRole('menuitem', { name: 'Overlord', exact: true }).click(),
@@ -163,12 +163,12 @@ async function settledHeight(card: Locator) {
 test('picker card height stays stable as the roster crosses the points budget', async ({ page }) => {
   await signUp(page, 'Richard')
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, size: /Incursion/ })
-  await waitForRosterSave(page, () => add(page, "C'tan Shard of the Nightbringer"))
+  await addUnit(page, "C'tan Shard of the Nightbringer")
   await page.getByLabel('Add a unit').fill('Monolith')
   const monolith = page.locator('[data-picker-unit="Monolith"]')
   await expect(monolith).toBeVisible()
   const before = await settledHeight(monolith)
-  await waitForRosterSave(page, () => add(page, "C'tan Shard of the Void Dragon"))
+  await addUnit(page, "C'tan Shard of the Void Dragon")
   await page.getByLabel('Add a unit').fill('Monolith')
   await expect(monolith).toBeVisible()
   expect(await settledHeight(monolith)).toBe(before)
@@ -193,14 +193,8 @@ test('accepts an Add click while the preceding edit is being priced', async ({ p
   const overlord = page.getByRole('button', { name: 'Add Overlord', exact: true })
   await expect(immortals).toBeEnabled()
   await expect(overlord).toBeEnabled()
-  let release!: () => void
-  const held = new Promise<void>((resolve) => {
-    release = resolve
-  })
-  let began!: () => void
-  const started = new Promise<void>((resolve) => {
-    began = resolve
-  })
+  const { promise: held, resolve: release } = Promise.withResolvers<void>()
+  const { promise: started, resolve: began } = Promise.withResolvers<void>()
   await page.route('**/_serverFn/**', async (route) => {
     if (route.request().method() === 'POST') {
       began()
@@ -235,10 +229,7 @@ test('a picker favourite stays selected throughout a delayed save', async ({ pag
       frames.push(button.getAttribute('aria-pressed')!)
     }).observe(button, { attributes: true, attributeFilter: ['aria-pressed'] })
   })
-  let release!: () => void
-  const held = new Promise<void>((resolve) => {
-    release = resolve
-  })
+  const { promise: held, resolve: release } = Promise.withResolvers<void>()
   await page.route('**/_serverFn/**', async (route) => {
     if (route.request().method() === 'POST') await held
     await route.continue()

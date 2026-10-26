@@ -1,5 +1,6 @@
 import { PRODUCT_DOCS } from '../src/contracts/productDocs'
 import { expect, test } from './test'
+import { expectNoPageOverflow } from './account'
 
 const pages = [
   { path: '/rosters', title: 'Warhammer 40,000 army builder' },
@@ -27,7 +28,7 @@ test('Terms account requirements match public guest tools', async ({ page }, tes
   await atEachWidth(async (width) => {
     await expect(service.locator('p').first()).toContainText('You can use the builder, simulator and public reference without an account.')
     await expect(service.locator('p').first()).toContainText('Sign in to save rosters to the service or start battles.')
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expectNoPageOverflow(page)
     await page.screenshot({ path: testInfo.outputPath(`guest-terms-${width}.png`) })
   })
 
@@ -88,7 +89,7 @@ test('faction datasheet indexes deliver their own canonical metadata without Jav
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', destination)
     await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', /Space Marines/)
     await expect(page.getByRole('heading', { level: 1, name: 'Datasheets', exact: true })).toBeVisible()
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await expectNoPageOverflow(page)
     await page.screenshot({ path: testInfo.outputPath(`datasheet-index-${width}.png`) })
   }
   await page.locator('main a[href*="/datasheets/"]').first().click()
@@ -128,7 +129,7 @@ for (const doc of PRODUCT_DOCS) {
           ],
         },
       ])
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+      await expectNoPageOverflow(page)
     }
     await context.close()
   })
@@ -143,7 +144,7 @@ test('docs can be discovered from the home page, sitemap and agent text', async 
   await expect(page.locator('footer').getByRole('link', { name: 'Docs', exact: true })).toHaveAttribute('href', '/docs')
   await page.screenshot({ path: testInfo.outputPath('docs-index-1440.png'), fullPage: true })
   await page.setViewportSize({ width: 390, height: 900 })
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+  await expectNoPageOverflow(page)
   await page.screenshot({ path: testInfo.outputPath('docs-index-390.png'), fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
   const sitemap = await (await request.get('/sitemap.xml')).text()

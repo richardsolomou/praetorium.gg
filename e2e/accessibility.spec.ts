@@ -1,6 +1,7 @@
 import { expect, test, type Page } from './test'
-import { attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, setupStep, signUp, startBattle } from './account'
-import { chooseCombatUnit } from './combat'
+import { createRoster, setupStep, signUp, startBattle, expectNoPageOverflow, practiceBattle, chooseOption, PHONE } from './account'
+import { chooseCombatUnit, openCombatBreakdown } from './combat'
+import { expectNoHorizontalOverflow } from './builder.harness'
 
 // Controls transition their font size, so measuring before the transitions finish reads the old layout.
 async function doubleText(page: Page) {
@@ -30,8 +31,7 @@ test('opening a battle is operable from the keyboard', async ({ page }) => {
   await expect(newBattle).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(page.getByRole('dialog', { name: 'Start a battle' })).toBeVisible()
-  await page.getByRole('combobox', { name: 'Opponent' }).click()
-  await page.getByRole('option', { name: 'Practice Opponent', exact: true }).click()
+  await chooseOption(page, 'Opponent', 'Practice Opponent')
   await page.getByRole('button', { name: 'Start battle' }).click()
   await expect(page).toHaveURL(/\/battles\/[^/]+$/)
 })
@@ -74,7 +74,7 @@ test('keeps the header controls on screen at double text size', async ({ page })
 })
 
 test.describe('a touch device', () => {
-  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } })
+  test.use({ hasTouch: true, viewport: PHONE })
 
   // Below 16px iOS zooms the page when the field takes focus, and the zoom carries
   // the fixed application header and tabs off the screen.
@@ -138,9 +138,7 @@ test.describe('a touch device', () => {
   test('keeps reserve counts, the battle scoreboard and phase control readable at double text size', async ({ page }) => {
     await signUp(page, 'Large text battle')
     const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
-    await createBattle(page, { practice: true })
-    await attachRoster(page, roster)
-    await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+    await practiceBattle(page, roster)
     await doubleText(page)
     await setupStep(page, 'Reserves')
     const reserves = page.getByRole('region', { name: 'Reserves', exact: true })
@@ -193,7 +191,7 @@ test.describe('a touch device', () => {
     await expect.poll(() => new URL(page.url()).searchParams.get('s')).not.toBeNull()
     const summary = page.locator('[data-results-summary]')
     await expect(summary.locator('[data-combat-wipe]').first()).toContainText('%')
-    await summary.locator('summary').click()
+    await openCombatBreakdown(page)
     const figuresOverlap = await summary.evaluate((element) =>
       [...element.querySelectorAll('[data-result-numbers]')].some((row) => {
         const figures = [...row.children].map((child) => {
@@ -233,12 +231,12 @@ test.describe('a touch device', () => {
     await page.getByRole('menuitem', { name: 'My profile' }).click()
     await expect(page.getByRole('tab', { name: 'Collection' })).toBeVisible()
     await doubleText(page)
-    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
+    await expectNoPageOverflow(page)
 
     await page.goto('/rosters')
     const views = page.getByRole('navigation', { name: 'Rosters' })
     await expect(views).toBeVisible()
     await doubleText(page)
-    expect(await views.evaluate((nav) => nav.scrollWidth <= nav.clientWidth)).toBe(true)
+    await expectNoHorizontalOverflow(views)
   })
 })

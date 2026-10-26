@@ -4,6 +4,7 @@ import type { rostersLentToMe } from '../../functions'
 import { factionIndexQuery } from '../../queries'
 import type { SavedRoster } from './rosterLibrary'
 import { RosterSummary } from './RosterSummary'
+import { OwnerLink } from './OwnerLink'
 
 export type LentRoster = Awaited<ReturnType<typeof rostersLentToMe>>[number]
 
@@ -53,10 +54,7 @@ export function LentRosterList({
               </Link>
             )}
             <p className="truncate border-t border-edge px-3 py-2 text-xs text-dim">
-              Lent by{' '}
-              <Link to="/users/$userId" params={{ userId: owner.id }} className="font-semibold text-info hover:text-bone">
-                {owner.name}
-              </Link>
+              Lent by <OwnerLink owner={owner} />
             </p>
           </li>
         )

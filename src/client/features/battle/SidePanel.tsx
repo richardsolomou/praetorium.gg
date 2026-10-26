@@ -8,7 +8,8 @@ import { PlayerName } from './PlayerName'
 import { ArmyIdentity } from './ArmyIdentity'
 import type { BattleCombatSelection } from '../simulator/BattleCombatDialog'
 import { ArmyRoster } from './ArmyRoster'
-import { type Award, PrimaryMission, type ReferenceCard, SecondaryMissions, type StratagemText } from './MissionCards'
+import type { MissionAward } from '../../missionText'
+import { PrimaryMission, type ReferenceCard, SecondaryMissions, type StratagemText } from './MissionCards'
 import { Stratagems } from './Stratagems'
 import { tint } from './battleTints'
 import { ManualScore } from './ManualScore'
@@ -22,7 +23,7 @@ type Props = {
   /** A parked prompt, which holds controls that otherwise stay usable while a write is in flight. */
   blocked: boolean
   send: SendCommand
-  awardsFor: (key: string, mode?: string) => Award[]
+  awardsFor: (key: string, mode?: string) => MissionAward[]
   referenceFor: (key: string) => ReferenceCard | undefined
   writtenFor: (side: Side, key: string) => StratagemText | undefined
   /** The ceilings this mission actually plays to, which the pack can lower. */
@@ -55,12 +56,10 @@ export const SidePanel = memo(function SidePanel({
   className = '',
 }: Props) {
   const colours = tint(side.index)
-  const finished = view.status === 'finished'
-  const actionable = !finished
   const cards = {
     view,
     side,
-    actionable,
+    actionable: true,
     pending,
     send,
     awardsFor,
@@ -78,15 +77,15 @@ export const SidePanel = memo(function SidePanel({
       className={cn(
         'min-w-0 space-y-3 rounded-lg border border-edge border-t-2 bg-panel p-3',
         colours.edge,
-        side.isActive && !finished ? `ring-1 ${colours.glow}` : '',
+        side.isActive ? `ring-1 ${colours.glow}` : '',
         className,
       )}
     >
       {/*
        * Who is on this side: each player pictured and named, with the army they
        * brought under their own name. A 2v1 lists two of these rather than two names
-       * over two armies, because in a pair fielding the same faction there was
-       * nothing to say which list belonged to whom.
+       * over two armies, so a pair fielding the same faction still shows which list
+       * belongs to whom.
        *
        * From `lg` up both panels are on screen beside the scoreboard, so this is the
        * only place the players are written and the scoreboard is left to the score.
@@ -97,27 +96,19 @@ export const SidePanel = memo(function SidePanel({
             <h2 className={`text-lg leading-tight font-bold uppercase ${colours.text}`}>
               <PlayerName army={army} />
             </h2>
-            <ArmyIdentity army={army} list={false} className="mt-0.5" />
+            <ArmyIdentity army={army} className="mt-0.5" />
             {/*
              * The list itself, over the battle rather than away from it, and where its
              * losses are recorded. Casualties are a live action, so setup and a finished
              * battle open the same army with nothing to press.
              */}
-            <ArmyRoster
-              onSimulate={onSimulate}
-              army={army}
-              side={side}
-              actionable={view.status === 'playing'}
-              pending={pending}
-              blocked={blocked}
-              send={send}
-            />
+            <ArmyRoster onSimulate={onSimulate} army={army} side={side} actionable pending={pending} blocked={blocked} send={send} />
           </div>
         ))}
       </div>
 
       {view.settings.manual ? (
-        <ManualScore side={side} actionable={actionable} pending={pending} send={send} />
+        <ManualScore side={side} actionable pending={pending} send={send} />
       ) : (
         <>
           <div className="grid grid-cols-2 gap-2 border-y border-edge py-2">
@@ -138,18 +129,16 @@ export const SidePanel = memo(function SidePanel({
                 <span className="readout text-3xs text-faint">
                   {side.cpGained} gained · {side.cpSpent} used
                 </span>
-                {actionable ? (
-                  <Button
-                    variant="secondary"
-                    size="xs"
-                    disabled={pending || !side.canGainCp}
-                    title={side.canGainCp ? 'Gain one additional command point' : 'This side already gained its additional CP this round'}
-                    aria-label={side.canGainCp ? '+1 CP' : 'Additional CP already gained this round'}
-                    onClick={() => send({ kind: 'adjust-cp', delta: 1, playerId: side.captain.id })}
-                  >
-                    {side.canGainCp ? '+1 CP' : 'CP gain used'}
-                  </Button>
-                ) : null}
+                <Button
+                  variant="secondary"
+                  size="xs"
+                  disabled={pending || !side.canGainCp}
+                  title={side.canGainCp ? 'Gain one additional command point' : 'This side already gained its additional CP this round'}
+                  aria-label={side.canGainCp ? '+1 CP' : 'Additional CP already gained this round'}
+                  onClick={() => send({ kind: 'adjust-cp', delta: 1, playerId: side.captain.id })}
+                >
+                  {side.canGainCp ? '+1 CP' : 'CP gain used'}
+                </Button>
               </div>
             </div>
           </div>
@@ -168,7 +157,6 @@ export const SidePanel = memo(function SidePanel({
                   side={side}
                   phase={view.phase}
                   coreKeys={coreKeys}
-                  actionable={actionable}
                   pending={pending}
                   send={send}
                   writtenFor={(key) => writtenFor(side, key)}

@@ -12,7 +12,7 @@ import { localWorkKey, meKey } from '../queries/queryKeys'
 
 export type LocalRoster = NonNullable<Awaited<ReturnType<typeof server.rosterAccess>>>['roster']
 export type RosterInput = Parameters<typeof server.saveRoster>[0]['data']
-export type DeferredInput = { input: unknown; identifiers: Record<string, string> }
+type DeferredInput = { input: unknown; identifiers: Record<string, string> }
 let client: QueryClient | undefined
 let runtime: { owner: string; engine: SyncEngine } | undefined
 let projected: string | undefined

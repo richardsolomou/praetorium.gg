@@ -3,6 +3,7 @@ name: Mobile iOS validation
 on:
   pull_request:
     paths:
+      - .github/actions/record-ios-delivery/**
       - .github/workflows/mobile.yml
       - .github/workflows/mobile-validation.yml
       - fastlane/**

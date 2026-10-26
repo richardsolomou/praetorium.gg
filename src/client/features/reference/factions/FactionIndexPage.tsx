@@ -13,7 +13,7 @@ import { SearchField } from '../../../components/SearchField'
 import { FullPageState, PageState } from '../../../components/PageState'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { groupBy } from '../../../../core/collections'
-import { countLabel } from '../../../text'
+import { countLabel, matchesSearch } from '../../../text'
 
 export function FactionIndexPage() {
   const { data } = useQuery(factionIndexQuery())
@@ -30,10 +30,7 @@ export function FactionIndexPage() {
       />
     )
 
-  const wanted = factionQueryText.trim().toLowerCase()
-  const matching = data.factions.filter(
-    (entry) => entry.isDefault && (entry.displayName.toLowerCase().includes(wanted) || entry.name.toLowerCase().includes(wanted)),
-  )
+  const matching = data.factions.filter((entry) => entry.isDefault && matchesSearch(`${entry.displayName} ${entry.name}`, factionQueryText))
   const favouriteFactions = matching.filter((entry) => favourites.has(entry.id))
   const groups = groupBy(matching, (entry) => entry.name.split(' - ')[0] || 'Other')
 
@@ -138,7 +135,7 @@ function FactionShelf({
                   params={{ catalogueId: entry.slug }}
                   className="flex min-w-0 flex-1 items-center gap-3 self-stretch py-2 pr-1 pl-3"
                 >
-                  <FactionMark id={entry.slug} name={entry.displayName} edition={entry.edition} icon={entry.icon} />
+                  <FactionMark faction={entry} />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-bold uppercase">{entry.displayName}</span>
                     <span className="block text-xs text-dim">

@@ -29,7 +29,7 @@ import { usableDatasheets } from '../../../../core/collection'
 import { shortName } from './factions'
 import { GROUPS } from '../../../unitGroups'
 import { Section } from './Section'
-import { canAddCopy, requestedUnit, unitLimitMessage } from './usePicks'
+import { batchFits, canAddCopy, requestedUnit, unitLimitMessage } from './usePicks'
 import { Problem } from '../../../components/Problem'
 import { ConfirmDialog } from '../../../components/ConfirmDialog'
 import { loadoutPicks } from '../../../../core/rosterCopies'
@@ -38,6 +38,7 @@ import { LoadoutNameDialog } from './LoadoutNameDialog'
 import { LoadoutRow } from './LoadoutRow'
 import { isAttachedUnit, loadoutNoun, type PickerLoadout, pickerRows, shownKind } from './pickerRows'
 import { useUnitLoadouts } from './useUnitLoadouts'
+import { PointsChip } from './PointsChip'
 
 type Props = {
   enabled: boolean
@@ -124,14 +125,7 @@ export const Picker = memo(function Picker({
     () => new Map((unitsResult.data ?? []).flatMap((unit) => (unit.nonMatchedPlay ? [[unit.id, unit.nonMatchedPlay] as const] : []))),
     [unitsResult.data],
   )
-  const fits = (picks: readonly RosterPick[]) =>
-    picks.every((pick, at) =>
-      canAddCopy(
-        pick.entryId,
-        (inRoster[pick.entryId] ?? 0) + picks.slice(0, at).filter((earlier) => earlier.entryId === pick.entryId).length,
-        limits,
-      ),
-    )
+  const fits = (picks: readonly RosterPick[]) => batchFits(picks, inRoster, limits)
   const applicable = useMemo(
     () =>
       (savedLoadouts.data ?? []).flatMap((loadout) => {
@@ -418,7 +412,7 @@ function PickerSkeleton() {
             <Skeleton className="h-3 w-1/3" />
           </div>
           <Skeleton className="size-6 shrink-0" />
-          <Skeleton className="h-5 w-[4.5rem] shrink-0" />
+          <PointsChip />
           <Skeleton className="h-7 w-14 shrink-0" />
         </div>
       ))}
@@ -490,7 +484,7 @@ const PickerRow = memo(function PickerRow({
             <Heart className={`size-3.5 ${favourite ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
           </Toggle>
         ) : null}
-        {unit.points === null ? null : <span className="chip w-[4.5rem] shrink-0 justify-center text-info">{unit.points} pts</span>}
+        <PointsChip points={unit.points} />
         <Button
           data-onboarding="picker-add"
           size="sm"
@@ -506,5 +500,3 @@ const PickerRow = memo(function PickerRow({
     </div>
   )
 })
-
-/** Unavailable filters stay focusable and open their tooltip on a tap, so a phone can still say why. */

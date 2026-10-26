@@ -2,17 +2,18 @@ import { useMutation } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Check, Clipboard, EllipsisVertical, Eye, Pencil, Share2, Trash2 } from 'lucide-react'
 import { type ReactNode, useEffect, useState } from 'react'
-import { posthog } from 'posthog-js'
+
 import { Button } from '@/components/ui/button'
 import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } from '@/components/ui/context-menu'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { deleteLeague } from '../../functions'
-import { shareLink } from '../../nativeBridge'
+
 import { LeagueSettingsDialog } from './LeagueSettingsDialog'
 import { eventFullName, eventLink, eventName, eventPath, leagueNoun, useLeagueRefresh } from './leagueEvent'
 import type { TableShape } from '../../../core/tableShape'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useInviteShareLabel } from '../friends/friendInvite'
+import { useShareLink } from '../../useShareLink'
 
 type ManageableLeague = {
   token: string
@@ -41,10 +42,21 @@ export function LeagueCardActions({
     <>
       <ContextMenu>
         <ContextMenuTrigger render={<article data-league={league.token} className={LEAGUE_CARD} />}>
-          {children(<LeagueMenu actions={actions} showView canDelete={canDelete} />)}
+          {children(
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${eventName(actions.league)}`} />}
+              >
+                <EllipsisVertical />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <LeagueActionItems Item={DropdownMenuItem} actions={actions} canDelete={canDelete} />
+              </DropdownMenuContent>
+            </DropdownMenu>,
+          )}
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56">
-          <LeagueActionItems Item={ContextMenuItem} actions={actions} showView showShare canDelete={canDelete} />
+          <LeagueActionItems Item={ContextMenuItem} actions={actions} canDelete={canDelete} />
         </ContextMenuContent>
       </ContextMenu>
       <LeagueActionDialogs actions={actions} />
@@ -77,56 +89,25 @@ export function LeaguePageActions({ actions, canDelete }: { actions: LeagueActio
   )
 }
 
-function LeagueMenu({
-  actions,
-  showView = false,
-  showShare = true,
-  canDelete,
-}: {
-  actions: LeagueActionsController
-  showView?: boolean
-  showShare?: boolean
-  canDelete: boolean
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${eventName(actions.league)}`} />}>
-        <EllipsisVertical />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <LeagueActionItems Item={DropdownMenuItem} actions={actions} showView={showView} showShare={showShare} canDelete={canDelete} />
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 function LeagueActionItems({
   Item,
   actions,
-  showView,
-  showShare,
   canDelete,
 }: {
   Item: typeof DropdownMenuItem | typeof ContextMenuItem
   actions: LeagueActionsController
-  showView: boolean
-  showShare: boolean
   canDelete: boolean
 }) {
   const shareLabel = useInviteShareLabel()
   return (
     <>
-      {showView ? (
-        <Item render={<Link {...eventLink(actions.league)} />}>
-          <Eye /> View {actions.noun}
-        </Item>
-      ) : null}
-      {showShare ? (
-        <Item onClick={actions.copyInvite}>
-          {actions.copyFeedback === 'shared' ? <Share2 /> : actions.copyFeedback === 'copied' ? <Check /> : <Clipboard />}{' '}
-          {actions.copyFeedback === 'shared' ? 'Invite shared' : actions.copyFeedback === 'copied' ? 'Invite link copied' : shareLabel}
-        </Item>
-      ) : null}
+      <Item render={<Link {...eventLink(actions.league)} />}>
+        <Eye /> View {actions.noun}
+      </Item>
+      <Item onClick={actions.copyInvite}>
+        {actions.copyFeedback === 'shared' ? <Share2 /> : actions.copyFeedback === 'copied' ? <Check /> : <Clipboard />}{' '}
+        {actions.copyFeedback === 'shared' ? 'Invite shared' : actions.copyFeedback === 'copied' ? 'Invite link copied' : shareLabel}
+      </Item>
       <Item onClick={actions.openEdit}>
         <Pencil /> Edit {actions.noun}
       </Item>
@@ -182,26 +163,15 @@ export function inviteFeedbackText(feedback: Exclude<InviteFeedback, null>) {
 
 /** Copies an invite to `path`, or hands it to the native share sheet, and says which happened for a few seconds. */
 export function useInviteShare(path: string, name: string, event: 'league_invite_shared' | 'club_invite_shared') {
-  const [feedback, setFeedback] = useState<InviteFeedback>(null)
+  const link = useShareLink(event)
+  const feedback: InviteFeedback = link.problem ? 'error' : link.shared
+  const { reset } = link
   useEffect(() => {
     if (!feedback) return
-    const timeout = window.setTimeout(() => setFeedback(null), 4_000)
+    const timeout = window.setTimeout(reset, 4_000)
     return () => window.clearTimeout(timeout)
-  }, [feedback])
-  return {
-    feedback,
-    clear: () => setFeedback(null),
-    share: async () => {
-      setFeedback(null)
-      try {
-        const result = await shareLink(`${window.location.origin}${path}`, name)
-        setFeedback(result)
-        posthog.capture(event, { method: result })
-      } catch {
-        setFeedback('error')
-      }
-    },
-  }
+  }, [feedback, reset])
+  return { feedback, clear: reset, share: () => link.share(`${window.location.origin}${path}`, name) }
 }
 
 type LeagueActionsController = ReturnType<typeof useLeagueActions>

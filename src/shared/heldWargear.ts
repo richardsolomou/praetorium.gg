@@ -4,7 +4,8 @@ import { wargearKey } from '../core/wargear'
 
 export type ReplacementSource = { choiceKey: string; optionId: string }
 export const replacementKey = ({ choiceKey, optionId }: ReplacementSource) => `${choiceKey}\0${optionId}`
-const grantedWargear = (name: string) => /\b(?:replaced|equipped) with\s+\d+\s+(.+)$/i.exec(name)?.[1]?.replace(/\.$/, '')
+/** The wargear an option's "replaced with 1 …" or "equipped with 1 …" wording hands over. */
+export const grantedWargear = (name: string) => /\b(?:replaced|equipped) with\s+\d+\s+(.+)$/i.exec(name)?.[1]?.replace(/\.$/, '')
 
 /**
  * What a unit is carrying, counted the way its loadout is drawn.

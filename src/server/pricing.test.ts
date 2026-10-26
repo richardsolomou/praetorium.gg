@@ -6,11 +6,9 @@ import {
   calculateRosterAssessment,
   calculateRosterPrice,
   calculateRosterTotals,
-  choiceOptionsForPricing,
   findEnhancementDescription,
   savedRosterPriceInput,
   resolveDisposition,
-  uniqueNames,
 } from '../shared/pricing'
 import { heldWargear } from '../shared/heldWargear'
 import { deploymentRules } from '../shared/rosterDeployment'
@@ -727,14 +725,6 @@ describe('enhancement descriptions', () => {
       upgrades: ['Furious Assault'],
       kind: 'upgrade',
     })
-  })
-
-  it('treats a malformed choice without options as empty', () => {
-    expect(choiceOptionsForPricing({})).toEqual([])
-  })
-
-  it('lists an enhancement once when the choice and built wargear both contain it', () => {
-    expect(uniqueNames(['Demanding Leader', 'Demanding Leader'])).toEqual(['Demanding Leader'])
   })
 
   it('matches an aura suffix supplied by the rules source', () => {

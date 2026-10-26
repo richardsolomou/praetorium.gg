@@ -1,14 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Eye, LockKeyhole } from 'lucide-react'
 import { useEffect } from 'react'
 import { PageContent, PageHeader } from '../../components/Page'
-import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { leagueQuery, meQuery } from '../../queries'
 import { LeaguePageActions, useLeagueActions } from './LeagueActions'
 import { LeagueEventView } from './LeagueEventView'
 import { EventSchedule } from './EventSchedule'
-import { eventName, leagueAllowances, leagueFormat, leagueNoun, leaguePhase, leaguePlayers, type League } from './leagueEvent'
+import { accessSummary, OrganizerLinks, VisibilityIcon } from './EventAccess'
+import { eventName, leagueAllowances, leagueNoun, leaguePhase, leaguePlayers, type League } from './leagueEvent'
+import { countLabel } from '../../text'
+import { leagueFormat } from '../../../core/league'
 
 export function LeaguePage({ token, startBattle, chooseRoster }: { token: string; startBattle?: boolean; chooseRoster?: boolean }) {
   const navigate = useNavigate()
@@ -58,7 +59,7 @@ function LeagueScreen({
             {[
               // A sealed game's title already says its format and points.
               league.club ? null : leagueFormat(league),
-              league.rounds ? `Swiss, ${league.rounds} ${league.rounds === 1 ? 'round' : 'rounds'}` : null,
+              league.rounds ? `Swiss, ${countLabel(league.rounds, 'round')}` : null,
               leagueAllowances(league),
               leaguePlayers(league, accepted),
             ]
@@ -68,13 +69,8 @@ function LeagueScreen({
               <>
                 {' '}
                 ·
-                {tournament.visibility === 'private' ? (
-                  <LockKeyhole className="size-3.5" aria-hidden />
-                ) : (
-                  <Eye className="size-3.5" aria-hidden />
-                )}
-                {tournament.visibility === 'private' ? 'Private link' : 'Public'} ·{' '}
-                {tournament.admission === 'approval' ? 'Approval required' : 'Anyone can join'}
+                <VisibilityIcon visibility={tournament.visibility} />
+                {accessSummary(tournament.visibility, tournament.admission)}
               </>
             ) : null}
           </span>
@@ -92,22 +88,10 @@ function LeagueScreen({
           <p className="mt-3 max-w-2xl font-rules text-sm whitespace-pre-wrap text-dim">{tournament.description}</p>
         ) : null}
         {tournament ? (
-          <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-dim">
-            <span>Organized by</span>
-            {[{ id: tournament.ownerId, name: tournament.ownerName, image: tournament.ownerImage }, ...tournament.admins].map(
-              (organizer) => (
-                <Link
-                  key={organizer.id}
-                  to="/users/$userId"
-                  params={{ userId: organizer.id }}
-                  className="group flex w-fit items-center gap-2"
-                >
-                  <PlayerAvatar name={organizer.name} image={organizer.image} className="size-7 text-3xs" />
-                  <span className="text-bone group-hover:underline">{organizer.name}</span>
-                </Link>
-              ),
-            )}
-          </div>
+          <OrganizerLinks
+            title="Organized by"
+            organizers={[{ id: tournament.ownerId, name: tournament.ownerName, image: tournament.ownerImage }, ...tournament.admins]}
+          />
         ) : null}
       </PageHeader>
 

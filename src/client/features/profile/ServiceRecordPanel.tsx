@@ -387,13 +387,7 @@ function CareerTables({ record }: { record: ServiceRecord }) {
               params={{ catalogueId: row.faction.slug }}
               className="flex min-w-0 items-center gap-2 hover:text-info"
             >
-              <FactionMark
-                id={row.faction.slug}
-                name={row.faction.displayName}
-                edition={row.faction.edition}
-                icon={row.faction.icon}
-                size="sm"
-              />
+              <FactionMark faction={row.faction} size="sm" />
               <span className="font-bold break-words uppercase">{row.faction.displayName}</span>
             </FactionReferenceLink>
           )}
@@ -434,10 +428,10 @@ const results: Column<{ won: number; drawn: number; lost: number }>[] = [
   { label: 'L', cell: (row) => row.lost, tint: 'text-rust' },
 ]
 
-/** A compact table: a name that wraps, then narrow right-aligned counts. */
 /** How many rows a table shows before the reader asks for the rest. */
 const TABLE_ROWS = 10
 
+/** A compact table: a name that wraps, then narrow right-aligned counts. */
 function RecordTable<T>({
   label,
   rows,
@@ -457,38 +451,36 @@ function RecordTable<T>({
   return (
     <section data-record-table={label}>
       <p className="eyebrow">{label}</p>
-      {
-        <table className="mt-1 w-full table-fixed border-collapse border border-edge bg-panel text-sm">
-          <thead>
-            <tr className="border-b border-edge text-left text-2xs tracking-wide text-faint uppercase">
-              <th scope="col" className="px-2 py-1.5 font-normal">
-                Name
+      <table className="mt-1 w-full table-fixed border-collapse border border-edge bg-panel text-sm">
+        <thead>
+          <tr className="border-b border-edge text-left text-2xs tracking-wide text-faint uppercase">
+            <th scope="col" className="px-2 py-1.5 font-normal">
+              Name
+            </th>
+            {columns.map((column) => (
+              <th
+                key={column.label}
+                scope="col"
+                className={`${column.label.length > 2 ? 'w-12' : 'w-7'} px-1.5 py-1.5 text-right font-normal`}
+              >
+                {column.label}
               </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {shown.map((row) => (
+            <tr key={rowKey(row)} className="border-b border-edge last:border-0">
+              <td className="px-2 py-1.5">{renderName(row)}</td>
               {columns.map((column) => (
-                <th
-                  key={column.label}
-                  scope="col"
-                  className={`${column.label.length > 2 ? 'w-12' : 'w-7'} px-1.5 py-1.5 text-right font-normal`}
-                >
-                  {column.label}
-                </th>
+                <td key={column.label} className={`readout px-1.5 py-1.5 text-right ${column.tint ?? 'text-dim'}`}>
+                  {column.cell(row)}
+                </td>
               ))}
             </tr>
-          </thead>
-          <tbody>
-            {shown.map((row) => (
-              <tr key={rowKey(row)} className="border-b border-edge last:border-0">
-                <td className="px-2 py-1.5">{renderName(row)}</td>
-                {columns.map((column) => (
-                  <td key={column.label} className={`readout px-1.5 py-1.5 text-right ${column.tint ?? 'text-dim'}`}>
-                    {column.cell(row)}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      }
+          ))}
+        </tbody>
+      </table>
       {rows.length > TABLE_ROWS ? (
         <Button variant="link" size="sm" className="mt-1 px-0 text-info" onClick={() => setAll((open) => !open)}>
           {all ? 'Show fewer' : `Show all ${rows.length}`}
