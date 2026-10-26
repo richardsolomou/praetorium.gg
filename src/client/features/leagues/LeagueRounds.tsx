@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { Shuffle, Swords } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { LeagueEntryView } from '../../../core/league'
+import { rematches } from '../../../core/swiss'
 import { Problem } from '../../components/Problem'
 import { pairLeagueRound } from '../../functions'
 import type { Battle } from '../battles/battle'
@@ -62,6 +63,7 @@ export function LeagueRounds({
     const entry = entries.find((candidate) => candidate.userId === userId)
     return entry ? label(entry) : 'A player'
   }
+  const rematch = rematches(league.pairings)
   const rounds = [...new Set(league.pairings.map((pairing) => pairing.round))].toSorted((a, b) => b - a)
   const next = progress.round + 1
   const canPair = isOrganizer && next <= progress.rounds && progress.complete
@@ -104,6 +106,7 @@ export function LeagueRounds({
                     <TableRow
                       key={pairing.key}
                       pairing={pairing}
+                      rematch={rematch.has(pairing)}
                       battle={pairing.battleToken ? byToken.get(pairing.battleToken) : undefined}
                       name={name}
                       viewerId={viewerId}
@@ -123,6 +126,7 @@ export function LeagueRounds({
 
 function TableRow({
   pairing,
+  rematch,
   battle,
   name,
   viewerId,
@@ -131,6 +135,7 @@ function TableRow({
   playing,
 }: {
   pairing: Pairing
+  rematch: boolean
   battle: Battle | undefined
   name: (userId: string) => string
   viewerId: string | null
@@ -148,6 +153,7 @@ function TableRow({
         {pairing.bId ? <span className="font-normal text-dim"> vs </span> : null}
         {pairing.bId ? name(pairing.bId) : null}
       </span>
+      {rematch ? <span className="chip shrink-0 text-dim">Rematch</span> : null}
       {!pairing.bId ? (
         <span className="chip shrink-0 text-dim">Bye</span>
       ) : pairing.battleToken ? (

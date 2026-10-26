@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { swissPairings, swissStandings, type SwissMatch } from './swiss'
+import { rematches, swissPairings, swissStandings, type SwissMatch } from './swiss'
 
 const match = (round: number, a: string, b: string | null, outcome: SwissMatch['outcome'], vp: [number, number] = [0, 0]): SwissMatch => ({
   round,
@@ -63,5 +63,15 @@ describe('swiss pairings', () => {
 
   it('draws the first round at random', () => {
     expect(swissPairings(['a', 'b', 'c', 'd'], [], () => 0.99)).not.toEqual(swissPairings(['a', 'b', 'c', 'd'], [], first))
+  })
+})
+
+describe('swiss rematches', () => {
+  it('marks only the tables a small field forces into a second meeting', () => {
+    const played: SwissMatch[] = []
+    for (let round = 1; round <= 4; round++)
+      for (const [a, b] of swissPairings(['a', 'b', 'c', 'd'], played, first)) played.push(match(round, a, b, 'a'))
+    const tables = played.map((table) => ({ round: table.round, aId: table.a, bId: table.b }))
+    expect([...rematches(tables)].map((table) => table.round)).toEqual([4, 4])
   })
 })

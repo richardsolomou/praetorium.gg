@@ -535,6 +535,7 @@ test('a Swiss tournament pairs its rounds and ranks the tables by match points',
   await expect(owner.locator('[data-league-results] tbody tr').first()).toContainText(ownerName)
   await rounds.getByRole('button', { name: 'Pair round 2' }).click()
   await expect(rounds.getByText('Round 2 of 3')).toBeVisible()
+  await expect(rounds.locator('[data-table="1"]').first()).toContainText('Rematch')
   await owner.screenshot({ path: testInfo.outputPath('swiss-rounds.png'), fullPage: true })
   await ownerContext.close()
   await opponentContext.close()
