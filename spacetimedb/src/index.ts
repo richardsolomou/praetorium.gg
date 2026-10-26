@@ -405,7 +405,7 @@ function deleteBattle(ctx: Context, battleId: string) {
   if (leagueEvent) touchEventById(ctx, leagueEvent.eventId)
   for (const row of Array.from(ctx.db.watchedBattles.battleId.filter(battleId))) ctx.db.watchedBattles.key.delete(row.key)
   for (const row of Array.from(ctx.db.commands.battleId.filter(battleId))) ctx.db.commands.key.delete(row.key)
-  for (const row of Array.from(ctx.db.battleUsers.battleId.filter(battleId))) ctx.db.battleUsers.key.delete(row.key)
+  for (const seat of seats) ctx.db.battleUsers.key.delete(seat.key)
   for (const row of Array.from(ctx.db.guestSeats.battleId.filter(battleId))) ctx.db.guestSeats.seatId.delete(row.seatId)
   // A deleted table battle frees its pairing, so the two players can start it again.
   if (leagueEvent)
@@ -613,7 +613,6 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
     touchPublic(ctx, 'invites')
   }
   for (const row of Array.from(ctx.db.commands.userId.filter(userId))) ctx.db.commands.key.delete(row.key)
-  for (const row of Array.from(ctx.db.battleUsers.userId.filter(userId))) ctx.db.battleUsers.key.delete(row.key)
   for (const row of Array.from(ctx.db.rosterLoans.borrowerId.filter(userId))) endLoan(ctx, row)
   const ownedRosters = Array.from(ctx.db.rosters.userId.filter(userId))
   for (const row of ownedRosters) {
@@ -896,12 +895,10 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
       const seats = Array.from(tx.db.battleUsers.battleId.filter(battle.id))
       const seatIds = new Set(seats.map((seat) => seat.userId))
       const hasPractice = seats.some((seat) => Boolean(tx.db.practiceOpponents.userId.find(seat.userId)))
-      if (input.scope === 'user' && (!seatIds.has(input.userId!) || (input.withUserId && !seatIds.has(input.withUserId)))) continue
-      if (input.scope === 'league' && tx.db.leagueEventBattles.battleId.find(battle.id)?.eventId !== event!.id) continue
+      if (input.scope === 'user' && input.withUserId && !seatIds.has(input.withUserId)) continue
       if (input.scope === 'public' && (hasPractice || (input.viewerId && seatIds.has(input.viewerId)))) continue
       if (input.scope === 'friends' && (hasPractice || seatIds.has(input.userId!) || !seats.some((seat) => friendIds.has(seat.userId))))
         continue
-      if (input.scope === 'profile' && !seatIds.has(input.userId!)) continue
       let activity = battle.createdAt
       if (input.scope !== 'public' && input.scope !== 'friends') {
         for (const command of tx.db.commands.battleId.filter(battle.id)) if (command.at > activity) activity = command.at
@@ -4371,6 +4368,12 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     if (refusal) return productJson({ outcome: 'disallowed', message: refusal })
     if (event.pointsBudget !== undefined && (submitted.built?.pointsBudget ?? submitted.built?.limit) !== event.pointsBudget)
       return productJson({ outcome: 'wrong-budget', pointsBudget: event.pointsBudget })
+    const teammate =
+      entry.teamId === undefined
+        ? undefined
+        : leagueEntriesFor(tx, event.id).find(
+            (row) => row.userId !== input.userId && row.teamId === entry.teamId && row.status === 'accepted',
+          )
     if (team) {
       const points = leagueEntryPoints(eventPoints(event), { requiredLimit: entry.requiredLimit ?? null, teamId: entry.teamId ?? null })
       if (!submitted.built || points === null) return productJson({ outcome: 'wrong-limit' })
@@ -4378,25 +4381,15 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       if (seat === 'wrong-limit') return productJson({ outcome: 'wrong-limit' })
       if (seat === 'over-points') return productJson({ outcome: 'over-points', points })
       // Allies bring lists saved to the same points total, so the first to seal sets it for the other.
-      const partner = leagueEntriesFor(tx, event.id).find(
-        (row) => row.userId !== input.userId && row.teamId !== undefined && row.teamId === entry.teamId && row.status === 'accepted',
-      )
-      const partnerBuilt = rosterSnapshotOrNull(partner?.rosterSnapshot)?.built
+      const partnerBuilt = rosterSnapshotOrNull(teammate?.rosterSnapshot)?.built
       if (partnerBuilt && pointsBudgetOf(partnerBuilt) !== pointsBudgetOf(submitted.built))
         return productJson({ outcome: 'ally-mismatch', pointsBudget: pointsBudgetOf(partnerBuilt) })
     }
-    if (
-      event.format === '2v2' &&
-      !leagueEntriesFor(tx, event.id).some((row) => row.userId !== input.userId && row.teamId === entry.teamId && row.status === 'accepted')
-    )
-      return productJson({ outcome: 'unassigned' })
+    if (event.format === '2v2' && !teammate) return productJson({ outcome: 'unassigned' })
     // After reveal the pair's card is fixed, so a replacement list must leave it one the pair still offers.
     const pick =
       event.revealedAt !== undefined && entry.teamId ? tx.db.leagueEventTeams.key.find(JSON.stringify([event.id, entry.teamId])) : undefined
     if (pick) {
-      const teammate = leagueEntriesFor(tx, event.id).find(
-        (row) => row.userId !== input.userId && row.teamId === entry.teamId && row.status === 'accepted',
-      )
       const partner = rosterSnapshotOrNull(teammate?.rosterSnapshot)
       if (partner && !teamDispositionChoices([submitted, partner]).includes(pick.disposition))
         return productJson({ outcome: 'disposition-dropped', disposition: pick.disposition })
