@@ -1,10 +1,10 @@
 import { execFileSync, spawnSync } from 'node:child_process'
-import { appendFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import path from 'node:path'
 import { z } from 'zod'
 import { iosDeliveryFingerprint } from './iosDelivery.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { stepOutput } from './lib/stepOutput.ts'
 
 const runtimeSchema = z.object({ runtimeVersion: z.string().min(1), appVersion: z.string().min(1) })
 const payloadSchema = runtimeSchema.extend({ inputFingerprint: z.string().min(1) })
@@ -86,14 +86,6 @@ function delivered(channel: string, kind: 'binary' | 'update') {
   return deploymentSchema.parse(records[0])
 }
 
-function output(values: Record<string, string | boolean>) {
-  const content = Object.entries(values)
-    .map(([key, value]) => `${key}=${value}\n`)
-    .join('')
-  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, content)
-  process.stdout.write(content)
-}
-
 export function verifyIosArchive(archive: string, expected: z.infer<typeof runtimeSchema>) {
   const entry = (file: string) => execFileSync('unzip', ['-p', archive, `Payload/Praetorium.app/${file}`])
   const read = (file: string, key: string) =>
@@ -118,7 +110,7 @@ if (isEntryPoint(import.meta.url)) {
       runtimeSchema.parse({ runtimeVersion: process.env.IOS_RUNTIME_VERSION, appVersion: process.env.IOS_APP_VERSION }),
     )
   } else if (command === 'native-changed' && channel) {
-    output({ changed: JSON.stringify(iosNativeRuntime(root)) !== JSON.stringify(iosNativeRuntime(path.resolve(channel))) })
+    stepOutput({ changed: JSON.stringify(iosNativeRuntime(root)) !== JSON.stringify(iosNativeRuntime(path.resolve(channel))) })
   } else {
     if (channel !== 'canary' && channel !== 'stable') throw new Error('Expected the canary or stable iOS channel')
     const revision = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim()
@@ -138,7 +130,7 @@ if (isEntryPoint(import.meta.url)) {
             process.env.FORCE_IOS_BUILD === 'true',
           )
         : { build: true, update: false }
-      output({ ...payload, ...plan })
+      stepOutput({ ...payload, ...plan })
     } else if (command === 'record') {
       const kind = process.argv[4]
       if (kind !== 'binary' && kind !== 'update') throw new Error('Expected a binary or update receipt')

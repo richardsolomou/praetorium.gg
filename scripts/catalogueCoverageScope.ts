@@ -6,8 +6,8 @@
  * installed dependencies and toolchain; anything else cannot change what it records.
  */
 import { execFileSync } from 'node:child_process'
-import { appendFileSync } from 'node:fs'
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { stepOutput } from './lib/stepOutput.ts'
 import { importClosures } from './lib/moduleGraph.ts'
 
 export const coverageEntries = [
@@ -33,7 +33,5 @@ if (isEntryPoint(import.meta.url)) {
     .split('\0')
     .filter(Boolean)
   const reached = new Set([...(await importClosures(process.cwd(), coverageEntries)).values()].flat())
-  const output = `needed=${needsCatalogueCoverage(files, reached)}\n`
-  if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, output)
-  else process.stdout.write(output)
+  stepOutput({ needed: needsCatalogueCoverage(files, reached) })
 }
