@@ -5,7 +5,7 @@ import { RosterCombatComparison, type RosterCombatSource } from '../simulator/Ro
 import type { RosterOwner } from '../simulator/rosterOwners'
 
 /** A fixed doubles pair, compared as both of its sealed lists together. */
-export type LeagueCombatTeam = { id: string; label: string; userIds: string[] }
+type LeagueCombatTeam = { id: string; label: string; userIds: string[] }
 
 /** Your team against your opponent's, or single lists when either player has no pair or the opponent is your teammate. */
 export function leagueCombatPairing(teams: readonly LeagueCombatTeam[], viewerId: string, opponentId: string) {
