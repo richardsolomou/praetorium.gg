@@ -1,6 +1,6 @@
 import type { Datasheet, DatasheetCharacteristicKind } from './datasheet'
 import { diceExpression, rerollRank, type CombatInput, type CombatOptions, type CombatWeapon } from './combat'
-import { combatTextKey, compileCombatRule, normalizeCombatText } from './combatRuleCompiler'
+import { combatTextKey, compileCombatRule, labelledChoice, normalizeCombatText, ruleSection } from './combatRuleCompiler'
 import { datasheetCharacteristicKind, datasheetProfileKind } from './datasheetStructure'
 import { combatKeyword, combatKeywordApplies, combatKeywordPhraseMatches } from './combatKeywords'
 
@@ -111,7 +111,7 @@ const weaponKey = (value: string) => combatTextKey(value).replace(/^the /, '')
 /** False only when the source's explicit keyword restriction rules the unit out. */
 export function combatRuleEligible(description: string, keywords: readonly string[], recipient?: string) {
   description = description.replaceAll('^', '')
-  const target = recipient ?? /\*\*Target:\*\*\s*([\s\S]*?)(?=\n\n\*\*|$)/i.exec(description)?.[1] ?? combatRuleRecipient(description)
+  const target = recipient ?? ruleSection(description, 'Target') ?? combatRuleRecipient(description)
   if (!target) return true
   const known = keywords.map(combatTextKey)
   const matches = (phrase: string) => combatKeywordPhraseMatches(combatTextKey(phrase), known)
@@ -147,7 +147,7 @@ export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
           : []
       }),
     }))
-  const written = normalizeCombatText(/\*\*Effect:\*\*\s*([\s\S]*?)(?=\n\n\*\*|$)/i.exec(rule.description)?.[1] ?? rule.description)
+  const written = normalizeCombatText(ruleSection(rule.description, 'Effect') ?? rule.description)
   const aura = /^While a friendly (.+?) unit(?: \(excluding .+?\))? is within (\d+)" of (?:this model|the bearer), (.+)$/i.exec(written)
   const selectedAlly =
     /^Each time this model destroys an enemy unit, select one other friendly .+? unit within (\d+)" of (?:this model|it)\. Until the end of the phase, (.+)$/i.exec(
@@ -169,10 +169,7 @@ export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
   if (selectedAlly) {
     const selected = compileCombatRule({ ...rule, description: text })
     if (selected)
-      return selected.choices.map((choice) => ({
-        ...choice,
-        label: `After ${rule.source} destroys a unit · Within ${selectedAlly[1]}"${choice.label === 'Active' ? '' : ` · ${choice.label}`}`,
-      }))
+      return selected.choices.map((choice) => labelledChoice(`After ${rule.source} destroys a unit · Within ${selectedAlly[1]}"`, choice))
   }
 
   const conditionalGrant =
@@ -232,9 +229,7 @@ export function combatRuleRecipient(description: string) {
 }
 
 export function combatRuleRoles(description: string): CombatRuleEffect['role'][] {
-  const text = normalizeCombatText(
-    (/\*\*Effect:\*\*\s*([\s\S]*?)(?=\n\n\*\*|$)/i.exec(description)?.[1] ?? description).split(/\*{0,3}Example:/i)[0]!,
-  )
+  const text = normalizeCombatText((ruleSection(description, 'Effect') ?? description).split(/\*{0,3}Example:/i)[0]!)
   const offensiveTarget = /select [^.]*enemy|enemy unit hit by|that targets (?:a|an|the closest|your .+? target)/i.test(text)
   const attackingText = text.replace(/(?:until|after|just after) (?:an enemy|the attacking) unit [^.]*?(?:attacks|fought|shot), /gi, '')
   const attacking =
