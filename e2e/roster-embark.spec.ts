@@ -2,7 +2,10 @@ import { expect, type Locator, type Page, test } from './test'
 import { addUnit, createRoster, setupStep, signUp, uniqueName, waitForRosterSave, practiceBattle, PHONE, desktopContext } from './account'
 import { attach, expectNoHorizontalOverflow, shot, closePicker } from './builder.harness'
 
-const phone = { viewport: PHONE }
+const SIZES = [
+  [{ viewport: PHONE }, 'phone'],
+  [desktopContext, 'desktop'],
+] as const
 const SQUAD = 'Intercessor Squad'
 
 /** The roster's cards, with the picker or loadout put away on a phone. */
@@ -14,10 +17,7 @@ async function cards(page: Page) {
   return { squad: page.locator(`[data-unit="${SQUAD}"]`), rhino: page.locator('[data-unit="Rhino"]') }
 }
 
-for (const [size, label] of [
-  [phone, 'phone'],
-  [desktopContext, 'desktop'],
-] as const) {
+for (const [size, label] of SIZES) {
   test(`custom names distinguish embarked squads and attached units (${label})`, async ({ browser }) => {
     const page = await (await browser.newContext(size)).newPage()
     await signUp(page, uniqueName('Named passengers'))
@@ -151,10 +151,7 @@ test('the squad an edit grows past its transport’s room is the one put back on
   await page.keyboard.press('Escape')
 })
 
-for (const [size, label] of [
-  [phone, 'phone'],
-  [desktopContext, 'desktop'],
-] as const) {
+for (const [size, label] of SIZES) {
   test(`a character joining an embarked squad that no longer fits takes that squad off the transport (${label})`, async ({ browser }) => {
     test.setTimeout(240_000)
     const page = await (await browser.newContext(size)).newPage()
@@ -189,10 +186,7 @@ for (const [size, label] of [
   })
 }
 
-for (const [size, label] of [
-  [phone, 'phone'],
-  [desktopContext, 'desktop'],
-] as const) {
+for (const [size, label] of SIZES) {
   test(`an attached unit is joined and embarked from its outline, not its cards (${label})`, async ({ browser }) => {
     test.setTimeout(240_000)
     const page = await (await browser.newContext(size)).newPage()
