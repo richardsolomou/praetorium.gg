@@ -120,19 +120,12 @@ export const LEAGUE_DESCRIPTION_MAX_LENGTH = 2_000
 export const LEAGUE_MEMBER_MAX = 128
 export const LEAGUE_MEMBER_MIN = 2
 
-export type LeagueEntryView = {
-  userId: string
+export type LeagueEntryView = LeagueRevealEntry & {
   name: string
   image: string | null
-  status: LeagueEntryStatus
   joinedAt: number
-  submitted: boolean
   rosterName: string | null
-  requiredLimit: number | null
   sealedLimit: number | null
-  teamId: string | null
-  dispositionOwed: boolean
-  warlordOwed: boolean
 }
 
 /** The fewest places each table shape can seat. */
@@ -336,12 +329,7 @@ export function matchesSealedLeagueRoster(
 }
 
 /** The two facts about an entry that decide whether its reader is on the same side of the table. */
-export type LeagueAllyEntry = {
-  userId: string
-  status: LeagueEntryStatus
-  requiredLimit: number | null
-  teamId: string | null
-}
+export type LeagueAllyEntry = Pick<LeagueRevealEntry, 'userId' | 'status' | 'requiredLimit' | 'teamId'>
 
 /** Before reveal, doubles teammates and 2v1 allies may read each other’s sealed rosters; solo and 1v1 entrants cannot. */
 export function readsAlliedLeagueRoster(

@@ -2755,19 +2755,14 @@ export function scoringTarget(
   state: BattleState,
   by: PlayerId,
   command: Command,
-): {
-  side: number
-  disposition: string | null
-  primary: number
-  secondary: number
-  primaryByRound: number[]
-  secondaryByRound: number[]
-  finalPrimary: number
-  /** How this side draws its cards, which is what says whether a fixed card's own ceiling applies. */
-  secondaryMode: SecondaryMode
-  /** What each named card has scored so far, keyed the way the card is named. */
-  scored: Record<string, number>
-} | null {
+):
+  | (Pick<
+      PlayerState,
+      'side' | 'primary' | 'secondary' | 'primaryByRound' | 'secondaryByRound' | 'finalPrimary' | 'secondaryMode' | 'scored'
+    > & {
+      disposition: string | null
+    })
+  | null {
   const actor = state.players.find((candidate) => candidate.id === by)
   if (!actor) return null
   const target = targetArmy(state, actor, command)
