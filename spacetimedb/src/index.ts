@@ -1,5 +1,5 @@
 import { ScheduleAt } from 'spacetimedb'
-import { SenderError, schema, table, t, type InferSchema, type ProcedureCtx, type ReducerCtx } from 'spacetimedb/server'
+import { SenderError, schema, table, t, type InferSchema, type ProcedureCtx, type ReducerCtx, type ViewCtx } from 'spacetimedb/server'
 import { detachmentIds, ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../../src/core/savedRoster'
 import { migrateStoredRoster } from '../../src/core/savedRosterMigrations'
 import { LOCKED_ROSTER_MESSAGE, lockedRosterRefusal, storedRosterContent } from '../../src/core/rosterLock'
@@ -663,17 +663,22 @@ export const expireRevocation = spacetime.reducer(
   },
 )
 
+/** The reader's session unless revoked; its expiry timer removes it once it lapses. */
+function viewerSession(ctx: ViewCtx<InferSchema<typeof spacetime>>) {
+  const session = ctx.db.sessionAccess.identity.filter(ctx.sender).next().value
+  return session && !ctx.db.revokedSession.subject.find(session.subject) ? session : undefined
+}
+
 export const mySession = spacetime.view({ name: 'my_session', public: true }, t.option(sessionAccess.rowType), (ctx) => {
-  const current = ctx.db.sessionAccess.identity.filter(ctx.sender).next().value
-  return current && !ctx.db.revokedSession.subject.find(current.subject) ? current : undefined
+  return viewerSession(ctx)
 })
 
 export const myProductSignals = spacetime.view(
   { name: 'my_product_signals', public: true },
   t.array(t.row('MyProductSignal', { scope: t.string().primaryKey(), revision: t.u64() })),
   (ctx) => {
-    const session = ctx.db.sessionAccess.identity.filter(ctx.sender).next().value
-    if (!session || ctx.db.revokedSession.subject.find(session.subject)) return []
+    const session = viewerSession(ctx)
+    if (!session) return []
     return Array.from(ctx.db.productRevisions.userId.filter(session.userId), ({ scope, revision }) => ({ scope, revision }))
   },
 )
@@ -682,8 +687,8 @@ export const myAdminSignals = spacetime.view(
   { name: 'my_admin_signals', public: true },
   t.array(t.row('MyAdminSignal', { scope: t.string().primaryKey(), revision: t.u64() })),
   (ctx) => {
-    const session = ctx.db.sessionAccess.identity.filter(ctx.sender).next().value
-    if (!session || !ctx.db.adminSessions.subject.find(session.subject) || ctx.db.revokedSession.subject.find(session.subject)) return []
+    const session = viewerSession(ctx)
+    if (!session || !ctx.db.adminSessions.subject.find(session.subject)) return []
     return Array.from(ctx.db.adminRevisions.iter(), ({ scope, revision }) => ({ scope, revision }))
   },
 )
@@ -712,8 +717,8 @@ export const myBattleSignals = spacetime.view(
   { name: 'my_battle_signals', public: true },
   t.array(t.row('BattleSignal', { battleId: t.string().primaryKey(), seq: t.u32() })),
   (ctx) => {
-    const session = ctx.db.sessionAccess.identity.filter(ctx.sender).next().value
-    if (!session || ctx.db.revokedSession.subject.find(session.subject)) return []
+    const session = viewerSession(ctx)
+    if (!session) return []
     return Array.from(ctx.db.watchedBattles.subject.filter(session.subject)).flatMap(({ battleId }) => {
       if (!ctx.db.battleUsers.key.find(JSON.stringify([battleId, session.userId]))) return []
       let seq = 0
@@ -727,8 +732,8 @@ export const myBattleList = spacetime.view(
   { name: 'my_battle_list', public: true },
   t.array(t.row('MyBattleListEntry', { battleId: t.string().primaryKey(), seq: t.u32() })),
   (ctx) => {
-    const session = ctx.db.sessionAccess.identity.filter(ctx.sender).next().value
-    if (!session || ctx.db.revokedSession.subject.find(session.subject)) return []
+    const session = viewerSession(ctx)
+    if (!session) return []
     const recent: { battleId: string; seq: number; at: bigint }[] = []
     for (const { battleId } of ctx.db.battleUsers.userId.filter(session.userId)) {
       let seq = 0
