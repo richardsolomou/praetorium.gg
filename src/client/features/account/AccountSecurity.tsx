@@ -269,7 +269,9 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
       <section className="border border-destructive/40 bg-panel p-5 md:p-7">
         <h2 className="rubric border-b border-edge pb-2 text-destructive">Delete account</h2>
         <div className="mt-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-dim">Permanently deletes your rosters, friendships, tournaments, the clubs you own and every battle you played.</p>
+          <p className="text-sm text-dim">
+            Permanently deletes your rosters, friendships, tournaments, the clubs you own and every battle you played.
+          </p>
           <Button type="button" variant="destructive" disabled={!methods} onClick={() => setDialog('delete-account')}>
             <Trash2 /> Delete account
           </Button>
