@@ -21,13 +21,4 @@ appId: gg.praetorium
 - extendedWaitUntil:
     visible: '.*change.*waiting to sync'
     timeout: 30000
-- scrollUntilVisible:
-    element:
-      text: '03\. Moving.*'
-    direction: DOWN
-    centerElement: true
-- tapOn: '03\. Moving.*'
-- extendedWaitUntil:
-    notVisible: Find a rule
-    timeout: 30000
-- assertVisible: 03. Moving
+- runFlow: native-open-moving-rule.yaml
