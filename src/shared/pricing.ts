@@ -33,7 +33,7 @@ import { contextualUnitLimit, detachmentsUnlocking, shelfIn, unitsIn } from './c
 import { isDetachmentWrapperLimit, rosterDetachments } from './rosterDetachments'
 import { detachmentPoints } from './detachmentPoints'
 import { mfmUnitFor, unitPointAdjustment } from './unitPoints'
-import { mfmDetachmentFor, mfmEnhancementPoints, mfmWargearOptionPoints } from './mfm'
+import { isUpgrade, mfmDetachmentFor, mfmEnhancementPoints, mfmWargearOptionPoints, withoutUpgrade } from './mfm'
 import { deploymentRules } from './rosterDeployment'
 import { grantsReserveExemptionIn, reserveSelectorsIn } from './textFacts'
 import { heldWargear, replacementKey, type ReplacementSource } from './heldWargear'
@@ -499,9 +499,7 @@ function calculateRoster(
     ...detachmentSpecials.flatMap(({ detail }) => detail?.upgrades.map((upgrade) => routeSlug(upgrade.name)) ?? []),
     ...mfmDetachments.flatMap(
       (detachment) =>
-        detachment.enhancements
-          ?.filter((entry) => /\(upgrade\)\s*$/i.test(entry.name))
-          .map((entry) => routeSlug(entry.name.replace(/\s*\(upgrade\)\s*$/i, ''))) ?? [],
+        detachment.enhancements?.filter((entry) => isUpgrade(entry.name)).map((entry) => routeSlug(withoutUpgrade(entry.name))) ?? [],
     ),
   ])
   const enhancementNames = new Set(
@@ -509,8 +507,7 @@ function calculateRoster(
       ...(detail?.enhancements.map((enhancement) => routeSlug(enhancement.name)) ?? []),
       ...(catalogue?.forcedEnhancements.map((enhancement) => routeSlug(enhancement.name)) ?? []),
       ...mfmDetachments.flatMap(
-        (detachment) =>
-          detachment.enhancements?.filter((entry) => !/\(upgrade\)\s*$/i.test(entry.name)).map((entry) => routeSlug(entry.name)) ?? [],
+        (detachment) => detachment.enhancements?.filter((entry) => !isUpgrade(entry.name)).map((entry) => routeSlug(entry.name)) ?? [],
       ),
     ]),
   )

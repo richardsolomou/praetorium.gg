@@ -11,7 +11,7 @@ import { type LoadedRules, rulesFaction } from './rules'
 import { joinKey } from '../core/text'
 import { detachmentPoints } from './detachmentPoints'
 import { exclusiveDetachments } from './rosterDetachments'
-import { mfmDetachmentFor, mfmSlugs, mfmVersions } from './mfm'
+import { isUpgrade, mfmDetachmentFor, mfmSlugs, mfmVersions } from './mfm'
 import { catalogueEditionId } from '../core/catalogueEdition'
 
 export function isReferenceDetachment(
@@ -188,12 +188,14 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
             const reference = detachmentNamed(rules?.detachmentReferences?.get(rulesId), detachment.name)
             const detail = detachmentNamed(rules?.detachmentDetails?.get(rulesId), detachment.name)
             const forced = detachmentCatalogueDetail(loaded, faction.id, detachment.id, [])?.forcedEnhancements ?? []
+            const points = detachmentPoints(loaded, faction.id, detachment.id, reference)
+            const mfmEnhancements = mfmDetachmentFor(loaded, faction.id, detachment.name)?.enhancements ?? []
             return {
               id: detachment.id,
               slug: routeSlug(detachment.name),
               name: detachment.name,
               referenceRoute: referenceDetachmentRoute(loaded, rules, faction, detachment),
-              points: detachmentPoints(loaded, faction.id, detachment.id, reference),
+              points,
               disposition: detachment.disposition,
               exclusiveWith: exclusive.get(detachment.id) ?? [],
               dispositions: reference
@@ -204,19 +206,15 @@ function buildFactions(loaded: LoadedCatalogue, rules: LoadedRules | null | unde
               reference: reference
                 ? {
                     ...reference,
-                    points: detachmentPoints(loaded, faction.id, detachment.id, reference),
+                    points,
                     enhancements: new Set([
                       ...(detail?.enhancements.map((enhancement) => enhancement.name) ?? []),
-                      ...(mfmDetachmentFor(loaded, faction.id, detachment.name)
-                        ?.enhancements?.filter((entry) => !/\(upgrade\)\s*$/i.test(entry.name))
-                        .map((entry) => entry.name) ?? []),
+                      ...mfmEnhancements.filter((entry) => !isUpgrade(entry.name)).map((entry) => entry.name),
                       ...forced.map((entry) => entry.name),
                     ]).size,
                     upgrades: new Set([
                       ...(detail?.upgrades.map((upgrade) => upgrade.name) ?? []),
-                      ...(mfmDetachmentFor(loaded, faction.id, detachment.name)
-                        ?.enhancements?.filter((entry) => /\(upgrade\)\s*$/i.test(entry.name))
-                        .map((entry) => entry.name) ?? []),
+                      ...mfmEnhancements.filter((entry) => isUpgrade(entry.name)).map((entry) => entry.name),
                     ]).size,
                     dispositions: reference.dispositions.map((disposition) => rules?.dispositions?.get(disposition) ?? disposition),
                   }
