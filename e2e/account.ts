@@ -101,8 +101,8 @@ export async function signOut(page: Page) {
   const item = page.getByRole('menuitem', { name: 'Sign out', exact: true })
   await retryUntilVisible(item, () =>
     page
-      .locator('[data-web-app-chrome]')
       .getByRole('button', { name: /^Account menu for / })
+      .filter({ visible: true })
       .click(),
   )
   await item.click()
