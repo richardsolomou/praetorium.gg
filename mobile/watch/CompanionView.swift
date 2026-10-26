@@ -167,18 +167,19 @@ private struct ObjectivesView: View {
 
 private struct RemindersView: View {
   @EnvironmentObject private var store: WatchStore
+  private var moreReminders: Int { store.battle?.moreReminders ?? 0 }
 
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 8) {
-        eyebrow("REMINDERS · \(store.reminders.count + (store.battle?.moreReminders ?? 0))")
+        eyebrow("REMINDERS · \(store.reminders.count + moreReminders)")
         if store.reminders.isEmpty {
           VStack(spacing: 8) {
             Image(systemName: "checkmark.circle").font(.largeTitle).foregroundStyle(accent)
-            Text((store.battle?.moreReminders ?? 0) > 0 ? "Check your iPhone" : "All caught up")
+            Text(moreReminders > 0 ? "Check your iPhone" : "All caught up")
               .font(.headline)
             Text(
-              (store.battle?.moreReminders ?? 0) > 0
+              moreReminders > 0
                 ? "More reminders are available on your iPhone."
                 : "Your next reminders appear here as the battle moves on."
             ).font(.footnote)
