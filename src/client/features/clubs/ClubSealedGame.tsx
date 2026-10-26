@@ -562,7 +562,7 @@ function playedIn(game: Game) {
  * Who the reader has sealed against and not yet played: everyone else in a duel, the other side in a team game. A
  * 2v1's solo player faces the paired players; two solo players or two pairs never meet.
  */
-function unplayedOpponents(game: Game, viewerId: string | null) {
+export function unplayedOpponents(game: Game, viewerId: string | null) {
   const own = game.players.find((player) => player.userId === viewerId && player.sealed)
   if (!own) return []
   const havePlayed = playedIn(game)

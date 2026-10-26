@@ -5,6 +5,9 @@ import { useStartBattle } from '../battles/useStartBattle'
 
 export type Club = NonNullable<Awaited<ReturnType<typeof openClub>>>
 
+export const CLUB_TABS = ['overview', 'leaderboard', 'season', 'sealed'] as const
+export type ClubTab = (typeof CLUB_TABS)[number]
+
 export function useClubRefresh(token: string) {
   const queryClient = useQueryClient()
   return () =>

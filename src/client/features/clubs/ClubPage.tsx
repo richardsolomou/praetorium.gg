@@ -1,7 +1,22 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import { Check, Clipboard, EllipsisVertical, FileLock2, LogOut, Pencil, Plus, Share2, Trash2, UserPlus, X } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import {
+  ArrowRight,
+  Check,
+  Clipboard,
+  EllipsisVertical,
+  FileLock2,
+  LogOut,
+  Pencil,
+  Play,
+  Plus,
+  Share2,
+  Swords,
+  Trash2,
+  UserPlus,
+  X,
+} from 'lucide-react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -9,30 +24,39 @@ import { buttonClass } from '../../components/buttonClass'
 import { BattleChooserDialog } from '../../components/BattleChooserDialog'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Label } from '@/components/ui/label'
+import { Tabs, TabsContent } from '@/components/ui/tabs'
 import { PageContent, PageHeader } from '../../components/Page'
+import { PageTabsList } from '../../components/PageTabs'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
 import { deleteClub, joinClub, leaveClub, moderateClubMember, removeClubMember } from '../../functions'
-import { clubQuery, clubStandingsQuery, meQuery } from '../../queries'
+import { clubQuery, clubSeasonQuery, clubStandingsQuery, meQuery } from '../../queries'
 import { BattleShelf } from '../battles/BattleShelf'
+import type { Battle } from '../battles/battle'
 import { useInviteShareLabel } from '../friends/friendInvite'
 import { Standings } from '../leaderboard/Standings'
 import { inviteFeedbackText, useInviteShare } from '../leagues/LeagueActions'
 import { SectionHeading } from '../../components/SectionHeading'
 import { accessSummary, OrganizerLinks, VisibilityIcon } from '../leagues/EventAccess'
 import { LeagueSettingsDialog } from '../leagues/LeagueSettingsDialog'
-import { useClubRefresh, usePlayClubGame, type Club } from './club'
+import { useMoment } from '../leagues/EventSchedule'
+import { eventName, namesPhrase } from '../leagues/leagueEvent'
+import { useClubRefresh, usePlayClubGame, type Club, type ClubTab } from './club'
 import { ClubSettingsDialog } from './ClubSettingsDialog'
-import { ClubSealedGame } from './ClubSealedGame'
+import { ClubSealedGame, unplayedOpponents } from './ClubSealedGame'
 import { ClubSeason } from './ClubSeason'
 import { clubGameOpen } from '../../../core/club'
+import { seasonFixtureOverdue } from '../../../core/clubSeason'
+import { leagueSealingClosed } from '../../../core/league'
 import { useNow } from '../../useNow'
 import { countLabel } from '../../text'
 
 type Member = Club['members'][number]
 type ClubTable = NonNullable<Awaited<ReturnType<NonNullable<ReturnType<typeof clubStandingsQuery>['queryFn']>>>>
+type Season = NonNullable<Awaited<ReturnType<NonNullable<ReturnType<typeof clubSeasonQuery>['queryFn']>>>>
+type Game = Club['games'][number]
 
-export function ClubPage({ token, game }: { token: string; game?: string }) {
+export function ClubPage({ token, game, tab }: { token: string; game?: string; tab?: ClubTab }) {
   const navigate = useNavigate()
   const { data: me } = useQuery(meQuery())
   const { data: club } = useQuery(clubQuery(token))
@@ -40,13 +64,24 @@ export function ClubPage({ token, game }: { token: string; game?: string }) {
     if (club === null) void navigate({ to: '/clubs' })
   }, [club, navigate])
   if (!club) return null
-  return <ClubScreen club={club} viewerId={me?.id ?? null} highlight={game} />
+  return <ClubScreen club={club} viewerId={me?.id ?? null} highlight={game} tab={tab} />
 }
 
-function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: string | null; highlight: string | undefined }) {
+function ClubScreen({
+  club,
+  viewerId,
+  highlight,
+  tab,
+}: {
+  club: Club
+  viewerId: string | null
+  highlight: string | undefined
+  tab: ClubTab | undefined
+}) {
   const navigate = useNavigate()
   const refresh = useClubRefresh(club.token)
   const { data: table } = useQuery(clubStandingsQuery(club.token))
+  const { data: season } = useQuery(clubSeasonQuery(club.token))
   const [editing, setEditing] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [leaving, setLeaving] = useState(false)
@@ -58,6 +93,36 @@ function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: strin
   const invite = useInviteShare(`/clubs/${club.token}`, club.name, 'club_invite_shared')
   const shareLabel = useInviteShareLabel()
   const now = useNow(club.games.map((game) => game.pastAt))
+  const open = club.games.filter((game) => clubGameOpen(game, now))
+  const past = club.games.filter((game) => !clubGameOpen(game, now))
+  const tabs: { value: ClubTab; label: string; count?: number }[] = [
+    { value: 'overview', label: 'Overview' },
+    { value: 'leaderboard', label: 'Leaderboard', count: table?.table.rows.length || undefined },
+    ...(season || club.organizer ? [{ value: 'season' as const, label: 'Season' }] : []),
+    ...(club.games.length || club.organizer
+      ? [{ value: 'sealed' as const, label: 'Sealed games', count: club.games.length || undefined }]
+      : []),
+  ]
+  // A link to a past game opens the tab that keeps it.
+  const current: ClubTab = tabs.some((candidate) => candidate.value === tab)
+    ? tab!
+    : past.some((game) => game.token === highlight)
+      ? 'sealed'
+      : 'overview'
+  const showTab = (next: ClubTab, game?: string) =>
+    void navigate({
+      to: '/clubs/$token',
+      params: { token: club.token },
+      search: { tab: next === 'overview' ? undefined : next, game },
+      hash: game ? `game-${game}` : undefined,
+      replace: true,
+    })
+  // Battles outside sealed games are a season's fixtures or friendly games, and say which.
+  const rounds = new Map(season?.fixtures.flatMap((fixture) => (fixture.battle ? [[fixture.battle.token, fixture.round] as const] : [])))
+  const label = (battle: Battle) => {
+    const round = rounds.get(battle.token)
+    return round === undefined ? 'Friendly game' : `Season · Round ${round}`
+  }
   const remove = useMutation({
     mutationFn: () => deleteClub({ data: { token: club.token } }),
     onSettled: refresh,
@@ -128,17 +193,64 @@ function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: strin
       </PageHeader>
 
       <PageContent>
+        {/* On a phone what's waiting on the reader leads and the members close the page; on a desktop both sit beside it. */}
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
-          <div className="min-w-0 space-y-8">
-            <JoinRequests club={club} />
-            <UpNext club={club} table={table} viewerId={viewerId} highlight={highlight} now={now} />
-            <ClubSeason club={club} viewerId={viewerId} member={member} />
-            <RecentGames club={club} table={table} viewerId={viewerId} member={member} />
-            <PastSealedGames club={club} viewerId={viewerId} highlight={highlight} now={now} />
-            {table?.finished ? <ClubLeaderboard table={table} viewerId={viewerId} /> : null}
+          <div className="min-w-0 lg:col-start-2 lg:row-start-1">
+            {member && viewerId ? (
+              <ClubNext
+                club={club}
+                table={table}
+                season={season}
+                viewerId={viewerId}
+                games={open}
+                now={now}
+                label={label}
+                onShow={showTab}
+              />
+            ) : (
+              <JoinClub club={club} viewerId={viewerId} own={own} onWithdraw={() => (leave.reset(), setLeaving(true))} />
+            )}
           </div>
-          <aside className="min-w-0 space-y-6">
-            {!member ? <JoinClub club={club} viewerId={viewerId} own={own} onWithdraw={() => (leave.reset(), setLeaving(true))} /> : null}
+          <div className="min-w-0 space-y-8 lg:col-start-1 lg:row-span-2 lg:row-start-1">
+            <JoinRequests club={club} />
+            {/* The primitive's root is a flex row by default, which would sit the panel beside the tab bar. */}
+            <Tabs value={current} className="flex-col gap-0" onValueChange={(value) => showTab(value as ClubTab)}>
+              <PageTabsList tabs={tabs} />
+              <TabsContent value="overview" className="mt-6 space-y-8">
+                <UpNext club={club} games={open} table={table} viewerId={viewerId} highlight={highlight} label={label} />
+                <RecentGames club={club} table={table} viewerId={viewerId} member={member} label={label} />
+              </TabsContent>
+              <TabsContent value="leaderboard" className="mt-6">
+                <ClubLeaderboard table={table} viewerId={viewerId} />
+              </TabsContent>
+              <TabsContent value="season" className="mt-6 space-y-4">
+                {season ? (
+                  <Intro>
+                    A round robin: everyone who joins plays every other player once. It keeps its own table, and its games count on the
+                    leaderboard too.
+                  </Intro>
+                ) : null}
+                <ClubSeason club={club} viewerId={viewerId} member={member} />
+              </TabsContent>
+              <TabsContent value="sealed" className="mt-6 space-y-8">
+                <Intro>
+                  Everyone seals a list in secret, the lists are revealed together, and then you play from them. Organizers start one from
+                  New game. Their games count on the leaderboard too.
+                </Intro>
+                {open.length ? (
+                  <section className="space-y-3">
+                    <SectionHeading title="Now" />
+                    {open.map((game) => (
+                      <ClubSealedGame key={game.token} club={club} game={game} viewerId={viewerId} highlighted={game.token === highlight} />
+                    ))}
+                  </section>
+                ) : null}
+                <PastSealedGames club={club} games={past} viewerId={viewerId} highlight={highlight} />
+                {club.games.length ? null : <p className="text-sm text-dim">No sealed games yet.</p>}
+              </TabsContent>
+            </Tabs>
+          </div>
+          <aside className="min-w-0 lg:col-start-2">
             <Members club={club} viewerId={viewerId} isOwner={isOwner} />
           </aside>
         </div>
@@ -304,21 +416,26 @@ function JoinClub({
   )
 }
 
+function Intro({ children }: { children: ReactNode }) {
+  return <p className="max-w-2xl text-sm text-dim">{children}</p>
+}
+
 /** The current game night and the reader’s unfinished club battles. */
 function UpNext({
   club,
+  games,
   table,
   viewerId,
   highlight,
-  now,
+  label,
 }: {
   club: Club
+  games: Game[]
   table: ClubTable | null | undefined
   viewerId: string | null
   highlight: string | undefined
-  now: number
+  label: (battle: Battle) => string
 }) {
-  const games = club.games.filter((game) => clubGameOpen(game, now))
   const active = table?.active ?? []
   if (!games.length && !active.length) return null
   return (
@@ -327,7 +444,131 @@ function UpNext({
       {games.map((game) => (
         <ClubSealedGame key={game.token} club={club} game={game} viewerId={viewerId} highlighted={game.token === highlight} />
       ))}
-      {active.length ? <BattleShelf name="Your club battles" battles={active} viewerId={viewerId ?? undefined} /> : null}
+      {active.length ? <BattleShelf name="Your club battles" battles={active} viewerId={viewerId ?? undefined} label={label} /> : null}
+    </section>
+  )
+}
+
+/**
+ * The one thing waiting on the reader across the whole club, in the order it holds them up: a battle they're in the
+ * middle of, a list to seal, revealed lists to play, then their next season fixture.
+ */
+function ClubNext({
+  club,
+  table,
+  season,
+  viewerId,
+  games,
+  now,
+  label,
+  onShow,
+}: {
+  club: Club
+  table: ClubTable | null | undefined
+  season: Season | null | undefined
+  viewerId: string
+  games: Game[]
+  now: number
+  label: (battle: Battle) => string
+  onShow: (tab: ClubTab, game?: string) => void
+}) {
+  const play = usePlayClubGame(club.token)
+  const moment = useMoment()
+  const nameOf = (userId: string) => club.members.find((member) => member.userId === userId)?.name ?? 'A former member'
+  const battle = table?.active[0]
+  const toSeal = games.find(
+    (game) =>
+      game.revealedAt === null &&
+      !leagueSealingClosed(game, now) &&
+      !game.players.some((player) => player.userId === viewerId && player.sealed),
+  )
+  const toPlay = games.find((game) => game.revealedAt !== null && unplayedOpponents(game, viewerId).length)
+  const fixture = season?.published
+    ? season.fixtures
+        .filter((candidate) => candidate.status === 'open' && candidate.key && (candidate.aId === viewerId || candidate.bId === viewerId))
+        .toSorted((a, b) => a.round - b.round)[0]
+    : undefined
+  const joinable = season && !season.published && !season.players.some((player) => player.userId === viewerId)
+  const goTo = (tab: ClubTab, game?: string, text = 'Go to the game') => (
+    <Button variant="outline" className="w-full pointer-coarse:h-11" onClick={() => onShow(tab, game)}>
+      <ArrowRight /> {text}
+    </Button>
+  )
+
+  let next: { eyebrow?: string; title: string; detail: string; action?: ReactNode }
+  if (battle) {
+    next = {
+      eyebrow: label(battle),
+      title: 'Your battle is on',
+      detail: `Against ${namesPhrase(battle.players.filter((_, index) => battle.playerIds[index] !== viewerId))}.`,
+      action: (
+        <Link to="/battles/$token" params={{ token: battle.token }} className={buttonClass({ className: 'w-full pointer-coarse:h-11' })}>
+          <Play /> Resume battle
+        </Link>
+      ),
+    }
+  } else if (toSeal) {
+    next = {
+      eyebrow: 'Sealed game',
+      title: 'Seal your list',
+      detail: `${eventName({ ...toSeal, tournament: null, club })}. ${toSeal.sealBy ? `Lists are due ${moment(toSeal.sealBy)}.` : 'The lists are revealed together once everyone has sealed.'}`,
+      action: goTo('overview', toSeal.token),
+    }
+  } else if (toPlay) {
+    next = {
+      eyebrow: 'Sealed game',
+      title: 'The lists are out',
+      detail: `Play ${namesPhrase(unplayedOpponents(toPlay, viewerId).map((player) => nameOf(player.userId)))} from ${eventName({ ...toPlay, tournament: null, club })}.`,
+      action: goTo('overview', toPlay.token),
+    }
+  } else if (fixture && season) {
+    const deadline = season.deadlines[fixture.round - 1] ?? null
+    const opponent = fixture.aId === viewerId ? fixture.bId! : fixture.aId
+    next = {
+      eyebrow: `Season · Round ${fixture.round}`,
+      title: `Play ${nameOf(opponent)}`,
+      detail:
+        deadline === null
+          ? 'Your next season game. Rounds can be played in any order.'
+          : seasonFixtureOverdue(fixture.status, deadline, now)
+            ? `This was due ${moment(deadline)}. Nothing is scored for it until it’s played.`
+            : `Due ${moment(deadline)}.`,
+      action: (
+        <Button
+          className="w-full pointer-coarse:h-11"
+          disabled={play.isPending}
+          onClick={() => play.mutate({ opponentId: opponent, fixture: fixture.key! })}
+        >
+          <Swords /> Start battle
+        </Button>
+      ),
+    }
+  } else if (joinable) {
+    next = {
+      eyebrow: 'Season',
+      title: 'Join the season',
+      detail: 'Everyone who joins before it’s published plays every other player once.',
+      action: goTo('season', undefined, 'See the season'),
+    }
+  } else {
+    next = {
+      title: 'Nothing waiting on you',
+      detail: 'Play another member with New game. Every game you play for the club counts on the leaderboard.',
+    }
+  }
+  return (
+    <section data-club-next aria-labelledby="club-next" className="border border-edge bg-panel">
+      <div className="space-y-3 p-4 sm:p-5">
+        <p className="eyebrow text-dim">Up next for you{next.eyebrow ? ` · ${next.eyebrow}` : ''}</p>
+        <div className="min-w-0">
+          <h2 id="club-next" className="text-xl leading-tight font-bold break-words uppercase">
+            {next.title}
+          </h2>
+          <p className="mt-1.5 text-sm text-dim">{next.detail}</p>
+        </div>
+        {next.action}
+        {play.error ? <Problem error={play.error} /> : null}
+      </div>
     </section>
   )
 }
@@ -338,15 +579,17 @@ function RecentGames({
   table,
   viewerId,
   member,
+  label,
 }: {
   club: Club
   table: ClubTable | null | undefined
   viewerId: string | null
   member: boolean
+  label: (battle: Battle) => string
 }) {
   if (!table) return null
   if (table.recent.length)
-    return <BattleShelf title="Recent games" name="Club games" battles={table.recent} viewerId={viewerId ?? undefined} />
+    return <BattleShelf title="Recent games" name="Club games" battles={table.recent} viewerId={viewerId ?? undefined} label={label} />
   if (table.finished || table.active.length || club.games.length) return null
   return (
     <section>
@@ -358,12 +601,17 @@ function RecentGames({
   )
 }
 
-function ClubLeaderboard({ table, viewerId }: { table: ClubTable; viewerId: string | null }) {
+function ClubLeaderboard({ table, viewerId }: { table: ClubTable | null | undefined; viewerId: string | null }) {
+  if (!table) return null
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
+      <Intro>
+        Every game members play for the club counts here: friendly games, season fixtures and sealed games. Everyone starts at 1000, and
+        beating a higher-rated player gains more.
+      </Intro>
       <Standings table={table.table} viewerId={viewerId ?? undefined} title="Leaderboard" empty="No games finished yet." />
       <p className="text-sm text-faint">
-        Everyone starts at 1000. Guest, practice and manually tracked games don’t count.
+        Guest, practice and manually tracked games don’t count.
         {table.partial ? ' Only the latest 10,000 games are counted.' : ''}
       </p>
     </div>
@@ -375,27 +623,26 @@ const PAST_GAMES_SHOWN = 3
 /** Past game nights, newest first, with their battles and frozen lists. */
 function PastSealedGames({
   club,
+  games: past,
   viewerId,
   highlight,
-  now,
 }: {
   club: Club
+  games: Game[]
   viewerId: string | null
   highlight: string | undefined
-  now: number
 }) {
   const [all, setAll] = useState(false)
-  const past = club.games.filter((game) => !clubGameOpen(game, now))
   if (!past.length) return null
   // A link to an older game shows the whole list, so the game it names is there to open.
   const shown = all || past.findIndex((game) => game.token === highlight) >= PAST_GAMES_SHOWN ? past : past.slice(0, PAST_GAMES_SHOWN)
   return (
     <section>
       <SectionHeading title="Past sealed games" count={past.length} />
-      <ul className="divide-y divide-edge border border-edge bg-panel">
+      <ul className="space-y-3">
         {shown.map((game) => (
-          <li key={game.token}>
-            <ClubSealedGame club={club} game={game} viewerId={viewerId} embedded />
+          <li key={game.token} className="border border-edge">
+            <ClubSealedGame club={club} game={game} viewerId={viewerId} highlighted={game.token === highlight} embedded />
           </li>
         ))}
       </ul>

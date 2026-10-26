@@ -36,6 +36,7 @@ export function BattleShelf({
   viewerId,
   onboarding,
   onDelete,
+  label,
 }: {
   title?: string
   name?: string
@@ -43,6 +44,8 @@ export function BattleShelf({
   viewerId?: string
   onboarding?: OnboardingTarget
   onDelete?: (battle: Battle) => void
+  /** What the battle was played for, leading its footer, where a page holds battles of more than one kind. */
+  label?: (battle: Battle) => string
 }) {
   const { date } = useDateFormatting()
   const { data: deployments } = useQuery({ ...deploymentsQuery(), enabled: battles.some((battle) => battle.deploymentId !== null) })
@@ -67,6 +70,7 @@ export function BattleShelf({
               : battleStage(battle.status)
           const battlefield = deploymentName(battle.deploymentId, deployments)
           const setting = [
+            ...(label ? [label(battle)] : []),
             battle.settings.limit ? pointsLabel(battle.settings.limit) : 'Legacy format',
             ...(battle.settings.manual ? ['Manual tracking'] : battle.mission ? [battle.mission.name] : []),
             ...(battlefield ? [battlefield] : []),
