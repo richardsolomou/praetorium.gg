@@ -9,6 +9,7 @@
 - Before reveal, only `readsSealedLeagueRoster` and `readsAlliedLeagueRoster` grant roster access, organizers included.
 - Reveal is irreversible. A Force Disposition chosen before reveal stays fixed, so a resealed list must keep it on offer.
 - League battle creation copies snapshots and locks rosters in one transaction.
+- A Swiss table's result locks once a later round is paired: `swissResultLocked` decides, and `submitBattle` refuses `reopen-battle` or a post-finish `undo` unless the seat belongs to the tournament's owner or an admin. Only seated players submit battle commands, so an organizer who didn't play the table can't correct it today. A correction recomputes standings and never re-pairs.
 
 ## Swiss rounds
 

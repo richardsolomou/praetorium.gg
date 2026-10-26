@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Shuffle, Swords } from 'lucide-react'
+import { Lock, Shuffle, Swords } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { LeagueEntryView } from '../../../core/league'
 import { rematches } from '../../../core/swiss'
@@ -96,9 +96,21 @@ export function LeagueRounds({
           ) : next > progress.rounds ? (
             <p className="text-sm text-dim">Every round is played. The results below are final.</p>
           ) : null}
+          {rounds.length > 1 ? (
+            <p className="text-sm text-dim">Results from earlier rounds are locked once the next round is paired.</p>
+          ) : null}
           {rounds.map((round) => (
             <div key={round}>
-              {rounds.length > 1 ? <p className="eyebrow mb-1.5">Round {round}</p> : null}
+              {rounds.length > 1 ? (
+                <p className="eyebrow mb-1.5 flex items-center gap-1.5">
+                  <span>Round {round}</span>
+                  {round < progress.round ? (
+                    <span className="flex items-center gap-1 text-faint">
+                      <Lock className="size-3" aria-hidden /> <span>Results locked</span>
+                    </span>
+                  ) : null}
+                </p>
+              ) : null}
               <ol className="divide-y divide-edge border border-edge bg-panel">
                 {league.pairings
                   .filter((pairing) => pairing.round === round)
