@@ -55,12 +55,10 @@ export const SidePanel = memo(function SidePanel({
   className = '',
 }: Props) {
   const colours = tint(side.index)
-  const finished = view.status === 'finished'
-  const actionable = !finished
   const cards = {
     view,
     side,
-    actionable,
+    actionable: true,
     pending,
     send,
     awardsFor,
@@ -78,7 +76,7 @@ export const SidePanel = memo(function SidePanel({
       className={cn(
         'min-w-0 space-y-3 rounded-lg border border-edge border-t-2 bg-panel p-3',
         colours.edge,
-        side.isActive && !finished ? `ring-1 ${colours.glow}` : '',
+        side.isActive ? `ring-1 ${colours.glow}` : '',
         className,
       )}
     >
@@ -103,21 +101,13 @@ export const SidePanel = memo(function SidePanel({
              * losses are recorded. Casualties are a live action, so setup and a finished
              * battle open the same army with nothing to press.
              */}
-            <ArmyRoster
-              onSimulate={onSimulate}
-              army={army}
-              side={side}
-              actionable={view.status === 'playing'}
-              pending={pending}
-              blocked={blocked}
-              send={send}
-            />
+            <ArmyRoster onSimulate={onSimulate} army={army} side={side} actionable pending={pending} blocked={blocked} send={send} />
           </div>
         ))}
       </div>
 
       {view.settings.manual ? (
-        <ManualScore side={side} actionable={actionable} pending={pending} send={send} />
+        <ManualScore side={side} actionable pending={pending} send={send} />
       ) : (
         <>
           <div className="grid grid-cols-2 gap-2 border-y border-edge py-2">
@@ -138,18 +128,16 @@ export const SidePanel = memo(function SidePanel({
                 <span className="readout text-3xs text-faint">
                   {side.cpGained} gained · {side.cpSpent} used
                 </span>
-                {actionable ? (
-                  <Button
-                    variant="secondary"
-                    size="xs"
-                    disabled={pending || !side.canGainCp}
-                    title={side.canGainCp ? 'Gain one additional command point' : 'This side already gained its additional CP this round'}
-                    aria-label={side.canGainCp ? '+1 CP' : 'Additional CP already gained this round'}
-                    onClick={() => send({ kind: 'adjust-cp', delta: 1, playerId: side.captain.id })}
-                  >
-                    {side.canGainCp ? '+1 CP' : 'CP gain used'}
-                  </Button>
-                ) : null}
+                <Button
+                  variant="secondary"
+                  size="xs"
+                  disabled={pending || !side.canGainCp}
+                  title={side.canGainCp ? 'Gain one additional command point' : 'This side already gained its additional CP this round'}
+                  aria-label={side.canGainCp ? '+1 CP' : 'Additional CP already gained this round'}
+                  onClick={() => send({ kind: 'adjust-cp', delta: 1, playerId: side.captain.id })}
+                >
+                  {side.canGainCp ? '+1 CP' : 'CP gain used'}
+                </Button>
               </div>
             </div>
           </div>
@@ -168,7 +156,6 @@ export const SidePanel = memo(function SidePanel({
                   side={side}
                   phase={view.phase}
                   coreKeys={coreKeys}
-                  actionable={actionable}
                   pending={pending}
                   send={send}
                   writtenFor={(key) => writtenFor(side, key)}
