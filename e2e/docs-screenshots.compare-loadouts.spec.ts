@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { addUnit, createRoster, retryUntilVisible, signUp } from './account'
+import { addUnit, createRoster, retryUntilVisible, signUp, chooseOption } from './account'
 import { closeCombatBreakdown, openCombatBreakdown, openCombatControls, combatSettled } from './combat'
 import { capture, docsScreenshots } from './docsScreenshots'
 
@@ -72,10 +72,8 @@ test('compare a roster against benchmark targets', async ({ page }) => {
   await page.waitForLoadState('networkidle')
   await page.getByRole('tab', { name: 'Rosters', exact: true }).click()
   const comparison = page.getByRole('region', { name: 'Roster comparison' })
-  await comparison.getByRole('combobox', { name: 'Attacking roster', exact: true }).click()
-  await page.getByRole('option', { name: 'Necron strike force', exact: true }).click()
-  await comparison.getByRole('combobox', { name: 'Defending roster', exact: true }).click()
-  await page.getByRole('option', { name: 'Benchmark targets', exact: true }).click()
+  await chooseOption(page, 'Attacking roster', 'Necron strike force')
+  await chooseOption(page, 'Defending roster', 'Benchmark targets')
   await comparison.getByRole('button', { name: 'Run all matchups' }).click()
   await expect(comparison).toContainText('18 / 18 matchups · Complete')
   await capture('compare-loadouts-rosters', comparison, comparison.getByRole('combobox', { name: 'Comparison metric', exact: true }))

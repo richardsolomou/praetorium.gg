@@ -9,6 +9,7 @@ import {
   waitForRosterSave,
   setRosterAccess,
   addUnit,
+  chooseOption,
 } from './account'
 import { expectNoHorizontalOverflow, shot } from './builder.harness'
 import { productOperator, userIdFor, lastPathSegment } from './storage'
@@ -36,8 +37,7 @@ async function filterTo(page: Page, choices: { faction: string; detachment: stri
     ['Detachment', choices.detachment],
     ['Rules version', choices.rules],
   ] as const) {
-    await dialog.getByRole('combobox', { name: label }).click()
-    await page.getByRole('option', { name: option, exact: true }).click()
+    await chooseOption(page, label, option)
     await expect(dialog.getByRole('combobox', { name: label })).toContainText(option, { timeout: 60_000 })
   }
   await dialog.getByRole('button', { name: 'Done' }).click()

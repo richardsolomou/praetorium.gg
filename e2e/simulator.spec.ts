@@ -372,8 +372,7 @@ test('shared weapon modes count every carrier and indirect shooting applies its 
   await expect(melee).toHaveAttribute('aria-busy', 'false')
   await expect(melee).not.toContainText('could not be matched')
   await melee.screenshot({ path: test.info().outputPath('simulator-shared-weapon-modes.png') })
-  await page.getByRole('combobox', { name: 'Attacker models', exact: true }).click()
-  await page.getByRole('option', { name: '6', exact: true }).click()
+  await chooseOption(page, 'Attacker models', '6')
   await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('6')
   await expect(page.getByRole('button', { name: 'More attacker models', exact: true })).toBeDisabled()
 

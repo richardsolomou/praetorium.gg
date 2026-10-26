@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { createBattle, PRACTICE_OPPONENT, retryUntilVisible, savedArmy, setupStep, chooseRosterAction } from './account'
+import { createBattle, PRACTICE_OPPONENT, retryUntilVisible, savedArmy, setupStep, chooseRosterAction, chooseOption } from './account'
 
 const openChooser = async (page: Page) => {
   await setupStep(page, 'Armies')
@@ -43,8 +43,7 @@ test('a roster chooser with no list for the battle size hands over to the battle
   const size = page.getByRole('combobox', { name: 'Battle size' })
   await expect(size).toBeFocused()
 
-  await size.click()
-  await page.getByRole('option', { name: /Incursion/ }).click()
+  await chooseOption(page, 'Battle size', /Incursion/)
   await expect(size).toContainText('Incursion')
   const again = await openChooser(page)
   await expect(again.locator(`[data-roster="${name}"]`)).toBeVisible()
@@ -86,8 +85,7 @@ test('a battle started from a saved roster opens with that roster on the playerâ
   await retryUntilVisible(dialog, async () => {
     await chooseRosterAction(page, 'Start a battle')
   })
-  await dialog.getByRole('combobox', { name: 'Opponent' }).click()
-  await page.getByRole('option', { name: PRACTICE_OPPONENT, exact: true }).click()
+  await chooseOption(page, 'Opponent', PRACTICE_OPPONENT)
   await dialog.getByRole('button', { name: 'Start battle' }).click()
   await page.waitForURL(/\/battles\/[^/]+$/)
 

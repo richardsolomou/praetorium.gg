@@ -1,5 +1,5 @@
 import { waitForOfflineApp } from './offline'
-import { confirmRosterSetup, retryUntilVisible, visitorSetup, addUnit, chooseRosterAction, chooseFaction } from './account'
+import { confirmRosterSetup, retryUntilVisible, visitorSetup, addUnit, chooseRosterAction, chooseFaction, chooseOption } from './account'
 import { expect, test, type Locator, type Page } from './test'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
 import { lastPathSegment } from './storage'
@@ -78,11 +78,9 @@ test('Custodes codex presentation', async ({ page, context }) => {
     await page.screenshot({ path: test.info().outputPath(`custodes-reference-${viewport.width}.png`) })
   }
   await page.setViewportSize(desktop)
-  await page.getByRole('combobox', { name: 'Rules version' }).click()
-  await page.getByRole('option', { name: 'MFM 1.5 · Archived', exact: true }).click()
+  await chooseOption(page, 'Rules version', 'MFM 1.5 · Archived')
   await expect(page).toHaveURL(/\/factions\/adeptus-custodes\/rules\/space-marines-points-2026-10-13$/)
-  await page.getByRole('combobox', { name: 'Rules version' }).click()
-  await page.getByRole('option', { name: 'Custodes codex · 17 Oct 2026 · Archived', exact: true }).click()
+  await chooseOption(page, 'Rules version', 'Custodes codex · 17 Oct 2026 · Archived')
   await expect(page).toHaveURL(/\/factions\/adeptus-custodes\/rules\/custodes-codex-2026-10-17$/)
   await page.goto('/factions/adeptus-custodes/rules/mfm-1-6/datasheets/allarus-custodians')
   for (const viewport of [desktop, phone]) {
@@ -133,8 +131,7 @@ test('converts the saved roster in place and restores its current choices', asyn
   const operator = await productOperator()
   async function destination(label: string, detachment: string) {
     const dialog = page.getByRole('dialog', { name: 'Edit roster setup' })
-    await dialog.getByRole('combobox', { name: 'Rules version' }).click()
-    await page.getByRole('option', { name: label, exact: true }).click()
+    await chooseOption(page, 'Rules version', label)
     await expect(dialog.getByRole('button', { name: `Select ${detachment}`, exact: true })).toBeVisible()
     const unavailable = dialog.getByRole('button', { name: 'Remove unavailable', exact: true })
     if (await unavailable.isVisible()) await unavailable.click()

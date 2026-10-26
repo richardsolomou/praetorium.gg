@@ -8,6 +8,7 @@ import {
   chooseRosterAction,
   openRosterSetup,
   chooseFaction,
+  chooseOption,
 } from './account'
 import { add } from './builder.harness'
 import { SIGN_IN_REQUIRED } from '../src/core/session'
@@ -333,8 +334,7 @@ for (const width of [1440, 390]) {
     await page.getByRole('link', { name: 'Back to your roster' }).click()
     await expect(page.locator('[data-unit="Beasts of Nurgle"]')).toBeVisible()
     const edit = await openRosterSetup(page)
-    await edit.getByRole('combobox', { name: 'Battle size' }).click()
-    await page.getByRole('option', { name: /^Onslaught/ }).click()
+    await chooseOption(page, 'Battle size', /^Onslaught/)
     await edit.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Priority Assets', exact: true }).click()
     await edit.getByRole('button', { name: 'Review changes' }).click()
     const review = page.getByRole('dialog', { name: 'Review roster changes' })

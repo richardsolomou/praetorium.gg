@@ -11,6 +11,7 @@ import {
   uniqueName,
   visitorSetup,
   chooseFaction,
+  chooseOption,
 } from './account'
 
 const rosterText = `First army (65 Points)
@@ -125,8 +126,7 @@ test('a casual player practises a round, corrects an action and reviews the fini
   await page.goto('/battles')
   await page.getByRole('button', { name: 'New battle', exact: true }).first().click()
   const dialog = page.getByRole('dialog', { name: 'Start a battle', exact: true })
-  await dialog.getByRole('combobox', { name: 'Opponent', exact: true }).click()
-  await page.getByRole('option', { name: PRACTICE_OPPONENT, exact: true }).click()
+  await chooseOption(page, 'Opponent', PRACTICE_OPPONENT)
   await dialog.getByRole('button', { name: 'Start battle', exact: true }).click()
   await attachRoster(page, roster)
   await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })

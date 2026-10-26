@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { confirmRosterSetup, retryUntilVisible, signUp, waitForRosterSave, expectNoPageOverflow } from './account'
+import { confirmRosterSetup, retryUntilVisible, signUp, waitForRosterSave, expectNoPageOverflow, chooseOption } from './account'
 import { productOperator, userIdFor, lastPathSegment } from './storage'
 
 test('fixed Sternguard equipment survives migration, saving and reload', { tag: '@catalogue' }, async ({ page }) => {
@@ -145,8 +145,7 @@ test('converts a retired Marine faction identity without discarding its generate
   const notice = page.locator('[data-roster-rules-notice]')
   const dialog = page.getByRole('dialog', { name: 'Convert rules version' })
   await retryUntilVisible(dialog, () => notice.getByRole('button', { name: 'Convert rules version' }).click())
-  await dialog.getByRole('combobox', { name: 'Rules version' }).click()
-  await page.getByRole('option', { name: 'MFM 1.6 · Current', exact: true }).click()
+  await chooseOption(page, 'Rules version', 'MFM 1.6 · Current')
   await dialog.getByRole('button', { name: 'Remove unavailable', exact: true }).click()
   await dialog.getByRole('button', { name: 'Select Gladius Task Force', exact: true }).click()
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
@@ -198,8 +197,7 @@ test('library and builder point a roster on earlier released rules at the curren
   await expect(notice).toContainText('This roster uses MFM 1.4. MFM 1.6 is the current rules version.')
   const dialog = page.getByRole('dialog', { name: 'Convert rules version' })
   await retryUntilVisible(dialog, () => notice.getByRole('button', { name: 'Convert rules version' }).click())
-  await dialog.getByRole('combobox', { name: 'Rules version' }).click()
-  await page.getByRole('option', { name: 'MFM 1.6 · Current', exact: true }).click()
+  await chooseOption(page, 'Rules version', 'MFM 1.6 · Current')
   await dialog.getByRole('button', { name: 'Convert roster', exact: true }).click()
   const review = page.getByRole('dialog', { name: 'Review roster changes' })
   await expect(review.getByLabel('Roster change preview')).toContainText(/Scout Squad · 5 models · [\d →]+ pts/)
@@ -207,8 +205,7 @@ test('library and builder point a roster on earlier released rules at the curren
   expect((await operator.roster(earlier))?.catalogueId).toBe('legacy-rosters~470a-6daa-9014-12df')
   await page.goto(`/rosters/${earlier}`)
   await retryUntilVisible(dialog, () => notice.getByRole('button', { name: 'Convert rules version' }).click())
-  await dialog.getByRole('combobox', { name: 'Rules version' }).click()
-  await page.getByRole('option', { name: 'MFM 1.6 · Current', exact: true }).click()
+  await chooseOption(page, 'Rules version', 'MFM 1.6 · Current')
   await dialog.getByRole('button', { name: 'Convert roster', exact: true }).click()
   await review.getByRole('switch', { name: /Keep the original/ }).click()
   await review.getByRole('button', { name: 'Confirm changes', exact: true }).click()

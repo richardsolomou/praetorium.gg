@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { createRoster, setupStep, signUp, startBattle, expectNoPageOverflow, practiceBattle } from './account'
+import { createRoster, setupStep, signUp, startBattle, expectNoPageOverflow, practiceBattle, chooseOption } from './account'
 import { chooseCombatUnit } from './combat'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
@@ -31,8 +31,7 @@ test('opening a battle is operable from the keyboard', async ({ page }) => {
   await expect(newBattle).toBeFocused()
   await page.keyboard.press('Enter')
   await expect(page.getByRole('dialog', { name: 'Start a battle' })).toBeVisible()
-  await page.getByRole('combobox', { name: 'Opponent' }).click()
-  await page.getByRole('option', { name: 'Practice Opponent', exact: true }).click()
+  await chooseOption(page, 'Opponent', 'Practice Opponent')
   await page.getByRole('button', { name: 'Start battle' }).click()
   await expect(page).toHaveURL(/\/battles\/[^/]+$/)
 })

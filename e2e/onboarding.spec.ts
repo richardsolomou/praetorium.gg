@@ -14,6 +14,7 @@ import {
   waitForRosterSave,
   makeWarlord,
   chooseFaction,
+  chooseOption,
 } from './account'
 
 const prompt = (page: Page) => page.getByRole('note', { name: 'Getting started' })
@@ -187,8 +188,7 @@ test('the first-army guide stops after adding a unit', async ({ page }) => {
   await expect(prompt(page)).toContainText('Choose the army')
   await chooseFaction(dialog, 'Space Marines')
   await expect(prompt(page)).toContainText('Set the battle size')
-  await dialog.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /^Onslaught/ }).click()
+  await chooseOption(page, 'Battle size', /^Onslaught/)
   await expect(prompt(page)).toContainText('Pick a detachment')
   await dialog.getByRole('button', { name: /^Select Gladius Task Force$/ }).click()
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')

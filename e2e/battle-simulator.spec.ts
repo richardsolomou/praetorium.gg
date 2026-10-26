@@ -13,6 +13,7 @@ import {
   waitForRosterSave,
   expectNoPageOverflow,
   practiceBattle,
+  chooseOption,
 } from './account'
 
 test('the battle matchup planner uses live survivors, isolates experiments, and refreshes after another tab records casualties', async ({
@@ -288,8 +289,7 @@ test('a team matchup switches allied armies and carries both sides through a swa
   await startBattle(page, `${hostName} & ${allyName}`)
   await page.getByRole('button', { name: `Simulate ${hostName}'s combat`, exact: true }).click()
   const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
-  await simulator.getByRole('combobox', { name: 'First army', exact: true }).click()
-  await page.getByRole('option', { name: allyName, exact: true }).click()
+  await chooseOption(page, 'First army', allyName)
   await expect(simulator.getByRole('region', { name: 'Attacker', exact: true }).locator('[data-combat-member]').first()).toContainText(
     'Canoptek Reanimator',
   )
@@ -351,8 +351,7 @@ test('battle support auras respect the recipient, role, conditions, and living s
     expect(await simulator.locator('[data-simulator-scroll]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
   }
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await simulator.getByRole('combobox', { name: 'Attacker unit', exact: true }).click()
-  await page.getByRole('option', { name: 'Skorpekh Destroyers', exact: true }).click()
+  await chooseOption(page, 'Attacker unit', 'Skorpekh Destroyers')
   await expect(
     simulator.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }),
   ).toBeEnabled()

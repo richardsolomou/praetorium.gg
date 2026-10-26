@@ -15,6 +15,7 @@ import {
   uniqueName,
   expectNoPageOverflow,
   practiceBattle,
+  chooseOption,
 } from './account'
 import { expectWorkSynced } from './storage'
 import { expectNoHorizontalOverflow } from './builder.harness'
@@ -196,8 +197,7 @@ test('manual Beacon nomination persists and a destroyed Beacon cannot be replace
   await side.getByRole('button', { name: 'Record Beacon', exact: true }).click()
   const nomination = page.getByRole('dialog', { name: 'Beacon · choices', exact: true })
   await expect(nomination).toContainText('Optional.')
-  await nomination.getByRole('combobox', { name: 'Beacon unit', exact: true }).click()
-  await page.getByRole('option', { name: / · Immortals$/ }).click()
+  await chooseOption(page, 'Beacon unit', / · Immortals$/)
   await nomination.getByLabel('Beacon table note').fill('Chosen at the table during the card’s timing.')
   await nomination.getByRole('button', { name: 'Record choice', exact: true }).click()
   await expect(nomination).toBeHidden()
@@ -334,8 +334,7 @@ test('Locate and Deny markers are placed before the first turn and an Extract Re
   const relic = primaryCard(page, 1)
   await relic.getByRole('button', { name: 'Record Sensor Sweep', exact: true }).click()
   const sweep = page.getByRole('dialog', { name: 'Extract Relic · choices', exact: true })
-  await sweep.getByRole('combobox', { name: 'Operation marker to remove', exact: true }).click()
-  await page.getByRole('option', { name: `${name} · Ruin B`, exact: true }).click()
+  await chooseOption(page, 'Operation marker to remove', `${name} · Ruin B`)
   await expect(sweep.getByRole('button', { name: 'Record choice', exact: true })).toBeDisabled()
   await sweep
     .getByRole('switch', { name: 'The sweeping unit started within range of a central objective and controls it at the end of my turn' })

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from './test'
 import { chooseCombatUnit, isCombatCalculationRequest, openCombatBreakdown } from './combat'
-import { chooseRosterAction, signUp } from './account'
+import { chooseRosterAction, signUp, chooseOption } from './account'
 import { productOperator, userIdFor } from './storage'
 
 async function countLocalCalculations(page: Page) {
@@ -86,8 +86,7 @@ test('a full roster matrix batches projections and uses the server without brows
   await expect(dialog.getByRole('combobox', { name: 'Comparison metric' })).toBeHidden()
   await expect(dialog.getByRole('tab', { name: 'Shooting', exact: true })).toBeVisible()
   await options.click()
-  await dialog.getByRole('combobox', { name: 'Comparison metric' }).click()
-  await page.getByRole('option', { name: 'Models lost', exact: true }).click()
+  await chooseOption(page, 'Comparison metric', 'Models lost')
   await options.click()
   await expect(options).toContainText('Models lost · Best attackers')
   expect(calculations).toBe(before)

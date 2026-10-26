@@ -1,6 +1,6 @@
 import { waitForOfflineApp } from './offline'
 import { expect, test, type Page } from './test'
-import { confirmRosterSetup, retryUntilVisible, savedArmy, waitForRosterSave, openRosterSetup } from './account'
+import { confirmRosterSetup, retryUntilVisible, savedArmy, waitForRosterSave, openRosterSetup, chooseOption } from './account'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
 async function reviewedArmy(page: Page) {
@@ -18,8 +18,7 @@ async function reviewedArmy(page: Page) {
 }
 async function shrink(page: Page) {
   const setup = await openRosterSetup(page)
-  await setup.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /King of the Colosseum/ }).click()
+  await chooseOption(page, 'Battle size', /King of the Colosseum/)
   const disposition = setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Purge the Foe', exact: true })
   if (await disposition.isVisible()) await disposition.click()
   await setup.getByRole('button', { name: 'Review changes' }).click()

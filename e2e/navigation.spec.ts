@@ -13,6 +13,7 @@ import {
   chooseRosterAction,
   openRosterSetup,
   chooseFaction,
+  chooseOption,
 } from './account'
 import { catalogue } from './stackEnv'
 
@@ -830,8 +831,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByText('Create one, or import a list from another app.')).toBeVisible()
   await page.getByRole('button', { name: 'Filter' }).click()
   const filters = page.getByRole('dialog', { name: 'Filter rosters' })
-  await filters.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /Incursion/ }).click()
+  await chooseOption(page, 'Battle size', /Incursion/)
   await expect(page).toHaveURL('/rosters?limit=1000')
   await filters.getByRole('button', { name: 'Clear filters' }).click()
   await expect(page).toHaveURL('/rosters')
@@ -886,15 +886,13 @@ test('a player can enter through the roster library and browse the product', asy
     await body.evaluate((element) => element.scrollTo({ top: element.scrollHeight }))
     await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeInViewport({ timeout: 1_000 })
   }).toPass()
-  await dialog.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /^Onslaught/ }).click()
+  await chooseOption(page, 'Battle size', /^Onslaught/)
   await dialog.getByRole('button', { name: 'Select Cryptek Conclave' }).click()
   await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeDisabled()
   await dialog.getByRole('button', { name: 'Priority Assets', exact: true }).click()
   await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeEnabled()
   await dialog.getByRole('button', { name: 'Select Cryptek Conclave', pressed: true }).click()
-  await dialog.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /^Strike Force/ }).click()
+  await chooseOption(page, 'Battle size', /^Strike Force/)
   await dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await dialog.getByRole('button', { name: 'Create roster' }).click()
   await expect(page).toHaveURL(/\/rosters\/[^/]+$/)
@@ -906,8 +904,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('combobox', { name: 'Force' })).toHaveCount(0)
   await expect(page.getByText('Take and Hold', { exact: true })).toBeVisible()
   const setup = await openRosterSetup(page)
-  await setup.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /^Incursion/ }).click()
+  await chooseOption(page, 'Battle size', /^Incursion/)
   await setup.getByRole('button', { name: 'Select Awakened Dynasty', pressed: true }).click()
   await setup.getByRole('button', { name: 'Select Cryptek Conclave' }).click()
   await confirmRosterSetup(setup)
@@ -955,8 +952,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('heading', { name: 'Battles', exact: true })).toBeVisible()
   await expect(page.getByText('No battles yet.')).toBeVisible()
   await page.getByRole('button', { name: 'New battle' }).click()
-  await page.getByRole('combobox', { name: 'Opponent' }).click()
-  await page.getByRole('option', { name: 'Practice Opponent', exact: true }).click()
+  await chooseOption(page, 'Opponent', 'Practice Opponent')
   await page.getByRole('button', { name: 'Start battle' }).click()
   await expect(page).toHaveURL(/\/battles\/[^/?]+$/)
   await page.getByRole('link', { name: 'Battles' }).click()

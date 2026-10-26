@@ -9,6 +9,7 @@ import {
   openRosterSetup,
   chooseFaction,
   visitorSetup,
+  chooseOption,
 } from './account'
 import { decodeSimulatorState } from '../src/contracts/simulatorState'
 
@@ -126,8 +127,7 @@ async function custodesRoster(page: Page, archived?: string) {
   if (archived) {
     // Retired versions are offered only when changing an existing roster.
     const conversion = await openRosterSetup(page)
-    await conversion.getByRole('combobox', { name: 'Rules version' }).click()
-    await page.getByRole('option', { name: archived, exact: true }).click()
+    await chooseOption(page, 'Rules version', archived)
     await chooseDetachment(conversion, 'Shield Host')
     await confirmRosterSetup(conversion)
     await expect(conversion).not.toBeVisible()

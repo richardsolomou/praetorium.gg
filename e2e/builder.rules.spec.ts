@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { createRoster, signUp, waitForRosterSave, expectNoPageOverflow, chooseRosterAction, openRosterSetup } from './account'
+import { createRoster, signUp, waitForRosterSave, expectNoPageOverflow, chooseRosterAction, openRosterSetup, chooseOption } from './account'
 import { shot, expectNoHorizontalOverflow, expectNotAttachable, openBuilder, add, arrangeByRole, attach } from './builder.harness'
 
 test('enhancement choices show descriptions when rule and catalogue names differ', async ({ page }) => {
@@ -634,8 +634,7 @@ test('a supplement imports shared Space Marine units and its detachment group', 
   await expect(page.locator('[data-unit="Crusader Squad"]')).toBeVisible()
 
   const setup = await openRosterSetup(page)
-  await setup.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByRole('option', { name: 'Imperial Fists', exact: true }).click()
+  await chooseOption(page, 'Faction', 'Imperial Fists')
   await expect(setup.getByRole('button', { name: 'Select Ceramite Sentinels' })).toBeVisible()
   await expect(setup.getByRole('button', { name: /Select Imperialis Fleet/ })).toHaveCount(0)
 })
@@ -645,17 +644,14 @@ test('detachment combinations follow the 11th edition allowance', async ({ page 
   await add(page, 'Immortals')
 
   const setup = await openRosterSetup(page)
-  await setup.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /^Incursion/ }).click()
+  await chooseOption(page, 'Battle size', /^Incursion/)
   await expect(setup.getByText('3/2 DP used')).toBeVisible()
   await expect(setup.getByRole('alert')).toHaveCount(0)
-  await setup.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /^Strike Force/ }).click()
+  await chooseOption(page, 'Battle size', /^Strike Force/)
   await setup.getByRole('button', { name: 'Select Awakened Dynasty', pressed: true }).click()
   await setup.getByRole('button', { name: 'Select Cryptek Conclave' }).click()
   await setup.getByRole('button', { name: 'Select Hand of the Dynasty' }).click()
-  await setup.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /^Incursion/ }).click()
+  await chooseOption(page, 'Battle size', /^Incursion/)
   await expect(setup.getByRole('alert')).toContainText('This combination costs 3 DP')
   await expect(setup.getByRole('button', { name: 'Review changes' })).toBeDisabled()
   await page.screenshot({ path: test.info().outputPath('detachment-points.png'), fullPage: true })

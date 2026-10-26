@@ -13,6 +13,7 @@ import {
   expectNoPageOverflow,
   addUnit,
   openRosterSetup,
+  chooseOption,
 } from './account'
 import {
   productOperator,
@@ -1102,8 +1103,7 @@ test('an eligible casual matchup is directed through its league event', async ({
   const events = await recordEvents(owner)
   await owner.getByRole('button', { name: 'New battle' }).click()
   const casual = owner.getByRole('dialog', { name: 'Start a battle' })
-  await casual.getByRole('combobox', { name: 'Opponent' }).click()
-  await owner.getByRole('option', { name: entrantName, exact: true }).click()
+  await chooseOption(owner, 'Opponent', entrantName)
   await casual.getByRole('button', { name: 'Start battle' }).click()
   const warning = owner.getByRole('dialog', { name: 'You are both in a tournament' })
   await expect(warning.getByRole('button', { name: 'Play it casually' })).toBeVisible()

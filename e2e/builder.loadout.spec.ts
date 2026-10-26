@@ -9,6 +9,7 @@ import {
   addUnit,
   chooseRosterAction,
   openRosterSetup,
+  chooseOption,
 } from './account'
 import { expectWorkSynced } from './storage'
 import {
@@ -61,8 +62,7 @@ test('a squad jumps straight to a chosen size', async ({ page }) => {
   await expect(total).toHaveText(/^\d+\/2000$/)
   const startingPoints = Number((await total.innerText()).split('/')[0])
 
-  await page.getByRole('combobox', { name: 'Immortals models' }).click()
-  await page.getByRole('option', { name: '10', exact: true }).click()
+  await chooseOption(page, 'Immortals models', '10')
   await expect(page.getByLabel('Immortals models')).toHaveText('10')
   await expect(page.getByRole('button', { name: 'More models in Immortals' })).toBeDisabled()
   await expect.poll(async () => Number((await total.innerText()).split('/')[0])).toBeGreaterThan(startingPoints)
