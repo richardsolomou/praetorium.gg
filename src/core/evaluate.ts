@@ -1211,10 +1211,11 @@ function measure(spec: Measurable, node: Node, root: Node, index: CatalogueIndex
   return 0
 }
 
+/** The base cost `costsOf` starts from: a link's cost replaces its target's. */
 const costOf = (node: Node, typeId: string) =>
   sourcesOf(node)
     .flatMap((source) => source.costs ?? [])
-    .find((cost: Cost) => cost.typeId === typeId)?.value
+    .findLast((cost: Cost) => cost.typeId === typeId)?.value
 
 function matches(node: Node, childId: string | undefined, root: Node, index: CatalogueIndex, census: Census): boolean {
   if (!childId || childId === 'any') return true
