@@ -11,7 +11,8 @@ export async function forEachConcurrently<T>(
   let next = 0
   let failure: { error: unknown } | undefined
   const worker = async () => {
-    while (next < items.length && !failure && !signal?.aborted) {
+    while (next < items.length && !failure) {
+      if (signal?.aborted) return
       const index = next++
       try {
         await task(items[index]!, index)
