@@ -164,6 +164,7 @@ test('converts the saved roster in place and restores its current choices', asyn
   // The preview folded into the codex, so a roster saved on it would read as current rules.
   await expect(page.getByRole('option', { name: 'Custodes codex · 17 Oct 2026 · Archived', exact: true })).toHaveCount(0)
   await versions.click()
+  await expect(page.getByRole('option')).toHaveCount(0)
   let dialog = await destination('MFM 1.5 · Archived', 'Shield Host')
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
   expect((await operator.roster(id))?.catalogueId).toBe(original.catalogueId)

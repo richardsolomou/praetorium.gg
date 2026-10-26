@@ -739,7 +739,11 @@ export async function scrollSearchResultIntoView(page: Page, result: Locator) {
  */
 export async function chooseOption(page: Page, control: string, name: string | RegExp) {
   const option = page.getByRole('option', { name, exact: true })
-  await retryUntilVisible(option, () => page.getByRole('combobox', { name: control, exact: true }).click())
+  const combobox = page.getByRole('combobox', { name: control, exact: true })
+  // A retry pressing a list that opened late would close it again.
+  await retryUntilVisible(option, async () => {
+    if ((await combobox.getAttribute('aria-expanded')) !== 'true') await combobox.click()
+  })
   await option.click()
   await expect(option).toBeHidden()
 }
