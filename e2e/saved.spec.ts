@@ -15,6 +15,7 @@ import {
   chooseFaction,
   visitorSetup,
   recordSaves,
+  chooseLibraryAction,
 } from './account'
 import { productOperator, productSql, userIdFor, lastPathSegment } from './storage'
 
@@ -192,9 +193,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Another list' })
 
   await page.goto('/rosters')
-  const createVariant = page.getByRole('menuitem', { name: 'Create variant' })
-  await retryUntilVisible(createVariant, () => page.getByRole('button', { name: 'Actions for Dynasty 2k' }).click())
-  await createVariant.click()
+  await chooseLibraryAction(page, 'Dynasty 2k', 'Create variant')
   await expect(page.getByLabel('List name')).toHaveValue('Dynasty 2k · 2')
   await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
   const variantMenu = page.getByRole('button', { name: 'Variant 2 of 2' })
@@ -535,18 +534,14 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await expect(page.getByText('Awakened Dynasty', { exact: true }).first()).toBeVisible()
 
   await page.goto('/rosters')
-  const duplicate = page.getByRole('menuitem', { name: 'Duplicate' })
-  await retryUntilVisible(duplicate, () => page.getByRole('button', { name: 'Actions for Nurgle 2k' }).click())
-  await duplicate.click()
+  await chooseLibraryAction(page, 'Nurgle 2k', 'Duplicate')
   await page.getByRole('link', { name: /Copy of Nurgle 2k/ }).click()
   await expect(page.getByLabel('List name')).toHaveValue('Copy of Nurgle 2k')
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await expect(page.getByLabel('Immortals models')).toHaveText('6')
   await page.goto('/rosters')
-  const viewItem = page.getByRole('menuitem', { name: 'View' })
-  await retryUntilVisible(viewItem, () => page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click())
   const view = page.waitForEvent('popup')
-  await viewItem.click()
+  await chooseLibraryAction(page, 'Copy of Nurgle 2k', 'View')
   const roster = await view
   await expect(roster.getByLabel('List name')).toHaveValue('Copy of Nurgle 2k')
   await expect(roster.getByRole('button', { name: 'Immortals', exact: true })).toBeVisible()
@@ -558,15 +553,13 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await context.addInitScript(() => {
     window.print = () => document.documentElement.setAttribute('data-print-called', 'true')
   })
-  await page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click()
   const print = page.waitForEvent('popup')
-  await page.getByRole('menuitem', { name: 'Print' }).click()
+  await chooseLibraryAction(page, 'Copy of Nurgle 2k', 'Print')
   const printedRoster = await print
   await expect(printedRoster.locator('html')).toHaveAttribute('data-print-called', 'true')
   await printedRoster.close()
 
-  await page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+  await chooseLibraryAction(page, 'Copy of Nurgle 2k', 'Edit roster setup')
   const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await setup.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Unlisted — anyone with the link' }).click()
@@ -576,8 +569,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
 
   // Public reads exactly as unlisted does. What it adds is being listed on the
   // owner's profile, which is the only place the two values look different.
-  await page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+  await chooseLibraryAction(page, 'Copy of Nurgle 2k', 'Edit roster setup')
   const publishing = page.getByRole('dialog', { name: 'Edit roster setup' })
   await publishing.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Public — listed on your profile' }).click()
@@ -596,9 +588,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
 
   // Back to unlisted, so the rest of this test reads the link the way it did before.
   await page.goto('/rosters')
-  const revertSetup = page.getByRole('menuitem', { name: 'Edit roster setup' })
-  await retryUntilVisible(revertSetup, () => page.getByRole('button', { name: 'Actions for Copy of Nurgle 2k' }).click())
-  await revertSetup.click()
+  await chooseLibraryAction(page, 'Copy of Nurgle 2k', 'Edit roster setup')
   const reverting = page.getByRole('dialog', { name: 'Edit roster setup' })
   await reverting.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Unlisted — anyone with the link' }).click()

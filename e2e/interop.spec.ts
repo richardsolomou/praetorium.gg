@@ -16,6 +16,7 @@ import {
   chooseRosterAction,
   desktopContext,
   practiceBattle,
+  chooseLibraryAction,
 } from './account'
 
 test('a list can be copied as Games Workshop text', async ({ browser }) => {
@@ -351,8 +352,7 @@ for (const count of [0, 1, 3]) {
     await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(count)
     await page.goto('/rosters')
     await expect(page.locator('[data-roster]')).toHaveCount(1)
-    await page.locator('[data-roster]').getByRole('button', { name: 'Actions for Saved entries' }).click()
-    await page.getByRole('menuitem', { name: 'Export text', exact: true }).click()
+    await chooseLibraryAction(page, 'Saved entries', 'Export text')
     const exported = page.getByRole('dialog', { name: 'Export roster' })
     expect((await exported.locator('pre').innerText()).match(/• Models: 5/g) ?? []).toHaveLength(count)
     if (count === 1) {

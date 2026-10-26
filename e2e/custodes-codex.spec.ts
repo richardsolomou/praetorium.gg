@@ -1,5 +1,14 @@
 import { waitForOfflineApp } from './offline'
-import { confirmRosterSetup, retryUntilVisible, visitorSetup, addUnit, chooseRosterAction, chooseFaction, chooseOption } from './account'
+import {
+  confirmRosterSetup,
+  retryUntilVisible,
+  visitorSetup,
+  addUnit,
+  chooseRosterAction,
+  chooseFaction,
+  chooseOption,
+  chooseLibraryAction,
+} from './account'
 import { expect, test, type Locator, type Page } from './test'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
 import { lastPathSegment } from './storage'
@@ -152,8 +161,7 @@ test('converts the saved roster in place and restores its current choices', asyn
   const row = page.locator('[data-roster="Conversion roster"]')
   await expect(row).toContainText('180/2000')
   await expect(row.locator('[data-rules-version]')).toHaveCount(0)
-  await row.getByRole('button', { name: 'Actions for Conversion roster', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup', exact: true }).click()
+  await chooseLibraryAction(page, 'Conversion roster', 'Edit roster setup')
   const versions = page.getByRole('dialog', { name: 'Edit roster setup' }).getByRole('combobox', { name: 'Rules version' })
   await versions.click()
   await expect(page.getByRole('option', { name: 'MFM 1.5 · Archived', exact: true })).toBeVisible()
@@ -163,8 +171,7 @@ test('converts the saved roster in place and restores its current choices', asyn
   let dialog = await destination('MFM 1.5 · Archived', 'Shield Host')
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click()
   expect((await operator.roster(id))?.catalogueId).toBe(original.catalogueId)
-  await row.getByRole('button', { name: 'Actions for Conversion roster', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup', exact: true }).click()
+  await chooseLibraryAction(page, 'Conversion roster', 'Edit roster setup')
   dialog = await destination('MFM 1.5 · Archived', 'Shield Host')
   await dialog.screenshot({ path: test.info().outputPath('custodes-convert-dialog.png') })
   await confirmRosterSetup(dialog)

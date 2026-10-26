@@ -12,6 +12,7 @@ import {
   addUnit,
   visitorSetup,
   signOut,
+  chooseLibraryAction,
 } from './account'
 
 async function expectOnboardingProgress(page: Parameters<typeof signUp>[0], resolved: number) {
@@ -546,14 +547,12 @@ test('a list saved under an account is there on another device', async ({ browse
   await elsewhere.goto('/rosters')
   await expect(elsewhere.getByRole('link', { name: /Kept list/ })).toBeVisible()
 
-  await elsewhere.getByRole('button', { name: 'Actions for Kept list' }).click()
-  await elsewhere.getByRole('menuitem', { name: 'Delete' }).click()
+  await chooseLibraryAction(elsewhere, 'Kept list', 'Delete')
   await expect(elsewhere.getByRole('alertdialog', { name: 'Delete Kept list?' })).toBeVisible()
   await elsewhere.getByRole('button', { name: 'Keep roster' }).click()
   await expect(elsewhere.getByRole('link', { name: /Kept list/ })).toBeVisible()
 
-  await elsewhere.getByRole('button', { name: 'Actions for Kept list' }).click()
-  await elsewhere.getByRole('menuitem', { name: 'Delete' }).click()
+  await chooseLibraryAction(elsewhere, 'Kept list', 'Delete')
   await elsewhere.getByRole('button', { name: 'Delete roster' }).click()
   await expect(elsewhere.getByRole('link', { name: /Kept list/ })).toBeHidden()
 })

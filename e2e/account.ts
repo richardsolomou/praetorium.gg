@@ -120,6 +120,13 @@ export async function chooseRosterAction(page: Page, item: string) {
   await choice.click()
 }
 
+/** Chooses an item from a library row's actions menu, reopening the menu until the item shows. */
+export async function chooseLibraryAction(page: Page, roster: string, item: string | RegExp) {
+  const choice = page.getByRole('menuitem', { name: item, exact: true })
+  await retryUntilVisible(choice, () => page.getByRole('button', { name: `Actions for ${roster}`, exact: true }).click())
+  await choice.click()
+}
+
 /** Follows a link until the address changes: the router's hydration cancels a navigation that started before it. */
 export async function followLink(link: Locator, url: string | RegExp) {
   await expect(async () => {

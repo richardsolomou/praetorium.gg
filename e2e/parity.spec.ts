@@ -11,6 +11,7 @@ import {
   setRosterAccess,
   visitorSetup,
   recordSaves,
+  chooseLibraryAction,
 } from './account'
 import { savedWork } from './storage'
 
@@ -79,9 +80,7 @@ test('a private roster can be shared and made private again', async ({ browser }
   const row = page.locator('[data-roster="Shareable roster"]')
 
   await page.setViewportSize({ width: 390, height: 900 })
-  const libraryEdit = page.getByRole('menuitem', { name: 'Edit roster setup', exact: true })
-  await retryUntilVisible(libraryEdit, () => page.getByRole('button', { name: 'Actions for Shareable roster' }).click())
-  await libraryEdit.click()
+  await chooseLibraryAction(page, 'Shareable roster', 'Edit roster setup')
   const librarySetup = page.getByRole('dialog', { name: 'Edit roster setup' })
   await expect(librarySetup.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Private')
   await expect(librarySetup).toContainText('You, friends you lend it to, and seated players through a battle using this list')
@@ -104,8 +103,7 @@ test('a private roster can be shared and made private again', async ({ browser }
     await expect(sharing).toBeHidden()
   }
   await page.setViewportSize({ width: 1440, height: 900 })
-  await page.getByRole('button', { name: 'Actions for Shareable roster' }).click()
-  await page.getByRole('menuitem', { name: /^Make unlisted and copy link/ }).click()
+  await chooseLibraryAction(page, 'Shareable roster', /^Make unlisted and copy link/)
   await expect(row.getByText('Unlisted').filter({ visible: true })).toBeVisible()
   // Polled, because the link is copied only once the visibility change comes back.
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/rosters\/[^/]+$/)
@@ -141,9 +139,7 @@ test('a private roster can be shared and made private again', async ({ browser }
   expect(preview.headers()['cache-control']).toBe('no-store')
 
   await page.goto('/rosters')
-  const makePrivate = page.getByRole('menuitem', { name: 'Make private' })
-  await retryUntilVisible(makePrivate, () => page.getByRole('button', { name: 'Actions for Shareable roster' }).click())
-  await makePrivate.click()
+  await chooseLibraryAction(page, 'Shareable roster', 'Make private')
   await expect(row.getByText('Private').filter({ visible: true })).toBeVisible()
   await anonymous.reload()
   await expect(anonymous.getByRole('heading', { name: 'Nothing here' })).toBeVisible()

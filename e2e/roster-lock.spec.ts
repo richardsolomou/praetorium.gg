@@ -1,5 +1,13 @@
 import { expect, test } from './test'
-import { createRoster, signUp, uniqueName, waitForRosterSave, expectNoPageOverflow, chooseRosterAction } from './account'
+import {
+  createRoster,
+  signUp,
+  uniqueName,
+  waitForRosterSave,
+  expectNoPageOverflow,
+  chooseRosterAction,
+  chooseLibraryAction,
+} from './account'
 import { productOperator, savedWork, lastPathSegment, expectWorkSynced } from './storage'
 
 const LOCKED = 'This roster is locked. Unlock it to change it, or keep your changes as a new roster.'
@@ -85,8 +93,7 @@ test('an edit queued offline is refused visibly after another device locks the r
     const other = await otherDevice.newPage()
     await other.goto('/rosters')
     const row = other.locator(`[data-roster="${name}"]`)
-    await row.getByRole('button', { name: `Actions for ${name}` }).click()
-    await other.getByRole('menuitem', { name: 'Lock roster' }).click()
+    await chooseLibraryAction(other, name, 'Lock roster')
     await expect(row.getByText('Locked', { exact: true })).toBeVisible()
   } finally {
     await otherDevice.close()

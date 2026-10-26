@@ -12,6 +12,7 @@ import {
   sealableRoster,
   practiceBattle,
   concede,
+  chooseLibraryAction,
 } from './account'
 import { productOperator, productSql, savedWork, withAuthSql, userIdNamed, lastPathSegment, battleIdFor } from './storage'
 
@@ -138,15 +139,12 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await page.goto(rosterUrl)
   await waitForRosterSave(page, () => page.getByLabel('List name').fill('Changed saved roster'), 'Changed saved roster')
   await page.goto('/rosters')
-  const remove = page.getByRole('menuitem', { name: 'Delete', exact: true })
-  await retryUntilVisible(remove, () => page.getByRole('button', { name: 'Actions for Changed saved roster', exact: true }).click())
-  await remove.click()
+  await chooseLibraryAction(page, 'Changed saved roster', 'Delete')
   const deletion = page.getByRole('alertdialog')
   await expect(deletion).toContainText('Frozen copies in battles and tournaments are kept')
   await deletion.getByRole('button', { name: 'Keep roster', exact: true }).click()
   expect(await productSql`SELECT id FROM rosters WHERE id = ${rosterId}`).toEqual([{ id: rosterId }])
-  await page.getByRole('button', { name: 'Actions for Changed saved roster', exact: true }).click()
-  await remove.click()
+  await chooseLibraryAction(page, 'Changed saved roster', 'Delete')
   await deletion.getByRole('button', { name: 'Delete roster', exact: true }).click()
   await expect.poll(() => productSql`SELECT id FROM rosters WHERE id = ${rosterId}`).toEqual([])
   expect(await productSql`SELECT seq, body FROM commands WHERE battle_id = ${battleId}`).toEqual(commandsBefore)
