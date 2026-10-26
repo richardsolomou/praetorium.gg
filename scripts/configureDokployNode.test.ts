@@ -1,5 +1,8 @@
 import { expect, it, vi } from 'vitest'
 import { configureWebAssetRoute, ensureWebDomain, ensureWebHealthCheck, nodeEnvironment } from './configureDokployNode'
+import { dokployApi } from './lib/dokployWeb'
+
+const dokploy = (request: typeof fetch) => dokployApi('https://dokploy.example', 'test', 'environment', request)
 
 const environment = {
   AUTH_SECRET: 's'.repeat(64),
@@ -24,7 +27,7 @@ it('allows the first catalogue download and compilation before declaring a cold 
     }
     return Response.json(saved)
   }
-  await ensureWebHealthCheck(new URL('https://dokploy.example'), {}, 'web-id', request)
+  await ensureWebHealthCheck(dokploy(request), 'web-id')
   expect(saved).toEqual({
     applicationId: 'web-id',
     healthCheckSwarm: {
@@ -40,16 +43,12 @@ it('allows the first catalogue download and compilation before declaring a cold 
 it('rejects a health check update that Dokploy does not save', async () => {
   const request: typeof fetch = async (_url, options) =>
     options?.method === 'POST' ? Response.json(true) : Response.json({ applicationId: 'web-id', healthCheckSwarm: null })
-  await expect(ensureWebHealthCheck(new URL('https://dokploy.example'), {}, 'web-id', request)).rejects.toThrow(
-    'Dokploy health check did not persist',
-  )
+  await expect(ensureWebHealthCheck(dokploy(request), 'web-id')).rejects.toThrow('Dokploy health check did not persist')
 })
 
 it('stops configuration when Dokploy rejects the health check', async () => {
   const request = vi.fn(async () => new Response(null, { status: 500 })) as typeof fetch
-  await expect(ensureWebHealthCheck(new URL('https://dokploy.example'), {}, 'web-id', request)).rejects.toThrow(
-    'Dokploy health check save failed with HTTP 500',
-  )
+  await expect(ensureWebHealthCheck(dokploy(request), 'web-id')).rejects.toThrow('application.update failed with 500')
   expect(request).toHaveBeenCalledTimes(1)
 })
 
@@ -160,7 +159,7 @@ it('creates one HTTPS domain for the selected web application', async () => {
     }
     return Response.json(domains)
   }) as typeof fetch
-  await ensureWebDomain(new URL('https://dokploy.example'), { 'x-api-key': 'test' }, 'web-id', 'staging.praetorium.gg', request)
+  await ensureWebDomain(dokploy(request), 'web-id', 'staging.praetorium.gg')
   expect(request).toHaveBeenCalledTimes(3)
 })
 
@@ -180,9 +179,7 @@ it('rejects a web domain with TLS disabled', async () => {
       },
     ]),
   ) as typeof fetch
-  await expect(
-    ensureWebDomain(new URL('https://dokploy.example'), { 'x-api-key': 'test' }, 'web-id', 'praetorium.gg', request),
-  ).rejects.toThrow('differs from the verified configuration')
+  await expect(ensureWebDomain(dokploy(request), 'web-id', 'praetorium.gg')).rejects.toThrow('differs from the verified configuration')
 })
 
 it('restores the previous asset route if hosted verification fails', async () => {
@@ -199,8 +196,7 @@ it('restores the previous asset route if hosted verification fails', async () =>
     return Response.json(current)
   }
   await expect(
-    configureWebAssetRoute(new URL('https://dokploy.test'), {}, 'web', 'praetorium.gg', ['/assets'], {
-      request,
+    configureWebAssetRoute(dokploy(request), 'web', 'praetorium.gg', ['/assets'], {
       wait: async () => {},
       verify: async () => {
         throw new Error('CDN unavailable')
