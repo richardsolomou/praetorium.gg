@@ -33,7 +33,7 @@ web
 
 - Publish rule names, numbers, costs and computed results from verified community sources (BSData, Game Datacards), never authored rules prose; rules text loads in the reader's browser only on request.
 - Report missing or unsupported rules; never guess them.
-- Out of scope: matchmaking, chat, tournament pairings, brackets, schedules, locations, model positions, battle photos.
+- Tournaments pair Swiss rounds and club games can be scheduled; out of scope: matchmaking, chat, brackets, locations, model positions, battle photos.
 - No account needed to watch public battles, read the leaderboard or reference, or try the builder.
 - Dark only.
 

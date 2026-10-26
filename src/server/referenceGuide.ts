@@ -6,10 +6,11 @@ export const PRAETORIUM_GUIDE = {
     'Read the docs at /docs for army building, roster imports, combat comparisons, battle tracking, and AI assistant setup.',
     'Set up and track 1v1, 2v1, and 2v2 battles, including missions, phases, command points, scoring, casualties, undo, and corrections.',
     'Run public or private sealed-roster tournaments, and clubs with a standing table.',
+    'Run Swiss rounds in one-on-one tournaments: Praetorium pairs each round and keeps the Swiss standings.',
     'Watch live or finished public battles and read public leaderboards, profiles, and rosters.',
   ],
   boundaries: [
-    'Praetorium does not provide matchmaking, chat, tournament pairings, locations, or rules written by this project.',
+    'Praetorium does not provide matchmaking, chat, tournament brackets, locations, or rules written by this project.',
     'Build a visitor roster and use the standalone combat simulator without an account. Visitor drafts stay on this device across visits; sign in to save them to your account or open them on other devices. Visitors can also import roster text. An account is required to play battles.',
     'Docs, reference pages, public battles, profiles, and leaderboards can be read without an account.',
     'The combat simulator estimates supported effects for the chosen matchup; players determine range, visibility, and activated effects. Unsupported calculations remain explicit.',

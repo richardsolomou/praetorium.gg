@@ -10,6 +10,16 @@
 - Reveal is irreversible. A Force Disposition chosen before reveal stays fixed, so a resealed list must keep it on offer.
 - League battle creation copies snapshots and locks rosters in one transaction.
 
+## Swiss rounds
+
+Swiss is a Praetorium house format for one-on-one tournaments, not a copy of any named event pack, so it promises no compatibility with one. `src/core/swiss.ts` owns pairing and standings; each round's tables are rows of `league_round_pairings`.
+
+- Publishing: the `pair-round` reducer in `spacetimedb/src/index.ts` accepts only the next round, once every table of the last one has finished, with every sealed entrant seated once and at most one bye.
+- Pairing reads the event's battles through `pairLeagueRound` in `src/server/service.ts` and refuses when that read is partial, since an unread battle would score as unplayed.
+- Starting a game: `src/shared/leagueBattle.ts` refuses a Swiss battle against anyone but the paired opponent.
+- Deleting a table's battle frees its pairing (`deleteBattle` in `spacetimedb/src/index.ts`), so the pair can start again.
+- Known limit, awaiting a product decision: after reveal `moderate` returns `closed`, so no entrant can withdraw, and one no-show leaves a table unfinished and blocks pairing the next round.
+
 ## Clubs
 
 `src/core/club.ts` owns decisions; `src/server/services/clubService.ts` owns operations, and the club table is `clubStandings` in `src/server/service.ts`.

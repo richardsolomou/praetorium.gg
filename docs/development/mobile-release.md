@@ -66,7 +66,7 @@ Apple, all linked to the user and not used for tracking:
 
 Google Play Data safety: name, email, user IDs, photos, other user-generated content, app interactions, crash logs, diagnostics, and device or other identifiers. Profile pictures optional; account, roster, battle, and session data required. Encrypted in transit, deletable on request, not sold, no advertising; PostHog and hosting and email providers are service providers. The app creates accounts; web deletion resource `https://praetorium.gg/delete-account`.
 
-Content rating: 13 and over; no chat, ads, purchases, gambling, matchmaking, or public player discovery. Do not understate fantasy-combat violence.
+Content rating: 13 and over; no chat, ads, purchases, gambling, or matchmaking. Public clubs list their members to anyone. Do not understate fantasy-combat violence.
 
 ## Review access
 
