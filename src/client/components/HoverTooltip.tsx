@@ -3,6 +3,28 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { cn } from '@/lib/utils'
 import { RuleText } from './RuleText'
 
+/** Hover opens and closes the tooltip; a pinning press keeps it open until the reader presses outside or escapes. */
+export function usePressTooltip() {
+  const [open, setOpen] = useState(false)
+  const pinned = useRef(false)
+  return {
+    open,
+    onOpenChange: (nextOpen: boolean, details: { reason: string }) => {
+      if (!nextOpen && pinned.current && details.reason !== 'outside-press' && details.reason !== 'escape-key') return
+      if (!nextOpen) pinned.current = false
+      setOpen(nextOpen)
+    },
+    show: (pin: boolean) => {
+      pinned.current = pin
+      setOpen(true)
+    },
+    hide: () => {
+      pinned.current = false
+      setOpen(false)
+    },
+  }
+}
+
 export function HoverTooltip({
   children,
   title,
@@ -18,18 +40,10 @@ export function HoverTooltip({
   className?: string
   label?: string
 }) {
-  const [open, setOpen] = useState(false)
-  const openedByPress = useRef(false)
+  const { open, onOpenChange, show, hide } = usePressTooltip()
 
   return (
-    <Tooltip
-      open={open}
-      onOpenChange={(nextOpen, eventDetails) => {
-        if (!nextOpen && openedByPress.current && eventDetails.reason !== 'outside-press' && eventDetails.reason !== 'escape-key') return
-        if (!nextOpen) openedByPress.current = false
-        setOpen(nextOpen)
-      }}
-    >
+    <Tooltip open={open} onOpenChange={onOpenChange}>
       <TooltipTrigger
         closeOnClick={false}
         render={
@@ -38,16 +52,11 @@ export function HoverTooltip({
             onKeyDown={(event) => {
               if (event.key === 'Escape' && open) {
                 event.stopPropagation()
-                openedByPress.current = false
-                setOpen(false)
-                return
+                hide()
               }
             }}
             aria-label={label}
-            onClick={(event) => {
-              openedByPress.current = event.detail > 0
-              setOpen(true)
-            }}
+            onClick={(event) => show(event.detail > 0)}
             className={cn('inline-flex items-center justify-center cursor-help underline decoration-dotted underline-offset-2', className)}
           />
         }
