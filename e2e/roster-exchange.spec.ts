@@ -15,7 +15,7 @@ import { expectWorkSynced, guestDraft } from './storage'
 
 const phone = { viewport: PHONE }
 
-/** The roster's exported text without its version footer, which differs between builds. */
+/** The roster's exported text without its Exported with footer. */
 async function exportedText(page: Page) {
   await chooseRosterAction(page, 'Export text')
   const dialog = page.getByRole('dialog', { name: 'Export roster' })
