@@ -94,6 +94,8 @@ function refused(reasons: readonly string[], type: ToolErrorType) {
   return toolError(type, `The simulator cannot estimate this matchup: ${unique.join(' ')}`, { refused: unique })
 }
 
+const only = <T>(items: readonly T[]) => (items.length === 1 ? items[0] : undefined)
+
 const REFERENCE_UNAVAILABLE = 'Praetorium reference data is temporarily unavailable.'
 
 const round = (value: number) => Math.round(value * 10_000) / 10_000
@@ -127,10 +129,10 @@ async function sidePicks(corpus: ReferenceCorpus, side: SideInput) {
     if (!loaded) throw new CombatRefusal([REFERENCE_UNAVAILABLE], 'unavailable')
     // The same units list_units offers, so a chapter fields the codex units its lists can take.
     const units = factionUnits(loaded, rules, faction)
-    const sheets = factionDatasheets(corpus, faction.id, current)
+    const sheets = factionDatasheets(corpus, loaded, faction.id, current)
     const wanted = unitName.toLocaleLowerCase()
     const key = joinKey(unitName)
-    const unit = units.find((candidate) => {
+    const matches = units.filter((candidate) => {
       const sheet = sheets.get(candidate.id)
       return (
         [candidate.id, candidate.slug, sheet?.slug, datasheetCitation(corpus, sheet).referenceId].some(
@@ -138,6 +140,15 @@ async function sidePicks(corpus: ReferenceCorpus, side: SideInput) {
         ) || joinKey(candidate.name) === key
       )
     })
+    // A chapter's own character and its codex copy can share a name; the chapter's own entry wins.
+    const unit = matches.length > 1 ? only(matches.filter((candidate) => sheets.get(candidate.id)?.catalogueId === faction.id)) : matches[0]
+    if (!unit && matches.length)
+      throw new CombatRefusal(
+        [
+          `${faction.name} has several units named ${unitName}: ${matches.map((candidate) => candidate.id).join(', ')}. Pass one of these ids.`,
+        ],
+        'not_found',
+      )
     if (!unit) {
       const stem = key.length > 4 ? key.replace(/s$/, '') : key
       const similar = units.filter((candidate) => stem && joinKey(candidate.name).includes(stem)).map((candidate) => candidate.name)

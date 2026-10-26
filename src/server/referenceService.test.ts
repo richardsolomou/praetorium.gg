@@ -166,6 +166,34 @@ it('plans a chapter with a detachment its codex holds', () => {
   expect(planned?.units.find((unit) => unit.name === 'Intercessors')?.referenceId).toBe('datasheet:current~cat:intercessors')
 })
 
+it("cites an allied unit's page under the faction that owns it, not another faction's copy", () => {
+  const loaded = shelfOf(
+    { catalogueLinks: [{ targetId: 'cat-1', importRootEntries: true }] },
+    { selectionEntries: [{ id: 'assassin', name: 'Assassin', type: 'unit' }] },
+  )
+  const sheet = (catalogueId: string, route: string) => ({
+    id: 'assassin',
+    slug: 'assassin',
+    catalogueId,
+    faction: route,
+    referenceRoute: { catalogueId: route, slug: 'assassin' },
+    attachments: [],
+    leaders: [],
+    supporters: [],
+  })
+  const catalogue = {
+    datasheets: [{ ...sheet('cat', 'army'), id: 'trooper' }, sheet('cat-1', 'agents'), sheet('mfm~cat-2', 'marines')],
+    detachments: [],
+  } as unknown as CanonicalCatalogue
+  const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot' }
+
+  expect(
+    referenceUnits(corpus, loaded, null, 'army', undefined, undefined, new Set(['cat', 'cat-1', 'mfm~cat-2']))?.units.find(
+      (unit) => unit.name === 'Assassin',
+    )?.referenceId,
+  ).toBe('datasheet:agents:assassin')
+})
+
 it('connects a primary mission to its terrain and deployment records', () => {
   const catalogue = {
     format: 'praetorium.canonical-catalogue.v1',

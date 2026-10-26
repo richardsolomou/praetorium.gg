@@ -85,8 +85,30 @@ const loaded = shelfOf(
       },
     ],
   },
-  // A chapter that fields its codex's units, as Ultramarines field Intercessors.
-  { name: 'Chapter', catalogueLinks: [{ targetId: 'cat', importRootEntries: true }] },
+  // A chapter that fields its codex's units, as Ultramarines field Intercessors, and from its library
+  // its own Beast, listed after the codex's like a chapter's own Watch Master.
+  {
+    name: 'Chapter',
+    catalogueLinks: [
+      { targetId: 'cat', importRootEntries: true },
+      { targetId: 'cat-2', importRootEntries: true },
+    ],
+  },
+  {
+    name: 'Chapter library',
+    library: true,
+    selectionEntries: [
+      {
+        id: 'chapter-beast',
+        name: 'Beast',
+        type: 'model',
+        profiles: [
+          profile('chapter-beast-stats', 'Beast', 'Unit', { T: '8', Sv: '3+', W: '12' }),
+          profile('chapter-claws', 'Claws', 'Melee Weapons', { A: '6', WS: '3+', S: '8', AP: '-2', D: 'D6+2' }),
+        ],
+      },
+    ],
+  },
 )
 const canonical = (id: string, name: string) => ({
   id,
@@ -120,10 +142,10 @@ const corpus: ReferenceCorpus = {
       canonical('oddity', 'Oddity'),
       canonical('wraith', 'Wraith'),
       {
-        ...canonical('banner', 'Banner'),
+        ...canonical('chapter-beast', 'Beast'),
         catalogueId: 'cat-1',
         faction: 'Chapter',
-        referenceRoute: { catalogueId: 'chapter', slug: 'banner' },
+        referenceRoute: { catalogueId: 'chapter', slug: 'beast' },
       },
     ],
     detachments: [],
@@ -225,6 +247,11 @@ it('links to the simulator page with the same matchup', async () => {
 it('fields a codex unit for a chapter whose lists can take it, citing the codex datasheet', async () => {
   const result = await simulateCombat({ attacker: { faction: 'Chapter', unit: 'Squad' }, defender: beast })
   expect(result.structuredContent).toMatchObject({ attacker: { units: [{ name: 'Squad', referenceId: 'datasheet:test:squad' }] } })
+})
+
+it("fields a chapter's own unit over the codex unit of the same name", async () => {
+  const result = await simulateCombat({ attacker: { faction: 'Chapter', unit: 'Beast' }, defender: squad })
+  expect(result.structuredContent).toMatchObject({ attacker: { units: [{ name: 'Beast', referenceId: 'datasheet:chapter:beast' }] } })
 })
 
 it('refuses an unknown unit and faction as not found, suggesting similar units', async () => {

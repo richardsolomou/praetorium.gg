@@ -69,7 +69,7 @@ export function referenceUnits(
 ) {
   const foundFaction = referenceFaction(corpus, faction)
   if (!foundFaction) return null
-  const sheets = factionDatasheets(corpus, foundFaction.id, currentCatalogueIds)
+  const sheets = factionDatasheets(corpus, loaded, foundFaction.id, currentCatalogueIds)
   const selectedDetachment = detachment ? referenceDetachment(corpus, loaded, foundFaction.id, detachment, currentCatalogueIds) : null
   if (detachment && !selectedDetachment) return null
   const detachmentIds = selectedDetachment ? [selectedDetachment.id] : []
@@ -103,17 +103,36 @@ export const factionDetachmentNames = (loaded: LoadedCatalogue, factionId: strin
   (loaded.detachments.get(factionId)?.options ?? []).map((option) => option.name)
 
 /**
- * The datasheet behind each unit a faction offers: its own, or else the one its codex holds at the
- * same rules version, as a chapter fields Intercessors.
+ * The datasheet behind each unit a faction offers: its own, or else the copy filed under the
+ * catalogue that owns the entry at the same rules version, as a chapter fields Intercessors and an
+ * army fields an assassin from Agents of the Imperium. Another faction's copy stands in only when it
+ * is the one copy at that version; with several, the unit has no citation rather than a wrong one.
  */
-export function factionDatasheets(corpus: ReferenceCorpus, factionId: string, currentCatalogueIds: ReadonlySet<string>) {
+export function factionDatasheets(
+  corpus: ReferenceCorpus,
+  loaded: LoadedCatalogue,
+  factionId: string,
+  currentCatalogueIds: ReadonlySet<string>,
+) {
   const sameVersion = sameRulesVersion(factionId, currentCatalogueIds)
+  const copies = new Map<string, CanonicalDatasheet[]>()
   const sheets = new Map<string, CanonicalDatasheet>()
-  for (const sheet of corpus.catalogue.datasheets)
-    if (sheet.catalogueId !== factionId && sameVersion(sheet.catalogueId)) sheets.set(sheet.id, sheet)
-  for (const sheet of corpus.catalogue.datasheets) if (sheet.catalogueId === factionId) sheets.set(sheet.id, sheet)
+  for (const sheet of corpus.catalogue.datasheets) {
+    if (sheet.catalogueId === factionId) sheets.set(sheet.id, sheet)
+    else if (sameVersion(sheet.catalogueId)) remember(copies, sheet.id, () => []).push(sheet)
+  }
+  for (const [id, candidates] of copies) {
+    if (sheets.has(id)) continue
+    const owner = loaded.index.catalogueOf.get(id)
+    const owned = owner ? candidates.filter((sheet) => bookId(sheet.catalogueId) === bookId(owner)) : []
+    const chosen = owned.length ? owned : candidates
+    if (chosen.length === 1) sheets.set(id, chosen[0]!)
+  }
   return sheets
 }
+
+/** A catalogue id without the rules version that may prefix it. */
+const bookId = (catalogueId: string) => catalogueId.slice(catalogueId.indexOf('~') + 1)
 
 /** Whether a catalogue holds the rules version a faction reads: its edition's, or for a current faction the current ones. */
 function sameRulesVersion(factionId: string, currentCatalogueIds: ReadonlySet<string>) {
