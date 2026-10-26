@@ -1528,6 +1528,32 @@ export const homeRostersByUser = spacetime.procedure({ userId: t.string() }, t.s
 
 type StoredRoster = NonNullable<ReturnType<Context['db']['rosters']['id']['find']>>
 
+function ownedRoster(ctx: Context, id: string, userId: string) {
+  const roster = ctx.db.rosters.id.find(id)
+  return roster?.userId === userId ? roster : null
+}
+
+/** Always past the stored version, so every device sees an edit even when clocks disagree. */
+function nextVersion(current: StoredRoster | null, now: bigint) {
+  return current && current.updatedAt >= now ? current.updatedAt + 1n : now
+}
+
+function updateOwnedRoster(
+  ctx: Context,
+  id: string,
+  userId: string,
+  now: bigint,
+  patch: Partial<Pick<StoredRoster, 'visibility' | 'locked' | 'archived'>>,
+) {
+  const current = ownedRoster(ctx, id, userId)
+  if (!current) return false
+  const next = { ...current, ...patch, updatedAt: nextVersion(current, now) }
+  ctx.db.rosters.id.update(next)
+  touchProduct(ctx, userId, 'rosters')
+  if (current.visibility !== 'private' || next.visibility !== 'private') touchPublic(ctx, 'rosters')
+  return true
+}
+
 /** A save that does not state a budget keeps the stored one where its battle size still allows it. */
 function savedPointsBudget(current: StoredRoster | null, input: ReturnType<typeof parseRoster>) {
   if (input.pointsBudget !== undefined) return input.pointsBudget
@@ -1575,7 +1601,7 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
     borrowedDetachmentId: input.borrowedDetachmentId ?? undefined,
     visibility: input.visibility,
     source: input.source,
-    updatedAt: current && current.updatedAt >= now ? current.updatedAt + 1n : now,
+    updatedAt: nextVersion(current, now),
   }
   if (current) {
     tx.db.rosters.id.update({ ...current, ...fields })
@@ -1678,47 +1704,26 @@ export const setRosterVisibility = spacetime.procedure(
   (ctx, { id, userId, visibility, now }) =>
     operatorTx(ctx, (tx) => {
       if (!(ROSTER_VISIBILITIES as readonly string[]).includes(visibility)) throw new SenderError('Invalid roster visibility')
-      const current = tx.db.rosters.id.find(id)
-      if (!current || current.userId !== userId) return false
-      tx.db.rosters.id.update({ ...current, visibility, updatedAt: current.updatedAt >= now ? current.updatedAt + 1n : now })
-      touchProduct(tx, userId, 'rosters')
-      if (current.visibility !== 'private' || visibility !== 'private') touchPublic(tx, 'rosters')
-      return true
+      return updateOwnedRoster(tx, id, userId, now, { visibility })
     }),
 )
 
 export const setRosterLocked = spacetime.procedure(
   { id: t.string(), userId: t.string(), locked: t.bool(), now: t.u64() },
   t.bool(),
-  (ctx, { id, userId, locked, now }) =>
-    operatorTx(ctx, (tx) => {
-      const current = tx.db.rosters.id.find(id)
-      if (!current || current.userId !== userId) return false
-      tx.db.rosters.id.update({ ...current, locked, updatedAt: current.updatedAt >= now ? current.updatedAt + 1n : now })
-      touchProduct(tx, userId, 'rosters')
-      if (current.visibility !== 'private') touchPublic(tx, 'rosters')
-      return true
-    }),
+  (ctx, { id, userId, locked, now }) => operatorTx(ctx, (tx) => updateOwnedRoster(tx, id, userId, now, { locked })),
 )
 
 export const setRosterArchived = spacetime.procedure(
   { id: t.string(), userId: t.string(), archived: t.bool(), now: t.u64() },
   t.bool(),
-  (ctx, { id, userId, archived, now }) =>
-    operatorTx(ctx, (tx) => {
-      const current = tx.db.rosters.id.find(id)
-      if (!current || current.userId !== userId) return false
-      tx.db.rosters.id.update({ ...current, archived, updatedAt: current.updatedAt >= now ? current.updatedAt + 1n : now })
-      touchProduct(tx, userId, 'rosters')
-      if (current.visibility !== 'private') touchPublic(tx, 'rosters')
-      return true
-    }),
+  (ctx, { id, userId, archived, now }) => operatorTx(ctx, (tx) => updateOwnedRoster(tx, id, userId, now, { archived })),
 )
 
 export const deleteRoster = spacetime.reducer({ id: t.string(), userId: t.string() }, (ctx, { id, userId }) => {
   requireOperator(ctx)
-  const current = ctx.db.rosters.id.find(id)
-  if (current?.userId === userId) {
+  const current = ownedRoster(ctx, id, userId)
+  if (current) {
     endLoans(ctx, id)
     ctx.db.rosters.id.delete(id)
     touchProduct(ctx, userId, 'rosters', 'onboarding')
@@ -1732,7 +1737,7 @@ export const lendRoster = spacetime.procedure(
   t.string(),
   (ctx, { rosterId, ownerId, borrowerId, now }) =>
     operatorTx(ctx, (tx) => {
-      if (tx.db.rosters.id.find(rosterId)?.userId !== ownerId) return 'forbidden'
+      if (!ownedRoster(tx, rosterId, ownerId)) return 'forbidden'
       if (!validId(borrowerId) || borrowerId === ownerId) return 'not-friends'
       if (friendshipBetween(tx, ownerId, borrowerId)?.acceptedAt === undefined) return 'not-friends'
       const key = JSON.stringify([rosterId, borrowerId])
@@ -1760,7 +1765,7 @@ export const endRosterLoan = spacetime.procedure(
 
 export const rosterLoansByRoster = spacetime.procedure({ rosterId: t.string(), ownerId: t.string() }, t.string(), (ctx, input) =>
   operatorTx(ctx, (tx) => {
-    if (tx.db.rosters.id.find(input.rosterId)?.userId !== input.ownerId) return productJson([])
+    if (!ownedRoster(tx, input.rosterId, input.ownerId)) return productJson([])
     return productJson(
       Array.from(tx.db.rosterLoans.rosterId.filter(input.rosterId))
         .filter((loan) => activeLoan(tx, loan.rosterId, loan.borrowerId))
@@ -2774,8 +2779,8 @@ export const outdatedLeagueEntriesForRoster = spacetime.procedure(
   (ctx, { userId, rosterId }) =>
     operatorTx(ctx, (tx) => {
       if (!validId(userId) || !validId(rosterId)) throw new SenderError('Invalid roster lookup')
-      const saved = tx.db.rosters.id.find(rosterId)
-      if (!saved || saved.userId !== userId) return productJson([])
+      const saved = ownedRoster(tx, rosterId, userId)
+      if (!saved) return productJson([])
       const prep = saved.prep ? (JSON.parse(saved.prep) as { remindersEnabled?: boolean }) : null
       const current = {
         name: saved.name,
@@ -4049,16 +4054,8 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         value,
       )
       if (current.state.submittedAt !== input.submittedAt || current.roster.id !== input.rosterId) return productJson('stale')
-      const roster = current.roster
-      if (roster.visibility !== 'public') {
-        tx.db.rosters.id.update({
-          ...roster,
-          visibility: 'public',
-          updatedAt: roster.updatedAt >= BigInt(input.now) ? roster.updatedAt + 1n : BigInt(input.now),
-        })
-        touchProduct(tx, ownerId, 'rosters')
-        touchPublic(tx, 'rosters')
-      }
+      if (current.roster.visibility !== 'public')
+        updateOwnedRoster(tx, current.roster.id, ownerId, BigInt(input.now), { visibility: 'public' })
     }
     const row = {
       key,
