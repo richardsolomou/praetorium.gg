@@ -194,7 +194,7 @@ function ClubScreen({
 
       <PageContent>
         {/* On a phone what's waiting on the reader leads and the members close the page; on a desktop both sit beside it. */}
-        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_18rem] lg:grid-rows-[auto_1fr]">
           <div className="min-w-0 lg:col-start-2 lg:row-start-1">
             {member && viewerId ? (
               <ClubNext
