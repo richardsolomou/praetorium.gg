@@ -10,7 +10,6 @@
 
 import { fork } from 'node:child_process'
 import fs from 'node:fs'
-import { hash } from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
 import { CATALOGUE_HISTORY_FILE, loadCatalogueHistory, parseCatalogueHistory, writeCatalogueHistory } from '../src/server/catalogueHistory'
@@ -19,15 +18,13 @@ import {
   fetchCurrentPointer,
   fetchSnapshot,
   historicalSnapshotSources,
-  installSnapshotArchive,
-  MAX_ARCHIVE_BYTES,
   remoteRevocations,
 } from '../src/server/catalogueSnapshot'
-import { isSnapshotSourceName, type SnapshotSourceName } from '../src/server/catalogueSources'
+import { isSnapshotSourceName } from '../src/server/catalogueSources'
 import { fetchCatalogueObject } from '../src/server/catalogueStore'
 import { catalogueChanges, type ChangeSource } from '../src/core/catalogueChanges'
-import { compiledChangeSource, knownRevisions } from './lib/catalogueHistoryCompile'
-import type { WorkerResult } from './catalogueHistoryWorker'
+import { knownRevisions } from './lib/catalogueHistoryCompile'
+import type { WorkerResult, WorkerTask } from './catalogueHistoryWorker'
 import { type HistoryPoint, nextHistory } from './lib/catalogueHistoryPlan'
 import { editionMfmVersions, readCatalogueComposition, validateEditionContinuity } from '../src/server/catalogueComposition'
 import { catalogueDataDirectory } from './lib/catalogueFiles'
@@ -38,14 +35,14 @@ const work = fs.mkdtempSync(path.join(os.tmpdir(), 'praetorium-history-'))
 const repairLast = process.argv.includes('--repair-last')
 
 /** Compiles a catalogue directory in its own process, so the published and the new catalogue compile at once. */
-function compileApart(catalogue: string, sources: SnapshotSourceName[]) {
+function compileApart(task: WorkerTask) {
   const worker = fork(path.join(import.meta.dirname, 'catalogueHistoryWorker.ts'), [], {
     execArgv: ['--import', 'tsx', '--max-old-space-size=8192'],
   })
   return new Promise<WorkerResult>((resolve, reject) => {
     worker.once('message', (result: WorkerResult) => resolve(result))
     worker.once('exit', (code) => reject(new Error(`a compile process exited with ${code}`)))
-    worker.send({ kind: 'directory', directory: catalogue, sources })
+    worker.send(task)
   }).finally(() => worker.disconnect())
 }
 
@@ -89,13 +86,14 @@ try {
       next: editionMfmVersions(directory, composition),
     })
   }
-  const nextCompile = compileApart(
+  const nextCompile = compileApart({
+    kind: 'directory',
     directory,
-    Object.keys(nextRevisions).filter((name) => isSnapshotSourceName(name)),
-  )
+    sources: Object.keys(nextRevisions).filter((name) => isSnapshotSourceName(name)),
+  })
   const previousSources = pointer ? historicalSnapshotSources(previousDirectory) : null
   const previousCompile = previousSources
-    ? compileApart(previousDirectory, previousSources)
+    ? compileApart({ kind: 'directory', directory: previousDirectory, sources: previousSources })
     : Promise.resolve<WorkerResult>({ ok: false, reason: 'today’s code does not read it as a complete snapshot' })
   const next = {
     point: { id: '', revisions: nextRevisions, recordedAt: Date.now() } satisfies HistoryPoint,
@@ -122,36 +120,10 @@ try {
     ) {
       throw new Error('The latest published change has no readable snapshot baseline')
     }
-    const response = await fetchCatalogueObject(`${base.replace(/\/$/, '')}/snapshots/${latest.from}.zip`)
-    if (!response.ok) throw new Error(`Previous catalogue snapshot answered ${response.status}`)
-    if (Number(response.headers.get('content-length') ?? 0) > MAX_ARCHIVE_BYTES) throw new Error('Previous catalogue snapshot is too large')
-    const archive = path.join(work, 'baseline.zip')
-    if (!response.body) throw new Error('Previous catalogue snapshot has no body')
-    const chunks: Buffer[] = []
-    let size = 0
-    for await (const chunk of response.body) {
-      size += chunk.length
-      if (size > MAX_ARCHIVE_BYTES) throw new Error('Previous catalogue snapshot is too large')
-      chunks.push(Buffer.from(chunk))
-    }
-    const bytes = Buffer.concat(chunks)
-    fs.writeFileSync(archive, bytes)
-    const baselineDirectory = path.join(work, 'baseline')
-    installSnapshotArchive(
-      baselineDirectory,
-      archive,
-      {
-        format: 'praetorium.catalogue-pointer.v1',
-        id: latest.from,
-        archiveSha256: hash('sha256', bytes),
-      },
-      null,
-    )
-    const sources = historicalSnapshotSources(baselineDirectory)
-    if (!sources) throw new Error('The previous catalogue snapshot is incomplete')
-    const baseline = compiledChangeSource(baselineDirectory, sources)
-    if (!baseline) throw new Error('The previous catalogue snapshot cannot be compiled')
-    history[history.length - 1] = { ...latest, changes: catalogueChanges(baseline, previous.source) }
+    const baseline = await compileApart({ kind: 'published', id: latest.from, base })
+    if (!baseline.ok) throw new Error(`The previous catalogue snapshot cannot be read: ${baseline.reason}`)
+    if (!baseline.source) throw new Error('The previous catalogue snapshot cannot be compiled')
+    history[history.length - 1] = { ...latest, changes: catalogueChanges(baseline.source, previous.source) }
     console.log('recomputed the latest published change from its two verified snapshots')
   }
   const seed = previous?.history ? null : await seedHistory()

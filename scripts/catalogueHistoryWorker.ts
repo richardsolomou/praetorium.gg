@@ -11,7 +11,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import type { ChangeSource } from '../src/core/catalogueChanges'
-import { historicalSnapshotSources, installSnapshotArchive, type SnapshotPointer } from '../src/server/catalogueSnapshot'
+import { boundedBytes } from '../src/server/boundedBody'
+import { historicalSnapshotSources, installSnapshotArchive, MAX_ARCHIVE_BYTES, type SnapshotPointer } from '../src/server/catalogueSnapshot'
 import { isSnapshotSourceName, type SnapshotSourceName } from '../src/server/catalogueSources'
 import { fetchCatalogueObject } from '../src/server/catalogueStore'
 import { extractSourceArchive } from '../src/server/sync'
@@ -34,7 +35,7 @@ async function published(task: Extract<WorkerTask, { kind: 'published' }>, work:
   const directory = path.join(work, 'catalogue')
   const response = await fetchCatalogueObject(`${task.base}/snapshots/${task.id}.zip`)
   if (!response.ok) return { ok: false, reason: `snapshot answered ${response.status}` }
-  const bytes = new Uint8Array(await response.arrayBuffer())
+  const bytes = await boundedBytes(response, MAX_ARCHIVE_BYTES, 'snapshot is too large')
   fs.writeFileSync(archive, bytes)
   // The listing carries no archive checksum; the id is the manifest's hash and the manifest
   // hashes every file, so those still verify what is inside.
