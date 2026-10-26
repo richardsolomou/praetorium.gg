@@ -25,13 +25,14 @@ type FullRow = Awaited<ReturnType<RepositoryPort['rostersByUser']>>[number]
 
 function rosterSummaries(rows: readonly (SummaryRow | FullRow)[]) {
   return rows.map((row) => {
-    const unitCount = 'unitCount' in row ? row.unitCount : listUnitCount(picksSchema.parse(JSON.parse(row.picks)))
+    const picks = 'picks' in row ? picksSchema.parse(JSON.parse(row.picks)) : undefined
+    const unitCount = 'unitCount' in row ? row.unitCount : listUnitCount(picks!)
     const identities = currentRosterIds({
       catalogueId: row.catalogueId,
       detachmentIds: detachmentIds(row.detachmentId),
       borrowedDetachmentId: row.borrowedDetachmentId,
       updatedAt: row.updatedAt,
-      ...('picks' in row ? { picks: picksSchema.parse(JSON.parse(row.picks)) } : {}),
+      ...(picks ? { picks } : {}),
     })
     return {
       id: row.id,
