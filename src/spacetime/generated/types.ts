@@ -81,6 +81,25 @@ export const ClubMembers = __t.object('ClubMembers', {
 })
 export type ClubMembers = __Infer<typeof ClubMembers>
 
+export const ClubSeasonPlayers = __t.object('ClubSeasonPlayers', {
+  key: __t.string(),
+  seasonId: __t.string(),
+  userId: __t.string(),
+  joinedAt: __t.u64(),
+  withdrawn: __t.bool(),
+})
+export type ClubSeasonPlayers = __Infer<typeof ClubSeasonPlayers>
+
+export const ClubSeasons = __t.object('ClubSeasons', {
+  id: __t.string(),
+  clubId: __t.string(),
+  seed: __t.u32(),
+  createdAt: __t.u64(),
+  publishedAt: __t.option(__t.u64()),
+  deadlines: __t.option(__t.string()),
+})
+export type ClubSeasons = __Infer<typeof ClubSeasons>
+
 export const Clubs = __t.object('Clubs', {
   id: __t.string(),
   token: __t.string(),

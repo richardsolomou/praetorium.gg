@@ -180,6 +180,7 @@ function PublishedSeason({ club, season, viewerId }: { club: Club; season: Seaso
   return (
     <section data-club-season className="space-y-6">
       <LeagueResults
+        event={`${club.name} season`}
         title="Season table"
         rows={season.table}
         swiss
