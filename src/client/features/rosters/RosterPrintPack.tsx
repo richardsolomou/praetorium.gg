@@ -23,6 +23,7 @@ import { unitKeywordsText } from '../../components/Keyword'
 import { usePrintWhenReady } from './usePrintWhenReady'
 import { chunks } from '../../../core/collections'
 import { hasWarlordToggle } from '../../../core/unitChoices'
+import { factionDisposition } from '../../components/rosterSetup'
 
 type Price = NonNullable<Awaited<ReturnType<typeof priceRoster>>>
 
@@ -206,12 +207,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
               .join(' · ')}
           </p>
           {input.price.disposition ? (
-            <p>
-              Force disposition:{' '}
-              {data.faction.detachments
-                .flatMap((detachment) => detachment.dispositions)
-                .find((disposition) => disposition.id === input.price.disposition)?.name ?? input.price.disposition}
-            </p>
+            <p>Force disposition: {factionDisposition(data.faction, input.price.disposition)?.name ?? input.price.disposition}</p>
           ) : null}
           <ol>
             {data.groups.map(({ host, joined }, index) => (

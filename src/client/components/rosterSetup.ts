@@ -55,6 +55,12 @@ export function dispositionsFor(
   ]
 }
 
+/** A Force disposition any of the faction's detachments offers, by id. */
+export const factionDisposition = (
+  faction: { detachments: readonly { dispositions: readonly DispositionOption[] }[] } | null | undefined,
+  id: string | null | undefined,
+) => faction?.detachments.flatMap((detachment) => detachment.dispositions).find((disposition) => disposition.id === id)
+
 type OfferedDetachment = { id: string; name: string; exclusiveWith?: readonly { id: string; limit: string }[] }
 
 /** Why the catalogue refuses this detachment beside the ones already taken, if it does. */

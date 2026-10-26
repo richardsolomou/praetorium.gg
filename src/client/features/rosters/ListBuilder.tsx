@@ -147,6 +147,7 @@ import { guestDraftOf, peekGuestDraft, writeGuestDraft } from './guestDraft'
 import { withMember } from '../../../core/collections'
 import { usePrintWhenReady } from './usePrintWhenReady'
 import { hasWarlordToggle } from '../../../core/unitChoices'
+import { factionDisposition } from '../../components/rosterSetup'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
@@ -491,7 +492,7 @@ export function ListBuilder({
       settledPicks !== annotated ||
       settledListName !== listName ||
       (editable && currentDraftKey !== lastApplied.current))
-  const variantDisposition = faction?.detachments.flatMap((entry) => entry.dispositions).find((entry) => entry.id === disposition)
+  const variantDisposition = factionDisposition(faction, disposition)
 
   const priceRequest = setupPriceQuery(setup, positioned, editable)
   const {

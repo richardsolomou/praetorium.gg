@@ -12,15 +12,14 @@ import {
   waivedFormatRules,
 } from '../../../core/battle'
 import { countLabel } from '../../text'
+import { factionDisposition } from '../../components/rosterSetup'
 
 export function SetupConsequences({ review, guest }: { review: Review; guest: boolean }) {
   const { source, candidate, before, after } = review
   const { data: sourceFaction } = useQuery(factionQuery(source.catalogueId))
   const { data: candidateFaction } = useQuery(factionQuery(candidate.catalogueId))
   const dispositionName = (faction: typeof sourceFaction, id: string | null | undefined) =>
-    id
-      ? (faction?.detachments.flatMap((entry) => entry.dispositions).find((entry) => entry.id === id)?.name ?? 'Unavailable disposition')
-      : 'None'
+    id ? (factionDisposition(faction, id)?.name ?? 'Unavailable disposition') : 'None'
   const detachmentBudget = (draft: Review['source']) =>
     enforces(draft.waivedRules, 'detachment-points') ? `${detachmentPointBudget(draft.limit) ?? 'No limit'} DP` : 'Waived'
   const waived = (draft: Review['source']) =>
