@@ -27,7 +27,7 @@ import { type DatasheetSearchFields, dedupeWeapons } from '../core/datasheetSear
 import { priceOf } from './catalogueUnit'
 import { datacardOf } from './datasheetJoin'
 import { mergeDetachmentRules } from './catalogueDescriptions'
-import { definitionTokens, displayRuleName, modifiedProfileField } from './catalogueDisplay'
+import { definitionTokens, displayRuleName, isConditionalModifier, modifiedProfileField } from './catalogueDisplay'
 import { relationshipFor, relationshipsFor } from './catalogueRelationships'
 import {
   deploymentAbilities,
@@ -863,13 +863,10 @@ function grantedAbilitiesInAttachedUnit(
     for (const definition of definitions) {
       for (const source of [definition, targetOf(definition, index.definitions)]) {
         const linkedAbilities = linkedAbilityNames(source, index, catalogueId, selections)
+        const hasConditionalAbilityLink = flattenedModifiers([source]).some(
+          (modifier) => modifier.type === 'add' && modifier.field === 'add-info' && isConditionalModifier(modifier),
+        )
         for (const profile of abilityProfilesOf(source, index)) {
-          const hasConditionalAbilityLink = flattenedModifiers([source]).some(
-            (modifier) =>
-              modifier.type === 'add' &&
-              modifier.field === 'add-info' &&
-              Boolean(modifier.conditions?.length || modifier.conditionGroups?.length || modifier.repeats?.length),
-          )
           const grants = parsedAbilityGrants(
             abilityDescription(profile),
             companionIndexes.length > 0,
@@ -916,14 +913,7 @@ function linkedAbilityNames(
     return name && !rule?.hidden ? [name] : []
   })
   const added = flattenedModifiers([definition]).flatMap((modifier) => {
-    if (
-      modifier.type !== 'add' ||
-      modifier.field !== 'add-info' ||
-      typeof modifier.value !== 'string' ||
-      modifier.conditions?.length ||
-      modifier.conditionGroups?.length ||
-      modifier.repeats?.length
-    )
+    if (modifier.type !== 'add' || modifier.field !== 'add-info' || typeof modifier.value !== 'string' || isConditionalModifier(modifier))
       return []
     const rule = index.rules.get(modifier.value)
     return rule?.name && !rule.hidden ? [rule.name] : []
