@@ -1,14 +1,19 @@
-import { expect, test } from './test'
+import { expect, test, type Page } from './test'
 import { confirmRosterSetup, retryUntilVisible, signUp, waitForRosterSave, expectNoPageOverflow, chooseOption } from './account'
-import { productOperator, userIdFor, lastPathSegment } from './storage'
+import { lastPathSegment, seedRoster } from './storage'
+
+/** Opens the conversion the rules notice offers and chooses the current rules version. */
+async function convertToCurrentRules(page: Page) {
+  const dialog = page.getByRole('dialog', { name: 'Convert rules version' })
+  await retryUntilVisible(dialog, () =>
+    page.locator('[data-roster-rules-notice]').getByRole('button', { name: 'Convert rules version' }).click(),
+  )
+  await chooseOption(page, 'Rules version', 'MFM 1.6 · Current')
+}
 
 test('fixed Sternguard equipment survives migration, saving and reload', { tag: '@catalogue' }, async ({ page }) => {
   const { email } = await signUp(page, 'Fixed equipment')
-  const operator = await productOperator()
-  const id = crypto.randomUUID()
-  await operator.saveRoster({
-    id,
-    userId: await userIdFor(email),
+  const { id, operator } = await seedRoster(email, {
     name: 'Fixed Sternguard',
     catalogueId: 'e0af-67df-9d63-8fb7',
     detachmentId: JSON.stringify(['d2dc-693e-b491-b16d']),
@@ -22,12 +27,6 @@ test('fixed Sternguard equipment survives migration, saving and reload', { tag: 
         spreads: { 'edfc-d6af-480a-d5fc': { '5700-4122-349a-e5da': 4, 'afda-2132-147f-d0f1': 0 } },
       },
     ]),
-    prep: null,
-    tags: '[]',
-    waivedRules: '[]',
-    visibility: 'private',
-    source: 'editable',
-    now: Date.now(),
   })
   await page.goto(`/rosters/${id}`)
   const unit = page.locator('[data-unit="Sternguard Veteran Squad"]')
@@ -52,24 +51,14 @@ test('fixed Sternguard equipment survives migration, saving and reload', { tag: 
 
 test('preserved rules remain explicit and conversion is optional', { tag: '@catalogue' }, async ({ page }) => {
   const { email } = await signUp(page, 'Retained')
-  const userId = await userIdFor(email)
-  const id = crypto.randomUUID()
   const picks = [{ entryId: '3c0a-10a9-8f84-26a3', models: 5, spreads: { 'd0cd-b8dc-82e-5eb8': { '5173-cc7b-b53a-514': 2 } } }]
-  const operator = await productOperator()
-  await operator.saveRoster({
-    id,
-    userId,
+  const { id, operator } = await seedRoster(email, {
     name: 'Preserved Scouts',
     catalogueId: '470a-6daa-9014-12df',
     detachmentId: JSON.stringify(['9d23-833a-17cb-2d7d']),
     disposition: 'priority-assets',
     limit: 1000,
     picks: JSON.stringify(picks),
-    prep: null,
-    tags: '[]',
-    waivedRules: '[]',
-    visibility: 'private',
-    source: 'editable',
     // Saved before the app served MFM 1.5, so its MFM 1.4 gear keeps it on MFM 1.4.
     now: Date.UTC(2026, 8, 20),
   })
@@ -121,31 +110,20 @@ test('preserved rules remain explicit and conversion is optional', { tag: '@cata
 
 test('converts a retired Marine faction identity without discarding its generated units', async ({ page }) => {
   const { email } = await signUp(page, 'Original Marines')
-  const userId = await userIdFor(email)
-  const id = crypto.randomUUID()
-  const operator = await productOperator()
-  await operator.saveRoster({
-    id,
-    userId,
+  const { id, operator } = await seedRoster(email, {
     name: 'Original Ultramarines',
     catalogueId: 'a603-5039-f08d-e841',
     detachmentId: JSON.stringify(['profile-detachment-option-a603-5039-f08d-e841-f367-3240-47c1-7e1a']),
     disposition: 'take-and-hold',
     limit: 1000,
     picks: JSON.stringify([{ entryId: 'profile-unit-a603-5039-f08d-e841-5302-e1f9-0338-76f9' }]),
-    prep: null,
-    tags: '[]',
-    waivedRules: '[]',
-    visibility: 'private',
-    source: 'editable',
     // Saved before the app served the codex, so its profile-era books keep it on the pre-codex rules.
     now: Date.UTC(2026, 8, 20),
   })
   await page.goto(`/rosters/${id}`)
   const notice = page.locator('[data-roster-rules-notice]')
   const dialog = page.getByRole('dialog', { name: 'Convert rules version' })
-  await retryUntilVisible(dialog, () => notice.getByRole('button', { name: 'Convert rules version' }).click())
-  await chooseOption(page, 'Rules version', 'MFM 1.6 · Current')
+  await convertToCurrentRules(page)
   await dialog.getByRole('button', { name: 'Remove unavailable', exact: true }).click()
   await dialog.getByRole('button', { name: 'Select Gladius Task Force', exact: true }).click()
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
@@ -158,31 +136,17 @@ test('converts a retired Marine faction identity without discarding its generate
 
 test('library and builder point a roster on earlier released rules at the current version', { tag: '@catalogue' }, async ({ page }) => {
   const { email } = await signUp(page, 'Earlier Rules')
-  const userId = await userIdFor(email)
-  const operator = await productOperator()
   const picks = JSON.stringify([{ entryId: '3c0a-10a9-8f84-26a3', models: 5 }])
-  const save = (name: string, catalogueId: string) => {
-    const id = crypto.randomUUID()
-    return operator
-      .saveRoster({
-        id,
-        userId,
-        name,
-        catalogueId,
-        detachmentId: JSON.stringify(['9d23-833a-17cb-2d7d']),
-        disposition: 'priority-assets',
-        limit: 1000,
-        picks,
-        prep: null,
-        tags: '[]',
-        waivedRules: '[]',
-        visibility: 'private',
-        source: 'editable',
-        now: Date.now(),
-      })
-      .then(() => id)
-  }
-  const earlier = await save('Earlier Scouts', 'legacy-rosters~470a-6daa-9014-12df')
+  const save = (name: string, catalogueId: string) =>
+    seedRoster(email, {
+      name,
+      catalogueId,
+      detachmentId: JSON.stringify(['9d23-833a-17cb-2d7d']),
+      disposition: 'priority-assets',
+      limit: 1000,
+      picks,
+    })
+  const { id: earlier, operator } = await save('Earlier Scouts', 'legacy-rosters~470a-6daa-9014-12df')
   await save('Current Scouts', 'mfm-1-6~470a-6daa-9014-12df')
   await page.goto('/rosters')
   await expect(page.locator('[data-roster="Earlier Scouts"]')).toContainText('Older rules')
@@ -196,16 +160,14 @@ test('library and builder point a roster on earlier released rules at the curren
   const notice = page.locator('[data-roster-rules-notice]')
   await expect(notice).toContainText('This roster uses MFM 1.4. MFM 1.6 is the current rules version.')
   const dialog = page.getByRole('dialog', { name: 'Convert rules version' })
-  await retryUntilVisible(dialog, () => notice.getByRole('button', { name: 'Convert rules version' }).click())
-  await chooseOption(page, 'Rules version', 'MFM 1.6 · Current')
+  await convertToCurrentRules(page)
   await dialog.getByRole('button', { name: 'Convert roster', exact: true }).click()
   const review = page.getByRole('dialog', { name: 'Review roster changes' })
   await expect(review.getByLabel('Roster change preview')).toContainText(/Scout Squad · 5 models · [\d →]+ pts/)
   await review.getByRole('button', { name: 'Cancel', exact: true }).click()
   expect((await operator.roster(earlier))?.catalogueId).toBe('legacy-rosters~470a-6daa-9014-12df')
   await page.goto(`/rosters/${earlier}`)
-  await retryUntilVisible(dialog, () => notice.getByRole('button', { name: 'Convert rules version' }).click())
-  await chooseOption(page, 'Rules version', 'MFM 1.6 · Current')
+  await convertToCurrentRules(page)
   await dialog.getByRole('button', { name: 'Convert roster', exact: true }).click()
   await review.getByRole('switch', { name: /Keep the original/ }).click()
   await review.getByRole('button', { name: 'Confirm changes', exact: true }).click()
@@ -221,24 +183,13 @@ test('library and builder point a roster on earlier released rules at the curren
 
 test('resets a saved choice the current rules no longer offer', async ({ page }) => {
   const { email } = await signUp(page, 'Stale choice')
-  const userId = await userIdFor(email)
-  const id = crypto.randomUUID()
-  const operator = await productOperator()
-  await operator.saveRoster({
-    id,
-    userId,
+  const { id, operator } = await seedRoster(email, {
     name: 'Stale Scouts',
     catalogueId: 'mfm-1-6~470a-6daa-9014-12df',
     detachmentId: JSON.stringify(['9d23-833a-17cb-2d7d']),
     disposition: 'priority-assets',
     limit: 1000,
     picks: JSON.stringify([{ entryId: '3c0a-10a9-8f84-26a3', models: 5, choices: { 'retired-group': 'retired-option' } }]),
-    prep: null,
-    tags: '[]',
-    waivedRules: '[]',
-    visibility: 'private',
-    source: 'editable',
-    now: Date.now(),
   })
   // Opened straight from its address, so the edit can land before this device has downloaded the roster.
   await page.goto(`/rosters/${id}`)

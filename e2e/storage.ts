@@ -79,6 +79,29 @@ export async function userIdFor(email: string, directory = root) {
   return user.id
 }
 
+type RosterInput = Parameters<SpacetimeOperator['saveRoster']>[0]
+
+/** Saves a private, editable roster straight into the account behind `email`. */
+export async function seedRoster(
+  email: string,
+  roster: Omit<RosterInput, 'id' | 'userId' | 'prep' | 'tags' | 'waivedRules' | 'visibility' | 'source' | 'now'> & Partial<RosterInput>,
+) {
+  const operator = await productOperator()
+  const id = roster.id ?? crypto.randomUUID()
+  const outcome = await operator.saveRoster({
+    id,
+    userId: await userIdFor(email),
+    prep: null,
+    tags: '[]',
+    waivedRules: '[]',
+    visibility: 'private',
+    source: 'editable',
+    now: Date.now(),
+    ...roster,
+  })
+  return { id, operator, outcome }
+}
+
 export async function userIdNamed(name: string, directory = root) {
   const user = await withAuthSql(
     (database) => database.prepare('SELECT id FROM user WHERE name = ?').get(name) as { id: string } | undefined,

@@ -18,7 +18,7 @@ import {
   chooseLibraryAction,
   PHONE,
 } from './account'
-import { productOperator, productSql, userIdFor, lastPathSegment } from './storage'
+import { productOperator, productSql, userIdFor, lastPathSegment, seedRoster } from './storage'
 
 test('the roster library reserves its rows while the first page loads', async ({ browser, page: savedPage }) => {
   await signUp(savedPage, 'Loading')
@@ -96,22 +96,11 @@ test('the roster library counts every saved list and prices more rows on demand'
   if (!source) throw new Error('Saved roster missing')
   for (let index = 1; index <= 20; index++) {
     await operator.saveRoster({
+      ...source,
       id: crypto.randomUUID(),
       userId,
       name: `Roster ${index}`,
       automaticName: false,
-      catalogueId: source.catalogueId,
-      detachmentId: source.detachmentId,
-      disposition: source.disposition,
-      limit: source.limit,
-      picks: source.picks,
-      prep: source.prep,
-      tags: source.tags,
-      waivedRules: source.waivedRules,
-      optionalRules: source.optionalRules,
-      borrowedDetachmentId: source.borrowedDetachmentId,
-      visibility: source.visibility,
-      source: source.source,
       now: Date.now() + index,
     })
   }
@@ -669,15 +658,9 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
 
 test('a list saved on the retired Marine codex opens on the current Space Marines book', async ({ page }) => {
   const { email } = await signUp(page, 'Provisional')
-  const userId = await userIdFor(email)
-  const id = crypto.randomUUID()
   // The row as the provisional codex saved it: book, detachment, units and Warlord under its ids.
   const retired = (entry: string) => `profile-unit-e0af-67df-9d63-8fb8-${entry}`
-  const saved = await (
-    await productOperator()
-  ).saveRoster({
-    id,
-    userId,
+  const { id, outcome: saved } = await seedRoster(email, {
     name: 'Provisional Gladius',
     catalogueId: 'e0af-67df-9d63-8fb8',
     detachmentId: JSON.stringify(['profile-detachment-option-e0af-67df-9d63-8fb8-f367-3240-47c1-7e1a']),
@@ -687,12 +670,6 @@ test('a list saved on the retired Marine codex opens on the current Space Marine
       { entryId: retired('024a-3fea-7765-4e82'), toggles: { [`profile-warlord-e0af-67df-9d63-8fb8-024a-3fea-7765-4e82`]: 1 } },
       { entryId: retired('34c7-75dd-fcff-ec94') },
     ]),
-    prep: null,
-    tags: '[]',
-    waivedRules: '[]',
-    visibility: 'private',
-    source: 'editable',
-    now: Date.now(),
   })
   expect(saved).toBe('inserted')
 
