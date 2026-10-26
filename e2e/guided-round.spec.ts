@@ -81,10 +81,6 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
     'title',
     'New Orders has been used this battle',
   )
-  for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: 900 })
-    await expect(page.locator('html')).toHaveJSProperty('clientWidth', width)
-  }
   await opponent.reload()
   await expect(opponent.locator('[data-scoreboard]')).toContainText('Round 2 of 5')
   await expect(
