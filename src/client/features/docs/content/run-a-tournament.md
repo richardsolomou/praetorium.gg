@@ -20,6 +20,8 @@ Share the invite link from **Invite players**, or use **Add friends** to enter f
 
 In a 2v1 give each player a solo or allied size and pair the allies. In doubles pair everyone into teams of two. Each team then chooses its Force Disposition and whose Warlord leads before the reveal. Changing a player's size or team clears the roster they sealed.
 
+While rosters are still owed, **Remind players** under the reveal countdown sends a notification to each accepted player who hasn't sealed, on devices where they allowed notifications. It names no deadline time, so players check it on the tournament page, and it reveals nothing. You can send one reminder a day.
+
 ## Reveal and play
 
 When everyone is in and sealed, **Reveal all rosters** opens every list at once and closes entry. Anyone playing can reveal, not only the organizer, and the reveal can't be undone. Before then nobody sees another list, the organizer included.

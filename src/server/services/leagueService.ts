@@ -344,6 +344,19 @@ export class LeagueService {
     throw new Response('wait for every accepted list and every pair’s Force Disposition and Warlord before reveal', { status: 409 })
   }
 
+  /** Nudges the accepted entrants still without a sealed list, at most once per cooldown; it reveals and changes nothing else. */
+  async remindLeagueEntrants(token: string, ownerId: string, eventToken?: string) {
+    const result = await this.repository.remindLeague(token, ownerId, this.clock(), eventToken)
+    if (typeof result === 'object' && result.outcome === 'reminded') {
+      this.notifyLeague('league-roster-reminder', ownerId, result.recipientIds, token, eventToken)
+      return { reminded: result.recipientIds.length }
+    }
+    if (result === 'missing') throw new Response('no such event', { status: 404 })
+    if (result === 'forbidden') throw new Response('only the organizer can remind entrants', { status: 403 })
+    if (result.outcome === 'too-soon') throw new Response('the entrants were reminded recently, so try again later', { status: 409 })
+    throw new Response('nobody is waiting to seal a list', { status: 409 })
+  }
+
   /** Send one revealed list back to its owner so a mistake can be corrected in place. */
   async unsealLeagueRoster(token: string, ownerId: string, userId: string, eventToken?: string) {
     const result = await this.repository.unsealLeagueRoster(token, ownerId, userId, eventToken)

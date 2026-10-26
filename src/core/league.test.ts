@@ -18,6 +18,9 @@ import {
   leagueArmy,
   leagueTeams,
   mayRevealLeague,
+  mayRemindLeague,
+  leagueReminderRecipients,
+  LEAGUE_REMINDER_COOLDOWN_MS,
   isLeagueOrganizer,
   leagueTableShape,
   matchesSealedLeagueRoster,
@@ -455,6 +458,33 @@ describe('leagueRevealChecklist', () => {
       'places',
       'lists',
     ])
+  })
+})
+
+describe('seal reminders', () => {
+  const reminded = [
+    { userId: 'waiting', status: 'accepted' as const, submitted: false },
+    { userId: 'sealed', status: 'accepted' as const, submitted: true },
+    { userId: 'pending', status: 'pending' as const, submitted: false },
+    { userId: 'rejected', status: 'rejected' as const, submitted: false },
+  ]
+
+  it('reach only accepted entrants without a sealed list', () => {
+    expect(leagueReminderRecipients({ revealedAt: null, sealBy: 100 }, reminded, 50)).toEqual(['waiting'])
+  })
+
+  it('reach nobody once the rosters are revealed', () => {
+    expect(leagueReminderRecipients({ revealedAt: 10, sealBy: null }, reminded, 50)).toEqual([])
+  })
+
+  it('reach nobody past the roster deadline', () => {
+    expect(leagueReminderRecipients({ revealedAt: null, sealBy: 100 }, reminded, 101)).toEqual([])
+  })
+
+  it('wait out the cooldown before another', () => {
+    expect(
+      [LEAGUE_REMINDER_COOLDOWN_MS - 1, LEAGUE_REMINDER_COOLDOWN_MS].map((elapsed) => mayRemindLeague(1_000, 1_000 + elapsed)),
+    ).toEqual([false, true])
   })
 })
 

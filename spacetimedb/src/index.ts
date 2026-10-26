@@ -42,6 +42,8 @@ import {
   leagueTitle,
   leagueSealingClosed,
   leagueTeams,
+  leagueReminderRecipients,
+  mayRemindLeague,
   mayRevealLeague,
   LEAGUE_ADMIN_MAX,
   LEAGUE_ADMISSIONS,
@@ -2611,6 +2613,7 @@ export const migrateLeaguesToClubs = spacetime.procedure({ now: t.u64() }, t.u32
           revealedBy: event.revealedBy,
           soloPoints: undefined,
           allyPoints: undefined,
+          remindedAt: undefined,
         })
         tx.db.clubGames.insert({
           eventId: event.id,
@@ -3851,6 +3854,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       revealedBy: undefined,
       soloPoints: input.soloPoints ?? undefined,
       allyPoints: input.allyPoints ?? undefined,
+      remindedAt: undefined,
     })
     if (input.ownerPlays) insertLeagueEntry(tx, input.eventId, input.ownerId, 'accepted', input.now)
     touchEventById(tx, input.eventId)
@@ -4458,6 +4462,27 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     tx.db.leagueEventEntries.key.update({ ...entry, ...UNSEALED })
     touchEvent(tx, host)
     return productJson('unsealed')
+  }
+  if (operation === 'remind') {
+    const input = leagueCommandInput(z.object({ op: z.literal('remind'), now: leagueTimeInput }), value)
+    const remindedAt = event.remindedAt === undefined ? null : safeNumber(event.remindedAt)
+    if (!mayRemindLeague(remindedAt, input.now)) return productJson({ outcome: 'too-soon', remindedAt })
+    const recipientIds = leagueReminderRecipients(
+      {
+        revealedAt: event.revealedAt === undefined ? null : safeNumber(event.revealedAt),
+        sealBy: event.sealBy === undefined ? null : safeNumber(event.sealBy),
+      },
+      leagueEntriesFor(tx, event.id).map((entry) => ({
+        userId: entry.userId,
+        status: entry.status as LeagueEntryStatus,
+        submitted: entry.rosterSnapshot !== undefined,
+      })),
+      input.now,
+    ).filter((userId) => userId !== ownerId)
+    if (!recipientIds.length) return productJson({ outcome: 'nobody' })
+    tx.db.sealedEvents.id.update({ ...event, remindedAt: BigInt(input.now) })
+    touchEvent(tx, host)
+    return productJson({ outcome: 'reminded', recipientIds })
   }
   if (operation === 'create-battle') {
     const input = leagueCommandInput(

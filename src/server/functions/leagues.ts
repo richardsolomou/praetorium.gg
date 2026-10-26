@@ -180,6 +180,15 @@ export const revealLeague = createServerFn({ method: 'POST' })
     }),
   )
 
+export const remindLeagueEntrants = createServerFn({ method: 'POST' })
+  .validator(leagueEventSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      return app().service.leagueService.remindLeagueEntrants(data.token, userId, data.eventToken)
+    }),
+  )
+
 export const openLeagueRoster = createServerFn({ method: 'GET' })
   .validator(leagueRosterSchema)
   .handler(({ data }) =>

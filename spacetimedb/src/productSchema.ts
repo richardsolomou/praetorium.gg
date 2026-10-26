@@ -240,6 +240,8 @@ const sealedEvents = table(
     soloPoints: t.option(t.u32()).default(undefined),
     /** What each ally in a 2v1, or each doubles player, may spend; absent spends half the battle size. */
     allyPoints: t.option(t.u32()).default(undefined),
+    /** When an organizer last reminded the entrants without a sealed list, which spaces out the next reminder. */
+    remindedAt: t.option(t.u64()).default(undefined),
   },
 )
 

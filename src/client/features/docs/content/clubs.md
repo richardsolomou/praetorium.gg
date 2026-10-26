@@ -21,6 +21,8 @@ An organizer can press **New game**, then **New sealed game**, and pick its form
 - **Duel**: any member seals a list. After reveal, use **Play** beside the person you’re playing that evening; nobody has to play every participant.
 - **Solo vs pair** and **doubles**: pick your side with **Join**, then seal a list for it. Each pair chooses its Force Disposition and whose Warlord leads before the reveal. Afterwards, **Start battle** sets up the one battle between the sides.
 
+Before the reveal, an organizer can press **Remind players** to send a notification to each player in the game who hasn't sealed a list yet, once a day.
+
 After reveal, use **Simulate** beside another player’s list to compare your sealed armies. For team games, the simulator combines each side’s lists.
 
 The results go on the club's leaderboard. Starting a new sealed game automatically moves the previous one to **Past sealed games**. A scheduled game also moves there after its scheduled day ends; an undated game moves after the day its lists were revealed. Days end at midnight in the timezone of the organizer who created the game. An undated game with unrevealed lists stays open until replaced.
