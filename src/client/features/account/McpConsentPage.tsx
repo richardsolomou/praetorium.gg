@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useAuthAction } from 'ras-stack/auth/react'
 import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { authClient } from '../../authClient'
@@ -14,19 +14,17 @@ export function McpConsentPage({
   scopes: readonly string[]
   next: string
 }) {
-  const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState(false)
+  const {
+    busy: pending,
+    error,
+    run,
+  } = useAuthAction({
+    failureMessage: () => 'Could not finish connecting. Start the connection again from your assistant.',
+  })
 
   const decide = async (accept: boolean) => {
-    setPending(true)
-    setError(null)
-    const result = await authClient.oauth2.consent({ accept })
-    if (result.error) {
-      setError('Could not finish connecting. Start the connection again from your assistant.')
-      setPending(false)
-      return
-    }
-    if (result.data?.url) window.location.assign(result.data.url)
+    const result = await run(() => authClient.oauth2.consent({ accept }))
+    if (!result.error && 'data' in result && result.data?.url) window.location.assign(result.data.url)
   }
 
   return (

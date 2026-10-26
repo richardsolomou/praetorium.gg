@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { useAuthAction } from 'ras-stack/auth/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,26 +18,24 @@ export function TwoFactorSignIn({
   const [code, setCode] = useState('')
   const [recovery, setRecovery] = useState(false)
   const [trustDevice, setTrustDevice] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
+  const { busy, error, clearError, run } = useAuthAction({
+    failureMessage: () => (recovery ? 'That recovery code is invalid or has already been used.' : 'That authenticator code is invalid.'),
+  })
 
   return (
     <form
       className="ph-no-capture mt-8 space-y-4"
       onSubmit={async (event) => {
         event.preventDefault()
-        setBusy(true)
-        setError('')
-        const result = recovery
-          ? await authClient.twoFactor.verifyBackupCode({ code, trustDevice })
-          : await authClient.twoFactor.verifyTotp({ code: code.replaceAll(/\s/g, ''), trustDevice })
-        if (result.error)
-          setError(recovery ? 'That recovery code is invalid or has already been used.' : 'That authenticator code is invalid.')
-        else {
+        await run(async () => {
+          const result = recovery
+            ? await authClient.twoFactor.verifyBackupCode({ code, trustDevice })
+            : await authClient.twoFactor.verifyTotp({ code: code.replaceAll(/\s/g, ''), trustDevice })
+          if (result.error) return result
           await queryClient.invalidateQueries()
           await onSuccess(authRedirectUrl(result.data))
-        }
-        setBusy(false)
+          return result
+        })
       }}
     >
       <div className="space-y-2">
@@ -77,7 +76,7 @@ export function TwoFactorSignIn({
         onClick={() => {
           setRecovery((current) => !current)
           setCode('')
-          setError('')
+          clearError()
         }}
       >
         {recovery ? 'Use authenticator code' : 'Use a recovery code'}
