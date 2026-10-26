@@ -75,7 +75,7 @@ export function LeagueArmies({
   const entries = groups.flatMap((group) => group.entries)
   const openRosters = () => openRevealedLeagueRosters({ data: { token, eventToken } })
   // The app copies rather than downloads, and iOS refuses a clipboard write that waits on the network after the tap.
-  const preloaded = useQuery({ queryKey: revealedLeagueRostersKey(token, eventToken), queryFn: openRosters, enabled: native })
+  const preloaded = useQuery({ queryKey: revealedLeagueRostersKey(token, eventToken), queryFn: openRosters, enabled: native && !sample })
   const exported = useMutation({
     mutationFn: async () => {
       const sealed = new Map((preloaded.data ?? (await openRosters())).map((entry) => [entry.userId, entry.roster]))
@@ -108,14 +108,16 @@ export function LeagueArmies({
         </h2>
         <div className="ml-auto flex items-center gap-3">
           {revealedBy ? <p className="text-xs text-dim">Revealed by {revealedBy}</p> : null}
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={exported.isPending || (native && !preloaded.data)}
-            onClick={() => exported.mutate()}
-          >
-            <Download /> {native ? (copied ? 'Copied rosters' : 'Copy rosters') : 'Export rosters'}
-          </Button>
+          {sample ? null : (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={exported.isPending || (native && !preloaded.data)}
+              onClick={() => exported.mutate()}
+            >
+              <Download /> {native ? (copied ? 'Copied rosters' : 'Copy rosters') : 'Export rosters'}
+            </Button>
+          )}
         </div>
       </div>
       {exported.error ? <Problem className="mb-2" error={exported.error} /> : null}
