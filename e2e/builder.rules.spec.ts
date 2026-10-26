@@ -1,15 +1,5 @@
 import { expect, test } from './test'
-import {
-  createRoster,
-  signUp,
-  waitForRosterSave,
-  expectNoPageOverflow,
-  chooseRosterAction,
-  openRosterSetup,
-  chooseOption,
-  isRosterSave,
-  PHONE,
-} from './account'
+import { waitForRosterSave, expectNoPageOverflow, chooseRosterAction, openRosterSetup, chooseOption, isRosterSave, PHONE } from './account'
 import { shot, expectNoHorizontalOverflow, expectNotAttachable, openBuilder, add, arrangeByRole, attach } from './builder.harness'
 
 test('enhancement choices show descriptions when rule and catalogue names differ', async ({ page }) => {
@@ -384,9 +374,8 @@ test('destroyer plasmacytes follow the unit size', async ({ page }) => {
 })
 
 /**
- * An enhancement changes what the bearer's weapons do, and the loadout has to say so:
- * its weapon rows were drawn from the sheet fetched to learn what a unit *could*
- * take, which is fetched without the list and so cannot see an enhancement at all.
+ * An enhancement changes what the bearer's weapons do, and the loadout has to say so,
+ * even though the sheet that lists what a unit could take is fetched without the list.
  */
 test('an enhancement changes the weapons of the model bearing it', async ({ page }) => {
   await arrangeByRole(page)
@@ -474,7 +463,7 @@ test('an enhancement changes the weapons of the model bearing it', async ({ page
  * The same shape of enhancement in another book, and the scopes the data uses for it.
  * A Master Artisan adds one to the bearer's Wounds — written against the model — and
  * one to the Toughness of every model in its unit, written against the whole group.
- * The first of those scopes went unresolved, so half the relic did nothing.
+ * Both scopes apply.
  */
 test('an enhancement adds to the bearer and to the unit around it', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
@@ -497,7 +486,7 @@ test('an enhancement adds to the bearer and to the unit around it', async ({ pag
 /**
  * Two sources name the same weapon: the catalogue prints a staff of light as two
  * rows, and the rules source spells the same two as "Staff of light (Ranged)" and
- * "(Melee)". Both drawn, a character appeared to carry the staff twice over.
+ * "(Melee)". A character carrying the staff shows it once.
  */
 test('a weapon both sources name is drawn once', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
@@ -519,9 +508,8 @@ test('a weapon both sources name is drawn once', async ({ page }) => {
   }
   await expect(loadout.getByRole('button', { name: 'Select Staff of light' })).toHaveCount(1)
   await expect(loadout.getByRole('heading', { name: /Staff of light \(/ })).toHaveCount(0)
-  // The catalogue's own two rows: one to shoot with, one to fight with. Read at the
-  // weapon level rather than the profile, the fighting one printed its range as
-  // `Melee"` and asked for a ballistic skill.
+  // The catalogue's own two rows: one to shoot with, one to fight with, each read at
+  // the profile so the fighting one has no range or ballistic skill.
   await expect(loadout.getByText('Melee"')).toHaveCount(0)
   await expect(loadout.getByText('WS', { exact: true })).not.toHaveCount(0)
   await page.screenshot({ path: test.info().outputPath('lokhust-lord-staff.png'), fullPage: true })
@@ -568,8 +556,8 @@ test('a squad keeps the weapons it was given while a specialist is armed', async
 
 /**
  * Free swaps live in the rules source rather than the community catalogue, so a card
- * counting the catalogue's own selection went on naming the weapon that was traded
- * away. Card and loadout answer the same question and have to agree.
+ * names the weapon a swap brings rather than the catalogue's own selection. Card and
+ * loadout answer the same question and have to agree.
  */
 test('a free swap shows on the roster card as well as the loadout', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
@@ -634,8 +622,7 @@ test('Cursed Legion does not modify Immortals without an eligible leader', async
 })
 
 test('a supplement imports shared Space Marine units and its detachment group', async ({ page }) => {
-  await signUp(page, 'Richard')
-  await createRoster(page, { faction: 'Black Templars', detachment: /Marshal's Household/ })
+  await openBuilder(page, 'Black Templars', /Marshal's Household/)
   await add(page, 'Intercessor Squad')
   await expect(page.locator('[data-unit="Intercessor Squad"]')).toBeVisible()
   await add(page, 'Crusader Squad')
