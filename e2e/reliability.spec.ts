@@ -1,6 +1,12 @@
 import { expect, test } from './test'
 import { retryUntilVisible } from './account'
 
+declare global {
+  interface Window {
+    reliabilitySockets?: { socket: WebSocket; received: number }[]
+  }
+}
+
 for (const width of [390, 1440]) {
   test(`a cached document with an unavailable route module recovers at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 844 })
@@ -39,14 +45,13 @@ for (const width of [390, 1440]) {
 
 test('an anonymous realtime subscription survives a full socket reconnect with its identity', async ({ page }) => {
   await page.addInitScript(() => {
-    const state = window as Window & { reliabilitySockets?: { socket: WebSocket; received: number }[] }
-    state.reliabilitySockets = []
+    window.reliabilitySockets = []
     const NativeSocket = window.WebSocket
     window.WebSocket = class extends NativeSocket {
       constructor(url: string | URL, protocols?: string | string[]) {
         super(url, protocols)
         const record = { socket: this, received: 0 }
-        state.reliabilitySockets!.push(record)
+        window.reliabilitySockets!.push(record)
         this.addEventListener('message', () => record.received++)
       }
     }
@@ -57,18 +62,15 @@ test('an anonymous realtime subscription survives a full socket reconnect with i
   })
   await page.goto('/')
   await page.waitForFunction(() => {
-    const state = window as Window & { reliabilitySockets?: { socket: WebSocket; received: number }[] }
-    return state.reliabilitySockets?.some((entry) => entry.received >= 2)
+    return window.reliabilitySockets?.some((entry) => entry.received >= 2)
   })
   await page.evaluate(() => {
-    const state = window as Window & { reliabilitySockets?: { socket: WebSocket; received: number }[] }
-    state.reliabilitySockets!.find((entry) => entry.received >= 2)!.socket.close(4000, 'Reconnect verification')
+    window.reliabilitySockets!.find((entry) => entry.received >= 2)!.socket.close(4000, 'Reconnect verification')
   })
   await page.waitForFunction(() => {
-    const state = window as Window & { reliabilitySockets?: { socket: WebSocket; received: number }[] }
     return (
-      state.reliabilitySockets!.filter((entry) => entry.received >= 2 && entry.socket.readyState === WebSocket.OPEN).length === 1 &&
-      state.reliabilitySockets!.length >= 2
+      window.reliabilitySockets!.filter((entry) => entry.received >= 2 && entry.socket.readyState === WebSocket.OPEN).length === 1 &&
+      window.reliabilitySockets!.length >= 2
     )
   })
   expect(identities).toBe(1)
