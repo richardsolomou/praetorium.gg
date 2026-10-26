@@ -1012,16 +1012,22 @@ function costsOf(node: Node, root: Node, index: CatalogueIndex, census: Census):
       census.note(`cost modifier ${modifier.type} with non-numeric value`)
       continue
     }
-    const current = base.get(modifier.field) ?? 0
-    if (modifier.type === 'set') base.set(modifier.field, value)
-    else if (modifier.type === 'increment') base.set(modifier.field, current + value * times)
-    else if (modifier.type === 'decrement') base.set(modifier.field, current - value * times)
-    else if (modifier.type === 'multiply') base.set(modifier.field, current * value ** times)
-    else if (modifier.type === 'divide') base.set(modifier.field, value === 0 ? 0 : current / value ** times)
-    else census.note(`cost modifier type ${modifier.type}`)
+    const next = modified(base.get(modifier.field) ?? 0, modifier.type, value, times)
+    if (next === undefined) census.note(`cost modifier type ${modifier.type}`)
+    else base.set(modifier.field, next)
   }
 
   return base
+}
+
+/** A number after an arithmetic modifier applies `times` over; undefined for any other type. */
+function modified(current: number, type: Modifier['type'], amount: number, times: number): number | undefined {
+  if (type === 'set') return amount
+  if (type === 'increment') return current + amount * times
+  if (type === 'decrement') return current - amount * times
+  if (type === 'multiply') return current * amount ** times
+  if (type === 'divide') return amount === 0 ? 0 : current / amount ** times
+  return undefined
 }
 
 /** Every modifier that applies to this node, with modifier groups flattened and gated. */
@@ -1491,11 +1497,7 @@ function constraintValue(
     if (times === 0) continue
     const amount = Number(modifier.value)
     if (!Number.isFinite(amount)) continue
-    if (modifier.type === 'set') value = amount
-    else if (modifier.type === 'increment') value += amount * times
-    else if (modifier.type === 'decrement') value -= amount * times
-    else if (modifier.type === 'multiply') value *= amount ** times
-    else if (modifier.type === 'divide') value = amount === 0 ? 0 : value / amount ** times
+    value = modified(value, modifier.type, amount, times) ?? value
   }
   return value
 }
