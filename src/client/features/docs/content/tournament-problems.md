@@ -28,6 +28,10 @@ In a 2v1 or doubles tournament you can't seal until the organizer sets your size
 
 They lock once anyone seals a roster, and for good after the reveal. Start a new tournament to play different rules.
 
+### Pair the next round doesn't appear
+
+The next Swiss round pairs once every table in the current one has finished its battle. If a player has left or won't show, the organizer can drop them from their roster card: their unfinished table then counts as a bye for their opponent.
+
 ### Reveal all rosters is greyed out
 
 **Before you can reveal** lists what's left, such as players who haven't sealed, requests to answer, or sizes, teams, Force Dispositions or Warlords still to choose.

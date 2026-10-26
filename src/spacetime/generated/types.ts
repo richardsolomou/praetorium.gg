@@ -237,6 +237,7 @@ export const LeagueEventEntries = __t.object('LeagueEventEntries', {
   submittedAt: __t.option(__t.u64()),
   requiredLimit: __t.option(__t.u32()),
   teamId: __t.option(__t.string()),
+  droppedAt: __t.option(__t.u64()),
 })
 export type LeagueEventEntries = __Infer<typeof LeagueEventEntries>
 

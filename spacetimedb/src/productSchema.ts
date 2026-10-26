@@ -314,6 +314,8 @@ const leagueEventEntries = table(
     submittedAt: t.option(t.u64()),
     requiredLimit: t.option(t.u32()),
     teamId: t.option(t.string()),
+    /** When a revealed Swiss entrant withdrew or was dropped: they are never paired again and can't rejoin. */
+    droppedAt: t.option(t.u64()).default(undefined),
   },
 )
 

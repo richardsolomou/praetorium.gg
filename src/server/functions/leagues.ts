@@ -305,6 +305,16 @@ export const createLeagueBattle = createServerFn({ method: 'POST' })
     }),
   )
 
+export const dropLeagueEntrant = createServerFn({ method: 'POST' })
+  .validator(leagueRosterSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.leagueService.dropLeagueEntrant(data.token, data.eventToken ?? '', userId, data.userId)
+      await app().telemetry.capture(userId, 'league_entrant_dropped', { withdrew: data.userId === userId })
+    }),
+  )
+
 export const pairLeagueRound = createServerFn({ method: 'POST' })
   .validator(pairLeagueRoundSchema)
   .handler(({ data }) =>

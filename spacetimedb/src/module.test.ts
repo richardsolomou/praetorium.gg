@@ -110,6 +110,7 @@ describe('sharing a revealed league roster', () => {
         submittedAt: 5n,
         requiredLimit: undefined,
         teamId: undefined,
+        droppedAt: undefined,
       })
     })
     const save = (id = 'saved', changes: Record<string, unknown> = {}) =>
@@ -316,6 +317,7 @@ describe('what a league event allows', () => {
           submittedAt: undefined,
           requiredLimit: undefined,
           teamId: format === '2v2' ? 'team' : undefined,
+          droppedAt: undefined,
         })
     })
     const command = (payload: Record<string, unknown>) =>
@@ -681,6 +683,7 @@ describe('leagues becoming clubs', () => {
           submittedAt: undefined,
           requiredLimit: undefined,
           teamId: undefined,
+          droppedAt: undefined,
         })
     })
     const migrate = () => module.migrateLeaguesToClubs(host.procedure(host.operator), { now: BigInt(NOW) })
@@ -831,6 +834,7 @@ describe('club games', () => {
           submittedAt: BigInt(now),
           requiredLimit: undefined,
           teamId: undefined,
+          droppedAt: undefined,
         })
     })
     const battle = (id: string) =>
@@ -963,6 +967,7 @@ describe('swiss rounds', () => {
           submittedAt: 1n,
           requiredLimit: undefined,
           teamId: undefined,
+          droppedAt: undefined,
         })
     })
     const command = (input: Record<string, unknown>) =>
@@ -1038,7 +1043,8 @@ describe('swiss rounds', () => {
         ['a', 'c'],
         ['b', 'd'],
       ])
-    return { pair, battle, submit, admin, playRoundOne, pairRoundTwo }
+    const drop = (ownerId: string, userId: string) => command({ op: 'drop', ownerId, userId, now: NOW })
+    return { pair, battle, submit, admin, playRoundOne, pairRoundTwo, drop }
   }
   const table = (round: number, number: number) => JSON.stringify(['event', round, number])
 
@@ -1096,6 +1102,22 @@ describe('swiss rounds', () => {
         ['b', 'd'],
       ]),
     ).toBe('not-ready')
+  })
+
+  it('lets a player withdraw only themselves', () => {
+    expect(setup().drop('a', 'b')).toBe('forbidden')
+  })
+
+  it('pairs the next round without players who dropped mid-round', () => {
+    const swiss = setup()
+    swiss.pair(1, [
+      ['a', 'b'],
+      ['c', 'd'],
+    ])
+    swiss.battle('a', 'b', table(1, 1))
+    swiss.drop('b', 'b')
+    swiss.drop('organizer', 'd')
+    expect(swiss.pair(2, [['a', 'c']])).toBe('paired')
   })
 })
 

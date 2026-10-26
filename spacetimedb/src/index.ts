@@ -2678,13 +2678,18 @@ function leagueEntriesFor(ctx: Context, eventId: string) {
   )
 }
 
+function droppedFrom(ctx: Context, eventId: string, userId: string) {
+  return ctx.db.leagueEventEntries.key.find(JSON.stringify([eventId, userId]))?.droppedAt !== undefined
+}
+
 function roundPairings(ctx: Context, eventId: string) {
   return Array.from(ctx.db.leagueRoundPairings.eventId.filter(eventId)).sort((a, b) => a.round - b.round || a.table - b.table)
 }
 
-/** A bye is done as soon as it is paired; a table once its battle has ended. */
-function pairingFinished(ctx: Context, pairing: { bId: string | undefined; battleId: string | undefined }) {
-  if (pairing.bId === undefined) return true
+/** A bye is done as soon as it is paired; a table once its battle has ended or a player at it has dropped. */
+function pairingFinished(ctx: Context, pairing: { eventId: string; aId: string; bId: string | undefined; battleId: string | undefined }) {
+  if (pairing.bId === undefined || droppedFrom(ctx, pairing.eventId, pairing.aId) || droppedFrom(ctx, pairing.eventId, pairing.bId))
+    return true
   if (pairing.battleId === undefined || !ctx.db.battles.id.find(pairing.battleId)) return false
   return battleState(ctx, pairing.battleId).state.status === 'finished'
 }
@@ -2984,6 +2989,7 @@ function insertLeagueEntry(ctx: Context, eventId: string, userId: string, status
     ...UNSEALED,
     requiredLimit: undefined,
     teamId: undefined,
+    droppedAt: undefined,
   })
 }
 
@@ -3931,6 +3937,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
           'reveal',
           'share-roster',
           'dismiss-roster-sharing',
+          'drop',
         ].includes(operation) && !organizer
   )
     return productJson('forbidden')
@@ -4072,9 +4079,9 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     const latest = Math.max(0, ...pairings.map((pairing) => pairing.round))
     if (input.round !== latest + 1 || input.round > event.rounds) return productJson('stale')
     if (pairings.some((pairing) => pairing.round === latest && !pairingFinished(tx, pairing))) return productJson('not-ready')
-    // Every entrant who sealed a list sits at exactly one table, and at most one sits the round out.
+    // Every entrant who sealed a list and hasn't dropped sits at exactly one table, and at most one sits the round out.
     const players = leagueEntriesFor(tx, event.id)
-      .filter((entry) => entry.status === 'accepted' && entry.rosterSnapshot !== undefined)
+      .filter((entry) => entry.status === 'accepted' && entry.rosterSnapshot !== undefined && entry.droppedAt === undefined)
       .map((entry) => entry.userId)
     const seated = input.pairs.flatMap(([a, b]) => (b === null ? [a] : [a, b]))
     if (
@@ -4503,6 +4510,24 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     touchEvent(tx, host)
     return productJson({ outcome: 'reminded', recipientIds })
   }
+  if (operation === 'drop') {
+    const input = leagueCommandInput(z.object({ op: z.literal('drop'), userId: idInput, now: leagueTimeInput }), value)
+    // An entrant withdraws only themselves; dropping anyone else takes an organizer.
+    if (input.userId !== ownerId && !organizer) return productJson('forbidden')
+    if (event.revealedAt === undefined || event.rounds === undefined) return productJson('closed')
+    const entry = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, input.userId]))
+    if (!entry || entry.status !== 'accepted' || entry.droppedAt !== undefined) return productJson('missing')
+    tx.db.leagueEventEntries.key.update({ ...entry, droppedAt: BigInt(input.now) })
+    // A battle still going at their table stays, but no longer decides it: the opponent takes the table as a bye.
+    for (const pairing of roundPairings(tx, event.id))
+      if (pairing.battleId !== undefined && (pairing.aId === input.userId || pairing.bId === input.userId)) {
+        const battle = tx.db.battles.id.find(pairing.battleId)
+        if (!battle || battleState(tx, pairing.battleId).state.status !== 'finished')
+          tx.db.leagueRoundPairings.key.update({ ...pairing, battleId: undefined })
+      }
+    touchEvent(tx, host)
+    return productJson('dropped')
+  }
   if (operation === 'create-battle') {
     const input = leagueCommandInput(
       z.object({
@@ -4533,6 +4558,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         pairing.eventId !== event.id ||
         pairing.round !== latest ||
         pairing.battleId !== undefined ||
+        pairingFinished(tx, pairing) ||
         !players.has(input.userId) ||
         !players.has(input.opponentIds[0]) ||
         input.opponentIds.length !== 1 ||

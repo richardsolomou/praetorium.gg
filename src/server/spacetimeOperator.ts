@@ -202,6 +202,7 @@ const leagueEntry = z.object({
   submittedAt: z.number().int().nullable(),
   requiredLimit: z.number().int().nullable(),
   teamId: z.string().nullable(),
+  droppedAt: z.number().int().nullish(),
 })
 const leagueRecord = z.object({
   ...eventHost,
