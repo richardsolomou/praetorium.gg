@@ -8,6 +8,12 @@ const characteristicKindsByName = new Map<string, DatasheetCharacteristicKind>()
 
 export const datasheetProfileKind = (type: string): DatasheetProfileKind => remember(profileKinds, type, () => profileKindOf(type))
 
+/** The phase a weapon profile type attacks in; null for a profile that is not a weapon. */
+export function weaponPhase(type: string): 'ranged' | 'melee' | null {
+  const kind = datasheetProfileKind(type)
+  return kind === 'ranged-weapon' ? 'ranged' : kind === 'melee-weapon' ? 'melee' : null
+}
+
 function profileKindOf(type: string): DatasheetProfileKind {
   switch (joinKey(type)) {
     case 'unit':

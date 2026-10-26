@@ -3,9 +3,9 @@ import type { Datasheet } from './datasheet'
 import { calculateCombat, calculateCombatSequence, type CombatInput, type CombatOptions, type CombatResult } from './combat'
 import type { RosterPick } from './roster'
 import type { WeaponAdjustment } from './combatAdjustments'
-import { combatEquipmentMatches, type CombatCarrier } from './combatLoadout'
+import { carriedCount, type CombatCarrier } from './combatLoadout'
 import { combatAttackInput, combatAttacks, combatWeaponInputs, type CombatAttacker, type CombatOpponent } from './combatScenario'
-import { datasheetProfileKind } from './datasheetStructure'
+import { weaponPhase } from './datasheetStructure'
 import { wargearKey } from './wargear'
 import { activeCombatRules, combatRuleDefences, combatRuleOptions, type CombatRule } from './combatRules'
 
@@ -64,17 +64,11 @@ export function applyOptimizedLoadout<T extends RosterPick>(picks: readonly T[],
 }
 export type LoadoutScore = Record<Phase, CombatResult | null>
 
-export const isWeaponProfile = (profile: Datasheet['profiles'][number]) =>
-  ['ranged-weapon', 'melee-weapon'].includes(datasheetProfileKind(profile.type))
+export const isWeaponProfile = (profile: Datasheet['profiles'][number]) => weaponPhase(profile.type) !== null
 
 /** The datasheet with each weapon profile it could carry counted from the carriers that hold it. */
 export function loadoutSheet(sheet: Datasheet, weapons: Datasheet['profiles'], carriers: readonly CombatCarrier[]): Datasheet {
-  const held = (profile: Datasheet['profiles'][number]) =>
-    carriers.reduce(
-      (total, carrier) =>
-        total + carrier.weapons.reduce((sum, piece) => sum + (combatEquipmentMatches(piece, profile) ? piece.count : 0), 0),
-      0,
-    )
+  const held = (profile: Datasheet['profiles'][number]) => carriers.reduce((total, carrier) => total + carriedCount(carrier, profile), 0)
   // The matchup's own profiles keep variants the every-weapon view can merge, and the order that picks each
   // default mode; the view adds what the unit does not carry, in catalogue order between them.
   const own = sheet.profiles.filter(isWeaponProfile)
@@ -140,15 +134,7 @@ export function loadoutProfileOdds(space: LoadoutSpace, scoring: LoadoutScoring)
   }
   // A model can carry two of one weapon, so its bearers are counted rather than the weapons.
   const bearers = (profile: Datasheet['profiles'][number]) =>
-    space.carriers.reduce(
-      (total, carrier) =>
-        total +
-        Math.min(
-          carrier.models,
-          carrier.weapons.reduce((sum, piece) => sum + (combatEquipmentMatches(piece, profile) ? piece.count : 0), 0),
-        ),
-      0,
-    ) || 1
+    space.carriers.reduce((total, carrier) => total + Math.min(carrier.models, carriedCount(carrier, profile)), 0) || 1
   const odds = new Map<string, ProfileOdds>()
   for (const phase of PHASES) {
     const setup = scoring.phases[phase]

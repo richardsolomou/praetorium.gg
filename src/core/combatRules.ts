@@ -1,7 +1,7 @@
 import type { Datasheet, DatasheetCharacteristicKind } from './datasheet'
 import { diceExpression, rerollRank, type CombatInput, type CombatOptions, type CombatWeapon } from './combat'
 import { combatTextKey, compileCombatRule, labelledChoice, normalizeCombatText, ruleSection } from './combatRuleCompiler'
-import { datasheetCharacteristicKind, datasheetProfileKind } from './datasheetStructure'
+import { datasheetCharacteristicKind, weaponPhase } from './datasheetStructure'
 import { combatKeyword, combatKeywordApplies, combatKeywordPhraseMatches } from './combatKeywords'
 
 type Phase = CombatOptions['phase']
@@ -320,8 +320,7 @@ export function combatRuleProfiles(
   return {
     ...sheet,
     profiles: sheet.profiles.map((profile) => {
-      const profileKind = datasheetProfileKind(profile.type)
-      const phase = profileKind === 'ranged-weapon' ? 'ranged' : profileKind === 'melee-weapon' ? 'melee' : null
+      const phase = weaponPhase(profile.type)
       if (!phase) return profile
       let values = profile.values
       const adjustments = new Map<

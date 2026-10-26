@@ -1,6 +1,6 @@
 import type { Datasheet } from './datasheet'
-import { datasheetProfileKind } from './datasheetStructure'
-import { combatEquipmentMatches, type CombatCarrier } from './combatLoadout'
+import { weaponPhase } from './datasheetStructure'
+import { carriedCount, type CombatCarrier } from './combatLoadout'
 import { combatTarget } from './combatProfiles'
 import type { CombatMember } from './combatUnit'
 
@@ -88,17 +88,11 @@ export function combatSurvivorWeaponBounds(source: CombatCarrier, weaponIndex: n
 
 export function combatSurvivorSheet(sheet: Datasheet, original: readonly CombatCarrier[], survivors: readonly CombatCarrier[]): Datasheet {
   const count = (carriers: readonly CombatCarrier[], profile: Datasheet['profiles'][number]) =>
-    carriers.reduce(
-      (sum, carrier) =>
-        sum +
-        carrier.weapons.filter((weapon) => combatEquipmentMatches(weapon, profile)).reduce((total, weapon) => total + weapon.count, 0),
-      0,
-    )
+    carriers.reduce((sum, carrier) => sum + carriedCount(carrier, profile), 0)
   return {
     ...sheet,
     profiles: sheet.profiles.flatMap((profile) => {
-      const kind = datasheetProfileKind(profile.type)
-      if (kind !== 'ranged-weapon' && kind !== 'melee-weapon') return [profile]
+      if (!weaponPhase(profile.type)) return [profile]
       if (count(original, profile) !== profile.count) return [profile]
       const remaining = count(survivors, profile)
       return remaining ? [{ ...profile, count: remaining }] : []

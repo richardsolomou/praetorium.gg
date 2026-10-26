@@ -3,7 +3,7 @@ import { definitionAndTarget, type CatalogueIndex, type Definition, type Profile
 import type { StructuredDatasheetProfile } from './datasheet'
 import { fieldedCount, isCollectiveGroup } from './collective'
 import { resolve } from './definitions'
-import { datasheetProfileKind } from './datasheetStructure'
+import { datasheetProfileKind, weaponPhase } from './datasheetStructure'
 import { withoutFactionPrefix } from './name'
 import { selectionCountBoundsAt, type EvaluateOptions, type Selection } from './evaluate'
 import { wargearKey, wargearOf, type Wargear } from './wargear'
@@ -24,6 +24,10 @@ export const referenceOnlyWeapon = (name: string) => /\(ref\.?\s*only\)/i.test(n
 export const combatEquipmentMatches = (piece: CombatEquipment, profile: Pick<StructuredDatasheetProfile, 'id' | 'name'>) =>
   piece.profileIds ? piece.profileIds.includes(profile.id) : wargearKey(piece.name, true) === wargearKey(profile.name, true)
 
+/** How many of a weapon profile one carrier holds. */
+export const carriedCount = (carrier: CombatCarrier, profile: Pick<StructuredDatasheetProfile, 'id' | 'name'>) =>
+  carrier.weapons.reduce((sum, piece) => sum + (combatEquipmentMatches(piece, profile) ? piece.count : 0), 0)
+
 function definitionProfiles(definition: Definition, index: CatalogueIndex): Profile[] {
   const found = new Map<string, Profile>()
   const add = (profile: Profile) => {
@@ -41,8 +45,7 @@ function definitionProfiles(definition: Definition, index: CatalogueIndex): Prof
 
 function weaponProfiles(definition: Definition, index: CatalogueIndex): Profile[] {
   return definitionProfiles(definition, index).filter((profile) => {
-    const kind = datasheetProfileKind(profile.typeName ?? '')
-    return (kind === 'ranged-weapon' || kind === 'melee-weapon') && !referenceOnlyWeapon(profile.name ?? '')
+    return weaponPhase(profile.typeName ?? '') !== null && !referenceOnlyWeapon(profile.name ?? '')
   })
 }
 
