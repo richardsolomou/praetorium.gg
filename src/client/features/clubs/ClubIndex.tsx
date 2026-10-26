@@ -1,3 +1,4 @@
+import { SectionHeading } from '../../components/SectionHeading'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Eye, LockKeyhole, Plus, Users } from 'lucide-react'
@@ -56,9 +57,7 @@ function ClubShelf({ title, clubs }: { title: string; clubs: readonly ClubSummar
   const { date } = useDateFormatting()
   return (
     <section>
-      <h2 className="rubric mb-2 flex items-baseline justify-between border-b border-edge pb-2">
-        {title} <span className="readout">{clubs.length}</span>
-      </h2>
+      <SectionHeading title={title} count={clubs.length} />
       <div className="grid gap-3 md:grid-cols-2">
         {clubs.map((club) => {
           return (

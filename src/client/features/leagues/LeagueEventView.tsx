@@ -35,7 +35,8 @@ import { battlesFrom, gameReferencesQuery, leagueBattlesQuery, leagueResultsQuer
 import { BattleShelf } from '../battles/BattleShelf'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { DoublesBattleChooser, LeagueBattleChooser, OneOnOneBattleChooser, startBattleLabel } from './LeagueBattleChoosers'
-import { EntrantGroup, EntrantList, EntrantRow, SectionHeading, sealStatus, ViewRosterButton } from './LeagueEntrants'
+import { EntrantGroup, EntrantList, EntrantRow, sealStatus, ViewRosterButton } from './LeagueEntrants'
+import { SectionHeading } from '../../components/SectionHeading'
 import {
   doublesTeams,
   entrantGroups,

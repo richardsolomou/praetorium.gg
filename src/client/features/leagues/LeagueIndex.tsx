@@ -1,3 +1,4 @@
+import { SectionHeading } from '../../components/SectionHeading'
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
@@ -64,9 +65,7 @@ function LeagueShelf({
 }) {
   return (
     <section>
-      <h2 className="rubric mb-2 flex items-baseline justify-between border-b border-edge pb-2">
-        {title} <span className="readout">{leagues.length}</span>
-      </h2>
+      <SectionHeading title={title} count={leagues.length} />
       <div className="grid gap-3 md:grid-cols-2">
         {leagues.map((league) => {
           const { tournament } = league

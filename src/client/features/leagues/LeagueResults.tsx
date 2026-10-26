@@ -1,7 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import type { LeagueEntryView } from '../../../core/league'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
-import { SectionHeading } from './LeagueEntrants'
+import { SectionHeading } from '../../components/SectionHeading'
 
 /**
  * An event's table from its finished battles: in open play wins, then draws, then victory points; in Swiss rounds
