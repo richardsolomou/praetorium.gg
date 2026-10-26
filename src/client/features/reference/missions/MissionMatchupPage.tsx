@@ -13,14 +13,15 @@ import { dispositionAccent, dispositionTone } from '../../../components/rosterSe
 import { gameReferencesQuery, terrainMatchupIds, terrainReferencesQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { buttonClass } from '../../../components/buttonClass'
+import { matchupMission } from './dispositionMatchups'
 
 export function MissionMatchupPage({ packId, you, opponent }: { packId: string; you: string; opponent: string }) {
   const { data } = useQuery(gameReferencesQuery())
   const terrainQuery = useQuery(terrainReferencesQuery(terrainMatchupIds([you, opponent])))
   const terrain = terrainQuery.data
   const pack = data?.packs.find((entry) => entry.id === packId)
-  const yours = pack?.missions.find((mission) => mission.matchups.some((pair) => pair[0]?.id === you && pair[1]?.id === opponent))
-  const theirs = pack?.missions.find((mission) => mission.matchups.some((pair) => pair[0]?.id === opponent && pair[1]?.id === you))
+  const yours = pack && matchupMission(pack, you, opponent)
+  const theirs = pack && matchupMission(pack, opponent, you)
   const yourDisposition = data?.dispositions.find((entry) => entry.id === you)
   const opponentDisposition = data?.dispositions.find((entry) => entry.id === opponent)
   const layouts = terrain?.layouts ?? []

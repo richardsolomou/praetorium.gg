@@ -5,6 +5,7 @@ import { dispositionTone } from '../../../components/rosterSetup'
 import { gameReferencesQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { RuleText } from '../../../components/RuleText'
+import { matchupMission } from './dispositionMatchups'
 
 export function MissionPackPage({ packId }: { packId: string }) {
   const { data } = useQuery(gameReferencesQuery())
@@ -80,9 +81,7 @@ export function MissionPackPage({ packId }: { packId: string }) {
                     {you.name}
                   </Link>
                   {data.dispositions.map((opponent) => {
-                    const found = pack.missions.find((candidate) =>
-                      candidate.matchups.some((pair) => pair[0]?.id === you.id && pair[1]?.id === opponent.id),
-                    )
+                    const found = matchupMission(pack, you.id, opponent.id)
                     return found ? (
                       <Link
                         key={opponent.id}

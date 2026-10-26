@@ -2,17 +2,14 @@ import { createFileRoute, notFound } from '@tanstack/react-router'
 import { MissionMatchupPage } from '../client/features/reference/missions/MissionMatchupPage'
 import { gameReferencesQuery, terrainMatchupIds, terrainReferencesQuery } from '../client/queries'
 import { pageHead } from '../client/linkPreview'
+import { matchupMission } from '../client/features/reference/missions/dispositionMatchups'
 
 export const Route = createFileRoute('/missions/$packId_/matchups/$you/$opponent')({
   loader: async ({ context, params }) => {
     const data = await context.queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' })
     const pack = data?.packs.find((entry) => entry.id === params.packId)
-    const yours = pack?.missions.find((mission) =>
-      mission.matchups.some((pair) => pair[0]?.id === params.you && pair[1]?.id === params.opponent),
-    )
-    const theirs = pack?.missions.find((mission) =>
-      mission.matchups.some((pair) => pair[0]?.id === params.opponent && pair[1]?.id === params.you),
-    )
+    const yours = pack && matchupMission(pack, params.you, params.opponent)
+    const theirs = pack && matchupMission(pack, params.opponent, params.you)
     const you = data?.dispositions.find((entry) => entry.id === params.you)
     const opponent = data?.dispositions.find((entry) => entry.id === params.opponent)
     if (!pack || !yours || !theirs || !you || !opponent) throw notFound()
