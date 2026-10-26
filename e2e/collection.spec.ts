@@ -19,13 +19,19 @@ import sharp from 'sharp'
 import { collectionPhotoStore } from '../src/server/collectionPhotos'
 import { privateObjects } from '../src/server/privateImages'
 import { root } from './stackEnv'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 
-async function addDatasheet(page: Page, name: string, faction: string) {
+/** Picks a datasheet from one of the shelf's catalogue searches. */
+async function pickDatasheet(page: Page, list: 'collection' | 'wishlist', name: string, faction: string) {
   const search = page.getByPlaceholder('Search datasheets…')
-  await retryUntilVisible(search, () => page.getByRole('combobox', { name: 'Add a datasheet to your collection', exact: true }).click())
+  await retryUntilVisible(search, () => page.getByRole('combobox', { name: `Add a datasheet to your ${list}`, exact: true }).click())
   await search.fill(`${name} ${faction}`)
   await page.getByRole('option', { name: new RegExp(`^${name}, ${faction}`) }).click()
+}
+
+async function addDatasheet(page: Page, name: string, faction: string) {
+  await pickDatasheet(page, 'collection', name, faction)
   await expect(page.locator(`[data-unit="${name}"]`)).toBeVisible()
 }
 
@@ -51,9 +57,7 @@ test('starts a datasheet at one model and saves multiple', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Fewer Necron Warriors models', exact: true })).toBeDisabled()
   await page.getByRole('button', { name: 'More Necron Warriors models', exact: true }).click()
   await expect(owned(page, 'Necron Warriors')).toHaveValue('2')
-  await owned(page, 'Necron Warriors').fill('100')
-  await owned(page, 'Necron Warriors').press('Enter')
-  await expect(owned(page, 'Necron Warriors')).toHaveValue('100')
+  await setCount(owned(page, 'Necron Warriors'), '100')
   await expectWorkSynced(page)
   await page.reload()
   await expect(owned(page, 'Necron Warriors')).toHaveValue('100')
@@ -67,9 +71,7 @@ test('rapid collection steps keep the latest count while earlier saves finish', 
   const owner = (await savedWork(page))!.owner
   const operator = await productOperator()
   await expect.poll(async () => (await operator.collectionByUser(owner))[0]?.models).toBe(1)
-  await page.getByRole('combobox', { name: 'Add a datasheet to your wishlist', exact: true }).click()
-  await page.getByPlaceholder('Search datasheets…').fill('Necron Warriors Necrons')
-  await page.getByRole('option', { name: /^Necron Warriors, Necrons/ }).click()
+  await pickDatasheet(page, 'wishlist', 'Necron Warriors', 'Necrons')
   await expect(page.getByRole('spinbutton', { name: 'Necron Warriors models wanted', exact: true })).toHaveValue('1')
   await page.evaluate(() => {
     const complete = Object.getOwnPropertyDescriptor(IDBTransaction.prototype, 'oncomplete')!
@@ -510,6 +512,14 @@ async function setCount(field: Locator, value: string) {
 }
 
 /** Built models are bounded by those owned, so the built count is ready once its bound follows the saved total. */
+async function exportCsv(page: Page) {
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Export CSV', exact: true }).click(),
+  ])
+  return readFile(await download.path(), 'utf8')
+}
+
 async function setOwned(page: Page, name: string, value: string) {
   await setCount(owned(page, name), value)
   await expect(progress(page, name, 'built')).toHaveAttribute('max', value)
@@ -658,11 +668,7 @@ test('exports a collection that imports back unchanged', async ({ page }) => {
   await setOwned(page, 'Necron Warriors', '10')
   await setCount(progress(page, 'Necron Warriors', 'built'), '4')
   await expectWorkSynced(page)
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Export CSV', exact: true }).click(),
-  ])
-  const exported = await download.path().then((path) => import('node:fs/promises').then((fs) => fs.readFile(path, 'utf8')))
+  const exported = await exportCsv(page)
   expect(exported).toContain('Necrons,Necron Warriors,')
   await page.locator('input[type=file]').setInputFiles(csv(exported))
   const review = page.getByRole('dialog', { name: 'Import collection' })
@@ -716,11 +722,7 @@ test('models that can also be another datasheet fill it in a roster and show as 
   await expectNoHorizontalOverflow(page.locator('main'))
   await card.screenshot({ path: test.info().outputPath('counts-as-card-phone.png') })
   await page.setViewportSize({ width: 1440, height: 900 })
-  const [download] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Export CSV', exact: true }).click(),
-  ])
-  const exported = await download.path().then((path) => import('node:fs/promises').then((fs) => fs.readFile(path, 'utf8')))
+  const exported = await exportCsv(page)
   expect(exported).toMatch(/Necrons,Necron Warriors,[^,]+,20,0,0,0,[^,\r\n]+/)
 
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Can also be' })
