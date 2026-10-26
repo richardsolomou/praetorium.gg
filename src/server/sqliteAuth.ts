@@ -178,7 +178,10 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
         refreshToken: created.refreshToken ? await decryptOAuthToken(created.refreshToken, context.context) : undefined,
         idToken: created.idToken ?? undefined,
       })
-      .catch(() => null)
+      .catch(async (error: unknown) => {
+        ;(await auth.$context).logger.error('Social profile lookup failed for avatar', error)
+        return null
+      })
     if (!info?.user.image) return
     const stored = await options.storeSocialAvatar(info.user.image)
     if (!stored) return

@@ -104,7 +104,8 @@ export const checkGithubSponsorship = createServerFn({ method: 'POST' }).handler
     const instance = app()
     try {
       await instance.githubSponsors.refresh()
-    } catch {
+    } catch (error) {
+      console.error({ event: 'github_sponsor_refresh_failed', error })
       throw new Response('GitHub could not be reached', { status: 502 })
     }
     const sponsorship = await instance.service.githubSponsorship(userId)
