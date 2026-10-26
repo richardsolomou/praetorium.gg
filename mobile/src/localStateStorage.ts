@@ -1,11 +1,11 @@
 import { MAX_LOCAL_STATE_BYTES, parseLocalState, type LocalState } from '../../src/contracts/localState'
-import { readSavedState, writeSavedState } from './savedStateStorage'
+import { hexCodes, readSavedState, writeSavedState } from './savedStateStorage'
 
 type StoredState = { epoch: string; state: LocalState | null }
 const STORED_STATE_LIMIT = MAX_LOCAL_STATE_BYTES + 1024
 const storageId = () => `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
-const storageName = (owner: string) => `local-work-${Array.from(owner, (character) => character.charCodeAt(0).toString(16)).join('-')}`
+const storageName = (owner: string) => `local-work-${hexCodes(owner).join('-')}`
 
 export function readLocalState(owner: string): StoredState {
   const saved = readSavedState<StoredState>(storageName(owner), STORED_STATE_LIMIT, (value) => {
