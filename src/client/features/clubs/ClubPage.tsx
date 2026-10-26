@@ -11,7 +11,6 @@ import {
   Pencil,
   Plus,
   Share2,
-  Swords,
   Trash2,
   UserPlus,
   X,
@@ -21,8 +20,8 @@ import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { buttonClass } from '../../components/buttonClass'
+import { BattleChooserDialog } from '../../components/BattleChooserDialog'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
-import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Label } from '@/components/ui/label'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -223,67 +222,60 @@ function NewGame({ club, viewerId }: { club: Club; viewerId: string }) {
       <Button onClick={() => (play.reset(), setCreating('battle'))}>
         <Plus /> New game
       </Button>
-      <Dialog open={creating === 'battle'} onOpenChange={(open) => !play.isPending && !open && setCreating(null)}>
-        <DialogContent showCloseButton={!play.isPending} fit>
-          <DialogHeader>
-            <DialogTitle>New game</DialogTitle>
-            <DialogDescription>Play another member for the club leaderboard.</DialogDescription>
-          </DialogHeader>
-          <DialogBody>
-            {opponents.length ? (
-              <div className="space-y-1.5">
-                <Label htmlFor="club-game-opponent">Opponent</Label>
-                <Select value={chosen?.userId ?? ''} onValueChange={(id) => id && setOpponentId(id)} disabled={play.isPending}>
-                  <SelectTrigger id="club-game-opponent" aria-label="Opponent" className="w-full">
-                    <SelectValue className="min-w-0">
-                      {() =>
-                        chosen ? (
-                          <>
-                            <PlayerAvatar name={chosen.name} image={chosen.image} className="size-6 text-3xs" />
-                            <span className="truncate">{chosen.name}</span>
-                          </>
-                        ) : (
-                          'Choose an opponent'
-                        )
-                      }
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {opponents.map((member) => (
-                      <SelectItem key={member.userId} value={member.userId} label={member.name}>
-                        <span className="flex min-w-0 items-center gap-2">
-                          <PlayerAvatar name={member.name} image={member.image} className="size-6 text-3xs" />
-                          <span className="truncate">{member.name}</span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-sm text-dim">Each of you picks a list at setup.</p>
-              </div>
-            ) : (
-              <p className="text-sm text-dim">Nobody else is in the club yet. Copy the invite link to bring people in.</p>
-            )}
-            {club.organizer ? (
-              <div className="space-y-2 border-t border-edge pt-4">
-                <Button variant="outline" disabled={play.isPending} onClick={() => setCreating('sealed')}>
-                  <FileLock2 /> New sealed game
-                </Button>
-                <p className="text-sm text-dim">Seal lists in secret and reveal them together before playing.</p>
-              </div>
-            ) : null}
-            {play.error ? <Problem error={play.error} /> : null}
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="outline" disabled={play.isPending} onClick={() => setCreating(null)}>
-              Cancel
+      <BattleChooserDialog
+        open={creating === 'battle'}
+        title="New game"
+        description="Play another member for the club leaderboard."
+        pending={play.isPending}
+        error={play.error}
+        ready={Boolean(chosen)}
+        fit
+        onClose={() => setCreating(null)}
+        onStart={() => chosen && play.mutate(chosen.userId)}
+      >
+        {opponents.length ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="club-game-opponent">Opponent</Label>
+            <Select value={chosen?.userId ?? ''} onValueChange={(id) => id && setOpponentId(id)} disabled={play.isPending}>
+              <SelectTrigger id="club-game-opponent" aria-label="Opponent" className="w-full">
+                <SelectValue className="min-w-0">
+                  {() =>
+                    chosen ? (
+                      <>
+                        <PlayerAvatar name={chosen.name} image={chosen.image} className="size-6 text-3xs" />
+                        <span className="truncate">{chosen.name}</span>
+                      </>
+                    ) : (
+                      'Choose an opponent'
+                    )
+                  }
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {opponents.map((member) => (
+                  <SelectItem key={member.userId} value={member.userId} label={member.name}>
+                    <span className="flex min-w-0 items-center gap-2">
+                      <PlayerAvatar name={member.name} image={member.image} className="size-6 text-3xs" />
+                      <span className="truncate">{member.name}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-sm text-dim">Each of you picks a list at setup.</p>
+          </div>
+        ) : (
+          <p className="text-sm text-dim">Nobody else is in the club yet. Copy the invite link to bring people in.</p>
+        )}
+        {club.organizer ? (
+          <div className="space-y-2 border-t border-edge pt-4">
+            <Button variant="outline" disabled={play.isPending} onClick={() => setCreating('sealed')}>
+              <FileLock2 /> New sealed game
             </Button>
-            <Button disabled={!chosen || play.isPending} onClick={() => chosen && play.mutate(chosen.userId)}>
-              <Swords /> {play.isPending ? 'Starting…' : 'Start battle'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <p className="text-sm text-dim">Seal lists in secret and reveal them together before playing.</p>
+          </div>
+        ) : null}
+      </BattleChooserDialog>
       {club.organizer ? (
         <LeagueSettingsDialog
           mode={{ kind: 'create', clubToken: club.token }}
