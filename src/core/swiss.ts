@@ -112,12 +112,12 @@ export function rematches<T extends { round: number; aId: string; bId: string | 
   return new Set(pairings.filter((pairing) => pairing.bId !== null && firstMet.get(pairKey(pairing.aId, pairing.bId))! < pairing.round))
 }
 
-/** Pairs down the standings with at most `rematches` repeat tables, backing up a step whenever the rest cannot fit. */
-function pairWithRematches(order: readonly string[], met: ReadonlySet<string>, rematches: number): [string, string][] | null {
+/** Pairs down the standings with at most `allowed` repeat tables, backing up a step whenever the rest cannot fit. */
+function pairWithRematches(order: readonly string[], met: ReadonlySet<string>, allowed: number): [string, string][] | null {
   const [first, ...rest] = order
   if (first === undefined) return []
   for (const opponent of rest) {
-    const left = rematches - Number(met.has(pairKey(first, opponent)))
+    const left = allowed - Number(met.has(pairKey(first, opponent)))
     if (left < 0) continue
     const tail = pairWithRematches(
       rest.filter((id) => id !== opponent),
