@@ -2015,5 +2015,8 @@ test('the sample tournament walks every stage without writing anything', async (
   await expect(page.locator('main a[href^="/users/"], main a[href^="/battles/"], main a[href^="/rosters/"]')).toHaveCount(0)
   await page.getByRole('link', { name: 'Back to the start' }).click()
   await expect(page.getByRole('heading', { name: '4 of 5 rosters sealed' })).toBeVisible()
+  // A stage name that isn't one, from an old or mistyped link, opens the start.
+  await page.goto('/tournaments/sample?stage=final')
+  await expect(page.getByRole('heading', { name: '4 of 5 rosters sealed' })).toBeVisible()
   expect(writes).toEqual([])
 })
