@@ -1,3 +1,4 @@
+import { isTeamFormat } from '../../../core/league'
 import { useQuery } from '@tanstack/react-query'
 import { eventFullName, eventLink } from '../leagues/leagueEvent'
 import { Link } from '@tanstack/react-router'
@@ -11,7 +12,7 @@ export function DueLeagueRosters({ limit, pointsBudget, saved }: { limit: number
   if (!saved) return null
   // A duel takes lists at its size and points total; a team event, once it seats the player, any list no bigger than its size.
   const fits = (league: (typeof leagues)[number], required: number) =>
-    league.format === '2v1' || league.format === '2v2'
+    isTeamFormat(league.format)
       ? league.rosterLimit !== null && limit <= league.rosterLimit
       : required === limit && pointsBudget === (league.pointsBudget ?? null)
   const due = leagues.filter(

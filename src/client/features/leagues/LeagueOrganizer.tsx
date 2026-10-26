@@ -3,7 +3,7 @@ import { Check, Link2, Share2, UserMinus, UserPlus, X } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { alliedLeagueRosterLimit, type LeagueEntryView } from '../../../core/league'
+import { isTeamFormat, alliedLeagueRosterLimit, type LeagueEntryView } from '../../../core/league'
 import {
   addLeagueEntrants,
   admitLeagueEntries,
@@ -161,7 +161,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
 
   const entrants = !accepted.length ? (
     <p className="text-sm text-dim">No entrants yet. Share the invite link to fill it.</p>
-  ) : league.format === '2v1' || league.format === '2v2' ? (
+  ) : isTeamFormat(league.format) ? (
     <div className="space-y-4">
       {groups.map((group) => {
         const pairing = pairPool(group)

@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../components/buttonClass'
 import { GAME_SIZES, pointsSize } from '../../../core/battle'
 import {
+  isTeamFormat,
   leagueRegistrationFull,
   leagueEntryPoints,
   leagueRevealChecklist,
@@ -166,7 +167,7 @@ export function LeagueEventView({
   const seatPoints = ownEntry ? leagueEntryPoints(league, ownEntry) : null
   const entryStatusNow = ownEntry?.status
   // A duel needs nothing from the organizer before a roster, so a new entrant's next step opens straight away.
-  const duel = league.format !== '2v1' && league.format !== '2v2'
+  const duel = !isTeamFormat(league.format)
   if (chooseOnEntry && entryStatusNow === 'accepted') {
     setChooseOnEntry(false)
     if (duel && !league.revealedAt) setChoosing(true)
@@ -252,7 +253,7 @@ export function LeagueEventView({
         secondary: entryCard.action && !('to' in entryCard.action) ? entryCard.action : undefined,
       }
     : entryCard
-  const problem = join.error ?? (league.format === '2v1' || league.format === '2v2' ? null : battle.error)
+  const problem = join.error ?? (duel ? battle.error : null)
   const sealWaivers = sealing ? rosterWaivers(sealing) : []
   // Before the reveal a row offers only your own or an ally's roster; once the rosters are out, the cards carry every one.
   const row = (entry: LeagueEntryView, detail: ReactNode = sealStatus(entry, revealed), controls?: ReactNode, last?: ReactNode) => (
@@ -632,7 +633,7 @@ function entryStatus({
       steps: steps('join'),
     }
   }
-  if (!revealed && ownEntry.requiredLimit === null && (league.format === '2v1' || league.format === '2v2')) {
+  if (!revealed && ownEntry.requiredLimit === null && isTeamFormat(league.format)) {
     const doubles = league.format === '2v2'
     return {
       title: doubles ? 'Waiting for a teammate' : 'Waiting for your size',

@@ -41,6 +41,7 @@ import { isPlayerDefaults } from '../core/playerDefaults'
 import { recentMatchupSchema } from '../core/recentMatchups'
 import { simulatorPairing } from './simulatorState'
 import {
+  isTeamFormat,
   LEAGUE_ADMISSIONS,
   leagueAllowancesSchema,
   LEAGUE_DESCRIPTION_MAX_LENGTH,
@@ -114,7 +115,7 @@ function validateLeagueEventRule(
 ) {
   const armyPointsProblem = leagueArmyPointsError(value.format, value)
   if (armyPointsProblem) context.addIssue({ code: 'custom', path: ['allyPoints'], message: armyPointsProblem })
-  if ((value.format === '2v1' || value.format === '2v2') && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)) {
+  if (isTeamFormat(value.format) && !LEAGUE_TEAM_ROSTER_LIMITS.some((limit) => limit === value.rosterLimit)) {
     context.addIssue({ code: 'custom', path: ['rosterLimit'], message: `choose a supported ${value.format} roster size` })
   }
   if (value.rounds != null && value.format !== '1v1')

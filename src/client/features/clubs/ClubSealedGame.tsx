@@ -6,7 +6,13 @@ import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { LeagueSide } from '../../../contracts/schemas'
 import { battleOutcome } from '../../../core/standings'
-import { leagueEntryPoints, leagueRevealChecklist, leagueSealingClosed, requiredLeagueRosterLimit } from '../../../core/league'
+import {
+  isTeamFormat,
+  leagueEntryPoints,
+  leagueRevealChecklist,
+  leagueSealingClosed,
+  requiredLeagueRosterLimit,
+} from '../../../core/league'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
@@ -32,8 +38,6 @@ import { useStartBattle } from '../battles/useStartBattle'
 type Game = Club['games'][number]
 type Player = Game['players'][number]
 type Side = { key: string; title: string; side: LeagueSide | null; places: number; players: Player[] }
-
-const teamGame = (game: Game) => game.format === '2v1' || game.format === '2v2'
 
 /**
  * The sides of a team game: a solo seat against a pair, or two teams of two. Before the reveal every seat a player may
@@ -96,7 +100,7 @@ export function ClubSealedGame({
   const member = club.members.some((candidate) => candidate.userId === viewerId && candidate.status === 'accepted')
   const people = new Map(club.members.map((candidate) => [candidate.userId, candidate]))
   const nameOf = (userId: string) => people.get(userId)?.name ?? 'A former member'
-  const team = teamGame(game)
+  const team = isTeamFormat(game.format)
   const revealed = game.revealedAt !== null
   const closed = !revealed && leagueSealingClosed(game, now)
   // Past the deadline only those who sealed in time are playing.

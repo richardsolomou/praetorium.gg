@@ -38,6 +38,9 @@ export const LEAGUE_DEFAULT_ROSTER_LIMIT = 2_000
 /** The battle sizes a team event plays at; King of the Colosseum is a duel. */
 export const LEAGUE_TEAM_ROSTER_LIMITS = GAME_SIZES.flatMap((size) => (isKotcLimit(size.limit) ? [] : [size.limit]))
 
+/** A 2v1 or 2v2 event, where entrants are seated into sides rather than playing duels. */
+export const isTeamFormat = (format: TableShape | null | undefined) => format === '2v1' || format === '2v2'
+
 export function leagueTableShape(format: TableShape | null | undefined): TableShape {
   return format ?? '1v1'
 }
@@ -224,7 +227,7 @@ export function leagueRevealChecklist(
   }
   const unsealed = accepted.filter((entry) => !entry.submitted).map((entry) => entry.userId)
   checks.push({ step: 'lists', done: unsealed.length === 0, waiting: unsealed })
-  if (event.format === '2v1' || event.format === '2v2') {
+  if (isTeamFormat(event.format)) {
     const owing = accepted.filter((entry) => entry.dispositionOwed).map((entry) => entry.userId)
     checks.push({ step: 'dispositions', done: owing.length === 0, waiting: owing })
     const leaderless = accepted.filter((entry) => entry.warlordOwed).map((entry) => entry.userId)
