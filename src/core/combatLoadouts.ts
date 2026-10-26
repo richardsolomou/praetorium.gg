@@ -1,4 +1,4 @@
-import { remember } from './collections'
+import { groupBy, remember } from './collections'
 import type { Datasheet } from './datasheet'
 import {
   COMBAT_PHASES,
@@ -160,10 +160,8 @@ export function loadoutProfileOdds(space: LoadoutSpace, scoring: LoadoutScoring)
         // A profile the calculation refuses has no odds to show.
       }
     }
-    const modes = new Map<string, string[]>()
-    for (const { profile } of inputs) modes.set(wargearKey(profile.name), [...(modes.get(wargearKey(profile.name)) ?? []), profile.id])
-    for (const ids of modes.values()) {
-      const scored = ids.flatMap((id) => (odds.get(id) ? [odds.get(id)!] : []))
+    for (const modes of groupBy(inputs, ({ profile }) => wargearKey(profile.name)).values()) {
+      const scored = modes.flatMap(({ profile }) => (odds.get(profile.id) ? [odds.get(profile.id)!] : []))
       const top = scored.toSorted((left, right) => compareOutcomes(right.result, left.result))
       if (top.length > 1 && compareOutcomes(top[0]!.result, top[1]!.result) > 0) {
         top[0]!.best = true
