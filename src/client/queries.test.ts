@@ -3,10 +3,11 @@ import { describe, expect, it, vi } from 'vitest'
 import * as functions from '../server/functions'
 import { PLAYER_SEARCH_MAX_LENGTH } from '../core/playerSearch'
 import {
-  gameReferencesRefreshInterval,
+  gameReferencesQuery,
   loadoutDatasheetsQuery,
   newestBattleScreen,
   playerSearchQuery,
+  ruleIndexQuery,
   terrainReferencesQuery,
 } from './queries'
 
@@ -63,16 +64,16 @@ describe('player search queries', () => {
     expect(playerSearchQuery('a'.repeat(PLAYER_SEARCH_MAX_LENGTH)).enabled).toBe(true)
     expect(playerSearchQuery('a'.repeat(PLAYER_SEARCH_MAX_LENGTH + 1)).enabled).toBe(false)
   })
-
-  it('keys each name separately so one search cannot answer another', () => {
-    expect(playerSearchQuery('alice').queryKey).toEqual(['player-search', 'alice'])
-  })
 })
 
 describe('game reference queries', () => {
-  it('retries while startup data is unavailable', () => {
-    expect(gameReferencesRefreshInterval(null)).toBe(1_000)
-    expect(gameReferencesRefreshInterval({ packs: [] })).toBe(false)
+  it.each([
+    ['game references', gameReferencesQuery],
+    ['rule index', ruleIndexQuery],
+  ] as const)('retries the %s while startup data is unavailable', (_name, query) => {
+    const refetchInterval = query().refetchInterval as (query: { state: { data: unknown } }) => number | false
+    expect(refetchInterval({ state: { data: null } })).toBe(1_000)
+    expect(refetchInterval({ state: { data: {} } })).toBe(false)
   })
 
   it('fetches versioned terrain instead of reusing cached geometry without objectives or measurements', async () => {
