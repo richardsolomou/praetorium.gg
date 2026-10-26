@@ -1,5 +1,5 @@
 import { sameSide, playsSide } from './battlePrimitives'
-import { mayNameCard, reduceBattle, commandArmy, validate, type Command, type LoggedCommand } from './battle'
+import { mayNameCard, reduceBattle, commandArmy, undrawnSecondaries, validate, type Command, type LoggedCommand } from './battle'
 import { rosterWithoutUnitNotes } from './unitNotes'
 
 type Players = { id: string; name: string; side: number; automated: boolean }[]
@@ -78,7 +78,7 @@ export function resolveLocalDraw(
   const player = commandArmy(state, viewerId, command)
   if (!player?.secondaryDeck)
     throw new Error('This player’s private deck is unavailable on this device. Reconnect or continue on their device.')
-  const available = player.secondaryDeck.filter((candidate) => !player.secondaries.some((secondary) => secondary.key === candidate.key))
+  const available = undrawnSecondaries(player)
   if (!available.length) return command
   if (command.kind === 'draw-secondary' || command.kind === 'use-new-orders')
     return { ...command, secondary: available[randomIndex(available.length)]! }

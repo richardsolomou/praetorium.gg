@@ -1894,12 +1894,9 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
     case 'draw-secondaries': {
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
       if (player.secondaryMode !== 'tactical') return refuse('not-tactical', 'only tactical missions are drawn')
-      const remaining = (player.secondaryDeck ?? []).filter(
-        (candidate) => !player.secondaries.some((secondary) => secondary.key === candidate.key),
-      ).length
       const refill = Math.min(
         secondaryDrawTarget(player) - player.secondariesDrawnThisTurn.length,
-        remaining,
+        undrawnSecondaries(player).length,
         SECONDARY_HISTORY_MAX - player.secondaries.length,
       )
       if (!command.secondaries.length || command.secondaries.length !== refill)
@@ -2813,12 +2810,11 @@ function mayNameSecondary(state: BattleState, by: PlayerId, player: PlayerState,
  */
 export function sideOwes(state: BattleState, player: PlayerState): 'settlement' | 'cards' | 'secret' | null {
   if (state.phase === 'command' && state.pendingSettlement?.playerId === player.id) return 'settlement'
-  const hasUndrawnCard = player.secondaryDeck?.some((candidate) => !player.secondaries.some((secondary) => secondary.key === candidate.key))
   if (
     state.phase === 'command' &&
     player.secondaryMode === 'tactical' &&
     player.secondariesDrawnThisTurn.length < secondaryDrawTarget(player) &&
-    hasUndrawnCard
+    undrawnSecondaries(player).length
   ) {
     return 'cards'
   }
@@ -2826,8 +2822,13 @@ export function sideOwes(state: BattleState, player: PlayerState): 'settlement' 
   return null
 }
 
-function secondaryDrawTarget(player: PlayerState): number {
-  return TACTICAL_HAND_SIZE + (player.additionalSecondaryDrawsThisTurn ?? 0)
+export function secondaryDrawTarget(player: PlayerState): number {
+  return TACTICAL_HAND_SIZE + player.additionalSecondaryDrawsThisTurn
+}
+
+/** The cards still in a side's deck. */
+export function undrawnSecondaries(player: Pick<PlayerState, 'secondaryDeck' | 'secondaries'>): Secondary[] {
+  return (player.secondaryDeck ?? []).filter((candidate) => !player.secondaries.some((secondary) => secondary.key === candidate.key))
 }
 
 export function scoringDue(state: BattleState, player: PlayerState) {

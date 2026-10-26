@@ -14,7 +14,7 @@ import {
   PRIMARY_GUIDE,
   type Roster,
   SECONDARY_GUIDE,
-  TACTICAL_HAND_SIZE,
+  secondaryDrawTarget,
   type TurnScope,
   scoringDue,
   secretSettlementActionPlayerId,
@@ -31,6 +31,7 @@ import {
   type BattleMoment,
   missedMoments,
   type BuiltRoster,
+  undrawnSecondaries,
 } from './battle'
 import { battleUnitCounts } from './attachedUnits'
 import { withoutUnitNotes } from './unitNotes'
@@ -340,19 +341,13 @@ export function battleView(
         secondariesDrawnThisTurn: resources.secondariesDrawnThisTurn.map((key) =>
           mayNameCard(state, viewerId, resources, key) ? key : 'secret',
         ),
-        secondaryDrawTarget: TACTICAL_HAND_SIZE + (resources.additionalSecondaryDrawsThisTurn ?? 0),
-        secondariesToReview: (resources.secondariesToReview ?? (state.drawAcknowledged ? [] : resources.secondariesDrawnThisTurn)).map(
-          (key) => (mayNameCard(state, viewerId, resources, key) ? key : 'secret'),
-        ),
+        secondaryDrawTarget: secondaryDrawTarget(resources),
+        secondariesToReview: resources.secondariesToReview.map((key) => (mayNameCard(state, viewerId, resources, key) ? key : 'secret')),
         /**
          * A face-down card is identifiable from what disappeared from its public deck.
          */
         remainingSecondaries:
-          !resources.secretSecondary || resources.secretRevealed || plays(player.side)
-            ? (resources.secondaryDeck ?? []).filter(
-                (candidate) => !resources.secondaries.some((secondary) => secondary.key === candidate.key),
-              )
-            : [],
+          !resources.secretSecondary || resources.secretRevealed || plays(player.side) ? undrawnSecondaries(resources) : [],
         secondaries: resources.secondaries.map((secondary) => {
           // The one thing in the game that is genuinely hidden, masked in one place.
           const nameable = mayNameCard(state, viewerId, resources, secondary.key)
