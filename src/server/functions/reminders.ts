@@ -2,24 +2,21 @@ import { createServerFn } from '@tanstack/react-start'
 import { reminderAbilitiesSchema, removeAbilityReminderSchema, setAbilityReminderSchema } from '../../contracts/schemas'
 import { datasheetReminderAbilities } from '../../shared/reminderAbilities'
 import { app } from '../app'
-import { currentUserId, requireUser } from '../playerSession'
+import { forSignedIn, requireUserId } from '../playerSession'
 import { productActions } from '../productActions'
 import { mutationRpc, rpc } from '../rpc'
 
 /** Empty for a visitor, whose alerts stay in their browser. */
 export const abilityReminders = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.abilityReminders(id) : []
-  }),
+  rpc(() => forSignedIn([], (id) => app().service.abilityReminders(id))),
 )
 
 export const setAbilityReminder = createServerFn({ method: 'POST' })
   .validator(setAbilityReminderSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.setAbilityReminder(player.id, data)
+      const userId = await requireUserId()
+      return productActions.setAbilityReminder(userId, data)
     }),
   )
 
@@ -27,8 +24,8 @@ export const removeAbilityReminder = createServerFn({ method: 'POST' })
   .validator(removeAbilityReminderSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.removeAbilityReminder(player.id, data)
+      const userId = await requireUserId()
+      return productActions.removeAbilityReminder(userId, data)
     }),
   )
 

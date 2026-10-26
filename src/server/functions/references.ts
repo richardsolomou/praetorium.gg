@@ -11,11 +11,11 @@ import { detachmentsOffering } from '../../shared/factionReferences'
 import { gameReferencesFor } from '../../shared/gameReferences'
 import { type GlobalSearchResult, searchEverything } from '../globalSearch'
 import { mutationRpc, rpc } from '../rpc'
-import { OWN_SEARCH_BATTLES, ownSearchLists } from '../../core/referenceSearch'
+import { OWN_SEARCH_BATTLES, ownSearchLists, type OwnSearchData } from '../../core/referenceSearch'
 import { rosterDatasheetContext } from '../../shared/rosterDatasheetContext'
 import { rosterCombatant } from '../../shared/rosterCombatRules'
 import { combatLoadoutSpace } from '../../shared/combatLoadouts'
-import { currentUserId } from '../playerSession'
+import { currentUserId, forSignedIn } from '../playerSession'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
 import { memoUntilSnapshotChanges } from '../snapshotMemo'
 import { selectedBattleDetachmentData } from '../../shared/battleDetachmentData'
@@ -69,16 +69,15 @@ export const globalSearch = createServerFn({ method: 'GET' })
         catalogue: null,
         catalogueIndex: catalogueIndex ?? undefined,
         rules: catalogueIndex ? null : await app().rulesFor(),
-        own: async () => {
-          const userId = await currentUserId()
-          if (!userId) return null
-          const rules = await app().rulesFor()
-          const [rosters, page] = await Promise.all([
-            app().service.rosterService.savedRosterSummaries(userId),
-            app().service.battles(userId, rules, { limit: OWN_SEARCH_BATTLES }),
-          ])
-          return ownSearchLists(rosters, page.battles, (await app().factionsFor())?.factions ?? [])
-        },
+        own: () =>
+          forSignedIn<OwnSearchData | null>(null, async (userId) => {
+            const rules = await app().rulesFor()
+            const [rosters, page] = await Promise.all([
+              app().service.rosterService.savedRosterSummaries(userId),
+              app().service.battles(userId, rules, { limit: OWN_SEARCH_BATTLES }),
+            ])
+            return ownSearchLists(rosters, page.battles, (await app().factionsFor())?.factions ?? [])
+          }),
       })
     }),
   )

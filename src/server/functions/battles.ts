@@ -2,7 +2,7 @@ import { productActions } from '../productActions'
 import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import { app } from '../app'
-import { currentUserId, requireUser } from '../playerSession'
+import { currentUserId, forSignedIn, requireUserId } from '../playerSession'
 import { battleViewerId, requireBattleActor } from '../guestSession'
 import { submitBattleCommand } from '../battleSubmission'
 import { mutationRpc, rpc } from '../rpc'
@@ -37,12 +37,12 @@ const FEED_PAGE = 10
 export const myBattles = createServerFn({ method: 'GET' })
   .validator(battlesPageSchema)
   .handler(({ data }) =>
-    rpc(async () => {
-      const id = await currentUserId()
-      if (!id) return { battles: [], nextCursor: null }
-      const [rules, factions] = await Promise.all([app().battleMissionRulesFor(), app().battleFactionsFor()])
-      return app().service.battles(id, rules, { limit: BATTLES_PAGE, before: data.before ?? undefined }, factions)
-    }),
+    rpc(() =>
+      forSignedIn({ battles: [], nextCursor: null }, async (id) => {
+        const [rules, factions] = await Promise.all([app().battleMissionRulesFor(), app().battleFactionsFor()])
+        return app().service.battles(id, rules, { limit: BATTLES_PAGE, before: data.before ?? undefined }, factions)
+      }),
+    ),
   )
 
 /**
@@ -65,12 +65,12 @@ export const publicBattles = createServerFn({ method: 'GET' })
 export const friendBattles = createServerFn({ method: 'GET' })
   .validator(battlesPageSchema)
   .handler(({ data }) =>
-    rpc(async () => {
-      const id = await currentUserId()
-      if (!id) return { battles: [], nextCursor: null }
-      const [rules, factions] = await Promise.all([app().battleMissionRulesFor(), app().battleFactionsFor()])
-      return app().service.friendBattles(id, rules, { limit: FEED_PAGE, before: data.before ?? undefined }, factions)
-    }),
+    rpc(() =>
+      forSignedIn({ battles: [], nextCursor: null }, async (id) => {
+        const [rules, factions] = await Promise.all([app().battleMissionRulesFor(), app().battleFactionsFor()])
+        return app().service.friendBattles(id, rules, { limit: FEED_PAGE, before: data.before ?? undefined }, factions)
+      }),
+    ),
   )
 
 /**
@@ -129,8 +129,8 @@ export const leagueBattleOptions = createServerFn({ method: 'GET' })
   .validator(leagueBattleOptionsSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const player = await requireUser()
-      return app().service.leagueBattleOptions(player.id, data)
+      const userId = await requireUserId()
+      return app().service.leagueBattleOptions(userId, data)
     }),
   )
 
@@ -138,8 +138,8 @@ export const createBattle = createServerFn({ method: 'POST' })
   .validator(createBattleSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.createBattle(player.id, data)
+      const userId = await requireUserId()
+      return productActions.createBattle(userId, data)
     }),
   )
 
@@ -147,8 +147,8 @@ export const deleteBattle = createServerFn({ method: 'POST' })
   .validator(deleteBattleSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.deleteBattle(player.id, data)
+      const userId = await requireUserId()
+      return productActions.deleteBattle(userId, data)
     }),
   )
 

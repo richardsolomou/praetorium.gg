@@ -27,7 +27,10 @@ vi.mock('../rpc', () => ({
 vi.mock('../app', () => ({
   app: () => ({ email: mocks.email ? { send: mocks.send } : undefined, service: { adminEmails: mocks.adminEmails } }),
 }))
-vi.mock('../playerSession', () => ({ currentUser: async () => null, currentUserId: async () => mocks.userId }))
+vi.mock('../playerSession', () => ({
+  currentUser: async () => null,
+  forSignedIn: async (signedOut: unknown, work: (userId: string) => unknown) => (mocks.userId ? work(mocks.userId) : signedOut),
+}))
 vi.mock('../feedbackScreenshots', () => ({ storeFeedbackScreenshot: vi.fn() }))
 
 const send = emailFeedback as unknown as (input: { data: FeedbackEmailInput }) => Promise<null>

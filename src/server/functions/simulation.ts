@@ -4,7 +4,7 @@ import { rosterCombatantsSchema, combatRequestsSchema } from '../../contracts/co
 import { forgetMatchupSchema, rememberMatchupSchema } from '../../contracts/schemas'
 import { rosterCombatants } from '../../shared/rosterCombatants'
 import { app } from '../app'
-import { currentUserId, requireUser } from '../playerSession'
+import { forSignedIn, requireUserId } from '../playerSession'
 import { productActions } from '../productActions'
 import { mutationRpc, rpc } from '../rpc'
 import { combatCalculationPool } from '../combatCalculationPool'
@@ -35,18 +35,15 @@ export const calculateCombatBatch = createServerFn({ method: 'POST' })
 
 /** Empty for a guest, whose matchups stay on their device. */
 export const recentMatchups = createServerFn({ method: 'GET' }).handler(() =>
-  rpc(async () => {
-    const id = await currentUserId()
-    return id ? app().service.recentMatchups(id) : []
-  }),
+  rpc(() => forSignedIn([], (id) => app().service.recentMatchups(id))),
 )
 
 export const rememberMatchup = createServerFn({ method: 'POST' })
   .validator(rememberMatchupSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.rememberMatchup(player.id, data)
+      const userId = await requireUserId()
+      return productActions.rememberMatchup(userId, data)
     }),
   )
 
@@ -54,7 +51,7 @@ export const forgetMatchup = createServerFn({ method: 'POST' })
   .validator(forgetMatchupSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const player = await requireUser()
-      return productActions.forgetMatchup(player.id, data)
+      const userId = await requireUserId()
+      return productActions.forgetMatchup(userId, data)
     }),
   )

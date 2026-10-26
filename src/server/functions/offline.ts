@@ -13,7 +13,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { hash } from 'node:crypto'
 import { z } from 'zod'
 import { app } from '../app'
-import { requireUser } from '../playerSession'
+import { requireUser, requireUserId } from '../playerSession'
 import { mutationRpc, rpc } from '../rpc'
 import { saveRosterSchema } from '../../contracts/schemas'
 import { calculateRosterTotals } from '../../shared/pricing'
@@ -95,7 +95,7 @@ export const syncRoster = createServerFn({ method: 'POST' })
 export const battleWorkspace = createServerFn({ method: 'GET' })
   .validator(z.object({ token: z.string().min(1).max(128) }))
   .handler(({ data }) =>
-    rpc(async () => app().service.battleWorkspace(data.token, (await requireUser()).id, await app().battleReadRulesFor())),
+    rpc(async () => app().service.battleWorkspace(data.token, await requireUserId(), await app().battleReadRulesFor())),
   )
 
 export const syncAction = createServerFn({ method: 'POST' })
