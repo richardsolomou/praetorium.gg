@@ -45,11 +45,7 @@ export async function expectVerticalPanOnly(element: Locator) {
   expect(style).toEqual({ overflowX: 'hidden', overscrollX: 'none', touchAction: 'pan-y' })
 }
 
-/**
- * The four things a player coming from another builder reaches for: squad size where
- * the roster is, the filters that narrow a book down to today's real options, and
- * characters standing with the units they lead.
- */
+/** Signs up and opens a new roster in the builder. */
 export async function openBuilder(page: Page, faction = 'Necrons', detachment = /Awakened Dynasty/) {
   await signUp(page, 'Richard')
   await createRoster(page, { faction, detachment })

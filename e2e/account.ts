@@ -11,9 +11,9 @@ export const desktopContext = { viewport: { width: 1440, height: 900 } } satisfi
 /**
  * Makes an account and leaves the page signed into it.
  *
- * Every journey starts here now: a battle, a roster and a seat all belong to an
- * account, so there is no way to reach any of them otherwise. The email is unique
- * per call because the suite shares one database across specs.
+ * A battle, a roster and a seat all belong to an account, so there is no way to
+ * reach any of them otherwise. The email is unique per call because the suite
+ * shares one database across specs.
  */
 export async function signUp(page: Page, name: string) {
   const email = `${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${crypto.randomUUID()}@example.test`
@@ -438,13 +438,7 @@ export async function chooseBattlefield(page: Page) {
   }).toPass({ timeout: 30_000 })
 }
 
-/**
- * Clears the prompts an advance can raise.
- *
- * A tactical hand is dealt as a turn opens, and a card that pays at the end of the
- * phase or turn asks for its points as that moment passes. Both stand between a
- * press of the advance button and the next phase.
- */
+/** The button that ends the current phase or passes the turn. */
 export const advanceButton = (page: Page) => page.getByRole('button', { name: /^(End the .+ phase|Pass the turn)$/ })
 
 /** The hand being dealt: this table's own, or the practice opponent's it is also playing. */
