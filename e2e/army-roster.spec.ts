@@ -1,16 +1,19 @@
-import { expect, test } from './test'
+import { expect, test, type Page } from './test'
 import { createRoster, signUp, startBattle, uniqueName, addUnit, practiceBattle } from './account'
 
-test('an army is read and its losses recorded without leaving the battle', async ({ page }) => {
-  const player = uniqueName('Attrition')
+/** A Death Guard list of Plague Marines and a Foetid Bloat-drone, started in a practice battle. */
+async function guardBattle(page: Page, label: string, name: string) {
+  const player = uniqueName(label)
   await signUp(page, player)
-  const roster = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Attrition Guard' })
-  for (const unit of ['Plague Marines', 'Foetid Bloat-drone']) {
-    await addUnit(page, unit)
-  }
-
+  const roster = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name })
+  for (const unit of ['Plague Marines', 'Foetid Bloat-drone']) await addUnit(page, unit)
   await practiceBattle(page, roster)
   await startBattle(page)
+  return { player, roster }
+}
+
+test('an army is read and its losses recorded without leaving the battle', async ({ page }) => {
+  const { player, roster } = await guardBattle(page, 'Attrition', 'Attrition Guard')
 
   // The list opens over the battle rather than on a page of its own.
   const panel = page.locator('[data-panel="player"][data-side="0"]')
@@ -91,15 +94,7 @@ test('an army is read and its losses recorded without leaving the battle', async
 })
 
 test('a multi-wound model is tracked in wounds, and losing them all takes the model', async ({ page }) => {
-  const player = uniqueName('Wounds')
-  await signUp(page, player)
-  const roster = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Wounded Guard' })
-  for (const unit of ['Plague Marines', 'Foetid Bloat-drone']) {
-    await addUnit(page, unit)
-  }
-
-  await practiceBattle(page, roster)
-  await startBattle(page)
+  const { roster } = await guardBattle(page, 'Wounds', 'Wounded Guard')
 
   const panel = page.locator('[data-panel="player"][data-side="0"]')
   await panel.getByRole('button', { name: `Open ${roster}` }).click()
