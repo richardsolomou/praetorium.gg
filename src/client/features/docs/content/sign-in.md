@@ -1,4 +1,4 @@
-You can build one list, browse the reference and run the simulator without an account. Saving rosters, playing battles, joining tournaments and adding friends need one. Accounts are free and for players aged 13 and over.
+You can build one list, browse the reference and run the simulator without an account. Saving rosters, starting battles, joining tournaments and adding friends need one. Accounts are free and for players aged 13 and over.
 
 ## Create an account
 

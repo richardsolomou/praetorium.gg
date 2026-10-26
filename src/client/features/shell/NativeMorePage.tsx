@@ -40,7 +40,7 @@ const COMMUNITY: readonly MoreLink[] = [
   { description: 'Player standings', icon: Medal, label: 'Leaderboard', to: '/leaderboard' },
 ]
 
-const FRIENDS: MoreLink = { description: 'Invite friends to private battles', icon: Users, label: 'Friends', to: '/friends' }
+const FRIENDS: MoreLink = { description: 'Invite friends to battles', icon: Users, label: 'Friends', to: '/friends' }
 
 const ACCOUNT: readonly MoreLink[] = [
   { description: 'Your name, picture and account', icon: UserRound, label: 'Profile', to: '/profile' },
