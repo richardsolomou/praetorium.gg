@@ -874,9 +874,9 @@ function datasheetDetails(value: unknown, texts: SourceTexts): DatasheetDetails 
             {
               models,
               cost,
-              keyword: nullableStringField(point, 'keyword'),
-              faction: nullableStringField(point, 'faction'),
-              detachment: nullableStringField(point, 'detachment'),
+              keyword: stringField(point, 'keyword'),
+              faction: stringField(point, 'faction'),
+              detachment: stringField(point, 'detachment'),
             },
           ]
         : []
@@ -911,7 +911,4 @@ export function integerField(value: Record<string, unknown>, field: string): num
   const found = value[field]
   const parsed = typeof found === 'number' ? found : typeof found === 'string' && /^\d+$/.test(found) ? Number(found) : Number.NaN
   return Number.isSafeInteger(parsed) && parsed >= 0 ? parsed : null
-}
-function nullableStringField(value: Record<string, unknown>, field: string): string | null {
-  return value[field] === null || value[field] === undefined ? null : stringField(value, field)
 }
