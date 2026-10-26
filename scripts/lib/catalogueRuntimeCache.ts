@@ -6,6 +6,7 @@ import { catalogueRuntimeFingerprint, readCatalogueRuntime, runtimeManifestSchem
 import { writeCatalogueRuntime } from './catalogueRuntime'
 import { publishDirectory } from './publishDirectory'
 import { downloadRuntime, packCatalogueRuntime, storeHasArchive, uploadRuntime } from './catalogueRuntimeDistribution'
+import { errorText } from './errorText'
 
 type Compile = (directory: string, output: string) => Promise<void> | void
 export type RuntimeStore = {
@@ -56,7 +57,7 @@ async function share(directory: string, output: string, key: string, store: Runt
     packCatalogueRuntime(directory, output, archive)
     await store.upload(key, fs.readFileSync(archive))
   } catch (error) {
-    console.error(`Catalogue runtime ${key} was not shared:`, error instanceof Error ? error.message : String(error))
+    console.error(`Catalogue runtime ${key} was not shared:`, errorText(error))
   } finally {
     fs.rmSync(archive, { force: true })
   }

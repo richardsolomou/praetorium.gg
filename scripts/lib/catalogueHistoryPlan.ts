@@ -2,6 +2,7 @@ import { hash } from 'node:crypto'
 import { catalogueChanges, type ChangeSource } from '../../src/core/catalogueChanges'
 import { appendHistory, type CatalogueHistoryEntry } from '../../src/core/catalogueHistory'
 import { compareText } from '../../src/core/text'
+import { errorText } from './errorText'
 
 /** One published snapshot in the bucket, as its listing names it. */
 export type ListedSnapshot = { id: string; publishedAt: number }
@@ -64,7 +65,7 @@ export async function compareInOrder<S, T>(
     try {
       value = await load(point)
     } catch (error) {
-      skipped.push({ point, reason: error instanceof Error ? error.message : String(error) })
+      skipped.push({ point, reason: errorText(error) })
       continue
     }
     if (value === null) {

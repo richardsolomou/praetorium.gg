@@ -28,6 +28,7 @@ import type { WorkerResult, WorkerTask } from './catalogueHistoryWorker'
 import { type HistoryPoint, nextHistory } from './lib/catalogueHistoryPlan'
 import { editionMfmVersions, readCatalogueComposition, validateEditionContinuity } from '../src/server/catalogueComposition'
 import { catalogueDataDirectory } from './lib/catalogueFiles'
+import { errorText } from './lib/errorText'
 
 const directory = catalogueDataDirectory()
 const base = catalogueBaseUrl()
@@ -72,7 +73,7 @@ try {
       })
       return current
     } catch (error) {
-      console.log(`the published snapshot could not be read: ${error instanceof Error ? error.message : String(error)}`)
+      console.log(`the published snapshot could not be read: ${errorText(error)}`)
       return null
     }
   })()

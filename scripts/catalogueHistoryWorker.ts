@@ -17,6 +17,7 @@ import { isSnapshotSourceName, type SnapshotSourceName } from '../src/server/cat
 import { fetchCatalogueObject } from '../src/server/catalogueStore'
 import { extractSourceArchive } from '../src/server/sync'
 import { compiledChangeSource, knownRevisions } from './lib/catalogueHistoryCompile'
+import { errorText } from './lib/errorText'
 
 export type WorkerTask =
   | { kind: 'directory'; directory: string; sources: SnapshotSourceName[] }
@@ -75,7 +76,7 @@ process.on('message', (task: WorkerTask) => {
       if (task.kind === 'directory') return { ok: true, source: compiledChangeSource(task.directory, task.sources), revisions: {} }
       return task.kind === 'published' ? await published(task, work) : upstream(task, work)
     } catch (error) {
-      return { ok: false, reason: error instanceof Error ? error.message : String(error) }
+      return { ok: false, reason: errorText(error) }
     } finally {
       fs.rmSync(work, { recursive: true, force: true })
     }
