@@ -2,7 +2,6 @@ import { Link } from '@tanstack/react-router'
 import { Download } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
-import type { LeagueEntryView } from '../../../core/league'
 import { LEAGUE_RESULTS_BATTLE_LIMIT } from '../../../core/leagueResults'
 import { leagueResultsCsv } from '../../../core/leagueResultsCsv'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -18,7 +17,7 @@ import { useCopyText } from '../../useCopyText'
  *
  * Narrow columns let a phone show every one; anything narrower still scrolls inside the frame, as the leaderboard does.
  */
-export function LeagueResults({
+export function LeagueResults<Entry extends { userId: string; name: string; image: string | null; dropped?: boolean }>({
   event,
   rows,
   swiss = false,
@@ -26,15 +25,17 @@ export function LeagueResults({
   entries,
   label,
   sample = false,
+  title = 'Results',
 }: {
   event: string
   rows: readonly ResultRow[]
   swiss?: boolean
   partial: boolean
-  entries: readonly LeagueEntryView[]
-  label: (entry: LeagueEntryView) => string
+  entries: readonly Entry[]
+  label: (entry: Entry) => string
   /** The sample tournament's made-up players, who have no profiles to open. */
   sample?: boolean
+  title?: string
 }) {
   const columns = swiss ? SWISS_COLUMNS : COLUMNS
   const people = new Map(entries.map((entry) => [entry.userId, entry]))
@@ -58,7 +59,7 @@ export function LeagueResults({
   return (
     <section data-league-results>
       <SectionHeading
-        title="Results"
+        title={title}
         action={
           sample ? undefined : (
             <Button variant="outline" size="sm" onClick={() => void exportFile()}>

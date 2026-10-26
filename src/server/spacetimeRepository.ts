@@ -481,6 +481,36 @@ export class SpacetimeRepository {
     return this.product.clubCommand({ op: 'remove', token, actorId, userId }, z.enum(['removed', 'missing', 'forbidden']))
   }
 
+  joinClubSeason(token: string, userId: string, now: number) {
+    return this.product.clubCommand(
+      { op: 'season-join', token, userId, now },
+      z.enum(['joined', 'missing', 'published', 'forbidden', 'full']),
+    )
+  }
+
+  leaveClubSeason(token: string, userId: string) {
+    return this.product.clubCommand({ op: 'season-leave', token, userId }, z.enum(['left', 'missing']))
+  }
+
+  drawClubSeason(token: string, actorId: string, input: { seasonId: string; seed: number; now: number }) {
+    return this.product.clubCommand({ op: 'season-draw', token, actorId, ...input }, z.enum(['drawn', 'missing', 'forbidden', 'published']))
+  }
+
+  publishClubSeason(token: string, actorId: string, input: { seed: number; playerIds: readonly string[]; now: number }) {
+    return this.product.clubCommand(
+      { op: 'season-publish', token, actorId, ...input },
+      z.enum(['published', 'missing', 'forbidden', 'stale', 'too-few']),
+    )
+  }
+
+  setClubSeasonDeadline(token: string, actorId: string, round: number, deadline: number | null) {
+    return this.product.clubCommand({ op: 'season-deadline', token, actorId, round, deadline }, z.enum(['set', 'missing', 'forbidden']))
+  }
+
+  deleteClubSeason(token: string, actorId: string) {
+    return this.product.clubCommand({ op: 'season-delete', token, actorId }, z.enum(['deleted', 'missing', 'forbidden']))
+  }
+
   setClubAdmins(token: string, actorId: string, userIds: readonly string[]) {
     return this.product.clubCommand(
       { op: 'set-admins', token, actorId, userIds },
@@ -491,11 +521,21 @@ export class SpacetimeRepository {
   async clubByToken(token: string) {
     const record = await this.product.clubByToken(token)
     if (!record) return undefined
-    const profiles = await this.accounts.profilesByIds(record.members.map((member) => member.userId))
+    const profiles = await this.accounts.profilesByIds([
+      ...record.members.map((member) => member.userId),
+      ...(record.season?.players.map((player) => player.userId) ?? []),
+    ])
     const owner = profileOf(profiles, record.club.ownerId, 'Club owner')
     return {
       ...record.club,
       games: record.games,
+      season: record.season && {
+        ...record.season,
+        players: record.season.players.flatMap((player) => {
+          const profile = profiles.get(player.userId)
+          return profile ? [{ ...player, name: profile.name, image: profile.image }] : []
+        }),
+      },
       ownerName: owner.name,
       ownerImage: owner.image,
       members: record.members.flatMap((member) => {
@@ -1205,6 +1245,11 @@ export class SpacetimeRepository {
 
   async battlesByClub(clubToken: string, page: { limit: number; before?: BattlesCursor }) {
     return this.feed({ scope: 'club', clubToken, before: page.before, limit: page.limit })
+  }
+
+  /** Every battle a club's season fixtures started, which one page always holds. */
+  async battlesBySeason(clubToken: string) {
+    return (await this.feed({ scope: 'season', clubToken, limit: 500 })).battles
   }
 
   battleClubs(battleId: string) {

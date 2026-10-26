@@ -58,6 +58,7 @@ import {
 import { TABLE_SHAPES, type TableShape } from '../core/tableShape'
 import { CLUB_ADMIN_MAX, CLUB_DESCRIPTION_MAX_LENGTH, CLUB_GAME_SIDES, CLUB_NAME_MAX_LENGTH } from '../core/club'
 import { SWISS_ROUNDS_MAX } from '../core/swiss'
+import { CLUB_SEASON_PLAYERS_MAX, CLUB_SEASON_SEED_MAX } from '../core/clubSeason'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import { PROFILE_NAME_MAX_LENGTH } from '../core/profileName'
 
@@ -211,6 +212,17 @@ export const updateClubSchema = z.object({ token, ...clubFields })
 export const clubMemberSchema = z.object({ token, userId: id })
 export const moderateClubMemberSchema = z.object({ token, userId: id, accept: z.boolean() })
 export const setClubAdminsSchema = z.object({ token, userIds: z.array(id).max(CLUB_ADMIN_MAX) })
+/** The draw the organizer reviewed, so publishing refuses one that changed meanwhile. */
+export const publishClubSeasonSchema = z.object({
+  token,
+  seed: z.number().int().min(0).max(CLUB_SEASON_SEED_MAX),
+  playerIds: z.array(id).max(CLUB_SEASON_PLAYERS_MAX),
+})
+export const clubSeasonDeadlineSchema = z.object({
+  token,
+  round: z.number().int().min(1).max(CLUB_SEASON_PLAYERS_MAX),
+  deadline: z.number().int().nonnegative().nullable(),
+})
 export const createLeagueBattleSchema = z.object({
   ...leagueEvent,
   opponentId: id,
@@ -245,7 +257,9 @@ export const createBattleSchema = z
     casual: z.boolean().default(false),
     manual: z.boolean().default(false),
     clubToken: token.optional(),
+    fixture: z.string().max(300).optional(),
   })
+  .refine((value) => !value.fixture || value.clubToken, 'a fixture is played from its club')
   .refine((value) => opposingSeats(value) <= 2, 'a side seats two players at most')
   .refine((value) => (value.allyId ? 1 : 0) + opposingSeats(value) <= 3, 'a battle seats four players at most')
   .refine((value) => !value.allyId || opposingSeats(value) > 0, 'an ally needs someone to play against')

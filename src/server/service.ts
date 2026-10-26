@@ -52,6 +52,7 @@ import { routeSlug } from '../core/slug'
 import { battleOutcome, sideScore, type Standing, type StandingBattle, type StandingFaction, standings } from '../core/standings'
 import { opposingSide, refuse } from '../core/battlePrimitives'
 import { swissPairings, swissStandings, type SwissMatch } from '../core/swiss'
+import { seasonDraw, seasonFixtureStatus } from '../core/clubSeason'
 import { LEAGUE_RESULTS_BATTLE_LIMIT, leagueResults } from '../core/leagueResults'
 import { REPLAY_BATCH_SIZE, type BattlesCursor } from '../contracts/battles'
 import { gameReferencesFor } from '../shared/gameReferences'
@@ -615,6 +616,57 @@ export class PraetoriumService {
     }
   }
 
+  /**
+   * A club's season: who plays, each round's fixtures and the table, read from the battles its fixtures started. A
+   * draft's fixtures are its organizers' to review; a private club shows the season to members alone.
+   */
+  async clubSeason(token: string, viewerId: string | null, factions: readonly BattleFaction[] = []) {
+    const { club, season } = (await this.clubService.clubWithSeason(token, viewerId)) ?? {}
+    if (!club || !season) return null
+    if (club.visibility === 'private' && !club.members.some((member) => member.userId === viewerId && member.status === 'accepted'))
+      return null
+    const published = season.publishedAt !== null
+    const histories = published ? await this.repository.battlesBySeason(token) : []
+    const battles = this.battleSummaries(histories, viewerId, null, factions)
+    const byToken = new Map(battles.map((battle) => [battle.token, battle]))
+    const playing = new Set(season.players.filter((player) => !player.withdrawn).map((player) => player.userId))
+    const drawn = published
+      ? season.fixtures
+      : club.organizer
+        ? seasonDraw([...playing], season.seed).flatMap((tables, index) =>
+            tables.map(([aId, bId], at) => ({ key: null, round: index + 1, table: at + 1, aId, bId, battleToken: null })),
+          )
+        : []
+    const fixtures = drawn.map((fixture) => {
+      const battle = fixture.battleToken ? (byToken.get(fixture.battleToken) ?? null) : null
+      const score = (userId: string | null) =>
+        battle && userId ? sideScore(battle, battle.sides[battle.playerIds.indexOf(userId)] ?? -1) : 0
+      return {
+        ...fixture,
+        status: seasonFixtureStatus({ ...fixture, battle }, (userId) => playing.has(userId)),
+        battle: battle && { token: battle.token, status: battle.status, scores: [score(fixture.aId), score(fixture.bId)] as const },
+      }
+    })
+    return {
+      published,
+      // The seed decides the draw, so only the organizers reviewing a draft are given it.
+      seed: club.organizer && !published ? season.seed : null,
+      organizer: club.organizer,
+      players: season.players,
+      deadlines: season.deadlines,
+      fixtures,
+      table: published
+        ? swissStandings(
+            season.players.map((player) => player.userId),
+            swissMatches(
+              fixtures.filter((fixture) => fixture.status !== 'void'),
+              battles,
+            ),
+          )
+        : [],
+    }
+  }
+
   /** The club a battle counts for, and for a seated player during setup the clubs it could; a private club's name stays with its players. */
   async battleClubs(token: string, viewerId: string | null) {
     const seats = await this.repository.battleByToken(token)
@@ -693,13 +745,18 @@ export class PraetoriumService {
     const allowed = new Map(invitable.map((opponent) => [opponent.id, opponent]))
     // Joining a club is consent to play its members, so a club game needs no friendship; the product database checks membership again.
     const clubToken = typeof input === 'object' ? input.clubToken : undefined
-    const club = clubToken ? await this.clubService.club(clubToken, userId) : null
+    const { club = null, season = null } = (clubToken && (await this.clubService.clubWithSeason(clubToken, userId))) || {}
     if (clubToken) {
       const members = new Set(club?.members.filter((member) => member.status === 'accepted').map((member) => member.userId))
       if (!club || !members.has(userId) || guestNames.length || invited.some((id) => !members.has(id)))
         throw new Response('a club game is played between its members', { status: 403 })
     } else if (invited.some((id) => !allowed.has(id)))
       throw new Response('battle players must be your friends or a practice opponent', { status: 403 })
+    // The product database checks the rest of a fixture: its two players, both still in the season, and its club.
+    const fixtureKey = typeof input === 'object' ? input.fixture : undefined
+    const fixture = fixtureKey ? season?.fixtures.find((candidate) => candidate.key === fixtureKey) : undefined
+    if (fixtureKey && (!fixture || fixture.battleToken !== null || ![fixture.aId, fixture.bId].includes(userId)))
+      throw new Response('this fixture is not yours to start, or has already started', { status: 409 })
     // How many chairs a battle has is `battleCapacity`'s to say, here as everywhere.
     if (invited.length + guestNames.length >= battleCapacity({ teamBattle: true, playerCount: 4 }))
       throw new Response('a battle seats four players at most', { status: 400 })
@@ -738,6 +795,7 @@ export class PraetoriumService {
         ...(club ? [{ kind: 'set-battle-club' as const, clubId: club.id }] : []),
       ],
       now: offlineContext.getStore()?.createdAt ?? this.clock(),
+      fixtureKey,
     })
     this.notifier.notify([{ kind: 'battle-created', actorId: userId, recipientIds: invited, battleToken: token, league: false }])
     return { battleId: id, token, practice }

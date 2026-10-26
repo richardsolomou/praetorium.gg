@@ -29,6 +29,19 @@ The results go on the club's leaderboard. Starting a new sealed game automatical
 
 Past games keep their results and any battles already underway, which you can still resume. Expand **Lists** to view or simulate revealed armies. You can’t start another battle or change lists in a past game. **Recent games** shows the club's other battles.
 
+## Seasons
+
+A season is a round robin: everyone who joins plays every other player once, one-on-one. A club runs one season at a time.
+
+- **Start**: an organizer presses **Start a season** on the club page. Members press **Join season** while it's a draft. Only organizers see the draft fixtures. **Draw again** shuffles them, and the same draw stays until someone joins, leaves or it's drawn again.
+- **Publish**: needs at least 3 players. After that nobody else can join, and the fixtures can't be drawn again. With an odd number of players, each player has one bye.
+- **Play**: press **Start battle** on one of your fixtures. Each of you picks a list at setup. You can play rounds in any order. Fixture games also count on the club's leaderboard.
+- **Deadlines**: an organizer can set a deadline for each round. A game not finished by then shows as **Overdue**. Nothing is scored for it.
+- **Table**: a win or a bye is worth 3 points and a draw 1. Ties are broken by victory points, then by the points of everyone you've played. Every bye counts from the start.
+- **Withdraw**: choose **Withdraw from season** in the **Fixtures** ⋯ menu. Your unplayed fixtures become void, and your finished games stay on the table. Leaving the club withdraws you too.
+
+**End season**, in the same menu, removes the fixtures and table. Their battles stay.
+
 ## Leave or delete a club
 
-**Leave club** takes you off the leaderboard. Your games still count for your opponents, and your results come back if you rejoin. The owner can't leave their own club. **Delete club** removes the club, its members, its leaderboard and its sealed games. Its battles stay.
+**Leave club** takes you off the leaderboard. Your games still count for your opponents, and your results come back if you rejoin. The owner can't leave their own club. **Delete club** removes the club, its members, its leaderboard, its season and its sealed games. Its battles stay.

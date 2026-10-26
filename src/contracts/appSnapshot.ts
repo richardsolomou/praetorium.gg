@@ -42,6 +42,7 @@ export const APP_SNAPSHOT_QUERIES = new Set([
   'clubs',
   'club',
   'club-standings',
+  'club-season',
   'leagues',
   'league',
   'league-roster',

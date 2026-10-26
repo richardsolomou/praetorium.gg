@@ -235,13 +235,13 @@ const scheduleProblem = ({ playsAt, sealBy }: Pick<LeagueFormValue, 'playsAt' | 
   playsAt !== null && sealBy !== null && sealBy > playsAt ? 'Set the roster deadline before the date it’s played.' : null
 
 /** A moment as a `datetime-local` field holds it, in the reader's own timezone. */
-const inputMoment = (at: number | null) => {
+export const inputMoment = (at: number | null) => {
   if (at === null) return ''
   const date = new Date(at)
   const pad = (part: number) => String(part).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
-const momentFromInput = (text: string) => (text ? new Date(text).getTime() : null)
+export const momentFromInput = (text: string) => (text ? new Date(text).getTime() : null)
 
 /** When the event is played and when rosters must be sealed by, both optional and open to change until the reveal. */
 function ScheduleFields({

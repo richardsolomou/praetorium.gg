@@ -286,7 +286,10 @@ const clubGames = table(
   },
 )
 
-/** One table of one Swiss round, keyed by event, round and table. `bId` is absent for a bye. */
+/**
+ * One table of one Swiss round or one club season fixture, keyed by event or season, round and table. `bId` is absent
+ * for a bye.
+ */
 const leagueRoundPairings = table(
   { name: 'league_round_pairings' },
   {
@@ -351,6 +354,7 @@ const leagueRosterSharing = table(
   },
 )
 
+/** The battles a sealed event or a club season started, keyed by battle. */
 const leagueEventBattles = table(
   { name: 'league_event_battles' },
   {
@@ -383,6 +387,34 @@ const clubMembers = table(
     status: t.string(),
     role: t.string(),
     joinedAt: t.u64(),
+  },
+)
+
+/**
+ * A club's round robin, at most one per club. Its draft draws from `seed` and whoever has joined; publishing writes the
+ * fixtures to `league_round_pairings`. `deadlines` is a JSON array of each round's deadline or null.
+ */
+const clubSeasons = table(
+  { name: 'club_seasons' },
+  {
+    id: t.string().primaryKey(),
+    clubId: t.string().unique(),
+    seed: t.u32(),
+    createdAt: t.u64(),
+    publishedAt: t.option(t.u64()),
+    deadlines: t.option(t.string()),
+  },
+)
+
+/** Keyed by season and user. Withdrawing keeps the row, so played results stay on the table. */
+const clubSeasonPlayers = table(
+  { name: 'club_season_players' },
+  {
+    key: t.string().primaryKey(),
+    seasonId: t.string().index('btree'),
+    userId: t.string().index('btree'),
+    joinedAt: t.u64(),
+    withdrawn: t.bool(),
   },
 )
 
@@ -622,6 +654,8 @@ export const productTables = {
   clubs,
   clubMembers,
   clubBattles,
+  clubSeasons,
+  clubSeasonPlayers,
   completedMigrations,
   collection,
   collectionWishes,

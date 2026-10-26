@@ -79,6 +79,7 @@ export const battleReplayKey = (token: string, seq?: number) =>
 export const clubsKey = () => ['clubs']
 export const clubKey = (token: string) => ['club', token]
 export const clubStandingsKey = (token: string) => ['club-standings', token]
+export const clubSeasonKey = (token: string) => ['club-season', token]
 export const battleClubsKey = (token: string) => ['battle-clubs', token]
 export const leaguesKey = () => ['leagues']
 /** Every read under the league, including its results. */

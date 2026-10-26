@@ -8,6 +8,8 @@ export type CreateBattleInput = NewBattlePlayers & {
   manual?: boolean
   /** The club whose table the battle counts on, when it is started from the club between its members. */
   clubToken?: string
+  /** The fixture of that club's season this battle plays. */
+  fixture?: string
 }
 
 /** The prefix no account id carries, so a guest seat can never be mistaken for, or claimed by, an account. */
