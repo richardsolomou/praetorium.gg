@@ -41,4 +41,4 @@ When an import fails or needs review, its text is sent to Praetorium automatical
 - Nothing is guessed: a unit or choice that doesn't match is reported, never swapped for a similar one.
 - Your notes, preparation and reminders never transfer in either direction.
 
-Compare model counts and wargear against the original export before you rely on the list. See [Build a list](/docs/start-a-list) for what the builder checks, and [Track a battle](/docs/start-a-battle) to take it to the table.
+Compare model counts and wargear against the original export before you rely on the list. See [Start a list](/docs/start-a-list) for what the builder checks, and [Start a battle](/docs/start-a-battle) to take it to the table.
