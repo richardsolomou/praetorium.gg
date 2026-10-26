@@ -124,8 +124,9 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   const rosterUrl = page.url()
   const league = await leagueFixture(userId, [userId])
   await sealThroughPage(page, league.token, rosterName)
-  const sealedBefore =
-    await productSql`SELECT roster_snapshot FROM league_event_entries WHERE event_id = ${league.eventId} AND user_id = ${userId}`
+  const sealedCopy = () =>
+    productSql`SELECT roster_snapshot FROM league_event_entries WHERE event_id = ${league.eventId} AND user_id = ${userId}`
+  const sealedBefore = await sealedCopy()
   expect(sealedBefore).toHaveLength(1)
   expect(z.tuple([z.literal(0), z.string()]).parse(sealedBefore[0]?.roster_snapshot)[1]).toContain('Skorpekh Lord')
 
@@ -133,7 +134,8 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await startBattle(page)
   await concedeAndSync(page)
   const battleId = await battleIdFor(lastPathSegment(battleUrl))
-  const commandsBefore = await productSql`SELECT seq, body FROM commands WHERE battle_id = ${battleId}`
+  const battleCommands = () => productSql`SELECT seq, body FROM commands WHERE battle_id = ${battleId}`
+  const commandsBefore = await battleCommands()
   expect(commandsBefore.some((row) => String(row.body).includes('Skorpekh Lord'))).toBe(true)
 
   await page.goto(rosterUrl)
@@ -147,10 +149,8 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await chooseLibraryAction(page, 'Changed saved roster', 'Delete')
   await deletion.getByRole('button', { name: 'Delete roster', exact: true }).click()
   await expect.poll(() => productSql`SELECT id FROM rosters WHERE id = ${rosterId}`).toEqual([])
-  expect(await productSql`SELECT seq, body FROM commands WHERE battle_id = ${battleId}`).toEqual(commandsBefore)
-  expect(
-    await productSql`SELECT roster_snapshot FROM league_event_entries WHERE event_id = ${league.eventId} AND user_id = ${userId}`,
-  ).toEqual(sealedBefore)
+  expect(await battleCommands()).toEqual(commandsBefore)
+  expect(await sealedCopy()).toEqual(sealedBefore)
 
   // Its owner still reads the sealed copy before the reveal, after the saved roster is gone.
   await page.goto(`/rosters/${userId}?league=${league.token}&event=${league.eventToken}`)
@@ -166,9 +166,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await expect(viewSealed).toBeVisible()
   const sealedUrl = await viewSealed.getAttribute('href')
   if (!sealedUrl) throw new Error('Missing revealed roster link')
-  expect(
-    await productSql`SELECT roster_snapshot FROM league_event_entries WHERE event_id = ${league.eventId} AND user_id = ${userId}`,
-  ).toEqual(sealedBefore)
+  expect(await sealedCopy()).toEqual(sealedBefore)
 
   for (const [kind, url] of [
     ['fielded', `/rosters/${rosterId}?battle=${lastPathSegment(battleUrl)}`],
@@ -192,7 +190,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await expect.poll(() => productSql`SELECT id FROM tournaments WHERE id = ${league.id}`).toEqual([])
   expect(await productSql`SELECT id FROM sealed_events WHERE id = ${league.eventId}`).toEqual([])
   expect(await productSql`SELECT user_id FROM league_event_entries WHERE event_id = ${league.eventId}`).toEqual([])
-  expect(await productSql`SELECT seq, body FROM commands WHERE battle_id = ${battleId}`).toEqual(commandsBefore)
+  expect(await battleCommands()).toEqual(commandsBefore)
   await page.goto(sealedUrl)
   await expect(page.getByRole('heading', { name: 'Nothing here', exact: true })).toBeVisible()
   await page.goto(`/rosters/${rosterId}?battle=${lastPathSegment(battleUrl)}`)
