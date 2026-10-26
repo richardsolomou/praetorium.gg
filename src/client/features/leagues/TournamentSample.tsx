@@ -16,7 +16,7 @@ import { entryStatus, EntryStatusCard, swissDetail } from './LeagueEventView'
 import { LeagueReadiness } from './LeagueReadiness'
 import { LeagueResults } from './LeagueResults'
 import { LeagueRounds, ownTable, swissProgress } from './LeagueRounds'
-import { leagueAllowances, leaguePhase, leaguePlayers } from './leagueEvent'
+import { eventName, leagueAllowances, leaguePhase, leaguePlayers } from './leagueEvent'
 import { SAMPLE_STAGES, SAMPLE_VIEWER, sampleBattles, sampleStandings, sampleTournament, type SampleStage } from './sampleTournament'
 
 const STAGES: Record<SampleStage, { label: string; explanation: string }> = {
@@ -157,7 +157,15 @@ export function TournamentSample({ stage }: { stage: SampleStage }) {
               />
             ) : null}
             {league.pairings.length ? (
-              <LeagueResults rows={sampleStandings(stage)} swiss partial={false} entries={accepted} label={label} sample />
+              <LeagueResults
+                event={eventName(league)}
+                rows={sampleStandings(stage)}
+                swiss
+                partial={false}
+                entries={accepted}
+                label={label}
+                sample
+              />
             ) : null}
             {revealed ? (
               <LeagueArmies

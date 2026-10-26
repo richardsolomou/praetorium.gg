@@ -60,9 +60,11 @@ export function LeagueResults({
       <SectionHeading
         title="Results"
         action={
-          <Button variant="outline" size="sm" onClick={() => void exportFile()}>
-            <Download /> {native ? (copied ? 'Copied CSV' : 'Copy CSV') : 'Export CSV'}
-          </Button>
+          sample ? undefined : (
+            <Button variant="outline" size="sm" onClick={() => void exportFile()}>
+              <Download /> {native ? (copied ? 'Copied CSV' : 'Copy CSV') : 'Export CSV'}
+            </Button>
+          )
         }
       />
       {problem ? <Problem className="mb-2">{problem}</Problem> : null}
