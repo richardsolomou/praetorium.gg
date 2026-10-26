@@ -1,5 +1,5 @@
 import { type MissionPack, missionCards, packText } from './missionPacks'
-import { english } from '../shared/datacards'
+import { english, records } from '../shared/datacards'
 import type { MissionAction } from '../contracts/missions'
 
 export type { MissionAction } from '../contracts/missions'
@@ -18,7 +18,7 @@ export function actionsIn(packs: readonly MissionPack[]): Map<string, MissionAct
   for (const pack of packs) {
     for (const card of missionCards(pack)) {
       const name = english(card.name)
-      const actions = readActions(card.actions, pack)
+      const actions = readActions(card, pack)
       if (!name || !actions.length) continue
       const key = missionCardKey(name)
       if (found.has(key)) contested.add(key)
@@ -29,11 +29,8 @@ export function actionsIn(packs: readonly MissionPack[]): Map<string, MissionAct
   return found
 }
 
-function readActions(actions: unknown, pack: MissionPack): MissionAction[] {
-  if (!Array.isArray(actions)) return []
-  return actions.flatMap((entry: unknown) => {
-    if (!entry || typeof entry !== 'object') return []
-    const action = entry as Record<string, unknown>
+function readActions(card: Record<string, unknown>, pack: MissionPack): MissionAction[] {
+  return records(card, 'actions').flatMap((action) => {
     // An unnamed action cannot be told apart from another on the same card.
     const name = english(action.name)
     return name
