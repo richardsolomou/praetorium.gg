@@ -33,7 +33,7 @@ import {
 } from './reminderDismissals'
 import { armyRulesRequest } from './sideRules'
 import { type Side, type SideMission, sides } from '../../sides'
-import { battleSizeText } from '../../../core/battle'
+import { asSecondary, battleSizeText } from '../../../core/battle'
 import type { BattleClock } from '../../../core/battleClock'
 import type { BattleView, MissionChoiceView } from '../../../core/battleView'
 import { remindersDueAt, reminderTimingLabel, roundReminderMoment, type ReminderTiming, type RosterReminder } from '../../../core/reminders'
@@ -347,11 +347,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
       kind: 'set-prep',
       playerId: repairSide.captain.id,
       stratagems: repairSide.stratagems,
-      secondaries:
-        repairSide.secondaryMode === 'fixed'
-          ? repairSide.secondaries.filter((card) => !card.secret).map(({ key: cardKey, name, awards }) => ({ key: cardKey, name, awards }))
-          : [],
-      secondaryDeck: secondaryDeck.map(({ key: cardKey, name, awards }) => ({ key: cardKey, name, awards })),
+      secondaries: repairSide.secondaryMode === 'fixed' ? repairSide.secondaries.filter((card) => !card.secret).map(asSecondary) : [],
+      secondaryDeck: secondaryDeck.map(asSecondary),
       primary: repairPrimary,
       secondaryMode: repairSide.secondaryMode,
     })

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { Secondary, SecondaryMode } from '../../../../core/battle'
 import type { BattleView } from '../../../../core/battleView'
-import { FIXED_SECONDARIES, isKotcLimit, SECONDARY_MODES } from '../../../../core/battle'
+import { asSecondary, FIXED_SECONDARIES, isKotcLimit, SECONDARY_MODES } from '../../../../core/battle'
 import { detachmentRulesQuery, gameReferencesQuery } from '../../../queries'
 import { primaryCards, secondaryCards } from '../missionDeck'
 import { armyRulesRequest, sideStratagems } from '../sideRules'
@@ -69,7 +69,7 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
   const primary: Secondary | null = primaryCard ? { key: primaryCard.key, name: primaryCard.name, awards: primaryCard.awards } : null
   const storedMode: SecondaryMode = captain.secondaryMode
   const mode: SecondaryMode = tacticalOnly ? 'tactical' : storedMode
-  const chosen = captain.secondaries.map(({ key, name, awards }) => ({ key, name, awards }))
+  const chosen = captain.secondaries.map(asSecondary)
   const deckReady = captain.secondaryDeckReady
 
   const save = (next: { mode?: SecondaryMode; secondaries?: Secondary[] }, options?: Parameters<SendCommand>[1]) => {
@@ -88,8 +88,8 @@ export function Prep({ view, side, missionId, send, pending }: Props) {
             : (next.secondaries ?? chosen)
                 .slice(-FIXED_SECONDARIES)
                 .map((secondary) => deck.find((card) => card.key === secondary.key) ?? secondary)
-                .map(({ key, name, awards }) => ({ key, name, awards })),
-        secondaryDeck: deck.map(({ key, name, awards }) => ({ key, name, awards })),
+                .map(asSecondary),
+        secondaryDeck: deck.map(asSecondary),
         primary,
         secondaryMode: nextMode,
       },

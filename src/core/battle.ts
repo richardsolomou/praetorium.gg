@@ -542,6 +542,9 @@ export const STRATAGEM_CP_MAX = 6
 
 /** A secondary mission, named by the player because the deck is not in the data either. */
 export type Secondary = { key: string; name: string; awards?: MissionAward[]; selection?: MissionSelectionKind }
+
+/** A card as a `set-prep` command carries it, without whatever else its reference holds. */
+export const asSecondary = ({ key, name, awards }: Pick<Secondary, 'key' | 'name' | 'awards'>): Secondary => ({ key, name, awards })
 export type SecondaryStatus = 'active' | 'achieved' | 'discarded' | 'returned'
 
 /**
