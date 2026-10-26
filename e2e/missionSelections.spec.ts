@@ -147,11 +147,7 @@ test('source matchup nominations survive undo and reload', async ({ page, browse
   await expect(advanceButton(page)).toBeEnabled()
   await expectWorkSynced(page)
   await page.reload()
-  for (const summary of await page
-    .locator('summary')
-    .filter({ hasText: /^Choices$/ })
-    .all())
-    if ((await summary.locator('..').getAttribute('open')) === null) await summary.click()
+  await openChoices(page)
   await expect(page.getByText('1 guard nomination', { exact: true })).toBeVisible()
   await expect(page.getByText('1 condemned unit · fallback', { exact: true })).toBeVisible()
   const hostSide = page.locator('[data-panel="player"][data-side="0"]')
