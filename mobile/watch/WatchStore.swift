@@ -91,7 +91,7 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
   }
 
   private func decodeContext(_ context: [String: Any]) -> (snapshot: String, sentAt: Double)? {
-    guard let data = context["snapshot"] as? Data, data.count <= 48_000,
+    guard let data = context["snapshot"] as? Data, data.count <= BattleSnapshot.maxBytes,
       let snapshot = String(data: data, encoding: .utf8)
     else { return nil }
     return (snapshot, context["sentAt"] as? Double ?? 0)
