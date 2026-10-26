@@ -487,15 +487,21 @@ function textRosterPick(
       return { stated, held, scoped: false }
     })
     // Lines a scoped model claims are not also the rest of the unit's to choose from, as a Scout Sergeant's shotgun is not a Scout's.
-    const claimed = new Set(scopes.flatMap((scope) => (scope.scoped ? [scope.stated] : [])))
-    const unclaimed = new Map(stated)
-    for (const under of claimed)
-      for (const [name, count] of under) {
-        const left = (unclaimed.get(name) ?? 0) - count
-        if (left > 0) unclaimed.set(name, left)
-        else unclaimed.delete(name)
-      }
-    for (const scope of scopes) if (!scope.scoped) scope.stated = unclaimed
+    // A choice offering that model still reads them, as the master vox under "4x Tempestus Scion" says which Scion carries it.
+    const claims = scopes.flatMap((scope, at) => (scope.scoped ? [{ key: choices[at]!.key, stated: scope.stated }] : []))
+    scopes.forEach((scope, at) => {
+      if (scope.scoped) return
+      const { key, options } = choices[at]!
+      const offered = (claim: { key: string }) => options.some((option) => claim.key.startsWith(`${key}/${option.id}/`))
+      const unclaimed = new Map(stated)
+      for (const under of new Set(claims.filter((claim) => !offered(claim)).map((claim) => claim.stated)))
+        for (const [name, count] of under) {
+          const left = (unclaimed.get(name) ?? 0) - count
+          if (left > 0) unclaimed.set(name, left)
+          else unclaimed.delete(name)
+        }
+      scope.stated = unclaimed
+    })
     const statedChoiceCounts = new Map(
       choices.map((choice, at) => [choice.key, countsForChoice(choice, aliases[at]!, scopes[at]!.stated, scopes[at]!.held)]),
     )
@@ -638,10 +644,14 @@ function textRosterPick(
 /**
  * A group's options brought to the bodies the list states for it: those its wargear marks
  * keep their count, and the defaults it does not mark give way to them or make up the rest.
+ * An option the group fields none of by default is not a default, so a group that fills
+ * itself with a model outside its options, as Tempestus Aquilons do, keeps the rest there.
  */
 function kindCounts(options: readonly { id: string; count: number }[], marked: ReadonlyMap<string, number>, bodies: number) {
   const counts = new Map(options.map((option) => [option.id, marked.get(option.id) ?? option.count]))
-  const defaults = options.filter((option) => !marked.has(option.id)).toSorted((left, right) => right.count - left.count)
+  const defaults = options
+    .filter((option) => !marked.has(option.id) && option.count > 0)
+    .toSorted((left, right) => right.count - left.count)
   let rest = bodies - [...counts.values()].reduce((total, count) => total + count, 0)
   for (const option of defaults) {
     const change = Math.max(rest, -counts.get(option.id)!)

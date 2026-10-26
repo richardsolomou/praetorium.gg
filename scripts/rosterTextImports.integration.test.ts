@@ -179,6 +179,49 @@ Skitarii Rangers (85 Points)
     expect(wargear(skitariiRangers, 'Skitarii Rangers')).toContain('7x galvanic rifle')
   })
 
+  // The official app names Scion specialists by their kind, and Aquilons fill their group with a model it does not offer.
+  const tempestus = {
+    'Militarum Tempestus Command Squad': `Astra Militarum
+Combined Arms (1 Detachment Point)
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Militarum Tempestus Command Squad (100 Points)
+• 1x Tempestor Prime
+◦ 1x Plasma pistol
+◦ 1x Tempestus dagger
+• 4x Tempestus Scion
+◦ 4x Close combat weapon
+◦ 2x Hot-shot laspistol
+◦ 1x Medi-pack
+◦ 1x Master vox
+◦ 1x Meltagun
+◦ 1x Hot-shot lasgun
+`,
+    'Tempestus Aquilons': `Astra Militarum
+Combined Arms (1 Detachment Point)
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Tempestus Aquilons (95 Points)
+• 1x Tempestor Aquilon
+◦ 1x Close combat weapon
+◦ 1x Hot-shot lascarbine
+◦ 1x Sentry flamer
+• 9x Tempestus Aquilon
+◦ 9x Close combat weapon
+◦ 7x Hot-shot lascarbine
+◦ 1x Plasma carbine
+◦ 1x Hot-shot long las
+`,
+  }
+
+  it.each(Object.entries(tempestus))('places every %s specialist', (_name, file) => {
+    expect(summary(file).mismatches).toEqual([])
+  })
+
   it('imports the reported official-app Custodes roster without mismatches', () => {
     expect(summary(custodesOfficial)).toEqual({
       format: 'roster-file',
