@@ -3,7 +3,7 @@ import path from 'node:path'
 import { hash } from 'node:crypto'
 import { catalogueEditionId, editionCatalogueId, editionLabel, rulesVersionLabel } from '../core/catalogueEdition'
 import { loadCatalogue, loadCatalogueSteps, type LoadedCatalogue } from './catalogueIndex'
-import { readCatalogueComposition } from './catalogueComposition'
+import { editionDirectory, readCatalogueComposition } from './catalogueComposition'
 import { loadRules, loadRulesSteps, type LoadedRules } from './rules'
 import { factionsFor } from '../shared/factionReferences'
 import {
@@ -17,6 +17,7 @@ import {
 } from './canonicalCatalogue'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import { routeSlug } from '../core/slug'
+import { remember } from '../core/collections'
 import { compiledGlobalSearchIndex } from './globalSearch'
 import { combatUnitsFor } from './combatUnits'
 import type { CatalogueRuntime, RuntimeStartup } from './catalogueRuntime'
@@ -46,13 +47,14 @@ export function catalogueEditionLoaders(
   const packagedCanonical = (key: string) => (packaged ??= loadEditionCanonicalCatalogues(directory)).get(key)
   let factions: ReturnType<typeof factionsFor> | null | undefined
   const loading = new Map<string, Stepwise<EditionContext>>()
+  const configured = (editionId: string | null) => composition?.editions.find(({ edition }) => edition.id === editionId)
   const contextLoad = (editionId: string) => {
-    const configuration = composition?.editions.find(({ edition }) => edition.id === editionId)
+    const configuration = configured(editionId)
     if (!configuration) return null
     const pending =
       loading.get(editionId) ??
       stepwise(function* () {
-        const target = configuration.base ? directory : path.join(directory, 'editions', editionId)
+        const target = editionDirectory(directory, configuration)
         const catalogue = yield* loadCatalogueSteps(target, configuration.edition)
         if (!catalogue) throw new Error(`edition ${editionId} has no catalogue data`)
         const rules = yield* loadRulesSteps(target, {
@@ -71,8 +73,6 @@ export function catalogueEditionLoaders(
   const lookup = (catalogueId: string) => {
     const id = catalogueEditionId(catalogueId)
     if (!id) return null
-    const configured = composition?.editions.find(({ edition }) => edition.id === id)
-    if (!configured) return null
     const selected = context(id)
     return selected?.catalogue.index.catalogues.has(catalogueId) ? selected : null
   }
@@ -139,12 +139,12 @@ export function catalogueEditionLoaders(
   const canonical = <T>(id: string, compile: (key: string, steps: () => CanonicalCatalogueSteps) => T) => {
     const catalogueId = resolve(id)
     const editionId = catalogueEditionId(catalogueId)
-    const configured = composition?.editions.find(({ edition }) => edition.id === editionId)
-    if (runtime && configured?.edition.catalogueIds.some((bookId) => editionCatalogueId(configured.edition.id, bookId) === catalogueId)) {
-      const result = runtimeCanonical.get(editionId!) ?? runtime.read(`${editionId}.canonical`)
-      runtimeCanonical.set(editionId!, result)
-      return result
-    }
+    const configuration = configured(editionId)
+    if (
+      runtime &&
+      configuration?.edition.catalogueIds.some((bookId) => editionCatalogueId(configuration.edition.id, bookId) === catalogueId)
+    )
+      return remember(runtimeCanonical, editionId!, () => runtime.read(`${editionId}.canonical`))
     if (baseEditions.has(catalogueId)) {
       const loaded = base()
       if (!loaded) return null
@@ -180,9 +180,7 @@ export function catalogueEditionLoaders(
           factions: selected.catalogue.factions.filter((faction) => (scope ? faction.id === scope : advertised.has(faction.id))),
         },
         selected.rules,
-        composition?.editions.find((entry) => entry.edition.id === edition.id)?.base
-          ? directory
-          : path.join(directory, 'editions', edition.id),
+        editionDirectory(directory, configured(edition.id)!),
       )
       const label = (faction: string) => `${faction} · ${editionLabel(edition)}`
       const result = {

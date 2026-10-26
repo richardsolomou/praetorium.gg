@@ -76,15 +76,17 @@ export function readCatalogueComposition(directory: string): CatalogueCompositio
   return catalogueCompositionSchema.parse(JSON.parse(fs.readFileSync(file, 'utf8')))
 }
 
+/** Where an edition's data lives: the base catalogue's own directory when it aliases the base, else its own under `editions/`. */
+export function editionDirectory(directory: string, entry: CatalogueComposition['editions'][number]) {
+  return entry.base ? directory : path.join(directory, 'editions', entry.edition.id)
+}
+
 /** Each rules version's MFM version numbers, from the points data its snapshot directory holds. */
 export function editionMfmVersions(directory: string, composition: CatalogueComposition | null) {
   return new Map(
     (composition?.editions ?? [])
       .filter((entry) => !entry.snapshot)
-      .map((entry) => [
-        entry.edition.id,
-        [...mfmVersions(loadMfm(entry.base ? directory : path.join(directory, 'editions', entry.edition.id)))].toSorted().join(', '),
-      ]),
+      .map((entry) => [entry.edition.id, [...mfmVersions(loadMfm(editionDirectory(directory, entry)))].toSorted().join(', ')]),
   )
 }
 
