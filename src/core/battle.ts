@@ -1325,6 +1325,49 @@ export function applyEntry(state: BattleState, entry: LoggedCommand) {
   }
 }
 
+/** A seat before anything has happened to it. */
+function freshPlayer(id: PlayerId, side: number, automated: boolean): PlayerState {
+  return {
+    id,
+    side,
+    automated,
+    cp: 0,
+    cpGained: 0,
+    cpSpent: 0,
+    cpByRound: Array(BATTLE_ROUNDS).fill(0),
+    bonusCpByRound: Array(BATTLE_ROUNDS).fill(0),
+    cpByMoment: {},
+    primary: 0,
+    secondary: 0,
+    roster: null,
+    rosterSeq: null,
+    units: [],
+    stratagems: [],
+    uses: [],
+    secondaries: [],
+    secondariesDrawnThisTurn: [],
+    additionalSecondaryDrawsThisTurn: 0,
+    secondariesToReview: [],
+    secondaryDrawSeq: {},
+    secondaryDrawnAt: {},
+    missionSelections: [],
+    primaryCard: null,
+    secondaryMode: 'tactical',
+    secondaryDeck: null,
+    scored: {},
+    primaryByRound: Array(BATTLE_ROUNDS).fill(0),
+    finalPrimary: 0,
+    secondaryByRound: Array(BATTLE_ROUNDS).fill(0),
+    scoredByRound: {},
+    secondaryStatus: {},
+    secretSecondary: null,
+    secretRevealed: false,
+    painted: false,
+    corrections: { cp: 0, primary: 0, secondary: 0 },
+    correctionByRound: { primary: Array(BATTLE_ROUNDS).fill(0), secondary: Array(BATTLE_ROUNDS).fill(0) },
+  }
+}
+
 /** A battle before anything has happened in it, which is what a replay folds into. */
 export function emptyBattle(
   playerIds: readonly PlayerId[],
@@ -1356,45 +1399,7 @@ export function emptyBattle(
     clubId: null,
     settings: { ...DEFAULT_SETTINGS },
     result: null,
-    players: playerIds.map((id, index) => ({
-      id,
-      side: playerSides?.[index] ?? index,
-      automated: automatedPlayerIds.includes(id),
-      cp: 0,
-      cpGained: 0,
-      cpSpent: 0,
-      cpByRound: Array(BATTLE_ROUNDS).fill(0),
-      bonusCpByRound: Array(BATTLE_ROUNDS).fill(0),
-      cpByMoment: {},
-      primary: 0,
-      secondary: 0,
-      roster: null,
-      rosterSeq: null,
-      units: [],
-      stratagems: [],
-      uses: [],
-      secondaries: [],
-      secondariesDrawnThisTurn: [],
-      additionalSecondaryDrawsThisTurn: 0,
-      secondariesToReview: [],
-      secondaryDrawSeq: {},
-      secondaryDrawnAt: {},
-      missionSelections: [],
-      primaryCard: null,
-      secondaryMode: 'tactical',
-      secondaryDeck: null,
-      scored: {},
-      primaryByRound: Array(BATTLE_ROUNDS).fill(0),
-      finalPrimary: 0,
-      secondaryByRound: Array(BATTLE_ROUNDS).fill(0),
-      scoredByRound: {},
-      secondaryStatus: {},
-      secretSecondary: null,
-      secretRevealed: false,
-      painted: false,
-      corrections: { cp: 0, primary: 0, secondary: 0 },
-      correctionByRound: { primary: Array(BATTLE_ROUNDS).fill(0), secondary: Array(BATTLE_ROUNDS).fill(0) },
-    })),
+    players: playerIds.map((id, index) => freshPlayer(id, playerSides?.[index] ?? index, automatedPlayerIds.includes(id))),
     undoable: null,
     seq: 0,
     clockPaused: false,
@@ -2011,7 +2016,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       state.sideWarlords = {}
       state.deploymentId = null
       state.settings = { ...state.settings, terrainLayoutId: null, twistId: null }
-      state.players.forEach(resetPlayer)
+      for (const seat of state.players) Object.assign(seat, freshPlayer(seat.id, seat.side, seat.automated))
       inferBattleSize(state)
       return
     }
@@ -2400,38 +2405,6 @@ function detachRoster(state: BattleState, player: PlayerState) {
   player.units = []
   player.painted = false
   applyPrep(player, null)
-}
-
-function resetPlayer(player: PlayerState) {
-  player.cp = 0
-  player.cpGained = 0
-  player.cpSpent = 0
-  player.cpByRound = Array(BATTLE_ROUNDS).fill(0)
-  player.bonusCpByRound = Array(BATTLE_ROUNDS).fill(0)
-  player.primary = 0
-  player.secondary = 0
-  player.roster = null
-  player.units = []
-  player.stratagems = []
-  player.uses = []
-  player.secondaries = []
-  player.secondariesDrawnThisTurn = []
-  player.additionalSecondaryDrawsThisTurn = 0
-  player.secondariesToReview = []
-  player.secondaryDeck = null
-  player.primaryCard = null
-  player.secondaryMode = 'tactical'
-  player.scored = {}
-  player.primaryByRound = Array(BATTLE_ROUNDS).fill(0)
-  player.finalPrimary = 0
-  player.secondaryByRound = Array(BATTLE_ROUNDS).fill(0)
-  player.scoredByRound = {}
-  player.secondaryStatus = {}
-  player.secretSecondary = null
-  player.secretRevealed = false
-  player.painted = false
-  player.corrections = { cp: 0, primary: 0, secondary: 0 }
-  player.correctionByRound = { primary: Array(BATTLE_ROUNDS).fill(0), secondary: Array(BATTLE_ROUNDS).fill(0) }
 }
 
 function applyPrep(player: PlayerState, prep: BattlePrep | null | undefined) {
