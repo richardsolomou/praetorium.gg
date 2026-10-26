@@ -1,5 +1,5 @@
 import { combatEstimate, holdCombatCalculations, openCombatControls, combatDamage } from './combat'
-import { expect, test } from './test'
+import { expect, test, type Locator } from './test'
 import {
   addUnit,
   attachRoster,
@@ -72,7 +72,6 @@ test('the battle matchup planner uses live survivors, isolates experiments, and 
   await expect(planner).toContainText('4 / 4 matchups · Complete')
   expect(await page.evaluate(() => window.PraetoriumCombatGate?.pending.length)).toBe(0)
   await cachedGate.release()
-  await page.setViewportSize({ width: 1440, height: 900 })
   const referee = await page.context().newPage()
   await referee.goto(page.url())
   const otherPanels = [0, 1].map((side) => referee.locator(`[data-panel="player"][data-side="${side}"]`))
@@ -158,7 +157,6 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
   await signUp(page, 'Combat')
   const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Combat Marines' })
   await addUnit(page, 'Intercessor Squad')
-  await page.locator('[data-unit="Intercessor Squad"]').getByRole('button', { name: 'Intercessor Squad', exact: true }).click()
   await practiceBattle(page, roster)
   await startBattle(page)
   const panel = page.locator('[data-panel="player"][data-side="0"]')
@@ -315,12 +313,10 @@ test('battle support auras respect the recipient, role, conditions, and living s
   await practiceBattle(page, roster)
   await startBattle(page)
   const panel = page.locator('[data-panel="player"][data-side="0"]')
-  const openedAt = Date.now()
   await panel.getByRole('button', { name: /Simulate .*combat/ }).click()
   const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
   const damage = await combatDamage(simulator, 'Shooting')
   await expect(damage).toHaveText(/^\d+\.\d+$/)
-  console.log(`Battle simulator first result: ${Date.now() - openedAt} ms`)
   const baseline = Number(await damage.textContent())
   const attacker = simulator.getByRole('region', { name: 'Attacker buffs', exact: true })
   const defender = simulator.getByRole('region', { name: 'Defender buffs', exact: true })
@@ -352,11 +348,7 @@ test('battle support auras respect the recipient, role, conditions, and living s
     expect(await simulator.locator('[data-simulator-scroll]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
   }
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await chooseOption(page, 'Attacker unit', 'Skorpekh Destroyers')
-  await expect(
-    simulator.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }),
-  ).toBeEnabled()
-  await openCombatControls(simulator)
+  await chooseAttacker(simulator, 'Skorpekh Destroyers')
   await expect(attacker).toContainText('Within 6"')
   await expect(attacker).not.toContainText('Closest eligible target')
   await expect(attacker.getByRole('switch', { name: /Prophet of Destruction/ })).toBeVisible()
@@ -367,12 +359,7 @@ test('battle support auras respect the recipient, role, conditions, and living s
   await attacker.getByRole('switch', { name: /Plasmacyte/ }).click()
   await expect.poll(async () => Number(await (await combatDamage(simulator, 'Melee')).textContent())).toBeGreaterThan(beforePlasmacyte)
   await expect(attacker).not.toContainText('Not calculated')
-  await simulator.getByRole('combobox', { name: 'Attacker unit', exact: true }).click()
-  await page.getByRole('option', { name: "C'tan Shard of the Nightbringer", exact: true }).click()
-  await expect(
-    simulator.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }),
-  ).toBeEnabled()
-  await openCombatControls(simulator)
+  await chooseAttacker(simulator, "C'tan Shard of the Nightbringer")
   await expect(attacker).not.toContainText('Infectious Murder')
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
   await panel.getByRole('button', { name: `Open ${roster}` }).click()
@@ -389,3 +376,12 @@ test('battle support auras respect the recipient, role, conditions, and living s
   await expect(attacker).not.toContainText('Infectious Murder')
   await expect(defender.getByRole('switch', { name: /Nullstone Field Generator/ })).toBeVisible()
 })
+
+/** Swaps the simulator's attacker for another unit from the army and reopens its controls once its loadout loads. */
+async function chooseAttacker(simulator: Locator, unit: string) {
+  await chooseOption(simulator.page(), 'Attacker unit', unit)
+  await expect(
+    simulator.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }),
+  ).toBeEnabled()
+  await openCombatControls(simulator)
+}
