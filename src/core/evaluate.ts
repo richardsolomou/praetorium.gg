@@ -954,6 +954,13 @@ const isLink = (definition: Definition): definition is EntryLink => 'targetId' i
 /** Only entries carry an entry type; a group is the container around them. */
 const isGroup = (node: Node) => node.target.type === undefined
 
+/** The nearest selection above a node, skipping groups: they organise the catalogue, not the roster. */
+function entryParent(node: Node): Node | null {
+  let parent = node.parent
+  while (parent && isGroup(parent)) parent = parent.parent
+  return parent
+}
+
 /** Selection groups organize the catalogue but do not add roster depth. Preserve their ancestry for group conditions; `deep` follows `includeChildSelections`. */
 function selectionsUnder(node: Node, deep: boolean): Node[] {
   const cached = node.under?.[deep ? 1 : 0]
@@ -1353,8 +1360,7 @@ function resolveScope(scope: string, node: Node, root: Node, index: CatalogueInd
       // one link — is catalogue organisation rather than a roster selection, so it
       // is not the parent either: skipping past it is what keeps "the bearer's
       // unit" reaching the bearer instead of stopping at the library it chose from.
-      let parent = node.parent
-      while (parent && isGroup(parent)) parent = parent.parent
+      const parent = entryParent(node)
       if (!parent || parent.force || parent === root) return [node]
       return [parent]
     }
@@ -1426,8 +1432,7 @@ function rootEntry(node: Node): Node {
 function ownLimit(constraint: Constraint, node: Node, root: Node): Constraint {
   if (constraint.scope !== 'parent' || constraint.type !== 'max' || constraint.field !== 'selections' || constraint.childId)
     return constraint
-  let parent = node.parent
-  while (parent && isGroup(parent)) parent = parent.parent
+  const parent = entryParent(node)
   return !parent || parent.force || parent === root ? { ...constraint, scope: 'force' } : constraint
 }
 
@@ -1477,8 +1482,7 @@ function violations(node: Node, root: Node, index: CatalogueIndex, census: Censu
  */
 function carriers(constraint: Constraint, node: Node, index: CatalogueIndex): number {
   if (constraint.scope !== 'parent') return 1
-  let holder = node.parent
-  while (holder && isGroup(holder)) holder = holder.parent
+  const holder = entryParent(node)
   return scaleOf(
     node.link ?? node.target,
     node.parent ? index.definitions.get(node.parent.id) : undefined,
