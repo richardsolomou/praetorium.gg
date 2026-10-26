@@ -137,13 +137,14 @@ test(
     await reopened.locator('[data-web-app-chrome]').getByRole('link', { name: 'Praetorium', exact: true }).click()
     await reopened.getByRole('main').getByText('Renamed saved army', { exact: true }).click()
     await expect(reopened.getByLabel('List name')).toHaveValue('Renamed saved army')
-    const renamed = context.waitForEvent('response', (response) => {
-      const data = response.request().postData()
-      return response.ok() && Boolean(data?.includes('"picks"') && data.includes('Renamed twice saved army'))
-    })
-    await reopened.getByLabel('List name').fill('Renamed twice saved army')
-    await reopened.getByLabel('List name').press('Tab')
-    await renamed
+    await waitForRosterSave(
+      reopened,
+      async () => {
+        await reopened.getByLabel('List name').fill('Renamed twice saved army')
+        await reopened.getByLabel('List name').press('Tab')
+      },
+      'Renamed twice saved army',
+    )
     await expect(reopened.getByText(/^\d+ changes? waiting to sync$/)).toHaveCount(0)
     await other.reload()
     await expect(other.locator('[data-roster="Renamed twice saved army"]')).toBeVisible()

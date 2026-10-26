@@ -10,6 +10,7 @@ import {
   openRosterSetup,
   setRosterAccess,
   visitorSetup,
+  recordSaves,
 } from './account'
 import { savedWork } from './storage'
 
@@ -208,11 +209,7 @@ test('copying a saved roster link reports progress beside the header and copies 
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Status share' })
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
   await expect.poll(async () => (await savedWork(page))?.operations.length ?? 0).toBe(0)
-  let saves = 0
-  page.on('request', (request) => {
-    const body = request.postData()
-    if (request.method() === 'POST' && body?.includes('"visibility"') && body.includes('"picks"')) saves++
-  })
+  const saves = recordSaves(page)
   await page.evaluate(() => {
     const copies: string[] = []
     const { promise: held, resolve: releaseCopy } = Promise.withResolvers<void>()
@@ -238,6 +235,6 @@ test('copying a saved roster link reports progress beside the header and copies 
   await expect(page.getByRole('status').filter({ hasText: 'Link copied.' })).toBeVisible()
   const { origin, pathname } = new URL(page.url())
   expect(await page.evaluate(() => (window as unknown as { copies: string[] }).copies)).toEqual([`${origin}${pathname}`])
-  expect(saves).toBe(0)
+  expect(saves).toEqual([])
   await expect(page.getByText('Link copied.')).toBeHidden()
 })

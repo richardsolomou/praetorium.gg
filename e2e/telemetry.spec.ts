@@ -10,6 +10,7 @@ import {
   visitorSetup,
   waitForRosterSave,
   chooseFaction,
+  isRosterSave,
 } from './account'
 import { add, attach, expectNoHorizontalOverflow } from './builder.harness'
 import { chooseCombatUnit } from './combat'
@@ -176,12 +177,9 @@ test('a connected legacy shell import reports saving only after the write succee
   await page.waitForLoadState('networkidle')
   await page.getByRole('button', { name: 'Import roster', exact: true }).waitFor()
   const events = await recordEvents(page)
-  await page.route('**/_serverFn/**', (route) => {
-    const body = route.request().postData() ?? ''
-    return body.includes('"picks"') && body.includes('"visibility"')
-      ? route.fulfill({ status: 503, body: 'save unavailable' })
-      : route.continue()
-  })
+  await page.route('**/_serverFn/**', (route) =>
+    isRosterSave(route.request()) ? route.fulfill({ status: 503, body: 'save unavailable' }) : route.continue(),
+  )
   await page.getByRole('button', { name: 'Import roster', exact: true }).click()
   await page.getByLabel('Roster text').fill(`Private imported army (2000 Points)
 

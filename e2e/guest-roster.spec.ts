@@ -9,6 +9,7 @@ import {
   openRosterSetup,
   chooseFaction,
   chooseOption,
+  recordSaves,
 } from './account'
 import { add } from './builder.harness'
 import { SIGN_IN_REQUIRED } from '../src/core/session'
@@ -26,16 +27,6 @@ async function startGuestRoster(page: Page) {
 }
 
 const DRAFT_KEY = 'praetorium.guest-draft'
-
-/** Every save a page sends, told apart from the price by the fields only a saved list carries. */
-function recordSaves(page: Page) {
-  const saves: string[] = []
-  page.on('request', (request) => {
-    const body = request.postData()
-    if (request.method() === 'POST' && body?.includes('"visibility"') && body.includes('"picks"')) saves.push(body)
-  })
-  return saves
-}
 
 /** A visitor's setup starts from the usual defaults without asking for an account's own. */
 test('a visitor opens the roster setup without a refused account read', async ({ page }) => {

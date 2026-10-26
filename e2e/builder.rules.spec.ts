@@ -1,5 +1,14 @@
 import { expect, test } from './test'
-import { createRoster, signUp, waitForRosterSave, expectNoPageOverflow, chooseRosterAction, openRosterSetup, chooseOption } from './account'
+import {
+  createRoster,
+  signUp,
+  waitForRosterSave,
+  expectNoPageOverflow,
+  chooseRosterAction,
+  openRosterSetup,
+  chooseOption,
+  isRosterSave,
+} from './account'
 import { shot, expectNoHorizontalOverflow, expectNotAttachable, openBuilder, add, arrangeByRole, attach } from './builder.harness'
 
 test('enhancement choices show descriptions when rule and catalogue names differ', async ({ page }) => {
@@ -223,9 +232,7 @@ test('weapon swaps keep fixed profiles stable while saving', async ({ page }) =>
       }).observe(pane, { childList: true, subtree: true, characterData: true })
     })
     await page.route('**/_serverFn/**', async (route) => {
-      const request = route.request()
-      const body = request.postData()
-      if (request.method() !== 'POST' || !body?.includes('"visibility"') || !body.includes('"picks"')) {
+      if (!isRosterSave(route.request())) {
         await route.continue()
         return
       }

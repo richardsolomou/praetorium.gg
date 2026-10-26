@@ -14,6 +14,7 @@ import {
   openRosterSetup,
   chooseFaction,
   visitorSetup,
+  recordSaves,
 } from './account'
 import { productOperator, productSql, userIdFor, lastPathSegment } from './storage'
 
@@ -132,11 +133,7 @@ test('opening an unchanged list saves nothing, and an edit still saves', async (
   await signUp(page, 'Unchanged')
   // Creating the list and naming it are both saves; `createRoster` waits for the name's.
   const rosterName = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Unchanged roster' })
-  const saves: string[] = []
-  page.on('request', (request) => {
-    const body = request.postData()
-    if (request.method() === 'POST' && body?.includes('"visibility"') && body.includes('"picks"')) saves.push(body)
-  })
+  const saves = recordSaves(page)
 
   await page.reload()
   await expect(page.getByLabel('List name')).toHaveValue(rosterName)

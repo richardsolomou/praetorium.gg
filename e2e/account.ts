@@ -1,5 +1,5 @@
 import { createHmac } from 'node:crypto'
-import type { BrowserContextOptions, Locator, Page } from '@playwright/test'
+import type { BrowserContextOptions, Locator, Page, Request } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 import { PHASES } from '../src/core/battle'
 import type { SpacetimeOperator } from '../src/server/spacetimeOperator'
@@ -165,21 +165,36 @@ export async function befriend(requester: Page, recipient: Page, { beforeAccept 
   await expect(requester.locator('section').filter({ hasText: 'Friends' }).filter({ hasText: recipientName })).toBeVisible()
 }
 
+/** A roster save, told apart from a price request by the fields only a saved list carries. */
+export function isRosterSave(request: Request) {
+  const body = request.postData()
+  return request.method() === 'POST' && Boolean(body?.includes('"visibility"') && body.includes('"picks"'))
+}
+
+/** Every roster save a page sends from now on. */
+export function recordSaves(page: Page) {
+  const saves: string[] = []
+  page.on('request', (request) => {
+    if (isRosterSave(request)) saves.push(request.postData()!)
+  })
+  return saves
+}
+
 export async function waitForRosterSave(page: Page, action: () => Promise<unknown>, expectedText?: string) {
   // Autosaves are serialized. Let an earlier render finish before deciding which
   // response belongs to this action, otherwise a fast setup save can satisfy the
   // waiter for a later name or unit change.
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
   // Whichever tab holds the sync lease sends the save, so listen across the whole context.
-  const saved = page.context().waitForEvent('response', (response) => {
-    const postData = response.request().postData()
-    return (
-      response.ok() &&
-      response.request().method() === 'POST' &&
-      Boolean(postData?.includes('"visibility"') && postData.includes('"picks"')) &&
-      (!expectedText || Boolean(postData?.includes(expectedText)))
+  const saved = page
+    .context()
+    .waitForEvent(
+      'response',
+      (response) =>
+        response.ok() &&
+        isRosterSave(response.request()) &&
+        (!expectedText || Boolean(response.request().postData()?.includes(expectedText))),
     )
-  })
   await action()
   await saved
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
