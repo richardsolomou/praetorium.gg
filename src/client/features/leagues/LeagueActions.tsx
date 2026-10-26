@@ -42,10 +42,21 @@ export function LeagueCardActions({
     <>
       <ContextMenu>
         <ContextMenuTrigger render={<article data-league={league.token} className={LEAGUE_CARD} />}>
-          {children(<LeagueMenu actions={actions} showView canDelete={canDelete} />)}
+          {children(
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${eventName(actions.league)}`} />}
+              >
+                <EllipsisVertical />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <LeagueActionItems Item={DropdownMenuItem} actions={actions} canDelete={canDelete} />
+              </DropdownMenuContent>
+            </DropdownMenu>,
+          )}
         </ContextMenuTrigger>
         <ContextMenuContent className="w-56">
-          <LeagueActionItems Item={ContextMenuItem} actions={actions} showView showShare canDelete={canDelete} />
+          <LeagueActionItems Item={ContextMenuItem} actions={actions} canDelete={canDelete} />
         </ContextMenuContent>
       </ContextMenu>
       <LeagueActionDialogs actions={actions} />
@@ -78,56 +89,25 @@ export function LeaguePageActions({ actions, canDelete }: { actions: LeagueActio
   )
 }
 
-function LeagueMenu({
-  actions,
-  showView = false,
-  showShare = true,
-  canDelete,
-}: {
-  actions: LeagueActionsController
-  showView?: boolean
-  showShare?: boolean
-  canDelete: boolean
-}) {
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger render={<Button variant="ghost" size="icon-sm" aria-label={`Actions for ${eventName(actions.league)}`} />}>
-        <EllipsisVertical />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <LeagueActionItems Item={DropdownMenuItem} actions={actions} showView={showView} showShare={showShare} canDelete={canDelete} />
-      </DropdownMenuContent>
-    </DropdownMenu>
-  )
-}
-
 function LeagueActionItems({
   Item,
   actions,
-  showView,
-  showShare,
   canDelete,
 }: {
   Item: typeof DropdownMenuItem | typeof ContextMenuItem
   actions: LeagueActionsController
-  showView: boolean
-  showShare: boolean
   canDelete: boolean
 }) {
   const shareLabel = useInviteShareLabel()
   return (
     <>
-      {showView ? (
-        <Item render={<Link {...eventLink(actions.league)} />}>
-          <Eye /> View {actions.noun}
-        </Item>
-      ) : null}
-      {showShare ? (
-        <Item onClick={actions.copyInvite}>
-          {actions.copyFeedback === 'shared' ? <Share2 /> : actions.copyFeedback === 'copied' ? <Check /> : <Clipboard />}{' '}
-          {actions.copyFeedback === 'shared' ? 'Invite shared' : actions.copyFeedback === 'copied' ? 'Invite link copied' : shareLabel}
-        </Item>
-      ) : null}
+      <Item render={<Link {...eventLink(actions.league)} />}>
+        <Eye /> View {actions.noun}
+      </Item>
+      <Item onClick={actions.copyInvite}>
+        {actions.copyFeedback === 'shared' ? <Share2 /> : actions.copyFeedback === 'copied' ? <Check /> : <Clipboard />}{' '}
+        {actions.copyFeedback === 'shared' ? 'Invite shared' : actions.copyFeedback === 'copied' ? 'Invite link copied' : shareLabel}
+      </Item>
       <Item onClick={actions.openEdit}>
         <Pencil /> Edit {actions.noun}
       </Item>
