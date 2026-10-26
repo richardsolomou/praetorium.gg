@@ -373,7 +373,7 @@ export function LeagueEventView({
             </p>
           ) : null}
           {!revealed && (isOrganizer || accepted.length) ? (
-            <LeagueReadiness league={league} viewerId={viewerId} isOrganizer={isOrganizer} label={label} />
+            <LeagueReadiness token={token} league={league} viewerId={viewerId} isOrganizer={isOrganizer} label={label} />
           ) : null}
           {revealed ? (
             <LeagueArmies

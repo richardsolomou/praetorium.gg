@@ -9,6 +9,7 @@ vi.mock('spacetime:sys@2.2', async (original) => ({ ...(await original<object>()
 import spacetime, * as module from './index'
 import { UNIT_LOADOUT_NAME_MAX_LENGTH, UNIT_LOADOUTS_MAX } from '../../src/core/unitLoadouts'
 import { ABILITY_REMINDERS_MAX } from '../../src/core/reminders'
+import { LEAGUE_REMINDER_COOLDOWN_MS } from '../../src/core/league'
 
 const ISSUER = 'https://praetorium.gg/api/auth'
 const AUDIENCE = 'praetorium'
@@ -69,6 +70,7 @@ function insertTournament(ctx: Ctx, event: Partial<SealedEvent> = {}) {
     revealedBy: undefined,
     soloPoints: undefined,
     allyPoints: undefined,
+    remindedAt: undefined,
     ...event,
   })
   ctx.db.tournaments.insert({
@@ -387,8 +389,21 @@ describe('what a league event allows', () => {
     const set = (fields: { sealBy?: bigint; pointsBudget?: number; allyPoints?: number }) =>
       host.call(host.operator, (ctx) => ctx.db.sealedEvents.id.update({ ...ctx.db.sealedEvents.id.find('event')!, ...fields }))
     const reveal = (now: number) => command({ op: 'reveal', ownerId: 'organizer', now })
-    return { seal, update, event, entry, set, reveal }
+    const remind = (now: number, ownerId = 'organizer') => command({ op: 'remind', ownerId, now })
+    return { seal, update, event, entry, set, reveal, remind }
   }
+
+  it('refuses a seal reminder from someone who does not run the event', () => {
+    const league = setup('[]')
+    expect([league.remind(NOW, 'entrant'), league.event()?.remindedAt]).toEqual(['forbidden', undefined])
+  })
+
+  it('leaves a player who sealed after a reminder out of the next one', () => {
+    const league = setup('[]')
+    league.remind(NOW)
+    league.seal([])
+    expect(league.remind(NOW + LEAGUE_REMINDER_COOLDOWN_MS)).toEqual({ outcome: 'reminded', recipientIds: ['ally'] })
+  })
 
   it('refuses a list sealed after the roster deadline', () => {
     const league = setup('[]')

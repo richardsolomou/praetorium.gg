@@ -21,6 +21,7 @@ export type Notice = { actorId: string; recipientIds: readonly string[] } & (
         | 'league-roster-reseal'
         | 'league-revealed'
         | 'league-roster-unsealed'
+        | 'league-roster-reminder'
       leagueToken: string
       eventToken?: string
     }
@@ -65,7 +66,8 @@ export function noticeMessage(notice: Notice, names: { actor?: string; league?: 
     case 'league-entry-rejected':
     case 'league-roster-reseal':
     case 'league-revealed':
-    case 'league-roster-unsealed': {
+    case 'league-roster-unsealed':
+    case 'league-roster-reminder': {
       if (!names.league) return null
       const body = {
         'league-entry-requested': `${actor} requested to join. Review their entry.`,
@@ -75,6 +77,8 @@ export function noticeMessage(notice: Notice, names: { actor?: string; league?: 
         'league-roster-reseal': 'Your sealed list was cleared after a size or team change. Seal a replacement.',
         'league-revealed': 'The rosters are out. Start your battles.',
         'league-roster-unsealed': 'The organizer unsealed your roster. Seal a replacement.',
+        // The recipient's timezone is unknown here, so the deadline stays on the page they open.
+        'league-roster-reminder': 'Seal your list before the deadline.',
       }[notice.kind]
       return { title: names.league, body, path: leaguePath(notice) }
     }

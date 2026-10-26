@@ -167,6 +167,12 @@ const sealedEvent = z.object({
   allyPoints: eventPoints,
   playsAt: z.number().int().nullable(),
   sealBy: z.number().int().nullable(),
+  // Absent from a module released before organizers sent seal reminders.
+  remindedAt: z
+    .number()
+    .int()
+    .nullish()
+    .transform((value) => value ?? null),
 })
 /** Who hosts an event: a tournament, or the club whose game it is, which `token` addresses either way. */
 const eventHost = {

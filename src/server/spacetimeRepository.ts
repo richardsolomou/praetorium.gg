@@ -598,6 +598,7 @@ export class SpacetimeRepository {
       allyPoints: event.allyPoints,
       playsAt: event.playsAt,
       sealBy: event.sealBy,
+      remindedAt: event.remindedAt,
       pairings,
       occupiedCount: entries.filter((entry) => entry.status !== 'rejected').length,
       entries: entries.map((entry) => {
@@ -745,6 +746,18 @@ export class SpacetimeRepository {
         z.object({ outcome: z.literal('revealed'), entrantIds: z.array(z.string()) }),
         z.object({ outcome: z.literal('not-ready') }),
         z.object({ outcome: z.literal('invalid-warlords'), format: z.enum(TABLE_SHAPES) }),
+      ]),
+    )
+  }
+
+  remindLeague(token: string, ownerId: string, now: number, eventToken?: string) {
+    return this.product.leagueCommand(
+      { op: 'remind', token, ownerId, now, eventToken: eventToken ?? '' },
+      z.union([
+        z.object({ outcome: z.literal('reminded'), recipientIds: z.array(z.string()) }),
+        z.object({ outcome: z.literal('too-soon'), remindedAt: z.number() }),
+        z.object({ outcome: z.literal('nobody') }),
+        z.enum(['missing', 'forbidden']),
       ]),
     )
   }

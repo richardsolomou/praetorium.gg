@@ -389,6 +389,7 @@ export async function createLeague(args: Parameters<typeof server.createLeague>[
     allyPoints: input.allyPoints ?? null,
     playsAt: input.schedule?.playsAt ?? null,
     sealBy: input.schedule?.sealBy ?? null,
+    remindedAt: null,
     pairings: [],
     occupiedCount: 0,
     entries: [],

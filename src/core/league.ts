@@ -300,6 +300,23 @@ function leagueEligibleEntries<T extends { status: LeagueEntryStatus; submitted:
   return entries.filter((entry) => entry.status === 'accepted' && (!closed || entry.submitted))
 }
 
+/** How long an event waits between seal reminders, so nobody hears about one deadline more than once a day. */
+export const LEAGUE_REMINDER_COOLDOWN_MS = 24 * 60 * 60 * 1000
+
+/** Who a seal reminder reaches: accepted entrants without a sealed list, while the lists are hidden and sealing is open. */
+export function leagueReminderRecipients(
+  event: { revealedAt: number | null; sealBy?: number | null },
+  entries: readonly { userId: string; status: LeagueEntryStatus; submitted: boolean }[],
+  now: number,
+) {
+  if (event.revealedAt !== null || leagueSealingClosed(event, now)) return []
+  return entries.filter((entry) => entry.status === 'accepted' && !entry.submitted).map((entry) => entry.userId)
+}
+
+export function mayRemindLeague(remindedAt: number | null, now: number) {
+  return remindedAt === null || now - remindedAt >= LEAGUE_REMINDER_COOLDOWN_MS
+}
+
 /** Who may open a ready event's lists: the organizer, or anyone playing in it, so a group need not wait for one person. */
 export function mayRevealLeague(isOwner: boolean, entry: { status: LeagueEntryStatus } | null) {
   return isOwner || entry?.status === 'accepted'

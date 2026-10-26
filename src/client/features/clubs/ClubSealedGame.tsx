@@ -25,6 +25,7 @@ import { useMoment } from '../leagues/EventSchedule'
 import { ViewRosterButton } from '../leagues/LeagueEntrants'
 import { LeagueCombatDialog } from '../leagues/LeagueCombatDialog'
 import { RosterChooser } from '../leagues/LeagueRosterChooser'
+import { RemindEntrants } from '../leagues/LeagueReadiness'
 import { LeagueSettingsDialog } from '../leagues/LeagueSettingsDialog'
 import { TeamDispositionPanel } from '../leagues/LeagueTeamDisposition'
 import { TeamWarlordPanel } from '../leagues/LeagueTeamWarlord'
@@ -404,6 +405,7 @@ export function ClubSealedGame({
                 </div>
               ) : null}
               <p className="text-xs text-dim">{hint}</p>
+              {club.organizer && record ? <RemindEntrants token={game.token} league={record} viewerId={viewerId} /> : null}
               {side.error && moving === undefined ? <Problem error={side.error} /> : null}
               {viewerId && ownEntry?.team && ownEntry.team.choices.length > 1 ? (
                 <TeamDispositionPanel token={game.token} eventToken={game.token} team={ownEntry.team} />

@@ -1,10 +1,22 @@
 import { useMutation } from '@tanstack/react-query'
 import { useNow } from '../../useNow'
-import { Circle } from 'lucide-react'
-import { leagueRevealChecklist, mayRevealLeague, type LeagueEntryView, type LeagueRevealCheck } from '../../../core/league'
-import { revealLeague } from '../../functions'
+import { BellRing, Circle } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import {
+  LEAGUE_REMINDER_COOLDOWN_MS,
+  leagueReminderRecipients,
+  leagueRevealChecklist,
+  leagueSealingClosed,
+  mayRemindLeague,
+  mayRevealLeague,
+  type LeagueEntryView,
+  type LeagueRevealCheck,
+} from '../../../core/league'
+import { remindLeagueEntrants, revealLeague } from '../../functions'
 import { entryRules, namesPhrase, useLeagueRefresh, type League } from './leagueEvent'
+import { useMoment } from './EventSchedule'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { Problem } from '../../components/Problem'
 import { countLabel } from '../../text'
 
 /** What the organizer still has to do before every roster can open, said to everyone so nobody wonders what the wait is. */
@@ -22,11 +34,13 @@ const ORGANIZER_STEPS: Partial<Record<LeagueRevealCheck['step'], string>> = {
  * Once every check passes, the next-action card offers the reveal to the organizer and anyone playing.
  */
 export function LeagueReadiness({
+  token,
   league,
   viewerId,
   isOrganizer,
   label,
 }: {
+  token: string
   league: League
   viewerId: string | null
   isOrganizer: boolean
@@ -119,7 +133,43 @@ export function LeagueReadiness({
           ))}
         </ul>
       ) : null}
+      {isOrganizer ? <RemindEntrants token={token} league={league} viewerId={viewerId} /> : null}
     </section>
+  )
+}
+
+/** An organizer's nudge to the players still without a sealed list, spaced out so nobody hears about one deadline over and over. */
+export function RemindEntrants({ token, league, viewerId }: { token: string; league: League; viewerId: string | null }) {
+  const moment = useMoment()
+  const refresh = useLeagueRefresh(token)
+  const nextAt = league.remindedAt === null ? null : league.remindedAt + LEAGUE_REMINDER_COOLDOWN_MS
+  const now = useNow([league.sealBy, nextAt])
+  const waiting = leagueReminderRecipients(league, league.entries, now).filter((userId) => userId !== viewerId)
+  const cooling = !mayRemindLeague(league.remindedAt, now)
+  const remind = useMutation({
+    mutationFn: () => remindLeagueEntrants({ data: { token, eventToken: league.eventToken } }),
+    onSuccess: refresh,
+  })
+  if (league.revealedAt !== null || leagueSealingClosed(league, now) || (!waiting.length && league.remindedAt === null)) return null
+  const note = [
+    waiting.length && !cooling
+      ? `Notifies ${namesPhrase(waiting.map((userId) => league.entries.find((entry) => entry.userId === userId)?.name ?? 'a player'))}.`
+      : null,
+    league.remindedAt === null ? null : `Last reminder ${moment(league.remindedAt)}.`,
+    cooling && nextAt !== null && waiting.length ? `You can send another from ${moment(nextAt)}.` : null,
+  ]
+    .filter(Boolean)
+    .join(' ')
+  return (
+    <div data-league-reminder className="space-y-1.5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <Button size="sm" variant="outline" disabled={!waiting.length || cooling || remind.isPending} onClick={() => remind.mutate()}>
+          <BellRing /> {remind.isPending ? 'Reminding…' : 'Remind players'}
+        </Button>
+        <p className="min-w-0 flex-1 text-xs text-dim">{note}</p>
+      </div>
+      {remind.error ? <Problem error={remind.error} /> : null}
+    </div>
   )
 }
 
