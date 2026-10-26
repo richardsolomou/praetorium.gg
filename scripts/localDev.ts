@@ -11,6 +11,7 @@ import { assertSavedDevData, localControlPort, localDevPreviewFile, readLocalDev
 import { closeServer, reserveLocalPort, startLocalChild, stopLocalChildren } from './lib/localStack.ts'
 import { migrateProductData } from './lib/productDataMigrations.ts'
 import { moduleEnvironment } from './lib/spacetimeEnvironment.ts'
+import { TEST_STACK_NAME } from './lib/testStacks.ts'
 import { installedSpacetimeCli, SPACETIME_VERSION } from './lib/spacetimeCli.ts'
 import { callSpacetime, publishSpacetimeModule } from 'ras-stack/spacetime'
 import { browserTestBuildEnvironment, ensureBrowserTestBuild } from './lib/browserTestBuild.ts'
@@ -174,7 +175,7 @@ async function main() {
   const startedAt = performance.now()
   const timings: Record<string, number | boolean> = {}
   if (testMode) {
-    if (path.dirname(root) !== '/tmp' || !/^praetorium-(e2e|native-auth-ios)-[a-zA-Z0-9-]+$/.test(path.basename(root))) {
+    if (path.dirname(root) !== '/tmp' || !TEST_STACK_NAME.test(path.basename(root))) {
       throw new Error('Tests require a fresh Praetorium directory directly under /tmp')
     }
     if (existsSync(root)) throw new Error(`Refusing to reset existing test data: ${root}`)
