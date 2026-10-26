@@ -450,7 +450,7 @@ export class LeagueService {
   }
 }
 
-type LeagueNoticeKind = Extract<Notice, { leagueToken: string }>['kind']
+type LeagueNoticeKind = Exclude<Extract<Notice, { leagueToken: string }>, { round: number }>['kind']
 
 type TournamentDetails = {
   name: string

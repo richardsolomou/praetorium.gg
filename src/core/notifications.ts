@@ -24,6 +24,7 @@ export type Notice = { actorId: string; recipientIds: readonly string[] } & (
       leagueToken: string
       eventToken?: string
     }
+  | { kind: 'league-round-paired'; leagueToken: string; eventToken?: string; round: number }
   | { kind: 'club-member-requested' | 'club-member-accepted'; clubToken: string }
 )
 
@@ -66,7 +67,6 @@ export function noticeMessage(notice: Notice, names: { actor?: string; league?: 
     case 'league-revealed':
     case 'league-roster-unsealed': {
       if (!names.league) return null
-      const query = notice.eventToken ? `?event=${encodeURIComponent(notice.eventToken)}` : ''
       const body = {
         'league-entry-requested': `${actor} requested to join. Review their entry.`,
         'league-entry-accepted': 'The organizer accepted your entry.',
@@ -76,8 +76,11 @@ export function noticeMessage(notice: Notice, names: { actor?: string; league?: 
         'league-revealed': 'The rosters are out. Start your battles.',
         'league-roster-unsealed': 'The organizer unsealed your roster. Seal a replacement.',
       }[notice.kind]
-      return { title: names.league, body, path: `/tournaments/${encodeURIComponent(notice.leagueToken)}${query}` }
+      return { title: names.league, body, path: leaguePath(notice) }
     }
+    case 'league-round-paired':
+      if (!names.league) return null
+      return { title: names.league, body: `Round ${notice.round} is paired. See your table.`, path: leaguePath(notice) }
     case 'club-member-requested':
     case 'club-member-accepted':
       if (!names.club) return null
@@ -87,4 +90,9 @@ export function noticeMessage(notice: Notice, names: { actor?: string; league?: 
         path: `/clubs/${encodeURIComponent(notice.clubToken)}`,
       }
   }
+}
+
+function leaguePath(notice: { leagueToken: string; eventToken?: string }) {
+  const query = notice.eventToken ? `?event=${encodeURIComponent(notice.eventToken)}` : ''
+  return `/tournaments/${encodeURIComponent(notice.leagueToken)}${query}`
 }

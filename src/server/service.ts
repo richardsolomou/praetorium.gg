@@ -549,7 +549,12 @@ export class PraetoriumService {
       round,
       pairs: swissPairings(players, matches, Math.random),
     })
-    if (result === 'paired') return { round }
+    if (result === 'paired') {
+      this.notifier.notify([
+        { kind: 'league-round-paired', actorId: userId, recipientIds: players, leagueToken, eventToken: league.eventToken, round },
+      ])
+      return { round }
+    }
     if (result === 'forbidden') throw new Response('only the organizer pairs rounds', { status: 403 })
     if (result === 'not-ready') throw new Response('every table must finish its battle before the next round', { status: 409 })
     if (result === 'missing') throw new Response('no such event', { status: 404 })

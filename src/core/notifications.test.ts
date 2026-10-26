@@ -73,6 +73,15 @@ describe('notice messages', () => {
     ).toBe(body)
   })
 
+  it('names the round a pairing notice is for', () => {
+    expect(
+      noticeMessage(
+        { kind: 'league-round-paired', actorId: 'alice', recipientIds: ['bob'], leagueToken: 'league', round: 2 },
+        { league: 'Autumn league' },
+      )?.body,
+    ).toBe('Round 2 is paired. See your table.')
+  })
+
   it('drops a league notice whose league no longer exists', () => {
     expect(noticeMessage({ kind: 'league-revealed', actorId: 'alice', recipientIds: ['bob'], leagueToken: 'league' }, {})).toBeNull()
   })
