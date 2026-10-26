@@ -77,7 +77,7 @@ import type { RosterSetupReview } from './rosterSetupReview'
 import { requireReviewedRoster } from '../../offline/reviewedRoster'
 import { localEngine } from '../../offline/localRuntime'
 import { useSettled } from '../../useSettled'
-import { useStoredValue, writeStoredValue } from '../../storedValue'
+import { readStoredValue, writeStoredValue } from '../../storedValue'
 import { DatasheetPanel } from './builder/DatasheetPanel'
 import { Loadout } from './builder/Loadout'
 import { Stepper } from '../../components/Stepper'
@@ -283,8 +283,7 @@ export function ListBuilder({
   const [combatRoster, setCombatRoster] = useState<CombatRoster | null>(null)
   const [compareTargets, setCompareTargets] = useState(false)
   const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] | undefined } | null>(null)
-  const viewMode = useStoredValue(READ_ONLY_PREFERENCE) === 'true'
-  const readOnly = !editable || viewMode
+  const [readOnly, setReadOnly] = useState(!editable)
   const [exportText, setExportText] = useState<RosterTextExport | null>(null)
   const [exchangeCode, setExchangeCode] = useState<RosterExchangeCode | null>(null)
   const [lending, setLending] = useState(false)
@@ -334,7 +333,13 @@ export function ListBuilder({
   const savedId = initial.id
   const queryClient = useQueryClient()
 
+  useEffect(() => {
+    if (!editable) return
+    setReadOnly(readStoredValue(READ_ONLY_PREFERENCE) === 'true')
+  }, [editable])
+
   const setReadOnlyMode = (next: boolean) => {
+    setReadOnly(next)
     writeStoredValue(READ_ONLY_PREFERENCE, String(next))
     // Viewing is reading the list as anybody else would, and the picker is not part of that.
     if (next && showing === 'picker') closePane()
