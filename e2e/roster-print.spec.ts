@@ -62,7 +62,6 @@ test('a full saved army prints selected equipment, both detachments and every pa
   await page.evaluate(NATIVE_BRIDGE_SCRIPT)
   await page.getByRole('button', { name: 'Print battle reference pack', exact: true }).click()
   const nativeAction = parseNativeActionRequest(await page.evaluate(() => localStorage.getItem('e2e-print-action')!))
-  expect(nativeAction?.kind).toBe('print')
   if (nativeAction?.kind !== 'print') throw new Error('Native print request missing')
   expect(nativeAction.html.match(/data-print-datasheet=/g)).toHaveLength(13)
   expect(nativeAction.html).not.toContain('<script')
@@ -96,13 +95,13 @@ test('a full saved army prints selected equipment, both detachments and every pa
 })
 
 test('attached datasheets stay grouped and a missing reference never prints a partial pack', async ({ page }) => {
-  await signUp(page, uniqueName('Print attachments'))
-  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Attached army' })
-  await page.evaluate(() => {
+  await page.addInitScript(() => {
     window.print = () => {
       document.documentElement.dataset.printed = 'true'
     }
   })
+  await signUp(page, uniqueName('Print attachments'))
+  await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Attached army' })
   await chooseRosterAction(page, 'Print')
   const pack = page.locator('[data-battle-reference-pack]')
   await expect(pack).toContainText('0 units · 0 models')
@@ -112,11 +111,6 @@ test('attached datasheets stay grouped and a missing reference never prints a pa
   await addUnit(page, 'Immortals')
   await addUnit(page, 'Technomancer')
   await waitForRosterSave(page, () => attach(page, 'Technomancer', 'Immortals'))
-  await page.evaluate(() => {
-    window.print = () => {
-      document.documentElement.dataset.printed = 'true'
-    }
-  })
   await chooseRosterAction(page, 'Print')
   await expect(pack.locator('[data-print-unit]')).toHaveCount(1)
   await expect(pack.locator('[data-print-datasheet]')).toHaveCount(2)
@@ -125,11 +119,6 @@ test('attached datasheets stay grouped and a missing reference never prints a pa
   await page.getByRole('button', { name: 'Return to roster' }).click()
   await page.reload()
   await expect(page.locator('[data-unit]')).toHaveCount(2)
-  await page.evaluate(() => {
-    window.print = () => {
-      document.documentElement.dataset.printed = 'true'
-    }
-  })
   await page.route('**/_serverFn/**', async (route) => {
     if (route.request().method() === 'POST') await route.abort()
     else await route.continue()
