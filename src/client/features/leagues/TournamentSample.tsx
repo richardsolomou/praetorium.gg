@@ -173,6 +173,7 @@ export function TournamentSample({ stage }: { stage: SampleStage }) {
               <LeagueArmies
                 token={league.token}
                 eventToken={league.eventToken}
+                event={eventName(league)}
                 groups={[{ key: 'all', entries: accepted }]}
                 viewerId={SAMPLE_VIEWER}
                 revealedBy={league.revealedByName}

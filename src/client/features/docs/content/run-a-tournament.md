@@ -28,7 +28,7 @@ When everyone is in and sealed, **Reveal all rosters** opens every list at once 
 
 After the reveal, players start their tournament battles from the tournament page, and finished battles fill the results table. If a revealed roster has a mistake, press the unseal button on that player's roster card, then **Unseal roster**, so they can seal a corrected one. Battles already started keep the roster they began with.
 
-Anyone who can see the results table can save it with **Export CSV**, and a saved file can't be recalled later, even if who can see the event changes.
+Anyone who can see the revealed rosters and results can save them: **Export rosters** writes every list as it was sealed into one text file, and **Export CSV** saves the results table. A saved file can't be recalled later, even if who can see the event changes.
 
 ## Swiss rounds
 

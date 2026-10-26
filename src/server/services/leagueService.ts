@@ -4,7 +4,7 @@ import { byId } from '../../core/collections'
 import type { Notice } from '../../core/notifications'
 import { randomId, randomToken } from 'ras-stack/auth'
 import { pointsBudgetError, pointsLabel, type Roster } from '../../core/battle'
-import { commandSchema, parseRosterSnapshot } from '../../core/commands'
+import { commandSchema, parseRosterSnapshot, rosterSnapshotOrNull } from '../../core/commands'
 import {
   leagueArmyPointsError,
   offeredLeagueAllowances,
@@ -391,8 +391,18 @@ export class LeagueService {
       (sealed.revealedAt === null && !readsSealedLeagueRoster(sealed.format, sealed.rosterLimit, sealed.reader, sealed.sealed))
     )
       return null
-    const { reminders: _reminders, remindersEnabled: _remindersEnabled, ...roster } = parseRosterSnapshot(sealed.snapshot)
-    return rosterWithoutUnitNotes(roster)
+    return readableSealedRoster(parseRosterSnapshot(sealed.snapshot))
+  }
+
+  /** Every revealed list as `leagueRoster` gives one to any reader of the event; nothing before the reveal, whoever asks. */
+  async revealedLeagueRosters(token: string, eventToken?: string) {
+    const sealed = await this.repository.sealedLeagueRosters(token, eventToken)
+    if (!sealed || sealed.revealedAt === null) return []
+    // An unreadable list stays in as null, so the bundle says so rather than leaving its player out.
+    return sealed.rosters.map(({ userId, snapshot }) => {
+      const roster = rosterSnapshotOrNull(snapshot)
+      return { userId, roster: roster && readableSealedRoster(roster) }
+    })
   }
 
   friendLeagueRosters(viewerId: string) {
@@ -528,4 +538,9 @@ function rosterSharingResult(result: Awaited<ReturnType<RepositoryPort['updateLe
   if (typeof result !== 'string') return result
   if (result === 'stale') throw new Response('Your roster changed. Check the sharing options and try again.', { status: 409 })
   throw new Response('Only your own submitted roster can be shared after reveal.', { status: 409 })
+}
+
+/** A sealed list as anyone but its owner reads it: without the owner's reminders or unit notes. */
+function readableSealedRoster({ reminders: _reminders, remindersEnabled: _remindersEnabled, ...roster }: Roster) {
+  return rosterWithoutUnitNotes(roster)
 }

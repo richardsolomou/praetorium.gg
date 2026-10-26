@@ -1,14 +1,23 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Calculator } from 'lucide-react'
+import { Calculator, Download } from 'lucide-react'
+import { posthog } from 'posthog-js'
 import type { ReactElement, ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { version } from '../../../../package.json'
 import type { LeagueArmy, LeagueEntryView } from '../../../core/league'
+import { leagueRosterBundle, type BundledRoster } from '../../../core/leagueRosterBundle'
 import type { FactionPresentation } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
+import { Problem } from '../../components/Problem'
+import { downloadFile, safeFileName } from '../../downloadFile'
 import { factionFor } from '../../factions'
+import { openRevealedLeagueRosters } from '../../functions'
+import { nativeBridgeVersion } from '../../nativeBridge'
 import { factionIndexQuery, gameReferencesQuery } from '../../queries'
+import { revealedLeagueRostersKey } from '../../queries/queryKeys'
+import { useCopyText } from '../../useCopyText'
 import { RosterSummary } from '../rosters/RosterSummary'
 import { EntrantGroup, ViewRosterButton } from './LeagueEntrants'
 import { DropEntrant } from './LeagueDrop'
@@ -33,6 +42,7 @@ type RevealedEntry = LeagueEntryView & {
 export function LeagueArmies({
   token,
   eventToken,
+  event,
   groups,
   viewerId,
   revealedBy,
@@ -44,6 +54,8 @@ export function LeagueArmies({
 }: {
   token: string
   eventToken: string
+  /** The event's name, which heads an exported file. */
+  event: string
   groups: readonly ArmyGroup[]
   viewerId: string | null
   revealedBy: string | null
@@ -58,14 +70,58 @@ export function LeagueArmies({
 }) {
   const { data: factions } = useQuery(factionIndexQuery())
   const { data: references } = useQuery(gameReferencesQuery())
+  const { copy, copied, problem } = useCopyText()
+  const native = nativeBridgeVersion() !== undefined
+  const entries = groups.flatMap((group) => group.entries)
+  const openRosters = () => openRevealedLeagueRosters({ data: { token, eventToken } })
+  // The app copies rather than downloads, and iOS refuses a clipboard write that waits on the network after the tap.
+  const preloaded = useQuery({ queryKey: revealedLeagueRostersKey(token, eventToken), queryFn: openRosters, enabled: native && !sample })
+  const exported = useMutation({
+    mutationFn: async () => {
+      const sealed = new Map((preloaded.data ?? (await openRosters())).map((entry) => [entry.userId, entry.roster]))
+      const rosters = entries.map((entry): BundledRoster => {
+        const player = label(entry)
+        const roster = sealed.get(entry.userId)
+        if (roster === undefined) return { player, absent: 'No roster yet. The organizer unsealed it for a replacement.' }
+        if (roster === null) return { player, absent: 'This roster can’t be shown.' }
+        const catalogueId = roster.built?.catalogueId ?? ''
+        const faction = entry.armyFaction?.displayName ?? factionFor(factions, catalogueId)?.displayName ?? catalogueId
+        return { player, roster, faction }
+      })
+      const text = leagueRosterBundle({
+        event,
+        capturedAt: new Date(),
+        rosters,
+        dispositionName: (id) => references?.dispositions.find((disposition) => disposition.id === id)?.name ?? id,
+        version,
+      })
+      posthog.capture('league_rosters_exported', { rosters: sealed.size })
+      if (native) await copy(text, { failure: 'Copy failed. Try again.', operation: 'league_rosters_export_copy' })
+      else downloadFile(`${safeFileName(event, 'event')}-rosters.txt`, text, 'text/plain;charset=utf-8')
+    },
+  })
   return (
     <section data-league-armies aria-labelledby="league-armies">
-      <div className="mb-2 flex min-h-8 items-end justify-between gap-3 border-b border-edge pb-2">
-        <h2 id="league-armies" className="rubric">
+      <div className="mb-2 flex min-h-8 flex-wrap items-end justify-between gap-x-3 gap-y-1 border-b border-edge pb-2">
+        <h2 id="league-armies" className="rubric shrink-0">
           The rosters
         </h2>
-        {revealedBy ? <p className="text-xs text-dim">Revealed by {revealedBy}</p> : null}
+        <div className="ml-auto flex items-center gap-3">
+          {revealedBy ? <p className="text-xs text-dim">Revealed by {revealedBy}</p> : null}
+          {sample ? null : (
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={exported.isPending || (native && !preloaded.data)}
+              onClick={() => exported.mutate()}
+            >
+              <Download /> {native ? (copied ? 'Copied rosters' : 'Copy rosters') : 'Export rosters'}
+            </Button>
+          )}
+        </div>
       </div>
+      {exported.error ? <Problem className="mb-2" error={exported.error} /> : null}
+      {problem ? <Problem className="mb-2">{problem}</Problem> : null}
       <div className="space-y-4">
         {groups.map((group) => {
           const cards = <div className="space-y-2">{group.entries.map(card)}</div>

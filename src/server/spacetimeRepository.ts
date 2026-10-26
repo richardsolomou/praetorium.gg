@@ -796,6 +796,18 @@ export class SpacetimeRepository {
     }
   }
 
+  /** Every accepted entrant's sealed list in one read, with whether the event has revealed them. */
+  async sealedLeagueRosters(token: string, eventToken?: string) {
+    const record = await this.product.leagueByToken(token, eventToken)
+    if (!record) return null
+    return {
+      revealedAt: record.event.revealedAt,
+      rosters: record.entries.flatMap((entry) =>
+        entry.status === 'accepted' && entry.rosterSnapshot !== null ? [{ userId: entry.userId, snapshot: entry.rosterSnapshot }] : [],
+      ),
+    }
+  }
+
   leagueRosterSharing(token: string, eventToken: string | undefined, userId: string) {
     return this.product.leagueRosterSharing(token, eventToken ?? '', userId)
   }

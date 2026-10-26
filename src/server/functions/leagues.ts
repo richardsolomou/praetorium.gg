@@ -195,6 +195,10 @@ export const openLeagueRoster = createServerFn({ method: 'GET' })
     rpc(async () => app().service.leagueService.leagueRoster(data.token, data.userId, data.eventToken, await currentUserId())),
   )
 
+export const openRevealedLeagueRosters = createServerFn({ method: 'GET' })
+  .validator(leagueEventSchema)
+  .handler(({ data }) => rpc(() => app().service.leagueService.revealedLeagueRosters(data.token, data.eventToken)))
+
 export const listFriendLeagueRosters = createServerFn({ method: 'GET' }).handler(() =>
   rpc(async () => {
     const userId = await requireUserId()
