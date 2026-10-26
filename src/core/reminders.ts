@@ -169,20 +169,20 @@ const turnAt = (value: string | undefined): TurnScope => {
   return 'either'
 }
 
+/** Whose turn or phase a timing names, captured for `turnAt`. */
+const WHOSE = String.raw`(your opponent[’']s|the opponent[’']s|each player[’']s|either player[’']s|your|any|the)?`
+const PHASE = '(command|movement|shooting|charge|fight)'
+
 /** Suggest action timings while excluding duration and expiry clauses such as "until the start". */
 export function suggestReminderTimings(description: string): ReminderTiming[] {
   const text = description.replaceAll(/\s+/gu, ' ')
   const candidates: Candidate[] = []
-  const phasePattern =
-    /\bat (?:the )?(start|end) of (your opponent[’']s|the opponent[’']s|each player[’']s|either player[’']s|your|any|the)?\s*(command|movement|shooting|charge|fight) phase\b/giu
-  const turnPattern =
-    /\bat (?:the )?(start|end) of (your opponent[’']s|the opponent[’']s|each player[’']s|either player[’']s|your|any|the)?\s*turn\b/giu
+  const phasePattern = new RegExp(String.raw`\bat (?:the )?(start|end) of ${WHOSE}\s*${PHASE} phase\b`, 'giu')
+  const turnPattern = new RegExp(String.raw`\bat (?:the )?(start|end) of ${WHOSE}\s*turn\b`, 'giu')
   const roundPattern = /\bat (?:the )?(start|end) of (?:the |each |every |a )?(first )?battle round\b/giu
   const genericPhasePattern = /\bat (?:the )?(start|end) of (?:any|each|a|the) phase\b/giu
-  const broadPhasePattern =
-    /\b(?:in|during) (your opponent[’']s|the opponent[’']s|each player[’']s|either player[’']s|your|any|the)?\s*(?:first |next )?(command|movement|shooting|charge|fight) phase\b/giu
-  const additionalPhasePattern =
-    /\b(?:or|and) (your opponent[’']s|the opponent[’']s|each player[’']s|either player[’']s|your|any|the)?\s*(command|movement|shooting|charge|fight) phase\b/giu
+  const broadPhasePattern = new RegExp(String.raw`\b(?:in|during) ${WHOSE}\s*(?:first |next )?${PHASE} phase\b`, 'giu')
+  const additionalPhasePattern = new RegExp(String.raw`\b(?:or|and) ${WHOSE}\s*${PHASE} phase\b`, 'giu')
 
   for (const match of text.matchAll(phasePattern)) {
     const phase = phaseAt(match[3] ?? '')
