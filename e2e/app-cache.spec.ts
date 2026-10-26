@@ -9,6 +9,7 @@ import {
   signUp,
   uniqueName,
   waitForRosterSave,
+  signOut,
 } from './account'
 
 async function savedState(page: Page) {
@@ -146,11 +147,7 @@ test(
     await expect(reopened.getByText(/^\d+ changes? waiting to sync$/)).toHaveCount(0)
     await other.reload()
     await expect(other.locator('[data-roster="Renamed twice saved army"]')).toBeVisible()
-    await reopened
-      .locator('[data-web-app-chrome]')
-      .getByRole('button', { name: `Account menu for ${player}` })
-      .click()
-    await reopened.getByRole('menuitem', { name: 'Sign out' }).click()
+    await signOut(reopened)
     await expect(reopened.getByRole('link', { name: 'Sign in', exact: true }).first()).toBeVisible()
     await expect
       .poll(async () => {
@@ -187,11 +184,7 @@ test('sign-out finishes when saved-device storage is unavailable', async ({ page
       throw new Error('IndexedDB unavailable')
     }
   })
-  await page
-    .getByRole('button', { name: `Account menu for ${player}` })
-    .first()
-    .click()
-  await page.getByRole('menuitem', { name: 'Sign out' }).click()
+  await signOut(page)
   await expect(page.getByRole('link', { name: 'Sign in', exact: true }).first()).toBeVisible()
   await expect(page).toHaveURL('/')
   expect(await page.evaluate(() => (window as Window & { failedStorageAttempts?: number }).failedStorageAttempts)).toBeGreaterThan(0)

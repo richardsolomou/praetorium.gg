@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { advance, createRoster, rewind, signUp, startBattle, uniqueName, practiceBattle } from './account'
+import { advance, createRoster, rewind, signUp, startBattle, uniqueName, practiceBattle, concede } from './account'
 
 /** Narrow screens show one column at a time behind the battle tabs. */
 async function show(page: Page, tab: 'Your side' | 'Battle') {
@@ -123,9 +123,7 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
   }
   await page.setViewportSize(desktop)
 
-  await page.getByRole('button', { name: 'Battle options' }).click()
-  await page.getByRole('menuitem', { name: 'Concede battle', exact: true }).click()
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Concede battle', exact: true }).click()
+  await concede(page)
   const slider = page.getByRole('navigation', { name: 'Battle replay timeline' }).getByRole('slider', { name: 'Replay event' })
   await rewind(slider)
   await slider.press('End')

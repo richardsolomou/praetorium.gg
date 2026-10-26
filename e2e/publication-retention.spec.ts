@@ -11,6 +11,7 @@ import {
   waitForRosterSave,
   sealableRoster,
   practiceBattle,
+  concede,
 } from './account'
 import { productOperator, productSql, savedWork, withAuthSql, userIdNamed, lastPathSegment, battleIdFor } from './storage'
 
@@ -86,11 +87,8 @@ async function sealThroughPage(page: Page, leagueToken: string, rosterName: stri
   await expect(chooser).toBeHidden()
 }
 
-async function concede(page: Page) {
-  const choice = page.getByRole('menuitem', { name: 'Concede battle', exact: true })
-  await retryUntilVisible(choice, () => page.getByRole('button', { name: 'Battle options' }).click())
-  await choice.click()
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Concede battle', exact: true }).click()
+async function concedeAndSync(page: Page) {
+  await concede(page)
   await expect(page.getByRole('region', { name: 'Battle scoreboard' }).getByRole('heading')).toContainText('wins by concession')
   // The scoreboard updates before the queued concession reaches the server.
   await expect.poll(async () => (await savedWork(page))?.operations.length ?? 0, { timeout: 60_000 }).toBe(0)
@@ -132,7 +130,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
 
   const battleUrl = await practiceBattle(page, rosterName)
   await startBattle(page)
-  await concede(page)
+  await concedeAndSync(page)
   const battleId = await battleIdFor(lastPathSegment(battleUrl))
   const commandsBefore = await productSql`SELECT seq, body FROM commands WHERE battle_id = ${battleId}`
   expect(commandsBefore.some((row) => String(row.body).includes('Skorpekh Lord'))).toBe(true)
@@ -256,7 +254,7 @@ test('self-account deletion removes populated shared history and sealed entries 
     const ownerCollection = await collectionAndFavourite(owner, ownerId)
     const opponentCollection = await seedCollection(opponentId, ownerCollection.entryId)
     const finished = await setupBattle(owner, opponent, { opponent: opponentName, hostRoster: ownerRoster, guestRoster: opponentRoster })
-    await concede(owner)
+    await concedeAndSync(owner)
     const otherCreated = await createBattle(opponent, { opponent: ownerName })
     const unrelated = await createBattle(opponent, { practice: true })
     const ownLeague = await leagueFixture(ownerId, [ownerId])
@@ -354,7 +352,7 @@ test('saved public results leave cached rankings and viewer records after battle
       name: uniqueName('Record guest list'),
     })
     const battle = await setupBattle(owner, opponent, { opponent: opponentName, hostRoster, guestRoster })
-    await concede(owner)
+    await concedeAndSync(owner)
     await expectRecord(anonymous, ownerId, 1)
     const standing = anonymous.locator('[data-rankings] a').filter({ hasText: 'Everyone' })
     await expect(standing).toContainText('0% · 1 battle')

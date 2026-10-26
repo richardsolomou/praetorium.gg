@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { signUp, uniqueName } from './account'
+import { signUp, uniqueName, signOut } from './account'
 
 async function installInspector(page: Page) {
   await page.addInitScript(() => {
@@ -67,11 +67,7 @@ test('browser agents discover the full MCP surface and account tools disappear o
   await expect.poll(() => names(page)).toHaveLength(19)
   const factions = await call(page, 'list_factions')
   expect(factions.structuredContent?.factions).toBeInstanceOf(Array)
-  await page
-    .locator('[data-web-app-chrome]')
-    .getByRole('button', { name: /Account menu for/ })
-    .click()
-  await page.getByRole('menuitem', { name: 'Sign out', exact: true }).click()
+  await signOut(page)
   await expect.poll(() => names(page)).toHaveLength(11)
 })
 

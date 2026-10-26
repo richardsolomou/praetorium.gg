@@ -12,6 +12,7 @@ import {
   visitorSetup,
   chooseFaction,
   chooseOption,
+  concede,
 } from './account'
 
 const rosterText = `First army (65 Points)
@@ -149,9 +150,7 @@ test('a casual player practises a round, corrects an action and reviews the fini
   await expect(page.getByRole('heading', { name: 'movement phase', exact: true })).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('practice-round.png'), fullPage: true })
   await page.getByRole('tab', { name: 'Battle', exact: true }).click()
-  await page.getByRole('button', { name: 'Battle options', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Concede battle', exact: true }).click()
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Concede battle', exact: true }).click()
+  await concede(page)
   const debrief = page.getByRole('region', { name: 'Battle debrief', exact: true })
   await expect(debrief).toBeHidden()
   await expect(page.locator('[data-scoreboard]')).toContainText('by concession')

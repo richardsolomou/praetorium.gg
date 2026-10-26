@@ -11,6 +11,7 @@ import {
   expectNoPageOverflow,
   addUnit,
   visitorSetup,
+  signOut,
 } from './account'
 
 async function expectOnboardingProgress(page: Parameters<typeof signUp>[0], resolved: number) {
@@ -602,11 +603,7 @@ test('signing out in one tab signs the other tab out', async ({ page }) => {
   await other.goto('/')
   await expect(other.getByRole('button', { name: `Account menu for ${name}` }).first()).toBeVisible()
 
-  await page
-    .getByRole('button', { name: `Account menu for ${name}` })
-    .first()
-    .click()
-  await page.getByRole('menuitem', { name: 'Sign out' }).click()
+  await signOut(page)
 
   await expect(other.getByRole('link', { name: 'Sign in' }).first()).toBeVisible()
 })

@@ -79,6 +79,18 @@ export async function choosePlayerDefault(page: Page, setting: 'Roster visibilit
   await expect.poll(async () => (await savedWork(page))?.operations.length ?? 0).toBe(0)
 }
 
+/** Signs out from the account menu, reopening the menu until it shows: a press before hydration opens nothing. */
+export async function signOut(page: Page) {
+  const item = page.getByRole('menuitem', { name: 'Sign out', exact: true })
+  await retryUntilVisible(item, () =>
+    page
+      .locator('[data-web-app-chrome]')
+      .getByRole('button', { name: /^Account menu for / })
+      .click(),
+  )
+  await item.click()
+}
+
 export function uniqueName(base: string) {
   return `${base}-${crypto.randomUUID().slice(0, 8)}`
 }
@@ -571,6 +583,14 @@ export async function advance(page: Page, { dismissReminders = true }: { dismiss
     }
     if (guard === 2) throw new Error('Never reached the button that ends the phase')
   }
+}
+
+/** Concedes the open battle from its options menu, reopening the menu until it shows: a press before hydration opens nothing. */
+export async function concede(page: Page) {
+  const choice = page.getByRole('menuitem', { name: 'Concede battle', exact: true })
+  await retryUntilVisible(choice, () => page.getByRole('button', { name: 'Battle options', exact: true }).click())
+  await choice.click()
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Concede battle', exact: true }).click()
 }
 
 /** Ends all six phases of the current turn. */

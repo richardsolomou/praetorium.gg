@@ -17,6 +17,7 @@ import {
   chooseFaction,
   visitorSetup,
   chooseOption,
+  signOut,
 } from './account'
 import { battleLog, productOperator, savedWork, userIdFor, lastPathSegment, expectWorkSynced } from './storage'
 import { chooseCombatUnit } from './combat'
@@ -337,11 +338,7 @@ test('conflicting roster edits stay saved and export before choosing the server 
   await context.setOffline(true)
   await page.getByLabel('List name').fill('Plane edit')
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(1)
-  await page
-    .getByRole('button', { name: /Account menu for/ })
-    .first()
-    .click()
-  await page.getByRole('menuitem', { name: 'Sign out' }).click()
+  await signOut(page)
   await expect(page.getByRole('dialog', { name: 'Saved changes', exact: true })).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('button', { name: /Account menu for/ }).first()).toBeVisible()

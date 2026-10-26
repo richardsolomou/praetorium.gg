@@ -14,6 +14,7 @@ import {
   openRosterSetup,
   chooseFaction,
   chooseOption,
+  signOut,
 } from './account'
 import { catalogue } from './stackEnv'
 
@@ -262,9 +263,7 @@ test('a signed-in player cannot return to the sign-in form', async ({ page }) =>
   await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toHaveCount(0)
   await expect(page).not.toHaveURL(/\/sign-in/)
 
-  const signOut = page.getByRole('menuitem', { name: 'Sign out' })
-  await retryUntilVisible(signOut, () => page.getByRole('button', { name: `Account menu for ${name}` }).click())
-  await signOut.click()
+  await signOut(page)
   await page.goto('/support')
   await page.goto('/sign-in?next=%2Ffactions')
   await page.waitForLoadState('networkidle')

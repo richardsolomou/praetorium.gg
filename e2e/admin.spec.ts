@@ -1,6 +1,6 @@
 import { expect, test } from './test'
 import { PREVIEW_EMAIL } from '../scripts/seedPreview'
-import { befriend, currentTotp, signIn, signInAsPreview, signUp, uniqueName } from './account'
+import { befriend, currentTotp, signIn, signInAsPreview, signUp, uniqueName, signOut } from './account'
 
 // The seeded administrator is shared by every attempt, so these tests never change its
 // security settings and give each player they create a name of its own.
@@ -36,8 +36,7 @@ test('a player secures an account with an authenticator app', async ({ page, req
   await expect(page.getByText('Enabled · Protects password sign-in', { exact: true })).toBeVisible()
   await page.unroute('**/api/auth/two-factor/verify-totp')
 
-  await page.getByRole('button', { name: `Account menu for ${name}` }).click()
-  await page.getByRole('menuitem', { name: 'Sign out' }).click()
+  await signOut(page)
   await page.waitForURL('/')
   await signIn(page, email, password)
   await expect(page.getByLabel('Authenticator code')).toBeVisible()

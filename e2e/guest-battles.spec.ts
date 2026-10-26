@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { befriend, createBattle, createRoster, setupBattle, signUp, uniqueName, expectNoPageOverflow } from './account'
+import { befriend, createBattle, createRoster, setupBattle, signUp, uniqueName, expectNoPageOverflow, concede } from './account'
 
 test('a visitor browses public battles and opens a spectator view on a phone and a desktop', async ({ page, browser }) => {
   const hostContext = await browser.newContext()
@@ -28,9 +28,7 @@ test('a visitor browses public battles and opens a spectator view on a phone and
     await expect(page.locator('[data-replay-timeline]')).toBeVisible()
     await expect(page.getByRole('button', { name: 'Battle options' })).toHaveCount(0)
   }
-  await host.getByRole('button', { name: 'Battle options' }).click()
-  await host.getByRole('menuitem', { name: 'Concede battle' }).click()
-  await host.getByRole('alertdialog').getByRole('button', { name: 'Concede battle' }).click()
+  await concede(host)
   await expect(host.getByRole('region', { name: 'Battle scoreboard' })).toContainText('wins by concession')
   await page.goto('/battles')
   await expect(page.locator(`[data-battle-shelf="Public games"] article > a[href="${battlePath}"]`)).toBeVisible()

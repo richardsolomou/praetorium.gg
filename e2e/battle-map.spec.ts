@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { createRoster, retryUntilVisible, signUp, startBattle, practiceBattle } from './account'
+import { createRoster, retryUntilVisible, signUp, startBattle, practiceBattle, concede } from './account'
 
 async function inspectMap(page: Page) {
   const trigger = page.getByRole('button', { name: /^View .+ battlefield$/ })
@@ -31,9 +31,7 @@ test('players and spectators open the saved battlefield as a full-board map', as
   await page.setViewportSize({ width: 390, height: 844 })
   await page.getByRole('tab', { name: 'Battle', exact: true }).click()
   await inspectMap(page)
-  await page.getByRole('button', { name: 'Battle options' }).click()
-  await page.getByRole('menuitem', { name: 'Concede battle', exact: true }).click()
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Concede battle', exact: true }).click()
+  await concede(page)
   await expect(page.getByText('Battle replay', { exact: true })).toBeVisible()
   await inspectMap(page)
 
