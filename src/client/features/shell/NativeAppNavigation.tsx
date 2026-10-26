@@ -53,16 +53,16 @@ export function NativeAppNavigation({
   const navigation = nativeNavigation(path, search)
   const active = tabLocation(href)?.section
   const index = router.history.location.state.__TSR_index
-  const staysInTab = Boolean(navigation.back?.preferHistory) && historyBackStaysInTab(index, state)
+  const staysInTab = Boolean(navigation.back) && historyBackStaysInTab(index, state)
   const notFound = useRouterState({ select: ({ matches }) => matches.some((match) => match.status === 'notFound' || match._notFound) })
   const moreActive = path === '/more' || !PRIMARY_TABS.some(({ section }) => section === active)
 
   useEffect(() => {
     setNativeHistoryBack(staysInTab)
     if (document.documentElement.dataset.nativeShell === 'true') {
-      setNativeNavigation(navigation.title, navigation.back?.href, staysInTab)
+      setNativeNavigation(navigation.title, navigation.back, staysInTab)
     }
-  }, [navigation.back?.href, navigation.title, staysInTab])
+  }, [navigation.back, navigation.title, staysInTab])
   useEffect(() => {
     if (document.documentElement.dataset.nativeShell === 'true') setNativeAccount(me?.name, me?.image)
   }, [me?.image, me?.name])

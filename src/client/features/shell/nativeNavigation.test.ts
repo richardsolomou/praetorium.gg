@@ -6,7 +6,7 @@ describe('native application navigation', () => {
     ['/factions/adeptus-custodes/datasheets/allarus-custodians', '/factions/adeptus-custodes/datasheets?rules=custodes-11e'],
     ['/factions/adeptus-custodes/detachments/aquilan-shield', '/factions/adeptus-custodes?rules=custodes-11e'],
   ])('retains the rules version when returning from %s', (path, href) => {
-    expect(nativeNavigation(path, { rules: 'custodes-11e' }).back?.href).toBe(href)
+    expect(nativeNavigation(path, { rules: 'custodes-11e' }).back).toBe(href)
   })
   it.each([
     ['/rosters', { section: 'rosters', title: 'Rosters' }],
@@ -26,48 +26,30 @@ describe('native application navigation', () => {
     ['/missions', 'missions', 'Missions'],
     ['/force-dispositions', 'missions', 'Force dispositions'],
   ])('returns from %s to the More screen that lists it', (path, section, title) => {
-    expect(nativeNavigation(path)).toEqual({ back: { href: '/more', label: 'Back to more', preferHistory: true }, section, title })
+    expect(nativeNavigation(path)).toEqual({ back: '/more', section, title })
   })
 
   it.each([
     ['/rosters', { section: 'rosters', title: 'Rosters' }],
-    [
-      '/rosters/army-id',
-      { back: { href: '/rosters', label: 'Back to rosters', preferHistory: true }, section: 'rosters', title: 'Roster' },
-    ],
-    [
-      '/battles/battle-id',
-      { back: { href: '/battles', label: 'Back to battles', preferHistory: true }, section: 'battles', title: 'Battle' },
-    ],
-    [
-      '/tournaments/league-id',
-      { back: { href: '/tournaments', label: 'Back to tournaments', preferHistory: true }, section: 'events', title: 'Tournament' },
-    ],
-    [
-      '/clubs/club-id/games/game-id',
-      { back: { href: '/clubs/club-id', label: 'Back to club', preferHistory: true }, section: 'events', title: 'Sealed game' },
-    ],
-    [
-      '/factions/necrons',
-      { back: { href: '/factions', label: 'Back to factions', preferHistory: true }, section: 'factions', title: 'Faction' },
-    ],
+    ['/rosters/army-id', { back: '/rosters', section: 'rosters', title: 'Roster' }],
+    ['/battles/battle-id', { back: '/battles', section: 'battles', title: 'Battle' }],
+    ['/tournaments/league-id', { back: '/tournaments', section: 'events', title: 'Tournament' }],
+    ['/clubs/club-id/games/game-id', { back: '/clubs/club-id', section: 'events', title: 'Sealed game' }],
+    ['/factions/necrons', { back: '/factions', section: 'factions', title: 'Faction' }],
     [
       '/missions/chapter-approved',
       {
-        back: { href: '/missions', label: 'Back to missions', preferHistory: true },
+        back: '/missions',
         section: 'missions',
         title: 'Mission pack',
       },
     ],
-    ['/rules/core-rules', { back: { href: '/rules', label: 'Back to rules', preferHistory: true }, section: 'rules', title: 'Rules' }],
-    [
-      '/rules/core-rules/moving',
-      { back: { href: '/rules/core-rules', label: 'Back to contents', preferHistory: true }, section: 'rules', title: 'Rules' },
-    ],
+    ['/rules/core-rules', { back: '/rules', section: 'rules', title: 'Rules' }],
+    ['/rules/core-rules/moving', { back: '/rules/core-rules', section: 'rules', title: 'Rules' }],
     [
       '/factions/necrons/datasheets/overlord',
       {
-        back: { href: '/factions/necrons/datasheets', label: 'Back to datasheets', preferHistory: true },
+        back: '/factions/necrons/datasheets',
         section: 'factions',
         title: 'Datasheet',
       },
@@ -75,7 +57,7 @@ describe('native application navigation', () => {
     [
       '/missions/chapter-approved/matchups/mission/disposition',
       {
-        back: { href: '/missions/chapter-approved', label: 'Back to mission pack', preferHistory: true },
+        back: '/missions/chapter-approved',
         section: 'missions',
         title: 'Mission',
       },
@@ -83,7 +65,7 @@ describe('native application navigation', () => {
     [
       '/missions/chapter-approved/secondaries/assassination',
       {
-        back: { href: '/missions/chapter-approved', label: 'Back to mission pack', preferHistory: true },
+        back: '/missions/chapter-approved',
         section: 'missions',
         title: 'Secondary mission',
       },
@@ -91,36 +73,30 @@ describe('native application navigation', () => {
     [
       '/force-dispositions/take-and-hold',
       {
-        back: { href: '/force-dispositions', label: 'Back to force dispositions', preferHistory: true },
+        back: '/force-dispositions',
         section: 'missions',
         title: 'Force disposition',
       },
     ],
-    ['/users/player-id', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Profile' }],
-    ['/support', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Support' }],
-    ['/privacy', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Privacy' }],
-    ['/sources', { back: { href: '/', label: 'Back to home', preferHistory: true }, title: 'Data sources' }],
-    ['/data-updates', { back: { href: '/more', label: 'Back to more', preferHistory: true }, title: 'Data updates' }],
+    ['/users/player-id', { back: '/', title: 'Profile' }],
+    ['/support', { back: '/', title: 'Support' }],
+    ['/privacy', { back: '/', title: 'Privacy' }],
+    ['/sources', { back: '/', title: 'Data sources' }],
+    ['/data-updates', { back: '/more', title: 'Data updates' }],
   ] as const)('maps %s to its stable app destination', (path, expected) => {
     expect(nativeNavigation(path)).toEqual(expected)
   })
 
   it('returns a shared roster to the battle or tournament that opened it', () => {
-    expect(nativeNavigation('/rosters/roster-id', { battle: 'battle-token' }).back).toEqual({
-      href: '/battles/battle-token',
-      label: 'Back to battle',
-      preferHistory: true,
-    })
-    expect(nativeNavigation('/rosters/roster-id', { league: 'league-token', event: 'event-token' }).back).toEqual({
-      href: '/tournaments/league-token?event=event-token',
-      label: 'Back to event',
-      preferHistory: true,
-    })
+    expect(nativeNavigation('/rosters/roster-id', { battle: 'battle-token' }).back).toBe('/battles/battle-token')
+    expect(nativeNavigation('/rosters/roster-id', { league: 'league-token', event: 'event-token' }).back).toBe(
+      '/tournaments/league-token?event=event-token',
+    )
   })
 })
 
 it('keeps the selected version in native reference Back destinations', () => {
-  expect(nativeNavigation('/factions/adeptus-custodes/rules/custodes-11e/datasheets/allarus-custodians').back?.href).toBe(
+  expect(nativeNavigation('/factions/adeptus-custodes/rules/custodes-11e/datasheets/allarus-custodians').back).toBe(
     '/factions/adeptus-custodes/rules/custodes-11e/datasheets',
   )
 })
