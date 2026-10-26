@@ -6,7 +6,7 @@ Open the account menu, the picture button at the top right, and choose **Sign in
 
 You can also choose **Continue with Apple**, **Continue with Google**, **Continue with Discord** or **Continue with GitHub** instead of a password.
 
-Your name is what other players see in battles, rosters and friend lists. You can change it later under **Display name** in [Account settings](/profile). Your email stays private.
+Your name is what other players see in battles, rosters and friend lists. If you sign up with Apple and choose not to share your name, Praetorium asks you to choose one before you go on. You can change it later under **Display name** in [Account settings](/profile). Your email stays private.
 
 When you sign up with a password, Praetorium sends you a verification email. You can play without verifying, but see [Verify your email](/docs/account-security#verify-your-email) for why it's worth doing.
 

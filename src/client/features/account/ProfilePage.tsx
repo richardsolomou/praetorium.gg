@@ -14,9 +14,10 @@ import { PlayerDefaultsSettings } from './PlayerDefaultsSettings'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SignInRequired } from '../../components/SignInRequired'
-import { accountMethodsQuery, battlesQuery, friendshipsQuery, meQuery, opponentsQuery, userProfileKey } from '../../queries'
+import { accountMethodsQuery, meQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { prepareProfileImage } from './profileImage'
+import { refreshProfileQueries } from './refreshProfileQueries'
 import { Problem } from '../../components/Problem'
 
 const accountLinkErrorMessage = (error?: string) => {
@@ -74,15 +75,9 @@ function ProfileForm({
     const submitted = { name: name.trim(), image }
     const result = await submit.run(() => authClient.updateUser(submitted))
     if (result.error) return
-    await queryClient.invalidateQueries({ queryKey: meQuery().queryKey })
+    await refreshProfileQueries(queryClient)
     setName((current) => (current?.trim() === submitted.name ? undefined : current))
     setImage((current) => (current === submitted.image ? undefined : current))
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey }),
-      queryClient.invalidateQueries({ queryKey: friendshipsQuery().queryKey }),
-      queryClient.invalidateQueries({ queryKey: opponentsQuery().queryKey }),
-      queryClient.invalidateQueries({ queryKey: userProfileKey() }),
-    ])
     posthog.capture('profile_updated', { name_changed: name.trim() !== me.name, image_changed: image !== me.image })
     setSaved(true)
   }

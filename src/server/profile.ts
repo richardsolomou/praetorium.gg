@@ -20,7 +20,7 @@ export async function profileUpdate(input: ProfileUpdate): Promise<ProfileUpdate
     }
   }
 
-  if ('image' in data && data.image !== null) {
+  if (data.image !== undefined && data.image !== null) {
     if (typeof data.image !== 'string') return { ok: false, error: 'Choose a JPEG, PNG or WebP profile picture.' }
     // An unmodified save resends the same URL this module handed back last time; only a fresh
     // choice from the file picker arrives as a data URL and needs storing.

@@ -48,13 +48,21 @@ test('shows the faction icon for an unqualified frozen army', async ({ page }, t
   }
 })
 
-test('greets a signed-in player whose provider supplied no name', async ({ page }) => {
+test('asks a signed-in player whose provider supplied no name to choose one', async ({ page }) => {
   const { email } = await signUp(page, uniqueName('Nameless'))
   await withAuthSql((database) => database.prepare('UPDATE user SET name = ? WHERE email = ?').run('', email))
   await page.goto('/')
 
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Welcome')
-  await page.screenshot({ path: test.info().outputPath('home-nameless-greeting.png') })
+  const prompt = page.getByRole('dialog', { name: 'Choose a display name' })
+  await expect(prompt).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(prompt).toBeVisible()
+  await page.screenshot({ path: test.info().outputPath('home-nameless-prompt.png') })
+
+  await prompt.getByRole('textbox', { name: 'Display name' }).fill('Castellan')
+  await prompt.getByRole('button', { name: 'Save name' }).click()
+  await expect(prompt).toHaveCount(0)
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Welcome, Castellan')
 })
 
 test('offers a secondary account-creation button below sign-in', async ({ page }) => {
