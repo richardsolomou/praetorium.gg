@@ -2929,15 +2929,8 @@ function admitWaiting(ctx: Context, entries: LeagueEntryRow[], playerLimit: numb
   })
 }
 
-function resetLeagueEntry(ctx: Context, entry: LeagueEntryRow) {
-  ctx.db.leagueEventEntries.key.update({
-    ...entry,
-    rosterId: undefined,
-    rosterName: undefined,
-    rosterSnapshot: undefined,
-    submittedAt: undefined,
-  })
-}
+/** The fields an entry's sealed list fills, all cleared. */
+const UNSEALED = { rosterId: undefined, rosterName: undefined, rosterSnapshot: undefined, submittedAt: undefined }
 
 function insertLeagueEntry(ctx: Context, eventId: string, userId: string, status: 'accepted' | 'pending', now: number) {
   ctx.db.leagueEventEntries.insert({
@@ -2946,10 +2939,7 @@ function insertLeagueEntry(ctx: Context, eventId: string, userId: string, status
     userId,
     status,
     joinedAt: BigInt(now),
-    rosterId: undefined,
-    rosterName: undefined,
-    rosterSnapshot: undefined,
-    submittedAt: undefined,
+    ...UNSEALED,
     requiredLimit: undefined,
     teamId: undefined,
   })
@@ -4156,9 +4146,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         tx.db.leagueEventEntries.key.update({
           ...teammate,
           teamId: undefined,
-          ...(sharedTeam
-            ? { requiredLimit: undefined, rosterId: undefined, rosterName: undefined, rosterSnapshot: undefined, submittedAt: undefined }
-            : {}),
+          ...(sharedTeam ? { requiredLimit: undefined, ...UNSEALED } : {}),
         })
     }
     if (input.status === 'rejected')
@@ -4167,10 +4155,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         status: input.status,
         teamId: undefined,
         requiredLimit: undefined,
-        rosterId: undefined,
-        rosterName: undefined,
-        rosterSnapshot: undefined,
-        submittedAt: undefined,
+        ...UNSEALED,
       })
     else tx.db.leagueEventEntries.key.update({ ...entry, status: input.status })
     touchEvent(tx, host)
@@ -4206,10 +4191,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         ...entry,
         requiredLimit: input.requiredLimit,
         teamId: undefined,
-        rosterId: undefined,
-        rosterName: undefined,
-        rosterSnapshot: undefined,
-        submittedAt: undefined,
+        ...UNSEALED,
       })
       touchEvent(tx, host)
     }
@@ -4247,9 +4229,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         tx.db.leagueEventEntries.key.update({
           ...entry,
           teamId: paired.includes(entry.userId) ? input.teamId : undefined,
-          ...(resize
-            ? { requiredLimit: allied, rosterId: undefined, rosterName: undefined, rosterSnapshot: undefined, submittedAt: undefined }
-            : {}),
+          ...(resize ? { requiredLimit: allied, ...UNSEALED } : {}),
         })
       }
       touchEvent(tx, host)
@@ -4262,10 +4242,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         ...entry,
         teamId: undefined,
         requiredLimit: undefined,
-        rosterId: undefined,
-        rosterName: undefined,
-        rosterSnapshot: undefined,
-        submittedAt: undefined,
+        ...UNSEALED,
       })
     if (userIds.length === 2)
       for (const entry of targets)
@@ -4273,10 +4250,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
           ...entry,
           teamId: input.teamId,
           requiredLimit: alliedLeagueRosterLimit(event.rosterLimit),
-          rosterId: undefined,
-          rosterName: undefined,
-          rosterSnapshot: undefined,
-          submittedAt: undefined,
+          ...UNSEALED,
         })
     touchEvent(tx, host)
     return productJson(input.noticeResults ? { resealIds } : 'updated')
@@ -4318,10 +4292,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       teamId: seat.teamId,
       requiredLimit: seat.requiredLimit,
       // A list sealed for another seat may not fit this one, so it is sealed again.
-      rosterId: undefined,
-      rosterName: undefined,
-      rosterSnapshot: undefined,
-      submittedAt: undefined,
+      ...UNSEALED,
     })
     touchEvent(tx, host)
     return productJson('updated')
@@ -4462,7 +4433,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
     if (event.revealedAt === undefined) return productJson('not-revealed')
     const entry = tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, input.userId]))
     if (!entry || entry.status !== 'accepted' || entry.rosterSnapshot === undefined) return productJson('missing')
-    resetLeagueEntry(tx, entry)
+    tx.db.leagueEventEntries.key.update({ ...entry, ...UNSEALED })
     touchEvent(tx, host)
     return productJson('unsealed')
   }
