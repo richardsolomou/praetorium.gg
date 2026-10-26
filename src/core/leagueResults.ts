@@ -1,5 +1,8 @@
 import { battleOutcome, sideScore, type StandingBattle } from './standings'
 
+/** The battle feed's largest page; an event with more battles than this shows a partial table. */
+export const LEAGUE_RESULTS_BATTLE_LIMIT = 500
+
 /** One entrant's line in an event's results: finished battles only, with the victory points their side finished on. */
 export type LeagueResult = { userId: string; played: number; won: number; drawn: number; lost: number; points: number }
 

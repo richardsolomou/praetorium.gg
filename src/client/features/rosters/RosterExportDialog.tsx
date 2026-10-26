@@ -6,7 +6,7 @@ import { nativeBridgeVersion } from '../../nativeBridge'
 import type { exportRoster } from '../../functions'
 import { Problem } from '../../components/Problem'
 import { useCopyText } from '../../useCopyText'
-import { downloadFile } from '../../downloadFile'
+import { downloadFile, safeFileName } from '../../downloadFile'
 
 export type RosterTextExport = Awaited<ReturnType<typeof exportRoster>>
 
@@ -20,11 +20,7 @@ export function RosterExportDialog({ exported, onClose }: { exported: RosterText
   }
   const download = () => {
     if (!text || !exported) return
-    downloadFile(
-      `${exported.name.replaceAll(/[^\p{L}\p{N} ._-]/gu, '_').slice(0, 100) || 'roster'}-readable.txt`,
-      text,
-      'text/plain;charset=utf-8',
-    )
+    downloadFile(`${safeFileName(exported.name, 'roster')}-readable.txt`, text, 'text/plain;charset=utf-8')
     posthog.capture('roster_export_downloaded', { format: 'readable' })
   }
 

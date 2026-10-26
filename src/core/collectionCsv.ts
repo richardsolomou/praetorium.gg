@@ -1,3 +1,4 @@
+import { csv } from './csv'
 import { countsAsList, MAX_COLLECTION_DATASHEETS, MAX_COLLECTION_MODELS, MAX_COUNTS_AS, type CollectionEntry } from './collection'
 
 /** A collection file is a few hundred kilobytes at the datasheet limit; anything far larger is not one. */
@@ -16,23 +17,22 @@ export type CollectionCsvRow = {
   faction: string
 } & CollectionEntry
 
-/** Spreadsheet applications run a cell that starts with one of these as a formula. */
-const FORMULA = /^[=+\-@\t\r]/
-
-function cell(value: string | number) {
-  const text = typeof value === 'number' ? String(value) : FORMULA.test(value) ? `'${value}` : value
-  return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text
-}
-
 export function collectionCsv(rows: readonly CollectionCsvRow[]) {
-  const lines = rows
-    .toSorted((a, b) => a.faction.localeCompare(b.faction) || a.name.localeCompare(b.name))
-    .map((row) =>
-      [row.faction, row.name, row.entryId, row.models, row.built, row.painted, row.wanted, (row.countsAs ?? []).join(LINK_SEPARATOR)]
-        .map(cell)
-        .join(','),
-    )
-  return [COLLECTION_CSV_COLUMNS.join(','), ...lines].join('\r\n') + '\r\n'
+  return csv([
+    COLLECTION_CSV_COLUMNS,
+    ...rows
+      .toSorted((a, b) => a.faction.localeCompare(b.faction) || a.name.localeCompare(b.name))
+      .map((row) => [
+        row.faction,
+        row.name,
+        row.entryId,
+        row.models,
+        row.built,
+        row.painted,
+        row.wanted,
+        (row.countsAs ?? []).join(LINK_SEPARATOR),
+      ]),
+  ])
 }
 
 /** RFC 4180 records; a quote inside an unquoted field is kept as text. */
