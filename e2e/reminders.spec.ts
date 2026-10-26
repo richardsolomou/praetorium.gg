@@ -19,6 +19,7 @@ import {
   addUnit,
   practiceBattle,
   PHONE,
+  startBattle,
 } from './account'
 
 /** The page fits at desktop and phone widths, leaving the viewport at the phone's. */
@@ -384,12 +385,7 @@ test('an alert set in one roster follows the player into another and fires in ba
   await expect(page.locator(`[data-unit="${unit}"]`).getByLabel(`1 alert set for ${unit}`)).toBeVisible()
 
   await practiceBattle(page, second)
-  await chooseBattlefield(page)
-  await setupStep(page, 'Secondaries')
-  await expect(page.locator('[data-secondary-deck-ready="false"]')).toHaveCount(0)
-  await recordFirstTurn(page)
-  await page.getByRole('button', { name: 'Start battle' }).click()
-  await takeTheTurn(page)
+  await startBattle(page)
   await turnOffActionReminders(page)
   await page.getByRole('button', { name: 'End the command phase', exact: true }).click()
   const reminder = page.getByRole('dialog', { name: 'Battle reminder', exact: true })
