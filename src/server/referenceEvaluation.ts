@@ -8,7 +8,7 @@ export type ReferenceEvaluationCase = ReferenceSearchInput & {
   expectedSectionId: string
 }
 
-export type ReferenceEvaluationMetrics = {
+type ReferenceEvaluationMetrics = {
   cases: number
   top1DocumentRecall: number
   top5DocumentRecall: number

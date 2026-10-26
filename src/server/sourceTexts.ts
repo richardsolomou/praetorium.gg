@@ -83,7 +83,7 @@ export function upstreamUrl(
 }
 
 /** A rules version kept whole from an older snapshot: that snapshot's own composition, or the revisions it recorded. */
-export type RetainedSnapshot = { composition: CatalogueComposition | null; revisions: Readonly<Record<string, string>> }
+type RetainedSnapshot = { composition: CatalogueComposition | null; revisions: Readonly<Record<string, string>> }
 
 /**
  * A retained snapshot's file read from the sources it was built from: its own composition

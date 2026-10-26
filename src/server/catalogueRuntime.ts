@@ -28,8 +28,8 @@ export type RuntimeStartup = {
   searchIndex: GlobalSearchIndex
   combatUnits: ReturnType<typeof combatUnitsFor>
 }
-export type RuntimeKey = 'startup' | `${string}.canonical`
-export type RuntimeCanonical = Omit<CanonicalCatalogue, 'datasheets' | 'detachments' | 'issues'> & {
+type RuntimeKey = 'startup' | `${string}.canonical`
+type RuntimeCanonical = Omit<CanonicalCatalogue, 'datasheets' | 'detachments' | 'issues'> & {
   datasheets: number[]
   detachments: number[]
   issues: number[]
