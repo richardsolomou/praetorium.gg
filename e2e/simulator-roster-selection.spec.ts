@@ -15,10 +15,7 @@ for (const choice of ['other side', 'same side', 'example'] as const)
     const firstPicker = page.getByRole('combobox', { name: 'First roster', exact: true })
     const secondPicker = page.getByRole('combobox', { name: 'Second roster', exact: true })
     await expect(firstPicker).toBeVisible()
-    let release = () => {}
-    const gate = new Promise<void>((resolve) => {
-      release = resolve
-    })
+    const { promise: gate, resolve: release } = Promise.withResolvers<void>()
     let started = false
     await page.route('**/_serverFn/**', async (route) => {
       if ((decodeURIComponent(route.request().url()) + (route.request().postData() ?? '')).includes(id)) {

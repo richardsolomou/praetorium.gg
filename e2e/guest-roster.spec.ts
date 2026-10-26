@@ -405,10 +405,7 @@ for (const width of [1440, 390]) {
     const more = page.getByRole('button', { name: 'More models in Necron Warriors' })
     await expect(more).toBeEnabled()
     let intercepted = false
-    let release!: () => void
-    const gate = new Promise<void>((resolve) => {
-      release = resolve
-    })
+    const { promise: gate, resolve: release } = Promise.withResolvers<void>()
     await page.route('**/_serverFn/**', async (route) => {
       if (route.request().method() === 'POST') {
         intercepted = true

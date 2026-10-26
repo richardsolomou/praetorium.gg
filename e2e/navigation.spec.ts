@@ -757,14 +757,8 @@ test('Purge and Reconnaissance show two independent central objectives', async (
 test('a mission opens while its terrain layouts load', async ({ page }) => {
   await page.goto('/missions/chapter-approved-2026-2027')
 
-  let releaseTerrain: () => void = () => undefined
-  const terrainHeld = new Promise<void>((resolve) => {
-    releaseTerrain = resolve
-  })
-  let terrainStarted: () => void = () => undefined
-  const started = new Promise<void>((resolve) => {
-    terrainStarted = resolve
-  })
+  const { promise: terrainHeld, resolve: releaseTerrain } = Promise.withResolvers<void>()
+  const { promise: started, resolve: terrainStarted } = Promise.withResolvers<void>()
   await page.route('**/_serverFn/**', async (route) => {
     const url = decodeURIComponent(route.request().url())
     if (url.includes('"matchupIds"') && url.includes('"geometryVersion"')) {

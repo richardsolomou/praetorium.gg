@@ -82,14 +82,8 @@ test('loadout controls keep their shape while resized constraints load', async (
   const tesla = loadout.getByRole('button', { name: 'Select Tesla carbine' })
   await expect(tesla).toBeEnabled()
 
-  let releasePricing: () => void = () => undefined
-  const pricingHeld = new Promise<void>((resolve) => {
-    releasePricing = resolve
-  })
-  let pricingStarted: () => void = () => undefined
-  const started = new Promise<void>((resolve) => {
-    pricingStarted = resolve
-  })
+  const { promise: pricingHeld, resolve: releasePricing } = Promise.withResolvers<void>()
+  const { promise: started, resolve: pricingStarted } = Promise.withResolvers<void>()
   await page.route('**/_serverFn/**', async (route) => {
     if (route.request().method() === 'POST') {
       pricingStarted()
@@ -1190,10 +1184,7 @@ test('Death Guard champions expose their legal wargear', async ({ page }) => {
   await expect(loadout.getByLabel('Icon of Despair count', { exact: true })).toHaveText('0')
   await expect(loadout.getByRole('button', { name: /More Icon of Despair/ })).toHaveCount(0)
 
-  let releasePricing: () => void = () => undefined
-  const pricingHeld = new Promise<void>((resolve) => {
-    releasePricing = resolve
-  })
+  const { promise: pricingHeld, resolve: releasePricing } = Promise.withResolvers<void>()
   let holdPricing = true
   await page.route('**/_serverFn/**', async (route) => {
     if (holdPricing && route.request().method() === 'POST') await pricingHeld

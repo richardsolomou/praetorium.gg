@@ -1951,8 +1951,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
     removeEntrant.locator('[data-slot="alert-dialog-header"]'),
     removeEntrant.locator('[data-slot="alert-dialog-footer"]'),
   )
-  let releaseRemoval = () => {}
-  const removalReleased = new Promise<void>((resolve) => (releaseRemoval = resolve))
+  const { promise: removalReleased, resolve: releaseRemoval } = Promise.withResolvers<void>()
   await owner.route('**/*', async (route) => {
     if (route.request().method() === 'POST') {
       await removalReleased
@@ -1983,8 +1982,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expect(owner.getByRole('heading', { name: 'Everyone in has sealed' })).toBeVisible()
   await owner.locator('[data-entry-status]').getByRole('button', { name: 'Reveal all rosters' }).click()
   const reveal = owner.getByRole('alertdialog', { name: 'Reveal every roster?' })
-  let releaseReveal = () => {}
-  const revealReleased = new Promise<void>((resolve) => (releaseReveal = resolve))
+  const { promise: revealReleased, resolve: releaseReveal } = Promise.withResolvers<void>()
   await owner.route('**/*', async (route) => {
     if (route.request().method() === 'POST') await revealReleased
     await route.continue()

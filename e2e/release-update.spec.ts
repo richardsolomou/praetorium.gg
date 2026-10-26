@@ -136,10 +136,8 @@ test('a stale page sends a queued battle command before a route change reloads i
   await createBattle(page, { practice: true })
   await page.route('**/api/release', (route) => route.fulfill({ json: { version: '99.0.0' }, headers: { 'cache-control': 'no-store' } }))
   let holding = false
-  let release!: () => void
-  const released = new Promise<void>((resolve) => (release = resolve))
-  let held!: () => void
-  const sent = new Promise<void>((resolve) => (held = resolve))
+  const { promise: released, resolve: release } = Promise.withResolvers<void>()
+  const { promise: sent, resolve: held } = Promise.withResolvers<void>()
   await page.route('**/_serverFn/**', async (route) => {
     if (holding && route.request().method() === 'POST') {
       held()

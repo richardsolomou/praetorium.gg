@@ -51,8 +51,7 @@ test('online saves only show sync status when the queue remains pending', async 
   await expectWorkSynced(page)
   for (const slow of [false, true]) {
     const name = `${slow ? 'Slow' : 'Quick'} save`
-    let release!: () => void
-    const pending = new Promise<void>((resolve) => (release = resolve))
+    const { promise: pending, resolve: release } = Promise.withResolvers<void>()
     await page.route('**/_serverFn/**', async (route) => {
       const body = route.request().postData() ?? ''
       if (body.includes(name) && body.includes('operationId')) await pending
@@ -155,9 +154,8 @@ test('a lost save response retains its identity and later edits sync in order', 
   const operator = await productOperator()
   await waitForOfflineApp(page)
   await expectWorkSynced(page)
-  let dropAcknowledgement!: () => void
   // Going offline while the response is still held would fail the request before the handler drops it.
-  const acknowledgementDropped = new Promise<void>((resolve) => (dropAcknowledgement = resolve))
+  const { promise: acknowledgementDropped, resolve: dropAcknowledgement } = Promise.withResolvers<void>()
   await page.route('**/_serverFn/**', async (route) => {
     const body = route.request().postData() ?? ''
     if (body.includes('Lost acknowledgement') && body.includes('operationId')) {

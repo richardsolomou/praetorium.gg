@@ -193,14 +193,8 @@ test('accepts an Add click while the preceding edit is being priced', async ({ p
   const overlord = page.getByRole('button', { name: 'Add Overlord', exact: true })
   await expect(immortals).toBeEnabled()
   await expect(overlord).toBeEnabled()
-  let release!: () => void
-  const held = new Promise<void>((resolve) => {
-    release = resolve
-  })
-  let began!: () => void
-  const started = new Promise<void>((resolve) => {
-    began = resolve
-  })
+  const { promise: held, resolve: release } = Promise.withResolvers<void>()
+  const { promise: started, resolve: began } = Promise.withResolvers<void>()
   await page.route('**/_serverFn/**', async (route) => {
     if (route.request().method() === 'POST') {
       began()
@@ -235,10 +229,7 @@ test('a picker favourite stays selected throughout a delayed save', async ({ pag
       frames.push(button.getAttribute('aria-pressed')!)
     }).observe(button, { attributes: true, attributeFilter: ['aria-pressed'] })
   })
-  let release!: () => void
-  const held = new Promise<void>((resolve) => {
-    release = resolve
-  })
+  const { promise: held, resolve: release } = Promise.withResolvers<void>()
   await page.route('**/_serverFn/**', async (route) => {
     if (route.request().method() === 'POST') await held
     await route.continue()

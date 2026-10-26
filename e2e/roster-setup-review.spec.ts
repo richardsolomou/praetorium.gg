@@ -188,10 +188,7 @@ test('native-v3 concurrent setup confirmations save only one exact variant candi
   const secondReview = second.getByRole('dialog', { name: 'Review roster changes' })
   await expect(secondReview.getByLabel('Roster change preview')).toBeVisible()
   let concurrentWrites = 0
-  let releaseWrites: () => void = () => undefined
-  const writesHeld = new Promise<void>((resolve) => {
-    releaseWrites = resolve
-  })
+  const { promise: writesHeld, resolve: releaseWrites } = Promise.withResolvers<void>()
   await context.route('**/_serverFn/**', async (route) => {
     const body = route.request().postData()
     if (body?.includes('"operationId"') && body.includes('reviewed candidate')) {

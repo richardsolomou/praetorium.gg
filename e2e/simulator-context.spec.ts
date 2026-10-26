@@ -69,10 +69,7 @@ test('surviving profile choices agree with results and v1 links through member e
   await selectedProfile(page, 'attached:2:')
 
   const previous = await page.getByRole('region', { name: 'Combined estimate' }).locator('.readout').nth(1).textContent()
-  let release: () => void = () => undefined
-  const gate = new Promise<void>((resolve) => {
-    release = resolve
-  })
+  const { promise: gate, resolve: release } = Promise.withResolvers<void>()
   let pending = 0
   await page.route('**/_serverFn/**', async (route) => {
     if (route.request().method() === 'POST') {

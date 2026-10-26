@@ -43,10 +43,7 @@ test('the roster library reserves its rows while the first page loads', async ({
   try {
     // The home page loads a player's lists for its own shelf, so the walk starts from a page that does not.
     await page.goto('/leaderboard')
-    let release: () => void = () => {}
-    const held = new Promise<void>((resolve) => {
-      release = resolve
-    })
+    const { promise: held, resolve: release } = Promise.withResolvers<void>()
     await page.route('**/_serverFn/**', async (route) => {
       await held
       await route.continue()
@@ -377,10 +374,7 @@ test('a connected legacy shell roster follows other tabs without replacing an un
   })
   await expect(viewer.locator('[data-unit="Immortals"]')).toBeVisible()
 
-  let releaseSave = () => {}
-  const heldSave = new Promise<void>((resolve) => {
-    releaseSave = resolve
-  })
+  const { promise: heldSave, resolve: releaseSave } = Promise.withResolvers<void>()
   let localSaveStarted = false
   let remoteUpdateFetched = false
   viewer.on('response', (response) => {
@@ -641,10 +635,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await expect(guestUnits.getByText('Characters', { exact: true }).locator('..')).toContainText(/Characters\s*\d+ pts\s*1/)
   await expect(guestUnits.getByText('Battleline', { exact: true }).locator('..')).toContainText(/Battleline\s*\d+ pts\s*1/)
   await expect(guest.getByLabel('Unit actions for Immortals')).toHaveCount(0)
-  let releaseLoadout: () => void = () => {}
-  const loadoutHeld = new Promise<void>((resolve) => {
-    releaseLoadout = resolve
-  })
+  const { promise: loadoutHeld, resolve: releaseLoadout } = Promise.withResolvers<void>()
   await guest.route('**/_serverFn/**', async (route) => {
     await loadoutHeld
     await route.continue()

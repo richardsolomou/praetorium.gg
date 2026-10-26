@@ -215,10 +215,7 @@ test('a player can edit their display name and profile picture', async ({ page }
 test('profile saves preserve newer name and picture edits', async ({ page }) => {
   await signUp(page, uniqueName('Profile draft'))
   await page.goto('/profile')
-  let release = () => {}
-  const gate = new Promise<void>((resolve) => {
-    release = resolve
-  })
+  const { promise: gate, resolve: release } = Promise.withResolvers<void>()
   let started = false
   await page.route('**/api/auth/update-user', async (route) => {
     started = true

@@ -43,10 +43,7 @@ test('a first roster open shows progress until the army is ready', async ({ page
     await first.goto('/rosters')
     const roster = first.locator(`[data-roster="${name}"]`)
     await expect(roster).toBeVisible()
-    let release!: () => void
-    const held = new Promise<void>((resolve) => {
-      release = resolve
-    })
+    const { promise: held, resolve: release } = Promise.withResolvers<void>()
     await first.route('**/_serverFn/**', async (route) => {
       await held
       await route.continue()
@@ -83,10 +80,7 @@ test('an unopened rule from an older download stays readable throughout hosted r
     window.PraetoriumReferenceCache = reference
   }, saved)
   await page.goto('/')
-  let release!: () => void
-  const held = new Promise<void>((resolve) => {
-    release = resolve
-  })
+  const { promise: held, resolve: release } = Promise.withResolvers<void>()
   await page.route('**/_serverFn/**', async (route) => {
     await held
     await route.continue()

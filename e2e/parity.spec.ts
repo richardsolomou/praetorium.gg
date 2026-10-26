@@ -169,14 +169,8 @@ test('editable detail waits for public access to save before sharing', async ({ 
     window.dispatchEvent(new CustomEvent('praetorium-native-capabilities'))
   })
 
-  let releaseSave: () => void = () => undefined
-  const saveHeld = new Promise<void>((resolve) => {
-    releaseSave = resolve
-  })
-  let markSaveStarted: () => void = () => undefined
-  const saveStarted = new Promise<void>((resolve) => {
-    markSaveStarted = resolve
-  })
+  const { promise: saveHeld, resolve: releaseSave } = Promise.withResolvers<void>()
+  const { promise: saveStarted, resolve: markSaveStarted } = Promise.withResolvers<void>()
   await page.route('**/_serverFn/**', async (route) => {
     const body = route.request().postData()
     if (route.request().method() === 'POST' && body?.includes('"unlisted"') && body.includes('"picks"')) {
@@ -221,10 +215,7 @@ test('copying a saved roster link reports progress beside the header and copies 
   })
   await page.evaluate(() => {
     const copies: string[] = []
-    let releaseCopy: () => void = () => undefined
-    const held = new Promise<void>((resolve) => {
-      releaseCopy = resolve
-    })
+    const { promise: held, resolve: releaseCopy } = Promise.withResolvers<void>()
     Object.assign(window, { copies, releaseCopy })
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,

@@ -460,14 +460,8 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect.poll(() => bob.evaluate(() => Boolean(window.PraetoriumReferenceCache?.construction))).toBe(true)
   const answerName = await answer.getAttribute('aria-label')
   await bobScoring.getByRole('button', { name: answerName ?? '', exact: true }).click()
-  let releaseBob = () => {}
-  let sawBobSubmit = () => {}
-  const held = new Promise<void>((resolve) => {
-    releaseBob = resolve
-  })
-  const submitted = new Promise<void>((resolve) => {
-    sawBobSubmit = resolve
-  })
+  const { promise: held, resolve: releaseBob } = Promise.withResolvers<void>()
+  const { promise: submitted, resolve: sawBobSubmit } = Promise.withResolvers<void>()
   let holding = true
   await bob.route('**/*', async (route) => {
     if (holding && route.request().method() === 'POST') {

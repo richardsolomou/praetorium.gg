@@ -95,10 +95,7 @@ test('the complete reference keeps its existing UI after a cold offline launch',
       ),
     )
   })
-  let release!: () => void
-  const delayed = new Promise<void>((resolve) => {
-    release = resolve
-  })
+  const { promise: delayed, resolve: release } = Promise.withResolvers<void>()
   await page.route('**/offline-reference-version.json', async (route) => {
     await delayed
     await route.continue()

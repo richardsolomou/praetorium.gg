@@ -257,10 +257,7 @@ test('a club plays a solo-vs-pair sealed game, its players taking their own side
 
 test('club team rows keep their actions inside the card at narrow widths', async ({ page }, testInfo) => {
   await signInAsPreview(page)
-  let releaseHistory = () => {}
-  const historyHeld = new Promise<void>((resolve) => {
-    releaseHistory = resolve
-  })
+  const { promise: historyHeld, resolve: releaseHistory } = Promise.withResolvers<void>()
   const isHistory = (url: string) => {
     const decoded = decodeURIComponent(url)
     return decoded.includes('preview-club-game-doubles') && decoded.includes('"before"')

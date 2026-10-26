@@ -37,14 +37,8 @@ test('an army is read and its losses recorded without leaving the battle', async
   await expect(loadout.locator('[data-slot="unit-profile"]')).toBeVisible()
 
   // Casualty presses count ahead of the service, so a squad can be tapped down while a write is in flight.
-  let releaseSubmit = () => undefined
-  const submitHeld = new Promise<void>((resolve) => {
-    releaseSubmit = resolve
-  })
-  let submitStarted = () => undefined
-  const started = new Promise<void>((resolve) => {
-    submitStarted = resolve
-  })
+  const { promise: submitHeld, resolve: releaseSubmit } = Promise.withResolvers<void>()
+  const { promise: started, resolve: submitStarted } = Promise.withResolvers<void>()
   await page.route('**/_serverFn/**', async (route) => {
     if (route.request().method() === 'POST') {
       submitStarted()

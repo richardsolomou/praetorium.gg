@@ -1309,10 +1309,7 @@ test('attached leaders and support contribute weapons and survive sharing', asyn
   const buffs = page.locator('[data-combat-buffs]')
   await buffs.locator('summary').click()
   let intercepted = false
-  let release = () => {}
-  const gate = new Promise<void>((resolve) => {
-    release = resolve
-  })
+  const { promise: gate, resolve: release } = Promise.withResolvers<void>()
   await page.route('**/*', async (route) => {
     if (route.request().method() === 'POST' && route.request().url().includes('/_serverFn/')) {
       intercepted = true
@@ -1432,10 +1429,7 @@ test('attached leaders and support contribute weapons and survive sharing', asyn
   const beforeReplacement = await headline.locator('.readout').nth(1).textContent()
   const rootPicker = await attacker.getByRole('combobox', { name: 'Attacker unit', exact: true }).elementHandle()
   const rootLoadout = await attacker.getByRole('button', { name: 'Loadout', exact: true }).elementHandle()
-  let finishReplacement = () => {}
-  const replacementGate = new Promise<void>((resolve) => {
-    finishReplacement = resolve
-  })
+  const { promise: replacementGate, resolve: finishReplacement } = Promise.withResolvers<void>()
   await page.route('**/*', async (route) => {
     if (route.request().method() === 'POST' && route.request().url().includes('/_serverFn/')) await replacementGate
     await route.continue()
@@ -1555,10 +1549,7 @@ test('Optimize changes attached character equipment and preserves the whole unit
     await page.evaluate(() => window.scrollTo(0, 0))
     idleBounds.set(width, await optimize.boundingBox())
   })
-  let release = () => {}
-  const gate = new Promise<void>((resolve) => {
-    release = resolve
-  })
+  const { promise: gate, resolve: release } = Promise.withResolvers<void>()
   await page.route('**/api/simulator/optimize', async (route) => {
     await gate
     await route.continue()
@@ -1626,10 +1617,7 @@ test('initial unit loading reserves every member control', async ({ page }) => {
   await atWidths(page, [1440, 390], async (width) => {
     before.set(width, await bounds())
   })
-  let release = () => {}
-  const gate = new Promise<void>((resolve) => {
-    release = resolve
-  })
+  const { promise: gate, resolve: release } = Promise.withResolvers<void>()
   await page.route('**/*', async (route) => {
     if (route.request().method() === 'POST' && route.request().url().includes('/_serverFn/')) await gate
     await route.continue()
