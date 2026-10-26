@@ -163,10 +163,7 @@ export class SpacetimeRepository {
   async practiceOpponents() {
     const ids = await this.product.practiceOpponentIds()
     const profiles = await this.accounts.profilesByIds(ids)
-    return ids.map((id) => {
-      const profile = profileOf(profiles, id, 'Practice opponent')
-      return profile
-    })
+    return ids.map((id) => profileOf(profiles, id, 'Practice opponent'))
   }
 
   async relationships(userId: string) {
