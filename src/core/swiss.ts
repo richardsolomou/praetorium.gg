@@ -97,7 +97,7 @@ export function swissPairings(players: readonly string[], matches: readonly Swis
   }
   const met = new Set(matches.flatMap((match) => (match.b === null ? [] : [pairKey(match.a, match.b)])))
   let pairs: [string, string][] | null = null
-  for (let rematches = 0; !pairs; rematches++) pairs = pairWithRematches(order, met, rematches)
+  for (let allowed = 0; !pairs; allowed++) pairs = pairWithRematches(order, met, allowed)
   return [...pairs, ...(bye ? [[bye, null] as [string, null]] : [])]
 }
 
