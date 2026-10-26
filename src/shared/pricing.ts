@@ -32,8 +32,8 @@ import { detachmentNamed } from './factionReferences'
 import { contextualUnitLimit, detachmentsUnlocking, shelfIn, unitsIn } from './cataloguePicker'
 import { isDetachmentWrapperLimit, rosterDetachments } from './rosterDetachments'
 import { detachmentPoints } from './detachmentPoints'
-import { mfmUnitFor, unitPointAdjustment } from './unitPoints'
-import { isUpgrade, mfmDetachmentFor, mfmEnhancementPoints, mfmWargearOptionPoints, withoutUpgrade } from './mfm'
+import { choiceOptionsForPricing, mfmOptionAdjustment, mfmOptionPoints, mfmUnitFor, unitPointAdjustment } from './unitPoints'
+import { isUpgrade, mfmDetachmentFor, withoutUpgrade } from './mfm'
 import { deploymentRules } from './rosterDeployment'
 import { grantsReserveExemptionIn, reserveSelectorsIn } from './textFacts'
 import { heldWargear, replacementKey, type ReplacementSource } from './heldWargear'
@@ -104,9 +104,6 @@ type ReplacementChoice = {
   key: string
   options: readonly { id: string; count: number; max: number }[]
 }
-
-/** A malformed catalogue choice must not make the whole roster impossible to price. */
-export const choiceOptionsForPricing = (choice: { options?: UnitChoice['options'] }) => choice.options ?? []
 
 function legalReplacementPairs(
   entryId: string,
@@ -219,25 +216,6 @@ function labelUnitsOf(
   }))
 }
 
-function specialPoints(detachments: readonly NonNullable<ReturnType<typeof mfmDetachmentFor>>[], name: string) {
-  const prices = [...new Set(detachments.flatMap((detachment) => mfmEnhancementPoints(detachment, name) ?? []))]
-  return prices.length === 1 ? prices[0]! : null
-}
-
-function mfmOptionPoints(
-  detachments: readonly NonNullable<ReturnType<typeof mfmDetachmentFor>>[],
-  unit: ReturnType<typeof mfmUnitFor>,
-  choiceName: string,
-  optionName: string,
-  pieces: readonly { name: string; count: number }[],
-  selectedCount: number,
-) {
-  return (
-    (/enhancement|upgrade/i.test(choiceName) ? specialPoints(detachments, optionName) : null) ??
-    mfmWargearOptionPoints(unit, optionName, pieces, selectedCount || 1)
-  )
-}
-
 function adjustUnitPoints(
   loaded: LoadedCatalogue,
   data: PriceInput,
@@ -256,19 +234,10 @@ function adjustUnitPoints(
     const copy = (copies.get(sheetId) ?? 0) + 1
     copies.set(sheetId, copy)
     const mfmUnit = mfmUnitFor(loaded, data.units[unit.key]?.catalogueId ?? data.catalogueId, unit.entryId)
-    const optionDifference = unit.choices
-      .flatMap((choice) =>
-        choiceOptionsForPricing(choice).flatMap((option) => {
-          if (option.count <= option.min) return []
-          const pieces = ownChoiceOptionWargear(unit.choices, choice.key, option.id, unit.selection, loaded.index, {
-            primaryCatalogueId: data.catalogueId,
-            mustering: true,
-          })
-          const price = mfmOptionPoints(detachments, mfmUnit, choice.name, option.name, pieces, option.count)
-          return price === null ? [] : [(price - option.points) * (option.count - option.min)]
-        }),
-      )
-      .reduce((total, value) => total + value, 0)
+    const optionDifference = mfmOptionAdjustment(loaded.index, unit, mfmUnit, detachments, {
+      primaryCatalogueId: data.catalogueId,
+      mustering: true,
+    })
     const difference = unitPointAdjustment(loaded, data.catalogueId, catalogueId, unit.entryId, unit.size.models, copy) + optionDifference
     pointsBySelection.set(unit.selection, (pointsBySelection.get(unit.selection) ?? 0) + difference)
     adjustment += difference
