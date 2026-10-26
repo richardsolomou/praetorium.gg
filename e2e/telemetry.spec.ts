@@ -1,4 +1,4 @@
-import { expect, test } from './test'
+import { expect, test, type Page } from './test'
 import { recordEvents, stubSupport } from './telemetry.harness'
 import {
   addUnit,
@@ -510,15 +510,25 @@ const SCREENSHOT = {
 }
 const SCREENSHOT_LINE = /\nScreenshot: (http:\/\/[^/]+\/api\/feedback-screenshots\/[0-9a-f-]{36})$/
 
-test('a guest sends feedback, reads the reply and answers it', async ({ page }) => {
+/** Opens the factions page with the support service stubbed, once the page answers. */
+async function supportOnFactions(page: Page) {
   await page.goto('/factions')
   await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
-  const support = await stubSupport(page)
+  return stubSupport(page)
+}
+
+async function openFeedback(page: Page) {
   const dialog = page.getByRole('dialog', { name: 'Send feedback' })
   await retryUntilVisible(dialog, async () => {
     await page.getByRole('button', { name: 'Account menu' }).filter({ visible: true }).click()
     await page.getByRole('menuitem', { name: 'Feedback' }).click()
   })
+  return dialog
+}
+
+test('a guest sends feedback, reads the reply and answers it', async ({ page }) => {
+  const support = await supportOnFactions(page)
+  const dialog = await openFeedback(page)
   await dialog.getByRole('button', { name: 'Idea' }).click()
   await dialog.getByLabel('Message').fill('  Group factions by alliance  ')
   await dialog.getByLabel('Email for a reply (optional)').fill('guest@example.com')
@@ -554,14 +564,8 @@ test('a guest sends feedback, reads the reply and answers it', async ({ page }) 
 })
 
 test('an unread reply marks the account menu until the player reads it', async ({ page }) => {
-  await page.goto('/factions')
-  await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
-  const support = await stubSupport(page)
-  const dialog = page.getByRole('dialog', { name: 'Send feedback' })
-  await retryUntilVisible(dialog, async () => {
-    await page.getByRole('button', { name: 'Account menu' }).filter({ visible: true }).click()
-    await page.getByRole('menuitem', { name: 'Feedback' }).click()
-  })
+  const support = await supportOnFactions(page)
+  const dialog = await openFeedback(page)
   await dialog.getByLabel('Message').fill('The picker will not scroll')
   await dialog.getByRole('button', { name: 'Send feedback' }).click()
   await expect(page.getByRole('region', { name: 'Conversation' })).toBeVisible()
@@ -589,9 +593,7 @@ test('an unread reply marks the account menu until the player reads it', async (
 })
 
 test('a long feedback history loads page by page as the player scrolls it', async ({ page }) => {
-  await page.goto('/factions')
-  await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
-  const support = await stubSupport(page)
+  const support = await supportOnFactions(page)
   await support.seed(45)
   const yours = page.getByRole('menuitem', { name: 'Feedback' })
   await retryUntilVisible(yours, async () => {
@@ -615,14 +617,8 @@ test('a long feedback history loads page by page as the player scrolls it', asyn
 })
 
 test('a reply appears in an open conversation without reloading it', async ({ page }) => {
-  await page.goto('/factions')
-  await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
-  const support = await stubSupport(page)
-  const dialog = page.getByRole('dialog', { name: 'Send feedback' })
-  await retryUntilVisible(dialog, async () => {
-    await page.getByRole('button', { name: 'Account menu' }).filter({ visible: true }).click()
-    await page.getByRole('menuitem', { name: 'Feedback' }).click()
-  })
+  const support = await supportOnFactions(page)
+  const dialog = await openFeedback(page)
   await dialog.getByLabel('Message').fill('Missions page is slow')
   await dialog.getByRole('button', { name: 'Send feedback' }).click()
   const conversation = page.getByRole('region', { name: 'Conversation' })
@@ -634,9 +630,7 @@ test('a reply appears in an open conversation without reloading it', async ({ pa
 })
 
 test('a link from a reply email opens that conversation over the support page', async ({ page }) => {
-  await page.goto('/factions')
-  await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
-  const support = await stubSupport(page)
+  const support = await supportOnFactions(page)
   await support.seed(3)
   const [, linked] = await support.tickets()
   await support.reply(linked.id, 'We fixed it')
@@ -654,14 +648,8 @@ test('a link from a reply email opens that conversation over the support page', 
 
 test('an administrator opens the screenshot attached to feedback', async ({ page }) => {
   await signInAsPreview(page)
-  await page.goto('/factions')
-  await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
-  const support = await stubSupport(page)
-  const dialog = page.getByRole('dialog', { name: 'Send feedback' })
-  await retryUntilVisible(dialog, async () => {
-    await page.getByRole('button', { name: 'Account menu' }).filter({ visible: true }).click()
-    await page.getByRole('menuitem', { name: 'Feedback' }).click()
-  })
+  const support = await supportOnFactions(page)
+  const dialog = await openFeedback(page)
   await expect(dialog.getByLabel('Email for a reply (optional)')).toHaveCount(0)
   await dialog.getByLabel('Message').fill('Attached the broken layout')
   await dialog.getByLabel('Attach screenshot').setInputFiles(SCREENSHOT)
