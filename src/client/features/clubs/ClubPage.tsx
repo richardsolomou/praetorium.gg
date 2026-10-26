@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
 import {
   Check,
@@ -27,7 +27,8 @@ import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
 import { createBattle, deleteClub, joinClub, leaveClub, moderateClubMember, removeClubMember } from '../../functions'
-import { battlesQuery, clubQuery, clubStandingsQuery, gameReferencesQuery, meQuery } from '../../queries'
+import { clubQuery, clubStandingsQuery, meQuery } from '../../queries'
+import { useStartBattle } from '../battles/useStartBattle'
 import { BattleShelf } from '../battles/BattleShelf'
 import { useInviteShareLabel } from '../friends/friendInvite'
 import { Standings } from '../leaderboard/Standings'
@@ -196,17 +197,11 @@ function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: strin
 
 /** Starts a battle against a member, counted for the club from the start, and opens it. */
 function usePlayClubGame(token: string) {
-  const queryClient = useQueryClient()
-  const navigate = useNavigate()
+  const { defaultMissionPackId, openBattle } = useStartBattle()
   return useMutation({
-    mutationFn: async (opponentId: string) => {
-      const references = await queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' })
-      return createBattle({ data: { opponentId, clubToken: token, missionPackId: references?.packs[0]?.id ?? null } })
-    },
-    onSuccess: async ({ token: battleToken }) => {
-      await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
-      await navigate({ to: '/battles/$token', params: { token: battleToken } })
-    },
+    mutationFn: async (opponentId: string) =>
+      createBattle({ data: { opponentId, clubToken: token, missionPackId: await defaultMissionPackId() } }),
+    onSuccess: ({ token: battleToken }) => openBattle(battleToken),
   })
 }
 

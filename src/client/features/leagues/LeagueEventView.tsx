@@ -1,5 +1,5 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { ArrowRight, Check, Eye, FileLock2, Pencil, ShieldCheck, Swords, TriangleAlert, UserPlus } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useEffect, useState, type ReactNode } from 'react'
@@ -31,7 +31,7 @@ import {
 import { createLeagueBattle, joinLeague, submitLeagueRoster } from '../../functions'
 import { rosterWaivers, WaiverList } from '../../components/FormatWaivers'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
-import { battlesFrom, battlesQuery, gameReferencesQuery, leagueBattlesQuery, leagueResultsQuery } from '../../queries'
+import { battlesFrom, gameReferencesQuery, leagueBattlesQuery, leagueResultsQuery } from '../../queries'
 import { BattleShelf } from '../battles/BattleShelf'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { DoublesBattleChooser, LeagueBattleChooser, OneOnOneBattleChooser, startBattleLabel } from './LeagueBattleChoosers'
@@ -64,6 +64,7 @@ import { TeamWarlordPanel } from './LeagueTeamWarlord'
 import { LeagueRosterSharing } from './LeagueRosterSharing'
 import { Problem } from '../../components/Problem'
 import { formatList } from '../../text'
+import { useStartBattle } from '../battles/useStartBattle'
 
 type ClickAction = {
   label: string
@@ -101,8 +102,7 @@ export function LeagueEventView({
   startBattle?: boolean
   chooseRoster?: boolean
 }) {
-  const queryClient = useQueryClient()
-  const navigate = useNavigate()
+  const { defaultMissionPackId, openBattle } = useStartBattle()
   const refresh = useLeagueRefresh(token)
   const battleHistory = useInfiniteQuery({
     ...leagueBattlesQuery(token, league.eventToken),
@@ -137,16 +137,11 @@ export function LeagueEventView({
   const battle = useMutation({
     onMutate: () => posthog.capture('battle_creation_submitted', { format: battleFormat, source: 'league' }),
     onError: () => posthog.capture('battle_creation_failed', { format: battleFormat, reason: 'request', source: 'league' }),
-    mutationFn: async (players: { opponentId: string; allyId?: string; secondOpponentId?: string }) => {
-      const references = await queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' })
-      return createLeagueBattle({
-        data: { token, eventToken: league.eventToken, ...players, missionPackId: references?.packs[0]?.id ?? null },
-      })
-    },
-    onSuccess: async ({ token: battleToken }) => {
-      await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
-      await navigate({ to: '/battles/$token', params: { token: battleToken } })
-    },
+    mutationFn: async (players: { opponentId: string; allyId?: string; secondOpponentId?: string }) =>
+      createLeagueBattle({
+        data: { token, eventToken: league.eventToken, ...players, missionPackId: await defaultMissionPackId() },
+      }),
+    onSuccess: ({ token: battleToken }) => openBattle(battleToken),
   })
   // Counted when the chooser appears, whether the page or a casual battle's league prompt opened it.
   useEffect(() => {

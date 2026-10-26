@@ -11,7 +11,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { TABLE_SHAPES, TABLE_SHAPE_LABELS, type TableShape } from '../../../core/tableShape'
 import { PROFILE_NAME_MAX_LENGTH } from '../../../core/profileName'
 import { createBattle, leagueBattleOptions, submit } from '../../functions'
-import { battleQuery, battlesQuery, gameReferencesQuery, opponentsQuery } from '../../queries'
+import { battleQuery, opponentsQuery } from '../../queries'
+import { useStartBattle } from './useStartBattle'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { advanceOnboarding } from '../onboarding/onboarding'
 import { useNativeShare } from '../../nativeBridge'
@@ -102,6 +103,7 @@ export function CreateBattle({
   const seated = seats.every((seat) => seatedIn(seat) && (!guestIn(seat) || guestName(seat)))
   const queryClient = useQueryClient()
   const navigate = useNavigate()
+  const { defaultMissionPackId, openBattle } = useStartBattle()
   /** Setup still offers the choice of army, so a roster the battle refuses here is only a step left to do there. */
   const bringRoster = async (token: string, id: string) => {
     try {
@@ -131,7 +133,7 @@ export function CreateBattle({
         const matches = await leagueBattleOptions({ data: playerData })
         if (matches.length) return { kind: 'league' as const, matches }
       }
-      const references = await queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' })
+      const missionPackId = tracking === 'manual' ? null : await defaultMissionPackId()
       let battle
       try {
         battle = await createBattle({
@@ -139,7 +141,7 @@ export function CreateBattle({
             ...playerData,
             ...(guests.length ? { guestNames: guests } : {}),
             limit: null,
-            missionPackId: tracking === 'manual' ? null : (references?.packs[0]?.id ?? null),
+            missionPackId,
             casual,
             manual: tracking === 'manual',
           },
@@ -160,8 +162,7 @@ export function CreateBattle({
         return
       }
       setOpen(false)
-      await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
-      return navigate({ to: '/battles/$token', params: { token: result.battle.token } })
+      return openBattle(result.battle.token)
     },
   })
   const changeIntent = () => {

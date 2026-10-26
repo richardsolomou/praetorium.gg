@@ -1,5 +1,5 @@
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from '@tanstack/react-router'
+import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
 import { Calculator, Check, ChevronRight, EllipsisVertical, Eye, FileLock2, LogOut, Pencil, Swords, Trash2, UserPlus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
@@ -11,7 +11,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
 import { chooseLeagueSide, createLeagueBattle, deleteLeague, revealLeague, submitLeagueRoster } from '../../functions'
-import { battlesFrom, battlesQuery, gameReferencesQuery, leagueBattlesQuery, leagueQuery } from '../../queries'
+import { battlesFrom, leagueBattlesQuery, leagueQuery } from '../../queries'
 import { useDateFormatting } from '../../dates'
 import { countLabel } from '../../text'
 import { useNow } from '../../useNow'
@@ -27,6 +27,7 @@ import { battleOutcomeStage, battleStage } from '../../battleStage'
 import { summarySides } from '../../battleSummary'
 import type { Battle } from '../battles/battle'
 import { useClubRefresh, type Club } from './club'
+import { useStartBattle } from '../battles/useStartBattle'
 
 type Game = Club['games'][number]
 type Player = Game['players'][number]
@@ -73,8 +74,7 @@ export function ClubSealedGame({
   /** A past game's row in a list, read for the battles it produced. */
   embedded?: boolean
 }) {
-  const queryClient = useQueryClient()
-  const navigate = useNavigate()
+  const { defaultMissionPackId, openBattle } = useStartBattle()
   const moment = useMoment()
   const { date } = useDateFormatting()
   const now = useNow(game.sealBy)
@@ -146,14 +146,9 @@ export function ClubSealedGame({
     },
   })
   const play = useMutation({
-    mutationFn: async (opponentId: string) => {
-      const references = await queryClient.query({ ...gameReferencesQuery(), staleTime: 'static' })
-      return createLeagueBattle({ data: { token: game.token, opponentId, missionPackId: references?.packs[0]?.id ?? null } })
-    },
-    onSuccess: async ({ token: battleToken }) => {
-      await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
-      await navigate({ to: '/battles/$token', params: { token: battleToken } })
-    },
+    mutationFn: async (opponentId: string) =>
+      createLeagueBattle({ data: { token: game.token, opponentId, missionPackId: await defaultMissionPackId() } }),
+    onSuccess: ({ token: battleToken }) => openBattle(battleToken),
   })
   const remove = useMutation({
     mutationFn: () => deleteLeague({ data: { token: game.token } }),
