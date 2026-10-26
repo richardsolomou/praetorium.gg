@@ -853,10 +853,8 @@ test('independent weapon choices are edited separately when the catalogue stores
 
 /**
  * Astra Militarum own no datasheets: every one of them, and their detachments, are
- * reached by a link into a library. So a book written that way was offered as no
- * faction at all, and the ones that were offered were missing whatever they borrow.
+ * reached by a link into a library, and the book offers whatever it borrows beside its own.
  */
-
 test('Cadian Shock Troops can take their full special weapon allowance', async ({ page }) => {
   await page.setViewportSize({ width: 1600, height: 900 })
   await openBuilder(page, 'Astra Militarum', /Combined Arms/)
@@ -1146,8 +1144,7 @@ test('Plague Marine cards and exports omit replaced default wargear', async ({ p
   const heavy = loadout.locator('section').filter({ has: page.getByLabel('Plague Marine models', { exact: true }) })
   await waitForRosterSave(page, () => heavy.getByRole('button', { name: 'More Heavy plague weapon' }).click())
   await waitForRosterSave(page, () => heavy.getByRole('button', { name: 'More Heavy plague weapon' }).click())
-  const spewer = heavy
-  await waitForRosterSave(page, () => spewer.getByRole('button', { name: 'More Plague spewer' }).click())
+  await waitForRosterSave(page, () => heavy.getByRole('button', { name: 'More Plague spewer' }).click())
   await waitForRosterSave(page, () => loadout.getByRole('button', { name: 'More Plasma gun' }).last().click())
 
   await expect(card).toContainText('4x Plague knives')
