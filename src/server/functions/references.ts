@@ -108,14 +108,14 @@ export const units = createServerFn({ method: 'GET' })
   )
 
 /**
- * Starts building a roster's picker and answers at once. The editor asks for `units` only after it renders, and a
- * first build for a battle size or detachment takes seconds on a replica, so an opened roster starts it early.
+ * Builds a roster's picker before the editor asks for `units`, since a first build for a battle size or detachment
+ * takes seconds on a replica. It answers once the build ends, so a caller cannot queue builds without waiting on them.
  */
 export const preparePickerUnits = createServerFn({ method: 'GET' })
   .validator(unitsSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      void preparePicker(data).catch((error: unknown) => console.error({ event: 'picker_preparation_failed', error }))
+      await preparePicker(data)
       return null
     }),
   )
