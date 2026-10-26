@@ -35,7 +35,7 @@ import {
   pointsBudgetError,
   ROSTER_NAME_MAX_LENGTH,
 } from '../../../core/battle'
-import { normalizedName } from '../../../core/name'
+import { matchesSearch } from '../../text'
 import { rosterLabel } from '../../../core/rosterLabel'
 import { ROSTER_VISIBILITIES, type RosterVisibility } from '../../../core/savedRoster'
 import { VISIBILITY_DETAIL, VISIBILITY_NAME, VISIBILITY_REACH } from './visibility'
@@ -128,12 +128,8 @@ type Props = {
  * Whether a detachment answers what was typed, by its own name or a disposition it
  * offers — "reconnaissance" is a reason to pick one, and the chips already say so.
  */
-function matchesQuery(detachment: Detachment, query: string) {
-  const wanted = normalizedName(query)
-  if (!wanted) return true
-  return [detachment.name, ...detachment.dispositions.map((disposition) => disposition.name)].some((text) =>
-    normalizedName(text).includes(wanted),
-  )
+export function matchesQuery(detachment: Pick<Detachment, 'name' | 'dispositions'>, query: string) {
+  return [detachment.name, ...detachment.dispositions.map((disposition) => disposition.name)].some((text) => matchesSearch(text, query))
 }
 
 const BATTLE_SIZE_GROUPS: SearchableGroup[] = [
