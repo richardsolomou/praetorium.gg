@@ -50,16 +50,16 @@ async function inspectBattleDialog(page: Page, dialog: Locator, screenshot: stri
   await page.setViewportSize({ width: 1440, height: 900 })
 }
 
+// Three accounts and three devices, so it needs more room than a duel. Every army comes
+// from one catalogue on purpose: the shared container prices each faction it is shown.
+test.setTimeout(120_000)
+
 /**
  * The whole point of the 2v1 layout: the allied pair is one side.
  *
  * They share the turn, the command points, the mission cards and the score, so the
  * tracker draws one of each. Only the armies are separate.
  */
-// Three accounts and three devices, so it needs more room than a duel. Every army comes
-// from one catalogue on purpose: the shared container prices each faction it is shown.
-test.setTimeout(120_000)
-
 test('a 2v1 draws the allied pair as one side with one pool of everything', async ({ browser }) => {
   const host = await (await browser.newContext()).newPage()
   const ally = await (await browser.newContext()).newPage()
