@@ -79,7 +79,7 @@ const forwarded = (headers: Record<string, string>) => {
 }
 
 it("forwards Cloudflare's visitor address ahead of the edge's own", () => {
-  expect(forwarded({ 'cf-connecting-ip': '203.0.113.7', 'x-forwarded-for': '5.75.151.151' })).toBe('203.0.113.7')
+  expect(forwarded({ 'cf-connecting-ip': '203.0.113.7', 'x-forwarded-for': '198.51.100.20' })).toBe('203.0.113.7')
 })
 
 it('keeps the forwarded chain when Cloudflare names no visitor', () => {
