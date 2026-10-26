@@ -3,6 +3,15 @@ import { expect, test } from './test'
 import { advance, advanceButton, createRoster, desktopContext, setupBattle, signUp, takeTheTurn, uniqueName } from './account'
 import { battleLog, productSql, lastPathSegment, battleIdFor } from './storage'
 
+/** The battle's logged command bodies, in log order. */
+async function loggedCommands(battleId: string) {
+  const rows = await productSql<{ seq: number; body: string }>`SELECT seq, body FROM commands WHERE battle_id = ${battleId}`
+  return rows.toSorted((left, right) => left.seq - right.seq).map((row) => JSON.parse(row.body))
+}
+
+const isFinalSettlement = (command: { kind: string; scores?: { final?: object }[] }) =>
+  command.kind === 'score-settlement' && Boolean(command.scores?.some((score) => score.final))
+
 test('New Orders, discard CP and carried cards survive a complete two-player round', async ({ page, browser }) => {
   test.setTimeout(180_000)
   const opponent = await (await browser.newContext(desktopContext)).newPage()
@@ -20,10 +29,7 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
     .click()
   await expect(page.getByRole('dialog', { name: 'Your secondary missions', exact: true })).toBeVisible()
   await takeTheTurn(page)
-  const recorded = await productSql<{
-    body: string
-  }>`SELECT body FROM commands WHERE battle_id = ${await battleIdFor(lastPathSegment(page.url()))}`
-  const commands = recorded.map((command) => JSON.parse(command.body))
+  const commands = await loggedCommands(await battleIdFor(lastPathSegment(page.url())))
   expect(commands.findLast((command) => command.kind === 'set-battlefield')?.terrainLayoutId).toBe('ed87b70c-bb09-49c7-bf06-54ca47956dcd')
   const orders = commands.filter((command) => command.kind === 'use-new-orders')
   expect(orders).toHaveLength(1)
@@ -174,32 +180,15 @@ test('both sides settle source final awards beyond round caps through cold offli
   await expect(firstFinal.locator('output').filter({ hasText: 'VP' })).toContainText('Scoring 10 VP')
   await firstFinal.getByRole('button', { name: 'Finish battle', exact: true }).click()
   await expect(page.locator('[data-scoreboard] h1')).toHaveText('Drawn at 35')
-  const queued = await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${battleId}`
-  expect(
-    queued
-      .map((command) => JSON.parse(command.body))
-      .filter((command) => command.kind === 'score-settlement' && command.scores.some((score: { final?: object }) => score.final)),
-  ).toHaveLength(0)
+  expect((await loggedCommands(battleId)).filter(isFinalSettlement)).toHaveLength(0)
   await context.setOffline(false)
   await page.evaluate(() => window.dispatchEvent(new Event('online')))
-  await expect
-    .poll(
-      async () =>
-        (await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${battleId}`)
-          .map((command) => JSON.parse(command.body))
-          .filter((command) => command.kind === 'score-settlement' && command.scores.some((score: { final?: object }) => score.final))
-          .length,
-      { timeout: 30_000 },
-    )
-    .toBe(2)
+  await expect.poll(async () => (await loggedCommands(battleId)).filter(isFinalSettlement).length, { timeout: 30_000 }).toBe(2)
   await opponent.reload()
   await expect(opponent.locator('[data-scoreboard] h1')).toHaveText('Drawn at 35')
-  const saved = await productSql<{ seq: number; body: string }>`SELECT seq, body FROM commands WHERE battle_id = ${battleId}`
   expect(
-    saved
-      .sort((left, right) => left.seq - right.seq)
-      .map((command) => JSON.parse(command.body))
-      .filter((command) => command.kind === 'score-settlement' && command.scores.some((score: { final?: object }) => score.final))
+    (await loggedCommands(battleId))
+      .filter(isFinalSettlement)
       .map((command) => ({ playerId: command.playerId, round: command.round, scores: command.scores })),
   ).toEqual([
     { playerId: second, round: 5, scores: [{ category: 'primary', delta: 10, final: { claims: [0, 0, 0, 0, 1, 1], delta: 10 } }] },
