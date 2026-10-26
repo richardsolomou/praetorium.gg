@@ -487,12 +487,15 @@ function textRosterPick(
       return { stated, held, scoped: false }
     })
     // Lines a scoped model claims are not also the rest of the unit's to choose from, as a Scout Sergeant's shotgun is not a Scout's.
-    // A choice offering that model still reads them, as the master vox under "4x Tempestus Scion" says which Scion carries it.
+    // A choice offering that model still reads them, as the master vox under "4x Tempestus Scion" says which Scion carries it,
+    // unless the list names its models apart, where each named model's lines already place its own wargear.
     const claims = scopes.flatMap((scope, at) => (scope.scoped ? [{ key: choices[at]!.key, stated: scope.stated }] : []))
     scopes.forEach((scope, at) => {
       if (scope.scoped) return
       const { key, options } = choices[at]!
-      const offered = (claim: { key: string }) => options.some((option) => claim.key.startsWith(`${key}/${option.id}/`))
+      const namedApart = options.filter((option) => stated.has(normalized(option.name))).length > 1
+      const offered = (claim: { key: string }) =>
+        !namedApart && options.some((option) => claim.key.startsWith(`${key}/${option.id}/`))
       const unclaimed = new Map(stated)
       for (const under of new Set(claims.filter((claim) => !offered(claim)).map((claim) => claim.stated)))
         for (const [name, count] of under) {

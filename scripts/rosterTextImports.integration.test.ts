@@ -22,6 +22,7 @@ import { bloodAngelsOfficial } from '../src/core/rosterText.bloodAngels.fixture'
 import { salamandersOfficial } from '../src/core/rosterText.salamanders.fixture'
 import { spaceWolvesOfficial } from '../src/core/rosterText.spaceWolves.fixture'
 import { whiteScarsOfficialFlattened } from '../src/core/rosterText.whiteScars.fixture'
+import { nameOf } from '../src/core/catalogue'
 import type { LoadedRules } from '../src/shared/rules'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import { importRosterFile } from '../src/shared/rosterFiles'
@@ -220,6 +221,36 @@ Tempestus Aquilons (95 Points)
 
   it.each(Object.entries(tempestus))('places every %s specialist', (_name, file) => {
     expect(summary(file).mismatches).toEqual([])
+  })
+
+  // A list naming each Terminator variant apart already places their wargear; the squad's group must not reread it.
+  it('keeps a plain Terminator when the list names the squad variants apart', () => {
+    const file = `Grey Knights
+Augurium Task Force (1 Detachment Point)
+Strike Force (2,000 Points)
+
+OTHER DATASHEETS
+
+Grey Knights Terminator Squad (185 Points)
+• 1x Terminator Justicar
+◦ 1x Storm bolter
+◦ 1x Nemesis force weapon
+• 1x Terminator
+◦ 1x Storm bolter
+◦ 1x Nemesis force weapon
+• 2x Terminator w/ heavy weapon
+◦ 1x Psilencer
+◦ 2x Nemesis force weapon
+◦ 1x Incinerator
+• 1x Terminator w/ narthecium
+◦ 1x Narthecium
+◦ 1x Nemesis force weapon
+`
+    const { definitions } = catalogue.index
+    const fielded = Object.values(imported(file).units[0]!.spreads).flatMap((spread) =>
+      Object.entries(spread).flatMap(([id, count]) => (count > 0 ? [`${count}x ${nameOf(definitions.get(id)!, definitions)}`] : [])),
+    )
+    expect(fielded).toContain('1x Terminator')
   })
 
   it('imports the reported official-app Custodes roster without mismatches', () => {
