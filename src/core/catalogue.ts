@@ -447,6 +447,12 @@ export function targetOf(definition: Definition, definitions: ReadonlyMap<string
   return 'targetId' in definition ? (definitions.get(definition.targetId) ?? definition) : definition
 }
 
+/** An entry, and its target when it is a link: the two places its own data can be written. */
+export function definitionAndTarget(definition: Definition, index: CatalogueIndex): Definition[] {
+  const target = targetOf(definition, index.definitions)
+  return target === definition ? [definition] : [definition, target]
+}
+
 /** What to call an entry. A link usually repeats its target's name, and may replace it. */
 export function nameOf(definition: Definition, definitions: ReadonlyMap<string, Definition>): string {
   return definition.name ?? targetOf(definition, definitions).name ?? definition.id

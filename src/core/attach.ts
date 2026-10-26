@@ -6,6 +6,7 @@ import {
   type Condition,
   type ConditionGroup,
   type Definition,
+  definitionAndTarget,
   groupCounts,
   type InfoGroup,
   nameOf,
@@ -48,7 +49,7 @@ const modelCategoryCache = new WeakMap<CatalogueIndex, WeakMap<Definition, Reado
 const associationTargetCache = new WeakMap<CatalogueIndex, WeakMap<Association, Map<string, string[]>>>()
 
 export function attachmentLimitsOf(definition: Definition, index: CatalogueIndex): AttachmentLimits {
-  const sources = [...new Set([definition, targetOf(definition, index.definitions)])]
+  const sources = definitionAndTarget(definition, index)
   const constraints = sources
     .flatMap((source) => source.constraints ?? [])
     .filter((constraint) => {
@@ -72,7 +73,7 @@ export function attachmentLimitsOf(definition: Definition, index: CatalogueIndex
 }
 
 function attachmentCategoriesOf(definition: Definition, index: CatalogueIndex): string[] {
-  const sources = [...new Set([definition, targetOf(definition, index.definitions)])]
+  const sources = definitionAndTarget(definition, index)
   return [
     ...new Set(
       sources.flatMap((source) =>
@@ -124,7 +125,7 @@ export const referenceAttachmentOf = (definition: Definition, index: CatalogueIn
   attachmentOf(definition, index) ?? attachmentOf(definition, index, { id: definition.id })
 
 function attachmentFromAssociations(definition: Definition, selection: Selection, index: CatalogueIndex): Attachment | null {
-  const sources = [...new Set([definition, targetOf(definition, index.definitions)])]
+  const sources = definitionAndTarget(definition, index)
   const associations = sources.flatMap((source) =>
     (source.associations ?? []).flatMap((association) => {
       const kind = associationKind(association)
@@ -344,7 +345,7 @@ export function admitsHost(attachment: Attachment, hostName: string, hostKeyword
  * player is told which units will take it rather than that a number is short.
  */
 function attachmentRequirement(definition: Definition, index: CatalogueIndex): string | null {
-  const sources = [...new Set([definition, targetOf(definition, index.definitions)])]
+  const sources = definitionAndTarget(definition, index)
   const required = sources
     .flatMap((source) => source.constraints ?? [])
     .find((constraint) => constraint.field === 'associations' && constraint.type === 'min' && constraint.value >= 1)

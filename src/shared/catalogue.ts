@@ -1,6 +1,6 @@
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { cachedIn, uniqueBy } from '../core/collections'
-import { type Definition, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
+import { type Definition, definitionAndTarget, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
 import { withoutText } from './sourceText'
 import { referenceAttachmentOf } from '../core/attach'
 import {
@@ -491,9 +491,10 @@ function walk(loaded: LoadedCatalogue, catalogueId: string, entryId: string, con
     const definition = loaded.index.definitions.get(node.id)
     if (!definition) return
     const target = targetOf(definition, loaded.index.definitions)
-    const lineage = [...ancestors, ...definitionTokens(definition), ...(target === definition ? [] : definitionTokens(target))]
+    const sources = definitionAndTarget(definition, loaded.index)
+    const lineage = [...ancestors, ...sources.flatMap(definitionTokens)]
     const chosen = selected.has(definition.id) || selected.has(target.id)
-    for (const source of new Set([definition, target])) {
+    for (const source of sources) {
       if (visited.has(source.id)) continue
       visited.add(source.id)
       addProfiles(source, lineage, 'wargear', false, !chosen || !withAbilities)
@@ -785,7 +786,7 @@ function weaponAbilitiesFromDetachments(
   ).filter((definition) => optionIds.has(definition.id))
   for (const definition of selectedDefinitions) {
     const catalogueRules: { name: string; description: string }[] = []
-    for (const source of new Set([definition, targetOf(definition, loaded.index.definitions)])) {
+    for (const source of definitionAndTarget(definition, loaded.index)) {
       for (const link of source.infoLinks ?? []) {
         if (link.type !== 'rule' || infoLinkHiddenByRules(link, loaded.index, { primaryCatalogueId: catalogueId, roster: selections }))
           continue
@@ -958,7 +959,7 @@ function weaponAbilitiesInSelectedUnit(
   if (unitSelectionIndex === undefined) return []
   const found = new Map<string, GrantedWeaponAbility>()
   for (const definition of definitionsInSelections(selections, [unitSelectionIndex], index)) {
-    for (const source of new Set([definition, targetOf(definition, index.definitions)])) {
+    for (const source of definitionAndTarget(definition, index)) {
       for (const profile of abilityProfilesOf(source, index)) {
         const description = normalizedAbilityDescription(profile)
         const match = description?.match(

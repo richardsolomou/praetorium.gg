@@ -14,6 +14,7 @@ import {
   type ConditionGroup,
   type Constraint,
   type Definition,
+  definitionAndTarget,
   type Modifier,
   type ModifierGroup,
   targetOf,
@@ -130,8 +131,7 @@ export function hasMutableMinimum(definition: Definition, index: CatalogueIndex,
       .filter(isSelectionMinimum)
       .map((constraint) => constraint.id),
   )
-  const target = resolve(definition, index)
-  return flattenedModifiers([definition, ...(target === definition ? [] : [target])], cache).some(
+  return flattenedModifiers(definitionAndTarget(definition, index), cache).some(
     (modifier) => minimums.has(modifier.field) && ['set', 'increment', 'decrement'].includes(modifier.type),
   )
 }
@@ -142,8 +142,7 @@ export function hasDynamicSelectionLimit(definition: Definition, index: Catalogu
       .filter((constraint) => constraint.type === 'max' && constraint.field === 'selections')
       .map((constraint) => constraint.id),
   )
-  const target = resolve(definition, index)
-  return flattenedModifiers([definition, ...(target === definition ? [] : [target])], cache).some(
+  return flattenedModifiers(definitionAndTarget(definition, index), cache).some(
     (modifier) => modifier.field === 'error' || (maximums.has(modifier.field) && ['set', 'increment', 'decrement'].includes(modifier.type)),
   )
 }
@@ -163,8 +162,7 @@ export function replacesSquadmate(definition: Definition, squadmates: readonly O
         .filter((constraint) => constraint.field === 'selections')
         .map((constraint) => constraint.id),
     )
-    const target = resolve(squadmate.definition, index)
-    return flattenedModifiers([squadmate.definition, ...(target === squadmate.definition ? [] : [target])], cache).some(
+    return flattenedModifiers(definitionAndTarget(squadmate.definition, index), cache).some(
       (modifier) =>
         modifier.type === 'decrement' &&
         limits.has(modifier.field) &&
@@ -175,8 +173,7 @@ export function replacesSquadmate(definition: Definition, squadmates: readonly O
 
 /** What the entry says about itself, plus what the link's target says, without repeating either. */
 function constraintsOn(definition: Definition, index: CatalogueIndex): Constraint[] {
-  const target = resolve(definition, index)
-  return [...(definition.constraints ?? []), ...(target === definition ? [] : (target.constraints ?? []))]
+  return definitionAndTarget(definition, index).flatMap((source) => source.constraints ?? [])
 }
 
 const isSelectionMinimum = (constraint: Constraint) =>

@@ -6,7 +6,7 @@
  * absent from a default list, and walking only what was built would never offer it.
  */
 
-import type { CatalogueIndex, Definition } from './catalogue'
+import { definitionAndTarget, type CatalogueIndex, type Definition } from './catalogue'
 import { scaleOf } from './collective'
 import {
   childrenOf,
@@ -151,7 +151,7 @@ function exclusiveSetsIn(entry: Definition, depth: number, index: CatalogueIndex
     const target = resolve(definition, index)
     if (left <= 0 || seen.has(target.id)) return
     const visited = new Set(seen).add(target.id)
-    forbidden.push(...exclusiveSets(definition), ...(target === definition ? [] : exclusiveSets(target)))
+    forbidden.push(...definitionAndTarget(definition, index).flatMap(exclusiveSets))
     for (const child of childrenOf(target, index)) gather(child.definition, left - 1, visited)
   }
   gather(entry, depth, new Set())
