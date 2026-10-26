@@ -3,7 +3,7 @@ import { SpacetimeRequestError } from 'ras-stack/spacetime'
 import { offlineActionSchema } from '../../contracts/offlineActions'
 import { offlineActions } from '../offlineActions'
 import { offlineContext } from '../offlineContext'
-import { commandSchema } from '../../core/commands'
+import { commandSchema, idSchema } from '../../core/commands'
 import { rosterSnapshot } from '../../core/rosterSnapshot'
 import { fieldingReminders } from '../../shared/reminderAbilities'
 import { rosterUseError } from '../../core/rosterLegality'
@@ -37,17 +37,17 @@ async function requireOwner(owner: string) {
   return player
 }
 
+const offlineOperation = offlineActionSchema.pick({ owner: true, operationId: true })
+
 export const syncRoster = createServerFn({ method: 'POST' })
   .validator(
-    z.object({
-      owner: z.string().min(1).max(128),
-      operationId: z.uuid(),
+    offlineOperation.extend({
       expectedVersion: z.number().int().nonnegative().nullable(),
       deleted: z.boolean().default(false),
       roster: saveRosterSchema.safeExtend({
-        id: z.string().min(1).max(64),
-        baseRosterId: z.string().min(1).max(64).nullable().optional(),
-        copiedFromRosterId: z.string().min(1).max(64).nullable().optional(),
+        id: idSchema,
+        baseRosterId: idSchema.nullable().optional(),
+        copiedFromRosterId: idSchema.nullable().optional(),
       }),
     }),
   )
@@ -131,9 +131,7 @@ export const syncAction = createServerFn({ method: 'POST' })
 
 export const syncBattleCommand = createServerFn({ method: 'POST' })
   .validator(
-    z.object({
-      owner: z.string().min(1).max(128),
-      operationId: z.uuid(),
+    offlineOperation.extend({
       token: z.string().min(1).max(128),
       expectedSeq: z.number().int().nonnegative().max(10_000),
       recordedAt: z.number().int().nonnegative(),
