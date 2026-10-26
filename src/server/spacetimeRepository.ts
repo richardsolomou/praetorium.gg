@@ -1197,14 +1197,6 @@ export class SpacetimeRepository {
     return (await this.feed({ scope: 'profile', userId, viewerId, limit })).battles
   }
 
-  shareBattle(...args: Parameters<SpacetimeOperator['shareBattle']>) {
-    return this.product.shareBattle(...args)
-  }
-
-  log(...args: Parameters<SpacetimeOperator['log']>) {
-    return this.product.log(...args)
-  }
-
   submit(...args: Parameters<SpacetimeOperator['submit']>) {
     return this.product.submit(...args)
   }

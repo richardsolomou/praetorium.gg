@@ -548,7 +548,6 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     mcpConnectionsFor,
     deleteAppleAccount,
     revokeAppleTokens,
-    revokeAppleUser,
     hasMcpConsent,
     revokeMcpConsent,
     spacetimeGuestToken,
