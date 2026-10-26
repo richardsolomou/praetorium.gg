@@ -251,7 +251,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   await page.setViewportSize({ width: 1440, height: 900 })
 
   const header = page.getByLabel('List name').locator('xpath=ancestor::header[1]')
-  const variantHeight = (await header.boundingBox())?.height
+  const variantHeight = (await header.boundingBox())!.height
   await page.getByRole('button', { name: 'Variant 3 of 3' }).click()
   const lists = page.getByRole('navigation', { name: 'Variants' }).getByRole('link')
   await expect(lists).toHaveText([/^Dynasty 2k\s*Base$/, 'Dynasty 2k · 2', 'Dynasty 2k · 3'])
@@ -291,7 +291,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   await expect(page.getByLabel('List name')).toHaveValue('Another list')
   await expect(page.getByRole('button', { name: /^Variant/ })).toHaveCount(0)
   // A variant's place in its group costs the header no extra line.
-  expect((await header.boundingBox())?.height).toBe(variantHeight)
+  expect((await header.boundingBox())!.height).toBe(variantHeight)
 })
 
 test('a battle’s roster chooser tells a variant apart from its base', async ({ page }) => {
@@ -450,7 +450,7 @@ test('a failed roster library read is not shown as an empty library', async ({ p
  * against the catalogue the instance currently holds — which is what a player
  * expects a saved list to do when the points change.
  */
-test('a list is saved and loaded into another battle', async ({ browser }) => {
+test('a saved list is reopened, duplicated, shared and published', async ({ browser }) => {
   const context = await browser.newContext()
   const page = await context.newPage()
   await arrangeByRole(page)

@@ -53,7 +53,7 @@ test('a guest reviews, imports and saves their first list', async ({ page }, tes
     await page.setViewportSize({ width, height: 900 })
     if (width < 1300) {
       const add = page.getByRole('button', { name: 'Add units', exact: true })
-      expect((await save.boundingBox())?.height).toBe((await add.boundingBox())?.height)
+      expect((await save.boundingBox())!.height).toBe((await add.boundingBox())!.height)
     } else {
       expect((await save.boundingBox())!.height).toBeLessThan(44)
     }
