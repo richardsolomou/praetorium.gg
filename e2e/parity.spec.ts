@@ -1,14 +1,14 @@
 import { expect, test } from './test'
 import {
   chooseRosterAction,
-  confirmRosterSetup,
   chooseRosterDefault,
   createRoster,
   retryUntilVisible,
   signUp,
   uniqueName,
-  waitForRosterSave,
   expectNoPageOverflow,
+  openRosterSetup,
+  setRosterAccess,
 } from './account'
 import { savedWork } from './storage'
 
@@ -17,21 +17,11 @@ test('roster visibility controls search indexing and public URL variants', async
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Search roster' })
   const path = new URL(page.url()).pathname
 
-  const setAccess = async (name: string, value: string) => {
-    await chooseRosterAction(page, 'Edit roster setup')
-    const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
-    await setup.getByRole('combobox', { name: 'Access' }).click()
-    await page.getByRole('option', { name }).click()
-    const saved = page.waitForResponse((response) => response.ok() && Boolean(response.request().postData()?.includes(`"${value}"`)))
-    await waitForRosterSave(page, () => confirmRosterSetup(setup))
-    await saved
-  }
-
-  await setAccess('Unlisted — anyone with the link', 'unlisted')
+  await setRosterAccess(page, 'Unlisted — anyone with the link', 'unlisted')
   await page.reload()
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex')
 
-  await setAccess('Public — listed on your profile', 'public')
+  await setRosterAccess(page, 'Public — listed on your profile', 'public')
   await page.goto(`${path}?print=true`)
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', new URL(path, page.url()).href)
   await expect(page.locator('meta[name="robots"]')).toHaveCount(0)
@@ -59,9 +49,7 @@ test('a private roster can be shared and made private again', async ({ browser }
   await creation.getByRole('button', { name: 'Cancel', exact: true }).click()
   await page.setViewportSize({ width: 1440, height: 900 })
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Shareable roster' })
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  const privateSetup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  const privateSetup = await openRosterSetup(page)
   await expect(privateSetup.getByRole('combobox', { name: 'Access' }).locator('[data-slot="select-value"]')).toHaveText('Private')
   await expect(privateSetup).toContainText('You, friends you lend it to, and seated players through a battle using this list')
   await page.setViewportSize({ width: 390, height: 900 })
@@ -199,9 +187,7 @@ test('editable detail waits for public access to save before sharing', async ({ 
     await route.continue()
   })
 
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  const setup = await openRosterSetup(page)
   await setup.getByRole('combobox', { name: 'Access' }).click()
   await page.getByRole('option', { name: 'Unlisted — anyone with the link' }).click()
   await setup.getByRole('button', { name: 'Review changes' }).click()
@@ -216,8 +202,7 @@ test('editable detail waits for public access to save before sharing', async ({ 
     releaseSave()
   }
   await expect(review).toBeHidden()
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Share link' }).click()
+  await chooseRosterAction(page, 'Share link')
   await expect.poll(() => page.locator('html').getAttribute('data-native-message')).toContain('"type":"native-share"')
 
   await anonymous.goto(sharedUrl)
@@ -253,8 +238,7 @@ test('copying a saved roster link reports progress beside the header and copies 
     })
   })
 
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Copy link' }).click()
+  await chooseRosterAction(page, 'Copy link')
   await expect(page.getByRole('status').filter({ hasText: 'Copying link…' })).toBeVisible()
   await page.getByRole('button', { name: 'Roster actions' }).click()
   await expect(page.getByRole('menuitem', { name: 'Copy link' })).toHaveAttribute('aria-disabled', 'true')

@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { createRoster, signUp, waitForRosterSave, expectNoPageOverflow } from './account'
+import { createRoster, signUp, waitForRosterSave, expectNoPageOverflow, chooseRosterAction, openRosterSetup } from './account'
 import { shot, expectNoHorizontalOverflow, expectNotAttachable, openBuilder, add, arrangeByRole, attach } from './builder.harness'
 
 test('enhancement choices show descriptions when rule and catalogue names differ', async ({ page }) => {
@@ -128,8 +128,7 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   await reminder.getByRole('button', { name: 'Cancel' }).click()
   await shot(card, 'test-results/deepening-madness-upgrade.png')
 
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  await chooseRosterAction(page, 'Export text')
   const exportDialog = page.getByRole('dialog', { name: 'Export roster' })
   await expect(exportDialog).toContainText('Enhancement: Deepening Madness')
   await shot(exportDialog, 'test-results/deepening-madness-export.png')
@@ -634,9 +633,7 @@ test('a supplement imports shared Space Marine units and its detachment group', 
   await add(page, 'Crusader Squad')
   await expect(page.locator('[data-unit="Crusader Squad"]')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  const setup = await openRosterSetup(page)
   await setup.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByRole('option', { name: 'Imperial Fists', exact: true }).click()
   await expect(setup.getByRole('button', { name: 'Select Ceramite Sentinels' })).toBeVisible()
@@ -647,9 +644,7 @@ test('detachment combinations follow the 11th edition allowance', async ({ page 
   await openBuilder(page)
   await add(page, 'Immortals')
 
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  const setup = await openRosterSetup(page)
   await setup.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /^Incursion/ }).click()
   await expect(setup.getByText('3/2 DP used')).toBeVisible()

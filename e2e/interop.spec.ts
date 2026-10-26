@@ -12,11 +12,12 @@ import {
   chooseBattlefield,
   createBattle,
   createRoster,
-  desktopContext,
   PRACTICE_OPPONENT,
   retryUntilVisible,
   signUp,
   waitForRosterSave,
+  chooseRosterAction,
+  desktopContext,
 } from './account'
 
 test('a list can be copied as Games Workshop text', async ({ browser }) => {
@@ -45,8 +46,7 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
   await loadout.getByRole('button', { name: 'Select Tesla carbine' }).click()
   await expect(page.getByText('10x Tesla carbine')).toBeVisible()
 
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  await chooseRosterAction(page, 'Export text')
   const dialog = page.getByRole('dialog', { name: 'Export roster' })
   const text = dialog.locator('pre')
   const body = dialog.locator('[data-slot="dialog-body"]')
@@ -95,8 +95,7 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
   await page.waitForURL(/\/rosters\/[^/]+$/)
   await page.reload()
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  await chooseRosterAction(page, 'Export text')
   const saved = page.getByRole('dialog', { name: 'Export roster' })
   await expect(saved.locator('pre')).toContainText('• Models: 10')
   await expect(saved.locator('pre')).toContainText('• 10x Tesla carbine')
@@ -118,8 +117,7 @@ test('an official Custodes roster keeps all units and choices after import and r
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
   await page.reload()
   await expect(page.locator('[data-unit]')).toHaveCount(10)
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  await chooseRosterAction(page, 'Export text')
   const text = page.getByRole('dialog', { name: 'Export roster' }).locator('pre')
   for (const line of [
     'First test (2,000 Points)',
@@ -152,8 +150,7 @@ test('an official Necrons roster keeps leaders and support after import and relo
   await expect(page.locator('[data-unit]')).toHaveCount(7)
   await expect(page.locator('[data-unit="Chronomancer"]')).toContainText('Supporting')
   await expect(page.locator('[data-unit="Chronomancer"]')).toContainText('Lokhust Heavy Destroyers')
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  await chooseRosterAction(page, 'Export text')
   const exported = page.getByRole('dialog', { name: 'Export roster' })
   const text = exported.locator('pre')
   for (const line of [
@@ -204,8 +201,7 @@ test('a New Recruit chapter roster keeps its allies and attachments after import
     ['Castellan', 'Sword Brethren Squad'],
   ])
     await expect(page.locator(`[data-unit="${leader}"]`)).toContainText(bodyguard)
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  await chooseRosterAction(page, 'Export text')
   const exported = page.getByRole('dialog', { name: 'Export roster' })
   for (const line of [
     'Test (2,000 Points)',
@@ -251,8 +247,7 @@ test('a visitor imports the reported Salamanders detachments and keeps them afte
     await expect(cards).toHaveCount(count)
     for (const card of await cards.all()) await expect(card).toContainText('Infernus Squad')
   }
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  await chooseRosterAction(page, 'Export text')
   const exported = page.getByRole('dialog', { name: 'Export roster' })
   for (const line of ['Dudes (1,435 Points)', 'Salamanders', 'Deathwatch Support', "Forgefather's Seekers", '3 Detachment Points'])
     await expect(exported.locator('pre')).toContainText(line)
@@ -293,15 +288,13 @@ Exported with BattleBase, Data Version: v20260812`)
 
   for (const disposition of ['Take and Hold', 'Reconnaissance']) {
     if (disposition === 'Reconnaissance') {
-      await page.getByRole('button', { name: 'Roster actions' }).click()
-      await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+      await chooseRosterAction(page, 'Edit roster setup')
       await setup.getByRole('button', { name: disposition, exact: true }).click()
       await waitForRosterSave(page, () => confirmRosterSetup(setup))
     }
     await page.reload()
     await expect(page.getByText(disposition, { exact: true })).toBeVisible()
-    await page.getByRole('button', { name: 'Roster actions' }).click()
-    await page.getByRole('menuitem', { name: 'Export text' }).click()
+    await chooseRosterAction(page, 'Export text')
     const exported = page.getByRole('dialog', { name: 'Export roster' })
     await expect(exported.locator('pre')).toContainText(`Force Disposition: ${disposition}\n`)
     await expect(exported.locator('pre')).not.toContainText('Force Dispositions:')
@@ -328,8 +321,7 @@ test('a ListForge export imports through review and exports as readable text', a
   await review.getByRole('button', { name: 'Import roster', exact: true }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)
   await expect(page.locator('[data-unit="Venom"]')).toHaveCount(2)
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  await chooseRosterAction(page, 'Export text')
   const exported = page.getByRole('dialog', { name: 'Export roster' })
   await expect(exported.locator('pre')).toContainText('Sanitised list (510 Points)\n')
   await expect(exported.locator('pre')).toContainText('Enhancement: Informant Network\n')

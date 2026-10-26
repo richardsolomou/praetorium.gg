@@ -1,5 +1,5 @@
 import { expect, type Page, test } from './test'
-import { retryUntilVisible } from './account'
+import { retryUntilVisible, chooseRosterAction } from './account'
 import { add } from './builder.harness'
 
 const DATASHEET = '/factions/necrons/datasheets/imotekh-the-stormlord'
@@ -95,10 +95,7 @@ test('partial Eradicator squads retain their copy-tier prices through reload, vi
   await expect(page.getByText('675/2000', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'View', exact: true }).click()
   await expect(page.getByText('675/2000', { exact: true })).toBeVisible()
-  await retryUntilVisible(page.getByRole('menuitem', { name: 'Export text' }), () =>
-    page.getByRole('button', { name: 'Roster actions' }).click(),
-  )
-  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  await chooseRosterAction(page, 'Export text')
   const exported = page.getByRole('dialog', { name: 'Export roster' }).locator('pre')
   await expect(exported).toContainText('675 Points')
   await expect(exported).toContainText(`${name} (245 Points)`)

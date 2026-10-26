@@ -1,5 +1,13 @@
 import { expect, test, type Locator, type Page } from './test'
-import { chooseUnit, confirmRosterSetup, retryUntilVisible, signUp, waitForRosterSave, expectNoPageOverflow } from './account'
+import {
+  chooseUnit,
+  confirmRosterSetup,
+  retryUntilVisible,
+  signUp,
+  waitForRosterSave,
+  expectNoPageOverflow,
+  openRosterSetup,
+} from './account'
 import { decodeSimulatorState } from '../src/contracts/simulatorState'
 
 const desktop = { width: 1440, height: 900 }
@@ -119,9 +127,7 @@ async function custodesRoster(page: Page, archived?: string) {
   await waitForRosterSave(page, () => page.getByLabel('List name').fill('Same Custodes roster'), 'Same Custodes roster')
   if (archived) {
     // Retired versions are offered only when changing an existing roster.
-    await page.getByRole('button', { name: 'Roster actions', exact: true }).click()
-    await page.getByRole('menuitem', { name: 'Edit roster setup', exact: true }).click()
-    const conversion = page.getByRole('dialog', { name: 'Edit roster setup' })
+    const conversion = await openRosterSetup(page)
     await conversion.getByRole('combobox', { name: 'Rules version' }).click()
     await page.getByRole('option', { name: archived, exact: true }).click()
     await chooseDetachment(conversion, 'Shield Host')

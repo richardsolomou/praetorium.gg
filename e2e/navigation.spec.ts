@@ -2,7 +2,17 @@ import fs from 'node:fs'
 import { join } from 'node:path'
 import { devices, expect, type Page, test } from './test'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
-import { confirmRosterSetup, createRoster, followLink, retryUntilVisible, signUp, visitorSetup, expectNoPageOverflow } from './account'
+import {
+  confirmRosterSetup,
+  createRoster,
+  followLink,
+  retryUntilVisible,
+  signUp,
+  visitorSetup,
+  expectNoPageOverflow,
+  chooseRosterAction,
+  openRosterSetup,
+} from './account'
 import { catalogue } from './stackEnv'
 
 test('a standalone datasheet omits detachment-only abilities', async ({ page }) => {
@@ -894,9 +904,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('combobox', { name: 'Battle size' })).toHaveCount(0)
   await expect(page.getByRole('combobox', { name: 'Force' })).toHaveCount(0)
   await expect(page.getByText('Take and Hold', { exact: true })).toBeVisible()
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  const setup = await openRosterSetup(page)
   await setup.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /^Incursion/ }).click()
   await setup.getByRole('button', { name: 'Select Awakened Dynasty', pressed: true }).click()
@@ -909,8 +917,7 @@ test('a player can enter through the roster library and browse the product', asy
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
   await page.screenshot({ path: 'test-results/roster-editor-phone.png' })
   await page.setViewportSize({ width: 1600, height: 900 })
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
+  await chooseRosterAction(page, 'Edit roster setup')
   await setup.getByRole('button', { name: 'Select Cryptek Conclave', pressed: true }).click()
   await setup.getByRole('button', { name: 'Select Cursed Legion' }).click()
   await confirmRosterSetup(setup)

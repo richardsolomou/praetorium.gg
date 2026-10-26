@@ -1,5 +1,5 @@
 import { waitForOfflineApp } from './offline'
-import { confirmRosterSetup, retryUntilVisible, visitorSetup, addUnit } from './account'
+import { confirmRosterSetup, retryUntilVisible, visitorSetup, addUnit, chooseRosterAction } from './account'
 import { expect, test, type Locator, type Page } from './test'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
 import { lastPathSegment } from './storage'
@@ -187,8 +187,7 @@ test('converts the saved roster in place and restores its current choices', asyn
   await page.goto(`/rosters/${id}`)
   await expect(page.getByLabel('List name')).toHaveValue('Conversion roster')
   await expect(page.locator('[data-rules-version]')).toHaveAttribute('aria-label', 'Rules version: MFM 1.5 · Archived')
-  await page.getByRole('button', { name: 'Roster actions', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup', exact: true }).click()
+  await chooseRosterAction(page, 'Edit roster setup')
   dialog = await destination('MFM 1.6 · Current', 'Aquilan Shield')
   await confirmRosterSetup(dialog)
   await expect(dialog).not.toBeVisible()

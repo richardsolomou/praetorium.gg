@@ -1,5 +1,5 @@
 import { expect, type Page, test } from './test'
-import { retryUntilVisible, signUp, uniqueName, visitorSetup, shotAtWidths } from './account'
+import { retryUntilVisible, signUp, uniqueName, visitorSetup, shotAtWidths, chooseRosterAction, openRosterSetup } from './account'
 import { add } from './builder.harness'
 import { SIGN_IN_REQUIRED } from '../src/core/session'
 import { lastPathSegment } from './storage'
@@ -234,8 +234,7 @@ test("a visitor's account-only roster actions ask them to sign up", async ({ pag
 
 test('a visitor starting a battle from their roster is asked to sign up', async ({ page }) => {
   await startGuestRoster(page)
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Start a battle' }).click()
+  await chooseRosterAction(page, 'Start a battle')
 
   await expect(page.getByRole('dialog', { name: 'Start battles with an account' })).toBeVisible()
 })
@@ -330,9 +329,7 @@ for (const width of [1440, 390]) {
     await page.screenshot({ path: `test-results/guest-save-${width}.png`, fullPage: true })
     await page.getByRole('link', { name: 'Back to your roster' }).click()
     await expect(page.locator('[data-unit="Beasts of Nurgle"]')).toBeVisible()
-    await page.getByRole('button', { name: 'Roster actions' }).click()
-    await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-    const edit = page.getByRole('dialog', { name: 'Edit roster setup' })
+    const edit = await openRosterSetup(page)
     await edit.getByRole('combobox', { name: 'Battle size' }).click()
     await page.getByRole('option', { name: /^Onslaught/ }).click()
     await edit.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Priority Assets', exact: true }).click()

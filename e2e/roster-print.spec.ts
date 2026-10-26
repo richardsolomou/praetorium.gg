@@ -4,13 +4,13 @@ import {
   createBattle,
   createRoster,
   PRACTICE_OPPONENT,
-  retryUntilVisible,
   signInAsPreview,
   signUp,
   startBattle,
   uniqueName,
   waitForRosterSave,
   addUnit,
+  chooseRosterAction,
 } from './account'
 import { attach } from './builder.harness'
 import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest } from '../mobile/src/nativeActions'
@@ -23,8 +23,7 @@ test('a full saved army prints selected equipment, both detachments and every pa
   await expect(page.locator('[data-unit]')).toHaveCount(13)
   const name = await page.getByLabel('List name').inputValue()
   const points = await page.locator('[data-stat="points"]').innerText()
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text', exact: true }).click()
+  await chooseRosterAction(page, 'Export text')
   const exportDialog = page.getByRole('dialog', { name: 'Export roster' })
   const exported = await exportDialog.locator('pre').innerText()
   await exportDialog.getByRole('button', { name: 'Close', exact: true }).click()
@@ -33,8 +32,7 @@ test('a full saved army prints selected equipment, both detachments and every pa
       document.documentElement.dataset.printedDatasheets = String(document.querySelectorAll('[data-print-datasheet]').length)
     }
   })
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Print', exact: true }).click()
+  await chooseRosterAction(page, 'Print')
   const pack = page.locator('[data-battle-reference-pack]')
   await expect(pack.locator('[data-print-datasheet]')).toHaveCount(13)
   await expect(page.locator('html')).toHaveAttribute('data-printed-datasheets', '13')
@@ -108,8 +106,7 @@ test('attached datasheets stay grouped and a missing reference never prints a pa
       document.documentElement.dataset.printed = 'true'
     }
   })
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Print', exact: true }).click()
+  await chooseRosterAction(page, 'Print')
   const pack = page.locator('[data-battle-reference-pack]')
   await expect(pack).toContainText('0 units · 0 models')
   await expect(pack.locator('[data-print-datasheet]')).toHaveCount(0)
@@ -123,8 +120,7 @@ test('attached datasheets stay grouped and a missing reference never prints a pa
       document.documentElement.dataset.printed = 'true'
     }
   })
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Print', exact: true }).click()
+  await chooseRosterAction(page, 'Print')
   await expect(pack.locator('[data-print-unit]')).toHaveCount(1)
   await expect(pack.locator('[data-print-datasheet]')).toHaveCount(2)
   await expect(pack).toContainText('Supporting Immortals (Unit 1)')
@@ -141,10 +137,7 @@ test('attached datasheets stay grouped and a missing reference never prints a pa
     if (route.request().method() === 'POST') await route.abort()
     else await route.continue()
   })
-  await retryUntilVisible(page.getByRole('menuitem', { name: 'Print', exact: true }), () =>
-    page.getByRole('button', { name: 'Roster actions' }).click(),
-  )
-  await page.getByRole('menuitem', { name: 'Print', exact: true }).click()
+  await chooseRosterAction(page, 'Print')
   await expect(page.getByRole('alert')).toContainText('could not be prepared')
   await expect(page.locator('html')).not.toHaveAttribute('data-printed', 'true')
   await expect(pack).toHaveCount(0)
@@ -168,8 +161,7 @@ test('a saved mixed-equipment pack agrees with export and the fielded army', asy
   const marines = loadout.locator('section').filter({ has: page.getByLabel('Plague Marine models', { exact: true }) })
   await waitForRosterSave(page, () => marines.getByRole('button', { name: 'More Plague spewer' }).click())
   const points = await page.locator('[data-stat="points"]').innerText()
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text', exact: true }).click()
+  await chooseRosterAction(page, 'Export text')
   const dialog = page.getByRole('dialog', { name: 'Export roster' })
   const exported = await dialog.locator('pre').innerText()
   expect(exported).toContain('3x Boltgun')

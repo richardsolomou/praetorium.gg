@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { createBattle, PRACTICE_OPPONENT, retryUntilVisible, savedArmy, setupStep } from './account'
+import { createBattle, PRACTICE_OPPONENT, retryUntilVisible, savedArmy, setupStep, chooseRosterAction } from './account'
 
 const openChooser = async (page: Page) => {
   await setupStep(page, 'Armies')
@@ -84,8 +84,7 @@ test('a battle started from a saved roster opens with that roster on the playerâ
   await page.waitForLoadState('networkidle')
   const dialog = page.getByRole('dialog', { name: 'Start a battle' })
   await retryUntilVisible(dialog, async () => {
-    await page.getByRole('button', { name: 'Roster actions' }).click()
-    await page.getByRole('menuitem', { name: 'Start a battle' }).click()
+    await chooseRosterAction(page, 'Start a battle')
   })
   await dialog.getByRole('combobox', { name: 'Opponent' }).click()
   await page.getByRole('option', { name: PRACTICE_OPPONENT, exact: true }).click()

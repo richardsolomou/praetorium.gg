@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { createRoster, signUp, uniqueName, waitForRosterSave, expectNoPageOverflow } from './account'
+import { createRoster, signUp, uniqueName, waitForRosterSave, expectNoPageOverflow, chooseRosterAction } from './account'
 import { productOperator, savedWork, lastPathSegment } from './storage'
 
 const LOCKED = 'This roster is locked. Unlock it to change it, or keep your changes as a new roster.'
@@ -15,8 +15,7 @@ test('a locked roster stays read-only until unlocked while its copies stay edita
     await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
   })
 
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Lock roster' }).click()
+  await chooseRosterAction(page, 'Lock roster')
   const listName = page.getByLabel('List name')
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
@@ -54,8 +53,7 @@ test('a locked roster stays read-only until unlocked while its copies stay edita
   await expect(duplicate.getByText('Locked', { exact: true })).toHaveCount(0)
 
   await page.goto(`/rosters/${id}`)
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Create variant' }).click()
+  await chooseRosterAction(page, 'Create variant')
   await page.waitForURL((url) => !url.pathname.endsWith(id))
   const variantId = lastPathSegment(page.url())
   await waitForRosterSave(page, () => page.getByLabel('List name').fill('Experimental variant'), 'Experimental variant')

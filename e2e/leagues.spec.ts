@@ -12,6 +12,7 @@ import {
   sealableRoster,
   expectNoPageOverflow,
   addUnit,
+  openRosterSetup,
 } from './account'
 import { productOperator, productSql, userIdFor, withAuthSql, userIdNamed, lastPathSegment } from './storage'
 import { holdCombatCalculations } from './combat'
@@ -1137,9 +1138,7 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   await waitForRosterSave(owner, () => owner.getByRole('button', { name: 'Select Mark of the Nekrosor' }).click())
   await makeWarlord(owner, 'Skorpekh Lord')
 
-  await owner.getByRole('button', { name: 'Roster actions' }).click()
-  await owner.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  const setup = owner.getByRole('dialog', { name: 'Edit roster setup' })
+  const setup = await openRosterSetup(owner)
   await setup.getByRole('button', { name: 'Select Skyshroud Spearhead' }).click()
   await waitForRosterSave(owner, () => confirmRosterSetup(setup))
 

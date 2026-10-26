@@ -11,6 +11,7 @@ import {
   uniqueName,
   waitForRosterSave,
   expectNoPageOverflow,
+  openRosterSetup,
 } from './account'
 import { productOperator, productSql, userIdFor, lastPathSegment } from './storage'
 
@@ -247,13 +248,10 @@ test('a roster variant is numbered and grouped under its base without renaming',
 
   await page.getByRole('link', { name: /Dynasty 2k · 2/ }).click()
   await expect(page.getByLabel('List name')).toHaveValue('Dynasty 2k · 2')
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Create variant' }).click()
+  await chooseRosterAction(page, 'Create variant')
   await expect(page.getByLabel('List name')).toHaveValue('Dynasty 2k · 3')
   await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  const setup = await openRosterSetup(page)
   await setup.getByRole('button', { name: 'Select Awakened Dynasty', pressed: true }).click()
   await setup.getByRole('button', { name: 'Select Cursed Legion' }).click()
   await setup.getByRole('button', { name: 'Select Skyshroud Spearhead' }).click()
@@ -322,8 +320,7 @@ test('a battle’s roster chooser tells a variant apart from its base', async ({
     await page.getByLabel('Add a unit').fill('Immortals')
     await page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click()
   })
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Create variant' }).click()
+  await chooseRosterAction(page, 'Create variant')
   await expect(page.getByLabel('List name')).toHaveValue('Dynasty 2k · 2')
   await waitForRosterSave(page, async () => {
     const picker = page.getByLabel('Add a unit')

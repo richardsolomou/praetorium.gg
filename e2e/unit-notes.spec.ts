@@ -11,6 +11,7 @@ import {
   waitForRosterSave,
   setRosterAccess,
   addUnit,
+  chooseRosterAction,
 } from './account'
 import { shot } from './builder.harness'
 import { lastPathSegment } from './storage'
@@ -71,8 +72,7 @@ for (const [size, label] of [
     await expect(cards.nth(1)).toContainText(BRAVO_NOTE)
     await shot(owner.locator('[data-roster-builder]'), `test-results/unit-annotation-cards-${label}.png`)
 
-    await owner.getByRole('button', { name: 'Roster actions' }).click()
-    await owner.getByRole('menuitem', { name: 'Export text' }).click()
+    await chooseRosterAction(owner, 'Export text')
     const exported = owner.getByRole('dialog', { name: 'Export roster' })
     await expect(exported.locator('pre')).toContainText('• Custom name: Rot Alpha')
     await expect(exported.locator('pre')).toContainText('• Custom name: Rot Bravo')
@@ -82,8 +82,7 @@ for (const [size, label] of [
     await owner.evaluate(() => {
       window.print = () => undefined
     })
-    await owner.getByRole('button', { name: 'Roster actions' }).click()
-    await owner.getByRole('menuitem', { name: 'Print', exact: true }).click()
+    await chooseRosterAction(owner, 'Print')
     const pack = owner.locator('[data-battle-reference-pack]')
     await expect(pack.getByRole('heading', { name: `Rot Alpha · ${SQUAD} ·`, exact: false })).toBeVisible()
     await expect(pack).toContainText(`Note: ${ALPHA_NOTE}`)
@@ -118,8 +117,7 @@ for (const [size, label] of [
     await expect(opponent.locator('body')).not.toContainText('Rot Prime')
 
     await owner.goto(`/rosters/${original}`)
-    await owner.getByRole('button', { name: 'Roster actions' }).click()
-    await owner.getByRole('menuitem', { name: 'Create variant' }).click()
+    await chooseRosterAction(owner, 'Create variant')
     await owner.waitForURL((url) => !url.pathname.endsWith(original))
     await expect(cards.nth(0)).toContainText(`Rot Prime${SQUAD}`)
     await expect(cards.nth(0)).toContainText('Rush the centre')

@@ -12,6 +12,7 @@ import {
   attachRoster,
   startBattle,
   advance,
+  openRosterSetup,
 } from './account'
 import { battleLog, productOperator, savedWork, userIdFor, lastPathSegment } from './storage'
 import { chooseCombatUnit } from './combat'
@@ -400,9 +401,7 @@ test('a roster on another rules version saves that version for offline edits', a
   await waitForOfflineApp(page)
   // A device without rosters on other versions downloads construction data for the current rules alone.
   expect(await page.evaluate(() => window.PraetoriumReferenceCache?.constructionBundle)).toBe(construction.current)
-  await page.getByRole('button', { name: 'Roster actions', exact: true }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup', exact: true }).click()
-  const dialog = page.getByRole('dialog', { name: 'Edit roster setup' })
+  const dialog = await openRosterSetup(page)
   await dialog.getByRole('combobox', { name: 'Rules version' }).click()
   await page.getByRole('option', { name: 'MFM 1.5 · Archived', exact: true }).click()
   await expect(dialog.getByRole('button', { name: 'Select Shield Host', exact: true })).toBeVisible()

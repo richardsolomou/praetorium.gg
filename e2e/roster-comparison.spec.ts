@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from './test'
-import { addUnit, createRoster, retryUntilVisible, signUp, expectNoPageOverflow, chooseOption } from './account'
+import { addUnit, createRoster, signUp, expectNoPageOverflow, chooseOption, chooseRosterAction } from './account'
 import { holdCombatCalculations } from './combat'
 import { productOperator, userIdFor } from './storage'
 
@@ -12,10 +12,7 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   page.on('request', (request) => {
     if (request.url().includes('/_serverFn/') && request.postData()?.includes('pickIndices')) projections++
   })
-  await retryUntilVisible(page.getByRole('menuitem', { name: 'Test targets', exact: true }), () =>
-    page.getByRole('button', { name: 'Roster actions', exact: true }).click(),
-  )
-  await page.getByRole('menuitem', { name: 'Test targets', exact: true }).click()
+  await chooseRosterAction(page, 'Test targets')
   let dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
   await expect(dialog.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText('Current roster')
   await expect(dialog.getByRole('combobox', { name: 'Defending roster', exact: true })).toContainText('Benchmark targets')
@@ -116,10 +113,7 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   await detail.getByRole('button', { name: 'Close', exact: true }).click()
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   await page.reload()
-  await retryUntilVisible(page.getByRole('menuitem', { name: 'Test targets', exact: true }), () =>
-    page.getByRole('button', { name: 'Roster actions', exact: true }).click(),
-  )
-  await page.getByRole('menuitem', { name: 'Test targets', exact: true }).click()
+  await chooseRosterAction(page, 'Test targets')
   dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
   await dialog.getByRole('button', { name: 'Benchmark targets · 9', exact: true }).click()
   await expect(dialog.getByRole('spinbutton', { name: 'Necron Warriors #2 benchmark models', exact: true })).toHaveValue('20')
@@ -134,10 +128,7 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   await expect(dialog.getByRole('heading', { name: /^Benchmark targets ·/ })).toHaveText('Benchmark targets · 0')
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   await page.reload()
-  await retryUntilVisible(page.getByRole('menuitem', { name: 'Test targets', exact: true }), () =>
-    page.getByRole('button', { name: 'Roster actions', exact: true }).click(),
-  )
-  await page.getByRole('menuitem', { name: 'Test targets', exact: true }).click()
+  await chooseRosterAction(page, 'Test targets')
   dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
   await expect(dialog.getByRole('heading', { name: /^Benchmark targets ·/ })).toHaveText('Benchmark targets · 0')
   await dialog.getByRole('button', { name: 'Run all matchups' }).click()
@@ -150,10 +141,7 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   await expect(dialog).toContainText('2 / 2 matchups · Complete')
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   await page.reload()
-  await retryUntilVisible(page.getByRole('menuitem', { name: 'Test targets', exact: true }), () =>
-    page.getByRole('button', { name: 'Roster actions', exact: true }).click(),
-  )
-  await page.getByRole('menuitem', { name: 'Test targets', exact: true }).click()
+  await chooseRosterAction(page, 'Test targets')
   dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
   await expect(dialog.getByRole('heading', { name: /^Benchmark targets ·/ })).toHaveText('Benchmark targets · 1')
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
@@ -183,10 +171,7 @@ test('long matchup tables keep target headings and attacker names visible while 
   const id = crypto.randomUUID()
   await operator.saveRoster({ ...source, id, userId, name: 'Long comparison', automaticName: false, now: Date.now() })
   await page.goto(`/rosters/${id}`)
-  await retryUntilVisible(page.getByRole('menuitem', { name: 'Test targets', exact: true }), () =>
-    page.getByRole('button', { name: 'Roster actions', exact: true }).click(),
-  )
-  await page.getByRole('menuitem', { name: 'Test targets', exact: true }).click()
+  await chooseRosterAction(page, 'Test targets')
   const dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })
   await dialog.getByRole('button', { name: 'Run all matchups' }).click()
   await expect(dialog).toContainText(/matchups · Complete/, { timeout: 120_000 })

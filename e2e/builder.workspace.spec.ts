@@ -1,7 +1,16 @@
 import { expect, test } from './test'
 import { savedWork } from './storage'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
-import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, waitForRosterSave, expectNoPageOverflow, addUnit } from './account'
+import {
+  confirmRosterSetup,
+  createRoster,
+  retryUntilVisible,
+  signUp,
+  waitForRosterSave,
+  expectNoPageOverflow,
+  addUnit,
+  openRosterSetup,
+} from './account'
 import {
   expectNoHorizontalOverflow,
   expectInsideHorizontalBounds,
@@ -168,9 +177,7 @@ test('a three-point detachment lets the player choose either disposition', async
   await page.reload()
   await expect(page.locator('[data-slot="roster-meta"]').getByRole('link', { name: 'Priority Assets' })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
+  const setup = await openRosterSetup(page)
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await waitForRosterSave(page, () => confirmRosterSetup(setup))
   await page.reload()

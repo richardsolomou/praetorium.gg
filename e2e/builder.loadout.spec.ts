@@ -1,5 +1,15 @@
 import { expect, test, type Page } from './test'
-import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, waitForRosterSave, expectNoPageOverflow, addUnit } from './account'
+import {
+  confirmRosterSetup,
+  createRoster,
+  retryUntilVisible,
+  signUp,
+  waitForRosterSave,
+  expectNoPageOverflow,
+  addUnit,
+  chooseRosterAction,
+  openRosterSetup,
+} from './account'
 import { savedWork } from './storage'
 import {
   expectInsideHorizontalBounds,
@@ -177,31 +187,22 @@ test('the filters narrow the book to what is worth taking', async ({ browser, pa
 
   // Points fit hides what will not go in the room that is left, and only that.
   await page.getByRole('button', { name: 'Unit limit' }).click()
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  const setup = page.getByRole('dialog', { name: 'Edit roster setup' })
-  await setup.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /^Incursion/ }).click()
-  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await confirmRosterSetup(setup)
+  const playAt = async (size: RegExp) => {
+    const setup = await openRosterSetup(page)
+    await setup.getByRole('combobox', { name: 'Battle size' }).click()
+    await page.getByRole('option', { name: size }).click()
+    await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
+    await confirmRosterSetup(setup)
+  }
+  await playAt(/^Incursion/)
   await expect(page.getByText('3/2 in roster')).toBeVisible()
   await expect(page.getByText('Roster is not legal')).toBeAttached()
   await expect(lychguard).toBeDisabled()
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  await setup.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /King of the Colosseum/ }).click()
-  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await confirmRosterSetup(setup)
+  await playAt(/King of the Colosseum/)
   await expect(page.getByText('3/1 in roster')).toBeVisible()
   await expect(page.getByText('Lychguard: allows at most 1 of this datasheet, has 3')).toBeVisible()
   await expect(lychguard).toBeDisabled()
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Edit roster setup' }).click()
-  await setup.getByRole('combobox', { name: 'Battle size' }).click()
-  await page.getByRole('option', { name: /^Incursion/ }).click()
-  await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
-  await confirmRosterSetup(setup)
+  await playAt(/^Incursion/)
 
   // The battle size's own restrictions are switched off from the picker's own menu,
   // over the book they act on.
@@ -1181,8 +1182,7 @@ test('Plague Marine cards and exports omit replaced default wargear', async ({ p
   await expect(card).toContainText('4x Plague knives')
   await expect(card).not.toContainText('Boltgun')
 
-  await page.getByRole('button', { name: 'Roster actions' }).click()
-  await page.getByRole('menuitem', { name: 'Export text' }).click()
+  await chooseRosterAction(page, 'Export text')
   const exported = page.getByRole('dialog', { name: 'Export roster' }).locator('pre')
   await expect(exported).toContainText('4x Plague knives')
   await expect(exported).not.toContainText('Boltgun')

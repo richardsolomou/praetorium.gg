@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { visitorSetup } from './account'
+import { visitorSetup, chooseRosterAction } from './account'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
 
 for (const width of [1440, 390]) {
@@ -69,8 +69,7 @@ for (const width of [1440, 390]) {
     await expect(equipped.getByRole('heading', { name: '2× Twin Neutronium Cascade Projectors', exact: true })).toHaveCount(1)
     await expect(weapons.getByRole('button', { name: /^Select / })).toHaveCount(0)
     if (width < 1300) await loadout.getByRole('button', { name: 'Back to roster', exact: true }).click()
-    await page.getByRole('button', { name: 'Roster actions' }).click()
-    await page.getByRole('menuitem', { name: 'Export text' }).click()
+    await chooseRosterAction(page, 'Export text')
     const exported = page.getByRole('dialog', { name: 'Export roster' }).locator('pre')
     await expect(exported).toContainText('2x Twin Neutronium Cascade Projectors')
     await expect(exported).not.toContainText('Iliastus Accelerator Culverin')
