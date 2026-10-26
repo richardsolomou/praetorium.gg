@@ -15,7 +15,7 @@ import { admitsHost, attachmentOf } from '../core/attach'
 import { combatUnitKeywords } from '../core/combatUnit'
 import type { RosterPick } from '../core/roster'
 import { encodeSimulatorState } from '../contracts/simulatorState'
-import type { AgentTools } from './agentTools'
+import { READ_ONLY_TOOL, structured, type AgentTools } from './agentTools'
 import { app } from './app'
 import { activeReferenceCorpus } from './referenceApi'
 import type { ReferenceCorpus } from './referenceCorpus'
@@ -322,7 +322,7 @@ export async function simulateCombat(input: SimulateCombatInput) {
     revisions: corpus.catalogue.revisions,
     attribution: [...new Set(documents.flatMap((document) => document.attribution))],
   }
-  return { content: [{ type: 'text' as const, text: JSON.stringify(result) }], structuredContent: result }
+  return structured(result)
 }
 
 function sharedSide({ resolved }: Combatant, rules: SideInput['rules']) {
@@ -346,7 +346,7 @@ export function registerCombatTools(tools: AgentTools) {
       description:
         "Runs Praetorium's exact combat simulator for one attacking unit, with any attached leaders, against one defending unit at full strength: shooting, melee, and shooting followed by melee. Returns expected models destroyed, expected wounds lost, the chance to destroy the unit, cumulative odds, weapons used, the rule and weapon-mode choices each side can change, datasheet citations, and a simulator link. Passive datasheet rules apply by default; stratagems and conditional rules stay off until chosen. Rules the simulator cannot calculate are never approximated: a phase it cannot estimate has status refused with its reasons, and recognised rules it leaves out are listed under notCalculated, so explain those gaps rather than retrying. Errors are reserved for unknown factions or units, illegal unit sizes or attachments, and unavailable reference data. Like the standalone simulator page, it uses default loadouts and no detachment; unit sizes and attachments must be legal.",
       inputSchema: simulateCombatInputSchema,
-      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      annotations: READ_ONLY_TOOL,
     },
     simulateCombat,
   )

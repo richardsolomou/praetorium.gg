@@ -18,7 +18,7 @@ import {
   unitSummarySchema,
 } from './referenceSchemas'
 import { referenceFactions, referenceIndex } from './referenceService'
-import type { AgentTools } from './agentTools'
+import { READ_ONLY_TOOL, structured, type AgentTools } from './agentTools'
 
 export function registerReferenceTools(server: AgentTools) {
   server.registerTool(
@@ -154,11 +154,6 @@ export function registerReferenceTools(server: AgentTools) {
       return structured(result)
     },
   )
-}
-
-const READ_ONLY_TOOL = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false } as const
-function structured<T extends object>(result: T) {
-  return { content: [{ type: 'text' as const, text: JSON.stringify(result, null, 2) }], structuredContent: result }
 }
 
 const unavailable = () => ({

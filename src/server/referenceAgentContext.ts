@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { AgentTools } from './agentTools'
+import { READ_ONLY_TOOL, type AgentTools } from './agentTools'
 import { activeReferenceCorpus } from './referenceApi'
 import { praetoriumGuideMarkdown } from './referenceGuide'
 import { referenceIndex } from './referenceService'
@@ -64,20 +64,19 @@ export function promptMessages(text: string) {
 }
 
 export function registerReferenceContextTools(tools: AgentTools) {
-  const annotations = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false }
   for (const resource of referenceResources) {
-    tools.registerTool(resource.toolName, { ...resource, inputSchema: {}, annotations }, async () => ({
+    tools.registerTool(resource.toolName, { ...resource, inputSchema: {}, annotations: READ_ONLY_TOOL }, async () => ({
       content: [{ type: 'text', text: await resource.read() }],
     }))
   }
   tools.registerTool(
     rulesQuestionPrompt.name,
-    { ...rulesQuestionPrompt, inputSchema: rulesQuestionPrompt.argsSchema, annotations },
+    { ...rulesQuestionPrompt, inputSchema: rulesQuestionPrompt.argsSchema, annotations: READ_ONLY_TOOL },
     async (input) => ({ content: [{ type: 'text', text: rulesQuestionText(input) }] }),
   )
   tools.registerTool(
     missionMatchupPrompt.name,
-    { ...missionMatchupPrompt, inputSchema: missionMatchupPrompt.argsSchema, annotations },
+    { ...missionMatchupPrompt, inputSchema: missionMatchupPrompt.argsSchema, annotations: READ_ONLY_TOOL },
     async (input) => ({ content: [{ type: 'text', text: missionMatchupText(input) }] }),
   )
 }
