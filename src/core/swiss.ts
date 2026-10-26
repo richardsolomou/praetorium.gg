@@ -99,6 +99,17 @@ export function swissPairings(players: readonly string[], matches: readonly Swis
   return [...pairs, ...(bye ? [[bye, null] as [string, null]] : [])]
 }
 
+/** The tables whose two players met in an earlier round, which a small field forces once every fresh pairing is used up. */
+export function rematches<T extends { round: number; aId: string; bId: string | null }>(pairings: readonly T[]): Set<T> {
+  const firstMet = new Map<string, number>()
+  for (const pairing of pairings) {
+    if (pairing.bId === null) continue
+    const key = pairKey(pairing.aId, pairing.bId)
+    firstMet.set(key, Math.min(firstMet.get(key) ?? pairing.round, pairing.round))
+  }
+  return new Set(pairings.filter((pairing) => pairing.bId !== null && firstMet.get(pairKey(pairing.aId, pairing.bId))! < pairing.round))
+}
+
 /** Pairs down the standings, backing up a step whenever the only opponent left is a rematch. */
 function pairWithoutRematches(order: readonly string[], met: ReadonlySet<string>): [string, string][] | null {
   const [first, ...rest] = order

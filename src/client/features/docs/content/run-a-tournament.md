@@ -30,7 +30,7 @@ Anyone who can see the results table can save it with **Export CSV**, and a save
 
 ## Swiss rounds
 
-After the reveal, press **Pair round 1**. The first round is drawn at random. Each later round pairs players on the same score, top of the table first, and never pairs two players who have already met when any other pairing works. With an odd number of players, the lowest-placed player who hasn't had a bye sits the round out, and the bye counts as a win. **Pair round 2** and the rounds after it open once every table has finished its battle. Each table's missions and battlefield come from its two armies, as in any battle.
+After the reveal, press **Pair round 1**. The first round is drawn at random. Each later round pairs players on the same score, top of the table first, and never pairs two players who have already met when any other pairing works. With an odd number of players, the lowest-placed player who hasn't had a bye sits the round out, and the bye counts as a win. When a small field runs out of new opponents, two players meet again and their table is marked **Rematch**. **Pair round 2** and the rounds after it open once every table has finished its battle. Each table's missions and battlefield come from its two armies, as in any battle.
 
 The results rank by match points (3 for a win or bye, 1 for a draw), then total victory points, then strength of schedule: the match points of everyone a player has faced.
 
