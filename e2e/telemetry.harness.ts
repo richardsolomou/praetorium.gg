@@ -52,10 +52,11 @@ type SupportTicket = { id: string; status: string; messages: SupportMessage[]; u
 
 /**
  * Stands in for PostHog Support on this page, which browser test stacks cannot reach: tickets live in the page,
- * and the returned helpers read what the player sent and answer as the team.
+ * and the returned helpers read what the player sent and answer as the team. `earlier` conversations exist before
+ * the page can first read them, as `seed` cannot promise once Support answers.
  */
-export async function stubSupport(page: Page) {
-  await page.evaluate(async () => {
+export async function stubSupport(page: Page, earlier = 0) {
+  await page.evaluate(async (initial) => {
     const url = performance.getEntriesByType('resource').find((entry) => /\/assets\/telemetry-[^/]+\.js/.test(entry.name))?.name
     if (!url) throw new Error('The production telemetry chunk did not load')
     const exports = await import(url)
@@ -152,7 +153,8 @@ export async function stubSupport(page: Page) {
         return { success: true, unread_count: 0 }
       },
     }
-  })
+    ;(window as unknown as { support: { seed: (count: number) => void } }).support.seed(initial)
+  }, earlier)
   return {
     tickets: () => page.evaluate(() => (window as unknown as { support: { tickets: SupportTicket[] } }).support.tickets),
     /** Adds conversations the player started earlier, newest first as "Feedback <count>" down to "Feedback 1". */
