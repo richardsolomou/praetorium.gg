@@ -7,7 +7,7 @@ import { createServer } from 'node:http'
 import path from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { promisify } from 'node:util'
-import { assertSavedDevData, localControlPort, readLocalDevPreview, type LocalDevPreview } from './localDevPreview.ts'
+import { assertSavedDevData, localControlPort, localDevPreviewFile, readLocalDevPreview, type LocalDevPreview } from './localDevPreview.ts'
 import { closeServer, reserveLocalPort, startLocalChild, stopLocalChildren } from './lib/localStack.ts'
 import { migrateProductData } from './lib/productDataMigrations.ts'
 import { moduleEnvironment } from './lib/spacetimeEnvironment.ts'
@@ -18,7 +18,7 @@ import { prepareModuleCoverage } from './lib/moduleCoverage.ts'
 
 const testMode = process.env.LOCAL_TEST_MODE === 'true'
 const worktree = await realpath(process.cwd())
-const previewFile = path.join(worktree, 'data-dev/active-preview.json')
+const previewFile = localDevPreviewFile(worktree)
 const savedPreview = testMode ? undefined : readLocalDevPreview(previewFile)
 if (savedPreview && savedPreview.worktree !== worktree) throw new Error('Preview record belongs to another worktree')
 const root = path.resolve(process.env.LOCAL_DATA_DIR ?? savedPreview?.dataDir ?? 'data-dev/hosted')

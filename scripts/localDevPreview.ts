@@ -59,6 +59,14 @@ export function readLocalDevPreview(file: string): LocalDevPreview | undefined {
   }
 }
 
+export const localDevPreviewFile = (worktree: string) => path.join(worktree, 'data-dev/active-preview.json')
+
+/** This worktree's development runner, or undefined when none answers. */
+export function runningLocalDevPreview(worktree: string) {
+  const saved = readLocalDevPreview(localDevPreviewFile(worktree))
+  return inspectLocalDevPreview(worktree, saved?.controlPort ?? localControlPort(worktree), saved?.token)
+}
+
 export async function inspectLocalDevPreview(worktree: string, controlPort: number, token?: string) {
   let response: Response
   try {
