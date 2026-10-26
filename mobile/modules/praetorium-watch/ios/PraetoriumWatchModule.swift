@@ -50,13 +50,10 @@ private final class WatchTransport: NSObject, WCSessionDelegate {
     }
     latest = snapshot
     sentAt = max(sentAt + 0.001, Date().timeIntervalSince1970)
-    try WCSession.default.updateApplicationContext([
-      "snapshot": Data(snapshot.utf8), "sentAt": sentAt,
-    ])
+    let payload: [String: Any] = ["snapshot": Data(snapshot.utf8), "sentAt": sentAt]
+    try WCSession.default.updateApplicationContext(payload)
     if WCSession.default.isReachable {
-      WCSession.default.sendMessage(
-        ["snapshot": Data(snapshot.utf8), "sentAt": sentAt], replyHandler: nil
-      ) {
+      WCSession.default.sendMessage(payload, replyHandler: nil) {
         [logger] error in
         logger.error(
           "Watch delivery deferred to application context: \(error.localizedDescription, privacy: .public)"
