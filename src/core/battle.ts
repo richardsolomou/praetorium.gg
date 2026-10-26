@@ -2153,12 +2153,9 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       player.secondaryStatus = { ...player.secondaryStatus, [command.secondaryKey]: 'discarded' }
       player.secondariesDrawnThisTurn = player.secondariesDrawnThisTurn.filter((key) => key !== command.secondaryKey)
       player.secondariesToReview = player.secondariesToReview.filter((key) => key !== command.secondaryKey)
-      const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === command.secondary.key) ?? command.secondary) }
-      player.secondaries.push(secondary)
-      markDrawn(state, player, secondary.key, seq)
-      player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
-      player.secondariesDrawnThisTurn.push(secondary.key)
-      player.secondariesToReview.push(secondary.key)
+      const key = drawCard(state, player, command.secondary, seq)
+      player.secondariesDrawnThisTurn.push(key)
+      player.secondariesToReview.push(key)
       state.drawAcknowledged = false
       return
     }
@@ -2200,22 +2197,14 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       return
     }
     case 'draw-secondary': {
-      const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === command.secondary.key) ?? command.secondary) }
-      player.secondaries.push(secondary)
-      markDrawn(state, player, secondary.key, seq)
-      player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
-      player.secondariesDrawnThisTurn = [...player.secondariesDrawnThisTurn, secondary.key]
-      player.secondariesToReview = [...player.secondariesToReview, secondary.key]
+      const key = drawCard(state, player, command.secondary, seq)
+      player.secondariesDrawnThisTurn = [...player.secondariesDrawnThisTurn, key]
+      player.secondariesToReview = [...player.secondariesToReview, key]
       state.drawAcknowledged = false
       return
     }
     case 'draw-secondaries': {
-      for (const drawn of command.secondaries) {
-        const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === drawn.key) ?? drawn) }
-        player.secondaries.push(secondary)
-        markDrawn(state, player, secondary.key, seq)
-        player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
-      }
+      for (const drawn of command.secondaries) drawCard(state, player, drawn, seq)
       player.secondariesDrawnThisTurn = [...player.secondariesDrawnThisTurn, ...command.secondaries.map((drawn) => drawn.key)]
       player.secondariesToReview = [...player.secondariesToReview, ...command.secondaries.map((drawn) => drawn.key)]
       state.drawAcknowledged = false
@@ -2231,11 +2220,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       return
     }
     case 'select-secret': {
-      const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === command.secondary.key) ?? command.secondary) }
-      player.secondaries.push(secondary)
-      markDrawn(state, player, secondary.key, seq)
-      player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
-      player.secretSecondary = secondary.key
+      player.secretSecondary = drawCard(state, player, command.secondary, seq)
       player.secretRevealed = false
       return
     }
@@ -2657,10 +2642,15 @@ export function pointsRound(state: BattleState, command: Extract<Command, { kind
   return command.missed?.round ?? command.round ?? state.round
 }
 
-function markDrawn(state: BattleState, player: PlayerState, key: string, seq: number) {
-  player.secondaryDrawSeq[key] = seq
+/** Puts a card into the hand as the side's own deck holds it, and returns its key. */
+function drawCard(state: BattleState, player: PlayerState, card: Secondary, seq: number): string {
+  const secondary = { ...(player.secondaryDeck?.find((candidate) => candidate.key === card.key) ?? card) }
+  player.secondaries.push(secondary)
+  player.secondaryDrawSeq[secondary.key] = seq
   const now = playedMoment(state)
-  if (now) player.secondaryDrawnAt[key] = momentOrder(state, now)
+  if (now) player.secondaryDrawnAt[secondary.key] = momentOrder(state, now)
+  player.secondaryStatus = { ...player.secondaryStatus, [secondary.key]: 'active' }
+  return secondary.key
 }
 
 function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: number | null, seq: number) {
