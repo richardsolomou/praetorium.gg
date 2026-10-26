@@ -187,7 +187,7 @@ test('a club seals lists for a game night and plays them from the club page', as
 test('a club plays a solo-vs-pair sealed game, its players taking their own sides', async ({ browser }) => {
   test.setTimeout(240_000)
   const contexts = await Promise.all([0, 1, 2].map(() => browser.newContext({ viewport: { width: 1440, height: 1000 } })))
-  const [solo, ally, partner] = await Promise.all(contexts.map((context) => context.newPage()))
+  const [solo, ally, partner] = (await Promise.all(contexts.map((context) => context.newPage()))) as [Page, Page, Page]
   await signUp(solo, uniqueName('Solo host'))
   await signUp(ally, uniqueName('First ally'))
   await signUp(partner, uniqueName('Second ally'))
