@@ -1,5 +1,5 @@
 import { parseSavedReference, type SavedReference } from './offlineReference'
-import { APP_URL, classifyNavigation } from './navigation'
+import { classifyNavigation } from './navigation'
 import { MAX_APP_SNAPSHOT_BYTES, parseAppSnapshot, type AppSnapshot } from '../../src/contracts/appSnapshot'
 import { MAX_LOCAL_STATE_BYTES, parseLocalState, type LocalState } from '../../src/contracts/localState'
 
@@ -100,10 +100,10 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
       return { kind: 'push', id: value.id, prompt: value.prompt }
     }
     if (value.type === 'native-share' && typeof value.url === 'string' && value.url.length <= MAX_SHARE_URL_LENGTH) {
-      const url = new URL(value.url)
-      if (url.origin !== APP_URL || url.username || url.password) return null
+      const decision = classifyNavigation(value.url)
+      if (decision.kind !== 'internal') return null
       if (value.title !== undefined && (typeof value.title !== 'string' || value.title.length > MAX_SHARE_TITLE_LENGTH)) return null
-      return { kind: 'share', url: url.href, ...(typeof value.title === 'string' ? { title: value.title } : {}) }
+      return { kind: 'share', url: decision.url, ...(typeof value.title === 'string' ? { title: value.title } : {}) }
     }
     return null
   } catch {
