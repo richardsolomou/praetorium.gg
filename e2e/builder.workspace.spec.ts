@@ -1,6 +1,6 @@
 import { expect, test } from './test'
 import { expectWorkSynced } from './storage'
-import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
+import { NATIVE_SHELL_SCRIPT } from './native.harness'
 import {
   confirmRosterSetup,
   createRoster,
@@ -184,8 +184,7 @@ test('a three-point detachment lets the player choose either disposition', async
 test('a native unit screen keeps the tab bar beside it', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 364, height: 759 } })
   await context.addInitScript({
-    content: `window.ReactNativeWebView = { postMessage: () => {} };
-${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
+    content: NATIVE_SHELL_SCRIPT,
   })
   const page = await context.newPage()
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)
@@ -246,8 +245,7 @@ test('a mobile web unit screen keeps the tab bar beside it', async ({ browser })
 test('the roster tab comes back to the unit it was left on', { tag: '@catalogue' }, async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await context.addInitScript({
-    content: `window.ReactNativeWebView = { postMessage: () => {} };
-${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
+    content: NATIVE_SHELL_SCRIPT,
   })
   const page = await context.newPage()
   await openBuilder(page)
@@ -284,8 +282,7 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
 test('a unit that moved while the roster was open does not eject the roster tab', async ({ browser }) => {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await context.addInitScript({
-    content: `window.ReactNativeWebView = { postMessage: () => {} };
-${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
+    content: NATIVE_SHELL_SCRIPT,
   })
   const page = await context.newPage()
   await openBuilder(page)

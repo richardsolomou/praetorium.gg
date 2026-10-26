@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import { join } from 'node:path'
 import { devices, expect, type Page, test } from './test'
-import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
+import { NATIVE_SHELL_SCRIPT } from './native.harness'
 import {
   confirmRosterSetup,
   createRoster,
@@ -136,8 +136,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
 test('the native application has stable route-aware phone and tablet navigation', async ({ browser }) => {
   const loadingContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await loadingContext.addInitScript({
-    content: `window.ReactNativeWebView = { postMessage: () => {} };
-${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
+    content: NATIVE_SHELL_SCRIPT,
   })
   const loadingPage = await loadingContext.newPage()
   await loadingPage.route('**/*', (route) => (route.request().resourceType() === 'script' ? route.abort() : route.continue()))
@@ -153,8 +152,7 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
 
   const legacyContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await legacyContext.addInitScript({
-    content: `window.ReactNativeWebView = { postMessage: () => {} };
-${NATIVE_BROWSER_BRIDGE_SCRIPT}
+    content: `${NATIVE_SHELL_SCRIPT}
 document.addEventListener('DOMContentLoaded', () => { document.documentElement.dataset.nativeShell = 'true' }, { once: true });`,
   })
   const legacyPage = await legacyContext.newPage()
@@ -166,8 +164,7 @@ document.addEventListener('DOMContentLoaded', () => { document.documentElement.d
 
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
   await context.addInitScript({
-    content: `window.ReactNativeWebView = { postMessage: () => {} };
-${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
+    content: NATIVE_SHELL_SCRIPT,
   })
   const page = await context.newPage()
   const hydrationErrors: string[] = []
@@ -1141,7 +1138,7 @@ test('the first sort choice orders saved rosters and persists on mobile', async 
 })
 
 test('a guest roster stays within the native mobile builder viewport', async ({ page, context }) => {
-  await context.addInitScript({ content: `window.ReactNativeWebView = { postMessage: () => {} };\n${NATIVE_BROWSER_BRIDGE_SCRIPT}` })
+  await context.addInitScript({ content: NATIVE_SHELL_SCRIPT })
   await page.setViewportSize({ width: 390, height: 844 })
   const setup = await visitorSetup(page)
   await chooseFaction(setup, 'Necrons')
