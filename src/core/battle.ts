@@ -565,6 +565,7 @@ export const FIXED_SECONDARIES = 2
  * this is not, and tightening it is a migration.
  */
 export const SECONDARIES_MAX = 6
+export const SECONDARY_DECK_MAX = 60
 const SECONDARY_HISTORY_MAX = 30
 /** One primary score plus every secondary the bounded battle history can hold. */
 export const SCORE_SETTLEMENT_MAX = SECONDARY_HISTORY_MAX + 1
@@ -1630,9 +1631,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (state.phase !== 'end' || !sameSide(state, state.activePlayerId, player.id))
         return refuse('not-end-of-turn', 'resolve tactical missions at the end of your turn')
       if (player.secondaryMode !== 'tactical') return refuse('not-tactical', 'only tactical secondaries are resolved each turn')
-      const active = player.secondaries.filter(
-        (secondary) => secondary.key !== player.secretSecondary && player.secondaryStatus[secondary.key] === 'active',
-      )
+      const active = activeTacticalSecondaries(player)
       if (!active.length) return refuse('no-active-secondaries', 'there are no active tactical secondaries to resolve')
       const keys = command.keys ?? []
       if (keys.some((key) => !active.some((secondary) => secondary.key === key)))
@@ -1705,11 +1704,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (due.length && !state.advanceRequested) return refuse('scoring-unreviewed', 'review mission scoring before ending the phase')
       if (due.length && !state.scoringAcknowledged) return refuse('scoring-unreviewed', 'finish mission scoring before ending the phase')
       const unresolvedTactical =
-        state.phase === 'end' &&
-        player.secondaryMode === 'tactical' &&
-        player.secondaries.some(
-          (secondary) => secondary.key !== player.secretSecondary && player.secondaryStatus[secondary.key] === 'active',
-        )
+        state.phase === 'end' && player.secondaryMode === 'tactical' && activeTacticalSecondaries(player).length > 0
       if (unresolvedTactical && !state.advanceRequested)
         return refuse('tactical-hand-unreviewed', 'review the tactical hand before ending the turn')
       return null
@@ -2814,19 +2809,25 @@ export function undrawnSecondaries(player: Pick<PlayerState, 'secondaryDeck' | '
   return (player.secondaryDeck ?? []).filter((candidate) => !player.secondaries.some((secondary) => secondary.key === candidate.key))
 }
 
+/** The cards in hand still in play, apart from a secret mission. */
+function activeTacticalSecondaries(player: PlayerState): Secondary[] {
+  return player.secondaries.filter(
+    (secondary) => secondary.key !== player.secretSecondary && player.secondaryStatus[secondary.key] === 'active',
+  )
+}
+
+/** A secondary as scoring reads it: only the awards its side's way of playing pays. */
+function dueSecondary(player: PlayerState, secondary: Secondary, awards: MissionAward[]) {
+  return { ...secondary, category: 'secondary' as const, awards: awards.filter((award) => appliesInMode(award, player.secondaryMode)) }
+}
+
 export function scoringDue(state: BattleState, player: PlayerState) {
   const primary = player.primaryCard?.awards
     ? [{ ...player.primaryCard, category: 'primary' as const, awards: player.primaryCard.awards }]
     : []
   const secondaries = player.secondaries.flatMap((secondary) => {
     if (player.secondaryStatus[secondary.key] !== 'active' || !secondary.awards) return []
-    return [
-      {
-        ...secondary,
-        category: 'secondary' as const,
-        awards: secondary.awards.filter((award) => appliesInMode(award, player.secondaryMode)),
-      },
-    ]
+    return [dueSecondary(player, secondary, secondary.awards)]
   })
   return cardsDue(
     {
@@ -2861,18 +2862,7 @@ export function secretSettlementActionPlayerId(state: BattleState): PlayerId | n
   if (!pending || !player || !key || player.secretRevealed || player.secondaryStatus[key] !== 'active') return null
   const secondary = player.secondaries.find((candidate) => candidate.key === key)
   if (!secondary?.awards) return player.id
-  const due = cardsDueFromTheirTurn(
-    pending.round,
-    BATTLE_ROUNDS,
-    [
-      {
-        ...secondary,
-        category: 'secondary',
-        awards: secondary.awards.filter((award) => appliesInMode(award, player.secondaryMode)),
-      },
-    ],
-    [key],
-  )
+  const due = cardsDueFromTheirTurn(pending.round, BATTLE_ROUNDS, [dueSecondary(player, secondary, secondary.awards)], [key])
   return due.length ? player.id : null
 }
 
@@ -3013,7 +3003,7 @@ function validatePrep(prep: BattlePrep): Refusal | null {
   if (new Set(prep.secondaries.map((secondary) => secondary.key)).size !== prep.secondaries.length) {
     return refuse('invalid-prep', 'the selected secondaries contain duplicates')
   }
-  if ((prep.secondaryDeck?.length ?? 0) > 60) return refuse('invalid-prep', 'that secondary deck is too large')
+  if ((prep.secondaryDeck?.length ?? 0) > SECONDARY_DECK_MAX) return refuse('invalid-prep', 'that secondary deck is too large')
   if (prep.secondaryDeck?.some((secondary) => !secondary.name.trim())) return refuse('invalid-prep', 'name every secondary in the deck')
   if (prep.secondaryDeck && new Set(prep.secondaryDeck.map((secondary) => secondary.key)).size !== prep.secondaryDeck.length) {
     return refuse('invalid-prep', 'the secondary deck contains duplicates')

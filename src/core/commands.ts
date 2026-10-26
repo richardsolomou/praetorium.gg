@@ -14,6 +14,7 @@ import {
   ROSTER_NAME_MAX_LENGTH,
   SCORE_SETTLEMENT_MAX,
   SECONDARIES_MAX,
+  SECONDARY_DECK_MAX,
   SECONDARY_MODES,
   SETUP_STEP_MAX,
   STRATAGEM_CP_MAX,
@@ -111,7 +112,7 @@ const stratagem = stratagemSchema.extend({ detachment: z.string().min(1).max(STR
 const battlePrep = z.object({
   stratagems: z.array(stratagem).max(STRATAGEMS_MAX),
   secondaries: z.array(secondary).max(SECONDARIES_MAX),
-  secondaryDeck: z.array(secondary).max(60).optional(),
+  secondaryDeck: z.array(secondary).max(SECONDARY_DECK_MAX).optional(),
   primary: secondary.nullable(),
   secondaryMode: z.enum(SECONDARY_MODES),
 })
