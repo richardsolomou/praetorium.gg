@@ -1,7 +1,16 @@
 import { Link } from '@tanstack/react-router'
+import { Download } from 'lucide-react'
+import { posthog } from 'posthog-js'
+import { Button } from '@/components/ui/button'
 import type { LeagueEntryView } from '../../../core/league'
+import { LEAGUE_RESULTS_BATTLE_LIMIT } from '../../../core/leagueResults'
+import { leagueResultsCsv } from '../../../core/leagueResultsCsv'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
+import { Problem } from '../../components/Problem'
 import { SectionHeading } from '../../components/SectionHeading'
+import { downloadFile, safeFileName } from '../../downloadFile'
+import { nativeBridgeVersion } from '../../nativeBridge'
+import { useCopyText } from '../../useCopyText'
 
 /**
  * An event's table from its finished battles: in open play wins, then draws, then victory points; in Swiss rounds
@@ -10,12 +19,14 @@ import { SectionHeading } from '../../components/SectionHeading'
  * Narrow columns let a phone show every one; anything narrower still scrolls inside the frame, as the leaderboard does.
  */
 export function LeagueResults({
+  event,
   rows,
   swiss = false,
   partial,
   entries,
   label,
 }: {
+  event: string
   rows: readonly ResultRow[]
   swiss?: boolean
   partial: boolean
@@ -24,9 +35,34 @@ export function LeagueResults({
 }) {
   const columns = swiss ? SWISS_COLUMNS : COLUMNS
   const people = new Map(entries.map((entry) => [entry.userId, entry]))
+  const { copy, copied, problem } = useCopyText()
+  const native = nativeBridgeVersion() !== undefined
+  const exportFile = async () => {
+    const csv = leagueResultsCsv({
+      event,
+      capturedAt: new Date(),
+      partial,
+      columns: columns.map((column) => column.title),
+      rows: rows.flatMap((row, place) => {
+        const entry = people.get(row.userId)
+        return entry ? [{ place: place + 1, player: label(entry), figures: columns.map((column) => row[column.key] ?? 0) }] : []
+      }),
+    })
+    posthog.capture('league_results_exported', { swiss, partial, players: rows.length })
+    if (native) await copy(csv, { failure: 'Copy failed. Try again.', operation: 'league_results_export_copy' })
+    else downloadFile(`${safeFileName(event, 'event')}-results.csv`, csv, 'text/csv;charset=utf-8')
+  }
   return (
     <section data-league-results>
-      <SectionHeading title="Results" />
+      <SectionHeading
+        title="Results"
+        action={
+          <Button variant="outline" size="sm" onClick={() => void exportFile()}>
+            <Download /> {native ? (copied ? 'Copied CSV' : 'Copy CSV') : 'Export CSV'}
+          </Button>
+        }
+      />
+      {problem ? <Problem className="mb-2">{problem}</Problem> : null}
       <div className="overflow-x-auto border border-edge bg-panel">
         <table className="w-full min-w-72 table-fixed border-collapse text-sm">
           <thead>
@@ -75,7 +111,7 @@ export function LeagueResults({
           </tbody>
         </table>
       </div>
-      {partial ? <p className="mt-2 text-xs text-dim">Counts the latest 500 battles.</p> : null}
+      {partial ? <p className="mt-2 text-xs text-dim">{`Counts the latest ${LEAGUE_RESULTS_BATTLE_LIMIT} battles.`}</p> : null}
     </section>
   )
 }

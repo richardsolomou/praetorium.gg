@@ -52,7 +52,7 @@ import { routeSlug } from '../core/slug'
 import { battleOutcome, sideScore, type Standing, type StandingBattle, type StandingFaction, standings } from '../core/standings'
 import { opposingSide, refuse } from '../core/battlePrimitives'
 import { swissPairings, swissStandings, type SwissMatch } from '../core/swiss'
-import { leagueResults } from '../core/leagueResults'
+import { LEAGUE_RESULTS_BATTLE_LIMIT, leagueResults } from '../core/leagueResults'
 import { REPLAY_BATCH_SIZE, type BattlesCursor } from '../contracts/battles'
 import { gameReferencesFor } from '../shared/gameReferences'
 import { archivedArmies } from '../core/archivedArmies'
@@ -132,8 +132,6 @@ const PUBLIC_FEED_HELD_PAGES = 200
 const DAY_MS = 24 * 60 * 60 * 1000
 const STANDINGS_WINDOW_MS = 90 * DAY_MS
 const STANDINGS_BATTLE_LIMIT = 500
-/** The battle feed's largest page; an event with more battles than this shows a partial table. */
-const LEAGUE_RESULTS_BATTLE_LIMIT = 500
 /** Pages of 500 battles a club table reads before it reports itself partial. */
 const CLUB_STANDINGS_PAGES = 20
 const CLUB_RECENT_BATTLES = 3

@@ -26,6 +26,8 @@ When everyone is in and sealed, **Reveal all rosters** opens every list at once 
 
 After the reveal, players start their tournament battles from the tournament page, and finished battles fill the results table. If a revealed roster has a mistake, press the unseal button on that player's roster card, then **Unseal roster**, so they can seal a corrected one. Battles already started keep the roster they began with.
 
+Anyone who can see the results table can save it with **Export CSV**, and a saved file can't be recalled later, even if who can see the event changes.
+
 ## Swiss rounds
 
 After the reveal, press **Pair round 1**. The first round is drawn at random. Each later round pairs players on the same score, top of the table first, and never pairs two players who have already met when any other pairing works. With an odd number of players, the lowest-placed player who hasn't had a bye sits the round out, and the bye counts as a win. **Pair round 2** and the rounds after it open once every table has finished its battle. Each table's missions and battlefield come from its two armies, as in any battle.

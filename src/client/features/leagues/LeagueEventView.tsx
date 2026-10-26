@@ -43,6 +43,7 @@ import {
   entrantGroups,
   entryProgress,
   entryRules,
+  eventName,
   leagueNextStep,
   leagueNoun,
   namesPhrase,
@@ -425,9 +426,16 @@ export function LeagueEventView({
             </section>
           ) : null}
           {results?.swiss && league.pairings.length ? (
-            <LeagueResults rows={results.swiss} swiss partial={results.partial} entries={accepted} label={label} />
+            <LeagueResults
+              event={eventName(league)}
+              rows={results.swiss}
+              swiss
+              partial={results.partial}
+              entries={accepted}
+              label={label}
+            />
           ) : results?.rows.some((result) => result.played) ? (
-            <LeagueResults rows={results.rows} partial={results.partial} entries={accepted} label={label} />
+            <LeagueResults event={eventName(league)} rows={results.rows} partial={results.partial} entries={accepted} label={label} />
           ) : null}
           {entrants}
         </div>
