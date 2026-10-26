@@ -1,7 +1,8 @@
+import { admissionLabel, VisibilityIcon } from '../leagues/EventAccess'
 import { SectionHeading } from '../../components/SectionHeading'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Eye, LockKeyhole, Plus, Users } from 'lucide-react'
+import { Plus, Users } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { PageContent, PageHeader } from '../../components/Page'
@@ -65,14 +66,8 @@ function ClubShelf({ title, clubs }: { title: string; clubs: readonly ClubSummar
               <Link to="/clubs/$token" params={{ token: club.token }} className="flex min-w-0 flex-1 flex-col">
                 <div className="flex-1 p-4">
                   <p className="flex items-center gap-2 text-xs text-dim">
-                    {club.visibility === 'private' ? (
-                      <LockKeyhole className="size-3.5 shrink-0" aria-label="Private" />
-                    ) : (
-                      <Eye className="size-3.5 shrink-0 text-info" aria-label="Public" />
-                    )}
-                    <span className="truncate tracking-label uppercase">
-                      {club.admission === 'approval' ? 'Approval required' : 'Anyone can join'}
-                    </span>
+                    <VisibilityIcon visibility={club.visibility} labelled />
+                    <span className="truncate tracking-label uppercase">{admissionLabel(club.admission)}</span>
                   </p>
                   <h3 className="mt-1.5 truncate text-lg leading-tight font-bold uppercase">{club.name}</h3>
                   {club.description ? (

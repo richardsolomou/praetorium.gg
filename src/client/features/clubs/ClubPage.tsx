@@ -1,20 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link, useNavigate } from '@tanstack/react-router'
-import {
-  Check,
-  Clipboard,
-  EllipsisVertical,
-  Eye,
-  FileLock2,
-  LockKeyhole,
-  LogOut,
-  Pencil,
-  Plus,
-  Share2,
-  Trash2,
-  UserPlus,
-  X,
-} from 'lucide-react'
+import { Check, Clipboard, EllipsisVertical, FileLock2, LogOut, Pencil, Plus, Share2, Trash2, UserPlus, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
@@ -34,6 +20,7 @@ import { useInviteShareLabel } from '../friends/friendInvite'
 import { Standings } from '../leaderboard/Standings'
 import { inviteFeedbackText, useInviteShare } from '../leagues/LeagueActions'
 import { SectionHeading } from '../../components/SectionHeading'
+import { accessSummary, OrganizerLinks, VisibilityIcon } from '../leagues/EventAccess'
 import { LeagueSettingsDialog } from '../leagues/LeagueSettingsDialog'
 import { useClubRefresh, type Club } from './club'
 import { ClubSettingsDialog } from './ClubSettingsDialog'
@@ -122,25 +109,17 @@ function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: strin
         }
       >
         <p className="flex flex-wrap items-center gap-x-1.5 text-sm text-dim">
-          {club.visibility === 'private' ? <LockKeyhole className="size-3.5" aria-hidden /> : <Eye className="size-3.5" aria-hidden />}
-          {countLabel(accepted.length, 'member')} · {club.visibility === 'private' ? 'Private link' : 'Public'} ·{' '}
-          {club.admission === 'approval' ? 'Approval required' : 'Anyone can join'}
+          <VisibilityIcon visibility={club.visibility} />
+          {countLabel(accepted.length, 'member')} · {accessSummary(club.visibility, club.admission)}
         </p>
         {club.description ? <p className="mt-3 max-w-2xl font-rules text-sm whitespace-pre-wrap text-dim">{club.description}</p> : null}
-        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-dim">
-          <span>Run by</span>
-          {[{ userId: club.ownerId, name: club.ownerName, image: club.ownerImage }, ...admins].map((organizer) => (
-            <Link
-              key={organizer.userId}
-              to="/users/$userId"
-              params={{ userId: organizer.userId }}
-              className="group flex w-fit items-center gap-2"
-            >
-              <PlayerAvatar name={organizer.name} image={organizer.image} className="size-7 text-3xs" />
-              <span className="text-bone group-hover:underline">{organizer.name}</span>
-            </Link>
-          ))}
-        </div>
+        <OrganizerLinks
+          title="Run by"
+          organizers={[
+            { id: club.ownerId, name: club.ownerName, image: club.ownerImage },
+            ...admins.map(({ userId, name, image }) => ({ id: userId, name, image })),
+          ]}
+        />
         {invite.feedback ? (
           <p aria-live="polite" className="mt-2 text-xs text-dim">
             {inviteFeedbackText(invite.feedback)}

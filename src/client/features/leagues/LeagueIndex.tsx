@@ -1,8 +1,9 @@
+import { VisibilityIcon } from './EventAccess'
 import { SectionHeading } from '../../components/SectionHeading'
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Eye, LockKeyhole, Users } from 'lucide-react'
+import { Users } from 'lucide-react'
 import { isLeagueOrganizer } from '../../../core/league'
 import { leaguesQuery, meQuery } from '../../queries'
 import { PageContent, PageHeader } from '../../components/Page'
@@ -79,11 +80,7 @@ function LeagueShelf({
             <Link to="/tournaments/$token" params={{ token: league.token }} className="flex min-w-0 flex-1 flex-col">
               <div className={`flex-1 p-4 ${organizer ? 'pr-12' : ''}`}>
                 <p className="flex items-center gap-2 text-xs text-dim">
-                  {tournament.visibility === 'private' ? (
-                    <LockKeyhole className="size-3.5 shrink-0" aria-label="Private" />
-                  ) : (
-                    <Eye className="size-3.5 shrink-0 text-info" aria-label="Public" />
-                  )}
+                  <VisibilityIcon visibility={tournament.visibility} labelled />
                   <span className="truncate tracking-label uppercase">{format ?? 'Any format'}</span>
                 </p>
                 <h3 className="mt-1.5 truncate text-lg leading-tight font-bold uppercase">{tournament.name}</h3>
