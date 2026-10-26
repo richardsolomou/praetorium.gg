@@ -36,7 +36,6 @@ import type { WorkerResult, WorkerTask } from './catalogueHistoryWorker'
 
 const root = path.join(import.meta.dirname, '..')
 const { values } = parseArgs({
-  args: process.argv.slice(2).filter((arg) => arg !== '--'),
   options: {
     out: { type: 'string' },
     workers: { type: 'string' },

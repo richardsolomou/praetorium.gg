@@ -42,7 +42,7 @@ rosters-normalise *args:
 
 # The native application against this worktree's running preview
 mobile *args:
-    url="${EXPO_PUBLIC_APP_URL:-$(node --import tsx scripts/mobileAppUrl.ts ios)}" && EXPO_PUBLIC_APP_URL="$url" pnpm mobile -- {{ args }}
+    url="${EXPO_PUBLIC_APP_URL:-$(node --import tsx scripts/mobileAppUrl.ts ios)}" && EXPO_PUBLIC_APP_URL="$url" pnpm mobile {{ args }}
 
 mobile-ios:
     url="${EXPO_PUBLIC_APP_URL:-$(node --import tsx scripts/mobileAppUrl.ts ios)}" && EXPO_PUBLIC_APP_URL="$url" pnpm --dir mobile ios
@@ -126,7 +126,7 @@ catalogue-audit *args:
 
 # Build the data-update history seed from every published snapshot and the sources' own history: --out <file>
 catalogue-history-seed *args:
-    pnpm catalogue:history-seed -- {{ args }}
+    pnpm catalogue:history-seed {{ args }}
 
 # Ratchet description coverage across the fetched rules sources
 descriptions:
