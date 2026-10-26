@@ -11,7 +11,7 @@ import { pushTokenSchema } from '../core/notifications'
 import {
   customPointsBudget,
   FORMAT_RULE_IDS,
-  GAME_SIZES,
+  isGameSize,
   isKotcLimit,
   OPTIONAL_RULE_IDS,
   DETACHMENTS_MAX,
@@ -90,15 +90,11 @@ const tournamentFields = {
 }
 const leagueEventRuleFields = {
   format: z.enum(TABLE_SHAPES).default('1v1'),
-  rosterLimit: z
-    .number()
-    .int()
-    .refine((value) => GAME_SIZES.some((size) => size.limit === value))
-    .default(LEAGUE_DEFAULT_ROSTER_LIMIT),
+  rosterLimit: z.number().int().refine(isGameSize).default(LEAGUE_DEFAULT_ROSTER_LIMIT),
   allowances: leagueAllowancesSchema.default([]),
   // Absent from an older client: no Swiss rounds or own points total on a new event, and an edit leaves them as they stand.
   rounds: z.number().int().min(1).max(SWISS_ROUNDS_MAX).nullable().optional(),
-  pointsBudget: z.number().int().min(POINTS_BUDGET_MIN).max(POINTS_BUDGET_MAX).nullable().optional(),
+  pointsBudget,
   soloPoints: z.number().int().min(1).max(POINTS_BUDGET_MAX).nullable().optional(),
   allyPoints: z.number().int().min(1).max(POINTS_BUDGET_MAX).nullable().optional(),
 }
@@ -161,51 +157,46 @@ export const updateLeagueSchema = z
  * `token` is the event's host: a tournament's token, or a club game's, which is its event's. `eventToken` names the
  * event itself, as a client from before each event had its own host sends it beside its old league's token.
  */
-export const leagueEventSchema = z.object({ token, eventToken: token.optional() })
-export const pairLeagueRoundSchema = z.object({ token, eventToken: token.optional() })
-export const openLeagueSchema = z.object({ token, eventToken: token.optional() })
+const leagueEvent = { token, eventToken: token.optional() }
+export const leagueEventSchema = z.object(leagueEvent)
+export const pairLeagueRoundSchema = z.object(leagueEvent)
+export const openLeagueSchema = z.object(leagueEvent)
 export const moderateLeagueEntrySchema = z.object({
-  token,
-  eventToken: token.optional(),
+  ...leagueEvent,
   userId: id,
   status: z.enum(['accepted', 'rejected']),
 })
 export const addLeagueEntrantsSchema = z.object({
-  token,
-  eventToken: token.optional(),
+  ...leagueEvent,
   userIds: z.array(id).min(1).max(LEAGUE_MEMBER_MAX),
 })
 export const admitLeagueEntriesSchema = z.object({
-  token,
-  eventToken: token.optional(),
+  ...leagueEvent,
   userIds: z.array(id).min(1).max(LEAGUE_MEMBER_MAX),
 })
-export const submitLeagueRosterSchema = z.object({ token, eventToken: token.optional(), rosterId: id })
-export const setLeagueTeamDispositionSchema = z.object({ token, eventToken: token.optional(), disposition: z.string().min(1).max(64) })
-export const setLeagueTeamWarlordSchema = z.object({ token, eventToken: token.optional(), userId: id })
+export const submitLeagueRosterSchema = z.object({ ...leagueEvent, rosterId: id })
+export const setLeagueTeamDispositionSchema = z.object({ ...leagueEvent, disposition: z.string().min(1).max(64) })
+export const setLeagueTeamWarlordSchema = z.object({ ...leagueEvent, userId: id })
 export const assignLeagueRosterRequirementSchema = z.object({
-  token,
-  eventToken: token.optional(),
+  ...leagueEvent,
   userId: id,
   requiredLimit: z.number().int(),
 })
 /** A club game's player takes a seat themselves; `null` steps out before the reveal. */
 export const chooseLeagueSideSchema = z.object({
-  token,
-  eventToken: token.optional(),
+  ...leagueEvent,
   side: z.enum(CLUB_GAME_SIDES).nullable(),
 })
 export type LeagueSide = NonNullable<z.infer<typeof chooseLeagueSideSchema>['side']>
 export const assignLeagueTeamSchema = z.object({
-  token,
-  eventToken: token.optional(),
+  ...leagueEvent,
   userIds: z
     .array(id)
     .min(1)
     .max(2)
     .refine((ids) => new Set(ids).size === ids.length, 'choose different entrants'),
 })
-export const leagueRosterSchema = z.object({ token, eventToken: token.optional(), userId: id })
+export const leagueRosterSchema = z.object({ ...leagueEvent, userId: id })
 export const leagueBattlesSchema = z.object({ token, eventToken: token, before: battlesCursor.nullable().default(null) })
 export const leagueResultsSchema = z.object({ token, eventToken: token })
 export const setLeagueAdminsSchema = z.object({ token, userIds: z.array(id).max(LEAGUE_ADMIN_MAX) })
@@ -221,8 +212,7 @@ export const clubMemberSchema = z.object({ token, userId: id })
 export const moderateClubMemberSchema = z.object({ token, userId: id, accept: z.boolean() })
 export const setClubAdminsSchema = z.object({ token, userIds: z.array(id).max(CLUB_ADMIN_MAX) })
 export const createLeagueBattleSchema = z.object({
-  token,
-  eventToken: token.optional(),
+  ...leagueEvent,
   opponentId: id,
   allyId: id.optional(),
   secondOpponentId: id.optional(),
@@ -249,12 +239,7 @@ const opposingSeats = (value: { opponentId?: string; opponentIds?: string[]; gue
 export const createBattleSchema = z
   .object({
     ...newBattlePlayers,
-    limit: z
-      .number()
-      .int()
-      .refine((value) => GAME_SIZES.some((size) => size.limit === value))
-      .nullable()
-      .optional(),
+    limit: z.number().int().refine(isGameSize).nullable().optional(),
     guestNames: z.array(z.string().trim().min(1).max(PROFILE_NAME_MAX_LENGTH)).min(1).max(2).optional(),
     missionPackId: id.nullable().default(null),
     casual: z.boolean().default(false),
@@ -326,10 +311,6 @@ export const adminUsersSchema = z.object({
 })
 
 /**
- * `expectedSeq` is the client's claim about the history it has already seen.
- * Sending it is what makes a command conditional on nothing having happened since.
- */
-/**
  * The format restrictions this roster has switched off, by the ids `formatRules` names.
  *
  * Sent with every read that a restriction can change the answer of, so the picker and
@@ -340,6 +321,8 @@ export const adminUsersSchema = z.object({
 export const waivedRules = z.array(z.enum(FORMAT_RULE_IDS)).max(FORMAT_RULE_IDS.length).optional()
 export const optionalRules = z.array(z.enum(OPTIONAL_RULE_IDS)).max(OPTIONAL_RULE_IDS.length).optional()
 
+export const picksSchema = z.array(rosterPickSchema).max(100)
+
 export const unitsSchema = z.object({
   catalogueId,
   detachmentIds: z.array(detachmentIdSchema).max(DETACHMENTS_MAX).optional(),
@@ -347,7 +330,7 @@ export const unitsSchema = z.object({
   battleSize: z
     .number()
     .int()
-    .refine((value) => GAME_SIZES.some((size) => size.limit === value) || isKotcLimit(value))
+    .refine((value) => isGameSize(value) || isKotcLimit(value))
     .optional(),
   waivedRules,
 })
@@ -366,7 +349,7 @@ export const datasheetSchema = z
     catalogueId: id,
     entryId: id,
     detachmentIds: z.array(detachmentIdSchema).max(DETACHMENTS_MAX).default([]),
-    picks: z.array(rosterPickSchema).max(100).default([]),
+    picks: picksSchema.default([]),
     pickIndex: z.number().int().min(0).max(99).nullable().default(null),
     /** Keep weapons the unit is not carrying, so options read as this list would make them. */
     everyWeapon: z.boolean().default(false),
@@ -380,7 +363,7 @@ export const reminderAbilitiesSchema = z
   .object({
     catalogueId: id,
     detachmentIds: z.array(detachmentIdSchema).max(DETACHMENTS_MAX).default([]),
-    picks: z.array(rosterPickSchema).max(100),
+    picks: picksSchema,
   })
   .overwrite(currentRosterIds)
 /** A roster pick whose weapon options the simulator compares. */
@@ -424,7 +407,7 @@ export const saveRosterSchema = z
     borrowedDetachmentId: detachmentIdSchema.nullable().default(null),
     limit: rosterLimit,
     pointsBudget,
-    picks: z.array(rosterPickSchema).max(100),
+    picks: picksSchema,
     waivedRules,
     optionalRules,
     prep: prepSchema.nullable(),
@@ -443,6 +426,10 @@ const attachDraftRosterSchema = z
     reminders: z.array(abilityReminderSchema).max(ABILITY_REMINDERS_MAX).optional(),
   })
   .strict()
+/**
+ * `expectedSeq` is the client's claim about the history it has already seen.
+ * Sending it is what makes a command conditional on nothing having happened since.
+ */
 export const submitSchema = z.object({
   token,
   expectedSeq: z.number().int().min(0),
@@ -529,7 +516,6 @@ export const dispositionSchema = z.object({ dispositionId: slug })
 export const factionSchema = z.object({ catalogueId: slug.transform(currentCatalogueId) })
 
 /** Saved rows are read back through these, so a hand-edited one fails loudly. */
-export const picksSchema = z.array(rosterPickSchema).max(100)
 export const savedPrepSchema = prepSchema
 
 export const priceSchema = z
@@ -540,7 +526,7 @@ export const priceSchema = z
     disposition: id.nullable(),
     borrowedDetachmentId: detachmentIdSchema.nullable().optional(),
     limit: rosterLimit,
-    units: z.array(rosterPickSchema).max(100),
+    units: picksSchema,
     waivedRules,
     optionalRules,
   })

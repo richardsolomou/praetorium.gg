@@ -1,4 +1,4 @@
-import { GAME_SIZES } from '../core/battle'
+import { isGameSize } from '../core/battle'
 import { alliedLeagueRosterLimit, leagueTableShape } from '../core/league'
 import { newBattleSeats, type NewBattlePlayers } from '../core/newBattle'
 import type { TableShape } from '../core/tableShape'
@@ -26,10 +26,7 @@ export function matchingLeagueBattles(candidates: readonly LeagueMatchCandidate[
         if (candidate.format !== null) return true
         const limit = entries.get(userId)?.sealedLimit
         return (
-          limit !== null &&
-          limit !== undefined &&
-          GAME_SIZES.some((size) => size.limit === limit) &&
-          participantIds.every((id) => entries.get(id)?.sealedLimit === limit)
+          limit !== null && limit !== undefined && isGameSize(limit) && participantIds.every((id) => entries.get(id)?.sealedLimit === limit)
         )
       }
       if (candidate.format === '2v1' && candidate.rosterLimit !== null && participantIds.length === 3) {

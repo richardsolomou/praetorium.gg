@@ -661,6 +661,7 @@ export const GAME_SIZES = [
   { name: 'Onslaught', limit: 3000, detachmentPoints: null },
 ] as const
 
+export const isGameSize = (limit: number | null) => GAME_SIZES.some((size) => size.limit === limit)
 export const detachmentPointBudget = (limit: number) => GAME_SIZES.find((size) => size.limit === limit)?.detachmentPoints ?? null
 export const isKotcLimit = (limit: number | null): boolean =>
   limit !== null && [...KOTC_LIMITS, ...RETIRED_KOTC_LIMITS].some((candidate) => candidate === limit)
@@ -679,8 +680,7 @@ export const validArmyPoints = (points: number) => Number.isInteger(points) && p
 export const ARMY_POINTS_ERROR = `choose between 1 and ${POINTS_BUDGET_MAX.toLocaleString('en')} points per army`
 
 /** King of the Colosseum fixes its points total, so only the core battle sizes take a custom budget. */
-export const allowsPointsBudget = (limit: number | null): boolean =>
-  limit !== null && !isKotcLimit(limit) && GAME_SIZES.some((size) => size.limit === limit)
+export const allowsPointsBudget = (limit: number | null): boolean => limit !== null && !isKotcLimit(limit) && isGameSize(limit)
 
 export function pointsBudgetError(limit: number, requested: number | null | undefined): string | null {
   const budget = customPointsBudget(limit, requested)
@@ -1477,8 +1477,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (battleCapacity(command) > PLAYERS_PER_BATTLE !== Boolean(command.teamBattle))
         return refuse('seat-count-mismatch', 'choose matching battle sides and seats')
       if (battleCapacity(command) < state.players.length) return refuse('too-few-seats', 'choose enough seats for every player')
-      if (command.limit !== null && !GAME_SIZES.some((size) => size.limit === command.limit))
-        return refuse('unsupported-battle-size', 'choose a supported battle size')
+      if (command.limit !== null && !isGameSize(command.limit)) return refuse('unsupported-battle-size', 'choose a supported battle size')
       if (command.teamBattle && isKotcLimit(command.limit)) return refuse('unsupported-battle-size', 'choose a supported battle size')
       if (state.leagueToken && JSON.stringify(command.armyPoints ?? null) !== JSON.stringify(state.settings.armyPoints ?? null))
         return refuse('league-sealed', 'this battle’s points are sealed')

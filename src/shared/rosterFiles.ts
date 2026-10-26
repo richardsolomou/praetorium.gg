@@ -21,7 +21,7 @@ import { wargearOf } from '../core/wargear'
 import { textNickname, type TextRoster, type TextRosterUnit } from '../core/textRoster'
 import { toGwText, type GwTextRoster } from '../core/gwText'
 import type { UnitGroup } from '../core/unitGroups'
-import { allowsPointsBudget, customPointsBudget, GAME_SIZES, pointsBudgetError } from '../core/battle'
+import { allowsPointsBudget, customPointsBudget, GAME_SIZES, isGameSize, pointsBudgetError } from '../core/battle'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
 import {
   attachmentReason,
@@ -335,7 +335,7 @@ function importedBattleSize(parsed: TextRoster, unknown: UnmatchedName[]): { lim
     })
     return { limit: named.limit, pointsBudget: null }
   }
-  if (GAME_SIZES.some((size) => size.limit === parsed.limit)) return { limit: parsed.limit, pointsBudget: null }
+  if (isGameSize(parsed.limit)) return { limit: parsed.limit, pointsBudget: null }
   unknown.push({
     name: `${parsed.limit} point battle size`,
     reason: 'this battle size is not supported; choose a supported size in setup',
