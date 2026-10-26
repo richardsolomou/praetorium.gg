@@ -37,6 +37,7 @@ import { ImpersonationBanner } from './ImpersonationBanner'
 import { NativeAppNavigation } from './NativeAppNavigation'
 import { NativePushRegistration } from './NativePushRegistration'
 import { OnboardingGuide } from '../onboarding/OnboardingGuide'
+import { DisplayNamePrompt } from '../account/DisplayNamePrompt'
 import { SupportPanel } from '../feedback/SupportPanel'
 import { SupportIdentity } from '../feedback/support'
 import { meQuery } from '../../queries'
@@ -248,6 +249,7 @@ export function AppShell() {
                   state={location.state}
                 />
                 <OnboardingGuide />
+                <DisplayNamePrompt />
                 <SupportPanel />
                 <TextSourcesDialog />
                 <Impersonation />

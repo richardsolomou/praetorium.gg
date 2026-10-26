@@ -24,6 +24,10 @@ describe('profileUpdate', () => {
     expect(await profileUpdate({ name: '   ' })).toEqual({ ok: false, error: 'Enter a display name.' })
   })
 
+  it('accepts a name change that leaves the picture undefined', async () => {
+    expect(await profileUpdate({ name: 'Alice', image: undefined })).toEqual({ ok: true, data: { name: 'Alice', image: undefined } })
+  })
+
   it('stores a raster image and keeps only its URL', async () => {
     expect(await profileUpdate({ image: 'data:image/webp;base64,YXZhdGFy' })).toEqual({
       ok: true,
