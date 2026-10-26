@@ -78,8 +78,6 @@ export const accountMethodsQuery = () =>
   queryOptions({ queryKey: ['account-methods'], queryFn: () => accountMethods(), staleTime: SSR_STALE_TIME })
 export const githubSponsorshipQuery = () =>
   queryOptions({ queryKey: ['github-sponsorship'], queryFn: () => githubSponsorship(), staleTime: SSR_STALE_TIME })
-/** Every administration read sits under one key, so an administrator's change refreshes all of them. */
-
 /**
  * Re-reads administration after a change. A fetch already in flight for a query with no data yet would
  * otherwise be reused, and it started before the change it is meant to show.

@@ -37,6 +37,7 @@ export const collectionWishesKey = () => ['collection-wishes']
 export const collectionCountsAsKey = () => ['collection-counts-as']
 export const fieldedDatasheetsKey = () => ['fielded-datasheets']
 export const wishlistSuggestionsKey = () => ['wishlist-suggestions']
+/** Every administration read sits under one key, so an administrator's change refreshes all of them. */
 export const adminKey = () => ['admin']
 /** Without an entry, every datasheet's photos. */
 export const datasheetPhotosKey = (entryId?: string) => (entryId === undefined ? ['datasheet-photos'] : ['datasheet-photos', entryId])
