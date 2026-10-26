@@ -12,9 +12,8 @@ import { Label } from '@/components/ui/label'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
-import { createBattle, deleteClub, joinClub, leaveClub, moderateClubMember, removeClubMember } from '../../functions'
+import { deleteClub, joinClub, leaveClub, moderateClubMember, removeClubMember } from '../../functions'
 import { clubQuery, clubStandingsQuery, meQuery } from '../../queries'
-import { useStartBattle } from '../battles/useStartBattle'
 import { BattleShelf } from '../battles/BattleShelf'
 import { useInviteShareLabel } from '../friends/friendInvite'
 import { Standings } from '../leaderboard/Standings'
@@ -22,9 +21,10 @@ import { inviteFeedbackText, useInviteShare } from '../leagues/LeagueActions'
 import { SectionHeading } from '../../components/SectionHeading'
 import { accessSummary, OrganizerLinks, VisibilityIcon } from '../leagues/EventAccess'
 import { LeagueSettingsDialog } from '../leagues/LeagueSettingsDialog'
-import { useClubRefresh, type Club } from './club'
+import { useClubRefresh, usePlayClubGame, type Club } from './club'
 import { ClubSettingsDialog } from './ClubSettingsDialog'
 import { ClubSealedGame } from './ClubSealedGame'
+import { ClubSeason } from './ClubSeason'
 import { clubGameOpen } from '../../../core/club'
 import { useNow } from '../../useNow'
 import { countLabel } from '../../text'
@@ -132,6 +132,7 @@ function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: strin
           <div className="min-w-0 space-y-8">
             <JoinRequests club={club} />
             <UpNext club={club} table={table} viewerId={viewerId} highlight={highlight} now={now} />
+            <ClubSeason club={club} viewerId={viewerId} member={member} />
             <RecentGames club={club} table={table} viewerId={viewerId} member={member} />
             <PastSealedGames club={club} viewerId={viewerId} highlight={highlight} now={now} />
             {table?.finished ? <ClubLeaderboard table={table} viewerId={viewerId} /> : null}
@@ -174,16 +175,6 @@ function ClubScreen({ club, viewerId, highlight }: { club: Club; viewerId: strin
   )
 }
 
-/** Starts a battle against a member, counted for the club from the start, and opens it. */
-function usePlayClubGame(token: string) {
-  const { defaultMissionPackId, openBattle } = useStartBattle()
-  return useMutation({
-    mutationFn: async (opponentId: string) =>
-      createBattle({ data: { opponentId, clubToken: token, missionPackId: await defaultMissionPackId() } }),
-    onSuccess: ({ token: battleToken }) => openBattle(battleToken),
-  })
-}
-
 function NewGame({ club, viewerId }: { club: Club; viewerId: string }) {
   const play = usePlayClubGame(club.token)
   const refresh = useClubRefresh(club.token)
@@ -205,7 +196,7 @@ function NewGame({ club, viewerId }: { club: Club; viewerId: string }) {
         ready={Boolean(chosen)}
         fit
         onClose={() => setCreating(null)}
-        onStart={() => chosen && play.mutate(chosen.userId)}
+        onStart={() => chosen && play.mutate({ opponentId: chosen.userId })}
       >
         {opponents.length ? (
           <div className="space-y-1.5">

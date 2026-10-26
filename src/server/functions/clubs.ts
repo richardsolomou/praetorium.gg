@@ -4,8 +4,10 @@ import { currentUserId, requireUserId } from '../playerSession'
 import { mutationRpc, rpc } from '../rpc'
 import {
   clubMemberSchema,
+  clubSeasonDeadlineSchema,
   createClubSchema,
   moderateClubMemberSchema,
+  publishClubSeasonSchema,
   setClubAdminsSchema,
   tokenSchema,
   updateClubSchema,
@@ -22,6 +24,42 @@ export const openClub = createServerFn({ method: 'GET' })
 export const clubStandings = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
   .handler(({ data }) => rpc(async () => app().service.clubStandings(data.token, await currentUserId(), await app().battleFactionsFor())))
+
+export const clubSeason = createServerFn({ method: 'GET' })
+  .validator(tokenSchema)
+  .handler(({ data }) => rpc(async () => app().service.clubSeason(data.token, await currentUserId(), await app().battleFactionsFor())))
+
+export const drawClubSeason = createServerFn({ method: 'POST' })
+  .validator(tokenSchema)
+  .handler(({ data }) => mutationRpc(async () => app().service.clubService.drawSeason(data.token, await requireUserId())))
+
+export const publishClubSeason = createServerFn({ method: 'POST' })
+  .validator(publishClubSeasonSchema)
+  .handler(({ data: { token, ...draw } }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      await app().service.clubService.publishSeason(token, userId, draw)
+      await app().telemetry.capture(userId, 'club_season_published', { players: draw.playerIds.length })
+    }),
+  )
+
+export const setClubSeasonDeadline = createServerFn({ method: 'POST' })
+  .validator(clubSeasonDeadlineSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => app().service.clubService.setSeasonDeadline(data.token, await requireUserId(), data.round, data.deadline)),
+  )
+
+export const deleteClubSeason = createServerFn({ method: 'POST' })
+  .validator(tokenSchema)
+  .handler(({ data }) => mutationRpc(async () => app().service.clubService.deleteSeason(data.token, await requireUserId())))
+
+export const joinClubSeason = createServerFn({ method: 'POST' })
+  .validator(tokenSchema)
+  .handler(({ data }) => mutationRpc(async () => app().service.clubService.joinSeason(data.token, await requireUserId())))
+
+export const leaveClubSeason = createServerFn({ method: 'POST' })
+  .validator(tokenSchema)
+  .handler(({ data }) => mutationRpc(async () => app().service.clubService.leaveSeason(data.token, await requireUserId())))
 
 export const battleClubs = createServerFn({ method: 'GET' })
   .validator(tokenSchema)

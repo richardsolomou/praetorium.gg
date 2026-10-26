@@ -1,6 +1,6 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { ClubPage } from '../client/features/clubs/ClubPage'
-import { clubQuery, clubStandingsQuery, deploymentsQuery, leagueQuery } from '../client/queries'
+import { clubQuery, clubSeasonQuery, clubStandingsQuery, deploymentsQuery, leagueQuery } from '../client/queries'
 import { searchText } from '../client/searchParams'
 
 /** The most sealed games whose details load with the page; the newest come first, and only those in play need them. */
@@ -13,6 +13,7 @@ export const Route = createFileRoute('/clubs/$token')({
     const [club] = await Promise.all([
       context.queryClient.query({ ...clubQuery(params.token), staleTime: 'static' }),
       context.queryClient.query({ ...clubStandingsQuery(params.token), staleTime: 'static' }).catch(() => null),
+      context.queryClient.query({ ...clubSeasonQuery(params.token), staleTime: 'static' }).catch(() => null),
       context.queryClient.query({ ...deploymentsQuery(), staleTime: 'static' }).catch(() => null),
     ])
     if (!club) throw notFound()

@@ -15,7 +15,7 @@ web
 
 ## Product Purpose
 
-- Free army builder, combat simulator, battle tracker and rules reference that carries a game from list to final score, with 1v1, 2v1 and 2v2 games against friends, guests or a practice opponent, and tournaments with secretly sealed lists.
+- Free army builder, combat simulator, battle tracker and rules reference that carries a game from list to final score, with 1v1, 2v1 and 2v2 games against friends, guests or a practice opponent, round-robin club seasons, and tournaments with secretly sealed lists.
 
 ## Positioning
 
@@ -33,7 +33,7 @@ web
 
 - Publish rule names, numbers, costs and computed results from verified community sources (BSData, Game Datacards), never authored rules prose; rules text loads in the reader's browser only on request.
 - Report missing or unsupported rules; never guess them.
-- Tournaments pair Swiss rounds and club games can be scheduled; out of scope: matchmaking, chat, brackets, locations, model positions, battle photos.
+- Tournaments pair Swiss rounds and clubs run round-robin seasons with round deadlines; out of scope: matchmaking, chat, brackets, game appointments, locations, model positions, battle photos.
 - No account needed to watch public battles, read the leaderboard or reference, or try the builder.
 - Dark only.
 

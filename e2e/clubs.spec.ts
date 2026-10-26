@@ -331,6 +331,16 @@ test('a new sealed game replaces the previous one in another open tab', async ({
   await page.screenshot({ path: testInfo.outputPath('club-replaced-game.png'), fullPage: true })
 })
 
+test('a season fixture starts its battle from the club page and links to it', async ({ page }) => {
+  await signInAsPreview(page)
+  await page.goto('/clubs/preview-club', { waitUntil: 'networkidle' })
+  await page.locator('[data-club-season]').getByRole('button', { name: 'Start battle', exact: true }).first().click()
+  await page.waitForURL(/\/battles\/[^/]+$/)
+  const token = lastPathSegment(page.url())
+  await page.goto('/clubs/preview-club')
+  await expect(page.locator(`[data-club-season] a[href="/battles/${token}"]`)).toHaveText('Setting up')
+})
+
 async function openNewGame(page: Page) {
   const dialog = page.getByRole('dialog', { name: 'New game', exact: true })
   await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New game', exact: true }).click({ timeout: 1_000 }))

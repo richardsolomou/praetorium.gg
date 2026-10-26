@@ -161,7 +161,7 @@ function pairWithRematches(order: readonly string[], met: ReadonlySet<string>, a
   return null
 }
 
-function shuffle<T>(items: readonly T[], random: () => number) {
+export function shuffle<T>(items: readonly T[], random: () => number) {
   const shuffled = [...items]
   for (let index = shuffled.length - 1; index > 0; index--) {
     const other = Math.floor(random() * (index + 1))

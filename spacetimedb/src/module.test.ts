@@ -629,6 +629,73 @@ describe('club battles', () => {
   })
 })
 
+describe('club seasons', () => {
+  function setup(players = ['a', 'b', 'c']) {
+    const host = harness()
+    const command = (input: Record<string, unknown>) =>
+      JSON.parse(module.clubCommand(host.procedure(host.operator), { payload: JSON.stringify({ token: 'club', ...input }) })) as unknown
+    command({
+      op: 'create',
+      id: 'club-id',
+      ownerId: 'owner',
+      name: 'Club',
+      description: '',
+      visibility: 'private',
+      admission: 'automatic',
+      now: NOW,
+    })
+    for (const userId of players) command({ op: 'join', userId, now: NOW })
+    command({ op: 'season-draw', actorId: 'owner', seasonId: 'season', seed: 7, now: NOW })
+    for (const userId of players) command({ op: 'season-join', userId, now: NOW })
+    const publish = (actorId = 'owner') => command({ op: 'season-publish', actorId, seed: 7, playerIds: players, now: NOW })
+    const fixtures = () =>
+      (
+        JSON.parse(module.clubByToken(host.procedure(host.operator), { token: 'club' })) as {
+          season: { fixtures: { key: string; aId: string; bId: string | null; battleToken: string | null }[] }
+        }
+      ).season.fixtures
+    const start = (fixtureKey: string, userId: string, opponentId: string) =>
+      module.createBattle(host.procedure(host.operator), {
+        payload: JSON.stringify({
+          id: `battle-${fixtureKey}`,
+          token: `token-${fixtureKey}`,
+          userId,
+          allyIds: [],
+          opponentIds: [opponentId],
+          initialCommands: [{ kind: 'set-battle-club', clubId: 'club-id' }],
+          now: NOW,
+          fixtureKey,
+        }),
+      })
+    const game = () => fixtures().find((fixture) => fixture.bId !== null)!
+    return { command, publish, fixtures, start, game }
+  }
+
+  it('lets only an organizer draw a season', () => {
+    expect(setup().command({ op: 'season-draw', actorId: 'a', seasonId: 'other', seed: 1, now: NOW })).toBe('forbidden')
+  })
+
+  it('lets only an organizer publish a season', () => {
+    expect(setup().publish('a')).toBe('forbidden')
+  })
+
+  it('never redraws a published season', () => {
+    const season = setup()
+    season.publish()
+    const fixture = season.game()
+    season.start(fixture.key, fixture.aId, fixture.bId!)
+    expect(season.command({ op: 'season-draw', actorId: 'owner', seasonId: 'season', seed: 8, now: NOW })).toBe('published')
+  })
+
+  it('refuses a fixture battle against someone else', () => {
+    const season = setup(['a', 'b', 'c', 'd'])
+    season.publish()
+    const fixture = season.game()
+    const outsider = ['a', 'b', 'c', 'd'].find((id) => id !== fixture.aId && id !== fixture.bId)!
+    expect(() => season.start(fixture.key, fixture.aId, outsider)).toThrow('this battle is not an open fixture of the season')
+  })
+})
+
 describe('leagues becoming clubs', () => {
   function setup() {
     const host = harness()

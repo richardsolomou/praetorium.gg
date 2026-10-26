@@ -274,7 +274,30 @@ const clubGame = z.object({
   playing: z.array(z.string()),
   played: z.array(z.tuple([z.string(), z.string()])),
 })
-const clubRecord = z.object({ club, members: z.array(clubMember), games: z.array(clubGame) })
+const clubSeason = z.object({
+  seed: z.number().int(),
+  createdAt: z.number().int(),
+  publishedAt: z.number().int().nullable(),
+  deadlines: z.array(z.number().int().nullable()),
+  players: z.array(z.object({ userId: z.string(), withdrawn: z.boolean() })),
+  fixtures: z.array(
+    z.object({
+      key: z.string(),
+      round: z.number().int(),
+      table: z.number().int(),
+      aId: z.string(),
+      bId: z.string().nullable(),
+      battleToken: z.string().nullable(),
+    }),
+  ),
+})
+const clubRecord = z.object({
+  club,
+  members: z.array(clubMember),
+  games: z.array(clubGame),
+  // Absent from a module deployed before club seasons.
+  season: clubSeason.nullable().default(null),
+})
 const visibleClub = z.object({
   club,
   adminIds: z.array(z.string()),
@@ -370,6 +393,7 @@ export class SpacetimeOperator {
     guestNames?: string[]
     initialCommands?: Command[]
     now: number
+    fixtureKey?: string
   }) {
     return this.read(
       'create_battle',
@@ -383,6 +407,7 @@ export class SpacetimeOperator {
           guestNames: input.guestNames ?? [],
           initialCommands: input.initialCommands ?? [],
           now: input.now,
+          ...(input.fixtureKey ? { fixtureKey: input.fixtureKey } : {}),
         }),
       ],
       battleSnapshot,
@@ -422,7 +447,7 @@ export class SpacetimeOperator {
   }
 
   async battleFeed(input: {
-    scope: 'user' | 'league' | 'club' | 'public' | 'friends' | 'watchable' | 'profile'
+    scope: 'user' | 'league' | 'club' | 'season' | 'public' | 'friends' | 'watchable' | 'profile'
     userId?: string | null
     viewerId?: string | null
     withUserId?: string | null
