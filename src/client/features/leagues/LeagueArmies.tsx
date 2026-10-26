@@ -16,6 +16,7 @@ import { factionFor } from '../../factions'
 import { openRevealedLeagueRosters } from '../../functions'
 import { nativeBridgeVersion } from '../../nativeBridge'
 import { factionIndexQuery, gameReferencesQuery } from '../../queries'
+import { revealedLeagueRostersKey } from '../../queries/queryKeys'
 import { useCopyText } from '../../useCopyText'
 import { RosterSummary } from '../rosters/RosterSummary'
 import { EntrantGroup, ViewRosterButton } from './LeagueEntrants'
@@ -72,11 +73,12 @@ export function LeagueArmies({
   const { copy, copied, problem } = useCopyText()
   const native = nativeBridgeVersion() !== undefined
   const entries = groups.flatMap((group) => group.entries)
+  const openRosters = () => openRevealedLeagueRosters({ data: { token, eventToken } })
+  // The app copies rather than downloads, and iOS refuses a clipboard write that waits on the network after the tap.
+  const preloaded = useQuery({ queryKey: revealedLeagueRostersKey(token, eventToken), queryFn: openRosters, enabled: native })
   const exported = useMutation({
     mutationFn: async () => {
-      const sealed = new Map(
-        (await openRevealedLeagueRosters({ data: { token, eventToken } })).map((entry) => [entry.userId, entry.roster]),
-      )
+      const sealed = new Map((preloaded.data ?? (await openRosters())).map((entry) => [entry.userId, entry.roster]))
       const rosters = entries.map((entry): BundledRoster => {
         const player = label(entry)
         const roster = sealed.get(entry.userId)
@@ -100,13 +102,18 @@ export function LeagueArmies({
   })
   return (
     <section data-league-armies aria-labelledby="league-armies">
-      <div className="mb-2 flex min-h-8 items-end justify-between gap-3 border-b border-edge pb-2">
-        <h2 id="league-armies" className="rubric">
+      <div className="mb-2 flex min-h-8 flex-wrap items-end justify-between gap-x-3 gap-y-1 border-b border-edge pb-2">
+        <h2 id="league-armies" className="rubric shrink-0">
           The rosters
         </h2>
-        <div className="flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-3">
           {revealedBy ? <p className="text-xs text-dim">Revealed by {revealedBy}</p> : null}
-          <Button variant="outline" size="sm" disabled={exported.isPending} onClick={() => exported.mutate()}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={exported.isPending || (native && !preloaded.data)}
+            onClick={() => exported.mutate()}
+          >
             <Download /> {native ? (copied ? 'Copied rosters' : 'Copy rosters') : 'Export rosters'}
           </Button>
         </div>
