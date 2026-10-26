@@ -8,6 +8,7 @@ import { TEXT_SOURCES, type TextSource } from '../shared/sourceText'
 import { isFetchNetworkFailure } from './networkErrors'
 import { readStoredValue, subscribeStoredValues, useStoredValue, writeStoredValue } from './storedValue'
 import { rulesTextKey } from './queries/queryKeys'
+import { hex } from './sourceStrings'
 
 /**
  * The sources this device loads rules text from, kept as their names in order. An empty
@@ -80,8 +81,6 @@ export const chooseTextSources = (sources: Iterable<TextSource>) => {
 }
 
 export const chooseTextSource = (source: TextSource, load: boolean) => chooseTextSources(toggled(textSourceChoice().sources, source, load))
-
-export const hex = (digest: ArrayBuffer) => Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 
 async function verified(response: Response, text: RuleTextSource) {
   const bytes = await response.arrayBuffer()

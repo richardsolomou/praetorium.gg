@@ -16,6 +16,7 @@ import { rosterDatasheetContext } from '../../shared/rosterDatasheetContext'
 import { rosterCombatant } from '../../shared/rosterCombatRules'
 import { combatLoadoutSpace } from '../../shared/combatLoadouts'
 import { currentUserId, forSignedIn } from '../playerSession'
+import { preparePicker } from '../rosterPicker'
 import { cacheUntilSnapshotChanges } from '../snapshotCache'
 import { memoUntilSnapshotChanges } from '../snapshotMemo'
 import { selectedBattleDetachmentData } from '../../shared/battleDetachmentData'
@@ -92,12 +93,11 @@ export const units = createServerFn({ method: 'GET' })
   .validator(unitsSchema)
   .handler(({ data }) =>
     rpc(async () => {
-      const instance = app()
-      const loaded = await instance.catalogueFor(data.catalogueId)
-      if (!loaded) return []
+      const prepared = await preparePicker(data)
+      if (!prepared) return []
       return pickerUnitsFor(
-        loaded,
-        await instance.rulesFor(data.catalogueId),
+        prepared.loaded,
+        prepared.rules,
         data.catalogueId,
         data.query,
         data.battleSize,

@@ -972,12 +972,15 @@ async function plagueMarineVariants(page: Page, width: number) {
   await expect(card).not.toContainText('Meltagun')
 }
 
-async function orkLoadoutVariants(page: Page, width: number) {
+async function orkLoadoutVariants(page: Page, width: number, opensInView: boolean) {
   await page.setViewportSize({ width, height: 900 })
   await createRoster(page, { faction: 'Orks', detachment: /War Horde/ })
   await add(page, 'Nobz')
   await add(page, 'Boyz')
   if (width < 1000) await page.getByRole('dialog').getByRole('button', { name: 'Close' }).click()
+  const mode = page.getByRole('group', { name: 'Roster mode' })
+  await expect(mode.getByRole('button', { name: 'View', exact: true })).toHaveAttribute('aria-pressed', String(opensInView))
+  if (opensInView) await mode.getByRole('button', { name: 'Build', exact: true }).click()
   await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(page.locator('[data-slot="roster-units"]'))
 
@@ -1126,7 +1129,9 @@ test('Plague Marine variants share a model card', async ({ page }) => {
 test('Ork loadout variants share compact model cards', async ({ page }) => {
   test.setTimeout(240_000)
   await signUp(page, 'Richard')
-  for (const width of [1600, 390]) await orkLoadoutVariants(page, width)
+  // The first pass ends in View, which the reader's next roster keeps.
+  await orkLoadoutVariants(page, 1600, false)
+  await orkLoadoutVariants(page, 390, true)
 })
 
 test('Plague Marine cards and exports omit replaced default wargear', async ({ page }) => {

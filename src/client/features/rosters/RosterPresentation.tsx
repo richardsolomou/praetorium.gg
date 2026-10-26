@@ -76,22 +76,27 @@ function scrollEdges(node: HTMLElement, current: { start: boolean; end: boolean 
 function useScrollEdges<T extends HTMLElement>() {
   const ref = useRef<T>(null)
   const [edges, setEdges] = useState({ start: false, end: false })
-  const measure = () => {
-    const node = ref.current
-    if (node) setEdges((current) => scrollEdges(node, current))
-  }
-  // Content decides the overflow as much as the viewport does, and a detachment can change under a row that never resized.
-  useEffect(measure)
   useEffect(() => {
     const node = ref.current
     if (!node) return
     const remeasure = () => setEdges((current) => scrollEdges(node, current))
     node.addEventListener('scroll', remeasure, { passive: true })
+    // Content decides the overflow as much as the viewport does, and a detachment can change under a row that never
+    // resized. Observing the items reads layout once it has settled; measuring after every render forced a layout of
+    // the whole roster on each of the editor's several renders per keystroke.
     const observer = new ResizeObserver(remeasure)
-    observer.observe(node)
+    const observeItems = () => {
+      observer.disconnect()
+      observer.observe(node)
+      for (const item of node.children) observer.observe(item)
+    }
+    observeItems()
+    const items = new MutationObserver(observeItems)
+    items.observe(node, { childList: true })
     return () => {
       node.removeEventListener('scroll', remeasure)
       observer.disconnect()
+      items.disconnect()
     }
   }, [])
   const mask = edgeMask(edges.start, edges.end)

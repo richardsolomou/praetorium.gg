@@ -21,8 +21,8 @@ import { type FactionRestrictions, restrictedBy } from './datacards'
 import { datacardOf } from './datasheetJoin'
 import { factionContentOf } from './factionNames'
 import { rosterDetachments } from './rosterDetachments'
-import { isOfferedDatasheet, priceOf } from './catalogueUnit'
-import { type Steps, type Stepwise, stepwise } from './steps'
+import { isOfferedDatasheet, listPriceOf, priceOf } from './catalogueUnit'
+import { completeSteps, type Steps, type Stepwise, stepwise } from './steps'
 
 export { isMatchedPlayDatasheet } from './catalogueUnit'
 
@@ -197,41 +197,44 @@ export function detachmentsUnlocking(loaded: LoadedCatalogue, catalogueId: strin
   return hiddenByRules(entry, loaded.index, { primaryCatalogueId: catalogueId, mustering: true, roster }) ? offeredBy : null
 }
 
-/** The complete priced list `unitsIn` searches, built a datasheet per step and shared by every reader of the same list. */
-export function unitSummaries(
-  loaded: LoadedCatalogue,
-  catalogueId: string,
-  { restrictions, factionCards, battleSize, waivedRules = [], detachmentIds = [], nonMatchedPlay = false }: UnitListOptions = {},
-): Stepwise<UnitSummary[]> {
-  const included = hasFactionCards(loaded, catalogueId, factionCards)
-  // The complete, priced list is cached so each search filters in memory. Waived rules
-  // change which datasheets the book offers and how many of each, so they belong in the key.
-  const detachments = rosterDetachments(loaded, catalogueId, detachmentIds)
-  const cacheKey = `${JSON.stringify(detachments.chosen.map((option) => option.id))}:${catalogueId}:${included ? 'included' : 'all'}:${battleSize ?? 'all'}:${[...waivedRules].toSorted().join(',')}:${restrictionsKey(restrictions)}:${nonMatchedPlay}`
-  return cachedIn(unitSummaryCache, loaded, cacheKey, () =>
-    stepwise(() => summarizeUnits(loaded, catalogueId, { restrictions, included, battleSize, waivedRules, detachments, nonMatchedPlay })),
-  )
+type ListOptions = {
+  restrictions?: FactionRestrictions
+  included: boolean
+  battleSize?: number
+  waivedRules: readonly string[]
+  detachments: ReturnType<typeof rosterDetachments>
+  nonMatchedPlay: boolean
 }
 
-function* summarizeUnits(
+function listOptions(
   loaded: LoadedCatalogue,
   catalogueId: string,
-  {
-    restrictions,
-    included,
-    battleSize,
-    waivedRules,
-    detachments,
-    nonMatchedPlay,
-  }: {
-    restrictions?: FactionRestrictions
-    included: boolean
-    battleSize?: number
-    waivedRules: readonly string[]
-    detachments: ReturnType<typeof rosterDetachments>
-    nonMatchedPlay: boolean
-  },
-): Steps<UnitSummary[]> {
+  { restrictions, factionCards, battleSize, waivedRules = [], detachmentIds = [], nonMatchedPlay = false }: UnitListOptions,
+): ListOptions {
+  const included = hasFactionCards(loaded, catalogueId, factionCards)
+  const detachments = rosterDetachments(loaded, catalogueId, detachmentIds)
+  return { restrictions, included, battleSize, waivedRules, detachments, nonMatchedPlay }
+}
+
+/** The complete priced list `unitsIn` searches, built a datasheet per step and shared by every reader of the same list. */
+export function unitSummaries(loaded: LoadedCatalogue, catalogueId: string, options: UnitListOptions = {}): Stepwise<UnitSummary[]> {
+  const listed = listOptions(loaded, catalogueId, options)
+  // The complete, priced list is cached so each search filters in memory. Waived rules
+  // change which datasheets the book offers and how many of each, so they belong in the key.
+  const cacheKey = `${JSON.stringify(listed.detachments.chosen.map((option) => option.id))}:${catalogueId}:${listed.included ? 'included' : 'all'}:${listed.battleSize ?? 'all'}:${[...listed.waivedRules].toSorted().join(',')}:${restrictionsKey(listed.restrictions)}:${listed.nonMatchedPlay}`
+  return cachedIn(unitSummaryCache, loaded, cacheKey, () => stepwise(() => summarizeUnits(loaded, catalogueId, listed)))
+}
+
+/** The datasheets `unitsIn` lists, in its order, without pricing each of them. */
+export function unitIdsIn(loaded: LoadedCatalogue, catalogueId: string, options: UnitListOptions = {}): string[] {
+  return completeSteps(listUnits(loaded, catalogueId, listOptions(loaded, catalogueId, options))).map((unit) => unit.id)
+}
+
+function* listUnits(
+  loaded: LoadedCatalogue,
+  catalogueId: string,
+  { restrictions, included, battleSize, waivedRules, detachments, nonMatchedPlay }: ListOptions,
+) {
   const found: {
     id: string
     name: string
@@ -265,16 +268,26 @@ function* summarizeUnits(
   const allies = found
     .filter((unit) => unit.alliedFaction)
     .toSorted((left, right) => left.alliedOrder - right.alliedOrder || left.name.localeCompare(right.name))
-  const size = battleSizeSelection(loaded.index, battleSize ?? null)
-  const roster = [...(size ? [size] : []), ...detachments.selections]
-  const summaries: UnitSummary[] = []
+  const units = []
   for (const unit of [...primary, ...allies]) {
     yield
-    const kind = nonMatchedPlayKind(unit.name)
     const sheet = battleSize !== undefined && isKotcLimit(battleSize) ? datasheetIn(loaded, catalogueId, unit.id) : null
     const facts = sheet ? { keywords: unit.keywords ?? sheet.keywords, toughness: toughnessOf(sheet.profiles) } : null
     if (facts && kotcUnitExclusions(facts, waivedRules).length) continue
     const formatLimit = facts ? formatDatasheetLimit(battleSize!, kotcDatasheetRepeatable(facts.keywords), waivedRules) : null
+    units.push({ ...unit, formatLimit })
+  }
+  return units
+}
+
+function* summarizeUnits(loaded: LoadedCatalogue, catalogueId: string, options: ListOptions): Steps<UnitSummary[]> {
+  const units = yield* listUnits(loaded, catalogueId, options)
+  const size = battleSizeSelection(loaded.index, options.battleSize ?? null)
+  const roster = [...(size ? [size] : []), ...options.detachments.selections]
+  const summaries: UnitSummary[] = []
+  for (const unit of units) {
+    yield
+    const kind = nonMatchedPlayKind(unit.name)
     summaries.push({
       id: unit.id,
       slug: datasheetSlug(loaded, catalogueId, unit.id),
@@ -283,8 +296,8 @@ function* summarizeUnits(
       allied: Boolean(unit.alliedFaction),
       alliedFaction: unit.alliedFaction,
       ...(kind ? { nonMatchedPlay: kind } : {}),
-      points: priceOf(loaded, catalogueId, unit.id, roster),
-      limit: minimumLimit(limitOf(loaded, catalogueId, unit.id, size), formatLimit),
+      points: roster.length ? priceOf(loaded, catalogueId, unit.id, roster) : listPriceOf(loaded, catalogueId, unit.id),
+      limit: minimumLimit(limitOf(loaded, catalogueId, unit.id, size), unit.formatLimit),
     })
   }
   return summaries

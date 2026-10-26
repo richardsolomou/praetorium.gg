@@ -289,7 +289,8 @@ export const Picker = memo(function Picker({
                       return (
                         <Fragment key={unit.id}>
                           <PickerRow
-                            unit={{ ...unit, limit: limits.has(unit.id) ? limits.get(unit.id)! : unit.limit }}
+                            unit={unit}
+                            limit={limits.has(unit.id) ? limits.get(unit.id)! : unit.limit}
                             unavailableReason={limits.get(unit.id) === 0 ? unitLimitMessage(unit.id, held, limits) : null}
                             held={held}
                             full={full}
@@ -422,6 +423,8 @@ function PickerSkeleton() {
 
 type PickerRowProps = {
   unit: UnitSummary
+  /** The roster's own limit where it has one, which can differ from the book's. */
+  limit: number | null
   held: number
   full: boolean
   favourite: boolean
@@ -435,6 +438,7 @@ type PickerRowProps = {
 
 const PickerRow = memo(function PickerRow({
   unit,
+  limit,
   held,
   full,
   favourite,
@@ -465,7 +469,7 @@ const PickerRow = memo(function PickerRow({
           {held ? (
             <span className={`readout block text-2xs ${full ? 'text-discarded' : 'text-faint'}`}>
               {held}
-              {unit.limit === null ? '' : `/${unit.limit}`} in roster
+              {limit === null ? '' : `/${limit}`} in roster
             </span>
           ) : null}
         </span>

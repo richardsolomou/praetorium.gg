@@ -66,12 +66,26 @@ export function pickerUnitsFor(
 /** Prepares what a faction's unpriced picker and reference list read, a datasheet per step. */
 export function* pickerConstruction(loaded: LoadedCatalogue, rules: LoadedRules | null, catalogueId: string): Steps<void> {
   yield* stepThrough(unitSummaries(loaded, catalogueId, { factionCards: true, nonMatchedPlay: true }))
+  yield* pickerSteps(loaded, rules, catalogueId)
+}
+
+/** Builds everything `pickerUnitsFor` reads for one roster's picker, a datasheet per step. */
+export function* pickerSteps(
+  loaded: LoadedCatalogue,
+  rules: LoadedRules | null,
+  catalogueId: string,
+  battleSize?: number,
+  waivedRules: readonly string[] = [],
+  detachmentIds: readonly string[] = [],
+): Steps<void> {
+  const restrictions = pickerRestrictions(loaded, rules, catalogueId)
   const units = yield* stepThrough(
-    unitSummaries(loaded, catalogueId, { restrictions: pickerRestrictions(loaded, rules, catalogueId), nonMatchedPlay: true }),
+    unitSummaries(loaded, catalogueId, { restrictions, battleSize, waivedRules, detachmentIds, nonMatchedPlay: true }),
   )
+  const detachments = rosterDetachments(loaded, catalogueId, detachmentIds).selections
   for (const unit of units) {
     pickerAttachments(loaded, catalogueId, unit.id)
-    datasheetSearchFieldsIn(loaded, catalogueId, unit.id)
+    pickerSearchFields(loaded, catalogueId, unit.id, detachments)
     yield
   }
 }
