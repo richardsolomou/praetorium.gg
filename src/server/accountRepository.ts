@@ -2,6 +2,7 @@ import { and, asc, desc, eq, exists, inArray, ne, not, notInArray, or, sql } fro
 import { alias } from 'drizzle-orm/sqlite-core'
 import type { LibSQLDatabase } from 'drizzle-orm/libsql'
 import { account, githubSponsor, schema, user } from '../db/authSchema'
+import { remember } from '../core/collections'
 import type { GithubSponsor } from './githubSponsors'
 import type { AdminUserCountSort, AdminUserSort, AdminUsersRequest } from '../admin'
 
@@ -160,9 +161,8 @@ export class SqliteAccountRepository {
       : []
     const methodsByUser = new Map<string, Map<string, Date>>()
     for (const method of methods) {
-      const providers = methodsByUser.get(method.userId) ?? new Map<string, Date>()
+      const providers = remember(methodsByUser, method.userId, () => new Map<string, Date>())
       if (!providers.has(method.providerId)) providers.set(method.providerId, method.linkedAt)
-      methodsByUser.set(method.userId, providers)
     }
     return rows.map((entry) => ({
       ...entry,

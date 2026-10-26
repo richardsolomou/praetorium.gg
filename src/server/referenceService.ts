@@ -1,7 +1,7 @@
 import type { CanonicalDatasheet, UnitSummary } from '../contracts/catalogue'
 import type { ReferenceDocument } from '../contracts/reference'
 import { routeSlug } from '../core/slug'
-import { countBy } from '../core/collections'
+import { countBy, remember } from '../core/collections'
 import { catalogueEditionId } from '../core/catalogueEdition'
 import { datasheetPageBySlug } from '../core/datasheetSlug'
 import { unitsIn } from '../shared/cataloguePicker'
@@ -17,20 +17,22 @@ export function referenceFactions(corpus: ReferenceCorpus): ReferenceFaction[] {
   const factions = new Map<string, ReferenceFaction>()
   for (const sheet of corpus.catalogue.datasheets) {
     const slug = sheet.referenceRoute?.catalogueId ?? sheet.catalogueId
-    const found = factions.get(sheet.catalogueId) ?? { id: sheet.catalogueId, slug, name: sheet.faction, datasheets: 0, detachments: 0 }
-    found.datasheets += 1
-    factions.set(sheet.catalogueId, found)
+    remember(factions, sheet.catalogueId, () => ({
+      id: sheet.catalogueId,
+      slug,
+      name: sheet.faction,
+      datasheets: 0,
+      detachments: 0,
+    })).datasheets += 1
   }
   for (const detachment of corpus.catalogue.detachments) {
-    const found = factions.get(detachment.catalogueId) ?? {
+    remember(factions, detachment.catalogueId, () => ({
       id: detachment.catalogueId,
       slug: detachment.factionSlug,
       name: detachment.faction,
       datasheets: 0,
       detachments: 0,
-    }
-    found.detachments += 1
-    factions.set(detachment.catalogueId, found)
+    })).detachments += 1
   }
   return [...factions.values()].toSorted((left, right) => left.name.localeCompare(right.name))
 }
