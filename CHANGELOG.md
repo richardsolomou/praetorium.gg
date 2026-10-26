@@ -1,5 +1,20 @@
 # praetorium
 
+## 0.193.2
+
+### Patch Changes
+
+- 8c58d35: Players who sign up with Apple without sharing their name are now asked to choose a display name, instead of appearing nameless to other players.
+- 5f577d6: Assistants now link Imperial Knights allies, such as an Armiger in an Ultramarines or Astra Militarum army, to their Imperial Knights datasheets.
+- 8b044dc: Assistants can simulate combat for a chapter's Space Marines codex units, such as Ultramarines Intercessors, and link to their datasheets.
+- 8b044dc: Assistants find factions however their apostrophes are typed, such as Tau Empire or Emperor's Children, and a faction search finds current rules ahead of archived ones.
+- eeafc4b: Opening a roster shows its unit list and points sooner, and searching the unit list responds faster on phones.
+- 3ccb0af: Feedback you are writing no longer clears itself when your earlier conversations finish loading.
+- eeafc4b: A roster you open now keeps View mode when you last chose it, instead of sometimes switching back to Build.
+- cd21ca4: Imported official-app lists keep the specialists a squad lists under its ordinary troopers, such as a Tempestus Command Squad's medic and vox operator or a Tempestus Aquilons squad's long-las and plasma carbine.
+- eeafc4b: Datasheet pages stay responsive on phones while their rules text loads.
+- af76f84: Weapon profile names that mention a rule in brackets, such as a Tempestus Scion's plasma gun, now show their closing bracket.
+
 ## 0.193.1
 
 ### Patch Changes
