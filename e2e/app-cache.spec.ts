@@ -13,6 +13,7 @@ import {
   PHONE,
 } from './account'
 import { lastPathSegment } from './storage'
+import { waitForOfflineApp } from './offline'
 
 async function savedState(page: Page) {
   return page.evaluate(
@@ -48,15 +49,7 @@ test(
     await page.goto('/')
     await expect(page.getByRole('heading', { name: `Welcome back, ${player}` })).toBeVisible()
     await expect.poll(() => savedState(page)).toContain(roster)
-    await expect
-      .poll(
-        () => page.evaluate(async () => Boolean(await (await caches.open('praetorium-reference-v2')).match('/offline-reference.html'))),
-        {
-          timeout: 180_000,
-        },
-      )
-      .toBe(true)
-    await expect.poll(() => page.evaluate(() => Boolean(window.PraetoriumReferenceCache?.construction))).toBe(true)
+    await waitForOfflineApp(page)
     await page.goto(rosterPath)
     await expect(page.getByLabel('List name')).toHaveValue(roster)
     const picker = page.getByLabel('Add a unit')
