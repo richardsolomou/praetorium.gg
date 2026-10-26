@@ -9,6 +9,23 @@ import {
   chooseOption,
   PHONE,
 } from './account'
+import type { SpacetimeOperator } from '../src/server/spacetimeOperator'
+
+/** A practice battle at 2,000 points, opened straight in the product, and its token. */
+async function strikeForceBattle(operator: SpacetimeOperator, userId: string, prefix: string) {
+  const token = `${prefix}-${crypto.randomUUID()}`
+  await operator.createBattle({
+    id: token,
+    token,
+    userId,
+    opponentIds: (await operator.practiceOpponentIds()).slice(0, 1),
+    now: Date.now(),
+    initialCommands: [
+      { kind: 'configure-battle', limit: 2000, missionPackId: null, terrainLayoutId: null, twistId: null, clockLimitMinutes: null },
+    ],
+  })
+  return token
+}
 
 const openChooser = async (page: Page) => {
   await setupStep(page, 'Armies')
@@ -25,24 +42,7 @@ const openChooser = async (page: Page) => {
 test('a roster chooser with no list for the battle size hands over to the battle size control', async ({ page }) => {
   const name = 'Incursion army'
   const { userId, operator } = await savedArmy(page, 'Roster chooser', { name, limit: 1000, pointsBudget: null })
-  const token = `chooser-size-${crypto.randomUUID()}`
-  await operator.createBattle({
-    id: token,
-    token,
-    userId,
-    opponentIds: (await operator.practiceOpponentIds()).slice(0, 1),
-    now: Date.now(),
-    initialCommands: [
-      {
-        kind: 'configure-battle',
-        limit: 2000,
-        missionPackId: null,
-        terrainLayoutId: null,
-        twistId: null,
-        clockLimitMinutes: null,
-      },
-    ],
-  })
+  const token = await strikeForceBattle(operator, userId, 'chooser-size')
   await page.goto(`/battles/${token}`)
 
   const chooser = await openChooser(page)
@@ -110,24 +110,7 @@ test('a battle started from a saved roster opens with that roster on the playerâ
 const phoneBattle = async (page: Page, name: string, pointsBudget: number | null = null) => {
   await page.setViewportSize(PHONE)
   const { userId, operator } = await savedArmy(page, 'Roster chooser back', { name, limit: 2000, pointsBudget })
-  const token = `chooser-back-${crypto.randomUUID()}`
-  await operator.createBattle({
-    id: token,
-    token,
-    userId,
-    opponentIds: (await operator.practiceOpponentIds()).slice(0, 1),
-    now: Date.now(),
-    initialCommands: [
-      {
-        kind: 'configure-battle',
-        limit: 2000,
-        missionPackId: null,
-        terrainLayoutId: null,
-        twistId: null,
-        clockLimitMinutes: null,
-      },
-    ],
-  })
+  const token = await strikeForceBattle(operator, userId, 'chooser-back')
   await page.goto('/support')
   await page.goto(`/battles/${token}`)
   return new RegExp(`/battles/${token}$`)
