@@ -5,7 +5,6 @@ appId: gg.praetorium
 - extendedWaitUntil:
     visible: 03. Moving
     timeout: 30000
-- assertVisible: 03. Moving
 - takeScreenshot: native-renderer-recovered
 - tapOn: Praetorium home
 - assertVisible: '(?i)Welcome back, Native.*'

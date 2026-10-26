@@ -6,7 +6,6 @@ appId: gg.praetorium
 - extendedWaitUntil:
     visible: 03. Moving
     timeout: 30000
-- assertVisible: 03. Moving
 - takeScreenshot: native-reference-reconnected
 - assertNotVisible: Refresh now
 - tapOn: Praetorium home
