@@ -74,7 +74,7 @@ test-unit *args:
 test-integration *args:
     pnpm test:integration {{ args }}
 
-# Format, lint, database, catalogue pins, build, typecheck, unit tests
+# Format, lint, database, catalogue pins, build, typecheck, all Vitest and Python tests
 check:
     pnpm check
 
