@@ -1,7 +1,7 @@
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useNavigate, useRouter } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { ChevronDown, ScrollText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
@@ -37,7 +37,7 @@ import { RosterRow } from './RosterRow'
 import { type SavedRoster, useRosterActions } from './rosterLibrary'
 import { keepRosterSort } from './rosterSort'
 import { type RosterSort, sortRosters } from '../../../core/rosterSort'
-import { parseWorkspaceState, readStoredWorkspaceState, writeWorkspaceState } from './workspaceState'
+import { SETUP_STATE, useWorkspaceState } from './workspaceState'
 import { useFavouriteFactions } from '../../favouriteFactions'
 import {
   factionIndexQuery,
@@ -50,7 +50,6 @@ import {
 import { LentRosterList } from './LentRosters'
 import { RosterViews } from './RosterViews'
 import { useOrigin } from '../../useOrigin'
-import { useClientValue } from '../../useClientValue'
 import type { RosterVisibility } from '../../../core/savedRoster'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../../core/rosterLibrary'
 import { variantCards, variantGroups } from '../../../core/rosterVariants'
@@ -64,8 +63,6 @@ export type RosterLibrarySearch = { limit?: number; faction?: string; visibility
 type EditingSession = { rosterId: string; draft: RosterSetup }
 
 const WORKSPACE_PATH = '/rosters/'
-const EDITING_STATE = 'roster-setup'
-const storedEditingSession = () => readStoredWorkspaceState(WORKSPACE_PATH, EDITING_STATE)
 
 /**
  * A visitor's one list on this device, read once the page is in the browser; `pending` holds its row's place until then.
@@ -191,16 +188,9 @@ export function RosterLibraryPage({
   const another = guest ? () => account.ask('another-roster') : undefined
   const { keepImported, saveError: importError } = useNewRoster()
   const [deleting, setDeleting] = useState<SavedRoster | null>(null)
-  const storedSession = useClientValue(storedEditingSession, null)
-  const restoredSession = useMemo(() => parseWorkspaceState<EditingSession>(storedSession), [storedSession])
-  const [chosenSession, setChosenSession] = useState<{ session: EditingSession | null }>()
-  const session = chosenSession ? chosenSession.session : restoredSession
+  const [session, setEditing] = useWorkspaceState<EditingSession>(WORKSPACE_PATH, SETUP_STATE)
   const editing = saved.find((roster) => roster.id === session?.rosterId) ?? null
 
-  const setEditing = (next: EditingSession | null) => {
-    setChosenSession({ session: next })
-    writeWorkspaceState(WORKSPACE_PATH, EDITING_STATE, next)
-  }
   const renderCard = ({ head, variants }: (typeof cards)[number]) => {
     const row = ({ roster, index }: typeof head, layout: 'card' | 'base' | 'variant') => (
       <RosterRow

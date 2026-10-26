@@ -3,7 +3,14 @@ import { GUEST_DRAFT_COOKIE } from '../../../contracts/rosterCookies'
 import { setRosterCookie } from './rosterCookie'
 import type { RosterDraft } from './rosterDraft'
 import type { RosterSetup } from './RosterSetupDialog'
-import { parseWorkspaceState, readStoredWorkspaceState, readWorkspaceState, writeWorkspaceState } from './workspaceState'
+import {
+  parseWorkspaceState,
+  readStoredWorkspaceState,
+  readWorkspaceState,
+  SETUP_STATE,
+  WAIVERS_STATE,
+  writeWorkspaceState,
+} from './workspaceState'
 import { currentRosterIds } from '../../../core/retiredCatalogueIds'
 import { listUnitCount } from '../../../core/attachedUnits'
 import { requireReviewedRoster } from '../../offline/reviewedRoster'
@@ -201,7 +208,7 @@ export function clearGuestDraft() {
   forget(() => localStorage.removeItem(KEY))
   lastWritten = null
   writeWorkspaceState(GUEST_PATH, NAME, null)
-  if (kept) for (const name of ['roster-setup', 'waivers-dismissed']) writeWorkspaceState(guestDraftPath(kept), name, null)
+  if (kept) for (const name of [SETUP_STATE, WAIVERS_STATE]) writeWorkspaceState(guestDraftPath(kept), name, null)
   markGuestDraft(false)
 }
 

@@ -77,7 +77,7 @@ import type { RosterSetupReview } from './rosterSetupReview'
 import { requireReviewedRoster } from '../../offline/reviewedRoster'
 import { localEngine } from '../../offline/localRuntime'
 import { useSettled } from '../../useSettled'
-import { readStoredValue, writeStoredValue } from '../../storedValue'
+import { useStoredValue, writeStoredValue } from '../../storedValue'
 import { DatasheetPanel } from './builder/DatasheetPanel'
 import { Loadout } from './builder/Loadout'
 import { Stepper } from '../../components/Stepper'
@@ -116,7 +116,7 @@ import { encodeRosterExchange } from '../../../core/rosterExchange'
 import { RosterBody, RosterHeader, RosterOutline, RosterShell, RosterUnits } from './RosterPresentation'
 import { saveFailureReason } from './saveFailure'
 import { advanceOnboarding } from '../onboarding/onboarding'
-import { readWorkspaceState, writeWorkspaceState } from './workspaceState'
+import { SETUP_STATE, useWorkspaceState, WAIVERS_STATE } from './workspaceState'
 import { FullDatasheetLink, FullDatasheetLinkLoading } from './FullDatasheetLink'
 import { type AttachDirection, AttachedUnitActions, BuilderUnitCard, useCardRelationships } from './RosterUnitCard'
 import type { AttachChoice } from './builder/UnitCard'
@@ -219,8 +219,6 @@ export type FrozenRoster = {
 }
 
 const READ_ONLY_PREFERENCE = 'praetorium.roster-read-only'
-/** Which set of waived restrictions this workspace has already been told about. */
-const WAIVERS_DISMISSED = 'waivers-dismissed'
 const NO_UNITS = [] as const
 const NO_VARIANTS: readonly RosterVariant[] = []
 const NO_JOINED: { label: string; name: string }[] = []
@@ -276,7 +274,8 @@ export function ListBuilder({
   const [combatRoster, setCombatRoster] = useState<CombatRoster | null>(null)
   const [compareTargets, setCompareTargets] = useState(false)
   const [reference, setReference] = useState<{ entryId: string; route: Datasheet['referenceRoute'] | undefined } | null>(null)
-  const [readOnly, setReadOnly] = useState(!editable)
+  const viewMode = useStoredValue(READ_ONLY_PREFERENCE) === 'true'
+  const readOnly = !editable || viewMode
   const [exportText, setExportText] = useState<RosterTextExport | null>(null)
   const [exchangeCode, setExchangeCode] = useState<RosterExchangeCode | null>(null)
   const [lending, setLending] = useState(false)
@@ -300,9 +299,9 @@ export function ListBuilder({
     openPicker,
     updateLoadoutHistory,
   } = useRosterPanes({ path, workspacePath, picks })
-  const [setupDraft, setSetupDraftState] = useState<RosterSetup | null>(null)
+  const [setupDraft, setSetupDraft] = useWorkspaceState<RosterSetup>(workspacePath, SETUP_STATE)
   const [setupMode, setSetupMode] = useState<'edit' | 'convert'>('edit')
-  const [dismissedWaivers, setDismissedWaivers] = useState<string | null>(null)
+  const [dismissedWaivers, dismissWaivers] = useWorkspaceState<string>(workspacePath, WAIVERS_STATE)
   const [pickerQuery, setPickerQuery] = useState('')
   const [pickerFilters, setPickerFilters] = useState<Set<PickerFilter>>(new Set())
   const editingSetup = setupDraft !== null
@@ -323,27 +322,10 @@ export function ListBuilder({
   const pickerOpen = editable && (wideWorkspace || showing === 'picker')
   const pickerEnabled = workspaceMeasured && pickerOpen
 
-  const setSetupDraft = (draft: RosterSetup | null) => {
-    setSetupDraftState(draft)
-    writeWorkspaceState(workspacePath, 'roster-setup', draft)
-  }
-
-  const dismissWaivers = (key: string) => {
-    setDismissedWaivers(key)
-    writeWorkspaceState(workspacePath, WAIVERS_DISMISSED, key)
-  }
-
   const savedId = initial.id
   const queryClient = useQueryClient()
-  useEffect(() => setSetupDraftState(readWorkspaceState<RosterSetup>(workspacePath, 'roster-setup')), [workspacePath])
-  useEffect(() => setDismissedWaivers(readWorkspaceState<string>(workspacePath, WAIVERS_DISMISSED)), [workspacePath])
-  useEffect(() => {
-    if (!editable) return
-    setReadOnly(readStoredValue(READ_ONLY_PREFERENCE) === 'true')
-  }, [editable])
 
   const setReadOnlyMode = (next: boolean) => {
-    setReadOnly(next)
     writeStoredValue(READ_ONLY_PREFERENCE, String(next))
     // Viewing is reading the list as anybody else would, and the picker is not part of that.
     if (next && showing === 'picker') closePane()
