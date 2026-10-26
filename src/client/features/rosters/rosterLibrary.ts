@@ -21,6 +21,7 @@ import { invalidateSavedRosters, savedRosterSummariesQuery } from '../../queries
 import { errorMessage } from '../../queryClient'
 import { shareLink } from '../../nativeBridge'
 import type { RosterSetupReview } from './rosterSetupReview'
+import { exportInput } from './rosterDraft'
 import { claimInput, clearGuestDraft, type GuestDraft, keepReviewedDraft } from './guestDraft'
 
 /** One saved list, as the library reads it back. */
@@ -92,17 +93,7 @@ export function useRosterActions(origin: string, device?: DeviceRoster | null) {
   const take = useMutation({
     mutationFn: async ({ roster: summary, title }: { roster: SavedRoster; title: string }) => {
       const roster = await load(summary)
-      return exportRoster({
-        data: {
-          catalogueId: roster.catalogueId,
-          detachmentIds: roster.detachmentIds,
-          disposition: roster.disposition,
-          limit: roster.limit,
-          name: roster.name || title,
-          units: roster.picks,
-          waivedRules: roster.waivedRules,
-        },
-      })
+      return exportRoster({ data: exportInput(roster, roster.name || title) })
     },
     onSuccess: (exported) => setExportText(exported),
   })

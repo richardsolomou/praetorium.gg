@@ -1,7 +1,8 @@
 import type { FormatRuleId, OptionalRuleId, Secondary, Stratagem } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
 import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
-import type { saveRoster } from '../../functions'
+import { withoutUnitNotes } from '../../../core/unitNotes'
+import type { exportRoster, saveRoster } from '../../functions'
 import { annotatedPicks } from './rosterPicks'
 
 /** A list exactly as the builder's autosave sends it. */
@@ -63,3 +64,19 @@ export function savedDraft(roster: SavedRoster, prep: SavedPrep): RosterDraft {
     source: roster.source,
   }
 }
+
+type ExportedRoster = Pick<SavedRoster, 'catalogueId' | 'detachmentIds' | 'disposition' | 'limit' | 'pointsBudget' | 'picks'> & {
+  waivedRules?: FormatRuleId[]
+}
+
+/** What "Export text" sends, whether the builder or the library asks. */
+export const exportInput = (roster: ExportedRoster, name: string): Parameters<typeof exportRoster>[0]['data'] => ({
+  catalogueId: roster.catalogueId,
+  detachmentIds: roster.detachmentIds,
+  disposition: roster.disposition,
+  limit: roster.limit,
+  pointsBudget: roster.pointsBudget,
+  name,
+  units: withoutUnitNotes(roster.picks),
+  waivedRules: roster.waivedRules,
+})

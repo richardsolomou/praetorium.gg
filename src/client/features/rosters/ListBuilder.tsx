@@ -44,7 +44,6 @@ import { canTransport, enforces, type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, wa
 import type { RosterPick } from '../../../core/roster'
 import { joinedUnits } from '../../../core/unitLoadouts'
 import { frozenUnits } from '../../../core/rosterSnapshot'
-import { withoutUnitNotes } from '../../../core/unitNotes'
 import {
   armyReminder,
   fieldedReminders,
@@ -118,7 +117,7 @@ import { convertAsVariantOf } from './rosterLibrary'
 import { currentRulesFor } from '../../../core/currentRules'
 import { OutdatedLeagueRosters } from './OutdatedLeagueRosters'
 import { DueLeagueRosters } from './DueLeagueRosters'
-import { draftKey, type RosterDraft, savedDraft } from './rosterDraft'
+import { draftKey, exportInput, type RosterDraft, savedDraft } from './rosterDraft'
 import { RosterBuilderFooter } from './RosterBuilderFooter'
 import { type RosterVariant, RosterVariantMenu } from './RosterVariantMenu'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
@@ -460,16 +459,10 @@ export function ListBuilder({
   const take = useMutation({
     mutationFn: () =>
       exportRoster({
-        data: {
-          catalogueId,
-          detachmentIds,
-          disposition,
-          limit,
-          pointsBudget,
-          name: shownName || 'Roster',
-          units: withoutUnitNotes(annotated),
-          waivedRules,
-        },
+        data: exportInput(
+          { catalogueId, detachmentIds, disposition, limit, pointsBudget, picks: annotated, waivedRules },
+          shownName || 'Roster',
+        ),
       }),
     onSuccess: (exported) => setExportText(exported),
   })
