@@ -13,4 +13,5 @@
 - Only production sends events. `VITE_POSTHOG_HOST` must be the ingestion host, not a reverse proxy that drops the forwarded visitor address.
 - Durable sync captures only on the transaction that newly applies an action, never on retries.
 - Keep crawler `$http_log` capture unsampled.
+- A state only the player can resolve on their device, such as reconnecting or reviewing a sync conflict, throws `OfflineRefusal`, which exception capture skips.
 - Verify with `e2e/telemetry.spec.ts`; after deployment, inspect real events, since arrival alone proves neither privacy nor identity linkage.

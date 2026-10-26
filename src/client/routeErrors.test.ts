@@ -8,6 +8,7 @@ const client = vi.hoisted(() => ({ captureException, capture, __loaded: true }))
 vi.mock('posthog-js', () => ({ posthog: client }))
 
 import { POSTHOG_BROWSER_OPTIONS } from '../posthog'
+import { OfflineRefusal } from './offline/offlineRefusal'
 import {
   completedRouteRecovery,
   mayReloadCancelledLoad,
@@ -53,6 +54,11 @@ it('reports a chunk that failed to load after a deploy', () => {
 
 it('leaves a cancelled read out of error tracking, since the route loads again', () => {
   reportRouteError(new CancelledError())
+  expect(captureException).not.toHaveBeenCalled()
+})
+
+it('leaves a screen this device has not saved out of error tracking, since the player must reconnect', () => {
+  reportRouteError(new OfflineRefusal('This screen has not been saved on this device. Reconnect to load it.'))
   expect(captureException).not.toHaveBeenCalled()
 })
 

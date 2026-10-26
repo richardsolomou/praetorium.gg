@@ -45,6 +45,7 @@ import {
 import type { RecentMatchup } from '../../core/recentMatchups'
 import { withAbilityReminder, type AbilityReminder } from '../../core/reminders'
 import { withoutRecentMatchup, withRecentMatchup } from '../../contracts/recentMatchups'
+import { OfflineRefusal } from './offlineRefusal'
 
 export const queryResource = (key: readonly unknown[]) => `query:${JSON.stringify(key)}`
 async function accountRead<T>(key: readonly unknown[], online: () => Promise<T>) {
@@ -473,7 +474,7 @@ export async function submitLeagueRoster(
   const construction = roster ? localConstruction(roster.catalogueId) : null
   if (!roster || !construction) {
     if (navigator.onLine) return server.submitLeagueRoster(args)
-    throw new Error('Save this roster and army data on this device before sealing it offline.')
+    throw new OfflineRefusal('Save this roster and army data on this device before sealing it offline.')
   }
   const priced = calculateRosterPrice(savedRosterPriceInput(roster), construction.catalogue, construction.rules)
   if (!priced) throw new Error('Army data is unavailable.')

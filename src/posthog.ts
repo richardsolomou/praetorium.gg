@@ -59,6 +59,25 @@ export const browserEventContext: BeforeSendFn = (event) => {
   }
 }
 
+/**
+ * Browser noise with nothing to act on: a cross-origin script hides its error, a resize observer skips a frame, and
+ * Outlook's link scanner rejects with its own message when it opens the page.
+ */
+const UNACTIONABLE_EXCEPTIONS = [
+  /^Script error\.?$/,
+  /^ResizeObserver loop (completed with undelivered notifications|limit exceeded)/,
+  /^Non-Error promise rejection captured with value: Object Not Found Matching Id:\d+, MethodName:\w+, ParamCount:\d+$/,
+]
+
+export const dropUnactionableExceptions: BeforeSendFn = (event) => {
+  const list: unknown = event.properties.$exception_list
+  if (event.event !== '$exception' || !Array.isArray(list) || !list.length) return event
+  const unactionable = list.every((exception: { value?: unknown }) =>
+    UNACTIONABLE_EXCEPTIONS.some((pattern) => typeof exception.value === 'string' && pattern.test(exception.value)),
+  )
+  return unactionable ? null : event
+}
+
 const held: [event: string, properties: Properties][] = []
 
 /** Captures now or once the SDK loads: the provider initialises it in an effect, after its children's effects on the first render. */
@@ -74,7 +93,7 @@ export const POSTHOG_BROWSER_OPTIONS = {
   mask_personal_data_properties: true,
   custom_personal_data_properties: ['token'],
   session_recording: { maskAllInputs: true },
-  before_send: browserEventContext,
+  before_send: [dropUnactionableExceptions, browserEventContext],
   loaded: (client) => {
     for (const [event, properties] of held.splice(0)) client.capture(event, properties)
   },

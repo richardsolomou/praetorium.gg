@@ -1,5 +1,6 @@
 import { CancelledError } from '@tanstack/react-query'
 import { localClient, localOwner } from './localRuntime'
+import { OfflineRefusal } from './offlineRefusal'
 
 /** A read finished for the account that just left: dropped like a cancelled read, so the screen loads again for the new one. */
 export const accountChanged = () => new CancelledError({ revert: true, silent: true })
@@ -14,7 +15,7 @@ export async function cachedRead<T>(
   if (typeof window === 'undefined') return online()
   if (typeof navigator.onLine === 'boolean' && !navigator.onLine) {
     if (cached !== undefined) return cached
-    throw new Error('This screen has not been saved on this device. Reconnect to load it.')
+    throw new OfflineRefusal('This screen has not been saved on this device. Reconnect to load it.')
   }
   const owner = localOwner()?.id
   try {
@@ -34,7 +35,7 @@ export async function cachedPage<T>(key: readonly unknown[], cursor: unknown, on
   const page = index >= 0 ? cached?.pages[index] : undefined
   if (typeof window !== 'undefined' && typeof navigator.onLine === 'boolean' && !navigator.onLine) {
     if (page !== undefined) return page
-    throw new Error('This page has not been downloaded yet.')
+    throw new OfflineRefusal('This page has not been downloaded yet.')
   }
   const owner = localOwner()?.id
   try {
