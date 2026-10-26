@@ -12,6 +12,8 @@ import { SectionHeading } from '../../components/SectionHeading'
 import { useLeagueRefresh, type League } from './leagueEvent'
 
 type Pairing = League['pairings'][number]
+/** What the rounds read of a table's battle, which the sample tournament supplies without a real one. */
+type TableBattle = Pick<Battle, 'token' | 'status' | 'scores' | 'playerIds'>
 
 /** Whether a table is settled without a battle: one of its players dropped before it finished. */
 export function forfeited(pairing: Pick<Pairing, 'aId' | 'bId'>, entries: readonly { userId: string; dropped: boolean }[]) {
@@ -19,7 +21,7 @@ export function forfeited(pairing: Pick<Pairing, 'aId' | 'bId'>, entries: readon
 }
 
 /** The rounds still to pair and whether the latest has every table finished, from the battles the page has loaded. */
-export function swissProgress(league: Pick<League, 'pairings' | 'rounds' | 'entries'>, battles: readonly Battle[]) {
+export function swissProgress(league: Pick<League, 'pairings' | 'rounds' | 'entries'>, battles: readonly TableBattle[]) {
   const round = Math.max(0, ...league.pairings.map((pairing) => pairing.round))
   const current = league.pairings.filter((pairing) => pairing.round === round)
   const finished = new Set(battles.filter((battle) => battle.status === 'finished').map((battle) => battle.token))
@@ -49,16 +51,19 @@ export function LeagueRounds({
   label,
   onPlay,
   playing,
+  sample = false,
 }: {
   league: League
   token: string
-  battles: readonly Battle[]
+  battles: readonly TableBattle[]
   viewerId: string | null
   isOrganizer: boolean
   entries: readonly LeagueEntryView[]
   label: (entry: LeagueEntryView) => string
   onPlay: (opponentId: string) => void
   playing: boolean
+  /** The sample tournament's made-up battles, which have no page to open. */
+  sample?: boolean
 }) {
   const refresh = useLeagueRefresh(token)
   const pair = useMutation({
@@ -139,6 +144,7 @@ export function LeagueRounds({
                       current={round === progress.round}
                       onPlay={onPlay}
                       playing={playing}
+                      sample={sample}
                     />
                   ))}
               </ol>
@@ -160,10 +166,11 @@ function TableRow({
   current,
   onPlay,
   playing,
+  sample,
 }: {
   pairing: Pairing
   rematch: boolean
-  battle: Battle | undefined
+  battle: TableBattle | undefined
   name: (userId: string) => ReactNode
   /** A player dropped before the table had a result, so it stands as a bye for the other. */
   forfeit: boolean
@@ -171,6 +178,7 @@ function TableRow({
   current: boolean
   onPlay: (opponentId: string) => void
   playing: boolean
+  sample: boolean
 }) {
   const own = pairing.aId === viewerId || pairing.bId === viewerId
   const opponent = pairing.aId === viewerId ? pairing.bId : pairing.aId
@@ -187,13 +195,11 @@ function TableRow({
         <span className="chip shrink-0 text-dim">Bye</span>
       ) : forfeit ? (
         <span className="chip shrink-0 text-dim">Bye</span>
+      ) : pairing.battleToken && sample ? (
+        <span className="shrink-0 text-sm text-info">{battleState(battle, pairing.aId, pairing.bId)}</span>
       ) : pairing.battleToken ? (
         <Link to="/battles/$token" params={{ token: pairing.battleToken }} className="shrink-0 text-sm text-info hover:text-bone">
-          {battle?.status === 'finished'
-            ? `${score(battle, pairing.aId)} – ${score(battle, pairing.bId)}`
-            : battle?.status === 'playing'
-              ? 'Playing'
-              : 'Setting up'}
+          {battleState(battle, pairing.aId, pairing.bId)}
         </Link>
       ) : own && current && opponent ? (
         <Button size="sm" disabled={playing} onClick={() => onPlay(opponent)}>
@@ -206,5 +212,8 @@ function TableRow({
   )
 }
 
+const battleState = (battle: TableBattle | undefined, aId: string, bId: string) =>
+  battle?.status === 'finished' ? `${score(battle, aId)} – ${score(battle, bId)}` : battle?.status === 'playing' ? 'Playing' : 'Setting up'
+
 /** The victory points a player's side finished on, read in the table's order rather than the battle's seats. */
-const score = (battle: Battle, userId: string) => battle.scores[battle.playerIds.indexOf(userId)] ?? 0
+const score = (battle: TableBattle, userId: string) => battle.scores[battle.playerIds.indexOf(userId)] ?? 0

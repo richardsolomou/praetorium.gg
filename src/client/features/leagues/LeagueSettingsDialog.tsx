@@ -1,6 +1,6 @@
 import { sameSet } from '../../../core/collections'
 import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
@@ -172,13 +172,22 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
 
   const title = mode.kind === 'create' ? `New ${noun}` : `Edit ${noun}`
   const description =
-    mode.kind === 'create'
-      ? mode.clubToken
-        ? 'Members seal a list in secret, then you reveal them together. Its battles count on the club’s leaderboard.'
-        : 'Everyone seals a roster in secret, then you reveal them together.'
-      : sealedGame
-        ? 'Applies from now on. Nothing already sealed or played changes.'
-        : 'Applies from now on. Nothing already sealed or played changes. Switching to Anyone who joins lets in everyone still waiting.'
+    mode.kind === 'create' ? (
+      mode.clubToken ? (
+        'Members seal a list in secret, then you reveal them together. Its battles count on the club’s leaderboard.'
+      ) : (
+        <>
+          Everyone seals a roster in secret, then you reveal them together.{' '}
+          <Link to="/tournaments/sample" className="text-bone underline hover:text-info">
+            See a sample tournament
+          </Link>
+        </>
+      )
+    ) : sealedGame ? (
+      'Applies from now on. Nothing already sealed or played changes.'
+    ) : (
+      'Applies from now on. Nothing already sealed or played changes. Switching to Anyone who joins lets in everyone still waiting.'
+    )
   const submit =
     mode.kind === 'create'
       ? save.isPending

@@ -18,6 +18,7 @@ const PUBLIC_PAGES = [
   '/docs',
   '/leaderboard',
   '/tournaments',
+  '/tournaments/sample',
   '/rosters',
   '/rosters?view=public',
   '/rules',
