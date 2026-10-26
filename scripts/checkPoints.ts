@@ -94,9 +94,8 @@ const isLegends = (entry: SelectionEntry) => /\[legends\]/i.test(entry.name ?? '
 
 const byName = new Map<string, SelectionEntry[]>()
 const bySingularName = new Map<string, SelectionEntry[]>()
-// Every datasheet any book offers, resolved through the link that offers it: the
-// harness prices the entry itself, exactly as it did when the index held entries
-// rather than the links to them.
+// Every datasheet any book offers, resolved through the link that offers it, since the
+// harness prices the entry itself rather than the link.
 const offered = new Set<string>()
 for (const ids of index.datasheets.values())
   for (const id of ids) offered.add(targetOf(index.definitions.get(id) ?? { id }, index.definitions).id)
