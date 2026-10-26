@@ -1,7 +1,6 @@
 import { expect, test, type Page } from './test'
 import { chooseCombatUnit, isCombatCalculationRequest, openCombatBreakdown } from './combat'
-import { chooseRosterAction, signUp, chooseOption, PHONE } from './account'
-import { productOperator, userIdFor } from './storage'
+import { chooseRosterAction, chooseOption, PHONE, savedArmy } from './account'
 
 async function countLocalCalculations(page: Page) {
   await page.addInitScript(() => {
@@ -51,12 +50,7 @@ test('unit estimates run on the server across reloads and fall back locally when
 
 test('a full roster matrix batches projections and uses the server without browser scoring', async ({ page }) => {
   await countLocalCalculations(page)
-  const account = await signUp(page, 'Server matchup matrix')
-  const operator = await productOperator()
-  const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
-  const userId = await userIdFor(account.email)
-  const id = crypto.randomUUID()
-  await operator.saveRoster({ ...source, id, userId, name: 'Server comparison', automaticName: false, now: Date.now() })
+  const { id } = await savedArmy(page, 'Server matchup matrix', { name: 'Server comparison' })
   await page.goto(`/rosters/${id}`)
   let projections = 0
   let calculations = 0

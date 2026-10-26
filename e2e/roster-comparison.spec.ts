@@ -1,7 +1,6 @@
 import { expect, test, type Locator } from './test'
-import { addUnit, createRoster, signUp, expectNoPageOverflow, chooseOption, chooseRosterAction, PHONE } from './account'
+import { addUnit, createRoster, signUp, expectNoPageOverflow, chooseOption, chooseRosterAction, PHONE, savedArmy } from './account'
 import { holdCombatCalculations, openCombatBreakdown } from './combat'
-import { productOperator, userIdFor } from './storage'
 
 test('new rosters compare customizable mixed-faction benchmarks and retain the target set', async ({ page }) => {
   await signUp(page, 'Benchmark builder')
@@ -164,12 +163,7 @@ async function settledBox(locator: Locator) {
 }
 
 test('long matchup tables keep target headings and attacker names visible while scrolling', async ({ page }) => {
-  const account = await signUp(page, 'Pinned matchup headings')
-  const operator = await productOperator()
-  const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
-  const userId = await userIdFor(account.email)
-  const id = crypto.randomUUID()
-  await operator.saveRoster({ ...source, id, userId, name: 'Long comparison', automaticName: false, now: Date.now() })
+  const { id } = await savedArmy(page, 'Pinned matchup headings', { name: 'Long comparison' })
   await page.goto(`/rosters/${id}`)
   await chooseRosterAction(page, 'Test targets')
   const dialog = page.getByRole('dialog', { name: 'Test targets', exact: true })

@@ -1,6 +1,6 @@
 import { expect, test, type Browser, type Page } from './test'
 import { signUp, uniqueName } from './account'
-import { withAuthSql } from './storage'
+import { userIdNamed, withAuthSql } from './storage'
 
 /**
  * A player with a linked GitHub account that sponsors the project.
@@ -11,9 +11,9 @@ import { withAuthSql } from './storage'
 async function linkedSponsor(page: Page, sponsorship: 'public' | 'private') {
   const name = uniqueName('Sponsor')
   await signUp(page, name)
+  const id = await userIdNamed(name)
   const githubId = crypto.randomUUID()
   return withAuthSql((database) => {
-    const { id } = database.prepare('SELECT id FROM user WHERE name = ? LIMIT 1').get(name) as { id: string }
     const now = Date.now()
     database
       .prepare('INSERT INTO account (id, accountId, providerId, userId, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?)')

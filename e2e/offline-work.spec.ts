@@ -19,8 +19,9 @@ import {
   signOut,
   chooseRulesVersion,
   PHONE,
+  savedArmy,
 } from './account'
-import { battleLog, productOperator, savedWork, userIdFor, lastPathSegment, expectWorkSynced } from './storage'
+import { battleLog, productOperator, savedWork, lastPathSegment, expectWorkSynced } from './storage'
 import { chooseCombatUnit } from './combat'
 
 test.use({ actionTimeout: 15_000 })
@@ -184,12 +185,7 @@ test('a lost save response retains its identity and later edits sync in order', 
 
 test('an offline practice battle and its commands survive reopening and sync together', async ({ page, context }) => {
   test.setTimeout(240_000)
-  const account = await signUp(page, uniqueName('Offline battle'))
-  const operator = await productOperator()
-  const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
-  const userId = await userIdFor(account.email)
-  const rosterId = crypto.randomUUID()
-  await operator.saveRoster({ ...source, id: rosterId, userId, name: 'Flight army', automaticName: false, now: Date.now() })
+  const { id: rosterId, operator } = await savedArmy(page, 'Offline battle', { name: 'Flight army' })
   await page.goto('/rosters')
   await page.reload()
   await expect(page.locator('[data-roster="Flight army"]')).toBeVisible()
@@ -236,18 +232,7 @@ test('an offline practice battle and its commands survive reopening and sync tog
 
 test('a guest battle created offline keeps the guest’s seat when it syncs', async ({ page, context }) => {
   test.setTimeout(240_000)
-  const account = await signUp(page, uniqueName('Offline guest host'))
-  const operator = await productOperator()
-  const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
-  const rosterId = crypto.randomUUID()
-  await operator.saveRoster({
-    ...source,
-    id: rosterId,
-    userId: await userIdFor(account.email),
-    name: 'Guest army',
-    automaticName: false,
-    now: Date.now(),
-  })
+  const { operator } = await savedArmy(page, 'Offline guest host', { name: 'Guest army' })
   await page.goto('/battles')
   await retryUntilVisible(page.getByRole('combobox', { name: 'Opponent', exact: true }), () =>
     page.getByRole('button', { name: 'New battle' }).click(),
@@ -297,18 +282,7 @@ test('a battle link opened before its offline creation syncs opens once the batt
 
 test('a battle conflict awaiting review does not stop connected play', async ({ page, context }) => {
   test.setTimeout(240_000)
-  const account = await signUp(page, uniqueName('Battle conflict'))
-  const operator = await productOperator()
-  const source = (await operator.roster('preview-necrons-cursed-skyshroud'))!
-  const userId = await userIdFor(account.email)
-  await operator.saveRoster({
-    ...source,
-    id: crypto.randomUUID(),
-    userId,
-    name: 'Flight army',
-    automaticName: false,
-    now: Date.now(),
-  })
+  const { operator } = await savedArmy(page, 'Battle conflict', { name: 'Flight army' })
   const token = lastPathSegment(await practiceBattle(page, 'Flight army'))
   await startBattle(page)
   await waitForOfflineApp(page)
