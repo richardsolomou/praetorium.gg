@@ -9,6 +9,7 @@ import {
   uniqueName,
   visitorSetup,
   waitForRosterSave,
+  chooseFaction,
 } from './account'
 import { add, attach, expectNoHorizontalOverflow } from './builder.harness'
 import { chooseCombatUnit } from './combat'
@@ -366,9 +367,7 @@ for (const [reference, path, signedIn, width] of [
     await page.getByRole('link', { name: 'Build a roster', exact: true }).click()
     await expect(setup).toBeVisible()
     await expect(page).toHaveURL(/\/rosters$/)
-    await setup.getByRole('combobox', { name: 'Faction' }).click()
-    await page.getByPlaceholder('Search factions…').fill('Necrons')
-    await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+    await chooseFaction(setup, 'Necrons')
     await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
     await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
     await page.screenshot({ path: testInfo.outputPath(`${reference}-setup.png`) })
@@ -421,9 +420,7 @@ test('cancelling a mission setup does not attribute a later generic setup to it'
 for (const units of [[], ['Necron Warriors'], ['Necron Warriors', 'Overlord']]) {
   test(`a guest save attempt reports ${units.length} fielded units from the current draft`, async ({ page }) => {
     const setup = await visitorSetup(page)
-    await setup.getByRole('combobox', { name: 'Faction' }).click()
-    await page.getByPlaceholder('Search factions…').fill('Necrons')
-    await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+    await chooseFaction(setup, 'Necrons')
     await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
     await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
     const events = await recordEvents(page)

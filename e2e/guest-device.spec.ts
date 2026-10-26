@@ -13,6 +13,7 @@ import {
   playTurn,
   shotAtWidths,
   PHONE,
+  chooseFaction,
 } from './account'
 import { add } from './builder.harness'
 import { productSql, userIdNamed, lastPathSegment, battleIdFor } from './storage'
@@ -45,9 +46,7 @@ async function buildGuestRoster(page: Page) {
   const setup = page.getByRole('dialog', { name: 'Create roster' })
   await page.waitForLoadState('networkidle')
   await retryUntilVisible(setup, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
-  await setup.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Necrons')
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  await chooseFaction(setup, 'Necrons')
   await setup.getByRole('button', { name: /^Select (?:Awakened Dynasty)$/ }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await setup.getByRole('button', { name: 'Create roster' }).click()

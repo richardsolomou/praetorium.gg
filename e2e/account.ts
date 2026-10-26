@@ -198,6 +198,14 @@ export async function addUnit(page: Page, name: string) {
   )
 }
 
+/** Picks a faction in an open roster setup, reopening the list if hydration swallowed the first press. */
+export async function chooseFaction(setup: Locator, faction: string) {
+  const search = setup.page().getByPlaceholder('Search factions…')
+  await retryUntilVisible(search, () => setup.getByRole('combobox', { name: 'Faction' }).click())
+  await search.fill(faction)
+  await setup.page().getByRole('option', { name: faction, exact: true }).click()
+}
+
 export async function createRoster(
   page: Page,
   { faction, detachment, name, size, rules }: { faction: string; detachment: RegExp; name?: string; size?: RegExp; rules?: string },
@@ -205,9 +213,7 @@ export async function createRoster(
   await page.goto('/rosters')
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
   await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
-  await dialog.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill(faction)
-  await page.getByRole('option', { name: faction, exact: true }).click()
+  await chooseFaction(dialog, faction)
   if (rules) {
     await dialog.getByRole('combobox', { name: 'Rules version' }).click()
     await page.getByRole('option', { name: rules, exact: true }).click()

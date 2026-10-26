@@ -13,6 +13,7 @@ import {
   uniqueName,
   waitForRosterSave,
   makeWarlord,
+  chooseFaction,
 } from './account'
 
 const prompt = (page: Page) => page.getByRole('note', { name: 'Getting started' })
@@ -184,9 +185,7 @@ test('the first-army guide stops after adding a unit', async ({ page }) => {
   await page.getByRole('button', { name: 'New roster', exact: true }).click()
   const dialog = page.getByRole('dialog', { name: 'Create roster' })
   await expect(prompt(page)).toContainText('Choose the army')
-  await dialog.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Space Marines')
-  await page.getByRole('option', { name: 'Space Marines', exact: true }).click()
+  await chooseFaction(dialog, 'Space Marines')
   await expect(prompt(page)).toContainText('Set the battle size')
   await dialog.getByRole('combobox', { name: 'Battle size' }).click()
   await page.getByRole('option', { name: /^Onslaught/ }).click()

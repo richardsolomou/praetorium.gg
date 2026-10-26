@@ -1,17 +1,13 @@
 import { expect, test } from './test'
-import { retryUntilVisible, signUp, waitForRosterSave, addUnit } from './account'
+import { signUp, waitForRosterSave, addUnit, chooseFaction, visitorSetup } from './account'
 import { capture, docsScreenshots } from './docsScreenshots'
 
 docsScreenshots()
 
 test('build an army screenshots', async ({ page }) => {
   await signUp(page, 'Docs player')
-  await page.goto('/rosters')
-  const setup = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(setup, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
-  await setup.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Space Marines')
-  await page.getByRole('option', { name: 'Space Marines', exact: true }).click()
+  const setup = await visitorSetup(page)
+  await chooseFaction(setup, 'Space Marines')
   await setup.getByRole('button', { name: /^Select Gladius Task Force$/ }).click()
   const dispositions = setup.getByRole('group', { name: 'Force disposition' })
   await dispositions.getByRole('button').first().click()

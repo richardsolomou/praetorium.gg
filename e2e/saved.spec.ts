@@ -12,6 +12,8 @@ import {
   waitForRosterSave,
   expectNoPageOverflow,
   openRosterSetup,
+  chooseFaction,
+  visitorSetup,
 } from './account'
 import { productOperator, productSql, userIdFor, lastPathSegment } from './storage'
 
@@ -151,12 +153,8 @@ test('opening an unchanged list saves nothing, and an edit still saves', async (
 
 test('automatic roster names are saved with edits and a player can override or restore them', async ({ page }) => {
   await signUp(page, 'Automatic roster')
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
-  await dialog.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Necrons')
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  const dialog = await visitorSetup(page)
+  await chooseFaction(dialog, 'Necrons')
   await dialog.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
   await dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await dialog.getByRole('button', { name: 'Create roster' }).click()

@@ -14,6 +14,8 @@ import {
   advance,
   openRosterSetup,
   practiceBattle,
+  chooseFaction,
+  visitorSetup,
 } from './account'
 import { battleLog, productOperator, savedWork, userIdFor, lastPathSegment, expectWorkSynced } from './storage'
 import { chooseCombatUnit } from './combat'
@@ -127,12 +129,8 @@ test('a roster still waiting to sync opens in a new tab and a missing one shows 
   await context.route('**/_serverFn/**', (route) =>
     (route.request().postData() ?? '').includes('operationId') ? route.abort() : route.continue(),
   )
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
-  await dialog.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Necrons')
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  const dialog = await visitorSetup(page)
+  await chooseFaction(dialog, 'Necrons')
   await dialog.getByRole('button', { name: /^Select Awakened Dynasty$/ }).click()
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
   if ((await dispositions.count()) > 1) await dispositions.first().click()

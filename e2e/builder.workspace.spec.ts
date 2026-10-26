@@ -4,12 +4,13 @@ import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
 import {
   confirmRosterSetup,
   createRoster,
-  retryUntilVisible,
   signUp,
   waitForRosterSave,
   expectNoPageOverflow,
   addUnit,
   openRosterSetup,
+  chooseFaction,
+  visitorSetup,
 } from './account'
 import {
   expectNoHorizontalOverflow,
@@ -159,12 +160,8 @@ test('the roster header fits its facts and opens its force disposition', async (
 
 test('a three-point detachment lets the player choose either disposition', async ({ page }) => {
   await signUp(page, 'Disposition chooser')
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
-  await dialog.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Necrons')
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  const dialog = await visitorSetup(page)
+  await chooseFaction(dialog, 'Necrons')
   await dialog.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
 
   const dispositions = dialog.getByRole('group', { name: 'Force disposition' })
@@ -632,12 +629,8 @@ test('contained faction datasheet rows stay accessible and resize without horizo
 
 test('favourite detachments rise to the top of roster setup', async ({ page }) => {
   await signUp(page, 'Richard')
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
-  await dialog.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Necrons')
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  const dialog = await visitorSetup(page)
+  await chooseFaction(dialog, 'Necrons')
 
   const favourite = dialog.getByRole('button', { name: 'Add Cursed Legion to favourite detachments' })
   const favourited = page.waitForResponse((response) => response.ok() && response.request().method() === 'POST')
@@ -655,12 +648,8 @@ test('favourite detachments rise to the top of roster setup', async ({ page }) =
 
 test('King of the Colosseum creation keeps exactly one detachment selected', async ({ page }) => {
   await signUp(page, 'Richard')
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
-  await dialog.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Necrons')
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  const dialog = await visitorSetup(page)
+  await chooseFaction(dialog, 'Necrons')
   await dialog.getByRole('combobox', { name: 'Battle size' }).click()
   await expect(page.getByRole('option', { name: /King of the Colosseum/ })).toHaveCount(1)
   await page.getByRole('option', { name: /King of the Colosseum/ }).click()

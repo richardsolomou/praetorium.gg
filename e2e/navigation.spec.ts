@@ -12,6 +12,7 @@ import {
   expectNoPageOverflow,
   chooseRosterAction,
   openRosterSetup,
+  chooseFaction,
 } from './account'
 import { catalogue } from './stackEnv'
 
@@ -985,18 +986,12 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByText('Vehicles', { exact: true }).locator('..')).toContainText(/Vehicles\s*\d+/)
   await expect(page.getByRole('link', { name: /Asmodai/ })).toBeVisible()
   await expect(page.getByRole('link', { name: /Intercessor Squad/ })).toHaveCount(0)
-  await page.goto('/rosters')
-  const darkAngelsSetup = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(darkAngelsSetup, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
-  await darkAngelsSetup.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Dark Angels')
-  await page.getByRole('option', { name: 'Dark Angels', exact: true }).click()
+  const darkAngelsSetup = await visitorSetup(page)
+  await chooseFaction(darkAngelsSetup, 'Dark Angels')
   await expect(darkAngelsSetup.getByRole('button', { name: 'Select Inner Circle Task Force' })).toBeVisible()
   await expect(darkAngelsSetup.getByRole('button', { name: 'Select Gladius Task Force' })).toBeVisible()
   await expect(darkAngelsSetup.getByRole('button', { name: 'Select Assault Brethren' })).toBeVisible()
-  await darkAngelsSetup.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Blood Angels')
-  await page.getByRole('option', { name: 'Blood Angels', exact: true }).click()
+  await chooseFaction(darkAngelsSetup, 'Blood Angels')
   await expect(darkAngelsSetup.getByRole('button', { name: 'Select Assault Brethren' })).toBeVisible()
   await page.keyboard.press('Escape')
   await page.goto('/factions')
@@ -1159,10 +1154,7 @@ test('a guest roster stays within the native mobile builder viewport', async ({ 
   await context.addInitScript({ content: `window.ReactNativeWebView = { postMessage: () => {} };\n${NATIVE_BROWSER_BRIDGE_SCRIPT}` })
   await page.setViewportSize({ width: 390, height: 844 })
   const setup = await visitorSetup(page)
-  const search = page.getByPlaceholder('Search factions…')
-  await retryUntilVisible(search, () => setup.getByRole('combobox', { name: 'Faction' }).click())
-  await search.fill('Necrons')
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  await chooseFaction(setup, 'Necrons')
   await page.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
   await page.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await page.getByRole('button', { name: 'Create roster' }).click()

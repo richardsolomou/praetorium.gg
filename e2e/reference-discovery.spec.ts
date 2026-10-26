@@ -7,6 +7,8 @@ import {
   waitForRosterSave,
   expectNoPageOverflow,
   openRosterSetup,
+  chooseFaction,
+  visitorSetup,
 } from './account'
 import { decodeSimulatorState } from '../src/contracts/simulatorState'
 
@@ -115,12 +117,8 @@ test('archived reference identities remain visible in the simulator', async ({ p
 })
 
 async function custodesRoster(page: Page, archived?: string) {
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
-  await dialog.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Adeptus Custodes')
-  await page.getByRole('option', { name: 'Adeptus Custodes', exact: true }).click()
+  const dialog = await visitorSetup(page)
+  await chooseFaction(dialog, 'Adeptus Custodes')
   await chooseDetachment(dialog, 'Aquilan Shield')
   await dialog.getByRole('button', { name: 'Create roster', exact: true }).click()
   await page.waitForURL(/\/rosters\/[^/]+$/)

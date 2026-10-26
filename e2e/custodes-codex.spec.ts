@@ -1,5 +1,5 @@
 import { waitForOfflineApp } from './offline'
-import { confirmRosterSetup, retryUntilVisible, visitorSetup, addUnit, chooseRosterAction } from './account'
+import { confirmRosterSetup, retryUntilVisible, visitorSetup, addUnit, chooseRosterAction, chooseFaction } from './account'
 import { expect, test, type Locator, type Page } from './test'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
 import { lastPathSegment } from './storage'
@@ -11,9 +11,7 @@ test('Custodes codex presentation', async ({ page, context }) => {
   test.setTimeout(240_000)
   await page.setViewportSize(desktop)
   const setup = await visitorSetup(page)
-  await setup.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Adeptus Custodes')
-  await page.getByRole('option', { name: 'Adeptus Custodes', exact: true }).click()
+  await chooseFaction(setup, 'Adeptus Custodes')
   await expect(setup.getByRole('combobox', { name: 'Rules version' })).toHaveCount(0)
   await expectSetup(setup)
   await setup.getByRole('button', { name: 'Select Aquilan Shield', exact: true }).click()

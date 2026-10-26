@@ -10,6 +10,7 @@ import {
   uniqueName,
   expectNoPageOverflow,
   addUnit,
+  visitorSetup,
 } from './account'
 
 async function expectOnboardingProgress(page: Parameters<typeof signUp>[0], resolved: number) {
@@ -267,9 +268,7 @@ test('profile defaults apply to rosters while battles infer their format', async
   await expect(visibility.getByRole('button', { name: /^Unlisted/ })).toHaveAttribute('aria-pressed', 'true')
   await expect(size.getByRole('button', { name: /^Incursion/ })).toHaveAttribute('aria-pressed', 'true')
 
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Create roster' })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'New roster', exact: true }).click())
+  const dialog = await visitorSetup(page)
   await expect(dialog.getByRole('combobox', { name: 'Battle size' })).toContainText('Incursion')
   await expect(dialog.locator('#setup-visibility')).toContainText('Unlisted')
   await expect(dialog.locator('#setup-visibility-reach')).toHaveText('Anyone with the link')

@@ -1,5 +1,14 @@
 import { expect, type Page, test } from './test'
-import { retryUntilVisible, signUp, uniqueName, visitorSetup, shotAtWidths, chooseRosterAction, openRosterSetup } from './account'
+import {
+  retryUntilVisible,
+  signUp,
+  uniqueName,
+  visitorSetup,
+  shotAtWidths,
+  chooseRosterAction,
+  openRosterSetup,
+  chooseFaction,
+} from './account'
 import { add } from './builder.harness'
 import { SIGN_IN_REQUIRED } from '../src/core/session'
 import { lastPathSegment } from './storage'
@@ -7,9 +16,7 @@ import { lastPathSegment } from './storage'
 /** A visitor starts a Necrons list from the rosters page, with no account behind them, and opens it in the builder. */
 async function startGuestRoster(page: Page) {
   const setup = await visitorSetup(page)
-  await setup.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Necrons')
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  await chooseFaction(setup, 'Necrons')
   await setup.getByRole('button', { name: /^Select (?:Awakened Dynasty)$/ }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await setup.getByRole('button', { name: 'Create roster' }).click()
@@ -105,9 +112,7 @@ test("a visitor's list follows an edit made in another tab", async ({ page, cont
 test('a visitor starting a list is told when storage refuses it, and stays on the setup', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   const setup = await visitorSetup(page)
-  await setup.getByRole('combobox', { name: 'Faction' }).click()
-  await page.getByPlaceholder('Search factions…').fill('Necrons')
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  await chooseFaction(setup, 'Necrons')
   await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await page.evaluate(() => {
@@ -294,9 +299,7 @@ for (const width of [1440, 390]) {
   test(`allied roster slots unlock and explain exhausted limits at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     const setup = await visitorSetup(page)
-    await setup.getByRole('combobox', { name: 'Faction' }).click()
-    await page.getByPlaceholder('Search factions…').fill('Chaos Knights')
-    await page.getByRole('option', { name: 'Chaos Knights', exact: true }).click()
+    await chooseFaction(setup, 'Chaos Knights')
     await setup.getByRole('button', { name: 'Select Infernal Lance' }).click()
     await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Priority Assets' }).click()
     await setup.getByRole('button', { name: 'Create roster' }).click()
@@ -475,9 +478,7 @@ for (const width of [390, 1280]) {
   test(`a detachment card selects from its name and opens its reference only from the reference icon at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     const setup = await visitorSetup(page)
-    await setup.getByRole('combobox', { name: 'Faction' }).click()
-    await page.getByPlaceholder('Search factions…').fill('Necrons')
-    await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+    await chooseFaction(setup, 'Necrons')
     const card = setup.getByRole('button', { name: 'Select Awakened Dynasty', exact: true })
     const reference = page.getByRole('dialog', { name: 'Awakened Dynasty' })
 

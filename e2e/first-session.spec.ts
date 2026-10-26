@@ -10,6 +10,7 @@ import {
   startBattle,
   uniqueName,
   visitorSetup,
+  chooseFaction,
 } from './account'
 
 const rosterText = `First army (65 Points)
@@ -86,9 +87,7 @@ test('the first roster names each missing setup choice', async ({ page }, testIn
   const setup = await visitorSetup(page)
   const start = setup.getByRole('button', { name: 'Create roster', exact: true })
   await expect(start).toHaveAccessibleDescription('Choose your faction.')
-  await retryUntilVisible(page.getByPlaceholder('Search factions…'), () => setup.getByRole('combobox', { name: 'Faction' }).click())
-  await page.getByPlaceholder('Search factions…').fill('Necrons')
-  await page.getByRole('option', { name: 'Necrons', exact: true }).click()
+  await chooseFaction(setup, 'Necrons')
   await expect(start).toHaveAccessibleDescription('Choose a detachment.')
   await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
   await expect(start).toHaveAccessibleDescription('Choose a Force disposition.')
