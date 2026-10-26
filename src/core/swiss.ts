@@ -112,6 +112,14 @@ export function rematches<T extends { round: number; aId: string; bId: string | 
   return new Set(pairings.filter((pairing) => pairing.bId !== null && firstMet.get(pairKey(pairing.aId, pairing.bId))! < pairing.round))
 }
 
+/**
+ * Whether a finished table's players may no longer reopen or undo its result: a later round was paired on it, so only
+ * the tournament's organizers may correct it. Correcting it changes the standings, never a round already paired.
+ */
+export function swissResultLocked(table: { isOrganizer: boolean; battleRound: number; latestPairedRound: number }) {
+  return !table.isOrganizer && table.battleRound < table.latestPairedRound
+}
+
 /** Pairs down the standings with at most `allowed` repeat tables, backing up a step whenever the rest cannot fit. */
 function pairWithRematches(order: readonly string[], met: ReadonlySet<string>, allowed: number): [string, string][] | null {
   const [first, ...rest] = order

@@ -36,6 +36,8 @@ After the reveal, press **Pair round 1**. The first round is drawn at random. Ea
 
 The results rank by match points (3 for a win or bye, 1 for a draw), then total victory points, then strength of schedule: the match points of everyone a player has faced.
 
+Once you pair the next round, the results of earlier rounds are locked.
+
 To play again with new rosters, start a new tournament. A [club](/docs/clubs) keeps a standing table across all of them.
 
 ## Organizers

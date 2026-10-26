@@ -988,9 +988,87 @@ describe('swiss rounds', () => {
           .map((id) => ({ userId: id, snapshot: JSON.stringify({ name: 'Army', text: '10 Intercessors' }) })),
         pairingKey,
       })
-    return { pair, battle }
+    const finish = (battleId: string, firstPlayerId: string) =>
+      host.call(TestAuth.internal(), (ctx) => {
+        const seq = Array.from(ctx.db.commands.battleId.filter(battleId)).length
+        for (const [index, body] of [
+          { kind: 'begin-battle', firstPlayerId },
+          { kind: 'end-battle', reason: 'conceded', concededBy: firstPlayerId },
+        ].entries())
+          ctx.db.commands.insert({
+            key: JSON.stringify([battleId, seq + index + 1]),
+            battleId,
+            seq: seq + index + 1,
+            userId: firstPlayerId,
+            at: BigInt(NOW * 1_000),
+            body: JSON.stringify(body),
+          })
+        return seq + 2
+      })
+    const submit = (battleId: string, userId: string, expectedSeq: number, body: Record<string, unknown>) =>
+      (
+        JSON.parse(
+          module.submitBattle(host.procedure(host.operator), {
+            battleId,
+            userId,
+            expectedSeq,
+            body: JSON.stringify(body),
+            now: BigInt(NOW * 1_000),
+            externalRefusal: '',
+          }),
+        ) as { result: { outcome: string } }
+      ).result.outcome
+    const admin = (userId: string) =>
+      host.call(host.operator, (ctx) =>
+        ctx.db.tournamentAdmins.insert({ key: JSON.stringify(['league', userId]), tournamentId: 'league', userId, addedAt: 1n }),
+      )
+    /** Round 1 played to the end on both tables, leaving the sequence of a–b's battle. */
+    const playRoundOne = () => {
+      pair(1, [
+        ['a', 'b'],
+        ['c', 'd'],
+      ])
+      battle('a', 'b', table(1, 1))
+      battle('c', 'd', table(1, 2))
+      finish('battle-c', 'c')
+      return finish('battle-a', 'a')
+    }
+    const pairRoundTwo = () =>
+      pair(2, [
+        ['a', 'c'],
+        ['b', 'd'],
+      ])
+    return { pair, battle, submit, admin, playRoundOne, pairRoundTwo }
   }
   const table = (round: number, number: number) => JSON.stringify(['event', round, number])
+
+  it('lets a player reopen a result while its round is the latest', () => {
+    const swiss = setup()
+    const seq = swiss.playRoundOne()
+    expect(swiss.submit('battle-a', 'a', seq, { kind: 'reopen-battle' })).toBe('appended')
+  })
+
+  it('refuses a player reopening a result a later round was paired on', () => {
+    const swiss = setup()
+    const seq = swiss.playRoundOne()
+    swiss.pairRoundTwo()
+    expect(swiss.submit('battle-a', 'a', seq, { kind: 'reopen-battle' })).toBe('refused')
+  })
+
+  it('refuses a player undoing the end of a result a later round was paired on', () => {
+    const swiss = setup()
+    const seq = swiss.playRoundOne()
+    swiss.pairRoundTwo()
+    expect(swiss.submit('battle-a', 'a', seq, { kind: 'undo', target: seq })).toBe('refused')
+  })
+
+  it('lets an organizer reopen a result a later round was paired on', () => {
+    const swiss = setup()
+    swiss.admin('a')
+    const seq = swiss.playRoundOne()
+    swiss.pairRoundTwo()
+    expect(swiss.submit('battle-a', 'a', seq, { kind: 'reopen-battle' })).toBe('appended')
+  })
 
   it('seats every sealed entrant at one table', () => {
     expect(setup().pair(1, [['a', 'b']])).toBe('stale')
