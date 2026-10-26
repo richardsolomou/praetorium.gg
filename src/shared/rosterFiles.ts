@@ -19,7 +19,7 @@ import { at as selectionAt } from '../core/selection'
 import { unitChoices, unitToggles } from '../core/unitChoices'
 import { wargearOf } from '../core/wargear'
 import { textNickname, type TextRoster, type TextRosterUnit } from '../core/textRoster'
-import { toGwText, type GwTextRoster } from '../core/gwText'
+import { gwTextGroup, gwTextVersionLines, toGwText, type GwTextRoster } from '../core/gwText'
 import type { UnitGroup } from '../core/unitGroups'
 import { allowsPointsBudget, customPointsBudget, GAME_SIZES, isGameSize, pointsBudgetError } from '../core/battle'
 import { catalogueFactionName, factionDisplayName } from './factionNames'
@@ -39,7 +39,6 @@ import {
 import { DISPOSITIONS, type LoadedCatalogue } from './catalogueIndex'
 import { rosterDetachments } from './rosterDetachments'
 import { importRosterSchema, type ExportRosterInput, type ImportRosterInput } from '../contracts/schemas'
-import { editionLabel } from '../core/catalogueEdition'
 import { calculateRosterPrice } from './pricing'
 import type { LoadedRules } from './rules'
 import type { RosterExchange } from '../core/rosterExchange'
@@ -931,21 +930,14 @@ export function exportRosterFile(
       models: unit.size.models,
       entry: unit.key + 1,
       attachedToEntry: data.units[unit.key]?.attachedTo !== undefined ? data.units[unit.key]!.attachedTo! + 1 : undefined,
-      group: exportGroup(unit.group),
+      group: gwTextGroup(unit.group),
       warlord: Object.values(data.units[unit.key]?.toggles ?? {}).some((count) => count > 0),
       joined: attachmentRows(keyedPicks, unitsByPick, unit.key).map(({ label, name }) => ({ label, name })),
     })),
   }
-  const metadata = (loaded.edition ? `\nCodex: ${editionLabel(loaded.edition)}` : '') + `\nRuleset: ${data.catalogueId}\n`
   return {
-    text: toGwText(roster, version) + metadata,
+    text: toGwText(roster, version) + gwTextVersionLines(loaded.edition, data.catalogueId),
     name: data.name,
     omittedUnitCount: data.units.length - priced.units.length,
   }
-}
-
-function exportGroup(group: UnitGroup): 'character' | 'battleline' | 'transport' | 'other' {
-  if (group === 'epic-hero' || group === 'character') return 'character'
-  if (group === 'battleline' || group === 'transport') return group
-  return 'other'
 }

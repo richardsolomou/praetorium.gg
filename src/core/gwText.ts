@@ -1,3 +1,6 @@
+import { type CatalogueEdition, editionLabel } from './catalogueEdition'
+import type { UnitGroup } from './unitGroups'
+
 export type GwTextRoster = {
   name: string
   faction: string
@@ -67,3 +70,13 @@ export function toGwText(roster: GwTextRoster, version: string): string {
   lines.push('', `Exported with Praetorium.gg v${version}`)
   return `${lines.join('\n')}\n`
 }
+
+export function gwTextGroup(group: UnitGroup): GwTextRoster['units'][number]['group'] {
+  if (group === 'epic-hero' || group === 'character') return 'character'
+  if (group === 'battleline' || group === 'transport') return group
+  return 'other'
+}
+
+/** The rules version and ruleset an export was written against, which an import resolves the list with. */
+export const gwTextVersionLines = (edition: Pick<CatalogueEdition, 'name' | 'status'> | undefined, catalogueId: string) =>
+  (edition ? `\nCodex: ${editionLabel(edition)}` : '') + `\nRuleset: ${catalogueId}\n`

@@ -381,6 +381,7 @@ export function LeagueEventView({
             <LeagueArmies
               token={token}
               eventToken={league.eventToken}
+              event={eventName(league)}
               groups={groups}
               viewerId={viewerId}
               revealedBy={league.revealedByName}
