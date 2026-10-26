@@ -763,6 +763,15 @@ export const myBattleList = spacetime.view(
   },
 )
 
+/** What an offline command carries so its retry lands once; the stored body keeps it under `$sync`. */
+const battleSyncSchema = z.object({
+  operationId: z.uuid(),
+  fingerprint: z.string().length(64),
+  at: z.number().int().nonnegative(),
+  reportApplied: z.boolean().optional(),
+})
+type BattleSync = z.infer<typeof battleSyncSchema>
+
 function battleData(ctx: Context, battleId: string) {
   const battle = ctx.db.battles.id.find(battleId)
   if (!battle) throw new SenderError('Battle unavailable')
@@ -774,7 +783,7 @@ function battleData(ctx: Context, battleId: string) {
     .flatMap((row): LoggedCommand[] => {
       const body: unknown = JSON.parse(row.body)
       const command = commandSchema.safeParse(body)
-      const metadata = (body as { $sync?: { operationId?: string } }).$sync
+      const metadata = (body as { $sync?: Partial<BattleSync> }).$sync
       return command.success
         ? [
             {
@@ -949,20 +958,7 @@ export const submitBattle = spacetime.procedure(
   (ctx, input) =>
     operatorTx(ctx, (tx) => {
       if (input.body.length > 1_000_000) throw new SenderError('Battle command is too large')
-      const raw = decodePayload(
-        z.looseObject({
-          $sync: z
-            .object({
-              operationId: z.uuid(),
-              fingerprint: z.string().length(64),
-              at: z.number().int().nonnegative(),
-              reportApplied: z.boolean().optional(),
-            })
-            .optional(),
-        }),
-        input.body,
-        'Invalid battle command',
-      )
+      const raw = decodePayload(z.looseObject({ $sync: battleSyncSchema.optional() }), input.body, 'Invalid battle command')
       const sync = raw.$sync
       const parsed = commandSchema.safeParse(raw)
       if (!parsed.success) throw new SenderError('Invalid battle command')
@@ -972,7 +968,7 @@ export const submitBattle = spacetime.procedure(
         const previous = log.find((entry) => entry.operationId === sync.operationId)
         if (previous) {
           const stored = tx.db.commands.key.find(JSON.stringify([input.battleId, previous.seq]))!
-          const metadata = (JSON.parse(stored.body) as { $sync: { fingerprint: string } }).$sync
+          const metadata = (JSON.parse(stored.body) as { $sync: BattleSync }).$sync
           if (previous.by !== input.userId || metadata.fingerprint !== sync.fingerprint)
             throw new SenderError('Operation ID reused for a different action')
           return productJson({ result: { outcome: 'appended', seq: previous.seq }, log, ...appliedReport })
