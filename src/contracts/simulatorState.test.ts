@@ -45,7 +45,8 @@ describe('simulator links', () => {
     expect(decodeSimulatorState(encoded({ ...state, v: 2 }))).toBeNull()
   })
   it('refuse links longer than any real matchup', () => {
-    expect(decodeSimulatorState('a'.repeat(8_001))).toBeNull()
+    const long: SimulatorState = { ...state, matchup: { ...state.matchup!, allocation: Array.from({ length: 20 }, () => '★'.repeat(200)) } }
+    expect(decodeSimulatorState(encodeSimulatorState(long))).toBeNull()
   })
 })
 
