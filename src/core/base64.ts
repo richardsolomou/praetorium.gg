@@ -13,3 +13,6 @@ export const toBase64Url = (bytes: Uint8Array): string => toBase64(bytes).replac
 /** Throws on text that is not base64. */
 export const fromBase64Url = (text: string) =>
   Uint8Array.from(atob(text.replaceAll('-', '+').replaceAll('_', '/')), (character) => character.charCodeAt(0))
+
+/** The longest image data URL `bytes` encode to: base64 grows bytes by a third, and the prefix is at most `data:image/jpeg;base64,`. */
+export const imageDataUrlMaxLength = (bytes: number) => Math.ceil(bytes / 3) * 4 + 32
