@@ -10,6 +10,7 @@ import {
   expectNoPageOverflow,
   PHONE,
   scoreboard,
+  retryUntilVisible,
 } from './account'
 import { productSql, withAuthSql, battleIdFor } from './storage'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
@@ -88,10 +89,7 @@ test('offers a secondary account-creation button below sign-in', async ({ page }
  * The home page is the front door for both kinds of visitor.
  *
  * A player who already has games opens it to get back to them; somebody who has
- * never signed in opens it to see whether anything is happening here at all. The
- * second half only works if a battle nobody invited them to is genuinely readable,
- * and the last step is the promise that goes with it: the moment a player says
- * otherwise, the same link stops answering.
+ * never signed in sees only public activity, so a practice battle stays off it.
  */
 test('shows active practice battles to their player but not visitors', async ({ page, browser }) => {
   const name = uniqueName('Watcher')
@@ -288,7 +286,7 @@ test('omits the games shelf when the player has no active game', async ({ page }
  * The order is the whole point of the page: the games waiting on the player, then
  * the ones they have finished, then their friends' tables, then everybody else's.
  * A finished game in the first shelf would put a game nobody can act on above one
- * that is live, which is the arrangement this replaces.
+ * that is live.
  */
 test('orders the signed-in home page from the player outwards', async ({ browser }) => {
   const hostContext = await browser.newContext()
@@ -367,10 +365,7 @@ test('the leaderboard fits a phone', async ({ page }) => {
 test('the leaderboard gives each faction table an address', async ({ page }) => {
   await page.goto('/leaderboard')
   const chooser = page.getByRole('combobox', { name: 'Faction' })
-  await expect(async () => {
-    await chooser.click()
-    await expect(page.getByRole('option').first()).toBeVisible({ timeout: 1000 })
-  }).toPass()
+  await retryUntilVisible(page.getByRole('option').first(), () => chooser.click())
 
   // Whichever faction the seeded battles produced: the list is what has been played.
   const faction = page.getByRole('option').nth(1)
@@ -384,9 +379,9 @@ test('the leaderboard gives each faction table an address', async ({ page }) => 
 /**
  * A profile answers a visitor with no account, and only with battles they may watch.
  *
- * The page is reached from the leaderboard, which is the link that used to lead
- * nowhere. Only a browser proves the whole chain: the row links to the profile, the
- * profile renders signed out, and its record is folded rather than empty.
+ * The page is reached from the leaderboard. Only a browser proves the whole chain: the
+ * row links to the profile, the profile renders signed out, and its record is folded
+ * rather than empty.
  */
 test('a signed-out visitor opens a player profile from the leaderboard', async ({ page }) => {
   await page.goto('/leaderboard')
@@ -401,13 +396,8 @@ test('a signed-out visitor opens a player profile from the leaderboard', async (
   await expect(page.locator('[data-service-record]')).toContainText('Service record')
   await expect(page.locator('[data-rankings]')).toContainText('Everyone')
 
-  // Retried because a tab click that lands before hydration is swallowed rather
-  // than failing: the panel is controlled by the address, so nothing moves.
-  const battlesTab = page.getByRole('tab', { name: /battles/i })
-  await expect(async () => {
-    await battlesTab.click()
-    await expect(page).toHaveURL(/tab=battles/, { timeout: 1000 })
-  }).toPass()
+  // The panel is controlled by the address, so a tab click before hydration moves nothing.
+  await followLink(page.getByRole('tab', { name: /battles/i }), /tab=battles/)
   await expect(page.locator('[data-battle-shelf]')).toBeVisible()
 })
 
