@@ -5,7 +5,7 @@ import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle 
 import type { Command } from '../../../core/battle'
 import type { Side } from '../../sides'
 import { sideName } from '../../sides'
-import { UndoLatest } from './UndoLatest'
+import { UndoLatest, type UndoTarget } from './UndoLatest'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 
 export function DiscardSecondaryDialog({
@@ -14,8 +14,7 @@ export function DiscardSecondaryDialog({
   pending,
   send,
   onDone,
-  undoable,
-  undoableDraw,
+  undo,
   initialSelection,
   onSelectionChange,
 }: {
@@ -24,8 +23,7 @@ export function DiscardSecondaryDialog({
   pending: boolean
   send: (command: Command) => void
   onDone: () => void
-  undoable: number | null
-  undoableDraw: boolean
+  undo: UndoTarget
   initialSelection?: string[]
   onSelectionChange: (selected: string[]) => void
 }) {
@@ -79,7 +77,7 @@ export function DiscardSecondaryDialog({
             </div>
           </DialogBody>
           <DialogFooter>
-            <UndoLatest undoable={undoable} undoableDraw={undoableDraw} send={send} pending={pending} />
+            <UndoLatest undo={undo} send={send} pending={pending} />
             <Button
               disabled={pending}
               onClick={() => {

@@ -740,8 +740,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             send={send}
             referenceFor={referenceFor}
             round={view.round}
-            undoable={view.undoable}
-            undoableDraw={view.undoableDraw}
+            undo={view}
             onCancel={() => send({ kind: 'cancel-advance', playerId: active.captain.id })}
             onDone={(completedSecondaryKeys, scored) => {
               const unresolved = discardableSecondaries(active).filter((key) => !completedSecondaryKeys.includes(key))
@@ -766,8 +765,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
               activeSecretMissionAction ? () => send({ kind: 'cancel-advance', playerId: secretMissionActionSide.captain.id }) : undefined
             }
             onReveal={() => send({ kind: 'reveal-secret', playerId: secretMissionActionSide.captain.id })}
-            undoable={view.undoable}
-            undoableDraw={view.undoableDraw}
+            undo={view}
             send={send}
           />
         ) : null}
@@ -785,8 +783,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             send={send}
             referenceFor={referenceFor}
             round={settlementRound ?? view.round}
-            undoable={view.undoable}
-            undoableDraw={view.undoableDraw}
+            undo={view}
             onDone={() => send({ kind: 'settle-opponent-turn' })}
           />
         ) : null}
@@ -805,8 +802,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             onSelectionChange={(selected) => setDiscardDrafts((current) => new Map(current).set(turnDraftKey, selected))}
             pending={pending}
             send={send}
-            undoable={view.undoable}
-            undoableDraw={view.undoableDraw}
+            undo={view}
             onDone={() => {
               send({ kind: 'advance', playerId: active.captain.id })
             }}
@@ -820,8 +816,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
             initialSelection={drawDrafts.get(turnDraftKey)}
             onSelectionChange={(selection) => setDrawDrafts((current) => new Map(current).set(turnDraftKey, selection))}
             round={view.round}
-            undoable={view.undoable}
-            confirmUndo={view.undoableDraw}
+            undo={view}
             pending={pending}
             send={send}
             referenceFor={referenceFor}

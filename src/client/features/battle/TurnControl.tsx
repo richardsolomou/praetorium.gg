@@ -72,14 +72,7 @@ export function TurnControl({ view, clock, send, pending, blockReason, note, onA
         >
           {label}
         </Button>
-        <UndoLatest
-          compact
-          className="h-auto min-h-11 shrink-0 px-3"
-          undoable={view.undoable}
-          undoableDraw={view.undoableDraw}
-          send={send}
-          pending={pending}
-        />
+        <UndoLatest compact className="h-auto min-h-11 shrink-0 px-3" undo={view} send={send} pending={pending} />
       </div>
       {blockReason ? (
         <p className="border border-discarded/50 bg-discarded/10 p-2 text-center text-xs text-discarded">{blockReason}</p>

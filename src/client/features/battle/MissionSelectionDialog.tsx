@@ -474,7 +474,7 @@ export function MissionSelectionDialog({
             ) : null}
           </DialogBody>
           <DialogFooter>
-            <UndoLatest undoable={view.undoable} undoableDraw={view.undoableDraw} send={send} pending={pending} />
+            <UndoLatest undo={view} send={send} pending={pending} />
             <Button variant="outline" disabled={pending} onClick={onClose}>
               Skip
             </Button>

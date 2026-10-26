@@ -2,23 +2,25 @@ import { Undo2 } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import type { Command } from '../../../core/battle'
+import type { BattleView } from '../../../core/battleView'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+
+/** What the latest command is and whether undoing it returns drawn missions, as the battle view says. */
+export type UndoTarget = Pick<BattleView, 'undoable' | 'undoableDraw'>
 
 /**
  * Undoes the latest command, after a confirmation when it would return drawn missions
  * to the deck. Renders the button where it sits; the confirmation is a portal.
  */
 export function UndoLatest({
-  undoable,
-  undoableDraw,
+  undo: { undoable, undoableDraw },
   send,
   pending,
   beforeUndo,
   compact = false,
   className = '',
 }: {
-  undoable: number | null
-  undoableDraw: boolean
+  undo: UndoTarget
   send: (command: Command) => void
   pending: boolean
   beforeUndo?: () => void

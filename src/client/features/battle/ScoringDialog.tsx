@@ -23,7 +23,7 @@ import { MissionName, type ReferenceCard } from './MissionCards'
 import { MissionSelectionRecords } from './MissionSelectionRecord'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { tint } from './battleTints'
-import { UndoLatest } from './UndoLatest'
+import { UndoLatest, type UndoTarget } from './UndoLatest'
 
 /** Which side a prompt is recording for, in the colours it wears to say so. */
 type Tone = ReturnType<typeof tint>
@@ -45,8 +45,7 @@ type Props = {
    * that has already ended owes its points to the round that turn was in.
    */
   round: number
-  undoable: number | null
-  undoableDraw: boolean
+  undo: UndoTarget
   initialAnswers?: ScoringAnswers
   onAnswersChange: (answers: ScoringAnswers) => void
 }
@@ -75,8 +74,7 @@ export function ScoringDialog({
   onDone,
   onCancel,
   round,
-  undoable,
-  undoableDraw,
+  undo,
   initialAnswers,
   onAnswersChange,
 }: Props) {
@@ -320,7 +318,7 @@ export function ScoringDialog({
               <output className="readout text-sm text-dim">
                 Scoring <span className="font-bold text-bone">{total}</span> VP
               </output>
-              <UndoLatest compact undoable={undoable} undoableDraw={undoableDraw} send={send} pending={pending} />
+              <UndoLatest compact undo={undo} send={send} pending={pending} />
             </div>
             <div className="flex gap-2">
               {onCancel ? (

@@ -9,7 +9,7 @@ import type { WhenDrawn } from '../../../contracts/missions'
 import { redrawOffer } from './drawOffer'
 import { MissionDetailsDialog, MissionName, type MissionDetails, type ReferenceCard } from './MissionCards'
 import { CARD } from './battleTints'
-import { UndoLatest } from './UndoLatest'
+import { UndoLatest, type UndoTarget } from './UndoLatest'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import { countLabel } from '../../text'
 import type { SendCommand } from './useCommand'
@@ -17,8 +17,7 @@ import type { SendCommand } from './useCommand'
 type Props = {
   side: Side
   round: number
-  undoable: number | null
-  confirmUndo: boolean
+  undo: UndoTarget
   pending: boolean
   send: SendCommand
   referenceFor: (key: string) => ReferenceCard | undefined
@@ -40,8 +39,7 @@ export type DrawSelection = { selecting: boolean; selected: string[] }
 export function DrawDialog({
   side,
   round,
-  undoable,
-  confirmUndo,
+  undo,
   pending,
   send,
   referenceFor,
@@ -91,7 +89,7 @@ export function DrawDialog({
     onSelectionChange(next)
   }
   const resetForUndo = () => {
-    if (!confirmUndo) return
+    if (!undo.undoableDraw) return
     setPaused(true)
     recordSelection({ selecting: false, selected: [] })
   }
@@ -274,7 +272,7 @@ export function DrawDialog({
             {!selecting && !paused && needsDraw ? <p className="text-sm text-discarded">Drawing…</p> : null}
           </DialogBody>
           <DialogFooter>
-            <UndoLatest undoable={undoable} undoableDraw={confirmUndo} send={send} pending={pending} beforeUndo={resetForUndo} />
+            <UndoLatest undo={undo} send={send} pending={pending} beforeUndo={resetForUndo} />
             {selecting && needsDraw ? (
               <>
                 <Button
