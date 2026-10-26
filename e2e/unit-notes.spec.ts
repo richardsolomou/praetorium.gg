@@ -10,6 +10,7 @@ import {
   uniqueName,
   waitForRosterSave,
   setRosterAccess,
+  addUnit,
 } from './account'
 import { shot } from './builder.harness'
 import { lastPathSegment } from './storage'
@@ -22,13 +23,7 @@ const BRAVO_NOTE = 'Screen the left flank'
 
 async function addSquads(page: Page, count: number) {
   for (let added = 0; added < count; added++) {
-    await page.getByLabel('Add a unit').fill(SQUAD)
-    await waitForRosterSave(page, () =>
-      page
-        .getByRole('button', { name: `Add ${SQUAD}`, exact: true })
-        .first()
-        .click(),
-    )
+    await addUnit(page, SQUAD)
   }
   const picker = page.getByRole('dialog', { name: 'Add units' })
   if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close' }).click()

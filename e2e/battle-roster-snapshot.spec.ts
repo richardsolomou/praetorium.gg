@@ -1,12 +1,11 @@
 import { expect, test } from './test'
-import { attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, signUp, uniqueName, waitForRosterSave } from './account'
+import { attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, signUp, uniqueName, addUnit } from './account'
 import { lastPathSegment } from './storage'
 
 test('a fielded roster opens as the frozen read-only roster view', async ({ page }) => {
   await signUp(page, uniqueName('Snapshot'))
   const rosterName = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Fielded Death Guard' })
-  await page.getByLabel('Add a unit').fill('Lord of Virulence')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Lord of Virulence', exact: true }).first().click())
+  await addUnit(page, 'Lord of Virulence')
   const rosterId = lastPathSegment(page.url())
   expect(rosterId).toBeTruthy()
 

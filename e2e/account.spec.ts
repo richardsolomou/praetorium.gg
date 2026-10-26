@@ -8,8 +8,8 @@ import {
   retryUntilVisible,
   signUp,
   uniqueName,
-  waitForRosterSave,
   expectNoPageOverflow,
+  addUnit,
 } from './account'
 
 async function expectOnboardingProgress(page: Parameters<typeof signUp>[0], resolved: number) {
@@ -529,8 +529,7 @@ test('a list saved under an account is there on another device', async ({ browse
 
   await expectOnboardingProgress(page, 0)
   await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Kept list' })
-  await page.getByLabel('Add a unit').fill('Plague Marines')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Plague Marines', exact: true }).first().click())
+  await addUnit(page, 'Plague Marines')
 
   // Nothing recorded that the task was done: a reload folds it from the list this account now owns.
   await page.reload()

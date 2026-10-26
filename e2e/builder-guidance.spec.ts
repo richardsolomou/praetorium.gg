@@ -1,7 +1,7 @@
 import type { Locator } from '@playwright/test'
 import { expect, type Page, test } from './test'
-import { createRoster, signUp, waitForRosterSave } from './account'
-import { add, arrangeByRole, expectNoHorizontalOverflow, openBuilder, shot } from './builder.harness'
+import { createRoster, signUp, waitForRosterSave, addUnit } from './account'
+import { arrangeByRole, expectNoHorizontalOverflow, openBuilder, shot } from './builder.harness'
 
 test.use({ hasTouch: true })
 // These tests read the rows on each card that name the unit it joined.
@@ -19,8 +19,8 @@ test(`a unit's attach menu adds and attaches a new leader, then offers only its 
     await page.setViewportSize({ width, height: 900 })
     await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
     await expect(page.getByRole('combobox', { name: 'Unit relationships' })).toHaveCount(0)
-    await waitForRosterSave(page, () => add(page, 'Immortals'))
-    await waitForRosterSave(page, () => add(page, 'Overlord'))
+    await addUnit(page, 'Immortals')
+    await addUnit(page, 'Overlord')
     await closePickerOnPhone(page, width)
 
     const immortals = page.locator('[data-unit="Immortals"]')
@@ -64,7 +64,7 @@ test('a unit whose only leader slot is full offers no attach menu', async ({ pag
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
-    await waitForRosterSave(page, () => add(page, 'Skorpekh Destroyers'))
+    await addUnit(page, 'Skorpekh Destroyers')
     await closePickerOnPhone(page, width)
 
     const destroyers = page.locator('[data-unit="Skorpekh Destroyers"]')
@@ -91,7 +91,7 @@ test(`a character's attach menu adds and joins a new bodyguard`, async ({ page }
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/ })
-    await waitForRosterSave(page, () => add(page, 'Overlord'))
+    await addUnit(page, 'Overlord')
     await closePickerOnPhone(page, width)
 
     const overlord = page.locator('[data-unit="Overlord"]')
@@ -117,7 +117,7 @@ test(`a character's attach menu adds and joins a new bodyguard`, async ({ page }
 test('a Loyal Protector joins a Command Squad', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 })
   await openBuilder(page, 'Astra Militarum', /Combined Arms/)
-  await waitForRosterSave(page, () => add(page, 'Ogryn Bodyguard'))
+  await addUnit(page, 'Ogryn Bodyguard')
 
   const ogryn = page.locator('[data-unit="Ogryn Bodyguard"]')
   await ogryn.getByRole('button', { name: 'Attach Ogryn Bodyguard to unit', exact: true }).click()
@@ -133,8 +133,8 @@ test('a Loyal Protector joins a Command Squad', async ({ page }) => {
 
 test('a unit attaches a character already in the roster from its own card', async ({ page }) => {
   await openBuilder(page)
-  await waitForRosterSave(page, () => add(page, 'Immortals'))
-  await waitForRosterSave(page, () => add(page, 'Overlord'))
+  await addUnit(page, 'Immortals')
+  await addUnit(page, 'Overlord')
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Attach a unit to Immortals', exact: true }).click()
   await waitForRosterSave(page, () =>
     attachMenu(page).getByRole('group', { name: 'In this roster' }).getByRole('menuitem', { name: 'Overlord', exact: true }).click(),
@@ -163,12 +163,12 @@ async function settledHeight(card: Locator) {
 test('picker card height stays stable as the roster crosses the points budget', async ({ page }) => {
   await signUp(page, 'Richard')
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, size: /Incursion/ })
-  await waitForRosterSave(page, () => add(page, "C'tan Shard of the Nightbringer"))
+  await addUnit(page, "C'tan Shard of the Nightbringer")
   await page.getByLabel('Add a unit').fill('Monolith')
   const monolith = page.locator('[data-picker-unit="Monolith"]')
   await expect(monolith).toBeVisible()
   const before = await settledHeight(monolith)
-  await waitForRosterSave(page, () => add(page, "C'tan Shard of the Void Dragon"))
+  await addUnit(page, "C'tan Shard of the Void Dragon")
   await page.getByLabel('Add a unit').fill('Monolith')
   await expect(monolith).toBeVisible()
   expect(await settledHeight(monolith)).toBe(before)

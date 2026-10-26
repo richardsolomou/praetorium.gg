@@ -18,6 +18,7 @@ import {
   makeWarlord,
   saveAlert,
   expectNoPageOverflow,
+  addUnit,
 } from './account'
 
 test('roster reminders cover selected rules and advances from another device', async ({ browser }) => {
@@ -34,16 +35,14 @@ test('roster reminders cover selected rules and advances from another device', a
   await signUp(page, uniqueName('Reminder player'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Reminder test' })
 
-  await page.getByLabel('Add a unit').fill('Plasmancer')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Plasmancer', exact: true }).first().click())
+  await addUnit(page, 'Plasmancer')
   await page
     .getByRole('button', { name: /^Plasmancer/ })
     .first()
     .click()
   await makeWarlord(page, 'Plasmancer')
   // A Support unit must join a Bodyguard unit for the list to be legal to field.
-  await page.getByLabel('Add a unit').fill('Immortals')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
+  await addUnit(page, 'Immortals')
   await waitForRosterSave(page, () => attach(page, 'Plasmancer', 'Immortals'))
   const plasmancer = page.locator('[data-unit="Plasmancer"]')
 
@@ -311,13 +310,7 @@ for (const scenario of [
   test(`saved alerts support ${scenario.kind} abilities`, async ({ page }) => {
     await signUp(page, uniqueName(`Alert ${scenario.kind}`))
     const roster = await createRoster(page, { ...scenario, name: `Alert ${scenario.unit}` })
-    await page.getByLabel('Add a unit').fill(scenario.unit)
-    await waitForRosterSave(page, () =>
-      page
-        .getByRole('button', { name: `Add ${scenario.unit}`, exact: true })
-        .first()
-        .click(),
-    )
+    await addUnit(page, scenario.unit)
     await page.locator(`[data-unit="${scenario.unit}"]`).getByRole('button', { name: scenario.unit, exact: true }).click()
     if (scenario.kind === 'any-phase') {
       await waitForRosterSave(page, () => page.getByRole('button', { name: 'Select Resurrection orb', exact: true }).click())
@@ -378,13 +371,7 @@ test('an alert set in one roster follows the player into another and fires in ba
   const unit = 'Catacomb Command Barge'
   const addBarge = async (name: string) => {
     const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name })
-    await page.getByLabel('Add a unit').fill(unit)
-    await waitForRosterSave(page, () =>
-      page
-        .getByRole('button', { name: `Add ${unit}`, exact: true })
-        .first()
-        .click(),
-    )
+    await addUnit(page, unit)
     await page.locator(`[data-unit="${unit}"]`).getByRole('button', { name: unit, exact: true }).click()
     await waitForRosterSave(page, () => page.getByRole('button', { name: 'Select Resurrection orb', exact: true }).click())
     return roster

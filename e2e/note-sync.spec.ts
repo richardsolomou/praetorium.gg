@@ -1,6 +1,6 @@
 import { expect, test, type Page } from './test'
 import type { LocalState } from '../src/contracts/localState'
-import { createRoster, signUp, uniqueName, waitForRosterSave } from './account'
+import { createRoster, signUp, uniqueName, addUnit } from './account'
 import { NATIVE_LOCAL_STATE_SCRIPT } from './native.harness'
 import { productOperator, savedWork, lastPathSegment } from './storage'
 
@@ -20,13 +20,7 @@ const nativeWork = (page: Page) =>
 async function rosterWithUnit(page: Page, work: (page: Page) => Promise<LocalState | null> = savedWork) {
   await signUp(page, uniqueName('Note sync'))
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Noted dynasty' })
-  await page.getByLabel('Add a unit').fill(UNIT)
-  await waitForRosterSave(page, () =>
-    page
-      .getByRole('button', { name: `Add ${UNIT}`, exact: true })
-      .first()
-      .click(),
-  )
+  await addUnit(page, UNIT)
   const picker = page.getByRole('dialog', { name: 'Add units' })
   if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close' }).click()
   await expect.poll(async () => (await work(page))?.operations.length, { timeout: 30_000 }).toBe(0)

@@ -16,8 +16,8 @@ import {
   startBattle,
   takeTheTurn,
   uniqueName,
-  waitForRosterSave,
   expectNoPageOverflow,
+  addUnit,
 } from './account'
 import { battleLog, productSql, lastPathSegment } from './storage'
 
@@ -347,8 +347,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await alice.getByRole('button', { name: 'Save profile' }).click()
   await expect(alice.getByText('Profile saved.')).toBeVisible()
   const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
-  await alice.getByLabel('Add a unit').fill('Lord of Virulence')
-  await waitForRosterSave(alice, () => alice.getByRole('button', { name: 'Add Lord of Virulence', exact: true }).first().click())
+  await addUnit(alice, 'Lord of Virulence')
   await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })
 
   const hand = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).locator('[data-secondary]')

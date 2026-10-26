@@ -8,6 +8,7 @@ import {
   uniqueName,
   waitForRosterSave,
   setRosterAccess,
+  addUnit,
 } from './account'
 import { expectNoHorizontalOverflow, shot } from './builder.harness'
 import { productOperator, userIdFor, lastPathSegment } from './storage'
@@ -16,13 +17,7 @@ const UNIT = 'Immortals'
 const NOTE = 'Discovery note stays with the owner'
 
 async function addNotedUnit(page: Page) {
-  await page.getByLabel('Add a unit').fill(UNIT)
-  await waitForRosterSave(page, () =>
-    page
-      .getByRole('button', { name: `Add ${UNIT}`, exact: true })
-      .first()
-      .click(),
-  )
+  await addUnit(page, UNIT)
   const picker = page.getByRole('dialog', { name: 'Add units' })
   if (await picker.isVisible()) await picker.getByRole('button', { name: 'Close' }).click()
   await page.locator(`[data-unit="${UNIT}"]`).getByRole('button', { name: UNIT, exact: true }).click()

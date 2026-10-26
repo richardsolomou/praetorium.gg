@@ -9,9 +9,9 @@ import {
   setupStep,
   signUp,
   uniqueName,
-  waitForRosterSave,
   makeWarlord,
   expectNoPageOverflow,
+  addUnit,
 } from './account'
 
 test('battle setup stays shared and does not wait for the other device', async ({ browser }) => {
@@ -24,8 +24,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   const bobRoster = await createRoster(bob, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Bob army' })
   await signUp(alice, aliceName)
   const aliceRoster = await createRoster(alice, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Alice army' })
-  await alice.getByLabel('Add a unit').fill('Immortals')
-  await waitForRosterSave(alice, () => alice.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
+  await addUnit(alice, 'Immortals')
   const incursionRoster = await createRoster(alice, {
     faction: 'Necrons',
     detachment: /Awakened Dynasty/,
@@ -191,13 +190,7 @@ test('both devices settle mandatory tactical cards without racing', async ({ bro
     size: /King of the Colosseum/,
   })
   for (const unit of ['Plague Marines', 'Lord of Virulence']) {
-    await bob.getByLabel('Add a unit').fill(unit)
-    await waitForRosterSave(bob, () =>
-      bob
-        .getByRole('button', { name: `Add ${unit}`, exact: true })
-        .first()
-        .click(),
-    )
+    await addUnit(bob, unit)
   }
   await bob.locator('[data-unit="Lord of Virulence"]').getByRole('button', { name: 'Lord of Virulence', exact: true }).click()
   await makeWarlord(bob, 'Lord of Virulence')
@@ -209,13 +202,7 @@ test('both devices settle mandatory tactical cards without racing', async ({ bro
     size: /King of the Colosseum/,
   })
   for (const unit of ['Immortals', 'Overlord']) {
-    await alice.getByLabel('Add a unit').fill(unit)
-    await waitForRosterSave(alice, () =>
-      alice
-        .getByRole('button', { name: `Add ${unit}`, exact: true })
-        .first()
-        .click(),
-    )
+    await addUnit(alice, unit)
   }
   await alice.locator('[data-unit="Overlord"]').getByRole('button', { name: 'Overlord', exact: true }).click()
   await makeWarlord(alice, 'Overlord')

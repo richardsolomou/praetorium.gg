@@ -1,18 +1,12 @@
 import { expect, test } from './test'
-import { attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, signUp, startBattle, uniqueName, waitForRosterSave } from './account'
+import { attachRoster, createBattle, createRoster, PRACTICE_OPPONENT, signUp, startBattle, uniqueName, addUnit } from './account'
 
 test('an army is read and its losses recorded without leaving the battle', async ({ page }) => {
   const player = uniqueName('Attrition')
   await signUp(page, player)
   const roster = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Attrition Guard' })
   for (const unit of ['Plague Marines', 'Foetid Bloat-drone']) {
-    await page.getByLabel('Add a unit').fill(unit)
-    await waitForRosterSave(page, () =>
-      page
-        .getByRole('button', { name: `Add ${unit}`, exact: true })
-        .first()
-        .click(),
-    )
+    await addUnit(page, unit)
   }
 
   await createBattle(page, { practice: true })
@@ -109,13 +103,7 @@ test('a multi-wound model is tracked in wounds, and losing them all takes the mo
   await signUp(page, player)
   const roster = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Wounded Guard' })
   for (const unit of ['Plague Marines', 'Foetid Bloat-drone']) {
-    await page.getByLabel('Add a unit').fill(unit)
-    await waitForRosterSave(page, () =>
-      page
-        .getByRole('button', { name: `Add ${unit}`, exact: true })
-        .first()
-        .click(),
-    )
+    await addUnit(page, unit)
   }
 
   await createBattle(page, { practice: true })

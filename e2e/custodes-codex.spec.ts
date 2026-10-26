@@ -1,5 +1,5 @@
 import { waitForOfflineApp } from './offline'
-import { confirmRosterSetup, retryUntilVisible, visitorSetup } from './account'
+import { confirmRosterSetup, retryUntilVisible, visitorSetup, addUnit } from './account'
 import { expect, test, type Locator, type Page } from './test'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
 import { lastPathSegment } from './storage'
@@ -147,7 +147,7 @@ test('converts the saved roster in place and restores its current choices', asyn
     await expect(dialog.getByRole('button', { name: 'Review changes', exact: true })).toBeEnabled()
     return dialog
   }
-  await waitForRosterSave(page, () => add(page, 'Allarus Custodians'))
+  await addUnit(page, 'Allarus Custodians')
   await page.getByRole('button', { name: 'Allarus Custodians', exact: true }).click()
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'More Castellan Axe', exact: true }).click())
   await waitForRosterSave(page, () => page.getByRole('button', { name: 'More Castellan Axe', exact: true }).click())

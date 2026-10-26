@@ -704,18 +704,11 @@ export async function expectNoPageOverflow(page: Page) {
 /** The smallest Necrons list an event will seal, a Skorpekh Lord as its Warlord, and its roster id. */
 export async function sealableRoster(page: Page, name: string, { size, extraUnit }: { size?: RegExp; extraUnit?: string } = {}) {
   await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name, size })
-  await page.getByLabel('Add a unit').fill('Skorpekh Lord')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Skorpekh Lord', exact: true }).first().click())
+  await addUnit(page, 'Skorpekh Lord')
   await page.locator('[data-unit="Skorpekh Lord"]').getByRole('button', { name: 'Skorpekh Lord', exact: true }).click()
   await makeWarlord(page, 'Skorpekh Lord')
   if (extraUnit) {
-    await page.getByLabel('Add a unit').fill(extraUnit)
-    await waitForRosterSave(page, () =>
-      page
-        .getByRole('button', { name: `Add ${extraUnit}`, exact: true })
-        .first()
-        .click(),
-    )
+    await addUnit(page, extraUnit)
   }
   return lastPathSegment(page.url())
 }

@@ -10,6 +10,7 @@ import {
   signUp,
   uniqueName,
   waitForRosterSave,
+  addUnit,
 } from './account'
 import { expectNoHorizontalOverflow } from './builder.harness'
 import { productOperator } from './storage'
@@ -202,8 +203,7 @@ async function savedWork(page: Page) {
 test('suggests datasheets fielded in a battle until they are added', async ({ page }) => {
   await signUp(page, uniqueName('Fielded collection'))
   const roster = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Fielded Guard' })
-  await page.getByLabel('Add a unit').fill('Plague Marines')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Plague Marines', exact: true }).first().click())
+  await addUnit(page, 'Plague Marines')
   await createBattle(page, { practice: true })
   await attachRoster(page, roster)
   await page.goto('/collection')
@@ -701,8 +701,7 @@ test('a saved roster shows shortages its units share and adds them to the wishli
   await expect.poll(async () => (await savedWork(page))?.operations.length).toBe(0)
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Readiness' })
   for (let copy = 0; copy < 2; copy++) {
-    await page.getByLabel('Add a unit').fill('Necron Warriors')
-    await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Necron Warriors', exact: true }).first().click())
+    await addUnit(page, 'Necron Warriors')
   }
   const panel = page.locator('[data-roster-readiness]')
   await expect(panel.locator('[data-readiness-summary]')).toHaveText('5 models short')
@@ -748,8 +747,7 @@ test('models that can also be another datasheet fill it in a roster and show as 
 
   await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Can also be' })
   await page.getByRole('button', { name: 'Owned', exact: true }).click()
-  await page.getByLabel('Add a unit').fill('Immortals')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
+  await addUnit(page, 'Immortals')
   const panel = page.locator('[data-roster-readiness]')
   await expect(panel.locator('[data-readiness-summary]')).not.toContainText('short')
   await panel.getByRole('button', { name: 'Toggle Your collection', exact: true }).click()

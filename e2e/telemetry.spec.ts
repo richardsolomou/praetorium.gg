@@ -376,7 +376,7 @@ for (const [reference, path, signedIn, width] of [
     await expect(page.getByRole('heading', { name: 'Add your first unit', exact: true })).toBeVisible()
     if (width < 768) await page.getByRole('button', { name: 'Add units', exact: true }).click()
     await expect(page.getByLabel('Add a unit')).toBeVisible()
-    if (signedIn) await waitForRosterSave(page, () => add(page, 'Necron Warriors'))
+    if (signedIn) await addUnit(page, 'Necron Warriors')
     else {
       await add(page, 'Necron Warriors')
       await expect

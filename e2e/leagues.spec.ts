@@ -11,6 +11,7 @@ import {
   makeWarlord,
   sealableRoster,
   expectNoPageOverflow,
+  addUnit,
 } from './account'
 import { productOperator, productSql, userIdFor, withAuthSql, userIdNamed, lastPathSegment } from './storage'
 import { holdCombatCalculations } from './combat'
@@ -93,8 +94,7 @@ test('players can decline and publish their original league roster across device
   // Publication changes the saved roster’s visibility without replacing its edits.
   await owner.setViewportSize({ width: 1440, height: 1000 })
   await owner.goto(savedUrl)
-  await owner.getByLabel('Add a unit').fill('Immortals')
-  await waitForRosterSave(owner, () => owner.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
+  await addUnit(owner, 'Immortals')
   await owner.goto(leagueUrl)
   await expect(sharing).toContainText('including changes since sealing and future edits')
   await sharing.getByRole('button', { name: 'Make public', exact: true }).click()
@@ -164,8 +164,7 @@ test('revealed rosters compare every unit using frozen loadouts and preserve lea
   await owner.reload()
   await expect(owner.locator('[data-league-armies]')).toContainText(`Revealed by ${opponentName}`)
   await owner.goto(savedUrl)
-  await owner.getByLabel('Add a unit').fill('Skorpekh Destroyers')
-  await waitForRosterSave(owner, () => owner.getByRole('button', { name: 'Add Skorpekh Destroyers', exact: true }).first().click())
+  await addUnit(owner, 'Skorpekh Destroyers')
   await owner.goto(leagueUrl)
   // Once revealed, each list is a card that opens in full or sets the reader's own list against it.
   const card = owner.locator(`[data-army="${opponentName}"]`)
@@ -797,8 +796,7 @@ test('a new league starts with its first event and can seal a roster', async ({ 
     detachment: /Marshal's Household/,
     name: 'Templar roster',
   })
-  await page.getByLabel('Add a unit').fill('Captain')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Captain', exact: true }).first().click())
+  await addUnit(page, 'Captain')
   // The Captain becomes the Warlord on its own; the refused seal below needs a list without one.
   await page.locator('[data-unit="Captain"]').getByRole('button', { name: 'Captain', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Remove Captain Warlord' })).toHaveAttribute('aria-pressed', 'true')

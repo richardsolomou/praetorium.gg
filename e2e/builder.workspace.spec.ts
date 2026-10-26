@@ -1,7 +1,7 @@
 import { expect, test } from './test'
 import { savedWork } from './storage'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
-import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, waitForRosterSave, expectNoPageOverflow } from './account'
+import { confirmRosterSetup, createRoster, retryUntilVisible, signUp, waitForRosterSave, expectNoPageOverflow, addUnit } from './account'
 import {
   expectNoHorizontalOverflow,
   expectInsideHorizontalBounds,
@@ -13,8 +13,7 @@ import {
 
 test('the roster workspace reserves the desktop picker while its book loads', async ({ browser, page: savedPage }) => {
   await openBuilder(savedPage)
-  await savedPage.getByLabel('Add a unit').fill('Immortals')
-  await waitForRosterSave(savedPage, () => savedPage.getByRole('button', { name: 'Add Immortals', exact: true }).first().click())
+  await addUnit(savedPage, 'Immortals')
   await expect(savedPage.locator('[data-unit="Immortals"]')).toBeVisible()
   await savedPage.getByLabel('Add a unit').fill('')
   await expect(savedPage.getByRole('button', { name: 'Add Lychguard', exact: true }).first()).toBeVisible()
@@ -220,7 +219,7 @@ test('a mobile web unit screen keeps the tab bar beside it', async ({ browser })
   const context = await browser.newContext({ viewport: { width: 364, height: 759 } })
   const page = await context.newPage()
   await openBuilder(page, 'Space Marines', /Gladius Task Force/)
-  await waitForRosterSave(page, () => add(page, 'Intercessor Squad'))
+  await addUnit(page, 'Intercessor Squad')
   await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
   await page.locator('[data-unit="Intercessor Squad"]').getByRole('button', { name: 'Intercessor Squad', exact: true }).click()
 
@@ -248,7 +247,7 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   })
   const page = await context.newPage()
   await openBuilder(page)
-  await waitForRosterSave(page, () => add(page, 'Immortals'))
+  await addUnit(page, 'Immortals')
   await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
   const rosterUrl = page.url()
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
@@ -286,8 +285,8 @@ ${NATIVE_BROWSER_BRIDGE_SCRIPT}`,
   })
   const page = await context.newPage()
   await openBuilder(page)
-  await waitForRosterSave(page, () => add(page, 'Immortals'))
-  await waitForRosterSave(page, () => add(page, 'Lychguard'))
+  await addUnit(page, 'Immortals')
+  await addUnit(page, 'Lychguard')
   await page.getByRole('dialog', { name: 'Add units' }).getByRole('button', { name: 'Close' }).click()
   const rosterUrl = page.url()
 
@@ -564,8 +563,8 @@ test('adding or deleting a unit keeps the rest of the roster visible while prici
 
 test('collection changes do not reorder roster and reference rows', async ({ page }) => {
   await openBuilder(page)
-  await waitForRosterSave(page, () => add(page, 'Necron Warriors'))
-  await waitForRosterSave(page, () => add(page, 'Immortals'))
+  await addUnit(page, 'Necron Warriors')
+  await addUnit(page, 'Immortals')
 
   const rosterUrl = page.url()
   await page.goto('/collection')

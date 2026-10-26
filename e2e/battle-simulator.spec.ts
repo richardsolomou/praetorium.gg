@@ -158,8 +158,7 @@ test('battle combat uses frozen loadouts and live casualties', async ({ page, br
   test.setTimeout(240_000)
   await signUp(page, 'Combat')
   const roster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Combat Marines' })
-  await page.getByLabel('Add a unit').fill('Intercessor Squad')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Intercessor Squad', exact: true }).first().click())
+  await addUnit(page, 'Intercessor Squad')
   await page.locator('[data-unit="Intercessor Squad"]').getByRole('button', { name: 'Intercessor Squad', exact: true }).click()
   await createBattle(page, { practice: true })
   await attachRoster(page, roster)
@@ -273,8 +272,7 @@ test('a team matchup switches allied armies and carries both sides through a swa
     name: 'Allied Necrons',
     size: /Incursion/,
   })
-  await ally.getByLabel('Add a unit').fill('Canoptek Reanimator')
-  await waitForRosterSave(ally, () => ally.getByRole('button', { name: 'Add Canoptek Reanimator', exact: true }).first().click())
+  await addUnit(ally, 'Canoptek Reanimator')
   await signUp(page, hostName)
   const roster = await createRoster(page, {
     faction: 'Space Marines',
@@ -282,11 +280,9 @@ test('a team matchup switches allied armies and carries both sides through a swa
     name: 'Allied Marines',
     size: /Incursion/,
   })
-  await page.getByLabel('Add a unit').fill('Intercessor Squad')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Intercessor Squad', exact: true }).first().click())
+  await addUnit(page, 'Intercessor Squad')
   const opponentRoster = await createRoster(page, { faction: 'Space Marines', detachment: /Gladius Task Force/, name: 'Opposing Marines' })
-  await page.getByLabel('Add a unit').fill('Intercessor Squad')
-  await waitForRosterSave(page, () => page.getByRole('button', { name: 'Add Intercessor Squad', exact: true }).first().click())
+  await addUnit(page, 'Intercessor Squad')
   await befriend(page, ally)
   const url = await createBattle(page, { yourAlly: allyName, practice: true })
   await ally.goto(url)
@@ -318,13 +314,7 @@ test('battle support auras respect the recipient, role, conditions, and living s
   await signUp(page, 'Auras')
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Cursed Legion/, name: 'Aura Necrons' })
   for (const name of ['Immortals', 'Nekrosor Ammentar', 'Illuminor Szeras', 'Skorpekh Destroyers', "C'tan Shard of the Nightbringer"]) {
-    await page.getByLabel('Add a unit').fill(name)
-    await waitForRosterSave(page, () =>
-      page
-        .getByRole('button', { name: `Add ${name}`, exact: true })
-        .first()
-        .click(),
-    )
+    await addUnit(page, name)
   }
   await createBattle(page, { practice: true })
   await attachRoster(page, roster)

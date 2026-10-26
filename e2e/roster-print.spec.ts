@@ -10,8 +10,9 @@ import {
   startBattle,
   uniqueName,
   waitForRosterSave,
+  addUnit,
 } from './account'
-import { add, attach } from './builder.harness'
+import { attach } from './builder.harness'
 import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest } from '../mobile/src/nativeActions'
 import { lastPathSegment } from './storage'
 
@@ -114,8 +115,8 @@ test('attached datasheets stay grouped and a missing reference never prints a pa
   await expect(pack.locator('[data-print-datasheet]')).toHaveCount(0)
   await expect(page.locator('html')).toHaveAttribute('data-printed', 'true')
   await page.getByRole('button', { name: 'Return to roster' }).click()
-  await waitForRosterSave(page, () => add(page, 'Immortals'))
-  await waitForRosterSave(page, () => add(page, 'Technomancer'))
+  await addUnit(page, 'Immortals')
+  await addUnit(page, 'Technomancer')
   await waitForRosterSave(page, () => attach(page, 'Technomancer', 'Immortals'))
   await page.evaluate(() => {
     window.print = () => {
@@ -157,7 +158,7 @@ test('a saved mixed-equipment pack agrees with export and the fielded army', asy
   await page.setViewportSize({ width: 1600, height: 900 })
   await signUp(page, uniqueName('Print mixed equipment'))
   const name = await createRoster(page, { faction: 'Death Guard', detachment: /Champions of Contagion/, name: 'Mixed equipment' })
-  await waitForRosterSave(page, () => add(page, 'Plague Marines'))
+  await addUnit(page, 'Plague Marines')
   const rosterId = lastPathSegment(page.url())
   const card = page.locator('[data-unit="Plague Marines"]')
   await card.getByRole('button', { name: /^Plague Marines/ }).click()

@@ -1,6 +1,5 @@
 import { expect, test } from './test'
-import { retryUntilVisible, signUp, waitForRosterSave } from './account'
-import { add } from './builder.harness'
+import { retryUntilVisible, signUp, waitForRosterSave, addUnit } from './account'
 import { capture, docsScreenshots } from './docsScreenshots'
 
 docsScreenshots()
@@ -25,9 +24,9 @@ test('build an army screenshots', async ({ page }) => {
   const picker = page.getByLabel('Add a unit')
   if (!(await picker.isVisible())) await page.getByRole('button', { name: 'Add units', exact: true }).click()
   await expect(picker).toBeVisible()
-  await waitForRosterSave(page, () => add(page, 'Intercessor Squad'))
-  await waitForRosterSave(page, () => add(page, 'Captain'))
-  await waitForRosterSave(page, () => add(page, 'Ancient'))
+  await addUnit(page, 'Intercessor Squad')
+  await addUnit(page, 'Captain')
+  await addUnit(page, 'Ancient')
   await page.getByLabel('Add a unit').fill('')
   await page.setViewportSize({ width: 1280, height: 620 })
   const pickerPane = page.locator('div[data-onboarding="roster-picker"]')
