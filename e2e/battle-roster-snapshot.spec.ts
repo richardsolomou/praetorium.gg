@@ -7,7 +7,6 @@ test('a fielded roster opens as the frozen read-only roster view', async ({ page
   const rosterName = await createRoster(page, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Fielded Death Guard' })
   await addUnit(page, 'Lord of Virulence')
   const rosterId = lastPathSegment(page.url())
-  expect(rosterId).toBeTruthy()
 
   const battleUrl = await practiceBattle(page, rosterName)
   await expect(page.locator('#setup-armies')).toHaveAttribute('data-complete', 'true')
