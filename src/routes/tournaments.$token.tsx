@@ -2,11 +2,11 @@ import { createFileRoute, notFound, redirect } from '@tanstack/react-router'
 import { LeaguePage } from '../client/features/leagues/LeaguePage'
 import { eventAddress } from '../client/functions'
 import { deploymentsQuery, leagueQuery } from '../client/queries'
-import { searchFlag } from '../client/searchParams'
+import { searchFlag, searchText } from '../client/searchParams'
 
 export const Route = createFileRoute('/tournaments/$token')({
   validateSearch: (search: Record<string, unknown>): { event?: string; start?: boolean; choose?: boolean } => ({
-    ...(typeof search.event === 'string' ? { event: search.event } : {}),
+    event: searchText(search.event),
     ...(searchFlag(search.start) ? { start: true } : {}),
     ...(searchFlag(search.choose) ? { choose: true } : {}),
   }),

@@ -8,7 +8,7 @@ import { pageHead, previewImage } from '../client/linkPreview'
 import { loadRoster } from '../client/features/rosters/rosterRouteData'
 import { RosterLoading } from '../client/features/rosters/RosterLoading'
 import { requestedDatasheetSearch, useRequestedDatasheet } from '../client/features/rosters/requestedDatasheet'
-import { searchFlag } from '../client/searchParams'
+import { searchFlag, searchText } from '../client/searchParams'
 import { keptRosterArrangement } from '../client/features/rosters/rosterArrangement'
 import { ROSTER_ARRANGEMENT_COOKIE } from '../contracts/rosterCookies'
 import { requestCookie } from '../server/requestCookie'
@@ -19,10 +19,10 @@ export const Route = createFileRoute('/rosters/$id/')({
   validateSearch: (
     search: Record<string, unknown>,
   ): { battle?: string; league?: string; event?: string; print?: boolean; add?: string } => ({
-    ...(typeof search.battle === 'string' ? { battle: search.battle } : {}),
+    battle: searchText(search.battle),
     ...requestedDatasheetSearch(search),
-    ...(typeof search.league === 'string' ? { league: search.league } : {}),
-    ...(typeof search.event === 'string' ? { event: search.event } : {}),
+    league: searchText(search.league),
+    event: searchText(search.event),
     ...(searchFlag(search.print) ? { print: true } : {}),
   }),
   loaderDeps: ({ search }) => ({ battle: search.battle, league: search.league, event: search.event }),

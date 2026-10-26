@@ -1,12 +1,13 @@
 import { createFileRoute, notFound } from '@tanstack/react-router'
 import { ClubPage } from '../client/features/clubs/ClubPage'
 import { clubQuery, clubStandingsQuery, deploymentsQuery, leagueQuery } from '../client/queries'
+import { searchText } from '../client/searchParams'
 
 /** The most sealed games whose details load with the page; the newest come first, and only those in play need them. */
 const PRELOADED_GAMES = 5
 
 export const Route = createFileRoute('/clubs/$token')({
-  validateSearch: (search: Record<string, unknown>): { game?: string } => (typeof search.game === 'string' ? { game: search.game } : {}),
+  validateSearch: (search: Record<string, unknown>): { game?: string } => ({ game: searchText(search.game) }),
   // The games and the table are read with the club, so the page arrives whole rather than filling in and shifting.
   loader: async ({ context, params }) => {
     const [club] = await Promise.all([

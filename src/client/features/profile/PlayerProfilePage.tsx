@@ -16,6 +16,7 @@ import { PlayerRosters } from './PlayerRosters'
 import { PlayerCollection } from './PlayerCollection'
 import { recordSummary } from './recordSummary'
 import { ServiceRecordPanel } from './ServiceRecordPanel'
+import { searchText } from '../../searchParams'
 import { PersonalPerformancePanel } from './PersonalPerformancePanel'
 import {
   factionIndexQuery,
@@ -41,17 +42,16 @@ type ProfileSearch = PlayerProfileFilter & { tab?: ProfileTab }
  * the first frame, so switching one is a render rather than a request.
  */
 export const readSearch = (search: Record<string, unknown>): ProfileSearch => {
-  const text = (value: unknown) => (typeof value === 'string' && value ? value : undefined)
   const size = Number(search.limit)
   const tab = TABS.find((candidate) => candidate === search.tab)
   return {
     tab,
-    faction: text(search.faction),
-    detachment: text(search.detachment),
-    opponentFaction: text(search.opponentFaction),
-    opponentDetachment: text(search.opponentDetachment),
-    opponentId: text(search.opponentId),
-    missionPackId: text(search.missionPackId),
+    faction: searchText(search.faction),
+    detachment: searchText(search.detachment),
+    opponentFaction: searchText(search.opponentFaction),
+    opponentDetachment: searchText(search.opponentDetachment),
+    opponentId: searchText(search.opponentId),
+    missionPackId: searchText(search.missionPackId),
     limit: Number.isFinite(size) && size > 0 ? size : undefined,
   }
 }

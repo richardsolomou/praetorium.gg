@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { SearchPage } from '../client/features/shell/SearchPage'
 import { pageHead } from '../client/linkPreview'
 import { globalSearchQuery } from '../client/queries'
+import { SEARCH_MIN_LENGTH } from '../core/referenceSearch'
 
 export const Route = createFileRoute('/search')({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -10,7 +11,7 @@ export const Route = createFileRoute('/search')({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps, cause }) => {
     const query = deps.q.trim()
-    if (cause !== 'stay' && query.length >= 2) {
+    if (cause !== 'stay' && query.length >= SEARCH_MIN_LENGTH) {
       await context.queryClient.query(globalSearchQuery(query)).catch(() => undefined)
     }
   },
