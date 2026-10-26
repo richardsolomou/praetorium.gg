@@ -12,6 +12,8 @@ const mocks = vi.hoisted(() => ({
     dropped?: (current: unknown, error?: unknown, retrying?: number) => void
     renew?: () => Promise<string>
     applied?: () => void
+    disconnect?: ReturnType<typeof vi.fn>
+    unwatchBattle?: ReturnType<typeof vi.fn>
   }[],
 }))
 
@@ -57,7 +59,11 @@ vi.mock('../spacetime/generated', () => ({
           socket.failed = callback
           return builder
         },
-        build: () => ({ disconnect: vi.fn() }),
+        build: () => {
+          socket.disconnect = vi.fn()
+          socket.unwatchBattle = vi.fn(async () => {})
+          return { disconnect: socket.disconnect, reducers: { unwatchBattle: socket.unwatchBattle } }
+        },
       }
       return builder
     },
@@ -442,4 +448,41 @@ it('ends a battle connection when its reconnect ticket loses seat access', async
   await expect(mocks.sockets[0]!.renew!()).rejects.toThrow('Realtime access ended')
   await vi.advanceTimersByTimeAsync(10_000)
   expect([fetch.mock.calls.length, mocks.sockets.length]).toEqual([3, 1])
+})
+
+it('gives back a battle watch before closing the connection when the screen leaves', async () => {
+  vi.stubGlobal('fetch', issued('battle-id'))
+  useSpacetimeLiveBattle('battle-token', true)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  apply()
+  const socket = mocks.sockets[0]!
+  const order: string[] = []
+  socket.unwatchBattle!.mockImplementation(async ({ battleId }: { battleId: string }) => void order.push(`unwatch ${battleId}`))
+  socket.disconnect!.mockImplementation(() => void order.push('disconnect'))
+  for (const cleanup of cleanups.splice(0)) cleanup()
+  await vi.advanceTimersByTimeAsync(0)
+  expect(order).toEqual(['unwatch battle-id', 'disconnect'])
+})
+
+it('closes a battle connection that cannot give its watch back', async () => {
+  vi.stubGlobal('fetch', issued('battle-id'))
+  useSpacetimeLiveBattle('battle-token', true)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  const socket = mocks.sockets[0]!
+  socket.unwatchBattle!.mockRejectedValue(new Error('Not connected to SpacetimeDB'))
+  for (const cleanup of cleanups.splice(0)) cleanup()
+  await vi.advanceTimersByTimeAsync(0)
+  expect(socket.disconnect).toHaveBeenCalledOnce()
+})
+
+it('keeps the battle watch when a connection is renewed', async () => {
+  vi.stubGlobal('fetch', issued('battle-id'))
+  useSpacetimeLiveBattle('battle-token', true)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  apply()
+  await vi.advanceTimersByTimeAsync(4 * 60_000)
+  expect(mocks.sockets[0]!.unwatchBattle).not.toHaveBeenCalled()
 })
