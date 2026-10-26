@@ -248,6 +248,7 @@ export const PREVIEW_ROSTERS: readonly PreviewRoster[] = [
 export const PREVIEW_ALLY_ROSTERS: readonly PreviewRoster[] = [
   rosterCopy(PREVIEW_PLAYER_ROSTERS[3]!, 'preview-ally-death-guard'),
   rosterCopy(PREVIEW_PLAYER_ROSTERS[1]!, 'preview-ally-space-marines'),
+  rosterCopy(PREVIEW_PLAYER_ROSTERS[2]!, 'preview-ally-astra-militarum'),
 ]
 
 export const PREVIEW_RIVAL_ROSTERS: readonly PreviewRoster[] = [
@@ -773,49 +774,66 @@ async function seedInto(
   }
 
   /**
-   * A published season in the login's club, with a finished game, an overdue round and a round still due, and a draft
-   * in Sam's open club for its owner to review.
+   * A published season in the login's club, part played: finished games, one under way, an overdue round, a round still
+   * due and rounds with no deadline; and a draft in Sam's open club, for its owner to review and the login to join.
    */
   async function createClubSeasons() {
     const day = 86_400_000
     const token = 'preview-club'
-    // Their 2,000-point lists play the seeded game; the login and its ally only hold fixtures.
     const rosters = new Map([
+      [previewUserId, 'preview-necrons-cursed-skyshroud'],
+      [allyUserId, 'preview-ally-astra-militarum'],
       [opponentUserId, 'preview-opponent-orks'],
       [rivalUserId, 'preview-rival-orks'],
       [strangerUserId, 'preview-stranger-aeldari'],
     ])
-    const entrants = [previewUserId, allyUserId, ...rosters.keys()]
+    const entrants = [...rosters.keys()]
     if (!(await repository.clubByToken(token))?.season) {
       await repository.drawClubSeason(token, previewUserId, { seasonId: 'preview-club-season', seed: 1, now: now() })
       for (const userId of entrants) await repository.joinClubSeason(token, userId, now())
       await repository.publishClubSeason(token, previewUserId, { seed: 1, playerIds: entrants, now: now() })
       await repository.setClubSeasonDeadline(token, previewUserId, 1, now() - day)
       await repository.setClubSeasonDeadline(token, previewUserId, 2, now() + 7 * day)
-      const played = (await repository.clubByToken(token))!.season!.fixtures.find(
-        (fixture) => rosters.has(fixture.aId) && fixture.bId !== null && rosters.has(fixture.bId),
-      )!
-      await repository.createBattle({
-        id: 'preview-club-season-battle',
-        token: 'preview-club-season-battle',
-        userId: played.aId,
-        allyIds: [],
-        opponentIds: [played.bId!],
-        initialCommands: battleCommands(
-          2_000,
-          [
-            [played.aId, rosters.get(played.aId)!],
-            [played.bId!, rosters.get(played.bId!)!],
-          ],
-          [{ kind: 'set-battle-club', clubId: token }, ...finished(played.aId, played.bId!, [64, 51])],
-        ),
-        now: now(),
-        fixtureKey: played.key,
-      })
+      const fixtures = (await repository.clubByToken(token))!.season!.fixtures.filter((fixture) => fixture.bId !== null)
+      // The login's own fixtures stay to play, one of them overdue, and the battle under way leaves out the opponent and
+      // the ally, so their cards show a season game and a list to seal.
+      const others = fixtures.filter((fixture) => fixture.aId !== previewUserId && fixture.bId !== previewUserId)
+      const finishedResults: [number, number][] = [
+        [64, 51],
+        [72, 70],
+        [55, 38],
+      ]
+      const played = others.slice(0, finishedResults.length)
+      const underWay = others.find(
+        (fixture) => !played.includes(fixture) && ![fixture.aId, fixture.bId].some((id) => id === opponentUserId || id === allyUserId),
+      )
+      for (const [index, fixture] of [...played, ...(underWay ? [underWay] : [])].entries()) {
+        const result = finishedResults[index]
+        await repository.createBattle({
+          id: index ? `preview-club-season-battle-${index}` : 'preview-club-season-battle',
+          token: index ? `preview-club-season-battle-${index}` : 'preview-club-season-battle',
+          userId: fixture.aId,
+          allyIds: [],
+          opponentIds: [fixture.bId!],
+          initialCommands: battleCommands(
+            2_000,
+            [
+              [fixture.aId, rosters.get(fixture.aId)!],
+              [fixture.bId!, rosters.get(fixture.bId!)!],
+            ],
+            [
+              { kind: 'set-battle-club', clubId: token },
+              ...(result ? finished(fixture.aId, fixture.bId!, result) : [{ kind: 'begin-battle', firstPlayerId: fixture.aId } as Command]),
+            ],
+          ),
+          now: now(),
+          fixtureKey: fixture.key,
+        })
+      }
     }
     const open = 'preview-club-open'
     if (!(await repository.clubByToken(open))?.season) {
-      for (const userId of [opponentUserId, rivalUserId]) await repository.joinClub(open, userId, now())
+      for (const userId of [opponentUserId, rivalUserId, previewUserId]) await repository.joinClub(open, userId, now())
       await repository.drawClubSeason(open, wandererUserId, { seasonId: 'preview-club-open-season', seed: 2, now: now() })
       for (const userId of [wandererUserId, strangerUserId, opponentUserId, rivalUserId])
         await repository.joinClubSeason(open, userId, now())
@@ -823,9 +841,10 @@ async function seedInto(
   }
 
   /**
-   * A club the preview login runs, with every state its page shows: a join request, an admin, finished and live club
-   * battles, a past sealed duel, a doubles game being played, a solo-vs-pair game still taking seats, and a duel waiting
-   * on the login's list. Two clubs it is not in show the joining side.
+   * A club the preview login runs, with every state its page shows: a join request, an admin, finished, live and
+   * unstarted club battles, more past sealed games than the page lists at first, a doubles game being played, a
+   * solo-vs-pair game still taking seats, and a duel waiting on the login's list. An empty club it has just started and
+   * one with revealed lists for it to play show the other ends of the page; two clubs it is not in show the joining side.
    */
   async function createClubs() {
     const token = 'preview-club'
@@ -849,26 +868,58 @@ async function seedInto(
     await repository.setClubAdmins(token, previewUserId, [allyUserId])
     await repository.joinClub(token, wandererUserId, now())
 
-    const clubBattles: [string, string, string, string, Command[]][] = [
-      ['opponent-rival', opponentUserId, 'preview-opponent-orks', 'preview-rival-orks', finished(opponentUserId, rivalUserId, [62, 48])],
+    const clubBattles: [string, string, string, string, string, Command[]][] = [
+      [
+        'opponent-rival',
+        opponentUserId,
+        'preview-opponent-orks',
+        rivalUserId,
+        'preview-rival-orks',
+        finished(opponentUserId, rivalUserId, [62, 48]),
+      ],
       [
         'preview-opponent',
         previewUserId,
         'preview-necrons-cursed-skyshroud',
+        opponentUserId,
         'preview-opponent-aeldari',
         finished(previewUserId, opponentUserId, [71, 55]),
       ],
-      ['stranger-rival', strangerUserId, 'preview-stranger-aeldari', 'preview-rival-orks', finished(rivalUserId, strangerUserId, [58, 40])],
+      [
+        'stranger-rival',
+        strangerUserId,
+        'preview-stranger-aeldari',
+        rivalUserId,
+        'preview-rival-orks',
+        finished(rivalUserId, strangerUserId, [58, 40]),
+      ],
+      [
+        'ally-stranger',
+        allyUserId,
+        'preview-ally-astra-militarum',
+        strangerUserId,
+        'preview-stranger-necrons',
+        finished(allyUserId, strangerUserId, [80, 44]),
+      ],
+      [
+        'preview-ally',
+        previewUserId,
+        'preview-necrons-cursed-skyshroud',
+        allyUserId,
+        'preview-ally-astra-militarum',
+        finished(allyUserId, previewUserId, [67, 63]),
+      ],
+      ['rival-stranger', rivalUserId, 'preview-rival-orks', strangerUserId, 'preview-stranger-necrons', []],
       [
         'preview-rival',
         previewUserId,
         'preview-astra-militarum-combined-arms',
+        rivalUserId,
         'preview-rival-orks',
         [{ kind: 'begin-battle', firstPlayerId: rivalUserId }],
       ],
     ]
-    for (const [key, creatorId, creatorRoster, opponentRoster, tail] of clubBattles) {
-      const opponentId = key.endsWith('rival') ? rivalUserId : opponentUserId
+    for (const [key, creatorId, creatorRoster, opponentId, opponentRoster, tail] of clubBattles) {
       await createCasualBattle({
         id: `preview-club-battle-${key}`,
         token: `preview-club-battle-${key}`,
@@ -883,6 +934,46 @@ async function seedInto(
       })
     }
 
+    await createClubGame({
+      key: 'duel-september',
+      format: '1v1',
+      schedule: { playsAt: now() - 35 * day, sealBy: null },
+      seats: [
+        { userId: allyUserId, rosterId: 'preview-ally-astra-militarum' },
+        { userId: strangerUserId, rosterId: 'preview-stranger-necrons' },
+      ],
+      reveal: true,
+      battles: [
+        { key: 'ally-stranger', userId: allyUserId, opponentId: strangerUserId, tail: finished(strangerUserId, allyUserId, [59, 57]) },
+      ],
+    })
+    await createClubGame({
+      key: 'duel-october',
+      format: '1v1',
+      schedule: { playsAt: now() - 14 * day, sealBy: null },
+      seats: [
+        { userId: previewUserId, rosterId: 'preview-astra-militarum-combined-arms' },
+        { userId: allyUserId, rosterId: 'preview-ally-astra-militarum' },
+        { userId: rivalUserId, rosterId: 'preview-rival-orks' },
+        { userId: strangerUserId, rosterId: 'preview-stranger-aeldari' },
+      ],
+      reveal: true,
+      battles: [
+        { key: 'october-preview-ally', userId: previewUserId, opponentId: allyUserId, tail: finished(previewUserId, allyUserId, [78, 60]) },
+        {
+          key: 'october-rival-stranger',
+          userId: rivalUserId,
+          opponentId: strangerUserId,
+          tail: finished(rivalUserId, strangerUserId, [66, 49]),
+        },
+        {
+          key: 'october-preview-rival',
+          userId: previewUserId,
+          opponentId: rivalUserId,
+          tail: finished(rivalUserId, previewUserId, [70, 52]),
+        },
+      ],
+    })
     await createClubGame({
       key: 'duel-past',
       format: '1v1',
@@ -946,6 +1037,55 @@ async function seedInto(
       battles: [],
     })
 
+    // A club the login has just started, with nothing in it yet, and one where revealed lists wait for it to play them.
+    if (!(await repository.clubByToken('preview-club-new'))) {
+      await repository.createClub({
+        id: 'preview-club-new',
+        token: 'preview-club-new',
+        ownerId: previewUserId,
+        name: 'Wednesday Starters',
+        description: 'Learn-to-play nights for new players. Bring a small army or borrow one of ours.',
+        visibility: 'private',
+        admission: 'automatic',
+        now: now(),
+      })
+      await repository.joinClub('preview-club-new', allyUserId, now())
+    }
+    const friday = 'preview-club-friday'
+    if (!(await repository.clubByToken(friday))) {
+      await repository.createClub({
+        id: friday,
+        token: friday,
+        ownerId: allyUserId,
+        name: 'Friday Night Fights',
+        description: 'One sealed duel a week. Play whoever you like from the revealed lists.',
+        visibility: 'public',
+        admission: 'automatic',
+        now: now(),
+      })
+      for (const userId of [previewUserId, opponentUserId, rivalUserId]) await repository.joinClub(friday, userId, now())
+    }
+    await createClubGame({
+      key: 'friday-duel',
+      club: { token: friday, ownerId: allyUserId },
+      format: '1v1',
+      schedule: { playsAt: now(), sealBy: null },
+      seats: [
+        { userId: previewUserId, rosterId: 'preview-necrons-cursed-skyshroud' },
+        { userId: opponentUserId, rosterId: 'preview-opponent-orks' },
+        { userId: rivalUserId, rosterId: 'preview-rival-orks' },
+      ],
+      reveal: true,
+      battles: [
+        {
+          key: 'friday-opponent-rival',
+          userId: opponentUserId,
+          opponentId: rivalUserId,
+          tail: finished(rivalUserId, opponentUserId, [74, 69]),
+        },
+      ],
+    })
+
     if (await repository.clubByToken('preview-club-garage')) return
     await repository.createClub({
       id: 'preview-club-garage',
@@ -974,6 +1114,8 @@ async function seedInto(
 
     async function createClubGame(game: {
       key: string
+      /** The login's own club unless named. */
+      club?: { token: string; ownerId: string }
       format: '1v1' | '2v1' | '2v2'
       schedule: { playsAt: number | null; sealBy: number | null }
       seats: { userId: string; rosterId: string; side?: LeagueSide }[]
@@ -981,15 +1123,16 @@ async function seedInto(
       battles: { key: string; userId: string; opponentId: string; tail: Command[] }[]
     }) {
       const gameToken = `preview-club-game-${game.key}`
-      const existing = await repository.leagueByToken(gameToken, previewUserId)
-      const current = existing && (await repository.clubByToken(token))?.games.find((candidate) => candidate.token === gameToken)
+      const { token: clubToken, ownerId } = game.club ?? { token, ownerId: previewUserId }
+      const existing = await repository.leagueByToken(gameToken, ownerId)
+      const current = existing && (await repository.clubByToken(clubToken))?.games.find((candidate) => candidate.token === gameToken)
       if (current && !clubGameOpen(current, Date.now())) return
       if (!existing) {
         const created = await repository.createClubGame({
           eventId: gameToken,
           eventToken: gameToken,
-          clubToken: token,
-          ownerId: previewUserId,
+          clubToken,
+          ownerId,
           format: game.format,
           rosterLimit: 2_000,
           schedule: game.reveal ? { playsAt: null, sealBy: null } : game.schedule,
@@ -997,7 +1140,7 @@ async function seedInto(
         })
         if (created) throw new Error(`club game ${game.key} could not be created: ${created}`)
       }
-      if (!existing?.revealedAt) await sealClubGame(gameToken, game)
+      if (!existing?.revealedAt) await sealClubGame(gameToken, game, ownerId)
       for (const battle of game.battles) {
         const battleToken = `preview-club-game-battle-${battle.key}`
         if (await repository.battleByToken(battleToken)) continue
@@ -1010,13 +1153,14 @@ async function seedInto(
           },
         )
       }
-      if (!existing && game.reveal) await repository.updateLeague(gameToken, previewUserId, { schedule: game.schedule })
+      if (!existing && game.reveal) await repository.updateLeague(gameToken, ownerId, { schedule: game.schedule })
     }
 
     /** Seats every player before anyone seals, since a doubles list only seals once its partner is seated. */
     async function sealClubGame(
       gameToken: string,
       game: { key: string; seats: { userId: string; rosterId: string; side?: LeagueSide }[]; reveal: boolean },
+      ownerId: string,
     ) {
       for (const seat of game.seats) {
         if (!seat.side) continue
@@ -1046,7 +1190,7 @@ async function seedInto(
         if (!team.warlord && team.warlordChoices[0])
           await repository.setLeagueTeamWarlord(gameToken, seat.userId, team.warlordChoices[0], now())
       }
-      const reveal = await repository.revealLeague(gameToken, previewUserId, now())
+      const reveal = await repository.revealLeague(gameToken, ownerId, now())
       if (reveal.outcome !== 'revealed') throw new Error(`club game ${game.key} could not be revealed: ${reveal.outcome}`)
     }
   }
