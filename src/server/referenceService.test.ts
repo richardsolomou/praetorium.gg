@@ -194,6 +194,45 @@ it("cites an allied unit's page under the faction that owns it, not another fact
   ).toBe('datasheet:agents:assassin')
 })
 
+it.each([
+  ['Faction: Knights', 'datasheet:knights:armiger'],
+  ['Faction: Titans', null],
+])('breaks a tie between copies of a library unit by its %s keyword, else leaves it uncited', (keyword, referenceId) => {
+  const library = { catalogueLinks: [{ targetId: 'cat-3', importRootEntries: true }] }
+  const loaded = shelfOf(
+    { name: 'Imperium - Army', ...library },
+    { name: 'Imperium - Knights', ...library },
+    { name: 'Imperium - Marines', ...library },
+    {
+      name: 'Library - Titans',
+      selectionEntries: [
+        { id: 'armiger', name: 'Armiger', type: 'unit', categoryLinks: [{ id: 'faction', targetId: 'faction', name: keyword }] },
+      ],
+    },
+  )
+  const sheet = (catalogueId: string, route: string) => ({
+    id: 'armiger',
+    slug: 'armiger',
+    catalogueId,
+    faction: route,
+    referenceRoute: { catalogueId: route, slug: 'armiger' },
+    attachments: [],
+    leaders: [],
+    supporters: [],
+  })
+  const catalogue = {
+    datasheets: [{ ...sheet('cat', 'army'), id: 'trooper' }, sheet('cat-1', 'knights'), sheet('cat-2', 'marines')],
+    detachments: [],
+  } as unknown as CanonicalCatalogue
+  const corpus: ReferenceCorpus = { catalogue, documents: [], byId: new Map(), revision: 'snapshot' }
+
+  expect(
+    referenceUnits(corpus, loaded, null, 'cat', undefined, undefined, new Set(['cat', 'cat-1', 'cat-2']))?.units.find(
+      (unit) => unit.name === 'Armiger',
+    )?.referenceId,
+  ).toBe(referenceId)
+})
+
 it('connects a primary mission to its terrain and deployment records', () => {
   const catalogue = {
     format: 'praetorium.canonical-catalogue.v1',

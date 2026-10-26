@@ -131,17 +131,22 @@ export const datasheetsOf = (index: CatalogueIndex, catalogueId: string) => inde
  */
 export function isReferenceDatasheet(loaded: LoadedCatalogue, catalogueId: string, entryId: string) {
   if (!datasheetsOf(loaded.index, catalogueId).has(entryId)) return false
-  const entry = loaded.index.definitions.get(entryId)
-  if (!entry) return false
-  const target = targetOf(entry, loaded.index.definitions)
-  const factions = referenceFactionsOf(
-    loaded,
-    [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])].map((category) => category.name),
-  )
+  if (!loaded.index.definitions.has(entryId)) return false
+  const factions = entryFactions(loaded, entryId)
   if (factions.size > 1) return true
   if (factions.size === 1) return factions.has(factionDisplayName(loaded.index.catalogues.get(catalogueId)?.name ?? ''))
   const owner = loaded.index.catalogueOf.get(entryId)
   return !owner || owner === catalogueId || !loaded.factions.some((faction) => faction.id === owner)
+}
+/** The factions an entry's own Faction categories name, among those the catalogue holds, by display name. */
+export function entryFactions(loaded: LoadedCatalogue, entryId: string) {
+  const entry = loaded.index.definitions.get(entryId)
+  if (!entry) return new Set<string>()
+  const target = targetOf(entry, loaded.index.definitions)
+  return referenceFactionsOf(
+    loaded,
+    [...(entry.categoryLinks ?? []), ...(target.categoryLinks ?? [])].map((category) => category.name),
+  )
 }
 const FACTION_CATEGORY = /^Faction:\s*(.+)$/i
 const factionNamesCache = new WeakMap<LoadedCatalogue, ReadonlySet<string>>()
