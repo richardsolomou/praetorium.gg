@@ -4,15 +4,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
 import type { MissionObjectiveRef, MissionSelection } from '../../../core/missionSelections'
-import { KOTC_MATCHUP_ID } from '../../../contracts/terrain'
-import { isKotcLimit, type Command } from '../../../core/battle'
+import type { Command } from '../../../core/battle'
 import type { BattleView, MissionChoiceView } from '../../../core/battleView'
-import { deploymentsQuery, terrainMatchupIds, terrainReferencesQuery } from '../../queries'
+import { deploymentsQuery, terrainReferencesQuery } from '../../queries'
 import { deploymentFor } from '../../battleSummary'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { deploymentObjectiveMarkers, objectiveTerrainMarkers } from '../reference/missions/terrainGeometry'
-import { battlefieldLayout } from './battlefieldLayout'
+import { battleMatchupIds, battlefieldLayout } from './battlefieldLayout'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import type { ReferenceCard } from './MissionCards'
 import { MissionCardReference } from '../../components/MissionCardReference'
@@ -67,10 +66,7 @@ export function MissionSelectionDialog({
   const [allEligible, setAllEligible] = useState(false)
   const [sweptMarker, setSweptMarker] = useState('')
   const [controlled, setControlled] = useState(false)
-  const matchups = isKotcLimit(view.settings.limit)
-    ? [KOTC_MATCHUP_ID]
-    : terrainMatchupIds(view.players.flatMap((player) => (player.disposition ? [player.disposition] : [])))
-  const query = terrainReferencesQuery(matchups)
+  const query = terrainReferencesQuery(battleMatchupIds(view))
   const terrain = useQuery({ ...query, enabled: Boolean(view.settings.terrainLayoutId) && query.enabled })
   const layout = battlefieldLayout(view.settings.terrainLayoutId, terrain.data?.layouts)
   const deployment = deploymentFor(view.deploymentId, useQuery(deploymentsQuery()).data)
