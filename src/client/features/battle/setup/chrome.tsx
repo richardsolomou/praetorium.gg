@@ -55,7 +55,7 @@ export function SetupSidePanel({
  * How a chosen thing looks, wherever setup asks for one.
  *
  * A side, a battlefield layout and a mission pack are the same question three times,
- * and each answered it in a different colour. One ring, one tint, one weight.
+ * so they share one ring, one tint and one weight.
  */
 export const CHOSEN = 'border-parchment bg-parchment/10 ring-1 ring-parchment'
 export const CHOOSABLE = 'border-edge hover:border-edge-strong'

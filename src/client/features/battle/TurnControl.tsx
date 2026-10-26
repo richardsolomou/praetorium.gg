@@ -61,8 +61,8 @@ export function TurnControl({ view, clock, send, pending, blockReason, note, onA
         {/*
          * Tinted to whichever side is taking the turn, like the phase rail above it.
          * This is the most-pressed control in the game and the one thing on the middle
-         * column that belongs to a side, so wearing one colour all game left the only
-         * question it answers — whose turn is ending — to be read off the text.
+         * column that belongs to a side, and its tint answers whose turn is ending
+         * before the text is read.
          */}
         <Button
           variant="default"

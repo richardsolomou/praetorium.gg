@@ -60,8 +60,8 @@ export function DrawDialog({
    *
    * A hand keeps its unscored cards from turn to turn, so most turns open with cards
    * that were not drawn now — and a card may only be put back the moment it is drawn.
-   * Listing all of them as one deal said the turn had dealt four cards when it dealt
-   * two, and offered a card from two turns ago back to the deck.
+   * Listing all of them as one deal would say the turn dealt four cards when it dealt
+   * two, and offer a card from two turns ago back to the deck.
    */
   const dealtNow = new Set(side.secondariesToReview)
   const drawn = held.filter((card) => dealtNow.has(card.key))

@@ -23,8 +23,8 @@ export function armyRulesRequest(roster: RosterView | null | undefined): { catal
  * The stratagems a side plays: every detachment on it, then the core cards once.
  *
  * A side is one pool, and in a 2v1 that pool is both armies — each ally brings its
- * own detachment to it, and reading only the seat the domain folds resources onto
- * left the other ally's six off every screen in the battle.
+ * own detachment to it, so reading only the seat the domain folds resources onto
+ * would leave the other ally's six off every screen in the battle.
  *
  * Keyed by the dataset's own stratagem id, so two allies who happen to share a
  * detachment share its six rather than each getting a copy of them.

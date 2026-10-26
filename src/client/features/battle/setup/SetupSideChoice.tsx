@@ -8,8 +8,8 @@ import { CHOOSABLE, CHOSEN } from './chrome'
  * Pick a side, for the two questions setup asks about one.
  *
  * The legend is the name this is found by and nothing more: the step above it has
- * already asked the question and said what the answer means, and printing both again
- * over the two cards said everything on the screen twice.
+ * already asked the question and said what the answer means, so printing both again
+ * over the two cards would say everything on the screen twice.
  *
  * Each card carries who is on the side and what they brought, because these are
  * questions about the armies facing each other and a side name alone is not enough

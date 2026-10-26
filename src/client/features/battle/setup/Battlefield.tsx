@@ -197,9 +197,9 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
   )
 }
 
-/** The three layout cards at their final geometry, while the pack is still being read. */
 const randomItem = <T,>(items: readonly T[]) => items[Math.floor(Math.random() * items.length)]
 
+/** The three layout cards at their final geometry, while the pack is still being read. */
 function LayoutsLoading() {
   return (
     <div className="mt-3 grid gap-3 sm:grid-cols-3" aria-label="Loading battlefield layouts">

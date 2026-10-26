@@ -127,11 +127,11 @@ function SideScore({
         {/*
          * Who is on each side, until the panels that say it better are on screen.
          * From `lg` up both panels sit under this strip with their players pictured
-         * and named at the top of each, so repeating them here said nothing twice.
+         * and named at the top of each, so this strip leaves them out there.
          *
          * Below that, a phone gives each side about a third of the strip, which two
-         * names and two pictures do not fit into: they wrapped over four lines and
-         * pushed the score itself off the screen. So the picture identifies each
+         * names and two pictures do not fit into without wrapping over four lines and
+         * pushing the score off the screen. So the picture identifies each
          * player and the name stays behind it for a screen reader, which keeps this
          * link the way out of a battle that it is. From `sm` there is room for both.
          */}

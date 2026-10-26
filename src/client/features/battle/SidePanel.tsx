@@ -84,8 +84,8 @@ export const SidePanel = memo(function SidePanel({
       {/*
        * Who is on this side: each player pictured and named, with the army they
        * brought under their own name. A 2v1 lists two of these rather than two names
-       * over two armies, because in a pair fielding the same faction there was
-       * nothing to say which list belonged to whom.
+       * over two armies, so a pair fielding the same faction still shows which list
+       * belongs to whom.
        *
        * From `lg` up both panels are on screen beside the scoreboard, so this is the
        * only place the players are written and the scoreboard is left to the score.
