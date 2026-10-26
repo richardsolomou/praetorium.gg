@@ -140,7 +140,9 @@ export function TournamentSample({ stage }: { stage: SampleStage }) {
             <EntryStatusCard status={{ ...status, action: undefined, secondary: undefined }} problem={null} token={league.token} />
           </div>
           <div className="min-w-0 space-y-6 lg:col-start-1 lg:row-start-1">
-            {revealed ? null : <LeagueReadiness token={league.token} league={league} viewerId={SAMPLE_VIEWER} isOrganizer={false} label={label} />}
+            {revealed ? null : (
+              <LeagueReadiness token={league.token} league={league} viewerId={SAMPLE_VIEWER} isOrganizer={false} label={label} />
+            )}
             {/* Once rounds are paired they are the stage's subject, so they lead and the familiar rosters follow. */}
             {revealed ? (
               <LeagueRounds
