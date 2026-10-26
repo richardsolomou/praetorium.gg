@@ -6,6 +6,7 @@ import { CountButton, Stepper } from '../../../components/Stepper'
 import { WeaponProfiles } from '../../../components/DatasheetProfiles'
 import { weaponProfileGroups } from '../../../datasheet'
 import {
+  changeBy,
   defaultFirst,
   increaseBlocked,
   type LoadoutChoice,
@@ -16,7 +17,7 @@ import {
   weaponProfilesFor,
   weaponProfileNames,
   weaponPieceMatches,
-  wargearMatches,
+  optionNameMatches,
 } from './loadoutModel'
 import type { WeaponProfileData } from './loadoutModel'
 import { ReminderButton, type ReminderControls } from '../ReminderButton'
@@ -443,7 +444,6 @@ export function SpreadChoice({
   saved?: SpreadCounts
 }) {
   const { taken, more, less } = spreadHandlers(choice, saved)
-  const press = (update: SpreadUpdate | undefined) => (update ? () => onSpread(choice.key, update) : undefined)
 
   return (
     <div>
@@ -470,8 +470,8 @@ export function SpreadChoice({
                 count={option.count}
                 editable={editable}
                 disabled={controlsDisabled}
-                onAdd={press(more(option))}
-                onRemove={press(less(option))}
+                onAdd={changeBy(more(option), choice.key, onSpread)}
+                onRemove={changeBy(less(option), choice.key, onSpread)}
                 blocked={increaseBlocked(choice, option)}
               />
             </div>
@@ -497,7 +497,7 @@ function OptionAbilities({
   const matching = abilities.filter(
     (ability) =>
       (ability.kind === 'datasheet' || ability.kind === 'upgrade' || ability.kind === 'wargear') &&
-      names.some((name) => wargearMatches(name, ability.name)),
+      names.some((name) => optionNameMatches(name, ability.name)),
   )
   return matching.length ? (
     <div data-slot="option-abilities" className="space-y-2 border-t border-edge px-2.5 pb-2">

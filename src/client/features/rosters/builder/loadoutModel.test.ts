@@ -23,9 +23,8 @@ import {
   spreadHandlers,
   uniqueWeaponProfiles,
   unmodeledGrantedWeapons,
-  weaponMatches,
+  optionNameMatches,
   weaponProfilesFor,
-  wargearMatches,
   wholeSquadTakes,
   withDraftSpreadCounts,
 } from './loadoutModel'
@@ -191,28 +190,28 @@ describe('matching a wargear name to what describes it', () => {
   })
 
   it('matches a profile named after the option, with or without a mode', () => {
-    expect(weaponMatches('Bolt rifle', 'Bolt rifle')).toBe(true)
-    expect(weaponMatches('Bolt rifle', 'Bolt rifle (Heavy)')).toBe(true)
-    expect(weaponMatches('Bolt rifle', 'Bolt pistol')).toBe(false)
+    expect(optionNameMatches('Bolt rifle', 'Bolt rifle')).toBe(true)
+    expect(optionNameMatches('Bolt rifle', 'Bolt rifle (Heavy)')).toBe(true)
+    expect(optionNameMatches('Bolt rifle', 'Bolt pistol')).toBe(false)
   })
 
   it('matches a profile the option pairs with something else', () => {
-    expect(weaponMatches('Chainsword and bolt pistol', 'Chainsword')).toBe(true)
+    expect(optionNameMatches('Chainsword and bolt pistol', 'Chainsword')).toBe(true)
   })
 
   it('matches spacing differences between an option and its profile', () => {
-    expect(weaponMatches('Veteran w/ Black Shield blades', 'Blackshield blades')).toBe(true)
+    expect(optionNameMatches('Veteran w/ Black Shield blades', 'Blackshield blades')).toBe(true)
   })
 
   it('matches a marked, hyphen-separated mode such as a missile launcher prints', () => {
-    expect(weaponMatches('Missile Launcher', '➤ Missile Launcher - Frag')).toBe(true)
-    expect(weaponMatches('Missile Launcher', '➤ Missile Launcher - Krak')).toBe(true)
-    expect(weaponMatches('Missile Launcher', '➤ Multi-melta - Melta')).toBe(false)
+    expect(optionNameMatches('Missile Launcher', '➤ Missile Launcher - Frag')).toBe(true)
+    expect(optionNameMatches('Missile Launcher', '➤ Missile Launcher - Krak')).toBe(true)
+    expect(optionNameMatches('Missile Launcher', '➤ Multi-melta - Melta')).toBe(false)
   })
 
   it('matches marked modes of one weapon in a combined option', () => {
-    expect(weaponMatches('Cyclone Missile Launcher & Storm Bolter', '➤ Cyclone missile launcher - frag')).toBe(true)
-    expect(weaponMatches('Cyclone Missile Launcher & Storm Bolter', '➤ Cyclone missile launcher - krak')).toBe(true)
+    expect(optionNameMatches('Cyclone Missile Launcher & Storm Bolter', '➤ Cyclone missile launcher - frag')).toBe(true)
+    expect(optionNameMatches('Cyclone Missile Launcher & Storm Bolter', '➤ Cyclone missile launcher - krak')).toBe(true)
   })
 
   it('finds the selected weapons nested inside a composite option', () => {
@@ -280,12 +279,6 @@ describe('matching a wargear name to what describes it', () => {
         weapon('Cannon', 'Ranged Weapons'),
       ]).map((profile) => profile.name),
     ).toEqual(['Cannon', 'Fist', 'Projector'])
-  })
-
-  it('matches a rule the same way a profile is matched', () => {
-    expect(wargearMatches('Storm shield', 'Storm shield')).toBe(true)
-    expect(wargearMatches('Storm shield and thunder hammer', 'Storm shield')).toBe(true)
-    expect(wargearMatches('Storm shield', 'Iron halo')).toBe(false)
   })
 
   it('collapses equivalent profiles whose names differ only in presentation', () => {

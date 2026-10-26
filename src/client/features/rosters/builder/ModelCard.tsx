@@ -3,6 +3,7 @@ import {
   addsModel,
   changeBy,
   choiceRemoval,
+  findOption,
   increaseBlocked,
   loadoutFixedCount,
   type LoadoutChoice,
@@ -72,12 +73,6 @@ export function ModelCard({
   /** The pick's saved counts, which every press folds against. */
   saved?: Record<string, SpreadCounts>
 }) {
-  const optionOf = (choiceKey: string, optionId: string) => {
-    const choice = choices.find((candidate) => candidate.key === choiceKey)
-    const option = choice?.options.find((candidate) => candidate.id === optionId)
-    return choice && option ? { choice, option } : null
-  }
-
   const count = modelCount(model, choices)
   const { spend, free } = poolHandlers(model, choices, weapons)
   const press = (changes: PoolChange | null) => {
@@ -157,7 +152,7 @@ export function ModelCard({
           const row = entry.row
           const pieces = entry.pieces
           if (!pieces.length) return null
-          const found = optionOf(row.choiceKey, row.optionId)
+          const found = findOption(choices, row.choiceKey, row.optionId)
           if (!found) return null
           const { choice, option } = found
           const displayed = loadoutRowCount(row, choices)
