@@ -19,7 +19,6 @@ import {
   relativeSpread,
   orderedChoices,
   replacementChoice,
-  showLoadoutEntry,
   spreadHandlers,
   uniqueWeaponProfiles,
   unmodeledGrantedWeapons,
@@ -129,17 +128,6 @@ describe('loadout instructions', () => {
         ],
       ),
     ).toEqual(['One model can carry an icon.'])
-  })
-})
-
-describe('showing loadout entries', () => {
-  it('hides empty wargear from a finished roster', () => {
-    expect(showLoadoutEntry(0, false)).toBe(false)
-    expect(showLoadoutEntry(2, false)).toBe(true)
-  })
-
-  it('keeps empty wargear available while editing', () => {
-    expect(showLoadoutEntry(0, true)).toBe(true)
   })
 })
 

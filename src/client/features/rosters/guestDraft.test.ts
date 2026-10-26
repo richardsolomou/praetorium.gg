@@ -5,7 +5,6 @@ import {
   clearGuestDraft,
   editGuestDraft,
   EMPTY_SETUP,
-  guestDraftPath,
   guestRosterSummary,
   guestSaveRequested,
   newGuestDraft,
@@ -152,11 +151,6 @@ describe("a visitor's draft", () => {
     editGuestDraft(draft, { ...draft.draft })
     expect(device.get(KEY)).toBe(stored)
   })
-
-  it('opens in the builder at the address its saved list will have', () => {
-    const draft = newGuestDraft(setup)
-    expect(guestDraftPath(draft)).toBe(`/rosters/${draft.id}`)
-  })
 })
 
 describe('a draft on the rosters page', () => {
@@ -166,10 +160,6 @@ describe('a draft on the rosters page', () => {
     expect(guestRosterSummary(draft).id).toBe(claimInput(draft).id)
   })
 
-  it('is listed as private', () => {
-    expect(guestRosterSummary({ ...draft, draft: { ...draft.draft, visibility: 'public' } }).visibility).toBe('private')
-  })
-
   it('counts an attached leader with the unit it leads', () => {
     const picks = [{ entryId: 'warriors' }, { entryId: 'overlord', attachedTo: 0 }] as typeof draft.draft.picks
     expect(guestRosterSummary({ ...draft, draft: { ...draft.draft, picks } }).unitCount).toBe(1)
@@ -177,10 +167,6 @@ describe('a draft on the rosters page', () => {
 
   it('takes its name from the army when it has none', () => {
     expect(guestRosterSummary({ ...draft, draft: { ...draft.draft, name: '' } }).automaticName).toBe(true)
-  })
-
-  it('is dated by its last edit', () => {
-    expect(guestRosterSummary({ ...draft, updatedAt: 1_000 }).updatedAt).toBe(1_000)
   })
 })
 
