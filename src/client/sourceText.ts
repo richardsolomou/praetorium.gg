@@ -13,8 +13,11 @@ import {
 import { textSources } from './functions'
 import { referenceQuery } from './queries/shared'
 import { type TextSourceChoice, reportTextLoadFailure, textSourceChoice, upstreamBytes, useTextSourceChoice } from './rulesText'
-import { hashedSourceStrings } from './sourceStrings'
+import { HASHING_FAILED, hashedSourceStrings } from './sourceStrings'
 import { workerAnswer } from './workerAnswer'
+
+/** Far longer than the slowest phone takes, so only a worker that has stopped answering reaches it. */
+const HASHING_TIMEOUT_MS = 60_000
 
 /**
  * Parsing a faction's file and hashing each of its strings held a phone's main thread for hundreds of milliseconds
@@ -24,7 +27,11 @@ async function hashedInBackground(bytes: ArrayBuffer) {
   if (typeof Worker === 'undefined') return hashedSourceStrings(bytes)
   const { default: SourceStringsWorker } = await import('./sourceStrings.worker?worker&inline')
   const worker = new SourceStringsWorker()
-  return workerAnswer<Map<string, string> | null>(worker, bytes).finally(() => worker.terminate())
+  const answer = await workerAnswer<Map<string, string> | null | typeof HASHING_FAILED>(worker, bytes, {
+    timeoutMs: HASHING_TIMEOUT_MS,
+  }).finally(() => worker.terminate())
+  if (answer === HASHING_FAILED) throw new Error('This device could not read the rules text file')
+  return answer
 }
 
 /** Every string a pinned upstream file holds, by the truncated hash a token names it by. */

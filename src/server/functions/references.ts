@@ -107,6 +107,19 @@ export const units = createServerFn({ method: 'GET' })
     }),
   )
 
+/**
+ * Starts building a roster's picker and answers at once. The editor asks for `units` only after it renders, and a
+ * first build for a battle size or detachment takes seconds on a replica, so an opened roster starts it early.
+ */
+export const preparePickerUnits = createServerFn({ method: 'GET' })
+  .validator(unitsSchema)
+  .handler(({ data }) =>
+    rpc(async () => {
+      void preparePicker(data).catch((error: unknown) => console.error({ event: 'picker_preparation_failed', error }))
+      return null
+    }),
+  )
+
 /** Which of these books' pickers list a datasheet, so a reference page offers only rosters that can take it. */
 export const datasheetOfferedBy = createServerFn({ method: 'GET' })
   .validator(datasheetOfferedBySchema)

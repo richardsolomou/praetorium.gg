@@ -26,8 +26,8 @@ export const Route = createFileRoute('/rosters/$id/')({
     ...(searchFlag(search.print) ? { print: true } : {}),
   }),
   loaderDeps: ({ search }) => ({ battle: search.battle, league: search.league, event: search.event }),
-  loader: async ({ context, params, deps }) => ({
-    ...(await loadRoster(context.queryClient, params.id, deps)),
+  loader: async ({ context, params, deps, preload }) => ({
+    ...(await loadRoster(context.queryClient, params.id, deps, preload)),
     // Read by the server too, so the first frame is already arranged the way the player left it.
     arrangement: keptRosterArrangement(requestCookie(ROSTER_ARRANGEMENT_COOKIE)),
   }),

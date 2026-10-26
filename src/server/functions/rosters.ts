@@ -7,7 +7,6 @@ import { currentUserId, forSignedIn, requireUserId } from '../playerSession'
 import { calculateRosterPrice } from '../../shared/pricing'
 import { cachedRosterAssessmentsFor, cachedRosterPrice, cachedRosterTotalsFor, cachedRosterVerdictsFor } from '../rosterPrices'
 import { mutationRpc, rpc } from '../rpc'
-import { preparePicker } from '../rosterPicker'
 import { exportRosterFile } from '../../shared/rosterFiles'
 import { importRosterInput } from '../rosterImport'
 import { captureRosterCreated } from '../rosterTelemetry'
@@ -324,11 +323,6 @@ export const rosterBootstrap = createServerFn({ method: 'GET' })
         app().factionFor(access.roster.catalogueId),
         cachedRosterPrice(access.roster, access.editable),
       ])
-      // The editor asks for this roster's picker as soon as it renders, so its first build starts now.
-      if (access.editable)
-        void preparePicker({ ...access.roster, battleSize: access.roster.limit }).catch((error: unknown) =>
-          console.error({ event: 'picker_preparation_failed', error }),
-        )
       return { ...access, faction, price, changes: await changesSinceSaved(access.roster, price) }
     }),
   )

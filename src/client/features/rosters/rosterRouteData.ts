@@ -13,8 +13,14 @@ import {
 import { fieldedRoster } from './fieldedRoster'
 import { normalisePicks } from './rosterPicks'
 import { peekGuestDraft } from './guestDraft'
+import { preparePickerUnits } from '../../functions'
 
-export async function loadRoster(queryClient: QueryClient, id: string, deps: { battle?: string; league?: string; event?: string }) {
+export async function loadRoster(
+  queryClient: QueryClient,
+  id: string,
+  deps: { battle?: string; league?: string; event?: string },
+  preload = false,
+) {
   if (deps.league) {
     const roster = await queryClient.query({ ...leagueRosterQuery(deps.league, deps.event, id), staleTime: Infinity })
     if (!roster) throw notFound()
@@ -64,6 +70,17 @@ export async function loadRoster(queryClient: QueryClient, id: string, deps: { b
   const { editable, price } = bootstrap
   let { roster, faction } = bootstrap
   if (editable) void queryClient.query({ ...outdatedLeagueEntriesQuery(id), staleTime: 'static' }).catch(() => {})
+  // The editor asks for this list's picker once it renders; starting the build now hides most of a first build's
+  // seconds. A hovered link preloads this route too, and starts nothing the reader may never open.
+  if (editable && !preload)
+    void preparePickerUnits({
+      data: {
+        catalogueId: roster.catalogueId,
+        battleSize: roster.limit,
+        waivedRules: roster.waivedRules,
+        detachmentIds: roster.detachmentIds,
+      },
+    }).catch(() => {})
   const currentAccess = queryClient.getQueryData<
     Pick<NonNullable<typeof bootstrap>, 'roster' | 'editable' | 'variants' | 'differences' | 'faction'>
   >(rosterAccessQuery(id).queryKey)

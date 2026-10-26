@@ -2,6 +2,9 @@ import { TEXT_HASH_LENGTH, sourceStrings } from '../shared/sourceText'
 
 export const hex = (digest: ArrayBuffer) => Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
 
+/** What the worker answers when hashing itself failed, such as where a plain-HTTP page has no `crypto.subtle`. */
+export const HASHING_FAILED = 'hashing-failed'
+
 const encoder = new TextEncoder()
 /** Digests run concurrently in batches: one at a time is slow, and every string of a large file at once holds them all in memory. */
 const BATCH = 512
