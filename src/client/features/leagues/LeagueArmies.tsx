@@ -14,7 +14,7 @@ import { EntrantGroup, ViewRosterButton } from './LeagueEntrants'
 import { UnsealRoster } from './LeagueUnseal'
 
 /** One titled side or team of rosters, or a duel's single untitled run. */
-export type ArmyGroup = { key: string; title?: string; detail?: string; entries: RevealedEntry[] }
+type ArmyGroup = { key: string; title?: string; detail?: string; entries: RevealedEntry[] }
 
 type RevealedEntry = LeagueEntryView & {
   army: LeagueArmy | null
