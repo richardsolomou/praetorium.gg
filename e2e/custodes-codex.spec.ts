@@ -11,10 +11,13 @@ import {
   chooseRulesVersion,
   PHONE,
   desktopContext,
+  signUp,
+  createRoster,
+  waitForRosterSave,
 } from './account'
 import { expect, test, type Locator, type Page } from './test'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
-import { lastPathSegment } from './storage'
+import { lastPathSegment, productOperator } from './storage'
 
 const phone = { width: 390, height: 900 }
 
@@ -134,8 +137,6 @@ async function expectLoadout(page: Page) {
 }
 
 test('converts the saved roster in place and restores its current choices', async ({ page }) => {
-  const { signUp, createRoster, waitForRosterSave } = await import('./account')
-  const { productOperator } = await import('./storage')
   await signUp(page, 'Rules conversion')
   await createRoster(page, { faction: 'Adeptus Custodes', detachment: /Aquilan Shield/, name: 'Conversion roster' })
   const id = lastPathSegment(page.url())
