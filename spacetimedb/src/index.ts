@@ -1,5 +1,5 @@
 import { ScheduleAt } from 'spacetimedb'
-import { SenderError, schema, table, t, type InferSchema, type ReducerCtx } from 'spacetimedb/server'
+import { SenderError, schema, table, t, type InferSchema, type ProcedureCtx, type ReducerCtx } from 'spacetimedb/server'
 import { detachmentIds, ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../../src/core/savedRoster'
 import { migrateStoredRoster } from '../../src/core/savedRosterMigrations'
 import { LOCKED_ROSTER_MESSAGE, lockedRosterRefusal, storedRosterContent } from '../../src/core/rosterLock'
@@ -232,6 +232,13 @@ function auth(ctx: Context) {
 
 function requireOperator(ctx: Context) {
   if (ctx.sender.toHexString() !== auth(ctx).operator) throw new SenderError('Operator required')
+}
+
+function operatorTx<T>(ctx: ProcedureCtx<InferSchema<typeof spacetime>>, run: (tx: Context) => T) {
+  return ctx.withTx((tx) => {
+    requireOperator(tx)
+    return run(tx)
+  })
 }
 
 const ROSTER_LOANS_PER_ROSTER = 100
@@ -789,8 +796,7 @@ function battleData(ctx: Context, battleId: string) {
 }
 
 export const battleForOperator = spacetime.procedure({ battleId: t.string() }, t.string(), (ctx, { battleId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return productJson(battleData(tx, battleId))
   }),
 )
@@ -807,12 +813,11 @@ const newBattle = z.strictObject({
 })
 
 export const createBattle = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
-  ctx.withTx((tx) => createBattleIn(tx, [payload])),
+  operatorTx(ctx, (tx) => createBattleIn(tx, [payload])),
 )
 
 export const battleByToken = spacetime.procedure({ token: t.string() }, t.string(), (ctx, { token }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const battle = tx.db.battles.token.find(token)
     return productJson(battle ? battleData(tx, battle.id) : null)
   }),
@@ -833,8 +838,7 @@ const battleFeedQuery = z.strictObject({
 })
 
 export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (payload.length > 2_000) throw new SenderError('Invalid battle feed')
     const input = decodePayload(battleFeedQuery, payload, 'Invalid battle feed')
     if (
@@ -905,12 +909,11 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
 )
 
 export const removeBattle = spacetime.procedure({ battleId: t.string(), userId: t.string() }, t.bool(), (ctx, input) =>
-  ctx.withTx((tx) => removeBattleIn(tx, [input.battleId, input.userId])),
+  operatorTx(ctx, (tx) => removeBattleIn(tx, [input.battleId, input.userId])),
 )
 
 export const deleteBattleForOperator = spacetime.procedure({ battleId: t.string() }, t.bool(), (ctx, { battleId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (!tx.db.battles.id.find(battleId)) return false
     deleteBattle(tx, battleId)
     return true
@@ -921,8 +924,7 @@ export const submitBattle = spacetime.procedure(
   { battleId: t.string(), userId: t.string(), expectedSeq: t.u32(), body: t.string(), now: t.u64(), externalRefusal: t.string() },
   t.string(),
   (ctx, input) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       if (input.body.length > 1_000_000) throw new SenderError('Battle command is too large')
       const raw = decodePayload(
         z.looseObject({
@@ -1008,8 +1010,7 @@ function guestSeatIn(ctx: Context, battleId: string, seatId: string) {
 
 /** The link a host shares for a guest seat, made the first time it is asked for and kept until the host replaces it. */
 export const guestInvite = spacetime.procedure({ battleId: t.string(), seatId: t.string(), invite: t.string() }, t.string(), (ctx, input) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     guestSeatIn(tx, input.battleId, input.seatId)
     const current = tx.db.guestSeats.seatId.find(input.seatId)
     if (current) return productJson(current.invite)
@@ -1030,8 +1031,7 @@ export const replaceGuestInvite = spacetime.procedure(
   { battleId: t.string(), seatId: t.string(), invite: t.string() },
   t.string(),
   (ctx, input) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       guestSeatIn(tx, input.battleId, input.seatId)
       if (!validId(input.invite)) throw new SenderError('Invalid invite')
       tx.db.guestSeats.seatId.delete(input.seatId)
@@ -1049,8 +1049,7 @@ export const replaceGuestInvite = spacetime.procedure(
 )
 
 export const guestSeatByInvite = spacetime.procedure({ invite: t.string() }, t.string(), (ctx, { invite }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const row = tx.db.guestSeats.invite.find(invite)
     const battle = row && tx.db.battles.id.find(row.battleId)
     if (!row || !battle) return productJson(null)
@@ -1068,8 +1067,7 @@ export const guestSeatByInvite = spacetime.procedure({ invite: t.string() }, t.s
 
 /** The first device to open a link takes the seat; a second device finds it taken until the host shares a new link. */
 export const joinGuestSeat = spacetime.procedure({ invite: t.string(), deviceHash: t.string(), now: t.u64() }, t.string(), (ctx, input) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (!/^[0-9a-f]{64}$/.test(input.deviceHash)) throw new SenderError('Invalid guest device')
     const row = tx.db.guestSeats.invite.find(input.invite)
     const battle = row && tx.db.battles.id.find(row.battleId)
@@ -1082,8 +1080,7 @@ export const joinGuestSeat = spacetime.procedure({ invite: t.string(), deviceHas
 )
 
 export const guestDevice = spacetime.procedure({ seatId: t.string() }, t.string(), (ctx, { seatId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const row = tx.db.guestSeats.seatId.find(seatId)
     const battle = row && tx.db.battles.id.find(row.battleId)
     if (!row?.deviceHash || row.joinedAt === undefined || !battle) return productJson(null)
@@ -1100,8 +1097,7 @@ export const claimGuestSeat = spacetime.procedure(
   { battleId: t.string(), seatId: t.string(), userId: t.string(), deviceHash: t.string(), now: t.u64() },
   t.string(),
   (ctx, input) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       if (!validId(input.userId) || isGuestSeat(input.userId)) throw new SenderError('Invalid user ID')
       const seat = guestSeatIn(tx, input.battleId, input.seatId)
       const device = tx.db.guestSeats.seatId.find(input.seatId)
@@ -1177,8 +1173,7 @@ function friendshipBetween(ctx: Context, leftId: string, rightId: string) {
 }
 
 export const friendshipsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (!validId(userId)) throw new SenderError('Invalid user ID')
     const rows = [...Array.from(tx.db.friendships.requesterId.filter(userId)), ...Array.from(tx.db.friendships.addresseeId.filter(userId))]
     if (rows.length > 1_000) throw new SenderError('Too many friendships')
@@ -1189,8 +1184,7 @@ export const friendshipsByUser = spacetime.procedure({ userId: t.string() }, t.s
 )
 
 export const productStats = spacetime.procedure({ userIds: t.array(t.string()) }, t.string(), (ctx, { userIds }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (userIds.length > 100 || userIds.some((id) => !validId(id))) throw new SenderError('Invalid product stats query')
     return productJson(
       [...new Set(userIds)].map((userId) => ({
@@ -1208,8 +1202,7 @@ export const productStats = spacetime.procedure({ userIds: t.array(t.string()) }
 )
 
 export const practiceOpponentIds = spacetime.procedure({}, t.string(), (ctx) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const ids = Array.from(tx.db.practiceOpponents.iter(), (row) => row.userId)
     if (ids.length > 100) throw new SenderError('Too many practice opponents')
     return productJson(ids.sort())
@@ -1229,55 +1222,53 @@ export const registerPracticeOpponent = spacetime.reducer({ userId: t.string() }
 export const requestFriend = spacetime.procedure(
   { requesterId: t.string(), addresseeId: t.string(), now: t.u64() },
   t.bool(),
-  (ctx, input) => ctx.withTx((tx) => requestFriendIn(tx, [input.requesterId, input.addresseeId, input.now])),
+  (ctx, input) => operatorTx(ctx, (tx) => requestFriendIn(tx, [input.requesterId, input.addresseeId, input.now])),
 )
 
 export const acceptFriend = spacetime.procedure(
   { requesterId: t.string(), addresseeId: t.string(), now: t.u64() },
   t.bool(),
-  (ctx, input) => ctx.withTx((tx) => acceptFriendIn(tx, [input.requesterId, input.addresseeId, input.now])),
+  (ctx, input) => operatorTx(ctx, (tx) => acceptFriendIn(tx, [input.requesterId, input.addresseeId, input.now])),
 )
 
 export const rejectFriend = spacetime.procedure({ requesterId: t.string(), addresseeId: t.string() }, t.bool(), (ctx, input) =>
-  ctx.withTx((tx) => rejectFriendIn(tx, [input.requesterId, input.addresseeId])),
+  operatorTx(ctx, (tx) => rejectFriendIn(tx, [input.requesterId, input.addresseeId])),
 )
 
 export const removeFriend = spacetime.procedure({ leftId: t.string(), rightId: t.string() }, t.bool(), (ctx, input) =>
-  ctx.withTx((tx) => removeFriendIn(tx, [input.leftId, input.rightId])),
+  operatorTx(ctx, (tx) => removeFriendIn(tx, [input.leftId, input.rightId])),
 )
 
 export const friendInviteByInviter = spacetime.procedure({ inviterId: t.string() }, t.string(), (ctx, { inviterId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return productJson(tx.db.friendInvites.inviterId.find(inviterId)?.token ?? null)
   }),
 )
 
 export const friendInviteByToken = spacetime.procedure({ token: t.string() }, t.string(), (ctx, { token }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const invite = tx.db.friendInvites.token.find(token)
     return productJson(invite ? { token: invite.token, inviterId: invite.inviterId } : null)
   }),
 )
 
 export const replaceFriendInvite = spacetime.reducer({ inviterId: t.string(), token: t.string(), now: t.u64() }, (ctx, input) => {
+  requireOperator(ctx)
   replaceFriendInviteIn(ctx, [input.inviterId, input.token, input.now])
 })
 
 export const cancelFriendInvite = spacetime.procedure({ inviterId: t.string() }, t.bool(), (ctx, { inviterId }) =>
-  ctx.withTx((tx) => cancelFriendInviteIn(tx, [inviterId])),
+  operatorTx(ctx, (tx) => cancelFriendInviteIn(tx, [inviterId])),
 )
 
 export const acceptFriendInvite = spacetime.procedure(
   { token: t.string(), recipientId: t.string(), now: t.u64() },
   t.string(),
-  (ctx, input) => ctx.withTx((tx) => acceptFriendInviteIn(tx, [input.token, input.recipientId, input.now])),
+  (ctx, input) => operatorTx(ctx, (tx) => acceptFriendInviteIn(tx, [input.token, input.recipientId, input.now])),
 )
 
 export const shareBattle = spacetime.procedure({ userId: t.string(), otherId: t.string() }, t.bool(), (ctx, input) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     for (const seat of tx.db.battleUsers.userId.filter(input.userId)) {
       if (tx.db.battleUsers.key.find(JSON.stringify([seat.battleId, input.otherId]))) return true
     }
@@ -1308,8 +1299,7 @@ function onboardingData(ctx: Context, userId: string) {
 }
 
 export const onboardingByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return productJson(onboardingData(tx, userId))
   }),
 )
@@ -1317,7 +1307,7 @@ export const onboardingByUser = spacetime.procedure({ userId: t.string() }, t.st
 export const updateOnboarding = spacetime.procedure(
   { userId: t.string(), operation: t.string(), task: t.string() },
   t.string(),
-  (ctx, input) => ctx.withTx((tx) => updateOnboardingIn(tx, [input.userId, input.operation, input.task])),
+  (ctx, input) => operatorTx(ctx, (tx) => updateOnboardingIn(tx, [input.userId, input.operation, input.task])),
 )
 
 function safeNumber(value: bigint) {
@@ -1334,8 +1324,7 @@ function productJson(value: unknown) {
 }
 
 export const migrateProductData = spacetime.procedure({ table: t.string(), keys: t.array(t.string()) }, t.string(), (ctx, input) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const { table: entity, keys } = z
       .object({ table: z.enum(['rosters', 'collection']), keys: z.array(z.string().min(1).max(512)).max(20) })
       .parse(input)
@@ -1407,8 +1396,7 @@ function parseRoster(payload: string) {
 }
 
 export const rosterById = spacetime.procedure({ id: t.string() }, t.string(), (ctx, { id }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (!validId(id)) throw new SenderError('Invalid roster ID')
     return productJson(tx.db.rosters.id.find(id) ?? null)
   }),
@@ -1418,8 +1406,7 @@ export const rostersByUser = spacetime.procedure(
   { userId: t.string(), publicOnly: t.bool(), limit: t.u32() },
   t.string(),
   (ctx, { userId, publicOnly, limit }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       if (!validId(userId) || limit < 1 || limit > 1_000) throw new SenderError('Invalid roster query')
       const rows = Array.from(tx.db.rosters.userId.filter(userId))
         .filter((row) => !publicOnly || row.visibility === 'public')
@@ -1430,8 +1417,7 @@ export const rostersByUser = spacetime.procedure(
 )
 
 export const discoverRosters = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (payload.length > 200_000) throw new SenderError('Invalid roster discovery')
     const query = decodePayload(rosterDiscoveryQuerySchema, payload, 'Invalid roster discovery')
     const { audience, viewerId } = query
@@ -1470,8 +1456,7 @@ function rosterSummary(row: StoredRoster) {
 }
 
 export const rosterSummariesByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (!validId(userId)) throw new SenderError('Invalid roster query')
     const rows = Array.from(tx.db.rosters.userId.filter(userId))
     if (rows.length > 1_000) throw new SenderError('Roster list exceeds the supported limit')
@@ -1484,8 +1469,7 @@ export const rosterGroupByUser = spacetime.procedure(
   { userId: t.string(), baseRosterId: t.string() },
   t.string(),
   (ctx, { userId, baseRosterId }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       if (!validId(userId) || !validId(baseRosterId)) throw new SenderError('Invalid roster query')
       const rows = Array.from(tx.db.rosters.userId.filter(userId))
       if (rows.length > 1_000) throw new SenderError('Roster list exceeds the supported limit')
@@ -1499,8 +1483,7 @@ export const rosterGroupByUser = spacetime.procedure(
 )
 
 export const rostersByIds = spacetime.procedure({ userId: t.string(), ids: t.array(t.string()) }, t.string(), (ctx, { userId, ids }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (
       !validId(userId) ||
       !ids.length ||
@@ -1519,8 +1502,7 @@ export const rostersByIds = spacetime.procedure({ userId: t.string(), ids: t.arr
 )
 
 export const homeRostersByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (!validId(userId)) throw new SenderError('Invalid roster query')
     const rows: NonNullable<ReturnType<typeof tx.db.rosters.id.find>>[] = []
     let scanned = 0
@@ -1621,8 +1603,7 @@ function saveRosterIn(tx: Context, input: ReturnType<typeof parseRoster>) {
 export const saveRoster = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) => {
   if (payload.length > 1_200_000) throw new SenderError('Roster is too large')
   const input = parseRoster(payload)
-  return ctx.withTx((tx) => {
-    requireOperator(tx)
+  return operatorTx(ctx, (tx) => {
     return saveRosterIn(tx, input)
   })
 })
@@ -1641,8 +1622,7 @@ export const syncRoster = spacetime.procedure({ payload: t.string() }, t.string(
     'Invalid roster',
   )
   const input = parseRoster(parsed.row)
-  return ctx.withTx((tx) => {
-    requireOperator(tx)
+  return operatorTx(ctx, (tx) => {
     const current = tx.db.rosters.id.find(input.id)
     const receipt = tx.db.rosterSync.id.find(input.id)
     if ((current && current.userId !== input.userId) || (receipt && receipt.userId !== input.userId))
@@ -1693,8 +1673,7 @@ export const setRosterVisibility = spacetime.procedure(
   { id: t.string(), userId: t.string(), visibility: t.string(), now: t.u64() },
   t.bool(),
   (ctx, { id, userId, visibility, now }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       if (!(ROSTER_VISIBILITIES as readonly string[]).includes(visibility)) throw new SenderError('Invalid roster visibility')
       const current = tx.db.rosters.id.find(id)
       if (!current || current.userId !== userId) return false
@@ -1709,8 +1688,7 @@ export const setRosterLocked = spacetime.procedure(
   { id: t.string(), userId: t.string(), locked: t.bool(), now: t.u64() },
   t.bool(),
   (ctx, { id, userId, locked, now }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       const current = tx.db.rosters.id.find(id)
       if (!current || current.userId !== userId) return false
       tx.db.rosters.id.update({ ...current, locked, updatedAt: current.updatedAt >= now ? current.updatedAt + 1n : now })
@@ -1724,8 +1702,7 @@ export const setRosterArchived = spacetime.procedure(
   { id: t.string(), userId: t.string(), archived: t.bool(), now: t.u64() },
   t.bool(),
   (ctx, { id, userId, archived, now }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       const current = tx.db.rosters.id.find(id)
       if (!current || current.userId !== userId) return false
       tx.db.rosters.id.update({ ...current, archived, updatedAt: current.updatedAt >= now ? current.updatedAt + 1n : now })
@@ -1751,8 +1728,7 @@ export const lendRoster = spacetime.procedure(
   { rosterId: t.string(), ownerId: t.string(), borrowerId: t.string(), now: t.u64() },
   t.string(),
   (ctx, { rosterId, ownerId, borrowerId, now }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       if (tx.db.rosters.id.find(rosterId)?.userId !== ownerId) return 'forbidden'
       if (!validId(borrowerId) || borrowerId === ownerId) return 'not-friends'
       if (friendshipBetween(tx, ownerId, borrowerId)?.acceptedAt === undefined) return 'not-friends'
@@ -1771,8 +1747,7 @@ export const endRosterLoan = spacetime.procedure(
   { rosterId: t.string(), userId: t.string(), borrowerId: t.string() },
   t.bool(),
   (ctx, { rosterId, userId, borrowerId }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       const loan = tx.db.rosterLoans.key.find(JSON.stringify([rosterId, borrowerId]))
       if (!loan || (userId !== loan.ownerId && userId !== loan.borrowerId)) return false
       endLoan(tx, loan)
@@ -1781,8 +1756,7 @@ export const endRosterLoan = spacetime.procedure(
 )
 
 export const rosterLoansByRoster = spacetime.procedure({ rosterId: t.string(), ownerId: t.string() }, t.string(), (ctx, input) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (tx.db.rosters.id.find(input.rosterId)?.userId !== input.ownerId) return productJson([])
     return productJson(
       Array.from(tx.db.rosterLoans.rosterId.filter(input.rosterId))
@@ -1794,8 +1768,7 @@ export const rosterLoansByRoster = spacetime.procedure({ rosterId: t.string(), o
 
 /** A roster its owner may field, or a friend may field through an active loan. */
 export const usableRoster = spacetime.procedure({ id: t.string(), userId: t.string() }, t.string(), (ctx, { id, userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const row = tx.db.rosters.id.find(id)
     if (!row || !userId) return productJson(null)
     if (row.userId === userId) return productJson({ roster: row, lentBy: null })
@@ -1804,8 +1777,7 @@ export const usableRoster = spacetime.procedure({ id: t.string(), userId: t.stri
 )
 
 export const rostersLentTo = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (!validId(userId)) throw new SenderError('Invalid roster query')
     const loans = Array.from(tx.db.rosterLoans.borrowerId.filter(userId))
     if (loans.length > 1_000) throw new SenderError('Roster list exceeds the supported limit')
@@ -1822,8 +1794,7 @@ export const rostersLentTo = spacetime.procedure({ userId: t.string() }, t.strin
 )
 
 export const collectionByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     moveHeartsToFavourites(tx, userId)
     return productJson(
       Array.from(tx.db.collection.userId.filter(userId)).map(({ key, userId: ownerId, entryId, at, models, built, painted, countsAs }) => ({
@@ -1841,8 +1812,7 @@ export const collectionByUser = spacetime.procedure({ userId: t.string() }, t.st
 )
 
 export const collectionWishesByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return productJson(collectionWishes(tx, userId))
   }),
 )
@@ -1855,8 +1825,7 @@ export const collectionProfile = spacetime.procedure(
   { userId: t.string(), viewerId: t.option(t.string()) },
   t.string(),
   (ctx, { userId, viewerId }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       moveHeartsToFavourites(tx, userId)
       const entries = []
       for (const row of tx.db.collection.userId.filter(userId)) {
@@ -1879,16 +1848,19 @@ function touchCollection(ctx: Context, userId: string) {
 }
 
 export const addToCollection = spacetime.reducer({ userId: t.string(), entryId: t.string(), at: t.u64() }, (ctx, input) => {
+  requireOperator(ctx)
   addToCollectionIn(ctx, [input.userId, input.entryId, input.at])
 })
 
 export const removeFromCollection = spacetime.reducer({ userId: t.string(), entryId: t.string() }, (ctx, input) => {
+  requireOperator(ctx)
   removeFromCollectionIn(ctx, [input.userId, input.entryId])
 })
 
 export const setCollectionModels = spacetime.reducer(
   { userId: t.string(), entryId: t.string(), models: t.u32(), at: t.u64() },
   (ctx, input) => {
+    requireOperator(ctx)
     setCollectionModelsIn(ctx, [input.userId, input.entryId, input.models, input.at])
   },
 )
@@ -1896,6 +1868,7 @@ export const setCollectionModels = spacetime.reducer(
 export const setCollectionProgress = spacetime.reducer(
   { userId: t.string(), entryId: t.string(), built: t.u32(), painted: t.u32() },
   (ctx, input) => {
+    requireOperator(ctx)
     setCollectionProgressIn(ctx, [input.userId, input.entryId, input.built, input.painted])
   },
 )
@@ -1903,6 +1876,7 @@ export const setCollectionProgress = spacetime.reducer(
 export const setCollectionCountsAs = spacetime.reducer(
   { userId: t.string(), entryId: t.string(), countsAs: t.array(t.string()) },
   (ctx, input) => {
+    requireOperator(ctx)
     setCollectionCountsAsIn(ctx, [input.userId, input.entryId, input.countsAs])
   },
 )
@@ -1910,6 +1884,7 @@ export const setCollectionCountsAs = spacetime.reducer(
 export const setCollectionWanted = spacetime.reducer(
   { userId: t.string(), entryId: t.string(), wanted: t.u32(), at: t.u64() },
   (ctx, input) => {
+    requireOperator(ctx)
     setCollectionWantedIn(ctx, [input.userId, input.entryId, input.wanted, input.at])
   },
 )
@@ -1929,8 +1904,7 @@ export const importCollection = spacetime.procedure(
   { userId: t.string(), rows: t.string(), replace: t.bool(), at: t.u64() },
   t.string(),
   (ctx, input) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       if (!validId(input.userId)) throw new SenderError('Invalid user ID')
       const rows = decodePayload(z.array(importedCollectionRow).max(MAX_COLLECTION_DATASHEETS), input.rows, 'Invalid collection import')
       if (new Set(rows.map((row) => row.entryId)).size !== rows.length) throw new SenderError('Each datasheet can appear once')
@@ -2034,8 +2008,7 @@ export const collectionPhoto = spacetime.procedure(
   { photoId: t.string(), viewerId: t.option(t.string()) },
   t.string(),
   (ctx, { photoId, viewerId }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       const row = tx.db.collectionPhotos.photoId.find(photoId)
       return productJson(row && photoShown(row, viewerId) ? { userId: row.userId, entryId: row.entryId } : null)
     }),
@@ -2043,8 +2016,7 @@ export const collectionPhoto = spacetime.procedure(
 
 /** The photo's owner whatever its visibility, for an administrator reviewing it. */
 export const collectionPhotoForAdmin = spacetime.procedure({ photoId: t.string() }, t.string(), (ctx, { photoId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const row = tx.db.collectionPhotos.photoId.find(photoId)
     return productJson(row ? { userId: row.userId, entryId: row.entryId } : null)
   }),
@@ -2060,8 +2032,7 @@ export const datasheetPhotos = spacetime.procedure(
   { entryId: t.string(), viewerId: t.option(t.string()), limit: t.u32() },
   t.string(),
   (ctx, { entryId, viewerId, limit }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       const visible = Array.from(tx.db.collectionPhotos.entryId.filter(entryId)).filter((row) => photoShown(row, viewerId))
       return productJson(
         rankCollectionPhotos(visible.map((row) => ({ ...row, likes: row.likes ?? 0 })))
@@ -2118,8 +2089,7 @@ export const keepCollectionPhoto = spacetime.reducer({ photoId: t.string() }, (c
 
 /** Reported photos awaiting an administrator's decision, oldest first, and whether each is still shown. */
 export const heldCollectionPhotos = spacetime.procedure({ limit: t.u32() }, t.string(), (ctx, { limit }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const held = []
     for (const row of tx.db.collectionPhotos.iter()) if (awaitsReview(row)) held.push(row)
     return productJson(
@@ -2138,8 +2108,7 @@ const adminCollectionPhotosQuery = z.strictObject({
 
 /** Photos awaiting no review, newest first, a page at a time for administrators, with whether others can see each and its likes. */
 export const adminCollectionPhotos = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (payload.length > 1_000) throw new SenderError('Invalid photo list')
     const input = decodePayload(adminCollectionPhotosQuery, payload, 'Invalid photo list')
     const rows = []
@@ -2191,8 +2160,7 @@ export const collectionPhotoIds = spacetime.procedure(
   { after: t.option(t.string()), limit: t.u32() },
   t.string(),
   (ctx, { after, limit }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       return productJson(
         Array.from(tx.db.collectionPhotos.iter(), (photo) => photo.photoId)
           .filter((photoId) => after === undefined || photoId > after)
@@ -2203,8 +2171,7 @@ export const collectionPhotoIds = spacetime.procedure(
 )
 
 export const collectionPhotoDeletions = spacetime.procedure({ limit: t.u32() }, t.string(), (ctx, { limit }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const ids: string[] = []
     for (const row of tx.db.collectionPhotoDeletions.iter()) {
       if (ids.length >= Math.min(limit, 1_000)) break
@@ -2253,8 +2220,7 @@ function dropCollectionRowPhotos(ctx: Context, key: string) {
 }
 
 export const favouriteFactionsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return productJson(
       Array.from(tx.db.favouriteFactions.userId.filter(userId)).map(({ userId: ownerId, catalogueId, at }) => ({
         userId: ownerId,
@@ -2266,8 +2232,7 @@ export const favouriteFactionsByUser = spacetime.procedure({ userId: t.string() 
 )
 
 export const favouriteDatasheetsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     moveHeartsToFavourites(tx, userId)
     return productJson(
       Array.from(tx.db.favouriteDatasheets.userId.filter(userId)).map(({ userId: ownerId, entryId, at }) => ({
@@ -2280,16 +2245,17 @@ export const favouriteDatasheetsByUser = spacetime.procedure({ userId: t.string(
 )
 
 export const addFavouriteDatasheet = spacetime.reducer({ userId: t.string(), entryId: t.string(), at: t.u64() }, (ctx, input) => {
+  requireOperator(ctx)
   addFavouriteDatasheetIn(ctx, [input.userId, input.entryId, input.at])
 })
 
 export const removeFavouriteDatasheet = spacetime.reducer({ userId: t.string(), entryId: t.string() }, (ctx, input) => {
+  requireOperator(ctx)
   removeFavouriteDatasheetIn(ctx, [input.userId, input.entryId])
 })
 
 export const recentMatchupsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return productJson(recentMatchupsOf(tx, userId).map(({ shared, attacker, defender, at }) => ({ shared, attacker, defender, at })))
   }),
 )
@@ -2297,17 +2263,18 @@ export const recentMatchupsByUser = spacetime.procedure({ userId: t.string() }, 
 export const rememberMatchup = spacetime.reducer(
   { userId: t.string(), pairing: t.string(), shared: t.string(), attacker: t.string(), defender: t.string(), at: t.u64() },
   (ctx, input) => {
+    requireOperator(ctx)
     rememberMatchupIn(ctx, [input.userId, input.pairing, input.shared, input.attacker, input.defender, input.at])
   },
 )
 
 export const forgetMatchup = spacetime.reducer({ userId: t.string(), pairing: t.string() }, (ctx, input) => {
+  requireOperator(ctx)
   forgetMatchupIn(ctx, [input.userId, input.pairing])
 })
 
 export const abilityRemindersByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return productJson(
       Array.from(tx.db.abilityReminders.userId.filter(userId))
         .toSorted((left, right) => left.key.localeCompare(right.key))
@@ -2318,25 +2285,22 @@ export const abilityRemindersByUser = spacetime.procedure({ userId: t.string() }
 
 /** `full` changes nothing; replacing an alert the player already has never counts against the limit. */
 export const saveAbilityReminder = spacetime.procedure({ userId: t.string(), payload: t.string(), at: t.u64() }, t.string(), (ctx, input) =>
-  ctx.withTx((tx) => saveAbilityReminderIn(tx, [input.userId, input.payload, input.at])),
+  operatorTx(ctx, (tx) => saveAbilityReminderIn(tx, [input.userId, input.payload, input.at])),
 )
 
 export const deleteAbilityReminder = spacetime.reducer({ userId: t.string(), key: t.string() }, (ctx, input) => {
+  requireOperator(ctx)
   deleteAbilityReminderIn(ctx, [input.userId, input.key])
 })
 
 function saveAbilityReminderIn(tx: Context, args: unknown[]) {
   const [userId, payload, at] = z.tuple([idInput, z.string().max(20_000), timestampArg]).parse(args)
-
-  requireOperator(tx)
   const reminder = decodePayload(abilityReminderSchema.strict(), payload, 'Invalid reminder')
   return productJson(writeAbilityReminder(tx, userId, reminder, at) ? 'saved' : 'full')
 }
 
 function deleteAbilityReminderIn(tx: Context, args: unknown[]) {
   const [userId, key] = z.tuple([idInput, z.string().max(240)]).parse(args)
-
-  requireOperator(tx)
   if (tx.db.abilityReminders.key.delete(JSON.stringify([userId, key]))) touchProduct(tx, userId, 'settings')
 }
 
@@ -2374,16 +2338,17 @@ function adoptRosterReminders(tx: Context, userId: string, prep: string | null |
 }
 
 export const addFavouriteFaction = spacetime.reducer({ userId: t.string(), catalogueId: t.string(), at: t.u64() }, (ctx, input) => {
+  requireOperator(ctx)
   addFavouriteFactionIn(ctx, [input.userId, input.catalogueId, input.at])
 })
 
 export const removeFavouriteFaction = spacetime.reducer({ userId: t.string(), catalogueId: t.string() }, (ctx, input) => {
+  requireOperator(ctx)
   removeFavouriteFactionIn(ctx, [input.userId, input.catalogueId])
 })
 
 export const unitLoadoutsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return productJson(
       Array.from(tx.db.unitLoadouts.userId.filter(userId))
         .toSorted((left, right) => Number(right.createdAt - left.createdAt) || left.id.localeCompare(right.id))
@@ -2404,8 +2369,7 @@ export const saveUnitLoadout = spacetime.procedure(
   { id: t.string(), userId: t.string(), payload: t.string(), at: t.u64() },
   t.string(),
   (ctx, { id, userId, payload, at }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       if (!validId(id) || !validId(userId)) throw new SenderError('Invalid loadout')
       const loadout = decodePayload(unitLoadoutSchema.strict(), payload, 'Invalid loadout')
       const current = tx.db.unitLoadouts.id.find(id)
@@ -2427,8 +2391,7 @@ export const saveUnitLoadout = spacetime.procedure(
 
 /** Only the name changes, so rosters and searches keep finding the same loadout. */
 export const renameUnitLoadout = spacetime.procedure({ id: t.string(), userId: t.string(), name: t.string() }, t.bool(), (ctx, input) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const name = unitLoadoutNameSchema.safeParse(input.name)
     if (!name.success) throw new SenderError('Invalid loadout')
     const current = tx.db.unitLoadouts.id.find(input.id)
@@ -2440,8 +2403,7 @@ export const renameUnitLoadout = spacetime.procedure({ id: t.string(), userId: t
 )
 
 export const deleteUnitLoadout = spacetime.procedure({ id: t.string(), userId: t.string() }, t.bool(), (ctx, { id, userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (tx.db.unitLoadouts.id.find(id)?.userId !== userId) return false
     tx.db.unitLoadouts.id.delete(id)
     touchProduct(tx, userId, 'rosters')
@@ -2450,8 +2412,7 @@ export const deleteUnitLoadout = spacetime.procedure({ id: t.string(), userId: t
 )
 
 export const favouriteDetachmentsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return productJson(
       Array.from(tx.db.favouriteDetachments.userId.filter(userId)).map(({ userId: ownerId, catalogueId, detachmentId, at }) => ({
         userId: ownerId,
@@ -2466,6 +2427,7 @@ export const favouriteDetachmentsByUser = spacetime.procedure({ userId: t.string
 export const addFavouriteDetachment = spacetime.reducer(
   { userId: t.string(), catalogueId: t.string(), detachmentId: t.string(), at: t.u64() },
   (ctx, input) => {
+    requireOperator(ctx)
     addFavouriteDetachmentIn(ctx, [input.userId, input.catalogueId, input.detachmentId, input.at])
   },
 )
@@ -2473,24 +2435,23 @@ export const addFavouriteDetachment = spacetime.reducer(
 export const removeFavouriteDetachment = spacetime.reducer(
   { userId: t.string(), catalogueId: t.string(), detachmentId: t.string() },
   (ctx, input) => {
+    requireOperator(ctx)
     removeFavouriteDetachmentIn(ctx, [input.userId, input.catalogueId, input.detachmentId])
   },
 )
 
 export const pushEnabled = spacetime.procedure({ userId: t.string() }, t.bool(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return tx.db.pushPreferences.userId.find(userId)?.enabled ?? DEFAULT_PUSH_NOTIFICATIONS
   }),
 )
 
 export const setPushEnabled = spacetime.procedure({ userId: t.string(), enabled: t.bool(), now: t.u64() }, t.bool(), (ctx, input) =>
-  ctx.withTx((tx) => setPushEnabledIn(tx, [input.userId, input.enabled, input.now])),
+  operatorTx(ctx, (tx) => setPushEnabledIn(tx, [input.userId, input.enabled, input.now])),
 )
 
 export const playerDefaults = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const row = tx.db.playerDefaults.userId.find(userId)
     return productJson(row ? { rosterVisibility: row.rosterVisibility, battleSize: row.battleSize } : DEFAULT_PLAYER_DEFAULTS)
   }),
@@ -2499,7 +2460,7 @@ export const playerDefaults = spacetime.procedure({ userId: t.string() }, t.stri
 export const setPlayerDefaults = spacetime.procedure(
   { userId: t.string(), rosterVisibility: t.string(), battleSize: t.u32(), now: t.u64() },
   t.string(),
-  (ctx, input) => ctx.withTx((tx) => setPlayerDefaultsIn(tx, [input.userId, input.rosterVisibility, input.battleSize, input.now])),
+  (ctx, input) => operatorTx(ctx, (tx) => setPlayerDefaultsIn(tx, [input.userId, input.rosterVisibility, input.battleSize, input.now])),
 )
 
 export const registerPushToken = spacetime.reducer(
@@ -2545,8 +2506,7 @@ export const deletePushTokens = spacetime.reducer({ tokens: t.array(t.string()) 
 })
 
 export const pushTargets = spacetime.procedure({ userIds: t.array(t.string()) }, t.string(), (ctx, { userIds }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (userIds.length > 100) throw new SenderError('Too many notification recipients')
     const targets: { userId: string; token: string }[] = []
     for (const userId of new Set(userIds)) {
@@ -2558,8 +2518,7 @@ export const pushTargets = spacetime.procedure({ userIds: t.array(t.string()) },
 )
 
 export const leagueNames = spacetime.procedure({ tokens: t.array(t.string()) }, t.string(), (ctx, { tokens }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (tokens.length > 100) throw new SenderError('Too many league names')
     return productJson(
       [...new Set(tokens)].flatMap((token) => {
@@ -2571,8 +2530,7 @@ export const leagueNames = spacetime.procedure({ tokens: t.array(t.string()) }, 
 )
 
 export const clubNames = spacetime.procedure({ tokens: t.array(t.string()) }, t.string(), (ctx, { tokens }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (tokens.length > 100) throw new SenderError('Too many club names')
     return productJson(
       [...new Set(tokens)].flatMap((token) => {
@@ -2589,8 +2547,7 @@ export const clubNames = spacetime.procedure({ tokens: t.array(t.string()) }, t.
  * converts whatever leagues remain, so the server asks at each start and a second call finds none.
  */
 export const migrateLeaguesToClubs = spacetime.procedure({ now: t.u64() }, t.u32(), (ctx, { now }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const leagues = Array.from(tx.db.leagues.iter())
     for (const league of leagues) {
       const clubId = league.clubId ?? league.id
@@ -2667,16 +2624,10 @@ export const migrateLeaguesToClubs = spacetime.procedure({ now: t.u64() }, t.u32
   }),
 )
 
-export const operatorHealth = spacetime.procedure({}, t.bool(), (ctx) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
-    return true
-  }),
-)
+export const operatorHealth = spacetime.procedure({}, t.bool(), (ctx) => operatorTx(ctx, () => true))
 
 export const publicStandingsRevision = spacetime.procedure({}, t.string(), (ctx) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     return (tx.db.publicRevisions.scope.find('standings')?.revision ?? 0n).toString()
   }),
 )
@@ -2736,8 +2687,7 @@ function eventRecord(ctx: Context, host: EventHost) {
 }
 
 export const leagueByToken = spacetime.procedure({ token: t.string(), eventToken: t.string() }, t.string(), (ctx, { token, eventToken }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (token.length > MAX_ID_LENGTH || eventToken.length > MAX_ID_LENGTH) throw new SenderError('Invalid league token')
     const host = namedHost(tx, token, eventToken)
     return productJson(host ? eventRecord(tx, host) : null)
@@ -2749,8 +2699,7 @@ export const leagueByToken = spacetime.procedure({ token: t.string(), eventToken
  * event's token, in that order.
  */
 export const eventAddress = spacetime.procedure({ token: t.string(), eventToken: t.string() }, t.string(), (ctx, { token, eventToken }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (token.length > MAX_ID_LENGTH || eventToken.length > MAX_ID_LENGTH) throw new SenderError('Invalid league token')
     const address = (host: EventHost | undefined) =>
       host?.kind === 'tournament'
@@ -2788,8 +2737,7 @@ function personalEventIds(ctx: Context, userId: string) {
 
 /** Public tournaments and every event of a player's own, their own first, then newest. */
 export const leaguesVisibleTo = spacetime.procedure({ userId: t.string(), limit: t.u32() }, t.string(), (ctx, { userId, limit }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (userId.length > MAX_ID_LENGTH || limit < 1 || limit > 100) throw new SenderError('Invalid league list')
     const personal = userId ? personalEventIds(tx, userId) : new Set<string>()
     const hosts: EventHost[] = []
@@ -2828,8 +2776,7 @@ export const outdatedLeagueEntriesForRoster = spacetime.procedure(
   { userId: t.string(), rosterId: t.string() },
   t.string(),
   (ctx, { userId, rosterId }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       if (!validId(userId) || !validId(rosterId)) throw new SenderError('Invalid roster lookup')
       const saved = tx.db.rosters.id.find(rosterId)
       if (!saved || saved.userId !== userId) return productJson([])
@@ -2870,8 +2817,7 @@ function listsEvent(ctx: Context, host: EventHost, readerId: string, personal: R
 
 /** Friends' sealed lists from revealed events the viewer can list, newest reveal first. */
 export const friendLeagueRosters = spacetime.procedure({ viewerId: t.string() }, t.string(), (ctx, { viewerId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (!validId(viewerId)) throw new SenderError('Invalid league roster list')
     const personal = personalEventIds(tx, viewerId)
     const rosters = []
@@ -2906,8 +2852,7 @@ export const leagueBattleCandidates = spacetime.procedure(
   { userId: t.string(), participantIds: t.array(t.string()) },
   t.string(),
   (ctx, { userId, participantIds }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       if (
         !validId(userId) ||
         participantIds.length < 2 ||
@@ -2938,8 +2883,7 @@ export const leagueRosters = spacetime.procedure(
   { token: t.string(), userId: t.string(), eventToken: t.string(), readerId: t.string() },
   t.string(),
   (ctx, { token, userId, eventToken, readerId }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       const event = namedHost(tx, token, eventToken)?.event
       const entry = event && tx.db.leagueEventEntries.key.find(JSON.stringify([event.id, userId]))
       if (!entry || entry.status !== 'accepted' || entry.rosterSnapshot === undefined) return 'null'
@@ -2977,8 +2921,7 @@ export const leagueRosterSharing = spacetime.procedure(
   { token: t.string(), eventToken: t.string(), userId: t.string() },
   t.string(),
   (ctx, { token, eventToken, userId }) =>
-    ctx.withTx((tx) => {
-      requireOperator(tx)
+    operatorTx(ctx, (tx) => {
       const event = namedHost(tx, token, eventToken)?.event
       return productJson(event ? (leagueRosterSharingState(tx, event, userId)?.state ?? null) : null)
     }),
@@ -3178,7 +3121,7 @@ function clearTeamPicks(ctx: Context, eventId: string, teamIds?: ReadonlySet<str
 }
 
 export const leagueCommand = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
-  ctx.withTx((tx) => leagueCommandIn(tx, [payload])),
+  operatorTx(ctx, (tx) => leagueCommandIn(tx, [payload])),
 )
 
 const clubDetailsInput = z.object({
@@ -3220,8 +3163,6 @@ function insertClubMember(ctx: Context, clubId: string, userId: string, status: 
 
 function clubCommandIn(tx: Context, args: unknown[]) {
   const [payload] = z.tuple([textArg]).parse(args)
-
-  requireOperator(tx)
   const input = decodePayload(clubCommandInput, payload, 'Invalid club command')
   if (input.op === 'create') {
     tx.db.clubs.insert({
@@ -3326,12 +3267,11 @@ function clubCommandIn(tx: Context, args: unknown[]) {
 }
 
 export const clubCommand = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
-  ctx.withTx((tx) => clubCommandIn(tx, [payload])),
+  operatorTx(ctx, (tx) => clubCommandIn(tx, [payload])),
 )
 
 export const clubByToken = spacetime.procedure({ token: t.string() }, t.string(), (ctx, { token }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (token.length > MAX_ID_LENGTH) throw new SenderError('Invalid club token')
     const club = tx.db.clubs.token.find(token)
     if (!club) return productJson(null)
@@ -3414,8 +3354,7 @@ function playedPairs(ctx: Context, eventId: string) {
 
 /** Public clubs and every club a player owns, belongs to, or has asked to join, their own first. */
 export const clubsVisibleTo = spacetime.procedure({ userId: t.string(), limit: t.u32() }, t.string(), (ctx, { userId, limit }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (userId.length > MAX_ID_LENGTH || limit < 1 || limit > 100) throw new SenderError('Invalid club list')
     const own = new Map(userId ? Array.from(tx.db.clubMembers.userId.filter(userId), (row) => [row.clubId, row] as const) : [])
     const clubs = []
@@ -3443,8 +3382,7 @@ export const clubsVisibleTo = spacetime.procedure({ userId: t.string(), limit: t
 
 /** The club a battle counts for, and the clubs it could, for its setup. */
 export const battleClubs = spacetime.procedure({ battleId: t.string() }, t.string(), (ctx, { battleId }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (battleId.length > MAX_ID_LENGTH) throw new SenderError('Invalid battle')
     const summary = (club: ClubRow) => ({ id: club.id, token: club.token, name: club.name, visibility: club.visibility })
     const currentId = tx.db.clubBattles.battleId.find(battleId)?.clubId
@@ -3468,8 +3406,6 @@ const timestampArg = z.preprocess(
 
 function createBattleIn(tx: Context, args: unknown[]) {
   const [payload] = z.tuple([textArg]).parse(args)
-
-  requireOperator(tx)
   const { id, token, userId, allyIds, opponentIds, guestNames, initialCommands, now } = decodePayload(newBattle, payload, 'Invalid battle')
   const seats: { id: string; side: number; guestName?: string }[] = [
     { id: userId, side: 0 },
@@ -3523,8 +3459,6 @@ function createBattleIn(tx: Context, args: unknown[]) {
 
 function removeBattleIn(tx: Context, args: unknown[]) {
   const [battleId, userId] = z.tuple([textArg, textArg]).parse(args)
-
-  requireOperator(tx)
   const opener = Array.from(tx.db.battleUsers.battleId.filter(battleId))
     .filter((seat) => seat.side === 0)
     .sort((left, right) => (left.joinedAt > right.joinedAt ? 1 : left.joinedAt < right.joinedAt ? -1 : 0))[0]
@@ -3535,8 +3469,6 @@ function removeBattleIn(tx: Context, args: unknown[]) {
 
 function requestFriendIn(tx: Context, args: unknown[]) {
   const [requesterId, addresseeId, now] = z.tuple([textArg, textArg, timestampArg]).parse(args)
-
-  requireOperator(tx)
   const key = friendshipKey(requesterId, addresseeId)
   if (friendshipBetween(tx, requesterId, addresseeId)) return false
   tx.db.friendships.insert({
@@ -3552,8 +3484,6 @@ function requestFriendIn(tx: Context, args: unknown[]) {
 
 function acceptFriendIn(tx: Context, args: unknown[]) {
   const [requesterId, addresseeId, now] = z.tuple([textArg, textArg, timestampArg]).parse(args)
-
-  requireOperator(tx)
   const current = tx.db.friendships.key.find(friendshipKey(requesterId, addresseeId))
   if (!current || current.acceptedAt !== undefined) return false
   tx.db.friendships.key.update({ ...current, acceptedAt: now })
@@ -3563,8 +3493,6 @@ function acceptFriendIn(tx: Context, args: unknown[]) {
 
 function rejectFriendIn(tx: Context, args: unknown[]) {
   const [requesterId, addresseeId] = z.tuple([textArg, textArg]).parse(args)
-
-  requireOperator(tx)
   const current = tx.db.friendships.key.find(friendshipKey(requesterId, addresseeId))
   if (!current || current.requesterId !== requesterId || current.addresseeId !== addresseeId || current.acceptedAt !== undefined)
     return false
@@ -3575,8 +3503,6 @@ function rejectFriendIn(tx: Context, args: unknown[]) {
 
 function removeFriendIn(tx: Context, args: unknown[]) {
   const [leftId, rightId] = z.tuple([textArg, textArg]).parse(args)
-
-  requireOperator(tx)
   const current = friendshipBetween(tx, leftId, rightId)
   if (!current) return false
   const deleted = tx.db.friendships.key.delete(current.key)
@@ -3591,8 +3517,6 @@ function removeFriendIn(tx: Context, args: unknown[]) {
 
 function replaceFriendInviteIn(ctx: Context, args: unknown[]) {
   const [inviterId, token, now] = z.tuple([textArg, textArg, timestampArg]).parse(args)
-
-  requireOperator(ctx)
   if (!validId(inviterId) || !validId(token)) throw new SenderError('Invalid invite')
   const current = ctx.db.friendInvites.inviterId.find(inviterId)
   if (current) ctx.db.friendInvites.token.delete(current.token)
@@ -3603,8 +3527,6 @@ function replaceFriendInviteIn(ctx: Context, args: unknown[]) {
 
 function cancelFriendInviteIn(tx: Context, args: unknown[]) {
   const [inviterId] = z.tuple([textArg]).parse(args)
-
-  requireOperator(tx)
   const current = tx.db.friendInvites.inviterId.find(inviterId)
   if (!current) return false
   const deleted = tx.db.friendInvites.token.delete(current.token)
@@ -3617,8 +3539,6 @@ function cancelFriendInviteIn(tx: Context, args: unknown[]) {
 
 function acceptFriendInviteIn(tx: Context, args: unknown[]) {
   const [token, recipientId, now] = z.tuple([textArg, textArg, timestampArg]).parse(args)
-
-  requireOperator(tx)
   const invite = tx.db.friendInvites.token.find(token)
   if (!invite) return productJson('missing')
   if (invite.inviterId === recipientId) return productJson('self')
@@ -3643,8 +3563,6 @@ function acceptFriendInviteIn(tx: Context, args: unknown[]) {
 
 function updateOnboardingIn(tx: Context, args: unknown[]) {
   const [userId, operation, task] = z.tuple([textArg, textArg, textArg]).parse(args)
-
-  requireOperator(tx)
   if (!validId(userId)) throw new SenderError('Invalid user ID')
   if (operation === 'welcome') {
     const current = tx.db.userOnboarding.userId.find(userId)
@@ -3686,8 +3604,6 @@ function moveHeartsToFavourites(ctx: Context, userId: string) {
 
 function addToCollectionIn(ctx: Context, args: unknown[]) {
   const [userId, entryId, at] = z.tuple([textArg, textArg, timestampArg]).parse(args)
-
-  requireOperator(ctx)
   moveHeartsToFavourites(ctx, userId)
   const key = JSON.stringify([userId, entryId])
   if (!ctx.db.collection.key.find(key)) {
@@ -3698,8 +3614,6 @@ function addToCollectionIn(ctx: Context, args: unknown[]) {
 
 function removeFromCollectionIn(ctx: Context, args: unknown[]) {
   const [userId, entryId] = z.tuple([textArg, textArg]).parse(args)
-
-  requireOperator(ctx)
   moveHeartsToFavourites(ctx, userId)
   const key = JSON.stringify([userId, entryId])
   dropCollectionRowPhotos(ctx, key)
@@ -3710,8 +3624,6 @@ function setCollectionModelsIn(ctx: Context, args: unknown[]) {
   const [userId, entryId, models, at] = z
     .tuple([textArg, textArg, z.number().int().min(1).max(MAX_COLLECTION_MODELS), timestampArg])
     .parse(args)
-
-  requireOperator(ctx)
   moveHeartsToFavourites(ctx, userId)
   const key = JSON.stringify([userId, entryId])
   const current = ctx.db.collection.key.find(key)
@@ -3730,8 +3642,6 @@ function setCollectionProgressIn(ctx: Context, args: unknown[]) {
   const [userId, entryId, built, painted] = z
     .tuple([textArg, textArg, z.number().int().min(0).max(MAX_COLLECTION_MODELS), z.number().int().min(0).max(MAX_COLLECTION_MODELS)])
     .parse(args)
-
-  requireOperator(ctx)
   moveHeartsToFavourites(ctx, userId)
   const current = ctx.db.collection.key.find(JSON.stringify([userId, entryId]))
   if (!current) throw new SenderError('Add this datasheet to your collection before counting built or painted models')
@@ -3741,8 +3651,6 @@ function setCollectionProgressIn(ctx: Context, args: unknown[]) {
 
 function setCollectionCountsAsIn(ctx: Context, args: unknown[]) {
   const [userId, entryId, countsAs] = z.tuple([textArg, textArg, z.array(countsAsId).max(MAX_COUNTS_AS)]).parse(args)
-
-  requireOperator(ctx)
   moveHeartsToFavourites(ctx, userId)
   const current = ctx.db.collection.key.find(JSON.stringify([userId, entryId]))
   if (!current) throw new SenderError('Add this datasheet to your collection before choosing what else its models can be')
@@ -3755,8 +3663,6 @@ function setCollectionWantedIn(ctx: Context, args: unknown[]) {
   const [userId, entryId, wanted, at] = z
     .tuple([textArg, textArg, z.number().int().min(0).max(MAX_COLLECTION_MODELS), timestampArg])
     .parse(args)
-
-  requireOperator(ctx)
   const key = JSON.stringify([userId, entryId])
   const current = ctx.db.collectionWishes.key.find(key)
   if (!wanted) {
@@ -3768,8 +3674,6 @@ function setCollectionWantedIn(ctx: Context, args: unknown[]) {
 
 function addFavouriteFactionIn(ctx: Context, args: unknown[]) {
   const [userId, catalogueId, at] = z.tuple([textArg, textArg, timestampArg]).parse(args)
-
-  requireOperator(ctx)
   const key = JSON.stringify([userId, catalogueId])
   if (!ctx.db.favouriteFactions.key.find(key)) {
     ctx.db.favouriteFactions.insert({ key, userId, catalogueId, at })
@@ -3779,15 +3683,11 @@ function addFavouriteFactionIn(ctx: Context, args: unknown[]) {
 
 function removeFavouriteFactionIn(ctx: Context, args: unknown[]) {
   const [userId, catalogueId] = z.tuple([textArg, textArg]).parse(args)
-
-  requireOperator(ctx)
   if (ctx.db.favouriteFactions.key.delete(JSON.stringify([userId, catalogueId]))) touchProduct(ctx, userId, 'favourites')
 }
 
 function addFavouriteDatasheetIn(ctx: Context, args: unknown[]) {
   const [userId, entryId, at] = z.tuple([textArg, textArg, timestampArg]).parse(args)
-
-  requireOperator(ctx)
   const key = JSON.stringify([userId, entryId])
   if (!ctx.db.favouriteDatasheets.key.find(key)) {
     ctx.db.favouriteDatasheets.insert({ key, userId, entryId, at })
@@ -3797,8 +3697,6 @@ function addFavouriteDatasheetIn(ctx: Context, args: unknown[]) {
 
 function removeFavouriteDatasheetIn(ctx: Context, args: unknown[]) {
   const [userId, entryId] = z.tuple([textArg, textArg]).parse(args)
-
-  requireOperator(ctx)
   if (ctx.db.favouriteDatasheets.key.delete(JSON.stringify([userId, entryId]))) touchProduct(ctx, userId, 'favourites')
 }
 
@@ -3811,8 +3709,6 @@ function rememberMatchupIn(ctx: Context, args: unknown[]) {
   const [userId, pairing, shared, attacker, defender, at] = z
     .tuple([idInput, matchupPairingSchema, shape.shared, shape.attacker, shape.defender, timestampArg])
     .parse(args)
-
-  requireOperator(ctx)
   const key = JSON.stringify([userId, pairing])
   const row = { key, userId, shared, attacker, defender, at }
   if (ctx.db.recentMatchups.key.find(key)) ctx.db.recentMatchups.key.update(row)
@@ -3823,15 +3719,11 @@ function rememberMatchupIn(ctx: Context, args: unknown[]) {
 
 function forgetMatchupIn(ctx: Context, args: unknown[]) {
   const [userId, pairing] = z.tuple([idInput, matchupPairingSchema]).parse(args)
-
-  requireOperator(ctx)
   if (ctx.db.recentMatchups.key.delete(JSON.stringify([userId, pairing]))) touchProduct(ctx, userId, 'simulator')
 }
 
 function addFavouriteDetachmentIn(ctx: Context, args: unknown[]) {
   const [userId, catalogueId, detachmentId, at] = z.tuple([textArg, textArg, textArg, timestampArg]).parse(args)
-
-  requireOperator(ctx)
   const key = JSON.stringify([userId, catalogueId, detachmentId])
   if (!ctx.db.favouriteDetachments.key.find(key)) {
     ctx.db.favouriteDetachments.insert({ key, userId, catalogueId, detachmentId, at })
@@ -3841,15 +3733,11 @@ function addFavouriteDetachmentIn(ctx: Context, args: unknown[]) {
 
 function removeFavouriteDetachmentIn(ctx: Context, args: unknown[]) {
   const [userId, catalogueId, detachmentId] = z.tuple([textArg, textArg, textArg]).parse(args)
-
-  requireOperator(ctx)
   if (ctx.db.favouriteDetachments.key.delete(JSON.stringify([userId, catalogueId, detachmentId]))) touchProduct(ctx, userId, 'favourites')
 }
 
 function setPushEnabledIn(tx: Context, args: unknown[]) {
   const [userId, enabled, now] = z.tuple([textArg, z.boolean(), timestampArg]).parse(args)
-
-  requireOperator(tx)
   if (!validId(userId)) throw new SenderError('Invalid user ID')
   const current = tx.db.pushPreferences.userId.find(userId)
   const row = { userId, enabled, at: now }
@@ -3863,8 +3751,6 @@ function setPlayerDefaultsIn(tx: Context, args: unknown[]) {
   const [userId, rosterVisibility, battleSize, now] = z
     .tuple([textArg, textArg, z.number().int().nonnegative().max(4_294_967_295), timestampArg])
     .parse(args)
-
-  requireOperator(tx)
   if (!validId(userId) || !isPlayerDefaults({ rosterVisibility, battleSize })) throw new SenderError('Invalid player defaults')
   const row = { userId, rosterVisibility, battleSize, at: now }
   if (tx.db.playerDefaults.userId.find(userId)) tx.db.playerDefaults.userId.update(row)
@@ -3875,8 +3761,6 @@ function setPlayerDefaultsIn(tx: Context, args: unknown[]) {
 
 function leagueCommandIn(tx: Context, args: unknown[]) {
   const [payload] = z.tuple([textArg]).parse(args)
-
-  requireOperator(tx)
   const value = decodePayload(z.unknown(), payload, 'Invalid league command')
   const operation = leagueCommandInput(z.object({ op: z.string() }), value).op
   if (operation === 'create' || operation === 'create-club-game') {
@@ -4745,8 +4629,7 @@ const syncProductInput = z.object({
 const SYNC_RETENTION_MS = 90 * 24 * 60 * 60 * 1_000
 
 export const syncReceipt = spacetime.procedure({ id: t.string(), owner: t.string(), fingerprint: t.string() }, t.string(), (ctx, input) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     const receipt = tx.db.syncReceipts.id.find(input.id)
     if (!receipt) return 'null'
     if (receipt.owner !== input.owner || receipt.fingerprint !== input.fingerprint) throw new SenderError('Operation ID reused')
@@ -4755,8 +4638,7 @@ export const syncReceipt = spacetime.procedure({ id: t.string(), owner: t.string
 )
 
 export const syncProduct = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
-  ctx.withTx((tx) => {
-    requireOperator(tx)
+  operatorTx(ctx, (tx) => {
     if (payload.length > 2_100_000) throw new SenderError('Saved action is too large')
     const input = decodePayload(syncProductInput, payload, 'Invalid saved action')
     const prior = tx.db.syncReceipts.id.find(input.id)
