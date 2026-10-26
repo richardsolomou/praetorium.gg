@@ -1,7 +1,7 @@
 import { expect, type Page, test } from './test'
 import { chooseRosterAction, retryUntilVisible, signUp, uniqueName, waitForRosterSave } from './account'
 import { expectNoHorizontalOverflow, shot } from './builder.harness'
-import { productOperator, userIdFor } from './storage'
+import { productOperator, userIdFor, guestDraft } from './storage'
 
 /** The seeded finished battle's Aeldari army, which this test fields again under its own players. */
 const ARMY = 'Warhost 2K'
@@ -92,7 +92,7 @@ test('a visitor copies a played army as the one roster their device keeps, and i
   await card.getByRole('button', { name: `Duplicate ${ARMY}` }).click()
   await page.waitForURL((url) => /^\/rosters\/[^/]+$/.test(url.pathname))
   await expect(page.getByLabel('List name')).toHaveValue(`Copy of ${ARMY}`)
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft') ?? '')).toContain(`Copy of ${ARMY}`)
+  await expect.poll(() => guestDraft(page)).toContain(`Copy of ${ARMY}`)
 
   await page.goto('/rosters?view=played')
   await retryUntilVisible(card, () => page.getByRole('button', { name: 'Show more armies' }).click({ timeout: 1_000 }))

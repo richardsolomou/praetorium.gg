@@ -29,6 +29,9 @@ export async function savedWork(page: Page) {
   )
 }
 
+/** The guest roster draft this browser keeps, or an empty string when it keeps none. */
+export const guestDraft = (page: Page) => page.evaluate(() => localStorage.getItem('praetorium.guest-draft') ?? '')
+
 /** Waits until no saved work is left to send; a device that never saved any work does not pass. */
 export async function expectWorkSynced(
   page: Page,

@@ -1,6 +1,7 @@
 import { expect, test } from './test'
 import { visitorSetup, chooseRosterAction, expectNoPageOverflow, chooseFaction } from './account'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
+import { guestDraft } from './storage'
 
 for (const width of [1440, 390]) {
   test(`Telemon bundles select and persist at ${width}px`, async ({ page }) => {
@@ -40,7 +41,7 @@ for (const width of [1440, 390]) {
           : `${gun} + Caestus Fist + Twin Neutronium Cascade Projectors`
       const gunOption = weapons.locator('article').filter({ has: page.getByRole('button', { name: `Select ${label}`, exact: true }) })
       await expect(gunOption.getByRole('heading', { name: gun, exact: true })).toHaveCount(1)
-      const before = await page.evaluate(() => localStorage.getItem('praetorium.guest-draft'))
+      const before = await guestDraft(page)
       await gunOption.getByRole('button', { name: `Select ${label}`, exact: true }).click()
       await expect(card).toContainText(`1x ${gun}`)
       await expect(card).toContainText('1x Twin Neutronium Cascade Projectors')
@@ -48,7 +49,7 @@ for (const width of [1440, 390]) {
       await expect(gunOption.getByRole('heading', { name: 'Caestus Fist', exact: true })).toHaveCount(1)
       await expect(gunOption.getByRole('heading', { name: 'Dual Caestus Fists', exact: true })).toHaveCount(0)
       await expect(gunOption.getByRole('heading', { name: 'Twin Neutronium Cascade Projectors', exact: true })).toHaveCount(1)
-      await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft'))).not.toBe(before)
+      await expect.poll(() => guestDraft(page)).not.toBe(before)
     }
     await expectNoHorizontalOverflow(loadout)
     await page.screenshot({ path: test.info().outputPath(`telemon-gun-${width}.png`) })

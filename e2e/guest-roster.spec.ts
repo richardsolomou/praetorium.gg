@@ -12,7 +12,7 @@ import {
 } from './account'
 import { add } from './builder.harness'
 import { SIGN_IN_REQUIRED } from '../src/core/session'
-import { lastPathSegment } from './storage'
+import { lastPathSegment, guestDraft } from './storage'
 
 /** A visitor starts a Necrons list from the rosters page, with no account behind them, and opens it in the builder. */
 async function startGuestRoster(page: Page) {
@@ -26,7 +26,6 @@ async function startGuestRoster(page: Page) {
 }
 
 const DRAFT_KEY = 'praetorium.guest-draft'
-const storedDraft = (page: Page) => page.evaluate((key) => localStorage.getItem(key) ?? '', DRAFT_KEY)
 
 /** Every save a page sends, told apart from the price by the fields only a saved list carries. */
 function recordSaves(page: Page) {
@@ -72,7 +71,7 @@ test('a visitor builds and prices a list without saving it', async ({ page }) =>
   await page.getByRole('button', { name: 'Necron Warriors', exact: true }).click()
   await page.getByRole('button', { name: 'More models in Necron Warriors' }).click()
   await expect(page.locator('[data-slot="roster-meta"]')).toContainText('11 models')
-  await expect.poll(() => storedDraft(page)).toContain('"models":11')
+  await expect.poll(() => guestDraft(page)).toContain('"models":11')
   await page.reload()
   await expect(page.locator('[data-slot="roster-meta"]')).toContainText('11 models')
   await expect(page.getByRole('button', { name: /to (your collection|favourite datasheets)$/ })).toHaveCount(0)
@@ -83,7 +82,7 @@ test("a visitor's list survives a reload and a new tab", async ({ page, context 
   await startGuestRoster(page)
   await add(page, 'Necron Warriors')
   // Edits are kept once they settle, so the reload waits for the stored draft to hold the unit.
-  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key) ?? '', DRAFT_KEY)).toContain('"picks":[{')
+  await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
 
   // The server cannot see the draft, only the cookie saying there is one, so its rosters page holds a row rather than saying there are none.
   const firstFrame = await (await page.request.get('/rosters')).text()
@@ -101,7 +100,7 @@ test("a visitor's list survives a reload and a new tab", async ({ page, context 
 test("a visitor's list follows an edit made in another tab", async ({ page, context }) => {
   await startGuestRoster(page)
   await add(page, 'Necron Warriors')
-  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key) ?? '', DRAFT_KEY)).toContain('"picks":[{')
+  await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
   const other = await context.newPage()
   await other.goto(page.url())
   await other.waitForLoadState('networkidle')
@@ -155,7 +154,7 @@ test('signing in later asks before saving a list left on the device', async ({ p
   const saves = recordSaves(page)
   await startGuestRoster(page)
   await add(page, 'Necron Warriors')
-  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key) ?? '', DRAFT_KEY)).toContain('"picks":[{')
+  await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
   await signUp(page, uniqueName('Returning'))
 
   await page.goto('/rosters')
@@ -169,7 +168,7 @@ test('signing in later asks before saving a list left on the device', async ({ p
 test('a list left on the device can be discarded after signing in', async ({ page }) => {
   await startGuestRoster(page)
   await add(page, 'Necron Warriors')
-  await expect.poll(() => page.evaluate((key) => localStorage.getItem(key) ?? '', DRAFT_KEY)).toContain('"picks":[{')
+  await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
   await signUp(page, uniqueName('Returning'))
 
   await page.goto('/rosters')
@@ -181,7 +180,7 @@ test('a list left on the device can be discarded after signing in', async ({ pag
 test("a visitor's roster is listed on the rosters page as a saved one is", async ({ page }) => {
   await startGuestRoster(page)
   await add(page, 'Necron Warriors')
-  await expect.poll(() => storedDraft(page)).toContain('"picks":[{')
+  await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
   const builder = page.url()
 
   await page.goto('/rosters')
@@ -200,8 +199,8 @@ test('a visitor keeping a roster is asked to sign up for a second one', async ({
   const saves = recordSaves(page)
   await startGuestRoster(page)
   await add(page, 'Necron Warriors')
-  await expect.poll(() => storedDraft(page)).toContain('"picks":[{')
-  const kept = await storedDraft(page)
+  await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
+  const kept = await guestDraft(page)
   await page.goto('/rosters')
   await page.waitForLoadState('networkidle')
   const prompt = page.getByRole('dialog', { name: 'Keep more than one roster' })
@@ -220,7 +219,7 @@ test('a visitor keeping a roster is asked to sign up for a second one', async ({
   await page.goto('/rosters?view=public')
   await expect(page.getByRole('heading', { name: 'Public rosters' })).toBeVisible()
 
-  expect([await storedDraft(page), saves]).toEqual([kept, []])
+  expect([await guestDraft(page), saves]).toEqual([kept, []])
 })
 
 test("a visitor's account-only roster actions ask them to sign up", async ({ page }) => {
@@ -230,7 +229,7 @@ test("a visitor's account-only roster actions ask them to sign up", async ({ pag
   await page.getByRole('menuitem', { name: 'Save loadout' }).click()
   await expect(page.getByRole('dialog', { name: 'Save loadouts with an account' })).toBeVisible()
   await page.keyboard.press('Escape')
-  await expect.poll(() => storedDraft(page)).toContain('"picks":[{')
+  await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
   await page.goto('/rosters')
   await page.getByRole('button', { name: /^Actions for / }).click()
   await page.getByRole('menuitem', { name: 'Create variant' }).click()
@@ -254,7 +253,7 @@ test("a visitor's Friends tab offers an account rather than an empty list", asyn
 test('signing up from the second-roster prompt moves the roster into the account', async ({ page }) => {
   await startGuestRoster(page)
   await add(page, 'Necron Warriors')
-  await expect.poll(() => storedDraft(page)).toContain('"picks":[{')
+  await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
   const id = lastPathSegment(page.url())
   await page.goto('/rosters')
   await page.waitForLoadState('networkidle')
@@ -269,7 +268,7 @@ test('signing up from the second-roster prompt moves the roster into the account
 
   await page.waitForURL(new RegExp(`/rosters/${id}$`))
   await expect(page.locator('[data-unit="Necron Warriors"]').first()).toBeVisible()
-  expect(await storedDraft(page)).toBe('')
+  expect(await guestDraft(page)).toBe('')
 })
 
 test("a visitor's list for an army the data no longer holds can be started again", async ({ page }) => {

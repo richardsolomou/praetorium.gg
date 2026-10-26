@@ -1,7 +1,7 @@
 import { expect, type Page, test } from './test'
 import { chooseRosterAction, createRoster, desktopContext, retryUntilVisible, signUp, waitForRosterSave, makeWarlord } from './account'
 import { add, attach, shot } from './builder.harness'
-import { expectWorkSynced } from './storage'
+import { expectWorkSynced, guestDraft } from './storage'
 
 const phone = { viewport: { width: 390, height: 844 } }
 
@@ -118,7 +118,7 @@ test('an exchange code carries a roster to another account and to a visitor', as
   expect((await exportedText(visitor)).replace(/^.*Exported with.*$/m, '')).toBe(sent.replace(/^.*Exported with.*$/m, ''))
 
   // Opening a link again never replaces the one draft a visitor keeps: a second roster asks for an account.
-  const kept = await visitor.evaluate(() => localStorage.getItem('praetorium.guest-draft'))
+  const kept = await guestDraft(visitor)
   await visitor.goto('/')
   await visitor.goto(`/rosters#code=${code}`)
   await expect(draft).toContainText('2 of 2 matched entries')
@@ -126,7 +126,7 @@ test('an exchange code carries a roster to another account and to a visitor', as
   const prompt = visitor.getByRole('dialog', { name: 'Keep more than one roster' })
   await expect(prompt).toBeVisible()
   await shot(prompt, test.info().outputPath('roster-exchange-guest-draft-notice-phone.png'))
-  expect(await visitor.evaluate(() => localStorage.getItem('praetorium.guest-draft'))).toBe(kept)
+  expect(await guestDraft(visitor)).toBe(kept)
 })
 
 test('damaged, unsupported and unavailable exchange codes explain why they cannot import', async ({ browser }) => {

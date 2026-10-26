@@ -16,7 +16,7 @@ import {
   chooseFaction,
 } from './account'
 import { add } from './builder.harness'
-import { productSql, userIdNamed, lastPathSegment, battleIdFor } from './storage'
+import { productSql, userIdNamed, lastPathSegment, battleIdFor, guestDraft } from './storage'
 
 const GUEST = uniqueName('Sam the Guest')
 const scoreboard = (page: Page) => page.getByRole('region', { name: 'Battle scoreboard' })
@@ -51,7 +51,7 @@ async function buildGuestRoster(page: Page) {
   await setup.getByRole('group', { name: 'Force disposition' }).getByRole('button', { name: 'Take and Hold' }).click()
   await setup.getByRole('button', { name: 'Create roster' }).click()
   await add(page, 'Necron Warriors')
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft') ?? '')).toContain('"picks":[{')
+  await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
 }
 
 test('a guest joins from their own device, plays their side and keeps the game by signing up', async ({ page: host, browser }) => {

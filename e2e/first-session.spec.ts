@@ -14,6 +14,7 @@ import {
   chooseOption,
   concede,
 } from './account'
+import { guestDraft } from './storage'
 
 const rosterText = `First army (65 Points)
 
@@ -45,7 +46,7 @@ test('a guest reviews, imports and saves their first list', async ({ page }, tes
   await page.setViewportSize({ width: 1440, height: 900 })
   await dialog.getByRole('button', { name: 'Open imported draft', exact: true }).click()
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft'))).toContain('"picks":[{')
+  await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
   await page.reload()
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
   const save = page.getByRole('button', { name: 'Save roster', exact: true })
@@ -77,7 +78,7 @@ test('an import names a missing unit and lets the guest correct the text before 
   await dialog.getByLabel('Roster text').fill(rosterText.replace('Immortals (65 Points)', 'Imaginary unit (65 Points)'))
   await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(dialog.getByRole('alert')).toContainText('Imaginary unit')
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft'))).toBeNull()
+  await expect.poll(() => guestDraft(page)).toBe('')
   await dialog.getByRole('button', { name: 'Edit pasted text', exact: true }).click()
   await dialog.getByLabel('Roster text').fill(rosterText)
   await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()

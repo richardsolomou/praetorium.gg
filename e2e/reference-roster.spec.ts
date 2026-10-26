@@ -1,6 +1,7 @@
 import { expect, type Page, test } from './test'
 import { retryUntilVisible, chooseRosterAction } from './account'
 import { add } from './builder.harness'
+import { guestDraft } from './storage'
 
 const DATASHEET = '/factions/necrons/datasheets/imotekh-the-stormlord'
 
@@ -21,7 +22,7 @@ test('a visitor starts a roster from a datasheet and is told when it cannot take
   await expect(page).toHaveURL(/\/rosters\/[^/]+$/)
   await expect(page.locator('[data-unit]').filter({ hasText: 'Imotekh the Stormlord' })).toHaveCount(1)
   // Edits are kept once they settle, so leaving waits for the stored draft to hold the unit.
-  await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft') ?? '')).toContain('"picks":[{')
+  await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
 
   await addFromDatasheet(page)
   await page
@@ -126,7 +127,7 @@ for (const width of [1440, 390]) {
       await expect(page.getByLabel(`${name} models`, { exact: true })).toHaveText('5')
       await expect(ranged).toHaveText(`5× ${weapon}`)
       await expect(stock).toHaveText('5× Gun Stock')
-      await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft') ?? '')).toContain('"models":5')
+      await expect.poll(() => guestDraft(page)).toContain('"models":5')
       if (width === 390) await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
       await page.reload()
       await card.getByRole('button', { name, exact: true }).click()
@@ -158,7 +159,7 @@ for (const width of [1440, 390]) {
     await expect(multi.getByText('2 profiles', { exact: true })).toBeVisible()
     await rifles.screenshot({ path: testInfo.outputPath('melta-rifle-editor.png') })
     await multi.screenshot({ path: testInfo.outputPath('multi-melta-editor.png') })
-    await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft') ?? '')).toContain('"picks":[{')
+    await expect.poll(() => guestDraft(page)).toContain('"picks":[{')
     if (width === 390) await page.getByRole('button', { name: 'Back to roster', exact: true }).click()
     await page.reload()
     await card.getByRole('button', { name, exact: true }).click()
