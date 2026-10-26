@@ -191,7 +191,7 @@ export function profileModifiers(
   const found = new Map<string, ProfileModifier>()
 
   const add = (node: Node, modifier: Modifier, exact?: { id: string; type: string }) => {
-    if (!isProfileModifierType(modifier.type)) return
+    if (!PROFILE_MODIFIER_TYPES.has(modifier.type)) return
     const times = repeatCount(modifier, node, root, index, census)
     if (times === 0) return
     const source = (modifier.conditions ?? [])
@@ -330,8 +330,6 @@ const PROFILE_MODIFIER_TYPES = new Set<Modifier['type']>([
   'ceil',
   'replace',
 ])
-
-const isProfileModifierType = (type: Modifier['type']) => PROFILE_MODIFIER_TYPES.has(type)
 
 const AFFECTS_CONTROLS = new Set(['self', 'entries', 'forces', 'recursive', 'group'])
 
