@@ -15,6 +15,7 @@ import { localObjectStore } from '../src/server/localObjectStore.ts'
 import { nodeLifecycle } from './lib/nodeLifecycle.ts'
 import { publicAssetsR2Client } from '../src/server/r2Client.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { isSpacetimeInternalHost } from './lib/spacetimeInternalHost.ts'
 import { startCatalogueRefresh } from './lib/catalogueRefreshProcess.ts'
 import { serveLiveCatalogueAsset } from './lib/liveCatalogueAssets.ts'
 import { startupRemainingMs } from './lib/startupBudget.ts'
@@ -48,7 +49,7 @@ export function spacetimeRoute(request: Pick<IncomingMessage, 'url' | 'method' |
 export function spacetimeOrigin(environment: NodeJS.ProcessEnv) {
   const upstream = new URL(environment.SPACETIME_URL ?? '')
   const internal =
-    /^[a-z][a-z0-9-]{1,63}$/.test(environment.SPACETIME_INTERNAL_HOST ?? '') && upstream.hostname === environment.SPACETIME_INTERNAL_HOST
+    isSpacetimeInternalHost(environment.SPACETIME_INTERNAL_HOST ?? '') && upstream.hostname === environment.SPACETIME_INTERNAL_HOST
   const loopback = ['localhost', '127.0.0.1'].includes(upstream.hostname)
   if (
     (upstream.protocol !== 'https:' && !(upstream.protocol === 'http:' && (internal || loopback))) ||

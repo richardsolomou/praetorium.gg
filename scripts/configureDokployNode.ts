@@ -4,6 +4,7 @@ import { webAssetRouting } from './lib/webAssetRouting.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
 import { type DokployApi, dokployWebApplication } from './lib/dokployWeb.ts'
 import { requiredEnv } from './lib/requiredEnv.ts'
+import { isSpacetimeInternalHost } from './lib/spacetimeInternalHost.ts'
 import { STARTUP_BUDGET_MS } from './lib/startupBudget.ts'
 
 type Application = {
@@ -19,7 +20,7 @@ export function nodeEnvironment(environment: NodeJS.ProcessEnv, target: 'staging
   const url = `https://${webHost(target)}`
   const database = `praetorium-${target}`
   const internalHost = requiredEnv('SPACETIME_INTERNAL_HOST', environment)
-  if (!/^[a-z][a-z0-9-]{1,63}$/.test(internalHost)) throw new Error('Invalid SpacetimeDB internal host')
+  if (!isSpacetimeInternalHost(internalHost)) throw new Error('Invalid SpacetimeDB internal host')
   const entries: Record<string, string> = {
     APP_URL: url,
     AUTH_SECRET: requiredEnv('AUTH_SECRET', environment),
