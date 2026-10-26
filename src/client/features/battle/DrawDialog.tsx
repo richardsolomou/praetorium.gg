@@ -142,6 +142,10 @@ export function DrawDialog({
   const stillInDeck = selected.filter((key) => side.remainingSecondaries.some((card) => card.key === key))
   if (stillInDeck.length !== selected.length) setSelected(stillInDeck)
 
+  const cardName = (card: { key: string; name: string }) => (
+    <MissionName name={card.name} card={referenceFor(card.key)} type="Secondary mission" mode={side.secondaryMode} onRead={setInspected} />
+  )
+
   const toggleSelected = (key: string) =>
     recordSelection({
       selecting: true,
@@ -190,13 +194,7 @@ export function DrawDialog({
                         key={card.key}
                         className={`flex items-center justify-between gap-2 rounded-sm px-2.5 py-1.5 ${chosen ? 'bg-parchment/10' : 'bg-sunken'}`}
                       >
-                        <MissionName
-                          name={card.name}
-                          card={referenceFor(card.key)}
-                          type="Secondary mission"
-                          mode={side.secondaryMode}
-                          onRead={setInspected}
-                        />
+                        {cardName(card)}
                         <Button
                           variant="outline"
                           size="xs"
@@ -222,13 +220,7 @@ export function DrawDialog({
                 const offer = redrawOffer(rule, round, held)
                 return (
                   <div key={card.key} data-drawn={card.key} className={`${CARD} space-y-1.5`}>
-                    <MissionName
-                      name={card.name}
-                      card={referenceFor(card.key)}
-                      type="Secondary mission"
-                      mode={side.secondaryMode}
-                      onRead={setInspected}
-                    />
+                    {cardName(card)}
                     {offer ? (
                       <>
                         <p className="text-2xs text-dim">{offer.message}</p>
@@ -258,13 +250,7 @@ export function DrawDialog({
                 <p className="eyebrow pt-1">Still in hand</p>
                 {carried.map((card) => (
                   <div key={card.key} data-held={card.key} className={`${CARD} space-y-1.5`}>
-                    <MissionName
-                      name={card.name}
-                      card={referenceFor(card.key)}
-                      type="Secondary mission"
-                      mode={side.secondaryMode}
-                      onRead={setInspected}
-                    />
+                    {cardName(card)}
                   </div>
                 ))}
               </>
