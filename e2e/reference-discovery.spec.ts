@@ -12,6 +12,7 @@ import {
   chooseOption,
 } from './account'
 import { decodeSimulatorState } from '../src/contracts/simulatorState'
+import { simulatorState } from './combat'
 
 const desktop = { width: 1440, height: 900 }
 const phone = { width: 390, height: 900 }
@@ -111,9 +112,7 @@ test('archived reference identities remain visible in the simulator', async ({ p
     await expect(selected).toHaveAttribute('aria-busy', 'false')
     await expect(selected).toContainText(source.name)
     await expect(selected.locator(`[data-rules-version="${source.edition}"]`)).toHaveCount(0)
-    expect(decodeSimulatorState(new URL(page.url()).searchParams.get('s') ?? undefined)?.sides[1]?.catalogueId).not.toMatch(
-      new RegExp(`^${source.edition}~`),
-    )
+    expect(simulatorState(page)?.sides[1]?.catalogueId).not.toMatch(new RegExp(`^${source.edition}~`))
   }
 })
 

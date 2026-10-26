@@ -787,6 +787,10 @@ export async function makeWarlord(page: Page, unit: string) {
     .toBe(true)
 }
 
+/** Waits two frames, long enough for a layout change to paint. */
+export const nextFrames = (page: Page) =>
+  page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+
 /**
  * Moves the timeline to its first event once the page answers keys.
  *

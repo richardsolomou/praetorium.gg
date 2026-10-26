@@ -15,6 +15,7 @@ import {
   chooseFaction,
   chooseOption,
   signOut,
+  nextFrames,
 } from './account'
 import { catalogue } from './stackEnv'
 
@@ -423,7 +424,7 @@ test('rule tooltips open on touch and hover', async ({ browser, page }) => {
   const tooltip = touchPage.getByRole('tooltip')
   await touchPage.getByRole('button', { name: '[RAPID FIRE 1]' }).tap()
   await expect(tooltip).toContainText('Rapid Fire')
-  await touchPage.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+  await nextFrames(touchPage)
   await expect(tooltip).toContainText('Rapid Fire')
   await touchPage.screenshot({ path: test.info().outputPath('rule-tooltip-touch.png'), fullPage: true })
   await touchPage.getByRole('heading', { name: 'Hand of the Dynasty', exact: true }).tap()

@@ -1,6 +1,6 @@
 import { expect, test, type Locator } from './test'
 import { addUnit, createRoster, signUp, expectNoPageOverflow, chooseOption, chooseRosterAction } from './account'
-import { holdCombatCalculations } from './combat'
+import { holdCombatCalculations, openCombatBreakdown } from './combat'
 import { productOperator, userIdFor } from './storage'
 
 test('new rosters compare customizable mixed-faction benchmarks and retain the target set', async ({ page }) => {
@@ -249,7 +249,7 @@ test('saved rosters compare every pairing, reverse direction, and open isolated 
   const matchup = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
   await expect(matchup.getByRole('combobox', { name: 'Attacker unit', exact: true })).toContainText('Immortals')
   await expect(matchup.getByRole('combobox', { name: 'Defender unit', exact: true })).toContainText('Intercessor Squad')
-  await matchup.locator('[data-results-summary] summary').click()
+  await openCombatBreakdown(matchup)
   const shooting = matchup.getByRole('region', { name: 'Shooting estimate' })
   await expect(shooting.locator('.readout').first()).toHaveText(damage!)
   await matchup.getByRole('button', { name: 'More attacker models', exact: true }).click()

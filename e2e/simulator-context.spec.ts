@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from './test'
-import { decodeSimulatorState, encodeSimulatorState, type SimulatorState } from '../src/contracts/simulatorState'
-import { addUnit, createRoster, signUp, waitForRosterSave, expectNoPageOverflow, chooseOption } from './account'
-import { chooseCombatUnit, openCombatControls, combatSettled } from './combat'
+import { encodeSimulatorState, type SimulatorState } from '../src/contracts/simulatorState'
+import { addUnit, createRoster, signUp, waitForRosterSave, expectNoPageOverflow, chooseOption, nextFrames } from './account'
+import { chooseCombatUnit, openCombatControls, combatSettled, simulatorState } from './combat'
 
 declare global {
   interface Window {
@@ -38,7 +38,7 @@ function memberState(): SimulatorState {
 }
 
 function shared(page: Page) {
-  const state = decodeSimulatorState(new URL(page.url()).searchParams.get('s') ?? undefined)
+  const state = simulatorState(page)
   if (!state) throw new Error('The current simulator URL must contain valid v1 state.')
   return state
 }
@@ -262,7 +262,7 @@ for (const { context, companion, width } of editors) {
       await expect(loadout.locator('[aria-label*="destroyed,"].text-faint')).toHaveCount(0)
       const currentLabels = await odds.evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')))
       await gate.release()
-      await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))))
+      await nextFrames(page)
       expect(await odds.evaluateAll((elements) => elements.map((element) => element.getAttribute('aria-label')))).toEqual(currentLabels)
       await expect(loadout.locator('[aria-label*="destroyed,"].text-faint')).toHaveCount(0)
       await expect(loadout.getByRole('alert')).toHaveCount(0)

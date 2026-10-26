@@ -7,6 +7,7 @@ import {
   holdCombatCalculations,
   isCombatCalculationRequest,
   combatDamage,
+  simulatorState,
 } from './combat'
 import { expect, startUnchosen, test, type Locator, type Page } from './test'
 import { chooseUnit as chooseCatalogueUnit, retryUntilVisible, expectNoPageOverflow, chooseOption } from './account'
@@ -1187,12 +1188,7 @@ test('folded rules keep saved selections through reload', async ({ page }) => {
   await expect(watchers).toBeChecked()
   await watchers.click()
   await shield.click()
-  await expect
-    .poll(() => {
-      const shared = new URL(page.url()).searchParams.get('s')
-      return shared ? Object.values(JSON.parse(Buffer.from(shared, 'base64url').toString()).sides[1].rules) : []
-    })
-    .toEqual([0, 0])
+  await expect.poll(() => Object.values(simulatorState(page)?.sides[1]?.rules ?? {})).toEqual([0, 0])
   await rules.locator('summary').click()
   await expect(watchers).toBeHidden()
   await page.reload()

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from './test'
 import { createRoster, setupStep, signUp, startBattle, expectNoPageOverflow, practiceBattle, chooseOption } from './account'
-import { chooseCombatUnit } from './combat'
+import { chooseCombatUnit, openCombatBreakdown } from './combat'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
 // Controls transition their font size, so measuring before the transitions finish reads the old layout.
@@ -191,7 +191,7 @@ test.describe('a touch device', () => {
     await expect.poll(() => new URL(page.url()).searchParams.get('s')).not.toBeNull()
     const summary = page.locator('[data-results-summary]')
     await expect(summary.locator('[data-combat-wipe]').first()).toContainText('%')
-    await summary.locator('summary').click()
+    await openCombatBreakdown(page)
     const figuresOverlap = await summary.evaluate((element) =>
       [...element.querySelectorAll('[data-result-numbers]')].some((row) => {
         const figures = [...row.children].map((child) => {

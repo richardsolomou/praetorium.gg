@@ -11,6 +11,7 @@ import {
   expectNoPageOverflow,
 } from './account'
 import { chooseCombatUnit, holdCombatCalculations, combatDamage } from './combat'
+import { decodeSimulatorState } from '../src/contracts/simulatorState'
 
 const pairing = 'Intercessor Squad vs Necron Warriors'
 const history = '[aria-label="Recent simulations"]'
@@ -34,7 +35,7 @@ test(
     await expect
       .poll(async () => {
         const url = new URL((await recent.getByRole('link', { name: pairing, exact: true }).getAttribute('href')) ?? '', 'http://localhost')
-        return JSON.parse(Buffer.from(url.searchParams.get('s')!, 'base64url').toString()).sides[0].pick.models
+        return decodeSimulatorState(url.searchParams.get('s') ?? undefined)?.sides[0]?.pick.models
       })
       .toBe(6)
     await expect(recent.getByRole('link')).toHaveCount(1)

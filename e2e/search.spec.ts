@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { retryUntilVisible, scrollSearchResultIntoView } from './account'
+import { retryUntilVisible, scrollSearchResultIntoView, nextFrames } from './account'
 
 test('global search retains page shortcuts before a query is entered', async ({ page }) => {
   await page.goto('/search')
@@ -328,7 +328,7 @@ for (const width of [390, 1280]) {
       for (let cycle = 0; cycle < 3; cycle++) {
         for (const next of [390, 1280, 860, 600, 390, 1440]) {
           await page.setViewportSize({ width: next, height: cycle % 2 ? 500 : 844 })
-          await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))))
+          await nextFrames(page)
         }
       }
       await page.setViewportSize({ width, height: 844 })
