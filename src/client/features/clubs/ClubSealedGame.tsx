@@ -97,6 +97,7 @@ export function ClubSealedGame({
   // A side to move to, or null to step out, held while a sealed player confirms losing their list.
   const [moving, setMoving] = useState<LeagueSide | null | undefined>(undefined)
 
+  const gameName = eventName({ ...game, tournament: null, club })
   const member = club.members.some((candidate) => candidate.userId === viewerId && candidate.status === 'accepted')
   const people = new Map(club.members.map((candidate) => [candidate.userId, candidate]))
   const nameOf = (userId: string) => people.get(userId)?.name ?? 'A former member'
@@ -111,8 +112,8 @@ export function ClubSealedGame({
   const checks = record ? leagueRevealChecklist(record, record.entries, now) : []
   const ready =
     !revealed && (team ? checks.length > 0 && checks.every((check) => check.done) : sealed.length >= 2 && sealed.length === players.length)
-  const played = new Set(game.played.map((pair) => pair.join('|')))
-  const hasPlayed = (userId: string) => played.has([viewerId ?? '', userId].toSorted().join('|'))
+  const havePlayed = playedIn(game)
+  const hasPlayed = (userId: string) => havePlayed(viewerId ?? '', userId)
   const toPlay = unplayedOpponents(game, viewerId)
   const listName = (userId: string) => record?.entries.find((entry) => entry.userId === userId)?.rosterName ?? null
   const sides = team ? gameSides(game) : []
@@ -167,15 +168,7 @@ export function ClubSealedGame({
     else side.mutate(next)
   }
 
-  const when = revealed
-    ? game.playsAt
-      ? `Played ${moment(game.playsAt)}`
-      : null
-    : game.sealBy
-      ? `Lists due ${moment(game.sealBy)}`
-      : game.playsAt
-        ? `Played ${moment(game.playsAt)}`
-        : null
+  const when = !revealed && game.sealBy ? `Lists due ${moment(game.sealBy)}` : game.playsAt ? `Played ${moment(game.playsAt)}` : null
   const waiting = (step: 'lists' | 'dispositions' | 'warlords') => {
     const check = checks.find((candidate) => candidate.step === step)
     return check && 'waiting' in check && !check.done ? namesPhrase(check.waiting.map(nameOf)) : ''
@@ -328,7 +321,7 @@ export function ClubSealedGame({
   const gameBattles = battles.length ? (
     <div className={embedded ? '' : 'border-t border-edge'}>
       {embedded ? null : <p className="eyebrow px-4 pt-3 pb-1 text-dim">Battles</p>}
-      <ul aria-label={`Battles of ${eventName({ ...game, tournament: null, club })}`} className="divide-y divide-edge">
+      <ul aria-label={`Battles of ${gameName}`} className="divide-y divide-edge">
         {battles.map((battle) => (
           <BattleResult key={battle.token} battle={battle} viewerId={viewerId} />
         ))}
@@ -340,14 +333,14 @@ export function ClubSealedGame({
     <section
       id={`game-${game.token}`}
       data-sealed-game={game.token}
-      aria-label={`Sealed game: ${eventName({ ...game, tournament: null, club })}`}
+      aria-label={`Sealed game: ${gameName}`}
       className={embedded ? 'bg-panel' : `border bg-panel ${highlighted ? 'border-parchment' : 'border-edge'}`}
     >
       {embedded ? (
         <>
           <div className="flex min-w-0 items-center gap-3 border-b border-edge py-2 pr-2 pl-4">
             <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-3">
-              <span className="min-w-0 truncate font-semibold sm:flex-1">{eventName({ ...game, tournament: null, club })}</span>
+              <span className="min-w-0 truncate font-semibold sm:flex-1">{gameName}</span>
               <span className="text-sm text-dim sm:shrink-0">
                 {[
                   countLabel(sealed.length, 'player'),
@@ -374,7 +367,7 @@ export function ClubSealedGame({
           <div className="flex min-w-0 items-start gap-3 p-4 pb-3">
             <div className="min-w-0 flex-1">
               <p className="eyebrow text-discarded">Sealed game</p>
-              <h3 className="mt-1 font-bold break-words uppercase">{eventName({ ...game, tournament: null, club })}</h3>
+              <h3 className="mt-1 font-bold break-words uppercase">{gameName}</h3>
               {when ? <p className="mt-0.5 text-sm text-dim">{when}</p> : null}
             </div>
             {menu}
@@ -557,6 +550,12 @@ function BattleResult({ battle, viewerId }: { battle: Battle; viewerId: string |
   )
 }
 
+/** Whether two players have already met in this game, in either order. */
+function playedIn(game: Game) {
+  const played = new Set(game.played.map((pair) => pair.join('|')))
+  return (one: string, other: string) => played.has([one, other].toSorted().join('|'))
+}
+
 /**
  * Who the reader has sealed against and not yet played: everyone else in a duel, the other side in a team game. A
  * 2v1's solo player faces the paired players; two solo players or two pairs never meet.
@@ -564,7 +563,7 @@ function BattleResult({ battle, viewerId }: { battle: Battle; viewerId: string |
 function unplayedOpponents(game: Game, viewerId: string | null) {
   const own = game.players.find((player) => player.userId === viewerId && player.sealed)
   if (!own) return []
-  const played = new Set(game.played.map((pair) => pair.join('|')))
+  const havePlayed = playedIn(game)
   return game.players.filter(
     (player) =>
       player.sealed &&
@@ -574,6 +573,6 @@ function unplayedOpponents(game: Game, viewerId: string | null) {
         : game.format === '2v2'
           ? player.teamId !== own.teamId
           : true) &&
-      !played.has([own.userId, player.userId].toSorted().join('|')),
+      !havePlayed(own.userId, player.userId),
   )
 }
