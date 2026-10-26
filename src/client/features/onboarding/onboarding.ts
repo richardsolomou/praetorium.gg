@@ -1,7 +1,7 @@
 import { readSessionValue } from '../../storedValue'
 import { gettingStartedTaskIds, onboardingTaskIds, type OnboardingProgressOperation, type OnboardingTaskId } from '../../../core/onboarding'
 import type { OnboardingTarget } from '../../onboardingTargets'
-export { onboardingTargets, type OnboardingTarget } from '../../onboardingTargets'
+export type { OnboardingTarget } from '../../onboardingTargets'
 
 export const ONBOARDING_FOCUS_EVENT = 'praetorium:onboarding-focus'
 export const ONBOARDING_EVENT = 'praetorium:onboarding'

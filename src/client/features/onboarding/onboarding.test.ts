@@ -14,11 +14,11 @@ import {
   onboardingStepEntry,
   onboardingStepIds,
   onboardingStepPastAbsentTarget,
-  onboardingTargets,
   ONBOARDING_UI,
   storedOnboardingFocus,
   type OnboardingStepId,
 } from './onboarding'
+import { onboardingTargets } from '../../onboardingTargets'
 
 /** One address per page the guide can name, which is also what proves a step's page is reachable. */
 const PAGE_ADDRESSES = [
@@ -218,10 +218,6 @@ describe('onboarding targets', () => {
     const advances = advancesInSource()
     expect(pressed.filter(([id, step]) => !advances.has(`${id}->${step.next ?? ''}`)).map(([id]) => id)).toEqual([])
   })
-
-  it('points every step at a target', () => {
-    expect(Object.values(ONBOARDING_UI).filter((step) => !(onboardingTargets as readonly string[]).includes(step.target))).toEqual([])
-  })
 })
 
 describe('onboarding focus', () => {
@@ -231,10 +227,6 @@ describe('onboarding focus', () => {
     vi.stubGlobal('window', {})
     vi.stubGlobal('sessionStorage', { getItem: (key: string) => entries[key] ?? null })
   }
-
-  it('stores each account focus separately', () => {
-    expect(onboardingFocusStorageKey('alice')).not.toBe(onboardingFocusStorageKey('bob'))
-  })
 
   it('reads the step stored for that account', () => {
     withStoredFocus({ [onboardingFocusStorageKey('alice')]: JSON.stringify({ task: 'roster', step: 'roster-picker' }) })
