@@ -15,8 +15,10 @@ import { useDateFormatting } from '../../dates'
 import { SOURCE } from '../../projectLinks'
 import { readTicketMessage, ticketSubject } from '../../../contracts/feedback'
 import { FEEDBACK_MESSAGE_MAX_LENGTH } from './feedback'
-import { refreshSupport, replyToConversation, supportMessagesQuery, useSupportAvailable } from './support'
+import { refreshSupport, replyToConversation, useSupportAvailable } from './support'
+import { supportMessagesQuery } from '../../queries'
 import { StatusChip } from './YourFeedback'
+import { searchShortcutModifier } from '../shell/globalSearchShortcut'
 
 /** Messages by one author this close together read as one turn, under a single name. */
 const TURN_MS = 5 * 60_000
@@ -210,7 +212,7 @@ function Thread({ ticketId, messages, status, notice }: { ticketId: string; mess
         </form>
         <p className={cn('flex items-center gap-3 text-2xs text-faint', !nearLimit && 'max-sm:hidden')}>
           <span className="max-sm:hidden">
-            <Kbd className="h-4 rounded-sm bg-raised text-2xs text-dim">{/Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘' : 'Ctrl'}</Kbd>{' '}
+            <Kbd className="h-4 rounded-sm bg-raised text-2xs text-dim">{searchShortcutModifier(navigator.userAgent)}</Kbd>{' '}
             <Kbd className="h-4 rounded-sm bg-raised text-2xs text-dim">Enter</Kbd> to send
           </span>
           {nearLimit ? (

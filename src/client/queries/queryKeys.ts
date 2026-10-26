@@ -39,6 +39,14 @@ export const fieldedDatasheetsKey = () => ['fielded-datasheets']
 export const wishlistSuggestionsKey = () => ['wishlist-suggestions']
 /** Every administration read sits under one key, so an administrator's change refreshes all of them. */
 export const adminKey = () => ['admin']
+/** Every Support read sits under one key, so a change of identity resets all of them. */
+export const supportKey = () => ['support']
+export const supportTicketsKey = () => ['support', 'tickets']
+/** Without a conversation, every conversation's messages. */
+export const supportMessagesKey = (ticketId?: string) =>
+  ticketId === undefined ? ['support', 'messages'] : ['support', 'messages', ticketId]
+export const supportOpeningKey = (ticketId: string) => ['support', 'opening', ticketId]
+export const supportIdentityKey = (userId: string | undefined) => ['support-identity', userId]
 /** Without an entry, every datasheet's photos. */
 export const datasheetPhotosKey = (entryId?: string) => (entryId === undefined ? ['datasheet-photos'] : ['datasheet-photos', entryId])
 /** Without a player, every player's collection. */

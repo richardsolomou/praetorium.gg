@@ -7,7 +7,8 @@ import { useVirtualRows } from '../../components/useVirtualRows'
 import { Problem } from '../../components/Problem'
 import { formatAgo } from '../../dates'
 import { messagePreview, ticketSubject } from '../../../contracts/feedback'
-import { openConversation, openingMessageQuery, TICKET_STATUS, unreadReplies, useSupportTickets } from './support'
+import { openConversation, TICKET_STATUS, unreadReplies, useSupportTickets } from './support'
+import { openingMessageQuery } from '../../queries'
 import { countLabel } from '../../text'
 
 /** The player's feedback conversations, newest activity first; hidden until they have one. */

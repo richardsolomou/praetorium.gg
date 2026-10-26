@@ -1,14 +1,8 @@
 import { posthog } from 'posthog-js'
 import { afterEach, expect, it, vi } from 'vitest'
 import { InfiniteQueryObserver, QueryClient } from '@tanstack/react-query'
-import {
-  onOpenSupport,
-  openConversation,
-  readAsNewIdentity,
-  replyToConversation,
-  supportMessagesQuery,
-  supportTicketsQuery,
-} from './support'
+import { onOpenSupport, openConversation, readAsNewIdentity, replyToConversation } from './support'
+import { supportMessagesQuery, supportTicketsQuery } from '../../queries'
 
 vi.mock('../../functions', () => ({ supportIdentity: vi.fn() }))
 
