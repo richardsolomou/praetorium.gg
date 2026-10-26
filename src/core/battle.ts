@@ -1597,11 +1597,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       }
       if (player.cp + command.delta < 0) return refuse('not-enough-cp', 'not enough command points')
       if (state.settings.manual) return null
-      const round = command.missed?.round ?? state.round
-      if (command.delta > 0 && (player.bonusCpByRound[round - 1] ?? 0) + command.delta > 1) {
-        return refuse('cp-gain-limit', 'a side can gain at most 1 additional command point per battle round')
-      }
-      return null
+      return command.delta > 0 ? bonusCpRefusal(player, command.missed?.round ?? state.round, command.delta) : null
     }
     case 'resolve-tactical-hand': {
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
@@ -1616,10 +1612,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (keys.some((key) => !active.some((secondary) => secondary.key === key)))
         return refuse('secondary-not-active', 'that secondary is not active')
       if (command.gainCp && !keys.length) return refuse('nothing-discarded', 'discard a secondary to gain a command point')
-      if (command.gainCp && (player.bonusCpByRound[state.round - 1] ?? 0) >= 1) {
-        return refuse('cp-gain-limit', 'a side can gain at most 1 additional command point per battle round')
-      }
-      return null
+      return command.gainCp ? bonusCpRefusal(player, state.round, 1) : null
     }
     case 'score': {
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
@@ -2239,13 +2232,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       return
     }
     case 'adjust-cp': {
-      const round = command.missed?.round ?? state.round
-      player.cp += command.delta
-      if (command.delta > 0) {
-        player.cpGained += command.delta
-        player.bonusCpByRound[round - 1] = (player.bonusCpByRound[round - 1] ?? 0) + command.delta
-      } else player.cpSpent += Math.abs(command.delta)
-      recordCpChange(state, player, command.delta, command.missed)
+      adjustCp(state, player, command.delta, command.missed)
       return
     }
     case 'resolve-tactical-hand': {
@@ -2254,12 +2241,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
         ...player.secondaryStatus,
         ...Object.fromEntries(keys.map((key) => [key, 'discarded' as const])),
       }
-      if (command.gainCp) {
-        player.cp += 1
-        player.cpGained += 1
-        player.bonusCpByRound[state.round - 1] = (player.bonusCpByRound[state.round - 1] ?? 0) + 1
-        player.cpByRound[state.round - 1] = player.cp
-      }
+      if (command.gainCp) adjustCp(state, player, 1)
       return
     }
     case 'score': {
@@ -2586,6 +2568,23 @@ function fewestCpSince(state: BattleState, player: PlayerState, moment: BattleMo
 }
 
 /** Carries a CP change through every moment since the one it belongs to. */
+/** A gain beyond the side's own Command phase, which the rules cap at one a battle round. */
+function bonusCpRefusal(player: PlayerState, round: number, delta: number): Refusal | null {
+  return (player.bonusCpByRound[round - 1] ?? 0) + delta > 1
+    ? refuse('cp-gain-limit', 'a side can gain at most 1 additional command point per battle round')
+    : null
+}
+
+function adjustCp(state: BattleState, player: PlayerState, delta: number, missed?: BattleMoment) {
+  const round = missed?.round ?? state.round
+  player.cp += delta
+  if (delta > 0) {
+    player.cpGained += delta
+    player.bonusCpByRound[round - 1] = (player.bonusCpByRound[round - 1] ?? 0) + delta
+  } else player.cpSpent += Math.abs(delta)
+  recordCpChange(state, player, delta, missed)
+}
+
 function recordCpChange(state: BattleState, player: PlayerState, delta: number, missed?: BattleMoment) {
   if (missed) {
     const from = momentOrder(state, missed)
