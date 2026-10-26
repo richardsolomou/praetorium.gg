@@ -207,12 +207,18 @@ export function leagueRevealChecklist(
   if (event.format === '2v1') {
     const alliedLimit = alliedLeagueRosterLimit(event.rosterLimit ?? 0)
     const solo = accepted.filter((entry) => entry.requiredLimit !== null && entry.requiredLimit === event.rosterLimit).length
-    const allied = accepted.filter((entry) => entry.requiredLimit !== null && entry.requiredLimit === alliedLimit).length
+    const allies = accepted.filter((entry) => entry.requiredLimit === alliedLimit)
     const unsized = accepted.filter((entry) => entry.requiredLimit === null).map((entry) => entry.userId)
     // One solo player and two allies are the fewest a 2v1 seats.
     const short = accepted.length < 3
-    checks.push({ step: 'sizes', done: unsized.length === 0 && solo > 0 && allied >= 2, waiting: unsized, solo, allied, short })
-    const allies = accepted.filter((entry) => entry.requiredLimit !== null && entry.requiredLimit === alliedLimit)
+    checks.push({
+      step: 'sizes',
+      done: unsized.length === 0 && solo > 0 && allies.length >= 2,
+      waiting: unsized,
+      solo,
+      allied: allies.length,
+      short,
+    })
     const unpaired = allies.filter((entry) => !entry.teamId || allies.filter((ally) => ally.teamId === entry.teamId).length !== 2)
     checks.push({ step: 'teams', done: unpaired.length === 0, waiting: unpaired.map((entry) => entry.userId), short })
   }
