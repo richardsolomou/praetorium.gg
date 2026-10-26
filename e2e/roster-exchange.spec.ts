@@ -15,12 +15,13 @@ import { expectWorkSynced, guestDraft } from './storage'
 
 const phone = { viewport: PHONE }
 
+/** The roster's exported text without its version footer, which differs between builds. */
 async function exportedText(page: Page) {
   await chooseRosterAction(page, 'Export text')
   const dialog = page.getByRole('dialog', { name: 'Export roster' })
   const text = await dialog.locator('pre').innerText()
   await dialog.getByRole('button', { name: 'Close' }).click()
-  return text
+  return text.replace(/^.*Exported with.*$/m, '')
 }
 
 /** A code in the shipped format, for payloads the app itself would never encode. */
@@ -80,7 +81,7 @@ test('an exchange code carries a roster to another account and to a visitor', as
   await recipient.waitForURL(/\/rosters\/[^/]+$/)
   await recipient.reload()
   const received = await exportedText(recipient)
-  expect(received.replace(/^.*Exported with.*$/m, '')).toBe(sent.replace(/^.*Exported with.*$/m, ''))
+  expect(received).toBe(sent)
 
   // Importing the same code again makes a second, separate copy.
   await recipient.setViewportSize(desktopContext.viewport)
@@ -114,7 +115,7 @@ test('an exchange code carries a roster to another account and to a visitor', as
   await expect(attached.locator('[data-unit="Immortals"]')).toBeVisible()
   await expect(attached.locator('[data-unit="Overlord"]')).toBeVisible()
   await visitor.reload()
-  expect((await exportedText(visitor)).replace(/^.*Exported with.*$/m, '')).toBe(sent.replace(/^.*Exported with.*$/m, ''))
+  expect(await exportedText(visitor)).toBe(sent)
 
   // Opening a link again never replaces the one draft a visitor keeps: a second roster asks for an account.
   const kept = await guestDraft(visitor)
