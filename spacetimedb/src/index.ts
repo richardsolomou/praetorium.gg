@@ -1538,6 +1538,14 @@ function nextVersion(current: StoredRoster | null, now: bigint) {
   return current && current.updatedAt >= now ? current.updatedAt + 1n : now
 }
 
+function deleteRosterRow(ctx: Context, roster: StoredRoster) {
+  endLoans(ctx, roster.id)
+  ctx.db.rosters.id.delete(roster.id)
+  touchProduct(ctx, roster.userId, 'rosters', 'onboarding')
+  if (roster.visibility !== 'private') touchPublic(ctx, 'rosters')
+  touchAdmin(ctx)
+}
+
 function updateOwnedRoster(
   ctx: Context,
   id: string,
@@ -1670,11 +1678,7 @@ export const syncRoster = spacetime.procedure({ payload: t.string() }, t.string(
     let lifecycle: 'created' | 'deleted' | null = null
     if (parsed.deleted) {
       if (current) {
-        endLoans(tx, input.id)
-        tx.db.rosters.id.delete(input.id)
-        touchProduct(tx, input.userId, 'rosters', 'onboarding')
-        if (current.visibility !== 'private') touchPublic(tx, 'rosters')
-        touchAdmin(tx)
+        deleteRosterRow(tx, current)
         lifecycle = 'deleted'
       }
     } else {
@@ -1723,13 +1727,7 @@ export const setRosterArchived = spacetime.procedure(
 export const deleteRoster = spacetime.reducer({ id: t.string(), userId: t.string() }, (ctx, { id, userId }) => {
   requireOperator(ctx)
   const current = ownedRoster(ctx, id, userId)
-  if (current) {
-    endLoans(ctx, id)
-    ctx.db.rosters.id.delete(id)
-    touchProduct(ctx, userId, 'rosters', 'onboarding')
-    if (current.visibility !== 'private') touchPublic(ctx, 'rosters')
-    touchAdmin(ctx)
-  }
+  if (current) deleteRosterRow(ctx, current)
 })
 
 export const lendRoster = spacetime.procedure(
