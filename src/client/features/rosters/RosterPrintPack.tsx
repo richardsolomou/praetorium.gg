@@ -21,6 +21,7 @@ import { normalisePicks } from './rosterPicks'
 import { countLabel } from '../../text'
 import { unitKeywordsText } from '../../components/Keyword'
 import { usePrintWhenReady } from './usePrintWhenReady'
+import { chunks } from '../../../core/collections'
 
 type Price = NonNullable<Awaited<ReturnType<typeof priceRoster>>>
 
@@ -69,10 +70,10 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
       if (!cards) throw new Error('The stratagem reference is unavailable.')
       const units = []
       // A full army's contextual reads are expensive; keep at most three in flight.
-      for (let start = 0; start < input.price.units.length; start += 3) {
+      for (const chunk of chunks(input.price.units, 3)) {
         signal.throwIfAborted()
         const batch = await Promise.all(
-          input.price.units.slice(start, start + 3).map(async (unit) => {
+          chunk.map(async (unit) => {
             const pick = input.picks[unit.key]
             const sheets = await client.query({
               ...loadoutDatasheetsQuery(pick?.catalogueId ?? input.catalogueId, unit.entryId, input.detachmentIds, picks, unit.key),
