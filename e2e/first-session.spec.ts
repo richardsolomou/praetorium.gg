@@ -4,7 +4,6 @@ import {
   attachRoster,
   createRoster,
   PRACTICE_OPPONENT,
-  retryUntilVisible,
   setupStep,
   signUp,
   startBattle,
@@ -13,6 +12,7 @@ import {
   chooseFaction,
   chooseOption,
   concede,
+  openImport,
 } from './account'
 import { guestDraft } from './storage'
 
@@ -33,9 +33,7 @@ Immortals (65 Points)
 Exported with BattleBase, Data Version: v20260812`
 
 test('a guest reviews, imports and saves their first list', async ({ page }, testInfo) => {
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const dialog = await openImport(page)
   await dialog.getByLabel('Roster text').fill(rosterText)
   await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(dialog).toContainText('1 of 1 matched entry')
@@ -72,9 +70,7 @@ test('a guest reviews, imports and saves their first list', async ({ page }, tes
 })
 
 test('an import names a missing unit and lets the guest correct the text before opening a draft', async ({ page }) => {
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const dialog = await openImport(page)
   await dialog.getByLabel('Roster text').fill(rosterText.replace('Immortals (65 Points)', 'Imaginary unit (65 Points)'))
   await dialog.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(dialog.getByRole('alert')).toContainText('Imaginary unit')
@@ -209,9 +205,7 @@ test('the first-game landing path fits', async ({ page }, testInfo) => {
 
 test('a saved long roster prints every card without clipping or editing controls', async ({ page }, testInfo) => {
   await signUp(page, uniqueName('Printer'))
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const dialog = await openImport(page)
   const entry = rosterText.slice(rosterText.indexOf('Immortals ('), rosterText.indexOf('Exported with'))
   const longRoster = rosterText.replace(entry, entry.repeat(12))
   await dialog.getByLabel('Roster text').fill(longRoster)

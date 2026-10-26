@@ -3,11 +3,11 @@ import {
   chooseRosterAction,
   createRoster,
   desktopContext,
-  retryUntilVisible,
   signUp,
   waitForRosterSave,
   makeWarlord,
   chooseLibraryAction,
+  openImport,
 } from './account'
 import { add, attach, shot } from './builder.harness'
 import { expectWorkSynced, guestDraft } from './storage'
@@ -20,13 +20,6 @@ async function exportedText(page: Page) {
   const text = await dialog.locator('pre').innerText()
   await dialog.getByRole('button', { name: 'Close' }).click()
   return text
-}
-
-async function openImport(page: Page) {
-  await page.goto('/rosters')
-  const dialog = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(dialog.getByLabel('Roster text'), () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
-  return dialog
 }
 
 /** A code in the shipped format, for payloads the app itself would never encode. */

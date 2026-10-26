@@ -120,6 +120,14 @@ export async function chooseRosterAction(page: Page, item: string) {
   await choice.click()
 }
 
+/** Opens the import dialog from the rosters page once its text box answers. */
+export async function openImport(page: Page) {
+  await page.goto('/rosters')
+  const dialog = page.getByRole('dialog', { name: 'Import roster', exact: true })
+  await retryUntilVisible(dialog.getByLabel('Roster text'), () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  return dialog
+}
+
 /** Chooses an item from a library row's actions menu, reopening the menu until the item shows. */
 export async function chooseLibraryAction(page: Page, roster: string, item: string | RegExp) {
   const choice = page.getByRole('menuitem', { name: item, exact: true })

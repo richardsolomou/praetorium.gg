@@ -17,6 +17,7 @@ import {
   desktopContext,
   practiceBattle,
   chooseLibraryAction,
+  openImport,
 } from './account'
 
 test('a list can be copied as Games Workshop text', async ({ browser }) => {
@@ -82,9 +83,7 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
   await dialog.getByRole('button', { name: 'Download text' }).click()
   const download = await downloaded
   expect(await readFile(await download.path(), 'utf8')).toBe(readable)
-  await page.goto('/rosters')
-  const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(review, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const review = await openImport(page)
   await review.getByLabel('Roster text').fill(readable)
   await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(review).toContainText('2 of 2 matched entries')
@@ -103,9 +102,7 @@ test('a list can be copied as Games Workshop text', async ({ browser }) => {
 
 test('an official Custodes roster keeps all units and choices after import and reload', async ({ page }, testInfo) => {
   await signUp(page, 'Custodes importer')
-  await page.goto('/rosters')
-  const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(review, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const review = await openImport(page)
   await review.getByLabel('Roster text').fill(custodesOfficial)
   await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(review).toContainText('10 of 10 matched entries')
@@ -133,9 +130,7 @@ test('an official Custodes roster keeps all units and choices after import and r
 test('an official Necrons roster keeps leaders and support after import and reload', async ({ page }, testInfo) => {
   await arrangeByRole(page)
   await signUp(page, 'Necrons importer')
-  await page.goto('/rosters')
-  const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(review, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const review = await openImport(page)
   await review.getByLabel('Roster text').fill(necronsOfficial)
   await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(review).toContainText('7 of 7 matched entries')
@@ -177,9 +172,7 @@ test('an official Necrons roster keeps leaders and support after import and relo
 test('a New Recruit chapter roster keeps its allies and attachments after import and reload', async ({ page }, testInfo) => {
   await arrangeByRole(page)
   await signUp(page, 'Chapter importer')
-  await page.goto('/rosters')
-  const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(review, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const review = await openImport(page)
   await review.getByLabel('Roster text').fill(blackTemplarsNewRecruit)
   await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(review).toContainText('16 of 16 matched entries')
@@ -221,9 +214,7 @@ test('a New Recruit chapter roster keeps its allies and attachments after import
 
 test('a visitor imports the reported Salamanders detachments and keeps them after reload', async ({ page }, testInfo) => {
   await arrangeByRole(page)
-  await page.goto('/rosters')
-  const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(review, () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const review = await openImport(page)
   await review.getByLabel('Roster text').fill(salamandersOfficial)
   await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(review).toContainText('12 of 12 matched entries')
@@ -307,9 +298,7 @@ Exported with BattleBase, Data Version: v20260812`)
 
 test('a ListForge export imports through review and exports as readable text', async ({ page }) => {
   await signUp(page, 'Switcher')
-  await page.goto('/rosters')
-  const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
-  await retryUntilVisible(review.getByLabel('Roster text'), () => page.getByRole('button', { name: 'Import roster', exact: true }).click())
+  const review = await openImport(page)
   await review.getByLabel('Roster text').fill(listForgeDetailed)
   await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
   await expect(review).toContainText('Sanitised list · 6 of 6 matched entries')
@@ -328,11 +317,7 @@ test('a ListForge export imports through review and exports as readable text', a
 for (const count of [0, 1, 3]) {
   test(`an account reviews and saves all ${count} source entries, and cancelling writes nothing`, async ({ page }) => {
     await signUp(page, `Entry count ${count}`)
-    await page.goto('/rosters')
-    const review = page.getByRole('dialog', { name: 'Import roster', exact: true })
-    await retryUntilVisible(review.getByLabel('Roster text'), () =>
-      page.getByRole('button', { name: 'Import roster', exact: true }).click(),
-    )
+    const review = await openImport(page)
     const text = `Saved entries (999 Points)\n\nNecrons\nAwakened Dynasty\nForce Disposition: Take and Hold\nStrike Force (2,000 Points)\n\nBATTLELINE\n\n${'Immortals (65 Points)\n • 5x Gauss blaster\n • 5x Close combat weapon\n • Models: 5\n\n'.repeat(count)}Exported with Praetorium.gg vtest\n`
     await review.getByLabel('Roster text').fill(text)
     await review.getByRole('button', { name: 'Import pasted roster', exact: true }).click()
