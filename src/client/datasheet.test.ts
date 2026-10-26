@@ -304,6 +304,13 @@ describe('weapon profile mode labels', () => {
   it('preserves source modes that already have deliberate casing', () => {
     expect(weaponProfileMode(profile('➤ Blaster - FOCUSED'))).toBe('FOCUSED')
   })
+
+  it.each([
+    ['➤ Plasma gun - supercharge (Tempestor Prime)', 'Supercharge (Tempestor Prime)'],
+    ['Plasma gun (supercharge)', 'Supercharge'],
+  ])('keeps the brackets a mode names inside %s', (name, mode) => {
+    expect(weaponProfileMode(profile(name), [{ ...profile(name), equipmentName: 'Plasma gun' }])).toBe(mode)
+  })
 })
 
 it('groups conditional profiles by equipment ownership without parsing their names', () => {

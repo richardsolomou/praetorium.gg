@@ -2,9 +2,12 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { beforeAll, describe, expect, it } from 'vitest'
 import { joinableUnits } from '../src/core/attachmentOptions'
+import { fieldedUnits, startingEmbarkRefusal } from '../src/core/battle'
+import { frozenUnits } from '../src/core/rosterSnapshot'
 import { nameOf } from '../src/core/catalogue'
 import type { RosterPick } from '../src/core/roster'
 import type { LoadedCatalogue } from '../src/server/catalogueIndex'
+import { unitBattleDetailsIn } from '../src/shared/catalogue'
 import { calculateRosterPrice } from '../src/shared/pricing'
 import { rosterCombatant } from '../src/shared/rosterCombatRules'
 import type { LoadedRules } from '../src/shared/rules'
@@ -30,6 +33,7 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('Bridgehead
       },
       { entryId: datasheet(militarum, 'Tempestus Scions') },
       { entryId: datasheet(agents, 'Inquisitor Coteaz'), catalogueId: agents, attachedTo: 1 },
+      { entryId: datasheet(militarum, 'Chimera') },
     ]
     const detachmentIds = [loaded.detachments.get(militarum)!.options.find((option) => option.name === 'Bridgehead Strike')!.id]
     return { catalogueId: militarum, detachmentIds, units }
@@ -66,6 +70,23 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('Bridgehead
 
   it('simulates Tempestus Scions led by Inquisitor Coteaz', () => {
     expect(simulated(true).attachmentErrors).toEqual([])
+  })
+
+  it('embarks Tempestus Scions led by Inquisitor Coteaz in a Chimera', () => {
+    const { units } = roster(true)
+    const fielded = fieldedUnits(
+      frozenUnits(
+        units,
+        priced(true).units,
+        unitBattleDetailsIn(
+          loaded,
+          militarum,
+          units.map(({ entryId }) => entryId),
+        ),
+      ),
+    )
+    const key = (name: string) => fielded.find((unit) => unit.name === name)!.key
+    expect(startingEmbarkRefusal(fielded, key('Tempestus Scions'), key('Chimera'))).toBeNull()
   })
 
   it('refuses to simulate Inquisitor Coteaz leading Tempestus Scions without a Tempestus Warlord', () => {

@@ -162,7 +162,8 @@ export function weaponProfileGroupName(profiles: readonly Profile[]) {
 export function weaponProfileMode(profile: Profile, profiles: readonly Profile[] = [profile]) {
   const name = profile.name.replace(/^[^\p{L}\p{N}]+/u, '')
   const base = weaponProfileGroupName(profiles)
-  const mode =
-    (name.toLocaleLowerCase().startsWith(base) ? name.slice(base.length) : name).replace(/^\s*[-–—(]\s*|\)\s*$/g, '').trim() || profile.name
+  const rest = (name.toLocaleLowerCase().startsWith(base) ? name.slice(base.length) : name).trim().replace(/^[-–—]\s*/, '')
+  // Only a mode wrapped whole in brackets loses them; an annotation such as "(Tempestor Prime)" keeps its closing one.
+  const mode = (/^\(.*\)$/.test(rest) ? rest.slice(1, -1) : rest).trim() || profile.name
   return mode.replace(/^\p{Ll}/u, (letter) => letter.toLocaleUpperCase())
 }
