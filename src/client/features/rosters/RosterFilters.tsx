@@ -1,5 +1,5 @@
 import { ArrowDownUp, ListFilter } from 'lucide-react'
-import { Fragment } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -122,51 +122,36 @@ export function RosterFilters({
 
   return (
     <div className="flex flex-wrap items-center gap-2" aria-label="Roster filters">
-      <Dialog>
-        <DialogTrigger render={<Button variant="outline" />}>
-          <ListFilter />
-          Filter
-          {active ? <span className="chip readout">{active}</span> : null}
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Filter rosters</DialogTitle>
-            <DialogDescription>Narrow the library to the lists you want to see.</DialogDescription>
-          </DialogHeader>
-          <DialogBody className="gap-3">
-            <FilterField
-              label="Battle size"
-              value={value.limit ? String(value.limit) : 'all'}
-              groups={BATTLE_SIZE_GROUPS}
-              onChange={(chosen) => onChange({ ...value, limit: chosen === 'all' ? undefined : Number(chosen) })}
-            />
-            <FilterField
-              label="Faction"
-              value={value.faction ?? 'all'}
-              groups={[{ label: '', items: [{ label: 'All factions', value: 'all' }] }, ...factionGroups]}
-              onChange={(chosen) => onChange({ ...value, faction: chosen === 'all' ? undefined : chosen })}
-            />
-            <FilterField
-              label="Sharing"
-              value={value.visibility ?? 'all'}
-              groups={SHARING_GROUPS}
-              onChange={(chosen) => onChange({ ...value, visibility: chosen === 'all' ? undefined : (chosen as RosterVisibility) })}
-            />
-            <FilterField
-              label="Rules and data"
-              value={value.updates ?? 'all'}
-              groups={UPDATE_GROUPS}
-              onChange={(chosen) => onChange({ ...value, updates: chosen === 'all' ? undefined : (chosen as RosterUpdateFilter) })}
-            />
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="ghost" disabled={!active} onClick={() => onChange({ sort: value.sort })} className="sm:mr-auto sm:ml-0">
-              Clear filters
-            </Button>
-            <DialogClose render={<Button variant="outline" />}>Done</DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <FilterDialog
+        active={active}
+        description="Narrow the library to the lists you want to see."
+        onClear={() => onChange({ sort: value.sort })}
+      >
+        <FilterField
+          label="Battle size"
+          value={value.limit ? String(value.limit) : 'all'}
+          groups={BATTLE_SIZE_GROUPS}
+          onChange={(chosen) => onChange({ ...value, limit: chosen === 'all' ? undefined : Number(chosen) })}
+        />
+        <FilterField
+          label="Faction"
+          value={value.faction ?? 'all'}
+          groups={[{ label: '', items: [{ label: 'All factions', value: 'all' }] }, ...factionGroups]}
+          onChange={(chosen) => onChange({ ...value, faction: chosen === 'all' ? undefined : chosen })}
+        />
+        <FilterField
+          label="Sharing"
+          value={value.visibility ?? 'all'}
+          groups={SHARING_GROUPS}
+          onChange={(chosen) => onChange({ ...value, visibility: chosen === 'all' ? undefined : (chosen as RosterVisibility) })}
+        />
+        <FilterField
+          label="Rules and data"
+          value={value.updates ?? 'all'}
+          groups={UPDATE_GROUPS}
+          onChange={(chosen) => onChange({ ...value, updates: chosen === 'all' ? undefined : (chosen as RosterUpdateFilter) })}
+        />
+      </FilterDialog>
 
       <RosterSortMenu value={value.sort} onChange={(sort) => onChange({ ...value, sort })} />
     </div>
@@ -226,5 +211,55 @@ export function FilterField({
         className="mt-1"
       />
     </div>
+  )
+}
+
+/** Why a filtered list is empty, with the way back to all of it when there is one. */
+export function NoFilterMatches({ children, onClear }: { children: ReactNode; onClear?: () => void }) {
+  return (
+    <p className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2 text-sm text-dim">
+      {children}
+      {onClear ? (
+        <Button variant="outline" size="sm" onClick={onClear}>
+          Clear filters
+        </Button>
+      ) : null}
+    </p>
+  )
+}
+
+/** The filter button, counting the filters in use, and the dialog of `children` it opens. */
+export function FilterDialog({
+  active,
+  description,
+  onClear,
+  children,
+}: {
+  active: number
+  description: string
+  onClear: () => void
+  children: ReactNode
+}) {
+  return (
+    <Dialog>
+      <DialogTrigger render={<Button variant="outline" />}>
+        <ListFilter />
+        Filter
+        {active ? <span className="chip readout">{active}</span> : null}
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Filter rosters</DialogTitle>
+          <DialogDescription>{description}</DialogDescription>
+        </DialogHeader>
+        <DialogBody className="gap-3">{children}</DialogBody>
+        <DialogFooter>
+          <Button variant="ghost" disabled={!active} onClick={onClear} className="sm:mr-auto sm:ml-0">
+            Clear filters
+          </Button>
+          <DialogClose render={<Button variant="outline" />}>Done</DialogClose>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

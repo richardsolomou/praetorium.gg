@@ -32,7 +32,7 @@ import { RosterImport } from './RosterImport'
 import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
 import { rosterSetupOf } from './rosterDraft'
 import { factionSelectGroups } from './builder/factions'
-import { RosterFilters, type RosterUpdateFilter } from './RosterFilters'
+import { NoFilterMatches, RosterFilters, type RosterUpdateFilter } from './RosterFilters'
 import { RosterRow } from './RosterRow'
 import { type SavedRoster, useRosterActions } from './rosterLibrary'
 import { keepRosterSort } from './rosterSort'
@@ -372,14 +372,9 @@ export function RosterLibraryPage({
                 ) : null}
               </>
             ) : saved.length ? (
-              <p className="flex flex-wrap items-center gap-x-3 py-2 text-sm text-dim">
+              <NoFilterMatches onClear={filtered ? () => void navigate({ to: '/rosters', search: {} }) : undefined}>
                 {archived.length ? 'Every roster here is archived. Archived rosters are listed below.' : 'No rosters match these filters'}
-                {filtered ? (
-                  <Button variant="outline" size="sm" onClick={() => void navigate({ to: '/rosters', search: {} })}>
-                    Clear filters
-                  </Button>
-                ) : null}
-              </p>
+              </NoFilterMatches>
             ) : (
               <PageState
                 headingLevel={2}
