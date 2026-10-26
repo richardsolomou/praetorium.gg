@@ -181,7 +181,7 @@ export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
     /^Each time a model in that unit makes an attack, if that model has the (.+?) keyword or that enemy unit is the closest eligible target, that attack has the \[([^\]]+)\] ability\.?$/i.exec(
       text,
     )
-  if (conditionalGrant && supportedKeyword(conditionalGrant[2]!)) {
+  if (conditionalGrant && combatKeyword(conditionalGrant[2]!)) {
     const hasKeyword = rule.keywords?.some((keyword) => combatTextKey(keyword) === combatTextKey(conditionalGrant[1]!))
     return [
       {
@@ -214,8 +214,6 @@ export function combatRuleChoices(rule: CombatRule): CombatRuleChoice[] {
     ]
   return []
 }
-
-const supportedKeyword = (keyword: string) => Boolean(combatKeyword(keyword))
 
 /** A recipient must be granted an effect; proximity that only protects the source is not an aura. */
 export function combatRuleRecipient(description: string) {
