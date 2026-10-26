@@ -30,13 +30,15 @@ export function nodeBuildDirectory(environment: NodeJS.ProcessEnv = process.env)
   return environment.LOCAL_BUILD_DIR ? path.resolve(environment.LOCAL_BUILD_DIR) : fileURLToPath(new URL('../.output', import.meta.url))
 }
 
-type SpacetimeRoute = 'identity' | 'exchange' | 'subscribe' | null
+type SpacetimeRoute = 'identity' | 'exchange' | 'subscribe' | 'method-not-allowed' | null
 
 export function spacetimeRoute(request: Pick<IncomingMessage, 'url' | 'method' | 'headers'>, database: string): SpacetimeRoute {
   if (!request.url?.startsWith('/') || request.url.startsWith('//') || request.url.length > 4_096) return null
   const pathname = new URL(request.url, 'http://localhost').pathname
   if (pathname === '/spacetime/v1/identity' && request.method === 'POST') return 'identity'
   if (pathname === '/spacetime/v1/identity/websocket-token' && request.method === 'POST') return 'exchange'
+  // Some crawler renderers resend the token POST as a GET; a distinct status keeps that apart from an upstream 403 or 404.
+  if (pathname === '/spacetime/v1/identity' || pathname === '/spacetime/v1/identity/websocket-token') return 'method-not-allowed'
   if (
     pathname === `/spacetime/v1/database/${database}/subscribe` &&
     request.method === 'GET' &&
@@ -275,7 +277,7 @@ async function startNodeServer(lifecycle: ReturnType<typeof nodeLifecycle>) {
         void proxySpacetimeHttp(request, response, route, upstream)
         return
       }
-      send(response, 404)
+      send(response, route === 'method-not-allowed' ? 405 : 404)
       return
     }
     proxy.web(request, response, { target: appOrigin }, appError)

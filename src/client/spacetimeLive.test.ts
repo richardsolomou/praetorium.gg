@@ -187,8 +187,8 @@ it.each(['product', 'battle'] as const)('recovers a %s subscription after socket
   expect([mocks.sockets.length, mocks.captureException.mock.calls.length]).toEqual([3, 0])
 })
 
-it.each([403, 404])('polls without asking again or reporting when the guest token is refused (HTTP %s)', async (status) => {
-  const fetch = vi.fn(async () => new Response(null, { status }))
+it('polls without asking again or reporting when a crawler gets the guest token route by the wrong method', async () => {
+  const fetch = vi.fn(async () => new Response(null, { status: 405 }))
   vi.stubGlobal('fetch', fetch)
   useSpacetimeLiveProduct({ mode: 'spacetime', database: 'test', uri: 'https://praetorium.gg/spacetime/' }, false)
   mount()

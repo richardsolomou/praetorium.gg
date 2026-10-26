@@ -55,9 +55,8 @@ async function ticket(battle?: string) {
 
 async function guestTicket(config: RealtimeConfig) {
   const response = await fetch(new URL('v1/identity', config.uri), { method: 'POST', cache: 'no-store' })
-  // A browser always POSTs here: a 404 means the client resent it as a GET, as some crawlers do, and a 403 is the edge
-  // refusing the client. Asking again gets the same answer, so the page polls instead.
-  if (response.status === 403 || response.status === 404) return null
+  // A browser always POSTs here; only a crawler that resends it as a GET gets 405, and asking again gets the same answer.
+  if (response.status === 405) return null
   if (!response.ok) throw new RealtimeHttpError('Spacetime guest token', response.status)
   const { token } = z.object({ token: z.string().min(1) }).parse(await response.json())
   return { token, database: config.database, uri: config.uri, battleId: null }
