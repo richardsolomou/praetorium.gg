@@ -10,7 +10,7 @@ import {
   waitForRosterSave,
   expectNoPageOverflow,
 } from './account'
-import { chooseCombatUnit, combatEstimate, holdCombatCalculations } from './combat'
+import { chooseCombatUnit, holdCombatCalculations, combatDamage } from './combat'
 
 const pairing = 'Intercessor Squad vs Necron Warriors'
 const history = '[aria-label="Recent simulations"]'
@@ -141,7 +141,7 @@ test(
     const melee = page.getByRole('region', { name: 'Melee results' })
     const enhanced = melee.getByRole('button', { name: 'A 6, modified from 4 by Destroyer Ankh', exact: true })
     await expect(enhanced).toBeVisible()
-    await expect((await combatEstimate(page, 'Melee')).locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
+    await expect(await combatDamage(page, 'Melee')).toHaveText(/^\d+\.\d+$/)
     const recent = page.getByRole('region', { name: 'Recent simulations', exact: true })
     const rosterPairing = recent.getByRole('link', { name: 'Overlord · Ankh Court vs Intercessor Squad', exact: true })
     await expect(rosterPairing).toBeVisible()

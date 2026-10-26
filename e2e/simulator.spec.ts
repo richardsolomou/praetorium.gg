@@ -6,6 +6,7 @@ import {
   openCombatControls,
   holdCombatCalculations,
   isCombatCalculationRequest,
+  combatDamage,
 } from './combat'
 import { expect, startUnchosen, test, type Locator, type Page } from './test'
 import { chooseUnit as chooseCatalogueUnit, retryUntilVisible, expectNoPageOverflow, chooseOption } from './account'
@@ -74,7 +75,7 @@ test('a source-linked weapon bundle calculates after changing its loadout', asyn
   await expect(page.getByRole('region', { name: 'Melee results' })).toContainText('Voidblade')
   for (const phase of ['Shooting', 'Melee'] as const) {
     await expect(page.getByRole('region', { name: `${phase} results` }).getByRole('alert')).toHaveCount(0)
-    await expect((await combatEstimate(page, phase)).locator('.readout').first()).toHaveText(/^\d+\.\d{2}$/)
+    await expect(await combatDamage(page, phase)).toHaveText(/^\d+\.\d{2}$/)
   }
   await atWidths(page, [1440, 390], async (width) => {
     await page.screenshot({ path: test.info().outputPath(`simulator-ownership-bundle-${width}.png`) })
@@ -140,8 +141,8 @@ test('weapon switches leave profiles visible and shared modifiers can be overrid
   await page.goto('/simulator')
   await matchup(page)
   const shooting = page.getByRole('region', { name: 'Shooting results' })
-  const shootingDamage = (await combatEstimate(page, 'Shooting')).locator('.readout').first()
-  const meleeDamage = (await combatEstimate(page, 'Melee')).locator('.readout').first()
+  const shootingDamage = await combatDamage(page, 'Shooting')
+  const meleeDamage = await combatDamage(page, 'Melee')
   const resultsSummary = page.getByLabel('Results summary')
   await expect(resultsSummary).toBeVisible()
   await expect(page.locator('[data-result-numbers]')).toHaveCount(4)
@@ -309,7 +310,7 @@ test('named weapon alternatives and once-per-battle attack buffs calculate from 
   await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
   const shooting = page.getByRole('region', { name: 'Shooting results' })
   const melee = page.getByRole('region', { name: 'Melee results' })
-  const damage = (await combatEstimate(page, 'Shooting')).locator('.readout').first()
+  const damage = await combatDamage(page, 'Shooting')
   await expect(damage).toHaveText(/^\d+(?:\.\d+)?$/)
   await expect(shooting).toHaveAttribute('aria-busy', 'false')
   const baseline = Number(await damage.textContent())
@@ -357,7 +358,7 @@ test('shared weapon modes count every carrier and indirect shooting applies its 
   await chooseCombatUnit(page, 'Attacker', 'Death Guard', 'Deathshroud Terminators')
   await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
   const melee = page.getByRole('region', { name: 'Melee results' })
-  await expect((await combatEstimate(page, 'Melee')).locator('.readout').first()).toHaveText(/^\d+(?:\.\d+)?$/)
+  await expect(await combatDamage(page, 'Melee')).toHaveText(/^\d+(?:\.\d+)?$/)
   await expect(melee).not.toContainText('could not be matched')
   await expect(melee).toContainText('3× ➤ Manreaper - strike')
   await chooseOption(page, 'Deathshroud Terminator Champion · Manreaper', '➤ Manreaper - sweep')
@@ -379,7 +380,7 @@ test('shared weapon modes count every carrier and indirect shooting applies its 
   await chooseCombatUnit(page, 'Attacker', 'Death Guard', 'Plagueburst Crawler')
   await modifierTab(page, 'Shooting')
   const shooting = page.getByRole('region', { name: 'Shooting results' })
-  const damage = (await combatEstimate(page, 'Shooting')).locator('.readout').first()
+  const damage = await combatDamage(page, 'Shooting')
   const unobservedFire = chip(page, 'Indirect, unobserved or moving')
   const spottedFire = chip(page, 'Indirect, stationary and spotted')
   await expect(unobservedFire).toHaveAttribute('aria-pressed', 'false')
@@ -422,7 +423,7 @@ test('current army rules exclude retired vows and apply plague choices to the re
   await expect(attackerRules).not.toContainText('Templar Vows')
   await expect(page.getByRole('region', { name: 'Defender rules', exact: true })).not.toContainText('Templar Vows')
   const melee = page.getByRole('region', { name: 'Melee results' })
-  const damage = (await combatEstimate(page, 'Melee')).locator('.readout').first()
+  const damage = await combatDamage(page, 'Melee')
   await expect(damage).toHaveText(/^\d+(?:\.\d+)?$/)
   await expect(melee).toHaveAttribute('aria-busy', 'false')
 
@@ -474,11 +475,9 @@ test('variable weapon abilities produce damage probabilities', async ({ page }) 
   const shooting = page.getByRole('region', { name: 'Shooting results' })
   await expect(shooting).toContainText('Sustained Hits D3')
   await expect(shooting).not.toContainText('Unsupported')
-  await expect((await combatEstimate(page, 'Shooting')).locator('.readout').first()).toHaveText(/^\d+\.\d+$/)
+  await expect(await combatDamage(page, 'Shooting')).toHaveText(/^\d+\.\d+$/)
   await expect(shooting).toHaveAttribute('aria-busy', 'false')
-  await expect
-    .poll(async () => Number(await (await combatEstimate(page, 'Shooting')).locator('.readout').first().textContent()))
-    .toBeGreaterThan(0)
+  await expect.poll(async () => Number(await (await combatDamage(page, 'Shooting')).textContent())).toBeGreaterThan(0)
   await shooting.screenshot({ path: test.info().outputPath('simulator-variable-hits.png') })
   await page.setViewportSize({ width: 390, height: 1000 })
   await noOverflow(page)
@@ -589,7 +588,7 @@ test('automatic shooting and melee with stable edits', async ({ page }) => {
   await page.getByRole('button', { name: 'Cover (−1 BS)', exact: true }).click()
   await expect(shooting).toHaveAttribute('aria-busy', 'false')
   await expect(await combatEstimate(page, 'Shooting')).not.toContainText('2.22')
-  const coveredDamage = await (await combatEstimate(page, 'Shooting')).locator('.readout').first().textContent()
+  const coveredDamage = await (await combatDamage(page, 'Shooting')).textContent()
 
   const calculation = await holdCombatCalculations(page)
   await page.getByRole('button', { name: 'More defender models' }).click()
@@ -600,7 +599,7 @@ test('automatic shooting and melee with stable edits', async ({ page }) => {
   for (let added = 0; added < 4; added++) await page.getByRole('button', { name: 'More defender models' }).click()
   await expect(page.getByLabel('Defender models', { exact: true })).toHaveText('10')
   await expect(page.getByRole('button', { name: 'More defender models' })).toBeDisabled()
-  await expect((await combatEstimate(page, 'Shooting')).locator('.readout').first()).toHaveText(coveredDamage!)
+  await expect(await combatDamage(page, 'Shooting')).toHaveText(coveredDamage!)
   await expect(melee).toContainText('5× Knives and Fists')
   await atWidths(page, widths, async (width) => {
     await page.screenshot({ path: test.info().outputPath(`simulator-updating-${width}.png`), fullPage: true })
@@ -662,16 +661,14 @@ test('automatic shooting and melee with stable edits', async ({ page }) => {
   await expect(melee).toHaveAttribute('aria-busy', 'false')
   await expect(shooting).toContainText('Plasma pistol')
   await expect(melee).toContainText('5× Knives and Fists')
-  const withMode = Number(await (await combatEstimate(page, 'Shooting')).locator('.readout').first().textContent())
+  const withMode = Number(await (await combatDamage(page, 'Shooting')).textContent())
   expect(withMode).toBeGreaterThan(0)
   await page.getByRole('tab', { name: /^Shooting/ }).click()
   await expect(page.getByRole('button', { name: 'Cover (−1 BS)', exact: true })).toHaveAttribute('aria-pressed', 'false')
   await chip(page, 'FNP 5+').click()
   await expect(page.getByRole('region', { name: 'Defender', exact: true }).locator('[data-characteristic="FNP"] .readout')).toHaveText('5+')
   await expect(shooting).toHaveAttribute('aria-busy', 'false')
-  await expect
-    .poll(async () => Number(await (await combatEstimate(page, 'Shooting')).locator('.readout').first().textContent()))
-    .toBeLessThan(withMode)
+  await expect.poll(async () => Number(await (await combatDamage(page, 'Shooting')).textContent())).toBeLessThan(withMode)
   await atWidths(page, widths, async (width) => {
     await noOverflow(page)
     await page.evaluate(() => window.scrollTo(0, 0))
@@ -739,7 +736,7 @@ test('printed Feel No Pain applies, an extra one only improves it, and it swaps 
       .getByRole('button', { name: 'Defender Feel No Pain 4+ rules', exact: true }),
   ).toBeVisible()
   await expect(shooting).toHaveAttribute('aria-busy', 'false')
-  const damage = (await combatEstimate(page, 'Shooting')).locator('.readout').first()
+  const damage = await combatDamage(page, 'Shooting')
   await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(0)
   const baseline = Number(await damage.textContent())
   await chip(page, 'FNP 6+').click()
@@ -847,7 +844,7 @@ test('particle casters simulate with the Pistol keyword', async ({ page }) => {
   await expect(shooting).toContainText('Particle caster')
   await expect(shooting).toHaveAttribute('aria-busy', 'false')
   await expect(shooting.getByRole('alert')).toHaveCount(0)
-  const damage = (await combatEstimate(page, 'Shooting')).locator('.readout').first()
+  const damage = await combatDamage(page, 'Shooting')
   await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(0.4)
   expect(Number(await damage.textContent())).toBeLessThan(0.45)
   const baseline = Number(await damage.textContent())
@@ -939,14 +936,14 @@ test('Necron mortal abilities affect their phase and filter ineligible targets',
   await page.goto('/simulator')
   await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Skorpekh Lord')
   await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
-  const meleeDamage = (await combatEstimate(page, 'Melee')).locator('.readout').first()
+  const meleeDamage = await combatDamage(page, 'Melee')
   await expect(meleeDamage).toHaveText(/^\d+\.\d+$/)
   const beforeCharge = Number(await meleeDamage.textContent())
   await page.getByRole('switch', { name: 'Attacker Crimson Harvest', exact: true }).click()
   await expect.poll(async () => Number(await meleeDamage.textContent())).toBeGreaterThan(beforeCharge)
   await chooseCombatUnit(page, 'Attacker', 'Necrons', 'Annihilation Barge')
   const shooting = page.getByRole('region', { name: 'Shooting results' })
-  const damage = (await combatEstimate(page, 'Shooting')).locator('.readout').first()
+  const damage = await combatDamage(page, 'Shooting')
   await expect(damage).toHaveText(/^\d+\.\d+$/)
   await expect(shooting).toHaveAttribute('aria-busy', 'false')
   const beforeArcing = Number(await damage.textContent())
@@ -1027,13 +1024,13 @@ test('a simulator link reopens the same units, swap, and modifiers', async ({ pa
   await page.getByRole('tab', { name: /^Shooting/ }).click()
   await page.getByRole('button', { name: 'Cover (−1 BS)', exact: true }).click()
   await expect(await combatEstimate(page, 'Shooting')).toHaveAttribute('aria-busy', 'false')
-  const damage = await (await combatEstimate(page, 'Shooting')).locator('.readout').first().textContent()
+  const damage = await (await combatDamage(page, 'Shooting')).textContent()
   await expect(page).toHaveURL(/[?&]s=[\w-]+/)
   await page.goto(page.url())
   await expect(page.getByRole('region', { name: 'Attacker', exact: true })).toContainText('Boyz')
   await page.getByRole('tab', { name: /^Shooting/ }).click()
   await expect(page.getByRole('button', { name: 'Cover (−1 BS)', exact: true })).toHaveAttribute('aria-pressed', 'true')
-  await expect((await combatEstimate(page, 'Shooting')).locator('.readout').first()).toHaveText(damage!)
+  await expect(await combatDamage(page, 'Shooting')).toHaveText(damage!)
 })
 
 test('a link that does not decode opens an empty simulator', async ({ page }) => {
@@ -1388,7 +1385,7 @@ test('attached leaders and support contribute weapons and survive sharing', asyn
     await leaderLoadout.getByRole('button', { name: 'Close', exact: true }).click()
   })
   await expect(page.getByRole('region', { name: 'Melee results' })).toContainText('Voidscythe')
-  await expect((await combatEstimate(page, 'Melee')).locator('.readout').first()).toHaveText(predicted)
+  await expect(await combatDamage(page, 'Melee')).toHaveText(predicted)
   await page.reload()
   await expect(page.getByRole('region', { name: 'Melee results' })).toContainText('Voidscythe')
   await expect(attacker).toContainText('7 models')
@@ -1485,7 +1482,7 @@ test('shared defences retain phase estimates when their source can die before an
   await expect(page.getByRole('alert')).toContainText('shared defensive ability')
   await expect(headline.locator('[data-combat-wipe]')).toHaveText('—')
   for (const phase of ['Shooting', 'Melee'] as const) {
-    await expect((await combatEstimate(page, phase)).locator('.readout').first()).toHaveText(/^\d+\.\d{2}$/)
+    await expect(await combatDamage(page, phase)).toHaveText(/^\d+\.\d{2}$/)
   }
 })
 
@@ -1852,7 +1849,7 @@ test('Defiler can optimize ranged attacks instead of its stronger combined loado
   await expect(attacker.getByRole('alert')).toHaveCount(0)
   expect(serverSearches).toBe(0)
   await expect(melee).toContainText('Electroscourge')
-  const rangedDamage = (await combatEstimate(page, 'Shooting')).locator('.readout').first()
+  const rangedDamage = await combatDamage(page, 'Shooting')
   const before = Number(await rangedDamage.textContent())
 
   await options.click()
@@ -1900,7 +1897,7 @@ test('Plague Marines optimize a ranged loadout and then a melee loadout', async 
     ['Ranged', 'Shooting'],
     ['Melee', 'Melee'],
   ] as const) {
-    const damage = (await combatEstimate(page, phase)).locator('.readout').first()
+    const damage = await combatDamage(page, phase)
     await expect(damage).toHaveText(/^\d+\.\d{2}$/)
     const before = Number(await damage.textContent())
     await options.click()

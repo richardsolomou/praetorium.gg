@@ -1,4 +1,4 @@
-import { chooseCombatUnit, combatEstimate, closeCombatBreakdown, openCombatControls, holdCombatCalculations } from './combat'
+import { chooseCombatUnit, combatEstimate, closeCombatBreakdown, openCombatControls, holdCombatCalculations, combatDamage } from './combat'
 import { expect, test, type Page } from './test'
 import { addUnit, createRoster, signUp, waitForRosterSave, expectNoPageOverflow, chooseOption } from './account'
 
@@ -34,7 +34,7 @@ test('Invasion Fleet hides unsupported rules in both roles while retaining calcu
   const synapse = simulator.getByRole('switch', { name: 'Attacker Synapse', exact: true })
   await expect(synapse).toBeVisible()
   const melee = simulator.getByRole('region', { name: 'Melee results' })
-  const damage = (await combatEstimate(simulator, 'Melee')).locator('.readout').first()
+  const damage = await combatDamage(simulator, 'Melee')
   await expect(damage).toHaveText(/^\d+(?:\.\d+)?$/)
   await expect(melee).toHaveAttribute('aria-busy', 'false')
   const baseline = Number(await damage.textContent())
@@ -139,7 +139,7 @@ test('Aeldari weapon buffs calculate their named and existing-ability effects', 
   await expect(hand).not.toBeChecked()
   await expect(blitz).not.toBeChecked()
   const shooting = simulator.getByRole('region', { name: 'Shooting results' })
-  const damage = (await combatEstimate(simulator, 'Shooting')).locator('.readout').first()
+  const damage = await combatDamage(simulator, 'Shooting')
   await expect(damage).toHaveText(/^\d+(?:\.\d+)?$/)
   await expect(shooting).toHaveAttribute('aria-busy', 'false')
   const baseline = Number(await damage.textContent())
@@ -236,12 +236,12 @@ test('roster simulations preserve the saved loadout', async ({ browser, page }) 
       simulator.getByRole('region', { name: 'Defender', exact: true }).locator('[data-characteristic="FNP"] .readout'),
     ).toHaveText('4+')
 
-    const previousDamage = await (await combatEstimate(simulator, 'Shooting')).locator('.readout').first().textContent()
+    const previousDamage = await (await combatDamage(simulator, 'Shooting')).textContent()
     const calculation = await holdCombatCalculations(page)
     await simulator.getByRole('button', { name: 'More attacker models' }).click()
     await calculation.waitForStart()
     await expect(shooting).toHaveAttribute('aria-busy', 'true')
-    await expect((await combatEstimate(simulator, 'Shooting')).locator('.readout').first()).toHaveText(previousDamage!)
+    await expect(await combatDamage(simulator, 'Shooting')).toHaveText(previousDamage!)
     await expect(simulator.getByLabel('Attacker models', { exact: true })).toHaveText('7')
     await calculation.release()
     await expect(shooting).toHaveAttribute('aria-busy', 'false')
@@ -292,7 +292,7 @@ test('roster simulations inherit enhancements and attached-unit context', async 
   const melee = simulator.getByRole('region', { name: 'Melee results' })
   await expect(melee).toHaveAttribute('aria-busy', 'false')
   await expect(melee.getByRole('button', { name: 'A 6, modified from 4 by Destroyer Ankh', exact: true })).toBeVisible()
-  const damage = (await combatEstimate(simulator, 'Melee')).locator('.readout').first()
+  const damage = await combatDamage(simulator, 'Melee')
   await expect(damage).toHaveText(/^\d+\.\d+$/)
   const enhancedDamage = Number(await damage.textContent())
   await choose(page, 'Attacker Enhancements', 'No enhancement')
@@ -317,7 +317,7 @@ test('roster buffs apply conditional shooting bonuses and defensive stratagems',
   const simulator = page.getByRole('dialog', { name: 'Combat simulator', exact: true })
   await chooseCombatUnit(page, 'Defender', 'Space Marines', 'Intercessor Squad')
   const shooting = simulator.getByRole('region', { name: 'Shooting results' })
-  const damage = (await combatEstimate(simulator, 'Shooting')).locator('.readout').first()
+  const damage = await combatDamage(simulator, 'Shooting')
   await expect(damage).toHaveText('2.22')
   const storm = simulator.getByRole('button', { name: 'Attacker Storm of devastation rules', exact: true })
   await expect(simulator.getByText('IGNORES COVER', { exact: false })).toHaveCount(0)
@@ -381,7 +381,7 @@ test('a support stratagem requires its source and applies to its eligible recipi
   await simulator.getByRole('tab', { name: /^Shooting/ }).click()
   await simulator.getByRole('button', { name: 'Cover (−1 BS)', exact: true }).click()
   const shooting = simulator.getByRole('region', { name: 'Shooting results' })
-  const damage = (await combatEstimate(simulator, 'Shooting')).locator('.readout').first()
+  const damage = await combatDamage(simulator, 'Shooting')
   await expect(damage).toHaveText(/^\d+\.\d+$/)
   await expect(shooting).toHaveAttribute('aria-busy', 'false')
   const baseline = Number(await damage.textContent())

@@ -80,6 +80,11 @@ export async function combatEstimate(scope: Page | Locator, phase: 'Shooting' | 
   return scope.getByRole('region', { name: `${phase} estimate`, includeHidden: true })
 }
 
+/** The average damage a phase's estimate reads. */
+export async function combatDamage(scope: Page | Locator, phase: 'Shooting' | 'Melee') {
+  return (await combatEstimate(scope, phase)).locator('.readout').first()
+}
+
 export async function closeCombatBreakdown(scope: Page | Locator) {
   const details = scope.locator('[data-results-summary] details')
   if (await details.evaluate((element) => (element as HTMLDetailsElement).open)) await details.locator('summary').click()
