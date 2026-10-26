@@ -92,7 +92,8 @@ export class SyncEngine {
         !last.attempted &&
         last.status === 'pending'
       const operations = coalesce ? current.operations.slice(0, -1) : current.operations
-      if (operations.length >= MAX_LOCAL_OPERATIONS) throw new OfflineRefusal('Too many unsynced changes. Connect before making more edits.')
+      if (operations.length >= MAX_LOCAL_OPERATIONS)
+        throw new OfflineRefusal('Too many unsynced changes. Connect before making more edits.')
       const projected = update ? update(current.documents[operation.resource]?.data) : data
       const documents = { ...current.documents }
       if (projected !== undefined)
