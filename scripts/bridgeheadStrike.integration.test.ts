@@ -85,7 +85,8 @@ describe.skipIf(!fs.existsSync(path.join(directory, 'definitions')))('Bridgehead
         ),
       ),
     )
-    expect(startingEmbarkRefusal(fielded, fielded[1]!.key, fielded[3]!.key)).toBeNull()
+    const key = (name: string) => fielded.find((unit) => unit.name === name)!.key
+    expect(startingEmbarkRefusal(fielded, key('Tempestus Scions'), key('Chimera'))).toBeNull()
   })
 
   it('refuses to simulate Inquisitor Coteaz leading Tempestus Scions without a Tempestus Warlord', () => {
