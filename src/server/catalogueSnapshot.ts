@@ -18,7 +18,17 @@ import { CANONICAL_CATALOGUE_SOURCE_NAMES } from './canonicalCatalogueSources'
 import pRetry from 'p-retry'
 import { errorHasCode } from 'ras-stack/server'
 import { readCatalogueComposition } from './catalogueComposition'
-import { extractCatalogueArchive, hashCatalogueFile, downloadCatalogueObject } from './catalogueArchive'
+import {
+  extractCatalogueArchive,
+  hashCatalogueFile,
+  downloadCatalogueObject,
+  MAX_ARCHIVE_BYTES,
+  MAX_EXTRACTED_BYTES,
+  MAX_MANIFEST_BYTES,
+  MAX_OBJECT_BYTES,
+  MAX_SNAPSHOT_FILES,
+  type ExtractedFile,
+} from './catalogueArchive'
 import { PRIVATE_CATALOGUE_BASE, fetchCatalogueObject } from './catalogueStore'
 import { byteLimit } from './boundedBody'
 import { replaceDirectory } from './replaceDirectory'
@@ -33,8 +43,6 @@ const POINTER_FORMAT = 'praetorium.catalogue-pointer.v1'
 const LOCK_FORMAT = 'praetorium.catalogue-lock.v1'
 const REVOCATIONS_FORMAT = 'praetorium.catalogue-revocations.v1'
 const PROVENANCE_FORMAT = 'praetorium.catalogue-provenance.v1'
-export const MAX_ARCHIVE_BYTES = 256 * 1024 * 1024
-const MAX_EXTRACTED_BYTES = 1024 * 1024 * 1024
 
 type SnapshotManifest = {
   format: typeof FORMAT | typeof SOURCE_FORMAT | typeof COMPLETE_FORMAT | typeof LEGACY_FORMAT
@@ -349,7 +357,7 @@ function assertLockedRevisions(revisions: Record<string, string>, locked: Record
 function installManifestFiles(
   directory: string,
   rawManifest: Uint8Array,
-  entries: Map<string, { sha256: string; bytes: number; file: string }>,
+  entries: Map<string, ExtractedFile>,
   expected: SnapshotPointer,
   revocations: CatalogueRevocations,
   expectedRevisions?: Record<string, string>,
@@ -358,7 +366,8 @@ function installManifestFiles(
   if (fs.lstatSync(directory, { throwIfNoEntry: false })?.isSymbolicLink())
     throw new Error('refusing to replace an activated snapshot symlink')
   const manifest = readManifest(rawManifest, expected)
-  if (!manifest.files || Object.keys(manifest.files).length > 10_000) throw new Error('catalogue snapshot has an invalid file inventory')
+  if (!manifest.files || Object.keys(manifest.files).length > MAX_SNAPSHOT_FILES)
+    throw new Error('catalogue snapshot has an invalid file inventory')
   revisionsOf(manifest.revisions)
   assertAllowed(expected, manifestSources(manifest), revocations)
   assertLockedRevisions(manifest.revisions, expectedRevisions)
@@ -468,30 +477,30 @@ async function fetchSnapshotObjects(
   const response = await request(`${base}/manifests/${pointer.id}.json`)
   const manifestFile = path.join(objectCache(directory), `manifest-${pointer.id}-${randomUUID()}`)
   try {
-    await saveResponse(response, manifestFile, 1024 * 1024)
+    await saveResponse(response, manifestFile, MAX_MANIFEST_BYTES)
     const raw = fs.readFileSync(manifestFile)
     const manifest = readManifest(raw, pointer)
-    if (manifest.format !== FORMAT || !manifest.files || Object.keys(manifest.files).length > 10_000)
+    if (manifest.format !== FORMAT || !manifest.files || Object.keys(manifest.files).length > MAX_SNAPSHOT_FILES)
       throw new Error('catalogue object manifest is invalid')
     assertAllowed(pointer, manifestSources(manifest), revocations)
     assertLockedRevisions(manifest.revisions, revisions)
     const hashes = [...new Set(Object.values(manifest.files))]
     if (hashes.some((objectHash) => !/^[a-f0-9]{64}$/.test(objectHash))) throw new Error('catalogue object hash is invalid')
-    const entries = new Map<string, { sha256: string; bytes: number; file: string }>()
+    const entries = new Map<string, ExtractedFile>()
     let cursor = 0
     let total = 0
     const workers = Array.from({ length: Math.min(8, hashes.length) }, async () => {
       while (cursor < hashes.length) {
         const objectHash = hashes[cursor++]!
         const file = path.join(objectCache(directory), objectHash)
-        if (!fs.existsSync(file) || fs.statSync(file).size > 64 * 1024 * 1024 || hashCatalogueFile(file) !== objectHash) {
+        if (!fs.existsSync(file) || fs.statSync(file).size > MAX_OBJECT_BYTES || hashCatalogueFile(file) !== objectHash) {
           await replaceFile(file, async (temporary) =>
             downloadCatalogueObject(await request(`${base}/objects/${objectHash}.gz`), temporary, objectHash),
           )
         }
         const bytes = fs.statSync(file).size
         total += bytes
-        if (bytes > 64 * 1024 * 1024 || total > MAX_EXTRACTED_BYTES) throw new Error('catalogue objects exceed their size limit')
+        if (bytes > MAX_OBJECT_BYTES || total > MAX_EXTRACTED_BYTES) throw new Error('catalogue objects exceed their size limit')
         entries.set(`objects/${objectHash}`, { sha256: objectHash, bytes, file })
       }
     })
