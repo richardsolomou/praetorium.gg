@@ -536,7 +536,16 @@ export class PraetoriumService {
     const league = await this.leagueService.league(leagueToken, userId, eventToken)
     if (!league) throw new Response('no such event', { status: 404 })
     if (league.rounds === null || !league.revealedAt) throw new Response('pair rounds once the rosters are out', { status: 409 })
-    const { battles } = await this.leagueBattles(leagueToken, league.eventToken, { limit: LEAGUE_RESULTS_BATTLE_LIMIT }, null, [], userId)
+    const { battles, nextCursor } = await this.leagueBattles(
+      leagueToken,
+      league.eventToken,
+      { limit: LEAGUE_RESULTS_BATTLE_LIMIT },
+      null,
+      [],
+      userId,
+    )
+    // A battle past the read limit would read as unplayed and skew every score the pairing depends on.
+    if (nextCursor !== null) throw new Response('this event has too many battles to pair its next round', { status: 409 })
     const players = league.entries.filter((entry) => entry.status === 'accepted' && entry.submitted).map((entry) => entry.userId)
     const matches = swissMatches(league.pairings, battles)
     const round = Math.max(0, ...league.pairings.map((pairing) => pairing.round)) + 1
