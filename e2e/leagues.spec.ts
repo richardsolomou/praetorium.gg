@@ -14,7 +14,17 @@ import {
   addUnit,
   openRosterSetup,
 } from './account'
-import { productOperator, productSql, userIdFor, withAuthSql, userIdNamed, lastPathSegment } from './storage'
+import {
+  productOperator,
+  productSql,
+  userIdFor,
+  withAuthSql,
+  userIdNamed,
+  lastPathSegment,
+  battleIdFor,
+  seatsBySide,
+  appendCommand,
+} from './storage'
 import { holdCombatCalculations } from './combat'
 import type { Command } from '../src/core/battle'
 
@@ -507,21 +517,15 @@ test('a Swiss tournament pairs its rounds and ranks the tables by match points',
   await rounds.locator('[data-table="1"]').getByRole('button', { name: 'Start battle' }).click()
   await owner.waitForURL(/\/battles\/[^/]+$/)
 
-  // Settle the table in its log, as other specs do: the rounds are under test, not the game.
-  const token = lastPathSegment(owner.url())
-  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
-  const seats = await productSql<{ user_id: string; side: number }>`SELECT user_id, side FROM battle_users WHERE battle_id = ${battle.id}`
-  const [first, second] = seats.toSorted((left, right) => left.side - right.side).map((seat) => seat.user_id)
-  // The open battle page can still be writing its own setup steps, so each line goes after whatever the log ends on then.
+  // Settle the table in its log: the rounds are under test, not the game.
+  const battleId = await battleIdFor(lastPathSegment(owner.url()))
+  const [first, second] = await seatsBySide(battleId)
   await owner.goto(url)
   for (const [by, command] of [
     [first, { kind: 'begin-battle', firstPlayerId: first }],
     [second, { kind: 'end-battle', reason: 'conceded', concededBy: second }],
-  ] as [string, Command][]) {
-    const seq =
-      Math.max(...(await productSql<{ seq: number }>`SELECT seq FROM commands WHERE battle_id = ${battle.id}`).map((row) => row.seq)) + 1
-    await productSql`INSERT INTO commands (key, battle_id, seq, user_id, at, body) VALUES (${JSON.stringify([battle.id, seq])}, ${battle.id}, ${seq}, ${by}, ${Date.now() + seq}, ${JSON.stringify(command)})`
-  }
+  ] as [string, Command][])
+    await appendCommand(battleId, by, command)
 
   await owner.reload()
   await expect(owner.locator('[data-league-results] tbody tr').first()).toContainText(ownerName)
@@ -1781,15 +1785,15 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
     return { owner: find(ownerName) }
   })
   const product = await productOperator()
-  const [battleIdentity] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${battlePath.split('/').at(-1)!}`
+  const battleId = await battleIdFor(battlePath.split('/').at(-1)!)
   // The pair's sealed card is written into the battle, so setup never asks it again.
-  const battleCommands = await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${battleIdentity.id}`
+  const battleCommands = await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${battleId}`
   expect(battleCommands.map((row) => JSON.parse(row.body) as Command).find((entry) => entry.kind === 'lock-league-rosters')).toMatchObject({
     dispositions: [{ side: 1, disposition: 'priority-assets' }],
   })
   const [eventLink] = await productSql<{
     event_id: string
-  }>`SELECT event_id FROM league_event_battles WHERE battle_id = ${battleIdentity.id}`
+  }>`SELECT event_id FROM league_event_battles WHERE battle_id = ${battleId}`
   const [eventIdentity] = await productSql<{ token: string }>`SELECT token FROM sealed_events WHERE id = ${eventLink.event_id}`
   const feed = (viewerId?: string) =>
     product.battleFeed({ scope: 'league', leagueToken, eventToken: eventIdentity.token, limit: 1, viewerId })

@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from './test'
 import { befriend, createBattle, retryUntilVisible, signInAsPreview, signUp, uniqueName, sealableRoster } from './account'
-import { productSql, lastPathSegment } from './storage'
+import { productSql, lastPathSegment, battleIdFor, seatsBySide, appendCommand } from './storage'
 import type { Command } from '../src/core/battle'
 
 test.setTimeout(120_000)
@@ -37,23 +37,18 @@ test('club members choose their club at battle setup', async ({ browser }, testI
   await club.scrollIntoViewIfNeeded()
   await owner.screenshot({ path: testInfo.outputPath('club-setup.png') })
 
-  const token = lastPathSegment(battleUrl)
-  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
-  await expect.poll(async () => (await productSql`SELECT club_id FROM club_battles WHERE battle_id = ${battle.id}`).length).toBe(1)
+  const battleId = await battleIdFor(lastPathSegment(battleUrl))
+  await expect.poll(async () => (await productSql`SELECT club_id FROM club_battles WHERE battle_id = ${battleId}`).length).toBe(1)
 
-  // Settle the battle in its log, as other specs do: the table is what is under test, not the game.
-  const seats = await productSql<{ user_id: string; side: number }>`SELECT user_id, side FROM battle_users WHERE battle_id = ${battle.id}`
-  const [first, second] = seats.toSorted((left, right) => left.side - right.side).map((seat) => seat.user_id)
-  let seq = Math.max(...(await productSql<{ seq: number }>`SELECT seq FROM commands WHERE battle_id = ${battle.id}`).map((row) => row.seq))
+  // Settle the battle in its log: the table is what is under test, not the game.
+  const [first, second] = await seatsBySide(battleId)
   for (const [by, command] of [
     [first, { kind: 'attach-roster', roster: { name: 'Owner army', text: '10 Intercessors' } }],
     [second, { kind: 'attach-roster', roster: { name: 'Member army', text: '10 Plague Marines' } }],
     [first, { kind: 'begin-battle', firstPlayerId: first }],
     [second, { kind: 'end-battle', reason: 'conceded', concededBy: second }],
-  ] as [string, Command][]) {
-    seq += 1
-    await productSql`INSERT INTO commands (key, battle_id, seq, user_id, at, body) VALUES (${JSON.stringify([battle.id, seq])}, ${battle.id}, ${seq}, ${by}, ${Date.now() + seq}, ${JSON.stringify(command)})`
-  }
+  ] as [string, Command][])
+    await appendCommand(battleId, by, command)
 
   await owner.goto(clubUrl)
   const table = owner.locator('[data-standings]')
@@ -92,9 +87,8 @@ test('members who are not friends start a club game from the club page', async (
   await openNewGame(owner)
   await owner.getByRole('dialog', { name: 'New game', exact: true }).getByRole('button', { name: 'Start battle' }).click()
   await owner.waitForURL(/\/battles\/[^/]+$/)
-  const token = lastPathSegment(owner.url())
-  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
-  await expect.poll(async () => (await productSql`SELECT club_id FROM club_battles WHERE battle_id = ${battle.id}`).length).toBe(1)
+  const battleId = await battleIdFor(lastPathSegment(owner.url()))
+  await expect.poll(async () => (await productSql`SELECT club_id FROM club_battles WHERE battle_id = ${battleId}`).length).toBe(1)
   await ownerContext.close()
   await memberContext.close()
 })

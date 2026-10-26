@@ -20,7 +20,7 @@ import {
   addUnit,
   practiceBattle,
 } from './account'
-import { battleLog, productSql, lastPathSegment } from './storage'
+import { battleLog, productSql, lastPathSegment, battleIdFor } from './storage'
 
 test('the opening draw prompt starts at the top, pins its actions and holds the page still on a phone', async ({ page }) => {
   await signUp(page, uniqueName('Opening prompt'))
@@ -218,10 +218,8 @@ test('a running battle restores mission prompts when its tactical prep is missin
   await practiceBattle(page, roster)
   await startBattle(page)
 
-  const token = lastPathSegment(page.url())
-  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
-  if (!battle) throw new Error('Battle is missing')
-  const commands = await productSql<{ key: string; body: string }>`SELECT key, body FROM commands WHERE battle_id = ${battle.id}`
+  const battleId = await battleIdFor(lastPathSegment(page.url()))
+  const commands = await productSql<{ key: string; body: string }>`SELECT key, body FROM commands WHERE battle_id = ${battleId}`
   for (const command of commands) {
     if (['set-prep', 'draw-secondaries'].includes((JSON.parse(command.body) as { kind: string }).kind)) {
       await productSql`DELETE FROM commands WHERE key = ${command.key}`

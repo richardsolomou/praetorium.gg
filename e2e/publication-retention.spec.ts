@@ -12,7 +12,7 @@ import {
   sealableRoster,
   practiceBattle,
 } from './account'
-import { productOperator, productSql, savedWork, withAuthSql, userIdNamed, lastPathSegment } from './storage'
+import { productOperator, productSql, savedWork, withAuthSql, userIdNamed, lastPathSegment, battleIdFor } from './storage'
 
 test.setTimeout(300_000)
 
@@ -133,9 +133,8 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   const battleUrl = await practiceBattle(page, rosterName)
   await startBattle(page)
   await concede(page)
-  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${tokenOf(battleUrl)}`
-  if (!battle) throw new Error('Missing fielded battle')
-  const commandsBefore = await productSql`SELECT seq, body FROM commands WHERE battle_id = ${battle.id}`
+  const battleId = await battleIdFor(lastPathSegment(battleUrl))
+  const commandsBefore = await productSql`SELECT seq, body FROM commands WHERE battle_id = ${battleId}`
   expect(commandsBefore.some((row) => String(row.body).includes('Skorpekh Lord'))).toBe(true)
 
   await page.goto(rosterUrl)
@@ -152,7 +151,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await remove.click()
   await deletion.getByRole('button', { name: 'Delete roster', exact: true }).click()
   await expect.poll(() => productSql`SELECT id FROM rosters WHERE id = ${rosterId}`).toEqual([])
-  expect(await productSql`SELECT seq, body FROM commands WHERE battle_id = ${battle.id}`).toEqual(commandsBefore)
+  expect(await productSql`SELECT seq, body FROM commands WHERE battle_id = ${battleId}`).toEqual(commandsBefore)
   expect(
     await productSql`SELECT roster_snapshot FROM league_event_entries WHERE event_id = ${league.eventId} AND user_id = ${userId}`,
   ).toEqual(sealedBefore)
@@ -197,7 +196,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await expect.poll(() => productSql`SELECT id FROM tournaments WHERE id = ${league.id}`).toEqual([])
   expect(await productSql`SELECT id FROM sealed_events WHERE id = ${league.eventId}`).toEqual([])
   expect(await productSql`SELECT user_id FROM league_event_entries WHERE event_id = ${league.eventId}`).toEqual([])
-  expect(await productSql`SELECT seq, body FROM commands WHERE battle_id = ${battle.id}`).toEqual(commandsBefore)
+  expect(await productSql`SELECT seq, body FROM commands WHERE battle_id = ${battleId}`).toEqual(commandsBefore)
   await page.goto(sealedUrl)
   await expect(page.getByRole('heading', { name: 'Nothing here', exact: true })).toBeVisible()
   await page.goto(`/rosters/${rosterId}?battle=${tokenOf(battleUrl)}`)
@@ -207,8 +206,8 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   await expect
     .poll(() =>
       Promise.all([
-        productSql`SELECT seq FROM commands WHERE battle_id = ${battle.id}`,
-        productSql`SELECT user_id FROM battle_users WHERE battle_id = ${battle.id}`,
+        productSql`SELECT seq FROM commands WHERE battle_id = ${battleId}`,
+        productSql`SELECT user_id FROM battle_users WHERE battle_id = ${battleId}`,
       ]),
     )
     .toEqual([[], []])
@@ -264,9 +263,8 @@ test('self-account deletion removes populated shared history and sealed entries 
     const otherLeague = await leagueFixture(opponentId, [ownerId, opponentId])
     await sealThroughPage(owner, ownLeague.token, ownerRoster)
     await sealThroughPage(owner, otherLeague.token, ownerRoster)
-    const [finishedBattle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${tokenOf(finished)}`
-    const [otherBattle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${tokenOf(otherCreated)}`
-    if (!finishedBattle || !otherBattle) throw new Error('Missing shared deletion fixtures')
+    const finishedId = await battleIdFor(lastPathSegment(finished))
+    const otherId = await battleIdFor(lastPathSegment(otherCreated))
     expect(await productSql`SELECT user_id FROM battle_users WHERE user_id = ${ownerId}`).toHaveLength(2)
     expect(await productSql`SELECT user_id FROM league_event_entries WHERE user_id = ${ownerId}`).toHaveLength(2)
     await expectRecord(anonymous, ownerId, 1)
@@ -310,8 +308,8 @@ test('self-account deletion removes populated shared history and sealed entries 
     expect(await product.collectionByUser(opponentId)).toEqual(opponentCollection.collection)
     expect(await product.favouriteDatasheetsByUser(opponentId)).toEqual(opponentCollection.favourites)
     expect(await productSql`SELECT user_id FROM battle_users WHERE user_id = ${ownerId}`).toEqual([])
-    expect(await productSql`SELECT id FROM battles WHERE id = ${finishedBattle.id} OR id = ${otherBattle.id}`).toEqual([])
-    expect(await productSql`SELECT seq FROM commands WHERE battle_id = ${finishedBattle.id} OR battle_id = ${otherBattle.id}`).toEqual([])
+    expect(await productSql`SELECT id FROM battles WHERE id = ${finishedId} OR id = ${otherId}`).toEqual([])
+    expect(await productSql`SELECT seq FROM commands WHERE battle_id = ${finishedId} OR battle_id = ${otherId}`).toEqual([])
     expect(await productSql`SELECT id FROM tournaments WHERE owner_id = ${ownerId}`).toEqual([])
     expect(await productSql`SELECT id FROM sealed_events WHERE id = ${ownLeague.eventId}`).toEqual([])
     expect(await productSql`SELECT user_id FROM league_event_entries WHERE user_id = ${ownerId}`).toEqual([])

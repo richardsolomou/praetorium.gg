@@ -1,6 +1,6 @@
 import { expect, test, type Page } from './test'
 import { createBattle, createRoster, followLink, PRACTICE_OPPONENT, setupBattle, signUp, uniqueName, expectNoPageOverflow } from './account'
-import { productSql, withAuthSql } from './storage'
+import { productSql, withAuthSql, battleIdFor } from './storage'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
 
 /**
@@ -9,9 +9,7 @@ import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
  * Dated ahead of the public battles other tests open meanwhile, and reloaded past the public feed's short hold.
  */
 async function featurePreviewBattle(page: Page, token: string) {
-  const battles = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
-  if (battles.length !== 1) throw new Error(`The preview battle ${token} is missing.`)
-  await productSql`UPDATE battles SET created_at = ${Date.now() + 60 * 60 * 1000} WHERE id = ${battles[0].id}`
+  await productSql`UPDATE battles SET created_at = ${Date.now() + 60 * 60 * 1000} WHERE id = ${await battleIdFor(token)}`
   await expect(async () => {
     await page.goto('/')
     await expect(page.locator('[data-home-featured]')).toHaveAttribute('href', `/battles/${token}`, { timeout: 1_000 })

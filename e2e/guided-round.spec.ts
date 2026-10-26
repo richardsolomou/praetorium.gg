@@ -1,7 +1,7 @@
 import { waitForOfflineApp } from './offline'
 import { expect, test } from './test'
 import { advance, advanceButton, createRoster, desktopContext, setupBattle, signUp, takeTheTurn, uniqueName } from './account'
-import { battleLog, productSql, lastPathSegment } from './storage'
+import { battleLog, productSql, lastPathSegment, battleIdFor } from './storage'
 
 test('New Orders, discard CP and carried cards survive a complete two-player round', async ({ page, browser }) => {
   test.setTimeout(180_000)
@@ -20,9 +20,9 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
     .click()
   await expect(page.getByRole('dialog', { name: 'Your secondary missions', exact: true })).toBeVisible()
   await takeTheTurn(page)
-  const token = lastPathSegment(page.url())
-  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
-  const recorded = await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${battle.id}`
+  const recorded = await productSql<{
+    body: string
+  }>`SELECT body FROM commands WHERE battle_id = ${await battleIdFor(lastPathSegment(page.url()))}`
   const commands = recorded.map((command) => JSON.parse(command.body))
   expect(commands.findLast((command) => command.kind === 'set-battlefield')?.terrainLayoutId).toBe('ed87b70c-bb09-49c7-bf06-54ca47956dcd')
   const orders = commands.filter((command) => command.kind === 'use-new-orders')

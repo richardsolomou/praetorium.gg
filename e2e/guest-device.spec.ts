@@ -15,19 +15,13 @@ import {
   PHONE,
 } from './account'
 import { add } from './builder.harness'
-import { productSql, userIdNamed, lastPathSegment } from './storage'
+import { productSql, userIdNamed, lastPathSegment, battleIdFor } from './storage'
 
 const GUEST = uniqueName('Sam the Guest')
 const scoreboard = (page: Page) => page.getByRole('region', { name: 'Battle scoreboard' })
 const phase = (page: Page) => page.locator('[data-scoreboard] h1')
 /** Below the five seconds a page without a live subscription waits between polls. */
 const LIVE_MS = 3_000
-
-async function battleId(url: string) {
-  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${lastPathSegment(url)}`
-  if (!battle) throw new Error('Battle not found')
-  return battle.id
-}
 
 /** The sessions subscribed to the battle's live signal, which a page records once its subscription applies. */
 async function watchers(id: string) {
@@ -87,7 +81,7 @@ test('a guest joins from their own device, plays their side and keeps the game b
   await guest.getByRole('button', { name: 'Join on this device' }).click()
   await guest.waitForURL(/\/battles\/[^/]+$/)
   const battleUrl = guest.url()
-  const id = await battleId(battleUrl)
+  const id = await battleIdFor(lastPathSegment(battleUrl))
   // The guest's device subscribes to the battle's live signal as its seat, as a signed-in player's does.
   await expect.poll(async () => (await watchers(id)).some((subject) => subject.startsWith('guest-device:'))).toBe(true)
   await expect(host.getByRole('dialog', { name: `${GUEST} is playing on their device` })).toBeVisible()

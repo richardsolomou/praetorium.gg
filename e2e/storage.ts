@@ -114,28 +114,41 @@ export async function productSql<T extends Record<string, unknown> = Record<stri
   return results[0].rows.map((row) => Object.fromEntries(columns.map((name, index) => [name, row[index]])))
 }
 
+export async function battleIdFor(token: string) {
+  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
+  if (!battle) throw new Error(`No battle has the token ${token}.`)
+  return battle.id
+}
+
+/** The battle's seated players, in side order. */
+export async function seatsBySide(battleId: string) {
+  const seats = await productSql<{ user_id: string; side: number }>`SELECT user_id, side FROM battle_users WHERE battle_id = ${battleId}`
+  return seats.toSorted((left, right) => left.side - right.side).map((seat) => seat.user_id)
+}
+
+/** Appends a command after whatever the log ends on now: an open battle page can still be writing its own. */
+export async function appendCommand(battleId: string, by: string, body: object) {
+  const seq =
+    Math.max(...(await productSql<{ seq: number }>`SELECT seq FROM commands WHERE battle_id = ${battleId}`).map((row) => row.seq)) + 1
+  await productSql`INSERT INTO commands (key, battle_id, seq, user_id, at, body) VALUES (${JSON.stringify([battleId, seq])}, ${battleId}, ${seq}, ${by}, ${Date.now() + seq}, ${JSON.stringify(body)})`
+}
+
 /** Appends commands to the open battle's log, for journeys that only need to reach a later state. */
 export async function battleLog(page: Page) {
-  const token = lastPathSegment(page.url())
-  const [battle] = await productSql<{ id: string }>`SELECT id FROM battles WHERE token = ${token}`
-  if (!battle) throw new Error('Battle not found')
-  const commands = await productSql<{ seq: number; body: string }>`SELECT seq, body FROM commands WHERE battle_id = ${battle.id}`
+  const id = await battleIdFor(lastPathSegment(page.url()))
+  const commands = await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${id}`
   const begun = commands
     .map((command) => JSON.parse(command.body) as { kind: string; firstPlayerId?: string })
     .find((body) => body.kind === 'begin-battle')
   if (!begun?.firstPlayerId) throw new Error('Battle did not start')
   const [second] = await productSql<{
     user_id: string
-  }>`SELECT user_id FROM battle_users WHERE battle_id = ${battle.id} AND user_id <> ${begun.firstPlayerId}`
+  }>`SELECT user_id FROM battle_users WHERE battle_id = ${id} AND user_id <> ${begun.firstPlayerId}`
   if (!second) throw new Error('Battle seats are incomplete')
-  let seq = Math.max(...commands.map((command) => command.seq))
   return {
-    id: battle.id,
+    id,
     first: begun.firstPlayerId,
     second: second.user_id,
-    append: async (by: string, body: object) => {
-      seq += 1
-      await productSql`INSERT INTO commands (key, battle_id, seq, user_id, at, body) VALUES (${JSON.stringify([battle.id, seq])}, ${battle.id}, ${seq}, ${by}, ${Date.now() + seq}, ${JSON.stringify(body)})`
-    },
+    append: (by: string, body: object) => appendCommand(id, by, body),
   }
 }
