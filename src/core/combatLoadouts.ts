@@ -1,3 +1,4 @@
+import { remember } from './collections'
 import type { Datasheet } from './datasheet'
 import { calculateCombat, calculateCombatSequence, type CombatInput, type CombatOptions, type CombatResult } from './combat'
 import type { RosterPick } from './roster'
@@ -214,15 +215,13 @@ function loadoutScorer(space: LoadoutSpace, scoring: LoadoutScoring) {
   const results = new Map<string, CombatResult | null>()
   const calculate = (input: CombatInput | null) => {
     if (!input) return null
-    const key = JSON.stringify(input)
-    if (!results.has(key)) {
+    return remember(results, JSON.stringify(input), () => {
       try {
-        results.set(key, calculateCombat(input))
+        return calculateCombat(input)
       } catch {
-        results.set(key, null)
+        return null
       }
-    }
-    return results.get(key) ?? null
+    })
   }
   const inputs = (carriers: readonly CombatCarrier[]) => {
     const member = loadoutMember(scoring)

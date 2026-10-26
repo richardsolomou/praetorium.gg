@@ -8,6 +8,7 @@
 
 import { definitionAndTarget, type CatalogueIndex, type Definition } from './catalogue'
 import { scaleOf } from './collective'
+import { remember } from './collections'
 import {
   childrenOf,
   exclusiveSets,
@@ -174,30 +175,25 @@ function collectUnitChoices(
   // Keyed by path: the same entry can be offered by more than one model.
   const visibility = new Map<string, boolean>()
   const minima = new Map<Definition, number>()
-  const visible = (definition: Definition, lineage: readonly Definition[], path: readonly string[]) => {
-    const key = path.join('/')
-    const cached = visibility.get(key)
-    if (cached !== undefined) return cached
+  const visible = (definition: Definition, lineage: readonly Definition[], path: readonly string[]) =>
     // Offered as a fresh candidate, or once the unit's choices open it (Trygon Prime).
     // The built unit alone cannot close an option: what hides it there, such as a
     // squadmate's default bolt rifle, is the player's to change.
-    const value =
-      !hiddenByRules(definition, index, { ...options, roster }, lineage) || !hiddenByRulesAt(definition, selection, path, index, options)
-    visibility.set(key, value)
-    return value
-  }
-  const minimum = (definition: Definition) => {
-    const cached = minima.get(definition)
-    if (cached !== undefined) return cached
-    const value = requiredCount(definition, index, {
-      primaryCatalogueId: options.primaryCatalogueId,
-      mustering: options.mustering,
-      modifierCache: options.modifierCache,
-      roster,
-    })
-    minima.set(definition, value)
-    return value
-  }
+    remember(
+      visibility,
+      path.join('/'),
+      () =>
+        !hiddenByRules(definition, index, { ...options, roster }, lineage) || !hiddenByRulesAt(definition, selection, path, index, options),
+    )
+  const minimum = (definition: Definition) =>
+    remember(minima, definition, () =>
+      requiredCount(definition, index, {
+        primaryCatalogueId: options.primaryCatalogueId,
+        mustering: options.mustering,
+        modifierCache: options.modifierCache,
+        roster,
+      }),
+    )
   const unitSize = sizeOf(selection, index)
   const resizingPath = unitSize.path
   const resizingGroup = resizingPath.slice(0, -1)

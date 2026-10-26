@@ -1,4 +1,4 @@
-import { groupBy } from './collections'
+import { groupBy, RecentlyUsed, remember } from './collections'
 import type { Datasheet, DatasheetCharacteristicKind } from './datasheet'
 import { datasheetCharacteristicKind, datasheetProfileKind, datasheetProfilesByKind } from './datasheetStructure'
 import { combatEquipmentMatches, type CombatCarrier } from './combatLoadout'
@@ -91,13 +91,15 @@ export function combatTarget(
     : refuse('This unit has missing or unsupported defensive characteristics.')
 }
 
-const parsedWeapons = new Map<string, { weapon: CombatWeapon; unsupported: string[]; valid: boolean }>()
+const parsedWeapons = new RecentlyUsed<string, ReturnType<typeof parseWeapon>>(5_000)
 
 /** A weapon profile's characteristics and abilities, which depend on everything but how many are carried. */
-function parsedWeapon(profile: Profile, targetKeywords: readonly string[], phase: CombatInput['options']['phase']) {
-  const key = JSON.stringify([phase, targetKeywords, profile.name, profile.values])
-  const cached = parsedWeapons.get(key)
-  if (cached) return cached
+const parsedWeapon = (profile: Profile, targetKeywords: readonly string[], phase: CombatInput['options']['phase']) =>
+  remember(parsedWeapons, JSON.stringify([phase, targetKeywords, profile.name, profile.values]), () =>
+    parseWeapon(profile, targetKeywords, phase),
+  )
+
+function parseWeapon(profile: Profile, targetKeywords: readonly string[], phase: CombatInput['options']['phase']) {
   const unsupported: string[] = []
   const baseSkill = integer(
     profile.values.find((entry) => entry.kind === (phase === 'ranged' ? 'ballistic-skill' : 'weapon-skill'))?.baseValue,
@@ -197,14 +199,11 @@ function parsedWeapon(profile: Profile, targetKeywords: readonly string[], phase
     }
   }
   const parsed = combatSchema.shape.weapons.element.safeParse(weapon)
-  const result = {
+  return {
     weapon,
     unsupported,
     valid: parsed.success && weapon.attacks.dice + weapon.attacks.bonus > 0 && weapon.damage.dice + weapon.damage.bonus > 0,
   }
-  if (parsedWeapons.size > 5_000) parsedWeapons.clear()
-  parsedWeapons.set(key, result)
-  return result
 }
 
 export function combatWeapons(sheet: Datasheet, targetKeywords: readonly string[], phase: CombatInput['options']['phase']) {
