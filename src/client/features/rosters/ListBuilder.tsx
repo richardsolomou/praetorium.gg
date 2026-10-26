@@ -38,7 +38,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { MENU_ITEM, MenuSection } from '../../components/MenuSection'
 import { attachedUnitCount, attachmentHost } from '../../../core/attachedUnits'
-import { joiningKind } from '../../../core/attachmentRows'
+import { type AttachmentRow, joiningKind } from '../../../core/attachmentRows'
 import type { BuiltRoster, FormatRuleId, Secondary, Stratagem } from '../../../core/battle'
 import { canTransport, enforces, type OptionalRuleId, ROSTER_NAME_MAX_LENGTH, waivedFormatRules } from '../../../core/battle'
 import type { RosterPick } from '../../../core/roster'
@@ -149,6 +149,7 @@ import { usePrintWhenReady } from './usePrintWhenReady'
 import { hasWarlordToggle } from '../../../core/unitChoices'
 import { factionDisposition } from '../../components/rosterSetup'
 import { PointsChip } from './builder/PointsChip'
+import { remember } from '../../../core/collections'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
@@ -225,6 +226,11 @@ const READ_ONLY_PREFERENCE = 'praetorium.roster-read-only'
 const NO_UNITS = [] as const
 const NO_VARIANTS: readonly RosterVariant[] = []
 const NO_JOINED: { label: string; name: string }[] = []
+const NO_CHOICES: AttachChoice[] = []
+const NO_ROWS: AttachmentRow[] = []
+/** Kept per relationships' rows, so a card whose relationships are unchanged gets the same rows and does not redraw. */
+const ROLE_ROWS = new WeakMap<readonly AttachmentRow[], AttachmentRow[]>()
+const roleRowsOf = (joined: readonly AttachmentRow[]) => remember(ROLE_ROWS, joined, () => unitRoleRows(joined))
 
 /**
  * Building a list from the catalogue rather than pasting one.
@@ -972,23 +978,26 @@ export function ListBuilder({
         joined: NO_JOINED,
         unit,
       }))
-  const renderCard = ({ unit, index, joined, warlord }: (typeof cards)[number], inUnit = false) =>
-    frozen ? (
-      <UnitCard
-        key={unit.entryId + index}
-        unit={unit}
-        warlord={warlord}
-        nickname={frozen.units[index]?.nickname}
-        note={frozen.units[index]?.note}
-        joined={[
-          ...(arrangement === 'attached' ? unitRoleRows(joined) : joined),
-          ...embarkRows(cardEmbark(frozenEmbarks?.get(index) ?? NO_EMBARK, inUnit)),
-        ]}
-        selected={selected === index}
-        onSelect={loadoutAvailable ? () => selectUnit(index) : undefined}
-        editable={false}
-      />
-    ) : (
+  const renderCard = ({ unit, index, joined, warlord }: (typeof cards)[number], inUnit = false) => {
+    if (frozen)
+      return (
+        <UnitCard
+          key={unit.entryId + index}
+          unit={unit}
+          warlord={warlord}
+          nickname={frozen.units[index]?.nickname}
+          note={frozen.units[index]?.note}
+          joined={[
+            ...(arrangement === 'attached' ? unitRoleRows(joined) : joined),
+            ...embarkRows(cardEmbark(frozenEmbarks?.get(index) ?? NO_EMBARK, inUnit)),
+          ]}
+          selected={selected === index}
+          onSelect={loadoutAvailable ? () => selectUnit(index) : undefined}
+          editable={false}
+        />
+      )
+    const relationships = cardRelationships.get(picks[index]?.key ?? -1)
+    return (
       <BuilderUnitCard
         key={picks[index]?.key ?? unit.entryId}
         unit={unit}
@@ -996,14 +1005,10 @@ export function ListBuilder({
         nickname={picks[index]?.nickname}
         note={picks[index]?.note}
         index={index}
-        joined={
-          arrangement === 'attached'
-            ? unitRoleRows(cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? [])
-            : (cardRelationships.get(picks[index]?.key ?? -1)?.joined ?? [])
-        }
-        canJoin={cardRelationships.get(picks[index]?.key ?? -1)?.canJoin ?? []}
-        canHost={cardRelationships.get(picks[index]?.key ?? -1)?.canHost ?? []}
-        embark={cardRelationships.get(picks[index]?.key ?? -1)?.embark ?? NO_EMBARK}
+        joined={relationships ? (arrangement === 'attached' ? roleRowsOf(relationships.joined) : relationships.joined) : NO_ROWS}
+        canJoin={relationships?.canJoin ?? NO_CHOICES}
+        canHost={relationships?.canHost ?? NO_CHOICES}
+        embark={relationships?.embark ?? NO_EMBARK}
         inAttachedUnit={inUnit}
         alliedFaction={
           picks[index]?.catalogueId === catalogueId
@@ -1032,6 +1037,7 @@ export function ListBuilder({
         editable={building}
       />
     )
+  }
 
   const displaySection = cards.some((card) => card.attachedTo !== undefined) ? (
     <>
@@ -1680,7 +1686,7 @@ export function ListBuilder({
                               host={host.index}
                               name={host.name}
                               embark={cardRelationships.get(picks[host.index]?.key ?? -1)?.embark ?? NO_EMBARK}
-                              canHost={cardRelationships.get(picks[host.index]?.key ?? -1)?.canHost ?? []}
+                              canHost={cardRelationships.get(picks[host.index]?.key ?? -1)?.canHost ?? NO_CHOICES}
                               editable={building}
                               onAttach={attach}
                               onEmbark={embark}
