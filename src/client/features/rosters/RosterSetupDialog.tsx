@@ -798,7 +798,6 @@ export function RosterSetupDialog({
   )
 }
 
-/** Stays focusable and opens its reason on a tap, so a phone can still say why it cannot be chosen. */
 function DetachmentSummary({ detachment }: { detachment: Detachment }) {
   return (
     <span className="min-w-0 flex-1 p-3">
@@ -814,6 +813,7 @@ function DetachmentSummary({ detachment }: { detachment: Detachment }) {
   )
 }
 
+/** Stays focusable and opens its reason on a tap, so a phone can still say why it cannot be chosen. */
 function UnavailableDetachment({ name, reason, children }: { name: string; reason: string; children: ReactNode }) {
   const [open, setOpen] = useState(false)
   return (

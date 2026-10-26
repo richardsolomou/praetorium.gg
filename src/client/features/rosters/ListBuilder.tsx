@@ -1762,7 +1762,6 @@ export function ListBuilder({
           ) : null}
         </RosterUnits>
 
-        {/* A list with no frozen selections has nothing to open, so it offers nothing. */}
         {loadoutAvailable ? (
           <Pane
             variant="loadout"

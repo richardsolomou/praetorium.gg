@@ -506,5 +506,3 @@ const PickerRow = memo(function PickerRow({
     </div>
   )
 })
-
-/** Unavailable filters stay focusable and open their tooltip on a tap, so a phone can still say why. */

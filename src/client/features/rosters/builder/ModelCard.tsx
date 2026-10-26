@@ -37,7 +37,6 @@ import { sameWargear } from '../../../../core/wargear'
  * rather than in one list the whole squad shares. The count comes from the choices
  * the rows already point at, never from a second copy of the same number.
  */
-
 export function ModelCard({
   model,
   choices,
