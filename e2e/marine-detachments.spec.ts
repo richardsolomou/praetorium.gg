@@ -10,13 +10,13 @@ for (const width of [390, 1440]) {
     const list = page.getByRole('region', { name: 'Detachments', exact: true })
     await expect(list.locator('h2 > .readout')).toHaveText('1')
     await expect(list.getByRole('link', { name: /^Gladius Task Force/ })).toHaveCount(0)
-    await page.screenshot({ path: `test-results/marine-${chapter}-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`marine-${chapter}-${width}.png`), fullPage: true })
     await list.getByRole('link', { name: new RegExp(`^${detachment.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`) }).click()
     await expect(page.getByRole('heading', { level: 1, name: detachment, exact: true })).toBeVisible()
     await expect(page).toHaveURL(new RegExp(`/factions/${chapter}/.*detachments/`))
     await page.reload()
     await expect(page.getByRole('heading', { level: 1, name: detachment, exact: true })).toBeVisible()
-    await page.screenshot({ path: `test-results/marine-${chapter}-detachment-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`marine-${chapter}-detachment-${width}.png`), fullPage: true })
     const version = 'space-marines-codex-2026-10-03'
     await page.goto(`/factions/salamanders/rules/${version}`)
     await page

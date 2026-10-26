@@ -59,7 +59,7 @@ for (const [size, label] of [
     await annotate(owner, cards.nth(0), 'Note', ALPHA_NOTE)
     await squadButton(cards.nth(1)).click()
     await expect(owner.getByRole('switch', { name: /Share unit notes/ })).toHaveCount(0)
-    await shot(owner.getByRole('region', { name: 'Custom name and note' }), `test-results/unit-annotation-fields-${label}.png`)
+    await shot(owner.getByRole('region', { name: 'Custom name and note' }), test.info().outputPath(`unit-annotation-fields-${label}.png`))
     const back = owner.getByRole('button', { name: 'Back to roster' })
     if (await back.isVisible()) await back.click()
     await annotate(owner, cards.nth(1), 'Custom name', 'Rot Bravo')
@@ -70,7 +70,7 @@ for (const [size, label] of [
     await expect(cards.nth(0)).toContainText(ALPHA_NOTE)
     await expect(cards.nth(1)).toContainText(`Rot Bravo${SQUAD}`)
     await expect(cards.nth(1)).toContainText(BRAVO_NOTE)
-    await shot(owner.locator('[data-roster-builder]'), `test-results/unit-annotation-cards-${label}.png`)
+    await shot(owner.locator('[data-roster-builder]'), test.info().outputPath(`unit-annotation-cards-${label}.png`))
 
     await chooseRosterAction(owner, 'Export text')
     const exported = owner.getByRole('dialog', { name: 'Export roster' })
@@ -87,7 +87,7 @@ for (const [size, label] of [
     await expect(pack.getByRole('heading', { name: `Rot Alpha · ${SQUAD} ·`, exact: false })).toBeVisible()
     await expect(pack).toContainText(`Note: ${ALPHA_NOTE}`)
     await expect(pack).toContainText(`Note: ${BRAVO_NOTE}`)
-    await shot(pack.locator('.pack-unit').first(), `test-results/unit-note-print-${label}.png`)
+    await shot(pack.locator('.pack-unit').first(), test.info().outputPath(`unit-note-print-${label}.png`))
     await owner.getByRole('button', { name: 'Return to roster' }).click()
 
     const original = lastPathSegment(owner.url())
@@ -163,7 +163,7 @@ for (const [size, label] of [
       .click()
     await expect(squad).toContainText(`Rot Alpha${SQUAD}`)
     await expect(squad).toContainText(ALPHA_NOTE)
-    await shot(army, `test-results/unit-annotation-army-${label}.png`)
+    await shot(army, test.info().outputPath(`unit-annotation-army-${label}.png`))
     await army.getByRole('button', { name: 'Close' }).click()
 
     const opponentTab = page.getByRole('tab', { name: 'Opponent' })

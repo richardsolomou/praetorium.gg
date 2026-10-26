@@ -48,7 +48,7 @@ test('faction search explains structured matches', async ({ page }) => {
     await page.setViewportSize(viewport)
     await expect(technomancer).toContainText('Matches Cryptek keyword · Staff of light weapon')
     await expect(technomancer.locator('mark')).toHaveText(['Cryptek', 'Staff'])
-    await page.screenshot({ path: `test-results/reference-search-${viewport.width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`reference-search-${viewport.width}.png`), fullPage: true })
     await expectNoPageOverflow(page)
   }
 
@@ -101,7 +101,7 @@ test('archived reference identities remain visible in the simulator', async ({ p
       await expect(selected.locator(`[data-rules-version="${source.edition}"]`)).toBeVisible()
       expect(new URL(page.url()).searchParams.get('s')).toBe(state)
       await expectNoPageOverflow(page)
-      await page.screenshot({ path: `test-results/reference-simulator-${source.edition}-${viewport.width}.png`, fullPage: true })
+      await page.screenshot({ path: test.info().outputPath(`reference-simulator-${source.edition}-${viewport.width}.png`), fullPage: true })
     }
     await page.setViewportSize(desktop)
     await chooseUnit(page, 'Defender', source.edition === 'custodes-11e' ? 'Adeptus Custodes' : 'Dark Angels', source.name)
@@ -161,7 +161,7 @@ test('reference roster choices distinguish saved rules versions', async ({ page 
     await expect(chooser.locator(`a[href^="${current}?"]`)).toContainText('MFM 1.6 · Current')
     await expect(archivedChoice).toContainText('MFM 1.5 · Archived')
     await expectNoPageOverflow(page)
-    await page.screenshot({ path: `test-results/reference-roster-chooser-${viewport.width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`reference-roster-chooser-${viewport.width}.png`), fullPage: true })
   }
   await page.setViewportSize(desktop)
   await chooser.locator(`a[href^="${current}?"]`).click()

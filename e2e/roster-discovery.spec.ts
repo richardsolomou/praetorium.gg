@@ -60,7 +60,7 @@ for (const [width, label] of [
       'aria-current',
       'page',
     )
-    await shot(owner.locator('main header'), `test-results/roster-library-header-${label}.png`)
+    await shot(owner.locator('main header'), test.info().outputPath(`roster-library-header-${label}.png`))
     const armyName = uniqueName('Found army')
     await createRoster(owner, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: armyName })
     await addNotedUnit(owner)
@@ -84,7 +84,7 @@ for (const [width, label] of [
     await expect(card).toContainText('Legal')
     await expect(reader.locator('main')).not.toContainText(NOTE)
     await expectNoHorizontalOverflow(reader.locator('main'))
-    await shot(reader.locator('main'), `test-results/roster-discovery-${label}.png`)
+    await shot(reader.locator('main'), test.info().outputPath(`roster-discovery-${label}.png`))
 
     if (width === 1440) {
       await reader.goto(`/rosters/${sourceId}`)
@@ -128,7 +128,7 @@ test('a faction page leads to its public armies, and a filter none match explain
   await page.goto('/rosters?view=public&rules=preview&faction=necrons')
   await expect(page.getByText('No public rosters match these filters')).toBeVisible()
   await expectNoHorizontalOverflow(page.locator('main'))
-  await shot(page.locator('main'), 'test-results/roster-discovery-empty-phone.png')
+  await shot(page.locator('main'), test.info().outputPath('roster-discovery-empty-phone.png'))
   await page.getByRole('button', { name: 'Clear filters' }).click()
   await expect(page).toHaveURL(/\/rosters\?view=public$/)
 })
@@ -204,7 +204,7 @@ for (const [width, label] of [
       await page.mouse.wheel(0, 20_000)
       await expect(more).toBeInViewport({ timeout: 1_000 })
     }).toPass({ timeout: 10_000 })
-    await page.screenshot({ path: `test-results/roster-discovery-scrolled-${label}.png` })
+    await page.screenshot({ path: test.info().outputPath(`roster-discovery-scrolled-${label}.png`) })
     const seeded = page.locator(`[data-discovered-roster^="${prefix} "]`)
     // The last page removes the button, so a slow page must not be asked for again.
     await expect(async () => {

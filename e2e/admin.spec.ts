@@ -16,7 +16,7 @@ test('a player secures an account with an authenticator app', async ({ page, req
   await setup.getByRole('button', { name: 'Continue' }).click()
   await expect(setup.getByRole('img', { name: 'Authenticator setup QR code' })).toBeVisible()
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.screenshot({ path: 'test-results/two-factor-setup-phone.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('two-factor-setup-phone.png'), fullPage: true })
   const uri = await setup.locator('code').textContent()
   if (!uri) throw new Error('The authenticator URI was not rendered.')
   // Verifying replaces the session, and the old one's revocation reaches the page over

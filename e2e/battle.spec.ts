@@ -107,7 +107,7 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await expectNoPageOverflow(page)
   await page.mouse.wheel(0, -2000)
   await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBe(0)
-  await page.screenshot({ path: 'test-results/scoring-mobile.png' })
+  await page.screenshot({ path: test.info().outputPath('scoring-mobile.png') })
   await page.setViewportSize({ width: 390, height: 844 })
   await scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true }).scrollIntoViewIfNeeded()
   await scoring.getByRole('button', { name: 'Pass the turn', exact: true }).click()

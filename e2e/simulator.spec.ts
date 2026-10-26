@@ -35,7 +35,7 @@ test('Terminator hammer and shield loadouts survive reload', { tag: '@catalogue'
   }
   await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
-    await page.screenshot({ path: `test-results/simulator-thunder-hammers-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`simulator-thunder-hammers-${width}.png`) })
   })
   await loadout.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(melee.getByRole('heading', { name: '2× Thunder Hammer', exact: true })).toBeVisible()
@@ -77,7 +77,7 @@ test('a source-linked weapon bundle calculates after changing its loadout', asyn
     await expect((await combatEstimate(page, phase)).locator('.readout').first()).toHaveText(/^\d+\.\d{2}$/)
   }
   await atWidths(page, [1440, 390], async (width) => {
-    await page.screenshot({ path: `test-results/simulator-ownership-bundle-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`simulator-ownership-bundle-${width}.png`) })
   })
 })
 
@@ -161,13 +161,13 @@ test('weapon switches leave profiles visible and shared modifiers can be overrid
   await shooting
     .locator('[data-weapon-card]')
     .first()
-    .screenshot({ path: 'test-results/simulator-weapon-switch.png', animations: 'disabled' })
+    .screenshot({ path: test.info().outputPath('simulator-weapon-switch.png'), animations: 'disabled' })
   await boltRifle.click()
   await expect(boltRifle).not.toBeChecked()
   await shooting
     .locator('[data-weapon-card]')
     .first()
-    .screenshot({ path: 'test-results/simulator-weapon-switch-off.png', animations: 'disabled' })
+    .screenshot({ path: test.info().outputPath('simulator-weapon-switch-off.png'), animations: 'disabled' })
   await expect(shooting.getByRole('heading', { name: /Bolt Rifle/i })).toBeVisible()
   await expect(shootingDamage).toHaveText('0.00')
   await boltRifle.click()
@@ -206,7 +206,9 @@ test('weapon switches leave profiles visible and shared modifiers can be overrid
   await page.getByRole('region', { name: 'Modifiers', exact: true }).evaluate((element) => element.scrollIntoView({ block: 'start' }))
   await expect(resultsSummary).toBeVisible()
   expect(await resultsSummary.evaluate((element) => element.getBoundingClientRect().top)).toBe(top)
-  await page.getByRole('region', { name: 'Modifiers', exact: true }).screenshot({ path: 'test-results/simulator-shared-modifiers-390.png' })
+  await page
+    .getByRole('region', { name: 'Modifiers', exact: true })
+    .screenshot({ path: test.info().outputPath('simulator-shared-modifiers-390.png') })
 })
 
 test('stacked wound bonuses remain selected and explain the roll cap', async ({ page }) => {
@@ -224,7 +226,7 @@ test('stacked wound bonuses remain selected and explain the roll cap', async ({ 
   await expect(summary).toContainText('Wound roll modifier capped at +1')
   await shootingBonus.hover()
   await expect(page.getByRole('tooltip')).toContainText('Bonuses and penalties combine before the roll modifier is capped')
-  await summary.screenshot({ path: 'test-results/simulator-stacked-wound-bonuses.png' })
+  await summary.screenshot({ path: test.info().outputPath('simulator-stacked-wound-bonuses.png') })
   await chip(shootingModifiers, '−1 Wound').click()
   await expect(summary).toContainText('−1 to wound (Shooting)')
   await expect(summary).toContainText('Wound modifiers cancel to 0')
@@ -294,11 +296,11 @@ test('unsupported rules disappear while calculated rules remain', async ({ page 
     await expect(panel).not.toContainText('Not calculated')
   const buffs = page.getByLabel('Combat matchup', { exact: true }).locator(':scope > div').first()
   await buffs.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-  await buffs.screenshot({ path: 'test-results/simulator-exclusions.png' })
+  await buffs.screenshot({ path: test.info().outputPath('simulator-exclusions.png') })
   await page.setViewportSize({ width: 390, height: 1000 })
   await noOverflow(page)
   await buffs.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-  await buffs.screenshot({ path: 'test-results/simulator-exclusions-390.png' })
+  await buffs.screenshot({ path: test.info().outputPath('simulator-exclusions-390.png') })
 })
 
 test('named weapon alternatives and once-per-battle attack buffs calculate from catalogue wording', async ({ page }) => {
@@ -317,7 +319,7 @@ test('named weapon alternatives and once-per-battle attack buffs calculate from 
   await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(baseline)
   const buffs = page.getByLabel('Combat matchup', { exact: true }).locator(':scope > div').first()
   await noOverflow(page)
-  await buffs.screenshot({ path: 'test-results/simulator-ability-alternatives.png' })
+  await buffs.screenshot({ path: test.info().outputPath('simulator-ability-alternatives.png') })
   await chooseOption(page, 'Attacker Cruel Amusement', 'Off')
   await expect.poll(async () => Number(await damage.textContent())).toBe(baseline)
 
@@ -331,7 +333,7 @@ test('named weapon alternatives and once-per-battle attack buffs calculate from 
   await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(unbuffed)
   await page.setViewportSize({ width: 390, height: 1000 })
   await noOverflow(page)
-  await buffs.screenshot({ path: 'test-results/simulator-activated-buff-390.png' })
+  await buffs.screenshot({ path: test.info().outputPath('simulator-activated-buff-390.png') })
   await ammo.click()
   await expect.poll(async () => Number(await damage.textContent())).toBe(unbuffed)
   await expect(page.getByRole('region', { name: 'Attacker rules', exact: true })).not.toContainText('Waaagh!')
@@ -346,7 +348,7 @@ test('named weapon alternatives and once-per-battle attack buffs calculate from 
   await waaagh.click()
   await expect.poll(async () => Number(await damage.textContent())).toBeLessThan(unprotected)
   await noOverflow(page)
-  await buffs.screenshot({ path: 'test-results/simulator-army-state-390.png' })
+  await buffs.screenshot({ path: test.info().outputPath('simulator-army-state-390.png') })
 })
 
 test('shared weapon modes count every carrier and indirect shooting applies its firing conditions', async ({ page }) => {
@@ -369,7 +371,7 @@ test('shared weapon modes count every carrier and indirect shooting applies its 
   await expect(melee).toContainText('4× ➤ Manreaper - sweep')
   await expect(melee).toHaveAttribute('aria-busy', 'false')
   await expect(melee).not.toContainText('could not be matched')
-  await melee.screenshot({ path: 'test-results/simulator-shared-weapon-modes.png' })
+  await melee.screenshot({ path: test.info().outputPath('simulator-shared-weapon-modes.png') })
   await page.getByRole('combobox', { name: 'Attacker models', exact: true }).click()
   await page.getByRole('option', { name: '6', exact: true }).click()
   await expect(page.getByLabel('Attacker models', { exact: true })).toHaveText('6')
@@ -397,15 +399,17 @@ test('shared weapon modes count every carrier and indirect shooting applies its 
   await expect.poll(async () => Number(await damage.textContent())).toBeLessThan(direct)
   await noOverflow(page)
   await shooting.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-  await shooting.screenshot({ path: 'test-results/simulator-indirect-fire.png' })
-  await page.getByRole('region', { name: 'Modifiers', exact: true }).screenshot({ path: 'test-results/simulator-indirect-modifiers.png' })
+  await shooting.screenshot({ path: test.info().outputPath('simulator-indirect-fire.png') })
+  await page
+    .getByRole('region', { name: 'Modifiers', exact: true })
+    .screenshot({ path: test.info().outputPath('simulator-indirect-modifiers.png') })
   await page.setViewportSize({ width: 390, height: 1000 })
   await noOverflow(page)
   await shooting.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-  await shooting.screenshot({ path: 'test-results/simulator-indirect-fire-390.png' })
+  await shooting.screenshot({ path: test.info().outputPath('simulator-indirect-fire-390.png') })
   await page
     .getByRole('region', { name: 'Modifiers', exact: true })
-    .screenshot({ path: 'test-results/simulator-indirect-modifiers-390.png' })
+    .screenshot({ path: test.info().outputPath('simulator-indirect-modifiers-390.png') })
   await spottedFire.click()
   await expect.poll(async () => Number(await damage.textContent())).toBe(direct)
 })
@@ -454,14 +458,14 @@ test('current army rules exclude retired vows and apply plague choices to the re
     .getByLabel('Combat matchup', { exact: true })
     .locator(':scope > div')
     .first()
-    .screenshot({ path: 'test-results/simulator-plague.png' })
+    .screenshot({ path: test.info().outputPath('simulator-plague.png') })
   await page.setViewportSize({ width: 390, height: 1000 })
   await noOverflow(page)
   await page
     .getByLabel('Combat matchup', { exact: true })
     .locator(':scope > div')
     .first()
-    .screenshot({ path: 'test-results/simulator-plague-390.png' })
+    .screenshot({ path: test.info().outputPath('simulator-plague-390.png') })
 })
 
 test('variable weapon abilities produce damage probabilities', async ({ page }) => {
@@ -476,11 +480,11 @@ test('variable weapon abilities produce damage probabilities', async ({ page }) 
   await expect
     .poll(async () => Number(await (await combatEstimate(page, 'Shooting')).locator('.readout').first().textContent()))
     .toBeGreaterThan(0)
-  await shooting.screenshot({ path: 'test-results/simulator-variable-hits.png' })
+  await shooting.screenshot({ path: test.info().outputPath('simulator-variable-hits.png') })
   await page.setViewportSize({ width: 390, height: 1000 })
   await noOverflow(page)
   await shooting.evaluate((element) => element.scrollIntoView({ block: 'center' }))
-  await shooting.screenshot({ path: 'test-results/simulator-variable-hits-390.png' })
+  await shooting.screenshot({ path: test.info().outputPath('simulator-variable-hits-390.png') })
 })
 
 test('automatic shooting and melee with stable edits', async ({ page }) => {
@@ -527,7 +531,8 @@ test('automatic shooting and melee with stable edits', async ({ page }) => {
         await chart.hover()
         await expect(chart).toBeVisible()
         await noOverflow(page)
-        if (phase === 'Shooting' && label === 'Models lost') await page.screenshot({ path: `test-results/simulator-chart-${width}.png` })
+        if (phase === 'Shooting' && label === 'Models lost')
+          await page.screenshot({ path: test.info().outputPath(`simulator-chart-${width}.png`) })
         await page.mouse.move(0, 0)
         await expect(chart).toBeHidden()
       })
@@ -575,8 +580,10 @@ test('automatic shooting and melee with stable edits', async ({ page }) => {
     await page.mouse.up()
     await openCombatControls(page)
     await noOverflow(page)
-    await page.getByRole('region', { name: 'Attacker', exact: true }).screenshot({ path: `test-results/simulator-controls-${width}.png` })
-    await page.screenshot({ path: `test-results/simulator-${width}.png`, fullPage: true })
+    await page
+      .getByRole('region', { name: 'Attacker', exact: true })
+      .screenshot({ path: test.info().outputPath(`simulator-controls-${width}.png`) })
+    await page.screenshot({ path: test.info().outputPath(`simulator-${width}.png`), fullPage: true })
   })
 
   await page.getByRole('tab', { name: /^Shooting/ }).click()
@@ -597,7 +604,7 @@ test('automatic shooting and melee with stable edits', async ({ page }) => {
   await expect((await combatEstimate(page, 'Shooting')).locator('.readout').first()).toHaveText(coveredDamage!)
   await expect(melee).toContainText('5× Knives and Fists')
   await atWidths(page, widths, async (width) => {
-    await page.screenshot({ path: `test-results/simulator-updating-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`simulator-updating-${width}.png`), fullPage: true })
   })
   await calculation.release()
   await expect(shooting).toHaveAttribute('aria-busy', 'false')
@@ -611,7 +618,7 @@ test('automatic shooting and melee with stable edits', async ({ page }) => {
   const heading = loadout.getByRole('heading', { name: 'Attacker · Intercessor Squad' })
   await atWidths(page, widths, async (width) => {
     await noOverflow(page)
-    await page.screenshot({ path: `test-results/simulator-loadout-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`simulator-loadout-${width}.png`), fullPage: true })
   })
 
   const loadoutCalculation = await holdCombatCalculations(page)
@@ -621,7 +628,7 @@ test('automatic shooting and melee with stable edits', async ({ page }) => {
   await expect(mode).toBeVisible()
   await expect(loadout.getByText('Select a unit from the roster to see its loadout.')).toHaveCount(0)
   await atWidths(page, widths, async (width) => {
-    await page.screenshot({ path: `test-results/simulator-loadout-updating-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`simulator-loadout-updating-${width}.png`), fullPage: true })
   })
   await loadoutCalculation.release()
   await expect(plasmaPistols).toHaveText('1')
@@ -631,7 +638,7 @@ test('automatic shooting and melee with stable edits', async ({ page }) => {
   await expect(melee).toContainText('5× Knives and Fists')
   await atWidths(page, widths, async (width) => {
     await noOverflow(page)
-    await page.screenshot({ path: `test-results/simulator-melee-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`simulator-melee-${width}.png`), fullPage: true })
   })
 
   await swap.click()
@@ -669,7 +676,7 @@ test('automatic shooting and melee with stable edits', async ({ page }) => {
   await atWidths(page, widths, async (width) => {
     await noOverflow(page)
     await page.evaluate(() => window.scrollTo(0, 0))
-    await page.screenshot({ path: `test-results/simulator-swapped-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`simulator-swapped-${width}.png`), fullPage: true })
   })
 })
 
@@ -705,7 +712,7 @@ test('simulator first frame reserves its layout', async ({ browser, baseURL }) =
     expect((await page.getByLabel('Combat matchup').boundingBox())?.width).toBe(contentWidth)
     expect((await page.getByLabel('Results summary').boundingBox())?.width).toBe(contentWidth)
     const serverBounds = await initialAttacker.boundingBox()
-    await page.screenshot({ path: `test-results/simulator-first-frame-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`simulator-first-frame-${width}.png`), fullPage: true })
     await retryUntilVisible(interactive.getByPlaceholder('Search units…'), () =>
       interactive.getByRole('combobox', { name: 'Attacker unit', exact: true }).click(),
     )
@@ -760,10 +767,12 @@ test('printed Feel No Pain applies, an extra one only improves it, and it swaps 
   await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
     await page.evaluate(() => window.scrollTo(0, 0))
-    await defender.screenshot({ path: `test-results/simulator-reanimator-${width}.png` })
-    await page.getByRole('region', { name: 'Modifiers', exact: true }).screenshot({ path: `test-results/simulator-modifiers-${width}.png` })
+    await defender.screenshot({ path: test.info().outputPath(`simulator-reanimator-${width}.png`) })
+    await page
+      .getByRole('region', { name: 'Modifiers', exact: true })
+      .screenshot({ path: test.info().outputPath(`simulator-modifiers-${width}.png`) })
     await page.evaluate(() => window.scrollTo(0, 0))
-    await page.screenshot({ path: `test-results/simulator-fnp-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`simulator-fnp-${width}.png`), fullPage: true })
   })
 })
 
@@ -789,7 +798,7 @@ test('mixed defences allocate attacks in the chosen group order', async ({ page 
   expect(Number((await numbers.allTextContents())[0])).toBeGreaterThan(Number(wounds))
   await atWidths(page, [1440, 350], async (width) => {
     await noOverflow(page)
-    await defender.screenshot({ path: `test-results/simulator-mixed-defences-${width}.png` })
+    await defender.screenshot({ path: test.info().outputPath(`simulator-mixed-defences-${width}.png`) })
   })
 })
 
@@ -845,7 +854,7 @@ test('particle casters simulate with the Pistol keyword', async ({ page }) => {
   const baseline = Number(await damage.textContent())
   await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
-    await page.screenshot({ path: `test-results/simulator-particle-caster-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`simulator-particle-caster-${width}.png`), fullPage: true })
   })
   await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
   await openCombatControls(page)
@@ -869,7 +878,7 @@ test('particle casters simulate with the Pistol keyword', async ({ page }) => {
   await expect(shooting).not.toContainText('Particle caster')
   await atWidths(page, [1440, 390], async (width) => {
     await page.evaluate(() => window.scrollTo(0, 0))
-    await page.screenshot({ path: `test-results/simulator-wraith-defender-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`simulator-wraith-defender-${width}.png`), fullPage: true })
   })
   await page.getByRole('button', { name: 'Swap attacker and defender' }).click()
   await openCombatControls(page)
@@ -904,7 +913,7 @@ test('the unit picker opens on every unit, grouped by faction, rendering only th
     JSON.parse(icon.slice(4, -1)),
   )
   expect(imageWidth).toBeGreaterThan(0)
-  await page.screenshot({ path: 'test-results/simulator-unit-options.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('simulator-unit-options.png'), fullPage: true })
   await doomstalker.click()
   await expect(trigger.locator('[data-faction-mark="necrons"]')).toBeVisible()
   await trigger.click()
@@ -956,7 +965,7 @@ test('Necron mortal abilities affect their phase and filter ineligible targets',
   await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(beforeAbsorption)
   await page.getByRole('button', { name: 'Attacker Matter Absorption rules', exact: true }).hover()
   await expect(page.getByRole('tooltip').filter({ hasText: 'Matter Absorption' })).toContainText('D3 mortal wounds')
-  await page.screenshot({ path: 'test-results/simulator-necron-mortals.png' })
+  await page.screenshot({ path: test.info().outputPath('simulator-necron-mortals.png') })
 })
 
 test.describe('touch probability charts', () => {
@@ -973,7 +982,7 @@ test.describe('touch probability charts', () => {
     await trigger.tap()
     await expect(chart).toBeVisible()
     await noOverflow(page)
-    await page.screenshot({ path: 'test-results/simulator-chart-touch.png' })
+    await page.screenshot({ path: test.info().outputPath('simulator-chart-touch.png') })
     await page.getByRole('heading', { name: 'Combat simulator', exact: true }).tap()
     await expect(chart).toBeHidden()
     await trigger.tap()
@@ -991,7 +1000,7 @@ test.describe('touch probability charts', () => {
     await expect(tooltip).toContainText('D3 mortal wounds')
     await expect(buff).not.toBeChecked()
     await noOverflow(page)
-    await page.screenshot({ path: 'test-results/simulator-rule-touch.png' })
+    await page.screenshot({ path: test.info().outputPath('simulator-rule-touch.png') })
     await page.locator('[data-combat-buffs] > summary').tap()
     await expect(tooltip).toBeHidden()
   })
@@ -1007,7 +1016,7 @@ test("the loadout editor shows each option's odds against the defender", async (
   await expect(loadout.getByLabel(/^Shooting, unit with one more: <?\d+\.\d+% destroyed/).first()).toBeVisible()
   await expect(loadout.getByLabel(/^Shooting, unit with one more: .*, best$/)).toHaveCount(1)
   await expect(loadout.getByLabel(/^Shooting, \d+ models? with this weapon: <?\d+\.\d+% destroyed/).first()).toBeVisible()
-  await page.screenshot({ path: 'test-results/simulator-loadout-estimates.png' })
+  await page.screenshot({ path: test.info().outputPath('simulator-loadout-estimates.png') })
 })
 
 test('a simulator link reopens the same units, swap, and modifiers', async ({ page }) => {
@@ -1053,7 +1062,7 @@ test("combined shooting and melee against Lion El'Jonson", async ({ page }) => {
       expect(await page.getByLabel('Results summary').evaluate((element) => element.getBoundingClientRect().height)).toBeLessThan(160)
     }
     await page.getByRole('region', { name: 'Defender buffs' }).evaluate((element) => element.scrollIntoView({ block: 'center' }))
-    await page.screenshot({ path: `test-results/simulator-combined-lion-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`simulator-combined-lion-${width}.png`) })
   })
   const distribution = page.getByRole('dialog', { name: 'Combined · Wounds lost probabilities', exact: true })
   await atWidths(page, [1440, 390], async () => {
@@ -1140,7 +1149,7 @@ test('the simulator leads with one outcome and reveals its controls', async ({ p
   await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
     await page.locator('[data-combat-buffs] > summary').scrollIntoViewIfNeeded()
-    await page.screenshot({ path: `test-results/simulator-hierarchy-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`simulator-hierarchy-${width}.png`) })
   })
   await chip(await modifierTab(page, 'All'), '+1 Hit').click()
   await page.locator('[data-manual-modifiers] > summary').click()
@@ -1162,7 +1171,7 @@ test('the simulator leads with one outcome and reveals its controls', async ({ p
       )
       .toBeLessThan(2)
     expect((await summary.boundingBox())!.y + (await summary.boundingBox())!.height).toBeLessThanOrEqual((await footer.boundingBox())!.y)
-    await page.screenshot({ path: `test-results/simulator-bottom-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`simulator-bottom-${width}.png`) })
   })
 })
 
@@ -1221,7 +1230,7 @@ test('Deathwing Knights optimize against Mortarion', async ({ page }) => {
   await expect(page.getByRole('region', { name: 'Melee results' })).toContainText('Relic Weapon')
   await expect(attacker.getByRole('button', { name: 'Optimize', exact: true })).toBeEnabled()
   await atWidths(page, [1440, 390], async (width) => {
-    await page.screenshot({ path: `test-results/simulator-deathwing-optimized-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`simulator-deathwing-optimized-${width}.png`) })
   })
 })
 
@@ -1252,7 +1261,7 @@ test('the headline retains results when weapon phases are empty', async ({ page 
   await matchesPhase('Melee')
   await atWidths(page, [1440, 390], async (width) => {
     await page.getByRole('region', { name: 'Shooting results' }).scrollIntoViewIfNeeded()
-    await page.screenshot({ path: `test-results/simulator-melee-only-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`simulator-melee-only-${width}.png`) })
   })
   await togglePhase('Melee')
   await expect(headline.locator('[data-combat-wipe]')).toHaveText('0.0%')
@@ -1322,7 +1331,7 @@ test('attached leaders and support contribute weapons and survive sharing', asyn
     expect(await oldWeapon.evaluate((element) => element.isConnected)).toBe(true)
     expect(await oldLoadout.evaluate((element) => element.isConnected)).toBe(true)
     await atWidths(page, [1440, 390], async (width) => {
-      await page.screenshot({ path: `test-results/simulator-member-pending-${width}.png`, fullPage: true })
+      await page.screenshot({ path: test.info().outputPath(`simulator-member-pending-${width}.png`), fullPage: true })
     })
   } finally {
     release()
@@ -1374,7 +1383,7 @@ test('attached leaders and support contribute weapons and survive sharing', asyn
   await expect(leaderLoadout.getByRole('button', { name: 'Select Voidscythe', exact: true })).toHaveAttribute('aria-pressed', 'true')
   await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
-    await leaderLoadout.screenshot({ path: `test-results/simulator-attached-loadout-${width}.png` })
+    await leaderLoadout.screenshot({ path: test.info().outputPath(`simulator-attached-loadout-${width}.png`) })
   })
   await leaderLoadout.getByRole('button', { name: 'Close', exact: true }).click()
   await atWidths(page, [390], async () => {
@@ -1393,7 +1402,7 @@ test('attached leaders and support contribute weapons and survive sharing', asyn
   await expect(defender.getByLabel('Defender Plasmancer loadout', { exact: true })).toBeVisible()
   await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
-    await page.screenshot({ path: `test-results/simulator-attached-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`simulator-attached-${width}.png`), fullPage: true })
   })
   await page.getByRole('button', { name: 'Swap attacker and defender', exact: true }).click()
   await attacker.getByRole('button', { name: 'Remove attacker Overlord', exact: true }).click()
@@ -1442,7 +1451,7 @@ test('attached leaders and support contribute weapons and survive sharing', asyn
     expect(await rootLoadout.evaluate((element) => element.isConnected)).toBe(true)
     await expect(attacker.locator('[data-combat-member]')).toHaveCount(3)
     await atWidths(page, [1440, 390], async (width) => {
-      await page.screenshot({ path: `test-results/simulator-member-replacing-${width}.png`, fullPage: true })
+      await page.screenshot({ path: test.info().outputPath(`simulator-member-replacing-${width}.png`), fullPage: true })
     })
   } finally {
     finishReplacement()
@@ -1455,7 +1464,7 @@ test('attached leaders and support contribute weapons and survive sharing', asyn
   await expect(headline).toHaveAttribute('aria-busy', 'false')
   await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
-    await page.screenshot({ path: `test-results/simulator-member-pickers-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`simulator-member-pickers-${width}.png`), fullPage: true })
   })
   await attacker.getByRole('button', { name: 'Remove attacker Necron Warriors', exact: true }).click()
   await expect(attacker.locator('[data-combat-member]')).toHaveCount(2)
@@ -1510,7 +1519,7 @@ test('Immortals and Overlord calculate combined attacks against Deathshroud and 
   await expect(headline.locator('[data-combat-wipe]')).toHaveText(/^\d+(?:\.\d+)?%$/)
   await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
-    await page.screenshot({ path: `test-results/simulator-deathshroud-typhus-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`simulator-deathshroud-typhus-${width}.png`), fullPage: true })
   })
 })
 
@@ -1562,7 +1571,7 @@ test('Optimize changes attached character equipment and preserves the whole unit
     await atWidths(page, [1440, 390], async (width) => {
       await page.evaluate(() => window.scrollTo(0, 0))
       expect(await progress.boundingBox()).toEqual(idleBounds.get(width))
-      await attacker.screenshot({ path: `test-results/simulator-optimize-progress-${width}.png` })
+      await attacker.screenshot({ path: test.info().outputPath(`simulator-optimize-progress-${width}.png`) })
     })
   } finally {
     release()
@@ -1585,7 +1594,7 @@ test('Optimize changes attached character equipment and preserves the whole unit
   await expect(attacker).toContainText('7 models')
   await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
-    await page.screenshot({ path: `test-results/simulator-attached-optimized-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`simulator-attached-optimized-${width}.png`), fullPage: true })
   })
 })
 
@@ -1636,7 +1645,7 @@ test('initial unit loading reserves every member control', async ({ page }) => {
     await atWidths(page, [1440, 390], async (width) => {
       expect(await bounds()).toEqual(before.get(width))
       await noOverflow(page)
-      await attacker.screenshot({ path: `test-results/simulator-member-placeholders-${width}.png` })
+      await attacker.screenshot({ path: test.info().outputPath(`simulator-member-placeholders-${width}.png`) })
     })
   } finally {
     release()
@@ -1671,7 +1680,7 @@ test('imported leaders retain their faction mark and compact loadout control', a
   await expect(loadout).toHaveAttribute('title', 'Loadout')
   await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
-    await attacker.screenshot({ path: `test-results/simulator-member-factions-${width}.png` })
+    await attacker.screenshot({ path: test.info().outputPath(`simulator-member-factions-${width}.png`) })
   })
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 })
@@ -1708,7 +1717,7 @@ test('defender can add a squad to a standalone Captain', async ({ page }) => {
   await expect(defender.getByRole('alert')).toHaveCount(0)
   await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
-    await defender.screenshot({ path: `test-results/simulator-captain-squad-${width}.png` })
+    await defender.screenshot({ path: test.info().outputPath(`simulator-captain-squad-${width}.png`) })
   })
   await defender.getByRole('button', { name: 'Remove defender Intercessor Squad', exact: true }).click()
   await expect(defender.locator('[data-combat-member]')).toHaveCount(1)
@@ -1779,17 +1788,17 @@ test('unit controls remain beside truncated pickers', async ({ page }) => {
     const dropdown = page.locator('[data-slot="combobox-content"]')
     expect((await dropdown.boundingBox())!.width).toBeGreaterThan((await picker.boundingBox())!.width)
     await noOverflow(page)
-    await page.screenshot({ path: `test-results/simulator-member-dropdown-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`simulator-member-dropdown-${width}.png`) })
     await page.keyboard.press('Escape')
     const member = page.getByRole('combobox', { name: 'Attacker Overlord unit', exact: true })
     await retryUntilVisible(page.getByPlaceholder('Search leaders and support…'), () => member.click())
     expect((await dropdown.boundingBox())!.width).toBeGreaterThan((await member.boundingBox())!.width)
     await noOverflow(page)
     await page.keyboard.press('Escape')
-    await page.screenshot({ path: `test-results/simulator-inline-members-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`simulator-inline-members-${width}.png`), fullPage: true })
     await openCombatBreakdown(page)
     await noOverflow(page)
-    await page.screenshot({ path: `test-results/simulator-breakdown-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`simulator-breakdown-${width}.png`) })
     await closeCombatBreakdown(page)
   })
 })
@@ -1829,7 +1838,7 @@ test('optimized weapon profiles follow the unit through swaps and reload', async
   await expect(summary.locator('.readout')).toHaveText(outcome)
   await atWidths(page, [1440, 390], async (width) => {
     await noOverflow(page)
-    await page.screenshot({ path: `test-results/simulator-optimized-swap-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`simulator-optimized-swap-${width}.png`), fullPage: true })
   })
 })
 
@@ -1881,7 +1890,7 @@ test('Defiler can optimize ranged attacks instead of its stronger combined loado
     await noOverflow(page)
     await options.click()
     await expect(page.getByRole('menuitem', { name: 'Optimize for ranged', exact: true })).toBeVisible()
-    await page.screenshot({ path: `test-results/simulator-optimize-mode-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`simulator-optimize-mode-${width}.png`) })
     await page.keyboard.press('Escape')
     await expect(page.getByRole('menu')).toHaveCount(0)
   })

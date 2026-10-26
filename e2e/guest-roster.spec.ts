@@ -121,7 +121,7 @@ test('a visitor starting a list is told when storage refuses it, and stays on th
 
   await expect(setup).toContainText('This browser is not keeping lists')
   expect(new URL(page.url()).pathname).toBe('/rosters')
-  await page.screenshot({ path: 'test-results/guest-roster-mobile-unkept.png' })
+  await page.screenshot({ path: test.info().outputPath('guest-roster-mobile-unkept.png') })
 })
 
 test('signing up keeps the list a visitor built', async ({ page }) => {
@@ -322,11 +322,11 @@ for (const width of [1440, 390]) {
     await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).not.toContainText('Limit reached')
     await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).toContainText('1/1 in roster')
     await expect(page.locator('[data-picker-unit="Beasts of Nurgle"]')).not.toContainText('construction rules')
-    await page.screenshot({ path: `test-results/allied-limits-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`allied-limits-${width}.png`) })
     if (width < 1300) await page.getByRole('button', { name: 'Close', exact: true }).click()
     await page.getByRole('button', { name: 'Save roster', exact: true }).click()
     await expect(page.getByRole('heading', { name: 'Save your roster' })).toBeVisible()
-    await page.screenshot({ path: `test-results/guest-save-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`guest-save-${width}.png`), fullPage: true })
     await page.getByRole('link', { name: 'Back to your roster' }).click()
     await expect(page.locator('[data-unit="Beasts of Nurgle"]')).toBeVisible()
     const edit = await openRosterSetup(page)
@@ -424,7 +424,7 @@ for (const width of [1440, 390]) {
       await expect(picker).not.toContainText('Checking unit limits')
       await expect(picker.locator('[data-picker-unit="Necron Warriors"]')).toHaveText(checkedRow)
       await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeEnabled()
-      await picker.screenshot({ path: `test-results/picker-repricing-${width}.png` })
+      await picker.screenshot({ path: test.info().outputPath(`picker-repricing-${width}.png`) })
       release()
       await expect(page.getByRole('button', { name: 'Add Overlord', exact: true })).toBeEnabled()
       await expect(picker).not.toContainText('Checking unit limits')

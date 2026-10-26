@@ -73,11 +73,11 @@ test('recent simulations are accessible from signed-in home at desktop and phone
     const recent = page.getByRole('region', { name: 'Recent simulations', exact: true })
     await expect(recent.getByRole('link', { name: pairing, exact: true })).toBeVisible()
     await expectNoPageOverflow(page)
-    await recent.screenshot({ path: `test-results/recent-simulations-home-${width}.png` })
+    await recent.screenshot({ path: test.info().outputPath(`recent-simulations-home-${width}.png`) })
     await recent.getByRole('link', { name: pairing, exact: true }).click()
     await expect(page.getByRole('combobox', { name: 'Attacker unit', exact: true })).toContainText('Intercessor Squad')
     await expect(page.getByRole('region', { name: 'Combined estimate' })).toHaveAttribute('aria-busy', 'false')
-    await page.screenshot({ path: `test-results/recent-simulations-simulator-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`recent-simulations-simulator-${width}.png`), fullPage: true })
   }
 })
 
@@ -116,7 +116,7 @@ test('an invalid shared link leaves the simulator usable', async ({ page }) => {
   await expect(page.locator(history)).toHaveCount(0)
   await page.setViewportSize({ width: 390, height: 844 })
   await expectNoPageOverflow(page)
-  await page.screenshot({ path: 'test-results/simulator-example-phone.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('simulator-example-phone.png'), fullPage: true })
 })
 
 test(
@@ -145,16 +145,16 @@ test(
     const recent = page.getByRole('region', { name: 'Recent simulations', exact: true })
     const rosterPairing = recent.getByRole('link', { name: 'Overlord · Ankh Court vs Intercessor Squad', exact: true })
     await expect(rosterPairing).toBeVisible()
-    await page.screenshot({ path: 'test-results/simulator-roster-unit-desktop.png', fullPage: true })
+    await page.screenshot({ path: test.info().outputPath('simulator-roster-unit-desktop.png'), fullPage: true })
     await page.goto('/')
     const home = page.getByRole('region', { name: 'Recent simulations', exact: true })
     await expect(home.getByRole('link', { name: 'Overlord · Ankh Court vs Intercessor Squad' })).toBeVisible()
-    await page.screenshot({ path: 'test-results/recent-simulations-home-roster.png' })
+    await page.screenshot({ path: test.info().outputPath('recent-simulations-home-roster.png') })
     await home.getByRole('link', { name: 'Overlord · Ankh Court vs Intercessor Squad' }).click()
     await expect(page.getByRole('combobox', { name: 'First roster', exact: true })).toContainText('Ankh Court')
     await expect(enhanced).toBeVisible()
     await page.setViewportSize({ width: 390, height: 844 })
     await expectNoPageOverflow(page)
-    await page.screenshot({ path: 'test-results/simulator-roster-unit-phone.png', fullPage: true })
+    await page.screenshot({ path: test.info().outputPath('simulator-roster-unit-phone.png'), fullPage: true })
   },
 )

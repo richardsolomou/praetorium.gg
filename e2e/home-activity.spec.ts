@@ -42,7 +42,7 @@ test('greets a signed-in player whose provider supplied no name', async ({ page 
   await page.goto('/')
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Welcome')
-  await page.screenshot({ path: 'test-results/home-nameless-greeting.png' })
+  await page.screenshot({ path: test.info().outputPath('home-nameless-greeting.png') })
 })
 
 test('offers a secondary account-creation button below sign-in', async ({ page }) => {
@@ -55,7 +55,7 @@ test('offers a secondary account-creation button below sign-in', async ({ page }
     const signInBounds = await page.locator('form').getByRole('button', { name: 'Sign in', exact: true }).boundingBox()
     expect(switchBounds!.y).toBeGreaterThan(signInBounds!.y + signInBounds!.height)
     expect(switchBounds!.width).toBeLessThan(signInBounds!.width)
-    await page.screenshot({ path: `test-results/sign-in-account-switch-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`sign-in-account-switch-${width}.png`) })
   }
   await page.setViewportSize({ width: 1440, height: 900 })
 
@@ -238,7 +238,7 @@ test('offers native notification permission on home and retries device setup', a
   const offer = page.getByRole('region', { name: 'Notifications' })
   await expect(offer.getByRole('button', { name: 'Allow notifications' })).toBeVisible()
   await expectNoPageOverflow(page)
-  await page.screenshot({ path: 'test-results/home-notification-offer.png' })
+  await page.screenshot({ path: test.info().outputPath('home-notification-offer.png') })
 
   await offer.getByRole('button', { name: 'Not now' }).click()
   await page.reload()
@@ -252,7 +252,7 @@ test('offers native notification permission on home and retries device setup', a
   await offer.getByRole('button', { name: 'Allow notifications' }).click()
   await expect(offer.getByRole('button', { name: 'Retry notifications' })).toBeVisible()
   await expect(offer.getByText('This device could not be set up for notifications.')).toBeVisible()
-  await page.screenshot({ path: 'test-results/home-notification-retry.png' })
+  await page.screenshot({ path: test.info().outputPath('home-notification-retry.png') })
   await offer.getByRole('button', { name: 'Retry notifications' }).click()
   await expect(offer).toHaveCount(0)
   await page.goto('/profile')
@@ -268,7 +268,7 @@ test('omits the games shelf when the player has no active game', async ({ page }
   await expect(page.locator('[data-home-rosters]')).toBeVisible()
   await expect(page.locator('[data-home-record], [aria-label="Loading your record"]')).toHaveCount(0)
   await expect(page.getByRole('main').getByText('Public games', { exact: true })).toBeVisible()
-  await page.screenshot({ path: 'test-results/home-no-active-game.png' })
+  await page.screenshot({ path: test.info().outputPath('home-no-active-game.png') })
 })
 
 /**

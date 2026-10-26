@@ -71,5 +71,5 @@ test('a built list is priced, deployed and tracked', async ({ browser }) => {
       .getByText(/Shamblerot Vectorium/),
   ).toBeVisible()
 
-  await alice.screenshot({ path: 'test-results/tracked.png', fullPage: true })
+  await alice.screenshot({ path: test.info().outputPath('tracked.png'), fullPage: true })
 })

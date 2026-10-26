@@ -45,7 +45,7 @@ test('release notice waits for a new version and refreshes only on request', asy
       const tabs = await page.locator('[data-native-app-tabs]').boundingBox()
       expect(bounds!.y + bounds!.height).toBeLessThan(tabs!.y)
     }
-    await page.screenshot({ path: `test-results/release-update-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`release-update-${width}.png`) })
   }
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.clock.runFor(60_000)

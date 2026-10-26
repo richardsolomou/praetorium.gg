@@ -30,5 +30,5 @@ test('roster creation and loadout odds work without native array-copy methods', 
   await page.getByRole('region', { name: 'Attacker', exact: true }).getByRole('button', { name: 'Loadout', exact: true }).click()
   const loadout = page.getByRole('dialog', { name: 'Attacker · Boyz' })
   await expect(loadout.getByLabel(/^Shooting, unit with one more: <?\d+\.\d+% destroyed/).first()).toBeVisible()
-  await page.screenshot({ path: 'test-results/browser-array-copy-loadouts.png' })
+  await page.screenshot({ path: test.info().outputPath('browser-array-copy-loadouts.png') })
 })

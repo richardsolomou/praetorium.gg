@@ -125,7 +125,7 @@ test('faction cards open current rules and the rules version menu lists every ve
         await expect(page.getByRole('option').first().locator('[data-rules-status="current"]')).toHaveCSS('color', 'rgb(124, 196, 138)')
       }
       await expectNoPageOverflow(page)
-      await page.screenshot({ path: `test-results/rules-chips-${faction.slug}-${width}.png` })
+      await page.screenshot({ path: test.info().outputPath(`rules-chips-${faction.slug}-${width}.png`) })
       if (faction.versions > 1) {
         await page.keyboard.press('Escape')
         await expect(page.getByRole('option')).toHaveCount(0)
@@ -152,7 +152,7 @@ test('faction cards open current rules and the rules version menu lists every ve
       '/factions/dark-angels/rules/mfm-1-4-2026-09-30/datasheets',
     )
     await expectNoPageOverflow(page)
-    await page.screenshot({ path: `test-results/dated-faction-rules-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`dated-faction-rules-${width}.png`), fullPage: true })
   }
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.goto('/factions/dark-angels/rules/470a-6daa-9014-12df')

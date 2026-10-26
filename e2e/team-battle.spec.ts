@@ -40,11 +40,11 @@ async function inspectBattleDialog(page: Page, dialog: Locator, screenshot: stri
   await expect(dialog.getByRole('button', { name: /^Solo vs pair/ })).toHaveCount(1)
   await expect(dialog.getByRole('button', { name: '1v2', exact: true })).toHaveCount(0)
   await expect(dialog.getByRole('button', { name: '2v1', exact: true })).toHaveCount(0)
-  await page.screenshot({ path: `test-results/${screenshot}-desktop.png`, fullPage: true })
+  await page.screenshot({ path: test.info().outputPath(`${screenshot}-desktop.png`), fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   await expectNoPageOverflow(page)
   expect(await dialog.locator('[data-slot="dialog-body"]').evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
-  await page.screenshot({ path: `test-results/${screenshot}-phone.png`, fullPage: true })
+  await page.screenshot({ path: test.info().outputPath(`${screenshot}-phone.png`), fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
 }
 
@@ -149,7 +149,7 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
   await expect(side(host, 1)).toContainText('Battle ready included')
   await expect(side(host, 1).locator('[data-stat="vp"]')).toHaveText('10')
 
-  await ally.screenshot({ path: 'test-results/team-battle-tracker.png', fullPage: true })
+  await ally.screenshot({ path: test.info().outputPath('team-battle-tracker.png'), fullPage: true })
 })
 
 /**
@@ -224,12 +224,12 @@ test('a 2v1 opened from the allied side seats its opener with their ally and pla
   await expect(side(host, 1).getByRole('button', { name: /^About Reanimation Crypts$/i })).toHaveCount(0)
   await expect(sidePanels(host)).toHaveCount(2)
 
-  await host.screenshot({ path: 'test-results/team-battle-allied-opener.png', fullPage: true })
+  await host.screenshot({ path: test.info().outputPath('team-battle-allied-opener.png'), fullPage: true })
   // A phone holds one column, which is where a pair of players had least room.
   await host.setViewportSize({ width: 390, height: 844 })
   await expect(ours.getByRole('link', { name: hostName })).toBeVisible()
   await expect(ours.getByRole('link', { name: allyName })).toBeVisible()
-  await host.screenshot({ path: 'test-results/team-battle-allied-opener-phone.png', fullPage: true })
+  await host.screenshot({ path: test.info().outputPath('team-battle-allied-opener-phone.png'), fullPage: true })
 })
 
 test('a manual 2v2 seats two armies on each side with one shared pool', async ({ browser, page: host }) => {

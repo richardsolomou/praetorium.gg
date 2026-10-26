@@ -16,7 +16,7 @@ async function inspectMap(page: Page) {
       return board.top >= panel.top && board.bottom <= panel.bottom && panel.top >= 0 && panel.bottom <= innerHeight
     }),
   ).toBe(true)
-  await page.screenshot({ path: `test-results/battle-map-${page.viewportSize()?.width}.png` })
+  await page.screenshot({ path: test.info().outputPath(`battle-map-${page.viewportSize()?.width}.png`) })
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(dialog).toBeHidden()
   await expect(trigger).toBeFocused()

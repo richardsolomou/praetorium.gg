@@ -15,7 +15,7 @@ test('enhancement choices show descriptions when rule and catalogue names differ
   await expect(mark).toBeVisible()
   const option = mark.locator('xpath=ancestor::article')
   await expect(option).toContainText('add 1 to the Hit roll')
-  await shot(option, 'test-results/nekrosor-enhancement.png')
+  await shot(option, test.info().outputPath('nekrosor-enhancement.png'))
 })
 
 test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page }) => {
@@ -24,11 +24,11 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
   await page.getByLabel('Add a unit').fill("C'tan Shard of the Deceiver")
   const pickerRow = page.locator('[data-picker-unit="C\'tan Shard of the Deceiver"]')
   await expect(pickerRow).toContainText('375 pts')
-  await shot(pickerRow, 'test-results/pantheon-picker-price.png')
+  await shot(pickerRow, test.info().outputPath('pantheon-picker-price.png'))
   await page.setViewportSize({ width: 390, height: 844 })
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
   await expect(pickerRow).toContainText('375 pts')
-  await shot(pickerRow, 'test-results/pantheon-picker-price-phone.png')
+  await shot(pickerRow, test.info().outputPath('pantheon-picker-price-phone.png'))
   await page.setViewportSize({ width: 1600, height: 900 })
   await add(page, "C'tan Shard of the Deceiver")
 
@@ -37,7 +37,7 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
   await expect(card).toContainText('Enhancement')
   await expect(card).toContainText('Singularity Matrix')
   await expect(card.getByText('1x Singularity Matrix', { exact: true })).toHaveCount(0)
-  await shot(card, 'test-results/pantheon-forced-enhancement.png')
+  await shot(card, test.info().outputPath('pantheon-forced-enhancement.png'))
 
   await page
     .getByRole('button', { name: /^C'tan Shard of the Deceiver/ })
@@ -46,10 +46,10 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
   const unit = page.locator('aside[aria-label="Loadout"]')
   await expect(unit.getByRole('button', { name: 'Feel No Pain 5+', exact: true })).toBeVisible()
   await expect(unit.getByRole('button', { name: 'Deadly Demise D6', exact: true })).toBeVisible()
-  await shot(unit, 'test-results/pantheon-datasheet-abilities.png')
+  await shot(unit, test.info().outputPath('pantheon-datasheet-abilities.png'))
   const matrix = unit.getByRole('heading', { name: 'Singularity Matrix' }).locator('xpath=ancestor::article')
   await expect(matrix).toContainText('Lord of Deceit (Aura)')
-  await shot(matrix, 'test-results/pantheon-singularity-matrix.png')
+  await shot(matrix, test.info().outputPath('pantheon-singularity-matrix.png'))
 
   await page.getByLabel('Add a unit').fill('Imotekh the Stormlord')
   await page.getByRole('button', { name: 'View Imotekh the Stormlord datasheet' }).click()
@@ -62,10 +62,10 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
   await expect(canLead.getByRole('button', { name: 'Immortals', exact: true })).toBeVisible()
   await expect(datasheet.getByRole('button', { name: 'Add to list' })).toBeVisible()
   await expect(datasheet.getByRole('button', { name: 'Ignores Cover', exact: true })).toHaveCSS('font-size', '13.5px')
-  await shot(datasheet, 'test-results/imotekh-datasheet-tags.png')
+  await shot(datasheet, test.info().outputPath('imotekh-datasheet-tags.png'))
   await page.setViewportSize({ width: 390, height: 844 })
   await expect(noble).toBeVisible()
-  await shot(datasheet, 'test-results/imotekh-datasheet-tags-phone.png')
+  await shot(datasheet, test.info().outputPath('imotekh-datasheet-tags-phone.png'))
 
   await page.setViewportSize({ width: 1600, height: 900 })
   await page.getByLabel('Add a unit').fill('Plasmancer')
@@ -79,19 +79,19 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
   await expect(datasheet.getByRole('heading', { name: 'Can be supported by' })).toBeVisible()
   await datasheet.getByRole('button', { name: 'Add to list' }).click()
   await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
-  await shot(datasheet, 'test-results/plasmancer-roster-datasheet.png')
+  await shot(datasheet, test.info().outputPath('plasmancer-roster-datasheet.png'))
 
   await page.goto('/factions/necrons/datasheets/imotekh-the-stormlord')
   const referenceHeader = page.locator('main > header')
   await expect(referenceHeader.locator('[data-faction-mark="necrons"]')).toBeVisible()
   await expect(referenceHeader.getByText('Noble', { exact: true })).toHaveCSS('color', 'rgb(155, 208, 169)')
-  await shot(referenceHeader, 'test-results/imotekh-reference-tags.png')
+  await shot(referenceHeader, test.info().outputPath('imotekh-reference-tags.png'))
   await page.goto('/factions/necrons/datasheets/lokhust-lord')
   const lokhustProfile = page.locator('main section').first()
   await expect(page.getByText('Models', { exact: true })).toHaveCount(0)
   await expect(lokhustProfile.getByText('Invulnerable save', { exact: true })).toBeVisible()
   await expect(lokhustProfile.getByText('4+', { exact: true })).toBeVisible()
-  await shot(lokhustProfile, 'test-results/lokhust-lord-characteristics.png')
+  await shot(lokhustProfile, test.info().outputPath('lokhust-lord-characteristics.png'))
 })
 
 test('unit upgrades stay separate from character enhancements', async ({ page }) => {
@@ -111,9 +111,9 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   await expect(page.getByRole('tooltip')).toBeHidden()
   const madnessOption = madness.locator('xpath=ancestor::article')
   await expect(madnessOption.locator('.font-rules')).toHaveCSS('font-family', /^"Sofia Sans Semi Condensed Variable"/)
-  await shot(madnessOption, 'test-results/deepening-madness-option.png')
+  await shot(madnessOption, test.info().outputPath('deepening-madness-option.png'))
   await page.setViewportSize({ width: 390, height: 844 })
-  await shot(madnessOption, 'test-results/deepening-madness-option-phone.png')
+  await shot(madnessOption, test.info().outputPath('deepening-madness-option-phone.png'))
   await page.setViewportSize({ width: 1280, height: 720 })
   const optionBox = await madnessOption.boundingBox()
   await madnessOption.click({ position: { x: 20, y: (optionBox?.height ?? 20) - 10 } })
@@ -126,12 +126,12 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   const reminder = page.getByRole('dialog', { name: 'Deepening Madness' })
   await expect(reminder).toBeVisible()
   await reminder.getByRole('button', { name: 'Cancel' }).click()
-  await shot(card, 'test-results/deepening-madness-upgrade.png')
+  await shot(card, test.info().outputPath('deepening-madness-upgrade.png'))
 
   await chooseRosterAction(page, 'Export text')
   const exportDialog = page.getByRole('dialog', { name: 'Export roster' })
   await expect(exportDialog).toContainText('Enhancement: Deepening Madness')
-  await shot(exportDialog, 'test-results/deepening-madness-export.png')
+  await shot(exportDialog, test.info().outputPath('deepening-madness-export.png'))
   await exportDialog.getByRole('button', { name: 'Close' }).click()
 
   // The upgrade appends [ASSAULT] to the weapon, and a keyword nothing on the
@@ -142,7 +142,7 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   await expect(page.getByRole('tooltip')).toContainText('assault shooting')
   await expect(page.getByRole('tooltip')).toContainText('Added by Deepening Madness')
   await expect(assault).toHaveClass(/text-info/)
-  await shot(page.getByRole('tooltip'), 'test-results/added-keyword-tooltip.png')
+  await shot(page.getByRole('tooltip'), test.info().outputPath('added-keyword-tooltip.png'))
   await page.mouse.move(0, 0)
   await expect(page.getByRole('tooltip')).toBeHidden()
 
@@ -157,14 +157,14 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
     .getByRole('button', { name: 'Select Deepening Madness' })
     .click()
   await expect(page.getByText('Could not check every rule')).toHaveCount(0)
-  await page.screenshot({ path: 'test-results/shared-deepening-madness.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('shared-deepening-madness.png'), fullPage: true })
 
   await page.goto('/factions/necrons/reference/detachments/skyshroud-spearhead')
   const unitUpgrades = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Unit upgrades' }) })
   await expect(unitUpgrades).toContainText('Deepening Madness')
   const enhancements = page.locator('section').filter({ has: page.getByText('Enhancements', { exact: true }) })
   await expect(enhancements).not.toContainText('Deepening Madness')
-  await page.screenshot({ path: 'test-results/skyshroud-unit-upgrades.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('skyshroud-unit-upgrades.png'), fullPage: true })
 })
 
 test('a detachment rule marks the weapon abilities it grants', async ({ page }) => {
@@ -194,10 +194,10 @@ test('a unit upgrade shows the core ability it grants', async ({ page }) => {
   await expect(scouts).toHaveClass(/text-info/)
   await scouts.hover()
   await expect(page.getByRole('tooltip')).toContainText('Added by Enlivened Sentinels')
-  await shot(loadout, 'test-results/enlivened-sentinels-granted-ability.png')
+  await shot(loadout, test.info().outputPath('enlivened-sentinels-granted-ability.png'))
 
   await page.setViewportSize({ width: 390, height: 844 })
-  await shot(loadout, 'test-results/enlivened-sentinels-granted-ability-phone.png')
+  await shot(loadout, test.info().outputPath('enlivened-sentinels-granted-ability-phone.png'))
 })
 
 test('weapon swaps keep fixed profiles stable while saving', async ({ page }) => {
@@ -238,7 +238,7 @@ test('weapon swaps keep fixed profiles stable while saving', async ({ page }) =>
       await loadout.getByRole('button', { name: 'More Particle beamer', exact: true }).click()
       await expect(loadout.getByLabel('Particle beamer count', { exact: true })).toHaveText('2')
     })
-    await page.screenshot({ path: `test-results/tomb-blades-weapon-swap-${width}.png`, animations: 'disabled' })
+    await page.screenshot({ path: test.info().outputPath(`tomb-blades-weapon-swap-${width}.png`), animations: 'disabled' })
     await waitForRosterSave(page, async () => {
       await loadout.getByRole('button', { name: 'Fewer Particle beamer', exact: true }).click()
       await loadout.getByRole('button', { name: 'Fewer Particle beamer', exact: true }).click()
@@ -312,7 +312,7 @@ test('wargear abilities are explained beside their choices', async ({ page }) =>
   }
   await expect(page.getByRole('button', { name: /M 8", modified from 12"/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Sv 3\+, modified from 4\+/ })).toBeVisible()
-  await page.screenshot({ path: 'test-results/tomb-blades-shieldvanes.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('tomb-blades-shieldvanes.png'), fullPage: true })
 })
 
 test('Canoptek Spyders keep their claws and independent wargear', async ({ page }) => {
@@ -335,7 +335,7 @@ test('Canoptek Spyders keep their claws and independent wargear', async ({ page 
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
   await expect(loadout.getByLabel('Canoptek Spyders models')).toHaveText('1')
   await expect(card).toContainText('2x Particle beamer')
-  await shot(loadout, 'test-results/canoptek-spyder-wargear.png')
+  await shot(loadout, test.info().outputPath('canoptek-spyder-wargear.png'))
 
   await loadout.getByRole('button', { name: 'Fewer Two particle beamers' }).click()
   await expect(loadout.getByLabel('Two particle beamers count')).toHaveText('0')
@@ -352,7 +352,7 @@ test('Canoptek Spyders keep their claws and independent wargear', async ({ page 
   await expect(loadout).toBeVisible()
   await expectNoPageOverflow(page)
   expect(await loadout.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true)
-  await shot(loadout, 'test-results/canoptek-spyder-wargear-phone.png')
+  await shot(loadout, test.info().outputPath('canoptek-spyder-wargear-phone.png'))
 })
 
 test('destroyer plasmacytes follow the unit size', async ({ page }) => {
@@ -369,7 +369,7 @@ test('destroyer plasmacytes follow the unit size', async ({ page }) => {
     await expect(loadout.getByLabel(`${name} models`)).toHaveText('6')
     await expect(loadout.getByLabel('Plasmacyte count')).toHaveText('2')
     await expect(page.locator(`[data-unit="${name}"]`)).toContainText('2x Plasmacyte')
-    await page.screenshot({ path: `test-results/${name.toLowerCase().replaceAll(' ', '-')}-plasmacytes.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`${name.toLowerCase().replaceAll(' ', '-')}-plasmacytes.png`), fullPage: true })
     await loadout.getByRole('button', { name: 'Fewer Plasmacyte' }).click()
     await expect(loadout.getByLabel('Plasmacyte count')).toHaveText('1')
   }
@@ -401,7 +401,7 @@ test('an enhancement changes the weapons of the model bearing it', async ({ page
   // melee weapons it carries, and says as much on both.
   await expect(page.getByRole('button', { name: /M 7", modified from 5" by Destroyer Ankh/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /A 6, modified from 4 by Destroyer Ankh/ }).first()).toBeVisible()
-  await page.screenshot({ path: 'test-results/destroyer-ankh.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('destroyer-ankh.png'), fullPage: true })
 
   // A weapon the Overlord could take rather than the one it holds says what it would
   // do in this list, which is the point of showing it before the choice is made.
@@ -417,7 +417,7 @@ test('an enhancement changes the weapons of the model bearing it', async ({ page
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   await expect(page.getByRole('button', { name: /M 7", modified from 5" by Destroyer Ankh/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /modified from 2 by Destroyer Ankh/ })).toHaveCount(0)
-  await page.screenshot({ path: 'test-results/destroyer-ankh-attached.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('destroyer-ankh-attached.png'), fullPage: true })
 
   /*
    * A supporting character joins the same unit, which makes the three of them one
@@ -434,7 +434,7 @@ test('an enhancement changes the weapons of the model bearing it', async ({ page
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
   // Three inches from the relic it bears, two from the one its unit's Overlord bears.
   await expect(page.getByRole('button', { name: 'M 10", modified from 5" by Destroyer Ankh, Murdermind' })).toBeVisible()
-  await page.screenshot({ path: 'test-results/attached-unit-modifiers.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('attached-unit-modifiers.png'), fullPage: true })
 
   // The rows under a unit's name are part of its card: the one saying who it is
   // standing with opens it, as clicking the name does.
@@ -459,7 +459,7 @@ test('an enhancement changes the weapons of the model bearing it', async ({ page
   await second.getByRole('button', { name: 'Overlord', exact: true }).click()
   await loadout.getByRole('button', { name: 'Select Destroyer Ankh' }).click()
   await expect(page.getByText('Destroyer Ankh: allows at most 1, has 2')).toHaveCount(1)
-  await page.screenshot({ path: 'test-results/enhancement-once-per-army.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('enhancement-once-per-army.png'), fullPage: true })
 })
 
 /**
@@ -483,7 +483,7 @@ test('an enhancement adds to the bearer and to the unit around it', async ({ pag
 
   await expect(page.getByRole('button', { name: /W \d+, modified from \d+ by Master Artisan/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /T \d+, modified from \d+ by Master Artisan/ })).toBeVisible()
-  await page.screenshot({ path: 'test-results/master-artisan.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('master-artisan.png'), fullPage: true })
 })
 
 /**
@@ -516,7 +516,7 @@ test('a weapon both sources name is drawn once', async ({ page }) => {
   // `Melee"` and asked for a ballistic skill.
   await expect(loadout.getByText('Melee"')).toHaveCount(0)
   await expect(loadout.getByText('WS', { exact: true })).not.toHaveCount(0)
-  await page.screenshot({ path: 'test-results/lokhust-lord-staff.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('lokhust-lord-staff.png'), fullPage: true })
 })
 
 test('a squad keeps the weapons it was given while a specialist is armed', async ({ page }) => {
@@ -548,7 +548,7 @@ test('a squad keeps the weapons it was given while a specialist is armed', async
   await expect(veterans.getByLabel('Pyrecannon count')).toHaveText('1')
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
   await expect(page.locator('[data-unit="Sternguard Veteran Squad"]')).toContainText('1x Pyrecannon')
-  await page.screenshot({ path: 'test-results/sternguard-specialist-weapons.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('sternguard-specialist-weapons.png'), fullPage: true })
 
   // Putting the pyrecannon down hands its body back rather than shrinking the squad.
   await veterans.getByRole('button', { name: 'Fewer Pyrecannon' }).click()
@@ -593,7 +593,7 @@ test('a free swap shows on the roster card as well as the loadout', async ({ pag
   await expect(card).toContainText('1x Astartes shield')
   await expect(card).toContainText('2x Power weapon')
   await expect(card).not.toContainText('Heavy thunder hammer')
-  await page.screenshot({ path: 'test-results/decimus-swap-on-card.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('decimus-swap-on-card.png'), fullPage: true })
 
   await loadout.getByRole('button', { name: 'More Heavy thunder hammer' }).click()
   await expect(loadout.getByLabel(`${swap} count`)).toHaveText('0')
@@ -611,7 +611,7 @@ test('Cursed Legion does not modify Immortals without an eligible leader', async
   await expect(datasheet.getByRole('heading', { name: 'Gauss blaster' }).locator('..').getByText('5', { exact: true })).toBeVisible()
   await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(0)
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).fontSize)).toBe('18px')
-  await page.screenshot({ path: 'test-results/unit-preview.png' })
+  await page.screenshot({ path: test.info().outputPath('unit-preview.png') })
 
   await add(page, 'Immortals')
   await page
@@ -658,12 +658,12 @@ test('detachment combinations follow the 11th edition allowance', async ({ page 
   await page.getByRole('option', { name: /^Incursion/ }).click()
   await expect(setup.getByRole('alert')).toContainText('This combination costs 3 DP')
   await expect(setup.getByRole('button', { name: 'Review changes' })).toBeDisabled()
-  await page.screenshot({ path: 'test-results/detachment-points.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('detachment-points.png'), fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   const firstDetachment = setup.getByRole('button', { name: 'Select Cryptek Conclave', pressed: true })
   await expect(firstDetachment).toBeVisible()
   await expect(setup.getByRole('alert')).toBeVisible()
   const bounds = await firstDetachment.boundingBox()
   expect(bounds && bounds.x + bounds.width).toBeLessThanOrEqual(390)
-  await page.screenshot({ path: 'test-results/detachment-points-phone.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('detachment-points-phone.png'), fullPage: true })
 })

@@ -33,7 +33,7 @@ test(`a unit's attach menu adds and attaches a new leader, then offers only its 
     await expect(imotekh).toContainText(/\d+ pts/)
     await expect(added.getByRole('menuitem', { name: 'Add new Immortals and attach', exact: true })).toHaveCount(0)
     await expectNoHorizontalOverflow(attachMenu(page))
-    await shot(attachMenu(page), `test-results/attach-menu-bodyguard-${width}.png`)
+    await shot(attachMenu(page), test.info().outputPath(`attach-menu-bodyguard-${width}.png`))
 
     await waitForRosterSave(page, () => imotekh.click())
     const leader = page.locator('[data-unit="Imotekh the Stormlord"]')
@@ -48,13 +48,13 @@ test(`a unit's attach menu adds and attaches a new leader, then offers only its 
     await expect(added.getByRole('menuitem', { name: 'Add new Imotekh the Stormlord and attach', exact: true })).toHaveCount(0)
     await expectNoHorizontalOverflow(attachMenu(page))
     await expectNoHorizontalOverflow(page.locator('html'))
-    await shot(attachMenu(page), `test-results/attach-menu-full-${width}.png`)
+    await shot(attachMenu(page), test.info().outputPath(`attach-menu-full-${width}.png`))
     await page.keyboard.press('Escape')
 
     await page.reload()
     await expect(leader).toHaveCount(1)
     await expect(leader).toContainText('Immortals')
-    await page.screenshot({ path: `test-results/attach-roster-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`attach-roster-${width}.png`) })
     await expect(page.locator('[data-unit="Overlord"]')).not.toContainText('Leading')
   }
 })
@@ -79,7 +79,7 @@ test('a unit whose only leader slot is full offers no attach menu', async ({ pag
     await expect(attachUnit).toHaveCount(0)
     await expect(lord.getByRole('button', { name: 'Attach Skorpekh Lord to unit', exact: true })).toHaveCount(0)
     await expectNoHorizontalOverflow(page.locator('html'))
-    await shot(destroyers, `test-results/attach-full-skorpekh-${width}.png`)
+    await shot(destroyers, test.info().outputPath(`attach-full-skorpekh-${width}.png`))
     await page.reload()
     await expect(destroyers).toContainText('Skorpekh Lord')
     await expect(attachUnit).toHaveCount(0)
@@ -101,7 +101,7 @@ test(`a character's attach menu adds and joins a new bodyguard`, async ({ page }
       .getByRole('group', { name: 'Add a new unit' })
       .getByRole('menuitem', { name: 'Add new Immortals and attach', exact: true })
     await expect(immortals).toContainText(/\d+ pts/)
-    await shot(attachMenu(page), `test-results/attach-menu-leader-${width}.png`)
+    await shot(attachMenu(page), test.info().outputPath(`attach-menu-leader-${width}.png`))
     await waitForRosterSave(page, () => immortals.click())
 
     await expect(page.locator('[data-unit="Immortals"]')).toHaveCount(1)
@@ -124,11 +124,11 @@ test('a Loyal Protector joins a Command Squad', async ({ page }) => {
   const squad = attachMenu(page)
     .getByRole('group', { name: 'Add a new unit' })
     .getByRole('menuitem', { name: 'Add new Cadian Command Squad and attach', exact: true })
-  await shot(attachMenu(page), 'test-results/attach-menu-loyal-protector.png')
+  await shot(attachMenu(page), test.info().outputPath('attach-menu-loyal-protector.png'))
   await waitForRosterSave(page, () => squad.click())
 
   await expect(ogryn).toContainText('Cadian Command Squad')
-  await page.screenshot({ path: 'test-results/attach-loyal-protector-roster.png' })
+  await page.screenshot({ path: test.info().outputPath('attach-loyal-protector-roster.png') })
 })
 
 test('a unit attaches a character already in the roster from its own card', async ({ page }) => {

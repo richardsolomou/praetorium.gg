@@ -51,7 +51,7 @@ for (const [width, label] of [
       await expect(outcome).toContainText('Conceded')
       await expect(outcome).toContainText('Orks')
       await expectNoHorizontalOverflow(reader.locator('main'))
-      await shot(card, `test-results/played-army-${label}.png`)
+      await shot(card, test.info().outputPath(`played-army-${label}.png`))
 
       await outcome.getByRole('link', { name: 'Open battle' }).click()
       await expect(reader).toHaveURL(new RegExp(`/battles/${token}$`))
@@ -75,7 +75,7 @@ for (const [width, label] of [
         await expect(simulator.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText('Current roster')
         await simulator.getByRole('button', { name: 'Run all matchups' }).click()
         await expect(simulator).toContainText(/(\d+) \/ \1 matchups · Complete/, { timeout: 120_000 })
-        await shot(simulator, `test-results/played-army-simulate-${label}.png`)
+        await shot(simulator, test.info().outputPath(`played-army-simulate-${label}.png`))
         await simulator.getByRole('button', { name: 'Close', exact: true }).click()
       }
       expect(await operator.log(token)).toEqual(fielded)

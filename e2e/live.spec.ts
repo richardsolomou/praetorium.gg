@@ -28,8 +28,8 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await expect(panel(alice, 'Necrons').locator('[data-stat="cp"]')).toHaveText('1')
   await expect(panel(bob, 'Necrons').getByRole('button', { name: '+1 CP' })).toBeEnabled()
 
-  await alice.screenshot({ path: 'test-results/tracker-alice.png', fullPage: true })
-  await bob.screenshot({ path: 'test-results/tracker-bob.png', fullPage: true })
+  await alice.screenshot({ path: test.info().outputPath('tracker-alice.png'), fullPage: true })
+  await bob.screenshot({ path: test.info().outputPath('tracker-bob.png'), fullPage: true })
   await alice.setViewportSize({ width: 390, height: 844 })
   // The same scoreboard as the desktop one, so a phone and a laptop cannot disagree
   // about the score. What each army is stays in its own panel rather than being said
@@ -39,10 +39,10 @@ test('a battle stays in step across two devices', async ({ browser }) => {
   await expect(scoreboard).toContainText(bobName)
   await expect(scoreboard).not.toContainText('Awakened Dynasty')
   await expect(panel(alice, 'Necrons')).toContainText('Awakened Dynasty')
-  await alice.screenshot({ path: 'test-results/tracker-phone.png', fullPage: true })
+  await alice.screenshot({ path: test.info().outputPath('tracker-phone.png'), fullPage: true })
   await alice.getByRole('tab', { name: 'Battle' }).click()
   await expect(alice.getByText(new RegExp(`${bobName} ends the command phase for ${aliceName}`))).toBeVisible()
-  await alice.screenshot({ path: 'test-results/tracker-events.png', fullPage: true })
+  await alice.screenshot({ path: test.info().outputPath('tracker-events.png'), fullPage: true })
 
   // Pinned flush to the application tabs on mobile and the viewport otherwise. A
   // margin between fixed controls is invisible in the markup and obvious on a phone.

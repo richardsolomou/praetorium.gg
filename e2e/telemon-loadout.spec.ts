@@ -33,7 +33,7 @@ for (const width of [1440, 390]) {
     await expect(card).toContainText('2x Twin Neutronium Cascade Projectors')
     await expectNoHorizontalOverflow(page.locator('html'))
     await expectNoHorizontalOverflow(loadout)
-    await page.screenshot({ path: `test-results/telemon-dual-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`telemon-dual-${width}.png`) })
 
     for (const gun of ['Adrathic Desolator', 'Arachnus Storm Cannon', 'Iliastus Accelerator Culverin']) {
       const label =
@@ -53,7 +53,7 @@ for (const width of [1440, 390]) {
       await expect.poll(() => page.evaluate(() => localStorage.getItem('praetorium.guest-draft'))).not.toBe(before)
     }
     await expectNoHorizontalOverflow(loadout)
-    await page.screenshot({ path: `test-results/telemon-gun-${width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`telemon-gun-${width}.png`) })
     await page.reload()
     await expect(card).toContainText('1x Iliastus Accelerator Culverin')
     if (width >= 1300 || !(await loadout.getByRole('button', { name: 'Back to roster', exact: true }).isVisible())) {

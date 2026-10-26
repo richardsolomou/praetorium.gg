@@ -29,7 +29,7 @@ for (const width of [1440, 390])
     await page.getByRole('option', { name: 'Necrons', exact: true }).click()
     await expect(setup).toBeVisible()
     await expect(faction).toContainText('Necrons')
-    await page.screenshot({ path: `test-results/translated-guest-roster-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`translated-guest-roster-${width}.png`), fullPage: true })
   })
 
 test('a translated signed-in roster dialog keeps working through creation', async ({ page }) => {
@@ -49,7 +49,7 @@ test('a translated signed-in roster dialog keeps working through creation', asyn
   await expect(page.getByRole('textbox', { name: 'List name', exact: true })).toHaveValue('Translated army')
   await page.reload()
   await expect(page.getByRole('textbox', { name: 'List name', exact: true })).toHaveValue('Translated army')
-  await page.screenshot({ path: 'test-results/translated-saved-roster.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('translated-saved-roster.png'), fullPage: true })
 })
 
 test('a translated virtualized unit selector opens a reference unit in the simulator', async ({ page }) => {

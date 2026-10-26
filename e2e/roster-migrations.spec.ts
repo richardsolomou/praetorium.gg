@@ -47,7 +47,7 @@ test('fixed Sternguard equipment survives migration, saving and reload', { tag: 
       spreads: { 'edfc-d6af-480a-d5fc': { '5700-4122-349a-e5da': 4, 'afda-2132-147f-d0f1': 0 } },
     },
   ])
-  await page.screenshot({ path: 'test-results/fixed-sternguard-migrated.png', fullPage: true })
+  await page.screenshot({ path: test.info().outputPath('fixed-sternguard-migrated.png'), fullPage: true })
 })
 
 test('preserved rules remain explicit and conversion is optional', { tag: '@catalogue' }, async ({ page }) => {
@@ -92,7 +92,7 @@ test('preserved rules remain explicit and conversion is optional', { tag: '@cata
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 900 })
     await expectNoPageOverflow(page)
-    await page.screenshot({ path: `test-results/retained-roster-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`retained-roster-${width}.png`), fullPage: true })
   }
   for (const width of [390, 1440]) {
     await page.setViewportSize({ width, height: 900 })
@@ -115,7 +115,7 @@ test('preserved rules remain explicit and conversion is optional', { tag: '@cata
     await expect(
       page.getByText('Scout Squad: a saved choice is no longer available; reselect this unit’s options', { exact: true }),
     ).toBeVisible()
-    await page.screenshot({ path: `test-results/converted-roster-${width}.png`, fullPage: true })
+    await page.screenshot({ path: test.info().outputPath(`converted-roster-${width}.png`), fullPage: true })
   }
 })
 

@@ -47,7 +47,7 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
       await page.setViewportSize(viewport)
       await expect(dialog.getByRole('combobox', { name: 'When it happened' })).toContainText(commandPhase)
       await expect(dialog.getByRole('button', { name: 'Record missed action' })).toBeEnabled()
-      await page.screenshot({ path: `test-results/missed-action-dialog-${viewport.width}.png` })
+      await page.screenshot({ path: test.info().outputPath(`missed-action-dialog-${viewport.width}.png`) })
     }
     await page.setViewportSize(desktop)
   })
@@ -67,7 +67,7 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
     })
     await expect(refused.getByRole('alert')).toHaveText('Insane Bravery has been used this battle.')
     await expect(refused.getByRole('button', { name: 'Record missed action' })).toBeEnabled()
-    await page.screenshot({ path: `test-results/missed-action-refused-${viewport.width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`missed-action-refused-${viewport.width}.png`) })
     await refused.getByRole('button', { name: 'Cancel' }).click()
     await expect(refused).toBeHidden()
   }
@@ -107,7 +107,7 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
     await expect(lateScore).toBeVisible()
     await expect(events.locator('li').filter({ hasText: 'settles 3 primary VP, recorded late' })).toContainText('R1 move')
     await lateScore.scrollIntoViewIfNeeded()
-    await page.screenshot({ path: `test-results/missed-action-events-${viewport.width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`missed-action-events-${viewport.width}.png`) })
   }
 
   await page.getByRole('button', { name: 'Undo latest action' }).click()
@@ -140,6 +140,6 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
       new RegExp(`^Round 1, event \\d+ of \\d+: ${name} uses Insane Bravery for 1 CP, recorded late for round 1, ${name}’s command phase$`),
     )
     await expect(page.getByRole('region', { name: 'Battle scoreboard' })).toContainText('movement phase')
-    await page.screenshot({ path: `test-results/missed-action-replay-${viewport.width}.png` })
+    await page.screenshot({ path: test.info().outputPath(`missed-action-replay-${viewport.width}.png`) })
   }
 })
