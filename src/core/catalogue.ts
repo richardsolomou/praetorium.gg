@@ -59,6 +59,20 @@ export type LocalConditionGroup = {
   conditionGroups?: ConditionGroup[]
 }
 
+/** Compares a count with a condition's value; undefined for a type that is not a comparison. */
+export function compares(type: string, measured: number, value: number): boolean | undefined {
+  if (type === 'atLeast') return measured >= value
+  if (type === 'atMost') return measured <= value
+  if (type === 'equalTo') return measured === value
+  if (type === 'greaterThan') return measured > value
+  if (type === 'lessThan') return measured < value
+  return undefined
+}
+
+/** A counting group's verdict on how many members held; without a value it asks for at least one, or for none. */
+export const groupCounts = (type: string, met: number, value: number | undefined) =>
+  type === 'atLeast' || type === 'atMost' || type === 'equalTo' ? compares(type, met, value ?? (type === 'atLeast' ? 1 : 0)) : undefined
+
 /** Applies a modifier once per `repeats` of whatever it counts — how per-model costs are expressed. */
 export type Repeat = {
   value: number

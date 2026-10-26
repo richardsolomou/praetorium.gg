@@ -10,20 +10,22 @@
  * a wrong points total presented confidently is worse than an honest gap.
  */
 
-import type {
-  CatalogueIndex,
-  CategoryEntry,
-  Condition,
-  ConditionGroup,
-  Constraint,
-  Cost,
-  Definition,
-  EntryLink,
-  InfoLink,
-  LocalConditionGroup,
-  Modifier,
-  ModifierGroup,
-  Repeat,
+import {
+  compares,
+  groupCounts,
+  type CatalogueIndex,
+  type CategoryEntry,
+  type Condition,
+  type ConditionGroup,
+  type Constraint,
+  type Cost,
+  type Definition,
+  type EntryLink,
+  type InfoLink,
+  type LocalConditionGroup,
+  type Modifier,
+  type ModifierGroup,
+  type Repeat,
 } from './catalogue'
 import { fieldedCount, scaleOf } from './collective'
 import { remember } from './collections'
@@ -1103,9 +1105,8 @@ function groupHolds(group: ConditionGroup, node: Node, root: Node, index: Catalo
   if (group.type === 'and') return results.every(Boolean)
   if (group.type === 'or') return results.some(Boolean)
   const met = results.filter(Boolean).length
-  if (group.type === 'atLeast') return met >= (group.value ?? 1)
-  if (group.type === 'atMost') return met <= (group.value ?? 0)
-  if (group.type === 'equalTo') return met === (group.value ?? 0)
+  const counted = groupCounts(group.type, met, group.value)
+  if (counted !== undefined) return counted
   if (group.type === 'count') {
     if (group.min === undefined && group.max === undefined) {
       census.note('count condition group without bounds')
@@ -1139,9 +1140,8 @@ function localHolds(group: LocalConditionGroup, node: Node, root: Node, index: C
   // Each candidate is judged against the node being priced, which is what lets
   // "is there one of these before me" be answered at all.
   const met = [...candidates].filter((candidate) => passes(group, candidate, root, index, census, node)).length
-  if (group.type === 'atLeast') return met >= (group.value ?? 1)
-  if (group.type === 'atMost') return met <= (group.value ?? 0)
-  if (group.type === 'equalTo') return met === (group.value ?? 0)
+  const counted = groupCounts(group.type, met, group.value)
+  if (counted !== undefined) return counted
   if (group.type === 'and') return met === candidates.size
   if (group.type === 'or') return met > 0
   census.note(`local condition group type ${String(group.type)}`)
@@ -1164,15 +1164,11 @@ function holds(condition: Condition, node: Node, root: Node, index: CatalogueInd
     case 'notInstanceOf':
       return measured === 0
     case 'atLeast':
-      return measured >= condition.value
     case 'atMost':
-      return measured <= condition.value
     case 'equalTo':
-      return measured === condition.value
     case 'greaterThan':
-      return measured > condition.value
     case 'lessThan':
-      return measured < condition.value
+      return compares(condition.type, measured, condition.value)!
     // A new condition type breaks this rather than being quietly treated as met.
     default: {
       const unhandled: never = condition.type

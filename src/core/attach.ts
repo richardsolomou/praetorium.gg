@@ -2,9 +2,11 @@ import { uniqueBy, remember } from './collections'
 import {
   type Association,
   type CatalogueIndex,
+  compares,
   type Condition,
   type ConditionGroup,
   type Definition,
+  groupCounts,
   type InfoGroup,
   nameOf,
   type Profile,
@@ -190,9 +192,8 @@ function associationGroupHolds(group: ConditionGroup, selection: Selection, cand
   const met = results.filter(Boolean).length
   if (group.type === 'and') return met === results.length
   if (group.type === 'or') return met > 0
-  if (group.type === 'atLeast') return met >= (group.value ?? 1)
-  if (group.type === 'atMost') return met <= (group.value ?? 0)
-  if (group.type === 'equalTo') return met === (group.value ?? 0)
+  const counted = groupCounts(group.type, met, group.value)
+  if (counted !== undefined) return counted
   if (group.type === 'count') return met >= (group.min ?? 0) && met <= (group.max ?? Number.POSITIVE_INFINITY)
   return false
 }
@@ -207,12 +208,7 @@ function associationConditionHolds(condition: Condition, selection: Selection, c
 
   if (condition.type === 'instanceOf') return measured > 0
   if (condition.type === 'notInstanceOf') return measured === 0
-  if (condition.type === 'atLeast') return measured >= condition.value
-  if (condition.type === 'atMost') return measured <= condition.value
-  if (condition.type === 'equalTo') return measured === condition.value
-  if (condition.type === 'greaterThan') return measured > condition.value
-  if (condition.type === 'lessThan') return measured < condition.value
-  return false
+  return compares(condition.type, measured, condition.value) ?? false
 }
 
 function selectionHas(selection: Selection, childId: string | undefined, deep: boolean, index: CatalogueIndex): boolean {
