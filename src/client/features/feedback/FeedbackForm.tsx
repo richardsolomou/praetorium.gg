@@ -18,7 +18,16 @@ import { Problem } from '../../components/Problem'
 import { errorMessage } from '../../queryClient'
 
 /** A new conversation, sent from the page the player is on so its session replay shows what they were looking at. */
-export function FeedbackForm({ onSent, onCancel }: { onSent: (ticketId: string, screenshotLost: boolean) => void; onCancel: () => void }) {
+export function FeedbackForm({
+  onStarted,
+  onSent,
+  onCancel,
+}: {
+  /** Called once the player has entered anything, so the panel keeps this form in place. */
+  onStarted: () => void
+  onSent: (ticketId: string, screenshotLost: boolean) => void
+  onCancel: () => void
+}) {
   const { data: me } = useQuery(meQuery())
   const queryClient = useQueryClient()
   const [kind, setKind] = useState<FeedbackKind>('Problem')
@@ -28,6 +37,10 @@ export function FeedbackForm({ onSent, onCancel }: { onSent: (ticketId: string, 
   const [screenshotError, setScreenshotError] = useState<string>()
   const [sending, setSending] = useState(false)
   const [failure, setFailure] = useState<'unavailable' | { error: string }>()
+  const started = kind !== 'Problem' || message !== '' || email !== '' || screenshot !== undefined
+  useEffect(() => {
+    if (started) onStarted()
+  }, [started, onStarted])
 
   const attach = useCallback((file: File | null | undefined) => {
     if (!file) return

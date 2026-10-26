@@ -561,6 +561,18 @@ test('a guest sends feedback, reads the reply and answers it', async ({ page }) 
   ).toEqual([opening, 'Thanks!'])
 })
 
+test('a message being written stays when earlier conversations load behind it', async ({ page }) => {
+  await page.goto('/factions')
+  await page.getByRole('button', { name: 'Search Praetorium' }).waitFor()
+  // Support has not answered yet, so the panel opens straight to a new message.
+  const dialog = await openFeedback(page)
+  await dialog.getByLabel('Message').fill('The picker will not scroll')
+  await stubSupport(page, 1)
+
+  await expect(dialog.getByRole('button', { name: 'All conversations' })).toBeVisible()
+  await expect(dialog.getByLabel('Message')).toHaveValue('The picker will not scroll')
+})
+
 test('an unread reply marks the account menu until the player reads it', async ({ page }) => {
   const support = await supportOnFactions(page)
   const dialog = await openFeedback(page)

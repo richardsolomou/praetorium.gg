@@ -71,6 +71,9 @@ export function SupportPanel() {
               </div>
             </DialogHeader>
             <FeedbackForm
+              // The list loads again when Support starts answering or proves the account; once the player has written
+              // something, showing it would replace the form and lose their message.
+              onStarted={() => setView((current) => (current.kind === 'inbox' ? { kind: 'compose' } : current))}
               onCancel={() => (hasTickets ? go({ kind: 'inbox' }) : setOpen(false))}
               onSent={(ticketId, screenshotLost) => {
                 setView({ kind: 'thread', ticketId })
