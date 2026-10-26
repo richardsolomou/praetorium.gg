@@ -507,10 +507,7 @@ export class PraetoriumService {
     }
   }
 
-  /**
-   * A revealed event's results table and who has met whom, from the battles this reader may watch.
-   * A private battle stays out of everybody else's table, as it stays out of their battle list.
-   */
+  /** A revealed event's results table and who has met whom, from the battles this reader may watch. */
   async leagueResults(
     leagueToken: string,
     eventToken: string,
