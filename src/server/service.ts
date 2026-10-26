@@ -1048,7 +1048,7 @@ export class PraetoriumService {
     const fold = battleFoldArgs(history.players, history.log)
     const state = reduceBattle(...fold)
     if (rules) hydrateAuthoritativeAwards(state, rules)
-    const view = battleView(history.battle, history.players, state, userId, this.clock())
+    const view = battleView(history.battle, history.players, state, userId)
     const missionForSide = (side: number) => (rules ? resolvedMissionForSide(state, rules, side) : null)
     const viewerSide = view.players.find((player) => player.id === userId)?.side
     return {

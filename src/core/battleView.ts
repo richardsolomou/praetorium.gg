@@ -60,24 +60,11 @@ export type MissionChoiceView = MissionSelectionPrompt & {
 }
 
 /**
- * The only place visibility is decided.
- *
- * Every route and every server function reads a battle through here, so a new field
- * cannot leak by being added to a shape someone else assembled by hand. Kept apart
- * from `battle.ts` for that reason: what a player may see is one question with one
- * answer, and it is easier to hold to when it has a file of its own.
- *
- * Cards, lists and points are public to both players. Only an unrevealed Secret
- * Mission and the deck state that would identify it are held back here, along with
- * each player's personal reminders and unit notes.
- */
-
-/**
  * The attached list as a screen reads it.
  *
  * The frozen units are deliberately absent: `units` on the same player carries
- * every submitted field plus the battle state, so shipping `built.units` beside
- * it sent both armies twice in every read of every battle.
+ * every submitted field plus the battle state, so `built.units` beside it would
+ * send both armies twice in every read of every battle.
  */
 export type RosterView = Omit<Roster, 'built' | 'reminders' | 'remindersEnabled'> & {
   built?: Omit<BuiltRoster, 'units'>
@@ -207,32 +194,26 @@ export type BattleView = {
 }
 
 /**
- * The only place visibility is decided. Every route and every server function
- * reads a battle through here, so a new field cannot leak by being added to a
- * shape someone else assembled by hand.
+ * The only place visibility is decided.
  *
- * Cards, lists, and points are public to both players. Only an unrevealed Secret
- * Mission and the deck state that would identify it are held back here.
+ * Every route and every server function reads a battle through here, so a new field
+ * cannot leak by being added to a shape someone else assembled by hand. Kept apart
+ * from `battle.ts` for that reason: what a player may see is one question with one
+ * answer, and it is easier to hold to when it has a file of its own.
+ *
+ * Cards, lists and points are public to both players. Only an unrevealed Secret
+ * Mission and the deck state that would identify it are held back here, along with
+ * each player's personal reminders and unit notes.
  */
+
 export function battleView(
   battle: { token: string },
   players: readonly { id: PlayerId; name: string; image?: string | null; automated?: boolean }[],
   state: BattleState,
   viewerId: PlayerId,
-  _now = Date.now(),
 ): BattleView {
   const named = new Map(players.map((player) => [player.id, player.name]))
   const automated = new Set(players.filter((player) => player.automated).map((player) => player.id))
-  /**
-   * Whether the viewer is one of the people playing a side.
-   *
-   * Their own side, or a side with nobody signed in to it: a practice opponent
-   * never opens the app, so its cards are held by whoever is sitting across from
-   * it. Without this its hand would be hidden from the only person able to play it.
-   */
-  const plays = (side: number) => {
-    return playsSide(state, viewerId, side)
-  }
   return {
     token: battle.token,
     status: state.status,
@@ -287,10 +268,6 @@ export function battleView(
         isViewer: player.id === viewerId,
         automated: automated.has(player.id),
         isActive: sameSide(state, state.activePlayerId, player.id),
-        /**
-         * The Force Disposition this player's side plays, which is the side's rather
-         * than this list's: an allied pair fields one army and plays one card.
-         */
         disposition: sideDisposition(state, player.side),
         dispositionChoices: state.dispositionsSealed ? [] : sideDispositionChoices(state, player.side),
         warlord: sideWarlord(state, player.side),
@@ -347,7 +324,9 @@ export function battleView(
          * A face-down card is identifiable from what disappeared from its public deck.
          */
         remainingSecondaries:
-          !resources.secretSecondary || resources.secretRevealed || plays(player.side) ? undrawnSecondaries(resources) : [],
+          !resources.secretSecondary || resources.secretRevealed || playsSide(state, viewerId, player.side)
+            ? undrawnSecondaries(resources)
+            : [],
         secondaries: resources.secondaries.map((secondary) => {
           // The one thing in the game that is genuinely hidden, masked in one place.
           const nameable = mayNameCard(state, viewerId, resources, secondary.key)
@@ -378,15 +357,6 @@ export function battleView(
   }
 }
 
-/**
- * What the active side still has to do before the turn moves on.
- *
- * One sentence, the same on every device. Any seat may draw, discard, score or
- * settle for either side, so this reads as what is outstanding rather than as a
- * rule about whose turn it is to press something. Only the naming is the
- * viewer's: a card held face down is named to its own side and called a secret
- * mission to the other.
- */
 /** The roster without its frozen units, which travel once as the player's `units`. */
 function viewRoster(roster: Roster | null, units: readonly UnitState[], own: boolean): RosterView | null {
   if (!roster) return null
@@ -416,6 +386,15 @@ function secretMissionActionPlayerId(state: BattleState): PlayerId | null {
     : null
 }
 
+/**
+ * What the active side still has to do before the turn moves on.
+ *
+ * One sentence, the same on every device. Any seat may draw, discard, score or
+ * settle for either side, so this reads as what is outstanding rather than as a
+ * rule about whose turn it is to press something. Only the naming is the
+ * viewer's: a card held face down is named to its own side and called a secret
+ * mission to the other.
+ */
 function advancePrompt(state: BattleState, viewerId: PlayerId): string | null {
   const active = state.activePlayerId ? state.players.find((player) => player.id === state.activePlayerId) : undefined
   const player = active ? sideCaptain(state, active.side) : undefined
