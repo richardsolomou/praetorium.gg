@@ -378,9 +378,4 @@ export const terrainReferences = createServerFn({ method: 'GET' })
     }),
   )
 
-/**
- * Reads a Praetorium, BattleBase or New Recruit text export into picks this instance
- * can price. Anything that cannot be placed is named in the answer rather than dropped
- * quietly.
- */
 export type { GlobalSearchResult }

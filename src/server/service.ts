@@ -211,12 +211,6 @@ export class PraetoriumService {
     return this.repository.adminEmails()
   }
 
-  /**
-   * A new league opens at the default duel size; its rules are the event's to change.
-   *
-   * Registration is what creation is for, so the shape of the games is asked once the
-   * league exists and only until an entrant seals a list against it.
-   */
   unlinkAccount(userId: string, providerId: string, availableProviders: readonly string[]) {
     return this.repository.unlinkAccount(userId, providerId, availableProviders)
   }
@@ -433,7 +427,6 @@ export class PraetoriumService {
     return [...uses].map(([entryId, battles]) => ({ entryId, battles })).toSorted((a, b) => b.battles - a.battles)
   }
 
-  /** How widely this player's battles may be seen, and their own answer to it. */
   pushEnabled(userId: string) {
     return this.repository.pushEnabled(userId)
   }
@@ -752,7 +745,7 @@ export class PraetoriumService {
     return matchingLeagueBattles(candidates, userId, input)
   }
 
-  /** Who sat at each of a player's latest battles and how far it got. The battles themselves still open through `maySpectate`. */
+  /** Who sat at each of a player's latest battles and how far it got. The battles themselves still open through `mayWatch`. */
   async adminPlayerBattles(userId: string): Promise<AdminBattle[]> {
     const { battles } = await this.repository.battlesByUser(userId, { limit: 5 })
     return battles.map(adminBattleSummary)
