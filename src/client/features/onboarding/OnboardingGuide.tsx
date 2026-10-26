@@ -1,7 +1,6 @@
 import { usePostHog } from '@posthog/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocation, useNavigate } from '@tanstack/react-router'
-import { useServerFn } from '@tanstack/react-start'
 import { Check, ChevronRight, Circle, Flag, RotateCcw, X } from 'lucide-react'
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -68,9 +67,8 @@ function AccountOnboardingGuide({ userId }: { userId?: string }) {
   const queryClient = useQueryClient()
   const { data: progress } = useQuery({ ...onboardingQuery(), enabled: Boolean(userId) })
   const data = userId ? progress : EMPTY_ONBOARDING_PROGRESS
-  const callUpdate = useServerFn(updateOnboardingProgress)
   const mutation = useMutation({
-    mutationFn: (operation: OnboardingProgressOperation) => callUpdate({ data: operation }),
+    mutationFn: (operation: OnboardingProgressOperation) => updateOnboardingProgress({ data: operation }),
     onSuccess: (saved) => queryClient.setQueryData(onboardingQuery().queryKey, saved),
   })
   const updateProgress = useCallback(
