@@ -20,6 +20,11 @@ import {
 } from './account'
 import { catalogue } from './stackEnv'
 
+/** The page is no taller than its viewport. */
+async function expectNoPageScroll(page: Page) {
+  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+}
+
 test('a standalone datasheet omits detachment-only abilities', async ({ page }) => {
   await page.goto('/factions/necrons/datasheets/ctan-shard-of-the-nightbringer')
   await expect(page.getByRole('heading', { name: "C'tan Shard of the Nightbringer", exact: true })).toBeVisible()
@@ -687,11 +692,7 @@ test('authentication panels and empty states fill the page above the footer', as
 test('terrain layouts show source-backed areas and measurement guidance', async ({ page }) => {
   await page.goto('/missions/chapter-approved-2026-2027/matchups/purge-the-foe/take-and-hold')
   const dialog = page.getByRole('dialog')
-  await expect(async () => {
-    if (await dialog.isVisible()) return
-    await page.getByRole('button', { name: 'Enlarge terrain layout A: Sweeping Engagement' }).click({ timeout: 1_000 })
-    await expect(dialog).toBeVisible({ timeout: 1_000 })
-  }).toPass({ timeout: 10_000 })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Enlarge terrain layout A: Sweeping Engagement' }).click())
   const board = dialog.locator('svg[aria-label]').first()
   await expect(board).toBeVisible()
   expect(
@@ -782,11 +783,7 @@ test('a mission opens while its terrain layouts load', async ({ page }) => {
 test('terrain layout preserves structural corners and source distances', async ({ page }) => {
   await page.goto('/missions/chapter-approved-2026-2027/matchups/take-and-hold/priority-assets')
   const dialog = page.getByRole('dialog')
-  await expect(async () => {
-    if (await dialog.isVisible()) return
-    await page.getByRole('button', { name: 'Enlarge terrain layout C: Dawn of War' }).click({ timeout: 1_000 })
-    await expect(dialog).toBeVisible({ timeout: 1_000 })
-  }).toPass({ timeout: 10_000 })
+  await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Enlarge terrain layout C: Dawn of War' }).click())
   const board = dialog.locator('svg[aria-label]').first()
   await expect(board.locator('polyline[stroke-linejoin="miter"]').first()).toBeAttached()
   await expect(board.locator('text').filter({ hasText: /^AB$/ }).first()).toBeVisible()
@@ -902,9 +899,9 @@ test('a player can enter through the roster library and browse the product', asy
   await confirmRosterSetup(setup)
   await expect(page.getByText('Incursion', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Add a unit')).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+  await expectNoPageScroll(page)
   await page.setViewportSize(PHONE)
-  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+  await expectNoPageScroll(page)
   await page.screenshot({ path: test.info().outputPath('roster-editor-phone.png') })
   await page.setViewportSize({ width: 1600, height: 900 })
   await chooseRosterAction(page, 'Edit roster setup')
@@ -1150,15 +1147,15 @@ test('a guest roster stays within the native mobile builder viewport', async ({ 
   const content = page.locator('[data-native-app-content]')
   await expect(content).toHaveAttribute('data-immersive', 'true')
   await expect(page.locator('[data-roster-builder]')).toBeVisible()
-  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+  await expectNoPageScroll(page)
   await page.screenshot({ path: test.info().outputPath('guest-roster-mobile-native.png') })
   await page.mouse.wheel(0, 1000)
   expect(await page.evaluate(() => window.scrollY)).toBe(0)
   await page.setViewportSize({ width: 390, height: 568 })
-  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+  await expectNoPageScroll(page)
   await page.reload()
   await expect(content).toHaveAttribute('data-immersive', 'true')
-  expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
+  await expectNoPageScroll(page)
 })
 
 test('a dense squad datasheet remains readable at desktop and phone widths', async ({ page }) => {
