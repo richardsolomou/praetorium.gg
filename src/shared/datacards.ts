@@ -1,6 +1,6 @@
 import { withoutFactionPrefix } from '../core/name'
 import { canonicalDetachmentName } from '../core/detachmentName'
-import { uniqueBy } from '../core/collections'
+import { remember, uniqueBy } from '../core/collections'
 import { PHASES, type Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
 import { catalogueFactionName } from './factionNames'
@@ -203,12 +203,7 @@ export function factionContent(
 ): FactionContent {
   // Army rules are read twice, as words and as tokens, and the catalogue is asked once for each section.
   const asked = new Map<string, ReadonlyMap<string, string>>()
-  const sectionsOnce: SectionProse = (section) => {
-    const key = JSON.stringify(section)
-    const found = asked.get(key) ?? sections(section)
-    asked.set(key, found)
-    return found
-  }
+  const sectionsOnce: SectionProse = (section) => remember(asked, JSON.stringify(section), () => sections(section))
   const datasheets = records(parsed, 'datasheets').flatMap((entry) => {
     const datasheetName = localizedField(entry, 'name')
     return datasheetName ? [{ id: stringField(entry, 'id'), name: datasheetName, details: datasheetDetails(entry, texts) }] : []

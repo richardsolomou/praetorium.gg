@@ -502,14 +502,8 @@ function calculateRoster(
   const selections = forces.flat()
   const selectionIndex = new Map(selections.map((selection, at) => [selection, at]))
   const keywordsByCatalogue = new Map<string, ReturnType<typeof keywordsBySelection>>()
-  const rosterKeywordsFor = (catalogueId: string) => {
-    let keywords = keywordsByCatalogue.get(catalogueId)
-    if (!keywords) {
-      keywords = keywordsBySelection(selections, loaded.index, { primaryCatalogueId: catalogueId })
-      keywordsByCatalogue.set(catalogueId, keywords)
-    }
-    return keywords
-  }
+  const rosterKeywordsFor = (catalogueId: string) =>
+    remember(keywordsByCatalogue, catalogueId, () => keywordsBySelection(selections, loaded.index, { primaryCatalogueId: catalogueId }))
   const keywordMatrixFor = (catalogueId: string) => rosterKeywordsFor(catalogueId).map(({ keywords }) => keywords)
   const keywordsFor = (catalogueId: string, at: number) => rosterKeywordsFor(catalogueId)[at]?.keywords ?? []
   const catalogueOfUnit = (unit: (typeof picked)[number]) => unitCatalogueId(loaded, data, unit)

@@ -1,4 +1,4 @@
-import { cachedIn, countBy } from '../core/collections'
+import { cachedIn, countBy, remember } from '../core/collections'
 import { type Catalogue, type CatalogueFile, type CatalogueIndex, type Definition, importsOf, nameOf, targetOf } from '../core/catalogue'
 import { hiddenByRules } from '../core/evaluate'
 import { routeSlug } from '../core/slug'
@@ -147,9 +147,11 @@ const FACTION_CATEGORY = /^Faction:\s*(.+)$/i
 const factionNamesCache = new WeakMap<LoadedCatalogue, ReadonlySet<string>>()
 /** A datasheet genuinely filed under two factions stays visible on both pages. */
 function referenceFactionsOf(loaded: LoadedCatalogue, categories: readonly (string | undefined)[]) {
-  const factionNames =
-    factionNamesCache.get(loaded) ?? new Set(loaded.factions.map((faction) => factionDisplayName(faction.name).toLowerCase()))
-  if (!factionNamesCache.has(loaded)) factionNamesCache.set(loaded, factionNames)
+  const factionNames = remember(
+    factionNamesCache,
+    loaded,
+    () => new Set(loaded.factions.map((faction) => factionDisplayName(faction.name).toLowerCase())),
+  )
   const candidates = new Set(
     categories.flatMap((category) => {
       const name = category?.match(FACTION_CATEGORY)?.[1]?.trim()

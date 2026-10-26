@@ -1,5 +1,5 @@
 import { plainQuotes, plainDashes } from '../core/text'
-import { cachedIn } from '../core/collections'
+import { cachedIn, remember } from '../core/collections'
 import { nameOf, targetOf } from '../core/catalogue'
 import { isNonMatchedPlayName, matchedPlayName, normalizedName, normalizedNameVariants } from '../core/name'
 import { routeSlug } from '../core/slug'
@@ -22,11 +22,11 @@ const joins = new WeakMap<LoadedCatalogue, Map<string, DatacardJoin | null>>()
 const comparable = (name: string) => normalizedName(plainDashes(plainQuotes(name.normalize('NFKC'))))
 
 function cardIn(content: FactionContent, name: string): DatasheetDetails | null {
-  let index = cardIndexes.get(content)
-  if (!index) {
-    index = new Map([...content.datasheetDetails].map(([cardName, details]) => [comparable(cardName), details]))
-    cardIndexes.set(content, index)
-  }
+  const index = remember(
+    cardIndexes,
+    content,
+    () => new Map([...content.datasheetDetails].map(([cardName, details]) => [comparable(cardName), details])),
+  )
   for (const candidate of normalizedNameVariants(comparable(name))) {
     const card = index.get(candidate)
     if (card) return card

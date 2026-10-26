@@ -1,6 +1,6 @@
 import { withoutFactionPrefix } from '../core/name'
 import { canonicalDetachmentName } from '../core/detachmentName'
-import { cachedIn, uniqueBy } from '../core/collections'
+import { cachedIn, remember, uniqueBy } from '../core/collections'
 import { type Definition, definitionAndTarget, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
 import { withoutText } from './sourceText'
 import { referenceAttachmentOf } from '../core/attach'
@@ -940,16 +940,10 @@ function contextualInfoLinkHidden(
   selections: readonly Selection[],
 ): boolean {
   if (!flattenedModifiers([link]).some((modifier) => modifier.field === 'hidden')) return Boolean(link.hidden)
-  const byRoster = contextualInfoLinkVisibilityCache.get(index) ?? new WeakMap<readonly Selection[], Map<string, boolean>>()
-  const cached = byRoster.get(selections) ?? new Map<string, boolean>()
-  const key = `${catalogueId}:${link.id}`
-  const found = cached.get(key)
-  if (found !== undefined) return found
-  const hidden = infoLinkHiddenByRules(link, index, { primaryCatalogueId: catalogueId, roster: selections })
-  cached.set(key, hidden)
-  byRoster.set(selections, cached)
-  contextualInfoLinkVisibilityCache.set(index, byRoster)
-  return hidden
+  const byRoster = remember(contextualInfoLinkVisibilityCache, index, () => new WeakMap<readonly Selection[], Map<string, boolean>>())
+  return cachedIn(byRoster, selections, `${catalogueId}:${link.id}`, () =>
+    infoLinkHiddenByRules(link, index, { primaryCatalogueId: catalogueId, roster: selections }),
+  )
 }
 
 function weaponAbilitiesInSelectedUnit(

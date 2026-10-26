@@ -33,12 +33,7 @@ const unitSummaryCache = new WeakMap<LoadedCatalogue, Map<string, Stepwise<UnitS
 const restrictionsKeys = new WeakMap<FactionRestrictions, string>()
 let nextRestrictionsKey = 0
 function restrictionsKey(restrictions: FactionRestrictions | undefined) {
-  if (!restrictions) return 'none'
-  const existing = restrictionsKeys.get(restrictions)
-  if (existing) return existing
-  const key = `r${++nextRestrictionsKey}`
-  restrictionsKeys.set(restrictions, key)
-  return key
+  return restrictions ? remember(restrictionsKeys, restrictions, () => `r${++nextRestrictionsKey}`) : 'none'
 }
 
 const GROUP_BY_CATEGORY = new Map<string, UnitGroup>([

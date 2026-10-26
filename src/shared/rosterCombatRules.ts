@@ -18,6 +18,7 @@ import type { UnitChoiceCache } from '../core/unitChoices'
 import { keywordIdsBySelection, keywordNames, type ModifierCache } from '../core/evaluate'
 import { namespaceCarriers } from '../core/combatLoadouts'
 import { attachedProfilePrefix } from '../core/combatScenario'
+import { remember } from '../core/collections'
 
 /**
  * What projections of one built roster can share: unit choices and modifiers are keyed by value, and each unit's
@@ -125,11 +126,9 @@ export function rosterCombatant(
     const unit = context.unitSelections.find((candidate) => candidate.pickIndex === index)
     if (!unit) return undefined
     const catalogueId = pick.catalogueId ?? data.catalogueId
-    let ids = keywordIds.get(catalogueId)
-    if (!ids) {
-      ids = keywordIdsBySelection(context.selections, loaded.index, { primaryCatalogueId: catalogueId, modifierCache: cache.modifierCache })
-      keywordIds.set(catalogueId, ids)
-    }
+    const ids = remember(keywordIds, catalogueId, () =>
+      keywordIdsBySelection(context.selections, loaded.index, { primaryCatalogueId: catalogueId, modifierCache: cache.modifierCache }),
+    )
     return keywordNames(ids[unit.selectionIndex] ?? [], loaded.index)
   })
   const hostIndex = attachmentHost(data.picks, data.pickIndex)
@@ -230,17 +229,15 @@ function rosterCombatRules(
   const attached = attachedUnit(data.picks, data.pickIndex!)
   const others = context.unitSelections.flatMap((unit) => {
     if (unit.pickIndex === data.pickIndex || data.inactivePicks?.includes(unit.pickIndex)) return []
-    let source = context.supportSources.get(unit.selectionIndex)
-    if (source === undefined) {
-      const pick = data.picks[unit.pickIndex]!
-      source = datasheetAbilitiesIn(loaded, pick.catalogueId ?? data.catalogueId, pick.entryId, {
+    const pick = data.picks[unit.pickIndex]!
+    const source = remember(context.supportSources, unit.selectionIndex, () =>
+      datasheetAbilitiesIn(loaded, pick.catalogueId ?? data.catalogueId, pick.entryId, {
         selections: context.selections,
         unitSelectionIndex: unit.selectionIndex,
         choiceCache: context.choiceCache,
         modifierCache: context.modifierCache,
-      })
-      context.supportSources.set(unit.selectionIndex, source)
-    }
+      }),
+    )
     return [{ unit, source }]
   })
   const unitKeywords = [
