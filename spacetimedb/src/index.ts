@@ -500,13 +500,7 @@ function battleClubIds(ctx: Context, seats: readonly { id: string; automated: bo
 
 /** Rewrites a battle's club index row from its log, so a choice and its undo both land in the index. */
 function indexClubBattle(ctx: Context, battleId: string) {
-  const { seats, log } = battleData(ctx, battleId)
-  const clubId = reduceBattle(
-    seats.map((seat) => seat.id),
-    log,
-    seats.map((seat) => seat.side),
-    seats.filter((seat) => seat.automated).map((seat) => seat.id),
-  ).clubId
+  const { clubId } = battleState(ctx, battleId).state
   ctx.db.clubBattles.battleId.delete(battleId)
   if (clubId) ctx.db.clubBattles.insert({ battleId, clubId })
 }
@@ -795,6 +789,18 @@ function battleData(ctx: Context, battleId: string) {
   }
 }
 
+/** A battle's seats and log with the state they fold to. */
+function battleState(ctx: Context, battleId: string) {
+  const { seats, log } = battleData(ctx, battleId)
+  const state = reduceBattle(
+    seats.map((seat) => seat.id),
+    log,
+    seats.map((seat) => seat.side),
+    seats.filter((seat) => seat.automated).map((seat) => seat.id),
+  )
+  return { seats, log, state }
+}
+
 export const battleForOperator = spacetime.procedure({ battleId: t.string() }, t.string(), (ctx, { battleId }) =>
   operatorTx(ctx, (tx) => {
     return productJson(battleData(tx, battleId))
@@ -943,14 +949,8 @@ export const submitBattle = spacetime.procedure(
       const sync = raw.$sync
       const parsed = commandSchema.safeParse(raw)
       if (!parsed.success) throw new SenderError('Invalid battle command')
-      const { seats, log } = battleData(tx, input.battleId)
+      const { seats, log, state } = battleState(tx, input.battleId)
       const appliedReport = sync?.reportApplied ? { applied: false } : {}
-      const state = reduceBattle(
-        seats.map((seat) => seat.id),
-        log,
-        seats.map((seat) => seat.side),
-        seats.filter((seat) => seat.automated).map((seat) => seat.id),
-      )
       if (sync) {
         const previous = log.find((entry) => entry.operationId === sync.operationId)
         if (previous) {
@@ -1108,13 +1108,7 @@ export const claimGuestSeat = spacetime.procedure(
         !guestSessionCurrent(safeNumber(device.joinedAt), safeNumber(input.now))
       )
         return productJson('this device is not playing that seat')
-      const { seats, log } = battleData(tx, input.battleId)
-      const state = reduceBattle(
-        seats.map((one) => one.id),
-        log,
-        seats.map((one) => one.side),
-        seats.filter((one) => one.automated).map((one) => one.id),
-      )
+      const { seats, state } = battleState(tx, input.battleId)
       const refusal = guestClaimRefusal(
         state,
         seats.map((one) => one.id),
@@ -2646,14 +2640,7 @@ function roundPairings(ctx: Context, eventId: string) {
 function pairingFinished(ctx: Context, pairing: { bId: string | undefined; battleId: string | undefined }) {
   if (pairing.bId === undefined) return true
   if (pairing.battleId === undefined || !ctx.db.battles.id.find(pairing.battleId)) return false
-  const { seats, log } = battleData(ctx, pairing.battleId)
-  return (
-    reduceBattle(
-      seats.map((seat) => seat.id),
-      log,
-      seats.map((seat) => seat.side),
-    ).status === 'finished'
-  )
+  return battleState(ctx, pairing.battleId).state.status === 'finished'
 }
 
 /** Who hosts an event, as every read names it: a tournament with its admins, or the club whose game it is. */
@@ -3326,16 +3313,8 @@ function unfinishedPlayers(ctx: Context, eventId: string) {
   const players = new Set<string>()
   for (const row of ctx.db.leagueEventBattles.eventId.filter(eventId)) {
     if (!ctx.db.battles.id.find(row.battleId)) continue
-    const { seats, log } = battleData(ctx, row.battleId)
-    const ids = seats.map((seat) => seat.id)
-    if (
-      reduceBattle(
-        ids,
-        log,
-        seats.map((seat) => seat.side),
-      ).status !== 'finished'
-    )
-      for (const id of ids) players.add(id)
+    const { seats, state } = battleState(ctx, row.battleId)
+    if (state.status !== 'finished') for (const seat of seats) players.add(seat.id)
   }
   return [...players]
 }
