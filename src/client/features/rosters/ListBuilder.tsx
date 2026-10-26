@@ -146,6 +146,7 @@ import { CreateBattle } from '../battles/CreateBattle'
 import { guestDraftOf, peekGuestDraft, writeGuestDraft } from './guestDraft'
 import { withMember } from '../../../core/collections'
 import { usePrintWhenReady } from './usePrintWhenReady'
+import { hasWarlordToggle } from '../../../core/unitChoices'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
@@ -965,7 +966,7 @@ export function ListBuilder({
         attaches: unit.attachment?.kind,
         name: unit.name,
         group: unit.group,
-        warlord: unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected),
+        warlord: hasWarlordToggle(unit.toggles),
         joined: NO_JOINED,
         unit,
       }))

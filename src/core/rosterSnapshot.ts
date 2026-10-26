@@ -7,6 +7,7 @@ import type { RosterReminder } from './reminders'
 import { nicknamedUnit } from './unitNotes'
 import type { UnitGroup } from './unitGroups'
 import { type CatalogueEdition, editionLabel } from './catalogueEdition'
+import { hasWarlordToggle } from './unitChoices'
 
 type SavedRoster = {
   id: string
@@ -162,7 +163,7 @@ export function frozenUnits(picks: readonly RosterPick[], units: PricedRoster['u
       ...(detail?.transportCapacity ? { transportCapacity: detail.transportCapacity } : {}),
       keywords: [...unit.keywords],
       group: unit.group,
-      warlord: unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected),
+      warlord: hasWarlordToggle(unit.toggles),
       warlordEligible: unit.toggles.some((toggle) => toggle.name === 'Warlord'),
       wargear: unit.wargear.map((piece) => ({ ...piece })),
       enhancements: [...unit.enhancements],

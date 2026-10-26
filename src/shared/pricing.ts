@@ -19,7 +19,7 @@ import { type ModelKind, modelKindsOf, modelRowSources, choiceOptionWargear, own
 import { type LabelUnit, rosterLabel } from '../core/rosterLabel'
 import { buildUnit, type BuiltUnit, resolveUnitChoice } from '../core/roster'
 import { unavailableRosterSelections } from '../core/rosterSelections'
-import { type ChoiceOptions, type UnitChoice, unitChoices } from '../core/unitChoices'
+import { type ChoiceOptions, hasWarlordToggle, type UnitChoice, unitChoices } from '../core/unitChoices'
 import { withUnitSpread } from '../core/unitSpread'
 import { wargearOf } from '../core/wargear'
 import { rulesReferencedIn } from './catalogueRules'
@@ -170,16 +170,6 @@ function legalReplacementPairs(
 }
 
 /**
- * What each pick is called, what it cost, and whether it is the Warlord.
- *
- * The three facts `rosterLabel` folds a name out of. Gathered here because the
- * library's cheap total and the builder's whole price both hand them over, and a
- * library row and the editor suggesting different names for one list would be the
- * plainest possible version of the same question answered twice.
- */
-const hasWarlordToggle = (toggles: BuiltUnit['toggles']) => toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected)
-
-/**
  * The Warlord is asked of a list once something in it could be one. A list of squads alone, or an empty one kept to
  * track a game, has nothing the Warlord choice could fix.
  */
@@ -205,6 +195,14 @@ function detachmentLockErrors(
   })
 }
 
+/**
+ * What each pick is called, what it cost, and whether it is the Warlord.
+ *
+ * The three facts `rosterLabel` folds a name out of. Gathered here because the
+ * library's cheap total and the builder's whole price both hand them over, and a
+ * library row and the editor suggesting different names for one list would be the
+ * plainest possible version of the same question answered twice.
+ */
 function labelUnitsOf(
   picked: readonly { name: string; selection: Selection; toggles: BuiltUnit['toggles'] }[],
   pointsBySelection: ReadonlyMap<Selection, number>,

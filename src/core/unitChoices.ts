@@ -106,6 +106,9 @@ export type UnitChoice = {
 /** `required` marks a Warlord the data insists on: a unit that must be the army's Warlord whenever it is taken. */
 export type UnitToggle = { key: string; name: string; selected: boolean; required?: true }
 
+export const hasWarlordToggle = (toggles: readonly Pick<UnitToggle, 'name' | 'selected'>[]) =>
+  toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected)
+
 export type UnitChoiceCache = WeakMap<CatalogueIndex, { choices: Map<string, UnitChoice[]>; forbidden: Map<string, string[][]> }>
 export type ChoiceOptions = EvaluateOptions & { depth?: number; choiceCache?: UnitChoiceCache }
 

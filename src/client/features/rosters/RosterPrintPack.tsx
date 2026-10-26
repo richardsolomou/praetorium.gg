@@ -22,6 +22,7 @@ import { countLabel } from '../../text'
 import { unitKeywordsText } from '../../components/Keyword'
 import { usePrintWhenReady } from './usePrintWhenReady'
 import { chunks } from '../../../core/collections'
+import { hasWarlordToggle } from '../../../core/unitChoices'
 
 type Price = NonNullable<Awaited<ReturnType<typeof priceRoster>>>
 
@@ -220,7 +221,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
                   {[host, ...joined]
                     .map(
                       (unit) =>
-                        `${title(unit)} (${countLabel(unit.size.models, 'model')}, ${unit.points} pts)${unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected) ? ', Warlord' : ''}`,
+                        `${title(unit)} (${countLabel(unit.size.models, 'model')}, ${unit.points} pts)${hasWarlordToggle(unit.toggles) ? ', Warlord' : ''}`,
                     )
                     .join(' + ')}
                 </a>
@@ -238,7 +239,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
               <div key={unit.key} data-print-datasheet={unit.name}>
                 <h3>
                   {title(unit)} · {countLabel(unit.size.models, 'model')} · {unit.points} pts
-                  {unit.toggles.some((toggle) => toggle.name === 'Warlord' && toggle.selected) ? ' · Warlord' : ''}
+                  {hasWarlordToggle(unit.toggles) ? ' · Warlord' : ''}
                 </h3>
                 {input.picks[unit.key]?.note ? (
                   <p className="ph-no-capture whitespace-pre-line" data-print-note>
