@@ -55,7 +55,7 @@ import {
   type LeagueArmyPoints,
 } from '../core/league'
 import { TABLE_SHAPES, type TableShape } from '../core/tableShape'
-import { CLUB_ADMIN_MAX, CLUB_DESCRIPTION_MAX_LENGTH, CLUB_NAME_MAX_LENGTH } from '../core/club'
+import { CLUB_ADMIN_MAX, CLUB_DESCRIPTION_MAX_LENGTH, CLUB_GAME_SIDES, CLUB_NAME_MAX_LENGTH } from '../core/club'
 import { SWISS_ROUNDS_MAX } from '../core/swiss'
 import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
 import { PROFILE_NAME_MAX_LENGTH } from '../core/profileName'
@@ -192,7 +192,7 @@ export const assignLeagueRosterRequirementSchema = z.object({
 export const chooseLeagueSideSchema = z.object({
   token,
   eventToken: token.optional(),
-  side: z.enum(['solo', 'pair', 'team-1', 'team-2']).nullable(),
+  side: z.enum(CLUB_GAME_SIDES).nullable(),
 })
 export type LeagueSide = NonNullable<z.infer<typeof chooseLeagueSideSchema>['side']>
 export const assignLeagueTeamSchema = z.object({

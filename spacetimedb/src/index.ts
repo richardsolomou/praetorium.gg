@@ -45,6 +45,8 @@ import {
   mayRevealLeague,
   LEAGUE_ADMIN_MAX,
   LEAGUE_ADMISSIONS,
+  LEAGUE_MEMBER_MAX,
+  LEAGUE_MEMBER_MIN,
   LEAGUE_VISIBILITIES,
   type LeagueAdmission,
   type LeagueEntryStatus,
@@ -60,6 +62,7 @@ import {
   clubGameTimeZoneSchema,
   CLUB_ADMIN_MAX,
   CLUB_DESCRIPTION_MAX_LENGTH,
+  CLUB_GAME_SIDES,
   CLUB_MEMBER_MAX,
   CLUB_NAME_MAX_LENGTH,
   isClubOrganizer,
@@ -182,8 +185,11 @@ const MAX_ID_LENGTH = 128
 const idInput = z.string().min(1).max(MAX_ID_LENGTH)
 
 function validId(value: string) {
-  return value.length > 0 && value.length <= MAX_ID_LENGTH
+  return idInput.safeParse(value).success
 }
+
+/** The last row of the page before, newest first. */
+const pageCursorInput = z.strictObject({ at: z.number().int().nonnegative(), id: z.string().max(MAX_ID_LENGTH) }).nullable()
 
 /** Parses caller JSON against `inputSchema`, refusing malformed or invalid input with `message`. */
 function decodePayload<S extends z.ZodType>(inputSchema: S, text: string, message: string): z.output<S> {
@@ -867,7 +873,7 @@ const battleFeedQuery = z.strictObject({
   // Sent only with the club scope, so a server older than clubs still reads every other feed.
   clubToken: z.string().max(MAX_ID_LENGTH).optional(),
   since: z.number().int().nonnegative().nullable(),
-  before: z.strictObject({ at: z.number().int().nonnegative(), id: z.string().max(MAX_ID_LENGTH) }).nullable(),
+  before: pageCursorInput,
   limit: z.number().int().min(1).max(500),
 })
 
@@ -1208,10 +1214,12 @@ export const productStats = spacetime.procedure({ userIds: t.array(t.string()) }
   }),
 )
 
+const PRACTICE_OPPONENTS_MAX = 100
+
 export const practiceOpponentIds = spacetime.procedure({}, t.string(), (ctx) =>
   operatorTx(ctx, (tx) => {
     const ids = Array.from(tx.db.practiceOpponents.iter(), (row) => row.userId)
-    if (ids.length > 100) throw new SenderError('Too many practice opponents')
+    if (ids.length > PRACTICE_OPPONENTS_MAX) throw new SenderError('Too many practice opponents')
     return productJson(ids.sort())
   }),
 )
@@ -1220,7 +1228,7 @@ export const registerPracticeOpponent = spacetime.reducer({ userId: t.string() }
   requireOperator(ctx)
   if (!validId(userId)) throw new SenderError('Invalid user ID')
   if (ctx.db.practiceOpponents.userId.find(userId)) return
-  if (Array.from(ctx.db.practiceOpponents.iter()).length >= 100) throw new SenderError('Too many practice opponents')
+  if (Array.from(ctx.db.practiceOpponents.iter()).length >= PRACTICE_OPPONENTS_MAX) throw new SenderError('Too many practice opponents')
   ctx.db.practiceOpponents.insert({ userId })
   touchPublic(ctx, 'opponents')
   touchAdmin(ctx)
@@ -2112,7 +2120,7 @@ export const heldCollectionPhotos = spacetime.procedure({ limit: t.u32() }, t.st
 )
 
 const adminCollectionPhotosQuery = z.strictObject({
-  before: z.strictObject({ at: z.number().int().nonnegative(), id: z.string().max(MAX_ID_LENGTH) }).nullable(),
+  before: pageCursorInput,
   limit: z.number().int().min(1).max(100),
 })
 
@@ -2967,6 +2975,8 @@ function leagueCommandInput<S extends z.ZodType>(inputSchema: S, value: unknown)
 }
 
 const leagueTimeInput = z.number().int().nonnegative()
+const leagueRosterLimitInput = z.number().int().positive().max(10_000)
+const leagueMemberLimitInput = z.number().int().min(LEAGUE_MEMBER_MIN).max(LEAGUE_MEMBER_MAX)
 const leagueFormatInput = z.enum(TABLE_SHAPES)
 // Absent on an update from an older client, which leaves the event's allowances as they stand.
 const leagueRoundsInput = z.number().int().min(1).max(SWISS_ROUNDS_MAX).nullable()
@@ -2982,7 +2992,7 @@ function leaguePointsBudget(format: string | null, rosterLimit: number | null, b
 const leagueArmyPointsInput = z.number().int().min(1).max(POINTS_BUDGET_MAX).nullable()
 const leagueRuleInput = z.object({
   format: leagueFormatInput,
-  rosterLimit: z.number().int().positive().max(10_000),
+  rosterLimit: leagueRosterLimitInput,
   allowances: leagueAllowancesSchema.optional(),
   // Absent from an older client, which leaves the event's pairing and points as they stand.
   rounds: leagueRoundsInput.optional(),
@@ -3005,9 +3015,9 @@ const leagueEventAllowances = (event: SealedEventRow) => (event.allowances === u
 const leagueDetailsInput = z.object({
   name: z.string().max(100),
   description: z.string().max(2_000),
-  visibility: z.enum(['public', 'private']),
-  admission: z.enum(['automatic', 'approval']),
-  playerLimit: z.number().int().min(2).max(128).nullable(),
+  visibility: z.enum(LEAGUE_VISIBILITIES),
+  admission: z.enum(LEAGUE_ADMISSIONS),
+  playerLimit: leagueMemberLimitInput.nullable(),
 })
 
 /** Opens every sealed list of an unrevealed event for `actorId`, or says why it cannot, checking the rosters themselves beyond the checklist. */
@@ -3302,9 +3312,7 @@ export const clubByToken = spacetime.procedure({ token: t.string() }, t.string()
   }),
 )
 
-const CLUB_GAME_SIDES = ['solo', 'pair', 'team-1', 'team-2'] as const
-
-/** The seat a side of a club's team game names: one solo player against an allied pair, or two pairs. */
+/** The seat a side of a club's team game names. */
 function clubGameSeat(format: string | undefined, rosterLimit: number | undefined, side: (typeof CLUB_GAME_SIDES)[number]) {
   if (rosterLimit === undefined) return null
   const allied = alliedLeagueRosterLimit(rosterLimit)
@@ -3781,7 +3789,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         eventToken: idInput,
         ownerId: idInput,
         format: leagueFormatInput.nullable(),
-        rosterLimit: z.number().int().positive().max(10_000).nullable(),
+        rosterLimit: leagueRosterLimitInput.nullable(),
         allowances: leagueAllowancesSchema.default([]),
         ownerPlays: z.boolean().default(false),
         rounds: leagueRoundsInput.default(null),
@@ -3857,7 +3865,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         op: z.literal('join'),
         userId: idInput,
         now: leagueTimeInput,
-        memberLimit: z.number().int().min(2).max(128),
+        memberLimit: leagueMemberLimitInput,
         noticeResults: z.boolean().optional(),
       }),
       value,
@@ -4109,7 +4117,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       z.object({
         op: z.literal('add'),
         userIds: z.array(idInput).min(1).max(128),
-        memberLimit: z.number().int().min(2).max(128),
+        memberLimit: leagueMemberLimitInput,
         now: leagueTimeInput,
       }),
       value,
@@ -4147,7 +4155,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
         op: z.literal('moderate'),
         userId: idInput,
         status: z.enum(['accepted', 'rejected']),
-        memberLimit: z.number().int().min(2).max(128),
+        memberLimit: leagueMemberLimitInput,
         noticeResults: z.boolean().optional(),
       }),
       value,
@@ -4198,7 +4206,7 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       z.object({
         op: z.literal('assign-limit'),
         userId: idInput,
-        requiredLimit: z.number().int().positive().max(10_000),
+        requiredLimit: leagueRosterLimitInput,
         noticeResults: z.boolean().optional(),
       }),
       value,
