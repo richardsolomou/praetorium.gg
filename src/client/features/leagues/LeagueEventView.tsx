@@ -30,7 +30,7 @@ import {
 } from '../../../core/league'
 import { createLeagueBattle, joinLeague, submitLeagueRoster } from '../../functions'
 import { rosterWaivers, WaiverList } from '../../components/FormatWaivers'
-import { disambiguatedPlayerLabels } from '../../playerLabels'
+import { entrantLabels } from '../../playerLabels'
 import { battlesFrom, gameReferencesQuery, leagueBattlesQuery, leagueResultsQuery } from '../../queries'
 import { BattleShelf } from '../battles/BattleShelf'
 import type { SavedRoster } from '../rosters/rosterLibrary'
@@ -172,7 +172,7 @@ export function LeagueEventView({
   }
   const accepted = league.entries.filter((entry) => entry.status === 'accepted')
   const sealedEntrants = accepted.filter((entry) => entry.submitted)
-  const labels = disambiguatedPlayerLabels(league.entries.map((entry) => ({ id: entry.userId, name: entry.name })))
+  const labels = entrantLabels(league.entries)
   const label = (entry: LeagueEntryView) => labels.get(entry.userId) ?? entry.name
   const ownTeam = ownEntry?.teamId ? (doublesTeams(accepted).find((team) => team.id === ownEntry.teamId)?.members ?? []) : []
   const ownSideSealed =

@@ -6,7 +6,7 @@ import { BattleChooserDialog } from '../../components/BattleChooserDialog'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { SeatMatchup, SeatRows, seatLabel, seatOption } from '../../components/Seats'
-import { disambiguatedPlayerLabels } from '../../playerLabels'
+import { entrantLabels } from '../../playerLabels'
 import { seatedPlayers, seatsFor, type Seat } from '../../seats'
 import { doublesTeams } from './leagueEvent'
 
@@ -37,7 +37,7 @@ export function OneOnOneBattleChooser({
   const [opponentId, setOpponentId] = useState<string | null>(null)
   // A closed chooser forgets its choice, so reopening it starts again.
   if (!open && opponentId !== null) setOpponentId(null)
-  const labels = disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))
+  const labels = entrantLabels(entries)
   const options = entries
     .filter((entry) => entry.userId !== ownUserId)
     .map((entry) => ({
@@ -132,7 +132,7 @@ export function LeagueBattleChooser({
     seat.side === 'yours'
       ? (ownTeammate ?? allyId ?? onlyMatchup?.allyId ?? null)
       : (theirIds[seat.at] ?? onlyMatchup?.theirIds[seat.at] ?? null)
-  const labels = disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))
+  const labels = entrantLabels(entries)
   const candidates = entries.map((entry) => ({
     id: entry.userId,
     name: entry.name,
@@ -216,7 +216,7 @@ export function DoublesBattleChooser({
   // A closed chooser forgets its choice, so reopening it starts again.
   if (!open && opponentId !== null) setOpponentId(null)
   const ownTeamId = entries.find((entry) => entry.userId === ownUserId)?.teamId
-  const labels = disambiguatedPlayerLabels(entries.map((entry) => ({ id: entry.userId, name: entry.name })))
+  const labels = entrantLabels(entries)
   const options = doublesTeams(entries)
     .filter((team) => team.id !== ownTeamId && team.members.length === 2 && team.members.every((entry) => entry.submitted))
     .map((team) => ({

@@ -13,7 +13,7 @@ import {
 } from '../../functions'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
-import { disambiguatedPlayerLabels } from '../../playerLabels'
+import { entrantLabels } from '../../playerLabels'
 import { clubQuery, friendshipsQuery } from '../../queries'
 import { useOrigin } from '../../useOrigin'
 import { inviteFeedbackText, useInviteShare } from './LeagueActions'
@@ -66,7 +66,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
     },
   })
 
-  const labels = disambiguatedPlayerLabels(league.entries.map((entry) => ({ id: entry.userId, name: entry.name })))
+  const labels = entrantLabels(league.entries)
   const label = (entry: LeagueEntryView) => labels.get(entry.userId) ?? entry.name
   const nameOf = (userId: string) => labels.get(userId) ?? league.entries.find((entry) => entry.userId === userId)?.name ?? 'someone'
   const byJoin = [...league.entries].sort((left, right) => left.joinedAt - right.joinedAt)
