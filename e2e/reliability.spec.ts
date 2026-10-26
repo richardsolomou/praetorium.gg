@@ -17,7 +17,7 @@ for (const width of [390, 1440]) {
       if (request.isNavigationRequest() && url.pathname === '/factions') {
         broken = !url.searchParams.has('__route_retry')
       }
-      if (broken && /\/assets\/factions-[^/]+\.js$/.test(url.pathname)) {
+      if (broken && /\/assets\/factions\.index-[^/]+\.js$/.test(url.pathname)) {
         await route.fulfill({ status: 404, body: 'Unavailable stale route module', headers: { 'cache-control': 'no-store' } })
       } else await route.continue()
     })
@@ -77,7 +77,7 @@ test('an anonymous realtime subscription survives a full socket reconnect with i
 })
 
 test('an unavailable module stays a failed recovery rather than reporting success', async ({ page }) => {
-  await page.route(/\/assets\/factions-[^/]+\.js$/, (route) => route.fulfill({ status: 404, body: 'Unavailable route module' }))
+  await page.route(/\/assets\/factions\.index-[^/]+\.js$/, (route) => route.fulfill({ status: 404, body: 'Unavailable route module' }))
   await page.goto('/factions?__route_retry=1234.2')
   await expect(page.getByRole('heading', { name: 'Something went wrong' })).toBeVisible()
   await expect(page).toHaveURL('/factions?__route_retry=1234.2')

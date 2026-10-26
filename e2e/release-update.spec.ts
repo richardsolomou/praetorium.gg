@@ -84,7 +84,7 @@ async function failFactionsModule(page: Page, failing: (document: URL) => boolea
     const request = route.request()
     const url = new URL(request.url())
     if (request.isNavigationRequest()) broken = failing(url)
-    if (broken && /\/assets\/factions-[^/]+\.js$/.test(url.pathname))
+    if (broken && /\/assets\/factions\.index-[^/]+\.js$/.test(url.pathname))
       await route.fulfill({
         body: `throw new TypeError("Cannot read properties of undefined (reading 'flatMap')")`,
         headers: { 'content-type': 'text/javascript', 'cache-control': 'no-store' },
