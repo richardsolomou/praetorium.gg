@@ -16,8 +16,8 @@ import {
   practiceBattle,
   chooseFaction,
   visitorSetup,
-  chooseOption,
   signOut,
+  chooseRulesVersion,
 } from './account'
 import { battleLog, productOperator, savedWork, userIdFor, lastPathSegment, expectWorkSynced } from './storage'
 import { chooseCombatUnit } from './combat'
@@ -385,14 +385,7 @@ test('a roster on another rules version saves that version for offline edits', a
   // A device without rosters on other versions downloads construction data for the current rules alone.
   expect(await page.evaluate(() => window.PraetoriumReferenceCache?.constructionBundle)).toBe(construction.current)
   const dialog = await openRosterSetup(page)
-  await chooseOption(page, 'Rules version', 'MFM 1.5 · Archived')
-  await expect(dialog.getByRole('button', { name: 'Select Shield Host', exact: true })).toBeVisible()
-  const unavailable = dialog.getByRole('button', { name: 'Remove unavailable', exact: true })
-  if (await unavailable.isVisible()) await unavailable.click()
-  const chosen = dialog.getByRole('button', { name: 'Select Shield Host', exact: true, pressed: true })
-  if (!(await chosen.isVisible())) await dialog.getByRole('button', { name: 'Select Shield Host', exact: true }).click()
-  const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
-  if ((await dispositions.count()) > 1) await dispositions.first().click()
+  await chooseRulesVersion(dialog, 'MFM 1.5 · Archived', 'Shield Host')
   await confirmRosterSetup(dialog)
   await expect(page.locator('[data-rules-version]')).toHaveAttribute('aria-label', 'Rules version: MFM 1.5 · Archived')
   await expect

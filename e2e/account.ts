@@ -731,6 +731,18 @@ export async function chooseOption(page: Page, control: string, name: string | R
   await expect(option).toBeHidden()
 }
 
+/** Moves an open roster setup to another rules version on the given detachment, removing whatever that version lacks. */
+export async function chooseRulesVersion(setup: Locator, rules: string, detachment: string) {
+  await chooseOption(setup.page(), 'Rules version', rules)
+  const select = setup.getByRole('button', { name: `Select ${detachment}`, exact: true })
+  await expect(select).toBeVisible()
+  const unavailable = setup.getByRole('button', { name: 'Remove unavailable', exact: true })
+  if (await unavailable.isVisible()) await unavailable.click()
+  if (!(await setup.getByRole('button', { name: `Select ${detachment}`, exact: true, pressed: true }).isVisible())) await select.click()
+  const dispositions = setup.getByRole('group', { name: 'Force disposition' }).getByRole('button')
+  if ((await dispositions.count()) > 1) await dispositions.first().click()
+}
+
 export async function openRosterSetup(page: Page) {
   await chooseRosterAction(page, 'Edit roster setup')
   return page.getByRole('dialog', { name: 'Edit roster setup' })

@@ -8,6 +8,7 @@ import {
   chooseFaction,
   chooseOption,
   chooseLibraryAction,
+  chooseRulesVersion,
 } from './account'
 import { expect, test, type Locator, type Page } from './test'
 import { add, expectNoHorizontalOverflow } from './builder.harness'
@@ -140,14 +141,7 @@ test('converts the saved roster in place and restores its current choices', asyn
   const operator = await productOperator()
   async function destination(label: string, detachment: string) {
     const dialog = page.getByRole('dialog', { name: 'Edit roster setup' })
-    await chooseOption(page, 'Rules version', label)
-    await expect(dialog.getByRole('button', { name: `Select ${detachment}`, exact: true })).toBeVisible()
-    const unavailable = dialog.getByRole('button', { name: 'Remove unavailable', exact: true })
-    if (await unavailable.isVisible()) await unavailable.click()
-    const chosen = dialog.getByRole('button', { name: `Select ${detachment}`, exact: true, pressed: true })
-    if (!(await chosen.isVisible())) await dialog.getByRole('button', { name: `Select ${detachment}`, exact: true }).click()
-    const dispositions = dialog.getByRole('group', { name: 'Force disposition' }).getByRole('button')
-    if ((await dispositions.count()) > 1) await dispositions.first().click()
+    await chooseRulesVersion(dialog, label, detachment)
     await expect(dialog.getByRole('button', { name: 'Review changes', exact: true })).toBeEnabled()
     return dialog
   }
