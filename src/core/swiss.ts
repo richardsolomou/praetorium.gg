@@ -3,6 +3,8 @@
  *
  * A win is worth 3 match points and a draw 1; a bye counts as a win with no victory points. Ties break on total
  * victory points, then strength of schedule: the match points of everyone a player has faced.
+ *
+ * A dropped player is never paired again and keeps their results. Their unfinished table goes to the opponent as a bye.
  */
 
 /** One table of one round. `b` is null for a bye; `outcome` is null until the battle finishes. */
@@ -31,12 +33,16 @@ export const SWISS_ROUNDS_MAX = 12
 const SWISS_WIN = 3
 const SWISS_DRAW = 1
 
-export function swissStandings(players: readonly string[], matches: readonly SwissMatch[]): SwissRow[] {
+export function swissStandings(
+  players: readonly string[],
+  matches: readonly SwissMatch[],
+  dropped: ReadonlySet<string> = new Set(),
+): SwissRow[] {
   const rows = new Map(
     players.map((userId): [string, SwissRow] => [userId, { userId, played: 0, won: 0, drawn: 0, lost: 0, points: 0, vp: 0, schedule: 0 }]),
   )
   const opponents = new Map<string, string[]>()
-  for (const match of matches) {
+  for (const match of withForfeits(matches, dropped)) {
     if (match.b === null) {
       const row = rows.get(match.a)
       if (row) {
@@ -72,6 +78,14 @@ export function swissStandings(players: readonly string[], matches: readonly Swi
   )
 }
 
+/** Turns an unfinished table one side dropped out of into a bye for the other; one both left counts for neither. */
+function withForfeits(matches: readonly SwissMatch[], dropped: ReadonlySet<string>): SwissMatch[] {
+  return matches.map((match) => {
+    if (match.b === null || match.outcome !== null || dropped.has(match.a) === dropped.has(match.b)) return match
+    return { ...match, a: dropped.has(match.a) ? match.b : match.a, b: null, vp: [0, 0] }
+  })
+}
+
 /** Every pair that has already met, as a key either order of the two reads the same. */
 const pairKey = (one: string, other: string) => (one < other ? `${one}|${other}` : `${other}|${one}`)
 
@@ -79,17 +93,27 @@ const pairKey = (one: string, other: string) => (one < other ? `${one}|${other}`
  * The next round's tables. The first round is drawn at random; after it, players meet others on the same score,
  * top of the standings first, never someone they have already played when any other pairing allows it, and as few
  * rematches as possible when none does. With an odd number, the lowest-placed player who has not had a bye sits this
- * round out.
+ * round out. `players` includes dropped players, whose results still count toward their opponents' schedules.
  */
-export function swissPairings(players: readonly string[], matches: readonly SwissMatch[], random: () => number): [string, string | null][] {
+export function swissPairings(
+  players: readonly string[],
+  matches: readonly SwissMatch[],
+  random: () => number,
+  dropped: ReadonlySet<string> = new Set(),
+): [string, string | null][] {
   const round = Math.max(0, ...matches.map((match) => match.round)) + 1
-  const order =
+  const order = (
     round === 1
       ? shuffle(players, random)
-      : swissStandings(players, matches)
+      : swissStandings(players, matches, dropped)
           .map((row) => row.userId)
           .filter((id) => players.includes(id))
-  const byes = new Set(matches.filter((match) => match.b === null).map((match) => match.a))
+  ).filter((id) => !dropped.has(id))
+  const byes = new Set(
+    withForfeits(matches, dropped)
+      .filter((match) => match.b === null)
+      .map((match) => match.a),
+  )
   let bye: string | null = null
   if (order.length % 2) {
     bye = order.findLast((id) => !byes.has(id)) ?? order.at(-1)!

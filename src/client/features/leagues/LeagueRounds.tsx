@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Lock, Shuffle, Swords } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import type { LeagueEntryView } from '../../../core/league'
 import { rematches } from '../../../core/swiss'
@@ -12,12 +13,19 @@ import { useLeagueRefresh, type League } from './leagueEvent'
 
 type Pairing = League['pairings'][number]
 
+/** Whether a table is settled without a battle: one of its players dropped before it finished. */
+export function forfeited(pairing: Pick<Pairing, 'aId' | 'bId'>, entries: readonly { userId: string; dropped: boolean }[]) {
+  return entries.some((entry) => entry.dropped && (entry.userId === pairing.aId || entry.userId === pairing.bId))
+}
+
 /** The rounds still to pair and whether the latest has every table finished, from the battles the page has loaded. */
-export function swissProgress(league: Pick<League, 'pairings' | 'rounds'>, battles: readonly Battle[]) {
+export function swissProgress(league: Pick<League, 'pairings' | 'rounds' | 'entries'>, battles: readonly Battle[]) {
   const round = Math.max(0, ...league.pairings.map((pairing) => pairing.round))
   const current = league.pairings.filter((pairing) => pairing.round === round)
   const finished = new Set(battles.filter((battle) => battle.status === 'finished').map((battle) => battle.token))
-  const open = current.filter((pairing) => pairing.bId !== null && !(pairing.battleToken && finished.has(pairing.battleToken)))
+  const open = current.filter(
+    (pairing) => pairing.bId !== null && !(pairing.battleToken && finished.has(pairing.battleToken)) && !forfeited(pairing, league.entries),
+  )
   return { round, rounds: league.rounds ?? 0, current, open, complete: open.length === 0 }
 }
 
@@ -61,7 +69,12 @@ export function LeagueRounds({
   const byToken = new Map(battles.map((battle) => [battle.token, battle]))
   const name = (userId: string) => {
     const entry = entries.find((candidate) => candidate.userId === userId)
-    return entry ? label(entry) : 'A player'
+    return (
+      <>
+        {entry ? label(entry) : 'A player'}
+        {entry?.dropped ? <span className="chip ml-1.5 align-middle text-dim">Dropped</span> : null}
+      </>
+    )
   }
   const rematch = rematches(league.pairings)
   const rounds = [...new Set(league.pairings.map((pairing) => pairing.round))].toSorted((a, b) => b - a)
@@ -121,6 +134,7 @@ export function LeagueRounds({
                       rematch={rematch.has(pairing)}
                       battle={pairing.battleToken ? byToken.get(pairing.battleToken) : undefined}
                       name={name}
+                      forfeit={!pairing.battleToken && forfeited(pairing, entries)}
                       viewerId={viewerId}
                       current={round === progress.round}
                       onPlay={onPlay}
@@ -141,6 +155,7 @@ function TableRow({
   rematch,
   battle,
   name,
+  forfeit,
   viewerId,
   current,
   onPlay,
@@ -149,7 +164,9 @@ function TableRow({
   pairing: Pairing
   rematch: boolean
   battle: Battle | undefined
-  name: (userId: string) => string
+  name: (userId: string) => ReactNode
+  /** A player dropped before the table had a result, so it stands as a bye for the other. */
+  forfeit: boolean
   viewerId: string | null
   current: boolean
   onPlay: (opponentId: string) => void
@@ -167,6 +184,8 @@ function TableRow({
       </span>
       {rematch ? <span className="chip shrink-0 text-dim">Rematch</span> : null}
       {!pairing.bId ? (
+        <span className="chip shrink-0 text-dim">Bye</span>
+      ) : forfeit ? (
         <span className="chip shrink-0 text-dim">Bye</span>
       ) : pairing.battleToken ? (
         <Link to="/battles/$token" params={{ token: pairing.battleToken }} className="shrink-0 text-sm text-info hover:text-bone">

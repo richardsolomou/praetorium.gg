@@ -38,6 +38,8 @@ The results rank by match points (3 for a win or bye, 1 for a draw), then total 
 
 Once you pair the next round, the results of earlier rounds are locked.
 
+If a player leaves or doesn't show, press the drop button on their roster card, then **Drop player**. They aren't paired again and can't rejoin, and their results stay in the table, including in their opponents' strength of schedule. If their table in the current round hasn't finished, their opponent takes it as a bye, so the next round can be paired. A battle already started at that table stays in the battle list but no longer counts for the round. Players can withdraw themselves the same way.
+
 To play again with new rosters, start a new tournament. A [club](/docs/clubs) keeps a standing table across all of them.
 
 ## Organizers

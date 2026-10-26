@@ -61,7 +61,7 @@ import { LeagueCombatDialog } from './LeagueCombatDialog'
 import { LeagueResults } from './LeagueResults'
 import { useMoment } from './EventSchedule'
 import { useNow } from '../../useNow'
-import { LeagueRounds, ownTable, swissProgress } from './LeagueRounds'
+import { forfeited, LeagueRounds, ownTable, swissProgress } from './LeagueRounds'
 import { TeamDispositionPanel } from './LeagueTeamDisposition'
 import { TeamWarlordPanel } from './LeagueTeamWarlord'
 import { LeagueRosterSharing } from './LeagueRosterSharing'
@@ -195,8 +195,10 @@ export function LeagueEventView({
   const swiss = league.rounds !== null
   const table = swiss ? ownTable(league, viewerId) : undefined
   const swissProgressNow = swissProgress(league, eventBattles)
-  // In Swiss rounds the only battle to start is the viewer's own unplayed table.
-  const swissOpponent = table && !table.battleToken ? (table.aId === viewerId ? table.bId : table.aId) : null
+  const tableOpponent = table ? (table.aId === viewerId ? table.bId : table.aId) : null
+  const tableForfeited = Boolean(table && !table.battleToken && forfeited(table, league.entries))
+  // In Swiss rounds the only battle to start is the viewer's own unplayed table, unless a player there has dropped.
+  const swissOpponent = table && !table.battleToken && !tableForfeited ? tableOpponent : null
   const met = new Set(results?.met.flatMap(([one, other]) => (one === viewerId ? [other] : other === viewerId ? [one] : [])))
   const opponents = oneOnOneEntrants.filter((entry) => entry.userId !== viewerId)
   const yetToPlay = opponents.filter((entry) => !met.has(entry.userId)).map(label)
@@ -205,8 +207,8 @@ export function LeagueEventView({
     battleFormat !== '1v1' || !ownEntry?.submitted || !revealed
       ? undefined
       : swiss
-        ? swissDetail(table, swissProgressNow, () => {
-            const entry = league.entries.find((candidate) => candidate.userId === swissOpponent)
+        ? swissDetail(table, ownEntry.dropped, tableForfeited, swissProgressNow, () => {
+            const entry = league.entries.find((candidate) => candidate.userId === tableOpponent)
             return entry ? label(entry) : 'your opponent'
           })
         : !opponents.length
@@ -384,6 +386,7 @@ export function LeagueEventView({
               revealedBy={league.revealedByName}
               label={label}
               canUnseal={isOrganizer}
+              dropBy={!swiss ? null : isOrganizer ? 'organizer' : ownEntry?.status === 'accepted' ? 'player' : null}
               onSimulate={ownEntry?.status === 'accepted' && ownEntry.submitted ? setSimulating : null}
             />
           ) : null}
@@ -692,7 +695,8 @@ function entryStatus({
     action: alone
       ? undefined
       : { label: playLabel ?? startBattleLabel(leagueTableShape(league.format)), icon: <Swords />, pending: playing, onClick: play },
-    steps: steps('play'),
+    // A player who dropped has nothing left to play, so no step stays current.
+    steps: ownEntry.dropped ? steps('play').map((step) => ({ ...step, state: 'done' as const })) : steps('play'),
   }
 }
 
@@ -798,10 +802,18 @@ function EntryProgress({ steps }: { steps: EntryStep[] }) {
 }
 
 /** What a Swiss entrant does next: play their table, wait out their bye, or wait for the round. */
-function swissDetail(table: ReturnType<typeof ownTable>, progress: ReturnType<typeof swissProgress>, opponent: () => string) {
+function swissDetail(
+  table: ReturnType<typeof ownTable>,
+  dropped: boolean,
+  forfeit: boolean,
+  progress: ReturnType<typeof swissProgress>,
+  opponent: () => string,
+) {
+  if (dropped) return 'You’re out of the Swiss rounds. Your results stay in the table.'
   if (!progress.round) return 'Waiting for the organizer to pair round 1.'
   if (!table) return `Round ${progress.round} is under way.`
   if (!table.bId) return `You have a bye in round ${progress.round}: it counts as a win.`
+  if (forfeit) return `${opponent()} dropped out, so round ${progress.round} counts as a bye for you.`
   if (!table.battleToken) return `Round ${progress.round}: you play ${opponent()}.`
   return progress.complete
     ? progress.round < progress.rounds

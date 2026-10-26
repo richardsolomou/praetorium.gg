@@ -10,6 +10,7 @@
 - Reveal is irreversible. A Force Disposition chosen before reveal stays fixed, so a resealed list must keep it on offer.
 - League battle creation copies snapshots and locks rosters in one transaction.
 - A Swiss table's result locks once a later round is paired: `swissResultLocked` decides, and `submitBattle` refuses `reopen-battle` or a post-finish `undo` unless the seat belongs to the tournament's owner or an admin. Only seated players submit battle commands, so an organizer who didn't play the table can't correct it today. A correction recomputes standings and never re-pairs.
+- Swiss results fold from `league_round_pairings` and the battles they link, never a stored score. A dropped entrant (`droppedAt`) keeps their entry and results but is never paired again; their unfinished table scores as a bye for the opponent in `src/core/swiss.ts`, and the module unlinks any battle still going there so it can't change the round afterwards.
 
 ## Swiss rounds
 
@@ -19,7 +20,7 @@ Swiss is a Praetorium house format for one-on-one tournaments, not a copy of any
 - Pairing reads the event's battles through `pairLeagueRound` in `src/server/service.ts` and refuses when that read is partial, since an unread battle would score as unplayed.
 - Starting a game: `src/shared/leagueBattle.ts` refuses a Swiss battle against anyone but the paired opponent.
 - Deleting a table's battle frees its pairing (`deleteBattle` in `spacetimedb/src/index.ts`), so the pair can start again.
-- Known limit, awaiting a product decision: after reveal `moderate` returns `closed`, so no entrant can withdraw, and one no-show leaves a table unfinished and blocks pairing the next round.
+- Withdrawing and dropping: after reveal a player can withdraw themselves and an organizer can drop a no-show (`drop` in `leagueCommand`); a table with a dropped player counts as finished, so the next round can be paired without them.
 
 ## Clubs
 

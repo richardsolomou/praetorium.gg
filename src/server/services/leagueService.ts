@@ -369,6 +369,15 @@ export class LeagueService {
     throw new Response('no such revealed event roster', { status: 404 })
   }
 
+  /** Takes a revealed Swiss entrant out of every later round: themselves, or anyone when an organizer asks. */
+  async dropLeagueEntrant(token: string, eventToken: string, ownerId: string, userId: string) {
+    const result = await this.repository.dropLeagueEntrant({ token, eventToken, ownerId, userId, now: this.clock() })
+    if (result === 'dropped') return
+    if (result === 'forbidden') throw new Response('only the organizer can drop another player', { status: 403 })
+    if (result === 'closed') throw new Response('players drop out of Swiss rounds once the rosters are out', { status: 409 })
+    throw new Response('no such player in this event', { status: 404 })
+  }
+
   /**
    * One entrant's sealed list, where this reader may read it.
    *

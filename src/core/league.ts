@@ -124,6 +124,8 @@ export const LEAGUE_MEMBER_MAX = 128
 export const LEAGUE_MEMBER_MIN = 2
 
 export type LeagueEntryView = LeagueRevealEntry & {
+  /** Withdrew or was dropped from Swiss rounds after the reveal. */
+  dropped: boolean
   name: string
   image: string | null
   joinedAt: number

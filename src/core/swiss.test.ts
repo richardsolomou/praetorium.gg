@@ -32,6 +32,11 @@ describe('swiss standings', () => {
   it('leaves an unfinished battle out of the table', () => {
     expect(swissStandings(['a', 'b'], [match(1, 'a', 'b', null)])[0]?.played).toBe(0)
   })
+
+  it('credits an unfinished table as a bye when the opponent drops', () => {
+    const rows = swissStandings(['a', 'b'], [match(1, 'a', 'b', null)], new Set(['b']))
+    expect(rows.find((row) => row.userId === 'a')).toMatchObject({ won: 1, points: 3, vp: 0 })
+  })
 })
 
 describe('swiss pairings', () => {
@@ -70,6 +75,11 @@ describe('swiss pairings', () => {
   it('gives the bye to the lowest-placed player who has not had one', () => {
     const played = [match(1, 'a', 'b', 'a', [60, 40]), match(1, 'c', null, null)]
     expect(swissPairings(['a', 'b', 'c'], played, first).find(([, opponent]) => opponent === null)?.[0]).toBe('b')
+  })
+
+  it('leaves a dropped player out of the next round', () => {
+    const played = [match(1, 'a', 'b', 'a', [60, 40]), match(1, 'c', 'd', 'a', [55, 40])]
+    expect(swissPairings(['a', 'b', 'c', 'd'], played, first, new Set(['b'])).flat()).not.toContain('b')
   })
 
   it('draws the first round at random', () => {

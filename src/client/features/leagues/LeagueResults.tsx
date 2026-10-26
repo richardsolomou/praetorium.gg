@@ -95,6 +95,7 @@ export function LeagueResults({
                     <Link to="/users/$userId" params={{ userId: row.userId }} className="flex min-w-0 items-center gap-2 hover:text-info">
                       <PlayerAvatar name={entry.name} image={entry.image} className="size-7 text-3xs max-sm:hidden" />
                       <span className="truncate font-bold uppercase">{label(entry)}</span>
+                      {entry.dropped ? <span className="chip shrink-0 text-dim">Dropped</span> : null}
                     </Link>
                   </td>
                   {columns.map((column) => {

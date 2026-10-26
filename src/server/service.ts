@@ -526,7 +526,7 @@ export class PraetoriumService {
     const entrantIds = league.entries.filter((entry) => entry.status === 'accepted').map((entry) => entry.userId)
     return {
       ...leagueResults(entrantIds, battles),
-      swiss: league.rounds === null ? null : swissStandings(entrantIds, swissMatches(league.pairings, battles)),
+      swiss: league.rounds === null ? null : swissStandings(entrantIds, swissMatches(league.pairings, battles), droppedIds(league.entries)),
       partial: nextCursor !== null,
     }
   }
@@ -554,7 +554,7 @@ export class PraetoriumService {
       eventToken: league.eventToken,
       ownerId: userId,
       round,
-      pairs: swissPairings(players, matches, Math.random),
+      pairs: swissPairings(players, matches, Math.random, droppedIds(league.entries)),
     })
     if (result === 'paired') {
       this.notifier.notify([
@@ -1178,6 +1178,9 @@ function referencedPlays(
 export function guestDeviceHash(secret: string) {
   return createHash('sha256').update(secret).digest('hex')
 }
+
+const droppedIds = (entries: readonly { userId: string; dropped: boolean }[]) =>
+  new Set(entries.filter((entry) => entry.dropped).map((entry) => entry.userId))
 
 /** Each paired table as a Swiss result, read from the battle it started; a table still playing has no outcome yet. */
 function swissMatches(

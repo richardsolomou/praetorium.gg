@@ -11,6 +11,7 @@ import { factionFor } from '../../factions'
 import { factionIndexQuery, gameReferencesQuery } from '../../queries'
 import { RosterSummary } from '../rosters/RosterSummary'
 import { EntrantGroup, ViewRosterButton } from './LeagueEntrants'
+import { DropEntrant } from './LeagueDrop'
 import { UnsealRoster } from './LeagueUnseal'
 
 /** One titled side or team of rosters, or a duel's single untitled run. */
@@ -37,6 +38,7 @@ export function LeagueArmies({
   revealedBy,
   label,
   canUnseal,
+  dropBy,
   onSimulate,
 }: {
   token: string
@@ -47,6 +49,8 @@ export function LeagueArmies({
   label: (entry: LeagueEntryView) => string
   /** The organizer's: sends a revealed roster back to its player to seal a replacement. */
   canUnseal: boolean
+  /** In Swiss rounds, who the viewer may take out of later rounds: anyone as an organizer, or only themselves. */
+  dropBy: 'organizer' | 'player' | null
   onSimulate: ((userId: string) => void) | null
 }) {
   const { data: factions } = useQuery(factionIndexQuery())
@@ -83,6 +87,7 @@ export function LeagueArmies({
         ? { slug: presentation.slug, displayName: presentation.displayName, icon: presentation.icon, detachments: army.detachments }
         : undefined
     const named = label(entry)
+    const droppable = !entry.dropped && (dropBy === 'organizer' || (dropBy === 'player' && entry.userId === viewerId))
     return (
       <article key={entry.userId} data-army={entry.name} className="min-w-0 border border-edge bg-panel">
         <div className="flex min-w-0 items-center gap-2 border-b border-edge py-1.5 pr-1.5 pl-3">
@@ -90,7 +95,11 @@ export function LeagueArmies({
             <PlayerAvatar name={entry.name} image={entry.image} className="size-6 text-3xs" />
             <span className="truncate text-sm font-bold uppercase group-hover:text-info group-hover:underline">{named}</span>
           </Link>
+          {entry.dropped ? <span className="chip shrink-0 text-dim">Dropped</span> : null}
           <span className="ml-auto flex shrink-0 items-center gap-1">
+            {droppable ? (
+              <DropEntrant token={token} eventToken={eventToken} userId={entry.userId} label={named} self={entry.userId === viewerId} />
+            ) : null}
             {army && canUnseal ? <UnsealRoster token={token} eventToken={eventToken} userId={entry.userId} label={named} /> : null}
             {army && onSimulate && entry.userId !== viewerId ? (
               <IconAction

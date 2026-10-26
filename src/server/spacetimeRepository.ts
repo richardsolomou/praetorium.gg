@@ -612,6 +612,7 @@ export class SpacetimeRepository {
           status: entry.status,
           joinedAt: entry.joinedAt,
           submitted: entry.rosterSnapshot !== null,
+          dropped: entry.droppedAt != null,
           rosterName: revealed || viewerId === entry.userId ? entry.rosterName : null,
           army: revealed && roster ? leagueArmy(roster) : null,
           sealedAt: revealed ? entry.submittedAt : null,
@@ -767,6 +768,10 @@ export class SpacetimeRepository {
       { op: 'unseal', token, ownerId, userId, eventToken: eventToken ?? '' },
       z.enum(['unsealed', 'missing', 'forbidden', 'not-revealed']),
     )
+  }
+
+  dropLeagueEntrant(input: { token: string; eventToken: string; ownerId: string; userId: string; now: number }) {
+    return this.product.leagueCommand({ op: 'drop', ...input }, z.enum(['dropped', 'missing', 'forbidden', 'closed']))
   }
 
   async leagueRoster(token: string, userId: string, eventToken?: string, readerId?: string | null) {
