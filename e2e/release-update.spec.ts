@@ -4,6 +4,10 @@ import { createBattle, retryUntilVisible, signUp, uniqueName } from './account'
 import manifest from '../package.json' with { type: 'json' }
 const { version } = manifest
 
+/** Answers the release check with whatever version `served` reads at the time of the request. */
+const serveRelease = (page: Page, served: () => string) =>
+  page.route('**/api/release', (route) => route.fulfill({ json: { version: served() }, headers: { 'cache-control': 'no-store' } }))
+
 test('service worker updates bypass browser and edge caches', async ({ request }) => {
   const response = await request.get('/reference-worker.js')
   expect(response.headers()['cache-control']).toBe('no-store')
@@ -27,7 +31,7 @@ test('a connected launch loads the current application instead of the saved appl
 
 test('release notice waits for a new version and refreshes only on request', async ({ page }) => {
   let served = version
-  await page.route('**/api/release', (route) => route.fulfill({ json: { version: served }, headers: { 'cache-control': 'no-store' } }))
+  await serveRelease(page, () => served)
   await page.clock.install()
   await page.goto('/')
   const notice = page.getByRole('complementary', { name: 'Release update' })
@@ -90,7 +94,7 @@ async function failFactionsModule(page: Page, failing: (document: URL) => boolea
 }
 
 test('a page built before the deployed release loads its next route from the new release', async ({ page }) => {
-  await page.route('**/api/release', (route) => route.fulfill({ json: { version: '99.0.0' }, headers: { 'cache-control': 'no-store' } }))
+  await serveRelease(page, () => '99.0.0')
   await page.goto('/')
   await expect(page.getByRole('complementary', { name: 'Release update' })).toBeVisible()
   await page.evaluate(() => Object.assign(window, { previousDocument: true }))
@@ -102,7 +106,7 @@ test('a page built before the deployed release loads its next route from the new
 
 test('a route error in a page built before the deployed release reloads into the new release', async ({ page }) => {
   let served = version
-  await page.route('**/api/release', (route) => route.fulfill({ json: { version: served }, headers: { 'cache-control': 'no-store' } }))
+  await serveRelease(page, () => served)
   await page.goto('/')
   await expect(page.getByRole('link', { name: 'Rosters', exact: true }).first()).toBeVisible()
   await failFactionsModule(page, (document) => !document.searchParams.has('__build_retry'))
@@ -119,7 +123,7 @@ test('a route error in a page built before the deployed release reloads into the
 
 test('try again reloads a stale page that has stopped reloading itself', async ({ page }, testInfo) => {
   let recovering = false
-  await page.route('**/api/release', (route) => route.fulfill({ json: { version: '99.0.0' }, headers: { 'cache-control': 'no-store' } }))
+  await serveRelease(page, () => '99.0.0')
   await failFactionsModule(page, () => !recovering)
   await page.goto('/factions?__build_retry=1234.3.99.0.0')
   const tryAgain = page.getByRole('button', { name: 'Try again', exact: true })
@@ -134,7 +138,7 @@ test('try again reloads a stale page that has stopped reloading itself', async (
 test('a stale page sends a queued battle command before a route change reloads it', async ({ page }) => {
   await signUp(page, uniqueName('Stale commander'))
   await createBattle(page, { practice: true })
-  await page.route('**/api/release', (route) => route.fulfill({ json: { version: '99.0.0' }, headers: { 'cache-control': 'no-store' } }))
+  await serveRelease(page, () => '99.0.0')
   let holding = false
   const { promise: released, resolve: release } = Promise.withResolvers<void>()
   const { promise: sent, resolve: held } = Promise.withResolvers<void>()
