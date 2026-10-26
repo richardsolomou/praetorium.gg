@@ -36,6 +36,9 @@ export function uniqueBy<T>(values: readonly T[], keyOf: (value: T) => unknown):
   })
 }
 
+/** Each value under its id; a later duplicate replaces an earlier one. */
+export const byId = <T extends { id: string }>(values: readonly T[]): Map<string, T> => new Map(values.map((value) => [value.id, value]))
+
 /** `values` in consecutive runs of `size`, the last one shorter when they do not divide evenly. */
 export const chunks = <T>(values: readonly T[], size: number): T[][] =>
   Array.from({ length: Math.ceil(values.length / size) }, (_, index) => values.slice(index * size, (index + 1) * size))

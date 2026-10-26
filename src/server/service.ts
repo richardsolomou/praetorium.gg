@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { constantTimeEqual } from 'better-auth/crypto'
+import { byId } from '../core/collections'
 import { isGuestSeat, newBattleSeats, type NewBattlePlayers, type CreateBattleInput } from '../core/newBattle'
 import { guestSessionCurrent } from '../core/guestSession'
 import { matchingLeagueBattles } from '../shared/leagueBattleOptions'
@@ -282,11 +283,7 @@ export class PraetoriumService {
 
   private playedArmiesOf(history: BattleHistory, factions: readonly BattleFaction[]) {
     const state = foldHistory(history)
-    return playedArmies(
-      history,
-      state,
-      battleSummary(history, state, null, null, new Map(factions.map((faction) => [faction.id, faction]))),
-    )
+    return playedArmies(history, state, battleSummary(history, state, null, null, byId(factions)))
   }
 
   /** The battles this player's friends are in and they are not. */
@@ -628,7 +625,7 @@ export class PraetoriumService {
     rules?: BattleMissionRules | null,
     factions: readonly BattleFaction[] = [],
   ) {
-    const factionsById = new Map(factions.map((faction) => [faction.id, faction]))
+    const factionsById = byId(factions)
     return histories.map((history) => battleSummary(history, foldHistory(history), viewerId, rules, factionsById))
   }
 
@@ -642,7 +639,7 @@ export class PraetoriumService {
     rules: BattleReadRules | null | undefined,
     factions: readonly BattleFaction[],
   ) {
-    const factionsById = new Map(factions.map((faction) => [faction.id, faction]))
+    const factionsById = byId(factions)
     return histories.map((history) => {
       const state = foldHistory(history)
       return {

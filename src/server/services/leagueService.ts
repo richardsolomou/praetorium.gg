@@ -1,5 +1,6 @@
 import { buildLeagueBattle, LeagueBattleSetupError } from '../../shared/leagueBattle'
 import { offlineContext, offlineIdentifier } from '../offlineContext'
+import { byId } from '../../core/collections'
 import { randomId, randomToken } from 'ras-stack/auth'
 import { pointsBudgetError, pointsLabel, type Roster } from '../../core/battle'
 import { commandSchema, parseRosterSnapshot } from '../../core/commands'
@@ -139,7 +140,7 @@ export class LeagueService {
     const record = await this.repository.leagueByToken(token, viewerId, eventToken)
     if (!record) return null
     const { organizerIds, ...league } = record
-    const factionsById = new Map(factions.map((faction) => [faction.id, faction]))
+    const factionsById = byId(factions)
     const organizer = viewerId !== null && organizerIds.includes(viewerId)
     return {
       ...league,

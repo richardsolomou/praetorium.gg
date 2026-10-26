@@ -19,7 +19,7 @@ import { copySavedRoster, saveOwnedRoster } from '../saveOwnedRoster'
 import { rosterActions } from '../rosterActions'
 import { copiedArmy } from '../../core/rosterCopies'
 import { currentCatalogueFamilyId, currentEntryId } from '../../core/retiredCatalogueIds'
-import { groupBy, chunks } from '../../core/collections'
+import { byId, groupBy, chunks } from '../../core/collections'
 import type { RosterPick } from '../../core/roster'
 import { wishlistSuggestions as suggestFromRosters } from '../../core/wishlistSuggestions'
 import { ROSTER_NAME_MAX_LENGTH } from '../../core/battle'
@@ -107,7 +107,7 @@ export const wishlistSuggestions = createServerFn({ method: 'GET' }).handler(() 
         instance.combatUnitsFor(),
       ])
       const factions = factionIndex?.factions ?? []
-      const indexed = new Map(factions.map((faction) => [faction.id, faction]))
+      const indexed = byId(factions)
       const armies = [
         ...groupBy(
           own.filter((roster) => !roster.archived),
@@ -190,7 +190,7 @@ export const discoverRosters = createServerFn({ method: 'GET' })
         before,
         limit: ROSTER_DISCOVERY_PAGE_SIZE,
       })
-      const indexed = new Map(factions.map((faction) => [faction.id, faction]))
+      const indexed = byId(factions)
       const shown = page.rosters.filter(({ summary }) => inDiscoveryScope(summary, filter, indexed))
       const assessments = await cachedRosterAssessmentsFor(shown.map(({ priceable }) => priceable))
       return {
@@ -363,7 +363,7 @@ export const discoverPlayedArmies = createServerFn({ method: 'GET' })
       const factions = factionIndex?.factions ?? []
       if (!discoveryScope(filter, factions)) return { armies: [], nextCursor: null }
       const page = await instance.service.playedArmies(viewerId, before ?? undefined, battleFactions)
-      const indexed = new Map(factions.map((faction) => [faction.id, faction]))
+      const indexed = byId(factions)
       const shown = page.armies.flatMap((army) => {
         const copy = copiedArmy(army)
         return inDiscoveryScope(copy, filter, indexed) ? [{ army, copy }] : []
