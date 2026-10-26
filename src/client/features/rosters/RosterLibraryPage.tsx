@@ -30,6 +30,7 @@ import { RosterExportDialog } from './RosterExportDialog'
 import { RosterExchangeDialog } from './RosterExchangeDialog'
 import { RosterImport } from './RosterImport'
 import { RosterSetupDialog, type RosterSetup } from './RosterSetupDialog'
+import { rosterSetupOf } from './rosterDraft'
 import { factionSelectGroups } from './builder/factions'
 import { RosterFilters, type RosterUpdateFilter } from './RosterFilters'
 import { RosterRow } from './RosterRow'
@@ -200,18 +201,6 @@ export function RosterLibraryPage({
     setChosenSession({ session: next })
     writeWorkspaceState(WORKSPACE_PATH, EDITING_STATE, next)
   }
-  const setupOf = (roster: SavedRoster): RosterSetup => ({
-    name: roster.automaticName ? '' : roster.name,
-    catalogueId: roster.catalogueId,
-    detachmentIds: roster.detachmentIds,
-    disposition: roster.disposition,
-    limit: roster.limit,
-    pointsBudget: roster.pointsBudget,
-    waivedRules: roster.waivedRules,
-    optionalRules: roster.optionalRules ?? [],
-    borrowedDetachmentId: roster.borrowedDetachmentId ?? null,
-    visibility: roster.visibility,
-  })
   const renderCard = ({ head, variants }: (typeof cards)[number]) => {
     const row = ({ roster, index }: typeof head, layout: 'card' | 'base' | 'variant') => (
       <RosterRow
@@ -230,7 +219,7 @@ export function RosterLibraryPage({
         showVisibility={roster.visibility !== head.roster.visibility}
         actions={actions}
         origin={origin}
-        onEdit={() => setEditing({ rosterId: roster.id, draft: setupOf(roster) })}
+        onEdit={() => setEditing({ rosterId: roster.id, draft: rosterSetupOf(roster) })}
         onDelete={() => setDeleting(roster)}
         onNeedsAccount={guest ? account.ask : undefined}
       />
@@ -479,7 +468,7 @@ export function RosterLibraryPage({
             }
           }}
           factionOptions={available?.factions ?? []}
-          value={session?.draft ?? setupOf(editing)}
+          value={session?.draft ?? rosterSetupOf(editing)}
           onDraftChange={(draft) => setEditing({ rosterId: editing.id, draft })}
           hasUnits={Boolean(editing.unitCount)}
           reviewSource={guest ? claimInput(guest) : editing.id}

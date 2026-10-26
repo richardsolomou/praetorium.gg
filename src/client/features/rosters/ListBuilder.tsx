@@ -66,9 +66,9 @@ import {
   invalidateSavedRosters,
   meQuery,
   playerDefaultsQuery,
-  priceQuery,
   reminderAbilitiesQuery,
   rostersLentToMeQuery,
+  setupPriceQuery,
   unitBattleDetailsQuery,
   unitsQuery,
 } from '../../queries'
@@ -117,7 +117,7 @@ import { convertAsVariantOf } from './rosterLibrary'
 import { currentRulesFor } from '../../../core/currentRules'
 import { OutdatedLeagueRosters } from './OutdatedLeagueRosters'
 import { DueLeagueRosters } from './DueLeagueRosters'
-import { draftKey, exportInput, type RosterDraft, savedDraft } from './rosterDraft'
+import { draftKey, exportInput, type RosterDraft, rosterDraftOf, rosterSetupOf, savedDraft } from './rosterDraft'
 import { RosterBuilderFooter } from './RosterBuilderFooter'
 import { type RosterVariant, RosterVariantMenu } from './RosterVariantMenu'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
@@ -248,17 +248,16 @@ export function ListBuilder({
   const path = useRouterState({ select: (state) => state.location.href.split('#', 1)[0] ?? state.location.pathname })
   const { data: me } = useQuery(meQuery())
   const { data: factionIndex } = useQuery(factionIndexQuery())
-  const [catalogueId, setCatalogueId] = useState(initial.catalogueId)
   const { picks, setPicks, resetPicks, positioned, annotated, held, allocateKey } = usePicks(initial.picks)
-  const [limit, setLimit] = useState(initial.limit)
-  const [pointsBudget, setPointsBudget] = useState<number | null>(initial.pointsBudget ?? null)
-  const [detachmentIds, setDetachmentIds] = useState<string[]>(initial.detachmentIds)
-  const [disposition, setDisposition] = useState<string | null>(initial.disposition)
-  const [waivedRules, setWaivedRules] = useState<FormatRuleId[]>(initial.waivedRules)
-  const [optionalRules, setOptionalRules] = useState<OptionalRuleId[]>(initial.optionalRules ?? [])
-  const [borrowedDetachmentId, setBorrowedDetachmentId] = useState<string | null>(initial.borrowedDetachmentId ?? null)
-  const [name, setName] = useState(initial.automaticName ? '' : initial.name)
-  const [visibility, setVisibility] = useState<RosterVisibility>(initial.visibility)
+  // Typing a name changes nothing that is priced, so it is held apart from the rest of the setup.
+  const [{ name: openedName, ...openedSetup }] = useState(() => rosterSetupOf(initial))
+  const [name, setName] = useState(openedName)
+  const [setup, setSetup] = useState(openedSetup)
+  const { catalogueId, detachmentIds, disposition, limit, pointsBudget, waivedRules, visibility } = setup
+  const adoptSetup = ({ name: nextName, ...next }: RosterSetup) => {
+    setName(nextName)
+    setSetup(next)
+  }
   const [savedPrep, setSavedPrep] = useState(prep)
   const [reminderDraft, setReminderDraft] = useState<ReminderDraft | null>(null)
   const abilityAlerts = useAbilityReminders(Boolean(guest))
@@ -338,7 +337,10 @@ export function ListBuilder({
     // Viewing is reading the list as anybody else would, and the picker is not part of that.
     if (next && showing === 'picker') closePane()
   }
-  const toggleWaivedRule = useCallback((rule: FormatRuleId) => setWaivedRules((current) => withMember(current, rule)), [])
+  const toggleWaivedRule = useCallback(
+    (rule: FormatRuleId) => setSetup((current) => ({ ...current, waivedRules: withMember(current.waivedRules, rule) })),
+    [],
+  )
   const togglePickerFilter = useCallback(
     (filter: PickerFilter) =>
       setPickerFilters((current) => {
@@ -349,28 +351,12 @@ export function ListBuilder({
     [],
   )
 
-  // A name the player typed, which may be nothing at all.
   const listName = name.trim()
   const storedPrep = useMemo(
     () => ({ stratagems: savedPrep.stratagems, secondaries: savedPrep.secondaries, remindersEnabled: true }),
     [savedPrep],
   )
-  const draft: RosterDraft = {
-    id: savedId || undefined,
-    name: listName,
-    catalogueId,
-    detachmentIds,
-    disposition,
-    limit,
-    pointsBudget,
-    picks: annotated,
-    prep: storedPrep,
-    waivedRules,
-    optionalRules,
-    borrowedDetachmentId,
-    visibility,
-    source: initial.source,
-  }
+  const draft = rosterDraftOf({ ...setup, name }, { id: savedId || undefined, picks: annotated, prep: storedPrep, source: initial.source })
   const currentDraftKey = draftKey(draft)
   // The last draft sent, starting from the row the list was opened from. A list nobody
   // has saved yet has no row, so its first draft is always sent.
@@ -411,17 +397,8 @@ export function ListBuilder({
 
     lastApplied.current = incoming
     lastSaved.current = incoming
-    setCatalogueId(initial.catalogueId)
     resetPicks(initial.picks)
-    setLimit(initial.limit)
-    setPointsBudget(initial.pointsBudget ?? null)
-    setDetachmentIds(initial.detachmentIds)
-    setDisposition(initial.disposition)
-    setWaivedRules(initial.waivedRules)
-    setOptionalRules(initial.optionalRules ?? [])
-    setBorrowedDetachmentId(initial.borrowedDetachmentId ?? null)
-    setName(initial.automaticName ? '' : initial.name)
-    setVisibility(initial.visibility)
+    adoptSetup(rosterSetupOf(initial))
     setSavedPrep(prep)
   }, [annotated, currentDraftKey, initial, listName, prep, resetPicks, save.isPending, savedId, settledListName, settledPicks])
   const saveDraft = () => {
@@ -440,29 +417,12 @@ export function ListBuilder({
     // The mutation reads the complete rendered draft. A later render queues behind
     // this one, so the final request always contains the newest state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    borrowedDetachmentId,
-    optionalRules,
-    catalogueId,
-    detachmentIds,
-    disposition,
-    editable,
-    limit,
-    pointsBudget,
-    settledListName,
-    settledPicks,
-    storedPrep,
-    visibility,
-    waivedRules,
-  ])
+  }, [editable, settledListName, settledPicks, setup, storedPrep])
 
   const take = useMutation({
     mutationFn: () =>
       exportRoster({
-        data: exportInput(
-          { catalogueId, detachmentIds, disposition, limit, pointsBudget, picks: annotated, waivedRules },
-          shownName || 'Roster',
-        ),
+        data: exportInput({ ...setup, picks: annotated }, shownName || 'Roster'),
       }),
     onSuccess: (exported) => setExportText(exported),
   })
@@ -470,19 +430,7 @@ export function ListBuilder({
   const exchange = useMutation({
     mutationFn: async () => {
       const exchangeName = shownName || 'Roster'
-      const code = await encodeRosterExchange({
-        name: exchangeName,
-        catalogueId,
-        detachmentIds,
-        disposition,
-        borrowedDetachmentId,
-        limit,
-        pointsBudget,
-        points: priced?.points ?? null,
-        waivedRules,
-        optionalRules,
-        picks: annotated,
-      })
+      const code = await encodeRosterExchange({ ...setup, name: exchangeName, points: priced?.points ?? null, picks: annotated })
       return { name: exchangeName, code }
     },
     onSuccess: (code) => setExchangeCode(code),
@@ -503,17 +451,10 @@ export function ListBuilder({
     mutationFn: async () => {
       if (savedId && !battle && me) return copyRoster({ data: { id: savedId, variant: false } })
       const copy = {
+        ...setup,
         name: listName ? `Copy of ${listName}`.slice(0, ROSTER_NAME_MAX_LENGTH) : '',
-        catalogueId,
-        detachmentIds,
-        disposition,
-        limit,
-        pointsBudget,
         picks: annotated,
         prep: storedPrep,
-        waivedRules,
-        optionalRules,
-        borrowedDetachmentId,
         source: initial.source,
       }
       if (me)
@@ -558,17 +499,7 @@ export function ListBuilder({
       (editable && currentDraftKey !== lastApplied.current))
   const variantDisposition = faction?.detachments.flatMap((entry) => entry.dispositions).find((entry) => entry.id === disposition)
 
-  const priceRequest = priceQuery(
-    catalogueId,
-    detachmentIds,
-    disposition,
-    limit,
-    positioned,
-    waivedRules,
-    borrowedDetachmentId,
-    optionalRules,
-    editable,
-  )
+  const priceRequest = setupPriceQuery(setup, positioned, editable)
   const {
     data: priced,
     dataUpdatedAt: pricedAt,
@@ -631,38 +562,14 @@ export function ListBuilder({
   const preparePrint = useCallback(() => {
     if (!priced || pricePending || priceLoading) return
     setPrintInput({
+      ...setup,
       name: shownName,
       url: savedId ? `${window.location.origin}${workspacePath}` : null,
       draft: Boolean(guest) || (editable && currentDraftKey !== lastApplied.current),
-      catalogueId,
-      detachmentIds,
-      limit,
-      pointsBudget,
       picks: annotated,
       price: priced,
-      waivedRules,
-      optionalRules,
-      borrowedDetachmentId,
     })
-  }, [
-    borrowedDetachmentId,
-    catalogueId,
-    currentDraftKey,
-    detachmentIds,
-    editable,
-    guest,
-    limit,
-    optionalRules,
-    pointsBudget,
-    annotated,
-    priceLoading,
-    pricePending,
-    priced,
-    shownName,
-    savedId,
-    waivedRules,
-    workspacePath,
-  ])
+  }, [annotated, currentDraftKey, editable, guest, priceLoading, pricePending, priced, savedId, setup, shownName, workspacePath])
   useEffect(() => {
     // Until the faction loads, a list that is not frozen draws a placeholder instead of its cards.
     if (!print || automaticPrint.current || (!frozen && (!faction || !priced || pricePending || priceLoading))) return
@@ -803,11 +710,7 @@ export function ListBuilder({
   const applyLoadout = (loadout: readonly RosterPick[]) => {
     if (loadout[0]) queueAdd(loadout[0].entryId, { loadout })
   }
-  const priceLoadouts = useCallback(
-    (loadouts: readonly RosterPick[]) =>
-      priceQuery(catalogueId, detachmentIds, disposition, limit, loadouts, waivedRules, borrowedDetachmentId, optionalRules),
-    [catalogueId, detachmentIds, disposition, limit, waivedRules, borrowedDetachmentId, optionalRules],
-  )
+  const priceLoadouts = useCallback((loadouts: readonly RosterPick[]) => setupPriceQuery(setup, loadouts), [setup])
   useEffect(() => {
     const next = queuedAdds[0]
     if (!next) return
@@ -970,18 +873,7 @@ export function ListBuilder({
   const cardRelationships = useCardRelationships(picks, units, attachDiscovery, embarks)
   const openSetup = () => {
     setSetupMode('edit')
-    setSetupDraft({
-      name: listName,
-      catalogueId,
-      detachmentIds,
-      disposition,
-      limit,
-      pointsBudget,
-      waivedRules,
-      optionalRules,
-      borrowedDetachmentId,
-      visibility,
-    })
+    setSetupDraft({ ...setup, name: listName })
   }
   const setupSave = useMutation({
     scope: { id: 'roster-autosave' },
@@ -994,7 +886,7 @@ export function ListBuilder({
       return saveRoster({ data: review.candidate }, review.source, review.ownerId, review.serverSave)
     },
   })
-  const applySetup = async (setup: RosterSetup, review?: RosterSetupReview, options?: { keepOriginal: boolean }) => {
+  const applySetup = async (saved: RosterSetup, review?: RosterSetupReview, options?: { keepOriginal: boolean }) => {
     if (!review) throw new Error('Review the roster before saving changes.')
     if (options?.keepOriginal) {
       const { id } = await convertAsVariantOf(review)
@@ -1008,18 +900,9 @@ export function ListBuilder({
     lastSaved.current = key
     lastApplied.current = key
     savedAt.current = Math.max(savedAt.current, updatedAt)
-    const changedFaction = currentCatalogueFamilyId(setup.catalogueId) !== currentCatalogueFamilyId(catalogueId)
+    const changedFaction = currentCatalogueFamilyId(saved.catalogueId) !== currentCatalogueFamilyId(catalogueId)
     resetPicks(review.candidate.picks)
-    setName(setup.name)
-    setCatalogueId(setup.catalogueId)
-    setDetachmentIds(setup.detachmentIds)
-    setDisposition(setup.disposition)
-    setLimit(setup.limit)
-    setPointsBudget(setup.pointsBudget)
-    setWaivedRules(setup.waivedRules)
-    setOptionalRules(setup.optionalRules)
-    setBorrowedDetachmentId(setup.borrowedDetachmentId)
-    setVisibility(setup.visibility)
+    adoptSetup(saved)
     setSavedPrep(review.candidate.prep ?? { stratagems: [], secondaries: [] })
     if (changedFaction) setSelected(null)
     setSetupDraft(null)
@@ -1372,17 +1255,7 @@ export function ListBuilder({
       return
     }
     setCompareTargets(compare)
-    setCombatRoster({
-      catalogueId,
-      detachmentIds,
-      disposition,
-      limit,
-      picks: positioned,
-      pickIndex,
-      waivedRules,
-      borrowedDetachmentId,
-      optionalRules,
-    })
+    setCombatRoster({ ...setup, picks: positioned, pickIndex })
   }
 
   const testTargets = !frozen ? (

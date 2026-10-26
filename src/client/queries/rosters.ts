@@ -256,6 +256,32 @@ export const priceQuery = (
   })
 }
 
+/** `priceQuery` for a list's own setup. */
+export const setupPriceQuery = (
+  setup: {
+    catalogueId: string
+    detachmentIds: readonly string[]
+    disposition: string | null
+    limit: number
+    waivedRules?: readonly FormatRuleId[]
+    borrowedDetachmentId?: string | null
+    optionalRules?: readonly OptionalRuleId[]
+  },
+  picked: readonly RosterPick[],
+  includeUnitLimits = false,
+) =>
+  priceQuery(
+    setup.catalogueId,
+    setup.detachmentIds,
+    setup.disposition,
+    setup.limit,
+    picked,
+    setup.waivedRules,
+    setup.borrowedDetachmentId ?? null,
+    setup.optionalRules,
+    includeUnitLimits,
+  )
+
 /** What a battle freezes of each datasheet in a list, for judging embarks as setup will. */
 export const unitBattleDetailsQuery = (catalogueId: string, entryIds: readonly string[]) => {
   const data = { catalogueId, entryIds: [...new Set(entryIds)].toSorted() }

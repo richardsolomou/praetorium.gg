@@ -1,7 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { reviewRosterSetup, verifySetupReview, type RosterSetupReview as SetupReview } from './rosterSetupReview'
 import { SetupConsequences } from './SetupConsequences'
-import type { RosterDraft } from './rosterDraft'
+import { type RosterDraft, rosterSetupOf } from './rosterDraft'
 import { errorMessage } from '../../queryClient'
 import { RulesVersionLabel } from '../../components/RulesVersionLabel'
 import { prepareFactionUnits } from '../../functions'
@@ -169,18 +169,7 @@ export function RosterSetupDialog({
     mutationFn: async () => {
       if (!review) return
       await verifySetupReview(review)
-      await onSave(
-        {
-          ...review.candidate,
-          pointsBudget: review.candidate.pointsBudget ?? null,
-          waivedRules: review.candidate.waivedRules ?? [],
-          optionalRules: review.candidate.optionalRules ?? [],
-          borrowedDetachmentId: review.candidate.borrowedDetachmentId ?? null,
-          visibility: review.candidate.visibility ?? 'private',
-        },
-        review,
-        { keepOriginal: offerKeepOriginal && keepOriginal },
-      )
+      await onSave(rosterSetupOf(review.candidate), review, { keepOriginal: offerKeepOriginal && keepOriginal })
     },
   })
   const [detachmentQuery, setDetachmentQuery] = useState('')

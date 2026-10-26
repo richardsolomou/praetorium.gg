@@ -4,6 +4,7 @@ import type { RosterSource, RosterVisibility } from '../../../core/savedRoster'
 import { withoutUnitNotes } from '../../../core/unitNotes'
 import type { exportRoster, saveRoster } from '../../functions'
 import { annotatedPicks } from './rosterPicks'
+import type { RosterSetup } from './RosterSetupDialog'
 
 /** A list exactly as the builder's autosave sends it. */
 export type RosterDraft = Parameters<typeof saveRoster>[0]['data']
@@ -18,10 +19,10 @@ type SavedRoster = {
   limit: number
   pointsBudget?: number | null
   picks: readonly RosterPick[]
-  waivedRules: FormatRuleId[]
+  waivedRules?: FormatRuleId[]
   optionalRules?: OptionalRuleId[]
   borrowedDetachmentId?: string | null
-  visibility: RosterVisibility
+  visibility?: RosterVisibility
   source: RosterSource
 }
 
@@ -43,27 +44,48 @@ export const draftKey = (draft: RosterDraft) => JSON.stringify(draft)
  * as an attachment pointing at a unit that is no longer there, differs and is saved.
  */
 export function savedDraft(roster: SavedRoster, prep: SavedPrep): RosterDraft {
-  return {
+  return rosterDraftOf(rosterSetupOf(roster), {
     id: roster.id,
-    name: roster.automaticName ? '' : roster.name.trim(),
-    catalogueId: roster.catalogueId,
-    detachmentIds: roster.detachmentIds,
-    disposition: roster.disposition,
-    limit: roster.limit,
-    pointsBudget: roster.pointsBudget ?? null,
     picks: annotatedPicks(roster.picks),
-    prep: {
-      stratagems: prep.stratagems,
-      secondaries: prep.secondaries,
-      remindersEnabled: prep.remindersEnabled ?? true,
-    },
-    waivedRules: roster.waivedRules,
-    optionalRules: roster.optionalRules ?? [],
-    borrowedDetachmentId: roster.borrowedDetachmentId ?? null,
-    visibility: roster.visibility,
+    prep: { stratagems: prep.stratagems, secondaries: prep.secondaries, remindersEnabled: prep.remindersEnabled ?? true },
     source: roster.source,
-  }
+  })
 }
+
+/** A list's setup as the setup dialog edits it, where a name the list was given automatically reads as none. */
+export const rosterSetupOf = (roster: Omit<SavedRoster, 'id' | 'picks' | 'source'>): RosterSetup => ({
+  name: roster.automaticName ? '' : roster.name,
+  catalogueId: roster.catalogueId,
+  detachmentIds: roster.detachmentIds,
+  disposition: roster.disposition,
+  limit: roster.limit,
+  pointsBudget: roster.pointsBudget ?? null,
+  waivedRules: roster.waivedRules ?? [],
+  optionalRules: roster.optionalRules ?? [],
+  borrowedDetachmentId: roster.borrowedDetachmentId ?? null,
+  visibility: roster.visibility ?? 'private',
+})
+
+/** A setup with the rest of a save, in the key order `draftKey` compares. */
+export const rosterDraftOf = (
+  setup: RosterSetup,
+  list: { id?: string; picks: RosterDraft['picks']; prep: RosterDraft['prep']; source: RosterSource },
+): RosterDraft => ({
+  id: list.id,
+  name: setup.name.trim(),
+  catalogueId: setup.catalogueId,
+  detachmentIds: setup.detachmentIds,
+  disposition: setup.disposition,
+  limit: setup.limit,
+  pointsBudget: setup.pointsBudget,
+  picks: list.picks,
+  prep: list.prep,
+  waivedRules: setup.waivedRules,
+  optionalRules: setup.optionalRules,
+  borrowedDetachmentId: setup.borrowedDetachmentId,
+  visibility: setup.visibility,
+  source: list.source,
+})
 
 type ExportedRoster = Pick<SavedRoster, 'catalogueId' | 'detachmentIds' | 'disposition' | 'limit' | 'pointsBudget' | 'picks'> & {
   waivedRules?: FormatRuleId[]
