@@ -120,7 +120,6 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
   for (let step = 0; step < 47; step += 1) await log.append(Math.floor(step / 6) % 2 ? log.second : log.first, { kind: 'advance' })
   await page.reload()
   await expect(scoreboard(page).locator('[data-stat="round"]')).toHaveText('5')
-  await page.setViewportSize(desktopContext.viewport)
   await page.getByRole('button', { name: 'Pass the turn' }).click()
 
   await expect(scoreboard(page)).toContainText(`${PRACTICE_OPPONENT} wins`)
