@@ -51,8 +51,8 @@ export const DETACHMENTS_MAX = 3
  * The longest label naming where a stratagem came from.
  *
  * An army fielding several detachments names them together, so this is what those
- * names join to — bounding it at one name refused the pool outright, and a refused
- * pool is a side playing with no stratagems at all.
+ * names join to. Bounded at one name it would refuse the pool outright, and a
+ * refused pool is a side playing with no stratagems at all.
  */
 export const STRATAGEM_SOURCE_MAX_LENGTH = DETACHMENTS_MAX * (ROSTER_NAME_MAX_LENGTH + 3)
 export const ROSTER_MAX_LENGTH = 20_000
@@ -86,8 +86,8 @@ export type Roster = {
  *
  * The expansion the price came from is deliberately not here. Nothing reads it —
  * the fold keeps `units`, the opponent reads `text`, and `id` points back at the
- * saved list — so carrying it made every read of every log parse a selection tree
- * on behalf of no one.
+ * saved list — and carrying it would make every read of every log parse a
+ * selection tree on behalf of no one.
  */
 export type BuiltRoster = {
   catalogueId: string
@@ -1134,7 +1134,6 @@ export type PlayerState = {
   /** Every use, with when it happened, so a limit can be judged against the log. */
   uses: StratagemUse[]
   secondaries: Secondary[]
-  /** Cards drawn since this side's turn began, reset when it begins again. A card kept from an earlier turn does not count against it. */
   /**
    * The cards this side's current turn has dealt, in the order they came off the deck.
    *
@@ -1228,10 +1227,6 @@ export type BattleState = {
 }
 
 /**
- * Folds the log into current state. Undo is itself a command, so history is only
- * ever appended to; a command it names is skipped by the fold rather than removed.
- */
-/**
  * How many players a battle seats.
  *
  * Its own settings decide it, and only here, so a third player following the link
@@ -1242,6 +1237,10 @@ export function battleCapacity(settings: { teamBattle?: boolean; playerCount?: 2
   return settings.playerCount ?? (settings.teamBattle ? TEAM_BATTLE_PLAYERS : PLAYERS_PER_BATTLE)
 }
 
+/**
+ * Folds the log into current state. Undo is itself a command, so history is only
+ * ever appended to; a command it names is skipped by the fold rather than removed.
+ */
 export function reduceBattle(
   playerIds: readonly PlayerId[],
   log: readonly LoggedCommand[],
@@ -2032,8 +2031,8 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
      * The roll-off both sides watched, recorded before the battle begins.
      *
      * Logged rather than held on the device that saw it, because the section that
-     * asks for it and the section that starts the battle are two steps apart now:
-     * a private answer would have let two devices show the table different ones.
+     * asks for it and the section that starts the battle are two steps apart: a
+     * private answer would let two devices show the table different ones.
      */
     case 'set-first-turn': {
       if (!state.firstPlayerId) {
