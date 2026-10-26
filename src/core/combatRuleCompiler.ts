@@ -180,7 +180,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
       .split(/(?:^|\n)(?:■ )?([A-Z][A-Z ’'-]+)\n/)
       .filter(Boolean)
     if (!sections.length || sections.length % 2) return null
-    const phases: Phase[] | undefined = stances[1] ? [stances[1].toLowerCase() === 'fight' ? 'melee' : 'ranged'] : rule.phases
+    const phases = stances[1] ? actionPhases(stances[1]) : rule.phases
     return optionChoices(chunks(sections, 2).map(([name, description]) => [name!.trim(), { ...rule, description: description!, phases }]))
   }
   const effectSection = ruleSection(rule.description, 'Effect') ?? rule.description
@@ -451,7 +451,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
     if (once)
       return again(once[2]!, {
         ...context,
-        phases: [once[1]!.toLowerCase() === 'shoot' ? 'ranged' : 'melee'],
+        phases: actionPhases(once[1]!),
         conditions: [...context.conditions, 'Ability activated'],
       })
     const selectedEnemyTest =
@@ -463,7 +463,7 @@ function compileRule(rule: CombatRule, enemy = false): { choices: CombatRuleChoi
         ...context,
         role: 'defender',
         enemy: true,
-        phases: [selectedEnemyTest[1]!.toLowerCase() === 'shooting' ? 'ranged' : 'melee'],
+        phases: actionPhases(selectedEnemyTest[1]!),
         targetKeywords: selectedEnemyTest[2]!.split(/ or |,\s*/i),
         conditions: [...context.conditions, 'Selected visible attacker'],
       })
