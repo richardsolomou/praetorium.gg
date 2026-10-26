@@ -9,6 +9,7 @@ import { distance } from 'fastest-levenshtein'
 import { foldedText } from '../core/text'
 import type { ReferenceCorpus } from './referenceCorpus'
 import { remember } from '../core/collections'
+import { referenceFaction } from './referenceService'
 
 export const REFERENCE_QUERY_MAX_LENGTH = 120
 export const REFERENCE_RESULT_MAX = 25
@@ -63,7 +64,11 @@ export function finishReferenceSearch(
   const limit = Math.min(Math.max(input.limit ?? 10, 1), REFERENCE_RESULT_MAX)
   const offset = decodeCursor(input.cursor)
   const ranked = parts.toSorted(
-    (left, right) => right.score - left.score || left.title.localeCompare(right.title) || left.id.localeCompare(right.id),
+    (left, right) =>
+      right.score - left.score ||
+      Number(archived(left)) - Number(archived(right)) ||
+      left.title.localeCompare(right.title) ||
+      left.id.localeCompare(right.id),
   )
   const results = ranked.slice(offset, offset + limit).map(({ score: _score, ...result }) => result)
   return {
@@ -79,7 +84,7 @@ export function rankReferencePart(corpus: ReferenceCorpus, input: ReferenceSearc
   const wanted = normalize(query)
   const tokens = [...new Set(words(query))]
   const kinds = input.kinds?.length ? new Set(input.kinds) : null
-  const faction = input.faction ? normalize(input.faction) : null
+  const faction = input.faction ? normalize(referenceFaction(corpus, input.faction)?.name ?? input.faction) : null
   const pack = input.pack ? normalize(input.pack) : null
   const ruleDocument = input.document ? normalize(input.document) : null
   return indexFor(corpus)
@@ -110,6 +115,9 @@ export function rankReferencePart(corpus: ReferenceCorpus, input: ReferenceSearc
       score,
     }))
 }
+
+/** Retired rules versions stay searchable for the lists that keep them, behind current rules of equal relevance. */
+const archived = (result: ReferenceSearchResult) => Boolean(result.faction?.includes(' · Archived'))
 
 function missionPackOf(document: ReferenceDocument) {
   if (document.id.startsWith('mission-pack:')) return [document.id.slice('mission-pack:'.length)]

@@ -1,4 +1,4 @@
-import { READ_ONLY_TOOL, structured, type AgentTools } from './agentTools'
+import { READ_ONLY_TOOL, responseToolError, structured, type AgentTools } from './agentTools'
 import { app } from './app'
 import { submitBattleCommand } from './battleSubmission'
 import { productActions } from './productActions'
@@ -32,9 +32,7 @@ async function resultOf(work: () => Promise<Record<string, unknown>>) {
   try {
     return structured(await work())
   } catch (error) {
-    if (error instanceof Response && error.status < 500) {
-      return { content: [{ type: 'text' as const, text: await error.text() }], isError: true as const }
-    }
+    if (error instanceof Response && error.status < 500) return responseToolError(error)
     throw error
   }
 }
@@ -59,14 +57,15 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
     'get_my_roster',
     {
       title: 'Read my saved roster',
-      description: 'Returns the saved choices for one roster owned by the signed-in player. Requires mcp:read.',
+      description:
+        'Returns the saved choices for one roster owned by the signed-in player, by an id from list_my_rosters. Requires mcp:read.',
       inputSchema: rosterIdSchema.shape,
       annotations: READ_ONLY_TOOL,
     },
     ({ id }) =>
       resultOf(async () => {
         const roster = await app().service.leagueService.ownRoster(owner(), id)
-        if (!roster) throw new Response('Roster not found.', { status: 404 })
+        if (!roster) throw new Response('You have no saved roster with this id. Use an id from list_my_rosters.', { status: 404 })
         return { roster }
       }),
   )

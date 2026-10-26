@@ -167,6 +167,42 @@ it('captures only anonymous MCP usage in production without changing the result'
   }
 })
 
+it.each([
+  ['an unknown reference id', 'get_reference', { id: 'Move Units' }, 'not_found'],
+  ['arguments the schema rejects', 'search_reference', { query: 'x' }, 'validation'],
+])('reports %s as a bounded failure type', async (_case, tool, args, type) => {
+  vi.stubEnv('NODE_ENV', 'production')
+  vi.stubEnv('VITE_POSTHOG_PROJECT_TOKEN', 'phc_test')
+  vi.stubEnv('VITE_POSTHOG_HOST', 'https://us.i.posthog.com')
+  const capture = vi.spyOn(PostHog.prototype, 'capture').mockImplementation(() => undefined)
+  try {
+    await handleReferenceMcp(toolRequest(tool, args))
+
+    expect(capture.mock.calls.find(([input]) => input.event === '$mcp_tool_call')?.[0].properties).toMatchObject({
+      $mcp_is_error: true,
+      $mcp_error_type: type,
+    })
+  } finally {
+    capture.mockRestore()
+    vi.unstubAllEnvs()
+  }
+})
+
+it('records no tool call for a tool the server does not register', async () => {
+  vi.stubEnv('NODE_ENV', 'production')
+  vi.stubEnv('VITE_POSTHOG_PROJECT_TOKEN', 'phc_test')
+  vi.stubEnv('VITE_POSTHOG_HOST', 'https://us.i.posthog.com')
+  const capture = vi.spyOn(PostHog.prototype, 'capture').mockImplementation(() => undefined)
+  try {
+    await handleReferenceMcp(toolRequest('__mcpcheckup_probe_nonexistent_tool__'))
+
+    expect(capture.mock.calls.map(([input]) => input.event)).not.toContain('$mcp_tool_call')
+  } finally {
+    capture.mockRestore()
+    vi.unstubAllEnvs()
+  }
+})
+
 it('serves search and faction discovery through the shared corpus', async () => {
   const search = await handleReferenceMcp(toolRequest('search_reference', { query: 'battlefield' }))
   const factions = await handleReferenceMcp(toolRequest('list_factions'))

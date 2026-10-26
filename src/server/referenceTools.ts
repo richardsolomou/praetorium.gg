@@ -18,7 +18,7 @@ import {
   unitSummarySchema,
 } from './referenceSchemas'
 import { referenceFactions, referenceIndex } from './referenceService'
-import { READ_ONLY_TOOL, structured, type AgentTools } from './agentTools'
+import { READ_ONLY_TOOL, structured, toolError, type AgentTools } from './agentTools'
 
 export function registerReferenceTools(server: AgentTools) {
   server.registerTool(
@@ -61,7 +61,7 @@ export function registerReferenceTools(server: AgentTools) {
       title: 'Read one Praetorium reference result',
       description:
         'Reads the complete bounded document returned by search_reference, with its revisions and attribution. A section that withholds rules text lists textSources: the pinned upstream file and record id to fetch if you need the wording.',
-      inputSchema: { id: z.string().min(1).max(400).describe('The stable result id returned by search_reference.') },
+      inputSchema: { id: referenceIdSchema },
       outputSchema: referenceDocumentSchema.shape,
       annotations: READ_ONLY_TOOL,
     },
@@ -69,7 +69,7 @@ export function registerReferenceTools(server: AgentTools) {
       const found = await referenceDocumentFor(id)
       if (!found) return unavailable()
       const { document } = found
-      if (!document) return { content: [{ type: 'text', text: 'Reference document not found.' }], isError: true }
+      if (!document) return notFound(id)
       return { content: [{ type: 'text', text: referenceDocumentMarkdown(document) }], structuredContent: document }
     },
   )
@@ -79,7 +79,7 @@ export function registerReferenceTools(server: AgentTools) {
       title: 'Read structured Praetorium reference data',
       description:
         'Returns the structured record behind a search result, including mission cards, deployments, terrain geometry, detachments, and datasheets. Records that withhold rules text carry textSources pointing at the pinned upstream file and record id.',
-      inputSchema: { id: z.string().min(1).max(400).describe('The stable id returned by search_reference or list_reference.') },
+      inputSchema: { id: referenceIdSchema },
       outputSchema: { document: referenceDocumentSchema, data: z.unknown() },
       annotations: READ_ONLY_TOOL,
     },
@@ -87,7 +87,7 @@ export function registerReferenceTools(server: AgentTools) {
       const found = await referenceRecordFor(id)
       if (!found) return unavailable()
       const result = found.record
-      if (!result) return { content: [{ type: 'text', text: 'Structured reference record not found.' }], isError: true }
+      if (!result) return notFound(id)
       return structured(result)
     },
   )
@@ -150,13 +150,30 @@ export function registerReferenceTools(server: AgentTools) {
       const found = await referenceUnitsFor(faction, battleSize, detachment)
       if (!found) return unavailable()
       const result = found.units
-      if (!result) return { content: [{ type: 'text', text: 'Faction or detachment not found.' }], isError: true }
+      if (!result)
+        return found.faction
+          ? toolError(
+              'not_found',
+              `${found.faction.name} has no detachment named ${detachment}. Its detachments are: ${found.detachments.join(', ') || 'none'}.`,
+            )
+          : toolError('not_found', `No faction is named ${faction}. Use a faction id, slug, or name from list_factions.`)
       return structured(result)
     },
   )
 }
 
-const unavailable = () => ({
-  content: [{ type: 'text' as const, text: 'Praetorium reference data is temporarily unavailable.' }],
-  isError: true as const,
-})
+const referenceIdSchema = z
+  .string()
+  .min(1)
+  .max(400)
+  .describe(
+    'A reference id such as datasheet:necrons:necron-warriors: a result id from search_reference, a mission pack id from list_reference, or a referenceId from list_units or simulate_combat. Names, URLs, and unit ids are not reference ids.',
+  )
+
+const notFound = (id: string) =>
+  toolError(
+    'not_found',
+    `No reference record has the id ${id}. Search for it with search_reference and pass a result id, or pass a referenceId from list_units.`,
+  )
+
+const unavailable = () => toolError('unavailable', 'Praetorium reference data is temporarily unavailable.')

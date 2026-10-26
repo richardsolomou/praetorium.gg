@@ -14,6 +14,7 @@ import {
   type ReferenceSearchInput,
 } from './referenceSearch'
 import {
+  factionDetachmentNames,
   referenceFaction,
   referenceFactions,
   referenceIndex,
@@ -75,7 +76,12 @@ export async function referenceUnitsFor(faction: string, battleSize?: number, de
   const selected = corpus && referenceFaction(corpus, faction)
   const [loaded, rules] = await Promise.all([instance.catalogueFor(selected?.id ?? faction), instance.rulesFor(selected?.id ?? faction)])
   if (!corpus || !loaded) return null
-  return { corpus, units: referenceUnits(corpus, loaded, rules, faction, battleSize, detachment, await currentFactionIds()) }
+  return {
+    corpus,
+    faction: selected ?? null,
+    detachments: selected ? factionDetachmentNames(loaded, selected.id) : [],
+    units: referenceUnits(corpus, loaded, rules, faction, battleSize, detachment, await currentFactionIds()),
+  }
 }
 
 /** The structured record behind a reference id, with the corpus it came from; null while no snapshot can answer. */
