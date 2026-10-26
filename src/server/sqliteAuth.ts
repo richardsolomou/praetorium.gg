@@ -348,6 +348,9 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
     ],
   })
 
+  const roleOf = async (userId: string) =>
+    (await database.select({ role: user.role }).from(user).where(eq(user.id, userId)).limit(1))[0]?.role
+
   const changeUserRole = async (actorId: string, targetId: string, role: 'admin' | 'user') => {
     if (actorId === targetId) return 'self' as const
     const [changed] = await database
@@ -365,21 +368,18 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
       await (await auth.$context).internalAdapter.refreshUserSessions(changed)
       return 'changed' as const
     }
-    const [actor] = await database.select({ role: user.role }).from(user).where(eq(user.id, actorId)).limit(1)
-    if (actor?.role !== 'admin') return 'forbidden' as const
-    const [target] = await database.select({ role: user.role }).from(user).where(eq(user.id, targetId)).limit(1)
-    if (!target) return 'missing' as const
+    if ((await roleOf(actorId)) !== 'admin') return 'forbidden' as const
+    if (!(await roleOf(targetId))) return 'missing' as const
     return 'last-admin' as const
   }
 
   // Better Auth's own removal skips `beforeDelete`, which would leave the player's product data behind.
   const deleteUserAsAdmin = async (actorId: string, targetId: string) => {
     if (actorId === targetId) return 'self' as const
-    const [actor] = await database.select({ role: user.role }).from(user).where(eq(user.id, actorId)).limit(1)
-    if (actor?.role !== 'admin') return 'forbidden' as const
-    const [target] = await database.select({ role: user.role }).from(user).where(eq(user.id, targetId)).limit(1)
+    if ((await roleOf(actorId)) !== 'admin') return 'forbidden' as const
+    const target = await roleOf(targetId)
     if (!target) return 'missing' as const
-    if (target.role === 'admin') return 'admin' as const
+    if (target === 'admin') return 'admin' as const
     await revokeAppleUser(targetId)
     await options.deleteUserData(targetId)
     await (await auth.$context).internalAdapter.deleteUser(targetId)
