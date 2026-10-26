@@ -1,3 +1,4 @@
+import { sameSet } from '../../../core/collections'
 import { useIsMutating, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { X } from 'lucide-react'
@@ -52,7 +53,7 @@ function SettingsForm({ club, isOwner, onClose }: { club: Club | null; isOwner: 
   }))
   const currentAdmins = club?.members.filter((member) => member.role === 'admin').map((member) => member.userId) ?? []
   const [adminIds, setAdminIds] = useState(currentAdmins)
-  const adminsChanged = adminIds.length !== currentAdmins.length || adminIds.some((id) => !currentAdmins.includes(id))
+  const adminsChanged = !sameSet(adminIds, currentAdmins)
   const save = useMutation({
     mutationKey: SAVE,
     mutationFn: async () => {

@@ -66,6 +66,10 @@ export function withEntry<V>(record: Readonly<Record<string, V>>, key: string, v
 export const chunks = <T>(values: readonly T[], size: number): T[][] =>
   Array.from({ length: Math.ceil(values.length / size) }, (_, index) => values.slice(index * size, (index + 1) * size))
 
+/** Whether two lists of distinct values hold the same ones, in any order. */
+export const sameSet = <T>(left: readonly T[] = [], right: readonly T[] = []) =>
+  left.length === right.length && left.every((value) => right.includes(value))
+
 /** `compute()` once per key of `store`; undefined and null results are cached too. */
 export function remember<K, T>(
   store: { has(key: K): boolean; get(key: K): T | undefined; set(key: K, value: T): unknown },

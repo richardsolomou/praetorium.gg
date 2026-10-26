@@ -1,3 +1,4 @@
+import { sameSet } from './collections'
 import { canonicalJson } from './text'
 import type { RosterPick } from './roster'
 
@@ -25,9 +26,6 @@ export type RosterDifferences = {
   /** Units of one datasheet on both sides whose models, wargear, Warlord, attachment or starting transport differ. */
   loadouts: number
 }
-
-const sameSet = (left: readonly string[] = [], right: readonly string[] = []) =>
-  left.length === right.length && left.every((value) => right.includes(value))
 
 /** Units grouped by datasheet, each keyed by everything a player chose for it. */
 function unitsOf(picks: readonly RosterPick[]) {
