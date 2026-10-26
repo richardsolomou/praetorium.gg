@@ -1,4 +1,4 @@
-import { refuse } from '../core/battlePrimitives'
+import { opposingSide, refuse } from '../core/battlePrimitives'
 import {
   type BattleState,
   type Command,
@@ -76,8 +76,8 @@ export function hydrateAuthoritativeAwards(state: BattleState, rules: BattleRead
 export function resolvedMissionForSide(state: BattleState, rules: BattleReadRules, side: number) {
   if (state.settings.manual) return null
   const ownDisposition = sideDisposition(state, side)
-  const opposingSide = state.players.find((player) => player.side !== side)?.side
-  const opposingDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
+  const opponent = opposingSide(state, side)
+  const opposingDisposition = opponent === undefined ? null : sideDisposition(state, opponent)
   return missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId)
 }
 
@@ -149,8 +149,8 @@ export function repairPrepReferenceError(
   const player = commandArmy(state, by, command)
   if (!player) return null
   const ownDisposition = sideDisposition(state, player.side)
-  const opposingSide = state.players.find((candidate) => candidate.side !== player.side)?.side
-  const opposingDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
+  const opponent = opposingSide(state, player.side)
+  const opposingDisposition = opponent === undefined ? null : sideDisposition(state, opponent)
   const mission = missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId)
   const expectedSecondaries = new Set((rules.secondaries ?? []).map((card) => card.key))
   const primaryExists = (rules.primaries ?? []).some((card) => card.key === mission?.id)
@@ -199,8 +199,8 @@ export function scoringCapError(
                 ? command.delta
                 : 0,
         }
-  const opposingSide = state.players.find((player) => player.side !== target.side)?.side
-  const opponentDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
+  const opponent = opposingSide(state, target.side)
+  const opponentDisposition = opponent === undefined ? null : sideDisposition(state, opponent)
   const mission = missionFor(rules, target.disposition, opponentDisposition, state.settings.missionPackId)
   if (!mission) return null
   // The round the points land in, which for a settlement of a turn already ended is

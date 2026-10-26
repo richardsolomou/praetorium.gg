@@ -1,6 +1,6 @@
 import { attachedUnits, attachedUnitList } from './attachedUnits'
 import type { BattleState, Command, PlayerState, Secondary } from './battle'
-import { playsSide, refuse, sameSide } from './battlePrimitives'
+import { opposingSide, playsSide, refuse, sameSide } from './battlePrimitives'
 
 export const MISSION_SELECTION_KINDS = [
   'punishment',
@@ -89,7 +89,7 @@ function missionSelectionPrompts(state: BattleState, player: PlayerState, card: 
     case 'guards':
       return startOfTurn ? prompt('guards', Math.max(state.turnSeq, drawn)) : []
     case 'tempting-target':
-      return startOfTurn ? prompt('tempting-target', drawn, state.players.find((candidate) => candidate.side !== player.side)?.side) : []
+      return startOfTurn ? prompt('tempting-target', drawn, opposingSide(state, player.side)) : []
     case 'consecrate':
       return primary && endOfTurn ? prompt('consecrate', state.turnSeq) : []
     case 'sensor-sweep':
@@ -214,7 +214,7 @@ export function missionSelectionRefusal(state: BattleState, by: string, player: 
   if (previous && kind !== 'beacon')
     return refuse('mission-selection-recorded', 'that mission choice is already recorded; undo it to correct it')
   const refs = refsIn(command.selection)
-  const expectedSide = kind === 'punishment' ? state.players.find((candidate) => candidate.side !== player.side)?.side : player.side
+  const expectedSide = kind === 'punishment' ? opposingSide(state, player.side) : player.side
   for (const ref of refs) {
     const army = state.players.find((candidate) => candidate.id === ref.playerId)
     const unit = savedUnit(state, ref)

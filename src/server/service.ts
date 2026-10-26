@@ -50,7 +50,7 @@ import {
 } from '../core/serviceRecord'
 import { routeSlug } from '../core/slug'
 import { battleOutcome, sideScore, type Standing, type StandingBattle, type StandingFaction, standings } from '../core/standings'
-import { refuse } from '../core/battlePrimitives'
+import { opposingSide, refuse } from '../core/battlePrimitives'
 import { swissPairings, swissStandings, type SwissMatch } from '../core/swiss'
 import { leagueResults } from '../core/leagueResults'
 import { REPLAY_BATCH_SIZE, type BattlesCursor } from '../contracts/battles'
@@ -1137,9 +1137,9 @@ function referencedPlays(
       const route = faction?.detachments?.find((listed) => listed.name === detachment)?.referenceRoute
       return faction ? { catalogueId: route?.catalogueId ?? faction.slug, detachmentId: route?.slug ?? routeSlug(detachment) } : undefined
     }
-    const opposingSide = state.players.find((candidate) => candidate.side !== player.side)?.side
+    const opposing = opposingSide(state, player.side)
     const you = sideDisposition(state, player.side)
-    const opponent = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
+    const opponent = opposing === undefined ? null : sideDisposition(state, opposing)
     const mission = play.primary && rules && state.status !== 'setup' ? resolvedMissionForSide(state, rules, player.side) : null
     const matchup = pack?.missions.some(
       (candidate) => candidate.id === mission?.id && candidate.matchups.some((pair) => pair[0]?.id === you && pair[1]?.id === opponent),

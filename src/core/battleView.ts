@@ -1,4 +1,4 @@
-import { sameSide, playsSide } from './battlePrimitives'
+import { opposingSide, sameSide, playsSide } from './battlePrimitives'
 import {
   BATTLE_ROUNDS,
   type BattleEndReason,
@@ -248,9 +248,7 @@ export function battleView(
                 canChoose: playsSide(state, viewerId, prompt.chooserSide),
                 units: missionUnitCandidates(
                   state,
-                  prompt.kind === 'punishment'
-                    ? (state.players.find((candidate) => candidate.side !== player.side)?.side ?? -1)
-                    : player.side,
+                  prompt.kind === 'punishment' ? (opposingSide(state, player.side) ?? -1) : player.side,
                   prompt.kind !== 'beacon',
                 ),
                 ...(prompt.kind === 'sensor-sweep' ? { markers: remainingOperationMarkers(state) } : {}),

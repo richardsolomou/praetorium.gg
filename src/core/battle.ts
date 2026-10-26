@@ -12,7 +12,7 @@
 import { groupBy } from './collections'
 import { nicknamedUnit } from './unitNotes'
 import { attachedUnitList, attachedHost, attachedUnits } from './attachedUnits'
-import { refuse, sameSide } from './battlePrimitives'
+import { refuse, sameSide, sidePlayers } from './battlePrimitives'
 import { isGuestSeat, isPracticeSeat } from './newBattle'
 import { appliesInMode, cardsDue, cardsDueFromTheirTurn, finalAwardTotal, type MissionAward } from './scoring'
 import type { UnitGroup } from './unitGroups'
@@ -351,7 +351,7 @@ function movedReserveError(
 }
 
 function strategicReserveSideError(state: FormationTable, player: FormationArmy, changed?: readonly ReserveUnit[]): Refusal | null {
-  const armies = state.players.filter((candidate) => candidate.side === player.side)
+  const armies = sidePlayers(state, player.side)
   const totals = strategicReserveSideTotals(armies)
   if (!totals) return null
   const points = changed ? totals.points - strategicReservePoints(player.units) + strategicReservePoints(changed) : totals.points
@@ -633,7 +633,7 @@ export const PAINTED_ARMY_POINTS = 10
  */
 export function sidePaintedPoints(state: BattleState, side: number): number {
   if (state.settings.manual) return 0
-  const seated = state.players.filter((player) => player.side === side)
+  const seated = sidePlayers(state, side)
   return seated.length && seated.every((player) => player.painted) ? PAINTED_ARMY_POINTS : 0
 }
 
@@ -1570,9 +1570,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       const requiredPlayers = battleCapacity(state.settings)
       if (state.players.length < requiredPlayers) return refuse('missing-player', 'waiting for an opponent')
       if (state.players.length > requiredPlayers) return refuse('too-many-players', 'too many players are seated')
-      const sideSizes = [...new Set(state.players.map((candidate) => candidate.side))].map(
-        (side) => state.players.filter((candidate) => candidate.side === side).length,
-      )
+      const sideSizes = [...new Set(state.players.map((candidate) => candidate.side))].map((side) => sidePlayers(state, side).length)
       if (
         sideSizes.length !== 2 ||
         (requiredPlayers === 2 && sideSizes.some((size) => size !== 1)) ||
@@ -2669,7 +2667,10 @@ function enterTurn(state: BattleState, playerId: PlayerId, settlementRound: numb
  * played one ally's choice for both of them without ever saying so.
  */
 export function sideDisposition(state: BattleState, side: number): string | null {
-  const disposition = teamDisposition(sideRosters(state, side), state.sideDispositions[side] ?? null)
+  const disposition = teamDisposition(
+    sidePlayers(state, side).map((player) => player.roster),
+    state.sideDispositions[side] ?? null,
+  )
   // A battle already being played is never left without a mission. Setup refuses to
   // start one until each side has said, so this only answers for battles begun before
   // the question was asked — and it answers what they were already being played on.
@@ -2679,7 +2680,7 @@ export function sideDisposition(state: BattleState, side: number): string | null
 
 /** The cards a side could play, which is what it is asked to choose between. */
 export function sideDispositionChoices(state: BattleState, side: number): string[] {
-  return teamDispositionChoices(sideRosters(state, side))
+  return teamDispositionChoices(sidePlayers(state, side).map((player) => player.roster))
 }
 
 /** The player whose Warlord leads a side; null while allies have not said which of their Warlords it is. */
@@ -2690,12 +2691,6 @@ export function sideWarlord(state: BattleState, side: number): PlayerId | null {
 /** The players on a side whose lists name a Warlord, which allies choose between. */
 export function sideWarlordChoices(state: BattleState, side: number): PlayerId[] {
   return teamWarlordChoices(sidePlayers(state, side))
-}
-
-const sidePlayers = (state: BattleState, side: number) => state.players.filter((player) => player.side === side)
-
-function sideRosters(state: BattleState, side: number) {
-  return state.players.filter((player) => player.side === side).map((player) => player.roster)
 }
 
 export function sideCaptain(state: BattleState, side: number): PlayerState {
@@ -2914,7 +2909,7 @@ export function fitsBattleSize(settings: Pick<BattleSettings, 'limit' | 'teamBat
 
 /** An even share of the battle size for each army on a side, which a team battle plays unless the table sets its own. */
 export function evenArmyPoints(state: TableArmies & { settings: BattleSettings }, side: number): number | null {
-  const armies = state.players.filter((player) => player.side === side).length
+  const armies = sidePlayers(state, side).length
   return state.settings.limit === null ? null : state.settings.limit / Math.max(1, armies)
 }
 
@@ -2992,7 +2987,7 @@ export function armyPointsText(state: TableArmies & { settings: BattleSettings }
   return [0, 1]
     .map((side) => {
       const points = armyPointsFor(state, side)?.toLocaleString('en') ?? '?'
-      const armies = Math.max(1, state.players.filter((player) => player.side === side).length)
+      const armies = Math.max(1, sidePlayers(state, side).length)
       return Array.from({ length: armies }, () => points).join(' + ')
     })
     .join(' vs ')
