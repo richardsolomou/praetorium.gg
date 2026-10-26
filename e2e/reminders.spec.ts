@@ -1,4 +1,4 @@
-import { expect, test } from './test'
+import { expect, test, type Page } from './test'
 import { attach, expectNoHorizontalOverflow } from './builder.harness'
 import {
   advance,
@@ -20,6 +20,21 @@ import {
   practiceBattle,
   PHONE,
 } from './account'
+
+/** The page fits at desktop and phone widths, leaving the viewport at the phone's. */
+async function fitsBothWidths(page: Page) {
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 900 })
+    await expectNoPageOverflow(page)
+  }
+}
+
+/** Turns off the battle's action reminders from its options menu. */
+async function turnOffActionReminders(page: Page) {
+  await page.getByRole('button', { name: 'Battle options' }).click()
+  await page.getByRole('menuitemcheckbox', { name: 'Action reminders' }).click()
+  await page.keyboard.press('Escape')
+}
 
 test('roster reminders cover selected rules and advances from another device', async ({ browser }) => {
   test.setTimeout(180_000)
@@ -195,10 +210,7 @@ test('round alerts fire once at both boundaries when your opponent takes the fir
   await expect(editor.getByRole('combobox', { name: 'Whose turn' }).first()).toBeEnabled()
   await editor.getByRole('combobox', { name: 'When' }).first().click()
   await page.getByRole('option', { name: 'Start of round', exact: true }).click()
-  for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: 900 })
-    await expectNoPageOverflow(page)
-  }
+  await fitsBothWidths(page)
   await page.setViewportSize(desktopContext.viewport)
   await saveAlert(editor, 'Battle Focus')
   await page.reload()
@@ -218,19 +230,14 @@ test('round alerts fire once at both boundaries when your opponent takes the fir
   const reminder = page.getByRole('dialog', { name: 'Battle reminder', exact: true })
   await expect(reminder.getByText('Start of round', { exact: true })).toBeVisible()
   await expect(reminder.getByRole('heading', { name: 'Battle Focus', exact: true })).toBeVisible()
-  for (const width of [1440, 390]) {
-    await page.setViewportSize({ width, height: 900 })
-    await expectNoPageOverflow(page)
-  }
+  await fitsBothWidths(page)
   await page.setViewportSize(desktopContext.viewport)
   await reminder.getByRole('button', { name: 'Dismiss', exact: true }).click()
   await takeTheTurn(page)
   await page.reload()
   await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
   await expect(reminder).toBeHidden()
-  await page.getByRole('button', { name: 'Battle options' }).click()
-  await page.getByRole('menuitemcheckbox', { name: 'Action reminders' }).click()
-  await page.keyboard.press('Escape')
+  await turnOffActionReminders(page)
   for (let phase = 0; phase < 5; phase += 1) await advance(page, { dismissReminders: false })
   await expect(reminder).toBeHidden()
   await advance(page, { dismissReminders: false })
@@ -322,10 +329,7 @@ for (const scenario of [
       )
       await expect(editor.getByLabel('Show while unit is destroyed')).not.toBeChecked()
     }
-    for (const width of [1440, 390]) {
-      await page.setViewportSize({ width, height: 900 })
-      await expectNoPageOverflow(page)
-    }
+    await fitsBothWidths(page)
     await saveAlert(editor, scenario.ability)
     await page.setViewportSize(desktopContext.viewport)
     // The phone layout's pane leaves the address once the page is wide again; reloading first races that navigation.
@@ -347,9 +351,7 @@ for (const scenario of [
     await page.getByRole('button', { name: 'Start battle' }).click()
     const reminder = page.getByRole('dialog', { name: 'Battle reminder', exact: true })
     await takeTheTurn(page)
-    await page.getByRole('button', { name: 'Battle options' }).click()
-    await page.getByRole('menuitemcheckbox', { name: 'Action reminders' }).click()
-    await page.keyboard.press('Escape')
+    await turnOffActionReminders(page)
     for (const phase of ['Command', 'Movement']) {
       await page.getByRole('button', { name: `End the ${phase.toLowerCase()} phase`, exact: true }).click()
       await expect(reminder.getByRole('heading', { name: scenario.ability, exact: true })).toBeVisible()
@@ -388,9 +390,7 @@ test('an alert set in one roster follows the player into another and fires in ba
   await recordFirstTurn(page)
   await page.getByRole('button', { name: 'Start battle' }).click()
   await takeTheTurn(page)
-  await page.getByRole('button', { name: 'Battle options' }).click()
-  await page.getByRole('menuitemcheckbox', { name: 'Action reminders' }).click()
-  await page.keyboard.press('Escape')
+  await turnOffActionReminders(page)
   await page.getByRole('button', { name: 'End the command phase', exact: true }).click()
   const reminder = page.getByRole('dialog', { name: 'Battle reminder', exact: true })
   await expect(reminder.getByRole('heading', { name: 'Resurrection orb', exact: true })).toBeVisible()
