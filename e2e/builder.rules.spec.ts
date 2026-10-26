@@ -8,6 +8,7 @@ import {
   openRosterSetup,
   chooseOption,
   isRosterSave,
+  PHONE,
 } from './account'
 import { shot, expectNoHorizontalOverflow, expectNotAttachable, openBuilder, add, arrangeByRole, attach } from './builder.harness'
 
@@ -34,7 +35,7 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
   const pickerRow = page.locator('[data-picker-unit="C\'tan Shard of the Deceiver"]')
   await expect(pickerRow).toContainText('375 pts')
   await shot(pickerRow, test.info().outputPath('pantheon-picker-price.png'))
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
   await expect(pickerRow).toContainText('375 pts')
   await shot(pickerRow, test.info().outputPath('pantheon-picker-price-phone.png'))
@@ -72,7 +73,7 @@ test("Pantheon of Woe adds a C'tan shard's required enhancement", async ({ page 
   await expect(datasheet.getByRole('button', { name: 'Add to list' })).toBeVisible()
   await expect(datasheet.getByRole('button', { name: 'Ignores Cover', exact: true })).toHaveCSS('font-size', '13.5px')
   await shot(datasheet, test.info().outputPath('imotekh-datasheet-tags.png'))
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect(noble).toBeVisible()
   await shot(datasheet, test.info().outputPath('imotekh-datasheet-tags-phone.png'))
 
@@ -121,7 +122,7 @@ test('unit upgrades stay separate from character enhancements', async ({ page })
   const madnessOption = madness.locator('xpath=ancestor::article')
   await expect(madnessOption.locator('.font-rules')).toHaveCSS('font-family', /^"Sofia Sans Semi Condensed Variable"/)
   await shot(madnessOption, test.info().outputPath('deepening-madness-option.png'))
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await shot(madnessOption, test.info().outputPath('deepening-madness-option-phone.png'))
   await page.setViewportSize({ width: 1280, height: 720 })
   const optionBox = await madnessOption.boundingBox()
@@ -187,7 +188,7 @@ test('a detachment rule marks the weapon abilities it grants', async ({ page }) 
   await assault.hover()
   await expect(page.getByRole('tooltip')).toContainText('Added by Starshatter Arsenal')
   await page.mouse.move(0, 0)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect(assault).toBeVisible()
 })
 
@@ -205,7 +206,7 @@ test('a unit upgrade shows the core ability it grants', async ({ page }) => {
   await expect(page.getByRole('tooltip')).toContainText('Added by Enlivened Sentinels')
   await shot(loadout, test.info().outputPath('enlivened-sentinels-granted-ability.png'))
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await shot(loadout, test.info().outputPath('enlivened-sentinels-granted-ability-phone.png'))
 })
 
@@ -355,7 +356,7 @@ test('Canoptek Spyders keep their claws and independent wargear', async ({ page 
   await expect(loadout.getByLabel('Canoptek Spyders models')).toHaveText('2')
   await expect(loadout.getByRole('button', { name: 'More models in Canoptek Spyders' })).toBeDisabled()
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect(loadout).toBeVisible()
   await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(loadout)
@@ -662,7 +663,7 @@ test('detachment combinations follow the 11th edition allowance', async ({ page 
   await expect(setup.getByRole('alert')).toContainText('This combination costs 3 DP')
   await expect(setup.getByRole('button', { name: 'Review changes' })).toBeDisabled()
   await page.screenshot({ path: test.info().outputPath('detachment-points.png'), fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   const firstDetachment = setup.getByRole('button', { name: 'Select Cryptek Conclave', pressed: true })
   await expect(firstDetachment).toBeVisible()
   await expect(setup.getByRole('alert')).toBeVisible()

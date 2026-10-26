@@ -8,11 +8,12 @@ import {
   makeWarlord,
   chooseLibraryAction,
   openImport,
+  PHONE,
 } from './account'
 import { add, attach, shot } from './builder.harness'
 import { expectWorkSynced, guestDraft } from './storage'
 
-const phone = { viewport: { width: 390, height: 844 } }
+const phone = { viewport: PHONE }
 
 async function exportedText(page: Page) {
   await chooseRosterAction(page, 'Export text')

@@ -18,6 +18,7 @@ import {
   expectNoPageOverflow,
   addUnit,
   practiceBattle,
+  PHONE,
 } from './account'
 
 test('roster reminders cover selected rules and advances from another device', async ({ browser }) => {
@@ -47,7 +48,7 @@ test('roster reminders cover selected rules and advances from another device', a
 
   const enhancements = page.getByRole('group', { name: 'Plasmancer Enhancements' })
   await waitForRosterSave(page, () => enhancements.getByRole('button', { name: 'Select Nether-realm Casket' }).click())
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(enhancements)
   await page.setViewportSize(desktopContext.viewport)
@@ -86,7 +87,7 @@ test('roster reminders cover selected rules and advances from another device', a
   await page.getByRole('option', { name: 'Your turn' }).click()
   await expect(editor.getByText('Alert: End of your Movement phase')).toBeVisible()
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect(editor).toBeVisible()
   await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(editor)
@@ -117,7 +118,7 @@ test('roster reminders cover selected rules and advances from another device', a
   await actionReminders.click()
   await page.keyboard.press('Escape')
   await expect(actionReminders).toBeHidden()
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.getByRole('tab', { name: 'Battle', exact: true }).click()
   await page.getByRole('button', { name: 'Battle options' }).click()
   await expect(actionReminders).toBeVisible()
@@ -136,7 +137,7 @@ test('roster reminders cover selected rules and advances from another device', a
   await expect(reminder.getByRole('heading', { name: 'Cleanse', exact: true })).toBeVisible()
   await expect(reminder).toContainText('One friendly unit within range of one objective')
   await expect(reminder).toContainText('Start of your Shooting phase')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(reminder)
   await page.setViewportSize(desktopContext.viewport)
@@ -160,7 +161,7 @@ test('roster reminders cover selected rules and advances from another device', a
   await advance(page, { dismissReminders: false })
   await expect(reminder).toContainText("Start of opponent's Fight phase")
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(reminder)
 

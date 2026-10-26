@@ -13,6 +13,7 @@ import {
   visitorSetup,
   signOut,
   chooseLibraryAction,
+  PHONE,
 } from './account'
 
 async function expectOnboardingProgress(page: Parameters<typeof signUp>[0], resolved: number) {
@@ -77,7 +78,7 @@ test('social account linking errors explain how to recover', async ({ page }) =>
 
   await expect(page.getByText('This provider uses a different email address. Use matching email addresses before linking.')).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('profile-link-error.png'), fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.screenshot({ path: test.info().outputPath('profile-link-error-phone.png'), fullPage: true })
 })
 
@@ -132,7 +133,7 @@ test('profile lists sign-in methods and two-factor together without a notificati
   await expect(page.getByText('Notifications on your phone')).toHaveCount(0)
   await page.screenshot({ path: test.info().outputPath('profile-settings.png'), fullPage: true })
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   expect((await password.boundingBox())!.y).toBeLessThan((await twoFactor.boundingBox())!.y)
   await page.screenshot({ path: test.info().outputPath('profile-settings-phone.png'), fullPage: true })
@@ -201,7 +202,7 @@ test('a player can edit their display name and profile picture', async ({ page }
   await expect(page.getByLabel('Display name')).toHaveValue('Commander Alice')
   await expect(page.locator('main img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.jpg$/)
   await expect(page.getByRole('button', { name: 'Save profile' })).toBeDisabled()
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.screenshot({ path: test.info().outputPath('profile-phone.png'), fullPage: true })
 
   await page.locator('form').getByRole('button', { name: 'Remove' }).click()
@@ -285,7 +286,7 @@ test('a player can permanently delete their account', async ({ page }) => {
   const dialog = page.getByRole('dialog', { name: 'Delete your account' })
   await expect(dialog).toContainText('every battle you played will be deleted')
   await page.screenshot({ path: test.info().outputPath('delete-account-confirm-desktop.png'), fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.screenshot({ path: test.info().outputPath('delete-account-confirm-phone.png'), fullPage: true })
 
   await dialog.getByLabel('Confirm your password').fill('a-long-enough-password')
@@ -332,7 +333,7 @@ test('friends use the profile picture shown elsewhere', async ({ browser }) => {
   const friend = bob.locator(`[data-person="${aliceName}"]`)
   await expect(friend.locator('img')).toHaveAttribute('src', /\/avatars\/[0-9a-f]+\.jpg$/)
   await bob.screenshot({ path: test.info().outputPath('friends-profile-picture.png'), fullPage: true })
-  await bob.setViewportSize({ width: 390, height: 844 })
+  await bob.setViewportSize(PHONE)
   await bob.screenshot({ path: test.info().outputPath('friends-profile-picture-phone.png'), fullPage: true })
 })
 
@@ -350,14 +351,14 @@ test('a one-time link connects a new player after they create an account and acc
   await expect(inviter.getByRole('button', { name: 'Link copied' })).toBeVisible()
   const inviteUrl = await inviter.evaluate(() => navigator.clipboard.readText())
   await inviter.screenshot({ path: test.info().outputPath('friend-invite-controls.png'), fullPage: true })
-  await inviter.setViewportSize({ width: 390, height: 844 })
+  await inviter.setViewportSize(PHONE)
   await inviter.screenshot({ path: test.info().outputPath('friend-invite-controls-phone.png'), fullPage: true })
 
   await recipient.goto(inviteUrl)
   await expect(recipient.getByRole('heading', { name: `${inviterName} invited you` })).toBeVisible()
   await expect(recipient.getByRole('heading', { name: 'Create an account to accept' })).toBeVisible()
   await recipient.screenshot({ path: test.info().outputPath('friend-invite.png'), fullPage: true })
-  await recipient.setViewportSize({ width: 390, height: 844 })
+  await recipient.setViewportSize(PHONE)
   await recipient.screenshot({ path: test.info().outputPath('friend-invite-phone.png'), fullPage: true })
 
   await recipient.getByRole('link', { name: 'Create an account' }).click()
@@ -493,7 +494,7 @@ test('onboarding waits in the profile menu and disappears when complete', async 
 
   await account.click()
   await expect(gettingStarted).toBeHidden()
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   const mobileHeader = page.locator('[data-mobile-app-header]')
   await mobileHeader.getByRole('button', { name: `Account menu for ${name}` }).click()
   await expect(page.getByRole('menuitem', { name: 'My profile' })).toBeVisible()

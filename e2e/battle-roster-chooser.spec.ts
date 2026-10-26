@@ -1,5 +1,14 @@
 import { expect, test, type Page } from './test'
-import { createBattle, PRACTICE_OPPONENT, retryUntilVisible, savedArmy, setupStep, chooseRosterAction, chooseOption } from './account'
+import {
+  createBattle,
+  PRACTICE_OPPONENT,
+  retryUntilVisible,
+  savedArmy,
+  setupStep,
+  chooseRosterAction,
+  chooseOption,
+  PHONE,
+} from './account'
 
 const openChooser = async (page: Page) => {
   await setupStep(page, 'Armies')
@@ -99,7 +108,7 @@ test('a battle started from a saved roster opens with that roster on the playerâ
 
 /** Opens a battle on a phone, one history entry after another page, with one saved list for the battle size. */
 const phoneBattle = async (page: Page, name: string, pointsBudget: number | null = null) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   const { userId, operator } = await savedArmy(page, 'Roster chooser back', { name, limit: 2000, pointsBudget })
   const token = `chooser-back-${crypto.randomUUID()}`
   await operator.createBattle({

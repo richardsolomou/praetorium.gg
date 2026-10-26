@@ -1,6 +1,6 @@
 import type { WebSocketRoute } from '@playwright/test'
 import { expect, test, type Page } from './test'
-import { createRoster, setupBattle, signUp, takeTheTurn, uniqueName } from './account'
+import { createRoster, setupBattle, signUp, takeTheTurn, uniqueName, PHONE } from './account'
 
 test('a battle stays in step across two devices', async ({ browser }) => {
   const alice = await (await browser.newContext()).newPage()
@@ -30,7 +30,7 @@ test('a battle stays in step across two devices', async ({ browser }) => {
 
   await alice.screenshot({ path: test.info().outputPath('tracker-alice.png'), fullPage: true })
   await bob.screenshot({ path: test.info().outputPath('tracker-bob.png'), fullPage: true })
-  await alice.setViewportSize({ width: 390, height: 844 })
+  await alice.setViewportSize(PHONE)
   // The same scoreboard as the desktop one, so a phone and a laptop cannot disagree
   // about the score. What each army is stays in its own panel rather than being said
   // a second time up here, where there is no room for it.
@@ -57,7 +57,7 @@ test('a battle stays in step across two devices', async ({ browser }) => {
       .evaluate((node, bottom) => bottom - node.getBoundingClientRect().bottom, boundary)
     expect(gap, `turn control at ${width}px`).toBe(0)
   }
-  await alice.setViewportSize({ width: 390, height: 844 })
+  await alice.setViewportSize(PHONE)
   await alice.getByRole('tab', { name: 'Battle' }).click()
   await alice.getByRole('button', { name: 'Battle options' }).click()
   await alice.getByRole('menuitem', { name: `Concede for ${bobName}` }).click()

@@ -14,6 +14,7 @@ import {
   addUnit,
   openRosterSetup,
   chooseOption,
+  PHONE,
 } from './account'
 import {
   productOperator,
@@ -72,7 +73,7 @@ test('players can decline and publish their original league roster across device
   expect((await sharing.boundingBox())!.y).toBeLessThan((await owner.locator('[data-league-armies]').boundingBox())!.y)
   await sharing.scrollIntoViewIfNeeded()
   await owner.screenshot({ path: testInfo.outputPath('league-sharing-desktop.png') })
-  await owner.setViewportSize({ width: 390, height: 844 })
+  await owner.setViewportSize(PHONE)
   await sharing.evaluate((element) => element.scrollIntoView({ block: 'center' }))
   await expectWithinPage(owner, sharing)
   await owner.screenshot({ path: testInfo.outputPath('league-sharing-phone.png') })
@@ -220,7 +221,7 @@ test('revealed rosters compare every unit using frozen loadouts and preserve lea
   await expect(table.getByRole('cell')).toHaveCount(4)
   await expect(table).not.toContainText('Skorpekh Destroyers')
   await expect(table.getByRole('columnheader').nth(2)).toContainText('Lokhust Destroyers')
-  await owner.setViewportSize({ width: 390, height: 844 })
+  await owner.setViewportSize(PHONE)
   await expectNoPageOverflow(owner)
   await dialog.getByRole('button', { name: 'Close', exact: true }).click()
   const cachedGate = await holdCombatCalculations(owner)
@@ -835,14 +836,14 @@ test('a new league starts with its first event and can seal a roster', async ({ 
   await chooser.getByRole('button', { name: `Seal ${rosterName}` }).click()
   await expect(page.getByRole('alert')).toHaveText('fix roster errors before using it: Army: needs a Warlord')
   await expect(chooser.getByRole('link', { name: `Edit ${rosterName}` })).toHaveAttribute('href', /^\/rosters\/[^/]+$/)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await page.setViewportSize({ width: 1440, height: 900 })
   await page.keyboard.press('Escape')
 
   await expect(page.locator(`[data-person="${ownerName}"]`)).toBeVisible()
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
 })
 
@@ -976,7 +977,7 @@ test('only a changed roster in an open league event offers replacement', async (
   await page.goto(rosterUrl)
   await expect(page.getByLabel('List name')).toHaveValue('Original league list')
   await expect(page.getByRole('button', { name: 'Sealed roster out of date' })).toHaveCount(0)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await waitForRosterSave(page, () => page.getByLabel('List name').fill('Updated league list'), 'Updated league list')
   const footer = page.locator('footer')
   const update = footer.getByRole('button', { name: 'Sealed roster out of date' })
@@ -1036,7 +1037,7 @@ test('the organizer unseals a revealed roster so its entrant can seal a correcte
   const entrantCard = owner.locator(`[data-army="${entrantName}"]`)
   await expect(entrantCard).toContainText('sealed')
   await expect(owner.locator(`[data-person="${entrantName}"]`)).toHaveCount(0)
-  await owner.setViewportSize({ width: 390, height: 844 })
+  await owner.setViewportSize(PHONE)
   await expectWithinPage(owner)
   await owner.setViewportSize({ width: 1440, height: 900 })
 
@@ -1108,7 +1109,7 @@ test('an eligible casual matchup is directed through its league event', async ({
   const warning = owner.getByRole('dialog', { name: 'You are both in a tournament' })
   await expect(warning.getByRole('button', { name: 'Play it casually' })).toBeVisible()
   await expectWithinPage(owner, warning)
-  await owner.setViewportSize({ width: 390, height: 844 })
+  await owner.setViewportSize(PHONE)
   await expectWithinPage(owner, warning)
   await warning.getByRole('button', { name: new RegExp(leagueName) }).click()
 
@@ -1192,7 +1193,7 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
     name: 'Lokhust Destroyers',
     exact: true,
   })
-  await guest.setViewportSize({ width: 390, height: 844 })
+  await guest.setViewportSize(PHONE)
   const rosterUnits = guest.locator('[data-slot="roster-units"]')
   await expectNoPageOverflow(guest)
   await expectNoHorizontalOverflow(rosterUnits)
@@ -1215,7 +1216,7 @@ test('a revealed roster keeps its selected upgrades and reference metadata', asy
   await expect(guest).toHaveURL(rosterUrl)
   await expect(lokhustButton).toBeFocused()
 
-  await guest.setViewportSize({ width: 390, height: 844 })
+  await guest.setViewportSize(PHONE)
   await expect(unit).toHaveCSS('position', 'fixed')
   await expect(unit.getByRole('button', { name: 'Back to roster' })).toBeFocused()
   await unit.getByRole('button', { name: 'Back to roster' }).click()
@@ -1261,7 +1262,7 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   if (!leagueToken) throw new Error('The created league URL has no token.')
   let organizer = owner.locator('main header').getByText('Organized by', { exact: true }).locator('..')
   await expectOrganizerAvatar(organizer, ownerName)
-  await owner.setViewportSize({ width: 390, height: 844 })
+  await owner.setViewportSize(PHONE)
   await expectOrganizerAvatar(organizer, ownerName)
   await expectWithinPage(owner, organizer)
 
@@ -1273,7 +1274,7 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   await expect(card).toContainText(`Organized by ${ownerName}`)
   await expectWithinPage(owner, card)
 
-  await owner.setViewportSize({ width: 390, height: 844 })
+  await owner.setViewportSize(PHONE)
   await expect(card).toContainText(`Organized by ${ownerName}`)
   await expectWithinPage(owner, card)
   await owner.getByRole('button', { name: `Actions for ${leagueName}` }).click()
@@ -1406,7 +1407,7 @@ test('a tournament runs one event, and its old league address still finds it', a
   await owner.goto(`/leagues/${leagueToken}?choose=1`)
   await expect(owner).toHaveURL(new RegExp(`/tournaments/${leagueToken}\\?choose=`))
 
-  await owner.setViewportSize({ width: 390, height: 844 })
+  await owner.setViewportSize(PHONE)
   await owner.goto(leagueUrl.toString())
   await expectNoPageOverflow(owner)
 
@@ -1567,7 +1568,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(leagueName)
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
-  await owner.setViewportSize({ width: 390, height: 844 })
+  await owner.setViewportSize(PHONE)
   await expectWithinPage(owner, create)
   await submitLeagueCreation(owner, create)
   const rules = await openEventSettings(owner)
@@ -1629,7 +1630,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const alliedPool = owner.locator('[data-group="allied"]')
   await expect(alliedPool.getByRole('checkbox', { name: `Pick ${alliedLabel} for a pair` })).toBeChecked()
   await expect(alliedPool.getByRole('checkbox', { name: `Pick ${secondAlliedLabel} for a pair` })).toBeChecked()
-  await owner.setViewportSize({ width: 390, height: 844 })
+  await owner.setViewportSize(PHONE)
   await expectWithinPage(owner, alliedPool)
   await owner.setViewportSize({ width: 1440, height: 900 })
   await alliedPool.getByRole('button', { name: /^Pair / }).click()
@@ -1642,7 +1643,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expect(owner.getByText('need to choose their team’s Force Disposition')).toBeVisible()
   expect(await revealThroughServer(leagueToken)).toBe('not-ready')
 
-  await allied.setViewportSize({ width: 390, height: 844 })
+  await allied.setViewportSize(PHONE)
   await allied.reload()
   const alliedSide = allied.locator('[data-group="pair-1"]')
   const ownEntrantRow = alliedSide.locator(`[data-person="${alliedName}"]`).filter({ hasText: alliedLabel })
@@ -1758,7 +1759,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expectWithinPage(spectator, spectatorRoster)
   await spectator.keyboard.press('Escape')
   await expect(spectatorRoster).toBeHidden()
-  await spectator.setViewportSize({ width: 390, height: 844 })
+  await spectator.setViewportSize(PHONE)
   await expectWithinPage(spectator)
   await spectator.getByRole('button', { name: 'Open 2,000-point roster' }).click()
   await expectWithinPage(spectator, spectatorRoster)
@@ -1841,7 +1842,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expect(create.getByRole('button', { name: 'Create tournament' })).toBeEnabled()
   await create.getByLabel('Player limit').fill('6')
   await create.getByRole('button', { name: /^Anyone who joins/ }).click()
-  await owner.setViewportSize({ width: 390, height: 844 })
+  await owner.setViewportSize(PHONE)
   await expectWithinPage(owner, create)
   await submitLeagueCreation(owner, create)
   await expect(owner.locator('main header').getByText(/^Doubles ·/)).toBeVisible()
@@ -1874,10 +1875,10 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expect(team(2).locator('[data-person]')).toHaveText([new RegExp(names[2]), new RegExp(names[3])])
   // A step the organizer has finished leaves the panel.
   await expect(owner.locator('[data-check="teams"]')).toHaveCount(0)
-  await owner.setViewportSize({ width: 390, height: 844 })
+  await owner.setViewportSize(PHONE)
   await expectWithinPage(owner, ...(await owner.locator('[data-person]').all()))
 
-  await teammate.setViewportSize({ width: 390, height: 844 })
+  await teammate.setViewportSize(PHONE)
   await teammate.reload()
   await teammate.getByRole('button', { name: 'Choose a roster' }).click()
   const rosterChooser = teammate.getByRole('dialog', { name: 'Seal a roster' })
@@ -1927,7 +1928,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
     clearRosters.locator('[data-slot="alert-dialog-header"]'),
     clearRosters.locator('[data-slot="alert-dialog-footer"]'),
   )
-  await owner.setViewportSize({ width: 390, height: 844 })
+  await owner.setViewportSize(PHONE)
   await expectWithinPage(
     owner,
     clearRosters.locator('[data-slot="alert-dialog-header"]'),
@@ -1945,7 +1946,7 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
     removeEntrant.locator('[data-slot="alert-dialog-header"]'),
     removeEntrant.locator('[data-slot="alert-dialog-footer"]'),
   )
-  await owner.setViewportSize({ width: 390, height: 844 })
+  await owner.setViewportSize(PHONE)
   await expectWithinPage(
     owner,
     removeEntrant.locator('[data-slot="alert-dialog-header"]'),

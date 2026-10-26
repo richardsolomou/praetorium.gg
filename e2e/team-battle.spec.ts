@@ -13,6 +13,7 @@ import {
   takeTheTurn,
   uniqueName,
   expectNoPageOverflow,
+  PHONE,
 } from './account'
 import { productOperator, withAuthSql } from './storage'
 import { expectNoHorizontalOverflow } from './builder.harness'
@@ -42,7 +43,7 @@ async function inspectBattleDialog(page: Page, dialog: Locator, screenshot: stri
   await expect(dialog.getByRole('button', { name: '1v2', exact: true })).toHaveCount(0)
   await expect(dialog.getByRole('button', { name: '2v1', exact: true })).toHaveCount(0)
   await page.screenshot({ path: test.info().outputPath(`${screenshot}-desktop.png`), fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(dialog.locator('[data-slot="dialog-body"]'))
   await page.screenshot({ path: test.info().outputPath(`${screenshot}-phone.png`), fullPage: true })
@@ -227,7 +228,7 @@ test('a 2v1 opened from the allied side seats its opener with their ally and pla
 
   await host.screenshot({ path: test.info().outputPath('team-battle-allied-opener.png'), fullPage: true })
   // A phone holds one column, which is where a pair of players had least room.
-  await host.setViewportSize({ width: 390, height: 844 })
+  await host.setViewportSize(PHONE)
   await expect(ours.getByRole('link', { name: hostName })).toBeVisible()
   await expect(ours.getByRole('link', { name: allyName })).toBeVisible()
   await host.screenshot({ path: test.info().outputPath('team-battle-allied-opener-phone.png'), fullPage: true })
@@ -266,7 +267,7 @@ test('a manual 2v2 seats two armies on each side with one shared pool', async ({
   await expect(side(host, 0).locator('[data-stat="cp"]')).toHaveCount(1)
   await expect(side(host, 1).locator('[data-stat="cp"]')).toHaveCount(1)
 
-  await host.setViewportSize({ width: 390, height: 844 })
+  await host.setViewportSize(PHONE)
   await expectNoPageOverflow(host)
 })
 

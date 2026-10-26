@@ -15,6 +15,7 @@ import {
   makeWarlord,
   chooseFaction,
   chooseOption,
+  desktopContext,
 } from './account'
 
 const prompt = (page: Page) => page.getByRole('note', { name: 'Getting started' })
@@ -179,8 +180,7 @@ test('the practice battle guide follows setup into live play', async ({ page }) 
 })
 
 test('the first-army guide stops after adding a unit', async ({ page }) => {
-  const desktop = { width: 1440, height: 900 }
-  await page.setViewportSize(desktop)
+  await page.setViewportSize(desktopContext.viewport)
   await signUp(page, uniqueName('First Army Guide'))
   await launch(page, 'Build your first army')
   await page.getByRole('button', { name: 'New roster', exact: true }).click()
@@ -197,7 +197,7 @@ test('the first-army guide stops after adding a unit', async ({ page }) => {
     await page.setViewportSize({ width, height: 900 })
     await expect(prompt(page)).toContainText('Name it, or leave it')
   }
-  await page.setViewportSize(desktop)
+  await page.setViewportSize(desktopContext.viewport)
   await next(page, 'Name it, or leave it')
   await dialog.getByRole('button', { name: 'Create roster' }).click()
   await next(page, 'The unit picker')
@@ -236,7 +236,7 @@ test('the first-army guide stops after adding a unit', async ({ page }) => {
   await addBodyguard.click({ trial: true })
   await waitForRosterSave(page, () => addBodyguard.click())
   await page.getByRole('button', { name: 'Close', exact: true }).click()
-  await page.setViewportSize(desktop)
+  await page.setViewportSize(desktopContext.viewport)
   await expect(prompt(page)).toContainText('Your roster')
   await prompt(page).getByRole('button', { name: 'Finish tour' }).click()
   await expect(prompt(page)).toBeHidden()

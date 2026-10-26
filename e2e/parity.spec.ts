@@ -12,6 +12,7 @@ import {
   visitorSetup,
   recordSaves,
   chooseLibraryAction,
+  PHONE,
 } from './account'
 import { savedWork } from './storage'
 
@@ -109,7 +110,7 @@ test('a private roster can be shared and made private again', async ({ browser }
   await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toMatch(/\/rosters\/[^/]+$/)
   const sharedUrl = await page.evaluate(() => navigator.clipboard.readText())
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.goto(sharedUrl)
   await retryUntilVisible(page.getByRole('menuitem', { name: 'Copy link' }), () =>
     page.getByRole('button', { name: 'Roster actions', exact: true }).click(),

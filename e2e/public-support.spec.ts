@@ -1,6 +1,6 @@
 import { PRODUCT_DOCS } from '../src/contracts/productDocs'
 import { expect, test } from './test'
-import { expectNoPageOverflow } from './account'
+import { expectNoPageOverflow, PHONE } from './account'
 
 for (const pageDetails of [
   { path: '/support', heading: 'Support' },
@@ -8,7 +8,7 @@ for (const pageDetails of [
   { path: '/sources', heading: 'Data sources' },
 ]) {
   test(`${pageDetails.path} fits a phone viewport`, async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 })
+    await page.setViewportSize(PHONE)
     await page.goto(pageDetails.path)
 
     await expect(page.locator('h1').first()).toHaveText(pageDetails.heading)

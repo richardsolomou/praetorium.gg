@@ -12,12 +12,13 @@ import {
   addUnit,
   chooseRosterAction,
   practiceBattle,
+  PHONE,
+  desktopContext,
 } from './account'
 import { shot, closePicker } from './builder.harness'
 import { lastPathSegment } from './storage'
 
-const phone = { viewport: { width: 390, height: 844 } }
-const desktop = { viewport: { width: 1440, height: 900 } }
+const phone = { viewport: PHONE }
 const SQUAD = 'Plague Marines'
 const ALPHA_NOTE = 'Hold the home objective'
 const BRAVO_NOTE = 'Screen the left flank'
@@ -43,7 +44,7 @@ async function annotate(page: Page, card: Locator, field: 'Custom name' | 'Note'
 
 for (const [size, label] of [
   [phone, 'phone'],
-  [desktop, 'desktop'],
+  [desktopContext, 'desktop'],
 ] as const) {
   test(`repeated units keep their own custom names and private notes from the builder to a frozen battle army (${label})`, async ({
     browser,

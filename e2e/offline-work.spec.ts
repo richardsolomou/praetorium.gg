@@ -18,6 +18,7 @@ import {
   visitorSetup,
   signOut,
   chooseRulesVersion,
+  PHONE,
 } from './account'
 import { battleLog, productOperator, savedWork, userIdFor, lastPathSegment, expectWorkSynced } from './storage'
 import { chooseCombatUnit } from './combat'
@@ -113,7 +114,7 @@ test('offline roster edits survive a cold reopen and sync after reconnecting', a
   await reopened.goto(url)
   await expect(reopened.getByLabel('List name')).toHaveValue('Edited on the plane')
   await expect(reopened.locator('[data-unit="Immortals"]')).toHaveCount(1)
-  await reopened.setViewportSize({ width: 390, height: 844 })
+  await reopened.setViewportSize(PHONE)
   expect(await operator.roster(id).then((row) => row?.name)).toBe('Before flight')
   await context.setOffline(false)
   await reopened.evaluate(() => window.dispatchEvent(new Event('online')))
@@ -355,7 +356,7 @@ test('conflicting roster edits stay saved and export before choosing the server 
   await expect(dialog.getByRole('status')).toHaveText(
     'Some saved changes need review. Choose how to keep or discard them below before they can sync.',
   )
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   const download = page.waitForEvent('download')
   await dialog.getByRole('button', { name: 'Export saved changes' }).click()
   const file = await download

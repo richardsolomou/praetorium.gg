@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { createRoster, signUp, uniqueName } from './account'
+import { createRoster, signUp, uniqueName, PHONE } from './account'
 
 for (const width of [1440, 390]) {
   test(`factions stay visible with an older native download at ${width}px`, async ({ page }) => {
@@ -51,7 +51,7 @@ test('a first roster open shows progress until the army is ready', async ({ page
     await roster.getByRole('link').first().click()
     await expect(first.getByRole('status')).toContainText('Loading your roster')
     await first.screenshot({ path: test.info().outputPath('first-roster-loading.png') })
-    await first.setViewportSize({ width: 390, height: 844 })
+    await first.setViewportSize(PHONE)
     await expect(first.getByRole('status')).toContainText('Loading your roster')
     await first.screenshot({ path: test.info().outputPath('first-roster-loading-phone.png') })
     release()

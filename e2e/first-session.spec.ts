@@ -13,6 +13,7 @@ import {
   chooseOption,
   concede,
   openImport,
+  PHONE,
 } from './account'
 import { guestDraft } from './storage'
 
@@ -163,7 +164,7 @@ test('a casual player practises a round, corrects an action and reviews the fini
 })
 
 test('a friend invite QR code opens the same one-time invite link', async ({ browser }, testInfo) => {
-  const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'], viewport: { width: 390, height: 844 } })
+  const context = await browser.newContext({ permissions: ['clipboard-read', 'clipboard-write'], viewport: PHONE })
   try {
     const page = await context.newPage()
     await signUp(page, uniqueName('QR inviter'))

@@ -10,6 +10,7 @@ import {
   chooseFaction,
   chooseOption,
   recordSaves,
+  PHONE,
 } from './account'
 import { add } from './builder.harness'
 import { SIGN_IN_REQUIRED } from '../src/core/session'
@@ -101,7 +102,7 @@ test("a visitor's list follows an edit made in another tab", async ({ page, cont
 })
 
 test('a visitor starting a list is told when storage refuses it, and stays on the setup', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   const setup = await visitorSetup(page)
   await chooseFaction(setup, 'Necrons')
   await setup.getByRole('button', { name: 'Select Awakened Dynasty' }).click()

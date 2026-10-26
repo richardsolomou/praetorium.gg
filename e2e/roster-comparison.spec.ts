@@ -1,5 +1,5 @@
 import { expect, test, type Locator } from './test'
-import { addUnit, createRoster, signUp, expectNoPageOverflow, chooseOption, chooseRosterAction } from './account'
+import { addUnit, createRoster, signUp, expectNoPageOverflow, chooseOption, chooseRosterAction, PHONE } from './account'
 import { holdCombatCalculations, openCombatBreakdown } from './combat'
 import { productOperator, userIdFor } from './storage'
 
@@ -84,7 +84,7 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   ).toBe(false)
   await expect(dialog.locator('[data-faction-mark]')).toHaveCount(10)
   await page.screenshot({ path: test.info().outputPath('comparison-target-editor-desktop.png'), animations: 'disabled' })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect.poll(async () => (await dialog.boundingBox())?.width).toBe(390)
   await page.screenshot({ path: test.info().outputPath('comparison-target-editor-phone.png'), animations: 'disabled' })
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -101,7 +101,7 @@ test('new rosters compare customizable mixed-faction benchmarks and retain the t
   await expect(dialog.getByRole('combobox', { name: 'Attacking roster', exact: true })).toBeVisible()
   await expect(dialog.getByRole('spinbutton', { name: 'Necron Warriors #2 benchmark models', exact: true })).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('roster-benchmarks-desktop.png'), animations: 'disabled' })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect.poll(async () => (await dialog.boundingBox())?.x).toBe(0)
   await expect.poll(async () => (await dialog.boundingBox())?.width).toBe(390)
   await expectNoPageOverflow(page)
@@ -241,7 +241,7 @@ test('saved rosters compare every pairing, reverse direction, and open isolated 
   const damage = await immortalCell.locator('.readout').textContent()
   expect(Number(damage)).toBeGreaterThan(0)
   await page.screenshot({ path: test.info().outputPath('roster-comparison-desktop.png'), fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect.poll(async () => (await comparison.boundingBox())?.width).toBeLessThanOrEqual(390)
   await expectNoPageOverflow(page)
   await page.screenshot({ path: test.info().outputPath('roster-comparison-phone.png'), fullPage: true })

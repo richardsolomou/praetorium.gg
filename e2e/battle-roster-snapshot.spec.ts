@@ -1,5 +1,5 @@
 import { expect, test } from './test'
-import { createRoster, signUp, uniqueName, addUnit, practiceBattle } from './account'
+import { createRoster, signUp, uniqueName, addUnit, practiceBattle, PHONE } from './account'
 import { lastPathSegment } from './storage'
 
 test('a fielded roster opens as the frozen read-only roster view', async ({ page }) => {
@@ -15,7 +15,7 @@ test('a fielded roster opens as the frozen read-only roster view', async ({ page
   await page.goto(`/rosters/${rosterId}?battle=${token}`)
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex')
   const rosterUrl = page.url()
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.evaluate(() => {
     document.documentElement.dataset.nativeApp = 'true'
   })

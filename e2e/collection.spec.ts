@@ -11,6 +11,7 @@ import {
   uniqueName,
   waitForRosterSave,
   addUnit,
+  PHONE,
 } from './account'
 import { expectNoHorizontalOverflow } from './builder.harness'
 import { productOperator, savedWork, expectWorkSynced } from './storage'
@@ -162,7 +163,7 @@ test('adds, counts and removes a datasheet from its reference page, and favourit
   const owner = (await savedWork(page))!.owner
   const operator = await productOperator()
   await expect.poll(async () => (await operator.collectionByUser(owner))[0]?.models).toBe(2)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoHorizontalOverflow(page.locator('main'))
   await page.goto('/collection')
   await expect(owned(page, 'Overlord')).toHaveValue('2')
@@ -315,7 +316,7 @@ test('collection photos are added together and removed only after confirmation',
   await expect(page.getByRole('button', { name: 'Photos of your Overlord', exact: true })).toHaveText('2')
 
   const owner = (await savedWork(page))!.owner
-  const guestContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const guestContext = await browser.newContext({ viewport: PHONE })
   const guest = await guestContext.newPage()
   const status = async (reader: Page, src: string) => (await reader.request.get(new URL(src, page.url()).href)).status()
   const served = await guest.request.get(new URL(second, page.url()).href)
@@ -711,7 +712,7 @@ test('models that can also be another datasheet fill it in a roster and show as 
   await expectWorkSynced(page)
   await page.reload()
   await expect(card.locator('[data-counts-as]')).toContainText('Can also be Immortals')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoHorizontalOverflow(page.locator('main'))
   await card.screenshot({ path: test.info().outputPath('counts-as-card-phone.png') })
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -729,7 +730,7 @@ test('models that can also be another datasheet fill it in a roster and show as 
   await expect(panel.locator('[data-readiness-summary]')).not.toContainText('short')
   await panel.getByRole('button', { name: 'Toggle Your collection', exact: true }).click()
   await expect(panel.locator('[data-readiness-unit="Immortals"] [data-readiness-from]')).toHaveText(/^\d+ from your Necron Warriors$/)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoHorizontalOverflow(page.locator('main'))
   await page.screenshot({ path: test.info().outputPath('counts-as-readiness-phone.png'), fullPage: true })
 })
@@ -799,7 +800,7 @@ test('the wishlist suggests unowned datasheets other players field that none of 
   await expect(page.locator('[data-unit="Immortals"]')).toBeVisible()
   await expect(suggestion).toBeHidden()
   await page.screenshot({ path: test.info().outputPath('owned-wishlist-desktop.png'), fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect(suggestion).toBeHidden()
   await expectNoHorizontalOverflow(page.locator('main'))
   await page.screenshot({ path: test.info().outputPath('owned-wishlist-phone.png'), fullPage: true })

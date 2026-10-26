@@ -1,6 +1,6 @@
 import { expect, test, type Page } from './test'
 import { chooseCombatUnit, isCombatCalculationRequest, openCombatBreakdown } from './combat'
-import { chooseRosterAction, signUp, chooseOption } from './account'
+import { chooseRosterAction, signUp, chooseOption, PHONE } from './account'
 import { productOperator, userIdFor } from './storage'
 
 async function countLocalCalculations(page: Page) {
@@ -80,7 +80,7 @@ test('a full roster matrix batches projections and uses the server without brows
   await dialog.getByRole('button', { name: 'Run again' }).click()
   await expect(dialog).toContainText('117 / 117 matchups · Complete')
   expect(calculations).toBe(before)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   const options = dialog.getByRole('button', { name: 'View options', exact: true })
   await expect(options).toHaveAttribute('aria-expanded', 'false')
   await expect(dialog.getByRole('combobox', { name: 'Comparison metric' })).toBeHidden()

@@ -10,6 +10,7 @@ import {
   setRosterAccess,
   addUnit,
   chooseOption,
+  PHONE,
 } from './account'
 import { expectNoHorizontalOverflow, shot, closePicker } from './builder.harness'
 import { productOperator, userIdFor, lastPathSegment } from './storage'
@@ -120,7 +121,7 @@ for (const [width, label] of [
 }
 
 test('a faction page leads to its public armies, and a filter none match explains how armies are listed (phone)', async ({ browser }) => {
-  const page = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage()
+  const page = await (await browser.newContext({ viewport: PHONE })).newPage()
   await page.goto('/factions/necrons')
   await page.getByRole('link', { name: 'Public armies' }).click()
   await expect(page).toHaveURL(/\/rosters\?view=public&faction=necrons$/)

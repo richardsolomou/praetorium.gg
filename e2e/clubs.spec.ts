@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from './test'
-import { befriend, createBattle, retryUntilVisible, signInAsPreview, signUp, uniqueName, sealableRoster } from './account'
+import { befriend, createBattle, retryUntilVisible, signInAsPreview, signUp, uniqueName, sealableRoster, PHONE } from './account'
 import { productSql, lastPathSegment, battleIdFor, seatsBySide, appendCommand } from './storage'
 import type { Command } from '../src/core/battle'
 import { expectNoHorizontalOverflow } from './builder.harness'
@@ -146,7 +146,7 @@ test('a club seals lists for a game night and plays them from the club page', as
   await simulator.getByRole('button', { name: 'Run all matchups' }).click()
   await expect(simulator).toContainText('1 / 1 matchups · Complete')
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
-  await owner.setViewportSize({ width: 390, height: 844 })
+  await owner.setViewportSize(PHONE)
   await game.scrollIntoViewIfNeeded()
   await expect(owner.getByRole('heading', { name: 'New game', exact: true })).toHaveCount(0)
   await expectNoHorizontalOverflow(game)
@@ -310,7 +310,7 @@ test('club team rows keep their actions inside the card at narrow widths', async
   await expect(simulator.getByRole('combobox', { name: 'Attacking roster', exact: true })).toContainText('Preview Player')
   await expect(simulator.getByRole('combobox', { name: 'Defending roster', exact: true })).toContainText('Preview Opponent')
   await simulator.getByRole('button', { name: 'Close', exact: true }).click()
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await game.scrollIntoViewIfNeeded()
   await page.screenshot({ path: testInfo.outputPath('club-doubles-mobile.png') })
   await page.setViewportSize({ width: 1280, height: 900 })

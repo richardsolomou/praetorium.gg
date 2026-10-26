@@ -16,6 +16,7 @@ import {
   chooseOption,
   signOut,
   nextFrames,
+  PHONE,
 } from './account'
 import { catalogue } from './stackEnv'
 
@@ -29,7 +30,7 @@ test('a standalone datasheet omits detachment-only abilities', async ({ page }) 
 })
 
 test('the mobile website uses application navigation below 860 pixels', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.goto('/')
 
   await expect(page.locator('head link[rel="icon"]')).toHaveAttribute('href', '/favicon.svg')
@@ -99,7 +100,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
     .getByRole('link', { name: /^Missions/ })
     .click()
   await expect(page).toHaveURL(/\/missions\//)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect(page.getByRole('main').getByRole('link', { name: 'Force dispositions' })).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('mission-reference-phone.png') })
   await page.getByRole('main').getByRole('link', { name: 'Force dispositions' }).click()
@@ -136,7 +137,7 @@ test('the mobile website uses application navigation below 860 pixels', async ({
 })
 
 test('the native application has stable route-aware phone and tablet navigation', async ({ browser }) => {
-  const loadingContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const loadingContext = await browser.newContext({ viewport: PHONE })
   await loadingContext.addInitScript({
     content: NATIVE_SHELL_SCRIPT,
   })
@@ -152,7 +153,7 @@ test('the native application has stable route-aware phone and tablet navigation'
   await expectNoPageOverflow(loadingPage)
   await loadingContext.close()
 
-  const legacyContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const legacyContext = await browser.newContext({ viewport: PHONE })
   await legacyContext.addInitScript({
     content: `${NATIVE_SHELL_SCRIPT}
 document.addEventListener('DOMContentLoaded', () => { document.documentElement.dataset.nativeShell = 'true' }, { once: true });`,
@@ -164,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => { document.documentElement.d
   await expect(legacyPage.locator('[data-native-app-tabs]')).toBeHidden()
   await legacyContext.close()
 
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const context = await browser.newContext({ viewport: PHONE })
   await context.addInitScript({
     content: NATIVE_SHELL_SCRIPT,
   })
@@ -181,7 +182,7 @@ document.addEventListener('DOMContentLoaded', () => { document.documentElement.d
   await expect(page.locator('a[href="/factions/necrons/rules/mfm-1-6/detachments/awakened-dynasty"]')).toHaveCount(1)
   await expect(page).toHaveTitle(/Take and Hold force disposition — Praetorium/)
   await expectCanonical(page, '/force-dispositions/take-and-hold')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await page.setViewportSize({ width: 1_440, height: 900 })
 
@@ -337,7 +338,7 @@ test('public reference data renders without client JavaScript', async ({ browser
   await expect(page.getByRole('heading', { name: 'Force dispositions', exact: true })).toBeVisible()
   await expect(page.locator('a[href="/force-dispositions/take-and-hold"]')).toContainText('Take and Hold')
   await expectCanonical(page, '/force-dispositions')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await page.screenshot({ path: test.info().outputPath('force-dispositions-phone.png'), fullPage: true })
   await page.setViewportSize({ width: 1_440, height: 900 })
@@ -349,7 +350,7 @@ test('public reference data renders without client JavaScript', async ({ browser
   await page.goto(secondaryPath!)
   await expect(page.getByRole('heading', { name: secondaryName, exact: true })).toBeVisible()
   await expectCanonical(page, secondaryPath!)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await page.screenshot({ path: test.info().outputPath('secondary-mission-mobile.png'), fullPage: true })
   await page.setViewportSize({ width: 1_440, height: 900 })
@@ -495,7 +496,7 @@ test('a rule is read by the number the source prints against it', async ({ brows
   await page.goto('/rules/core-rules/core-concepts#01.02.03')
   await expect.poll(() => clarification.evaluate((element: HTMLDetailsElement) => element.open)).toBe(true)
 
-  const mobileContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const mobileContext = await browser.newContext({ viewport: PHONE })
   const mobilePage = await mobileContext.newPage()
   await mobilePage.goto('/rules/core-rules/core-abilities#24.33')
   await mobilePage.waitForTimeout(3_100)
@@ -529,7 +530,7 @@ test('a datasheet shows attachment keywords and lists their targets once', async
   await page.goto('/factions/necrons/datasheets/plasmancer')
   await expect(page.getByRole('button', { name: 'Support', exact: true })).toBeVisible()
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.screenshot({ path: test.info().outputPath('datasheet-leader-attachments-phone.png'), fullPage: true })
 })
 
@@ -541,7 +542,7 @@ test('the faction page shows its army rule in full', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Reanimation Protocols', exact: true })).toHaveCount(0)
   await page.screenshot({ path: test.info().outputPath('faction-army-rule.png'), fullPage: true })
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.screenshot({ path: test.info().outputPath('faction-army-rule-phone.png'), fullPage: true })
 
   await page.goto('/factions/necrons/datasheets/overlord')
@@ -614,7 +615,7 @@ test('an invalid password reset link explains how to recover', async ({ page }) 
 
   await expect(page.getByText('This password reset link is invalid or has expired.')).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('password-reset-error.png'), fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.screenshot({ path: test.info().outputPath('password-reset-error-phone.png'), fullPage: true })
 })
 
@@ -661,7 +662,7 @@ test('account libraries share their page width and fit a phone', async ({ page }
   const footer = await page.locator('footer').boundingBox()
   expect(footer ? Math.round(footer.y + footer.height) : 0).toBeGreaterThanOrEqual(800)
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   for (const path of ['/rosters', '/battles', '/friends', '/factions', '/missions']) {
     await page.goto(path)
     await expectNoPageOverflow(page)
@@ -716,7 +717,7 @@ test('terrain layouts show source-backed areas and measurement guidance', async 
   await expect(dialog.getByText('Placement distance · nearest ⅛″', { exact: true })).toBeVisible()
   await expect(board.locator('text').filter({ hasText: /″$/ }).first()).toBeVisible()
   await expect(dialog.getByText('Approximate placement coordinates')).toHaveCount(0)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await page.screenshot({ path: test.info().outputPath('terrain-layout-tilt-phone.png') })
 })
@@ -731,7 +732,7 @@ test('Tipping Point shows five layout objectives with a shared central area', as
   await expect(objectives).toHaveCount(5)
   await expect(dialog.locator('svg g[transform^="translate(30 22)"] title').filter({ hasText: /^Objective terrain$/ })).toHaveCount(1)
   await expect(dialog.locator('svg text').filter({ hasText: /^OBJECTIVE$/ })).toHaveCount(5)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await page.screenshot({ path: test.info().outputPath('tipping-point-objectives-phone.png') })
 })
@@ -746,7 +747,7 @@ test('Purge and Reconnaissance show two independent central objectives', async (
       1,
     )
   }
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await page.screenshot({ path: test.info().outputPath('purge-recon-objectives-phone.png') })
 })
@@ -846,7 +847,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(dialog).toContainText('Listed on your profile and for anyone to find')
   await expect(dialog.getByLabel('Tags')).toHaveCount(0)
   await page.screenshot({ path: test.info().outputPath('create-roster-dialog.png'), fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.screenshot({ path: test.info().outputPath('create-roster-dialog-phone.png'), fullPage: true })
   await page.setViewportSize({ width: 1280, height: 720 })
   await expect(dialog.getByRole('button', { name: 'Create roster' })).toBeDisabled()
@@ -856,7 +857,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('option', { name: 'Death Guard', exact: true })).toBeHidden()
   await page.screenshot({ path: test.info().outputPath('faction-combobox.png'), fullPage: true })
   await page.keyboard.press('Escape')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await dialog.getByRole('combobox', { name: 'Faction' }).click()
   await page.getByPlaceholder('Search factions…').fill('Necr')
   await expectNoPageOverflow(page)
@@ -902,7 +903,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByText('Incursion', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Add a unit')).toBeVisible()
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   expect(await page.evaluate(() => document.documentElement.scrollHeight <= window.innerHeight)).toBe(true)
   await page.screenshot({ path: test.info().outputPath('roster-editor-phone.png') })
   await page.setViewportSize({ width: 1600, height: 900 })
@@ -1058,7 +1059,7 @@ test('a player can enter through the roster library and browse the product', asy
   const detachmentResponse = await page.request.get('/factions/necrons/detachments/cryptek-conclave')
   expect(await detachmentResponse.text()).toContain('Technosorcerous Augmentations')
   await page.screenshot({ path: test.info().outputPath('detachment.png'), fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.screenshot({ path: test.info().outputPath('detachment-phone.png'), fullPage: true })
   await page.setViewportSize({ width: 1280, height: 720 })
   await page.getByRole('link', { name: 'Necrons' }).click()
@@ -1104,7 +1105,7 @@ test('a player can enter through the roster library and browse the product', asy
   await expect(page.getByRole('heading', { name: 'Transport' })).toBeVisible()
   await expect(page.getByText(/transport capacity of 10/)).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('transport-datasheet.png'), fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.screenshot({ path: test.info().outputPath('transport-datasheet-phone.png'), fullPage: true })
   await page.setViewportSize({ width: 1280, height: 720 })
   await page.goto('/factions/necrons/datasheets/overlord-with-translocation-shroud')
@@ -1128,7 +1129,7 @@ test('the first sort choice orders saved rosters and persists on mobile', async 
   await expect(rows.first()).toHaveAttribute('data-roster', 'Zulu roster')
   await expect(page.getByRole('button', { name: 'Sort: Z to A' })).toBeVisible()
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.getByRole('button', { name: /^Sort:/ }).click()
   await page.getByRole('menuitemradio', { name: 'A to Z' }).click()
   await expect(rows.first()).toHaveAttribute('data-roster', 'Alpha roster')
@@ -1139,7 +1140,7 @@ test('the first sort choice orders saved rosters and persists on mobile', async 
 
 test('a guest roster stays within the native mobile builder viewport', async ({ page, context }) => {
   await context.addInitScript({ content: NATIVE_SHELL_SCRIPT })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   const setup = await visitorSetup(page)
   await chooseFaction(setup, 'Necrons')
   await page.getByRole('button', { name: 'Select Awakened Dynasty' }).click()
@@ -1179,12 +1180,12 @@ test('a dense squad datasheet remains readable at desktop and phone widths', asy
   await expect(page.getByText(/^Ancient in Terminator Armou?r$/)).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('deathwing-terminator-datasheet.png'), fullPage: true })
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.screenshot({ path: test.info().outputPath('deathwing-terminator-datasheet-phone.png'), fullPage: true })
 })
 
 test('weapon profile modes use readable casing', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.goto('/factions/necrons/datasheets/ctan-shard-of-the-void-dragon')
   const spear = page.getByRole('rowgroup', { name: 'spear of the void dragon profiles' })
   await expect(spear.getByRole('rowheader', { name: 'Strike', exact: true })).toBeVisible()
@@ -1204,13 +1205,13 @@ test('an officer datasheet shows how many orders it can issue', async ({ page })
   await expectNoPageOverflow(page)
   await page.screenshot({ path: test.info().outputPath('officer-orders-datasheet.png'), fullPage: true })
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await page.screenshot({ path: test.info().outputPath('officer-orders-datasheet-phone.png'), fullPage: true })
 })
 
 test('a tab never opened before starts at its top', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const context = await browser.newContext({ viewport: PHONE })
   const page = await context.newPage()
   await page.goto('/factions/dark-angels/datasheets/deathwing-terminator-squad')
   // The router scrolls to the top once it hydrates, which would undo an earlier scroll.
@@ -1229,7 +1230,7 @@ test('a tab never opened before starts at its top', async ({ browser }) => {
 })
 
 test('each application tab returns to where it was left', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const context = await browser.newContext({ viewport: PHONE })
   const page = await context.newPage()
   const sections = page.getByRole('navigation', { name: 'Application sections' })
 
@@ -1336,7 +1337,7 @@ test.describe('data update anchors', () => {
 })
 
 test('a tab forgets a page that no longer exists', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.goto('/')
   await page.evaluate(() =>
     sessionStorage.setItem('praetorium.native-tab:rosters', JSON.stringify({ href: '/rosters/deleted-roster', scrollY: 0, regions: {} })),

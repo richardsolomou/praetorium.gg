@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { createRoster, setupStep, signUp, startBattle, expectNoPageOverflow, practiceBattle, chooseOption } from './account'
+import { createRoster, setupStep, signUp, startBattle, expectNoPageOverflow, practiceBattle, chooseOption, PHONE } from './account'
 import { chooseCombatUnit, openCombatBreakdown } from './combat'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
@@ -74,7 +74,7 @@ test('keeps the header controls on screen at double text size', async ({ page })
 })
 
 test.describe('a touch device', () => {
-  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } })
+  test.use({ hasTouch: true, viewport: PHONE })
 
   // Below 16px iOS zooms the page when the field takes focus, and the zoom carries
   // the fixed application header and tabs off the screen.

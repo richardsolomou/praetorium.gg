@@ -10,6 +10,7 @@ import {
   uniqueName,
   playTurn,
   expectNoPageOverflow,
+  PHONE,
 } from './account'
 import { userIdNamed } from './storage'
 
@@ -45,7 +46,7 @@ test('a host records a real game against a guest without an account', async ({ p
   await playTurn(page)
   await expect(page.locator('[data-stat="round"]')).toHaveText('2')
   await takeTheTurn(page)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await page.screenshot({ path: test.info().outputPath('battle-phone.png'), fullPage: true })
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -62,7 +63,7 @@ test('a host records a real game against a guest without an account', async ({ p
   await page.goto(`/users/${await userIdNamed(host)}`)
   await expect(page.locator('[data-service-record] [data-record-battles]')).toHaveAttribute('data-record-battles', '1')
   await page.screenshot({ path: test.info().outputPath('record-desktop.png'), fullPage: true })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.screenshot({ path: test.info().outputPath('record-phone.png'), fullPage: true })
 
   await page.goto('/leaderboard')

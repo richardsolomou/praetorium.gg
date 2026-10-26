@@ -10,7 +10,7 @@ import {
   simulatorState,
 } from './combat'
 import { expect, startUnchosen, test, type Locator, type Page } from './test'
-import { chooseUnit as chooseCatalogueUnit, retryUntilVisible, expectNoPageOverflow, chooseOption } from './account'
+import { chooseUnit as chooseCatalogueUnit, retryUntilVisible, expectNoPageOverflow, chooseOption, PHONE } from './account'
 import { waitForOfflineApp } from './offline'
 
 function chip(scope: Page | Locator, name: string) {
@@ -966,7 +966,7 @@ test('Necron mortal abilities affect their phase and filter ineligible targets',
 })
 
 test.describe('touch probability charts', () => {
-  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } })
+  test.use({ hasTouch: true, viewport: PHONE })
   test('tap reveals the matching chart and an outside tap dismisses it', async ({ page }) => {
     await page.goto('/simulator')
     await matchup(page)

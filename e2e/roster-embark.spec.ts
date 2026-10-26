@@ -1,9 +1,8 @@
 import { expect, type Locator, type Page, test } from './test'
-import { addUnit, createRoster, setupStep, signUp, uniqueName, waitForRosterSave, practiceBattle } from './account'
+import { addUnit, createRoster, setupStep, signUp, uniqueName, waitForRosterSave, practiceBattle, PHONE, desktopContext } from './account'
 import { attach, expectNoHorizontalOverflow, shot, closePicker } from './builder.harness'
 
-const phone = { viewport: { width: 390, height: 844 } }
-const desktop = { viewport: { width: 1440, height: 900 } }
+const phone = { viewport: PHONE }
 const SQUAD = 'Intercessor Squad'
 
 /** The roster's cards, with the picker or loadout put away on a phone. */
@@ -17,7 +16,7 @@ async function cards(page: Page) {
 
 for (const [size, label] of [
   [phone, 'phone'],
-  [desktop, 'desktop'],
+  [desktopContext, 'desktop'],
 ] as const) {
   test(`custom names distinguish embarked squads and attached units (${label})`, async ({ browser }) => {
     const page = await (await browser.newContext(size)).newPage()
@@ -138,7 +137,7 @@ async function resize(page: Page, squad: Locator, change: 'More' | 'Fewer', coun
 
 test('the squad an edit grows past its transport’s room is the one put back on the battlefield', async ({ browser }) => {
   test.setTimeout(180_000)
-  const page = await (await browser.newContext(desktop)).newPage()
+  const page = await (await browser.newContext(desktopContext)).newPage()
   const { squad, rhino, carry } = await mountedSquads(page, 'Overfilled Marines')
 
   await resize(page, squad.first(), 'More', 3)
@@ -154,7 +153,7 @@ test('the squad an edit grows past its transport’s room is the one put back on
 
 for (const [size, label] of [
   [phone, 'phone'],
-  [desktop, 'desktop'],
+  [desktopContext, 'desktop'],
 ] as const) {
   test(`a character joining an embarked squad that no longer fits takes that squad off the transport (${label})`, async ({ browser }) => {
     test.setTimeout(240_000)
@@ -192,7 +191,7 @@ for (const [size, label] of [
 
 for (const [size, label] of [
   [phone, 'phone'],
-  [desktop, 'desktop'],
+  [desktopContext, 'desktop'],
 ] as const) {
   test(`an attached unit is joined and embarked from its outline, not its cards (${label})`, async ({ browser }) => {
     test.setTimeout(240_000)

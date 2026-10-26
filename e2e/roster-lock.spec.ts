@@ -7,6 +7,7 @@ import {
   expectNoPageOverflow,
   chooseRosterAction,
   chooseLibraryAction,
+  PHONE,
 } from './account'
 import { productOperator, savedWork, lastPathSegment, expectWorkSynced } from './storage'
 
@@ -108,7 +109,7 @@ test('an edit queued offline is refused visibly after another device locks the r
   await expect(review.getByText(LOCKED)).toBeVisible()
   expect((await operator.roster(id))?.name).toBe(name)
   await page.screenshot({ path: test.info().outputPath('locked-refusal-review-1440.png') })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect.poll(async () => (await review.boundingBox())?.width).toBe(390)
   await page.screenshot({ path: test.info().outputPath('locked-refusal-review-390.png') })
 

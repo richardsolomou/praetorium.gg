@@ -14,6 +14,7 @@ import {
   expectNoPageOverflow,
   practiceBattle,
   chooseOption,
+  PHONE,
 } from './account'
 
 test('the battle matchup planner uses live survivors, isolates experiments, and refreshes after another tab records casualties', async ({
@@ -59,7 +60,7 @@ test('the battle matchup planner uses live survivors, isolates experiments, and 
   await detail.getByRole('button', { name: 'More defender remaining wounds', exact: true }).click()
   await detail.getByRole('button', { name: 'Close', exact: true }).click()
   await expect(cell.locator('.readout')).toHaveText(baseline!)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect.poll(async () => (await planner.boundingBox())?.width).toBe(390)
   expect(await planner.locator('[data-simulator-scroll]').evaluate((node) => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
   await page.setViewportSize({ width: 1440, height: 900 })

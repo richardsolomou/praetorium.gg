@@ -9,6 +9,7 @@ import {
   signUp,
   uniqueName,
   expectNoPageOverflow,
+  desktopContext,
 } from './account'
 import { battleLog } from './storage'
 
@@ -16,9 +17,8 @@ const scoreboard = (page: Page) => page.getByRole('region', { name: 'Battle scor
 const panel = (page: Page, side: number) => page.locator(`[data-panel="player"][data-side="${side}"]`)
 test('a table keeps score by hand in a manually tracked battle', async ({ page }) => {
   test.setTimeout(240_000)
-  const desktop = { width: 1440, height: 900 }
   const phone = { width: 390, height: 900 }
-  await page.setViewportSize(desktop)
+  await page.setViewportSize(desktopContext.viewport)
   const host = uniqueName('Manual host')
   await signUp(page, host)
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Manual list' })
@@ -47,7 +47,7 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
   await setupStep(page, 'First turn')
   await expect(first).toHaveAttribute('aria-pressed', 'true')
   await expectNoPageOverflow(page)
-  await page.setViewportSize(desktop)
+  await page.setViewportSize(desktopContext.viewport)
   await page.getByRole('button', { name: 'Start battle' }).click()
 
   await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
@@ -99,7 +99,7 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
   await expect(page.locator('[data-battle-report-scroll]')).toContainText(`notes: ${note}`)
   await expect(page.locator('[data-battle-report-scroll]')).not.toContainText('gain 1 CP')
   await expectNoPageOverflow(page)
-  await page.setViewportSize(desktop)
+  await page.setViewportSize(desktopContext.viewport)
 
   for (let step = 0; step < 12; step += 1) await advance(page)
   await expect(scoreboard(page).locator('[data-stat="round"]')).toHaveText('2')
@@ -120,7 +120,7 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
   for (let step = 0; step < 47; step += 1) await log.append(Math.floor(step / 6) % 2 ? log.second : log.first, { kind: 'advance' })
   await page.reload()
   await expect(scoreboard(page).locator('[data-stat="round"]')).toHaveText('5')
-  await page.setViewportSize(desktop)
+  await page.setViewportSize(desktopContext.viewport)
   await page.getByRole('button', { name: 'Pass the turn' }).click()
 
   await expect(scoreboard(page)).toContainText(`${PRACTICE_OPPONENT} wins`)
@@ -130,7 +130,7 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
   const teams = page.locator('[data-teams-battle-points]')
   await teams.getByRole('switch', { name: 'Teams event scoring' }).click()
   await expect(teams.locator('dl')).toHaveText(`${host}5 VP10 BP${PRACTICE_OPPONENT}6 VP10 BP`)
-  for (const viewport of [desktop, phone]) {
+  for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)
     await page.reload()
     await expect(teams.locator('dl')).toHaveText(`${host}5 VP10 BP${PRACTICE_OPPONENT}6 VP10 BP`)
@@ -140,7 +140,7 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
 
   await page.goto('/battles')
   const card = page.locator('[data-battle-shelf="Finished"] article').first()
-  for (const viewport of [phone, desktop]) {
+  for (const viewport of [phone, desktopContext.viewport]) {
     await page.setViewportSize(viewport)
     await expect(card).toContainText('Manual tracking')
     await expect(card).toContainText(host)

@@ -1,5 +1,15 @@
 import { expect, test, type Page } from './test'
-import { createBattle, createRoster, followLink, PRACTICE_OPPONENT, setupBattle, signUp, uniqueName, expectNoPageOverflow } from './account'
+import {
+  createBattle,
+  createRoster,
+  followLink,
+  PRACTICE_OPPONENT,
+  setupBattle,
+  signUp,
+  uniqueName,
+  expectNoPageOverflow,
+  PHONE,
+} from './account'
 import { productSql, withAuthSql, battleIdFor } from './storage'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
 
@@ -171,7 +181,7 @@ test.describe('the featured battle', () => {
   test.describe.configure({ mode: 'default' })
 
   test('the home page fits a phone at both signed-out and signed-in widths', async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 })
+    await page.setViewportSize(PHONE)
     await featurePreviewBattle(page, 'preview-casual-doubles')
     await expectNoPageOverflow(page)
 
@@ -208,7 +218,7 @@ test.describe('the featured battle', () => {
 })
 
 test('offers native notification permission on home and retries device setup', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.addInitScript({
     content: `window.ReactNativeWebView = {
       postMessage(message) {
@@ -303,7 +313,7 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     const idleHistory = host.locator('[data-battle-shelf="Games you have played"]')
     await expect(idleHistory.locator(`a[href="${new URL(played).pathname}"]`)).toHaveCount(1)
     expect((await idleHistory.boundingBox())!.x).toBeLessThan((await host.locator('[data-home-rosters]').boundingBox())!.x)
-    await host.setViewportSize({ width: 390, height: 844 })
+    await host.setViewportSize(PHONE)
     expect((await host.locator('[data-home-rosters]').boundingBox())!.y).toBeLessThan((await idleHistory.boundingBox())!.y)
     await expectNoPageOverflow(host)
     await host.setViewportSize({ width: 1440, height: 900 })
@@ -328,7 +338,7 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     await expect(history.locator(`a[href="${new URL(going).pathname}"]`)).toHaveCount(0)
     expect((await history.boundingBox())!.x).toBeLessThan((await host.locator('[data-home-rosters]').boundingBox())!.x)
     expect((await history.boundingBox())!.y).toBeGreaterThan((await yours.boundingBox())!.y)
-    await host.setViewportSize({ width: 390, height: 844 })
+    await host.setViewportSize(PHONE)
     expect((await yours.boundingBox())!.y).toBeLessThan((await host.locator('[data-home-rosters]').boundingBox())!.y)
     expect((await host.locator('[data-home-rosters]').boundingBox())!.y).toBeLessThan((await history.boundingBox())!.y)
     await expectNoPageOverflow(host)
@@ -338,7 +348,7 @@ test('orders the signed-in home page from the player outwards', async ({ browser
 })
 
 test('the leaderboard fits a phone', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.goto('/leaderboard')
 
   await expect(page.locator('h1').first()).toHaveText('Leaderboard')
@@ -401,7 +411,7 @@ test('a signed-out visitor opens a player profile from the leaderboard', async (
 })
 
 test('a player profile fits a phone', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.goto('/leaderboard')
   await page.locator('[data-standing] a').first().click()
   await expect(page.locator('[data-service-record]')).toBeVisible()

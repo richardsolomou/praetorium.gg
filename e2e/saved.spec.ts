@@ -16,6 +16,7 @@ import {
   visitorSetup,
   recordSaves,
   chooseLibraryAction,
+  PHONE,
 } from './account'
 import { productOperator, productSql, userIdFor, lastPathSegment } from './storage'
 
@@ -32,7 +33,7 @@ test('the roster library reserves its rows while the first page loads', async ({
   await expect(firstFrame.getByRole('button', { name: 'New roster', exact: true })).toBeVisible()
   await expect(firstFrame.getByLabel('Loading roster creation options')).toHaveCount(0)
   await firstFrame.screenshot({ path: test.info().outputPath('loading-roster-library-no-js.png'), fullPage: true })
-  await firstFrame.setViewportSize({ width: 390, height: 844 })
+  await firstFrame.setViewportSize(PHONE)
   await expectNoPageOverflow(firstFrame)
   await firstFrame.screenshot({ path: test.info().outputPath('loading-roster-library-no-js-phone.png'), fullPage: true })
   await firstFrameContext.close()
@@ -63,7 +64,7 @@ test('the roster library reserves its rows while the first page loads', async ({
     await expect(page.getByRole('heading', { name: 'Create roster' })).toBeVisible()
     await page.keyboard.press('Escape')
     await page.screenshot({ path: test.info().outputPath('loading-roster-library.png'), fullPage: true })
-    await page.setViewportSize({ width: 390, height: 844 })
+    await page.setViewportSize(PHONE)
     await expectNoPageOverflow(page)
     await page.screenshot({ path: test.info().outputPath('loading-roster-library-phone.png'), fullPage: true })
     release()
@@ -125,7 +126,7 @@ test('the roster library counts every saved list and prices more rows on demand'
   await page.getByRole('menuitemradio', { name: 'A to Z' }).click()
   await expect(page.locator('[data-roster]')).toHaveCount(20)
   await expect(page.getByRole('button', { name: 'Show more rosters' })).toBeVisible()
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await page.screenshot({ path: test.info().outputPath('roster-library-paged-phone.png') })
 })
@@ -227,7 +228,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   await expect(baseVisibility).toBeVisible()
   const baseDetails = page.locator('[data-roster="Dynasty 2k"]').getByText(/^11th edition/)
   await expect(baseDetails).toHaveText(/1 unit · updated/, { useInnerText: true })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth)).toBe(390)
   // A chip breaks onto a second line inside itself when the row leaves it too little room.
   const chipHeights = await page
@@ -254,7 +255,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   await expect(firstFrame.getByRole('button', { name: 'Variant 3 of 3' })).toBeVisible()
   await firstFrameContext.close()
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect(page.getByRole('button', { name: 'Variant 3 of 3' })).toBeVisible()
   await expectNoPageOverflow(page)
   await page.screenshot({ path: test.info().outputPath('roster-variants-switcher-phone.png') })
@@ -276,7 +277,7 @@ test('a roster variant is numbered and grouped under its base without renaming',
   const third = page.locator('[data-roster="Dynasty 2k · 3"]')
   await expect(third).toHaveAttribute('data-variant', 'true')
   await expect(third.locator('[data-slot="roster-differences"]')).toContainText('Skyshroud Spearhead')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   const variantChipHeights = await page
     .locator('[data-variant] .chip')
     .evaluateAll((chips) => chips.map((chip) => chip.getBoundingClientRect().height))
@@ -335,7 +336,7 @@ test('a battle’s roster chooser tells a variant apart from its base', async ({
   const points = async (roster: typeof variant) => Number((await roster.getByText(/^\d+\/2000$/).innerText()).split('/')[0])
   expect(await points(variant)).toBeGreaterThan(await points(base))
   await page.screenshot({ path: test.info().outputPath('roster-chooser-variants.png') })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await page.screenshot({ path: test.info().outputPath('roster-chooser-variants-phone.png') })
   await page.setViewportSize({ width: 1440, height: 900 })
@@ -640,7 +641,7 @@ test('a list is saved and loaded into another battle', async ({ browser }) => {
   await expect(guestLoadout.getByRole('button', { name: 'More models in Immortals' })).toHaveCount(0)
   await expect(guestLoadout.getByText('Implacable Eradication')).toBeVisible()
   await guest.screenshot({ path: test.info().outputPath('shared-roster-read-only.png'), fullPage: true })
-  await guest.setViewportSize({ width: 390, height: 844 })
+  await guest.setViewportSize(PHONE)
   await expect(guestLoadout).toBeVisible()
   await expectNoPageOverflow(guest)
   await expectNoHorizontalOverflow(guestLoadout)

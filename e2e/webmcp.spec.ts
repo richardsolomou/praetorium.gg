@@ -1,5 +1,5 @@
 import { expect, test, type Page } from './test'
-import { signUp, uniqueName, signOut } from './account'
+import { signUp, uniqueName, signOut, PHONE } from './account'
 
 async function installInspector(page: Page) {
   await page.addInitScript(() => {
@@ -81,7 +81,7 @@ test('declining a browser-agent write leaves saved data unchanged; approving wri
   const dialog = page.getByRole('dialog', { name: 'Create a battle' })
   await expect(dialog).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('webmcp-approval-desktop.png') })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.screenshot({ path: test.info().outputPath('webmcp-approval-phone.png') })
   await dialog.getByRole('button', { name: 'Decline', exact: true }).click()
   expect(await call(page, 'list_my_battles')).toEqual(before)

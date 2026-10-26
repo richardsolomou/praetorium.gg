@@ -11,6 +11,7 @@ import {
   openRosterSetup,
   chooseFaction,
   visitorSetup,
+  PHONE,
 } from './account'
 import {
   expectNoHorizontalOverflow,
@@ -119,7 +120,7 @@ test('an edit made just before leaving the roster still saves', async ({ page })
 })
 
 test('the roster header fades whichever end of its facts it is hiding', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const context = await browser.newContext({ viewport: PHONE })
   const page = await context.newPage()
   await openBuilder(page)
   const meta = page.locator('[data-slot="roster-meta"]')
@@ -243,7 +244,7 @@ test('a mobile web unit screen keeps the tab bar beside it', async ({ browser })
 })
 
 test('the roster tab comes back to the unit it was left on', { tag: '@catalogue' }, async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const context = await browser.newContext({ viewport: PHONE })
   await context.addInitScript({
     content: NATIVE_SHELL_SCRIPT,
   })
@@ -280,7 +281,7 @@ test('the roster tab comes back to the unit it was left on', { tag: '@catalogue'
 })
 
 test('a unit that moved while the roster was open does not eject the roster tab', async ({ browser }) => {
-  const context = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const context = await browser.newContext({ viewport: PHONE })
   await context.addInitScript({
     content: NATIVE_SHELL_SCRIPT,
   })
@@ -311,7 +312,7 @@ test('native roster details use pane history without adding a route back action'
   await openBuilder(page)
   await add(page, 'Immortals')
   await add(page, 'Lychguard')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.evaluate(() => {
     document.documentElement.dataset.nativeApp = 'true'
   })
@@ -435,7 +436,7 @@ test('a mixed-model squad shows its own profile instead of an optional model', a
   const profile = loadout.locator('[data-slot="unit-profile"]')
   await expect(profile).toContainText(/M\s*12"\s*T\s*6\s*Sv\s*3\+\s*W\s*4\s*LD\s*6\+\s*OC\s*2/)
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect(profile).toBeVisible()
   await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(loadout)
@@ -470,7 +471,7 @@ test('datasheet metadata is searchable in the picker and global search', async (
   await expect(page.getByRole('option', { name: /Hexmark Destroyer Necrons/ })).not.toContainText('**')
 
   await page.keyboard.press('Escape')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.reload()
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
   await page.getByLabel('Add a unit').fill('cryptek')
@@ -513,7 +514,7 @@ test('the roster workspace preserves picker and read-only state', async ({ page 
   const loadout = page.locator('aside[aria-label="Loadout"]')
   await expect(loadout.getByRole('heading', { name: 'Attachments' })).toBeVisible()
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await loadout.getByRole('button', { name: 'Back to roster' }).click()
   await expect(page.getByRole('button', { name: 'Add units', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
@@ -619,7 +620,7 @@ test('contained faction datasheet rows stay accessible and resize without horizo
   ).toBe(true)
   await rows.last().scrollIntoViewIfNeeded()
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await expect(rows.last()).toBeVisible()
 })
@@ -712,7 +713,7 @@ test('King of the Colosseum creation keeps exactly one detachment selected', asy
   await page.keyboard.press('Escape')
   await expect(page.getByRole('region', { name: 'Format restrictions switched off' })).toContainText('Toughness cap')
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.getByRole('button', { name: 'Add units', exact: true }).click()
   const mobilePicker = page.getByRole('dialog', { name: 'Add units' })
   await expect(mobilePicker.getByText('2/2 in roster')).toBeVisible()
@@ -732,7 +733,7 @@ test('a waived format restriction cannot widen the mobile roster', async ({ page
   await expect(page.getByText('1 format restriction is switched off', { exact: true })).toBeVisible()
   await add(page, 'Imotekh the Stormlord')
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   const imotekh = page.locator('[data-unit="Imotekh the Stormlord"]')
   await expect(imotekh).toBeVisible()
   await expectNoPageOverflow(page)

@@ -19,6 +19,7 @@ import {
   expectNoPageOverflow,
   addUnit,
   practiceBattle,
+  PHONE,
 } from './account'
 import { battleLog, productSql, lastPathSegment, battleIdFor } from './storage'
 import { expectNoHorizontalOverflow } from './builder.harness'
@@ -32,7 +33,7 @@ test('the opening draw prompt starts at the top, pins its actions and holds the 
   await expect(prompt.getByRole('button', { name: 'Draw at random' })).toBeVisible()
   expect(await page.evaluate(() => scrollY)).toBe(0)
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect
     .poll(() =>
       prompt.evaluate(
@@ -71,7 +72,7 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
     }
     await expectNoPageOverflow(page)
   }
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await page.setViewportSize({ width: 1440, height: 900 })
 
@@ -84,7 +85,7 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true }).click()
   await scoring.getByRole('button', { name: 'Centre Ground plus 3', exact: true }).click()
   await expect(scoring.locator('output').filter({ hasText: 'VP' })).toContainText('Scoring 5 VP')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect(scoring).toBeVisible()
   await page.setViewportSize({ width: 360, height: 644 })
   const applicationTabs = page.getByRole('navigation', { name: 'Application sections' })
@@ -109,7 +110,7 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await page.mouse.wheel(0, -2000)
   await expect.poll(() => body.evaluate((element) => element.scrollTop)).toBe(0)
   await page.screenshot({ path: test.info().outputPath('scoring-mobile.png') })
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true }).scrollIntoViewIfNeeded()
   await scoring.getByRole('button', { name: 'Pass the turn', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
@@ -146,7 +147,7 @@ test('native battle controls leave the application tabs reachable', async ({ pag
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Native battle roster' })
   await practiceBattle(page, roster)
   await startBattle(page)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.evaluate(() => {
     document.documentElement.dataset.nativeApp = 'true'
   })
@@ -286,7 +287,7 @@ test('the final opponent-turn settlement completes before the battle ends', asyn
   }
   await passPhases(firstPlayerId, 6)
   await passPhases(opponentId, 5)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.reload()
 
   const scoreboard = page.locator('[data-scoreboard]')
@@ -492,7 +493,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
 
     await nextHand.getByRole('button', { name: 'Undo latest action' }).click()
     await expect(discard).toBeVisible()
-    await alice.setViewportSize({ width: 390, height: 844 })
+    await alice.setViewportSize(PHONE)
     await expectNoPageOverflow(alice)
     await expectNoHorizontalOverflow(discard.locator('[data-slot="dialog-body"]'))
     await expect(discard.getByRole('button', { name: discardedCard, exact: true })).toHaveCount(0)
@@ -549,7 +550,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   expect(stackedStratagemPosition!.y).toBeGreaterThan(stackedPrimaryPosition!.y)
   // The same panel on a phone, reached the same way. Only one panel is on screen at
   // a time there, so the scoreboard names the players again.
-  await alice.setViewportSize({ width: 390, height: 844 })
+  await alice.setViewportSize(PHONE)
   await expect(faction).toBeVisible()
   await expect(detachment).toBeVisible()
   await expect(ownPanel.getByRole('button', { name: `Open ${aliceRoster}`, exact: true })).toBeVisible()
@@ -645,7 +646,7 @@ test('paired secondary missions may be kept or put back as they are drawn', asyn
     await expect(confirmation).toBeVisible()
     await confirmation.getByRole('button', { name: 'Undo draw' }).click()
   }
-  await bob.setViewportSize({ width: 390, height: 844 })
+  await bob.setViewportSize(PHONE)
   await confirmUndo()
   await expect(prompt.locator('[data-drawn]')).toHaveCount(returned ? 1 : 0)
   await expect(prompt.getByRole('button', { name: 'Select missions' })).toBeVisible()

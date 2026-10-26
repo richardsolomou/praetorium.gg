@@ -11,6 +11,7 @@ import {
   signUp,
   uniqueName,
   expectNoPageOverflow,
+  PHONE,
 } from './account'
 import type { Page } from '@playwright/test'
 
@@ -47,7 +48,7 @@ test('a friend fields a lent roster, and the battle keeps it after the loan ends
   await borrower.locator('[data-lent-rosters]').getByRole('link').first().click()
   await expect(borrower.locator('[data-roster-lent-by]')).toContainText(`Lent to you by ${ownerName}`)
   await expect(borrower.getByLabel('Add a unit')).toHaveCount(0)
-  await borrower.setViewportSize({ width: 390, height: 844 })
+  await borrower.setViewportSize(PHONE)
   await expectNoPageOverflow(borrower)
   await borrower.screenshot({ path: test.info().outputPath('roster-lending-borrower-phone.png') })
   await borrower.setViewportSize({ width: 1440, height: 900 })

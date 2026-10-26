@@ -9,6 +9,7 @@ import {
   addUnit,
   chooseRosterAction,
   practiceBattle,
+  PHONE,
 } from './account'
 import { attach } from './builder.harness'
 import { NATIVE_BRIDGE_SCRIPT, parseNativeActionRequest } from '../mobile/src/nativeActions'
@@ -46,7 +47,7 @@ test('a full saved army prints selected equipment, both detachments and every pa
   const immortals = pack.locator('[data-print-datasheet="Immortals"]')
   await expect(immortals).toContainText('10× Gauss blaster')
   expect(exported).toContain('10x Gauss blaster')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expect(page.getByRole('button', { name: 'Print battle reference pack', exact: true })).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('print-pack-phone.png') })
   await page.evaluate(() => {

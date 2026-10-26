@@ -9,6 +9,7 @@ import {
   uniqueName,
   waitForRosterSave,
   expectNoPageOverflow,
+  PHONE,
 } from './account'
 import { chooseCombatUnit, holdCombatCalculations, combatDamage } from './combat'
 import { decodeSimulatorState } from '../src/contracts/simulatorState'
@@ -115,7 +116,7 @@ test('an invalid shared link leaves the simulator usable', async ({ page }) => {
   await page.goto('/simulator?s=invalid')
   await expect(page.getByRole('button', { name: 'Try an example', exact: true })).toBeEnabled()
   await expect(page.locator(history)).toHaveCount(0)
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await page.screenshot({ path: test.info().outputPath('simulator-example-phone.png'), fullPage: true })
 })
@@ -154,7 +155,7 @@ test(
     await home.getByRole('link', { name: 'Overlord · Ankh Court vs Intercessor Squad' }).click()
     await expect(page.getByRole('combobox', { name: 'First roster', exact: true })).toContainText('Ankh Court')
     await expect(enhanced).toBeVisible()
-    await page.setViewportSize({ width: 390, height: 844 })
+    await page.setViewportSize(PHONE)
     await expectNoPageOverflow(page)
     await page.screenshot({ path: test.info().outputPath('simulator-roster-unit-phone.png'), fullPage: true })
   },

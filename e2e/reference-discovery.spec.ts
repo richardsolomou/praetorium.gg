@@ -10,11 +10,11 @@ import {
   chooseFaction,
   visitorSetup,
   chooseOption,
+  desktopContext,
 } from './account'
 import { decodeSimulatorState } from '../src/contracts/simulatorState'
 import { simulatorState } from './combat'
 
-const desktop = { width: 1440, height: 900 }
 const phone = { width: 390, height: 900 }
 
 test('the prepared reference API includes Brood Brother Auxilia', { tag: '@catalogue' }, async ({ page, request }, testInfo) => {
@@ -30,7 +30,7 @@ test('the prepared reference API includes Brood Brother Auxilia', { tag: '@catal
     },
   )
   await page.goto('/factions/genestealer-cults/detachments/brood-brother-auxilia')
-  for (const viewport of [desktop, phone]) {
+  for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)
     await expect(page.getByRole('heading', { level: 1, name: 'Brood Brother Auxilia', exact: true })).toBeVisible()
     await expectNoPageOverflow(page)
@@ -39,7 +39,7 @@ test('the prepared reference API includes Brood Brother Auxilia', { tag: '@catal
 })
 
 test('faction search explains structured matches', async ({ page }) => {
-  await page.setViewportSize(desktop)
+  await page.setViewportSize(desktopContext.viewport)
   await page.goto('/factions/necrons/datasheets')
   const search = page.getByRole('textbox', { name: 'Find a datasheet' })
   const technomancer = page.locator('[data-datasheet="Technomancer"]')
@@ -48,7 +48,7 @@ test('faction search explains structured matches', async ({ page }) => {
     await search.fill('')
     await search.fill('cryptek staff')
   })
-  for (const viewport of [desktop, phone]) {
+  for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)
     await expect(technomancer).toContainText('Matches Cryptek keyword · Staff of light weapon')
     await expect(technomancer.locator('mark')).toHaveText(['Cryptek', 'Staff'])
@@ -56,7 +56,7 @@ test('faction search explains structured matches', async ({ page }) => {
     await expectNoPageOverflow(page)
   }
 
-  for (const viewport of [phone, desktop]) {
+  for (const viewport of [phone, desktopContext.viewport]) {
     await page.setViewportSize(viewport)
     await search.fill('Rites of Reanimation')
     await expect(technomancer).toContainText('Matches Rites of Reanimation ability')
@@ -73,7 +73,7 @@ test('faction search explains structured matches', async ({ page }) => {
   await technomancer.getByRole('link', { name: /^Technomancer/ }).click()
   await expect(page.getByRole('heading', { level: 1, name: 'Technomancer', exact: true })).toBeVisible()
   await page.reload()
-  for (const viewport of [desktop, phone]) {
+  for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)
     await expect(page.getByRole('heading', { level: 1, name: 'Technomancer', exact: true })).toBeVisible()
   }
@@ -99,7 +99,7 @@ test('archived reference identities remain visible in the simulator', async ({ p
     const state = new URL(page.url()).searchParams.get('s')
     expect(decodeSimulatorState(state ?? undefined)?.sides[1]?.catalogueId).toMatch(new RegExp(`^${source.edition}~`))
     await page.reload()
-    for (const viewport of [desktop, phone]) {
+    for (const viewport of [desktopContext.viewport, phone]) {
       await page.setViewportSize(viewport)
       await expect(selected).toContainText(source.name)
       await expect(selected.locator(`[data-rules-version="${source.edition}"]`)).toBeVisible()
@@ -107,7 +107,7 @@ test('archived reference identities remain visible in the simulator', async ({ p
       await expectNoPageOverflow(page)
       await page.screenshot({ path: test.info().outputPath(`reference-simulator-${source.edition}-${viewport.width}.png`), fullPage: true })
     }
-    await page.setViewportSize(desktop)
+    await page.setViewportSize(desktopContext.viewport)
     await chooseUnit(page, 'Defender', source.edition === 'custodes-11e' ? 'Adeptus Custodes' : 'Dark Angels', source.name)
     await expect(selected).toHaveAttribute('aria-busy', 'false')
     await expect(selected).toContainText(source.name)
@@ -152,7 +152,7 @@ test('reference roster choices distinguish saved rules versions', async ({ page 
   await page.getByRole('button', { name: 'Add to roster', exact: true }).click()
   const chooser = page.getByRole('dialog', { name: 'Add Allarus Custodians to a roster', exact: true })
   const archivedChoice = chooser.locator(`a[href^="${archived}?"]`)
-  for (const viewport of [desktop, phone]) {
+  for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)
     await expect(chooser.getByRole('link')).toHaveCount(2)
     await expect(chooser.locator(`a[href^="${current}?"]`)).toContainText('MFM 1.6 · Current')
@@ -160,12 +160,12 @@ test('reference roster choices distinguish saved rules versions', async ({ page 
     await expectNoPageOverflow(page)
     await page.screenshot({ path: test.info().outputPath(`reference-roster-chooser-${viewport.width}.png`), fullPage: true })
   }
-  await page.setViewportSize(desktop)
+  await page.setViewportSize(desktopContext.viewport)
   await chooser.locator(`a[href^="${current}?"]`).click()
   await expect(page.locator('[data-unit="Allarus Custodians"]')).toBeVisible()
   await expect(page.locator('[data-roster-builder]')).toHaveAttribute('data-saving', 'false')
   await page.reload()
-  for (const viewport of [desktop, phone]) {
+  for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)
     await expect(page.locator('[data-unit="Allarus Custodians"]')).toContainText('180')
     await expect(page.locator('main header [data-rules-version]')).toHaveCount(0)

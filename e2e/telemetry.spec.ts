@@ -11,6 +11,7 @@ import {
   waitForRosterSave,
   chooseFaction,
   isRosterSave,
+  PHONE,
 } from './account'
 import { add, attach, expectNoHorizontalOverflow } from './builder.harness'
 import { chooseCombatUnit } from './combat'
@@ -678,7 +679,7 @@ test('an administrator opens the screenshot attached to feedback', async ({ page
 })
 
 test('feedback that cannot be sent keeps the message and offers the issue tracker', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await page.goto('/factions')
   const dialog = page.getByRole('dialog', { name: 'Send feedback' })
   const feedback = page.getByRole('menuitem', { name: 'Feedback' })

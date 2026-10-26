@@ -10,6 +10,7 @@ import {
   chooseRosterAction,
   openRosterSetup,
   chooseOption,
+  PHONE,
 } from './account'
 import { expectWorkSynced } from './storage'
 import {
@@ -578,7 +579,7 @@ test('the attachment menu stays inside the unopened three-column roster', async 
 test('mobile roster sheets move directly between units, loadout and datasheet', async ({ page }) => {
   await openBuilder(page)
   await add(page, 'Immortals')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
 
   await page.locator('[data-unit="Immortals"]').getByRole('button', { name: 'Immortals', exact: true }).click()
   const loadout = page.locator('aside[aria-label="Loadout"]')
@@ -634,7 +635,7 @@ test('a model-specific weapon has the same count on its roster card and loadout'
 
   const card = page.locator('[data-unit="Vanguard Veteran Squad with Jump Packs"]')
   await expect(card).toContainText('4x Master-crafted Power Weapon')
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(page.locator('[data-slot="roster-units"]'))
   await card.getByRole('button', { name: 'Vanguard Veteran Squad with Jump Packs', exact: true }).click()
@@ -841,7 +842,7 @@ test('independent weapon choices are edited separately when the catalogue stores
   await expectNoHorizontalOverflow(page.locator('body'))
   await expectNoHorizontalOverflow(loadout)
 
-  await page.setViewportSize({ width: 390, height: 844 })
+  await page.setViewportSize(PHONE)
   await loadout.getByRole('button', { name: 'Back to roster' }).click()
   await expectNoPageOverflow(page)
   await expectNoHorizontalOverflow(page.locator('[data-slot="roster-units"]'))

@@ -12,6 +12,7 @@ import {
   makeWarlord,
   expectNoPageOverflow,
   addUnit,
+  PHONE,
 } from './account'
 
 test('battle setup stays shared and does not wait for the other device', async ({ browser }) => {
@@ -50,7 +51,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await expect(alice.getByRole('group', { name: 'Mission pack' }).getByRole('button')).toHaveCount(1)
   await expect(alice.getByRole('button', { name: 'Reset setup' })).toHaveCount(0)
   await expect(alice.getByRole('button', { name: 'Delete battle' })).toHaveCount(0)
-  await alice.setViewportSize({ width: 390, height: 844 })
+  await alice.setViewportSize(PHONE)
   await expectNoPageOverflow(alice)
   await alice.screenshot({ path: test.info().outputPath('setup-combined-phone.png'), fullPage: true })
   await alice.setViewportSize({ width: 1440, height: 900 })
@@ -86,7 +87,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await expect(alice.getByText('0 units · 0 of 1,000 points', { exact: true })).toBeVisible()
   await expect(alice.getByText('0 units · 0 of 2,000 points', { exact: true })).toBeVisible()
   await alice.screenshot({ path: test.info().outputPath('setup-mismatched-desktop.png'), fullPage: true })
-  await alice.setViewportSize({ width: 390, height: 844 })
+  await alice.setViewportSize(PHONE)
   await alice.screenshot({ path: test.info().outputPath('setup-mismatched-phone.png'), fullPage: true })
   await alice.setViewportSize({ width: 1440, height: 900 })
   await attachRoster(alice, aliceRoster)
@@ -98,7 +99,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await expect(rosterChooserAgain.getByText('Necrons', { exact: true }).first()).toBeVisible()
   await expect(rosterChooserAgain.getByText('Awakened Dynasty', { exact: true }).first()).toBeVisible()
   await alice.screenshot({ path: test.info().outputPath('setup-roster-dialog.png'), fullPage: true })
-  await alice.setViewportSize({ width: 390, height: 844 })
+  await alice.setViewportSize(PHONE)
   await expectNoPageOverflow(alice)
   await alice.screenshot({ path: test.info().outputPath('setup-roster-dialog-phone.png'), fullPage: true })
   await alice.setViewportSize({ width: 1440, height: 900 })
@@ -117,7 +118,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await expect(normalLayout.getByText('Placement distance · nearest ⅛″')).toBeVisible()
   await expect(normalLayout.locator('line[marker-end]')).toHaveCount(42)
   await alice.screenshot({ path: test.info().outputPath('setup-battlefield-dialog.png'), fullPage: true })
-  await alice.setViewportSize({ width: 390, height: 844 })
+  await alice.setViewportSize(PHONE)
   await expectNoPageOverflow(alice)
   await alice.screenshot({ path: test.info().outputPath('setup-battlefield-dialog-phone.png'), fullPage: true })
   await alice.setViewportSize({ width: 1440, height: 900 })
@@ -134,7 +135,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await expect(defender).toContainText('Defender · deploys first')
   await expect(defenderChoice.getByRole('button', { name: new RegExp(bobName) })).toContainText('Attacker · deploys second')
   await bob.screenshot({ path: test.info().outputPath('setup-defender.png'), fullPage: true })
-  await bob.setViewportSize({ width: 390, height: 844 })
+  await bob.setViewportSize(PHONE)
   await expectNoPageOverflow(bob)
   await bob.screenshot({ path: test.info().outputPath('setup-defender-phone.png'), fullPage: true })
   await bob.setViewportSize({ width: 1440, height: 900 })
@@ -152,7 +153,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await expect(secondaries.getByRole('button', { name: /^Change secondaries for / })).toHaveCount(0)
   await alice.evaluate(() => window.scrollTo(0, 0))
   await alice.screenshot({ path: test.info().outputPath('setup-armies.png'), fullPage: true })
-  await alice.setViewportSize({ width: 390, height: 844 })
+  await alice.setViewportSize(PHONE)
   await alice.screenshot({ path: test.info().outputPath('setup-armies-phone.png'), fullPage: true })
 
   await alice.setViewportSize({ width: 1440, height: 900 })
@@ -167,7 +168,7 @@ test('battle setup stays shared and does not wait for the other device', async (
   await expect(aliceArmy.getByText(/[1-9]\d*\/1000 reserve points/)).toBeVisible()
   await expectNoPageOverflow(alice)
   await alice.screenshot({ path: test.info().outputPath('setup-reserves.png'), fullPage: true })
-  await alice.setViewportSize({ width: 390, height: 844 })
+  await alice.setViewportSize(PHONE)
   await expectNoPageOverflow(alice)
   await alice.screenshot({ path: test.info().outputPath('setup-reserves-phone.png'), fullPage: true })
   await expect(alice.locator('[data-setup-bar]').getByRole('button', { name: 'Start battle', exact: true })).toBeDisabled()
@@ -243,7 +244,7 @@ test('both devices settle mandatory tactical cards without racing', async ({ bro
       body.scrollTop = 0
     })
   await alice.screenshot({ path: test.info().outputPath('setup-colosseum-measurements.png'), fullPage: true })
-  await alice.setViewportSize({ width: 390, height: 844 })
+  await alice.setViewportSize(PHONE)
   await expectNoPageOverflow(alice)
   await alice.screenshot({ path: test.info().outputPath('setup-colosseum-measurements-phone.png'), fullPage: true })
   await alice.keyboard.press('Escape')

@@ -1,11 +1,11 @@
 import { expect, test, type Page } from './test'
-import { createRoster, setupBattle, signUp, uniqueName, playTurn } from './account'
+import { createRoster, setupBattle, signUp, uniqueName, playTurn, PHONE } from './account'
 import { battleLog } from './storage'
 
 test('two phones finish a five-round battle in step', async ({ browser }) => {
   test.setTimeout(300_000)
-  const aliceContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
-  const bobContext = await browser.newContext({ viewport: { width: 390, height: 844 } })
+  const aliceContext = await browser.newContext({ viewport: PHONE })
+  const bobContext = await browser.newContext({ viewport: PHONE })
   const alice = await aliceContext.newPage()
   const bob = await bobContext.newPage()
   const aliceName = uniqueName('Alice')

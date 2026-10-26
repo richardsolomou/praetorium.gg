@@ -10,6 +10,7 @@ import {
   uniqueName,
   waitForRosterSave,
   signOut,
+  PHONE,
 } from './account'
 
 async function savedState(page: Page) {
@@ -86,7 +87,7 @@ test(
     const reopened = await context.newPage()
     const errors: string[] = []
     reopened.on('pageerror', (error) => errors.push(error.message))
-    await reopened.setViewportSize({ width: 390, height: 844 })
+    await reopened.setViewportSize(PHONE)
     await reopened.goto('/')
     await expect(reopened.getByRole('heading', { name: `Welcome back, ${player}` })).toBeVisible()
     await expect(reopened.getByRole('main').getByText(roster, { exact: true })).toBeVisible()
