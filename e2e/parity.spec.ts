@@ -1,4 +1,4 @@
-import { expect, test } from './test'
+import { expect, test, type Page } from './test'
 import {
   chooseRosterAction,
   chooseRosterDefault,
@@ -15,6 +15,16 @@ import {
   PHONE,
 } from './account'
 import { savedWork } from './storage'
+
+/** Turns the open page into a native shell that can share, recording the last message it is sent on the root element. */
+const offerNativeShare = (page: Page) =>
+  page.evaluate(() => {
+    window.PraetoriumNative = { bridgeVersion: 3, capabilities: ['share'] }
+    window.ReactNativeWebView = {
+      postMessage: (message) => document.documentElement.setAttribute('data-native-message', message),
+    }
+    window.dispatchEvent(new CustomEvent('praetorium-native-capabilities'))
+  })
 
 test('roster visibility controls search indexing and public URL variants', async ({ page }) => {
   await signUp(page, uniqueName('Search roster'))
@@ -116,13 +126,7 @@ test('a private roster can be shared and made private again', async ({ browser }
     page.getByRole('button', { name: 'Roster actions', exact: true }).click(),
   )
   await page.keyboard.press('Escape')
-  await page.evaluate(() => {
-    window.PraetoriumNative = { bridgeVersion: 3, capabilities: ['share'] }
-    window.ReactNativeWebView = {
-      postMessage: (message) => document.documentElement.setAttribute('data-native-message', message),
-    }
-    window.dispatchEvent(new CustomEvent('praetorium-native-capabilities'))
-  })
+  await offerNativeShare(page)
   await page.getByRole('button', { name: 'Roster actions' }).click()
   const rosterShare = page.getByRole('menuitem', { name: 'Share link' })
   await expect(rosterShare).toBeEnabled()
@@ -159,13 +163,7 @@ test('editable detail waits for public access to save before sharing', async ({ 
   const sharedUrl = page.url()
   const anonymous = await (await browser.newContext()).newPage()
   const previewPath = `/api/previews${new URL(sharedUrl).pathname}`
-  await page.evaluate(() => {
-    window.PraetoriumNative = { bridgeVersion: 3, capabilities: ['share'] }
-    window.ReactNativeWebView = {
-      postMessage: (message) => document.documentElement.setAttribute('data-native-message', message),
-    }
-    window.dispatchEvent(new CustomEvent('praetorium-native-capabilities'))
-  })
+  await offerNativeShare(page)
 
   const { promise: saveHeld, resolve: releaseSave } = Promise.withResolvers<void>()
   const { promise: saveStarted, resolve: markSaveStarted } = Promise.withResolvers<void>()
