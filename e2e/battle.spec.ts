@@ -20,6 +20,7 @@ import {
   addUnit,
   practiceBattle,
   PHONE,
+  uploadAvatar,
 } from './account'
 import { battleLog, productSql, lastPathSegment, battleIdFor } from './storage'
 import { expectNoHorizontalOverflow } from './builder.harness'
@@ -324,17 +325,7 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await signUp(bob, bobName)
   const bobRoster = await createRoster(bob, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Necrons' })
   await signUp(alice, aliceName)
-  await alice.goto('/profile')
-  await alice.getByLabel('Choose profile picture').setInputFiles({
-    name: 'avatar.png',
-    mimeType: 'image/png',
-    buffer: Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAAA1BMVEX/W1e1okn/AAAADElEQVQI12NgIA0AAAAwAAHHqoWOAAAAAElFTkSuQmCC',
-      'base64',
-    ),
-  })
-  await alice.getByRole('button', { name: 'Save profile' }).click()
-  await expect(alice.getByText('Profile saved.')).toBeVisible()
+  await uploadAvatar(alice)
   const aliceRoster = await createRoster(alice, { faction: 'Death Guard', detachment: /Shamblerot Vectorium/, name: 'Death Guard' })
   await addUnit(alice, 'Lord of Virulence')
   await setupBattle(alice, bob, { opponent: bobName, hostRoster: aliceRoster, guestRoster: bobRoster })

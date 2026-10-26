@@ -79,6 +79,23 @@ export async function choosePlayerDefault(page: Page, setting: 'Roster visibilit
   await expect.poll(async () => (await savedWork(page))?.operations.length ?? 0).toBe(0)
 }
 
+/** Saves a small picture as the signed-in player's avatar. */
+export async function uploadAvatar(page: Page) {
+  await page.goto('/profile')
+  // A file chosen before hydration never reaches the form, which leaves Save profile disabled.
+  await page.waitForLoadState('networkidle')
+  await page.getByLabel('Choose profile picture').setInputFiles({
+    name: 'avatar.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAAA1BMVEX/W1e1okn/AAAADElEQVQI12NgIA0AAAAwAAHHqoWOAAAAAElFTkSuQmCC',
+      'base64',
+    ),
+  })
+  await page.getByRole('button', { name: 'Save profile' }).click()
+  await expect(page.getByText('Profile saved.')).toBeVisible()
+}
+
 /** Signs out from the account menu, reopening the menu until it shows: a press before hydration opens nothing. */
 export async function signOut(page: Page) {
   const item = page.getByRole('menuitem', { name: 'Sign out', exact: true })

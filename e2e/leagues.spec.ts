@@ -15,6 +15,7 @@ import {
   openRosterSetup,
   chooseOption,
   PHONE,
+  uploadAvatar,
 } from './account'
 import {
   productOperator,
@@ -1239,19 +1240,7 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
 
   await signUp(owner, ownerName)
   await signUp(entrant, entrantName)
-  await owner.goto('/profile')
-  // A file chosen before hydration never reaches the form, which leaves Save profile disabled.
-  await owner.waitForLoadState('networkidle')
-  await owner.getByLabel('Choose profile picture').setInputFiles({
-    name: 'avatar.png',
-    mimeType: 'image/png',
-    buffer: Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAAA1BMVEX/W1e1okn/AAAADElEQVQI12NgIA0AAAAwAAHHqoWOAAAAAElFTkSuQmCC',
-      'base64',
-    ),
-  })
-  await owner.getByRole('button', { name: 'Save profile' }).click()
-  await expect(owner.getByText('Profile saved.')).toBeVisible()
+  await uploadAvatar(owner)
   await owner.goto('/tournaments')
   const create = await openLeagueCreation(owner)
   await create.getByLabel('Name').fill(leagueName)

@@ -1,22 +1,12 @@
 import { expect, test } from './test'
-import { signUp, uniqueName } from './account'
+import { signUp, uniqueName, uploadAvatar } from './account'
 import { baseURL } from './stackEnv'
 import { withAuthSql } from './storage'
 
 test('a local profile upload is readable through the Node object route', async ({ page, request }) => {
   const name = uniqueName('R2 avatar')
   await signUp(page, name)
-  await page.goto('/profile')
-  await page.getByLabel('Choose profile picture').setInputFiles({
-    name: 'avatar.png',
-    mimeType: 'image/png',
-    buffer: Buffer.from(
-      'iVBORw0KGgoAAAANSUhEUgAAABAAAAAQAQMAAAAlPW0iAAAAA1BMVEX/W1e1okn/AAAADElEQVQI12NgIA0AAAAwAAHHqoWOAAAAAElFTkSuQmCC',
-      'base64',
-    ),
-  })
-  await page.getByRole('button', { name: 'Save profile' }).click()
-  await expect(page.getByText('Profile saved.')).toBeVisible()
+  await uploadAvatar(page)
   const player = await withAuthSql(
     (database) => database.prepare('SELECT image FROM user WHERE name = ? LIMIT 1').get(name) as { image: string | null } | undefined,
   )
