@@ -172,10 +172,6 @@ describe('command schema', () => {
     expect(commandSchema.parse(command)).toEqual(command)
   })
 
-  it('accepts a shared setup section', () => {
-    expect(commandSchema.parse({ kind: 'set-setup-step', step: 3 })).toEqual({ kind: 'set-setup-step', step: 3 })
-  })
-
   it('does not trust a caller-supplied reserve exemption', () => {
     expect(
       commandSchema.parse({

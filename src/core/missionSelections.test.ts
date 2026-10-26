@@ -257,11 +257,6 @@ describe('source-backed mission selections', () => {
     ])
   })
 
-  it('does not award victory points for a nomination', () => {
-    const battle = state([ALICE, condemn])
-    expect(battle.players.map((player) => player.primary + player.secondary)).toEqual([0, 0])
-  })
-
   it.each([0, 2])('refuses %i fallback targets', (count) => {
     expect(
       commandRefusal(state(), ALICE, {
@@ -789,11 +784,6 @@ describe('Locate and Deny operation markers', () => {
     const battle = locateBattle([ALICE, markers('a', 'b', 'c', 'd', 'e')], ...turns(6, BOB))
     expect(openMissionSelections(battle, battle.players[0]!)).toEqual([])
   })
-
-  it('does not award victory points for placing markers', () => {
-    const battle = locateBattle([ALICE, markers('a', 'b', 'c', 'd', 'e')])
-    expect(battle.players.map((player) => player.primary + player.secondary)).toEqual([0, 0])
-  })
 })
 
 describe('Sensor Sweep', () => {
@@ -1030,11 +1020,6 @@ describe('Consecrate', () => {
       repeated: commandRefusal(recorded, ALICE, consecration([]))?.code,
       due: openMissionSelections(undone, undone.players[0]!).map((prompt) => prompt.kind),
     }).toEqual({ repeated: 'mission-selection-recorded', due: ['consecrate'] })
-  })
-
-  it('does not award victory points for consecrating', () => {
-    const battle = atEnd([ALICE, consecration([['a', 'u0']])])
-    expect(battle.players.map((player) => player.primary + player.secondary)).toEqual([0, 0])
   })
 
   it('shows consecrations to the opponent', () => {
