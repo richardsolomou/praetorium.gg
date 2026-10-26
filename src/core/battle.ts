@@ -1282,7 +1282,7 @@ export function* replay(state: BattleState, log: readonly LoggedCommand[]): Gene
     const before = { round: state.round, phase: state.phase, active: state.activePlayerId }
     applyEntry(state, entry)
     const actor = state.players.find((candidate) => candidate.id === entry.by)
-    const targetId = 'playerId' in entry.command && entry.command.playerId ? entry.command.playerId : entry.by
+    const targetId = commandTarget(entry.command, entry.by)
     yield {
       entry,
       before,
@@ -2711,6 +2711,11 @@ function armyCommand(command: Command): boolean {
  * and that is this question: asking it a second way there would let the cards come
  * off one deck and be recorded against another.
  */
+/** The player a command names, or whoever sent it. */
+export function commandTarget(command: Command, by: PlayerId): PlayerId {
+  return 'playerId' in command && command.playerId ? command.playerId : by
+}
+
 export function commandArmy(state: BattleState, by: PlayerId, command: Command): PlayerState | undefined {
   const actor = state.players.find((candidate) => candidate.id === by)
   return actor ? targetArmy(state, actor, command) : undefined
