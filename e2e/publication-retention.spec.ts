@@ -18,7 +18,6 @@ import { productOperator, productSql, savedWork, withAuthSql, userIdNamed, lastP
 
 test.setTimeout(300_000)
 
-const tokenOf = (url: string) => lastPathSegment(url)
 const playedCount = (page: Page) => page.locator('[data-service-record] [data-record-battles]')
 
 async function collectionAndFavourite(page: Page, userId: string) {
@@ -171,7 +170,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   ).toEqual(sealedBefore)
 
   for (const [kind, url] of [
-    ['fielded', `/rosters/${rosterId}?battle=${tokenOf(battleUrl)}`],
+    ['fielded', `/rosters/${rosterId}?battle=${lastPathSegment(battleUrl)}`],
     ['sealed', sealedUrl],
   ] as const) {
     await page.goto(url)
@@ -195,7 +194,7 @@ test('saved roster deletion preserves its actual sealed and fielded copies until
   expect(await productSql`SELECT seq, body FROM commands WHERE battle_id = ${battleId}`).toEqual(commandsBefore)
   await page.goto(sealedUrl)
   await expect(page.getByRole('heading', { name: 'Nothing here', exact: true })).toBeVisible()
-  await page.goto(`/rosters/${rosterId}?battle=${tokenOf(battleUrl)}`)
+  await page.goto(`/rosters/${rosterId}?battle=${lastPathSegment(battleUrl)}`)
   await expect(page.getByLabel('List name')).toHaveValue(rosterName)
   await deleteBattle(page, battleUrl)
   // The card leaves the list as soon as the deletion is saved on the device, before the server has it.
@@ -248,7 +247,7 @@ test('self-account deletion removes populated shared history and sealed entries 
       detachment: /Awakened Dynasty/,
       name: uniqueName('Surviving roster'),
     })
-    const opponentRosterId = tokenOf(opponent.url())
+    const opponentRosterId = lastPathSegment(opponent.url())
     const ownerCollection = await collectionAndFavourite(owner, ownerId)
     const opponentCollection = await seedCollection(opponentId, ownerCollection.entryId)
     const finished = await setupBattle(owner, opponent, { opponent: opponentName, hostRoster: ownerRoster, guestRoster: opponentRoster })
@@ -311,7 +310,9 @@ test('self-account deletion removes populated shared history and sealed entries 
     expect(await productSql`SELECT user_id FROM league_event_entries WHERE user_id = ${ownerId}`).toEqual([])
     expect(await productSql`SELECT id FROM rosters WHERE id = ${opponentRosterId}`).toEqual([{ id: opponentRosterId }])
     expect(await productSql`SELECT id FROM tournaments WHERE id = ${otherLeague.id}`).toEqual([{ id: otherLeague.id }])
-    expect(await productSql`SELECT token FROM battles WHERE token = ${tokenOf(unrelated)}`).toEqual([{ token: tokenOf(unrelated) }])
+    expect(await productSql`SELECT token FROM battles WHERE token = ${lastPathSegment(unrelated)}`).toEqual([
+      { token: lastPathSegment(unrelated) },
+    ])
     await expect(opponent).toHaveURL('/battles')
     await expect(opponent.locator(`a[href="${new URL(unrelated).pathname}"]`)).toBeVisible()
     for (const deleted of [finished, otherCreated]) {

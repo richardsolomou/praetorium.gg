@@ -1782,12 +1782,9 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   const publicPreview = await spectator.request.get(previewPath)
   expect(publicPreview.status()).toBe(200)
   expect(publicPreview.headers()['cache-control']).toBe('no-store')
-  const ids = await withAuthSql((database) => {
-    const find = (name: string) => (database.prepare('SELECT id FROM user WHERE name = ?').get(name) as { id: string }).id
-    return { owner: find(ownerName) }
-  })
+  const ownerId = await userIdNamed(ownerName)
   const product = await productOperator()
-  const battleId = await battleIdFor(battlePath.split('/').at(-1)!)
+  const battleId = await battleIdFor(lastPathSegment(battleUrl))
   // The pair's sealed card is written into the battle, so setup never asks it again.
   const battleCommands = await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${battleId}`
   expect(battleCommands.map((row) => JSON.parse(row.body) as Command).find((entry) => entry.kind === 'lock-league-rosters')).toMatchObject({
@@ -1805,7 +1802,7 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expect(owner.getByRole('region', { name: 'Armies' })).toBeVisible()
   await allied.goto(leagueUrl)
   await expect(allied.locator(`a[href="${battlePath}"]`)).toBeVisible()
-  expect((await feed(ids.owner)).battles).toHaveLength(1)
+  expect((await feed(ownerId)).battles).toHaveLength(1)
 
   await ownerContext.close()
   await alliedContext.close()

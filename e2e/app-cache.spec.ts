@@ -12,6 +12,7 @@ import {
   signOut,
   PHONE,
 } from './account'
+import { lastPathSegment } from './storage'
 
 async function savedState(page: Page) {
   return page.evaluate(
@@ -43,7 +44,7 @@ test(
     const rosterPath = new URL(page.url()).pathname
     const battlePath = new URL(await createBattle(page, { practice: true })).pathname
     await expect(page.getByText(PRACTICE_OPPONENT, { exact: true }).first()).toBeVisible()
-    await expect.poll(() => savedState(page)).toContain(JSON.stringify(['battle', battlePath.split('/').at(-1)!]))
+    await expect.poll(() => savedState(page)).toContain(JSON.stringify(['battle', lastPathSegment(page.url())]))
     await page.goto('/')
     await expect(page.getByRole('heading', { name: `Welcome back, ${player}` })).toBeVisible()
     await expect.poll(() => savedState(page)).toContain(roster)
