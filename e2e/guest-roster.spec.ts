@@ -266,7 +266,6 @@ test('signing up from the second-roster prompt moves the roster into the account
 test("a visitor's list for an army the data no longer holds can be started again", async ({ page }) => {
   await page.goto('/rosters')
   await page.waitForLoadState('networkidle')
-  await page.waitForLoadState('networkidle')
   await page.evaluate(
     (key) =>
       localStorage.setItem(
