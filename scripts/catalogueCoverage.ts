@@ -18,6 +18,7 @@ import { routeSlug } from '../src/core/slug'
 import { compareCatalogueCoverage, readAcceptedLosses } from './lib/catalogueCoverageComparison'
 import { loadSnapshotWithRules } from './lib/catalogueSnapshotLoad'
 import { catalogueDataDirectory } from './lib/catalogueFiles'
+import { parsePart } from './lib/part'
 
 process.env.CATALOGUE_DIR = catalogueDataDirectory()
 
@@ -28,10 +29,7 @@ const {
 if (!output) throw new Error('usage: catalogueCoverage.ts <out.json> [--compare <before.json>] [--accept <withdrawn.json>]')
 const previous = values.compare
 const accepted = readAcceptedLosses(values.accept)
-const shard = values.shard?.match(/^(\d+)\/(\d+)$/)
-if (values.shard !== undefined && (!shard || Number(shard[2]) < 1 || Number(shard[1]) >= Number(shard[2]))) {
-  throw new Error('--shard must be a zero-based index and count, for example 0/3')
-}
+const shard = values.shard === undefined ? null : parsePart(values.shard, '--shard')
 
 const { catalogue: loaded, rules } = loadSnapshotWithRules(process.env.CATALOGUE_DIR)
 
@@ -41,7 +39,7 @@ const described = (entries: readonly { name: string; description: string | null 
 const byName = (left: { name: string }, right: { name: string }) => left.name.localeCompare(right.name)
 
 const factions = factionsFor(loaded, rules).factions
-const snapshotFactions = loaded.factions.toSorted(byName).filter((_, index) => !shard || index % Number(shard[2]) === Number(shard[1]))
+const snapshotFactions = loaded.factions.toSorted(byName).filter((_, index) => !shard || index % shard.count === shard.index)
 const snapshot = snapshotFactions.map((faction) => {
   const full = factions.find((candidate) => candidate.id === faction.id)!
   const detachments = full.detachments

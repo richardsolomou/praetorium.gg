@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
+import { parsePart } from './lib/part'
 
 const {
   positionals: [output],
@@ -13,11 +14,7 @@ if (!output) {
 }
 // A part takes every count-th faction, so machines can split the snapshot between them
 // whatever worker count each one chooses.
-const part = values.part === undefined ? ['', '0', '1'] : values.part.match(/^(\d+)\/(\d+)$/)
-if (!part || Number(part[2]) < 1 || Number(part[1]) >= Number(part[2])) {
-  throw new Error('--part must be a zero-based index and count, for example 0/2')
-}
-const [partIndex, partCount] = [Number(part[1]), Number(part[2])]
+const { index: partIndex, count: partCount } = values.part === undefined ? { index: 0, count: 1 } : parsePart(values.part, '--part')
 
 const configuredWorkers = Number(process.env.CATALOGUE_COVERAGE_WORKERS ?? 3)
 if (!Number.isInteger(configuredWorkers) || configuredWorkers < 1) throw new Error('CATALOGUE_COVERAGE_WORKERS must be a positive integer')
