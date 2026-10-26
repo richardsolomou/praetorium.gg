@@ -21,7 +21,7 @@ it('shows the dates of events on different days in the battle report', () => {
     createElement(
       QueryClientProvider,
       { client: new QueryClient() },
-      createElement(Report, { token: 'battle', open: true, entries: [entry(1, first), entry(2, second)] }),
+      createElement(Report, { token: 'battle', entries: [entry(1, first), entry(2, second)] }),
     ),
   )
 
@@ -41,11 +41,7 @@ it('shows how long a phase and its turn took beside the line that ends them', ()
     elapsed: { phase: 17_000, turn: 192_000 },
   }
   const markup = renderToStaticMarkup(
-    createElement(
-      QueryClientProvider,
-      { client: new QueryClient() },
-      createElement(Report, { token: 'battle', open: true, entries: [entry] }),
-    ),
+    createElement(QueryClientProvider, { client: new QueryClient() }, createElement(Report, { token: 'battle', entries: [entry] })),
   )
 
   expect(markup.replaceAll(/<[^>]+>/g, '')).toMatch(/0:17.*turn 3:12/)
@@ -62,12 +58,8 @@ it('labels a line from before the battle began as setup rather than a phase', ()
     text: 'Alice names Bob as the attacker',
   }
   const markup = renderToStaticMarkup(
-    createElement(
-      QueryClientProvider,
-      { client: new QueryClient() },
-      createElement(Report, { token: 'battle', open: true, entries: [entry] }),
-    ),
+    createElement(QueryClientProvider, { client: new QueryClient() }, createElement(Report, { token: 'battle', entries: [entry] })),
   )
 
-  expect(markup.replaceAll(/<[^>]+>/g, ' ')).not.toContain('cmd')
+  expect(markup.replaceAll(/<[^>]+>/g, ' ')).toMatch(/\bsetup\b.*Alice names Bob as the attacker/)
 })
