@@ -2978,7 +2978,6 @@ const leagueTimeInput = z.number().int().nonnegative()
 const leagueRosterLimitInput = z.number().int().positive().max(10_000)
 const leagueMemberLimitInput = z.number().int().min(LEAGUE_MEMBER_MIN).max(LEAGUE_MEMBER_MAX)
 const leagueFormatInput = z.enum(TABLE_SHAPES)
-// Absent on an update from an older client, which leaves the event's allowances as they stand.
 const leagueRoundsInput = z.number().int().min(1).max(SWISS_ROUNDS_MAX).nullable()
 const leaguePointsBudgetInput = z.number().int().min(POINTS_BUDGET_MIN).max(POINTS_BUDGET_MAX).nullable()
 const leagueScheduleInput = z.object({ playsAt: leagueTimeInput.nullable(), sealBy: leagueTimeInput.nullable() })
