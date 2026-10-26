@@ -23,6 +23,7 @@ import {
 } from './account'
 import { battleLog, productOperator, savedWork, lastPathSegment, expectWorkSynced } from './storage'
 import { chooseCombatUnit } from './combat'
+import type { LocalState } from '../src/contracts/localState'
 
 test.use({ actionTimeout: 15_000 })
 
