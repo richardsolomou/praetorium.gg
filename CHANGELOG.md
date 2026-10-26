@@ -1,5 +1,21 @@
 # praetorium
 
+## 0.193.1
+
+### Patch Changes
+
+- 485c618: Search boxes find names typed without accents or curly apostrophes, and match search words in any order.
+- 485c618: The privacy docs now say that deleting your account also deletes the clubs you own for all their members.
+- 485c618: The delete account warnings now say it also deletes the clubs you own.
+- 485c618: Data updates keep each new points and datasheet change instead of dropping changes published between releases.
+- 485c618: The detachment search in roster setup finds names typed without accents or curly apostrophes, and matches search words in any order.
+- 485c618: Docs links show the current page names instead of old addresses that no longer open.
+- 485c618: The sign-in docs no longer say you need an account to play a battle, and the app's More page no longer calls battles private.
+- 485c618: Exporting a roster as text from the library keeps its agreed points limit, as exporting from the builder does.
+- 485c618: Opening many battles in one visit no longer stops later battles from updating live.
+- 485c618: The tournament docs name the Simulate button as it appears on each player's card.
+- 485c618: Mission choices in a 2v1 battle offer the objectives on the chosen battlefield instead of asking for typed names.
+
 ## 0.193.0
 
 ### Minor Changes
