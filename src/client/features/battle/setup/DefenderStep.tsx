@@ -1,5 +1,5 @@
 import type { Command } from '../../../../core/battle'
-import type { Side } from '../../../sides'
+import { type Side, sideOf } from '../../../sides'
 import { SetupSideChoice } from './SetupSideChoice'
 
 export function DefenderStep({
@@ -13,7 +13,7 @@ export function DefenderStep({
   disabled: boolean
   send: (command: Command) => void
 }) {
-  const attacker = sides.find((side) => side.armies.some((army) => army.playerId === attackerId))
+  const attacker = sideOf(sides, attackerId)
   const chosen = attacker ? (sides.find((side) => side.index !== attacker.index)?.index ?? null) : null
   return (
     <div data-onboarding="battle-setup-defender">

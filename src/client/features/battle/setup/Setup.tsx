@@ -22,7 +22,7 @@ import {
 } from '../../../../core/battle'
 import { ArmyPoints } from './ArmyPoints'
 import { gameReferencesQuery } from '../../../queries'
-import { fixedHandShort, missionCardsReady, type Side, type SideMission, sideName, sides as foldSides } from '../../../sides'
+import { fixedHandShort, missionCardsReady, type Side, type SideMission, sideName, sideOf, sides as foldSides } from '../../../sides'
 import type { SendCommand } from '../useCommand'
 import { ClubChoice } from './ClubChoice'
 import { SearchableSelect, type SearchableGroup } from '../../../components/SearchableSelect'
@@ -104,11 +104,11 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   const yours = table.find((side) => side.isViewer)
   const { data: references } = useQuery(gameReferencesQuery())
   const nameDisposition = useDispositionNames()
-  const attacker = table.find((side) => side.armies.some((army) => army.playerId === view.attackerId))
+  const attacker = sideOf(table, view.attackerId)
   const defender = attacker ? table.find((side) => side.index !== attacker.index) : undefined
   // Pre-battle rules resolve starting with whoever takes the first turn, so it is read
   // from the log rather than from the device that recorded the roll-off.
-  const firstSide = table.find((side) => side.armies.some((army) => army.playerId === view.firstPlayerId))
+  const firstSide = sideOf(table, view.firstPlayerId)
   /** The reserve row whose move the latest refusal answers, which says it beside the row rather than in the bar. */
   const [reserveRow, setReserveRow] = useState<string | null>(null)
   // Any other command the player sends takes the latest refusal back to the bar.

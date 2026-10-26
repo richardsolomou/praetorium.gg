@@ -16,7 +16,7 @@ import { Choice } from '../../components/Choice'
 import { Stepper } from '../../components/Stepper'
 import { type BattleMoment, type Command, isNewOrders } from '../../../core/battle'
 import { phaseName } from '../../../core/reminders'
-import { type Side, sideName } from '../../sides'
+import { type Side, sideName, sideOf } from '../../sides'
 import type { SendCommand } from './useCommand'
 import { Problem } from '../../components/Problem'
 
@@ -64,7 +64,7 @@ export function MissedActionDialog({
   const stratagems = side?.stratagems.filter((stratagem) => !isNewOrders(stratagem)) ?? []
   const cards = side?.secondaries.filter((card) => card.status === 'active' && card.key !== 'secret') ?? []
   const label = (candidate: BattleMoment) => {
-    const turn = table.find((entry) => entry.armies.some((army) => army.playerId === candidate.turn))
+    const turn = sideOf(table, candidate.turn)
     return `Round ${candidate.round} · ${turn ? sideName(turn) : 'Unknown'}’s turn · ${phaseName(candidate.phase)}`
   }
 
