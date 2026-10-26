@@ -20,6 +20,20 @@ export async function boundedText(request: Request, limit: number): Promise<stri
   }
 }
 
+/** Reads a response body, throwing `message` once it exceeds `limit` bytes. */
+export async function boundedBytes(response: Response, limit: number, message: string): Promise<Buffer> {
+  if (Number(response.headers.get('content-length') ?? 0) > limit) throw new Error(message)
+  const parts: Uint8Array[] = []
+  let size = 0
+  if (response.body)
+    for await (const chunk of response.body) {
+      size += chunk.byteLength
+      if (size > limit) throw new Error(message)
+      parts.push(chunk)
+    }
+  return Buffer.concat(parts)
+}
+
 export function byteLimit(limit: number, message: string, onChunk?: (chunk: Buffer) => void) {
   let bytes = 0
   return new Transform({

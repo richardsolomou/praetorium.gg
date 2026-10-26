@@ -2,6 +2,7 @@ import { readdir, readFile, lstat } from 'node:fs/promises'
 import { hash, randomUUID } from 'node:crypto'
 import path from 'node:path'
 import pRetry from 'p-retry'
+import { boundedBytes } from '../src/server/boundedBody.ts'
 import { publicAssetsR2Client } from '../src/server/r2Client.ts'
 import { isEntryPoint } from './lib/entryPoint.ts'
 
@@ -20,25 +21,7 @@ const TYPES: Record<string, string> = {
 }
 const MAX_BYTES = 10_000_000
 
-async function bytes(response: Response) {
-  if (Number(response.headers.get('content-length')) > MAX_BYTES) throw new Error('Web asset is too large')
-  const reader = response.body?.getReader()
-  const parts: Uint8Array[] = []
-  let size = 0
-  if (reader)
-    try {
-      for (;;) {
-        const result = await reader.read()
-        if (result.done) break
-        size += result.value.length
-        if (size > MAX_BYTES) throw new Error('Web asset is too large')
-        parts.push(result.value)
-      }
-    } finally {
-      await reader.cancel()
-    }
-  return Buffer.concat(parts)
-}
+const bytes = (response: Response) => boundedBytes(response, MAX_BYTES, 'Web asset is too large')
 
 /**
  * PostHog's build plugin stamps each chunk with a random id after its name is hashed,

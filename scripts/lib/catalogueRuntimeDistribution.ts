@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { unzipSync, zipSync } from 'fflate'
 import { readCatalogueRuntime, runtimeManifestSchema, MAX_RUNTIME_FILE_BYTES } from '../../src/server/catalogueRuntime'
+import { boundedBytes } from '../../src/server/boundedBody'
 import { fetchWithRetry } from '../../src/server/fetch'
 import { DEFAULT_PUBLIC_ASSETS_BASE_URL } from '../../src/server/objectStorage'
 import { replaceDirectory } from '../../src/server/replaceDirectory'
@@ -96,14 +97,7 @@ export async function downloadArchive(key: string, store: string | null) {
       await response.body?.cancel()
       return null
     }
-    const chunks: Uint8Array[] = []
-    let size = 0
-    for await (const chunk of response.body) {
-      size += chunk.length
-      if (size > MAX_BYTES) throw new Error('Archive is too large')
-      chunks.push(chunk)
-    }
-    return Buffer.concat(chunks)
+    return await boundedBytes(response, MAX_BYTES, 'Archive is too large')
   } catch (error) {
     console.error(`${key} not restored from the store:`, error instanceof Error ? error.message : String(error))
     return null
