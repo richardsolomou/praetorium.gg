@@ -77,8 +77,9 @@ const pairKey = (one: string, other: string) => (one < other ? `${one}|${other}`
 
 /**
  * The next round's tables. The first round is drawn at random; after it, players meet others on the same score,
- * top of the standings first, never someone they have already played when any other pairing allows it. With an odd
- * number, the lowest-placed player who has not had a bye sits this round out.
+ * top of the standings first, never someone they have already played when any other pairing allows it, and as few
+ * rematches as possible when none does. With an odd number, the lowest-placed player who has not had a bye sits this
+ * round out.
  */
 export function swissPairings(players: readonly string[], matches: readonly SwissMatch[], random: () => number): [string, string | null][] {
   const round = Math.max(0, ...matches.map((match) => match.round)) + 1
@@ -95,7 +96,8 @@ export function swissPairings(players: readonly string[], matches: readonly Swis
     order.splice(order.indexOf(bye), 1)
   }
   const met = new Set(matches.flatMap((match) => (match.b === null ? [] : [pairKey(match.a, match.b)])))
-  const pairs = pairWithoutRematches(order, met) ?? adjacentPairs(order)
+  let pairs: [string, string][] | null = null
+  for (let rematches = 0; !pairs; rematches++) pairs = pairWithRematches(order, met, rematches)
   return [...pairs, ...(bye ? [[bye, null] as [string, null]] : [])]
 }
 
@@ -110,23 +112,21 @@ export function rematches<T extends { round: number; aId: string; bId: string | 
   return new Set(pairings.filter((pairing) => pairing.bId !== null && firstMet.get(pairKey(pairing.aId, pairing.bId))! < pairing.round))
 }
 
-/** Pairs down the standings, backing up a step whenever the only opponent left is a rematch. */
-function pairWithoutRematches(order: readonly string[], met: ReadonlySet<string>): [string, string][] | null {
+/** Pairs down the standings with at most `rematches` repeat tables, backing up a step whenever the rest cannot fit. */
+function pairWithRematches(order: readonly string[], met: ReadonlySet<string>, rematches: number): [string, string][] | null {
   const [first, ...rest] = order
   if (first === undefined) return []
   for (const opponent of rest) {
-    if (met.has(pairKey(first, opponent))) continue
-    const tail = pairWithoutRematches(
+    const left = rematches - Number(met.has(pairKey(first, opponent)))
+    if (left < 0) continue
+    const tail = pairWithRematches(
       rest.filter((id) => id !== opponent),
       met,
+      left,
     )
     if (tail) return [[first, opponent], ...tail]
   }
   return null
-}
-
-function adjacentPairs(order: readonly string[]): [string, string][] {
-  return Array.from({ length: order.length / 2 }, (_, index) => [order[index * 2]!, order[index * 2 + 1]!])
 }
 
 function shuffle<T>(items: readonly T[], random: () => number) {

@@ -56,6 +56,17 @@ describe('swiss pairings', () => {
     ])
   })
 
+  it('keeps rematches to the fewest when one cannot be avoided', () => {
+    // f has met everyone, so one rematch is forced; pairing straight down the table would make three.
+    const met = ['ab', 'cd', 'ef', 'fa', 'fb', 'fc', 'fd']
+    const pairs = swissPairings(
+      ['a', 'b', 'c', 'd', 'e', 'f'],
+      met.map(([a, b], index) => match(index + 1, a!, b!, null)),
+      first,
+    )
+    expect(pairs.filter(([a, b]) => met.includes(`${a}${b}`) || met.includes(`${b}${a}`))).toHaveLength(1)
+  })
+
   it('gives the bye to the lowest-placed player who has not had one', () => {
     const played = [match(1, 'a', 'b', 'a', [60, 40]), match(1, 'c', null, null)]
     expect(swissPairings(['a', 'b', 'c'], played, first).find(([, opponent]) => opponent === null)?.[0]).toBe('b')
