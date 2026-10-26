@@ -70,7 +70,7 @@ vi.mock('../spacetime/generated', () => ({
   },
 }))
 
-import { stdbLogger } from 'spacetimedb'
+import { IdentityChangedError, stdbLogger } from 'spacetimedb'
 import { useRealtimeConfig, useSpacetimeLiveBattle, useSpacetimeLiveProduct } from './spacetimeLive'
 
 let cleanups: (() => void)[] = []
@@ -187,15 +187,25 @@ it.each(['product', 'battle'] as const)('recovers a %s subscription after socket
   expect([mocks.sockets.length, mocks.captureException.mock.calls.length]).toEqual([3, 0])
 })
 
+it('polls without asking again or reporting when a crawler gets the guest token route by the wrong method', async () => {
+  const fetch = vi.fn(async () => new Response(null, { status: 405 }))
+  vi.stubGlobal('fetch', fetch)
+  useSpacetimeLiveProduct({ mode: 'spacetime', database: 'test', uri: 'https://praetorium.gg/spacetime/' }, false)
+  mount()
+  await vi.advanceTimersByTimeAsync(10 * 60_000)
+  expect([fetch.mock.calls.length, mocks.captureException.mock.calls.length]).toEqual([1, 0])
+})
+
 it('captures a repeated unexpected HTTP rejection once while continuing retries', async () => {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn(async () => new Response(null, { status: 404 })),
-  )
+  const fetch = vi.fn(async () => new Response(null, { status: 400 }))
+  vi.stubGlobal('fetch', fetch)
   useSpacetimeLiveProduct({ mode: 'spacetime', database: 'test', uri: 'https://praetorium.gg/spacetime/' }, false)
   mount()
   await vi.advanceTimersByTimeAsync(15_000)
-  expect(mocks.captureException.mock.calls).toEqual([[expect.objectContaining({ status: 404 }), { operation: 'spacetime_realtime' }]])
+  expect([fetch.mock.calls.length, mocks.captureException.mock.calls]).toEqual([
+    3,
+    [[expect.objectContaining({ status: 400 }), { operation: 'spacetime_realtime' }]],
+  ])
 })
 
 it('captures a sustained guest token outage once', async () => {
@@ -389,6 +399,22 @@ it('reconnects with a freshly issued token', async () => {
   mount()
   await vi.advanceTimersByTimeAsync(0)
   expect(await mocks.sockets[0]!.renew!()).toBe('ticket-2')
+})
+
+it('replaces a connection whose reconnect comes back as another session, rereading the account without reporting it', async () => {
+  vi.stubGlobal('fetch', issued())
+  useSpacetimeLiveProduct(product, true)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  apply()
+  mocks.invalidateQueries.mockClear()
+  mocks.sockets[0]!.failed!(null, new IdentityChangedError())
+  await vi.advanceTimersByTimeAsync(5_000)
+  expect([mocks.sockets.length, mocks.invalidateQueries.mock.calls, mocks.captureException.mock.calls.length]).toEqual([
+    2,
+    [[{ queryKey: ['me'] }]],
+    0,
+  ])
 })
 
 it('retains the anonymous identity when the SDK requests a reconnect token', async () => {

@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { setGlobalLogLevel } from 'spacetimedb'
+import { IdentityChangedError, setGlobalLogLevel } from 'spacetimedb'
 import { z } from 'zod'
 import { DbConnection, tables } from '../spacetime/generated'
 import { battleQuery, battlesQuery } from './queries'
@@ -55,6 +55,8 @@ async function ticket(battle?: string) {
 
 async function guestTicket(config: RealtimeConfig) {
   const response = await fetch(new URL('v1/identity', config.uri), { method: 'POST', cache: 'no-store' })
+  // A browser always POSTs here; only a crawler that resends it as a GET gets 405, and asking again gets the same answer.
+  if (response.status === 405) return null
   if (!response.ok) throw new RealtimeHttpError('Spacetime guest token', response.status)
   const { token } = z.object({ token: z.string().min(1) }).parse(await response.json())
   return { token, database: config.database, uri: config.uri, battleId: null }
@@ -69,7 +71,7 @@ function report(error: unknown) {
 type Ticket = { token: string; database: string; uri: string }
 
 /** The SDK rides out a dropped socket on its own; the loop replaces the connection only once it gives up. */
-function connection<T extends Ticket>(issued: T, link: SpacetimeLink<T>) {
+function connection<T extends Ticket>(issued: T, link: SpacetimeLink<T>, identityChanged?: () => void) {
   // The SDK logs every connect at info through console.log, which console capture records; failures reach report().
   setGlobalLogLevel('warn')
   return DbConnection.builder()
@@ -79,7 +81,11 @@ function connection<T extends Ticket>(issued: T, link: SpacetimeLink<T>) {
     .withAutomaticReconnect()
     .withTokenProvider(async () => (await link.renew()).token)
     .onDisconnect((_current, _error, retrying) => (retrying === undefined ? link.failed() : link.interrupted()))
-    .onConnectError((_current, error, retrying) => (retrying === undefined ? link.failed(error) : link.interrupted(error)))
+    .onConnectError((_current, error, retrying) => {
+      if (error instanceof IdentityChangedError) identityChanged?.()
+      if (retrying === undefined) link.failed(error)
+      else link.interrupted(error)
+    })
 }
 
 export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
@@ -236,7 +242,8 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
         : () => guestTicket(config),
       open: (issued, link) => {
         const { failed, isCurrent, ready } = link
-        return connection(issued, link)
+        // A reconnect ticket for another session means the account changed in another tab, so this one reads it again.
+        return connection(issued, link, () => void queryClient.invalidateQueries({ queryKey: meKey() }))
           .onConnect((current) => {
             if (!isCurrent()) return
             let applied = false

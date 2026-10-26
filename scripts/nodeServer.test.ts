@@ -14,7 +14,8 @@ it('allows only identity, token exchange, and the selected database subscription
     route('/spacetime/v1/database/other/subscribe', 'GET', 'websocket'),
     route(`/spacetime/v1/database/${database}/subscribe`, 'GET'),
     route('//other.example/spacetime/v1/identity', 'POST'),
-  ]).toEqual(['identity', 'exchange', 'subscribe', null, null, null, null])
+    route('/spacetime/v1/identity', 'GET'),
+  ]).toEqual(['identity', 'exchange', 'subscribe', null, null, null, null, 'method-not-allowed'])
 })
 
 it('accepts HTTP only for loopback or one configured internal service', () => {
