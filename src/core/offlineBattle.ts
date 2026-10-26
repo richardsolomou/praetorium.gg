@@ -37,8 +37,7 @@ export function visibleBattleLog(players: Players, log: readonly LoggedCommand[]
   }
   return log.map((entry) => {
     const command = structuredClone(entry.command)
-    const actor = state.players.find((player) => player.id === entry.by)
-    const target = actor ? commandArmy(state, entry.by, command) : undefined
+    const target = commandArmy(state, entry.by, command)
     if (
       (command.kind === 'set-prep' || command.kind === 'attach-roster') &&
       target &&
