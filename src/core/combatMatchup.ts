@@ -2,7 +2,7 @@ import {
   DEFAULT_COMBAT_OPTIONS,
   calculateCombat,
   calculateCombatSequence,
-  rerollRank,
+  bestReroll,
   type CombatInput,
   type CombatOptions,
   type CombatResult,
@@ -97,8 +97,7 @@ export function combatMatchup(
     const shared = adjustments.all ?? {}
     const specific = adjustments[phase] ?? {}
     const extra = combineAttackAdjustments(shared, specific)
-    const better = (field: 'hitReroll' | 'woundReroll') =>
-      rerollRank[extra[field] ?? 'none'] > rerollRank[base[field]] ? extra[field]! : base[field]
+    const better = (field: 'hitReroll' | 'woundReroll') => bestReroll(base[field], extra[field])
     return {
       ...base,
       cover: base.cover || Boolean(extra.cover),

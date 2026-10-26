@@ -1,5 +1,5 @@
 import type { Datasheet, DatasheetCharacteristicKind } from './datasheet'
-import { diceExpression, type CombatInput, type CombatOptions, type CombatWeapon } from './combat'
+import { diceExpression, rerollRank, type CombatInput, type CombatOptions, type CombatWeapon } from './combat'
 import { combatTextKey, compileCombatRule, normalizeCombatText } from './combatRuleCompiler'
 import { datasheetCharacteristicKind, datasheetProfileKind } from './datasheetStructure'
 import { combatKeyword, combatKeywordApplies, combatKeywordPhraseMatches } from './combatKeywords'
@@ -431,7 +431,6 @@ export function combatRuleOptions(
   phase: Phase,
 ): Partial<CombatOptions> {
   const result: Partial<CombatOptions> = {}
-  const rank = { none: 0, ones: 1, failed: 2 }
   for (const rule of rules)
     for (const effect of rule.effects) {
       if (
@@ -451,7 +450,7 @@ export function combatRuleOptions(
       result.psychicHitModifier = (result.psychicHitModifier ?? 0) + Math.max(0, effect.options.hitModifier ?? 0)
       for (const field of ['hitReroll', 'woundReroll'] as const) {
         const next = effect.options[field]
-        if (next && rank[next] > rank[result[field] ?? 'none']) result[field] = next
+        if (next && rerollRank[next] > rerollRank[result[field] ?? 'none']) result[field] = next
       }
     }
   return result
@@ -552,7 +551,6 @@ export function combatRuleWeapons(
   targetKeywords: readonly string[],
   scopedOptions = false,
 ): CombatWeapon[] {
-  const rank = { none: 0, ones: 1, failed: 2 }
   return used.flatMap(({ weapon, count, profile }) => {
     if (!weapon) return []
     const next = { ...weapon, count }
@@ -606,7 +604,7 @@ export function combatRuleWeapons(
         next.positiveWoundModifier = (next.positiveWoundModifier ?? 0) + Math.max(0, effect.options?.woundModifier ?? 0)
         for (const field of ['hitReroll', 'woundReroll'] as const) {
           const value = effect.options?.[field]
-          if (value && rank[value] > rank[next[field] ?? 'none']) next[field] = value
+          if (value && rerollRank[value] > rerollRank[next[field] ?? 'none']) next[field] = value
         }
       }
     return [next]
