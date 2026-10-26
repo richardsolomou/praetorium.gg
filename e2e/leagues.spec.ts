@@ -1244,7 +1244,6 @@ test('an organizer edits and deletes a league from its card actions', async ({ b
   const leagueUrl = new URL(owner.url())
   leagueUrl.search = ''
   const leagueToken = lastPathSegment(leagueUrl)
-  if (!leagueToken) throw new Error('The created league URL has no token.')
   let organizer = owner.locator('main header').getByText('Organized by', { exact: true }).locator('..')
   await expectOrganizerAvatar(organizer, ownerName)
   await owner.setViewportSize(PHONE)
@@ -1371,7 +1370,6 @@ test('a tournament runs one event, and its old league address still finds it', a
   const leagueUrl = new URL(owner.url())
   leagueUrl.search = ''
   const leagueToken = lastPathSegment(leagueUrl)
-  if (!leagueToken) throw new Error('The created league URL has no token.')
 
   await join(owner)
   await entrant.goto(leagueUrl.toString())
@@ -1415,7 +1413,6 @@ test('an organizer adds friends to an event without waiting for them to ask', as
   await submitLeagueCreation(owner, create)
   const leagueUrl = owner.url()
   const leagueToken = lastPathSegment(leagueUrl)
-  if (!leagueToken) throw new Error('The created league URL has no token.')
 
   // The organizer holds one of the two places, so only one friend can be picked.
   await owner.getByRole('button', { name: 'Add friends' }).click()
@@ -1564,7 +1561,6 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expect(rules).toBeHidden()
   const leagueUrl = owner.url()
   const leagueToken = lastPathSegment(leagueUrl)
-  if (!leagueToken) throw new Error('The created team league URL has no token.')
 
   await join(owner)
   await allied.goto(leagueUrl)
@@ -1830,7 +1826,6 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expect(owner.locator('main header').getByText(/^Doubles ·/)).toBeVisible()
   const leagueUrl = owner.url()
   const leagueToken = lastPathSegment(leagueUrl)
-  if (!leagueToken) throw new Error('The created doubles league URL has no token.')
 
   await join(owner)
   for (const page of pages.slice(1)) {
