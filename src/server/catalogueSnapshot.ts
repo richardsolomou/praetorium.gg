@@ -329,9 +329,21 @@ function assertReplaceableDirectory(directory: string) {
 
 const objectCache = (directory: string) => path.join(path.dirname(path.resolve(directory)), '.catalogue-objects')
 
-function assertManifestAuthoring(manifest: SnapshotManifest, pointer: SnapshotPointer) {
+/** The manifest a pointer names, refused unless its bytes, authoring revision and format are the ones it promises. */
+function readManifest(raw: Uint8Array, pointer: SnapshotPointer) {
+  if (sha256(raw) !== pointer.id) throw new Error('catalogue snapshot manifest does not match its id')
+  const manifest = JSON.parse(Buffer.from(raw).toString('utf8')) as SnapshotManifest
   if (manifest.authoringRevision && manifest.authoringRevision !== pointer.authoringRevision)
     throw new Error('catalogue authoring revision does not match its manifest')
+  if (![FORMAT, SOURCE_FORMAT, COMPLETE_FORMAT, LEGACY_FORMAT].includes(manifest.format))
+    throw new Error('catalogue snapshot format is unsupported')
+  return manifest
+}
+
+function assertLockedRevisions(revisions: Record<string, string>, locked: Record<string, string> = {}) {
+  for (const [name, revision] of Object.entries(locked)) {
+    if (revisions[name] !== revision) throw new Error(`catalogue snapshot does not match the locked ${name} revision`)
+  }
 }
 
 function installManifestFiles(
@@ -345,17 +357,11 @@ function installManifestFiles(
   assertReplaceableDirectory(directory)
   if (fs.lstatSync(directory, { throwIfNoEntry: false })?.isSymbolicLink())
     throw new Error('refusing to replace an activated snapshot symlink')
-  if (sha256(rawManifest) !== expected.id) throw new Error('catalogue snapshot manifest does not match its id')
-  const manifest = JSON.parse(Buffer.from(rawManifest).toString('utf8')) as SnapshotManifest
-  assertManifestAuthoring(manifest, expected)
-  if (![FORMAT, SOURCE_FORMAT, COMPLETE_FORMAT, LEGACY_FORMAT].includes(manifest.format))
-    throw new Error('catalogue snapshot format is unsupported')
+  const manifest = readManifest(rawManifest, expected)
   if (!manifest.files || Object.keys(manifest.files).length > 10_000) throw new Error('catalogue snapshot has an invalid file inventory')
   revisionsOf(manifest.revisions)
   assertAllowed(expected, manifestSources(manifest), revocations)
-  for (const [name, revision] of Object.entries(expectedRevisions ?? {})) {
-    if (manifest.revisions[name] !== revision) throw new Error(`catalogue snapshot does not match the locked ${name} revision`)
-  }
+  assertLockedRevisions(manifest.revisions, expectedRevisions)
   const staging = `${directory}.incoming-${process.pid}-${randomUUID()}`
   try {
     const used = new Set(['manifest.json'])
@@ -464,14 +470,11 @@ async function fetchSnapshotObjects(
   try {
     await saveResponse(response, manifestFile, 1024 * 1024)
     const raw = fs.readFileSync(manifestFile)
-    if (sha256(raw) !== pointer.id) throw new Error('catalogue snapshot manifest does not match its id')
-    const manifest = JSON.parse(raw.toString('utf8')) as SnapshotManifest
+    const manifest = readManifest(raw, pointer)
     if (manifest.format !== FORMAT || !manifest.files || Object.keys(manifest.files).length > 10_000)
       throw new Error('catalogue object manifest is invalid')
     assertAllowed(pointer, manifestSources(manifest), revocations)
-    for (const [name, revision] of Object.entries(revisions ?? {})) {
-      if (manifest.revisions[name] !== revision) throw new Error(`catalogue snapshot does not match the locked ${name} revision`)
-    }
+    assertLockedRevisions(manifest.revisions, revisions)
     const hashes = [...new Set(Object.values(manifest.files))]
     if (hashes.some((objectHash) => !/^[a-f0-9]{64}$/.test(objectHash))) throw new Error('catalogue object hash is invalid')
     const entries = new Map<string, { sha256: string; bytes: number; file: string }>()
@@ -503,7 +506,7 @@ async function fetchSnapshotObjects(
 
 function installedSnapshotDetails(directory: string, historical = false): InstalledSnapshot | null {
   try {
-    const pointer = parsePointer(JSON.parse(fs.readFileSync(path.join(directory, '.snapshot.json'), 'utf8')))
+    const pointer = readSnapshotPointer(path.join(directory, '.snapshot.json'))
     const revisions = revisionsOf(JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')), historical)
     const manifestFile = path.join(directory, '.snapshot-manifest.json')
     const sources = fs.existsSync(manifestFile)
@@ -521,13 +524,9 @@ export function installedSnapshot(directory: string): SnapshotPointer | null {
 }
 
 export function verifyInstalledSnapshot(directory: string): SnapshotPointer {
-  const pointer = parsePointer(JSON.parse(fs.readFileSync(path.join(directory, '.snapshot.json'), 'utf8')))
+  const pointer = readSnapshotPointer(path.join(directory, '.snapshot.json'))
   const rawManifest = fs.readFileSync(path.join(directory, '.snapshot-manifest.json'))
-  if (sha256(rawManifest) !== pointer.id) throw new Error('catalogue snapshot manifest does not match its id')
-  const manifest = JSON.parse(Buffer.from(rawManifest).toString('utf8')) as SnapshotManifest
-  assertManifestAuthoring(manifest, pointer)
-  if (![FORMAT, SOURCE_FORMAT, COMPLETE_FORMAT, LEGACY_FORMAT].includes(manifest.format))
-    throw new Error('catalogue snapshot format is unsupported')
+  const manifest = readManifest(rawManifest, pointer)
   const sources = manifestSources(manifest)
   assertAllowed(pointer, sources, configuredRevocations())
   const revisions = revisionsOf(JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')))
@@ -589,15 +588,12 @@ export async function fetchSnapshot(
   report: (message: string) => void = () => {},
   options: { revocations?: CatalogueRevocations; revisions?: Record<string, string> } = {},
 ) {
+  const revocations = options.revocations ?? configuredRevocations()
   const current = installedSnapshotDetails(directory)
   if (current?.pointer.id === pointer.id) {
     try {
-      assertAllowed(pointer, current.sources, options.revocations ?? configuredRevocations())
-      if (options.revisions) {
-        for (const [name, revision] of Object.entries(options.revisions)) {
-          if (current.revisions[name] !== revision) throw new Error(`catalogue snapshot does not match the locked ${name} revision`)
-        }
-      }
+      assertAllowed(pointer, current.sources, revocations)
+      assertLockedRevisions(current.revisions, options.revisions)
       report('catalogue is already at the requested snapshot')
       return false
     } catch (error) {
@@ -608,7 +604,7 @@ export async function fetchSnapshot(
   }
   if (pointer.objects && fs.existsSync(objectCache(directory))) {
     try {
-      await fetchSnapshotObjects(directory, baseUrl, pointer, options.revocations ?? configuredRevocations(), options.revisions)
+      await fetchSnapshotObjects(directory, baseUrl, pointer, revocations, options.revisions)
       report('catalogue snapshot is ready from shared objects')
       return true
     } catch (error) {
@@ -620,7 +616,7 @@ export async function fetchSnapshot(
   const archive = `${directory}.download-${randomUUID()}`
   await saveSnapshotArchive(baseUrl, pointer, archive)
   try {
-    installArchive(directory, archive, pointer, options.revocations ?? configuredRevocations(), options.revisions)
+    installArchive(directory, archive, pointer, revocations, options.revisions)
   } finally {
     fs.rmSync(archive, { force: true })
   }
@@ -629,10 +625,7 @@ export async function fetchSnapshot(
 }
 
 export async function fetchPinnedSnapshot(directory: string, baseUrl: string, report: (message: string) => void = () => {}) {
-  return fetchSnapshot(directory, baseUrl, catalogueLock.pointer, report, {
-    revocations: configuredRevocations(),
-    revisions: catalogueLock.revisions,
-  })
+  return fetchSnapshot(directory, baseUrl, catalogueLock.pointer, report, { revisions: catalogueLock.revisions })
 }
 
 export async function fetchCurrentSnapshot(directory: string, baseUrl: string, report: (message: string) => void = () => {}) {
@@ -664,7 +657,7 @@ export async function downloadSnapshotArchive(
 }
 
 export function verifySnapshotArchive(archiveFile: string, pointerFile: string) {
-  const pointer = parsePointer(JSON.parse(fs.readFileSync(pointerFile, 'utf8')))
+  const pointer = readSnapshotPointer(pointerFile)
   verifyArchiveFile(archiveFile, pointer)
   return pointer
 }
