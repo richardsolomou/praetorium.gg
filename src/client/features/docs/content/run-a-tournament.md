@@ -1,4 +1,4 @@
-In a tournament everyone seals a roster in secret, the rosters open together at the reveal, and then the players play each other while the results build up. Start one with **New tournament** on [Tournaments](/tournaments). A [club](/docs/clubs) runs the same sealing as a sealed game, started from the club page.
+In a tournament everyone seals a roster in secret, the rosters open together at the reveal, and then the players play each other while the results build up. Start one with **New tournament** on [Tournaments](/tournaments). To see one before you commit, open the [sample tournament](/tournaments/sample), a made-up Swiss event shown from sealed lists to the final standings. A [club](/docs/clubs) runs the same sealing as a sealed game, started from the club page.
 
 ## Set it up
 

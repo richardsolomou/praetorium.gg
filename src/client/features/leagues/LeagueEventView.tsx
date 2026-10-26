@@ -558,7 +558,7 @@ export function LeagueEventView({
 }
 
 /** The one thing a reader can do in this event right now, and what they are waiting for when it is nothing. */
-function entryStatus({
+export function entryStatus({
   league,
   ownEntry,
   signedIn,
@@ -700,7 +700,7 @@ function entryStatus({
   }
 }
 
-function EntryStatusCard({ status, problem, token }: { status: Status; problem: Error | null; token: string }) {
+export function EntryStatusCard({ status, problem, token }: { status: Status; problem: Error | null; token: string }) {
   const { action } = status
   const current = status.steps?.findIndex((step) => step.state === 'current') ?? -1
   return (
@@ -802,7 +802,7 @@ function EntryProgress({ steps }: { steps: EntryStep[] }) {
 }
 
 /** What a Swiss entrant does next: play their table, wait out their bye, or wait for the round. */
-function swissDetail(
+export function swissDetail(
   table: ReturnType<typeof ownTable>,
   dropped: boolean,
   forfeit: boolean,

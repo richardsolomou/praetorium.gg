@@ -11,26 +11,38 @@ export function EntrantRow({
   entry,
   label,
   detail,
+  sample = false,
   children,
 }: {
   entry: LeagueEntryView
   label: string
   detail: ReactNode
+  /** A made-up player in the sample tournament, who has no profile to open. */
+  sample?: boolean
   children?: ReactNode
 }) {
+  const person = (
+    <>
+      <PlayerAvatar name={entry.name} image={entry.image} className="size-9 text-xs" />
+      <span className="min-w-0">
+        <span className="block truncate font-bold uppercase group-hover:underline">{label}</span>
+        <span className="block text-xs text-dim">{detail}</span>
+      </span>
+    </>
+  )
   return (
     <div data-person={entry.name} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2 p-3">
-      <Link
-        to="/users/$userId"
-        params={{ userId: entry.userId }}
-        className="group flex min-w-0 flex-1 basis-44 items-center gap-3 hover:text-info"
-      >
-        <PlayerAvatar name={entry.name} image={entry.image} className="size-9 text-xs" />
-        <span className="min-w-0">
-          <span className="block truncate font-bold uppercase group-hover:underline">{label}</span>
-          <span className="block text-xs text-dim">{detail}</span>
-        </span>
-      </Link>
+      {sample ? (
+        <div className="flex min-w-0 flex-1 basis-44 items-center gap-3">{person}</div>
+      ) : (
+        <Link
+          to="/users/$userId"
+          params={{ userId: entry.userId }}
+          className="group flex min-w-0 flex-1 basis-44 items-center gap-3 hover:text-info"
+        >
+          {person}
+        </Link>
+      )}
       {children ? <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-1.5">{children}</div> : null}
     </div>
   )

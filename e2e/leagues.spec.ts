@@ -1998,3 +1998,22 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
 
   await Promise.all(contexts.map((context) => context.close()))
 })
+
+test('the sample tournament walks every stage without writing anything', async ({ page }) => {
+  const writes: string[] = []
+  page.on('request', (request) => {
+    if (request.url().includes('/_serverFn/') && request.method() !== 'GET') writes.push(request.url())
+  })
+  await page.goto('/tournaments')
+  await page.getByRole('link', { name: 'See a sample' }).first().click()
+  await expect(page.getByRole('heading', { name: '4 of 5 rosters sealed' })).toBeVisible()
+  await expect(page.getByText('that includes the organizer')).toBeVisible()
+  for (const stage of ['Reveal', 'Rounds', 'Standings']) await page.getByRole('link', { name: `Next: ${stage}` }).click()
+  await expect(page.getByText('Every round is played. The results below are final.')).toBeVisible()
+  await expect(page.locator('[data-league-rounds]').getByText('Bye')).toHaveCount(3)
+  // Made-up players and battles have no pages to open.
+  await expect(page.locator('main a[href^="/users/"], main a[href^="/battles/"], main a[href^="/rosters/"]')).toHaveCount(0)
+  await page.getByRole('link', { name: 'Back to the start' }).click()
+  await expect(page.getByRole('heading', { name: '4 of 5 rosters sealed' })).toBeVisible()
+  expect(writes).toEqual([])
+})

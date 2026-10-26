@@ -3,7 +3,8 @@ import { SectionHeading } from '../../components/SectionHeading'
 import { GuideHelp } from '../onboarding/GuideHelp'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Users } from 'lucide-react'
+import { BookOpen, Users } from 'lucide-react'
+import { buttonClass } from '../../components/buttonClass'
 import { isLeagueOrganizer } from '../../../core/league'
 import { leaguesQuery, meQuery } from '../../queries'
 import { PageContent, PageHeader } from '../../components/Page'
@@ -30,12 +31,11 @@ export function LeagueIndex() {
         title="Tournaments"
         description="One-off events. Everyone seals a list in secret, then the lists are revealed together."
         actions={
-          me ? (
-            <>
-              <GuideHelp task="league">Tournament guide</GuideHelp>
-              <CreateLeague />
-            </>
-          ) : null
+          <>
+            {me ? <GuideHelp task="league">Tournament guide</GuideHelp> : null}
+            <SampleLink />
+            {me ? <CreateLeague /> : null}
+          </>
         }
       />
       <PageContent className="space-y-6">
@@ -48,10 +48,19 @@ export function LeagueIndex() {
             title="No tournaments yet"
             explanation={me ? 'Create one and send the link to your group.' : 'Public tournaments will appear here. Sign in to create one.'}
             icon={Users}
+            action={<SampleLink />}
           />
         ) : null}
       </PageContent>
     </main>
+  )
+}
+
+function SampleLink() {
+  return (
+    <Link to="/tournaments/sample" className={buttonClass({ variant: 'outline' })}>
+      <BookOpen /> See a sample
+    </Link>
   )
 }
 

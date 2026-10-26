@@ -40,6 +40,7 @@ export function LeagueArmies({
   canUnseal,
   dropBy,
   onSimulate,
+  sample = false,
 }: {
   token: string
   eventToken: string
@@ -52,6 +53,8 @@ export function LeagueArmies({
   /** In Swiss rounds, who the viewer may take out of later rounds: anyone as an organizer, or only themselves. */
   dropBy: 'organizer' | 'player' | null
   onSimulate: ((userId: string) => void) | null
+  /** The sample tournament's made-up rosters, which have no player or saved roster to open. */
+  sample?: boolean
 }) {
   const { data: factions } = useQuery(factionIndexQuery())
   const { data: references } = useQuery(gameReferencesQuery())
@@ -87,14 +90,43 @@ export function LeagueArmies({
         ? { slug: presentation.slug, displayName: presentation.displayName, icon: presentation.icon, detachments: army.detachments }
         : undefined
     const named = label(entry)
-    const droppable = !entry.dropped && (dropBy === 'organizer' || (dropBy === 'player' && entry.userId === viewerId))
+    const player = (
+      <>
+        <PlayerAvatar name={entry.name} image={entry.image} className="size-6 text-3xs" />
+        <span className="truncate text-sm font-bold uppercase group-hover:text-info group-hover:underline">{named}</span>
+      </>
+    )
+    const summary =
+      army?.limit != null ? (
+        <RosterSummary
+          roster={{
+            name: army.name,
+            detachmentIds: army.detachments.map((detachment) => detachment.id),
+            disposition: army.disposition,
+            limit: army.limit,
+            pointsBudget: army.pointsBudget,
+            unitCount: army.unitCount,
+            updatedAt: entry.sealedAt ?? 0,
+            waivedRules: army.waivedRules,
+          }}
+          faction={faction}
+          points={army.points}
+          dispositionName={references?.dispositions.find((disposition) => disposition.id === army.disposition)?.name}
+          showLock={false}
+          dateLabel="sealed"
+        />
+      ) : null
+    const droppable = !sample && !entry.dropped && (dropBy === 'organizer' || (dropBy === 'player' && entry.userId === viewerId))
     return (
       <article key={entry.userId} data-army={entry.name} className="min-w-0 border border-edge bg-panel">
         <div className="flex min-w-0 items-center gap-2 border-b border-edge py-1.5 pr-1.5 pl-3">
-          <Link to="/users/$userId" params={{ userId: entry.userId }} className="group flex min-w-0 items-center gap-2">
-            <PlayerAvatar name={entry.name} image={entry.image} className="size-6 text-3xs" />
-            <span className="truncate text-sm font-bold uppercase group-hover:text-info group-hover:underline">{named}</span>
-          </Link>
+          {sample ? (
+            <div className="flex min-w-0 items-center gap-2">{player}</div>
+          ) : (
+            <Link to="/users/$userId" params={{ userId: entry.userId }} className="group flex min-w-0 items-center gap-2">
+              {player}
+            </Link>
+          )}
           {entry.dropped ? <span className="chip shrink-0 text-dim">Dropped</span> : null}
           <span className="ml-auto flex shrink-0 items-center gap-1">
             {droppable ? (
@@ -117,10 +149,12 @@ export function LeagueArmies({
                 <Calculator aria-hidden />
               </IconAction>
             ) : null}
-            {army ? <ViewRosterButton token={token} eventToken={eventToken} userId={entry.userId} label={named} /> : null}
+            {army && !sample ? <ViewRosterButton token={token} eventToken={eventToken} userId={entry.userId} label={named} /> : null}
           </span>
         </div>
-        {army?.limit != null ? (
+        {summary && sample ? (
+          <div className="flex min-w-0 p-3">{summary}</div>
+        ) : summary ? (
           <Link
             to="/rosters/$id"
             params={{ id: entry.userId }}
@@ -129,23 +163,7 @@ export function LeagueArmies({
             aria-hidden
             className="flex min-w-0 p-3"
           >
-            <RosterSummary
-              roster={{
-                name: army.name,
-                detachmentIds: army.detachments.map((detachment) => detachment.id),
-                disposition: army.disposition,
-                limit: army.limit,
-                pointsBudget: army.pointsBudget,
-                unitCount: army.unitCount,
-                updatedAt: entry.sealedAt ?? 0,
-                waivedRules: army.waivedRules,
-              }}
-              faction={faction}
-              points={army.points}
-              dispositionName={references?.dispositions.find((disposition) => disposition.id === army.disposition)?.name}
-              showLock={false}
-              dateLabel="sealed"
-            />
+            {summary}
           </Link>
         ) : army ? (
           <p className="p-3 font-bold uppercase">{army.name}</p>

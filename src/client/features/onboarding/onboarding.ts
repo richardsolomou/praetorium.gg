@@ -764,6 +764,8 @@ export function onboardingPage(pathname: string): OnboardingPage | undefined {
   if (/^\/rosters\/[^/]+\/?$/.test(pathname)) return 'roster'
   if (pathname === '/battles' || pathname === '/battles/') return 'battles'
   if (pathname === '/tournaments' || pathname === '/tournaments/') return 'leagues'
+  // The sample is not a tournament the tour can run on.
+  if (/^\/tournaments\/sample\/?$/.test(pathname)) return undefined
   if (/^\/tournaments\/[^/]+\/?$/.test(pathname)) return 'league'
   return undefined
 }

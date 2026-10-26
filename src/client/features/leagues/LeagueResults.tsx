@@ -25,6 +25,7 @@ export function LeagueResults({
   partial,
   entries,
   label,
+  sample = false,
 }: {
   event: string
   rows: readonly ResultRow[]
@@ -32,6 +33,8 @@ export function LeagueResults({
   partial: boolean
   entries: readonly LeagueEntryView[]
   label: (entry: LeagueEntryView) => string
+  /** The sample tournament's made-up players, who have no profiles to open. */
+  sample?: boolean
 }) {
   const columns = swiss ? SWISS_COLUMNS : COLUMNS
   const people = new Map(entries.map((entry) => [entry.userId, entry]))
@@ -57,9 +60,11 @@ export function LeagueResults({
       <SectionHeading
         title="Results"
         action={
-          <Button variant="outline" size="sm" onClick={() => void exportFile()}>
-            <Download /> {native ? (copied ? 'Copied CSV' : 'Copy CSV') : 'Export CSV'}
-          </Button>
+          sample ? undefined : (
+            <Button variant="outline" size="sm" onClick={() => void exportFile()}>
+              <Download /> {native ? (copied ? 'Copied CSV' : 'Copy CSV') : 'Export CSV'}
+            </Button>
+          )
         }
       />
       {problem ? <Problem className="mb-2">{problem}</Problem> : null}
@@ -86,17 +91,26 @@ export function LeagueResults({
             {rows.map((row, place) => {
               const entry = people.get(row.userId)
               if (!entry) return null
+              const player = (
+                <>
+                  <PlayerAvatar name={entry.name} image={entry.image} className="size-7 text-3xs max-sm:hidden" />
+                  <span className="truncate font-bold uppercase">{label(entry)}</span>
+                  {entry.dropped ? <span className="chip shrink-0 text-dim">Dropped</span> : null}
+                </>
+              )
               return (
                 <tr key={row.userId} data-result={entry.name} className="border-b border-edge last:border-0">
                   <td className={`readout px-2 py-3 sm:px-3 ${place === 0 && row.played ? 'font-bold text-parchment' : 'text-faint'}`}>
                     {place + 1}
                   </td>
                   <td className="overflow-hidden px-2 py-3 sm:px-3">
-                    <Link to="/users/$userId" params={{ userId: row.userId }} className="flex min-w-0 items-center gap-2 hover:text-info">
-                      <PlayerAvatar name={entry.name} image={entry.image} className="size-7 text-3xs max-sm:hidden" />
-                      <span className="truncate font-bold uppercase">{label(entry)}</span>
-                      {entry.dropped ? <span className="chip shrink-0 text-dim">Dropped</span> : null}
-                    </Link>
+                    {sample ? (
+                      <div className="flex min-w-0 items-center gap-2">{player}</div>
+                    ) : (
+                      <Link to="/users/$userId" params={{ userId: row.userId }} className="flex min-w-0 items-center gap-2 hover:text-info">
+                        {player}
+                      </Link>
+                    )}
                   </td>
                   {columns.map((column) => {
                     const figure = row[column.key] ?? 0
