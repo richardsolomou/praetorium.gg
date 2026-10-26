@@ -1,3 +1,4 @@
+import { withoutFactionPrefix } from '../core/name'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { uniqueBy } from '../core/collections'
 import { PHASES, type Stratagem } from '../core/battle'
@@ -684,7 +685,7 @@ export function restrictedBy(
   name: string,
   keywords: readonly string[],
 ): { keyword: string | null } | null {
-  const carried = keywords.map((keyword) => keyword.replace(/^faction:\s*/i, '').trim())
+  const carried = keywords.map((keyword) => withoutFactionPrefix(keyword).trim())
   const keyword = carried.find((candidate) => restrictions.excludedKeywords.has(candidate.toLowerCase()))
   if (keyword) return { keyword }
   const lowered = name.trim().toLowerCase()

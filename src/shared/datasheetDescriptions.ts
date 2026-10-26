@@ -1,3 +1,4 @@
+import { withoutFactionPrefix } from '../core/name'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { routeSlug } from '../core/slug'
 import { ruleReferenceMatches, splitWeaponKeywords } from '../core/ruleReference'
@@ -74,7 +75,7 @@ export function describeDatasheetAbilitiesWithContributions(
   })
   const abilities = visibleAbilities.map(describeAbility)
   const weaponAbilityNames = weaponKeywords(sheet.profiles)
-  const keywords = new Set(sheet.keywords.map((keyword) => routeSlug(keyword.replace(/^faction:\s*/i, ''))))
+  const keywords = new Set(sheet.keywords.map((keyword) => routeSlug(withoutFactionPrefix(keyword))))
   const character = keywords.has('character')
   const abilitiesByDetachment = new Map(
     referenceAbilities?.detachments.map((detachment) => [joinKey(canonicalDetachmentName(detachment.name)), detachment] as const) ?? [],

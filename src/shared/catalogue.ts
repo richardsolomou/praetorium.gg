@@ -1,3 +1,4 @@
+import { withoutFactionPrefix } from '../core/name'
 import { canonicalDetachmentName } from '../core/detachmentName'
 import { cachedIn, uniqueBy } from '../core/collections'
 import { type Definition, definitionAndTarget, type InfoGroup, type InfoLink, nameOf, type Profile, targetOf } from '../core/catalogue'
@@ -774,7 +775,7 @@ function weaponAbilitiesFromDetachments(
   const keywordNames = (selectedKeywordIds ?? keywordIds(selections, unitSelectionIndex, loaded.index, { primaryCatalogueId: catalogueId }))
     .flatMap((id) => {
       const category = loaded.index.categories.get(id)
-      const name = category?.name?.replace(/^Faction:\s*/iu, '')
+      const name = category?.name && withoutFactionPrefix(category.name)
       return name && !category?.hidden ? [normalizeKeywordSelector(name)] : []
     })
     .filter(Boolean)
@@ -844,7 +845,7 @@ function grantedAbilitiesInAttachedUnit(
       : []
     const categories = keywordIdsAt.flatMap((id) => {
       const name = index.categories.get(id)?.name
-      return name ? [name.replace(/^Faction:\s*/iu, '')] : []
+      return name ? [withoutFactionPrefix(name)] : []
     })
     const abilities = selection
       ? definitionsInSelections([selection], [0], index).flatMap((selected) =>

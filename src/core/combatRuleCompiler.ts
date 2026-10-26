@@ -1,5 +1,6 @@
 import { capitalised, escapeRegExp, plainQuotes } from './text'
 import { chunks } from './collections'
+import { withoutFactionPrefix } from './name'
 import type { DatasheetCharacteristicKind } from './datasheet'
 import type { CombatRule, CombatRuleChoice, CombatRuleEffect } from './combatRules'
 import { compileMortalRule } from './combatMortalRules'
@@ -38,10 +39,7 @@ export const labelledChoice = (name: string, choice: CombatRuleChoice): CombatRu
   ...choice,
   label: name + (choice.label === 'Active' ? '' : ` · ${choice.label}`),
 })
-export const combatTextKey = (text: string) =>
-  normalizeCombatText(text)
-    .replace(/^faction:\s*/i, '')
-    .toLowerCase()
+export const combatTextKey = (text: string) => withoutFactionPrefix(normalizeCombatText(text)).toLowerCase()
 const stripEnd = (text: string) => text.replace(/[.;, ]+$/, '').trim()
 const phasesOf = (word: string | undefined, fallback: Phase[]): Phase[] =>
   /ranged/i.test(word ?? '') ? ['ranged'] : /melee/i.test(word ?? '') ? ['melee'] : fallback

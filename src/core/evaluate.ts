@@ -29,6 +29,7 @@ import {
 } from './catalogue'
 import { fieldedCount, scaleOf } from './collective'
 import { remember } from './collections'
+import { withoutFactionPrefix } from './name'
 
 /** What the player picked: an entry, group or link id, how many, and what sits under it. */
 export type Selection = { id: string; count?: number; selections?: readonly Selection[] }
@@ -499,7 +500,7 @@ export function keywordIdsBySelection(selections: readonly Selection[], index: C
 export const keywordNames = (ids: readonly string[], index: CatalogueIndex): string[] =>
   ids.flatMap((id) => {
     const category = index.categories.get(id)
-    return category?.hidden || !category?.name ? [] : [category.name.replace(/^Faction:\s*/iu, '')]
+    return category?.hidden || !category?.name ? [] : [withoutFactionPrefix(category.name)]
   })
 
 /** Each selection's keywords, and the ones the list's own rules shelve it under ahead of its datasheet's. */

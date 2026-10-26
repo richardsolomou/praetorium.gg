@@ -14,7 +14,7 @@ import {
   targetOf,
 } from './catalogue'
 import type { EvaluationError, Selection } from './evaluate'
-import { normalizedName } from './name'
+import { normalizedName, withoutFactionPrefix } from './name'
 import { sameText } from './text'
 
 /** Only an ability titled "Leader" establishes that role; other attachments default to support. */
@@ -313,7 +313,7 @@ function categoryTargets(name: string, index: CatalogueIndex) {
       if (definition.type !== 'unit' && target.type !== 'unit') continue
       const categories = new Set(
         [...(definition.categoryLinks ?? []), ...(target.categoryLinks ?? [])].map((link) =>
-          normalizedName(link.name ?? '').replace(/^faction:\s*/, ''),
+          withoutFactionPrefix(normalizedName(link.name ?? '')),
         ),
       )
       if (required.every((category) => categories.has(category))) found.push(nameOf(definition, index.definitions))
@@ -332,7 +332,7 @@ const uniqueNormalizedNames = (values: readonly string[]) => uniqueBy(values, no
  */
 export function admitsHost(attachment: Attachment, hostName: string, hostKeywords: readonly string[] = []): boolean {
   if (attachment.targets.some((target) => sameText(target, hostName))) return true
-  const held = new Set(hostKeywords.map((keyword) => normalizedName(keyword).replace(/^faction:\s*/, '')))
+  const held = new Set(hostKeywords.map((keyword) => withoutFactionPrefix(normalizedName(keyword))))
   return (attachment.keywords ?? []).some((phrase) => phrase.split(' ').every((word) => held.has(word)))
 }
 

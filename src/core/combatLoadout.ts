@@ -4,6 +4,7 @@ import type { StructuredDatasheetProfile } from './datasheet'
 import { fieldedCount, isCollectiveGroup } from './collective'
 import { resolve } from './definitions'
 import { datasheetProfileKind } from './datasheetStructure'
+import { withoutFactionPrefix } from './name'
 import { selectionCountBoundsAt, type EvaluateOptions, type Selection } from './evaluate'
 import { wargearKey, wargearOf, type Wargear } from './wargear'
 
@@ -86,7 +87,7 @@ export function combatCarriers(selection: Selection, index: CatalogueIndex, opti
           [definition!, target].flatMap((source) =>
             (source.categoryLinks ?? []).flatMap((link) => {
               const name = link.name ?? index.categories.get(link.targetId)?.name
-              return name ? [name.replace(/^Faction:\s*/iu, '')] : []
+              return name ? [withoutFactionPrefix(name)] : []
             }),
           ),
         ),
