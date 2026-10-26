@@ -92,7 +92,7 @@ function rosterForces(
   })
   const forceSelections = new Map<string, Selection[]>([[data.catalogueId, [...roster]]])
   for (const unit of picked) {
-    const owner = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+    const owner = unitCatalogueId(loaded, data, unit)
     const force = forceSelections.get(owner) ?? [...configuration]
     force.push(unit.selection)
     forceSelections.set(owner, force)
@@ -214,6 +214,21 @@ function labelUnitsOf(
   }))
 }
 
+type PickedUnit = { key: number; entryId: string }
+
+/** The book a picked unit is drawn from: the one the pick names, else the one defining it, else the roster's own. */
+const unitCatalogueId = (loaded: LoadedCatalogue, data: PriceInput, unit: PickedUnit) =>
+  data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+
+const pickedMfmUnit = (loaded: LoadedCatalogue, data: PriceInput, unit: PickedUnit) =>
+  mfmUnitFor(loaded, data.units[unit.key]?.catalogueId ?? data.catalogueId, unit.entryId)
+
+function selectionPointsOf(forces: readonly (readonly Selection[])[], evaluated: { selectionPoints: readonly (readonly number[])[] }) {
+  const points = new Map<Selection, number>()
+  forces.forEach((force, forceAt) => force.forEach((selection, at) => points.set(selection, evaluated.selectionPoints[forceAt]?.[at] ?? 0)))
+  return points
+}
+
 function adjustUnitPoints(
   loaded: LoadedCatalogue,
   data: PriceInput,
@@ -226,12 +241,12 @@ function adjustUnitPoints(
     (option) => mfmDetachmentFor(loaded, data.catalogueId, option.name) ?? [],
   )
   for (const unit of picked) {
-    const catalogueId = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+    const catalogueId = unitCatalogueId(loaded, data, unit)
     const definition = loaded.index.definitions.get(unit.entryId)
     const sheetId = definition ? targetOf(definition, loaded.index.definitions).id : unit.entryId
     const copy = (copies.get(sheetId) ?? 0) + 1
     copies.set(sheetId, copy)
-    const mfmUnit = mfmUnitFor(loaded, data.units[unit.key]?.catalogueId ?? data.catalogueId, unit.entryId)
+    const mfmUnit = pickedMfmUnit(loaded, data, unit)
     const optionDifference = mfmOptionAdjustment(loaded.index, unit, mfmUnit, detachments, {
       primaryCatalogueId: data.catalogueId,
       mustering: true,
@@ -304,10 +319,7 @@ export function calculateRosterTotals(
   if (savedSelectionErrors(data, picked, loaded).length) return null
   const forces = [...forceSelections.values()]
   const evaluated = evaluateForces(forces, loaded.index, { primaryCatalogueId: data.catalogueId })
-  const pointsBySelection = new Map<Selection, number>()
-  forces.forEach((force, forceAt) =>
-    force.forEach((selection, at) => pointsBySelection.set(selection, evaluated.selectionPoints[forceAt]?.[at] ?? 0)),
-  )
+  const pointsBySelection = selectionPointsOf(forces, evaluated)
   const adjustment = adjustUnitPoints(loaded, data, picked, pointsBySelection)
   return {
     points: evaluated.points + adjustment,
@@ -387,16 +399,15 @@ function selectedSpecials(
 function calculateRoster(
   data: PriceInput,
   loaded: LoadedCatalogue | null,
-  loadedRules: LoadedRules | null,
+  rules: LoadedRules | null,
   mode: 'full' | 'assessment',
   unitCache?: Map<string, BuiltUnit | null>,
 ) {
   if (!loaded) return null
 
-  const { chosen, selections: detachmentSelection } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)
   // Enhancements and unit limits can depend on the detachment already being in
   // the roster when units are expanded.
-  const rules = loadedRules
+  const { chosen, selections: detachmentSelection } = rosterDetachments(loaded, data.catalogueId, data.detachmentIds)
   const factionSlug = routeSlug(loaded.index.catalogues.get(data.catalogueId)?.name ?? '')
   const factionName = factionNameOf(loaded, data.catalogueId, rules)
   const rulesId = rulesFaction(rules, factionSlug)
@@ -501,8 +512,7 @@ function calculateRoster(
   }
   const keywordMatrixFor = (catalogueId: string) => rosterKeywordsFor(catalogueId).map(({ keywords }) => keywords)
   const keywordsFor = (catalogueId: string, at: number) => rosterKeywordsFor(catalogueId)[at]?.keywords ?? []
-  const catalogueOfUnit = (unit: (typeof picked)[number]) =>
-    data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+  const catalogueOfUnit = (unit: (typeof picked)[number]) => unitCatalogueId(loaded, data, unit)
   const keywordNamesOf = (unit: (typeof picked)[number]) => {
     const at = selectionIndex.get(unit.selection)
     return keywordNames(at === undefined ? [] : keywordsFor(catalogueOfUnit(unit), at), loaded.index)
@@ -513,10 +523,7 @@ function calculateRoster(
   const modelKindsFor = (unit: (typeof picked)[number]) =>
     remember(builtModelKinds, unit.source, () => modelKindsOf(unit.entryId, unit.selection, loaded.index, options))
   const whole = evaluateForces(forces, loaded.index, options)
-  const selectionPoints = new Map<Selection, number>()
-  forces.forEach((force, forceAt) =>
-    force.forEach((selection, selectionAt) => selectionPoints.set(selection, whole.selectionPoints[forceAt]?.[selectionAt] ?? 0)),
-  )
+  const selectionPoints = selectionPointsOf(forces, whole)
   const points = whole.points + adjustUnitPoints(loaded, data, picked, selectionPoints)
   const pointCaps = pointCapErrors(forces, loaded.index, options, (selection) => selectionPoints.get(selection) ?? 0)
   const restrictions = rules?.factionRestrictions.get(factionSlug)
@@ -526,7 +533,7 @@ function calculateRoster(
   const constructionUnits =
     restrictions || isKotcLimit(data.limit)
       ? picked.map((unit) => {
-          const catalogueId = data.units[unit.key]?.catalogueId ?? loaded.index.catalogueOf.get(unit.entryId) ?? data.catalogueId
+          const catalogueId = catalogueOfUnit(unit)
           const sheet = datasheetIn(loaded, catalogueId, unit.entryId, {
             selections,
             unitSelectionIndex: selectionIndex.get(unit.selection),
@@ -668,7 +675,7 @@ function calculateRoster(
     selections,
     units: picked.map((unit) => {
       const catalogueId = catalogueOfUnit(unit)
-      const mfmUnit = mfmUnitFor(loaded, data.units[unit.key]?.catalogueId ?? data.catalogueId, unit.entryId)
+      const mfmUnit = pickedMfmUnit(loaded, data, unit)
       const definition = loaded.index.definitions.get(unit.entryId) ?? { id: unit.entryId }
       const unitSelectionIndex = selectionIndex.get(unit.selection)
       const unitKeywords = keywordNamesOf(unit)
