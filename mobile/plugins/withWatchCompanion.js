@@ -4,6 +4,7 @@ const { withXcodeProject } = require('expo/config-plugins')
 
 const TARGET = 'PraetoriumWatch'
 const SOURCE_FILES = ['PraetoriumWatchApp.swift', 'CompanionView.swift', 'BattleSnapshot.swift', 'BattleSession.swift', 'WatchStore.swift']
+const RESOURCE_FILES = ['demo-battle.json', 'PrivacyInfo.xcprivacy']
 
 module.exports = (config) =>
   withXcodeProject(config, (mod) => {
@@ -12,9 +13,10 @@ module.exports = (config) =>
     objects.PBXTargetDependency ??= {}
     objects.PBXContainerItemProxy ??= {}
     const bundleId = `${mod.ios.bundleIdentifier}.watch`
+    const buildNumber = mod.ios.buildNumber ?? '1'
     const directory = path.join(mod.modRequest.platformProjectRoot, TARGET)
     fs.mkdirSync(directory, { recursive: true })
-    for (const file of [...SOURCE_FILES, 'demo-battle.json', 'PrivacyInfo.xcprivacy']) {
+    for (const file of [...SOURCE_FILES, ...RESOURCE_FILES]) {
       fs.copyFileSync(path.join(mod.modRequest.projectRoot, 'watch', file), path.join(directory, file))
     }
     const plist = `<?xml version="1.0" encoding="UTF-8"?>
@@ -26,7 +28,7 @@ module.exports = (config) =>
 <key>CFBundleName</key><string>$(PRODUCT_NAME)</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleShortVersionString</key><string>${mod.version}</string>
-<key>CFBundleVersion</key><string>${mod.ios.buildNumber ?? '1'}</string>
+<key>CFBundleVersion</key><string>${buildNumber}</string>
 <key>WKApplication</key><true/>
 <key>WKCompanionAppBundleIdentifier</key><string>${mod.ios.bundleIdentifier}</string>
 <key>WKRunsIndependentlyOfCompanionApp</key><false/>
@@ -50,7 +52,6 @@ module.exports = (config) =>
       project.addBuildPhase([], 'PBXFrameworksBuildPhase', 'Frameworks', target.uuid)
     }
     for (const file of SOURCE_FILES) project.addSourceFile(`${TARGET}/${file}`, { target: target.uuid }, group.uuid)
-    const resources = ['demo-battle.json', 'Assets.xcassets', 'PrivacyInfo.xcprivacy']
     const icons = path.join(directory, 'Assets.xcassets', 'AppIcon.appiconset')
     fs.mkdirSync(icons, { recursive: true })
     fs.copyFileSync(path.join(mod.modRequest.projectRoot, 'assets', 'icon.png'), path.join(icons, 'icon.png'))
@@ -61,7 +62,7 @@ module.exports = (config) =>
         info: { author: 'xcode', version: 1 },
       }),
     )
-    for (const name of resources) {
+    for (const name of [...RESOURCE_FILES, 'Assets.xcassets']) {
       const resource = project.addFile(`${TARGET}/${name}`, group.uuid)
       if (!resource) continue
       resource.target = target.uuid
@@ -81,7 +82,7 @@ module.exports = (config) =>
         GENERATE_INFOPLIST_FILE: 'NO',
         ASSETCATALOG_COMPILER_APPICON_NAME: 'AppIcon',
         CODE_SIGN_STYLE: 'Automatic',
-        CURRENT_PROJECT_VERSION: mod.ios.buildNumber ?? '1',
+        CURRENT_PROJECT_VERSION: buildNumber,
         MARKETING_VERSION: mod.version,
         ENABLE_PREVIEWS: 'YES',
       })
