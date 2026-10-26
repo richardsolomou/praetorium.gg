@@ -2290,10 +2290,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       state.pendingSettlement = null
       if (state.completionPending) {
         state.completionPending = false
-        state.status = 'finished'
-        state.result = { reason: 'completed', concededBy: null }
-        state.resumePlayerId = state.activePlayerId
-        state.activePlayerId = null
+        finishBattle(state, { reason: 'completed', concededBy: null })
       }
       return
     }
@@ -2327,10 +2324,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       }
       if (state.round === BATTLE_ROUNDS) {
         if ((endsFirstTurn && !opponent) || state.settings.manual) {
-          state.status = 'finished'
-          state.result = { reason: 'completed', concededBy: null }
-          state.resumePlayerId = state.activePlayerId
-          state.activePlayerId = null
+          finishBattle(state, { reason: 'completed', concededBy: null })
           return
         }
         const firstPlayer = state.players.find((candidate) => sameSide(state, candidate.id, state.firstPlayerId ?? ''))
@@ -2349,10 +2343,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
       state.advanceRequested = false
       state.scoringAcknowledged = false
       state.completionPending = false
-      state.status = 'finished'
-      state.result = { reason: command.reason ?? 'finished-early', concededBy: command.concededBy ?? null }
-      state.resumePlayerId = state.activePlayerId
-      state.activePlayerId = null
+      finishBattle(state, { reason: command.reason ?? 'finished-early', concededBy: command.concededBy ?? null })
       return
     }
     case 'add-note':
@@ -2610,6 +2601,14 @@ function recordCpChange(state: BattleState, player: PlayerState, delta: number, 
 /** The round a settlement's points belong to. */
 export function pointsRound(state: BattleState, command: Extract<Command, { kind: 'score-settlement' }>): number {
   return command.missed?.round ?? command.round ?? state.round
+}
+
+/** Ends the battle, remembering whose turn it was so reopening it resumes there. */
+function finishBattle(state: BattleState, result: NonNullable<BattleState['result']>) {
+  state.status = 'finished'
+  state.result = result
+  state.resumePlayerId = state.activePlayerId
+  state.activePlayerId = null
 }
 
 /** Puts a card into the hand as the side's own deck holds it, and returns its key. */
