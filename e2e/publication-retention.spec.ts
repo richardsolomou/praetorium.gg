@@ -13,6 +13,7 @@ import {
   practiceBattle,
   concede,
   chooseLibraryAction,
+  scoreboard,
 } from './account'
 import { productOperator, productSql, savedWork, withAuthSql, userIdNamed, lastPathSegment, battleIdFor } from './storage'
 
@@ -89,7 +90,7 @@ async function sealThroughPage(page: Page, leagueToken: string, rosterName: stri
 
 async function concedeAndSync(page: Page) {
   await concede(page)
-  await expect(page.getByRole('region', { name: 'Battle scoreboard' }).getByRole('heading')).toContainText('wins by concession')
+  await expect(scoreboard(page).getByRole('heading')).toContainText('wins by concession')
   // The scoreboard updates before the queued concession reaches the server.
   await expect.poll(async () => (await savedWork(page))?.operations.length ?? 0, { timeout: 60_000 }).toBe(0)
 }
@@ -264,7 +265,7 @@ test('self-account deletion removes populated shared history and sealed entries 
     expect(await productSql`SELECT user_id FROM league_event_entries WHERE user_id = ${ownerId}`).toHaveLength(2)
     await expectRecord(anonymous, ownerId, 1)
     await opponent.goto(finished)
-    await expect(opponent.getByRole('region', { name: 'Battle scoreboard' }).getByRole('heading')).toContainText('wins by concession')
+    await expect(scoreboard(opponent).getByRole('heading')).toContainText('wins by concession')
 
     await owner.goto('/profile')
     const dialog = owner.getByRole('dialog', { name: 'Delete your account' })

@@ -14,12 +14,12 @@ import {
   shotAtWidths,
   PHONE,
   chooseFaction,
+  scoreboard,
 } from './account'
 import { add } from './builder.harness'
 import { productSql, userIdNamed, lastPathSegment, battleIdFor, guestDraft } from './storage'
 
 const GUEST = uniqueName('Sam the Guest')
-const scoreboard = (page: Page) => page.getByRole('region', { name: 'Battle scoreboard' })
 const phase = (page: Page) => page.locator('[data-scoreboard] h1')
 /** Below the five seconds a page without a live subscription waits between polls. */
 const LIVE_MS = 3_000

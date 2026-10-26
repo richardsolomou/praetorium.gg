@@ -10,10 +10,10 @@ import {
   uniqueName,
   expectNoPageOverflow,
   desktopContext,
+  scoreboard,
 } from './account'
 import { battleLog } from './storage'
 
-const scoreboard = (page: Page) => page.getByRole('region', { name: 'Battle scoreboard' })
 const panel = (page: Page, side: number) => page.locator(`[data-panel="player"][data-side="${side}"]`)
 test('a table keeps score by hand in a manually tracked battle', async ({ page }) => {
   test.setTimeout(240_000)

@@ -1,5 +1,5 @@
-import { expect, test, type Page } from './test'
-import { createRoster, setupBattle, signUp, uniqueName, playTurn, PHONE } from './account'
+import { expect, test } from './test'
+import { createRoster, setupBattle, signUp, uniqueName, playTurn, PHONE, scoreboard } from './account'
 import { battleLog } from './storage'
 
 test('two phones finish a five-round battle in step', async ({ browser }) => {
@@ -49,7 +49,3 @@ test('two phones finish a five-round battle in step', async ({ browser }) => {
   await expect(alice.getByRole('button', { name: 'Battle options', includeHidden: true })).toHaveCount(0)
   await Promise.all([aliceContext.close(), bobContext.close()])
 })
-
-function scoreboard(page: Page) {
-  return page.getByRole('region', { name: 'Battle scoreboard' })
-}

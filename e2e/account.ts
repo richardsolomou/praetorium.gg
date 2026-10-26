@@ -609,6 +609,8 @@ export async function advance(page: Page, { dismissReminders = true }: { dismiss
   }
 }
 
+export const scoreboard = (page: Page) => page.getByRole('region', { name: 'Battle scoreboard' })
+
 /** Concedes the open battle from its options menu, reopening the menu until it shows: a press before hydration opens nothing. */
 export async function concede(page: Page) {
   const choice = page.getByRole('menuitem', { name: 'Concede battle', exact: true })

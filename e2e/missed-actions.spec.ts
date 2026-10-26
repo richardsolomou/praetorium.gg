@@ -1,5 +1,16 @@
 import { expect, test, type Page } from './test'
-import { advance, createRoster, rewind, signUp, startBattle, uniqueName, practiceBattle, concede, desktopContext } from './account'
+import {
+  advance,
+  createRoster,
+  rewind,
+  signUp,
+  startBattle,
+  uniqueName,
+  practiceBattle,
+  concede,
+  desktopContext,
+  scoreboard,
+} from './account'
 
 /** Narrow screens show one column at a time behind the battle tabs. */
 async function show(page: Page, tab: 'Your side' | 'Battle') {
@@ -136,7 +147,7 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
       'aria-valuetext',
       new RegExp(`^Round 1, event \\d+ of \\d+: ${name} uses Insane Bravery for 1 CP, recorded late for round 1, ${name}’s command phase$`),
     )
-    await expect(page.getByRole('region', { name: 'Battle scoreboard' })).toContainText('movement phase')
+    await expect(scoreboard(page)).toContainText('movement phase')
     await page.screenshot({ path: test.info().outputPath(`missed-action-replay-${viewport.width}.png`) })
   }
 })

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from './test'
+import { expect, test } from './test'
 import {
   attachRoster,
   createBattle,
@@ -11,11 +11,11 @@ import {
   playTurn,
   expectNoPageOverflow,
   PHONE,
+  scoreboard,
 } from './account'
 import { userIdNamed } from './storage'
 
 const GUEST = 'Alex the Guest'
-const scoreboard = (page: Page) => page.getByRole('region', { name: 'Battle scoreboard' })
 test('a host records a real game against a guest without an account', async ({ page }) => {
   test.setTimeout(300_000)
   await page.setViewportSize({ width: 1440, height: 900 })

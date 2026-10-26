@@ -9,6 +9,7 @@ import {
   uniqueName,
   expectNoPageOverflow,
   PHONE,
+  scoreboard,
 } from './account'
 import { productSql, withAuthSql, battleIdFor } from './storage'
 import { NATIVE_BROWSER_BRIDGE_SCRIPT } from './native.harness'
@@ -306,7 +307,7 @@ test('orders the signed-in home page from the player outwards', async ({ browser
     await host.getByRole('button', { name: 'Battle options' }).click()
     await host.getByRole('menuitem', { name: 'Concede battle' }).click()
     await host.getByRole('alertdialog').getByRole('button', { name: 'Concede battle' }).click()
-    await expect(host.getByRole('region', { name: 'Battle scoreboard' }).getByRole('heading')).toContainText('wins by concession')
+    await expect(scoreboard(host).getByRole('heading')).toContainText('wins by concession')
     // The record arrives in the server's HTML, not after hydration.
     await expect.poll(async () => (await (await host.request.get('/')).text()).includes('data-home-record')).toBe(true)
     await host.goto('/')
