@@ -127,7 +127,7 @@ import { convertAsVariantOf } from './rosterLibrary'
 import { currentRulesFor } from '../../../core/currentRules'
 import { OutdatedLeagueRosters } from './OutdatedLeagueRosters'
 import { DueLeagueRosters } from './DueLeagueRosters'
-import { draftKey, exportInput, type RosterDraft, rosterDraftOf, rosterSetupOf, savedDraft } from './rosterDraft'
+import { draftKey, exportInput, NO_PREP, type RosterDraft, rosterDraftOf, rosterSetupOf, savedDraft } from './rosterDraft'
 import { RosterBuilderFooter } from './RosterBuilderFooter'
 import { type RosterVariant, RosterVariantMenu } from './RosterVariantMenu'
 import type { NamedRosterDifferences } from '../../../core/rosterDifferences'
@@ -882,7 +882,7 @@ export function ListBuilder({
     const changedFaction = currentCatalogueFamilyId(saved.catalogueId) !== currentCatalogueFamilyId(catalogueId)
     resetPicks(review.candidate.picks)
     adoptSetup(saved)
-    setSavedPrep(review.candidate.prep ?? { stratagems: [], secondaries: [] })
+    setSavedPrep(review.candidate.prep ?? NO_PREP)
     if (changedFaction) setSelected(null)
     setSetupDraft(null)
     await invalidateSavedRosters(queryClient)

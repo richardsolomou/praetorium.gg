@@ -32,6 +32,9 @@ type SavedPrep = {
   remindersEnabled?: boolean
 }
 
+/** The battle preparation of a list that has none yet. */
+export const NO_PREP: SavedPrep = { stratagems: [], secondaries: [], remindersEnabled: true }
+
 /** Two drafts that would save the same row compare equal. */
 export const draftKey = (draft: RosterDraft) => JSON.stringify(draft)
 

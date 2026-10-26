@@ -31,8 +31,7 @@ import { useGuestBattle } from '../battles/guestBattle'
 import { normalisePicks } from './rosterPicks'
 import { adoptVisitorReminders, claimVisitorReminders } from './visitorReminders'
 import { rosterUseProblem } from '../../../core/rosterLegality'
-
-const NO_PREP = { stratagems: [], secondaries: [], remindersEnabled: true }
+import { NO_PREP } from './rosterDraft'
 
 /**
  * A visitor's list, read once the page is in the browser, the only place it lives.
