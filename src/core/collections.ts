@@ -39,11 +39,12 @@ export function uniqueBy<T>(values: readonly T[], keyOf: (value: T) => unknown):
 /** Each value under its id; a later duplicate replaces an earlier one. */
 export const byId = <T extends { id: string }>(values: readonly T[]): Map<string, T> => new Map(values.map((value) => [value.id, value]))
 
-/** `values` with `value` once, or without it; `keyOf` says which values are the same one. */
-export function withMember<T>(values: readonly T[], value: T, present: boolean, keyOf: (value: T) => unknown = (same) => same): T[] {
+/** `values` with `value` once, or without it, flipped when `present` is left out; `keyOf` says which values are the same one. */
+export function withMember<T>(values: readonly T[], value: T, present?: boolean, keyOf: (value: T) => unknown = (same) => same): T[] {
   const key = keyOf(value)
-  if (!present) return values.filter((other) => keyOf(other) !== key)
-  return values.some((other) => keyOf(other) === key) ? [...values] : [...values, value]
+  const has = values.some((other) => keyOf(other) === key)
+  if (!(present ?? !has)) return values.filter((other) => keyOf(other) !== key)
+  return has ? [...values] : [...values, value]
 }
 
 /** A copy of `set` with `value` in it or not, flipped when `present` is left out. */

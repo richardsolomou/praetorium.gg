@@ -135,6 +135,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useAccountPrompt } from './AccountPrompt'
 import { CreateBattle } from '../battles/CreateBattle'
 import { guestDraftOf, peekGuestDraft, writeGuestDraft } from './guestDraft'
+import { withMember } from '../../../core/collections'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
@@ -338,11 +339,7 @@ export function ListBuilder({
     // Viewing is reading the list as anybody else would, and the picker is not part of that.
     if (next && showing === 'picker') closePane()
   }
-  const toggleWaivedRule = useCallback(
-    (rule: FormatRuleId) =>
-      setWaivedRules((current) => (current.includes(rule) ? current.filter((candidate) => candidate !== rule) : [...current, rule])),
-    [],
-  )
+  const toggleWaivedRule = useCallback((rule: FormatRuleId) => setWaivedRules((current) => withMember(current, rule)), [])
   const togglePickerFilter = useCallback(
     (filter: PickerFilter) =>
       setPickerFilters((current) => {

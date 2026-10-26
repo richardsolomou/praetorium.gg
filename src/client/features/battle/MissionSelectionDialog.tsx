@@ -17,6 +17,7 @@ import type { ReferenceCard } from './MissionCards'
 import { MissionCardReference } from '../../components/MissionCardReference'
 import { missionUnitChoice, missionUnitChoiceKey } from './missionUnitChoice'
 import { UndoLatest } from './UndoLatest'
+import { withMember } from '../../../core/collections'
 
 export function MissionSelectionDialog({
   view,
@@ -220,9 +221,7 @@ export function MissionSelectionDialog({
                       disabled={pending || (!selected.includes(unit.value) && selected.length >= (fallback ? 1 : 3))}
                       onClick={() => {
                         setQualified(false)
-                        setSelected((current) =>
-                          current.includes(unit.value) ? current.filter((candidate) => candidate !== unit.value) : [...current, unit.value],
-                        )
+                        setSelected((current) => withMember(current, unit.value))
                       }}
                     >
                       {unit.label}

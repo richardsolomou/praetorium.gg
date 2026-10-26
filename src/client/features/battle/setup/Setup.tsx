@@ -43,6 +43,7 @@ import { TableStrip } from './TableStrip'
 import { Choice } from '../../../components/Choice'
 import { MANUAL_TRACKING_LIMITS } from '../manualTracking'
 import { formatList } from '../../../text'
+import { withMember } from '../../../../core/collections'
 
 type Props = {
   view: BattleView
@@ -120,8 +121,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
   /** Sections this device has opened past their one-line summary. Local, because reading is not a table decision. */
   const [opened, setOpened] = useState<SectionId[]>([])
   const isOpen = (id: SectionId) => opened.includes(id)
-  const toggle = (id: SectionId) =>
-    setOpened((current) => (current.includes(id) ? current.filter((entry) => entry !== id) : [...current, id]))
+  const toggle = (id: SectionId) => setOpened((current) => withMember(current, id))
   const attached = view.players.filter((player) => player.roster).length
   const ready = attached === view.players.length
   const format = rosterBattleFormat(view)

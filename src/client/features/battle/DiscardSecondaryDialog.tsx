@@ -7,6 +7,7 @@ import type { Side } from '../../sides'
 import { sideName } from '../../sides'
 import { UndoLatest, type UndoTarget } from './UndoLatest'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
+import { withMember } from '../../../core/collections'
 
 export function DiscardSecondaryDialog({
   side,
@@ -32,7 +33,7 @@ export function DiscardSecondaryDialog({
   const selected = chosenKeys.filter((key) => cards.some((card) => card.key === key))
 
   const toggle = (key: string) => {
-    const next = selected.includes(key) ? selected.filter((candidate) => candidate !== key) : [...selected, key]
+    const next = withMember(selected, key)
     setChosenKeys(next)
     onSelectionChange(next)
   }

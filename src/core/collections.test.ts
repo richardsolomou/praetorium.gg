@@ -20,6 +20,10 @@ describe('withMember', () => {
   it('keeps one copy of a value added again', () => {
     expect(withMember(['a', 'b'], 'a', true)).toEqual(['a', 'b'])
   })
+
+  it('takes out a value already there when presence is left out', () => {
+    expect(withMember(['a', 'b'], 'a')).toEqual(['b'])
+  })
 })
 
 describe('remember', () => {
