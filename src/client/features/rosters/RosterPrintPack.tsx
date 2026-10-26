@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef } from 'react'
+import { useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { attachedUnitList } from '../../../core/attachedUnits'
 import { ATTACHMENT_LABELS } from '../../../core/attachmentRows'
@@ -20,6 +20,7 @@ import { ProfileRules } from './ProfileRules'
 import { normalisePicks } from './rosterPicks'
 import { countLabel } from '../../text'
 import { unitKeywordsText } from '../../components/Keyword'
+import { usePrintWhenReady } from './usePrintWhenReady'
 
 type Price = NonNullable<Awaited<ReturnType<typeof priceRoster>>>
 
@@ -42,7 +43,6 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
   const client = useQueryClient()
   const picks = useMemo(() => normalisePicks(input.picks), [input.picks])
   const title = (unit: { key: number; name: string }) => nicknamedUnit(unit.name, input.picks[unit.key]?.nickname)
-  const printed = useRef(false)
   const { data, isError, refetch } = useQuery({
     queryKey: ['roster-print-pack', input],
     retry: false,
@@ -106,18 +106,7 @@ export function RosterPrintPack({ input, onClose }: { input: RosterPrintInput; o
     },
   })
 
-  useEffect(() => {
-    if (!data || printed.current) return
-    let cancelled = false
-    void document.fonts.ready.then(() => {
-      if (cancelled) return
-      printed.current = true
-      window.print()
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [data])
+  usePrintWhenReady(Boolean(data))
 
   if (!data)
     return (

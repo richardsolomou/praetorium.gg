@@ -135,6 +135,7 @@ import { useAccountPrompt } from './AccountPrompt'
 import { CreateBattle } from '../battles/CreateBattle'
 import { guestDraftOf, peekGuestDraft, writeGuestDraft } from './guestDraft'
 import { withMember } from '../../../core/collections'
+import { usePrintWhenReady } from './usePrintWhenReady'
 
 type Props = {
   /** What the player has written down, so a saved list carries it and restores it. */
@@ -570,24 +571,14 @@ export function ListBuilder({
       price: priced,
     })
   }, [annotated, currentDraftKey, editable, guest, priceLoading, pricePending, priced, savedId, setup, shownName, workspacePath])
+  // Until the faction loads, a list that is not frozen draws a placeholder instead of its cards.
+  const printReady = print && (Boolean(frozen) || Boolean(faction && priced && !pricePending && !priceLoading))
   useEffect(() => {
-    // Until the faction loads, a list that is not frozen draws a placeholder instead of its cards.
-    if (!print || automaticPrint.current || (!frozen && (!faction || !priced || pricePending || priceLoading))) return
-    if (!frozenReference) {
-      automaticPrint.current = true
-      preparePrint()
-      return
-    }
-    let cancelled = false
-    void document.fonts.ready.then(() => {
-      if (cancelled) return
-      automaticPrint.current = true
-      window.print()
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [faction, frozen, frozenReference, preparePrint, priceLoading, pricePending, priced, print])
+    if (!printReady || frozenReference || automaticPrint.current) return
+    automaticPrint.current = true
+    preparePrint()
+  }, [frozenReference, preparePrint, printReady])
+  usePrintWhenReady(printReady && frozenReference)
   const share = useMutation({
     mutationFn: async () => {
       // The link opens the saved roster, so unsaved edits land before it is handed out.
