@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { MAX_COUNTS_AS } from '../../../core/collection'
+import { toggled } from '../../../core/collections'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
 import { Problem } from '../../components/Problem'
 import { collectionCountsAsQuery } from '../../queries'
@@ -65,13 +66,7 @@ function CountsAsChoice({
   const [search, setSearch] = useState('')
   const shown = candidates.filter((sheet) => matchesSearch(sheet.name, search))
   const full = chosen.size >= MAX_COUNTS_AS
-  const toggle = (id: string, on: boolean) =>
-    setChosen((current) => {
-      const next = new Set(current)
-      if (on) next.add(id)
-      else next.delete(id)
-      return next
-    })
+  const toggle = (id: string, on: boolean) => setChosen((current) => toggled(current, id, on))
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent size="sm">

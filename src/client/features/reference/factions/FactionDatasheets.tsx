@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/combobox'
 import type { FactionDatasheet } from '../../../../contracts/catalogue'
 import { usableDatasheets } from '../../../../core/collection'
+import { toggled } from '../../../../core/collections'
 import { collectionCountsAsQuery, collectionQuery, factionDatasheetsQuery, meQuery } from '../../../queries'
 import { ACCOUNT_FILTERS, type AccountFilter, FilterChip } from '../../../components/FilterChip'
 import { DATASHEET_SOURCES, type DatasheetSource, filterDatasheets, keywordOptions, sourceOf } from './datasheetFilters'
@@ -209,12 +210,6 @@ const FactionDatasheetRow = memo(function FactionDatasheetRow({
     </div>
   )
 })
-
-function toggled<T>(set: ReadonlySet<T>, value: T) {
-  const next = new Set(set)
-  if (!next.delete(value)) next.add(value)
-  return next
-}
 
 type KeywordChoice = ReturnType<typeof keywordOptions>[number]
 

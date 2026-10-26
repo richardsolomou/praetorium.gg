@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useMemo } from 'react'
+import { withMember } from '../core/collections'
 import { setFavouriteDatasheet } from './functions'
 import { useOptimisticList } from './optimisticList'
 import { favouriteDatasheetsQuery } from './queries'
@@ -11,7 +12,7 @@ export function useFavouriteDatasheets(enabled = true) {
   const mutation = useOptimisticList<string, { entryId: string; favourite: boolean }>(
     query.queryKey,
     ({ entryId, favourite }) => setFavouriteDatasheet({ data: { entryId, favourite } }),
-    (previous, { entryId, favourite }) => (favourite ? [...new Set([...previous, entryId])] : previous.filter((id) => id !== entryId)),
+    (previous, { entryId, favourite }) => withMember(previous, entryId, favourite),
   )
   const favourites = useMemo(() => new Set(data ?? []), [data])
   const { mutate } = mutation

@@ -1,11 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
+import { favouriteDetachmentKey, withFavouriteDetachment, type FavouriteDetachment } from '../core/favouriteDetachments'
 import { setFavouriteDetachment } from './functions'
 import { useOptimisticList } from './optimisticList'
 import { favouriteDetachmentsQuery } from './queries'
-
-type FavouriteDetachment = { catalogueId: string; detachmentId: string }
-
-export const favouriteDetachmentKey = (catalogueId: string, detachmentId: string) => JSON.stringify([catalogueId, detachmentId])
 
 export function useFavouriteDetachments(enabled = true) {
   const query = favouriteDetachmentsQuery()
@@ -13,11 +10,7 @@ export function useFavouriteDetachments(enabled = true) {
   const mutation = useOptimisticList<FavouriteDetachment, FavouriteDetachment & { favourite: boolean }>(
     query.queryKey,
     ({ catalogueId, detachmentId, favourite }) => setFavouriteDetachment({ data: { catalogueId, detachmentId, favourite } }),
-    (previous, { catalogueId, detachmentId, favourite }) => {
-      const key = favouriteDetachmentKey(catalogueId, detachmentId)
-      const kept = previous.filter((entry) => favouriteDetachmentKey(entry.catalogueId, entry.detachmentId) !== key)
-      return favourite ? [...kept, { catalogueId, detachmentId }] : kept
-    },
+    withFavouriteDetachment,
   )
   const favourites = new Set(data.map((entry) => favouriteDetachmentKey(entry.catalogueId, entry.detachmentId)))
   return {

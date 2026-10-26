@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { withMember } from '../core/collections'
 import { setFavouriteFaction } from './functions'
 import { useOptimisticList } from './optimisticList'
 import { favouriteFactionsQuery } from './queries'
@@ -9,8 +10,7 @@ export function useFavouriteFactions(enabled = true) {
   const mutation = useOptimisticList<string, { catalogueId: string; favourite: boolean }>(
     query.queryKey,
     ({ catalogueId, favourite }) => setFavouriteFaction({ data: { catalogueId, favourite } }),
-    (previous, { catalogueId, favourite }) =>
-      favourite ? [...new Set([...previous, catalogueId])] : previous.filter((id) => id !== catalogueId),
+    (previous, { catalogueId, favourite }) => withMember(previous, catalogueId, favourite),
   )
   const favourites = new Set(data)
   return {

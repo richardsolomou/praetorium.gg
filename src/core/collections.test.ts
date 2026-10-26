@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { groupBy, remember, uniqueBy } from './collections'
+import { groupBy, remember, uniqueBy, withMember } from './collections'
 
 describe('groupBy', () => {
   it('gathers entries under their key in first-seen order', () => {
@@ -13,6 +13,12 @@ describe('groupBy', () => {
 describe('uniqueBy', () => {
   it('keeps the first value for each key', () => {
     expect(uniqueBy(['Bolter', 'bolter', 'Melta'], (name) => name.toLowerCase())).toEqual(['Bolter', 'Melta'])
+  })
+})
+
+describe('withMember', () => {
+  it('keeps one copy of a value added again', () => {
+    expect(withMember(['a', 'b'], 'a', true)).toEqual(['a', 'b'])
   })
 })
 

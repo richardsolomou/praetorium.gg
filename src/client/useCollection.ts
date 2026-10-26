@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { prepareCollectionPhoto } from './features/collection/preparePhoto'
-import { countsAsList, type CollectionProgress } from '../core/collection'
+import { withCountsAs, withProgress, withWanted, type CollectionProgress } from '../core/collection'
+import { withEntry, withMember } from '../core/collections'
 import {
   removeCollectionPhoto,
   setCollectionModels,
@@ -31,23 +32,18 @@ export function useCollectionMutation() {
       await queryClient.cancelQueries({ queryKey })
       if (localEngine()) return { durable: true, wasOwned: false }
       const previous = queryClient.getQueryData<string[]>(queryKey)
-      queryClient.setQueryData<string[]>(queryKey, (current = []) =>
-        owned ? [...new Set([...current, entryId])] : current.filter((id) => id !== entryId),
-      )
+      queryClient.setQueryData<string[]>(queryKey, (current = []) => withMember(current, entryId, owned))
       // The server deletes a removed datasheet's count, so adding it back starts again at one.
       if (!owned)
-        queryClient.setQueryData<Record<string, number>>(collectionCountsQuery().queryKey, (current) => {
-          if (!current) return current
-          const { [entryId]: _removed, ...rest } = current
-          return rest
-        })
+        queryClient.setQueryData<Record<string, number>>(
+          collectionCountsQuery().queryKey,
+          (current) => current && withEntry(current, entryId, undefined),
+        )
       return { durable: false, wasOwned: previous?.includes(entryId) ?? false }
     },
     onError: (_error, { entryId }, context) => {
       if (context?.durable) return
-      queryClient.setQueryData<string[]>(queryKey, (current = []) =>
-        context?.wasOwned ? [...new Set([...current, entryId])] : current.filter((id) => id !== entryId),
-      )
+      queryClient.setQueryData<string[]>(queryKey, (current = []) => withMember(current, entryId, Boolean(context?.wasOwned)))
     },
     onSettled: (_data, _error, _input, context) => {
       if (context?.durable) return
@@ -89,10 +85,10 @@ export function useCollectionCountMutation() {
 }
 
 /** An edit to one datasheet's entry in a per-datasheet record, shown at once and put back if the server refuses it. */
-function useEntryMutation<Value, Input extends { entryId: string }>(
+function useEntryMutation<Value, Input>(
   queryKey: readonly unknown[],
   save: (input: Input) => Promise<unknown>,
-  value: (input: Input) => Value | undefined,
+  apply: (saved: Record<string, Value>, input: Input) => Record<string, Value>,
 ) {
   const queryClient = useQueryClient()
   return useMutation({
@@ -102,11 +98,7 @@ function useEntryMutation<Value, Input extends { entryId: string }>(
       await queryClient.cancelQueries({ queryKey })
       const previous = queryClient.getQueryData<Record<string, Value>>(queryKey)
       // Shown at once, durable or not: a counter bounded by this one reads its bound from here before the save lands.
-      queryClient.setQueryData<Record<string, Value>>(queryKey, (current = {}) => {
-        const { [input.entryId]: _replaced, ...rest } = current
-        const next = value(input)
-        return next === undefined ? rest : { ...rest, [input.entryId]: next }
-      })
+      queryClient.setQueryData<Record<string, Value>>(queryKey, (current = {}) => apply(current, input))
       return { durable: Boolean(localEngine()), previous }
     },
     onError: (_error, _input, context) => {
@@ -122,24 +114,21 @@ export const useCollectionProgressMutation = () =>
   useEntryMutation<CollectionProgress, { entryId: string } & CollectionProgress>(
     collectionProgressQuery().queryKey,
     (data) => setCollectionProgress({ data }),
-    ({ built, painted }) => (built ? { built, painted } : undefined),
+    withProgress,
   )
 
 export const useCollectionCountsAsMutation = () =>
   useEntryMutation<string[], { entryId: string; countsAs: string[] }>(
     collectionCountsAsQuery().queryKey,
     (data) => setCollectionCountsAs({ data }),
-    ({ entryId, countsAs }) => {
-      const links = countsAsList(entryId, countsAs)
-      return links.length ? links : undefined
-    },
+    withCountsAs,
   )
 
 export const useCollectionWantedMutation = () =>
   useEntryMutation<number, { entryId: string; wanted: number }>(
     collectionWishesQuery().queryKey,
     (data) => setCollectionWanted({ data }),
-    ({ wanted }) => wanted || undefined,
+    withWanted,
   )
 
 function useInvalidatePhotos() {

@@ -1,3 +1,5 @@
+import { withEntry } from './collections'
+
 /** A player's own count of a datasheet's physical models: everything in a collection has at least one, and a typo cannot store an absurd number. */
 export const MAX_COLLECTION_MODELS = 10_000
 
@@ -36,6 +38,25 @@ export function usableDatasheets(owned: Iterable<string>, countsAs: Readonly<Rec
 export function countsAsList(entryId: string, countsAs: readonly string[]) {
   return [...new Set(countsAs)].filter((id) => id !== entryId).toSorted()
 }
+
+/** The saved built and painted counts after one datasheet's change; nothing built keeps no entry. */
+export const withProgress = (
+  saved: Readonly<Record<string, CollectionProgress>>,
+  { entryId, built, painted }: { entryId: string } & CollectionProgress,
+) => withEntry(saved, entryId, built ? { built, painted } : undefined)
+
+/** The saved counts-as links after one datasheet's change; no links keeps no entry. */
+export function withCountsAs(
+  saved: Readonly<Record<string, string[]>>,
+  { entryId, countsAs }: { entryId: string; countsAs: readonly string[] },
+) {
+  const links = countsAsList(entryId, countsAs)
+  return withEntry(saved, entryId, links.length ? links : undefined)
+}
+
+/** The saved wishes after one datasheet's change; wanting none keeps no entry. */
+export const withWanted = (saved: Readonly<Record<string, number>>, { entryId, wanted }: { entryId: string; wanted: number }) =>
+  withEntry(saved, entryId, wanted || undefined)
 
 type CollectionFaction = { catalogueId: string; name: string; units: readonly { id: string; slug: string; name: string }[] }
 

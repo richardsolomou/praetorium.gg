@@ -39,6 +39,28 @@ export function uniqueBy<T>(values: readonly T[], keyOf: (value: T) => unknown):
 /** Each value under its id; a later duplicate replaces an earlier one. */
 export const byId = <T extends { id: string }>(values: readonly T[]): Map<string, T> => new Map(values.map((value) => [value.id, value]))
 
+/** `values` with `value` once, or without it; `keyOf` says which values are the same one. */
+export function withMember<T>(values: readonly T[], value: T, present: boolean, keyOf: (value: T) => unknown = (same) => same): T[] {
+  const key = keyOf(value)
+  if (!present) return values.filter((other) => keyOf(other) !== key)
+  return values.some((other) => keyOf(other) === key) ? [...values] : [...values, value]
+}
+
+/** A copy of `set` with `value` in it or not, flipped when `present` is left out. */
+export function toggled<T>(set: ReadonlySet<T>, value: T, present = !set.has(value)): Set<T> {
+  const next = new Set(set)
+  if (present) next.add(value)
+  else next.delete(value)
+  return next
+}
+
+/** `record` with `key` set to `value`, or without `key` when `value` is undefined. */
+export function withEntry<V>(record: Readonly<Record<string, V>>, key: string, value: NoInfer<V> | undefined): Record<string, V> {
+  if (value !== undefined) return { ...record, [key]: value }
+  const { [key]: _removed, ...rest } = record
+  return rest
+}
+
 /** `values` in consecutive runs of `size`, the last one shorter when they do not divide evenly. */
 export const chunks = <T>(values: readonly T[], size: number): T[][] =>
   Array.from({ length: Math.ceil(values.length / size) }, (_, index) => values.slice(index * size, (index + 1) * size))

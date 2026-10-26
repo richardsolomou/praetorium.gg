@@ -1,4 +1,6 @@
-import { boundedProgress, countsAsList, type CollectionProgress } from '../../core/collection'
+import { boundedProgress, withCountsAs, withProgress, withWanted, type CollectionProgress } from '../../core/collection'
+import { withEntry, withMember } from '../../core/collections'
+import { withFavouriteDetachment, type FavouriteDetachment } from '../../core/favouriteDetachments'
 import { leagueTitle, leagueWarlordRefusal, leagueWarlordValid, waivedWarlordRules } from '../../core/league'
 import { attemptLocalSync } from './localRuntime'
 import { rosterSnapshot } from '../../core/rosterSnapshot'
@@ -169,10 +171,7 @@ export async function setOwned(args: Parameters<typeof server.setOwned>[0]): Ret
     undefined,
     undefined,
     owner,
-    (current) => {
-      const entries = (current as typeof owned | undefined) ?? owned
-      return input.owned ? [...new Set([...entries, input.entryId])] : entries.filter((id) => id !== input.entryId)
-    },
+    (current) => withMember((current as typeof owned | undefined) ?? owned, input.entryId, input.owned),
     input.owned
       ? undefined
       : {
@@ -183,11 +182,8 @@ export async function setOwned(args: Parameters<typeof server.setOwned>[0]): Ret
   )
   return undefined
 }
-function withoutEntry(current: unknown, entryId: string) {
-  if (!current) return undefined
-  const { [entryId]: _removed, ...rest } = current as Record<string, unknown>
-  return rest
-}
+const withoutEntry = (current: unknown, entryId: string) =>
+  current ? withEntry(current as Record<string, unknown>, entryId, undefined) : undefined
 export async function setCollectionModels(
   args: Parameters<typeof server.setCollectionModels>[0],
 ): ReturnType<typeof server.setCollectionModels> {
@@ -221,9 +217,8 @@ export async function setCollectionProgress(
   if (!localEngine()) return server.setCollectionProgress(args)
   const progress =
     (await localDocument<Record<string, CollectionProgress>>(queryResource(collectionProgressKey()))) ?? (await collectionProgress())
-  const { entryId, built, painted } = args.data
   await defer('setCollectionProgress', args.data, queryResource(collectionProgressKey()), undefined, {}, undefined, (current) =>
-    built ? { ...(current ?? progress), [entryId]: { built, painted } } : withoutEntry(current ?? progress, entryId),
+    withProgress((current as typeof progress | undefined) ?? progress, args.data),
   )
 }
 export async function setCollectionCountsAs(
@@ -232,10 +227,8 @@ export async function setCollectionCountsAs(
   const defer = deferredForAccount(false)
   if (!localEngine()) return server.setCollectionCountsAs(args)
   const saved = (await localDocument<Record<string, string[]>>(queryResource(collectionCountsAsKey()))) ?? (await collectionCountsAs())
-  const { entryId } = args.data
-  const countsAs = countsAsList(entryId, args.data.countsAs)
   await defer('setCollectionCountsAs', args.data, queryResource(collectionCountsAsKey()), undefined, {}, undefined, (current) =>
-    countsAs.length ? { ...(current ?? saved), [entryId]: countsAs } : withoutEntry(current ?? saved, entryId),
+    withCountsAs((current as typeof saved | undefined) ?? saved, args.data),
   )
 }
 export async function setCollectionWanted(
@@ -244,9 +237,8 @@ export async function setCollectionWanted(
   const defer = deferredForAccount(false)
   if (!localEngine()) return server.setCollectionWanted(args)
   const wishes = (await localDocument<Record<string, number>>(queryResource(collectionWishesKey()))) ?? (await collectionWishes())
-  const { entryId, wanted } = args.data
   await defer('setCollectionWanted', args.data, queryResource(collectionWishesKey()), undefined, {}, undefined, (current) =>
-    wanted ? { ...(current ?? wishes), [entryId]: wanted } : withoutEntry(current ?? wishes, entryId),
+    withWanted((current as typeof wishes | undefined) ?? wishes, args.data),
   )
 }
 export async function setFavouriteFaction(
@@ -255,10 +247,9 @@ export async function setFavouriteFaction(
   const defer = deferredForAccount(false)
   if (!localEngine()) return server.setFavouriteFaction(args)
   const favourites = (await localDocument<string[]>(queryResource(favouriteFactionsKey()))) ?? (await favouriteFactions())
-  await defer('setFavouriteFaction', args.data, queryResource(favouriteFactionsKey()), undefined, {}, undefined, (current) => {
-    const entries = (current as typeof favourites | undefined) ?? favourites
-    return args.data.favourite ? [...new Set([...entries, args.data.catalogueId])] : entries.filter((id) => id !== args.data.catalogueId)
-  })
+  await defer('setFavouriteFaction', args.data, queryResource(favouriteFactionsKey()), undefined, {}, undefined, (current) =>
+    withMember((current as typeof favourites | undefined) ?? favourites, args.data.catalogueId, args.data.favourite),
+  )
   return null
 }
 export async function setFavouriteDetachment(
@@ -267,13 +258,10 @@ export async function setFavouriteDetachment(
   const defer = deferredForAccount(false)
   if (!localEngine()) return server.setFavouriteDetachment(args)
   const favourites =
-    (await localDocument<{ catalogueId: string; detachmentId: string }[]>(queryResource(favouriteDetachmentsKey()))) ??
-    (await favouriteDetachments())
-  await defer('setFavouriteDetachment', args.data, queryResource(favouriteDetachmentsKey()), undefined, {}, undefined, (current) => {
-    const entries = (current as typeof favourites | undefined) ?? favourites
-    const other = entries.filter((entry) => entry.catalogueId !== args.data.catalogueId || entry.detachmentId !== args.data.detachmentId)
-    return args.data.favourite ? [...other, { catalogueId: args.data.catalogueId, detachmentId: args.data.detachmentId }] : other
-  })
+    (await localDocument<FavouriteDetachment[]>(queryResource(favouriteDetachmentsKey()))) ?? (await favouriteDetachments())
+  await defer('setFavouriteDetachment', args.data, queryResource(favouriteDetachmentsKey()), undefined, {}, undefined, (current) =>
+    withFavouriteDetachment((current as typeof favourites | undefined) ?? favourites, args.data),
+  )
   return null
 }
 export async function setFavouriteDatasheet(
@@ -282,10 +270,9 @@ export async function setFavouriteDatasheet(
   const defer = deferredForAccount(false)
   if (!localEngine()) return server.setFavouriteDatasheet(args)
   const favourites = (await localDocument<string[]>(queryResource(favouriteDatasheetsKey()))) ?? (await favouriteDatasheets())
-  await defer('setFavouriteDatasheet', args.data, queryResource(favouriteDatasheetsKey()), undefined, {}, undefined, (current) => {
-    const entries = (current as typeof favourites | undefined) ?? favourites
-    return args.data.favourite ? [...new Set([...entries, args.data.entryId])] : entries.filter((id) => id !== args.data.entryId)
-  })
+  await defer('setFavouriteDatasheet', args.data, queryResource(favouriteDatasheetsKey()), undefined, {}, undefined, (current) =>
+    withMember((current as typeof favourites | undefined) ?? favourites, args.data.entryId, args.data.favourite),
+  )
   return null
 }
 export async function rememberMatchup(args: Parameters<typeof server.rememberMatchup>[0]): ReturnType<typeof server.rememberMatchup> {
