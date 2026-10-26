@@ -19,7 +19,7 @@ import {
 import { KOTC_MATCHUP_ID } from '../contracts/terrain'
 import type { MissionAward } from '../core/scoring'
 import type { MissionSelectionKind } from '../core/missionSelections'
-import { type LoadedRules, type BattleReadRules, missionFor } from './rules'
+import { type LoadedRules, type BattleMissionRules, type BattleReadRules, missionFor } from './rules'
 
 export function withAuthoritativeAwards<
   T extends Pick<Extract<Command, { kind: 'set-prep' }>, 'primary' | 'secondaries' | 'secondaryDeck'>,
@@ -73,7 +73,7 @@ export function hydrateAuthoritativeAwards(state: BattleState, rules: BattleRead
   }
 }
 
-export function resolvedMissionForSide(state: BattleState, rules: BattleReadRules, side: number) {
+export function resolvedMissionForSide(state: BattleState, rules: BattleMissionRules, side: number) {
   if (state.settings.manual) return null
   const ownDisposition = sideDisposition(state, side)
   const opponent = opposingSide(state, side)
@@ -199,9 +199,7 @@ export function scoringCapError(
                 ? command.delta
                 : 0,
         }
-  const opponent = opposingSide(state, target.side)
-  const opponentDisposition = opponent === undefined ? null : sideDisposition(state, opponent)
-  const mission = missionFor(rules, target.disposition, opponentDisposition, state.settings.missionPackId)
+  const mission = resolvedMissionForSide(state, rules, target.side)
   if (!mission) return null
   // The round the points land in, which for a settlement of a turn already ended is
   // the round that turn was in rather than the one now being played.

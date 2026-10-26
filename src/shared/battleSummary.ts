@@ -1,5 +1,6 @@
-import { type BattleState, type LoggedCommand, sideDisposition, sideCaptain, sidePaintedPoints } from '../core/battle'
-import { type BattleMissionRules, missionFor } from './rules'
+import { type BattleState, type LoggedCommand, sideCaptain, sidePaintedPoints } from '../core/battle'
+import { resolvedMissionForSide } from './battleRules'
+import type { BattleMissionRules } from './rules'
 import type { StandingFaction } from '../core/standings'
 
 export type BattleFaction = {
@@ -27,9 +28,6 @@ export function battleSummary(
   factionsById: ReadonlyMap<string, BattleFaction>,
 ) {
   const viewerSide = state.players.find((player) => player.id === viewerId)?.side ?? 0
-  const opposingSide = state.players.find((player) => player.side !== viewerSide)?.side
-  const ownDisposition = sideDisposition(state, viewerSide)
-  const opposingDisposition = opposingSide === undefined ? null : sideDisposition(state, opposingSide)
   return {
     token: battle.token,
     createdAt: battle.createdAt,
@@ -70,7 +68,7 @@ export function battleSummary(
         player.secondary +
         (state.status !== 'setup' && player.id === sideCaptain(state, player.side).id ? sidePaintedPoints(state, player.side) : 0),
     ),
-    mission: rules && !state.settings.manual ? missionFor(rules, ownDisposition, opposingDisposition, state.settings.missionPackId) : null,
+    mission: rules ? resolvedMissionForSide(state, rules, viewerSide) : null,
     deploymentId: state.deploymentId,
     settings: state.settings,
     result: state.result,
