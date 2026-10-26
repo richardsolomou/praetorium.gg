@@ -18,6 +18,8 @@ import {
   reduceBattle,
   validate,
   type FormatRuleId,
+  type BattleState,
+  type Command,
   type LoggedCommand,
 } from '../../src/core/battle'
 import { teamDispositionChoices } from '../../src/core/teamDisposition'
@@ -3385,10 +3387,58 @@ const timestampArg = z.preprocess(
   z.number().int().nonnegative().transform(BigInt),
 )
 
+type BattleSeat = { id: string; side: number; guestName?: string }
+
+/** Seats a new battle and writes its opening commands, each refused against the state those before it leave. */
+function insertBattle(
+  ctx: Context,
+  { id, token, now, by, seats }: { id: string; token: string; now: number; by: string; seats: readonly BattleSeat[] },
+  initialCommands: readonly Command[],
+  refusal: (state: BattleState, command: Command) => string | null,
+) {
+  ctx.db.battles.insert({ id, token, createdAt: BigInt(now) })
+  for (const [index, seat] of seats.entries()) {
+    ctx.db.battleUsers.insert({
+      key: JSON.stringify([id, seat.id]),
+      battleId: id,
+      userId: seat.id,
+      side: seat.side,
+      joinedAt: BigInt(now + index),
+      guestName: seat.guestName,
+      claimedSeat: undefined,
+    })
+    touchProduct(ctx, seat.id, 'battles', 'onboarding')
+  }
+  touchPublic(ctx, 'battles')
+  touchAdmin(ctx)
+  const log: LoggedCommand[] = []
+  for (const [index, command] of initialCommands.entries()) {
+    const refused = refusal(
+      reduceBattle(
+        seats.map((seat) => seat.id),
+        log,
+        seats.map((seat) => seat.side),
+      ),
+      command,
+    )
+    if (refused) throw new SenderError(`new battle command was refused: ${refused}`)
+    const seq = index + 1
+    ctx.db.commands.insert({
+      key: JSON.stringify([id, seq]),
+      battleId: id,
+      seq,
+      userId: by,
+      at: BigInt(now),
+      body: JSON.stringify(command),
+    })
+    log.push({ seq, by, at: now, command })
+  }
+}
+
 function createBattleIn(tx: Context, args: unknown[]) {
   const [payload] = z.tuple([textArg]).parse(args)
   const { id, token, userId, allyIds, opponentIds, guestNames, initialCommands, now } = decodePayload(newBattle, payload, 'Invalid battle')
-  const seats: { id: string; side: number; guestName?: string }[] = [
+  const seats: BattleSeat[] = [
     { id: userId, side: 0 },
     ...allyIds.map((seatId) => ({ id: seatId, side: 0 })),
     ...opponentIds.map((seatId) => ({ id: seatId, side: 1 })),
@@ -3401,39 +3451,17 @@ function createBattleIn(tx: Context, args: unknown[]) {
     new Set(seats.map((seat) => seat.id)).size !== seats.length
   )
     throw new SenderError('Invalid battle seats')
-  tx.db.battles.insert({ id, token, createdAt: BigInt(now) })
-  for (const [index, seat] of seats.entries()) {
-    tx.db.battleUsers.insert({
-      key: JSON.stringify([id, seat.id]),
-      battleId: id,
-      userId: seat.id,
-      side: seat.side,
-      joinedAt: BigInt(now + index),
-      guestName: seat.guestName,
-      claimedSeat: undefined,
-    })
-    touchProduct(tx, seat.id, 'battles', 'onboarding')
-  }
-  touchPublic(tx, 'battles')
-  touchAdmin(tx)
-  const log: LoggedCommand[] = []
-  for (const [index, command] of initialCommands.entries()) {
-    const state = reduceBattle(
-      seats.map((seat) => seat.id),
-      log,
-      seats.map((seat) => seat.side),
-    )
-    // A club game started from its club is tagged at birth, for players who all belong to it.
-    const refusal =
+  // A club game started from its club is tagged at birth, for players who all belong to it.
+  insertBattle(
+    tx,
+    { id, token, now, by: userId, seats },
+    initialCommands,
+    (state, command) =>
       validate(state, userId, command) ??
       (command.kind === 'set-battle-club' && command.clubId && !battleClubIds(tx, battleData(tx, id).seats).includes(command.clubId)
         ? CLUB_MEMBERS_ONLY
-        : null)
-    if (refusal) throw new SenderError(`new battle command was refused: ${refusal}`)
-    const seq = index + 1
-    tx.db.commands.insert({ key: JSON.stringify([id, seq]), battleId: id, seq, userId, at: BigInt(now), body: JSON.stringify(command) })
-    log.push({ seq, by: userId, at: now, command })
-  }
+        : null),
+  )
   if (initialCommands.some((command) => command.kind === 'set-battle-club')) indexClubBattle(tx, id)
   return productJson(battleData(tx, id))
 }
@@ -4496,43 +4524,15 @@ function leagueCommandIn(tx: Context, args: unknown[]) {
       ...input.allyIds.map((id) => ({ id, side: 0 })),
       ...input.opponentIds.map((id) => ({ id, side: 1 })),
     ]
-    tx.db.battles.insert({ id: input.id, token: input.battleToken, createdAt: BigInt(input.now) })
-    for (const [index, seat] of seats.entries())
-      tx.db.battleUsers.insert({
-        key: JSON.stringify([input.id, seat.id]),
-        battleId: input.id,
-        userId: seat.id,
-        side: seat.side,
-        joinedAt: BigInt(input.now + index),
-        guestName: undefined,
-        claimedSeat: undefined,
-      })
-    const log: LoggedCommand[] = []
-    for (const [index, command] of input.initialCommands.entries()) {
-      const state = reduceBattle(
-        seats.map((seat) => seat.id),
-        log,
-        seats.map((seat) => seat.side),
-      )
-      const refusal = command.kind === 'set-battle-club' ? 'a club is chosen during setup' : validate(state, input.userId, command)
-      if (refusal) throw new SenderError(`new battle command was refused: ${refusal}`)
-      const seq = index + 1
-      tx.db.commands.insert({
-        key: JSON.stringify([input.id, seq]),
-        battleId: input.id,
-        seq,
-        userId: input.userId,
-        at: BigInt(input.now),
-        body: JSON.stringify(command),
-      })
-      log.push({ seq, by: input.userId, at: input.now, command })
-    }
+    insertBattle(
+      tx,
+      { id: input.id, token: input.battleToken, now: input.now, by: input.userId, seats },
+      input.initialCommands,
+      (state, command) => (command.kind === 'set-battle-club' ? 'a club is chosen during setup' : validate(state, input.userId, command)),
+    )
     tx.db.leagueEventBattles.insert({ battleId: input.id, eventId: event.id })
     if (pairing && event.rounds !== undefined) tx.db.leagueRoundPairings.key.update({ ...pairing, battleId: input.id })
     touchEvent(tx, host)
-    for (const seat of seats) touchProduct(tx, seat.id, 'battles', 'onboarding')
-    touchPublic(tx, 'battles')
-    touchAdmin(tx)
     return productJson(true)
   }
   throw new SenderError('Unknown league command')
