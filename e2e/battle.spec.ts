@@ -371,15 +371,14 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect(detachment).toHaveAttribute('href', '/factions/death-guard/rules/mfm-1-6/detachments/shamblerot-vectorium')
   const factionColour = await faction.evaluate((link) => getComputedStyle(link).color)
   await expect(detachment).toHaveCSS('color', factionColour)
-  const panel = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
   const opponentPanel = bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' })
-  await expect(panel.locator('[data-stat="cp"]')).toHaveText('1')
+  await expect(ownPanel.locator('[data-stat="cp"]')).toHaveText('1')
   const opponentUse = opponentPanel.locator('button[aria-label^="Use "]:not([disabled])').first()
   await expect(opponentUse).toBeVisible()
   const stratagem = (await opponentUse.getAttribute('aria-label'))?.replace(/^Use /, '') ?? ''
   await opponentUse.click()
   await expect(opponentPanel.locator('[data-stat="cp"]')).toHaveText('0')
-  await expect(panel.locator('[data-stat="cp"]')).toHaveText('0')
+  await expect(ownPanel.locator('[data-stat="cp"]')).toHaveText('0')
   await opponentPanel.getByRole('button', { name: `About ${stratagem}` }).click()
   await expect(bob.getByRole('dialog', { name: stratagem })).toContainText('used 1x this battle')
   await bob.keyboard.press('Escape')
@@ -407,16 +406,16 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect(alice.locator('[data-turn-control] button').first()).toBeDisabled()
   await expect(alice.locator('[data-turn-control] button').last()).toBeDisabled()
   await expect(alice.getByRole('button', { name: 'Battle options' })).toBeDisabled()
-  await expect(panel.getByRole('button', { name: /\+1 CP|Additional CP already gained this round/ })).toBeDisabled()
+  await expect(ownPanel.getByRole('button', { name: /\+1 CP|Additional CP already gained this round/ })).toBeDisabled()
   await expect(alice.getByText('Finish the open prompt to continue.')).toBeVisible()
-  await expect(panel.locator('[data-stat="cp"]')).toHaveText('0')
-  await panel
+  await expect(ownPanel.locator('[data-stat="cp"]')).toHaveText('0')
+  await ownPanel
     .getByRole('button', { name: /^Open / })
     .first()
     .click()
   await expect(alice.locator('[data-army-roster] button[aria-label^="Mark "]').first()).toBeDisabled()
   await alice.keyboard.press('Escape')
-  const readMission = panel.getByRole('button', { name: /^Read / }).first()
+  const readMission = ownPanel.getByRole('button', { name: /^Read / }).first()
   const inspectedMissionName = (await readMission.getAttribute('aria-label'))?.replace(/^Read /, '') ?? ''
   await readMission.click()
   const missionDetails = alice.getByRole('dialog', { name: inspectedMissionName })
@@ -525,8 +524,8 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
   await expect(alice.getByText(`${aliceName} reviews the drawn missions for ${bobName}`, { exact: true })).toBeVisible()
   await expect(alice.getByText(new RegExp(`${bobName} marks `))).toHaveCount(0)
   // Both armies arrive battle ready, so every score carries the bonus the battle paid at the start.
-  await expect(panel.locator('[data-stat="vp"]')).toHaveText(String(scored + 10))
-  await expect(panel.locator('[data-stat="cp"]')).toHaveText('2')
+  await expect(ownPanel.locator('[data-stat="vp"]')).toHaveText(String(scored + 10))
+  await expect(ownPanel.locator('[data-stat="cp"]')).toHaveText('2')
   // Nothing is ticked to finish a card: no control for it exists.
   await expect(alice.getByText('take it out of the hand')).toHaveCount(0)
   await expect(bob.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).locator('[data-stat="vp"]')).toHaveText(
