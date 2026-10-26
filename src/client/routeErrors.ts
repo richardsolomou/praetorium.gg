@@ -3,11 +3,12 @@ import { posthog } from 'posthog-js'
 import { version } from '../../package.json'
 import { captureWhenLoaded } from '../posthog'
 import { isFetchNetworkFailure, isModuleLoadFailure } from './networkErrors'
+import { OfflineRefusal } from './offline/offlineRefusal'
 import { newerRelease } from './releaseUpdate'
 
 /** React passes errors caught by a route's error page only to console.error, so report them here. */
 export function reportRouteError(error: unknown) {
-  if (!isFetchNetworkFailure(error) && !(error instanceof CancelledError))
+  if (!isFetchNetworkFailure(error) && !(error instanceof CancelledError) && !(error instanceof OfflineRefusal))
     posthog.captureException(error, {
       operation: 'route',
       ...(isModuleLoadFailure(error)

@@ -5,6 +5,7 @@ import type { z } from 'zod'
 import type { Command, SubmitResult } from '../../../core/battle'
 import type { saveRosterSchema } from '../../../contracts/schemas'
 import { isRosterNotUsable } from '../../../core/rosterUse'
+import { OfflineRefusal } from '../../offline/offlineRefusal'
 import { isSignedOut } from '../../../core/session'
 import { submit } from '../../functions'
 import { battleQuery, meQuery, reportKey } from '../../queries'
@@ -125,7 +126,8 @@ async function sendQueued({
         } else if (isFetchNetworkFailure(error)) {
           setProblem('Check your connection and try again.')
         } else {
-          if (!isRosterNotUsable(error)) posthog.captureException(error, { operation: 'battle_command' })
+          if (!isRosterNotUsable(error) && !(error instanceof OfflineRefusal))
+            posthog.captureException(error, { operation: 'battle_command' })
           setProblem(errorMessage(error))
         }
       }

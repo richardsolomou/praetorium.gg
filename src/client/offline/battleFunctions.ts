@@ -1,4 +1,5 @@
 import { leagueBattleOptions, savedAbilityReminders } from './actionFunctions'
+import { OfflineRefusal } from './offlineRefusal'
 import { fieldingReminders } from '../../shared/reminderAbilities'
 import { compactReplayFrames } from '../../core/replayFrames'
 import { REPLAY_BATCH_SIZE } from '../../contracts/battles'
@@ -162,15 +163,15 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
     }
   }
   const workspace = await localDocument<BattleWorkspace>(resource)
-  if (!workspace) throw new Error('Open this battle online once before making offline changes.')
+  if (!workspace) throw new OfflineRefusal('Open this battle online once before making offline changes.')
   if (
     await engine.storage
       .read()
       .then((state) => state.operations.some((operation) => operation.resource === resource && operation.status !== 'pending'))
   )
-    throw new Error('Review this battle’s sync conflict before continuing.')
+    throw new OfflineRefusal('Review this battle’s sync conflict before continuing.')
   const state = localBattleState(workspace.players, workspace.log)
-  if (state.seq < args.data.expectedSeq) throw new Error('Reconnect to download the latest battle history before continuing.')
+  if (state.seq < args.data.expectedSeq) throw new OfflineRefusal('Reconnect to download the latest battle history before continuing.')
   if (args.data.expectedSeq !== state.seq)
     return { result: { outcome: 'stale', seq: state.seq }, screen: workspaceScreen(workspace, owner.id) }
   if (workspace.log.length >= 10_000) throw new Error('This battle has reached its saved history limit.')
@@ -180,9 +181,9 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
   if (command.kind === 'attach-saved-roster' || (command.kind === 'attach-roster' && command.roster.built)) {
     const id = command.kind === 'attach-saved-roster' ? command.rosterId : command.roster.id
     capturedRoster = id ? await localDocument<LocalRoster>(`roster:${id}`) : undefined
-    if (!capturedRoster) throw new Error('Save this roster on the device before attaching it offline.')
+    if (!capturedRoster) throw new OfflineRefusal('Save this roster on the device before attaching it offline.')
     const selected = localConstruction(capturedRoster.catalogueId)
-    if (!selected) throw new Error('Download this army’s rules before attaching it offline.')
+    if (!selected) throw new OfflineRefusal('Download this army’s rules before attaching it offline.')
     const { catalogue } = selected
     const priced = calculateRosterPrice(savedRosterPriceInput(capturedRoster), catalogue, selected.rules)
     const problem = priced && rosterUseError(priced, capturedRoster)
@@ -395,7 +396,7 @@ export async function createLeagueBattle(
   if (!owner || !localEngine() || !localConstruction()) return server.createLeagueBattle(args)
   const { openLeague, openLeagueRoster } = await import('./actionFunctions')
   const league = await openLeague({ data: { token: args.data.token, eventToken: args.data.eventToken } })
-  if (!league) throw new Error('Open and save this event online before starting an offline battle.')
+  if (!league) throw new OfflineRefusal('Open and save this event online before starting an offline battle.')
   const entries = league.entries.filter((entry) => entry.status === 'accepted' && entry.submitted)
   const rosters = await Promise.all(
     entries.map(async (entry) => ({

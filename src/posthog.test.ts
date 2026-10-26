@@ -4,7 +4,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 const client = vi.hoisted(() => ({ __loaded: false, capture: vi.fn() }))
 vi.mock('posthog-js', () => ({ posthog: client }))
 
-import { POSTHOG_BROWSER_OPTIONS, browserEventContext, captureWhenLoaded, telemetryFeature } from './posthog'
+import { POSTHOG_BROWSER_OPTIONS, browserEventContext, captureWhenLoaded, dropUnactionableExceptions, telemetryFeature } from './posthog'
 
 afterEach(() => {
   vi.unstubAllGlobals()
@@ -87,8 +87,23 @@ it('leaves server rendering alone', () => {
   expect(browserEventContext(event())).toEqual(event())
 })
 
-it('installs context on the SDK send boundary', () => {
-  expect(POSTHOG_BROWSER_OPTIONS.before_send).toBe(browserEventContext)
+it('installs filtering and context on the SDK send boundary', () => {
+  expect(POSTHOG_BROWSER_OPTIONS.before_send).toEqual([dropUnactionableExceptions, browserEventContext])
+})
+
+const exception = (value: string) => ({ ...event({ $exception_list: [{ type: 'Error', value }] }), event: '$exception' })
+
+it.each([
+  'Script error.',
+  'ResizeObserver loop completed with undelivered notifications.',
+  'Non-Error promise rejection captured with value: Object Not Found Matching Id:4, MethodName:update, ParamCount:4',
+])('drops the unactionable browser exception %s', (value) => {
+  expect(dropUnactionableExceptions(exception(value))).toBeNull()
+})
+
+it('keeps an exception that names a fault in the page', () => {
+  const error = exception("Script error in loadout: Cannot read properties of undefined (reading 'flatMap')")
+  expect(dropUnactionableExceptions(error)).toBe(error)
 })
 
 it('captures at once when the SDK has loaded', () => {

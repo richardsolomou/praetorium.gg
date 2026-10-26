@@ -11,6 +11,7 @@ vi.mock('../../offline/appSnapshot', () => ({ captureAppSnapshot: () => null }))
 vi.mock('../../nativeBridge', () => ({ requestNativeHaptic: () => {} }))
 vi.mock('posthog-js', () => ({ posthog: { captureException } }))
 
+import { OfflineRefusal } from '../../offline/offlineRefusal'
 import { afterFailedCommand, drainCommands } from './useCommand'
 
 const queued = (basedOn: number, background = false) => ({ basedOn, background })
@@ -76,4 +77,19 @@ describe('a command sent while the connection drops', () => {
     expect(setProblem).toHaveBeenLastCalledWith('Check your connection and try again.')
     expect(captureException).not.toHaveBeenCalled()
   })
+})
+
+it('shows a sync conflict to review without reporting it', async () => {
+  submit.mockRejectedValueOnce(new OfflineRefusal('Review this battle’s sync conflict before continuing.'))
+  captureException.mockClear()
+  await drainCommands({
+    token: 'battle',
+    queryClient: new QueryClient(),
+    seen: { current: 0 },
+    queued: { current: [{ command: { kind: 'begin-battle' } as never, basedOn: 0 }] },
+    draining: { current: false },
+    setPending: () => {},
+    setProblem: () => {},
+  })
+  expect(captureException).not.toHaveBeenCalled()
 })
