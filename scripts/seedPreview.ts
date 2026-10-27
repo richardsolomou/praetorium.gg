@@ -760,9 +760,75 @@ async function seedInto(
     },
   })
   await createOpenLeague()
+  await createSwissTournament()
   await createClubs()
   await createClubSeasons()
   await readBack()
+
+  /**
+   * A Swiss tournament two rounds in: round 1 played out around a bye, and in round 2 one table finished, the login's
+   * battle under way and another bye, so its rounds, results, battles and status card read as they do mid-event.
+   */
+  async function createSwissTournament() {
+    const token = 'preview-league-swiss'
+    const eventToken = 'preview-event-swiss'
+    await createRevealedLeague({
+      id: token,
+      token,
+      eventId: eventToken,
+      eventToken,
+      ownerId: previewUserId,
+      name: 'Autumn Swiss',
+      description: 'Three Swiss rounds at 2,000 points, paired each evening once every table has finished.',
+      visibility: 'public',
+      format: '1v1',
+      rounds: 3,
+      entries: [
+        { userId: previewUserId, rosterId: 'preview-necrons-cursed-skyshroud' },
+        { userId: opponentUserId, rosterId: 'preview-opponent-orks' },
+        { userId: allyUserId, rosterId: 'preview-ally-astra-militarum' },
+        { userId: rivalUserId, rosterId: 'preview-rival-orks' },
+        { userId: strangerUserId, rosterId: 'preview-stranger-aeldari' },
+      ],
+    })
+    const rounds: [string, string | null, Command[]][][] = [
+      [
+        [previewUserId, opponentUserId, finished(previewUserId, opponentUserId, [72, 58])],
+        [allyUserId, rivalUserId, finished(rivalUserId, allyUserId, [66, 61])],
+        [strangerUserId, null, []],
+      ],
+      [
+        [previewUserId, rivalUserId, [{ kind: 'begin-battle', firstPlayerId: previewUserId }]],
+        [opponentUserId, strangerUserId, finished(strangerUserId, opponentUserId, [70, 64])],
+        [allyUserId, null, []],
+      ],
+    ]
+    for (const [index, tables] of rounds.entries()) {
+      const round = index + 1
+      const league = await repository.leagueByToken(token, previewUserId, eventToken)
+      if (!league?.pairings.some((pairing) => pairing.round === round)) {
+        const paired = await repository.pairLeagueRound({
+          token,
+          eventToken,
+          ownerId: previewUserId,
+          round,
+          pairs: tables.map(([aId, bId]) => [aId, bId]),
+        })
+        if (paired !== 'paired') throw new Error(`Autumn Swiss round ${round} could not be paired: ${paired}`)
+      }
+      for (const [table, [aId, bId, tail]] of tables.entries()) {
+        const battleToken = `preview-league-swiss-battle-${round}-${table + 1}`
+        if (!bId || (await repository.battleByToken(battleToken))) continue
+        await repository.createLeagueBattle(
+          { id: battleToken, token: battleToken, leagueToken: token, eventToken, userId: aId, userIds: [aId, bId], now: now() },
+          (setup) => {
+            const built = buildLeagueBattle(setup, aId, bId, null, battleToken)
+            return { ...built, initialCommands: [...built.initialCommands, ...tail] }
+          },
+        )
+      }
+    }
+  }
 
   function finished(winnerId: string, loserId: string, scores: [number, number]): Command[] {
     return [
@@ -1321,8 +1387,10 @@ async function seedInto(
     description: string
     visibility: 'public' | 'private'
     format: '1v1' | '2v1' | '2v2'
+    rounds?: number
     entries: { userId: string; rosterId: string; requiredLimit?: number; teamId?: string }[]
-    battle: {
+    /** A battle to start once the rosters are out; a Swiss event's come from its pairings instead. */
+    battle?: {
       id: string
       token: string
       creatorId: string
@@ -1345,6 +1413,7 @@ async function seedInto(
         playerLimit: input.entries.length,
         format: input.format,
         rosterLimit: 2_000,
+        rounds: input.rounds ?? null,
         now: now(),
       })
     }
@@ -1408,10 +1477,11 @@ async function seedInto(
       const reveal = await repository.revealLeague(input.token, input.ownerId, now(), input.eventToken)
       if (reveal.outcome !== 'revealed') throw new Error(`${input.name} could not be revealed: ${reveal.outcome}`)
     }
-    if (await repository.battleByToken(input.battle.token)) return
+    if (!input.battle || (await repository.battleByToken(input.battle.token))) return
+    const { battle } = input
     const battleRosters = input.entries.map((entry) => [entry.userId, entry.rosterId] as const)
     const revealedEntries = (await repository.leagueByToken(input.token, input.ownerId, input.eventToken))?.entries ?? []
-    const sides = [[input.battle.creatorId, ...(input.battle.allyIds ?? [])], input.battle.opponentIds]
+    const sides = [[battle.creatorId, ...(battle.allyIds ?? [])], battle.opponentIds]
     const dispositions = sides.flatMap((playerIds, side) => {
       const disposition = playerIds.length > 1 ? revealedEntries.find((entry) => entry.userId === playerIds[0])?.team?.disposition : null
       return disposition ? [{ side, disposition }] : []
@@ -1422,17 +1492,17 @@ async function seedInto(
     })
     await repository.createLeagueBattle(
       {
-        id: input.battle.id,
-        token: input.battle.token,
+        id: battle.id,
+        token: battle.token,
         leagueToken: input.token,
         eventToken: input.eventToken,
-        userId: input.battle.creatorId,
+        userId: battle.creatorId,
         userIds: input.entries.map((entry) => entry.userId),
         now: now(),
       },
       () => ({
-        allyIds: input.battle.allyIds ?? [],
-        opponentIds: input.battle.opponentIds,
+        allyIds: battle.allyIds ?? [],
+        opponentIds: battle.opponentIds,
         initialCommands: [
           ...battleCommands(2_000, battleRosters, []),
           {
@@ -1442,7 +1512,7 @@ async function seedInto(
             ...(dispositions.length ? { dispositions } : {}),
             ...(warlords.length ? { warlords } : {}),
           },
-          ...input.battle.tail,
+          ...battle.tail,
         ],
         result: true,
       }),
