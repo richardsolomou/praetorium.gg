@@ -1,6 +1,6 @@
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { ArrowRight, Check, Eye, FileLock2, Pencil, ShieldCheck, Swords, TriangleAlert, UserPlus } from 'lucide-react'
+import { ArrowRight, Check, Eye, FileLock2, Pencil, Play, ShieldCheck, Swords, TriangleAlert, UserPlus } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useEffect, useState, type ReactNode } from 'react'
 import {
@@ -78,7 +78,7 @@ type ClickAction = {
   reveal?: true
   onClick: () => void
 }
-type Action = ClickAction | { label: string; to: '/sign-in' | '/tournaments' }
+type Action = ClickAction | { label: string; to: '/sign-in' | '/tournaments' } | { label: string; battle: string }
 
 type Status = {
   title: string
@@ -219,6 +219,11 @@ export function LeagueEventView({
               ? `Still to play: ${namesPhrase(yetToPlay)}.`
               : 'You have played everyone. Rematches count too.'
   const alone = swiss ? !swissOpponent : battleFormat === '1v1' && !opponents.length
+  // A Swiss round is one battle, so the card takes its player back to it; open play keeps offering another instead.
+  const resume = swiss
+    ? eventBattles.find((candidate) => candidate.token === table?.battleToken && candidate.status !== 'finished')?.token
+    : undefined
+  const tables = new Map(league.pairings.flatMap((pairing) => (pairing.battleToken ? [[pairing.battleToken, pairing] as const] : [])))
   const registrationFull = leagueRegistrationFull(entryRules(league), accepted.length, league.occupiedCount)
   const entryCard = entryStatus({
     league,
@@ -235,6 +240,7 @@ export function LeagueEventView({
     choose: openRosterChooser,
     play: swissOpponent ? () => battle.mutate({ opponentId: swissOpponent }) : openBattleChooser,
     playLabel: swissOpponent ? `Start your round ${swissProgressNow.round} battle` : undefined,
+    resume,
     sealingClosed: leagueSealingClosed(league, now),
     sealBy: league.sealBy === null ? null : moment(league.sealBy),
     playing: battle.isPending,
@@ -248,7 +254,7 @@ export function LeagueEventView({
     ? {
         ...entryCard,
         action: { label: 'Reveal all rosters', icon: <Eye />, reveal: true, onClick: () => setRevealing(true) },
-        secondary: entryCard.action && !('to' in entryCard.action) ? entryCard.action : undefined,
+        secondary: entryCard.action && 'onClick' in entryCard.action ? entryCard.action : undefined,
       }
     : entryCard
   const problem = join.error ?? (duel ? battle.error : null)
@@ -409,7 +415,19 @@ export function LeagueEventView({
               {eventBattles.length || !battleHistory.isPending ? <SectionHeading title="Battles" count={eventBattles.length} /> : null}
               {eventBattles.length ? (
                 <>
-                  <BattleShelf name="Battles" battles={eventBattles} viewerId={viewerId ?? undefined} />
+                  <BattleShelf
+                    name="Battles"
+                    battles={eventBattles}
+                    viewerId={viewerId ?? undefined}
+                    label={
+                      swiss
+                        ? (candidate) => {
+                            const pairing = tables.get(candidate.token)
+                            return pairing ? `Round ${pairing.round} · Table ${pairing.table}` : 'Not counted'
+                          }
+                        : undefined
+                    }
+                  />
                   {battleHistory.hasNextPage ? (
                     <Button
                       className="mt-2"
@@ -574,6 +592,7 @@ export function entryStatus({
   choose,
   play,
   playLabel,
+  resume,
   sealingClosed,
   sealBy,
   playing,
@@ -595,6 +614,8 @@ export function entryStatus({
   play: () => void
   /** What the play action says when it starts one battle in particular, such as a Swiss table. */
   playLabel?: string
+  /** The reader's own battle here that is still being played, which the card takes them back to. */
+  resume?: string
   /** Whether the roster deadline has passed, and when it falls, read in the viewer's timezone. */
   sealingClosed: boolean
   sealBy: string | null
@@ -693,9 +714,11 @@ export function entryStatus({
   return {
     title: 'The rosters are out',
     detail: playDetail,
-    action: alone
-      ? undefined
-      : { label: playLabel ?? startBattleLabel(leagueTableShape(league.format)), icon: <Swords />, pending: playing, onClick: play },
+    action: resume
+      ? { label: 'Resume battle', battle: resume }
+      : alone
+        ? undefined
+        : { label: playLabel ?? startBattleLabel(leagueTableShape(league.format)), icon: <Swords />, pending: playing, onClick: play },
     // A player who dropped has nothing left to play, so no step stays current.
     steps: ownEntry.dropped ? steps('play').map((step) => ({ ...step, state: 'done' as const })) : steps('play'),
   }
@@ -728,7 +751,15 @@ export function EntryStatusCard({ status, problem, token }: { status: Status; pr
           {status.detail ? <p className="mt-1.5 text-sm text-dim">{status.detail}</p> : null}
         </div>
         {action ? (
-          'to' in action ? (
+          'battle' in action ? (
+            <Link
+              to="/battles/$token"
+              params={{ token: action.battle }}
+              className={buttonClass({ size: 'lg', className: 'w-full pointer-coarse:h-11' })}
+            >
+              <Play /> {action.label}
+            </Link>
+          ) : 'to' in action ? (
             <Link
               {...(action.to === '/sign-in' ? { to: '/sign-in', search: { next: `/tournaments/${token}` } } : { to: '/tournaments' })}
               className={buttonClass({
@@ -816,9 +847,13 @@ export function swissDetail(
   if (!table.bId) return `You have a bye in round ${progress.round}: it counts as a win.`
   if (forfeit) return `${opponent()} dropped out, so round ${progress.round} counts as a bye for you.`
   if (!table.battleToken) return `Round ${progress.round}: you play ${opponent()}.`
+  if (progress.open.some((pairing) => pairing.battleToken === table.battleToken))
+    return `Round ${progress.round}: your battle against ${opponent()} is under way.`
   return progress.complete
     ? progress.round < progress.rounds
       ? `Waiting for the organizer to pair round ${progress.round + 1}.`
       : 'Every round is played.'
-    : `Round ${progress.round} is under way.`
+    : progress.round < progress.rounds
+      ? `Your round ${progress.round} battle is done. Round ${progress.round + 1} is paired once every table has finished.`
+      : `Your last battle is done. The results are final once every table has finished.`
 }

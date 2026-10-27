@@ -522,9 +522,11 @@ test('a Swiss tournament pairs its rounds and ranks the tables by match points',
   await owner.waitForURL(/\/battles\/[^/]+$/)
 
   // Settle the table in its log: the rounds are under test, not the game.
+  const battlePath = new URL(owner.url()).pathname
   const battleId = await battleIdFor(lastPathSegment(owner.url()))
   const [first, second] = await seatsBySide(battleId)
   await owner.goto(url)
+  await expect(owner.locator('[data-entry-status]').getByRole('link', { name: 'Resume battle' })).toHaveAttribute('href', battlePath)
   for (const [by, command] of [
     [first, { kind: 'begin-battle', firstPlayerId: first }],
     [second, { kind: 'end-battle', reason: 'conceded', concededBy: second }],
