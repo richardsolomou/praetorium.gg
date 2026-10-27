@@ -65,7 +65,7 @@ test('club members choose their club at battle setup', async ({ browser }, testI
   ] as [string, Command][])
     await appendCommand(battleId, by, command)
 
-  await owner.goto(clubUrl)
+  await owner.goto(`${clubUrl}?tab=leaderboard`)
   const table = owner.locator('[data-standings]')
   // The winner leads the table, and both members are on it.
   await expect(table.locator('tbody tr')).toHaveCount(2)
@@ -260,7 +260,7 @@ test('club team rows keep their actions inside the card at narrow widths', async
     }
     await route.continue()
   })
-  await page.goto('/clubs/preview-club')
+  await page.goto('/clubs/preview-club?tab=sealed')
   const game = page.locator('[data-sealed-game="preview-club-game-doubles"]')
   await expect.poll(() => historyStarted).toBe(true)
   await expect(game.locator('details')).not.toHaveAttribute('open', '')
@@ -304,6 +304,7 @@ test('club team rows keep their actions inside the card at narrow widths', async
   await game.scrollIntoViewIfNeeded()
   await page.screenshot({ path: testInfo.outputPath('club-doubles-mobile.png') })
   await page.setViewportSize({ width: 1280, height: 900 })
+  await page.getByRole('tab', { name: 'Overview' }).click()
   await page.getByRole('heading', { name: 'Up next', exact: true }).scrollIntoViewIfNeeded()
   await page.screenshot({ path: testInfo.outputPath('club-activity-desktop.png') })
 })
@@ -322,9 +323,11 @@ test('a new sealed game replaces the previous one in another open tab', async ({
   const organizer = await page.context().newPage()
   await organizer.goto(clubUrl)
   const current = await createGame(organizer)
+  // The page still names the previous game, so it follows it to the past games.
   const past = page.getByRole('heading', { name: /^Past sealed games/ }).locator('..')
   await expect(past.locator(`[data-sealed-game="${previous}"]`)).toBeVisible()
   await expect(past.getByRole('button', { name: 'Seal your list', exact: true })).toHaveCount(0)
+  await page.getByRole('tab', { name: 'Overview' }).click()
   const next = page.getByRole('heading', { name: 'Up next', exact: true }).locator('..')
   await expect(next.locator(`[data-sealed-game="${current}"]`)).toBeVisible()
   await organizer.close()
@@ -333,11 +336,11 @@ test('a new sealed game replaces the previous one in another open tab', async ({
 
 test('a season fixture starts its battle from the club page and links to it', async ({ page }) => {
   await signInAsPreview(page)
-  await page.goto('/clubs/preview-club', { waitUntil: 'networkidle' })
+  await page.goto('/clubs/preview-club?tab=season', { waitUntil: 'networkidle' })
   await page.locator('[data-club-season]').getByRole('button', { name: 'Start battle', exact: true }).first().click()
   await page.waitForURL(/\/battles\/[^/]+$/)
   const token = lastPathSegment(page.url())
-  await page.goto('/clubs/preview-club')
+  await page.goto('/clubs/preview-club?tab=season')
   await expect(page.locator(`[data-club-season] a[href="/battles/${token}"]`)).toHaveText('Setting up')
 })
 

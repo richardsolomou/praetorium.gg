@@ -135,7 +135,7 @@ const STANDINGS_WINDOW_MS = 90 * DAY_MS
 const STANDINGS_BATTLE_LIMIT = 500
 /** Pages of 500 battles a club table reads before it reports itself partial. */
 const CLUB_STANDINGS_PAGES = 20
-const CLUB_RECENT_BATTLES = 3
+const CLUB_RECENT_BATTLES = 6
 const STANDINGS_HOLD_MS = 60_000
 
 /** How much of a table is sent. Nobody reads past this, and every faction played costs one. */

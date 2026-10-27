@@ -70,17 +70,17 @@ export function LeagueResults<Entry extends { userId: string; name: string; imag
       />
       {problem ? <Problem className="mb-2">{problem}</Problem> : null}
       <div className="overflow-x-auto border border-edge bg-panel">
-        <table className="w-full min-w-72 table-fixed border-collapse text-sm">
+        <table className="w-full min-w-76 table-fixed border-collapse text-sm">
           <thead>
             <tr className="border-b border-edge text-left text-xs tracking-wide text-faint uppercase">
-              <th scope="col" className="w-8 px-2 py-3 font-normal sm:w-10 sm:px-3">
+              <th scope="col" className="w-6 px-1 py-3 font-normal sm:w-10 sm:px-3">
                 #
               </th>
               <th scope="col" className="px-2 py-3 font-normal sm:px-3">
                 Player
               </th>
               {columns.map((column) => (
-                <th key={column.key} scope="col" className="w-9 px-1 py-3 text-right font-normal sm:w-12 sm:px-3">
+                <th key={column.key} scope="col" className="w-8 px-1 py-3 text-right font-normal sm:w-12 sm:px-3">
                   <abbr title={column.title} className="no-underline">
                     {column.short}
                   </abbr>
@@ -95,13 +95,14 @@ export function LeagueResults<Entry extends { userId: string; name: string; imag
               const player = (
                 <>
                   <PlayerAvatar name={entry.name} image={entry.image} className="size-7 text-3xs max-sm:hidden" />
-                  <span className="truncate font-bold uppercase">{label(entry)}</span>
+                  {/* A phone leaves the name too narrow to cut short, so it wraps there instead. */}
+                  <span className="min-w-0 font-bold break-words uppercase sm:truncate">{label(entry)}</span>
                   {entry.dropped ? <span className="chip shrink-0 text-dim">Dropped</span> : null}
                 </>
               )
               return (
                 <tr key={row.userId} data-result={entry.name} className="border-b border-edge last:border-0">
-                  <td className={`readout px-2 py-3 sm:px-3 ${place === 0 && row.played ? 'font-bold text-parchment' : 'text-faint'}`}>
+                  <td className={`readout px-1 py-3 sm:px-3 ${place === 0 && row.played ? 'font-bold text-parchment' : 'text-faint'}`}>
                     {place + 1}
                   </td>
                   <td className="overflow-hidden px-2 py-3 sm:px-3">

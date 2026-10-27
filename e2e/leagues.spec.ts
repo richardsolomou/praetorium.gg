@@ -522,9 +522,11 @@ test('a Swiss tournament pairs its rounds and ranks the tables by match points',
   await owner.waitForURL(/\/battles\/[^/]+$/)
 
   // Settle the table in its log: the rounds are under test, not the game.
+  const battlePath = new URL(owner.url()).pathname
   const battleId = await battleIdFor(lastPathSegment(owner.url()))
   const [first, second] = await seatsBySide(battleId)
   await owner.goto(url)
+  await expect(owner.locator('[data-entry-status]').getByRole('link', { name: 'Resume battle' })).toHaveAttribute('href', battlePath)
   for (const [by, command] of [
     [first, { kind: 'begin-battle', firstPlayerId: first }],
     [second, { kind: 'end-battle', reason: 'conceded', concededBy: second }],
@@ -2014,6 +2016,9 @@ test('the sample tournament walks every stage without writing anything', async (
   // Made-up players and battles have no pages to open.
   await expect(page.locator('main a[href^="/users/"], main a[href^="/battles/"], main a[href^="/rosters/"]')).toHaveCount(0)
   await page.getByRole('link', { name: 'Back to the start' }).click()
+  await expect(page.getByRole('heading', { name: '4 of 5 rosters sealed' })).toBeVisible()
+  // A stage name that isn't one, from an old or mistyped link, opens the start.
+  await page.goto('/tournaments/sample?stage=final')
   await expect(page.getByRole('heading', { name: '4 of 5 rosters sealed' })).toBeVisible()
   expect(writes).toEqual([])
 })
