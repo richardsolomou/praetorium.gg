@@ -2613,7 +2613,6 @@ export function pointsRound(state: BattleState, command: Extract<Command, { kind
   return command.missed?.round ?? command.round ?? state.round
 }
 
-/** Ends the battle, remembering whose turn it was so reopening it resumes there. */
 function reopenBattle(state: BattleState) {
   state.advanceRequested = false
   state.scoringAcknowledged = false
@@ -2624,6 +2623,7 @@ function reopenBattle(state: BattleState) {
   state.clockPaused = false
 }
 
+/** Ends the battle, remembering whose turn it was so reopening it resumes there. */
 function finishBattle(state: BattleState, result: NonNullable<BattleState['result']>) {
   state.status = 'finished'
   state.result = result

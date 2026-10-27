@@ -147,7 +147,7 @@ export function LeagueRounds({
                       onPlay={onPlay}
                       playing={playing}
                       sample={sample}
-                      reopen={isOrganizer && !sample && pairing.battleToken ? { token, eventToken: league.eventToken } : undefined}
+                      reopen={isOrganizer && !sample ? { token, eventToken: league.eventToken } : undefined}
                     />
                   ))}
               </ol>
