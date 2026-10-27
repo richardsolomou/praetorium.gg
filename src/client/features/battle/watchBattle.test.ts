@@ -26,7 +26,7 @@ function screen(entries: [string, Command][] = started(), viewer = ALICE, player
   return { view, clock: battleClock(players, history, playerSides) }
 }
 const project = (value: ReturnType<typeof screen>, prompts: WatchReminderPrompt[] = []) =>
-  watchBattle(value.view, value.clock, [], () => undefined, prompts, 1000)
+  watchBattle(value.view, value.clock, [], () => undefined, prompts, 1000, 'https://praetorium.test/api/watch/battles/battle')
 
 describe('watch battle snapshot', () => {
   it('reads scores and CP from the saved battle flow', () => {
@@ -50,11 +50,35 @@ describe('watch battle snapshot', () => {
     ])
   })
 
-  it.each(['spectator', 'setup', 'finished'])('does not publish a %s battle', (kind) => {
+  it('does not publish a battle still in setup', () => {
     const value = screen()
-    if (kind === 'spectator') value.view = battleView({ token: 'battle' }, NAMES, reduceBattle(PLAYERS, log(...started())), 'visitor')
-    else value.view.status = kind as 'setup' | 'finished'
+    value.view.status = 'setup'
     expect(project(value)).toBeNull()
+  })
+
+  it('lets a spectator follow the score with no side as theirs and nothing private', () => {
+    const value = screen([...started(), [ALICE, { kind: 'score', category: 'primary', delta: 5 }]])
+    value.view = battleView(
+      { token: 'battle' },
+      NAMES,
+      reduceBattle(PLAYERS, log(...started(), [ALICE, { kind: 'score', category: 'primary', delta: 5 }])),
+      '',
+    )
+    const prompts = [
+      { reminders: [personalReminder('note')], moment: 'Now', context: { round: 1, activePlayerId: ALICE, phase: 'command' as const } },
+    ]
+    expect(project(value, prompts)).toMatchObject({
+      sides: [
+        { index: 0, yours: false, vp: 5 },
+        { index: 1, yours: false, vp: 0 },
+      ],
+      objectives: [],
+      reminders: [],
+    })
+  })
+
+  it('passes the live address through the shell contract', () => {
+    expect(parseWatchBattle(project(screen()))?.liveUrl).toBe('https://praetorium.test/api/watch/battles/battle')
   })
 
   it('never includes the opposing hidden mission or deck', () => {

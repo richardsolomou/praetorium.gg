@@ -9,6 +9,7 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
   @Published var connectionError: String?
   private let logger = Logger(subsystem: "gg.praetorium.watch", category: "sync")
   private var activationFinished = false
+  private var unavailable: String?
 
   override init() {
     super.init()
@@ -42,6 +43,35 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
       let delivery = decodeContext(session.receivedApplicationContext)
     else { return }
     receive(delivery.snapshot, deliveredAt: delivery.sentAt, notify: false)
+  }
+
+  /// Reads the battle from Praetorium while the app is open and the phone has gone quiet, such as when it is locked.
+  @MainActor
+  func followLive() async {
+    while !Task.isCancelled {
+      if let battle, battle.battleId != unavailable,
+        let url = state.liveURL(at: Date(), after: 15)
+      {
+        await poll(url, for: battle.battleId)
+      }
+      do { try await Task.sleep(for: .seconds(10)) } catch { return }
+    }
+  }
+
+  @MainActor
+  private func poll(_ url: URL, for battleId: String) async {
+    let request = URLRequest(
+      url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 8)
+    do {
+      let (data, response) = try await URLSession.shared.data(for: request)
+      guard let status = (response as? HTTPURLResponse)?.statusCode else { return }
+      // Gone or no longer watchable: the last score stays up as it was, marked as saved.
+      if status == 404 { unavailable = battleId }
+      guard status == 200, let live = LiveBattle.decode(data) else { return }
+      state.receive(live, for: battleId, receivedAt: Date().timeIntervalSince1970 * 1000)
+    } catch {
+      logger.debug("Live battle read failed: \(error.localizedDescription, privacy: .public)")
+    }
   }
 
   func receive(_ string: String, deliveredAt: Double, notify: Bool = true) {
@@ -106,6 +136,21 @@ final class WatchStore: NSObject, ObservableObject, WCSessionDelegate {
       object["updatedAt"] = Date().timeIntervalSince1970 * 1000
       if ProcessInfo.processInfo.arguments.contains("--stale") {
         object["updatedAt"] = (Date().timeIntervalSince1970 - 180) * 1000
+      }
+      let arguments = ProcessInfo.processInfo.arguments
+      if arguments.contains("--spectating") {
+        object["sides"] = (object["sides"] as? [[String: Any]])?.map {
+          $0.merging(["yours": false]) { $1 }
+        }
+        object["objectives"] = []
+        object["reminders"] = []
+      }
+      if let index = arguments.firstIndex(of: "--live"), arguments.indices.contains(index + 1),
+        let url = URL(string: arguments[index + 1])
+      {
+        object["liveUrl"] = url.absoluteString
+        object["battleId"] = url.lastPathComponent
+        object["seq"] = 0
       }
       guard let adjusted = try? JSONSerialization.data(withJSONObject: object),
         let string = String(data: adjusted, encoding: .utf8)

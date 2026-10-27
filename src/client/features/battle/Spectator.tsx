@@ -33,6 +33,7 @@ import { ManualScore } from './ManualScore'
 import { MANUAL_TRACKING_LIMITS } from './manualTracking'
 import { SpectatorInvite } from './SpectatorInvite'
 import { chunks } from '../../../core/collections'
+import { useWatchBattle } from './useWatchBattle'
 
 type Props = {
   view: BattleView
@@ -47,6 +48,8 @@ type Props = {
 const ignoreCommand = (_command: Command) => {}
 const noAwards = () => []
 const emptyTimeline: readonly ReplayPoint[] = []
+const noReference = () => undefined
+const noPrompts: never[] = []
 
 export function Spectator({
   view: currentView,
@@ -107,6 +110,7 @@ export function Spectator({
   const cardsByKey = useMemo(() => missionCardsByKey(references), [references])
   const referenceFor = (key: string) => cardsByKey.get(key)
   const captured = useRef(false)
+  useWatchBattle(currentView, currentClock, currentMissions, noReference, noPrompts)
 
   useEffect(() => {
     if (captured.current || view.players.some((player) => player.isViewer)) return

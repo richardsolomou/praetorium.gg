@@ -45,3 +45,8 @@ it('passes the event reader to the repository so access is filtered before pagin
   await service.leagueBattles('league', 'event', { limit: 25 }, undefined, undefined, 'reader')
   expect(repository.battlesByLeagueEvent).toHaveBeenCalledWith('league', 'event', { limit: 25, viewerId: 'reader' })
 })
+
+it('refuses the live watch read for a table nobody sits at', async () => {
+  const { service } = fixture(false, false)
+  expect(await service.liveBattle('token')).toBeNull()
+})

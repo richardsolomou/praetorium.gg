@@ -19,6 +19,92 @@ final class BattleSessionTests: XCTestCase {
     return snapshot
   }
 
+  private func liveData(_ patch: [String: Any] = [:]) throws -> Data {
+    var object: [String: Any] = [
+      "seq": 43, "updatedAt": 0, "status": "playing", "round": 3, "rounds": 5,
+      "phase": "shooting", "activeSide": 0, "paused": false, "turnElapsedMs": 800_000,
+      "turnRunning": true,
+      "sides": [["index": 0, "vp": 40, "cp": 3], ["index": 1, "vp": 28, "cp": 2]],
+    ]
+    for (key, value) in patch { object[key] = value }
+    return try JSONSerialization.data(withJSONObject: object)
+  }
+
+  private func live(_ patch: [String: Any] = [:]) throws -> LiveBattle {
+    try XCTUnwrap(LiveBattle.decode(try liveData(patch)))
+  }
+
+  private let liveUrl = "https://praetorium.gg/api/watch/battles/simulator-demo"
+
+  func testLiveReadUpdatesTheScoreAndKeepsThePhonesCards() throws {
+    var session = BattleSession()
+    _ = session.receive(try snapshot(["updatedAt": 1_000]), deliveredAt: 1)
+    session.receive(try live(), for: "simulator-demo", receivedAt: 2_000)
+    XCTAssertEqual(
+      [session.battle?.sides.map(\.vp), session.battle?.sides.map(\.cp)],
+      [[40, 28], [3, 2]])
+    XCTAssertEqual(session.battle?.objectives.count, 3)
+  }
+
+  func testLiveReadOfAnotherBattleIsIgnored() throws {
+    var session = BattleSession()
+    _ = session.receive(try snapshot(), deliveredAt: 1)
+    XCTAssertFalse(session.receive(try live(), for: "another-battle", receivedAt: 2_000))
+  }
+
+  func testLiveReadBehindThePhoneIsIgnored() throws {
+    var session = BattleSession()
+    _ = session.receive(try snapshot(["updatedAt": 1_000]), deliveredAt: 1)
+    XCTAssertFalse(session.receive(try live(["seq": 41]), for: "simulator-demo", receivedAt: 9_000))
+  }
+
+  func testPhoneSnapshotBehindALiveReadIsIgnored() throws {
+    var session = BattleSession()
+    _ = session.receive(try snapshot(["updatedAt": 1_000]), deliveredAt: 1)
+    session.receive(try live(["seq": 50]), for: "simulator-demo", receivedAt: 2_000)
+    _ = session.receive(try snapshot(["seq": 49, "updatedAt": 3_000]), deliveredAt: 2)
+    XCTAssertEqual(session.battle?.seq, 50)
+  }
+
+  func testLiveReadOfALaterTurnDropsThePhonesReminders() throws {
+    var session = BattleSession()
+    _ = session.receive(try snapshot(["updatedAt": 1_000]), deliveredAt: 1)
+    session.receive(try live(["activeSide": 1]), for: "simulator-demo", receivedAt: 2_000)
+    XCTAssertTrue(session.reminders.isEmpty)
+  }
+
+  func testWatchReadsForItselfOnlyOnceThePhoneGoesQuiet() throws {
+    var session = BattleSession()
+    _ = session.receive(try snapshot(["updatedAt": 100_000, "liveUrl": liveUrl]), deliveredAt: 1)
+    XCTAssertEqual(
+      [110.0, 120].map {
+        session.liveURL(at: Date(timeIntervalSince1970: $0), after: 15)?.absoluteString
+      }, [nil, liveUrl])
+  }
+
+  func testWatchKeepsReadingWhileItsOwnReadsAreFresh() throws {
+    var session = BattleSession()
+    _ = session.receive(try snapshot(["updatedAt": 100_000, "liveUrl": liveUrl]), deliveredAt: 1)
+    session.receive(try live(), for: "simulator-demo", receivedAt: 120_000)
+    XCTAssertNotNil(session.liveURL(at: Date(timeIntervalSince1970: 125), after: 15))
+  }
+
+  func testFinishedBattleStopsTheLiveReads() throws {
+    var session = BattleSession()
+    _ = session.receive(try snapshot(["updatedAt": 100_000, "liveUrl": liveUrl]), deliveredAt: 1)
+    session.receive(try live(["status": "finished"]), for: "simulator-demo", receivedAt: 120_000)
+    XCTAssertNil(session.liveURL(at: Date(timeIntervalSince1970: 200), after: 15))
+  }
+
+  func testLiveAddressMustBeAWebAddress() throws {
+    XCTAssertNil(
+      try snapshot(["liveUrl": "ftp://praetorium.gg/api/watch/battles/simulator-demo"]).liveURL)
+  }
+
+  func testRejectsALiveReadWithAnImpossibleScore() throws {
+    XCTAssertNil(LiveBattle.decode(try liveData(["sides": [["index": 0, "vp": -1, "cp": 0]]])))
+  }
+
   func testFreshClockBecomesSavedAndStopsEstimatingAfter45Seconds() throws {
     let battle = try snapshot(["updatedAt": 100_000, "turnElapsedMs": 10_000])
     XCTAssertEqual(

@@ -1,7 +1,7 @@
-import type { WatchBattle } from '../../../contracts/watchBattle'
+import { watchLive, type WatchBattle } from '../../../contracts/watchBattle'
 import { loadedWords } from '../../sourceText'
 import type { BattleView } from '../../../core/battleView'
-import { clockMs, runsIn, type BattleClock } from '../../../core/battleClock'
+import type { BattleClock } from '../../../core/battleClock'
 import type { RosterReminder } from '../../../core/reminders'
 import { jsonByteLength } from '../../../core/json'
 import { appliesInMode, conditionLabel, payoutJoin, roundLabel, timingLabel } from '../../missionText'
@@ -30,19 +30,21 @@ export function watchBattle(
   referenceFor: (key: string) => ReferenceCard | undefined,
   prompts: WatchReminderPrompt[],
   updatedAt: number,
+  liveUrl: string,
 ): WatchBattle | null {
-  if (view.status !== 'playing' || !view.players.some((player) => player.isViewer)) return null
+  if (view.status === 'setup') return null
   const table = sides(view, missions)
+  // A spectator follows the score with every side shown as someone else's and nothing private to carry.
   const yours = table.find((side) => side.isViewer)
-  if (!yours) return null
-  const active = table.find((side) => side.isActive)
-  const cards = [
-    ...(yours.primaryCard ? [{ ...yours.primaryCard, kind: 'Primary' as const, points: yours.primary }] : []),
-    ...yours.secondaries
-      .filter((card) => card.status === 'active')
-      .map((card) => ({ ...card, kind: card.secret ? ('Secret' as const) : ('Secondary' as const) })),
-  ]
-  const reminders = prompts.flatMap((prompt) =>
+  const cards = yours
+    ? [
+        ...(yours.primaryCard ? [{ ...yours.primaryCard, kind: 'Primary' as const, points: yours.primary }] : []),
+        ...yours.secondaries
+          .filter((card) => card.status === 'active')
+          .map((card) => ({ ...card, kind: card.secret ? ('Secret' as const) : ('Secondary' as const) })),
+      ]
+    : []
+  const reminders = (yours ? prompts : []).flatMap((prompt) =>
     prompt.reminders.map((reminder) => ({
       id: clip(JSON.stringify([prompt.context.round, prompt.context.activePlayerId, prompt.context.phase, reminder.key]), 500),
       title: clip(reminder.ability, 80),
@@ -53,24 +55,21 @@ export function watchBattle(
     })),
   )
   const uniqueReminders = [...new Map(reminders.map((reminder) => [reminder.id, reminder])).values()]
+  const live = watchLive(view, clock, updatedAt)
   return {
     version: 1,
     battleId: clip(view.token, 160),
     viewerId: clip(view.viewerId, 160),
-    seq: view.seq,
-    updatedAt,
-    round: view.round,
-    rounds: view.rounds,
-    phase: view.phase,
-    activeSide: active?.index ?? null,
-    paused: clock.paused,
-    turnElapsedMs: active ? clockMs(clock, updatedAt, { side: active.index, round: view.round }) : 0,
-    turnRunning: Boolean(active && runsIn(clock, { side: active.index, round: view.round })),
-    sides: table.map((side) => ({ index: side.index, name: clip(sideName(side), 160), yours: side.isViewer, vp: side.total, cp: side.cp })),
+    liveUrl,
+    ...live,
+    sides: live.sides.map((side) => {
+      const named = table.find((entry) => entry.index === side.index)
+      return { ...side, name: clip(named ? sideName(named) : '', 160), yours: Boolean(named?.isViewer) }
+    }),
     objectives: cards.slice(0, 10).map((card) => {
       const reference = referenceFor(card.key)
       const awards = (reference?.awards ?? card.awards ?? []).filter((award) =>
-        appliesInMode(award, card.kind === 'Primary' ? undefined : yours.secondaryMode),
+        appliesInMode(award, card.kind === 'Primary' ? undefined : yours?.secondaryMode),
       )
       const summary = awards
         .map(
