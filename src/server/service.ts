@@ -863,6 +863,14 @@ export class PraetoriumService {
     }
   }
 
+  /** What a spectator would see of the battle's score and clock, without the report and timeline a watch polling it has no use for. */
+  async liveBattle(token: string): Promise<{ view: BattleView; clock: BattleClock } | null> {
+    const history = await this.repository.battleHistoryByToken(token)
+    if (!history || !this.mayWatch(history)) return null
+    const { view, clock } = this.battleScreen(history, SPECTATOR_ID)
+    return { view, clock }
+  }
+
   private viewerReport(history: BattleHistory, viewerId: string, rules?: BattleReadRules | null) {
     return battleReport(
       history.players,

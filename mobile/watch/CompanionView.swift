@@ -16,6 +16,7 @@ extension EnvironmentValues {
 
 struct CompanionView: View {
   @EnvironmentObject private var store: WatchStore
+  @Environment(\.scenePhase) private var scenePhase
   @State private var page = 0
   @AppStorage("reminderHaptics") private var reminderHaptics = false
 
@@ -35,8 +36,10 @@ struct CompanionView: View {
       if let battle = store.battle {
         TabView(selection: $page) {
           BattleGlance(battle: battle).tag(0)
-          ObjectivesView(battle: battle).tag(1)
-          RemindersView().tag(2)
+          if !battle.spectating {
+            ObjectivesView(battle: battle).tag(1)
+            RemindersView().tag(2)
+          }
         }
         .tabViewStyle(.verticalPage)
         .navigationTitle("Praetorium")
@@ -46,7 +49,7 @@ struct CompanionView: View {
               Form {
                 Toggle("Reminder taps", isOn: $reminderHaptics).tint(accent)
                 Text(
-                  "A gentle tap for new reminders while this watch app is open. Keep the live battle open on your iPhone."
+                  "A gentle tap for new reminders while this watch app is open. The score keeps updating while your iPhone is locked."
                 )
                 .font(.footnote).foregroundStyle(.secondary)
               }.navigationTitle("Settings")
@@ -61,10 +64,16 @@ struct CompanionView: View {
           Image(systemName: "shield.lefthalf.filled").font(.system(size: 36)).foregroundStyle(
             accent)
           Text("Ready for battle").font(.headline)
-          Text(store.connectionError ?? "Open a live battle in Praetorium on your iPhone.")
-            .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+          Text(
+            store.connectionError
+              ?? "Open a live battle in Praetorium on your iPhone, yours or one you are watching."
+          )
+          .font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
         }.padding().navigationTitle("Praetorium")
       }
+    }
+    .task(id: scenePhase == .active) {
+      if scenePhase == .active { await store.followLive() }
     }
   }
 }
@@ -85,12 +94,13 @@ private struct BattleGlance: View {
           HStack(alignment: .top, spacing: 8) {
             ForEach(battle.sides) { side in
               VStack(alignment: .leading, spacing: 2) {
-                Text(side.yours ? "YOU" : "OPPONENT").font(.system(size: 10, weight: .bold))
+                Text(battle.spectating ? side.name.uppercased() : side.yours ? "YOU" : "OPPONENT")
+                  .font(.system(size: 10, weight: .bold)).lineLimit(1)
                   .foregroundStyle(sideColor(side.index))
                 Text(side.vp, format: .number.precision(.fractionLength(0)))
                   .font(.system(size: 28, weight: .bold, design: .rounded)).monospacedDigit()
                   .foregroundStyle(sideColor(side.index)).minimumScaleFactor(0.7).lineLimit(1)
-                Text(side.name).font(.system(size: 11)).lineLimit(1)
+                if !battle.spectating { Text(side.name).font(.system(size: 11)).lineLimit(1) }
                 Text("\(Int(side.cp)) CP").font(
                   .system(size: 13, weight: .semibold, design: .monospaced))
               }.frame(maxWidth: .infinity, alignment: .leading)
@@ -99,26 +109,38 @@ private struct BattleGlance: View {
           HStack(spacing: 8) {
             Capsule().fill(sideColor(battle.activeSide ?? 0)).frame(width: 3)
             VStack(alignment: .leading, spacing: 2) {
-              Text(battle.phase == "end" ? "End of turn" : battle.phase.capitalized)
-                .font(.system(size: 13, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
-              Text(battle.active?.yours == true ? "Your turn" : "Opponent’s turn").font(
-                .system(size: 11)
-              )
-              .foregroundStyle(.secondary)
+              Text(phaseLabel).font(.system(size: 13, weight: .semibold)).lineLimit(1)
+                .minimumScaleFactor(0.8)
+              Text(turnLabel).font(.system(size: 11)).lineLimit(1).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
-            Text(
-              battle.elapsedLabel(
-                at: timeline.date,
-                showsSeconds: !isLuminanceReduced && timeline.cadence <= .seconds)
-            )
-            .font(.system(size: 17, weight: .semibold, design: .monospaced)).monospacedDigit()
-            .lineLimit(1).minimumScaleFactor(0.7)
+            if !battle.finished {
+              Text(
+                battle.elapsedLabel(
+                  at: timeline.date,
+                  showsSeconds: !isLuminanceReduced && timeline.cadence <= .seconds)
+              )
+              .font(.system(size: 17, weight: .semibold, design: .monospaced)).monospacedDigit()
+              .lineLimit(1).minimumScaleFactor(0.7)
+            }
           }.padding(.horizontal, 3)
           SyncStatus(battle: battle, now: timeline.date)
         }.padding(.horizontal, 2)
       }
     }
+  }
+}
+
+extension BattleGlance {
+  fileprivate var phaseLabel: String {
+    if battle.finished { return "Final" }
+    return battle.phase == "end" ? "End of turn" : battle.phase.capitalized
+  }
+
+  fileprivate var turnLabel: String {
+    if battle.finished { return "Battle over" }
+    if battle.spectating, let active = battle.active { return "\(active.name)’s turn" }
+    return battle.active?.yours == true ? "Your turn" : "Opponent’s turn"
   }
 }
 

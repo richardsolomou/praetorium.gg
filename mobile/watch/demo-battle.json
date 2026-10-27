@@ -2,6 +2,7 @@
   "version": 1,
   "battleId": "simulator-demo",
   "viewerId": "demo-player",
+  "status": "playing",
   "seq": 42,
   "updatedAt": 0,
   "round": 3,

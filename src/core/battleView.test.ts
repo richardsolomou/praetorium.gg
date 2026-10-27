@@ -263,6 +263,16 @@ describe('the view', () => {
     expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players.find((player) => player.isViewer)?.total).toBe(8)
   })
 
+  it.each([
+    ['setup', 0],
+    ['playing', 10],
+  ] as const)('adds the battle-ready bonus to the total once the battle is %s', (status, total) => {
+    const state = reduceBattle(PLAYERS, log(...started()))
+    state.players[0]!.painted = true
+    state.status = status
+    expect(battleView({ token: 'abc' }, NAMES, state, ALICE).players[0]?.total).toBe(total)
+  })
+
   it('attributes scores to the round they were made', () => {
     const state = reduceBattle(
       PLAYERS,

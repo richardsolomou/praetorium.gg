@@ -22,6 +22,7 @@ import { reconcileAppAccount } from '../../offline/appSnapshot'
 import { setNativeAccountMenuOpen } from '../../nativeBridge'
 import { openOnboarding } from '../onboarding/onboarding'
 import { forgetThisDevice } from '../../pushNotifications'
+import { clearWatchBattle } from '../battle/useWatchBattle'
 import { meQuery, onboardingQuery } from '../../queries'
 import { MenuSection } from '../../components/MenuSection'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -48,6 +49,7 @@ function useAccountControls() {
       const result = await authClient.signOut()
       if (result.error) throw new Error('Sign-out failed. Your saved work is still on this device. Try again.')
       stopLocalRuntime()
+      clearWatchBattle()
       if (owner)
         await clearLocalState(owner, true).catch((error: unknown) => posthog.captureException(error, { operation: 'sign_out_local_work' }))
       reconcileAppAccount(queryClient, null)

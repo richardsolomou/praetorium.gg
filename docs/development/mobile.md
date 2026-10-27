@@ -24,7 +24,9 @@
 ## Notifications
 
 - Request permission only after the player chooses to. Notices exclude practice opponents and carry only what the recipient may read.
-- The Watch companion publishes only the seated viewer's battle.
+- The Watch follows the last live battle the phone opened, seated or spectated, until another battle replaces it or the account signs out (`clearWatchBattle`). Objectives and reminders come only from the phone, and only for a seated viewer.
+- While the phone is quiet, the Watch polls `/api/watch/battles/$token`. It is the one read outside server functions: it reuses `mayWatch` and returns counters a spectator already sees, never names, cards, or rules text. Its fields come from `watchLive`, which the phone's snapshot shares.
+- Keep the Watch snapshot at `version: 1` and add only optional fields; installed watches reject any other version, and older shells strip unknown keys.
 
 ## Check it
 
