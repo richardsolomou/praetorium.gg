@@ -589,13 +589,13 @@ export class PraetoriumService {
     const practice = await this.repository.practiceOpponents()
     // A game's battles name its event; one from before events were recorded on battles names only its league, now this club.
     const gameEvents = new Set(club.games.map((game) => game.token))
-    // A sealed game lists its own battles, so the club's other lists keep to the ones played outside them.
-    const fromGames = new Set<string>()
+    // Which sealed game each battle came from, so the page can name it and leave a game's battles inside its card.
+    const gameOf = new Map<string, string>()
     const counted = this.battleSummaries(
       histories.filter((history) => {
         const state = foldHistory(history)
         const fromGame = state.leagueEventToken !== null && gameEvents.has(state.leagueEventToken)
-        if (fromGame) fromGames.add(history.battle.token)
+        if (fromGame) gameOf.set(history.battle.token, state.leagueEventToken!)
         return state.clubId === club.id || fromGame || (state.leagueEventToken === null && state.leagueToken === club.token)
       }),
       viewerId,
@@ -604,14 +604,22 @@ export class PraetoriumService {
     )
     const tables = standings(counted, { exclude: practice.map((opponent) => opponent.id) })
     const rows = tables.overall.filter((row) => memberIds.has(row.id))
+    const recent = counted.filter((battle) => battle.status === 'finished').slice(0, CLUB_RECENT_BATTLES)
+    // The reader's own club battles still being set up or played, which is what they most likely came back for.
+    const active = viewerId ? counted.filter((battle) => battle.status !== 'finished' && battle.playerIds.includes(viewerId)) : []
     return {
       table: { faction: null, players: rows.length, rows },
       finished: counted.filter((battle) => battle.status === 'finished').length,
-      recent: counted.filter((battle) => battle.status === 'finished' && !fromGames.has(battle.token)).slice(0, CLUB_RECENT_BATTLES),
-      // The reader's own club battles still being set up or played, which is what they most likely came back for.
-      active: viewerId
-        ? counted.filter((battle) => battle.status !== 'finished' && battle.playerIds.includes(viewerId) && !fromGames.has(battle.token))
-        : [],
+      recent,
+      active,
+      games: Object.fromEntries(
+        [...recent, ...active].flatMap((battle) => {
+          const game = gameOf.get(battle.token)
+          return game ? [[battle.token, game]] : []
+        }),
+      ),
+      // Sealed games with a battle still being set up or played, which stay current until it ends.
+      playing: [...new Set(counted.flatMap((battle) => (battle.status === 'finished' ? [] : (gameOf.get(battle.token) ?? []))))],
       partial: before !== undefined,
     }
   }

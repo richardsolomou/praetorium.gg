@@ -164,8 +164,9 @@ test('a club seals lists for a game night and plays them from the club page', as
   await owner.goto(`/tournaments/${gameToken}`)
   await expect(owner).toHaveURL(new RegExp(`/clubs/${token}\\?game=${gameToken}`))
   await expect(owner.locator(`[data-sealed-game="${gameToken}"]`)).toContainText('Regular army')
-  // A battle still being played shows once, inside its game under Up next.
-  await expect(owner.locator(`a[href="${battlePath}"]`)).toHaveCount(1)
+  // A battle still being played shows once on the tab, inside its game under Up next, besides the card's way back to it.
+  await expect(owner.getByRole('tabpanel').locator(`a[href="${battlePath}"]`)).toHaveCount(1)
+  await expect(owner.locator('[data-club-next]').getByRole('link', { name: 'Resume battle' })).toHaveAttribute('href', battlePath)
   const midnight = await owner.evaluate(() => {
     const date = new Date()
     date.setHours(24, 0, 0, 0)
@@ -173,6 +174,10 @@ test('a club seals lists for a game night and plays them from the club page', as
   })
   await owner.clock.fastForward(midnight - (await owner.evaluate(() => Date.now())) + 1)
   await expect(game.locator('summary')).toBeVisible()
+  // Its day is over but its battle isn't, so it stays under Up next rather than among the past games.
+  await expect(
+    owner.getByRole('heading', { name: 'Up next', exact: true }).locator('..').locator(`[data-sealed-game="${gameToken}"]`),
+  ).toBeVisible()
   await game.locator('summary').click()
   await expect(game.getByRole('button', { name: /^Play / })).toHaveCount(0)
   await expect(game.getByRole('button', { name: `Simulate against ${memberName}`, exact: true })).toBeVisible()

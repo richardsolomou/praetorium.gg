@@ -6,7 +6,7 @@ A club keeps a running leaderboard of the games your group plays. There's no end
 
 The page has four tabs:
 
-- **Overview**: the current sealed game, your unfinished battles, and the club's recent games. Each battle says whether it was a season game or a friendly game.
+- **Overview**: the current sealed game, your unfinished battles, and the club's recent games. Each battle says whether it was a sealed, season or friendly game.
 - **Leaderboard**: every game played for the club, rated.
 - **Season**: the round robin, with its own table and fixtures.
 - **Sealed games**: the current one and every past one, with their battles and lists.
@@ -36,9 +36,9 @@ Before the reveal, an organizer can press **Remind players** to send a notificat
 
 After reveal, use **Simulate** beside another player’s list to compare your sealed armies. For team games, the simulator combines each side’s lists.
 
-The results go on the club's leaderboard. Starting a new sealed game automatically moves the previous one to **Past sealed games**, on the **Sealed games** tab. A scheduled game also moves there after its scheduled day ends; an undated game moves after the day its lists were revealed. Days end at midnight in the timezone of the organizer who created the game. An undated game with unrevealed lists stays open until replaced.
+The results go on the club's leaderboard. Starting a new sealed game automatically moves the previous one to **Past sealed games**, on the **Sealed games** tab. A scheduled game also moves there after its scheduled day ends; an undated game moves after the day its lists were revealed. Days end at midnight in the timezone of the organizer who created the game. An undated game with unrevealed lists stays open until replaced. A game with a battle still being played stays under **Up next** until that battle ends, though nobody can start another battle from it.
 
-Past games keep their results and any battles already underway, which you can still resume. Expand **Lists** to view or simulate revealed armies. You can’t start another battle or change lists in a past game. **Recent games**, on **Overview**, shows the club's other battles.
+Past games keep their results and any battles already underway, which you can still resume. Expand **Lists** to view or simulate revealed armies. You can’t start another battle or change lists in a past game. **Recent games**, on **Overview**, shows the club's latest battles of every kind.
 
 ## Seasons
 

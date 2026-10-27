@@ -7,7 +7,7 @@ import { PraetoriumService } from './service'
 const lock = (leagueToken: string, eventToken?: string): Command => ({ kind: 'lock-league-rosters', leagueToken, eventToken })
 const tagged: Command = { kind: 'set-battle-club', clubId: 'club-id' }
 
-function fixture({ members = [ALICE, BOB], visibility = 'private', counted = tagged } = {}) {
+function fixture({ members = [ALICE, BOB], visibility = 'private', counted = tagged, finished = true } = {}) {
   const history = {
     battle: { id: 'battle', token: 'token', createdAt: 0 },
     players: NAMES.map((player, side) => ({ ...player, side, automated: false })),
@@ -16,7 +16,7 @@ function fixture({ members = [ALICE, BOB], visibility = 'private', counted = tag
       [BOB, builtRoster('Bob army', ['Immortals'])],
       [ALICE, counted],
       [ALICE, { kind: 'begin-battle', firstPlayerId: ALICE }],
-      [ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: BOB }] as [string, Command],
+      ...(finished ? [[ALICE, { kind: 'end-battle', reason: 'conceded', concededBy: BOB }] as [string, Command]] : []),
     ),
   }
   const repository = {
@@ -71,4 +71,12 @@ it('hides a private club’s table from a non-member', async () => {
 
 it('shows a public club’s table to anyone', async () => {
   expect(await rows(fixture({ visibility: 'public' }), null)).toEqual([ALICE, BOB])
+})
+
+it('lists a sealed game’s battle among the recent ones, named by its game', async () => {
+  expect((await fixture({ counted: lock('game', 'game') }).clubStandings('club', ALICE))?.games).toEqual({ token: 'game' })
+})
+
+it('keeps a sealed game current while one of its battles is still being played', async () => {
+  expect((await fixture({ counted: lock('game', 'game'), finished: false }).clubStandings('club', ALICE))?.playing).toEqual(['game'])
 })
