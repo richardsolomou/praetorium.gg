@@ -95,19 +95,22 @@ export function reloadStaleBuild(
 
 export const routeRecoveryPending = (href: string) => moduleRecoveryAttempt(href) > 0 || staleBuildMarker(href) !== null
 
-/** Removes the recovery keys a rendered route resolves; a reload that still runs an older build keeps its key, so the cap holds. */
+/**
+ * Removes the recovery keys a rendered route resolves; a reload that still runs an older build keeps its key, so the cap holds.
+ * The reloaded page can render before the SDK loads, so completion waits for it instead of being dropped.
+ */
 export function completedRouteRecovery(href: string, current = version) {
   const url = new URL(href)
   const moduleAttempt = moduleRecoveryAttempt(href)
   if (moduleAttempt) {
     url.searchParams.delete(RECOVERY_PARAM)
-    posthog.capture('route_recovery_completed', { failure_kind: 'module_load', recovery_attempt: moduleAttempt })
+    captureWhenLoaded('route_recovery_completed', { failure_kind: 'module_load', recovery_attempt: moduleAttempt })
   }
   const stale = staleBuildMarker(href)
   const staleResolved = stale !== null && !newerRelease(current, stale.release)
   if (staleResolved) {
     url.searchParams.delete(STALE_BUILD_PARAM)
-    posthog.capture('route_recovery_completed', { failure_kind: 'stale_build', recovery_attempt: stale.attempt })
+    captureWhenLoaded('route_recovery_completed', { failure_kind: 'stale_build', recovery_attempt: stale.attempt })
   }
   return moduleAttempt || staleResolved ? url.pathname + url.search + url.hash : null
 }

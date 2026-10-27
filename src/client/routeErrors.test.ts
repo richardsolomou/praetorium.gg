@@ -180,6 +180,14 @@ it('reports stale-build recovery once the page runs the release it reloaded for'
   expect(capture.mock.calls).toEqual([['route_recovery_completed', { failure_kind: 'stale_build', recovery_attempt: 2 }]])
 })
 
+it('reports stale-build recovery once the SDK loads when the reloaded page renders first', () => {
+  client.__loaded = false
+  completedRouteRecovery('https://praetorium.gg/rosters/1?__build_retry=1234.1.0.177.0', '0.177.0')
+  expect(capture).not.toHaveBeenCalled()
+  POSTHOG_BROWSER_OPTIONS.loaded(client as unknown as PostHog)
+  expect(capture.mock.calls).toEqual([['route_recovery_completed', { failure_kind: 'stale_build', recovery_attempt: 1 }]])
+})
+
 it('removes the stale-build key once the page runs the release it reloaded for', () => {
   expect(completedRouteRecovery('https://praetorium.gg/rosters/1?tab=units&__build_retry=1234.2.0.177.0#wargear', '0.177.0')).toBe(
     '/rosters/1?tab=units#wargear',
