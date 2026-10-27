@@ -161,6 +161,7 @@ export const updateLeagueSchema = z
 const leagueEvent = { token, eventToken: token.optional() }
 export const leagueEventSchema = z.object(leagueEvent)
 export const pairLeagueRoundSchema = z.object(leagueEvent)
+export const reopenSwissTableSchema = z.object({ ...leagueEvent, battleToken: token })
 export const openLeagueSchema = z.object(leagueEvent)
 export const moderateLeagueEntrySchema = z.object({
   ...leagueEvent,

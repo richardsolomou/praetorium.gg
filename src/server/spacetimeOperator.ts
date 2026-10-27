@@ -503,6 +503,8 @@ export class SpacetimeOperator {
       recordedAt?: number
       /** The battle as the caller already read it; the product database still checks the sequence when it appends. */
       snapshot?: Pick<z.infer<typeof battleSnapshot>, 'seats' | 'log'>
+      /** Whether the caller believes `userId` runs the battle's event; it only names a refusal, and the product database decides. */
+      organizer?: boolean
     },
     validateState?: (state: ReturnType<typeof reduceBattle>) => Refusal | null,
     resolveCommand: (state: ReturnType<typeof reduceBattle>, command: Command) => Command = (_, command) => command,
@@ -533,7 +535,7 @@ export class SpacetimeOperator {
     if (result.outcome !== 'refused') return { result, log, ...application }
     // The product database answers with a message only, so the code is read from the
     // same rules over the log it refused against, before the resolver touched any state.
-    const code = commandRefusal(fold(log), input.userId, command)?.code ?? externalRefusal?.code ?? 'unclassified'
+    const code = commandRefusal(fold(log), input.userId, command, input.organizer)?.code ?? externalRefusal?.code ?? 'unclassified'
     return { result: { ...result, code }, log, ...application }
   }
 

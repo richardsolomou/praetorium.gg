@@ -1438,8 +1438,8 @@ export function emptyBattle(
 }
 
 /** Why `by` may not run `command` against `state`, as the message a player reads, or null when they may. */
-export function validate(state: BattleState, by: PlayerId, command: Command): string | null {
-  return commandRefusal(state, by, command)?.message ?? null
+export function validate(state: BattleState, by: PlayerId, command: Command, organizer = false): string | null {
+  return commandRefusal(state, by, command, organizer)?.message ?? null
 }
 
 /**
@@ -1447,10 +1447,15 @@ export function validate(state: BattleState, by: PlayerId, command: Command): st
  *
  * Every rule about turn order, ownership and legality lives here. The server
  * calls it before appending; the UI calls it to decide what to render enabled.
+ *
+ * `organizer` says that `by` runs the event this battle counts for, which only the
+ * caller can know. Without a seat, an organizer may only reopen the finished
+ * battle, so that its players can correct the result.
  */
-export function commandRefusal(state: BattleState, by: PlayerId, command: Command): Refusal | null {
+export function commandRefusal(state: BattleState, by: PlayerId, command: Command, organizer = false): Refusal | null {
   const actor = state.players.find((candidate) => candidate.id === by)
-  if (!actor) return refuse('not-seated', 'you are not in this battle')
+  if (!actor)
+    return organizer && command.kind === 'reopen-battle' ? reopenRefusal(state) : refuse('not-seated', 'you are not in this battle')
   if ('playerId' in command && command.playerId && !state.players.some((candidate) => candidate.id === command.playerId)) {
     return refuse('unknown-player', 'that player is not in this battle')
   }
@@ -1722,7 +1727,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       return null
     }
     case 'reopen-battle':
-      return state.status === 'finished' ? null : refuse('battle-not-over', 'the battle is not over')
+      return reopenRefusal(state)
     case 'add-note': {
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
       if (!command.text.trim()) return refuse('invalid-note', 'write the note first')
@@ -1978,7 +1983,11 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
   }
 }
 
+const reopenRefusal = (state: BattleState) => (state.status === 'finished' ? null : refuse('battle-not-over', 'the battle is not over'))
+
 function apply(state: BattleState, by: PlayerId, command: Command, seq: number) {
+  // An event's organizer may reopen a battle without a seat in it, so this one needs no actor.
+  if (command.kind === 'reopen-battle') return reopenBattle(state)
   const actor = state.players.find((candidate) => candidate.id === by)
   if (!actor) return
   const player = targetArmy(state, actor, command)
@@ -2342,16 +2351,6 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
     }
     case 'add-note':
       return
-    case 'reopen-battle': {
-      state.advanceRequested = false
-      state.scoringAcknowledged = false
-      state.completionPending = false
-      state.status = 'playing'
-      state.result = null
-      state.activePlayerId = state.resumePlayerId ?? state.firstPlayerId
-      state.clockPaused = false
-      return
-    }
     case 'pause-clock': {
       state.clockPaused = true
       return
@@ -2615,6 +2614,16 @@ export function pointsRound(state: BattleState, command: Extract<Command, { kind
 }
 
 /** Ends the battle, remembering whose turn it was so reopening it resumes there. */
+function reopenBattle(state: BattleState) {
+  state.advanceRequested = false
+  state.scoringAcknowledged = false
+  state.completionPending = false
+  state.status = 'playing'
+  state.result = null
+  state.activePlayerId = state.resumePlayerId ?? state.firstPlayerId
+  state.clockPaused = false
+}
+
 function finishBattle(state: BattleState, result: NonNullable<BattleState['result']>) {
   state.status = 'finished'
   state.result = result

@@ -570,6 +570,29 @@ export class PraetoriumService {
   }
 
   /**
+   * Reopens a finished Swiss table for one of its event's organizers, who need not have played it, so its players can
+   * correct the result. The standings follow the corrected result; no round is paired again.
+   */
+  async reopenSwissTable(leagueToken: string, eventToken: string | undefined, battleToken: string, userId: string) {
+    const league = await this.leagueService.league(leagueToken, userId, eventToken)
+    if (!league) throw new Response('no such event', { status: 404 })
+    if (!league.organizer) throw new Response('only the organizer can reopen a result', { status: 403 })
+    if (!league.pairings.some((pairing) => pairing.battleToken === battleToken))
+      throw new Response('no such table in this event', { status: 404 })
+    const history = await this.mustFind(battleToken)
+    const { result } = await this.repository.submit({
+      battleId: history.battle.id,
+      userId,
+      expectedSeq: foldHistory(history).seq,
+      command: { kind: 'reopen-battle' },
+      now: this.clock(),
+      snapshot: { seats: history.players, log: history.log },
+      organizer: true,
+    })
+    return { battleId: history.battle.id, result }
+  }
+
+  /**
    * A club's standing table: every battle tagged for it, rated together, with rows for its current members only, so
    * someone who leaves drops off and comes back with their record if they rejoin. A private club shows it to members alone.
    */

@@ -1,12 +1,14 @@
 import { useMutation } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import { Lock, Shuffle, Swords } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { Lock, RotateCcw, Shuffle, Swords } from 'lucide-react'
+import { type ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import type { LeagueEntryView } from '../../../core/league'
 import { rematches } from '../../../core/swiss'
+import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Problem } from '../../components/Problem'
-import { pairLeagueRound } from '../../functions'
+import { pairLeagueRound, reopenSwissTable } from '../../functions'
 import type { Battle } from '../battles/battle'
 import { SectionHeading } from '../../components/SectionHeading'
 import { useLeagueRefresh, type League } from './leagueEvent'
@@ -145,6 +147,7 @@ export function LeagueRounds({
                       onPlay={onPlay}
                       playing={playing}
                       sample={sample}
+                      reopen={isOrganizer && !sample && pairing.battleToken ? { token, eventToken: league.eventToken } : undefined}
                     />
                   ))}
               </ol>
@@ -167,6 +170,7 @@ function TableRow({
   onPlay,
   playing,
   sample,
+  reopen,
 }: {
   pairing: Pairing
   rematch: boolean
@@ -179,6 +183,8 @@ function TableRow({
   onPlay: (opponentId: string) => void
   playing: boolean
   sample: boolean
+  /** The event an organizer reopens a finished result in, so its players can correct it. */
+  reopen?: { token: string; eventToken: string }
 }) {
   const own = pairing.aId === viewerId || pairing.bId === viewerId
   const opponent = pairing.aId === viewerId ? pairing.bId : pairing.aId
@@ -208,7 +214,64 @@ function TableRow({
       ) : (
         <span className="shrink-0 text-sm text-faint">Not started</span>
       )}
+      {reopen && pairing.battleToken && battle?.status === 'finished' ? (
+        <ReopenTable {...reopen} battleToken={pairing.battleToken} table={pairing.table} />
+      ) : null}
     </li>
+  )
+}
+
+/** An organizer's way to reopen a table's finished battle, whether or not they played it, so its players can correct the result. */
+function ReopenTable({ token, eventToken, battleToken, table }: { token: string; eventToken: string; battleToken: string; table: number }) {
+  const refresh = useLeagueRefresh(token)
+  const [confirming, setConfirming] = useState(false)
+  const reopen = useMutation({
+    mutationFn: () => reopenSwissTable({ data: { token, eventToken, battleToken } }),
+    onSuccess: async () => {
+      setConfirming(false)
+      await refresh()
+    },
+  })
+  return (
+    <>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              className="shrink-0 text-dim pointer-coarse:size-11"
+              aria-label={`Reopen table ${table}`}
+              disabled={reopen.isPending}
+              onClick={() => {
+                reopen.reset()
+                setConfirming(true)
+              }}
+            />
+          }
+        >
+          <RotateCcw aria-hidden />
+        </TooltipTrigger>
+        <TooltipContent role="tooltip" side="bottom">
+          Reopen result
+        </TooltipContent>
+      </Tooltip>
+      <ConfirmDialog
+        open={confirming}
+        title={`Reopen table ${table}?`}
+        description="The battle continues from its last turn, so its players can correct the score and finish it again. Until they do, the table has no result in the standings. No round is paired again."
+        cancel="Keep result"
+        confirm="Reopen result"
+        pendingLabel="Reopening…"
+        pending={reopen.isPending}
+        error={reopen.error}
+        onClose={() => {
+          reopen.reset()
+          setConfirming(false)
+        }}
+        onConfirm={() => reopen.mutate()}
+      />
+    </>
   )
 }
 
