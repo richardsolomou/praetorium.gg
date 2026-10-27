@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.194.1
+
+### Patch Changes
+
+- 49912eb: A sealed game with a battle still being set up or played stays under Up next instead of moving to past sealed games.
+- 49912eb: A club's overview now lists battles from its sealed games among its recent games, so it's no longer empty for a club that only plays sealed games.
+
 ## 0.194.0
 
 ### Minor Changes
