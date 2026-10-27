@@ -572,6 +572,23 @@ function calculateRoster(
   const pickedSelections = data.units.map((_, key) => picked.find((unit) => unit.key === key)?.selection)
   const pickedIndexByKey = new Map(picked.map((unit, at) => [unit.key, at]))
   const attachedByHost = groupBy(data.units.keys(), (key) => attachmentHost(data.units, key))
+  const specialsByKey = new Map(
+    picked.map((unit) => [
+      unit.key,
+      selectedSpecials(unit.choices, enhancementNames.size ? wargearOf(unit.selection, loaded.index) : [], upgradeNames, enhancementNames),
+    ]),
+  )
+  // Core rules: no unit, attached units included, has more than one enhancement, and an upgrade is one.
+  const enhancementsPerUnitErrors = [...attachedByHost].flatMap(([host, keys]) => {
+    const held = keys.reduce((total, key) => {
+      const specials = specialsByKey.get(key)
+      return total + (specials ? specials.enhancements.length + specials.upgrades.length : 0)
+    }, 0)
+    const unit = data.units[host]
+    if (held <= 1 || !unit) return []
+    const entryName = loaded.index.definitions.get(unit.entryId)?.name ?? unit.entryId
+    return [{ entryId: unit.entryId, entryName, message: `has ${held} enhancements, but a unit, attached or not, can have only one` }]
+  })
 
   /*
    * The enhancements an army may hold, which its battle size sets for the whole army
@@ -597,6 +614,7 @@ function calculateRoster(
     ...(!isKotcLimit(data.limit) && enforces(data.waivedRules, 'warlord') ? armyWarlordErrors(picked) : []),
     ...detachmentLockErrors(loaded, data, picked, roster),
     ...pointCaps.errors,
+    ...enhancementsPerUnitErrors,
     ...(enhancementsAllowed !== null && enhancementsHeld > enhancementsAllowed
       ? [
           {
@@ -621,8 +639,7 @@ function calculateRoster(
       dispositionError,
       errors,
       units: picked.map((unit) => {
-        const catalogued = enhancementNames.size ? wargearOf(unit.selection, loaded.index) : []
-        const { enhancements, upgrades } = selectedSpecials(unit.choices, catalogued, upgradeNames, enhancementNames)
+        const { enhancements, upgrades } = specialsByKey.get(unit.key)!
         return { key: unit.key, size: { models: unit.size.models }, enhancements, upgrades }
       }),
     }
@@ -688,11 +705,7 @@ function calculateRoster(
         }),
       )
       const catalogued = wargearOf(unit.selection, loaded.index)
-      const {
-        enhancements: selectedEnhancements,
-        upgrades,
-        specialSelections,
-      } = selectedSpecials(unit.choices, catalogued, upgradeNames, enhancementNames)
+      const { enhancements: selectedEnhancements, upgrades, specialSelections } = specialsByKey.get(unit.key)!
       const describedChoices: ((typeof unit.choices)[number] & { kind?: 'enhancement' | 'upgrade' })[] = unit.choices.map((choice) => {
         const choiceOptions = choiceOptionsForPricing(choice).map((option) => {
           const pieceCounts = choiceOptionWargear(choice.key, option.id, unit.selection, loaded.index, options)
