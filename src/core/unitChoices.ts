@@ -162,6 +162,24 @@ function exclusiveSetsIn(entry: Definition, depth: number, index: CatalogueIndex
   return forbidden
 }
 
+/**
+ * Offered as a fresh candidate, or once the unit's choices open it, as a Character
+ * upgrade opens a Trygon's enhancements and a Baneblade's Warlord. The built unit alone
+ * cannot close an option: what hides it there, such as a squadmate's default bolt
+ * rifle, is the player's to change.
+ */
+function offered(
+  definition: Definition,
+  selection: Selection,
+  path: readonly string[],
+  lineage: readonly Definition[],
+  index: CatalogueIndex,
+  options: ChoiceOptions,
+) {
+  const roster = [...(options.roster ?? []), selection]
+  return !hiddenByRules(definition, index, { ...options, roster }, lineage) || !hiddenByRulesAt(definition, selection, path, index, options)
+}
+
 function collectUnitChoices(
   entryId: string,
   selection: Selection,
@@ -179,15 +197,7 @@ function collectUnitChoices(
   const visibility = new Map<string, boolean>()
   const minima = new Map<Definition, number>()
   const visible = (definition: Definition, lineage: readonly Definition[], path: readonly string[]) =>
-    // Offered as a fresh candidate, or once the unit's choices open it (Trygon Prime).
-    // The built unit alone cannot close an option: what hides it there, such as a
-    // squadmate's default bolt rifle, is the player's to change.
-    remember(
-      visibility,
-      path.join('/'),
-      () =>
-        !hiddenByRules(definition, index, { ...options, roster }, lineage) || !hiddenByRulesAt(definition, selection, path, index, options),
-    )
+    remember(visibility, path.join('/'), () => offered(definition, selection, path, lineage, index, options))
   const minimum = (definition: Definition) =>
     remember(minima, definition, () =>
       requiredCount(definition, index, {
@@ -482,7 +492,6 @@ function collectUnitChoices(
 export function unitToggles(entryId: string, selection: Selection, index: CatalogueIndex, options: ChoiceOptions = {}): UnitToggle[] {
   const root = index.definitions.get(entryId)
   if (!root) return []
-  const roster = [...(options.roster ?? []), selection]
   const found: UnitToggle[] = []
   const walk = (definition: Definition, trail: string[], seen: Set<string>, lineage: readonly Definition[]) => {
     const target = resolve(definition, index)
@@ -490,9 +499,9 @@ export function unitToggles(entryId: string, selection: Selection, index: Catalo
     const visited = new Set(seen).add(target.id)
     const enclosing = [...lineage, definition]
     for (const child of childrenOf(target, index)) {
-      if (hiddenByRules(child.definition, index, { ...options, roster }, enclosing)) continue
-      const inner = resolve(child.definition, index)
       const here = [...trail, child.id]
+      if (!offered(child.definition, selection, here, enclosing, index, options)) continue
+      const inner = resolve(child.definition, index)
       if (isRosterToggle(inner.name ?? child.definition.name)) {
         const required = (selectionCountBoundsAt(selection, here, index, options)?.minimum ?? 0) > 0
         found.push({

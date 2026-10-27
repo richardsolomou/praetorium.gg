@@ -681,7 +681,10 @@ function carriedNames(selection: Selection, index: LoadedCatalogue['index']) {
         ? []
         : (target.profiles ?? []).flatMap((held) => held.name?.replace(/^➤\s*/, '').replace(/\s+-\s+.+$/, '') ?? [])
     // A group holds nothing itself, though it is often named after its default, as a Lord Commissar's "Power Weapon" holds a power fist.
-    const names = target.type === undefined ? [] : [nameOf(definition, index.definitions), target.name, profile, ...weapons]
+    const names =
+      target.type === undefined
+        ? []
+        : [nameOf(definition, index.definitions), target.name, profile, ...weapons, ...grantedKeywords(definition, target, index)]
     for (const name of names) {
       if (!name) continue
       found.add(withoutArticle(name))
@@ -696,6 +699,15 @@ function carriedNames(selection: Selection, index: LoadedCatalogue['index']) {
   }
   walk(selection)
   return found
+}
+
+/** The keywords an upgrade gives its unit, which the official app prints in place of the upgrade, as Steel Hammer's "Keywords: Character". */
+function grantedKeywords(definition: Definition, target: Definition, index: LoadedCatalogue['index']) {
+  return [...(definition.modifiers ?? []), ...(target.modifiers ?? [])].flatMap((modifier) => {
+    if (modifier.field !== 'category' || modifier.type !== 'add' || typeof modifier.value !== 'string') return []
+    const keyword = index.categories.get(modifier.value)?.name
+    return keyword ? [normalized(keyword)] : []
+  })
 }
 
 const withoutArticle = (name: string) => normalized(name).replace(/^the /, '')
@@ -778,6 +790,7 @@ function optionAliases(
         eachDefinition([option.id], loaded.index, (definition, target) => {
           if (target.type === undefined) return
           for (const name of nameVariants(nameOf(definition, loaded.index.definitions))) if (!names.has(name)) names.set(name, 1)
+          for (const keyword of grantedKeywords(definition, target, loaded.index)) if (!names.has(keyword)) names.set(keyword, 1)
         })
       }
       return [option.id, names]

@@ -741,8 +741,57 @@ const faction: CatalogueFile = {
           },
         ],
       },
+      {
+        // A detachment upgrade makes it a Character, which opens its Warlord and enhancements.
+        id: 'baneblade',
+        name: 'Baneblade',
+        type: 'model',
+        entryLinks: [
+          { id: 'baneblade-character', name: 'Character Upgrade', targetId: 'character-upgrade', type: 'selectionEntry' },
+          {
+            id: 'baneblade-warlord',
+            name: 'Warlord',
+            targetId: 'warlord-ability',
+            type: 'selectionEntry',
+            modifiers: [
+              {
+                type: 'set',
+                field: 'hidden',
+                value: true,
+                conditions: [{ type: 'notInstanceOf', value: 1, field: 'selections', scope: 'root-entry', childId: 'character' }],
+              },
+            ],
+          },
+        ],
+        selectionEntryGroups: [
+          {
+            id: 'baneblade-enhancements',
+            name: 'Enhancements',
+            constraints: [{ id: 'baneblade-enhancements-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+            modifiers: [
+              {
+                type: 'set',
+                field: 'hidden',
+                value: true,
+                conditions: [{ type: 'notInstanceOf', value: 1, field: 'selections', scope: 'root-entry', childId: 'character' }],
+              },
+            ],
+            selectionEntries: [{ id: 'titan-killer', name: 'Titan Killer', type: 'upgrade' }],
+          },
+        ],
+      },
     ],
-    sharedSelectionEntries: [{ id: 'warlord-ability', name: 'Warlord', type: 'upgrade' }],
+    categoryEntries: [{ id: 'character', name: 'Character' }],
+    sharedSelectionEntries: [
+      { id: 'warlord-ability', name: 'Warlord', type: 'upgrade' },
+      {
+        id: 'character-upgrade',
+        name: 'Character Upgrade',
+        type: 'upgrade',
+        constraints: [{ id: 'character-upgrade-max', type: 'max', value: 1, field: 'selections', scope: 'parent' }],
+        modifiers: [{ type: 'add', field: 'category', scope: 'root-entry', value: 'character' }],
+      },
+    ],
   },
 }
 
@@ -1339,6 +1388,30 @@ Exported with BattleBase, Data Version: v20260812`,
     expect(imported.unplaced).toEqual([
       { unit: 'Lokhust Lord', choices: [{ name: 'Warlord', reason: 'this datasheet has no Warlord option' }] },
     ])
+  })
+
+  it('takes the keyword a detachment grants before what it opens', () => {
+    const imported = importRosterFile(
+      {
+        file: `Tank (435 Points)
+
+Necrons
+Pantheon of Woe (2 Detachment Points)
+Strike Force (2,000 Points)
+
+CHARACTERS
+
+Baneblade (435 Points)
+    • Pantheon of Woe Keywords: Character
+    • Warlord
+    • Enhancement: Titan Killer
+
+Exported with App Version: v2.8.1 (149), Data Version: v995`,
+      },
+      loaded,
+    )
+
+    expect(imported.unplaced).toEqual([])
   })
 
   it('names an attachment whose target is not in the list', () => {
