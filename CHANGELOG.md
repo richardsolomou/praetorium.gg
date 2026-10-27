@@ -1,5 +1,34 @@
 # praetorium
 
+## 0.194.0
+
+### Minor Changes
+
+- 8f3ed45: Club pages now open on an overview, with the leaderboard, season and sealed games on their own tabs and a card showing what is waiting on you.
+- 346c812: Club organizers can give each season round a deadline, and games not finished by it show as overdue.
+- 346c812: Clubs can run a season where every member who joins plays every other member once, with fixtures and a table on the club page.
+- a284ef8: After a tournament or club game reveals its rosters, anyone who can see them can save every revealed list in one text file.
+- 6bffbc3: The app now notifies every player in a Swiss tournament when a new round is paired.
+- 5a43af8: A sample tournament with made-up players shows sealed lists, the reveal, Swiss rounds with a bye and the standings, so you can see how one runs before you start your own.
+- 7f8b691: Organizers can remind players who haven’t sealed their list yet, once a day.
+- d5fc3a9: Swiss tournament players can now withdraw, and organizers can drop a no-show, so the next round can still be paired.
+- 6d60f27: Swiss rounds now mark a table as a rematch when its two players have already met earlier in the tournament.
+- 841aa73: Once the next Swiss round is paired, earlier rounds' results can no longer be reopened by players.
+- 298668b: Export a tournament's or sealed game's results table as a CSV file once the rosters are revealed.
+
+### Patch Changes
+
+- a0599eb: AI assistants now know tournaments can run Swiss rounds.
+- 8f3ed45: Past sealed games on a club page are now separate cards, so one game no longer runs into the next.
+- 8f3ed45: A club's recent games show its six latest battles instead of three.
+- 8f3ed45: Results tables show players' full names on a phone instead of cutting them short.
+- 8f3ed45: The sample tournament opens at its first stage instead of failing when a link names a stage that does not exist.
+- 8f3ed45: Battles in a Swiss tournament say which round and table they were.
+- a0599eb: When a Swiss round cannot avoid every rematch, it now makes as few as it can.
+- a0599eb: A tournament with too many battles to read in full no longer pairs its next Swiss round from incomplete results.
+- 8f3ed45: Once your Swiss battle is done, the tournament page says so and when the next round is paired.
+- 8f3ed45: A Swiss tournament page offers Resume battle while your round's battle is being played.
+
 ## 0.193.2
 
 ### Patch Changes
