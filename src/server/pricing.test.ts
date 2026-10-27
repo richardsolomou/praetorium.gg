@@ -939,6 +939,67 @@ describe('catalogue-backed deployment rules', () => {
     )
   })
 
+  describe('enhancements in one attached unit', () => {
+    const character = (id: string, name: string) => ({
+      id,
+      name,
+      type: 'unit' as const,
+      costs: pointsCost(75),
+      selectionEntryGroups: [
+        {
+          id: 'enhancements',
+          name: 'Enhancements',
+          constraints: [{ id: `${id}-enhancements-max`, type: 'max' as const, value: 1, field: 'selections', scope: 'parent' }],
+          selectionEntries: [
+            { id: 'master', name: 'Master of Manoeuvre', type: 'upgrade' as const, costs: enhancement() },
+            { id: 'skipper', name: 'Skipper', type: 'upgrade' as const, costs: enhancement() },
+          ],
+        },
+      ],
+    })
+    const loaded = detachmentBook(character('warboss', 'Warboss'), character('mek', 'Mek'), {
+      id: 'boyz',
+      name: 'Boyz',
+      type: 'unit',
+      costs: pointsCost(80),
+    })
+    const rules = flyboyzRules(
+      ['Master of Manoeuvre', 'Skipper'].map((name) => ({
+        name,
+        points: 20,
+        description: 'Test',
+        eligibility: { anyOf: [[]], excluded: [] },
+      })),
+    )
+    const errorsWith = (mekAttachedTo?: number) =>
+      calculateRosterPrice(
+        {
+          catalogueId: 'cat',
+          detachmentIds: ['flyboyz'],
+          disposition: null,
+          waivedRules: ['warlord'],
+          limit: 2_000,
+          units: [
+            { entryId: 'boyz' },
+            { entryId: 'warboss', choices: { enhancements: 'master' }, attachedTo: 0 },
+            { entryId: 'mek', choices: { enhancements: 'skipper' }, attachedTo: mekAttachedTo },
+          ],
+        },
+        loaded,
+        rules,
+      )?.errors.filter((error) => /enhancement/.test(error.message))
+
+    it('refuses a second enhancement in the same attached unit', () => {
+      expect(errorsWith(0)).toEqual([
+        { entryId: 'boyz', entryName: 'Boyz', message: 'has 2 enhancements, but a unit, attached or not, can have only one' },
+      ])
+    })
+
+    it('allows one enhancement in each of two units', () => {
+      expect(errorsWith(undefined)).toEqual([])
+    })
+  })
+
   it('uses MFM enhancement points in the option, roster, assessment, and saved total', () => {
     const loaded = detachmentBook({
       id: 'warboss',
