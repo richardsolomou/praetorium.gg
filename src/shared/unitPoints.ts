@@ -4,7 +4,7 @@ import { evaluate } from '../core/evaluate'
 import { nameOf } from '../core/catalogue'
 import { isNonMatchedPlayName, matchedPlayName, normalizedName, normalizedNameVariants } from '../core/name'
 import { routeSlug } from '../core/slug'
-import { buildUnit } from '../core/roster'
+import { type BuiltUnit, buildUnit } from '../core/roster'
 import { isResizable } from '../core/unitSize'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { datacardOf } from './datasheetJoin'
@@ -72,36 +72,39 @@ export function unitPointAdjustment(
   models: number,
   copy = 1,
 ) {
-  return cachedIn(cache, loaded, JSON.stringify([primaryCatalogueId, catalogueId, entryId, models, copy]), () =>
-    computeUnitPointAdjustment(loaded, primaryCatalogueId, catalogueId, entryId, models, copy),
-  )
+  return cachedIn(cache, loaded, JSON.stringify([primaryCatalogueId, catalogueId, entryId, models, copy]), () => {
+    const built = buildUnit(entryId, loaded.index, models, undefined, { primaryCatalogueId, mustering: true, choiceCache: pricingChoices })
+    return built ? builtUnitPointAdjustment(loaded, primaryCatalogueId, catalogueId, entryId, built, copy) : 0
+  })
 }
 
-function computeUnitPointAdjustment(
+/**
+ * `unitPointAdjustment` against a unit already built. A list price must use this with the unit it priced, because a
+ * datasheet built without a model count can differ from one built at its own size.
+ */
+export function builtUnitPointAdjustment(
   loaded: LoadedCatalogue,
   primaryCatalogueId: string,
   catalogueId: string,
   entryId: string,
-  models: number,
-  copy: number,
+  built: Pick<BuiltUnit, 'selection' | 'size'>,
+  copy = 1,
 ) {
+  const models = built.size.models
   const unit = mfmUnitFor(loaded, primaryCatalogueId, entryId)
-  const built = buildUnit(entryId, loaded.index, models, undefined, { primaryCatalogueId, mustering: true, choiceCache: pricingChoices })
-  const fixed = built && !isResizable(built.size)
+  const fixed = !isResizable(built.size)
   const price = unit
     ? (mfmPrice(unit, models, copy) ?? (fixed ? mfmPrice(unit, 1, copy) : null))
     : (cardPoints(loaded, catalogueId, entryId, models) ?? (fixed ? cardPoints(loaded, catalogueId, entryId, 1) : null))
+  if (price === null) return 0
   const comparableCopies = Math.min(copy, 6)
-  const evaluated =
-    built && price !== null
-      ? evaluate(
-          Array.from({ length: comparableCopies }, () => built.selection),
-          loaded.index,
-          { primaryCatalogueId, mustering: true },
-        )
-      : null
-  const cataloguePrice = evaluated?.selectionPoints[0]?.[comparableCopies - 1]
-  return evaluated && !evaluated.unhandled.length && cataloguePrice !== undefined ? price! - cataloguePrice : 0
+  const evaluated = evaluate(
+    Array.from({ length: comparableCopies }, () => built.selection),
+    loaded.index,
+    { primaryCatalogueId, mustering: true },
+  )
+  const cataloguePrice = evaluated.selectionPoints[0]?.[comparableCopies - 1]
+  return !evaluated.unhandled.length && cataloguePrice !== undefined ? price - cataloguePrice : 0
 }
 
 type MfmDetachment = NonNullable<ReturnType<typeof mfmDetachmentFor>>

@@ -4,7 +4,7 @@ import { cachedIn } from '../core/collections'
 import { isNonMatchedPlayName } from '../core/name'
 import { buildUnit } from '../core/roster'
 import type { LoadedCatalogue } from './catalogueIndex'
-import { mfmOptionAdjustment, mfmUnitFor, pricingChoices, unitPointAdjustment } from './unitPoints'
+import { builtUnitPointAdjustment, mfmOptionAdjustment, mfmUnitFor, pricingChoices } from './unitPoints'
 
 export const isMatchedPlayDatasheet = (index: CatalogueIndex, entry: Definition) => isOfferedDatasheet(index, entry, false)
 
@@ -38,7 +38,7 @@ export function priceOf(loaded: LoadedCatalogue, catalogueId: string, entryId: s
   const wargearAdjustment = mfmOptionAdjustment(loaded.index, built, mfmUnit, [], options)
   return (
     evaluate([...roster, built.selection], loaded.index, options).selectionPoints[0]![roster.length]! +
-    unitPointAdjustment(loaded, catalogueId, catalogueId, entryId, built.size.models) +
+    builtUnitPointAdjustment(loaded, catalogueId, catalogueId, entryId, built) +
     wargearAdjustment
   )
 }
