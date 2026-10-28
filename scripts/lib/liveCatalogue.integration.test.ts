@@ -69,26 +69,15 @@ it('allows only one replica to prepare an update at a time', async () => {
   expect(competing).toBe(false)
 })
 
-it('shares the preparation lock across application compiler revisions', async () => {
+it('prepares a new compiler while an older one is still preparing', async () => {
   const directory = root()
-  const lock = path.join(directory, 'refresh.sqlite')
   let competing: boolean | undefined
-  await refreshLiveCatalogue(
-    path.join(directory, 'old-code'),
-    async (staging) => {
-      competing = await refreshLiveCatalogue(
-        path.join(directory, 'new-code'),
-        async () => {
-          throw new Error('must wait for the old worker')
-        },
-        lock,
-      )
-      return prepared(staging, first)
-    },
-    lock,
-  )
+  await refreshLiveCatalogue(path.join(directory, 'old-code'), async (staging) => {
+    competing = await refreshLiveCatalogue(path.join(directory, 'new-code'), async (next) => prepared(next, second))
+    return prepared(staging, first)
+  })
 
-  expect(competing).toBe(false)
+  expect(competing).toBe(true)
 })
 
 it('does not publish a revision when the source heads have not changed', async () => {
