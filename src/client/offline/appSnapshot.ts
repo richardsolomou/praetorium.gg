@@ -16,6 +16,15 @@ declare global {
   }
 }
 
+// Query data is replaced rather than mutated, so a response measured once keeps its size until the query changes.
+const dataBytes = new WeakMap<object, number>()
+function measuredBytes(data: unknown) {
+  if (typeof data !== 'object' || data === null) return jsonByteLength(data)
+  let bytes = dataBytes.get(data)
+  if (bytes === undefined) dataBytes.set(data, (bytes = jsonByteLength(data)))
+  return bytes
+}
+
 export function captureAppSnapshot(client: QueryClient): AppSnapshot | null {
   const me = client.getQueryData(meKey()) as { id: string; impersonatedBy?: string | null } | null | undefined
   if (me === undefined || me?.impersonatedBy) return null
@@ -35,7 +44,8 @@ export function captureAppSnapshot(client: QueryClient): AppSnapshot | null {
     .sort((a, b) => Number(b.queryKey[0] === 'me') - Number(a.queryKey[0] === 'me') || b.state.dataUpdatedAt - a.state.dataUpdatedAt)
   for (const query of candidates) {
     const entry = { key: [...query.queryKey], data: query.state.data, updatedAt: query.state.dataUpdatedAt }
-    const size = jsonByteLength(entry)
+    const size = jsonByteLength({ ...entry, data: null }) - 'null'.length + measuredBytes(entry.data)
+    // The kilobyte held back covers the snapshot's own fields and separators, so the whole snapshot stays within the limit.
     if (bytes + size > MAX_APP_SNAPSHOT_BYTES - 1024 || queries.length === MAX_APP_SNAPSHOT_QUERIES) continue
     bytes += size
     queries.push(entry)

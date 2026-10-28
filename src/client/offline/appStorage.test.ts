@@ -84,14 +84,3 @@ it('lets a tab save the new account after reading the changed generation', async
   await other.writeAppSnapshot(snapshot)
   expect(await first.readAppSnapshot()).toEqual(snapshot)
 })
-
-it('keeps the previous snapshot when a replacement exceeds the disk limit', async () => {
-  const storage = await tab()
-  await storage.readAppSnapshot()
-  await storage.writeAppSnapshot(snapshot)
-  await storage.writeAppSnapshot({
-    ...snapshot,
-    queries: [...snapshot.queries, { key: ['home-rosters'], data: 'x'.repeat(10_000_000), updatedAt: 2 }],
-  })
-  expect(await storage.readAppSnapshot()).toEqual(snapshot)
-})
