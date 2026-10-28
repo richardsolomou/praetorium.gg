@@ -19,14 +19,24 @@ export function getRouter() {
     defaultOnCatch: reportRouteError,
   })
   if (typeof window !== 'undefined') {
-    // A route change discards the screen's unsaved state anyway, so a full load costs nothing a client navigation keeps.
-    router.subscribe('onBeforeNavigate', ({ pathChanged, toLocation }) => {
-      const release = pathChanged && staleBuildRelease(queryClient)
-      if (release)
-        reloadStaleBuild(release, 'navigation', {
-          href: new URL(toLocation.href, window.location.origin).href,
-          saving: writesPending(queryClient),
-        })
+    // A blocker sees the destination's history state before the router commits it, which a reload in place then keeps.
+    // Once reloading, a second tap must not push another entry onto the back stack.
+    let reloading = false
+    router.history.block({
+      enableBeforeUnload: false,
+      blockerFn: ({ currentLocation, nextLocation, action }) => {
+        const release = !reloading && nextLocation.pathname !== currentLocation.pathname && staleBuildRelease(queryClient)
+        reloading ||= Boolean(
+          release &&
+          reloadStaleBuild(release, 'navigation', {
+            href: new URL(nextLocation.href, window.location.origin).href,
+            saving: writesPending(queryClient),
+            entry: { state: nextLocation.state, push: action === 'PUSH' },
+          }),
+        )
+        // Back and forward have already reached their entry; blocking them would make the router step the browser back.
+        return reloading && (action === 'PUSH' || action === 'REPLACE')
+      },
     })
     router.subscribe('onRendered', () => {
       if (!routeRecoveryPending(window.location.href)) return
@@ -45,7 +55,7 @@ export function getRouter() {
             )
               return
             const recovered = completedRouteRecovery(window.location.href)
-            if (recovered) router.history.replace(recovered)
+            if (recovered) router.history.replace(recovered, router.history.location.state)
           })
         },
         () => {},

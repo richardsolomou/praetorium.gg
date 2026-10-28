@@ -149,6 +149,17 @@ it('reloads a stale build at the navigation destination', () => {
   expect(new URL(replace.mock.calls[0]![0]).pathname).toBe('/battles')
 })
 
+it('reloads a stale navigation in place on a pushed entry that keeps its history state', () => {
+  const pushState = vi.fn()
+  const reload = vi.fn()
+  vi.stubGlobal('window', { location: { href: 'https://praetorium.gg/rosters/1', replace, reload }, history: { pushState } })
+  reloadStaleBuild('0.177.0', 'navigation', {
+    href: 'https://praetorium.gg/battles',
+    entry: { state: { rosterPane: 'units' }, push: true },
+  })
+  expect([pushState.mock.calls[0]![0], reload.mock.calls.length]).toEqual([{ rosterPane: 'units' }, 1])
+})
+
 it('reports a stale-build reload with bounded metadata', () => {
   reloadStaleBuild('0.177.0', 'navigation')
   expect(capture.mock.calls).toEqual([
