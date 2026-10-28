@@ -1,7 +1,7 @@
 import { CancelledError } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
 import { version } from '../../package.json'
-import { captureWhenLoaded, whenLoaded } from '../posthog'
+import { captureWhenLoaded } from '../posthog'
 import { isFetchNetworkFailure, isModuleLoadFailure } from './networkErrors'
 import { OfflineRefusal } from './offline/offlineRefusal'
 import { newerRelease } from './releaseUpdate'
@@ -9,17 +9,12 @@ import { newerRelease } from './releaseUpdate'
 /** React passes errors caught by a route's error page only to console.error, so report them here. */
 export function reportRouteError(error: unknown) {
   if (!isFetchNetworkFailure(error) && !(error instanceof CancelledError) && !(error instanceof OfflineRefusal))
-    whenLoaded((client) =>
-      client.captureException(error, {
-        operation: 'route',
-        ...(isModuleLoadFailure(error)
-          ? {
-              failure_kind: 'module_load',
-              recovery_attempt: typeof window === 'undefined' ? 0 : moduleRecoveryAttempt(window.location.href),
-            }
-          : {}),
-      }),
-    )
+    posthog.captureException(error, {
+      operation: 'route',
+      ...(isModuleLoadFailure(error)
+        ? { failure_kind: 'module_load', recovery_attempt: typeof window === 'undefined' ? 0 : moduleRecoveryAttempt(window.location.href) }
+        : {}),
+    })
 }
 
 const recentReloads: number[] = []
