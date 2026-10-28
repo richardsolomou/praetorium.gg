@@ -44,7 +44,7 @@ import {
   attemptLocalSync,
   type LocalRoster,
 } from './localRuntime'
-import { constructionData, localConstruction } from './construction'
+import { constructionData, hasLocalConstruction, localConstruction } from './construction'
 import { cachedRead, cachedPage } from './reads'
 import { isFetchNetworkFailure } from '../networkErrors'
 import { battleKey, battlesKey, meKey, opponentsKey, reportKey } from '../queries/queryKeys'
@@ -134,7 +134,7 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
   const engine = localEngine()
   const owner = localOwner()
   const resource = `battle:${args.data.token}`
-  if (!engine || !owner || !localConstruction()) {
+  if (!engine || !owner || !hasLocalConstruction()) {
     // Commands this battle saved on the device go first, or this one overtakes them.
     if (engine && navigator.onLine && (await hasSyncableChanges(resource))) await attemptLocalSync()
     return server.submit(args)
@@ -153,14 +153,9 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
     if (answer.screen?.kind !== 'battle') return answer
     const fresh = answer.workspace ?? (await battleWorkspace({ data: { token: args.data.token } })).workspace
     await rememberBattle(fresh, owner.id)
-    const current = await localDocument<BattleWorkspace>(resource)
-    return {
-      result: answer.result,
-      screen:
-        current && (current.serverSeq > fresh.serverSeq || (await hasSyncableChanges(resource)))
-          ? workspaceScreen(current, owner.id)
-          : answer.screen,
-    }
+    // A newer acknowledged copy saved meanwhile came with its own screen, which the command queue keeps over this one.
+    const current = (await hasSyncableChanges(resource)) && (await localDocument<BattleWorkspace>(resource))
+    return { result: answer.result, screen: current ? workspaceScreen(current, owner.id) : answer.screen }
   }
   const workspace = await localDocument<BattleWorkspace>(resource)
   if (!workspace) throw new OfflineRefusal('Open this battle online once before making offline changes.')

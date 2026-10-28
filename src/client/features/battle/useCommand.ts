@@ -14,7 +14,7 @@ import { requestNativeHaptic } from '../../nativeBridge'
 import { captureAppSnapshot } from '../../offline/appSnapshot'
 import { writeAppSnapshot } from '../../offline/appStorage'
 import { isFetchNetworkFailure } from '../../networkErrors'
-import { holdingReload } from '../../pendingWrites'
+import { sendingBattleCommands } from '../../pendingWrites'
 import type { AbilityReminder } from '../../../core/reminders'
 import { asSentence } from '../../text'
 
@@ -62,7 +62,8 @@ export function afterFailedCommand<T extends Pick<QueuedCommand, 'basedOn' | 'ba
  * in this page, so automatic reloads wait until the queue is empty, including between sends.
  */
 export function drainCommands(args: Parameters<typeof sendQueued>[0]) {
-  return holdingReload(sendQueued(args))
+  if (args.draining.current) return Promise.resolve()
+  return sendingBattleCommands(args.token, sendQueued(args))
 }
 
 async function sendQueued({
@@ -82,7 +83,6 @@ async function sendQueued({
   setPending: (pending: boolean) => void
   setProblem: (problem: string | null) => void
 }) {
-  if (draining.current) return
   draining.current = true
   try {
     while (queued.current.length) {
@@ -93,7 +93,10 @@ async function sendQueued({
         const { result, screen } = await submit({ data: { token, expectedSeq: seen.current, command: item.command } })
         const setup = screen?.kind === 'battle' && screen.view.status === 'setup'
         if (!item.background || result.outcome === 'refused') setProblem(explain(result, setup))
-        queryClient.setQueryData(battleQuery(token).queryKey, screen)
+        // A realtime refetch that landed while this command was in flight can hold a newer screen than its answer.
+        queryClient.setQueryData(battleQuery(token).queryKey, (held) =>
+          held?.kind === 'battle' && screen?.kind === 'battle' && held.view.seq > screen.view.seq ? held : screen,
+        )
         if (screen?.kind === 'battle') seen.current = Math.max(seen.current, screen.view.seq)
         // Before the snapshot write yields, so the screen and anything shown ahead of it change in one render.
         item.complete?.(result.outcome === 'appended')

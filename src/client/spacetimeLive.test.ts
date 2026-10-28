@@ -72,6 +72,7 @@ vi.mock('../spacetime/generated', () => ({
 
 import { IdentityChangedError, stdbLogger } from 'spacetimedb'
 import { useRealtimeConfig, useSpacetimeLiveBattle, useSpacetimeLiveProduct } from './spacetimeLive'
+import { sendingBattleCommands } from './pendingWrites'
 
 let cleanups: (() => void)[] = []
 
@@ -337,6 +338,44 @@ it('does not refetch a battle screen that already holds the sequence a renewed c
   await vi.advanceTimersByTimeAsync(0)
   apply({ battle: [{ battleId: 'battle-id', seq: 7 }] })
   expect(mocks.invalidateQueries.mock.calls).not.toContainEqual([{ queryKey: ['battle', 'battle-token'] }])
+})
+
+it('waits for this device’s command to answer before refetching the battle its signal names', async () => {
+  vi.stubGlobal('fetch', issued('battle-id'))
+  mocks.getQueryData.mockReturnValue({ kind: 'battle', view: { seq: 7 } })
+  useSpacetimeLiveBattle('battle-token', true)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  const db = apply({ battle: [{ battleId: 'battle-id', seq: 7 }] })
+  mocks.invalidateQueries.mockClear()
+  let answer!: () => void
+  const sending = sendingBattleCommands('battle-token', new Promise<void>((resolve) => (answer = resolve)))
+  const updated = db.myBattleSignals.onUpdate.mock.calls[0]![0] as (context: unknown, old: unknown, row: unknown) => void
+  updated({}, {}, { battleId: 'battle-id', seq: 8 })
+  mocks.getQueryData.mockReturnValue({ kind: 'battle', view: { seq: 8 } })
+  answer()
+  await sending
+  await vi.advanceTimersByTimeAsync(0)
+  expect(mocks.invalidateQueries.mock.calls).not.toContainEqual([{ queryKey: ['battle', 'battle-token'] }])
+})
+
+it('refetches the battle its signal names once this device’s command has gone unanswered for three seconds', async () => {
+  vi.stubGlobal('fetch', issued('battle-id'))
+  mocks.getQueryData.mockReturnValue({ kind: 'battle', view: { seq: 7 } })
+  useSpacetimeLiveBattle('battle-token', true)
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  const db = apply({ battle: [{ battleId: 'battle-id', seq: 7 }] })
+  mocks.invalidateQueries.mockClear()
+  let answer!: () => void
+  const sending = sendingBattleCommands('battle-token', new Promise<void>((resolve) => (answer = resolve)))
+  const updated = db.myBattleSignals.onUpdate.mock.calls[0]![0] as (context: unknown, old: unknown, row: unknown) => void
+  updated({}, {}, { battleId: 'battle-id', seq: 8 })
+  await vi.advanceTimersByTimeAsync(3_000)
+  const calls = [...mocks.invalidateQueries.mock.calls] as unknown[]
+  answer()
+  await sending
+  expect(calls).toContainEqual([{ queryKey: ['battle', 'battle-token'] }])
 })
 
 it('asks for an open battle again when its signal leaves, as it does when the battle is deleted', async () => {

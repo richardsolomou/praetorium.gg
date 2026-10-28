@@ -13,6 +13,11 @@ export function constructionData(catalogueId?: string) {
   return constructionSource(referenceData()?.construction, catalogueId)
 }
 
+/** Whether the device holds construction data, without the full build `localConstruction` runs on first use. */
+export function hasLocalConstruction() {
+  return Boolean(referenceData()?.construction)
+}
+
 export function localConstruction(catalogueId?: string) {
   const saved = constructionData(catalogueId)
   if (!saved) return null
