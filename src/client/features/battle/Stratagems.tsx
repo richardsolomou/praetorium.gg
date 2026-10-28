@@ -3,7 +3,13 @@ import { EllipsisVertical, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '../../components/Dialog'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { type Command, isNewOrders, STRATAGEM_CP_MAX } from '../../../core/battle'
 import { type BattleView } from '../../../core/battleView'
 import { stratagemTiming } from '../../../core/reminders'
@@ -12,6 +18,7 @@ import { hiddenNow, stratagemVisibleNow } from './stratagemVisibility'
 import { RuleText } from '../../components/RuleText'
 import type { StratagemText } from './MissionCards'
 import { CARD, CARD_NAME } from './battleTints'
+import { asSentence } from '../../text'
 
 type ViewStratagem = BattleView['players'][number]['stratagems'][number]
 
@@ -22,10 +29,12 @@ type Props = {
   pending: boolean
   send: (command: Command) => void
   writtenFor: (key: string) => StratagemText | undefined
+  /** Absent when no earlier moment can take a missed action. */
+  onRecordMissed?: (key: string) => void
 }
 
 /** Only what can be played right now, unless the player asks for the rest; the rest show why they cannot be played. */
-export function Stratagems({ side, phase, coreKeys, pending, send, writtenFor }: Props) {
+export function Stratagems({ side, phase, coreKeys, pending, send, writtenFor, onRecordMissed }: Props) {
   const [showAll, setShowAll] = useState(false)
   if (!side.stratagems.length) return null
   const hidden = hiddenNow(side.stratagems, phase, side.isActive)
@@ -58,6 +67,7 @@ export function Stratagems({ side, phase, coreKeys, pending, send, writtenFor }:
                 pending={pending}
                 available={side.cp}
                 side={side}
+                onRecordMissed={onRecordMissed && !isNewOrders(stratagem) ? () => onRecordMissed(stratagem.key) : undefined}
                 onUse={(cp) =>
                   send({ kind: 'use-stratagem', key: stratagem.key, playerId: side.captain.id, ...(cp === undefined ? {} : { cp }) })
                 }
@@ -97,6 +107,7 @@ function StratagemCard({
   pending,
   available,
   side,
+  onRecordMissed,
   onUse,
   onUseNewOrders,
 }: {
@@ -105,6 +116,7 @@ function StratagemCard({
   pending: boolean
   available: number
   side: Side
+  onRecordMissed: (() => void) | undefined
   onUse: (cp?: number) => void
   onUseNewOrders: (secondaryKey: string, secondary: Side['remainingSecondaries'][number], cp: number) => void
 }) {
@@ -162,17 +174,28 @@ function StratagemCard({
       </BattlePromptDialog>
       {/* Some stratagems cost more or less depending on what is on the board, so the price is a choice. */}
       <DropdownMenu>
-        <DropdownMenuTrigger
-          render={<Button variant="ghost" size="icon-xs" disabled={pending} aria-label={`Spend a different amount on ${stratagem.name}`} />}
-        >
+        <DropdownMenuTrigger render={<Button variant="ghost" size="icon-xs" disabled={pending} aria-label={`${stratagem.name} options`} />}>
           <EllipsisVertical />
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="w-64">
+          {refusal ? <p className="px-1.5 py-1 text-xs text-dim">{asSentence(refusal)}</p> : null}
           {costChoices(stratagem.cp).map((cost) => (
-            <DropdownMenuItem key={cost} disabled={pending || cost > available || Boolean(newOrdersRefusal)} onClick={() => use(cost)}>
+            <DropdownMenuItem
+              key={cost}
+              disabled={pending || cost > available || Boolean(stratagem.refusalAtAnyCost ?? newOrdersRefusal)}
+              onClick={() => use(cost)}
+            >
               Use for {cost} CP
             </DropdownMenuItem>
           ))}
+          {onRecordMissed ? (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem disabled={pending} onClick={onRecordMissed}>
+                Record as missed…
+              </DropdownMenuItem>
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
       <Button
@@ -231,7 +254,7 @@ function StratagemCard({
 }
 
 /** The printed price, and the neighbouring ones a board state can move it to. */
-function costChoices(printed: number) {
+export function costChoices(printed: number) {
   return [printed - 1, printed, printed + 1, printed + 2].filter((cost) => cost >= 0 && cost <= STRATAGEM_CP_MAX)
 }
 

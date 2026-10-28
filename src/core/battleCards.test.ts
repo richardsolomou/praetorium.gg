@@ -301,6 +301,16 @@ describe('stratagems', () => {
     expect(view.players.find((player) => player.isViewer)?.stratagems[0]?.refusal).toBe('Grenade has been used this turn')
   })
 
+  it('are offered at a cheaper price when the printed one is beyond the pool', () => {
+    const pricey = { ...STRAT, cp: 5 }
+    const state = reduceBattle(
+      PLAYERS,
+      log(...armed(), [ALICE, { kind: 'set-prep', stratagems: [pricey], secondaries: [], primary: null, secondaryMode: 'fixed' }]),
+    )
+    const view = battleView({ token: 'abc' }, NAMES, state, ALICE)
+    expect(view.players.find((player) => player.isViewer)?.stratagems[0]?.refusalAtAnyCost).toBeNull()
+  })
+
   it('enforces authoritative phase timing', () => {
     const timed = { ...STRAT, phases: ['fight'] as ['fight'] }
     const state = reduceBattle(

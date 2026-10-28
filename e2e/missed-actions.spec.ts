@@ -50,12 +50,11 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
 
   const commandPhase = `Round 1 · ${name}’s turn · Command`
   const stratagem = await recordMissed(page, async (dialog) => {
-    await expect(dialog.getByRole('combobox', { name: 'When it happened' })).toContainText(commandPhase)
     await dialog.getByRole('combobox', { name: 'Stratagem' }).click()
-    await page.getByRole('option', { name: 'Insane Bravery · 1 CP' }).click()
+    await page.getByRole('option', { name: /^Insane Bravery · 1 CP/ }).click()
     for (const viewport of [desktopContext.viewport, phone]) {
       await page.setViewportSize(viewport)
-      await expect(dialog.getByRole('combobox', { name: 'When it happened' })).toContainText(commandPhase)
+      await expect(dialog.getByRole('button', { name: commandPhase })).toHaveAttribute('aria-pressed', 'true')
       await expect(dialog.getByRole('button', { name: 'Record missed action' })).toBeEnabled()
       await page.screenshot({ path: test.info().outputPath(`missed-action-dialog-${viewport.width}.png`) })
     }
@@ -69,13 +68,24 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
   }
   await page.setViewportSize(desktopContext.viewport)
 
+  await show(page, 'Your side')
+  await side.getByRole('button', { name: /^Show \d+ not playable now$/ }).click()
+  await side.getByRole('button', { name: 'Insane Bravery options' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Use for 1 CP' })).toBeDisabled()
+  await page.getByRole('menuitem', { name: 'Record as missed…' }).click()
+  const fromCard = page.getByRole('dialog', { name: 'Record a missed action' })
+  await expect(fromCard.getByRole('combobox', { name: 'Stratagem' })).toContainText('Insane Bravery')
+  await expect(fromCard.getByRole('button', { name: commandPhase })).toHaveAttribute('aria-pressed', 'true')
+  await fromCard.getByRole('button', { name: 'Cancel' }).click()
+  await expect(fromCard).toBeHidden()
+
   for (const viewport of [desktopContext.viewport, phone]) {
     await page.setViewportSize(viewport)
     const refused = await recordMissed(page, async (dialog) => {
       await dialog.getByRole('combobox', { name: 'Stratagem' }).click()
-      await page.getByRole('option', { name: 'Insane Bravery · 1 CP' }).click()
+      await page.getByRole('option', { name: /^Insane Bravery · 1 CP/ }).click()
     })
-    await expect(refused.getByRole('alert')).toHaveText('Insane Bravery has been used this battle.')
+    await expect(page.locator('[data-sonner-toast]', { hasText: 'Insane Bravery has been used this battle.' })).toBeVisible()
     await expect(refused.getByRole('button', { name: 'Record missed action' })).toBeEnabled()
     await page.screenshot({ path: test.info().outputPath(`missed-action-refused-${viewport.width}.png`) })
     await refused.getByRole('button', { name: 'Cancel' }).click()
