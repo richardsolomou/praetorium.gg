@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.195.13
+
+### Patch Changes
+
+- b12567b: Date fields no longer spill past the edge of dialogs on iPhone.
+- b12567b: A draft season shows **Draw again** only once enough players have joined to see the fixtures.
+
 ## 0.195.12
 
 ### Patch Changes
