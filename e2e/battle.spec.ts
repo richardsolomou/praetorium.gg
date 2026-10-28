@@ -340,7 +340,6 @@ test('a tactical hand pays out when the card says', async ({ browser }) => {
 
   const hand = alice.locator('[data-panel="player"]').filter({ hasText: 'Death Guard' }).locator('[data-secondary]')
   await expect(hand).toHaveCount(2)
-  await expect(alice.getByRole('button', { name: 'Select secret mission' })).toHaveCount(0)
   // The same two cards on the other device: a hand is public once it is drawn.
   const drawn = await hand.evaluateAll((cards) => cards.map((card) => card.getAttribute('data-secondary')))
   for (const key of drawn) await expect(bob.locator(`[data-secondary="${key}"]`)).toBeVisible()
@@ -675,7 +674,7 @@ test('paired secondary missions may be kept or put back as they are drawn', asyn
   await expect(prompt.getByRole('button', { name: 'Select missions' })).toBeVisible()
 })
 
-test('a fixed secret mission is handed off before its scoring prompt', async ({ browser }) => {
+test('a secret mission chosen before they were retired is handed off before its scoring prompt', async ({ browser }) => {
   const alice = await (await browser.newContext(desktopContext)).newPage()
   const bob = await (await browser.newContext(desktopContext)).newPage()
   const aliceName = uniqueName('Alice')
@@ -745,16 +744,34 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
   await expect(openingOwed).toBeHidden()
   await expect(bob.getByRole('heading', { name: 'command phase' })).toBeVisible()
 
+  // No supported mission pack offers secret missions any more, so these stand in for a battle that chose them earlier.
+  const { id, append, first: aliceId, second: bobId } = await battleLog(alice)
+  const deckCard = async (playerId: string, name: string) => {
+    const rows = await productSql<{
+      seq: number
+      user_id: string
+      body: string
+    }>`SELECT seq, user_id, body FROM commands WHERE battle_id = ${id}`
+    const decks = rows
+      .toSorted((left, right) => left.seq - right.seq)
+      .map((row) => ({
+        by: row.user_id,
+        body: JSON.parse(row.body) as { kind: string; playerId?: string; secondaryDeck?: { key: string; name: string }[] },
+      }))
+      .filter(({ by, body }) => body.kind === 'set-prep' && (body.playerId ?? by) === playerId && body.secondaryDeck)
+    const card = decks.at(-1)?.body.secondaryDeck?.find((candidate) => candidate.name === name)
+    if (!card) throw new Error(`${name} is not in the deck`)
+    return { key: card.key, name: card.name }
+  }
+  await append(aliceId, { kind: 'select-secret', secondary: await deckCard(aliceId, 'Assassination') })
+  await append(bobId, { kind: 'select-secret', secondary: await deckCard(bobId, 'Beacon') })
+  await Promise.all([alice.reload(), bob.reload()])
   const alicePanel = alice.locator('[data-panel="player"]').filter({ hasText: aliceName })
-  await alicePanel.getByRole('button', { name: 'Select secret mission' }).click()
-  await alice.getByRole('dialog', { name: 'Select a secret mission' }).getByRole('button', { name: 'Assassination' }).click()
   await expect(alicePanel.locator('[data-secondary]').filter({ hasText: 'Assassination' })).toContainText('secret')
   const bobPanel = bob.locator('[data-panel="player"]').filter({ hasText: bobName })
   await expect(bob.locator('[data-panel="player"]').filter({ hasText: aliceName }).locator('[data-secondary="secret"]')).toContainText(
     'Secret mission',
   )
-  await bobPanel.getByRole('button', { name: 'Select secret mission' }).click()
-  await bob.getByRole('dialog', { name: 'Select a secret mission' }).getByRole('button', { name: 'Beacon' }).click()
   await expect(bobPanel.locator('[data-secondary]').filter({ hasText: 'Beacon' })).toContainText('secret')
 
   for (let phase = 0; phase < 5; phase += 1) await advance(bob)

@@ -348,19 +348,12 @@ describe('the turn sequence', () => {
     expect(redrawn.drawAcknowledged).toBe(false)
   })
 
-  it('lets one seated player select and reveal the other side’s Secret Mission', () => {
+  it('lets one seated player reveal the other side’s Secret Mission', () => {
     const selected = reduceBattle(
       PLAYERS,
       log(...started(), [ALICE, { kind: 'select-secret', playerId: BOB, secondary: { key: 'secret', name: 'Hidden purpose' } }]),
     )
 
-    expect(
-      validate(reduceBattle(PLAYERS, log(...started())), ALICE, {
-        kind: 'select-secret',
-        playerId: BOB,
-        secondary: { key: 'secret', name: 'Hidden purpose' },
-      }),
-    ).toBeNull()
     expect(validate(selected, ALICE, { kind: 'reveal-secret', playerId: BOB })).toBeNull()
   })
 
