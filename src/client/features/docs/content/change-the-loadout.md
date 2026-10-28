@@ -12,7 +12,7 @@ The wand button next to the attacker's points (**Optimize**) searches the whole 
 
 While it runs, the button shows a percentage; press it again to cancel and keep the improvements found so far. Afterwards a note may tell you:
 
-- The unit has too many loadouts to compare them all, so the result is the best found, not a guaranteed best.
+- Not every loadout was checked, so the result is the best found, not a guaranteed best.
 - Loadouts with rules the simulator cannot estimate were left out.
 
 Optimize isn't available in a battle, because the units there are already fielded.

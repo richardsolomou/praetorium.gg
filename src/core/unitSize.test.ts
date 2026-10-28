@@ -344,6 +344,47 @@ describe('how many models a unit may field', () => {
     expect(sizeOf(selection, index).path).toEqual(['guard', 'guardsman'])
   })
 
+  it('grows a lone leader into an optional group of models it has not taken', () => {
+    const index = indexOf({
+      sharedSelectionEntries: [
+        {
+          id: 'battlesuits',
+          name: 'Battlesuits',
+          type: 'unit',
+          selectionEntries: [
+            {
+              id: 'leader',
+              name: 'Leader',
+              type: 'model',
+              constraints: [
+                { id: 'leader-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                { id: 'leader-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+              ],
+            },
+          ],
+          selectionEntryGroups: [
+            {
+              id: 'wing',
+              name: 'Wing (0-2)',
+              selectionEntries: [
+                {
+                  id: 'wingman',
+                  name: 'Wingman',
+                  type: 'model',
+                  constraints: [{ id: 'wingman-max', type: 'max', value: 2, field: 'selections', scope: 'parent' }],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+
+    const leaderOnly = { id: 'battlesuits', count: 1, selections: [{ id: 'leader', count: 1 }] }
+
+    expect(sizeOf(leaderOnly, index)).toMatchObject({ min: 1, max: 3, path: ['wing', 'wingman'] })
+  })
+
   it('clamps a size the data does not allow', () => {
     expect(buildUnit('squad', indexOf(squad()), 99)?.size.models).toBe(10)
   })

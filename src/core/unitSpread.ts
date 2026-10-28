@@ -12,6 +12,7 @@ import type { CatalogueIndex, Definition } from './catalogue'
 import { isCollectiveGroup } from './collective'
 import {
   childrenOf,
+  hasMutableMinimum,
   MAX_DEPTH,
   maximumCount,
   maximumCountAt,
@@ -68,12 +69,9 @@ export function withUnitSpread(
       ? keepingTheSquad(selection, spreadOptions(selection, path, counts, group, index), path, index)
       : withSpread(selection, key, counts)
 
-  // A group of one option each model may take more than once fills a model at a time.
-  if (
-    group &&
-    (maximumCount(group, index) === null || (childrenOf(resolve(group, index), index).length === 1 && maximumCount(group, index)! > 1))
-  ) {
-    return spreadIndependentRepeatedGroup(selection, path, counts, repeating, group, index)
+  // A group each model takes more than one pick from, such as a Crisis suit's two weapons, fills a model at a time.
+  if (group && (maximumCount(group, index) ?? UNBOUNDED) > 1) {
+    return spreadIndependentRepeatedGroup(selection, path, counts, repeating, group, index, options)
   }
   return spreadRepeatedGroup(selection, path, counts, repeating, index, options)
 }
@@ -363,11 +361,14 @@ function spreadIndependentRepeatedGroup(
   repeating: { path: string[] },
   group: Definition,
   index: CatalogueIndex,
+  evaluation: EvaluateOptions,
 ) {
   const modelId = repeating.path.at(-1)
   if (!modelId) return selection
   const withinModel = path.slice(repeating.path.length)
-  const options = childrenOf(resolve(group, index), index).filter((option) => requiredCount(option.definition, index) === 0)
+  const options = childrenOf(resolve(group, index), index).filter(
+    (option) => requiredCount(option.definition, index) === 0 || hasMutableMinimum(option.definition, index),
+  )
   const optionIds = new Set(options.map((option) => option.id))
   let variants = allAt(selection, repeating.path).map((model) =>
     updateSelection(withPlaceFor(model, withinModel), withinModel, (held) => ({
@@ -376,13 +377,24 @@ function spreadIndependentRepeatedGroup(
     })),
   )
   const carriers = variants.reduce((total, model) => total + (model.count ?? 1), 0)
+  const picks = maximumCount(group, index) ?? UNBOUNDED
+  const picked = (model: Selection) =>
+    (at(model, withinModel)?.selections ?? []).reduce((total, child) => total + (optionIds.has(child.id) ? (child.count ?? 1) : 0), 0)
 
   for (const option of options) {
-    const capacity = Math.max(1, maximumCount(option.definition, index) ?? 1)
-    let remaining = Math.min(Math.max(0, counts[option.id] ?? 0), carriers * capacity)
+    // A limit can depend on the unit, as a Gun Drone's does, so it is read where the option would stand.
+    const limit =
+      selectionCountBoundsAt(selection, [...path, option.id], index, evaluation)?.maximum ?? maximumCount(option.definition, index)
+    const most = Math.max(1, limit ?? 1)
+    let remaining = Math.min(Math.max(0, counts[option.id] ?? 0), carriers * most)
     const equipped: Selection[] = []
     for (const model of variants) {
       const modelCount = model.count ?? 1
+      const capacity = Math.min(most, picks - picked(model))
+      if (capacity <= 0) {
+        equipped.push(model)
+        continue
+      }
       const full = Math.min(modelCount, Math.floor(remaining / capacity))
       if (full > 0) equipped.push(withIndependentOption({ ...model, count: full }, withinModel, option, capacity, index))
       remaining -= full * capacity

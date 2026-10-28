@@ -255,7 +255,9 @@ export function useLoadoutOptimizer(combatant: Combatant) {
           await climb({ seed, steps: WALK_STEPS })
           stale = best === before ? stale + 1 : 0
         }
-        notes.push('This unit has too many loadouts to compare them all, so this is the best one found by improving from several starts.')
+        notes.push(
+          'Not every loadout was checked, so a better one may exist. This is the best found by improving on several starting loadouts.',
+        )
       }
       if (!current()) return
       if (!scored) throw new Error(reason ?? 'No supported legal loadout is available.')

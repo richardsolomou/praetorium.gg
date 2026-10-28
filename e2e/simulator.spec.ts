@@ -1900,7 +1900,7 @@ test('Plague Marines optimize a ranged loadout and then a melee loadout', async 
     await page.getByRole('menuitem', { name: `Optimize for ${label.toLowerCase()}`, exact: true }).click()
     await expect(optimize).toBeVisible({ timeout: 120_000 })
     await expect(attacker.getByRole('alert')).toHaveCount(0)
-    await expect(attacker.getByRole('status')).toHaveText(/too many loadouts to compare them all/)
+    await expect(attacker.getByRole('status')).toHaveText(/Not every loadout was checked/)
     await expect.poll(async () => Number(await damage.textContent())).toBeGreaterThan(before)
     await expect(attacker).toContainText('5 models')
   }

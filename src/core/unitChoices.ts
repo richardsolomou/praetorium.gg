@@ -66,6 +66,8 @@ export type UnitChoice = {
    * one, against a count against each option.
    */
   room: number
+  /** How many selections the group must hold across its carriers, when it must hold some. */
+  least?: number
   /**
    * Whether the squad has to answer this one way for all of it.
    *
@@ -446,6 +448,7 @@ function collectUnitChoices(
             optional:
               minimum(child.definition) === 0 || (sized !== undefined && adjustable.every((option) => minimum(option.definition) === 0)),
             room: adjustableRoom,
+            ...(minimum(child.definition) > 0 ? { least: minimum(child.definition) * scale } : {}),
             options: adjustable.map((option) => ({
               id: option.id,
               name: resolve(option.definition, index).name ?? option.id,

@@ -124,6 +124,24 @@ function survey(selection: Selection, index: CatalogueIndex, trail: string[]): {
     groups.push(...nested.groups)
   }
 
+  // An optional group of models not yet taken, such as a Broadside's Shas'ui, is still how the unit grows.
+  const taken = new Set((selection.selections ?? []).map((child) => child.id))
+  const squadmates = squadmatesIn(selection, index)
+  for (const option of squadmates) {
+    const target = resolve(option.definition, index)
+    if (taken.has(option.id) || target.type !== undefined || requiredCount(option.definition, index) > 0) continue
+    if (replacesSquadmate(option.definition, squadmates, index)) continue
+    const occupants = childrenOf(target, index)
+    if (!occupants.length || occupants.some((occupant) => resolve(occupant.definition, index).type !== 'model')) continue
+    const widestOccupant = occupants
+      .map((occupant) => ({ id: occupant.id, max: maximumCount(occupant.definition, index) ?? UNBOUNDED }))
+      .reduce((best, occupant) => (occupant.max > best.max ? occupant : best))
+    const max =
+      maximumCount(option.definition, index) ??
+      occupantBounds({ id: option.id, selections: occupants.map(({ id }) => ({ id })) }, index).max
+    if (max > 0 && max < UNBOUNDED) groups.push({ min: 0, max, total: 0, adjust: [...trail, option.id, widestOccupant.id] })
+  }
+
   return { models, groups }
 }
 

@@ -424,6 +424,11 @@ function* loadoutEdits(resolved: RosterPick, availableChoices: UnitChoice[], mod
       const counts = Object.fromEntries(choice.options.map((option) => [option.id, option.count]))
       const used = choice.options.reduce((sum, option) => sum + option.count, 0)
       const hasModels = choice.options.some((option) => option.profile !== undefined)
+      // A group that must stay full, as each Crisis suit's two weapons must, changes only by swapping. Nested choices
+      // can need the short step, since a swap leaves the inner group's counts behind.
+      const full =
+        used <= (choice.least ?? 0) &&
+        !availableChoices.some((other) => other.key.startsWith(`${choice.key}/`) || choice.key.startsWith(`${other.key}/`))
       const replace = (spreadCounts: Record<string, number>): RosterPick => ({
         ...resolved,
         models,
@@ -444,7 +449,7 @@ function* loadoutEdits(resolved: RosterPick, availableChoices: UnitChoice[], mod
               yield replace({ ...counts, [option.id]: option.count + 1, [donor.id]: donor.count - 1 })
             }
           }
-          if ((!hasModels || choice.optional) && option.count > (option.mutableMin ? 0 : option.min))
+          if ((!hasModels || choice.optional) && option.count > (option.mutableMin ? 0 : option.min) && !full)
             yield replace({ ...counts, [option.id]: option.count - 1 })
         }
       }
