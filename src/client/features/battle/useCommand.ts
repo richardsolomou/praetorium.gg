@@ -219,18 +219,17 @@ export function useCommand(token: string, seq: number) {
     (command, options) => {
       const item: QueuedCommand = { command, basedOn: seq, background: options?.background, complete: options?.complete }
       queued.current.push(item)
-      if (!options?.background && options?.blocking !== false) {
-        unshown.current.add(item)
-        setPending(true)
-      }
+      // Disabling the controls re-renders the screen before the command goes out, so they disable only when its result
+      // cannot show ahead of the service.
+      if (!options?.background && options?.blocking !== false) unshown.current.add(item)
       if (!options?.background)
         predicting.current = predicting.current
           .then(() => showPrediction({ token, queryClient, projection }, command))
+          .catch(() => false)
           .then((shown) => {
-            if (!shown || !unshown.current.delete(item)) return
-            if (!unshown.current.size) setPending(false)
+            if (shown) unshown.current.delete(item)
+            else if (unshown.current.has(item)) setPending(true)
           })
-          .catch(() => {})
       void drain()
     },
     [drain, queryClient, seq, token],
