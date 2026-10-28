@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.195.12
+
+### Patch Changes
+
+- cfca9a8: On a phone, the battle scoreboard now sits at the top of the page, with the playing guide under the Battle tab and event and club links beside the battle details.
+
 ## 0.195.11
 
 ### Patch Changes
