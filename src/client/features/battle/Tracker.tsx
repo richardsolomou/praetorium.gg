@@ -386,7 +386,8 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   const activeSecretMissionAction = Boolean(settlementRound === null && active && secretMissionActionSide?.captain.id === active.captain.id)
   const advanceNow = () => {
     if (promptMinimized || advanceBlocked || !active) return
-    if (due.length || activeSecretMissionAction || (view.phase === 'end' && discardable.length)) {
+    // Undoing an advance leaves its request and reviewed scoring standing, so the next press only advances.
+    if (!view.advanceRequested && (due.length || activeSecretMissionAction || (view.phase === 'end' && discardable.length))) {
       send({ kind: 'request-advance', playerId: active.captain.id })
       return
     }
