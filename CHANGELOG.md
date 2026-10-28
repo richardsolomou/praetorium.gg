@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.195.1
+
+### Patch Changes
+
+- d187d11: Broadside Battlesuits can be resized from 1 to 3 models in rosters and the combat simulator.
+- d187d11: Crisis Starscythe Battlesuits and other units whose models each carry two weapons from one list keep every weapon when you split them, instead of dropping some and showing the unit as illegal.
+- d187d11: The optimizer's note now says plainly when it didn't check every loadout, instead of saying the unit has too many to compare.
+
 ## 0.195.0
 
 ### Minor Changes
