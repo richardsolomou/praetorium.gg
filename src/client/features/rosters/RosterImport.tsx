@@ -13,6 +13,7 @@ import { importRoster, saveRoster } from '../../functions'
 import { invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
 import { isRosterExchangeCode } from '../../../core/rosterExchange'
 import { isNewRecruitLink } from '../../../core/newRecruit'
+import { structuredRosterFile, type StructuredRosterFile } from '../../../core/structuredRosterFile'
 import { importRosterFormat } from '../../../shared/rosterFiles'
 import { battleSizeLabel } from '../../../core/battle'
 import { importFailureReport } from '../feedback/feedback'
@@ -51,6 +52,14 @@ function reportImportFailure(report: Parameters<typeof importFailureReport>[0]) 
   sendFeedback(response, { message })
 }
 
+/** Counts a structured roster file without its contents, so demand for reading one is measured before it is built. */
+function refuseRosterFile(format: StructuredRosterFile, input: 'text' | 'file') {
+  posthog.capture('roster_import_failed', { reason: 'structured_file', input, format })
+  return new Error(
+    `That looks like a .${format} roster file, which Praetorium cannot read yet. In the app that made it, export the list as text, then paste the text here.`,
+  )
+}
+
 /** Each name the import refused, on its own line, so the player reads why rather than only what. */
 const explain = (unknown: readonly { name: string; reason: string }[]) =>
   unknown.map(({ name, reason }) => `Could not match ${name}: ${reason}.`).join('\n')
@@ -87,6 +96,7 @@ function Shortfall({ title, rows }: { title: string; rows: readonly { key: strin
 export function RosterImport({ onImport, blocked }: { onImport?: (imported: MatchedImport) => void; blocked?: () => void }) {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
+  const [droppedFile, setDroppedFile] = useState<Error | null>(null)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
@@ -130,6 +140,8 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
           'That is a New Recruit link, and Praetorium cannot open New Recruit lists from a link. In New Recruit, export the list as text, then paste the text here.',
         )
       }
+      const structured = structuredRosterFile(file)
+      if (structured) throw refuseRosterFile(structured, 'text')
       const imported = await importRoster({ data: { file } }).catch((error: unknown) => {
         posthog.capture('roster_import_failed', { reason: 'request', input: inputOf(file), format: formatOf(file) })
         reportImportFailure({ reason: 'request', inputKind: inputOf(file), unknown: [], unplaced: [], input: file })
@@ -173,7 +185,7 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
   const review = bring.data ?? null
   const fromCode = bring.variables !== undefined && isRosterExchangeCode(bring.variables)
   const working = bring.isPending || keep.isPending
-  const failure = bring.error ?? keep.error
+  const failure = droppedFile ?? bring.error ?? keep.error
 
   // A scanned QR code opens this page with the code in the fragment, which never reaches the server.
   const hash = useLocation({ select: (location) => location.hash })
@@ -213,6 +225,7 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
     posthog.capture('roster_import_started', { input: 'text' })
     bring.reset()
     keep.reset()
+    setDroppedFile(null)
     setOpen(true)
   }
 
@@ -309,13 +322,32 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
                   data-onboarding="import-input"
                   id="roster-text"
                   value={text}
-                  onChange={(event) => setText(event.target.value)}
+                  onChange={(event) => {
+                    setDroppedFile(null)
+                    setText(event.target.value)
+                  }}
+                  // Cancelling dragover for files makes the box a drop target, so a dropped roster file is refused rather than opened.
+                  onDragOver={(event) => event.dataTransfer.types.includes('Files') && event.preventDefault()}
+                  onDrop={(event) => {
+                    const format = structuredRosterFile(event.dataTransfer.files[0]?.name ?? '')
+                    if (!format) return
+                    event.preventDefault()
+                    bring.reset()
+                    setDroppedFile(refuseRosterFile(format, 'file'))
+                  }}
                   placeholder="Paste Games Workshop roster text or an exchange code…"
                   className="h-52 min-h-52 field-sizing-fixed resize-none overflow-y-auto font-mono text-xs"
                   disabled={working}
                   maxLength={200_000}
                 />
-                <Button className="w-full" disabled={!text.trim() || working} onClick={() => bring.mutate(text)}>
+                <Button
+                  className="w-full"
+                  disabled={!text.trim() || working}
+                  onClick={() => {
+                    setDroppedFile(null)
+                    bring.mutate(text)
+                  }}
+                >
                   {working ? <LoaderCircle className="animate-spin" /> : <Copy />}
                   Import pasted roster
                 </Button>

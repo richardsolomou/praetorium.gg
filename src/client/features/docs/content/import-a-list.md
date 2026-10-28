@@ -10,7 +10,7 @@ Paste a list from another army builder, or an exchange code from another Praetor
 - **Warmind** text, including its ListForge-style, tournament (WTC) and official-app-style texts
 - Other WTC-style tournament text
 
-`.ros` and `.rosz` files and New Recruit share links aren't supported. Use the app's text export instead.
+`.ros`, `.rosz` and `.regiztry` roster files and New Recruit share links aren't supported yet. Pasting or dropping one tells you so; use the app's text export instead.
 
 A list can hold at most 100 entries. Anything else you paste is refused with "it is not a supported army-text export".
 

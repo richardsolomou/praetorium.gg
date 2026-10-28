@@ -168,6 +168,25 @@ test('a pasted New Recruit link asks for the exported text and reports no list c
     ])
 })
 
+test('a pasted roster file asks for the exported text and reports only its format', async ({ page }) => {
+  await signUp(page, uniqueName('Import file analytics'))
+  await page.goto('/rosters')
+  await page.waitForLoadState('networkidle')
+  await page.getByRole('button', { name: 'Import roster', exact: true }).waitFor()
+  const events = await recordEvents(page)
+  await page.getByRole('button', { name: 'Import roster', exact: true }).click()
+  await page.getByLabel('Roster text').fill('<?xml version="1.0"?>\n<roster name="Private roster file">')
+  await page.getByRole('button', { name: 'Import pasted roster' }).click()
+  await expect(page.getByText('That looks like a .ros roster file')).toBeVisible()
+  await expect
+    .poll(() => events)
+    .toEqual([
+      { name: 'roster_import_started', properties: { input: 'text' } },
+      { name: 'roster_import_submitted', properties: { input: 'text' } },
+      { name: 'roster_import_failed', properties: { reason: 'structured_file', input: 'text', format: 'ros' } },
+    ])
+})
+
 test('a connected legacy shell import reports saving only after the write succeeds, including a retry', async ({ page }) => {
   await page.addInitScript(() => {
     window.PraetoriumNative = { bridgeVersion: 3, capabilities: [] }
