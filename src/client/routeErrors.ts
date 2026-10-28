@@ -101,13 +101,13 @@ export function completedRouteRecovery(href: string, current = version) {
   const moduleAttempt = moduleRecoveryAttempt(href)
   if (moduleAttempt) {
     url.searchParams.delete(RECOVERY_PARAM)
-    posthog.capture('route_recovery_completed', { failure_kind: 'module_load', recovery_attempt: moduleAttempt })
+    captureWhenLoaded('route_recovery_completed', { failure_kind: 'module_load', recovery_attempt: moduleAttempt })
   }
   const stale = staleBuildMarker(href)
   const staleResolved = stale !== null && !newerRelease(current, stale.release)
   if (staleResolved) {
     url.searchParams.delete(STALE_BUILD_PARAM)
-    posthog.capture('route_recovery_completed', { failure_kind: 'stale_build', recovery_attempt: stale.attempt })
+    captureWhenLoaded('route_recovery_completed', { failure_kind: 'stale_build', recovery_attempt: stale.attempt })
   }
   return moduleAttempt || staleResolved ? url.pathname + url.search + url.hash : null
 }
