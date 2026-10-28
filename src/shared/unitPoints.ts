@@ -4,7 +4,7 @@ import { evaluate } from '../core/evaluate'
 import { nameOf } from '../core/catalogue'
 import { isNonMatchedPlayName, matchedPlayName, normalizedName, normalizedNameVariants } from '../core/name'
 import { routeSlug } from '../core/slug'
-import { type BuiltUnit, buildUnit } from '../core/roster'
+import { buildUnit } from '../core/roster'
 import { isResizable } from '../core/unitSize'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { datacardOf } from './datasheetJoin'
@@ -63,35 +63,40 @@ function cardPoints(loaded: LoadedCatalogue, catalogueId: string, entryId: strin
   return Number(prices[0]!.cost)
 }
 
-/** Replace the catalogue's default price with the card's current row, keeping evaluated choice and context costs. */
+/**
+ * Replace the catalogue's default price with the card's current row, keeping evaluated choice and context costs.
+ * Without `models`, the default unit is priced at its own size: a datasheet built without a model count can differ from
+ * one built at that size, and a list price must compare against the unit it lists.
+ */
 export function unitPointAdjustment(
   loaded: LoadedCatalogue,
   primaryCatalogueId: string,
   catalogueId: string,
   entryId: string,
-  models: number,
+  models?: number,
   copy = 1,
 ) {
-  return cachedIn(cache, loaded, JSON.stringify([primaryCatalogueId, catalogueId, entryId, models, copy]), () => {
-    const built = buildUnit(entryId, loaded.index, models, undefined, { primaryCatalogueId, mustering: true, choiceCache: pricingChoices })
-    return built ? builtUnitPointAdjustment(loaded, primaryCatalogueId, catalogueId, entryId, built, copy) : 0
-  })
+  return cachedIn(cache, loaded, JSON.stringify([primaryCatalogueId, catalogueId, entryId, models ?? null, copy]), () =>
+    computeUnitPointAdjustment(loaded, primaryCatalogueId, catalogueId, entryId, models, copy),
+  )
 }
 
-/**
- * `unitPointAdjustment` against a unit already built. A list price must use this with the unit it priced, because a
- * datasheet built without a model count can differ from one built at its own size.
- */
-export function builtUnitPointAdjustment(
+function computeUnitPointAdjustment(
   loaded: LoadedCatalogue,
   primaryCatalogueId: string,
   catalogueId: string,
   entryId: string,
-  built: BuiltUnit,
-  copy = 1,
+  requestedModels: number | undefined,
+  copy: number,
 ) {
-  const models = built.size.models
   const unit = mfmUnitFor(loaded, primaryCatalogueId, entryId)
+  const built = buildUnit(entryId, loaded.index, requestedModels, undefined, {
+    primaryCatalogueId,
+    mustering: true,
+    choiceCache: pricingChoices,
+  })
+  if (!built) return 0
+  const models = requestedModels ?? built.size.models
   const fixed = !isResizable(built.size)
   const price = unit
     ? (mfmPrice(unit, models, copy) ?? (fixed ? mfmPrice(unit, 1, copy) : null))
