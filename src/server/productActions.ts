@@ -2,7 +2,7 @@ import type { z } from 'zod'
 import { saveRosterSchema } from '../contracts/schemas'
 import { offlineActionSchemas as schemas, type OfflineActionKind } from '../contracts/offlineActions'
 import { app } from './app'
-import { rosterForUse } from './rosterUsage'
+import { rosterForUse, withCurrentAlerts } from './rosterUsage'
 import { captureMutation, captureBattleCreated, captureLeagueCreated, captureLeagueBattleCreated } from './mutationTelemetry'
 
 const ONBOARDING_TASK_EVENTS = {
@@ -155,7 +155,7 @@ export const productActions = {
     return null
   }),
   submitLeagueRoster: action(schemas.submitLeagueRoster.partial({ capturedRoster: true, catalogueRevision: true }), async (owner, data) => {
-    const { saved, snapshot } = await rosterForUse(owner, data.rosterId)
+    const { saved, snapshot } = await rosterForUse(owner, data.rosterId, { sealing: true })
     if (
       data.capturedRoster !== undefined &&
       (sealedContent(saveRosterSchema.parse(saved)) !== sealedContent(data.capturedRoster) ||
@@ -250,6 +250,7 @@ export const productActions = {
       data.eventToken,
       data.allyId,
       data.secondOpponentId,
+      withCurrentAlerts,
     )
     await captureLeagueBattleCreated(owner, result)
     return { token: result.token }

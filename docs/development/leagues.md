@@ -5,7 +5,7 @@
 - A sealed event (`sealed_events`) is the shared engine: entries, picks, pairings and battles key on its id. Exactly one host holds it: a tournament (`tournaments`, with its own name, listing, admission, limit and admins) or a club game (`club_games`), which has none of those and is run by its club's organizers for its club's members.
 - A host's token is its address and what its battles' `lock-league-rosters` name beside the event's token; a club game's is its event's. Old logs name an old league's token, which is now its club's.
 - `leagues`, `league_events` and `league_admins` are retired: only the startup migration reads them, and it turns each league into a club and each event into one of its games. The tournaments route resolves every old link.
-- Sealing stores a repriced, legality-checked snapshot; saved-list edits never change it.
+- Sealing stores a repriced, legality-checked snapshot; saved-list edits never change it. Alerts are the player's, not the list's: sealing leaves them out, and a league battle fields each player's current alerts onto their snapshot (`withCurrentAlerts`).
 - Before reveal, only `readsSealedLeagueRoster` and `readsAlliedLeagueRoster` grant roster access, organizers included.
 - Reveal is irreversible. A Force Disposition chosen before reveal stays fixed, so a resealed list must keep it on offer.
 - League battle creation copies snapshots and locks rosters in one transaction.
