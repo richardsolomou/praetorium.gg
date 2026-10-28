@@ -1,5 +1,17 @@
 # praetorium
 
+## 0.195.0
+
+### Minor Changes
+
+- 0398318: Swiss tournament organizers can reopen any table's finished result from the tournament page so its players can correct it, even at a table they didn't play.
+- b308810: The Apple Watch keeps the score, round and turn clock updating while the watch app is open, even with your iPhone locked or after you leave the battle screen.
+- b308810: The Apple Watch can follow a live battle you are watching, showing both sides by name.
+
+### Patch Changes
+
+- 35b06b1: Pasting or dropping a .ros, .rosz or .regiztry roster file into Import roster now says it isn't supported yet and asks for the text export.
+
 ## 0.194.3
 
 ### Patch Changes
