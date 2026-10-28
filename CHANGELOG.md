@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.195.3
+
+### Patch Changes
+
+- 76d1eb7: Battle errors now appear as a message at the top of the screen instead of under the battle events.
+- 76d1eb7: Record a missed action only opens the phases the chosen stratagem can be used in, and lets you change what it cost.
+- 76d1eb7: A stratagem's other prices are greyed out when it can't be used in this phase, and its menu can record it as a missed action instead.
+
 ## 0.195.2
 
 ### Patch Changes
