@@ -1,5 +1,13 @@
 # praetorium
 
+## 0.195.6
+
+### Patch Changes
+
+- 323f386: Battle actions show their result sooner, since the battle is no longer downloaded a second time while each action is being sent.
+- 323f386: The first action in a battle after opening it responds straight away, instead of freezing the screen for up to a few seconds on devices with the army rules saved offline.
+- 323f386: Switching back to the app no longer re-downloads every saved battle, league and list each time, which slowed the next action in a battle.
+
 ## 0.195.5
 
 ### Patch Changes
