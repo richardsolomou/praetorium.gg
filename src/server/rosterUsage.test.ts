@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest'
 import { leagueRosterFixture } from './leagueRoster.fixtures'
 import { app } from './app'
 import { ability, bookOf, points } from './catalogue.fixtures'
-import { rosterForUse, rosterUseError, rosterUseProblem } from './rosterUsage'
+import { rosterForUse, rosterUseError, rosterUseProblem, withCurrentAlerts } from './rosterUsage'
 
 vi.mock('./app', () => ({ app: vi.fn() }))
 
@@ -232,4 +232,18 @@ it('fields a borrower’s own alerts rather than the lender’s', async () => {
   lentFrom({ id: 'owner', name: 'Owner' }, { owner: [timed('opponent-turn')], borrower: [timed('your-turn')] })
   const { snapshot } = await rosterForUse('borrower', 'roster', { lent: true })
   expect(snapshot.reminders?.map((reminder) => reminder.timings[0]?.turn)).toEqual(['your-turn'])
+})
+
+it('seals a list without its player’s alerts', async () => {
+  lentFrom(null, { owner: [alert] })
+  const { snapshot } = await rosterForUse('owner', 'roster', { sealing: true })
+  expect(snapshot.reminders).toEqual([])
+})
+
+it('fields alerts set after a list was sealed', async () => {
+  lentFrom(null)
+  const { snapshot: sealed } = await rosterForUse('owner', 'roster', { sealing: true })
+  lentFrom(null, { owner: [alert] })
+  const fielded = await withCurrentAlerts(sealed, 'owner')
+  expect(fielded.reminders?.map((reminder) => reminder.unit)).toEqual([{ index: 0, name: 'Squad' }])
 })

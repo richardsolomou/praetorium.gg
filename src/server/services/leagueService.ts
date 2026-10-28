@@ -445,6 +445,7 @@ export class LeagueService {
     eventToken?: string,
     allyId?: string,
     secondOpponentId?: string,
+    fieldAlerts: (roster: Roster, playerId: string) => Promise<Roster> = async (roster) => roster,
   ) {
     const invited = [opponentId, allyId, secondOpponentId].filter((id): id is string => Boolean(id))
     if (new Set([userId, ...invited]).size !== invited.length + 1) throw new Response('choose different entrants', { status: 400 })
@@ -460,13 +461,22 @@ export class LeagueService {
         userIds: [userId, ...invited],
         now: offlineContext.getStore()?.createdAt ?? this.clock(),
       },
-      (league) => {
+      async (league) => {
+        let prepared
         try {
-          return buildLeagueBattle(league, userId, opponentId, missionPackId, token, allyId, secondOpponentId)
+          prepared = buildLeagueBattle(league, userId, opponentId, missionPackId, token, allyId, secondOpponentId)
         } catch (error) {
           if (error instanceof LeagueBattleSetupError) throw new Response(error.message, { status: error.status })
           throw error
         }
+        const initialCommands = await Promise.all(
+          prepared.initialCommands.map(async (command) =>
+            command.kind === 'attach-roster'
+              ? { ...command, roster: await fieldAlerts(command.roster, command.playerId ?? userId) }
+              : command,
+          ),
+        )
+        return { ...prepared, initialCommands }
       },
     )
     if (!result) throw new Response('no such event', { status: 404 })

@@ -72,18 +72,7 @@ export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, details
     // log and the seat then keep saying that, whatever the library later folds.
     name: saved.name || priced.label,
     id: saved.id,
-    reminders: saved.reminders?.flatMap((reminder) => {
-      const unitIndex = reminder.unit?.index
-      const index = unitIndex === undefined ? 0 : priced.units.findIndex((unit) => unit.key === unitIndex)
-      if (index === -1) return []
-      return [
-        {
-          ...reminder,
-          ...(reminder.unit ? { unit: { ...reminder.unit, index } } : {}),
-          timings: reminder.timings.map((timing) => ({ ...timing })),
-        },
-      ]
-    }),
+    reminders: saved.reminders && frozenReminders(saved.reminders, priced.units),
     remindersEnabled: saved.remindersEnabled ?? true,
     text: [
       `${priced.points} / ${pointsBudgetOf(saved)} pts`,
@@ -118,6 +107,22 @@ export function rosterSnapshot(saved: SavedRoster, priced: PricedRoster, details
       units: frozenUnits(saved.picks, priced.units, details),
     },
   }
+}
+
+/** Alerts named by pick position, renamed to the position of the unit each pick was priced into. */
+export function frozenReminders(reminders: readonly RosterReminder[], units: readonly { key: number }[]): RosterReminder[] {
+  return reminders.flatMap((reminder) => {
+    const unitIndex = reminder.unit?.index
+    const index = unitIndex === undefined ? 0 : units.findIndex((unit) => unit.key === unitIndex)
+    if (index === -1) return []
+    return [
+      {
+        ...reminder,
+        ...(reminder.unit ? { unit: { ...reminder.unit, index } } : {}),
+        timings: reminder.timings.map((timing) => ({ ...timing })),
+      },
+    ]
+  })
 }
 
 /**
