@@ -452,8 +452,12 @@ describe('source-backed mission selections', () => {
     if (prep.kind !== 'set-prep' || !prep.primary) throw new Error('expected prepared primary')
     delete prep.primary.selection
     const players = NAMES.map((player, side) => ({ ...player, side, automated: false }))
+    // Secret missions are refused now, but a battle that chose one before still folds it.
+    entries = [
+      ...entries,
+      { seq: entries.length + 1, by: ALICE, command: { kind: 'select-secret', secondary: guard }, at: entries.at(-1)?.at ?? 0 },
+    ]
     for (const command of [
-      { kind: 'select-secret', secondary: guard },
       { kind: 'draw-secondaries', secondaries: [target, beacon] },
       { kind: 'acknowledge-draw' },
       { kind: 'set-secondary-status', key: target.key, status: 'discarded' },

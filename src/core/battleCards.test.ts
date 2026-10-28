@@ -846,12 +846,12 @@ describe('secondaries', () => {
     expect(battleView({ token: 'abc' }, NAMES, state, ALICE).secretMissionActionPlayerId).toBeNull()
   })
 
-  it('lets one side choose a secret mission for the side across the table', () => {
+  it('refuses a new secret mission, which no supported mission pack has', () => {
     const state = reduceBattle(PLAYERS, log(...started()))
-    const command = { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } } as const
 
-    expect(validate(state, BOB, { ...command, playerId: ALICE })).toBeNull()
-    expect(validate(state, ALICE, command)).toBeNull()
+    expect(commandRefusal(state, ALICE, { kind: 'select-secret', secondary: { key: 'secret-a', name: 'Hold the Line' } })?.code).toBe(
+      'secret-missions-unsupported',
+    )
   })
 
   it('lets legacy tactical battles continue without an authoritative deck', () => {
@@ -1022,27 +1022,6 @@ describe('secondaries', () => {
     expect(alice(carried)?.secondariesDrawnThisTurn).toEqual(['c', 'd'])
     expect(validate(carried, ALICE, { kind: 'draw-secondary', secondary: { key: 'e', name: 'Storm Hostile Objective' } })).toBe(
       'you have already drawn your secondaries this turn',
-    )
-  })
-
-  it('refuses a secret outside the authoritative deck', () => {
-    const state = reduceBattle(
-      PLAYERS,
-      log(...started(), [
-        ALICE,
-        {
-          kind: 'set-prep',
-          stratagems: [],
-          primary: null,
-          secondaryMode: 'tactical',
-          secondaries: [],
-          secondaryDeck: [{ key: 'a', name: 'Behind Enemy Lines' }],
-        },
-      ]),
-    )
-
-    expect(validate(state, ALICE, { kind: 'select-secret', secondary: { key: 'b', name: 'Bring It Down' } })).toBe(
-      'that secondary is not in your deck',
     )
   })
 

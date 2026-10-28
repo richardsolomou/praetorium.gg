@@ -126,9 +126,6 @@ function MissionChoices({
 export function SecondaryMissions({ view, side, actionable, pending, send, referenceFor, guides }: Props) {
   const [showResolved, setShowResolved] = useState<boolean | null>(null)
   const showingResolved = showResolved ?? view.status === 'finished'
-  // A tactical deck deals its own cards, so naming one would be choosing what you were dealt.
-  const choosingSecret =
-    actionable && side.secondaryMode === 'fixed' && !side.secondaries.some((card) => card.secret) && side.remainingSecondaries.length > 0
   // A card put back into the deck was never really held, so it does not belong in this list at all.
   const drawn = side.secondaries.filter((secondary) => secondary.status !== 'returned')
   const resolved = drawn.filter((secondary) => secondary.status !== 'active')
@@ -244,13 +241,6 @@ export function SecondaryMissions({ view, side, actionable, pending, send, refer
           </BattleDialogContent>
         </BattlePromptDialog>
       ) : null}
-      {choosingSecret ? (
-        <SecretMissionDialog
-          cards={side.remainingSecondaries}
-          pending={pending}
-          onPick={(card) => send({ kind: 'select-secret', secondary: card, playerId: side.captain.id })}
-        />
-      ) : null}
     </section>
   )
 }
@@ -264,47 +254,6 @@ function ScoredRounds({ rounds }: { rounds: { round: number; points: number }[] 
         </li>
       ))}
     </ol>
-  )
-}
-
-/** Fixed play chooses its own hand, so it also chooses which of those is held face down. */
-function SecretMissionDialog({
-  cards,
-  pending,
-  onPick,
-}: {
-  cards: readonly { key: string; name: string }[]
-  pending: boolean
-  onPick: (card: { key: string; name: string }) => void
-}) {
-  const [open, setOpen] = useState(false)
-  return (
-    <BattlePromptDialog open={open} onOpenChange={setOpen} minimizedLabel="Select secret mission">
-      <DialogTrigger render={<Button variant="outline" size="xs" disabled={pending} />}>Select secret mission</DialogTrigger>
-      <BattleDialogContent>
-        <DialogHeader>
-          <DialogTitle className="text-discarded">Select a secret mission</DialogTitle>
-          <DialogDescription>Held face down until you reveal it. Your opponent sees only that you hold one.</DialogDescription>
-        </DialogHeader>
-        <DialogBody className="gap-1 sm:grid-cols-2">
-          {cards.map((card) => (
-            <Button
-              key={card.key}
-              variant="outline"
-              size="sm"
-              className="h-auto justify-start py-1.5 text-left whitespace-normal"
-              disabled={pending}
-              onClick={() => {
-                onPick({ key: card.key, name: card.name })
-                setOpen(false)
-              }}
-            >
-              {card.name}
-            </Button>
-          ))}
-        </DialogBody>
-      </BattleDialogContent>
-    </BattlePromptDialog>
   )
 }
 

@@ -1098,7 +1098,7 @@ export type RefusalCode =
   | 'seat-count-mismatch'
   | 'secondary-history-full'
   | 'secondary-not-active'
-  | 'secret-chosen'
+  | 'secret-missions-unsupported'
   | 'secret-owed'
   | 'secret-revealed'
   | 'secret-unrevealed'
@@ -1943,17 +1943,9 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (state.drawAcknowledged) return refuse('hand-acknowledged', 'the hand has already been acknowledged')
       return null
     }
-    case 'select-secret': {
-      if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
-      if (player.secretSecondary) return refuse('secret-chosen', 'you already have a secret mission')
-      if (!command.secondary.name.trim()) return refuse('unnamed-card', 'name the secret mission')
-      if (player.secondaryDeck && !player.secondaryDeck.some((secondary) => secondary.key === command.secondary.key)) {
-        return refuse('card-not-in-deck', 'that secondary is not in your deck')
-      }
-      if (player.secondaries.some((secondary) => secondary.key === command.secondary.key))
-        return refuse('card-already-drawn', 'that secondary has already been selected')
-      return null
-    }
+    // No supported mission pack has secret missions; older battles still fold and reveal the ones they chose.
+    case 'select-secret':
+      return refuse('secret-missions-unsupported', 'secret missions are not part of any supported mission pack')
     case 'reveal-secret': {
       if (state.status !== 'playing') return refuse('battle-not-running', 'the battle is not running')
       if (!player.secretSecondary) return refuse('no-secret', 'you have no secret mission')
