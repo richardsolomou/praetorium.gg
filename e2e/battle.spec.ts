@@ -151,6 +151,30 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await expect(remaining).toBeHidden()
 })
 
+test('a double tap on the turn control ends one phase', async ({ page }) => {
+  await signUp(page, uniqueName('Double tap'))
+  const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Double tap roster' })
+  await practiceBattle(page, roster)
+  await startBattle(page)
+  // With the rules on the device, the next phase shows before the service answers and puts its button under the same finger.
+  await expect.poll(() => page.evaluate(() => Boolean(window.PraetoriumReferenceCache?.construction)), { timeout: 60_000 }).toBe(true)
+  const heading = page.locator('[data-scoreboard] h1')
+  await expect(heading).toContainText('command phase')
+  const box = (await advanceButton(page).boundingBox())!
+  for (const [gap, phase] of [
+    [30, 'movement phase'],
+    [150, 'shooting phase'],
+  ] as const) {
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    await page.waitForTimeout(gap)
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2)
+    await expect(advanceButton(page)).toBeEnabled()
+    await expect(heading).toContainText(phase)
+  }
+  await page.reload()
+  await expect(heading).toContainText('shooting phase')
+})
+
 test('native battle controls leave the application tabs reachable', async ({ page }) => {
   await signUp(page, uniqueName('Native controls'))
   const roster = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'Native battle roster' })
