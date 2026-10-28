@@ -5,7 +5,7 @@ import { MCP_CONSENT_REFUSALS } from '../shared/mcpConsent'
 
 const captureException = vi.hoisted(() => vi.fn())
 const capture = vi.hoisted(() => vi.fn())
-vi.mock('posthog-js', () => ({ posthog: { captureException, capture } }))
+vi.mock('posthog-js', () => ({ posthog: { captureException, capture, __loaded: true } }))
 
 import { Route } from './mcp-consent'
 
