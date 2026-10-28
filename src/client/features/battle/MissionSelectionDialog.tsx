@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
+import { X } from 'lucide-react'
 import { useEffect, useId, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -135,18 +136,13 @@ export function MissionSelectionDialog({
       groups={[
         {
           label: 'Units',
-          items: [
-            ...(choice.kind === 'guards' ? [{ value: '', label: 'No guard' }] : []),
-            ...(choice.kind === 'consecrate' ? [{ value: '', label: 'Not consecrated' }] : []),
-            ...unitOptions.filter(
-              (unit) => choice.kind !== 'consecrate' || unit.value === value || !Object.values(guards).includes(unit.value),
-            ),
-          ],
+          items: unitOptions.filter((unit) => unit.value === value || !Object.values(guards).includes(unit.value)),
         },
       ]}
       value={value}
       onValueChange={onValueChange}
       placeholder="Select a unit"
+      emptyText="No unit left to choose."
       disabled={pending}
     />
   )
@@ -295,7 +291,7 @@ export function MissionSelectionDialog({
                 <>
                   <p className="text-sm">
                     {choice.kind === 'guards'
-                      ? 'Guards are optional. One unit can guard more than one objective.'
+                      ? 'Guards are optional. Each unit guards one objective.'
                       : 'Consecrating is optional. Each consecration unit can consecrate one objective it is within range of.'}
                   </p>
                   {!objectives.length ? (
@@ -320,20 +316,29 @@ export function MissionSelectionDialog({
                   ) : null}
                   {[...objectives, ...manualObjectives]
                     .filter((candidate) => !consecrated.has(candidate.key))
-                    .map((candidate) => (
-                      <div key={candidate.key} className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)] items-center gap-3">
-                        <p className="eyebrow">{candidate.name}</p>
-                        {chooseUnit(
-                          guards[candidate.key] ?? '',
-                          (value) => {
-                            setGuards((current) => ({ ...current, [candidate.key]: value }))
-                            setQualified(false)
-                            setNotHome(false)
-                          },
-                          `${choice.kind === 'guards' ? 'Guard' : 'Consecration unit'} for ${candidate.name}`,
-                        )}
-                      </div>
-                    ))}
+                    .map((candidate) => {
+                      const label = `${choice.kind === 'guards' ? 'Guard' : 'Consecration unit'} for ${candidate.name}`
+                      const pick = (value: string) => {
+                        setGuards((current) => ({ ...current, [candidate.key]: value }))
+                        setQualified(false)
+                        setNotHome(false)
+                      }
+                      return (
+                        <div key={candidate.key} className="grid grid-cols-[minmax(0,7rem)_minmax(0,1fr)_auto] items-center gap-2">
+                          <p className="eyebrow">{candidate.name}</p>
+                          {chooseUnit(guards[candidate.key] ?? '', pick, label)}
+                          <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={`Clear ${label.charAt(0).toLocaleLowerCase()}${label.slice(1)}`}
+                            disabled={pending || !guards[candidate.key]}
+                            onClick={() => pick('')}
+                          >
+                            <X />
+                          </Button>
+                        </div>
+                      )
+                    })}
                   {choice.consecrated?.length ? (
                     <p className="text-xs text-faint">
                       Already consecrated: {choice.consecrated.map((candidate) => candidate.name).join(', ')}
