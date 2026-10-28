@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.195.14
+
+### Patch Changes
+
+- e3fa360: A quick double tap on a battle control, such as ending a phase, now acts only once.
+- e3fa360: In a battle, your taps now reach your opponent's screen sooner.
+
 ## 0.195.13
 
 ### Patch Changes
