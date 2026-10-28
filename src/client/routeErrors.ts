@@ -1,7 +1,7 @@
 import { CancelledError } from '@tanstack/react-query'
 import { posthog } from 'posthog-js'
 import { version } from '../../package.json'
-import { captureWhenLoaded } from '../posthog'
+import { captureWhenLoaded, whenLoaded } from '../posthog'
 import { isFetchNetworkFailure, isModuleLoadFailure } from './networkErrors'
 import { OfflineRefusal } from './offline/offlineRefusal'
 import { newerRelease } from './releaseUpdate'
@@ -9,12 +9,17 @@ import { newerRelease } from './releaseUpdate'
 /** React passes errors caught by a route's error page only to console.error, so report them here. */
 export function reportRouteError(error: unknown) {
   if (!isFetchNetworkFailure(error) && !(error instanceof CancelledError) && !(error instanceof OfflineRefusal))
-    posthog.captureException(error, {
-      operation: 'route',
-      ...(isModuleLoadFailure(error)
-        ? { failure_kind: 'module_load', recovery_attempt: typeof window === 'undefined' ? 0 : moduleRecoveryAttempt(window.location.href) }
-        : {}),
-    })
+    whenLoaded((client) =>
+      client.captureException(error, {
+        operation: 'route',
+        ...(isModuleLoadFailure(error)
+          ? {
+              failure_kind: 'module_load',
+              recovery_attempt: typeof window === 'undefined' ? 0 : moduleRecoveryAttempt(window.location.href),
+            }
+          : {}),
+      }),
+    )
 }
 
 const recentReloads: number[] = []
@@ -95,10 +100,7 @@ export function reloadStaleBuild(
 
 export const routeRecoveryPending = (href: string) => moduleRecoveryAttempt(href) > 0 || staleBuildMarker(href) !== null
 
-/**
- * Removes the recovery keys a rendered route resolves; a reload that still runs an older build keeps its key, so the cap holds.
- * The reloaded page can render before the SDK loads, so completion waits for it instead of being dropped.
- */
+/** Removes the recovery keys a rendered route resolves; a reload that still runs an older build keeps its key, so the cap holds. */
 export function completedRouteRecovery(href: string, current = version) {
   const url = new URL(href)
   const moduleAttempt = moduleRecoveryAttempt(href)

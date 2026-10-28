@@ -41,6 +41,15 @@ it('reports an error caught by a route error page', () => {
   expect(captureException.mock.calls).toEqual([[error, { operation: 'route' }]])
 })
 
+it('reports an error caught on the first render once the SDK loads', () => {
+  client.__loaded = false
+  const error = new TypeError("Cannot read properties of undefined (reading 'map')")
+  reportRouteError(error)
+  expect(captureException).not.toHaveBeenCalled()
+  POSTHOG_BROWSER_OPTIONS.loaded(client as unknown as PostHog)
+  expect(captureException.mock.calls).toEqual([[error, { operation: 'route' }]])
+})
+
 it('leaves a dropped connection out of error tracking', () => {
   reportRouteError(new TypeError('Failed to fetch'))
   expect(captureException).not.toHaveBeenCalled()

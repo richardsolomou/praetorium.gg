@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { posthog } from 'posthog-js'
 import { FullPageState } from '../client/components/PageState'
 import { RouteError } from '../client/components/RouteError'
 import { McpConsentPage } from '../client/features/account/McpConsentPage'
 import { reportRouteError } from '../client/routeErrors'
+import { captureWhenLoaded } from '../posthog'
 import { mcpConsentDetails } from '../server/mcpConsent'
 import { mcpConsentRefusal } from '../shared/mcpConsent'
 
@@ -18,7 +18,7 @@ export const Route = createFileRoute('/mcp-consent')({
   component: () => <McpConsentPage {...Route.useLoaderData()} />,
   onCatch: (error) => {
     const reason = mcpConsentRefusal(error)
-    if (reason) posthog.capture('mcp_consent_refused', { reason })
+    if (reason) captureWhenLoaded('mcp_consent_refused', { reason })
     else reportRouteError(error)
   },
   errorComponent: (props) => {
