@@ -458,6 +458,17 @@ export async function chooseBattlefield(page: Page) {
 /** The button that ends the current phase or passes the turn. */
 export const advanceButton = (page: Page) => page.getByRole('button', { name: /^(End the .+ phase|Pass the turn)$/ })
 
+/** Confirms a scoring prompt, first pressing Next card through any card the window has not yet shown. */
+export async function confirmScoring(prompt: Locator, name: string | RegExp) {
+  const confirm = prompt.getByRole('button', { name })
+  const next = prompt.getByRole('button', { name: 'Next card', exact: true })
+  await expect(async () => {
+    if (await next.isVisible()) await next.click()
+    await expect(confirm).toBeVisible({ timeout: 1_000 })
+  }).toPass({ timeout: 15_000 })
+  await confirm.click()
+}
+
 /** The hand being dealt: this table's own, or the practice opponent's it is also playing. */
 const drawPrompt = (page: Page) => page.getByRole('dialog', { name: /secondary missions$/ })
 /** What the turn the other side just finished owed this one, asked as the turn arrives. */
@@ -544,7 +555,7 @@ export async function takeTheTurn(page: Page) {
     const prompt = seen === 'owed' ? owedPrompt(page) : drawPrompt(page)
     if (seen === 'drawn') await clearDrawPrompt(prompt)
     else {
-      await prompt.getByRole('button', { name: /^(Take the turn|Finish battle)$/ }).click({ timeout: 15_000 })
+      await confirmScoring(prompt, /^(Take the turn|Finish battle)$/)
       await expect(prompt).toBeHidden()
     }
   }
@@ -569,7 +580,7 @@ export async function advance(page: Page, { dismissReminders = true }: { dismiss
       if (!(await prompt.isVisible().catch(() => false))) continue
       if (kind === 'draw') await clearDrawPrompt(prompt)
       else {
-        await prompt.getByRole('button', { name: /^(Take the turn|Finish battle)$/ }).click({ timeout: 15_000 })
+        await confirmScoring(prompt, /^(Take the turn|Finish battle)$/)
         await expect(prompt).toBeHidden()
       }
     }
@@ -607,7 +618,7 @@ export async function advance(page: Page, { dismissReminders = true }: { dismiss
         if ((await phase.textContent()) !== before) break
         if (dismissReminders && (await dismissBattleReminder(page))) continue
         if (await scoring.isVisible().catch(() => false)) {
-          await scoring.getByRole('button', { name: /^(Pass the turn|End the phase)$/ }).click()
+          await confirmScoring(scoring, /^(Pass the turn|End the phase)$/)
           await expect(scoring).toBeHidden()
           continue
         }
@@ -616,7 +627,7 @@ export async function advance(page: Page, { dismissReminders = true }: { dismiss
           await expect(discard).toBeHidden()
           continue
         }
-        await owed.getByRole('button', { name: /^(Take the turn|Finish battle)$/ }).click({ timeout: 15_000 })
+        await confirmScoring(owed, /^(Take the turn|Finish battle)$/)
         await expect(owed).toBeHidden()
       }
       await expect.poll(() => phase.textContent()).not.toBe(before)
