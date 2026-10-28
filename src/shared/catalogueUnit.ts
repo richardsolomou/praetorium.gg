@@ -26,6 +26,9 @@ const listPriceCache = new WeakMap<LoadedCatalogue, Map<string, number | null>>(
 export const listPriceOf = (loaded: LoadedCatalogue, catalogueId: string, entryId: string) =>
   cachedIn(listPriceCache, loaded, `${catalogueId}:${entryId}`, () => priceOf(loaded, catalogueId, entryId))
 
+export const seedListPrice = (loaded: LoadedCatalogue, catalogueId: string, entryId: string, points: number | null) =>
+  cachedIn(listPriceCache, loaded, `${catalogueId}:${entryId}`, () => points)
+
 /** What the smallest legal version of one datasheet costs, or null if it cannot be built. */
 export function priceOf(loaded: LoadedCatalogue, catalogueId: string, entryId: string, roster: readonly Selection[] = []) {
   const options = { primaryCatalogueId: catalogueId, mustering: true, roster, choiceCache: pricingChoices }

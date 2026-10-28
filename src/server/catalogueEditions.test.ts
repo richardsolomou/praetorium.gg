@@ -225,7 +225,7 @@ it('shares an edition load in progress with a request for it', () => {
 
 /** What each construction scope built, in order, with the `codex` edition promoted to the default or not. */
 function builtByScope(promoted: boolean) {
-  const loaded = versions(['child'], promoted, {} as CatalogueRuntime)
+  const loaded = versions(['child'], promoted, { read: () => new Map() } as unknown as CatalogueRuntime)
   const edition = mocks.loadCatalogue()
   mocks.loadCatalogue.mockReset().mockImplementation(() => {
     mocks.built.push('edition codex')

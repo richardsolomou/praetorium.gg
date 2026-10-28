@@ -21,7 +21,7 @@ import { remember } from '../core/collections'
 import { compiledGlobalSearchIndex } from './globalSearch'
 import { combatUnitsFor } from './combatUnits'
 import type { CatalogueRuntime, RuntimeStartup } from './catalogueRuntime'
-import { pickerConstruction } from '../shared/pickerUnits'
+import { type ConstructionSummaries, constructionSummaries, pickerConstruction, seedConstructionSummaries } from '../shared/pickerUnits'
 import { unitSummaries } from '../shared/cataloguePicker'
 import { completeSteps, type Steps, type Stepwise, stepThrough, stepwise } from '../shared/steps'
 
@@ -45,6 +45,8 @@ export function catalogueEditionLoaders(
   const runtimeCanonical = new Map<string, CanonicalCatalogue>()
   let prepared: RuntimeStartup | undefined
   const startup = () => (prepared ??= runtime!.read('startup'))
+  let summaries: Map<string, ConstructionSummaries> | undefined
+  const preparedSummaries = () => (summaries ??= runtime!.read('construction'))
   let packaged: Map<string, CanonicalCatalogue> | undefined
   const packagedCanonical = (key: string) => (packaged ??= loadEditionCanonicalCatalogues(directory)).get(key)
   let factions: ReturnType<typeof factionsFor> | null | undefined
@@ -213,18 +215,27 @@ export function catalogueEditionLoaders(
    * Reference lists come next because every faction and datasheet page reads one.
    */
   function* construction(scope: ConstructionScope): Steps<void> {
+    const books = yield* constructionBooks(scope)
+    if (!runtime) return
+    for (const [catalogue, rules, id] of books) {
+      const ready = preparedSummaries().get(id)
+      if (ready) seedConstructionSummaries(catalogue, rules, id, ready)
+    }
+    for (const [catalogue, , id] of books) yield* stepThrough(unitSummaries(catalogue, id, { factionCards: true, nonMatchedPlay: true }))
+    for (const [catalogue, rules, id] of books) yield* pickerConstruction(catalogue, rules, id)
+  }
+  function* constructionBooks(scope: ConstructionScope): Steps<[LoadedCatalogue, LoadedRules | null, string][]> {
     const original = base()
     const originalRules = baseRules()
     yield
     const books: [LoadedCatalogue, LoadedRules | null, string][] =
-      scope === 'serving' && runtime && original ? original.factions.map((faction) => [original, originalRules, faction.id]) : []
+      scope === 'serving' && original ? original.factions.map((faction) => [original, originalRules, faction.id]) : []
     for (const { edition } of composition?.editions ?? []) {
       if (edition.default !== (scope === 'serving')) continue
       const { catalogue, rules } = yield* stepThrough(contextLoad(edition.id)!)
-      if (runtime) for (const id of edition.catalogueIds) books.push([catalogue, rules, editionCatalogueId(edition.id, id)])
+      for (const id of edition.catalogueIds) books.push([catalogue, rules, editionCatalogueId(edition.id, id)])
     }
-    for (const [catalogue, , id] of books) yield* stepThrough(unitSummaries(catalogue, id, { factionCards: true, nonMatchedPlay: true }))
-    for (const [catalogue, rules, id] of books) yield* pickerConstruction(catalogue, rules, id)
+    return books
   }
   return {
     /** Builds every construction index ahead of requests; benchmarks and audits measure a fully built instance. */
@@ -234,6 +245,13 @@ export function catalogueEditionLoaders(
       for (const { edition } of composition?.editions ?? []) canonicalFor(editionCatalogueId(edition.id, edition.catalogueIds[0]!))
     },
     construction,
+    /** What `construction` prices for every book, keyed by catalogue ID, for a compiled runtime to carry. */
+    constructionSummaries: () =>
+      new Map(
+        (['serving', 'others'] as const)
+          .flatMap((scope) => completeSteps(constructionBooks(scope)))
+          .map(([catalogue, rules, id]) => [id, constructionSummaries(catalogue, rules, id)]),
+      ),
     resolve,
     factionFor,
     battleFactions: () => {

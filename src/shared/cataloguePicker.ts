@@ -21,7 +21,7 @@ import { type FactionRestrictions, restrictedBy } from './datacards'
 import { datacardOf } from './datasheetJoin'
 import { factionContentOf } from './factionNames'
 import { rosterDetachments } from './rosterDetachments'
-import { isOfferedDatasheet, listPriceOf, priceOf } from './catalogueUnit'
+import { isOfferedDatasheet, listPriceOf, priceOf, seedListPrice } from './catalogueUnit'
 import { completeSteps, type Steps, type Stepwise, stepwise } from './steps'
 
 export { isMatchedPlayDatasheet } from './catalogueUnit'
@@ -123,7 +123,7 @@ export function unitsIn(loaded: LoadedCatalogue, catalogueId: string, query: str
   )
 }
 
-type UnitListOptions = {
+export type UnitListOptions = {
   restrictions?: FactionRestrictions
   factionCards?: boolean
   battleSize?: number
@@ -219,11 +219,26 @@ function listOptions(
 /** The complete priced list `unitsIn` searches, built a datasheet per step and shared by every reader of the same list. */
 export function unitSummaries(loaded: LoadedCatalogue, catalogueId: string, options: UnitListOptions = {}): Stepwise<UnitSummary[]> {
   const listed = listOptions(loaded, catalogueId, options)
-  // The complete, priced list is cached so each search filters in memory. Waived rules
-  // change which datasheets the book offers and how many of each, so they belong in the key.
-  const cacheKey = `${JSON.stringify(listed.detachments.chosen.map((option) => option.id))}:${catalogueId}:${listed.included ? 'included' : 'all'}:${listed.battleSize ?? 'all'}:${[...listed.waivedRules].toSorted().join(',')}:${restrictionsKey(listed.restrictions)}:${listed.nonMatchedPlay}`
-  return cachedIn(unitSummaryCache, loaded, cacheKey, () => stepwise(() => summarizeUnits(loaded, catalogueId, listed)))
+  return cachedIn(unitSummaryCache, loaded, summaryKey(catalogueId, listed), () =>
+    stepwise(() => summarizeUnits(loaded, catalogueId, listed)),
+  )
 }
+
+/**
+ * Supplies what `unitSummaries` would build for `options` from a list built earlier from the same snapshot, and the
+ * list prices in it, unless a reader built them first.
+ */
+export function seedUnitSummaries(loaded: LoadedCatalogue, catalogueId: string, options: UnitListOptions, summaries: UnitSummary[]) {
+  const listed = listOptions(loaded, catalogueId, options)
+  cachedIn(unitSummaryCache, loaded, summaryKey(catalogueId, listed), () => ({ get: () => summaries, step: () => true }))
+  if (battleSizeSelection(loaded.index, listed.battleSize ?? null) || listed.detachments.selections.length) return
+  for (const unit of summaries) seedListPrice(loaded, catalogueId, unit.id, unit.points)
+}
+
+// The complete, priced list is cached so each search filters in memory. Waived rules
+// change which datasheets the book offers and how many of each, so they belong in the key.
+const summaryKey = (catalogueId: string, listed: ListOptions) =>
+  `${JSON.stringify(listed.detachments.chosen.map((option) => option.id))}:${catalogueId}:${listed.included ? 'included' : 'all'}:${listed.battleSize ?? 'all'}:${[...listed.waivedRules].toSorted().join(',')}:${restrictionsKey(listed.restrictions)}:${listed.nonMatchedPlay}`
 
 /** The datasheets `unitsIn` lists, in its order, without pricing each of them. */
 export function unitIdsIn(loaded: LoadedCatalogue, catalogueId: string, options: UnitListOptions = {}): string[] {
