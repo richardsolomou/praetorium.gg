@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.195.8
+
+### Patch Changes
+
+- 5e70390: Editing a list, such as typing a unit's name, responds faster, most of all in large armies.
+- 5e70390: The first action in a battle or tournament no longer freezes the page for up to a couple of seconds while the army rules are prepared.
+
 ## 0.195.7
 
 ### Patch Changes
