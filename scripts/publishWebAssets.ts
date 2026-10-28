@@ -45,6 +45,10 @@ function retryTransient<T>(attempt: () => Promise<T>, stopped: AbortSignal, retr
   })
 }
 
+/** A timeout names no request, so the asset it was for is added. */
+const timedOut = (error: unknown, name: string) =>
+  error instanceof Error && error.name === 'TimeoutError' ? new Error(`Web asset request timed out: ${name}`, { cause: error }) : error
+
 export async function publishWebAssets(
   directories: string[],
   storage: { base: string; request: typeof fetch },
@@ -149,7 +153,7 @@ export async function publishWebAssets(
       uploaded++
     } catch (error) {
       cancelled.abort()
-      throw error
+      throw timedOut(error, name)
     }
   })
   console.log(`Verified ${assets.size} shared web assets (${uploaded} uploaded)`)
@@ -186,7 +190,7 @@ export async function verifyWebAssetRoute(directories: string[], origin: string,
       )
     } catch (error) {
       cancelled.abort()
-      throw error
+      throw timedOut(error, name)
     }
   })
   const missing = await retryTransient(
