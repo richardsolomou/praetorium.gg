@@ -547,9 +547,6 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
         ) : null}
         <div data-battle-sticky-header className="sticky top-(--app-header) z-20 space-y-2 bg-void/95 pb-2 backdrop-blur lg:contents">
           <Scoreboard view={view} clock={clock} sides={table} />
-          <GuideHelp task="battle" step="battle-live-score">
-            Playing guide
-          </GuideHelp>
 
           {/* Nobody across the table yet means neither a tab nor a column for them. */}
           <Tabs value={focus} onValueChange={(value) => setFocus(value as Focus)} className="battle-focus-tabs lg:hidden">
@@ -638,6 +635,9 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                 ) : null}
               </dl>
               {view.settings.manual ? <p className="text-xs text-dim">{MANUAL_TRACKING_LIMITS}</p> : null}
+              <GuideHelp task="battle" step="battle-live-score">
+                Playing guide
+              </GuideHelp>
 
               <div data-onboarding="battle-live-report" className="border-t border-edge pt-3">
                 <div className="flex flex-wrap items-center justify-end gap-2">

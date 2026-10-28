@@ -32,7 +32,7 @@ test('players and spectators open the saved battlefield as a full-board map', as
   await page.getByRole('tab', { name: 'Battle', exact: true }).click()
   await inspectMap(page)
   await concede(page)
-  await expect(page.getByText('Battle replay', { exact: true })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Battle replay timeline' })).toBeVisible()
   await inspectMap(page)
 
   const context = await browser.newContext()
