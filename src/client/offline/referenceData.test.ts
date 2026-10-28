@@ -81,6 +81,7 @@ it('makes an updated rule available to the current page without replacing privat
   const client = new QueryClient()
   const key = ['rule-section', 'core', 'moving']
   client.setQueryData(['me'], { name: 'Player' })
+  client.setQueryData(key, 'Old rule')
   applyReferenceData(client, reference('old', [{ key, data: 'Old rule' }]))
   applyReferenceData(client, reference('new', [{ key, data: 'Updated rule' }]))
   expect([
@@ -132,4 +133,9 @@ it('fills only reference queries already waiting when restoring', () => {
       .getAll()
       .map((query) => [query.queryKey[0], query.state.data]),
   ).toEqual([['rule-index', 'Saved rules']])
+})
+it('leaves queries no page has made to read a new revision when made', () => {
+  const client = new QueryClient()
+  applyReferenceData(client, reference('new', [{ key: ['deployments'], data: [] }]))
+  expect(client.getQueryCache().getAll()).toEqual([])
 })
