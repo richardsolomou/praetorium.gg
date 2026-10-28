@@ -4,9 +4,13 @@
 
 The faction line is missing or isn't a faction name. Copy the export again from the very top, and check the closest name the message suggests.
 
+### "That looks like a … roster file, which Praetorium cannot read yet"
+
+You pasted or dropped a `.ros`, `.rosz` or `.regiztry` file. Open the list in the app that made it, use its text export, and paste that instead. Praetorium counts these attempts, never their contents, to decide whether to support the files.
+
 ### "it is not a supported army-text export"
 
-The paste isn't one of the formats above, or it's a fragment. Paste the full text export, not a screenshot transcription or a `.ros` file.
+The paste isn't one of the formats above, or it's a fragment. Paste the full text export, not a screenshot transcription.
 
 ### A unit is "a … datasheet, not …"
 
@@ -36,7 +40,7 @@ When an import fails or needs review, its text is sent to Praetorium automatical
 
 ## Limits
 
-- `.ros` and `.rosz` files aren't read, and a list can't have more than 100 entries.
+- `.ros`, `.rosz` and `.regiztry` files aren't read, and a list can't have more than 100 entries.
 - Text exports don't carry rule waivers, optional rules or allied detachments; set those in the builder.
 - Nothing is guessed: a unit or choice that doesn't match is reported, never swapped for a similar one.
 - Your notes, preparation and reminders never transfer in either direction.
