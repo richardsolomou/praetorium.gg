@@ -87,7 +87,7 @@ export function builtUnitPointAdjustment(
   primaryCatalogueId: string,
   catalogueId: string,
   entryId: string,
-  built: Pick<BuiltUnit, 'selection' | 'size'>,
+  built: BuiltUnit,
   copy = 1,
 ) {
   const models = built.size.models
