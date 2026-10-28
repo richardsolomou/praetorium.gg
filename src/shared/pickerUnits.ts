@@ -3,9 +3,9 @@ import { attachmentPartyOf } from '../core/attach'
 import type { Selection } from '../core/evaluate'
 import { defaultSelection } from '../core/expand'
 import { routeSlug } from '../core/slug'
-import type { PickerUnit } from '../contracts/catalogue'
+import type { PickerUnit, UnitSummary } from '../contracts/catalogue'
 import { datasheetSearchFieldsIn } from './catalogue'
-import { detachmentUnitFacts, unitSummaries, unitsIn } from './cataloguePicker'
+import { detachmentUnitFacts, seedUnitSummaries, type UnitListOptions, unitSummaries, unitsIn } from './cataloguePicker'
 import { factionDisplayName } from './factionNames'
 import type { LoadedCatalogue } from './catalogueIndex'
 import { rosterDetachments } from './rosterDetachments'
@@ -63,9 +63,36 @@ export function pickerUnitsFor(
   )
 }
 
+/** The lists a faction's reference list and unpriced picker read. */
+const constructionLists = (loaded: LoadedCatalogue, rules: LoadedRules | null, catalogueId: string) =>
+  ({
+    cards: { factionCards: true, nonMatchedPlay: true },
+    picker: { restrictions: pickerRestrictions(loaded, rules, catalogueId), nonMatchedPlay: true },
+  }) satisfies Record<string, UnitListOptions>
+
+export type ConstructionSummaries = Record<keyof ReturnType<typeof constructionLists>, UnitSummary[]>
+
+/** What `pickerConstruction` prices for a book, for a compiled runtime to carry. */
+export function constructionSummaries(loaded: LoadedCatalogue, rules: LoadedRules | null, catalogueId: string): ConstructionSummaries {
+  const { cards, picker } = constructionLists(loaded, rules, catalogueId)
+  return { cards: unitSummaries(loaded, catalogueId, cards).get(), picker: unitSummaries(loaded, catalogueId, picker).get() }
+}
+
+/** Supplies what `constructionSummaries` returned for the same snapshot, so `pickerConstruction` need not price them again. */
+export function seedConstructionSummaries(
+  loaded: LoadedCatalogue,
+  rules: LoadedRules | null,
+  catalogueId: string,
+  summaries: ConstructionSummaries,
+) {
+  const { cards, picker } = constructionLists(loaded, rules, catalogueId)
+  seedUnitSummaries(loaded, catalogueId, cards, summaries.cards)
+  seedUnitSummaries(loaded, catalogueId, picker, summaries.picker)
+}
+
 /** Prepares what a faction's unpriced picker and reference list read, a datasheet per step. */
 export function* pickerConstruction(loaded: LoadedCatalogue, rules: LoadedRules | null, catalogueId: string): Steps<void> {
-  yield* stepThrough(unitSummaries(loaded, catalogueId, { factionCards: true, nonMatchedPlay: true }))
+  yield* stepThrough(unitSummaries(loaded, catalogueId, constructionLists(loaded, rules, catalogueId).cards))
   yield* pickerSteps(loaded, rules, catalogueId)
 }
 

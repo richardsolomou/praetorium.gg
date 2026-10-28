@@ -3,12 +3,14 @@ import os from 'node:os'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { readCatalogueRuntime } from './catalogueRuntime'
+import { readCatalogueRuntime, type RuntimeConstruction } from './catalogueRuntime'
 import { writeCatalogueRuntime } from '../../scripts/lib/catalogueRuntime'
 import { system } from './catalogue.fixtures'
 import { catalogueEditionLoaders } from './catalogueEditions'
 import { loadCatalogue } from './catalogueIndex'
-import { unitsIn } from '../shared/cataloguePicker'
+import { unitSummaries, unitsIn } from '../shared/cataloguePicker'
+import { pickerUnitsFor } from '../shared/pickerUnits'
+import { completeSteps } from '../shared/steps'
 import { calculateRosterPrice } from '../shared/pricing'
 import { compileCanonicalCatalogue } from './canonicalCatalogue'
 import { prepareCatalogueRuntime } from '../../scripts/lib/catalogueRuntimeCache'
@@ -152,6 +154,10 @@ function withEditions(defaultEdition = false, sharedOptions = false) {
     fs.copyFileSync(path.join(directory, 'revision.json'), path.join(target, 'revision.json'))
   }
   writeCatalogueRuntime(directory, output)
+  return runtimeLoaders()
+}
+
+function runtimeLoaders() {
   const base = loadCatalogue(directory)!
   return catalogueEditionLoaders(
     directory,
@@ -160,6 +166,34 @@ function withEditions(defaultEdition = false, sharedOptions = false) {
     readCatalogueRuntime(directory, output),
   )
 }
+
+function replaceRuntimeFile(key: string, content: string) {
+  fs.writeFileSync(path.join(output, `${key}.json`), content)
+  const manifestFile = path.join(output, 'manifest.json')
+  const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'))
+  manifest.files[key] = { bytes: Buffer.byteLength(content), sha256: createHash('sha256').update(content).digest('hex') }
+  fs.writeFileSync(manifestFile, JSON.stringify(manifest))
+}
+
+const constructionLists = (versions: ReturnType<typeof runtimeLoaders>) =>
+  ['army', 'version-1~army'].map((id) => {
+    const loaded = versions.catalogueFor(id)!
+    return [unitSummaries(loaded, id, { factionCards: true, nonMatchedPlay: true }).get(), pickerUnitsFor(loaded, null, id, '')]
+  })
+
+it('lists construction summaries from the compiled runtime', () => {
+  withEditions()
+  const table = JSON.parse(fs.readFileSync(path.join(output, 'construction.json'), 'utf8')) as RuntimeConstruction
+  replaceRuntimeFile('construction', JSON.stringify({ ...table, rows: table.rows.map((row) => ({ ...row, points: 999 })) }))
+  const versions = runtimeLoaders()
+  completeSteps(versions.construction('serving'))
+  completeSteps(versions.construction('others'))
+  expect(
+    constructionLists(versions)
+      .flat(2)
+      .map((unit) => unit.points),
+  ).toEqual([999, 999, 999, 999])
+})
 
 it('recompiles version 12 packages when preparing the base and edition runtime', async () => {
   withEditions()
@@ -233,12 +267,7 @@ it.each([-1, 0.5, 999999])('rejects an invalid prepared reference index %s', (in
   withEditions()
   const file = path.join(output, 'version-1.canonical.json')
   const reference = JSON.parse(fs.readFileSync(file, 'utf8'))
-  const content = JSON.stringify({ ...reference, datasheets: [index] })
-  fs.writeFileSync(file, content)
-  const manifestFile = path.join(output, 'manifest.json')
-  const manifest = JSON.parse(fs.readFileSync(manifestFile, 'utf8'))
-  manifest.files['version-1.canonical'] = { bytes: Buffer.byteLength(content), sha256: createHash('sha256').update(content).digest('hex') }
-  fs.writeFileSync(manifestFile, JSON.stringify(manifest))
+  replaceRuntimeFile('version-1.canonical', JSON.stringify({ ...reference, datasheets: [index] }))
   expect(() => readCatalogueRuntime(directory, output).read('version-1.canonical')).toThrow('invalid index')
 })
 

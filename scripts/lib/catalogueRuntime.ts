@@ -5,9 +5,16 @@ import { catalogueEditionLoaders } from '../../src/server/catalogueEditions'
 import { referenceCatalogue } from '../../src/server/canonicalCatalogue'
 import { readCatalogueComposition } from '../../src/server/catalogueComposition'
 import { editionCatalogueId } from '../../src/core/catalogueEdition'
-import { catalogueRuntimeFingerprint, runtimeManifestSchema, MAX_RUNTIME_FILE_BYTES } from '../../src/server/catalogueRuntime'
+import {
+  catalogueRuntimeFingerprint,
+  runtimeManifestSchema,
+  MAX_RUNTIME_FILE_BYTES,
+  type RuntimeConstruction,
+} from '../../src/server/catalogueRuntime'
 import { loadSnapshot } from './catalogueSnapshotLoad'
 import { replaceDirectory } from '../../src/server/replaceDirectory'
+import { remember } from '../../src/core/collections'
+import type { ConstructionSummaries } from '../../src/shared/pickerUnits'
 
 export function writeCatalogueRuntime(directory: string, output: string) {
   const { catalogue, rules } = loadSnapshot(directory)
@@ -52,6 +59,7 @@ export function writeCatalogueRuntime(directory: string, output: string) {
       searchIndex: versions.searchIndex(),
       combatUnits: versions.combatUnits(),
     })
+    write('construction', constructionTable(versions.constructionSummaries()))
     for (const { edition } of readCatalogueComposition(directory)?.editions ?? []) {
       const id = editionCatalogueId(edition.id, edition.catalogueIds[0]!)
       const selected = versions.canonicalFor(id)!
@@ -76,4 +84,14 @@ export function writeCatalogueRuntime(directory: string, output: string) {
   } finally {
     fs.rmSync(staging, { recursive: true, force: true })
   }
+}
+
+/** A book's reference list and picker, and each rules version of it, mostly hold the same rows, so each is written once. */
+function constructionTable(summaries: Map<string, ConstructionSummaries>) {
+  const table: RuntimeConstruction = { rows: [], books: {} }
+  const offsets = new Map<string, number>()
+  const indexes = (rows: RuntimeConstruction['rows']) =>
+    rows.map((row) => remember(offsets, JSON.stringify(row), () => table.rows.push(row) - 1))
+  for (const [id, { cards, picker }] of summaries) table.books[id] = { cards: indexes(cards), picker: indexes(picker) }
+  return table
 }

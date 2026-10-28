@@ -4,10 +4,11 @@ import { createHash, hash } from 'node:crypto'
 import { z } from 'zod'
 import { CANONICAL_CATALOGUE_COMPILER_VERSION } from './canonicalCatalogue'
 import { parseSharedJson } from './sharedJson'
-import type { CanonicalCatalogue } from '../contracts/catalogue'
+import type { CanonicalCatalogue, UnitSummary } from '../contracts/catalogue'
 import type { GlobalSearchIndex } from '../core/referenceSearch'
 import type { factionsFor } from '../shared/factionReferences'
 import type { combatUnitsFor } from './combatUnits'
+import type { ConstructionSummaries } from '../shared/pickerUnits'
 
 export const MAX_RUNTIME_FILE_BYTES = 64 * 1024 * 1024
 export const runtimeManifestSchema = z.object({
@@ -15,10 +16,10 @@ export const runtimeManifestSchema = z.object({
   fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
   files: z
     .record(
-      z.string().regex(/^(startup|[a-z0-9][a-z0-9-]{0,19}\.canonical)$/),
+      z.string().regex(/^(startup|construction|[a-z0-9][a-z0-9-]{0,19}\.canonical)$/),
       z.object({ sha256: z.string().regex(/^[a-f0-9]{64}$/), bytes: z.number().int().min(1).max(MAX_RUNTIME_FILE_BYTES) }),
     )
-    .refine((files) => Object.keys(files).length <= 17 && 'startup' in files),
+    .refine((files) => Object.keys(files).length <= 18 && 'startup' in files && 'construction' in files),
 })
 
 export type RuntimeStartup = {
@@ -28,20 +29,26 @@ export type RuntimeStartup = {
   searchIndex: GlobalSearchIndex
   combatUnits: ReturnType<typeof combatUnitsFor>
 }
-type RuntimeKey = 'startup' | `${string}.canonical`
+type RuntimeKey = 'startup' | 'construction' | `${string}.canonical`
 type RuntimeCanonical = Omit<CanonicalCatalogue, 'datasheets' | 'detachments' | 'issues'> & {
   datasheets: number[]
   detachments: number[]
   issues: number[]
 }
-type RuntimeValue<K extends RuntimeKey> = K extends 'startup' ? RuntimeStartup : CanonicalCatalogue
+/** Each book's construction summaries as indexes into one table of the distinct rows. */
+export type RuntimeConstruction = { rows: UnitSummary[]; books: Record<string, Record<keyof ConstructionSummaries, number[]>> }
+type RuntimeValue<K extends RuntimeKey> = K extends 'startup'
+  ? RuntimeStartup
+  : K extends 'construction'
+    ? Map<string, ConstructionSummaries>
+    : CanonicalCatalogue
 
 export type CatalogueRuntime = {
   read: <K extends RuntimeKey>(key: K) => RuntimeValue<K>
 }
 
 export function catalogueRuntimeFingerprint(directory: string) {
-  const fingerprint = createHash('sha256').update(`runtime-v4:canonical-${CANONICAL_CATALOGUE_COMPILER_VERSION}`)
+  const fingerprint = createHash('sha256').update(`runtime-v5:canonical-${CANONICAL_CATALOGUE_COMPILER_VERSION}`)
   for (const file of ['revision.json', 'composition.json', 'reference-policy.json']) {
     const target = path.join(directory, file)
     fingerprint.update(file).update(fs.existsSync(target) ? fs.readFileSync(target) : 'absent')
@@ -56,7 +63,7 @@ export function readCatalogueRuntime(directory: string, output: string): Catalog
   if (manifest.fingerprint !== catalogueRuntimeFingerprint(directory))
     throw new Error('Catalogue runtime does not match its snapshot/compiler')
   let startup: RuntimeStartup | undefined
-  const read = (key: RuntimeKey): RuntimeStartup | CanonicalCatalogue => {
+  const read = (key: RuntimeKey): RuntimeStartup | Map<string, ConstructionSummaries> | CanonicalCatalogue => {
     const entry = manifest.files[key]
     if (!entry) throw new Error(`Catalogue runtime is missing ${key}`)
     const target = path.join(output, `${key}.json`)
@@ -66,14 +73,20 @@ export function readCatalogueRuntime(directory: string, output: string): Catalog
       throw new Error(`Catalogue runtime verification failed for ${key}`)
     const parsed = parseSharedJson(content.toString('utf8'))
     if (key === 'startup') return (startup = parsed as RuntimeStartup)
-    const reference = (startup ?? (read('startup') as RuntimeStartup)).canonical
-    const selected = parsed as RuntimeCanonical
     const restore = <T>(indexes: number[], records: T[]) =>
       indexes.map((index) => {
         if (!Number.isInteger(index) || index < 0 || index >= records.length)
           throw new Error(`Catalogue runtime has an invalid index in ${key}`)
         return records[index]!
       })
+    if (key === 'construction') {
+      const { rows, books } = parsed as RuntimeConstruction
+      return new Map(
+        Object.entries(books).map(([id, { cards, picker }]) => [id, { cards: restore(cards, rows), picker: restore(picker, rows) }]),
+      )
+    }
+    const reference = (startup ?? (read('startup') as RuntimeStartup)).canonical
+    const selected = parsed as RuntimeCanonical
     return {
       ...selected,
       datasheets: restore(selected.datasheets, reference.datasheets),
