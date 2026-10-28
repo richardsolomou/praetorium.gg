@@ -1143,6 +1143,28 @@ describe('swiss rounds', () => {
     expect(swiss.submit('battle-a', 'a', seq, { kind: 'reopen-battle' })).toBe('appended')
   })
 
+  it('lets an organizer who did not play a table reopen its result, and the fold reopens it', () => {
+    const swiss = setup()
+    const seq = swiss.playRoundOne()
+    swiss.pairRoundTwo()
+    expect(swiss.submit('battle-a', 'organizer', seq, { kind: 'reopen-battle' })).toBe('appended')
+    // A battle that folded back to playing has nothing to reopen.
+    expect(swiss.submit('battle-a', 'organizer', seq + 1, { kind: 'reopen-battle' })).toBe('refused')
+  })
+
+  it('refuses an organizer without a seat anything but reopening', () => {
+    const swiss = setup()
+    const seq = swiss.playRoundOne()
+    swiss.pairRoundTwo()
+    expect(swiss.submit('battle-a', 'organizer', seq, { kind: 'undo', target: seq })).toBe('refused')
+  })
+
+  it('refuses a player reopening a table they did not play', () => {
+    const swiss = setup()
+    const seq = swiss.playRoundOne()
+    expect(swiss.submit('battle-a', 'c', seq, { kind: 'reopen-battle' })).toBe('refused')
+  })
+
   it('seats every sealed entrant at one table', () => {
     expect(setup().pair(1, [['a', 'b']])).toBe('stale')
   })

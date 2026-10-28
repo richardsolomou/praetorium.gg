@@ -463,21 +463,20 @@ function touchClub(ctx: Context, clubId: string) {
 const CLUB_MEMBERS_ONLY = 'every player must be a member of the club'
 const SWISS_RESULT_LOCKED = 'a later round is paired on this result, so only the organizer can reopen it'
 
-/** Whether `userId` would reopen a finished Swiss table, directly or by undoing its end, that `swissResultLocked` closes to them. */
-function reopensLockedSwissResult(ctx: Context, battleId: string, userId: string, finished: boolean, command: Command) {
-  if (!finished || (command.kind !== 'reopen-battle' && command.kind !== 'undo')) return false
+/** A Swiss table's round, the latest round paired in its event, and who runs that event, or null for any other battle. */
+function swissTable(ctx: Context, battleId: string) {
   const link = ctx.db.leagueEventBattles.battleId.find(battleId)
-  if (!link) return false
+  if (!link) return null
   const pairings = Array.from(ctx.db.leagueRoundPairings.eventId.filter(link.eventId))
   const paired = pairings.find((pairing) => pairing.battleId === battleId)
-  if (!paired) return false
+  if (!paired) return null
   const event = ctx.db.sealedEvents.id.find(link.eventId)
   const host = event && hostOfEvent(ctx, event)
-  return swissResultLocked({
-    isOrganizer: Boolean(host && hostOrganizerIds(ctx, host).includes(userId)),
+  return {
     battleRound: paired.round,
     latestPairedRound: Math.max(...pairings.map((pairing) => pairing.round)),
-  })
+    organizerIds: host ? hostOrganizerIds(ctx, host) : [],
+  }
 }
 
 function isClubMember(ctx: Context, clubId: string, userId: string) {
@@ -1099,12 +1098,18 @@ export const submitBattle = spacetime.procedure(
         }
       }
       if (input.expectedSeq !== state.seq) return productJson({ result: { outcome: 'stale', seq: state.seq }, log, ...appliedReport })
+      // Only reopening a finished result, directly or by undoing its end, depends on who runs a Swiss table.
+      const swiss =
+        state.status === 'finished' && (parsed.data.kind === 'reopen-battle' || parsed.data.kind === 'undo')
+          ? swissTable(tx, input.battleId)
+          : null
+      const isOrganizer = Boolean(swiss?.organizerIds.includes(input.userId))
       const refusal =
-        validate(state, input.userId, parsed.data) ??
+        validate(state, input.userId, parsed.data, isOrganizer) ??
         (parsed.data.kind === 'set-battle-club' && parsed.data.clubId && !battleClubIds(tx, seats).includes(parsed.data.clubId)
           ? CLUB_MEMBERS_ONLY
           : null) ??
-        (reopensLockedSwissResult(tx, input.battleId, input.userId, state.status === 'finished', parsed.data) ? SWISS_RESULT_LOCKED : null)
+        (swiss && swissResultLocked({ ...swiss, isOrganizer }) ? SWISS_RESULT_LOCKED : null)
       if (refusal) return productJson({ result: { outcome: 'refused', reason: refusal }, log, ...appliedReport })
       if (input.externalRefusal) {
         if (input.externalRefusal.length > 1_000) throw new SenderError('Invalid battle refusal')

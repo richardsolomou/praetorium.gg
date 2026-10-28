@@ -295,7 +295,8 @@ function describe(
       return !command.concededBy || command.concededBy === by ? `${who} concedes` : `${who} records that ${concedingPlayer} concedes`
     }
     case 'reopen-battle':
-      return `${who} reopens the battle`
+      // Only an event's organizer reopens a battle without a seat in it.
+      return `${named.has(by) ? who : 'The organizer'} reopens the battle`
     case 'add-note':
       return `${who} notes: ${command.text.trim()}`
     case 'undo':

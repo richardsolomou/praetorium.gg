@@ -5,6 +5,7 @@ import { app } from '../app'
 import { currentUserId, requireUserId } from '../playerSession'
 import { BATTLES_PAGE } from '../service'
 import { mutationRpc, rpc } from '../rpc'
+import { captureBattleCommand } from '../battleTelemetry'
 import { shareLeagueRosterSchema } from '../../contracts/leagueRosterSharing'
 import {
   addLeagueEntrantsSchema,
@@ -22,6 +23,7 @@ import {
   moderateLeagueEntrySchema,
   openLeagueSchema,
   pairLeagueRoundSchema,
+  reopenSwissTableSchema,
   setLeagueAdminsSchema,
   setLeagueTeamDispositionSchema,
   setLeagueTeamWarlordSchema,
@@ -327,5 +329,18 @@ export const pairLeagueRound = createServerFn({ method: 'POST' })
       const result = await app().service.pairLeagueRound(data.token, data.eventToken, userId)
       await app().telemetry.capture(userId, 'league_round_paired', { round: result.round })
       return result
+    }),
+  )
+
+export const reopenSwissTable = createServerFn({ method: 'POST' })
+  .validator(reopenSwissTableSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      const startedAt = performance.now()
+      const { battleId, result } = await app().service.reopenSwissTable(data.token, data.eventToken, data.battleToken, userId)
+      await captureBattleCommand(userId, battleId, { kind: 'reopen-battle' }, { result }, performance.now() - startedAt, 'direct')
+      if (result.outcome === 'refused') throw new Response(result.reason, { status: 409 })
+      if (result.outcome === 'stale') throw new Response('the battle changed while it was being reopened, so try again', { status: 409 })
     }),
   )

@@ -36,7 +36,7 @@ After the reveal, press **Pair round 1**. The first round is drawn at random. Ea
 
 The results rank by match points (3 for a win or bye, 1 for a draw), then total victory points, then strength of schedule: the match points of everyone a player has faced.
 
-Once you pair the next round, the results of earlier rounds are locked.
+Once you pair the next round, the results of earlier rounds are locked. Only you and your admins can then correct one. To correct a wrong result in any round, press the reopen button beside the table's score, then **Reopen result**. You don't need to have played at that table. The battle continues from its last turn, and its players correct the score and finish it again. Until they do, the table has no result in the standings. Rounds that are already paired stay the same.
 
 If a player leaves or doesn't show, press the drop button on their roster card, then **Drop player**. They aren't paired again and can't rejoin, and their results stay in the table, including in their opponents' strength of schedule. If their table in the current round hasn't finished, their opponent takes it as a bye, so the next round can be paired. A battle already started at that table stays in the battle list but no longer counts for the round. Players can withdraw themselves the same way.
 

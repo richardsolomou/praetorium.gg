@@ -9,7 +9,7 @@
 - Before reveal, only `readsSealedLeagueRoster` and `readsAlliedLeagueRoster` grant roster access, organizers included.
 - Reveal is irreversible. A Force Disposition chosen before reveal stays fixed, so a resealed list must keep it on offer.
 - League battle creation copies snapshots and locks rosters in one transaction.
-- A Swiss table's result locks once a later round is paired: `swissResultLocked` decides, and `submitBattle` refuses `reopen-battle` or a post-finish `undo` unless the seat belongs to the tournament's owner or an admin. Only seated players submit battle commands, so an organizer who didn't play the table can't correct it today. A correction recomputes standings and never re-pairs.
+- A Swiss table's result locks once a later round is paired: `swissResultLocked` decides, and `submitBattle` refuses `reopen-battle` or a post-finish `undo` unless the sender runs the event. An organizer without a seat may send only `reopen-battle` to a finished table (`commandRefusal`'s `organizer`), and the fold applies a reopen without a seat, so the log replays it. Its players then correct the result. A correction recomputes standings and never re-pairs.
 - Swiss results fold from `league_round_pairings` and the battles they link, never a stored score. A dropped entrant (`droppedAt`) keeps their entry and results but is never paired again; their unfinished table scores as a bye for the opponent in `src/core/swiss.ts`, and the module unlinks any battle still going there so it can't change the round afterwards.
 
 ## Swiss rounds
