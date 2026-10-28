@@ -15,6 +15,7 @@ import { captureAppSnapshot } from '../../offline/appSnapshot'
 import { writeAppSnapshot } from '../../offline/appStorage'
 import { isFetchNetworkFailure } from '../../networkErrors'
 import { sendingBattleCommands } from '../../pendingWrites'
+import { predictedBattle, savedBattleAt } from '../../offline/battleFunctions'
 import type { AbilityReminder } from '../../../core/reminders'
 import { asSentence } from '../../text'
 
@@ -30,6 +31,15 @@ export type SendCommand = (
 ) => void
 type RosterDraftInput = z.input<typeof saveRosterSchema>
 type QueuedCommand = { command: SubmittedCommand; basedOn: number; background?: boolean; complete?: (appended: boolean) => void }
+type Prediction = NonNullable<ReturnType<typeof predictedBattle>>
+/** The newest screen worked out on this device as the cache holds it, and the service's screen to return to if a command throws. */
+type Projection = { battle: Prediction; shown: unknown; confirmed: unknown }
+
+/** Screens worked out on this device ahead of the service's answer, with the sequence the service last confirmed. */
+const predictions = new WeakMap<object, number>()
+
+/** The sequence the service last confirmed for `screen`, which commands are queued against while a prediction shows. */
+export const confirmedSeq = (screen: { view: { seq: number } }) => predictions.get(screen) ?? screen.view.seq
 
 function explain(result: SubmitResult, setup: boolean) {
   if (result.outcome === 'appended') return null
@@ -74,6 +84,8 @@ async function sendQueued({
   draining,
   setPending,
   setProblem,
+  projection,
+  unshown,
 }: {
   token: string
   queryClient: QueryClient
@@ -82,6 +94,8 @@ async function sendQueued({
   draining: RefObject<boolean>
   setPending: (pending: boolean) => void
   setProblem: (problem: string | null) => void
+  projection?: RefObject<Projection | null>
+  unshown?: RefObject<Set<QueuedCommand>>
 }) {
   draining.current = true
   try {
@@ -93,10 +107,17 @@ async function sendQueued({
         const { result, screen } = await submit({ data: { token, expectedSeq: seen.current, command: item.command } })
         const setup = screen?.kind === 'battle' && screen.view.status === 'setup'
         if (!item.background || result.outcome === 'refused') setProblem(explain(result, setup))
-        // A realtime refetch that landed while this command was in flight can hold a newer screen than its answer.
+        // A realtime refetch that landed while this command was in flight can hold a newer screen than its answer, and so can
+        // the predictions of commands queued behind it, unless this one failed and they are about to be dropped.
         queryClient.setQueryData(battleQuery(token).queryKey, (held) =>
-          held?.kind === 'battle' && screen?.kind === 'battle' && held.view.seq > screen.view.seq ? held : screen,
+          held?.kind === 'battle' &&
+          screen?.kind === 'battle' &&
+          held.view.seq > screen.view.seq &&
+          (result.outcome === 'appended' || !predictions.has(held))
+            ? held
+            : screen,
         )
+        if (projection?.current && screen?.kind === 'battle') projection.current.confirmed = screen
         if (screen?.kind === 'battle') seen.current = Math.max(seen.current, screen.view.seq)
         // Before the snapshot write yields, so the screen and anything shown ahead of it change in one render.
         item.complete?.(result.outcome === 'appended')
@@ -111,6 +132,9 @@ async function sendQueued({
         }
       } catch (error) {
         // Whatever was behind this one was written against a history that never happened.
+        const confirmed = projection?.current?.confirmed
+        if (confirmed)
+          queryClient.setQueryData(battleQuery(token).queryKey, (held) => (held && predictions.has(held) ? confirmed : held) as never)
         item.complete?.(false)
         for (const candidate of queued.current) candidate.complete?.(false)
         queued.current = []
@@ -137,8 +161,29 @@ async function sendQueued({
     }
   } finally {
     draining.current = false
+    unshown?.current.clear()
     setPending(false)
   }
+}
+
+/** Shows `command`'s result from the history on this device, on top of any result already shown ahead of the service. */
+export async function showPrediction(
+  { token, queryClient, projection }: { token: string; queryClient: QueryClient; projection: RefObject<Projection | null> },
+  command: Command,
+) {
+  const key = battleQuery(token).queryKey
+  const held = queryClient.getQueryData(key)
+  if (held?.kind !== 'battle') return false
+  const base = projection.current?.shown === held ? projection.current.battle : await savedBattleAt(token, held.view.seq)
+  const battle = base && predictedBattle(base, command)
+  // The service answered meanwhile, so its screen stays.
+  if (!battle || queryClient.getQueryData(key) !== held) return false
+  const confirmed = predictions.has(held) ? projection.current?.confirmed : held
+  // The cache keeps its own copy of what it is given.
+  const shown = queryClient.setQueryData(key, battle.screen)!
+  predictions.set(shown, confirmedSeq(held))
+  projection.current = { battle, shown, confirmed }
+  return true
 }
 
 /**
@@ -156,23 +201,39 @@ export function useCommand(token: string, seq: number) {
   const seen = useRef(seq)
   const queued = useRef<QueuedCommand[]>([])
   const draining = useRef(false)
+  const projection = useRef<Projection | null>(null)
+  /** Blocking commands whose result is not on screen yet, which keep the controls disabled. */
+  const unshown = useRef(new Set<QueuedCommand>())
+  const predicting = useRef(Promise.resolve())
 
   useEffect(() => {
     seen.current = Math.max(seen.current, seq)
   }, [seq])
 
   const drain = useCallback(
-    () => drainCommands({ token, queryClient, seen, queued, draining, setPending, setProblem }),
+    () => drainCommands({ token, queryClient, seen, queued, draining, setPending, setProblem, projection, unshown }),
     [queryClient, token],
   )
 
   const send: SendCommand = useCallback(
     (command, options) => {
-      queued.current.push({ command, basedOn: seq, background: options?.background, complete: options?.complete })
-      if (!options?.background && options?.blocking !== false) setPending(true)
+      const item: QueuedCommand = { command, basedOn: seq, background: options?.background, complete: options?.complete }
+      queued.current.push(item)
+      if (!options?.background && options?.blocking !== false) {
+        unshown.current.add(item)
+        setPending(true)
+      }
+      if (!options?.background)
+        predicting.current = predicting.current
+          .then(() => showPrediction({ token, queryClient, projection }, command))
+          .then((shown) => {
+            if (!shown || !unshown.current.delete(item)) return
+            if (!unshown.current.size) setPending(false)
+          })
+          .catch(() => {})
       void drain()
     },
-    [drain, seq],
+    [drain, queryClient, seq, token],
   )
 
   const attachRoster = useCallback(

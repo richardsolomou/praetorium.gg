@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest'
 import { QueryClient } from '@tanstack/react-query'
 import { emptyLocalState } from '../../contracts/localState'
 import { configureLocalRuntime } from './localRuntime'
-import { projectBattles, workspaceScreen } from './battleFunctions'
+import { predictedBattle, projectBattles, workspaceScreen } from './battleFunctions'
 import { ALICE, BOB, NAMES, log, started } from '../../core/battle.fixtures'
 import type { BattleWorkspace } from '../../contracts/battleWorkspace'
 
@@ -13,7 +13,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
   construction.data.mockReset()
   construction.data.mockReturnValue(null)
-  construction.local.mockClear()
+  construction.local.mockReset()
 })
 
 it('keeps authoritative battle missions until local rules are available', () => {
@@ -111,4 +111,10 @@ it('keeps the connected battle screen while an earlier conflict awaits review', 
   state.operations.push({ id: 'conflict', resource: 'battle:token', kind: 'battleCommand', input: {}, createdAt: 1, status: 'conflict' })
   projectBattles(state)
   expect(client.getQueryData(['battle', 'token'])).toBe(screen)
+})
+
+it('works out a command on the device at the next sequence before the service answers', () => {
+  construction.local.mockReturnValue({ rules: { missions: new Map() } } as never)
+  const battle = predictedBattle({ workspace: workspace(), viewerId: ALICE }, { kind: 'advance' })
+  expect(battle?.screen.view.seq).toBe(workspace().log.length + 1)
 })

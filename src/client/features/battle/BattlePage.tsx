@@ -12,7 +12,7 @@ import { celebrateVictory } from './victory'
 import { battleResult } from '../../battleOutcome'
 import { sides } from '../../sides'
 import { battleQuery, battlesQuery } from '../../queries'
-import { useCommand } from './useCommand'
+import { confirmedSeq, useCommand } from './useCommand'
 import { useSpacetimeLiveBattle } from '../../spacetimeLive'
 import { setNativeBattleActive } from '../../nativeBridge'
 import type { openBattle } from '../../functions'
@@ -44,7 +44,7 @@ function SeatedBattle({ token, screen }: { token: string; screen: Extract<Awaite
       setNativeBattleActive(false)
     }
   }, [])
-  const { send, attachRoster, problem, pending } = useCommand(token, screen.view.seq)
+  const { send, attachRoster, problem, pending } = useCommand(token, confirmedSeq(screen))
   const status = screen.view.status
   const previousStatus = useRef(status)
   // Setup and the tracker share a URL, so the scroll that reached Start battle would carry into the first turn.
