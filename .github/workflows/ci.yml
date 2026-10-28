@@ -136,6 +136,24 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm exec vitest run --config vitest.integration.config.ts scripts/clientText.integration.test.ts
 
+  # A compiler change makes the release compile production's live catalogue for minutes before its replica can start, so this prepares and shares it while the pull request is reviewed.
+  live-catalogue:
+    needs: [changes, browser-build]
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && needs.browser-build.outputs.runtime-cached != 'true'
+    # The release prepares it anyway, so a failure here costs only time.
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    env:
+      R2_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.PRIVATE_R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.PRIVATE_R2_SECRET_ACCESS_KEY }}
+      ASSETS_R2_ACCESS_KEY_ID: ${{ secrets.CATALOGUE_R2_ACCESS_KEY_ID }}
+      ASSETS_R2_SECRET_ACCESS_KEY: ${{ secrets.CATALOGUE_R2_SECRET_ACCESS_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: richardsolomou/ras-stack/actions/setup-js@v1
+      - run: pnpm exec tsx scripts/prepareLiveCatalogue.ts production
+
   browser-build:
     needs: changes
     if: needs.changes.outputs.runtime == 'true'
@@ -148,6 +166,7 @@ jobs:
     outputs:
       node-version: ${{ steps.node.outputs.version }}
       runner-count: ${{ steps.runners.outputs.count }}
+      runtime-cached: ${{ steps.runtime-cache.outputs.cache-hit }}
       runners: ${{ steps.runners.outputs.runners }}
       specs: ${{ steps.runners.outputs.specs }}
     steps:
@@ -190,6 +209,7 @@ jobs:
         id: runtime
         run: echo "key=$(pnpm exec tsx scripts/catalogueRuntimeKey.ts)" >> "$GITHUB_OUTPUT"
       - name: Restore the compiled catalogue runtime
+        id: runtime-cache
         uses: actions/cache@v6
         with:
           path: ~/.cache/praetorium/runtime

@@ -7,7 +7,7 @@
 
 ## Delivery
 
-- `release.yml` releases daily or on dispatch, then `dokploy-web.yml` deploys `main`. Roll back by dispatching `dokploy-web.yml` with a `revision`; the next daily run redeploys `main` unless Release is disabled.
+- `release.yml` releases each merge to `main`, or on dispatch, then `dokploy-web.yml` deploys it. Roll back by dispatching `dokploy-web.yml` with a `revision`; the next merge redeploys `main` unless Release is disabled.
 - Expiry of `GHCR_PULL_TOKEN` or `CHANGESETS_TOKEN` blocks deployment.
 - Old and new versions coexist during a deploy: keep new module columns and result fields optional and appended, never remove or rename a result field until a release no longer reads it, and keep readers compatible while `scripts/migrateProductData.ts` backfills. The new server only takes traffic once its catalogue is built, minutes after the module lands, so the released server reads the new module all that time. `scripts/releasedServer.test.ts` runs the latest release's preview seed, which reads back every procedure it can reach, against the module in memory; CI's unit lane points `RELEASED_CHECKOUT` at that release, and locally it runs with `RELEASED_CHECKOUT=<checkout of the release> pnpm exec vitest run scripts/releasedServer.test.ts`. The same file fails when a procedure is neither read back by `scripts/seedPreview.ts` nor listed as unreachable, so a new read is covered from the next release on.
 - The module's `AUTH_ISSUER`, `AUTH_AUDIENCE`, and `OPERATOR_IDENTITY` are stored SpacetimeDB environment values that publishes do not send; change them with `spacetime env`.

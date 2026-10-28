@@ -14,10 +14,11 @@ describe.skipIf(!fs.existsSync(directory))('simulator catalogue projections', ()
   let snapshot: ReturnType<typeof loadSnapshotWithRules>
   let index: ReturnType<typeof combatUnitsFor>
 
+  // About 15 seconds alone, but CI runs it beside every other integration suite on a shared runner.
   beforeAll(() => {
     snapshot = loadSnapshotWithRules(directory)
     index = combatUnitsFor(snapshot.catalogue, snapshot.rules)
-  }, 60_000)
+  }, 180_000)
 
   const unit = (faction: string, name: string) => {
     const book = index.find((candidate) => candidate.name === faction)!

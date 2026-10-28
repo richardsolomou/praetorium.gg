@@ -136,14 +136,24 @@ jobs:
           test -n "$DOKPLOY_APPLICATION_ID"
           test -n "$DOKPLOY_ENVIRONMENT_ID"
           test -n "$SPACETIME_OWNER_TOKEN"
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      # The asset publication needs the installed image, and pulling it beside the build hides the download.
+      - name: Pull the installed image while the new one builds
+        run: |
+          installed="$(node scripts/configureDokployNode.ts image "$TARGET")"
+          echo "INSTALLED_IMAGE=$installed" >> "$GITHUB_ENV"
+          (docker pull --quiet --platform linux/arm64 "$installed" > "$RUNNER_TEMP/installed-pull.log" 2>&1; echo $? > "$RUNNER_TEMP/installed-pull.status") > /dev/null 2>&1 &
       # A re-run release must not roll back a newer deploy; a rollback is an explicit workflow_dispatch.
       - name: Refuse to replace a newer deployed revision
         if: github.event_name != 'workflow_dispatch'
         run: |
           set -euo pipefail
-          installed="$(node scripts/configureDokployNode.ts image "$TARGET")"
-          live="$(sed -n 's/.*:sha-\([0-9a-f]\{40\}\)@sha256:.*/\1/p' <<< "$installed")"
-          : "${live:?the installed image $installed names no revision}"
+          live="$(sed -n 's/.*:sha-\([0-9a-f]\{40\}\)@sha256:.*/\1/p' <<< "$INSTALLED_IMAGE")"
+          : "${live:?the installed image $INSTALLED_IMAGE names no revision}"
           if ! git merge-base --is-ancestor "$live" "$DEPLOY_SHA"; then
             echo "::error::$TARGET already runs $live, which $DEPLOY_SHA does not contain. Roll back through workflow_dispatch instead." >&2
             exit 1
@@ -155,7 +165,8 @@ jobs:
         id: image
         uses: richardsolomou/ras-stack/actions/publish-production-image@v1
         with:
-          platforms: linux/amd64,linux/arm64
+          # The Swarm's only node is arm64.
+          platforms: linux/arm64
           image: ghcr.io/${{ github.repository }}
           sha: ${{ inputs.revision || github.sha }}
           release-tag: ${{ inputs.environment }}
@@ -179,11 +190,17 @@ jobs:
           IMAGE: ${{ steps.image.outputs.reference }}
         run: |
           set -euo pipefail
-          installed="$(node scripts/configureDokployNode.ts image "$TARGET")"
-          docker pull "$installed"
-          docker pull "$IMAGE"
-          previous="$(docker create "$installed")"
-          current="$(docker create "$IMAGE")"
+          for _ in $(seq 600); do
+            if [[ -s "$RUNNER_TEMP/installed-pull.status" ]]; then break; fi
+            sleep 1
+          done
+          if [[ "$(cat "$RUNNER_TEMP/installed-pull.status" 2> /dev/null)" != 0 ]]; then
+            cat "$RUNNER_TEMP/installed-pull.log" >&2
+            exit 1
+          fi
+          docker pull --quiet --platform linux/arm64 "$IMAGE"
+          previous="$(docker create --platform linux/arm64 "$INSTALLED_IMAGE")"
+          current="$(docker create --platform linux/arm64 "$IMAGE")"
           trap 'docker rm "$previous" "$current" > /dev/null' EXIT
           mkdir "$RUNNER_TEMP/previous-assets" "$RUNNER_TEMP/current-assets"
           docker cp "$previous:/app/.output/public/assets/." "$RUNNER_TEMP/previous-assets/"
@@ -196,8 +213,8 @@ jobs:
           IMAGE: ${{ steps.image.outputs.reference }}
         run: |
           set -euo pipefail
-          docker pull "$IMAGE"
-          container="$(docker create "$IMAGE")"
+          docker pull --quiet --platform linux/arm64 "$IMAGE"
+          container="$(docker create --platform linux/arm64 "$IMAGE")"
           trap 'docker rm "$container" > /dev/null' EXIT
           docker cp "$container:/app/spacetimedb/dist/bundle.js" "$RUNNER_TEMP/product.js"
           node --import tsx scripts/publishProductModule.ts "$RUNNER_TEMP/product.js" "$TARGET"
