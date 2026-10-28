@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Calculator, Check, ChevronRight, EllipsisVertical, Eye, FileLock2, LogOut, Pencil, Swords, Trash2, UserPlus } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import type { LeagueSide } from '../../../contracts/schemas'
@@ -35,6 +35,7 @@ import { summarySides } from '../../battleSummary'
 import type { Battle } from '../battles/battle'
 import { useClubRefresh, type Club } from './club'
 import { useStartBattle } from '../battles/useStartBattle'
+import { warmLocalConstruction } from '../../offline/construction'
 
 type Game = Club['games'][number]
 type Player = Game['players'][number]
@@ -80,6 +81,8 @@ export function ClubSealedGame({
   embedded?: boolean
 }) {
   const { defaultMissionPackId, openBattle } = useStartBattle()
+  // Sealing a roster and starting a battle price lists with the rules on this device, which take a moment to prepare.
+  useEffect(() => warmLocalConstruction(), [])
   const moment = useMoment()
   const { date } = useDateFormatting()
   const now = useNow(game.sealBy)
