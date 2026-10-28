@@ -6,6 +6,7 @@ import type { LeagueSide } from '../src/contracts/schemas'
 import type { RosterPick } from '../src/core/roster'
 import { rosterSnapshot } from '../src/core/rosterSnapshot'
 import { clubGameOpen } from '../src/core/club'
+import { rosterDiscoveryQuerySchema } from '../src/core/rosterDiscovery'
 import { routeSlug } from '../src/core/slug'
 import { account as authAccount, user } from '../src/db/authSchema'
 import { createSqliteAuth } from '../src/server/sqliteAuth'
@@ -320,7 +321,7 @@ export async function seedPreview(providedSnapshots?: PreviewSnapshots) {
   const auth = createSqliteAuth(database, process.env.AUTH_SECRET, authOptions)
   const repository = new SpacetimeRepository(new SqliteAccountRepository(database), product)
   try {
-    await seedInto(
+    const userIds = await seedInto(
       repository,
       auth,
       async (email) => {
@@ -352,9 +353,87 @@ export async function seedPreview(providedSnapshots?: PreviewSnapshots) {
       }
       await product.registerPracticeOpponent(opponent.id)
     }
+    await readBack(repository, product, userIds)
   } finally {
     local.client.close()
   }
+}
+
+/**
+ * Reads everything the seeded data feeds, as each account. `scripts/releasedServer.test.ts` runs a released seed
+ * against a newer module, so this is where the released server's parsers meet what that module returns; it also fails
+ * when a module procedure is neither called by the seed nor listed there as one it cannot reach.
+ */
+async function readBack(repository: SpacetimeRepository, product: SpacetimeOperator, userIds: readonly string[]) {
+  const page = { limit: 100 }
+  await product.health()
+  await product.publicStandingsRevision()
+  await product.productStats(userIds)
+  await product.pushTargets(userIds)
+  await repository.practiceOpponents()
+  await repository.publicBattles(page)
+  await repository.discoverRosters(rosterDiscoveryQuerySchema.parse({ catalogueIds: null, detachmentIds: null, before: null, limit: 24 }))
+  await repository.heldCollectionPhotos(100)
+  await repository.adminCollectionPhotos({ before: null, limit: 100 })
+  await repository.collectionPhotoDeletions(100)
+  for (const photoId of await repository.collectionPhotoIds(null, 100)) await repository.collectionPhotoForAdmin(photoId)
+  const leagueTokens = new Set<string>()
+  const clubTokens = new Set<string>()
+  for (const userId of userIds) {
+    await repository.relationships(userId)
+    await repository.friendInviteByInviter(userId)
+    await repository.onboardingProgress(userId)
+    await repository.playerDefaults(userId)
+    await repository.pushEnabled(userId)
+    await repository.recentMatchupsByUser(userId)
+    await repository.abilityRemindersByUser(userId)
+    await repository.unitLoadoutsByUser(userId)
+    await repository.favouriteFactionsByUser(userId)
+    await repository.favouriteDetachmentsByUser(userId)
+    await repository.favouriteDatasheetsByUser(userId)
+    await repository.collectionProfile(userId, userId)
+    await repository.collectionWishesByUser(userId)
+    for (const entry of await repository.collectionByUser(userId)) await repository.datasheetPhotos(entry.entryId, userId, 100)
+    await repository.homeRostersByUser(userId)
+    await repository.rostersLentTo(userId)
+    await repository.friendLeagueRosters(userId)
+    const rosters = await repository.rosterSummariesByUser(userId)
+    await repository.rostersByUser(userId)
+    await repository.rostersByIds(
+      userId,
+      rosters.map((roster) => roster.id),
+    )
+    for (const roster of rosters) {
+      await repository.rosterGroupByUser(userId, roster.baseRosterId ?? roster.id)
+      await repository.rosterLoansByRoster(roster.id, userId)
+      await repository.usableRoster(roster.id, userId)
+      await repository.outdatedLeagueEntriesForRoster(userId, roster.id)
+    }
+    const { battles } = await repository.battlesByUser(userId, page)
+    await repository.battlesByFriends(userId, page)
+    for (const { battle, players } of battles) {
+      await repository.battleClubs(battle.id)
+      await product.battleForOperator(battle.id)
+      await repository.leagueBattleCandidates(
+        userId,
+        players.map((player) => player.id),
+      )
+    }
+    for (const league of await repository.leaguesVisibleTo(userId)) {
+      leagueTokens.add(league.token)
+      await repository.leagueByToken(league.token, userId)
+      await repository.eventAddress(league.token, league.eventToken)
+      await repository.leagueRoster(league.token, userId, league.eventToken, userId)
+      await repository.leagueRosterSharing(league.token, league.eventToken, userId)
+    }
+    for (const club of await repository.clubsVisibleTo(userId)) {
+      clubTokens.add(club.token)
+      await repository.clubByToken(club.token)
+      await repository.battlesByClub(club.token, page)
+    }
+  }
+  await repository.leagueNames([...leagueTokens])
+  await repository.clubNames([...clubTokens])
 }
 
 async function verifiedSnapshots(): Promise<PreviewSnapshots> {
@@ -763,7 +842,7 @@ async function seedInto(
   await createSwissTournament()
   await createClubs()
   await createClubSeasons()
-  await readBack()
+  return [...ids.values()]
 
   /**
    * A Swiss tournament two rounds in: round 1 played out around a bye, and in round 2 one table finished, the login's
@@ -1258,26 +1337,6 @@ async function seedInto(
       }
       const reveal = await repository.revealLeague(gameToken, ownerId, now())
       if (reveal.outcome !== 'revealed') throw new Error(`club game ${game.key} could not be revealed: ${reveal.outcome}`)
-    }
-  }
-
-  /**
-   * Reads every list and page the seeded data feeds, as each account. `scripts/releasedServer.test.ts` runs a
-   * released seed against a newer module, so this is where the released server's parsers meet what that module returns.
-   */
-  async function readBack() {
-    const page = { limit: 100 }
-    await repository.publicBattles(page)
-    for (const userId of ids.values()) {
-      await repository.relationships(userId)
-      await repository.rosterSummariesByUser(userId)
-      await repository.battlesByUser(userId, page)
-      await repository.battlesByFriends(userId, page)
-      for (const league of await repository.leaguesVisibleTo(userId)) await repository.leagueByToken(league.token, userId)
-      for (const club of await repository.clubsVisibleTo(userId)) {
-        await repository.clubByToken(club.token)
-        await repository.battlesByClub(club.token, page)
-      }
     }
   }
 
