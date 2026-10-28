@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import { ArrowRight, Check, Eye, FileLock2, Pencil, Play, ShieldCheck, Swords, TriangleAlert, UserPlus } from 'lucide-react'
 import { posthog } from 'posthog-js'
 import { useEffect, useState, type ReactNode } from 'react'
+import { warmLocalConstruction } from '../../offline/construction'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -107,6 +108,8 @@ export function LeagueEventView({
 }) {
   const { defaultMissionPackId, openBattle } = useStartBattle()
   const refresh = useLeagueRefresh(token)
+  // Sealing a roster and starting a battle price lists with the rules on this device, which take a moment to prepare.
+  useEffect(() => warmLocalConstruction(), [])
   const revealed = Boolean(league.revealedAt)
   const battleHistory = useInfiniteQuery({ ...leagueBattlesQuery(token, league.eventToken), enabled: revealed })
   const { data: results } = useQuery({ ...leagueResultsQuery(token, league.eventToken), enabled: revealed })

@@ -7,7 +7,11 @@ import { ALICE, BOB, NAMES, log, started } from '../../core/battle.fixtures'
 import type { BattleWorkspace } from '../../contracts/battleWorkspace'
 
 const construction = vi.hoisted(() => ({ data: vi.fn<() => object | null>(() => null), local: vi.fn(() => null) }))
-vi.mock('./construction', () => ({ constructionData: construction.data, localConstruction: construction.local }))
+vi.mock('./construction', () => ({
+  constructionData: construction.data,
+  localConstruction: construction.local,
+  builtLocalConstruction: construction.local,
+}))
 
 afterEach(() => {
   vi.unstubAllGlobals()

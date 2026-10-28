@@ -44,7 +44,7 @@ import {
   attemptLocalSync,
   type LocalRoster,
 } from './localRuntime'
-import { constructionData, hasLocalConstruction, localConstruction } from './construction'
+import { builtLocalConstruction, constructionData, hasLocalConstruction, localConstruction } from './construction'
 import { cachedRead, cachedPage } from './reads'
 import { isFetchNetworkFailure } from '../networkErrors'
 import { battleKey, battlesKey, meKey, opponentsKey, reportKey } from '../queries/queryKeys'
@@ -279,7 +279,7 @@ export async function savedBattleAt(token: string, seq: number) {
  * cards and prices lists, and a command the device would refuse is left for the service to explain, so those give null.
  */
 export function predictedBattle({ workspace, viewerId }: { workspace: BattleWorkspace; viewerId: string }, command: Command) {
-  const rules = localConstruction()?.rules
+  const rules = builtLocalConstruction()?.rules
   if (!rules || command.kind === 'attach-roster') return null
   try {
     const appended = appendOnDevice(workspace, viewerId, command, rules, Date.now(), () => {

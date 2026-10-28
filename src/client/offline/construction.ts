@@ -18,11 +18,43 @@ export function hasLocalConstruction() {
   return Boolean(referenceData()?.construction)
 }
 
+/** `localConstruction()` once something has built it, never building it: the first build takes about a second on a phone. */
+export function builtLocalConstruction() {
+  const saved = referenceData()?.construction
+  return (saved && builtFor.get(saved)) || null
+}
+
+/** Builds `localConstruction()` while the page is idle, so an action needing it does not freeze the page to build it. */
+export function warmLocalConstruction() {
+  if (!hasLocalConstruction() || builtLocalConstruction()) return () => {}
+  let cancelled = false
+  let handle = 0
+  const idle = (run: () => void) => {
+    const guarded = () => void (cancelled || run())
+    handle = window.requestIdleCallback ? window.requestIdleCallback(guarded, { timeout: 5_000 }) : window.setTimeout(guarded, 0)
+  }
+  // Two steps of a few hundred milliseconds each on a phone, so a tap between them is not held up by both.
+  idle(() => {
+    constructionData()
+    idle(() => localConstruction())
+  })
+  return () => {
+    cancelled = true
+    if (window.cancelIdleCallback) window.cancelIdleCallback(handle)
+    else window.clearTimeout(handle)
+  }
+}
+
+const builtFor = new WeakMap<object, ReturnType<typeof buildConstruction>>()
+
 export function localConstruction(catalogueId?: string) {
   const saved = constructionData(catalogueId)
   if (!saved) return null
   const existing = cache.get(saved)
-  if (existing) return existing
+  if (existing) {
+    if (!catalogueId) builtFor.set(referenceData()!.construction!, existing)
+    return existing
+  }
   const built = buildConstruction(saved)
   const terrain =
     referenceData()
@@ -37,6 +69,7 @@ export function localConstruction(catalogueId?: string) {
     ]
   }
   cache.set(saved, built)
+  if (!catalogueId) builtFor.set(referenceData()!.construction!, built)
   return built
 }
 
