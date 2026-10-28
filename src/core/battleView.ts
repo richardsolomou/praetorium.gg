@@ -148,6 +148,8 @@ export type BattleView = {
       detachment?: string
       uses: number
       refusal: string | null
+      /** Why it cannot be played now even for 0 CP, so a changed price is refused only for what it costs; absent from older servers. */
+      refusalAtAnyCost?: string | null
     }[]
     secondaries: {
       key: string
@@ -302,6 +304,7 @@ export function battleView(
           // The same rule the server enforces, so the interface never offers what
           // would be refused.
           refusal: validate(state, player.id, { kind: 'use-stratagem', key: stratagem.key }),
+          refusalAtAnyCost: validate(state, player.id, { kind: 'use-stratagem', key: stratagem.key, cp: 0 }),
         })),
         primaryCard: resources.primaryCard,
         missionSelections: resources.missionSelections

@@ -28,6 +28,7 @@ type Props = {
   writtenFor: (side: Side, key: string) => StratagemText | undefined
   /** The ceilings this mission actually plays to, which the pack can lower. */
   guides: { primary: number; secondary: number }
+  onRecordMissed?: (side: Side, stratagemKey: string) => void
   className?: string
 }
 
@@ -53,6 +54,7 @@ export const SidePanel = memo(function SidePanel({
   referenceFor,
   writtenFor,
   guides,
+  onRecordMissed,
   className = '',
 }: Props) {
   const colours = tint(side.index)
@@ -160,6 +162,7 @@ export const SidePanel = memo(function SidePanel({
                   pending={pending}
                   send={send}
                   writtenFor={(key) => writtenFor(side, key)}
+                  onRecordMissed={onRecordMissed && ((key) => onRecordMissed(side, key))}
                 />
               </div>
             ) : null}

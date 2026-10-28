@@ -3,6 +3,7 @@ import { isGuestSeat } from '../../../core/newBattle'
 import { GuestInvite } from './GuestInvite'
 import { useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import { toast } from 'sonner'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { readStoredValue, useStoredValue, writeStoredValue } from '../../storedValue'
 import { useHydrated } from '../../useClientValue'
@@ -39,7 +40,7 @@ import type { BattleView, MissionChoiceView } from '../../../core/battleView'
 import { remindersDueAt, reminderTimingLabel, roundReminderMoment, type ReminderTiming, type RosterReminder } from '../../../core/reminders'
 import { useWatchBattle } from './useWatchBattle'
 import { BattleMenu } from './BattleMenu'
-import { MissedActionDialog } from './MissedActionDialog'
+import { type MissedActionDraft, MissedActionDialog } from './MissedActionDialog'
 import { ReminderDialog } from './ReminderDialog'
 import type { WhenDrawn } from '../../../contracts/missions'
 import { DrawDialog, type DrawSelection } from './DrawDialog'
@@ -62,7 +63,7 @@ import { Fact } from '../../components/Fact'
 import { BattlefieldFact } from './BattlefieldFact'
 import { BattleNote } from './BattleNote'
 import { MANUAL_TRACKING_LIMITS } from './manualTracking'
-import { Problem } from '../../components/Problem'
+import { errorMessage } from '../../queryClient'
 
 type Props = {
   view: BattleView
@@ -75,6 +76,7 @@ type Props = {
 }
 
 const EMPTY_KEYS: ReadonlySet<string> = new Set()
+const BATTLE_PROBLEM_TOAST = 'battle-problem'
 const EMPTY_REMINDERS: readonly RosterReminder[] = []
 
 type ReminderPrompt = {
@@ -134,7 +136,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     return () => window.removeEventListener(ONBOARDING_FOCUS_EVENT, changed)
   }, [view.viewerId])
   const [combatSelection, setCombatSelection] = useState<BattleCombatSelection | null>(null)
-  const [recordingMissed, setRecordingMissed] = useState(false)
+  const [missedDraft, setMissedDraft] = useState<MissedActionDraft | null>(null)
   const [reminderPrompts, setReminderPrompts] = useState<ReminderPrompt[]>([])
   // Dismissals and preferences live in browser storage, so reminders wait for the browser's first render.
   const dismissalsReady = useHydrated()
@@ -255,7 +257,13 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
       await queryClient.invalidateQueries({ queryKey: battlesQuery().queryKey })
       await navigate({ to: '/battles' })
     },
+    onError: (error) => toast.error(errorMessage(error)),
   })
+  // A toast, because the tap that failed may be anywhere on the page; the next command that lands clears it.
+  useEffect(() => {
+    if (problem) toast.error(problem, { id: BATTLE_PROBLEM_TOAST })
+    else toast.dismiss(BATTLE_PROBLEM_TOAST)
+  }, [problem])
   const rulesFor = useCallback(
     (side: Side) => ruleResults.flatMap((result, index) => (ruleRequests[index]?.side === side.index && result.data ? [result.data] : [])),
     [ruleResults, ruleRequests],
@@ -352,6 +360,10 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     (choice) => !isManualSelection(choice.kind) && choice.canChoose && !skippedChoices.has(choiceKey(choice)),
   )
   const missedMoments = view.missedMoments ?? []
+  const recordMissedStratagem = useCallback(
+    (side: Side, stratagemKey: string) => setMissedDraft({ sideIndex: side.index, stratagemKey }),
+    [],
+  )
 
   // Only what the card itself says pays out at this moment, so the ask arrives with the phase that ends.
   const due = active ? dueForAdvance(view, active, awardsFor) : []
@@ -523,14 +535,14 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     <BattleMinimizeContext.Provider value={registerMinimized}>
       <main data-battle-tracker className="w-full space-y-3 px-3 pb-32 lg:pb-8">
         {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
-        {recordingMissed && missedMoments.length ? (
+        {missedDraft && missedMoments.length ? (
           <MissedActionDialog
             moments={missedMoments}
             table={table}
+            draft={missedDraft}
             send={send}
             pending={pending}
-            problem={problem}
-            onClose={() => setRecordingMissed(false)}
+            onClose={() => setMissedDraft(null)}
           />
         ) : null}
         <div data-battle-sticky-header className="sticky top-(--app-header) z-20 space-y-2 bg-void/95 pb-2 backdrop-blur lg:contents">
@@ -570,6 +582,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
               referenceFor={referenceFor}
               writtenFor={writtenFor}
               guides={guidesFor(side)}
+              onRecordMissed={missedMoments.length ? recordMissedStratagem : undefined}
               className={`${focus === shown(side) ? '' : 'hidden lg:block'} ${side.index === 0 ? 'lg:col-start-1' : 'lg:col-start-3'} lg:row-start-1`}
             />
           ))}
@@ -650,7 +663,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                     onTimerPausedChange={(paused) => sendAction({ kind: paused ? 'pause-clock' : 'resume-clock' })}
                     players={view.players}
                     onActionRemindersChange={view.settings.manual ? undefined : updateActionReminders}
-                    onRecordMissed={missedMoments.length ? () => setRecordingMissed(true) : undefined}
+                    onRecordMissed={missedMoments.length ? () => setMissedDraft({}) : undefined}
                     onConcede={(playerId) => sendAction({ kind: 'end-battle', reason: 'conceded', concededBy: playerId })}
                     onDelete={() => {
                       if (!promptMinimized) remove.mutate()
@@ -663,7 +676,6 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                 <Report token={view.token} players={reportedPlayers} />
               </div>
 
-              {problem ? <Problem>{problem}</Problem> : null}
               {emptySettlementRetryNeeded ? (
                 <Button
                   variant="outline"
@@ -674,7 +686,6 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                   Retry finishing the previous turn
                 </Button>
               ) : null}
-              {remove.error ? <Problem error={remove.error} /> : null}
             </section>
           </div>
         </div>

@@ -2,7 +2,7 @@
 
 - **Undo latest action** (the arrow beside the phase button) reverses the most recent action. Repeat it to step back further, even into an earlier turn. Undoing a mission draw asks first, and the cards go back to the deck.
 - **Casualties aren't undone by Undo.** Fix them with the opposite control: return a model, heal a wound or **Bring back** a destroyed unit.
-- **Forgot something earlier?** In a guided battle, **Battle options** › **Record a missed action** books a stratagem, victory points or the extra CP against an earlier phase of this round or the last. End-of-battle points can't be recorded late.
+- **Forgot something earlier?** In a guided battle, **Battle options** › **Record a missed action** books a stratagem, victory points or the extra CP against an earlier phase of this round or the last. End-of-battle points can't be recorded late. For a stratagem, its **⋮** menu › **Record as missed…** opens the same dialog with it chosen, and only the phases it can be used in are open.
 
 ![The Battle options menu: Action reminders, Record a missed action, Pause timer, Concede battle and Delete battle.](screenshot:track-a-battle-battle-options 'Record a missed action, in Battle options')
 
