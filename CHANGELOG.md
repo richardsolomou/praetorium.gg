@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.195.4
+
+### Patch Changes
+
+- d3e2e12: Tournament and club battles use the ability alerts you have when the battle starts, so changing an alert no longer means resealing your list.
+
 ## 0.195.3
 
 ### Patch Changes
