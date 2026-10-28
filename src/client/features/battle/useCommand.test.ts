@@ -10,9 +10,11 @@ vi.mock('../../offline/appStorage', () => ({ writeAppSnapshot }))
 vi.mock('../../offline/appSnapshot', () => ({ captureAppSnapshot: () => null }))
 vi.mock('../../nativeBridge', () => ({ requestNativeHaptic: () => {} }))
 vi.mock('posthog-js', () => ({ posthog: { captureException } }))
+const device = vi.hoisted(() => ({ savedBattleAt: vi.fn(), predictedBattle: vi.fn() }))
+vi.mock('../../offline/battleFunctions', () => device)
 
 import { OfflineRefusal } from '../../offline/offlineRefusal'
-import { afterFailedCommand, drainCommands } from './useCommand'
+import { afterFailedCommand, drainCommands, showPrediction } from './useCommand'
 
 const queued = (basedOn: number, background = false) => ({ basedOn, background })
 
@@ -110,4 +112,52 @@ it('shows a sync conflict to review without reporting it', async () => {
     setProblem: () => {},
   })
   expect(captureException).not.toHaveBeenCalled()
+})
+
+describe('a command shown before the service answers', () => {
+  const screen = (seq: number) => ({ kind: 'battle', view: { seq } })
+  async function predicted(...seqs: number[]) {
+    const client = new QueryClient()
+    client.setQueryData(['battle', 'battle'], screen(4))
+    device.savedBattleAt.mockResolvedValue({ workspace: {}, viewerId: 'alice' })
+    const projection = { current: null }
+    for (const seq of seqs) {
+      device.predictedBattle.mockReturnValueOnce({ workspace: {}, viewerId: 'alice', screen: screen(seq) })
+      await showPrediction({ token: 'battle', queryClient: client, projection }, { kind: 'advance' } as never)
+    }
+    return { client, projection }
+  }
+  const drain = (client: QueryClient, projection: { current: null }, taps: number) =>
+    drainCommands({
+      token: 'battle',
+      queryClient: client,
+      seen: { current: 4 },
+      queued: { current: Array.from({ length: taps }, () => ({ command: { kind: 'advance' } as never, basedOn: 4 })) },
+      draining: { current: false },
+      setPending: () => {},
+      setProblem: () => {},
+      projection,
+    })
+
+  it('keeps the next tap’s result shown when the service accepts the first', async () => {
+    const { client, projection } = await predicted(5, 6)
+    submit.mockResolvedValueOnce({ result: { outcome: 'appended' }, screen: screen(5) }).mockReturnValueOnce(new Promise(() => {}))
+    void drain(client, projection, 2)
+    await vi.waitFor(() => expect(submit).toHaveBeenCalledTimes(2))
+    expect(client.getQueryData(['battle', 'battle'])).toEqual(screen(6))
+  })
+
+  it('returns to the service’s screen when it refuses the command', async () => {
+    const { client, projection } = await predicted(5)
+    submit.mockResolvedValueOnce({ result: { outcome: 'refused', reason: 'No.' }, screen: screen(4) })
+    await drain(client, projection, 1)
+    expect(client.getQueryData(['battle', 'battle'])).toEqual(screen(4))
+  })
+
+  it('returns to the service’s screen when sending the command fails', async () => {
+    const { client, projection } = await predicted(5)
+    submit.mockRejectedValueOnce(new Error('Server error'))
+    await drain(client, projection, 1)
+    expect(client.getQueryData(['battle', 'battle'])).toEqual(screen(4))
+  })
 })

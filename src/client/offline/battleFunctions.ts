@@ -15,7 +15,7 @@ import { guestSeatId, isPracticeSeat } from '../../core/newBattle'
 import { createBattleSchema, saveRosterSchema, submitSchema } from '../../contracts/schemas'
 import { appendLocalCommand, resolveLocalDraw, localBattleState } from '../../core/offlineBattle'
 import { battleView } from '../../core/battleView'
-import { commandArmy } from '../../core/battle'
+import { commandArmy, type Command } from '../../core/battle'
 import { battleClock } from '../../core/battleClock'
 import { battleReport as foldReport } from '../../core/battleReport'
 import { battleLogThroughSeq, battleTimeline } from '../../core/battleReplay'
@@ -200,33 +200,17 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
         ? { kind: 'attach-roster', roster, prep: null, painted: true, ...(command.playerId ? { playerId: command.playerId } : {}) }
         : { ...command, roster }
   }
-  command = commandSchema.parse(command)
-  hydrateAuthoritativeAwards(state, rules)
-  if (command.kind === 'set-prep')
-    command = withAuthoritativeAwards(command, rules, state.status === 'playing' ? commandArmy(state, owner.id, command) : undefined)
-  if (command.kind === 'attach-roster' && command.prep)
-    command = {
-      ...command,
-      prep: withAuthoritativeAwards(command.prep, rules, state.status === 'playing' ? commandArmy(state, owner.id, command) : undefined),
-    }
-  command = resolveLocalDraw(workspace.players, workspace.log, owner.id, command, (limit) =>
+  const recordedAt = Date.now()
+  const appended = appendOnDevice(workspace, owner.id, command, rules, recordedAt, (limit) =>
     Math.floor((crypto.getRandomValues(new Uint32Array(1))[0]! / 0x1_0000_0000) * limit),
   )
-  const referenceError =
-    command.kind === 'begin-battle'
-      ? setupReferenceError(state, rules)
-      : command.kind === 'set-prep' && state.status === 'playing'
-        ? repairPrepReferenceError(state, owner.id, command, rules)
-        : command.kind === 'score' || command.kind === 'score-secondary' || command.kind === 'score-settlement'
-          ? scoringCapError(state, owner.id, command, rules)
-          : null
-  if (referenceError)
+  if (appended.refused)
     return {
-      result: { outcome: 'refused', reason: referenceError.message, code: referenceError.code },
+      result: { outcome: 'refused', reason: appended.refused.message, code: appended.refused.code },
       screen: workspaceScreen(workspace, owner.id),
     }
-  const recordedAt = Date.now()
-  const log = appendLocalCommand(workspace.players, workspace.log, owner.id, command, recordedAt)
+  command = appended.command
+  const { log } = appended
   const input = {
     token: args.data.token,
     expectedSeq: state.seq,
@@ -248,6 +232,65 @@ export async function submit(args: Parameters<typeof server.submit>[0]): ReturnT
     owner.id,
   )
   return { result: { outcome: 'appended', seq: state.seq + 1 }, screen: workspaceScreen(next, owner.id) }
+}
+
+/** Checks `submitted` against `workspace` and appends it the way the service records it, or names the rules data refusing it. */
+function appendOnDevice(
+  workspace: BattleWorkspace,
+  viewerId: string,
+  submitted: unknown,
+  rules: NonNullable<ReturnType<typeof localConstruction>>['rules'],
+  recordedAt: number,
+  randomIndex: (limit: number) => number,
+) {
+  const state = localBattleState(workspace.players, workspace.log)
+  let command = commandSchema.parse(submitted)
+  hydrateAuthoritativeAwards(state, rules)
+  if (command.kind === 'set-prep')
+    command = withAuthoritativeAwards(command, rules, state.status === 'playing' ? commandArmy(state, viewerId, command) : undefined)
+  if (command.kind === 'attach-roster' && command.prep)
+    command = {
+      ...command,
+      prep: withAuthoritativeAwards(command.prep, rules, state.status === 'playing' ? commandArmy(state, viewerId, command) : undefined),
+    }
+  command = resolveLocalDraw(workspace.players, workspace.log, viewerId, command, randomIndex)
+  const refused =
+    command.kind === 'begin-battle'
+      ? setupReferenceError(state, rules)
+      : command.kind === 'set-prep' && state.status === 'playing'
+        ? repairPrepReferenceError(state, viewerId, command, rules)
+        : command.kind === 'score' || command.kind === 'score-secondary' || command.kind === 'score-settlement'
+          ? scoringCapError(state, viewerId, command, rules)
+          : null
+  if (refused) return { refused }
+  return { command, log: appendLocalCommand(workspace.players, workspace.log, viewerId, command, recordedAt) }
+}
+
+/** The saved history a connected command can be shown from before the service answers, when it matches the screen at `seq`. */
+export async function savedBattleAt(token: string, seq: number) {
+  const owner = localOwner()
+  if (!navigator.onLine || !localEngine() || !owner || !hasLocalConstruction()) return null
+  const workspace = await localDocument<BattleWorkspace | null>(`battle:${token}`)
+  return workspace && localBattleState(workspace.players, workspace.log).seq === seq ? { workspace, viewerId: owner.id } : null
+}
+
+/**
+ * The battle after `command`, worked out on the device so it shows before the service answers. Only the service draws
+ * cards and prices lists, and a command the device would refuse is left for the service to explain, so those give null.
+ */
+export function predictedBattle({ workspace, viewerId }: { workspace: BattleWorkspace; viewerId: string }, command: Command) {
+  const rules = localConstruction()?.rules
+  if (!rules || command.kind === 'attach-roster') return null
+  try {
+    const appended = appendOnDevice(workspace, viewerId, command, rules, Date.now(), () => {
+      throw new Error('Only the service draws cards.')
+    })
+    if (appended.refused) return null
+    const next = { ...workspace, log: appended.log }
+    return { workspace: next, viewerId, screen: workspaceScreen(next, viewerId) }
+  } catch {
+    return null
+  }
 }
 
 /** A clean saved history can trail commands sent straight to the service, so connected reads use it only for unsynced work. */
