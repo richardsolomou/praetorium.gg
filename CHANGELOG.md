@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.195.11
+
+### Patch Changes
+
+- c3fd878: Battles no longer offer a secret mission, which no supported mission pack has; one chosen in an earlier battle can still be revealed.
+
 ## 0.195.10
 
 ### Patch Changes
