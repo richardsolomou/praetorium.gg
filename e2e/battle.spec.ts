@@ -115,6 +115,13 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await scoring.getByRole('button', { name: 'Cleanse plus 2', exact: true }).scrollIntoViewIfNeeded()
   await scoring.getByRole('button', { name: 'Pass the turn', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
+  await page
+    .getByRole('dialog', { name: /secondary missions$/ })
+    .getByRole('button', { name: 'Undo latest action' })
+    .click()
+  await expect(page.getByRole('heading', { name: 'end phase' })).toBeVisible()
+  await page.getByRole('button', { name: 'Pass the turn', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
   await page.reload()
   await expect(page.locator('[data-panel="player"][data-side="0"] [data-stat="secondary"]')).toHaveText('5')
   await page
