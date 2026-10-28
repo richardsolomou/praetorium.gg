@@ -1,6 +1,6 @@
 import { memo, type ComponentProps, useMemo, useState } from 'react'
 import type { PickerUnit } from '../../../contracts/catalogue'
-import { availableChoices, joinableUnits, newHosts, newJoiners, rosterJoiners } from '../../../core/attachmentOptions'
+import { availableChoices, joinableUnits, newHosts, newJoiners, occupantsByHost, rosterJoiners } from '../../../core/attachmentOptions'
 import { attachmentRows } from '../../../core/attachmentRows'
 import type { KeyedPick } from './rosterPicks'
 import { AttachMenu, type AttachChoice, EmbarkMenu, JoinedRow, UnitCard } from './builder/UnitCard'
@@ -181,16 +181,17 @@ export function useCardRelationships(
           reason: discovery && unitLimitMessage(option.id, discovery.held[option.id] ?? 0, discovery.limits),
         }))
         .toSorted((left, right) => Number(Boolean(left.reason)) - Number(Boolean(right.reason)) || left.name.localeCompare(right.name))
+    const occupants = occupantsByHost(picks, units)
     for (const [index, pick] of picks.entries()) {
       const candidate = {
         joined: attachmentRows(picks, units, index),
         canJoin: availableChoices([
-          ...joinableUnits(picks, units, index).map((host) => ({ kind: 'roster' as const, ...host })),
+          ...joinableUnits(picks, units, index, occupants).map((host) => ({ kind: 'roster' as const, ...host })),
           ...added(newHosts(candidates, picks, units, index)),
         ]),
         canHost: availableChoices([
-          ...rosterJoiners(picks, units, index).map((joiner) => ({ kind: 'roster' as const, ...joiner })),
-          ...added(newJoiners(candidates, picks, units, index)),
+          ...rosterJoiners(picks, units, index, occupants).map((joiner) => ({ kind: 'roster' as const, ...joiner })),
+          ...added(newJoiners(candidates, picks, units, index, occupants)),
         ]),
         embark: embarks?.get(pick.key) ?? NO_EMBARK,
       }
