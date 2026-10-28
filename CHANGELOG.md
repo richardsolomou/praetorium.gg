@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.195.7
+
+### Patch Changes
+
+- eacfe2c: Battle taps show their result straight away instead of waiting for the server to answer.
+
 ## 0.195.6
 
 ### Patch Changes
