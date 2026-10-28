@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.195.2
+
+### Patch Changes
+
+- 1a74955: Passing the turn or ending a phase works again after undoing it, instead of the phase waiting to advance with no way forward.
+
 ## 0.195.1
 
 ### Patch Changes
