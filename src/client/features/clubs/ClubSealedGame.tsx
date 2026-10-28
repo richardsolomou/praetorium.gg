@@ -36,6 +36,7 @@ import type { Battle } from '../battles/battle'
 import { useClubRefresh, type Club } from './club'
 import { useStartBattle } from '../battles/useStartBattle'
 import { warmLocalConstruction } from '../../offline/construction'
+import { afterPaint } from '../../afterPaint'
 
 type Game = Club['games'][number]
 type Player = Game['players'][number]
@@ -134,7 +135,10 @@ export function ClubSealedGame({
   const mayTakeSeat = member && !revealed && !closed
 
   const seal = useMutation({
-    mutationFn: (rosterId: string) => submitLeagueRoster({ data: { token: game.token, rosterId } }),
+    mutationFn: async (rosterId: string) => {
+      await afterPaint()
+      return submitLeagueRoster({ data: { token: game.token, rosterId } })
+    },
     onSuccess: async () => {
       setChoosing(false)
       await refresh()

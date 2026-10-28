@@ -4,6 +4,7 @@ import { ArrowRight, Check, Eye, FileLock2, Pencil, Play, ShieldCheck, Swords, T
 import { posthog } from 'posthog-js'
 import { useEffect, useState, type ReactNode } from 'react'
 import { warmLocalConstruction } from '../../offline/construction'
+import { afterPaint } from '../../afterPaint'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -131,7 +132,10 @@ export function LeagueEventView({
     },
   })
   const submit = useMutation({
-    mutationFn: (rosterId: string) => submitLeagueRoster({ data: { token, eventToken: league.eventToken, rosterId } }),
+    mutationFn: async (rosterId: string) => {
+      await afterPaint()
+      return submitLeagueRoster({ data: { token, eventToken: league.eventToken, rosterId } })
+    },
     onSuccess: async () => {
       setChoosing(false)
       await refresh()
