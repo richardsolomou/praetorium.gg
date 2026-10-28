@@ -3,7 +3,7 @@ import { FactionReferenceLink } from '../../../components/FactionReferenceLink'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { FactionBreadcrumb } from './FactionBreadcrumb'
 import { ChevronRight, FileSearch } from 'lucide-react'
-import { memo, useMemo, useState } from 'react'
+import { memo, useDeferredValue, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import {
   Combobox,
@@ -53,12 +53,15 @@ export function FactionDatasheets() {
   const [account, setAccount] = useState<ReadonlySet<AccountFilter>>(new Set())
   const sources = DATASHEET_SOURCES.filter((source) => source.id === 'matched' || all.some((unit) => sourceOf(unit) === source.id))
   const keywordChoices = useMemo(() => keywordOptions(all), [all])
-  const accountSets = { favourite: favourites, owned: collection }
-  const units = filterDatasheets(found, {
-    hidden,
-    keywords,
-    only: [...account].map((filter) => accountSets[filter]),
-  })
+  const accountSets = useMemo(() => ({ favourite: favourites, owned: collection }), [favourites, collection])
+  // Every row mounts or redraws when the list changes, so it renders behind the tap or keystroke instead of before its paint.
+  const units = useDeferredValue(
+    useMemo(
+      () => filterDatasheets(found, { hidden, keywords, only: [...account].map((filter) => accountSets[filter]) }),
+      [found, hidden, keywords, account, accountSets],
+    ),
+  )
+  const listQuery = useDeferredValue(settledQuery)
   const filtered = hidden.size > 0 || keywords.size > 0 || account.size > 0
   const clearFilters = () => {
     setHidden(new Set())
@@ -133,7 +136,7 @@ export function FactionDatasheets() {
                   <Section key={group.id} title={group.plural} count={rows.length}>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {rows.map((unit) => (
-                        <FactionDatasheetRow key={unit.id} catalogueId={faction.slug} unit={unit} query={settledQuery} />
+                        <FactionDatasheetRow key={unit.id} catalogueId={faction.slug} unit={unit} query={listQuery} />
                       ))}
                     </div>
                   </Section>

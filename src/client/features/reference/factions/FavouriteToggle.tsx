@@ -24,22 +24,9 @@ export function FavouriteToggle({
   className?: string
   onToggle: () => void
 }) {
-  const path = useRouterState({ select: (state) => state.location.href })
   const { data: me } = useQuery(meQuery())
 
-  if (!me) {
-    return (
-      <Link
-        to="/sign-in"
-        search={{ next: path }}
-        rel="nofollow"
-        className={cn('grid shrink-0 place-items-center', className)}
-        aria-label={`Sign in to add ${name} to ${list}`}
-      >
-        <Heart className="size-3.5 text-faint hover:text-dim" />
-      </Link>
-    )
-  }
+  if (!me) return <SignInToFavourite name={name} list={list} className={className} />
 
   if (loading) return <Skeleton className={cn('shrink-0', className)} aria-label={`Loading favourite status for ${name}`} />
 
@@ -55,5 +42,21 @@ export function FavouriteToggle({
     >
       <Heart className={`size-3.5 ${favourite ? 'fill-rust text-rust' : 'text-faint hover:text-dim'}`} />
     </Toggle>
+  )
+}
+
+/** Only a visitor's heart follows the address, so a signed-in list of hearts does not redraw on every navigation. */
+function SignInToFavourite({ name, list, className }: { name: string; list: string; className: string }) {
+  const path = useRouterState({ select: (state) => state.location.href })
+  return (
+    <Link
+      to="/sign-in"
+      search={{ next: path }}
+      rel="nofollow"
+      className={cn('grid shrink-0 place-items-center', className)}
+      aria-label={`Sign in to add ${name} to ${list}`}
+    >
+      <Heart className="size-3.5 text-faint hover:text-dim" />
+    </Link>
   )
 }
