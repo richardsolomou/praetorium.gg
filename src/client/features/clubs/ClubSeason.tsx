@@ -103,9 +103,11 @@ function DraftSeason({ club, season, viewerId, member }: { club: Club; season: S
         ) : null}
         {season.organizer ? (
           <>
-            <Button variant="outline" disabled={pending || !count} onClick={() => draw.mutate()}>
-              <Shuffle /> Draw again
-            </Button>
+            {ready ? (
+              <Button variant="outline" disabled={pending} onClick={() => draw.mutate()}>
+                <Shuffle /> Draw again
+              </Button>
+            ) : null}
             <Button disabled={pending || !ready} onClick={() => (publish.reset(), setConfirming('publish'))}>
               <Send /> Publish
             </Button>

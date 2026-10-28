@@ -590,6 +590,11 @@ html[data-native-app='true'] [data-battle-sticky-header] {
     cursor: pointer;
   }
 
+  /* iOS Safari gives native date fields a minimum width that overflows narrow dialogs. */
+  input[type='datetime-local'] {
+    appearance: none;
+  }
+
   html {
     background-color: var(--color-void);
     color: var(--color-bone);
