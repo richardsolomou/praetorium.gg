@@ -205,6 +205,8 @@ export function useCommand(token: string, seq: number) {
   /** Blocking commands whose result is not on screen yet, which keep the controls disabled. */
   const unshown = useRef(new Set<QueuedCommand>())
   const predicting = useRef(Promise.resolve())
+  /** Open while the press that queued `unshown` is still running, since one press may send several commands. */
+  const press = useRef<number | null>(null)
 
   useEffect(() => {
     seen.current = Math.max(seen.current, seq)
@@ -217,11 +219,17 @@ export function useCommand(token: string, seq: number) {
 
   const send: SendCommand = useCallback(
     (command, options) => {
+      const blocking = !options?.background && options?.blocking !== false
+      // The controls stay enabled until a result shows, so a second tap on them would act on a screen the first already changed.
+      if (blocking && unshown.current.size && press.current === null) return options?.complete?.(false)
       const item: QueuedCommand = { command, basedOn: seq, background: options?.background, complete: options?.complete }
       queued.current.push(item)
       // Disabling the controls re-renders the screen before the command goes out, so they disable only when its result
       // cannot show ahead of the service.
-      if (!options?.background && options?.blocking !== false) unshown.current.add(item)
+      if (blocking) {
+        unshown.current.add(item)
+        press.current ??= window.setTimeout(() => (press.current = null))
+      }
       if (!options?.background)
         predicting.current = predicting.current
           .then(() => showPrediction({ token, queryClient, projection }, command))
