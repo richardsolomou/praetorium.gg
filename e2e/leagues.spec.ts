@@ -542,6 +542,16 @@ test('a Swiss tournament pairs its rounds and ranks the tables by match points',
   await owner.screenshot({ path: testInfo.outputPath('swiss-rounds.png'), fullPage: true })
   await opponent.goto(url)
   await expect(opponent.locator('[data-league-rounds]').getByText('Results locked')).toBeVisible()
+  await expect(opponent.locator('[data-league-rounds]').getByRole('button', { name: /^Reopen table/ })).toHaveCount(0)
+
+  // Rounds list latest first, so round 1's table is the last one.
+  const lockedTable = rounds.locator('[data-table="1"]').last()
+  await lockedTable.getByRole('button', { name: 'Reopen table 1' }).click()
+  const reopen = owner.getByRole('alertdialog', { name: 'Reopen table 1?' })
+  await owner.screenshot({ path: testInfo.outputPath('swiss-reopen.png') })
+  await reopen.getByRole('button', { name: 'Reopen result' }).click()
+  await expect(reopen).toBeHidden()
+  await expect(lockedTable).toContainText('Playing')
   await ownerContext.close()
   await opponentContext.close()
 })
