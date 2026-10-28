@@ -270,6 +270,52 @@ describe('per-model wargear when a squad changes size', () => {
   })
 })
 
+describe('a group each model takes two picks from', () => {
+  const pair = (id: string) => [{ id: `${id}-max`, type: 'max' as const, value: 2, field: 'selections', scope: 'parent' }]
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'suits',
+        name: 'Suits',
+        type: 'unit' as const,
+        selectionEntries: [
+          {
+            id: 'suit',
+            name: 'Suit',
+            type: 'model' as const,
+            constraints: [
+              { id: 'suit-min', type: 'min' as const, value: 2, field: 'selections', scope: 'parent' },
+              { id: 'suit-max', type: 'max' as const, value: 2, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntryGroups: [
+              {
+                id: 'guns',
+                name: 'Weapons',
+                constraints: [{ id: 'guns-min', type: 'min' as const, value: 2, field: 'selections', scope: 'parent' }, ...pair('guns')],
+                selectionEntries: [
+                  { id: 'cannon', name: 'Cannon', type: 'upgrade' as const, constraints: pair('cannon') },
+                  { id: 'flamer', name: 'Flamer', type: 'upgrade' as const, constraints: pair('flamer') },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+
+  it('arms each model fully when the split crosses models', () => {
+    const built = buildUnit('suits', index, 2, undefined, { spreads: { 'suit/guns': { cannon: 3, flamer: 1 } } })!
+    expect({ wargear: wargearOf(built.selection, index), errors: evaluate([built.selection], index).errors }).toEqual({
+      wargear: [
+        { name: 'Cannon', count: 3 },
+        { name: 'Flamer', count: 1 },
+      ],
+      errors: [],
+    })
+  })
+})
+
 describe('a squad that both divides itself and arms a specialist', () => {
   const index = indexOf({
     sharedSelectionEntries: [
