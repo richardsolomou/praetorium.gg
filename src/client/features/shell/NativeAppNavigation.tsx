@@ -9,6 +9,7 @@ import { meQuery } from '../../queries'
 import { restoreNativeTabScroll } from './nativeTabScroll'
 import { forgetTab, recallTab, rememberTab, tabLocation } from './nativeTabs'
 import { compactChrome } from './useCompactChrome'
+import { withoutRecoveryKeys } from '../../routeErrors'
 
 type Tab = { icon: ComponentType<{ className?: string }>; label: string; section: NativeSection; to: string }
 
@@ -36,7 +37,7 @@ function regionScroll() {
 
 export function NativeAppNavigation({
   accountBridge,
-  href,
+  href: address,
   path,
   search,
   state,
@@ -51,6 +52,8 @@ export function NativeAppNavigation({
   const navigate = useNavigate()
   const router = useRouter()
   const navigation = nativeNavigation(path, search)
+  // Tabs remember places, and a recovery key names a reload attempt that the page later drops from its address.
+  const href = withoutRecoveryKeys(address)
   const active = tabLocation(href)?.section
   const index = router.history.location.state.__TSR_index
   const staysInTab = Boolean(navigation.back) && historyBackStaysInTab(index, state)

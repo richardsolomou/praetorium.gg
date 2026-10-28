@@ -104,6 +104,34 @@ test('a page built before the deployed release loads its next route from the new
   expect(await page.evaluate(() => 'previousDocument' in window)).toBe(false)
 })
 
+test('a stale page reopens a tab where the reader left it', async ({ page }) => {
+  let served = version
+  await serveRelease(page, () => served)
+  await page.clock.install()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/factions')
+  const tabs = page.locator('[data-native-app-tabs]')
+  await expect(page.getByRole('heading', { name: 'Factions', exact: true })).toBeVisible()
+  await page.evaluate(() => window.scrollTo(0, 1200))
+  await tabs.getByRole('link', { name: 'Rosters', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Rosters', exact: true }).first()).toBeVisible()
+  served = '99.0.0'
+  await page.clock.runFor(60_000)
+  await expect(page.getByRole('complementary', { name: 'Release update' })).toBeVisible()
+  await page.evaluate(() => Object.assign(window, { previousDocument: true }))
+  // A second tap before the reload unloads the page must not add a back entry.
+  await tabs.getByRole('link', { name: 'Factions', exact: true }).evaluate((link: HTMLElement) => {
+    link.click()
+    link.click()
+  })
+  await expect(page).toHaveURL(staleBuildMarker)
+  expect(await page.evaluate(() => 'previousDocument' in window)).toBe(false)
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(1200)
+  await page.screenshot({ path: test.info().outputPath('stale-tab-reopened.png') })
+  await page.goBack()
+  await expect.poll(() => new URL(page.url()).pathname).toBe('/rosters')
+})
+
 test('a route error in a page built before the deployed release reloads into the new release', async ({ page }) => {
   let served = version
   await serveRelease(page, () => served)

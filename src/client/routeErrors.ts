@@ -77,11 +77,17 @@ export function staleBuildRecoveryUrl(href: string, release: string, now = Date.
  * Loads `href` from the deployed `release` instead of this page's older build, whose code can misread newer responses.
  * Automatic reloads wait out saves, need a connection to reach the release, and stop after three in a row of one page
  * for one release. The native saved application asks its shell to open the hosted page, which only the shell can set up.
+ * A navigation passes its history `entry`, which a reload keeps, so the page reopens with the state and back stack the
+ * client navigation would have given it.
  */
 export function reloadStaleBuild(
   release: string,
   trigger: 'navigation' | 'route_error' | 'try_again',
-  { href = window.location.href, saving = false } = {},
+  {
+    href = window.location.href,
+    saving = false,
+    entry,
+  }: { href?: string; saving?: boolean; entry?: { state: unknown; push: boolean } } = {},
 ) {
   if (trigger !== 'try_again' && (saving || !navigator.onLine || staleBuildAttempt(href, release) >= 3)) return false
   const url = staleBuildRecoveryUrl(href, release)
@@ -89,8 +95,19 @@ export function reloadStaleBuild(
   if (window.ReactNativeWebView && window.PraetoriumOfflineStart !== undefined) {
     const { pathname, search, hash } = new URL(url)
     window.ReactNativeWebView.postMessage(JSON.stringify({ type: 'offline-retry', path: pathname + search + hash }))
+  } else if (entry) {
+    window.history[entry.push ? 'pushState' : 'replaceState'](entry.state, '', url)
+    window.location.reload()
   } else window.location.replace(url)
   return true
+}
+
+export function withoutRecoveryKeys(href: string) {
+  const url = new URL(href, 'https://praetorium.invalid')
+  if (!url.searchParams.has(RECOVERY_PARAM) && !url.searchParams.has(STALE_BUILD_PARAM)) return href
+  url.searchParams.delete(RECOVERY_PARAM)
+  url.searchParams.delete(STALE_BUILD_PARAM)
+  return url.pathname + url.search + url.hash
 }
 
 export const routeRecoveryPending = (href: string) => moduleRecoveryAttempt(href) > 0 || staleBuildMarker(href) !== null
