@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.195.10
+
+### Patch Changes
+
+- d63b6f6: Sealing a list or starting a battle in a club's sealed game no longer freezes the page for a second the first time.
+- d63b6f6: The seal button shows that it is sealing as soon as you press it.
+
 ## 0.195.9
 
 ### Patch Changes
