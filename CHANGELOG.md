@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.195.15
+
+### Patch Changes
+
+- 7604bef: Saving this device's copy of your screens after a tap or battle action takes a fraction of the time it did.
+- a31fc13: Pages no longer freeze for a moment when a new version of the game data finishes downloading in the background.
+
 ## 0.195.14
 
 ### Patch Changes
