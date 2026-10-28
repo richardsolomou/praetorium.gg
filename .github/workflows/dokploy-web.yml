@@ -34,8 +34,8 @@ permissions:
   contents: read
 
 jobs:
-  # A replica serves only once its catalogue is prepared for its compiler; preparing it here, beside the image build, lets it download that instead of compiling it.
-  # A replica on a new compiler starts from the pinned snapshot and then refreshes to the live catalogue, so both are prepared, side by side.
+  # A replica serves only once its catalogue is prepared for its compiler. The live job follows upstream from the published live catalogue and publishes the result, beside the image build, so the new replica downloads it instead of compiling on the box.
+  # The pinned snapshot is what a replica starts from when the live catalogue is unavailable, so both are prepared, side by side.
   catalogue:
     name: Prepare the ${{ matrix.catalogue }} catalogue
     if: inputs.environment == 'production'
@@ -59,9 +59,9 @@ jobs:
         with:
           ref: ${{ inputs.revision || github.sha }}
       - uses: richardsolomou/ras-stack/actions/setup-js@v1
-      - run: pnpm exec tsx scripts/prepareLiveCatalogue.ts "$SOURCE"
+      - run: pnpm exec tsx scripts/prepareLiveCatalogue.ts $SOURCE
         env:
-          SOURCE: ${{ matrix.catalogue == 'pinned' && '--pinned' || inputs.environment }}
+          SOURCE: ${{ matrix.catalogue == 'pinned' && '--pinned' || format('{0} --publish', inputs.environment) }}
 
   deploy:
     runs-on: ubuntu-latest

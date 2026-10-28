@@ -33,6 +33,7 @@ export async function startCatalogueRefresh(buildDirectory: string, dataDirector
             ...process.env,
             CATALOGUE_LIVE_DIR: root,
             CATALOGUE_COMPILER: key,
+            CATALOGUE_AUTHORING: authoring,
             CATALOGUE_DIR: process.env.CATALOGUE_DIR ?? retained?.directory,
           },
           signal,
