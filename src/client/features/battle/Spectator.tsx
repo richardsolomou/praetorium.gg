@@ -129,28 +129,21 @@ export function Spectator({
   return (
     <>
       <main className="w-full space-y-2 px-3 pb-28">
-        <div className="mx-auto flex h-8 max-w-7xl items-center justify-between gap-3">
-          <p className="eyebrow shrink-0">
+        {/* On a phone the sticky scoreboard leads the page, so this row only shows there when it offers a sign-in. */}
+        <div className={`mx-auto h-8 max-w-7xl items-center justify-between gap-3 ${me ? 'hidden lg:flex' : 'flex'}`}>
+          <p className="eyebrow hidden shrink-0 lg:block">
             {currentView.status === 'finished' ? 'Battle replay' : view.status === 'playing' ? 'Watching live' : 'Battle setup'}
           </p>
-          <div className="flex min-w-0 items-center gap-2 text-xs">
-            {view.leagueToken ? (
-              <Link
-                to="/tournaments/$token"
-                params={{ token: view.leagueToken }}
-                search={view.leagueEventToken ? { event: view.leagueEventToken } : {}}
-                className="inline-flex shrink-0 items-center gap-1 text-info hover:text-bone"
-              >
-                <ArrowLeft className="size-3.5" /> Event
-              </Link>
-            ) : null}
-            {view.clubId ? <ClubLink token={view.token} /> : null}
-            {!me ? (
-              <Link to="/sign-in" search={{ next: `/battles/${view.token}` }} rel="nofollow" className="shrink-0 text-info hover:text-bone">
-                Sign in to play
-              </Link>
-            ) : null}
-          </div>
+          {!me ? (
+            <Link
+              to="/sign-in"
+              search={{ next: `/battles/${view.token}` }}
+              rel="nofollow"
+              className="ml-auto shrink-0 text-xs text-info hover:text-bone"
+            >
+              Sign in to play
+            </Link>
+          ) : null}
         </div>
 
         {combatSelection ? <BattleCombatDialog view={view} selection={combatSelection} onClose={() => setCombatSelection(null)} /> : null}
@@ -174,6 +167,21 @@ export function Spectator({
           ))}
 
           <section className="min-w-0 space-y-3 rounded-lg border border-edge bg-panel p-3 lg:col-start-2 lg:row-start-1">
+            {view.leagueToken || view.clubId ? (
+              <div className="flex min-w-0 items-center gap-3 text-xs">
+                {view.leagueToken ? (
+                  <Link
+                    to="/tournaments/$token"
+                    params={{ token: view.leagueToken }}
+                    search={view.leagueEventToken ? { event: view.leagueEventToken } : {}}
+                    className="inline-flex shrink-0 items-center gap-1 text-info hover:text-bone"
+                  >
+                    <ArrowLeft className="size-3.5" /> Event
+                  </Link>
+                ) : null}
+                {view.clubId ? <ClubLink token={view.token} /> : null}
+              </div>
+            ) : null}
             <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
               {view.settings.manual ? (
                 <Fact label="Tracking" value="Manual" />
