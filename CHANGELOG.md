@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.195.9
+
+### Patch Changes
+
+- a3a38d0: A faction's datasheet list responds faster to filter taps and opening a datasheet, especially on phones.
+
 ## 0.195.8
 
 ### Patch Changes
