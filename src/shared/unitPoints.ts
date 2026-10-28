@@ -11,10 +11,13 @@ import { datacardOf } from './datasheetJoin'
 import { factionDisplayName } from './factionNames'
 import { ownChoiceOptionWargear } from '../core/modelKinds'
 import type { Selection } from '../core/evaluate'
-import type { ChoiceOptions, UnitChoice } from '../core/unitChoices'
+import type { ChoiceOptions, UnitChoice, UnitChoiceCache } from '../core/unitChoices'
 import { type mfmDetachmentFor, mfmEnhancementPoints, mfmPrice, mfmSlugs, type MfmUnit, mfmWargearOptionPoints } from './mfm'
 
 const cache = new WeakMap<LoadedCatalogue, Map<string, number>>()
+
+/** Pricing builds each datasheet with and without a model count, and the two builds share most of their choice lists. */
+export const pricingChoices: UnitChoiceCache = new WeakMap()
 
 const comparable = (name: string) => normalizedName(plainQuotes(name.replaceAll('armour', 'armor')))
 
@@ -83,7 +86,7 @@ function computeUnitPointAdjustment(
   copy: number,
 ) {
   const unit = mfmUnitFor(loaded, primaryCatalogueId, entryId)
-  const built = buildUnit(entryId, loaded.index, models, undefined, { primaryCatalogueId, mustering: true })
+  const built = buildUnit(entryId, loaded.index, models, undefined, { primaryCatalogueId, mustering: true, choiceCache: pricingChoices })
   const fixed = built && !isResizable(built.size)
   const price = unit
     ? (mfmPrice(unit, models, copy) ?? (fixed ? mfmPrice(unit, 1, copy) : null))

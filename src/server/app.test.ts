@@ -66,6 +66,20 @@ it('answers startup readiness once the construction indexes are built', async ()
   expect(progress.steps).toBe(1_000)
 })
 
+it('answers startup readiness before the other editions are built', async () => {
+  const serving = construction(10)
+  const others = construction(1_000)
+  await warm({ ...projections(), construction: (scope) => (scope === 'serving' ? serving : others).steps() }, true)
+  expect({ serving: serving.progress.steps, others: others.progress.steps < 1_000 }).toEqual({ serving: 10, others: true })
+})
+
+it('builds the other editions once startup readiness is answered', async () => {
+  const others = construction(10)
+  await warm({ ...projections(), construction: (scope) => (scope === 'serving' ? construction(0) : others).steps() }, true)
+  await turns(20)
+  expect(others.progress.steps).toBe(10)
+})
+
 it('serves other work while startup readiness waits for construction', async () => {
   let answered = false
   void warm({ ...projections(), construction: construction(50, 5).steps }, true).then(() => (answered = true))
