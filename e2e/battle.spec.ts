@@ -3,6 +3,7 @@ import {
   advance,
   retryUntilVisible,
   advanceButton,
+  confirmScoring,
   attachRoster,
   befriend,
   createBattle,
@@ -737,7 +738,7 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
   // The keywords the pack marks up are drawn as keywords rather than printed with their asterisks.
   await expect(fronts.getByText('presence').first()).toBeVisible()
   await expect(fronts).not.toContainText('**')
-  await scoring.getByRole('button', { name: 'Pass the turn' }).click()
+  await confirmScoring(scoring, 'Pass the turn')
   const openingOwed = alice.getByRole('dialog', { name: /^Scoring end of their turn points/ })
   await expect(openingOwed).toBeVisible()
   await openingOwed.getByRole('button', { name: 'Take the turn' }).click()
@@ -778,7 +779,7 @@ test('a fixed secret mission is handed off before its scoring prompt', async ({ 
   await bobAction.getByRole('button', { name: 'Reveal and continue' }).click()
   const bobScoring = bob.getByRole('dialog', { name: /^Scoring end of turn points/ })
   await expect(bobScoring).toBeVisible()
-  await bobScoring.getByRole('button', { name: 'Pass the turn' }).click()
+  await confirmScoring(bobScoring, 'Pass the turn')
 
   const aliceAction = alice.getByRole('dialog', { name: `Secret Mission action · ${aliceName}` })
   const sharedAliceAction = bob.getByRole('dialog', { name: `Secret Mission action · ${aliceName}` })

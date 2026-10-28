@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { Stepper } from '../../components/Stepper'
 import { Button } from '@/components/ui/button'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
@@ -79,6 +79,40 @@ export function ScoringDialog({
   onAnswersChange,
 }: Props) {
   const [answers, setAnswers] = useState<ScoringAnswers>(() => initialAnswers ?? {})
+  const body = useRef<HTMLDivElement | null>(null)
+  // Every card has been on screen once the list fits or has been scrolled to its end. Fitting is measured again as rules
+  // text loads in, but reaching the end only counts when the reader scrolls there.
+  const [fits, setFits] = useState(true)
+  const [scrolledThrough, setScrolledThrough] = useState(false)
+  // A ref rather than an effect, because the dialog mounts its body after this component commits; measuring here, before
+  // paint, keeps a prompt that fits from flashing the stepping label.
+  const watchBody = useCallback((scroller: HTMLDivElement | null) => {
+    body.current = scroller
+    if (!scroller) return
+    const measure = () => setFits(scroller.scrollHeight <= scroller.clientHeight + 1)
+    const scrolled = () => {
+      if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1) setScrolledThrough(true)
+    }
+    measure()
+    const resizes = new ResizeObserver(measure)
+    resizes.observe(scroller)
+    for (const child of scroller.children) resizes.observe(child)
+    scroller.addEventListener('scroll', scrolled, { passive: true })
+    return () => {
+      resizes.disconnect()
+      scroller.removeEventListener('scroll', scrolled)
+    }
+  }, [])
+  const unseen = !fits && !scrolledThrough
+  // Brings up the first card that runs past the bottom: its top first, then, for a card taller than the prompt, its end.
+  const showNextCard = () => {
+    const scroller = body.current
+    if (!scroller) return
+    const view = scroller.getBoundingClientRect()
+    const next = [...scroller.querySelectorAll('section[data-due]')].find((card) => card.getBoundingClientRect().bottom > view.bottom + 1)
+    if (!next) scroller.scrollTo({ top: scroller.scrollHeight, behavior: 'smooth' })
+    else next.scrollIntoView({ behavior: 'smooth', block: next.getBoundingClientRect().top > view.top + 1 ? 'start' : 'end' })
+  }
   const answerFor = (card: DueCard) => answers[card.key] ?? card.awards.map(() => 0)
   const claimedFor = (card: DueCard) => card.awards.reduce((total, award, at) => total + awardTotal(award, answerFor(card)[at] ?? 0), 0)
   const finalClaimedFor = (card: DueCard) =>
@@ -229,7 +263,7 @@ export function ScoringDialog({
           </DialogTitle>
         </DialogHeader>
 
-        <DialogBody className="gap-3">
+        <DialogBody ref={watchBody} className="gap-3">
           <DialogDescription>Press what the board actually paid on each card.</DialogDescription>
           {finalAwardsDue ? (
             <p className="text-sm text-dim">Final awards: {finalScoring} VP. Round limits do not apply; the battle limit still applies.</p>
@@ -323,8 +357,8 @@ export function ScoringDialog({
                 Back
               </Button>
             ) : null}
-            <Button className={`flex-1 sm:flex-none ${colours.fill}`} disabled={pending} onClick={confirm}>
-              {confirmLabel}
+            <Button className={`flex-1 sm:flex-none ${colours.fill}`} disabled={pending} onClick={unseen ? showNextCard : confirm}>
+              {unseen ? 'Next card' : confirmLabel}
             </Button>
           </div>
         </DialogFooter>
