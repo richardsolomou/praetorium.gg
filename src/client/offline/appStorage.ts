@@ -1,6 +1,5 @@
 import { createStore, get, update } from 'idb-keyval'
-import { MAX_APP_SNAPSHOT_BYTES, parseAppSnapshot, type AppSnapshot } from '../../contracts/appSnapshot'
-import { jsonByteLength } from '../../core/json'
+import { parseAppSnapshot, type AppSnapshot } from '../../contracts/appSnapshot'
 import { requestNativeAppSnapshot, supportsNativeAppSnapshot } from '../nativeBridge'
 
 const store = createStore('praetorium-app', 'state')
@@ -26,7 +25,6 @@ export async function readAppSnapshot(): Promise<AppSnapshot | null> {
 }
 
 export async function writeAppSnapshot(snapshot: AppSnapshot | null, reset = false): Promise<void> {
-  if (snapshot && jsonByteLength(snapshot) > MAX_APP_SNAPSHOT_BYTES) return
   if (supportsNativeAppSnapshot()) {
     if (!(await requestNativeAppSnapshot(snapshot))) throw new Error('Application data could not be saved')
     window.PraetoriumAppSnapshot = snapshot ?? undefined

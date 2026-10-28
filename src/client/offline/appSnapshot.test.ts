@@ -1,6 +1,6 @@
 import { QueryClient } from '@tanstack/react-query'
 import { expect, it } from 'vitest'
-import { parseAppSnapshot } from '../../contracts/appSnapshot'
+import { MAX_APP_SNAPSHOT_BYTES, parseAppSnapshot } from '../../contracts/appSnapshot'
 import { captureAppSnapshot, restoreAppSnapshot, reconcileAppAccount } from './appSnapshot'
 
 it('restores the saved home and paginated battles before a network request is needed', () => {
@@ -11,6 +11,15 @@ it('restores the saved home and paginated battles before a network request is ne
   const reopened = new QueryClient()
   restoreAppSnapshot(reopened, captureAppSnapshot(first)!)
   expect(reopened.getQueryData(['battles'])).toEqual({ pages: [{ battles: [{ token: 'game' }] }], pageParams: [null] })
+})
+
+it('leaves out a saved response once a refresh grows it past the size limit', () => {
+  const client = new QueryClient()
+  client.setQueryData(['me'], { id: 'alice', impersonatedBy: null })
+  client.setQueryData(['home-rosters'], { rosters: [] })
+  captureAppSnapshot(client)
+  client.setQueryData(['home-rosters'], { rosters: ['x'.repeat(MAX_APP_SNAPSHOT_BYTES)] })
+  expect(captureAppSnapshot(client)!.queries.map((query) => query.key)).toEqual([['me']])
 })
 
 it('does not persist account methods, sessions, administration or mutation state', () => {
