@@ -151,7 +151,6 @@ async function deploy() {
     // Outside the shared /data volume, so each deployment starts with fresh accounts.
     'AUTH_SQLITE_PATH=/home/node/auth.sqlite',
     'AUTH_INITIALIZE_EMPTY=true',
-    'CATALOGUE_REFRESH_SCOPE=compiler',
     'PRAETORIUM_SEED_PREVIEW=true',
     `SPACETIME_URL=http://${internalHost}:3000/`,
     `SPACETIME_INTERNAL_HOST=${internalHost}`,

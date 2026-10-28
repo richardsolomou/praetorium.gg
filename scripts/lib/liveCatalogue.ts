@@ -4,13 +4,16 @@ import { DatabaseSync } from 'node:sqlite'
 import { liveCatalogueRevision } from '../../src/server/liveCatalogue'
 import { replaceDirectory } from '../../src/server/replaceDirectory'
 
+/**
+ * Only workers on the same compiler wait for each other: a release's new replica must not wait out the one it replaces,
+ * whose refresh can compile for many minutes.
+ */
 export async function refreshLiveCatalogue(
   root: string,
   prepare: (staging: string, previous: ReturnType<typeof liveCatalogueRevision>) => Promise<string | null>,
-  lockFile = path.join(root, 'refresh.sqlite'),
 ) {
   fs.mkdirSync(root, { recursive: true })
-  const lock = new DatabaseSync(lockFile, { timeout: 0 })
+  const lock = new DatabaseSync(path.join(root, 'refresh.sqlite'), { timeout: 0 })
   let staging: string | undefined
   try {
     try {

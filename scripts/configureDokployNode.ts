@@ -167,6 +167,7 @@ export async function configureWebAssetRoute(
   const previous = await read()
   if (!directories.length) throw new Error('Asset directories are required for route verification')
   const traefikConfig = webAssetRouting(previous, host)
+  if (traefikConfig === previous) return verify(directories, `https://${host}`)
   const save = async (config: string) => {
     await api('application.updateTraefikConfig', { body: { applicationId, traefikConfig: config } })
     if ((await read()) !== config) throw new Error('Dokploy asset routing did not persist')
