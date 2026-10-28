@@ -186,6 +186,13 @@ export async function showPrediction(
   return true
 }
 
+/** The latest click, which tells a new tap from another command sent by the same press. */
+let lastClick: Event | undefined
+if (typeof window !== 'undefined') window.addEventListener('click', (event) => (lastClick = event), { capture: true })
+
+/** How long the controls stay disabled after a press's result shows, so the second tap of a double tap lands on nothing. */
+const DOUBLE_TAP_MS = 300
+
 /**
  * Sends commands sequentially against the latest history this device has seen.
  *
@@ -197,43 +204,72 @@ export function useCommand(token: string, seq: number) {
   const queryClient = useQueryClient()
   const [problem, setProblem] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [settling, setSettling] = useState(false)
   /** The history this hook last saw, which runs ahead of props between renders. */
   const seen = useRef(seq)
   const queued = useRef<QueuedCommand[]>([])
   const draining = useRef(false)
   const projection = useRef<Projection | null>(null)
-  /** Blocking commands whose result is not on screen yet, which keep the controls disabled. */
+  /** Blocking commands whose result has not shown yet, during which a new tap is ignored. */
   const unshown = useRef(new Set<QueuedCommand>())
   const predicting = useRef(Promise.resolve())
+  /** The click that queued `unshown`, since one press may send several commands. */
+  const press = useRef<Event | undefined>(undefined)
+  const settled = useRef<number>(undefined)
+  /** Whether the controls are disabled until the service answers, because the result could not show ahead of it. */
+  const awaiting = useRef(false)
 
   useEffect(() => {
     seen.current = Math.max(seen.current, seq)
   }, [seq])
 
-  const drain = useCallback(
-    () => drainCommands({ token, queryClient, seen, queued, draining, setPending, setProblem, projection, unshown }),
-    [queryClient, token],
-  )
+  useEffect(() => () => window.clearTimeout(settled.current), [])
+
+  const settle = useCallback(() => {
+    // The next screen puts a control under the same finger, so a double tap would act twice.
+    setSettling(true)
+    window.clearTimeout(settled.current)
+    settled.current = window.setTimeout(() => setSettling(false), DOUBLE_TAP_MS)
+  }, [])
+
+  const drain = useCallback(() => {
+    const answered = (value: boolean) => {
+      if (!value && awaiting.current) settle()
+      awaiting.current = value && awaiting.current
+      setPending(value)
+    }
+    return drainCommands({ token, queryClient, seen, queued, draining, setPending: answered, setProblem, projection, unshown })
+  }, [queryClient, settle, token])
 
   const send: SendCommand = useCallback(
     (command, options) => {
+      const blocking = !options?.background && options?.blocking !== false
+      // The controls stay enabled until a result shows, so a second tap on them would act on a screen the first already changed.
+      const event = lastClick
+      if (blocking && unshown.current.size && event !== press.current) return options?.complete?.(false)
       const item: QueuedCommand = { command, basedOn: seq, background: options?.background, complete: options?.complete }
       queued.current.push(item)
-      if (!options?.background && options?.blocking !== false) {
+      // Disabling the controls re-renders the screen before the command goes out, so they disable only when its result
+      // cannot show ahead of the service.
+      if (blocking) {
         unshown.current.add(item)
-        setPending(true)
+        press.current = event
       }
       if (!options?.background)
         predicting.current = predicting.current
           .then(() => showPrediction({ token, queryClient, projection }, command))
+          .catch(() => false)
           .then((shown) => {
-            if (!shown || !unshown.current.delete(item)) return
-            if (!unshown.current.size) setPending(false)
+            if (!shown) {
+              // Disabled controls take over from here; controls that ignore `pending` queue their presses as before.
+              if (!unshown.current.delete(item)) return
+              awaiting.current = true
+              setPending(true)
+            } else if (unshown.current.delete(item) && !unshown.current.size) settle()
           })
-          .catch(() => {})
       void drain()
     },
-    [drain, queryClient, seq, token],
+    [drain, queryClient, seq, settle, token],
   )
 
   const attachRoster = useCallback(
@@ -247,5 +283,5 @@ export function useCommand(token: string, seq: number) {
     [drain, seq],
   )
 
-  return { send, attachRoster, problem, pending }
+  return { send, attachRoster, problem, pending: pending || settling }
 }
