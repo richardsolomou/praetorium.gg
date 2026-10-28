@@ -17,6 +17,7 @@ import { setLiveProductRefresh } from './liveProductRefresh'
 import { spacetimeBrowserUri } from './spacetimeBrowserUri'
 import { isExpectedRealtimeDisconnect, RealtimeHttpError } from './realtimeErrors'
 import { anySignal } from './abortSignals'
+import { battleCommandsSettled } from './pendingWrites'
 import { meKey, realtimeModeKey, reportKey } from './queries/queryKeys'
 
 export function useRealtimeConfig() {
@@ -88,11 +89,23 @@ function connection<T extends Ticket>(issued: T, link: SpacetimeLink<T>, identit
     })
 }
 
+/** How long a realtime battle refresh waits for this device's own command to answer. */
+const COMMAND_ANSWER_WAIT_MS = 3_000
+
 export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
   const queryClient = useQueryClient()
   const [subscribed, setSubscribed] = useState(false)
   const refresh = useCallback(
-    (seq?: number) => {
+    function refreshBattle(seq?: number, waited = false) {
+      // This device's own command signals before its answer arrives, so the answer is awaited rather than fetched twice;
+      // a send has no timeout, so one that hangs stops holding back other players' moves after a few seconds.
+      const sending = waited ? undefined : battleCommandsSettled(token)
+      if (sending) {
+        void Promise.race([sending, new Promise((resolve) => setTimeout(resolve, COMMAND_ANSWER_WAIT_MS))]).then(() =>
+          refreshBattle(seq, true),
+        )
+        return
+      }
       if (seq !== undefined) {
         const held = queryClient.getQueryData(battleQuery(token).queryKey) as { kind?: string; view?: { seq?: number } } | undefined
         if (held?.kind === 'battle' && typeof held.view?.seq === 'number' && held.view.seq >= seq) {

@@ -61,6 +61,24 @@ describe('automatic reloads while commands are queued', () => {
   })
 })
 
+describe('a command answered after a realtime refetch', () => {
+  it('keeps the newer screen the refetch brought', async () => {
+    submit.mockResolvedValueOnce({ result: { outcome: 'appended' }, screen: { kind: 'battle', view: { seq: 5 } } })
+    const client = new QueryClient()
+    client.setQueryData(['battle', 'battle'], { kind: 'battle', view: { seq: 6 } })
+    await drainCommands({
+      token: 'battle',
+      queryClient: client,
+      seen: { current: 4 },
+      queued: { current: [{ command: { kind: 'advance' } as never, basedOn: 4 }] },
+      draining: { current: false },
+      setPending: () => {},
+      setProblem: () => {},
+    })
+    expect(client.getQueryData(['battle', 'battle'])).toEqual({ kind: 'battle', view: { seq: 6 } })
+  })
+})
+
 describe('a command sent while the connection drops', () => {
   it('asks the player to check their connection and reports nothing', async () => {
     submit.mockRejectedValueOnce(new TypeError('Load failed'))

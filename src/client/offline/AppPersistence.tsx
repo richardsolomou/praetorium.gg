@@ -48,6 +48,9 @@ export function refreshesSavedQuery(queryKey: readonly unknown[]) {
   return APP_SNAPSHOT_QUERIES.has(family) && family !== 'me' && family !== 'price'
 }
 
+/** Switching back to the app within this long of the last refresh skips it; the screen in view refreshes itself. */
+const FOREGROUND_REFRESH_MS = 10 * 60_000
+
 export function AppPersistence() {
   const client = useQueryClient()
   const router = useRouter()
@@ -58,6 +61,7 @@ export function AppPersistence() {
     let saving = Promise.resolve()
     let refreshing = false
     let pendingRefresh = false
+    let refreshedAt = -Infinity
     let accountChangePending = false
     const save = () => {
       if (!ready || accountChangePending) return
@@ -87,6 +91,7 @@ export function AppPersistence() {
         return
       }
       refreshing = true
+      refreshedAt = Date.now()
       try {
         const me = await client.query({ ...meQuery(), staleTime: 0 })
         if (!active) return
@@ -158,7 +163,7 @@ export function AppPersistence() {
     }
     const foreground = () => {
       if (document.visibilityState === 'visible') {
-        void refresh()
+        if (Date.now() - refreshedAt >= FOREGROUND_REFRESH_MS) void refresh()
         save()
       } else save()
     }
