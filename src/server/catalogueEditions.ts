@@ -219,7 +219,7 @@ export function catalogueEditionLoaders(
     const books: [LoadedCatalogue, LoadedRules | null, string][] =
       scope === 'serving' && runtime && original ? original.factions.map((faction) => [original, originalRules, faction.id]) : []
     for (const { edition } of composition?.editions ?? []) {
-      if (Boolean(edition.default) !== (scope === 'serving')) continue
+      if (edition.default !== (scope === 'serving')) continue
       const { catalogue, rules } = yield* stepThrough(contextLoad(edition.id)!)
       if (runtime) for (const id of edition.catalogueIds) books.push([catalogue, rules, editionCatalogueId(edition.id, id)])
     }
