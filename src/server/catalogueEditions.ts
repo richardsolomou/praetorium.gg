@@ -25,6 +25,8 @@ import { pickerConstruction } from '../shared/pickerUnits'
 import { unitSummaries } from '../shared/cataloguePicker'
 import { completeSteps, type Steps, type Stepwise, stepThrough, stepwise } from '../shared/steps'
 
+export type ConstructionScope = 'serving' | 'others'
+
 export function catalogueEditionLoaders(
   directory: string,
   base: () => LoadedCatalogue | null,
@@ -204,18 +206,20 @@ export function catalogueEditionLoaders(
         .map((faction) => faction.id),
     )
   /**
-   * Loads every edition and, from a compiled runtime, each faction's reference list and then its picker, a step at a time.
+   * Loads editions and, from a compiled runtime, each faction's reference list and then its picker, a step at a time:
+   * `serving` covers the base catalogue and default editions that most requests read, `others` every other edition.
    *
    * Editions load first because a request for one still loading finishes it at once, holding every other request.
    * Reference lists come next because every faction and datasheet page reads one.
    */
-  function* construction(): Steps<void> {
+  function* construction(scope: ConstructionScope): Steps<void> {
     const original = base()
     const originalRules = baseRules()
     yield
     const books: [LoadedCatalogue, LoadedRules | null, string][] =
-      runtime && original ? original.factions.map((faction) => [original, originalRules, faction.id]) : []
+      scope === 'serving' && runtime && original ? original.factions.map((faction) => [original, originalRules, faction.id]) : []
     for (const { edition } of composition?.editions ?? []) {
+      if (edition.default !== (scope === 'serving')) continue
       const { catalogue, rules } = yield* stepThrough(contextLoad(edition.id)!)
       if (runtime) for (const id of edition.catalogueIds) books.push([catalogue, rules, editionCatalogueId(edition.id, id)])
     }
@@ -225,7 +229,8 @@ export function catalogueEditionLoaders(
   return {
     /** Builds every construction index ahead of requests; benchmarks and audits measure a fully built instance. */
     prepare: () => {
-      completeSteps(construction())
+      completeSteps(construction('serving'))
+      completeSteps(construction('others'))
       for (const { edition } of composition?.editions ?? []) canonicalFor(editionCatalogueId(edition.id, edition.catalogueIds[0]!))
     },
     construction,

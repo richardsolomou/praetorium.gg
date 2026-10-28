@@ -215,7 +215,7 @@ it('loads a named base edition from the root directory', () => {
 it('shares an edition load in progress with a request for it', () => {
   const loaded = versions(['child'])
   mocks.loadCatalogue.mockClear()
-  const construction = loaded.construction()
+  const construction = loaded.construction('others')
   construction.next()
   construction.next()
   loaded.catalogueFor('codex~child')
@@ -223,16 +223,31 @@ it('shares an edition load in progress with a request for it', () => {
   expect(mocks.loadCatalogue).toHaveBeenCalledTimes(1)
 })
 
-it('loads every rules version, then every reference list, before building pickers', () => {
-  const loaded = versions(['child'], false, {} as CatalogueRuntime)
+/** What each construction scope built, in order, with the `codex` edition promoted to the default or not. */
+function builtByScope(promoted: boolean) {
+  const loaded = versions(['child'], promoted, {} as CatalogueRuntime)
   const edition = mocks.loadCatalogue()
   mocks.loadCatalogue.mockReset().mockImplementation(() => {
     mocks.built.push('edition codex')
     return edition
   })
   mocks.built.length = 0
-  completeSteps(loaded.construction())
-  expect(mocks.built.slice(0, 4)).toEqual(['edition codex', 'reference child', 'reference parent', 'reference codex~child'])
+  completeSteps(loaded.construction('serving'))
+  const serving = [...mocks.built]
+  completeSteps(loaded.construction('others'))
+  return { serving, others: mocks.built.slice(serving.length) }
+}
+
+it('loads an edition, then every reference list, before building pickers', () => {
+  expect(builtByScope(true).serving.slice(0, 4)).toEqual(['edition codex', 'reference child', 'reference parent', 'reference codex~child'])
+})
+
+it('leaves an edition that is not the default out of the serving build', () => {
+  expect(builtByScope(false).serving.filter((built) => built.includes('codex'))).toEqual([])
+})
+
+it('builds an edition that is not the default after serving', () => {
+  expect(builtByScope(false).others.slice(0, 2)).toEqual(['edition codex', 'reference codex~child'])
 })
 
 it('keeps saved catalogue IDs on their rules when another version becomes the default', () => {

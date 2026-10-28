@@ -42,7 +42,7 @@ import { factionIndexFor, factionsFor } from '../shared/factionReferences'
 import { battleDetachmentData, type BattleDetachmentData } from '../shared/battleDetachmentData'
 import { githubSponsorRefresh, type GithubSponsorRefresh } from './githubSponsors'
 import type { compiledGlobalSearchIndex } from './globalSearch'
-import { catalogueEditionLoaders } from './catalogueEditions'
+import { catalogueEditionLoaders, type ConstructionScope } from './catalogueEditions'
 import { reportRuntimeMetrics } from './runtimeMetrics'
 import type { BattleFaction } from '../shared/battleSummary'
 import { type Steps, stepThrough, stepwise } from '../shared/steps'
@@ -95,7 +95,7 @@ type App = {
   /** Resolves after installed catalogue data has paid its one-time preparation cost. */
   ready: () => Promise<void>
   /** Builds what a faction's first request would otherwise build, a step at a time. */
-  construction: () => Steps<void>
+  construction: (scope: ConstructionScope) => Steps<void>
 }
 
 /** Parsing the whole catalogue takes seconds, so it happens once and only if asked for. */
@@ -172,7 +172,8 @@ const nextTurn = () => yieldToEventLoop(undefined, { ref: false })
  * index. A faction costs seconds on a production replica, so the build runs in slices that let
  * requests in between, until a sync swap replaces these loaders.
  *
- * With `untilBuilt`, the returned promise waits for the build as well; `readiness` decides when.
+ * With `untilBuilt`, the returned promise waits for the serving build as well; `readiness` decides when.
+ * The other editions build after it, since few requests read them.
  */
 export async function warm(
   instance: Pick<App, 'searchIndexFor' | 'canonicalCatalogue' | 'combatUnits' | 'catalogue' | 'construction'>,
@@ -192,10 +193,11 @@ export async function warm(
   // A browser-test stack opens a few factions, and building all of them starves the browsers sharing its runner.
   if (process.env.LOCAL_TEST_MODE === 'true') return
   const { construction } = instance
-  const built = inBackground(construction(), () => instance.construction === construction).catch((error: unknown) => {
-    console.error({ event: 'catalogue_construction_failed', error })
-  })
-  if (untilBuilt) await built
+  const current = () => instance.construction === construction
+  const failed = (error: unknown) => console.error({ event: 'catalogue_construction_failed', error })
+  const serving = inBackground(construction('serving'), current).catch(failed)
+  void serving.then(() => inBackground(construction('others'), current)).catch(failed)
+  if (untilBuilt) await serving
 }
 
 /**
@@ -242,9 +244,9 @@ function catalogueLoaders(directory: string) {
   const baseRules = stepwise(() => loadRulesSteps(directory, { loadedDatacards: catalogue()?.datacards }))
   const rules = baseRules.get
   const editions = catalogueEditionLoaders(directory, catalogue, rules, runtime)
-  function* construction() {
+  function* construction(scope: ConstructionScope) {
     yield* stepThrough(baseRules)
-    yield* editions.construction()
+    yield* editions.construction(scope)
   }
   return {
     catalogue,
