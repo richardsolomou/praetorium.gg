@@ -136,7 +136,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm exec vitest run --config vitest.integration.config.ts scripts/clientText.integration.test.ts
 
-  # A compiler change makes the release compile production's live catalogue for minutes before its replica can start, so this prepares and shares it while the pull request is reviewed.
+  # A compiler change makes the release compile production's live catalogue for minutes before its replica can start, so this prepares and shares it while the pull request is reviewed. Only releases publish the live catalogue itself.
   live-catalogue:
     needs: [changes, browser-build]
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && needs.browser-build.outputs.runtime-cached != 'true'

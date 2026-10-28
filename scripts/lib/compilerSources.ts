@@ -29,6 +29,9 @@ export function treeFingerprint(root: string, inputs: readonly string[]) {
   return hash.digest('hex')
 }
 
+/** Identifies the catalogue configuration a compiler materializes with: sources, composition and patches. */
+export const catalogueAuthoring = (root = process.cwd()) => treeFingerprint(root, ['catalogue'])
+
 /** The compiler's entry points bundled with every dependency they reach. */
 async function compilerBundle(root: string, entries: readonly string[]) {
   const result = (await build({

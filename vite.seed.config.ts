@@ -1,9 +1,9 @@
 import { defineConfig } from 'vite'
 import path from 'node:path'
-import { compilerFingerprint, treeFingerprint } from './scripts/lib/compilerSources.ts'
+import { catalogueAuthoring, compilerFingerprint } from './scripts/lib/compilerSources.ts'
 
 const catalogueKey = await compilerFingerprint()
-const authoring = treeFingerprint(process.cwd(), ['catalogue'])
+const authoring = catalogueAuthoring()
 
 export default defineConfig({
   ssr: { noExternal: true },
