@@ -1,5 +1,14 @@
 # praetorium
 
+## 0.195.5
+
+### Patch Changes
+
+- 28ff003: Burden of Trust no longer offers a unit that already guards another objective.
+- 28ff003: Each objective in the Burden of Trust and Consecrate choices has a button to clear its unit.
+- 68731ca: When the scoring prompt is taller than the screen, its button now steps you through each card before it lets you pass the turn.
+- 0df9e2a: Switching tabs after an update no longer loses your place: the tab reopens where you left it and Back still works.
+
 ## 0.195.4
 
 ### Patch Changes
