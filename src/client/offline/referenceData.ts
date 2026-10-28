@@ -14,7 +14,7 @@ export function applyReferenceData(client: QueryClient, data: OfflineReferenceDa
       if (!keys.has(JSON.stringify(entry.key))) client.setQueryData(entry.key, null)
     }
     // Reference queries read the download when they are created, so only those already made take it: restoring fills
-    // the ones still waiting, and a new revision replaces what they hold. Filling every query parsed the whole download at once.
+    // the ones still waiting, and a new revision replaces what they hold. Filling every query would parse the whole download at once.
     for (const query of client.getQueryCache().getAll()) {
       if (restore && query.state.data !== undefined) continue
       const saved = savedQuery(data, query.queryKey)
