@@ -279,6 +279,25 @@ it('reconnects the SDK with a lasting ticket instead of issuing another', async 
   expect([renewed, issue.mock.calls.length]).toEqual(['ticket-1', 1])
 })
 
+it('says how long the connection was down once it is back', async () => {
+  vi.useFakeTimers()
+  const links: SpacetimeLink<string>[] = []
+  const open = vi.fn((_ticket: string, link: SpacetimeLink<string>) => {
+    links.push(link)
+    return { disconnect: vi.fn() }
+  })
+  const restored = vi.fn()
+  const stop = maintainSpacetimeConnection({ issue: async () => 'ticket', open, inactive: vi.fn(), report: vi.fn(), restored })
+  await vi.waitFor(() => expect(open).toHaveBeenCalledTimes(1))
+  links[0]!.ready()
+  links[0]!.interrupted()
+  await vi.advanceTimersByTimeAsync(4_000)
+  links[0]!.ready()
+  links[0]!.ready()
+  expect(restored.mock.calls).toEqual([[4_000]])
+  stop()
+})
+
 it('counts one lost connection per outage, until it has recovered', async () => {
   vi.useFakeTimers()
   const links: SpacetimeLink<string>[] = []
