@@ -193,7 +193,7 @@ export function Spectator({
                   <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
                 </>
               )}
-              <Fact label="Battle size" value={battleSizeText(view) ?? 'Legacy format'} />
+              <Fact label="Battle size" value={battleSizeText(view) ?? 'Not set'} />
             </dl>
             {view.settings.manual ? <p className="text-xs text-dim">{MANUAL_TRACKING_LIMITS}</p> : null}
             {currentView.status === 'finished' ? null : <SpectatorInvite view={currentView} className="border-t border-edge pt-3" />}
