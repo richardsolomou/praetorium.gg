@@ -5,6 +5,7 @@ import {
   deploymentsQuery,
   meQuery,
   collectionProfileQuery,
+  playerAchievementsQuery,
   playerProfileQuery,
   playerRankingsQuery,
   playerRostersQuery,
@@ -22,6 +23,7 @@ export const Route = createFileRoute('/users/$userId')({
       context.queryClient.query({ ...playerRankingsQuery(params.userId), staleTime: 'static' }),
       context.queryClient.query({ ...playerRostersQuery(params.userId), staleTime: 'static' }),
       context.queryClient.query({ ...collectionProfileQuery(params.userId), staleTime: 'static' }),
+      context.queryClient.query({ ...playerAchievementsQuery(params.userId), staleTime: 'static' }),
       context.queryClient.query({ ...deploymentsQuery(), staleTime: 'static' }).catch(() => null),
     ])
     // The same record the page header summarises, narrowed exactly as far as the link is.

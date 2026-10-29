@@ -1719,6 +1719,16 @@ describe('guest devices', () => {
     expect(claim('a'.repeat(64), 'host')).toBe('you already have a seat in this battle')
   })
 
+  it('credits the host, not the claimant, with recruiting the guest', () => {
+    const { invite, join, finish, claim, operator, procedure } = setup()
+    join(invite())
+    finish()
+    claim()
+    const recruits = (userId: string) =>
+      (JSON.parse(module.achievementFactsByUser(procedure(operator), { userId })) as { recruits: number[] }).recruits
+    expect([recruits('host'), recruits('newcomer')]).toEqual([[NOW * 1_000], []])
+  })
+
   it('leaves every logged command as it was written when a guest claims', () => {
     const { test, invite, join, finish, claim } = setup()
     join(invite())

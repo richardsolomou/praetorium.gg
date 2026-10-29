@@ -11,6 +11,7 @@ import {
   opponents,
   playerProfile,
   playerRankings,
+  playerAchievements,
   playerRosters,
   publicBattles,
   replayBattleAt,
@@ -34,6 +35,7 @@ import {
   opponentsKey,
   playerProfileKey,
   playerRankingsKey,
+  playerAchievementsKey,
   playerRostersKey,
   playerSearchKey,
   publicBattlesKey,
@@ -100,6 +102,13 @@ export const playerRostersQuery = (userId: string) =>
 
 export const playerRankingsQuery = (userId: string) =>
   queryOptions({ queryKey: playerRankingsKey(userId), queryFn: () => playerRankings({ data: { userId } }), staleTime: 60_000 })
+
+export const playerAchievementsQuery = (userId: string) =>
+  queryOptions({
+    queryKey: playerAchievementsKey(userId),
+    queryFn: () => playerAchievements({ data: { userId } }),
+    staleTime: 60_000,
+  })
 
 export const battleRatingChangesQuery = (token: string) =>
   queryOptions({ queryKey: battleRatingChangesKey(token), queryFn: () => battleRatingChanges({ data: { token } }), staleTime: 60_000 })

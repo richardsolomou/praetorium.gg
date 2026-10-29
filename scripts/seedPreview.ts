@@ -393,6 +393,7 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
     await repository.favouriteDetachmentsByUser(userId)
     await repository.favouriteDatasheetsByUser(userId)
     await repository.collectionProfile(userId, userId)
+    await repository.achievementFacts(userId)
     await repository.collectionWishesByUser(userId)
     for (const entry of await repository.collectionByUser(userId)) await repository.datasheetPhotos(entry.entryId, userId, 100)
     await repository.homeRostersByUser(userId)

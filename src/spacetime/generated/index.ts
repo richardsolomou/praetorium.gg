@@ -74,6 +74,7 @@ import WatchBattleReducer from './watch_battle_reducer'
 import * as AbilityRemindersByUserProcedure from './ability_reminders_by_user_procedure'
 import * as AcceptFriendProcedure from './accept_friend_procedure'
 import * as AcceptFriendInviteProcedure from './accept_friend_invite_procedure'
+import * as AchievementFactsByUserProcedure from './achievement_facts_by_user_procedure'
 import * as AdminCollectionPhotosProcedure from './admin_collection_photos_procedure'
 import * as BattleByTokenProcedure from './battle_by_token_procedure'
 import * as BattleChangesProcedure from './battle_changes_procedure'
@@ -274,6 +275,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('ability_reminders_by_user', AbilityRemindersByUserProcedure.params, AbilityRemindersByUserProcedure.returnType),
   __procedureSchema('accept_friend', AcceptFriendProcedure.params, AcceptFriendProcedure.returnType),
   __procedureSchema('accept_friend_invite', AcceptFriendInviteProcedure.params, AcceptFriendInviteProcedure.returnType),
+  __procedureSchema('achievement_facts_by_user', AchievementFactsByUserProcedure.params, AchievementFactsByUserProcedure.returnType),
   __procedureSchema('admin_collection_photos', AdminCollectionPhotosProcedure.params, AdminCollectionPhotosProcedure.returnType),
   __procedureSchema('battle_by_token', BattleByTokenProcedure.params, BattleByTokenProcedure.returnType),
   __procedureSchema('battle_changes', BattleChangesProcedure.params, BattleChangesProcedure.returnType),

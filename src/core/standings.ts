@@ -85,7 +85,7 @@ export function sideScore(battle: StandingBattle, side: number) {
  * Exclude practice, guest, and manually tracked battles entirely, including the account holders' side; all table shapes count together.
  * The host plays a guest's side unverified, so counting it would let anyone rate themselves against opponents they made up.
  */
-function counted<B extends StandingBattle>(battles: readonly B[], exclude: readonly string[]) {
+export function counted<B extends StandingBattle>(battles: readonly B[], exclude: readonly string[]) {
   const excluded = new Set(exclude)
   return battles.filter(
     (battle) =>

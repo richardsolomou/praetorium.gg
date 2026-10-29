@@ -98,6 +98,7 @@ components:
 
 - Code names: Field Green is `parchment`/`azure` (`primary` in generated components), Map Green `achieved`, Signal Amber `discarded`, Chart Blue `info`, Admin Violet `admin`, Supporter Gold `supporter`.
 - One job per colour, always paired with a label: green action, selection, focus; Side A/B red and blue the sides (red also danger); Map Green achieved or best; Amber warnings and discarded; Rust losses; violet and gold role marks; `measure-*` the terrain board's distances, one per thing measured from, in hues the board itself never uses.
+- Achievement medals carry their own bronze, silver, gold and platinum metals (`AchievementBadge.tsx`), used nowhere else; a medal not yet earned is the same medal in grey.
 - Neutrals: Void page; Masthead the gridded band that opens a page; Panel cards, dialogs, menus; Raised tab lists, tooltips, disabled primary; Sunken footers, table headers, dialog action strips.
 
 ## Typography

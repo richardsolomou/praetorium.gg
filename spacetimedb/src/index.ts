@@ -3016,6 +3016,137 @@ function personalEventIds(ctx: Context, userId: string) {
   return ids
 }
 
+/** When a battle's last command was written, or null while it is still being played. */
+function finishedAt(ctx: Context, battleId: string) {
+  const { log, state } = battleState(ctx, battleId)
+  return state.status === 'finished' ? (log.at(-1)?.at ?? null) : null
+}
+
+/** Each club season fixture's finish, null while one is unplayed; a bye or a fixture a player withdrew from has none. */
+function seasonFinishes(ctx: Context, seasonId: string, test: (pairing: { aId: string; bId: string | undefined }) => boolean) {
+  const withdrawn = new Set(seasonPlayers(ctx, seasonId).flatMap((row) => (row.withdrawn ? [row.userId] : [])))
+  return Array.from(ctx.db.leagueRoundPairings.eventId.filter(seasonId))
+    .filter(test)
+    .map((pairing) =>
+      pairing.bId === undefined || withdrawn.has(pairing.aId) || withdrawn.has(pairing.bId)
+        ? 0
+        : pairing.battleId === undefined
+          ? null
+          : finishedAt(ctx, pairing.battleId),
+    )
+}
+
+/** When every one of these finished, or null while any has not. */
+const allFinished = (finishes: readonly (number | null)[]) =>
+  finishes.length && finishes.every((at) => at !== null) ? Math.max(...(finishes as number[])) : null
+
+/** Everything but battle results that `src/core/achievements.ts` reads for one player, each as the time it happened. */
+export const achievementFactsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  operatorTx(ctx, (tx) => {
+    if (!validId(userId)) throw new SenderError('Invalid user ID')
+    const recruits = []
+    for (const seat of tx.db.battleUsers.userId.filter(userId)) {
+      const claimed = Array.from(tx.db.battleUsers.battleId.filter(seat.battleId)).some(
+        (other) => other.userId !== userId && other.claimedSeat !== undefined,
+      )
+      const at = claimed ? finishedAt(tx, seat.battleId) : null
+      if (at !== null) recruits.push(at)
+    }
+    const tournaments = []
+    for (const eventId of personalEventIds(tx, userId)) {
+      const event = tx.db.sealedEvents.id.find(eventId)
+      const host = event && hostOfEvent(tx, event)
+      if (host?.kind !== 'tournament' || event?.rounds === undefined) continue
+      const pairings = roundPairings(tx, eventId)
+      if (!pairings.some((pairing) => pairing.round === event.rounds) || !pairings.every((pairing) => pairingFinished(tx, pairing)))
+        continue
+      const entries = leagueEntriesFor(tx, eventId).filter((entry) => entry.status === 'accepted')
+      const own = entries.find((entry) => entry.userId === userId)
+      const ends = pairings.flatMap((pairing) => (pairing.battleId ? [finishedAt(tx, pairing.battleId) ?? 0] : []))
+      tournaments.push({
+        token: host.tournament.token,
+        eventToken: event.token,
+        entrants: entries.length,
+        finishedAt: Math.max(safeNumber(event.revealedAt ?? event.createdAt), ...ends),
+        organised: host.tournament.ownerId === userId || tournamentAdminIds(tx, host.tournament.id).includes(userId),
+        played: own !== undefined && own.droppedAt === undefined,
+      })
+    }
+    const clubs = Array.from(tx.db.clubs.ownerId.filter(userId), (club) => ({
+      members: clubMembersOf(tx, club.id).flatMap((row) => (row.status === 'accepted' ? [safeNumber(row.joinedAt)] : [])),
+      battles: Array.from(tx.db.clubBattles.clubId.filter(club.id)).flatMap((row) => {
+        const at = finishedAt(tx, row.battleId)
+        return at === null ? [] : [at]
+      }),
+    }))
+    const photos = Array.from(tx.db.collectionPhotos.userId.filter(userId))
+      .filter((photo) => photo.review !== 'held')
+      .map((photo) => ({
+        at: safeNumber(photo.at),
+        likes: Array.from(tx.db.collectionPhotoLikes.photoId.filter(photo.photoId)).flatMap((like) =>
+          like.userId === userId ? [] : [safeNumber(like.at)],
+        ),
+      }))
+    const seats = Array.from(tx.db.battleUsers.userId.filter(userId), (seat) => seat.battleId)
+    const finishedSeats = (test: (battleId: string) => boolean) =>
+      seats.flatMap((battleId) => {
+        const at = test(battleId) ? finishedAt(tx, battleId) : null
+        return at === null ? [] : [at]
+      })
+    const seasons = []
+    const seasonsRun = []
+    for (const member of tx.db.clubMembers.userId.filter(userId)) {
+      const club = tx.db.clubs.id.find(member.clubId)
+      const season = club && tx.db.clubSeasons.clubId.find(club.id)
+      if (!club || season?.publishedAt === undefined || member.status !== 'accepted') continue
+      const player = tx.db.clubSeasonPlayers.key.find(seasonPlayerKey(season.id, userId))
+      const played =
+        player &&
+        !player.withdrawn &&
+        allFinished(seasonFinishes(tx, season.id, (pairing) => pairing.aId === userId || pairing.bId === userId))
+      if (played) seasons.push(played)
+      const ran = isClubOrganizer(club, clubMemberRows(tx, club), userId) && allFinished(seasonFinishes(tx, season.id, () => true))
+      if (ran) seasonsRun.push(ran)
+    }
+    const rosters = Array.from(tx.db.rosters.userId.filter(userId))
+    const collection = Array.from(tx.db.collection.userId.filter(userId))
+    return productJson({
+      recruits,
+      tournaments,
+      clubs,
+      photos,
+      clubBattles: finishedSeats((battleId) => Boolean(tx.db.clubBattles.battleId.find(battleId))),
+      imports: finishedSeats((battleId) => Boolean(tx.db.battleImports.battleId.find(battleId))),
+      seasons,
+      seasonsRun,
+      seals: Array.from(tx.db.leagueEventEntries.userId.filter(userId)).flatMap((entry) =>
+        entry.submittedAt === undefined ? [] : [safeNumber(entry.submittedAt)],
+      ),
+      published: rosters.flatMap((roster) => (roster.visibility === 'public' ? [safeNumber(roster.createdAt)] : [])),
+      collected: collection.map((row) => safeNumber(row.at)),
+      painted: collection.reduce((sum, row) => sum + (row.painted ?? 0), 0),
+      wishes: Array.from(tx.db.collectionWishes.userId.filter(userId), (row) => safeNumber(row.at)),
+      rosters: rosters.map((roster) => safeNumber(roster.createdAt)),
+      loans: rosters.flatMap((roster) => Array.from(tx.db.rosterLoans.rosterId.filter(roster.id), (loan) => safeNumber(loan.lentAt))),
+      friends: [...tx.db.friendships.requesterId.filter(userId), ...tx.db.friendships.addresseeId.filter(userId)].flatMap((row) =>
+        row.acceptedAt === undefined ? [] : [safeNumber(row.acceptedAt)],
+      ),
+      likesGiven: Array.from(tx.db.collectionPhotoLikes.userId.filter(userId)).flatMap((like) =>
+        tx.db.collectionPhotos.photoId.find(like.photoId)?.userId === userId ? [] : [safeNumber(like.at)],
+      ),
+      simulations: Array.from(tx.db.recentMatchups.userId.filter(userId), (row) => safeNumber(row.at)),
+      reminders: Array.from(tx.db.abilityReminders.userId.filter(userId), (row) => safeNumber(row.updatedAt)),
+      loadouts: Array.from(tx.db.unitLoadouts.userId.filter(userId), (row) => safeNumber(row.createdAt)),
+      favourites: [
+        ...tx.db.favouriteFactions.userId.filter(userId),
+        ...tx.db.favouriteDetachments.userId.filter(userId),
+        ...tx.db.favouriteDatasheets.userId.filter(userId),
+      ].map((row) => safeNumber(row.at)),
+      app: Array.from(tx.db.pushTokens.userId.filter(userId), (row) => safeNumber(row.createdAt)),
+    })
+  }),
+)
+
 /** Public tournaments and every event of a player's own, their own first, then newest. */
 export const leaguesVisibleTo = spacetime.procedure({ userId: t.string(), limit: t.u32() }, t.string(), (ctx, { userId, limit }) =>
   operatorTx(ctx, (tx) => {
