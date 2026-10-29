@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
-import type { ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, History } from 'lucide-react'
 import type { IndexedUpdate } from '../../../contracts/catalogueChanges'
 import { factionColour } from '../../components/FactionMark'
@@ -10,14 +10,13 @@ import { useDateFormatting } from '../../dates'
 import { catalogueChangeLogQuery } from '../../queries'
 import { useOpenHashTarget } from '../../hashTarget'
 import { UpdateChanges } from './UpdateChanges'
-import { UpdateFactionLabel } from './UpdateFactionLabel'
 import { UpdatesNavigation } from './UpdatesNavigation'
-import { countLabel } from '../../text'
+import { changeTally } from '../../catalogueChanges'
 
 /**
  * Every army data update, or every one that reached a faction, newest first, a page at a time.
- * Each is a row naming the factions it reached most, which opens onto every change it recorded;
- * a small update starts open.
+ * Each is a row saying what it changed, which opens onto every change it recorded; a small
+ * update starts open.
  */
 export function CatalogueChangesPage({ before, faction }: { before?: string; faction?: { name: string; slug: string } }) {
   const { data } = useQuery(catalogueChangeLogQuery(before, faction?.slug))
@@ -45,7 +44,11 @@ export function CatalogueChangesPage({ before, faction }: { before?: string; fac
           </Link>
         ) : null}
         {updates?.length ? (
-          updates.map((update) => <Update key={update.anchor} update={update} named={!faction} />)
+          <div className="divide-y divide-edge border border-edge bg-panel">
+            {updates.map((update) => (
+              <Update key={update.anchor} update={update} named={!faction} />
+            ))}
+          </div>
         ) : (
           <PageState
             headingLevel={2}
@@ -103,55 +106,50 @@ function PageLink({
   )
 }
 
+/** How many armies a row names before counting the rest. */
+const NAMED_ARMIES = 4
+
+/** The armies an update reached, by name, with any version qualifier left to its body. */
+function armiesLine(update: IndexedUpdate) {
+  const names = [...new Set(update.groups.flatMap((group) => group.factions.map((faction) => faction.faction.split(' · ')[0]!)))]
+  const named = names.slice(0, NAMED_ARMIES).join(', ')
+  return names.length > NAMED_ARMIES ? `${named} and ${names.length - NAMED_ARMIES} more` : named
+}
+
 /**
  * One update as a native disclosure, left to the browser to open and close so hydration never
- * disagrees with what the reader did. Its faction links are fragments into its own body, and a
- * faction's own page, where there is only one, leaves them out.
+ * disagrees with what the reader did. Its summary names when it landed, the armies it reached
+ * and what it did, so most readers never need to open it.
  */
 function Update({ update, named }: { update: IndexedUpdate; named: boolean }) {
   const { date, time } = useDateFormatting()
+  const tally = changeTally(update.groups.flatMap((group) => group.changes))
+  if (update.omitted) tally.push(`${update.omitted} more`)
   return (
-    <details id={update.anchor} open={update.open} className="group scroll-mt-header border border-edge bg-panel open:border-edge-strong">
-      <summary className="cursor-pointer list-none p-4 hover:bg-raised/40 sm:p-5 [&::-webkit-details-marker]:hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="flex min-w-0 items-center gap-3 text-lg text-bone sm:text-xl">
-            <span className="grid size-8 shrink-0 place-items-center border border-edge-strong text-dim group-open:border-parchment/30 group-open:text-parchment">
-              <ChevronRight className="size-4 transition-transform group-open:rotate-90" aria-hidden />
-            </span>
-            <time dateTime={new Date(update.recordedAt).toISOString()}>
-              <span className="block">{date(update.recordedAt)}</span>{' '}
-              <span className="readout mt-0.5 block text-xs font-sans font-normal text-dim">{time(update.recordedAt)}</span>
-            </time>
+    <details id={update.anchor} open={update.open} className="group scroll-mt-header">
+      <summary className="flex cursor-pointer list-none items-start gap-3 px-3 py-3 hover:bg-raised/40 sm:px-4 [&::-webkit-details-marker]:hidden">
+        <ChevronRight
+          className="mt-1 size-4 shrink-0 text-dim transition-transform group-open:rotate-90 group-open:text-parchment"
+          aria-hidden
+        />
+        <div className="min-w-0 flex-1">
+          <h2 className="flex flex-wrap items-baseline gap-x-3 text-base text-bone">
+            <time dateTime={new Date(update.recordedAt).toISOString()}>{date(update.recordedAt)}</time>
+            <span className="readout text-xs font-sans font-normal text-dim normal-case">{time(update.recordedAt)}</span>
           </h2>
-          <p className="chip border-info/25 bg-info/5 px-2 py-1 text-info">{countLabel(update.total, 'change')}</p>
+          {named ? <p className="mt-0.5 text-sm text-bone">{armiesLine(update)}</p> : null}
+          <p className="mt-0.5 text-xs text-dim">
+            {tally.map((part, at) => (
+              <Fragment key={part}>
+                {at ? ' · ' : null}
+                <span className="whitespace-nowrap">{part}</span>
+              </Fragment>
+            ))}
+          </p>
         </div>
-        {named ? (
-          <div className="mt-3 grid gap-x-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
-            {update.factions.map((faction) => {
-              const linked = update.changes.factions.find((entry) => entry.anchor === faction.anchor)
-              return (
-                <a
-                  key={faction.anchor}
-                  href={`#${faction.anchor}`}
-                  aria-label={`${faction.faction}, ${countLabel(faction.count, 'change')}`}
-                  className="flex min-w-0 items-start justify-between gap-3 px-3 py-2 hover:bg-raised"
-                >
-                  <span
-                    className="mt-0.5 h-4 w-0.5 shrink-0"
-                    aria-hidden
-                    style={{ backgroundColor: factionColour(linked?.slug ?? '', faction.faction.split(' · ')[0]) }}
-                  />
-                  <UpdateFactionLabel name={faction.faction} />
-                  <span className="readout ml-auto shrink-0 text-xs text-dim">{faction.count}</span>
-                </a>
-              )
-            })}
-            {update.more ? <span className="self-center px-3 text-xs text-dim">+{update.more} more armies</span> : null}
-          </div>
-        ) : null}
       </summary>
-      <div className="border-t border-edge bg-sunken/30 p-4 sm:p-5">
-        <UpdateChanges update={update.changes} />
+      <div className="px-3 pb-4 sm:pr-4 sm:pl-11">
+        <UpdateChanges update={update} named={named} />
       </div>
     </details>
   )

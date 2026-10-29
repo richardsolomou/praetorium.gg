@@ -15,7 +15,7 @@ type Detachment = ChangeSource['detachments'][number]
 const row = (
   models: string,
   cost: string,
-  condition: Partial<Pick<Sheet['costs'][number], 'keyword' | 'faction' | 'detachment'>> = {},
+  condition: Partial<Pick<Sheet['costs'][number], 'keyword' | 'faction' | 'detachment' | 'copies'>> = {},
 ) => ({
   models,
   cost,
@@ -98,6 +98,22 @@ describe('the change set between two snapshots', () => {
     ])
   })
 
+  it('compares each copy tier of a row with the same tier', () => {
+    const tiers = (first: string, later: string) =>
+      sheet({
+        costs: [row('1', first, { copies: 'Your 1st To 2nd Units Cost' }), row('1', later, { copies: 'Your 3rd + Unit Costs' })],
+      })
+
+    expect(changesOf(catalogueChanges(source([tiers('110', '125')]), source([tiers('175', '195')])))).toMatchObject([
+      {
+        rows: [
+          { condition: '1st–2nd unit', from: '110', to: '175' },
+          { condition: '3rd+ unit', from: '125', to: '195' },
+        ],
+      },
+    ])
+  })
+
   it('reports a row the source stops printing as leaving, not as a change to another row', () => {
     const changes = catalogueChanges(source([sheet()]), source([sheet({ costs: [row('5', '80')] })]))
 
@@ -157,6 +173,13 @@ describe('the change set between two snapshots', () => {
         rows: [{ models: '5', condition: null, from: '80', to: '95' }],
       },
     ])
+  })
+
+  it('pairs a replacement whose name changed only in capitals', () => {
+    const before = sheet({ id: 'caladius', name: 'Caladius Grav-tank', costs: [row('1', '215')] })
+    const after = sheet({ id: 'caladius-v2', name: 'Caladius Grav-Tank', costs: [row('1', '215')] })
+
+    expect(isEmptyChangeSet(catalogueChanges(source([before]), source([after])))).toBe(true)
   })
 
   it('does not report a unit newly indexed under a chapter that already offered it', () => {

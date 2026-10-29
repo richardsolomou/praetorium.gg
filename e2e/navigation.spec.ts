@@ -1264,15 +1264,14 @@ test.describe('data update anchors', () => {
   // The rows only exist for a catalogue that carries a history; the release pin may predate it.
   test.skip(!fs.existsSync(join(catalogue, 'changes', 'history.json')), 'the catalogue under test carries no data-update history')
 
-  /** A row that starts closed, and a faction link inside its summary. */
+  /** A row that starts closed. */
   async function closedRow(page: Page) {
     await page.goto('/data-updates')
     const closed = page.locator('main details:not([open])').first()
     await expect(closed).toBeAttached()
     const id = await closed.getAttribute('id')
     if (!id) throw new Error('Data update row is missing its anchor')
-    const row = page.locator(`#${id}`)
-    return { row, chip: row.locator('summary a').first() }
+    return { row: page.locator(`#${id}`) }
   }
 
   const belowHeader = async (page: Page, id: string) => {
@@ -1281,45 +1280,22 @@ test.describe('data update anchors', () => {
     return top >= header && top < (page.viewportSize()?.height ?? 0)
   }
 
-  test('a faction link opens its update and lands on that faction', async ({ page }) => {
-    const { row, chip } = await closedRow(page)
-    const target = (await chip.getAttribute('href'))!.slice(1)
-
-    await chip.click()
-
-    await expect(row).toHaveAttribute('open', '')
-    await expect(page).toHaveURL(new RegExp(`#${target}$`))
-    await expect.poll(() => belowHeader(page, target)).toBe(true)
-  })
-
-  test('a faction link in an open update leaves it open', async ({ page }) => {
-    await page.goto('/data-updates')
-    const open = page.locator('main details[open]').first()
-    const id = await open.getAttribute('id')
-    if (!id) throw new Error('Data update row is missing its anchor')
-    const row = page.locator(`#${id}`)
-    await row.locator('summary a').first().click()
-
-    await expect(row).toHaveAttribute('open', '')
-  })
-
-  test("a faction's page lists only that faction's changes", async ({ page }) => {
-    await page.goto('/data-updates')
-    const heading = page.locator('main [data-faction] h3 a').first()
-    const faction = await heading.textContent()
-    await page.goto((await heading.getAttribute('href'))!)
-
-    const updates = page.locator('main').getByRole('link', { name: 'Data updates' })
-    const href = (await updates.getAttribute('href'))!
-    await updates.click()
+  test("an army's page lists only that army's changes", async ({ page }) => {
+    const { row } = await closedRow(page)
+    await row.locator('summary').click()
+    const army = row.locator('[data-factions] h3 a').first()
+    const href = (await army.getAttribute('href'))!
+    await army.click()
 
     await expect(page).toHaveURL(href)
     const firstUpdate = page.locator('main details').first()
     if (!(await firstUpdate.evaluate((element) => (element as HTMLDetailsElement).open))) await firstUpdate.locator('summary').click()
-    await expect(page.locator('main [data-faction]').first()).toBeVisible()
+    await expect(page.locator('main [data-factions]').first()).toBeVisible()
     expect(
-      new Set(await page.locator('main [data-faction]').evaluateAll((blocks) => blocks.map((block) => block.getAttribute('data-faction')))),
-    ).toEqual(new Set([faction]))
+      new Set(
+        await page.locator('main [data-factions]').evaluateAll((blocks) => blocks.map((block) => block.getAttribute('data-factions'))),
+      ),
+    ).toEqual(new Set([href.split('/').at(-1)]))
   })
 
   test('an address naming an update opens it', async ({ page }) => {
