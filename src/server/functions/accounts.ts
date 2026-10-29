@@ -11,6 +11,7 @@ import {
 import { collectionPhotoReportEmail } from '../collectionPhotos'
 import { COLLECTION_PHOTO_QUESTIONS, recordScreening } from '../photoScreening'
 import { app } from '../app'
+import { captureMutation } from '../mutationTelemetry'
 import { configuredAuthProviders, githubLinkConfigured } from '../authProviders'
 import { currentUser, currentUserId, forSignedIn, requireUser, requireUserId } from '../playerSession'
 import { fixedWindowRateLimit } from '../rateLimit'
@@ -123,7 +124,7 @@ export const setOwnPassword = createServerFn({ method: 'POST' })
       if (linked.some((entry) => entry.providerId === 'credential'))
         throw new Response('this account already has a password', { status: 409 })
       await app().auth.api.setPassword({ body: { newPassword: data.password }, headers: getRequestHeaders() })
-      await app().telemetry.capture(userId, 'sign_in_method_added', { provider: 'password' })
+      await captureMutation(userId, 'sign_in_method_added', { provider: 'password' })
       return null
     }),
   )
@@ -141,7 +142,7 @@ export const unlinkOwnAccount = createServerFn({ method: 'POST' })
       } else if (status === 'last-method') {
         throw new Response('another available sign-in method must stay linked', { status: 409 })
       }
-      await app().telemetry.capture(userId, 'sign_in_method_removed', { provider: data.provider })
+      await captureMutation(userId, 'sign_in_method_removed', { provider: data.provider })
       return null
     }),
   )
@@ -305,7 +306,7 @@ export const importCollection = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.rosterService.importCollection(userId, data.rows, data.replace)
-      await app().telemetry.capture(userId, 'player_collection_imported', { rows: data.rows.length, replace: data.replace, ...result })
+      await captureMutation(userId, 'player_collection_imported', { rows: data.rows.length, replace: data.replace, ...result })
       return result
     }),
   )
@@ -329,7 +330,7 @@ export const uploadCollectionPhoto = createServerFn({ method: 'POST' })
       const limited = photoRateLimit(getRequest(), 12)
       if (limited) throw limited
       const photoId = await app().collectionPhotos.upload(userId, data.entryId, data.image, data.shows)
-      await app().telemetry.capture(userId, 'collection_photo_uploaded')
+      await captureMutation(userId, 'collection_photo_uploaded')
       void recordScreening(app().photoScreening, data.image, COLLECTION_PHOTO_QUESTIONS, (properties) =>
         app().telemetry.capture(userId, 'collection_photo_screened', properties),
       )
@@ -343,7 +344,7 @@ export const removeCollectionPhoto = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().collectionPhotos.remove(userId, data.photoId)
-      await app().telemetry.capture(userId, 'collection_photo_removed')
+      await captureMutation(userId, 'collection_photo_removed')
       return null
     }),
   )
@@ -358,7 +359,7 @@ export const likeCollectionPhoto = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().collectionPhotos.like(userId, data.photoId, data.liked)
-      await app().telemetry.capture(userId, 'collection_photo_liked', { liked: data.liked })
+      await captureMutation(userId, 'collection_photo_liked', { liked: data.liked })
       return null
     }),
   )
@@ -382,7 +383,7 @@ export const reportCollectionPhoto = createServerFn({ method: 'POST' })
         const recipients = await app().service.adminEmails()
         await Promise.all(recipients.map((to) => delivery.send({ to, ...email })))
       }
-      await app().telemetry.capture(reporter.id, 'collection_photo_reported')
+      await captureMutation(reporter.id, 'collection_photo_reported')
       return null
     }),
   )
