@@ -31,6 +31,12 @@ export const AdminSessions = __t.object('AdminSessions', {
 })
 export type AdminSessions = __Infer<typeof AdminSessions>
 
+export const BattleChanges = __t.object('BattleChanges', {
+  battleId: __t.string(),
+  revision: __t.u64(),
+})
+export type BattleChanges = __Infer<typeof BattleChanges>
+
 export const BattleImports = __t.object('BattleImports', {
   battleId: __t.string(),
   key: __t.string(),

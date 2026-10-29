@@ -300,6 +300,14 @@ function touchPublic(ctx: Context, scope: PublicScope) {
   bumpRevision(ctx.db.publicRevisions, scope)
 }
 
+/** A battle's log or seats changed: its feeds refetch, and `battleChanges` hands it to the leaderboard again. */
+function touchBattle(ctx: Context, battleId: string) {
+  touchPublic(ctx, 'battles')
+  const revision = ctx.db.publicRevisions.scope.find('battles')!.revision
+  ctx.db.battleChanges.battleId.delete(battleId)
+  ctx.db.battleChanges.insert({ battleId, revision })
+}
+
 function touchAdmin(ctx: Context) {
   bumpRevision(ctx.db.adminRevisions, 'admin-users')
 }
@@ -419,7 +427,7 @@ function deleteBattle(ctx: Context, battleId: string) {
   const seats = Array.from(ctx.db.battleUsers.battleId.filter(battleId))
   const leagueEvent = ctx.db.leagueEventBattles.battleId.find(battleId)
   for (const seat of seats) touchProduct(ctx, seat.userId, 'battles', 'onboarding')
-  touchPublic(ctx, 'battles')
+  touchBattle(ctx, battleId)
   touchPublic(ctx, 'standings')
   touchAdmin(ctx)
   if (leagueEvent) touchEventById(ctx, leagueEvent.eventId)
@@ -738,7 +746,10 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
     ctx.db.friendInvites.token.delete(invite.token)
     touchPublic(ctx, 'invites')
   }
-  for (const row of Array.from(ctx.db.commands.userId.filter(userId))) ctx.db.commands.key.delete(row.key)
+  for (const row of Array.from(ctx.db.commands.userId.filter(userId))) {
+    ctx.db.commands.key.delete(row.key)
+    touchBattle(ctx, row.battleId)
+  }
   for (const row of Array.from(ctx.db.rosterLoans.borrowerId.filter(userId))) endLoan(ctx, row)
   const ownedRosters = Array.from(ctx.db.rosters.userId.filter(userId))
   for (const row of ownedRosters) {
@@ -1078,6 +1089,32 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
   }),
 )
 
+/**
+ * The battles whose log or seats changed after revision `after`, deleted ones included after a nonzero cursor, and the
+ * revision read up to.
+ * Read from zero, it first indexes the battles older than `battle_changes`. `battle_changes` holds one small row per
+ * battle, so this scans it whole rather than battles and their commands.
+ */
+export const battleChanges = spacetime.procedure({ after: t.u64() }, t.string(), (ctx, { after }) =>
+  operatorTx(ctx, (tx) => {
+    if (after === 0n)
+      for (const battle of Array.from(tx.db.battles.iter())) if (!tx.db.battleChanges.battleId.find(battle.id)) touchBattle(tx, battle.id)
+    const battleIds: string[] = []
+    // A reader from zero holds nothing to evict, so it skips the markers deleted battles leave.
+    for (const row of tx.db.battleChanges.iter())
+      if (row.revision > after && (after > 0n || tx.db.battles.id.find(row.battleId))) battleIds.push(row.battleId)
+    return productJson({ cursor: tx.db.publicRevisions.scope.find('battles')?.revision ?? 0n, battleIds })
+  }),
+)
+
+/** The battles still held among these ids. */
+export const battlesForOperator = spacetime.procedure({ battleIds: t.array(t.string()) }, t.string(), (ctx, { battleIds }) =>
+  operatorTx(ctx, (tx) => {
+    if (battleIds.length > 500) throw new SenderError('Too many battles')
+    return productJson(battleIds.flatMap((battleId) => (tx.db.battles.id.find(battleId) ? [battleData(tx, battleId)] : [])))
+  }),
+)
+
 export const removeBattle = spacetime.procedure({ battleId: t.string(), userId: t.string() }, t.bool(), (ctx, input) =>
   operatorTx(ctx, (tx) => removeBattleIn(tx, [input.battleId, input.userId])),
 )
@@ -1140,7 +1177,7 @@ export const submitBattle = spacetime.procedure(
         body: JSON.stringify({ ...parsed.data, ...(sync ? { $sync: sync } : {}) }),
       })
       for (const seat of seats) touchProduct(tx, seat.id, 'battles')
-      touchPublic(tx, 'battles')
+      touchBattle(tx, input.battleId)
       if (state.status === 'finished' || parsed.data.kind === 'end-battle') touchPublic(tx, 'standings')
       if (parsed.data.kind === 'set-battle-club' || parsed.data.kind === 'undo') indexClubBattle(tx, input.battleId)
       return productJson({
@@ -1291,7 +1328,7 @@ function claimSeat(ctx: Context, seat: ReturnType<typeof guestSeatIn>, userId: s
   ctx.db.guestSeats.seatId.delete(seat.userId)
   endGuestSessions(ctx, seat.userId)
   for (const one of [...seats.map((other) => other.id), userId]) touchProduct(ctx, one, 'battles', 'onboarding')
-  touchPublic(ctx, 'battles')
+  touchBattle(ctx, seat.battleId)
   touchPublic(ctx, 'standings')
   touchAdmin(ctx)
 }
@@ -3751,7 +3788,7 @@ function insertBattle(
     })
     touchProduct(ctx, seat.id, 'battles', 'onboarding')
   }
-  touchPublic(ctx, 'battles')
+  touchBattle(ctx, id)
   touchAdmin(ctx)
   const log: LoggedCommand[] = []
   for (const [index, command] of initialCommands.entries()) {

@@ -1276,8 +1276,16 @@ export class SpacetimeRepository {
     return this.feed({ scope: 'friends', userId, before: page.before, limit: page.limit })
   }
 
-  async watchableBattles(page: { limit: number; before?: BattlesCursor }) {
-    return this.feed({ scope: 'watchable', since: 0, before: page.before, limit: page.limit })
+  /** The battles whose log or seats changed after a revision, deleted ones included, and the revision read up to. */
+  battleChanges(after: number) {
+    return this.product.battleChanges(after)
+  }
+
+  /** The battles still held among these ids, at most 500. */
+  async battlesByIds(battleIds: readonly string[]): Promise<BattleHistory[]> {
+    const snapshots = await this.product.battlesForOperator(battleIds)
+    const profiles = await this.seatProfiles(snapshots)
+    return snapshots.map((row) => ({ battle: row.battle, players: row.seats.map((seat) => seatPlayer(profiles, seat)), log: row.log }))
   }
 
   async battlesSeatedBy(userId: string, limit: number, viewerId: string | null) {
