@@ -1,10 +1,10 @@
 # praetorium
 
-## 0.195.16
+## 0.195.16 (2026-10-29)
 
 ### Patch Changes
 
-- 2111f97: The page background is a darker, more neutral charcoal, with the slate tint kept for the band at the top of each page.
+- 2111f97: The page background is a darker, neutral charcoal, with slate kept for the band atop each page.
 
 ## 0.195.15 (2026-10-28)
 
