@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.199.3 (2026-10-29)
+
+### Patch Changes
+
+- 3dc07c7: Terrain layouts keep every piece's placement number when published distances are also shown.
+
 ## 0.199.2 (2026-10-29)
 
 ### Patch Changes
