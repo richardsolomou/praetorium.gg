@@ -1,4 +1,4 @@
-import { version } from '../../package.json'
+import packageJson from '../../package.json' with { type: 'json' }
 import type { BeforeSendFn } from 'posthog-node'
 import { globalSingleton } from 'ras-stack/server'
 import { postHogEnvironment } from 'ras-stack/posthog'
@@ -19,7 +19,7 @@ export function serverEventContext(host: string | undefined): BeforeSendFn {
     const properties = {
       ...event.properties,
       ...(host ? { $host: host } : {}),
-      ...(event.event === '$exception' ? { app_version: version } : {}),
+      ...(event.event === '$exception' ? { app_version: packageJson.version } : {}),
     }
     return { ...event, properties }
   }
@@ -34,7 +34,7 @@ export const serverTelemetry = () =>
         host: process.env.VITE_POSTHOG_HOST,
       }),
       serviceName: 'praetorium-server',
-      serviceVersion: version,
+      serviceVersion: packageJson.version,
       deploymentEnvironment: process.env.NODE_ENV,
       resourceAttributes: host ? { 'deployment.host': host } : {},
       clientOptions: { before_send: serverEventContext(host) },
