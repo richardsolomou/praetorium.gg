@@ -1,6 +1,6 @@
 {
   "name": "praetorium.gg",
-  "version": "0.195.15",
+  "version": "0.196.0",
   "private": true,
   "description": "Build Warhammer 40,000 armies and track games from setup to final score.",
   "license": "AGPL-3.0-only",
@@ -20,7 +20,7 @@
     "test:unit": "ras test --config vitest.unit.config.ts",
     "test:integration": "ras test --config vitest.integration.config.ts",
     "changeset": "changeset",
-    "version-packages": "changeset version && tsx scripts/syncMobileVersion.ts && oxfmt --write mobile/app.json",
+    "version-packages": "changeset version && tsx scripts/dateChangelog.ts && tsx scripts/syncMobileVersion.ts && oxfmt --write mobile/app.json",
     "release": "changeset git-tag",
     "auth:db:generate": "drizzle-kit generate --config drizzle.auth.config.ts",
     "auth:db:check": "drizzle-kit check --config drizzle.auth.config.ts",

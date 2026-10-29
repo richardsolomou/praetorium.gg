@@ -14,6 +14,7 @@
 - The module's `AUTH_ISSUER`, `AUTH_AUDIENCE`, and `OPERATOR_IDENTITY` are stored SpacetimeDB environment values that publishes do not send; change them with `spacetime env`.
 - `scripts/nodeServer.ts` must stop within Docker's ten-second grace period.
 - Remove a `/whats-new` entry by editing `CHANGELOG.md`.
+- `/whats-new` groups releases by the date `pnpm version-packages` writes into each `CHANGELOG.md` heading, and lists `minor` changesets as New and `patch` ones as Fixes and improvements. Its notice appears at most a week after a player last looked; between notices, an unread dot marks the What's new links.
 - Rotating `DISCORD_ANNOUNCEMENTS_WEBHOOK_URL` must keep the R2 receipts; inspect pending deliveries before retrying an announcement.
 
 ## Pull request previews

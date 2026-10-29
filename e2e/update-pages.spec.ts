@@ -8,7 +8,7 @@ for (const width of [1440, 390]) {
     await page.goto('/whats-new')
     const navigation = page.getByRole('navigation', { name: 'Updates', exact: true })
     await expect(navigation.getByRole('link', { name: "What's new", exact: true })).toHaveAttribute('aria-current', 'page')
-    const current = page.getByRole('region', { name: `Version ${manifest.version} This version`, exact: true })
+    const current = page.locator('section', { has: page.locator(`[id="release-${manifest.version}"]`) })
     await expect(current).toBeVisible()
     await expectNoHorizontalOverflow(page.locator('main'))
     await page.screenshot({ path: test.info().outputPath(`whats-new-${width}.png`) })

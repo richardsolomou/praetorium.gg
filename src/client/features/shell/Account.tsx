@@ -2,7 +2,7 @@ import { hasLocalChanges, stopLocalRuntime } from '../../offline/localRuntime'
 import { clearLocalState } from '../../offline/localStorage'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useLocation, useNavigate } from '@tanstack/react-router'
-import { Boxes, CircleUserRound, LogIn, LogOut, Map, MessageSquareWarning, ShieldCheck, UserRoundPen, Users } from 'lucide-react'
+import { Boxes, CircleUserRound, LogIn, LogOut, Map, MessageSquareWarning, ShieldCheck, Sparkles, UserRoundPen, Users } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { gettingStartedTaskIds, onboardingComplete, resolvedGettingStartedTasks } from '../../../core/onboarding'
@@ -30,6 +30,7 @@ import { openConversations, unreadReplies, useSupportTickets } from '../feedback
 import { errorMessage } from '../../queryClient'
 import { OPEN_SYNC_EVENT } from '../../offline/SyncStatus'
 import { countLabel } from '../../text'
+import { useUnseenRelease } from './seenRelease'
 
 function useAccountControls() {
   const { data: me } = useQuery(meQuery())
@@ -74,6 +75,7 @@ function AccountMenuItems() {
   const showOnboarding = !me || (onboarding && !onboardingComplete(onboarding))
   const { tickets } = useSupportTickets()
   const unread = unreadReplies(tickets)
+  const unseenRelease = useUnseenRelease()
   const help = (
     <MenuSection label="Help">
       {showOnboarding ? (
@@ -88,6 +90,11 @@ function AccountMenuItems() {
           {onboarding && !onboarding.welcomed ? <span className="chip border-discarded/50 bg-discarded/10 text-discarded">New</span> : null}
         </DropdownMenuItem>
       ) : null}
+      <DropdownMenuItem render={<Link to="/whats-new" />}>
+        <Sparkles />
+        <span>What's new</span>
+        {unseenRelease ? <span className="chip ml-auto border-parchment/30 text-parchment">New</span> : null}
+      </DropdownMenuItem>
       <DropdownMenuItem onClick={openConversations}>
         <MessageSquareWarning />
         <span>Feedback</span>

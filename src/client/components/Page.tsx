@@ -31,7 +31,7 @@ export function PageHeader({
   return (
     <header
       data-onboarding={onboarding}
-      className={cn('relative overflow-hidden border-b border-edge bg-panel', tint && 'border-t-[3px]')}
+      className={cn('relative overflow-hidden border-b border-edge bg-masthead', tint && 'border-t-[3px]')}
       style={tint ? { borderTopColor: tint } : undefined}
     >
       <div className="plot-grid" />
