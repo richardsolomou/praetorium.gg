@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.196.1 (2026-10-29)
+
+### Patch Changes
+
+- 4894c16: Data updates are more compact: each update says which armies it reached and what changed before you open it, and lists repriced, removed and added items under their own headings.
+- 4894c16: Data updates show the prices of units whose later copies cost more together on one line, instead of as separate added and removed rows.
+- 4894c16: Data updates no longer list a unit as removed and added when a new book only changes the capitals in its name.
+- 4894c16: Data updates and datasheet pages say a datasheet, detachment or enhancement was added rather than calling it new.
+- 4894c16: Data updates list a change that reached several armies once, naming every army it reached, instead of repeating it under each one.
+
 ## 0.196.0 (2026-10-29)
 
 ### Minor Changes
