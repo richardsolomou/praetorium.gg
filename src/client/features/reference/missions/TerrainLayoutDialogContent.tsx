@@ -13,7 +13,7 @@ import {
   type TerrainTemplate,
 } from './terrainGeometry'
 
-const sources: string[] = ['terrain', 'lines', 'published', 'mat'] satisfies MeasurementSource[]
+const sources: string[] = ['terrain', 'lines', 'mat', 'published'] satisfies MeasurementSource[]
 
 const pressed = 'data-[pressed]:bg-bone/10 data-[pressed]:text-bone'
 
@@ -46,7 +46,7 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
   const objectiveMarkers = deploymentObjectives.some((objective) => objective.kind !== 'terrain')
   const measurements = layout.geometry?.areas.flatMap((area) => area.measurements) ?? []
   const joinedFootprints = layout.geometry ? terrainAreaJoins(layout.geometry).length > 0 : false
-  const [show, setShow] = useState<MeasurementSource[]>(layout.geometry ? ['terrain', 'lines'] : ['published'])
+  const [show, setShow] = useState<MeasurementSource[]>(layout.geometry ? ['terrain'] : ['published'])
   const placing = show.includes('terrain') || show.includes('lines')
   return (
     <DialogContent size="lg">
@@ -81,13 +81,13 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
                   Deployment lines
                 </ToggleGroupItem>
               ) : null}
-              <ToggleGroupItem value="published" className={cn(pressed, measurementColours.published.border)}>
-                <Tick source="published" show={show} />
-                Published distances
-              </ToggleGroupItem>
               <ToggleGroupItem value="mat" className={cn(pressed, measurementColours.mat.border)}>
                 <Tick source="mat" show={show} />
                 Mat ruler
+              </ToggleGroupItem>
+              <ToggleGroupItem value="published" className={cn(pressed, measurementColours.published.border)}>
+                <Tick source="published" show={show} />
+                Published distances
               </ToggleGroupItem>
             </ToggleGroup>
           </div>
