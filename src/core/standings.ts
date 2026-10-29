@@ -42,11 +42,18 @@ export type Standing = {
   lastPlayed: number
 }
 
-/** The overall table and one per faction played, most played first, and how far each counted battle moved each seat's overall rating. */
+/** A player's overall rating as it stood after one of their counted battles. */
+export type RatingPoint = { at: number; rating: number }
+
+/**
+ * The overall table and one per faction played, most played first, how far each counted
+ * battle moved each seat's overall rating, and each player's overall rating after every one.
+ */
 export type StandingsTables<B extends StandingBattle = StandingBattle> = {
   overall: Standing[]
   factions: { faction: StandingFaction; rows: Standing[] }[]
   changes: Map<B, number[]>
+  history: Map<string, RatingPoint[]>
 }
 
 /** Concession takes precedence over score, and allies share their side’s result. */
@@ -120,6 +127,7 @@ export function standings<B extends StandingBattle>(
 ): StandingsTables<B> {
   const overall = new Map<string, Entry>()
   const changes = new Map<B, number[]>()
+  const history = new Map<string, RatingPoint[]>()
   const factions = new Map<string, { faction: StandingFaction; seats: number; entries: Map<string, Entry> }>()
   for (const battle of counted(battles, exclude).toSorted((one, other) => one.lastActivity - other.lastActivity)) {
     const sides = [...new Set(battle.sides)]
@@ -166,6 +174,9 @@ export function standings<B extends StandingBattle>(
     players.forEach((player, seat) => {
       player.skill = after[seat]!
       record(player.row, battle, seat)
+      const points = history.get(player.row.id) ?? []
+      points.push({ at: battle.lastActivity, rating: shown(player.skill) })
+      history.set(player.row.id, points)
     })
   }
   return {
@@ -175,6 +186,7 @@ export function standings<B extends StandingBattle>(
       .map(({ faction, entries }) => ({ faction, rows: ranked(entries, activeSince) }))
       .filter((table) => table.rows.length),
     changes,
+    history,
   }
 }
 

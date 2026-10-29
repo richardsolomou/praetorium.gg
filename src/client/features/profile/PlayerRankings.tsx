@@ -1,8 +1,9 @@
 import { Link } from '@tanstack/react-router'
-import type { Standing, StandingFaction } from '../../../core/standings'
+import type { RatingPoint, Standing, StandingFaction } from '../../../core/standings'
 import { winRate } from '../../../core/standings'
 import { FactionMark } from '../../components/FactionMark'
 import { percentLabel, countLabel } from '../../text'
+import { RatingHistory } from './RatingHistory'
 
 type Ranking<T> = { faction: T; place: number; of: number; standing: Standing }
 
@@ -10,6 +11,7 @@ export type Rankings = {
   days: number
   overall: Ranking<null> | null
   factions: Ranking<StandingFaction>[]
+  history: readonly RatingPoint[]
 }
 
 /**
@@ -56,6 +58,7 @@ export function PlayerRankings({ rankings }: { rankings: Rankings }) {
           </Link>
         ))}
       </div>
+      <RatingHistory points={rankings.history} />
     </section>
   )
 }

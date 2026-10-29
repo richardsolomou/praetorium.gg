@@ -20,7 +20,8 @@ type BattleSummary = {
   detachments: readonly string[][]
   scores: readonly number[]
   sides: readonly number[]
-  ratingChanges?: readonly number[]
+  /** How far the battle moved each player's leaderboard rating, by player id. */
+  ratingChanges?: Readonly<Record<string, number>>
 }
 
 export type SummarySide = {
@@ -62,7 +63,7 @@ export function summarySides(battle: BattleSummary): SummarySide[] {
             army: battle.armies[at] ?? null,
             faction: battle.factions?.[at] ?? null,
             detachments: [...(battle.detachments[at] ?? [])],
-            ratingChange: battle.ratingChanges?.[at] ?? null,
+            ratingChange: (player && battle.ratingChanges?.[player.id]) ?? null,
           },
         ]
       }),

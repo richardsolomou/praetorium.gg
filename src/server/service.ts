@@ -49,7 +49,15 @@ import {
   serviceRecord,
 } from '../core/serviceRecord'
 import { routeSlug } from '../core/slug'
-import { battleOutcome, sideScore, type Standing, type StandingBattle, type StandingFaction, standings } from '../core/standings'
+import {
+  battleOutcome,
+  sideScore,
+  type RatingPoint,
+  type Standing,
+  type StandingBattle,
+  type StandingFaction,
+  standings,
+} from '../core/standings'
 import { opposingSide, refuse } from '../core/battlePrimitives'
 import { swissPairings, swissStandings, type SwissMatch } from '../core/swiss'
 import { seasonDraw, seasonFixtureStatus } from '../core/clubSeason'
@@ -108,8 +116,9 @@ type StandingsFold = {
   days: number
   overall: { faction: null; rows: Standing[] }
   factions: { faction: StandingFaction; rows: Standing[] }[]
-  /** How far each counted battle moved each seat's overall rating, by battle token. */
-  changes: ReadonlyMap<string, readonly number[]>
+  /** How far each counted battle moved each player's overall rating, by battle token and then player. */
+  changes: ReadonlyMap<string, Readonly<Record<string, number>>>
+  history: ReadonlyMap<string, readonly RatingPoint[]>
 }
 
 /** One player's place in each table they appear in, and the window it covers. */
@@ -118,6 +127,8 @@ type PlayerRankings = {
   days: number
   overall: PlayerRanking<null> | null
   factions: PlayerRanking<StandingFaction>[]
+  /** The player's overall rating after each of their counted battles, oldest first. */
+  history: readonly RatingPoint[]
 }
 
 const SPECTATOR_ID = ''
@@ -326,7 +337,13 @@ export class PraetoriumService {
         days: STANDINGS_DAYS,
         overall: { faction: null, rows: tables.overall },
         factions: tables.factions,
-        changes: new Map([...tables.changes].map(([battle, change]) => [battle.token, change])),
+        changes: new Map(
+          [...tables.changes].map(([battle, change]) => [
+            battle.token,
+            Object.fromEntries(battle.playerIds.map((id, seat) => [id, change[seat]!])),
+          ]),
+        ),
+        history: tables.history,
       }
       this.standingsHeld = { key, until: this.clock() + STANDINGS_HOLD_MS, fold }
       return fold
@@ -372,6 +389,7 @@ export class PraetoriumService {
       factions: fold.factions
         .flatMap(rank)
         .toSorted((one, other) => other.standing.battles - one.standing.battles || one.place - other.place),
+      history: fold.history.get(userId) ?? [],
     }
   }
 
@@ -719,8 +737,14 @@ export class PraetoriumService {
     }
   }
 
+  /** How far one battle moved each player's overall rating, or null when the leaderboard does not count it. */
+  async battleRatingChanges(token: string, factions: readonly BattleFaction[] = []) {
+    const { changes } = await this.standingsFold(factions)
+    return changes.get(token) ?? null
+  }
+
   /**
-   * Each battle with how far it moved each seat's overall rating, from the leaderboard's own fold.
+   * Each battle with how far it moved each player's overall rating, from the leaderboard's own fold.
    *
    * Only the battle list and a profile's battles carry it: the public feeds refetch
    * often enough that each would refold the leaderboard every time its hold lapsed.
@@ -728,7 +752,7 @@ export class PraetoriumService {
   private async withRatingChanges<T extends { token: string }>(
     battles: T[],
     factions: readonly BattleFaction[] = [],
-  ): Promise<(T & { ratingChanges?: readonly number[] })[]> {
+  ): Promise<(T & { ratingChanges?: Readonly<Record<string, number>> })[]> {
     const { changes } = await this.standingsFold(factions)
     return battles.map((battle) => {
       const ratingChanges = changes.get(battle.token)

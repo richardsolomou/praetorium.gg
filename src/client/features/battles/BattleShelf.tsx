@@ -13,6 +13,7 @@ import { deploymentsQuery } from '../../queries'
 import { useDateFormatting } from '../../dates'
 import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
+import { RatingChange } from '../../components/RatingChange'
 import type { OnboardingTarget } from '../onboarding/onboarding'
 import type { Battle } from './battle'
 
@@ -223,18 +224,6 @@ function Side({
           <span className="block text-xs text-faint">Waiting for an opponent</span>
         </span>
       )}
-    </span>
-  )
-}
-
-/** What the battle did to a player's leaderboard rating, signed so a gain and a loss read apart without the colour. */
-function RatingChange({ change }: { change: number }) {
-  return (
-    <span
-      title="Leaderboard rating change"
-      className={cn('readout shrink-0 text-2xs', change > 0 ? 'text-achieved' : change < 0 ? 'text-rust' : 'text-faint')}
-    >
-      {change > 0 ? `+${change}` : change < 0 ? `−${-change}` : '±0'}
     </span>
   )
 }

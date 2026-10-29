@@ -99,6 +99,11 @@ export const playerRankings = createServerFn({ method: 'GET' })
   .validator(userSchema)
   .handler(({ data }) => rpc(async () => app().service.playerRankings(data.userId, await app().battleFactionsFor())))
 
+/** How far a finished battle moved each player's leaderboard rating, or null when it does not count. */
+export const battleRatingChanges = createServerFn({ method: 'GET' })
+  .validator(tokenSchema)
+  .handler(({ data }) => rpc(async () => app().service.battleRatingChanges(data.token, await app().battleFactionsFor())))
+
 export const openBattle = createServerFn({ method: 'GET' })
   .validator(tokenSchema)
   .handler(({ data }) =>

@@ -138,18 +138,19 @@ describe('a player preview', () => {
   const record = { battles: 3, won: 2, lost: 1, drawn: 0 } as ServiceRecord
 
   it('says nothing about a player whose battles this reader may not watch', () => {
-    expect(playerPreview('Alice', { ...record, battles: 0, won: 0, lost: 0 }, { days: 90, overall: null, factions: [] }).description).toBe(
-      'A Warhammer 40,000 player on Praetorium.',
-    )
+    expect(
+      playerPreview('Alice', { ...record, battles: 0, won: 0, lost: 0 }, { days: 90, overall: null, factions: [], history: [] })
+        .description,
+    ).toBe('A Warhammer 40,000 player on Praetorium.')
   })
 
   it('names a leaderboard place the leaderboard itself prints, record or not', () => {
-    const rankings = { days: 90, overall: { faction: null, place: 3, of: 4, standing: {} as never }, factions: [] }
+    const rankings = { days: 90, overall: { faction: null, place: 3, of: 4, standing: {} as never }, factions: [], history: [] }
     expect(playerPreview('Alice', null, rankings).description).toBe('Place 3 of 4 on the leaderboard.')
   })
 
   it('reads the record and the leaderboard place a reader may see', () => {
-    const rankings = { days: 90, overall: { faction: null, place: 2, of: 14, standing: {} as never }, factions: [] }
+    const rankings = { days: 90, overall: { faction: null, place: 2, of: 14, standing: {} as never }, factions: [], history: [] }
     expect(playerPreview('Alice', record, rankings).description).toBe('2 wins and 1 loss from 3 battles. Place 2 of 14 on the leaderboard.')
   })
 })

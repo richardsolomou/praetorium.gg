@@ -41,7 +41,7 @@ it('shows how far each profile battle moved each player’s rating', async () =>
   )
   const [battle] = (await service.playerProfile(ALICE, null)).battles
 
-  expect(battle?.ratingChanges?.map(Math.sign)).toEqual([-1, 1])
+  expect(Object.values(battle?.ratingChanges ?? {}).map(Math.sign)).toEqual([-1, 1])
 })
 
 function recordAgainst(opponent: { id: string; name: string }, practiceIds: string[]) {
