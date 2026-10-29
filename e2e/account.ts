@@ -872,3 +872,12 @@ export function currentTotp(uri: string) {
   const offset = digest.at(-1)! & 0x0f
   return ((digest.readUInt32BE(offset) & 0x7fffffff) % 1_000_000).toString().padStart(6, '0')
 }
+
+/** Leaves only the layout's published distances on, the ones these counts were taken from. */
+export async function showOnlyPublishedDistances(dialog: Locator) {
+  for (const name of ['Other terrain', 'Deployment lines', 'Board edges']) {
+    const toggle = dialog.getByRole('button', { name, exact: true })
+    if ((await toggle.count()) && (await toggle.getAttribute('aria-pressed')) === 'true') await toggle.click()
+  }
+  await dialog.getByRole('button', { name: 'Objective centres', exact: true }).click()
+}
