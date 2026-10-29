@@ -31,7 +31,8 @@
   --font-rules: 'Sofia Sans Semi Condensed Variable', ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: 'Martian Mono Variable', ui-monospace, 'SF Mono', Menlo, monospace;
 
-  --color-void: #0e1316;
+  --color-void: #0f1113;
+  --color-masthead: #0e1316;
   --color-panel: #141a1e;
   --color-raised: #1b2328;
   --color-sunken: #090d0f;
@@ -523,7 +524,7 @@ html[data-native-app='true'] [data-battle-sticky-header] {
   /* Almost nothing is rounded: 3px on buttons, 4px on cards. */
   --radius: 0.25rem;
 
-  --background: #0e1316;
+  --background: #0f1113;
   --foreground: #e7ece9;
   --card: #141a1e;
   --card-foreground: #e7ece9;
