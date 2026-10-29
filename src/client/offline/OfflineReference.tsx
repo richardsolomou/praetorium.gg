@@ -1,4 +1,6 @@
+import { posthog } from 'posthog-js'
 import { useEffect, useRef } from 'react'
+import { isFetchNetworkFailure } from '../networkErrors'
 import { useQueryClient } from '@tanstack/react-query'
 import { useRouter } from '@tanstack/react-router'
 import { afterInitialScreen } from './background'
@@ -110,8 +112,16 @@ export function OfflineReference() {
         }
         abort.signal.throwIfAborted()
         applyReferenceData(client, pack.data)
-      } catch {
+      } catch (error) {
         // A failed background refresh leaves the last complete download in use.
+        if (!abort.signal.aborted)
+          posthog.capture('offline_reference_refresh_failed', {
+            reason: isFetchNetworkFailure(error)
+              ? 'network'
+              : error instanceof DOMException && error.name === 'TimeoutError'
+                ? 'timeout'
+                : 'error',
+          })
       } finally {
         controller = null
         if (pending) {

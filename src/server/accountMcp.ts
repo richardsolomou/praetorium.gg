@@ -1,6 +1,7 @@
 import { READ_ONLY_TOOL, responseToolError, structured, type AgentTools } from './agentTools'
 import { app } from './app'
 import { submitBattleCommand } from './battleSubmission'
+import { agentWrites } from './mutationTelemetry'
 import { productActions } from './productActions'
 import { rosterActions } from './rosterActions'
 import { BATTLES_PAGE } from './service'
@@ -30,7 +31,7 @@ const WRITE = { readOnlyHint: false, destructiveHint: true, idempotentHint: fals
 
 async function resultOf(work: () => Promise<Record<string, unknown>>) {
   try {
-    return structured(await work())
+    return structured(await agentWrites.run(true, work))
   } catch (error) {
     if (error instanceof Response && error.status < 500) return responseToolError(error)
     throw error

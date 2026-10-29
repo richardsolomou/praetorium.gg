@@ -6,6 +6,7 @@
  */
 import pRetry from 'p-retry'
 import { chunks } from '../core/collections'
+import { countServerMetric, reportServerFailure, requestOutcome } from './posthog'
 
 export type PushMessage = { to: string; title: string; body: string; path: string }
 
@@ -56,7 +57,7 @@ export function pushSenderFromEnvironment(
 export function expoPushSender(options: PushSenderOptions): PushSender {
   const request = options.fetch ?? fetch
   const later = options.later ?? ((work, milliseconds) => setTimeout(work, milliseconds).unref())
-  const log = options.log ?? ((event, detail) => console.warn({ event, ...detail }))
+  const log = options.log ?? ((event, detail) => reportServerFailure({ event, ...detail }, 'warn'))
 
   /** The parsed body of a successful response, or null once retrying stops helping. */
   async function post(url: string, body: unknown): Promise<unknown> {
@@ -70,8 +71,10 @@ export function expoPushSender(options: PushSenderOptions): PushSender {
             body: JSON.stringify(body),
             signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
           })
+          countServerMetric('push.requests', requestOutcome(response.status))
           if (response.ok) return (await response.json()) as unknown
         } catch (error) {
+          countServerMetric('push.requests', requestOutcome())
           log('push_request_failed', { error, attempt })
           throw error
         }

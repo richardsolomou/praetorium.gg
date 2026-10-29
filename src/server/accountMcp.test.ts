@@ -108,14 +108,18 @@ it('does not count an agent’s edit of a saved roster as a creation', async () 
 
 it('reports a visibility change an agent makes', async () => {
   await call('player-1', 'set_roster_visibility', { id: 'roster-1', visibility: 'public' })
-  expect(capture).toHaveBeenLastCalledWith('player-1', 'roster_visibility_updated', { visibility: 'public' })
+  expect(capture).toHaveBeenLastCalledWith('player-1', 'roster_visibility_updated', {
+    visibility: 'public',
+    delivery: 'direct',
+    via: 'agent',
+  })
 })
 
 it('counts a battle an agent creates as a direct creation of that battle', async () => {
   createBattle.mockResolvedValueOnce({ battleId: 'battle-id', token: 'battle-1', practice: false })
   await call('player-1', 'create_battle', { opponentId: 'opponent', casual: true })
-  expect(capture.mock.calls.map(([, event, { battle_id, delivery }]) => [event, battle_id, delivery])).toEqual([
-    ['battle_created', 'battle-id', 'direct'],
+  expect(capture.mock.calls.map(([, event, { battle_id, delivery, via }]) => [event, battle_id, delivery, via])).toEqual([
+    ['battle_created', 'battle-id', 'direct', 'agent'],
   ])
 })
 
@@ -142,5 +146,6 @@ it('reports a battle an agent’s command finished, with its battle and why', as
     battle_id: 'battle-id',
     reason: 'completed',
     delivery: 'direct',
+    via: 'agent',
   })
 })

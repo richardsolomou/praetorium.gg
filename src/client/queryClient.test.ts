@@ -1,6 +1,10 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { createQueryClient } from './queryClient'
 import { writeAppSnapshot } from './offline/appStorage'
+import { SIGN_IN_REQUIRED } from '../core/session'
+
+const capture = vi.hoisted(() => vi.fn())
+vi.mock('posthog-js', () => ({ posthog: { capture } }))
 
 vi.mock('./offline/appStorage', () => ({ writeAppSnapshot: vi.fn().mockResolvedValue(undefined) }))
 afterEach(() => {
@@ -24,6 +28,7 @@ it('seeds public references before routing in a saved application', () => {
 
 it('persists refreshed data before a successful mutation finishes', async () => {
   vi.stubGlobal('window', {})
+  vi.stubGlobal('navigator', { onLine: true })
   const client = createQueryClient()
   client.setQueryData(['me'], { id: 'player' })
   let finish!: () => void
@@ -48,6 +53,7 @@ it('persists refreshed data before a successful mutation finishes', async () => 
 
 it('does not retry a completed server mutation when snapshot storage fails', async () => {
   vi.stubGlobal('window', {})
+  vi.stubGlobal('navigator', { onLine: true })
   vi.mocked(writeAppSnapshot).mockRejectedValueOnce(new Error('Storage unavailable'))
   const client = createQueryClient()
   const mutation = client.getMutationCache().build(client, { mutationFn: async () => 'saved' })
@@ -58,6 +64,7 @@ it('does not retry a completed server mutation when snapshot storage fails', asy
 
 it('does not persist failed mutations', async () => {
   vi.stubGlobal('window', {})
+  vi.stubGlobal('navigator', { onLine: true })
   const client = createQueryClient()
   const mutation = client.getMutationCache().build(client, {
     mutationFn: async () => {
@@ -67,4 +74,22 @@ it('does not persist failed mutations', async () => {
   await expect(mutation.execute(undefined)).rejects.toThrow('Rejected')
   expect(writeAppSnapshot).not.toHaveBeenCalled()
   client.clear()
+})
+
+const failedRead = async (key: unknown[], error: Error) => {
+  vi.stubGlobal('window', {})
+  vi.stubGlobal('navigator', { onLine: true })
+  const client = createQueryClient()
+  await client.query({ queryKey: key, queryFn: () => Promise.reject(error), retry: false }).catch(() => {})
+  client.clear()
+}
+
+it('counts a failed read by the name its key starts with', async () => {
+  await failedRead(['faction', 'private-id'], new Error('Army data unavailable'))
+  expect(capture).toHaveBeenCalledWith('query_load_failed', { query: 'faction', reason: 'error', offline: false })
+})
+
+it('does not count a read refused for a lapsed session', async () => {
+  await failedRead(['me'], new Error(SIGN_IN_REQUIRED))
+  expect(capture).not.toHaveBeenCalled()
 })

@@ -69,6 +69,15 @@ export function SignInPage({
   const queryClient = useQueryClient()
   const submit = useAuthAction()
   const callbackError = socialAuthErrorMessage(error)
+  // The callback does not say which provider failed, so it counts as social.
+  useEffect(() => {
+    if (error)
+      posthog.capture('account_authentication_failed', {
+        method: 'social',
+        action: join ? 'create' : 'sign_in',
+        reason: authFailureReason(error),
+      })
+  }, [error, join])
   const githubAuthAvailable = useGithubAuthAvailability()
   const providers = options?.providers.filter((provider) => provider !== 'github' || githubAuthAvailable) ?? []
 
@@ -299,12 +308,18 @@ export function SignInPage({
                         if (next) errorSearch.set('next', next)
                         if (joining) errorSearch.set('join', 'true')
                         const errorCallbackURL = errorSearch.size ? `/sign-in?${errorSearch}` : '/sign-in'
-                        void authClient.signIn.social({
+                        const result = await authClient.signIn.social({
                           provider,
                           callbackURL: next ?? '/',
                           errorCallbackURL,
                           requestSignUp: joining,
                         })
+                        if (result.error)
+                          posthog.capture('account_authentication_failed', {
+                            method: provider,
+                            action: joining ? 'create' : 'sign_in',
+                            reason: authFailureReason(result.error),
+                          })
                       }}
                     >
                       <AuthMethodIcon method={provider} />

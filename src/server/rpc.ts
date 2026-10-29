@@ -3,12 +3,9 @@ import { getRequest } from '@tanstack/react-start/server'
 import { createTanStackRpc } from 'ras-stack/tanstack/server'
 import { createPostHogRpcLogger, createPostHogRpcObserver } from 'ras-stack/posthog/server'
 import type { RpcLogger, RpcObserver } from 'ras-stack/server'
-import { serverTelemetry } from '../adapters/posthog'
+import { reportsToTelemetry, serverTelemetry } from '../adapters/posthog'
 import { currentUserId } from './playerSession'
 import { requireMutationOrigin } from './mutationOrigin'
-
-/** Only a deployed instance reports to the shared telemetry project. */
-const reportsToTelemetry = process.env.NODE_ENV === 'production'
 
 const logError: RpcLogger = (error, context) => console.error({ event: 'server_function_failed', ...context, error })
 
@@ -23,8 +20,30 @@ const reportRpcError: RpcLogger = (error, context, request) => {
   return postHogRpcLogger(error, context, request)
 }
 
+/**
+ * The RPC wrapper turns a thrown `Response` into an error without reporting it, so an answer
+ * that is the server's fault, such as an unreachable upstream, is logged here by its status.
+ */
+export const reportServerErrorResponses: RpcObserver = async (request, work) => {
+  try {
+    return await work()
+  } catch (error) {
+    const status = error instanceof Error && error.cause instanceof Response ? error.cause.status : undefined
+    if (status !== undefined && status >= 500)
+      await serverTelemetry()
+        .log({
+          body: 'server function answered with a server error',
+          severityText: 'error',
+          attributes: { status, ...(request ? { request_path: new URL(request.url).pathname } : {}) },
+        })
+        .catch(() => {})
+    throw error
+  }
+}
+
 const postHogRpcObserver = createPostHogRpcObserver(serverTelemetry())
-const observeRpc: RpcObserver = (request, work) => (reportsToTelemetry ? postHogRpcObserver(request, work) : work())
+const observeRpc: RpcObserver = (request, work) =>
+  reportsToTelemetry ? postHogRpcObserver(request, () => reportServerErrorResponses(request, work)) : work()
 
 export const { rpc, mutationRpc } = createTanStackRpc({
   requireMutation: requireMutationOrigin,

@@ -27,7 +27,7 @@ vi.mock('@tanstack/react-query', () => ({
   useQuery: mocks.useQuery,
   useQueryClient: () => ({ invalidateQueries: mocks.invalidateQueries, getQueryData: mocks.getQueryData }),
 }))
-vi.mock('posthog-js', () => ({ posthog: { captureException: mocks.captureException } }))
+vi.mock('posthog-js', () => ({ posthog: { captureException: mocks.captureException, capture: vi.fn() } }))
 vi.mock('./queries', () => ({
   battleQuery: (token: string) => ({ queryKey: ['battle', token] }),
   battlesQuery: () => ({ queryKey: ['battles'] }),

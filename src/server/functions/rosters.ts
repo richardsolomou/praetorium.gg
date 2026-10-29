@@ -9,6 +9,7 @@ import { cachedRosterAssessmentsFor, cachedRosterPrice, cachedRosterTotalsFor, c
 import { mutationRpc, rpc } from '../rpc'
 import { exportRosterFile } from '../../shared/rosterFiles'
 import { importRosterInput } from '../rosterImport'
+import { captureMutation } from '../mutationTelemetry'
 import { captureRosterCreated } from '../rosterTelemetry'
 import { ROSTER_PRICED_SAMPLE_RATE, rosterPricedProperties, rosterTelemetryProperties } from '../../shared/rosterTelemetry'
 import { isRosterExchangeCode } from '../../core/rosterExchange'
@@ -446,7 +447,7 @@ export const deleteRoster = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.rosterService.deleteRoster(userId, data.id)
-      await app().telemetry.capture(userId, 'roster_deleted')
+      await captureMutation(userId, 'roster_deleted')
       return null
     }),
   )

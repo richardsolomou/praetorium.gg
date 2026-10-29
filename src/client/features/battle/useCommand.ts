@@ -128,6 +128,13 @@ async function sendQueued({
           const authoritativeSeq = screen?.kind === 'battle' ? screen.view.seq : item.basedOn
           const { kept, dropped } = afterFailedCommand(queued.current, item, authoritativeSeq)
           for (const candidate of dropped) candidate.complete?.(false)
+          if (dropped.length)
+            posthog.capture('battle_command_failed', {
+              command: item.command.kind,
+              reason: result.outcome,
+              dropped_count: dropped.length,
+              background: Boolean(item.background),
+            })
           queued.current = kept
         }
       } catch (error) {
@@ -137,8 +144,16 @@ async function sendQueued({
           queryClient.setQueryData(battleQuery(token).queryKey, (held) => (held && predictions.has(held) ? confirmed : held) as never)
         item.complete?.(false)
         for (const candidate of queued.current) candidate.complete?.(false)
+        const signedOut = isSignedOut(error)
+        const network = !signedOut && isFetchNetworkFailure(error)
+        posthog.capture('battle_command_failed', {
+          command: item.command.kind,
+          reason: signedOut ? 'signed_out' : network ? 'network' : 'error',
+          dropped_count: queued.current.length,
+          background: Boolean(item.background),
+        })
         queued.current = []
-        if (isSignedOut(error)) {
+        if (signedOut) {
           /*
            * A session that lapsed mid-battle is an answer like any other. Asking
            * again who is playing and what this battle looks like turns the page
@@ -150,7 +165,7 @@ async function sendQueued({
           setProblem(null)
           void queryClient.invalidateQueries({ queryKey: meQuery().queryKey })
           void queryClient.invalidateQueries({ queryKey: battleQuery(token).queryKey })
-        } else if (isFetchNetworkFailure(error)) {
+        } else if (network) {
           setProblem('Check your connection and try again.')
         } else {
           if (!isRosterNotUsable(error) && !(error instanceof OfflineRefusal))

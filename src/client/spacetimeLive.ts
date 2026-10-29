@@ -63,6 +63,8 @@ async function guestTicket(config: RealtimeConfig) {
   return { token, database: config.database, uri: config.uri, battleId: null }
 }
 
+const lost = (how: 'interrupted' | 'failed') => posthog.capture('realtime_connection_lost', { how })
+
 function report(error: unknown) {
   if (isExpectedRealtimeDisconnect(error)) return
   posthog.captureException(error, { operation: 'spacetime_realtime' })
@@ -177,6 +179,7 @@ export function useSpacetimeLiveBattle(token: string, enabled: boolean) {
       },
       inactive: () => setSubscribed(false),
       report,
+      lost,
     })
     return () => {
       leaving = true
@@ -304,6 +307,7 @@ export function useSpacetimeLiveProduct(config: RealtimeConfig | null, signedIn:
       },
       inactive: () => setSubscribed(false),
       report,
+      lost,
       // Host-issued anonymous tokens do not expire; issuing another creates a different identity.
       expires: signedIn,
     })

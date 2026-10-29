@@ -26,7 +26,7 @@ import { cn } from '@/lib/utils'
 import { postHogEnvironment } from 'ras-stack/posthog'
 import { PostHogBetterAuthIdentity, PostHogIntegration } from 'ras-stack/posthog/react'
 import { useEffect, useLayoutEffect, type ReactNode } from 'react'
-import { POSTHOG_BROWSER_OPTIONS } from '../../../posthog'
+import { POSTHOG_BROWSER_OPTIONS, setImpersonating } from '../../../posthog'
 import { authClient } from '../../authClient'
 import { Account } from './Account'
 import { GlobalSearch, GlobalSearchProvider } from './GlobalSearch'
@@ -181,6 +181,9 @@ export function AppShell() {
   const path = location.pathname
   const immersive = /^\/rosters\/(?:new|import|(?!discover$)[^/]+(?:\/edit)?)$/.test(path)
   const { data: me } = useQuery(meQuery())
+  const impersonating = Boolean(me?.impersonatedBy)
+  // Set while rendering so it holds before any child's effect captures.
+  if (typeof window !== 'undefined') setImpersonating(impersonating)
   const realtime = useRealtimeConfig()
   useSpacetimeLiveProduct(realtime, Boolean(me))
   useLayoutEffect(followTextSourceChoice, [])
@@ -195,7 +198,9 @@ export function AppShell() {
       <body className={immersive ? 'h-dvh overflow-hidden' : 'min-h-dvh'}>
         <PostHogIntegration environment={posthog} options={POSTHOG_BROWSER_OPTIONS} service={posthogService}>
           <TooltipProvider delay={250} closeDelay={100}>
-            {posthog && <PostHogBetterAuthIdentity authClient={authClient} properties={({ name, email }) => ({ name, email })} />}
+            {posthog && me !== undefined && !impersonating && (
+              <PostHogBetterAuthIdentity authClient={authClient} properties={({ name, email }) => ({ name, email })} />
+            )}
             {posthog && <SupportIdentity />}
             <GlobalSearchProvider>
               {/*

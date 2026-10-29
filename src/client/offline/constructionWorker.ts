@@ -51,6 +51,11 @@ export function retireDeviceConstruction() {
   stop(new Error('A newer release is published'))
 }
 
+function markUnavailable(url: string, reason: 'refused' | 'crashed' | 'load_failed') {
+  if (!unavailable.has(url)) posthog.capture('offline_construction_unavailable', { reason })
+  unavailable.add(url)
+}
+
 function stop(error: Error) {
   if (!running) return
   clearTimeout(running.idle)
@@ -218,7 +223,7 @@ function settle(current: Running) {
 
 function answered(current: Running, answer: ConstructionWorkerAnswer) {
   if ('unavailable' in answer) {
-    unavailable.add(current.url)
+    markUnavailable(current.url, 'refused')
     if (running === current) stop(new Error(answer.unavailable))
     return
   }
@@ -260,14 +265,14 @@ function workerFor(source: ConstructionWorkerSource): Running {
       const worker = new ConstructionWorker()
       worker.onmessage = ({ data }: MessageEvent<ConstructionWorkerAnswer>) => answered(current, data)
       worker.onerror = () => {
-        unavailable.add(current.url)
+        markUnavailable(current.url, 'crashed')
         if (running === current) stop(new Error('The construction worker failed'))
       }
       current.worker = worker
       for (const message of current.queue.splice(0)) worker.postMessage(message)
     },
     () => {
-      unavailable.add(current.url)
+      markUnavailable(current.url, 'load_failed')
       if (running === current) stop(new Error('The construction worker could not load'))
     },
   )

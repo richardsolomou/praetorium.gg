@@ -6,6 +6,7 @@ import { notFound } from './notFound'
 import { parseImageDataUrl, privateImageResponse, type PrivateObjects } from './privateImages'
 import { collectionPhotoThumbnail, collectionPhotoThumbnailKey } from './collectionPhotoThumbnail'
 import type { SpacetimeRepository } from './spacetimeRepository'
+import { reportServerFailure } from '../adapters/posthog'
 
 const PREFIX = 'collection-photos/'
 const DELETION_BATCH = 100
@@ -188,7 +189,7 @@ export function collectionPhotoStore(
               result.generated++
           } catch (error) {
             result.failed++
-            console.error({ event: 'collection_photo_thumbnail_failed', photoId, error })
+            reportServerFailure({ event: 'collection_photo_thumbnail_failed', photoId, error })
           }
         }
         after = photoIds.at(-1)!

@@ -30,9 +30,12 @@ export function BattlebaseImport({ picker, onBusy, onDone }: { picker: ReactNode
   const { copy, copied, problem: copyProblem, reset: resetCopy } = useCopyText()
   const code = useMutation({
     mutationFn: () => battlebaseImportCode({ data: { username: username.trim() } }),
+    onSuccess: () => posthog.capture('battle_import_code_shown', { source: 'battlebase' }),
   })
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const run = useMutation({
+    onMutate: () => posthog.capture('battle_import_started', { source: 'battlebase', linked: Boolean(linked) }),
+    onError: () => posthog.capture('battle_import_failed', { source: 'battlebase', reason: 'request' }),
     mutationFn: async () => {
       setProgress(null)
       const result = await importBattlebaseBattles({ data: linked ? {} : { username: username.trim() } })
@@ -48,7 +51,7 @@ export function BattlebaseImport({ picker, onBusy, onDone }: { picker: ReactNode
       return { outcome: result.outcome, username: result.username, ...(await result.counts) }
     },
     onSuccess: async (result) => {
-      if (result.outcome !== 'imported') return
+      if (result.outcome !== 'imported') return posthog.capture('battle_import_failed', { source: 'battlebase', reason: result.outcome })
       posthog.capture('battles_imported', {
         source: 'battlebase',
         imported: result.imported,

@@ -121,10 +121,10 @@ function SettingsForm({ mode, league, onClose }: { mode: LeagueSettingsMode; lea
   const save = useMutation({
     mutationKey: SAVE,
     onMutate: () => {
-      if (mode.kind === 'create') posthog.capture('league_creation_submitted', { format: value.format })
+      if (mode.kind === 'create') posthog.capture('league_creation_submitted', { format: value.format, club: sealedGame })
     },
     onError: () => {
-      if (mode.kind === 'create') posthog.capture('league_creation_failed', { reason: 'request' })
+      if (mode.kind === 'create') posthog.capture('league_creation_failed', { reason: 'request', club: sealedGame })
     },
     mutationFn: async () => {
       const { format, rosterLimit, allowances, rounds, pointsBudget, soloPoints, allyPoints, playsAt, sealBy, ...details } = value

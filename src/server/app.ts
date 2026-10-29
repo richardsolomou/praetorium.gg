@@ -4,7 +4,7 @@ import { globalSingleton } from 'ras-stack/server'
 import pRetry from 'p-retry'
 import os from 'node:os'
 import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
-import { deploymentHost, serverTelemetry } from '../adapters/posthog'
+import { deploymentHost, reportServerFailure, serverTelemetry } from '../adapters/posthog'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
 import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type TerrainReadRules, loadRulesSteps } from './rules'
 import {
@@ -153,10 +153,9 @@ const sync = {
         onReady()
       })
       .catch((error: unknown) => {
-        if (installedSnapshot(directory)) {
-          console.error({ event: 'catalogue_refresh_failed', error })
-          this.state = { status: 'ready', detail: null }
-        } else this.state = { status: 'failed', detail: error instanceof Error ? error.message : 'the fetch failed' }
+        reportServerFailure({ event: 'catalogue_refresh_failed', error })
+        if (installedSnapshot(directory)) this.state = { status: 'ready', detail: null }
+        else this.state = { status: 'failed', detail: error instanceof Error ? error.message : 'the fetch failed' }
       })
       .finally(() => {
         this.running = false
@@ -194,7 +193,7 @@ export async function warm(
   if (process.env.LOCAL_TEST_MODE === 'true') return
   const { construction } = instance
   const current = () => instance.construction === construction
-  const failed = (error: unknown) => console.error({ event: 'catalogue_construction_failed', error })
+  const failed = (error: unknown) => reportServerFailure({ event: 'catalogue_construction_failed', error })
   const serving = inBackground(construction('serving'), current).catch(failed)
   void serving.then(() => inBackground(construction('others'), current)).catch(failed)
   if (untilBuilt) await serving
@@ -362,7 +361,7 @@ export function app(): App {
       minTimeout: 30_000,
       factor: 1,
       onFailedAttempt: ({ error, attemptNumber }) =>
-        console.error({ event: 'league_club_migration_failed', attempt: attemptNumber, error }),
+        reportServerFailure({ event: 'league_club_migration_failed', attempt: attemptNumber, error }),
     })
       .then((count) => {
         if (count) console.info({ event: 'leagues_migrated_to_clubs', count })
@@ -403,7 +402,7 @@ export function app(): App {
           if (sync.state.status !== 'ready') throw new Error(`Catalogue ${sync.state.status}`)
           await Promise.all([localAuth.client.execute('select 1'), operator.health()])
         } catch (error) {
-          console.error({ event: 'health_check_failed', accessConfigured: Boolean(spacetimeAccess), error })
+          reportServerFailure({ event: 'health_check_failed', accessConfigured: Boolean(spacetimeAccess), error })
           throw error
         }
       },
@@ -441,7 +440,7 @@ export function app(): App {
     // Hourly, because a one-time sponsorship ends without GitHub announcing it.
     const refreshSponsors = () =>
       void githubSponsors.refresh().catch((error: unknown) => {
-        console.error({ event: 'github_sponsor_refresh_failed', error })
+        reportServerFailure({ event: 'github_sponsor_refresh_failed', error })
       })
     if (githubSponsors.configured) {
       refreshSponsors()
@@ -460,7 +459,7 @@ export function app(): App {
           console.info({ event: 'collection_photo_thumbnails_backfilled', ...result })
         }
       } catch (error) {
-        console.error({ event: 'collection_photo_maintenance_failed', error })
+        reportServerFailure({ event: 'collection_photo_maintenance_failed', error })
       } finally {
         maintainingPhotos = false
       }
@@ -475,7 +474,7 @@ export function app(): App {
     void startup
       .ready()
       .then(maintainPhotos)
-      .catch((error: unknown) => console.error({ event: 'collection_photo_maintenance_failed', error }))
+      .catch((error: unknown) => reportServerFailure({ event: 'collection_photo_maintenance_failed', error }))
     return instance
   }
   const instance = globalSingleton('praetorium.app', createApp)

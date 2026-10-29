@@ -1,4 +1,5 @@
 import { exportNativeWork, supportsNativeLocalState } from '../nativeBridge'
+import { posthog } from 'posthog-js'
 import { useEffect, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -120,6 +121,7 @@ export function SyncStatus() {
   }, [pendingOnline, owner])
   const exportWork = async () => {
     if (!state || state.owner !== localOwner()?.id) return
+    posthog.capture('offline_work_resolved', { action: 'exported' })
     if (await exportNativeWork(state)) return
     downloadFile(`praetorium-offline-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(state, null, 2), 'application/json')
   }
@@ -132,7 +134,13 @@ export function SyncStatus() {
     try {
       const engine = localEngine()
       if (!engine) throw new Error('Sign in to the account that saved these changes.')
-      const discarded = await engine.storage.change((current) => discardLocalResource(current, resource))
+      let dropped = 0
+      const discarded = await engine.storage.change((current) => {
+        const next = discardLocalResource(current, resource)
+        dropped = current.operations.length - next.operations.length
+        return next
+      })
+      posthog.capture('local_work_discarded', { scope: resource === '*' ? 'all' : 'item', operations: dropped })
       await restoreLocalWork()
       void client.resetQueries({
         predicate: (query) => ['roster-access', 'roster-bootstrap', 'shared-roster', 'battle'].includes(String(query.queryKey[0])),
@@ -152,6 +160,7 @@ export function SyncStatus() {
     setBusy(true)
     try {
       await saveRoster({ data: { ...roster, id: undefined, name: `${roster.name || 'Roster'} (offline copy)`.slice(0, 80) } })
+      posthog.capture('offline_work_resolved', { action: 'kept-copy' })
       setDiscard(resource)
     } catch (error) {
       setProblem(errorMessage(error, 'The copy could not be saved.'))

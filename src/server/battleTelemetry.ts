@@ -1,5 +1,5 @@
 import type { BattleEndReason, Command, SubmitResult } from '../core/battle'
-import { app } from './app'
+import { captureWrite } from './mutationTelemetry'
 
 const lifecycleEvents: Partial<Record<Command['kind'], string>> = {
   'attach-roster': 'battle_roster_attached',
@@ -15,22 +15,22 @@ export async function captureBattleCommand(
   duration: number,
   delivery: 'direct' | 'sync',
 ) {
-  await app().telemetry.capture(userId, 'battle_command_submitted', {
+  await captureWrite(userId, 'battle_command_submitted', delivery, {
     battle_id: battleId,
     command: command.kind,
     outcome: result.outcome,
     ...(result.outcome === 'refused' ? { reason: result.code } : {}),
     ...(command.kind === 'set-setup-step' ? { setup_step: command.step } : {}),
     ...(command.kind === 'set-unit-formation' ? { formation: command.formation } : {}),
+    ...('missed' in command && command.missed ? { missed: true } : {}),
     // The embarks the list asked for; setup can still drop one that no longer fits.
     ...(command.kind === 'attach-roster'
       ? { listed_embark_count: command.roster.built?.units.filter((unit) => unit.startsEmbarkedIn).length ?? 0 }
       : {}),
     duration_ms: Math.round(duration),
-    delivery,
   })
   if (result.outcome !== 'appended') return
   const event = lifecycleEvents[command.kind]
-  if (event) await app().telemetry.capture(userId, event, { battle_id: battleId, delivery })
-  if (finished) await app().telemetry.capture(userId, 'battle_finished', { battle_id: battleId, reason: finished, delivery })
+  if (event) await captureWrite(userId, event, delivery, { battle_id: battleId })
+  if (finished) await captureWrite(userId, 'battle_finished', delivery, { battle_id: battleId, reason: finished })
 }

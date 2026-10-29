@@ -11,7 +11,9 @@
 ## Runtime
 
 - Only production sends events. `VITE_POSTHOG_HOST` must be the ingestion host, not a reverse proxy that drops the forwarded visitor address.
-- Durable sync captures only on the transaction that newly applies an action, never on retries.
+- Durable sync captures only on the transaction that newly applies an action, never on retries. A sync answered `refused` or `conflict` returns normally, so it captures `sync_refused` with a bounded `cause`.
+- Write events go through `captureMutation` or `captureWrite`, which add `delivery` and, for account agent tools, `via: 'agent'`.
 - Keep crawler `$http_log` capture unsampled.
+- A server failure no request waits on, such as a scheduled refresh or a push delivery, goes through `reportServerFailure`, which keeps the detail in the server log and sends PostHog only its event name and error class. Server-only modules the warm plugin bundles stay off it, since they cannot import the telemetry adapter.
 - A state only the player can resolve on their device, such as reconnecting or reviewing a sync conflict, throws `OfflineRefusal`, which exception capture skips.
 - Verify with `e2e/telemetry.spec.ts`; after deployment, inspect real events, since arrival alone proves neither privacy nor identity linkage.

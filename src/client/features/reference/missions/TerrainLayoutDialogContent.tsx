@@ -1,4 +1,5 @@
 import { Eye, Square, SquareCheck } from 'lucide-react'
+import { posthog } from 'posthog-js'
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -60,7 +61,11 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
             <ToggleGroup
               multiple
               value={show}
-              onValueChange={(value) => setShow(value.filter((source): source is MeasurementSource => sources.includes(source)))}
+              onValueChange={(value) => {
+                const shown = value.filter((source): source is MeasurementSource => sources.includes(source))
+                posthog.capture('terrain_measurements_changed', { shown })
+                setShow(shown)
+              }}
               variant="outline"
               size="sm"
               className="flex-wrap"

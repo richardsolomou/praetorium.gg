@@ -4,9 +4,18 @@ import { afterEach, expect, it, vi } from 'vitest'
 const client = vi.hoisted(() => ({ __loaded: false, capture: vi.fn() }))
 vi.mock('posthog-js', () => ({ posthog: client }))
 
-import { POSTHOG_BROWSER_OPTIONS, browserEventContext, captureWhenLoaded, dropUnactionableExceptions, telemetryFeature } from './posthog'
+import {
+  POSTHOG_BROWSER_OPTIONS,
+  browserEventContext,
+  captureWhenLoaded,
+  dropUnactionableExceptions,
+  dropWhileImpersonating,
+  setImpersonating,
+  telemetryFeature,
+} from './posthog'
 
 afterEach(() => {
+  setImpersonating(false)
   vi.unstubAllGlobals()
   POSTHOG_BROWSER_OPTIONS.loaded(client as unknown as PostHog)
   client.__loaded = false
@@ -35,6 +44,9 @@ it.each([
   ['/profile', 'account'],
   ['/reset-password', 'account'],
   ['/admin', 'admin'],
+  ['/clubs/private-club', 'clubs'],
+  ['/whats-new', 'whats-new'],
+  ['/mission-matchups/pack/first/second', 'missions'],
   ['/data-updates/source', 'data-updates'],
   ['/support', 'support'],
   ['/privacy', 'legal'],
@@ -88,7 +100,7 @@ it('leaves server rendering alone', () => {
 })
 
 it('installs filtering and context on the SDK send boundary', () => {
-  expect(POSTHOG_BROWSER_OPTIONS.before_send).toEqual([dropUnactionableExceptions, browserEventContext])
+  expect(POSTHOG_BROWSER_OPTIONS.before_send).toEqual([dropWhileImpersonating, dropUnactionableExceptions, browserEventContext])
 })
 
 const exception = (value: string) => ({ ...event({ $exception_list: [{ type: 'Error', value }] }), event: '$exception' })
@@ -122,4 +134,15 @@ it('sends a held capture once when the SDK loads', () => {
   POSTHOG_BROWSER_OPTIONS.loaded(client as unknown as PostHog)
   POSTHOG_BROWSER_OPTIONS.loaded(client as unknown as PostHog)
   expect(client.capture.mock.calls).toEqual([['page_not_found', { path: '/:id' }]])
+})
+
+it('drops what an admin does while viewing as a player', () => {
+  setImpersonating(true)
+  expect(dropWhileImpersonating(event())).toBeNull()
+})
+
+it('keeps the admin ending an impersonation', () => {
+  setImpersonating(true)
+  const stopped = { ...event(), event: 'admin_impersonation_stopped' }
+  expect(dropWhileImpersonating(stopped)).toBe(stopped)
 })

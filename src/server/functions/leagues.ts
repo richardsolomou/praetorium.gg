@@ -5,6 +5,7 @@ import { app } from '../app'
 import { currentUserId, requireUserId } from '../playerSession'
 import { BATTLES_PAGE } from '../service'
 import { mutationRpc, rpc } from '../rpc'
+import { captureMutation } from '../mutationTelemetry'
 import { captureBattleCommand } from '../battleTelemetry'
 import { shareLeagueRosterSchema } from '../../contracts/leagueRosterSharing'
 import {
@@ -187,7 +188,9 @@ export const remindLeagueEntrants = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const userId = await requireUserId()
-      return app().service.leagueService.remindLeagueEntrants(data.token, userId, data.eventToken)
+      const result = await app().service.leagueService.remindLeagueEntrants(data.token, userId, data.eventToken)
+      await captureMutation(userId, 'league_entrants_reminded', { recipients: result.reminded })
+      return result
     }),
   )
 
@@ -233,7 +236,9 @@ export const dismissLeagueRosterSharing = createServerFn({ method: 'POST' })
   .handler(({ data }) =>
     mutationRpc(async () => {
       const userId = await requireUserId()
-      return app().service.leagueService.dismissRosterSharing(data.token, data.eventToken, userId)
+      const result = await app().service.leagueService.dismissRosterSharing(data.token, data.eventToken, userId)
+      await captureMutation(userId, 'league_roster_sharing_dismissed')
+      return result
     }),
   )
 

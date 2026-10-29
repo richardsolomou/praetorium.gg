@@ -34,6 +34,7 @@ import { byteLimit } from './boundedBody'
 import { replaceDirectory } from './replaceDirectory'
 import { replaceFile, replaceFileSync } from './replaceFile'
 import { isSafeRelativePath } from './relativePath'
+import { reportServerFailure } from '../adapters/posthog'
 
 const LEGACY_FORMAT = 'praetorium.catalogue.v1'
 const COMPLETE_FORMAT = 'praetorium.catalogue.v2'
@@ -616,7 +617,7 @@ export async function fetchSnapshot(
       return true
     } catch (error) {
       if (!(error instanceof CatalogueObjectTransportError)) throw error
-      console.warn({ event: 'catalogue_objects_unavailable', error })
+      reportServerFailure({ event: 'catalogue_objects_unavailable', error }, 'warn')
     }
   }
   report(`fetching catalogue snapshot ${pointer.id.slice(0, 10)}`)

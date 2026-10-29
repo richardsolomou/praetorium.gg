@@ -1,6 +1,7 @@
 import type { PushMessage, PushSender } from '../adapters/push'
 import { type Notice, noticeMessage, noticeRecipients } from '../core/notifications'
 import type { SpacetimeRepository } from './spacetimeRepository'
+import { reportServerFailure } from '../adapters/posthog'
 
 /** Told about a notice after its write has committed. Never awaited by the request that caused it. */
 export type Notifier = { notify: (notices: readonly Notice[]) => void }
@@ -36,7 +37,7 @@ export function pushNotifier(repository: PushRepository, sender: PushSender): No
 
   return {
     notify(notices) {
-      void deliver(notices).catch((error: unknown) => console.warn({ event: 'push_notice_failed', error }))
+      void deliver(notices).catch((error: unknown) => reportServerFailure({ event: 'push_notice_failed', error }, 'warn'))
     },
   }
 }
