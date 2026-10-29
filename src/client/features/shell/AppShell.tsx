@@ -201,7 +201,7 @@ export function AppShell() {
             {posthog && me !== undefined && !impersonating && (
               <PostHogBetterAuthIdentity authClient={authClient} properties={({ name, email }) => ({ name, email })} />
             )}
-            {posthog && <SupportIdentity />}
+            {posthog && !impersonating && <SupportIdentity />}
             <GlobalSearchProvider>
               {/*
                * The bar spans the window and the page inside it decides its own width,
