@@ -1,5 +1,18 @@
 # praetorium
 
+## 0.198.0 (2026-10-29)
+
+### Minor Changes
+
+- 35aa6c4: Bring your finished games in from another battle tracker, starting with BattleBase, with **Import battles** on the Battles page, or ask there for the app you use.
+- 35aa6c4: Import several rosters at once from a BattleBase player's public rosters or from New Recruit share links, under **Import roster**.
+
+### Patch Changes
+
+- 35aa6c4: Importing a list with several detachments keeps the ones Praetorium knows, and their enhancements, when another is no longer available.
+- 35aa6c4: Imported squads whose models are named for their loadouts, such as Chaos Terminators, keep each model's wargear.
+- 35aa6c4: Giving some models in a squad a different pistol no longer multiplies the squad's other weapons, and each model can then take its own melee weapon, as Death Company Marines do.
+
 ## 0.197.0 (2026-10-29)
 
 ### Minor Changes
