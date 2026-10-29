@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test'
 import { expect, test } from './test'
-import { createBattle, retryUntilVisible, signUp, uniqueName } from './account'
+import { createBattle, retryUntilVisible, setupStep, signUp, uniqueName } from './account'
 import manifest from '../package.json' with { type: 'json' }
 const { version } = manifest
 
@@ -192,7 +192,7 @@ test('a stale page sends a queued battle command before a route change reloads i
   })
   await page.reload()
   await expect(page.getByRole('complementary', { name: 'Release update' })).toBeVisible()
-  await page.getByRole('button', { name: 'Change battle size and mission pack' }).click()
+  await setupStep(page, 'Format')
   holding = true
   await page.getByRole('button', { name: /^Manual/ }).click()
   await sent

@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from './test'
-import { befriend, createBattle, retryUntilVisible, signInAsPreview, signUp, uniqueName, sealableRoster, PHONE } from './account'
+import { befriend, createBattle, retryUntilVisible, setupStep, signInAsPreview, signUp, uniqueName, sealableRoster, PHONE } from './account'
 import { productSql, lastPathSegment, battleIdFor, seatsBySide, appendCommand } from './storage'
 import type { Command } from '../src/core/battle'
 import { expectNoHorizontalOverflow } from './builder.harness'
@@ -45,6 +45,8 @@ test('club members choose their club at battle setup', async ({ browser }, testI
   await joinClub(member, clubUrl, memberName)
 
   const battleUrl = await createBattle(owner, { opponent: memberName })
+  // A battle opens with its format already settled, folded to its answer, so the club is chosen from the opened step.
+  await setupStep(owner, 'Format')
   const club = owner.getByRole('group', { name: 'Club', exact: true })
   await expect(club.getByRole('button', { name: new RegExp(clubName) })).toBeVisible()
   await club.getByRole('button', { name: new RegExp(clubName) }).click()
