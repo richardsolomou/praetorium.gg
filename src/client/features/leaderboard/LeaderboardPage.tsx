@@ -23,15 +23,16 @@ export function LeaderboardPage({ faction }: { faction?: string }) {
       <PageHeader
         eyebrow="Who is winning"
         title="Leaderboard"
-        description={`Public battles from the last ${data?.days ?? 90} days, ranked by rating.`}
+        description={`Everyone with a public battle in the last ${data?.days ?? 90} days, ranked by rating.`}
         actions={<FactionFilter factions={data?.factions.map((entry) => entry.faction) ?? []} selected={chosen?.faction?.slug} />}
       />
       <PageContent className="space-y-6">
         <Standings table={table} viewerId={me?.id} />
         {/* Under the table, because it answers "why is my game not here" rather than "what am I reading". */}
         <p className="text-sm text-faint">
-          Everyone starts at 1000, and beating a higher-rated player gains more. A concession is a loss and allies share their side's
-          result. Practice, guest, private and manually tracked battles do not count.
+          Everyone starts at 1000, and beating a higher-rated player gains more. A rating counts every public battle, not only recent ones.
+          A concession is a loss, and allies share their side's result, rated on their average. Practice, guest, private and manually
+          tracked battles do not count.
         </p>
       </PageContent>
     </main>

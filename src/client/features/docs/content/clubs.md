@@ -23,7 +23,7 @@ Use **Copy invite link** on the club page to bring people in. Only members can s
 
 On the club page, press **New game**, pick an opponent, and press **Start battle**. Or, when you set up a battle anywhere else, pick the club under **Club**. You'll only see it when everyone in the battle is a member. Games with a guest or practice opponent, and manually tracked games, can't count. You can change the choice until the battle starts.
 
-When the game ends, the result goes on the club's leaderboard. Ratings work as on the site-wide [leaderboard](/leaderboard): everyone starts at 1000, beating a higher-rated player gains more, a concession is a loss, and allies share their side's result. Club games still count on the site-wide leaderboard too.
+When the game ends, the result goes on the club's leaderboard. Ratings work as on the site-wide [leaderboard](/leaderboard): everyone starts at 1000, beating a higher-rated player gains more, a concession is a loss, and allies share their side's result, rated on their average. Club games still count on the site-wide leaderboard too.
 
 ## Sealed games
 

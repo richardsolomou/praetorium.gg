@@ -123,6 +123,18 @@ describe('standings', () => {
   })
 })
 
+describe('the listed window', () => {
+  const battles = season(['alice', 'bob'], ['alice', 'carol', { lastActivity: 10 }])
+
+  it('leaves out a player whose last battle is older than it', () => {
+    expect(standings(battles, { activeSince: 5 }).overall.map((row) => row.id)).toEqual(['alice', 'carol'])
+  })
+
+  it('keeps every battle in the rating of a player still listed', () => {
+    expect(standings(battles, { activeSince: 5 }).overall[0]?.rating).toBe(rated(battles, 'alice'))
+  })
+})
+
 describe('the rating', () => {
   it('lifts the winner of a first battle above a newcomer and drops the loser below', () => {
     expect(overall([duel()]).map((row) => Math.sign(row.rating - 1000))).toEqual([1, -1])
@@ -179,6 +191,12 @@ describe('the rating', () => {
     expect(rated(battles, 'ally')).toBe(rated(battles, 'alice'))
   })
 
+  it('rates a lone winner over two allies as beating one player of their average', () => {
+    const lone = [duel({ playerIds: ['alice', 'bob', 'bert'], players: ['Alice', 'Bob', 'Bert'], sides: [0, 1, 1], scores: [60, 45, 0] })]
+
+    expect(rated(lone, 'alice')).toBe(rated([duel()], 'alice'))
+  })
+
   it('separates equal ratings by the points a battle behind them', () => {
     const rows = overall(season(['wide', 'a', { scores: [90, 10] }], ['narrow', 'b', { scores: [51, 50] }]))
 
@@ -216,6 +234,13 @@ describe('a faction table', () => {
     const rows = table(battles, 'necrons')!
 
     expect(place(rows, 'zed')).toBeLessThan(place(rows, 'carol'))
+  })
+
+  it('shares one table across every rules version of an army', () => {
+    const custodes = (slug: string) => ({ slug, displayName: 'Adeptus Custodes', icon: null })
+    const battles = [duel({ factions: [custodes('adeptus-custodes'), null] }), duel({ factions: [custodes('mfm-1-6~1f19'), null] })]
+
+    expect(standings(battles).factions.map(({ faction, rows }) => [faction.slug, rows[0]?.battles])).toEqual([['adeptus-custodes', 2]])
   })
 
   it('puts both players in the table when they both brought it', () => {

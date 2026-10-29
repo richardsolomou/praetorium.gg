@@ -3,7 +3,7 @@
 A finished battle shows the result, the battle events (filter to **CP only** to check command point spending) and a timeline you can scrub through turn by turn. Watchers can scrub a live battle; seated players get the replay once it's finished.
 
 - Battles between accounts count in each player's record.
-- The [leaderboard](/leaderboard) ranks recent finished, guided battles. A concession counts as a loss, and allies share their side's result.
+- The [leaderboard](/leaderboard) lists everyone who finished a guided battle in the last 90 days. Your rating counts every guided battle you've finished, not only recent ones. A concession counts as a loss, and allies share their side's result. In a team battle, each side is rated on its players' average rating, so beating two players together counts like beating one player of that strength. Each army has one table, whatever rules version you played it under.
 - A guest battle counts in your record, not on the leaderboard.
 - Practice battles count nowhere.
 

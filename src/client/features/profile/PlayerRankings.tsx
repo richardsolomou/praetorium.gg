@@ -19,9 +19,9 @@ export type Rankings = {
  * the rank there. Each one opens the table it came from, because a place is only
  * meaningful next to the players it was measured against.
  *
- * Absent entirely when the player is in none of the tables: the leaderboard counts
- * a bounded window of public battles, so a player whose games are older than it or
- * withheld from it has no place rather than last place.
+ * Absent entirely when the player is in none of the tables: the leaderboard lists
+ * only players with a recent public battle, so a player who has not played lately
+ * or whose games are withheld from it has no place rather than last place.
  */
 export function PlayerRankings({ rankings }: { rankings: Rankings }) {
   const rows = [...(rankings.overall ? [rankings.overall] : []), ...rankings.factions]

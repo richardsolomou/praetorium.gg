@@ -1,5 +1,6 @@
 import type { CatalogueEdition } from './catalogueEdition'
 import { isGuestSeat } from './newBattle'
+import { routeSlug } from './slug'
 /** Standings rate players from finished battles; each faction table rates the seats that fielded it. */
 import { ordinal, rate, rating, type Rating } from 'openskill'
 
@@ -84,44 +85,72 @@ function counted(battles: readonly StandingBattle[], exclude: readonly string[])
   )
 }
 
-/** A newcomer's conservative estimate is zero; this shows it as 1000, and one win between newcomers as about +70. */
+/** A newcomer's conservative estimate is zero; this shows it as 1000, and one win between newcomers as about +50. */
 const DISPLAY = { alpha: 20, target: 1000 }
+
+/**
+ * Twice OpenSkill's default performance spread: dice decide more of a battle than
+ * the default assumes, so one result moves a rating less.
+ */
+const BETA = 25 / 3
 
 type Entry = { row: Standing; skill: Rating }
 
+const mean = (values: readonly number[]) => values.reduce((total, value) => total + value, 0) / values.length
+
 /**
- * Rate every finished battle in the order it finished, each side an OpenSkill team.
+ * Rate every finished battle in the order it finished.
+ *
+ * A side is rated as one player of its allies' average skill, and each ally moves
+ * as that player would: OpenSkill's own teams add their members up, which rates
+ * two allies sharing one army's points as twice the player their lone opponent is.
  *
  * A faction rating moves only with the battles its player fielded that faction in,
  * but against everybody else's overall rating: rated only against each other, a
  * faction table's handful of games would measure its players against nothing.
+ * Every rules version of an army shares its table.
+ *
+ * Every battle given is rated; `activeSince` only decides who is listed, so a
+ * rating does not change because an old battle stopped being shown.
  */
-export function standings(battles: readonly StandingBattle[], { exclude = [] }: { exclude?: readonly string[] } = {}): StandingsTables {
+export function standings(
+  battles: readonly StandingBattle[],
+  { exclude = [], activeSince = 0 }: { exclude?: readonly string[]; activeSince?: number } = {},
+): StandingsTables {
   const overall = new Map<string, Entry>()
   const factions = new Map<string, { faction: StandingFaction; seats: number; entries: Map<string, Entry> }>()
   for (const battle of counted(battles, exclude).toSorted((one, other) => one.lastActivity - other.lastActivity)) {
     const sides = [...new Set(battle.sides)]
     const teams = sides.map((side) => battle.sides.flatMap((seated, seat) => (seated === side ? [seat] : [])))
     const rank = sides.map((side) => (battleOutcome(battle, side) === 'lost' ? 1 : 0))
-    const placed = battle.sides.map((side, seat) => {
-      const team = sides.indexOf(side)
-      return [team, teams[team]!.indexOf(seat)] as const
-    })
     /** Every seat's rating after this battle, had the seats come to it with these. */
     const rated = (skills: readonly Rating[]) => {
+      const average = teams.map((team) => ({
+        mu: mean(team.map((seat) => skills[seat]!.mu)),
+        sigma: Math.sqrt(mean(team.map((seat) => skills[seat]!.sigma ** 2))),
+      }))
       const result = rate(
-        teams.map((team) => team.map((seat) => skills[seat]!)),
-        { rank },
+        average.map((side) => [side]),
+        { rank, beta: BETA },
       )
-      return placed.map(([team, at]) => result[team]![at]!)
+      return skills.map((skill, seat) => {
+        const side = sides.indexOf(battle.sides[seat]!)
+        const after = result[side]![0]!
+        return { mu: skill.mu + after.mu - average[side]!.mu, sigma: (skill.sigma * after.sigma) / average[side]!.sigma }
+      })
     }
     const players = battle.playerIds.map((id, seat) => entry(overall, battle, id, seat))
     const before = players.map((player) => player.skill)
     battle.playerIds.forEach((id, seat) => {
-      const faction = battle.factions[seat]
-      if (!faction) return
-      const table = factions.get(faction.slug) ?? { faction, seats: 0, entries: new Map<string, Entry>() }
-      factions.set(faction.slug, table)
+      const brought = battle.factions[seat]
+      if (!brought) return
+      const army = routeSlug(brought.displayName)
+      const table = factions.get(army) ?? {
+        faction: { slug: army, displayName: brought.displayName, icon: brought.icon },
+        seats: 0,
+        entries: new Map<string, Entry>(),
+      }
+      factions.set(army, table)
       table.seats += 1
       const fielded = entry(table.entries, battle, id, seat)
       fielded.skill = rated(before.with(seat, fielded.skill))[seat]!
@@ -134,10 +163,11 @@ export function standings(battles: readonly StandingBattle[], { exclude = [] }: 
     })
   }
   return {
-    overall: ranked(overall),
+    overall: ranked(overall, activeSince),
     factions: [...factions.values()]
       .sort((one, other) => other.seats - one.seats || one.faction.displayName.localeCompare(other.faction.displayName))
-      .map(({ faction, entries }) => ({ faction, rows: ranked(entries) })),
+      .map(({ faction, entries }) => ({ faction, rows: ranked(entries, activeSince) }))
+      .filter((table) => table.rows.length),
   }
 }
 
@@ -172,8 +202,11 @@ function record(row: Standing, battle: StandingBattle, seat: number) {
 }
 
 /** Rounded before sorting, so the printed rating is the one the order was taken from. */
-function ranked(entries: ReadonlyMap<string, Entry>): Standing[] {
-  return [...entries.values()].map(({ row, skill }) => ({ ...row, rating: Math.round(ordinal(skill, DISPLAY)) })).sort(compareStandings)
+function ranked(entries: ReadonlyMap<string, Entry>, activeSince: number): Standing[] {
+  return [...entries.values()]
+    .filter(({ row }) => row.lastPlayed >= activeSince)
+    .map(({ row, skill }) => ({ ...row, rating: Math.round(ordinal(skill, DISPLAY)) }))
+    .sort(compareStandings)
 }
 
 function compareStandings(one: Standing, other: Standing): number {
