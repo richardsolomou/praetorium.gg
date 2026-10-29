@@ -10,6 +10,8 @@ In a guided battle, ending a phase where a card scores opens a scoring prompt. P
 
 Tactical cards are drawn when a turn needs them; you can draw at random or select exact cards. At the end of your turn you can discard tactical cards, which gains 1 CP.
 
+When a card asks you to pick objectives, they are named from the deployment: each player's **home**, the **centre** (on six-objective layouts, the centre pair is named by the side each sits on), an **expansion** nearer one player's zone, and a **flank** as near to both. Left and right are as seen from the zone of the player making the choice.
+
 In a manual battle, each side has **−1**, **+1** and **+5** buttons for primary and secondary, and **−1** and **+1** for CP.
 
 ## Command points and stratagems

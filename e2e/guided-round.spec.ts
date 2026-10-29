@@ -45,7 +45,7 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
     test.info().annotations.push({ type: 'Replacement nomination', description: 'Opponent chose the centre objective at the table.' })
     await target
       .getByRole('group', { name: 'Tempting target objective', exact: true })
-      .getByRole('button', { name: 'Centre objective', exact: true })
+      .getByRole('button', { name: 'Centre', exact: true })
       .click()
     await target.getByRole('switch', { name: 'It is in No Man’s Land and not a home objective', exact: true }).click()
     await target.getByRole('button', { name: 'Record choice', exact: true }).click()

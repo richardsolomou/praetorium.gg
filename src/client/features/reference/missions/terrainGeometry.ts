@@ -119,6 +119,41 @@ export function deploymentObjectiveMarkers(geometry: TerrainGeometry | null, obj
   }))
 }
 
+/** Six-objective layouts put their inner pair about 8″ from the centre and every expansion at least 15″ out. */
+const centreRadius = 12
+
+/**
+ * Names objectives the way players talk about them: a home in a deployment zone, the centre, an expansion nearer one
+ * zone, and a flank as near to both. Left and right read from the viewer's zone facing the other.
+ */
+export function objectiveNames(
+  zones: { player: string; points: Point[] }[],
+  objectives: Point[],
+  viewer: string,
+  owner: (player: string) => string,
+) {
+  const own = zones.find((zone) => zone.player === viewer)
+  const other = zones.find((zone) => zone.player !== viewer)
+  if (!own || !other) return objectives.map((_, index) => `Objective ${index + 1}`)
+  const from = polygonCentroid(own.points)
+  const to = polygonCentroid(other.points)
+  const centre = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 }
+  const zoneDistance = (point: Point, zone: Point[]) =>
+    Math.min(...polygonEdges(zone).map(([start, end]) => pointToSegmentDistance(point, start, end)))
+  const side = (point: Point) =>
+    `${owner(viewer)}'s ${(to.x - from.x) * (point.y - from.y) - (to.y - from.y) * (point.x - from.x) < 0 ? 'left' : 'right'}`
+  const inner = objectives.filter((position) => Math.hypot(position.x - centre.x, position.y - centre.y) < centreRadius)
+  return objectives.map((position) => {
+    const home = zones.find((zone) => pointInPolygon(position, zone.points))
+    if (home) return `${owner(home.player)}'s home`
+    if (inner.length === 1 && inner[0] === position) return 'Centre'
+    const lean = zoneDistance(position, own.points) - zoneDistance(position, other.points)
+    const nearer = Math.abs(lean) < 1 ? null : owner(lean < 0 ? own.player : other.player)
+    if (inner.includes(position)) return nearer ? `Centre, ${nearer}'s side` : `Centre, ${side(position)}`
+    return nearer ? `${nearer}'s expansion` : `${side(position)} flank`
+  })
+}
+
 export function terrainMarkerPosition(
   area: TerrainGeometry['areas'][number],
   marker: TerrainGeometry['areas'][number]['markers'][number],

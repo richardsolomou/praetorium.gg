@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
+import type { Point } from './terrainGeometry'
 import {
   deploymentNeedsFlip,
   footprintCorners,
   formatInches,
+  objectiveNames,
   objectiveTerrainMarkers,
   placeMeasurementLabel,
   placementMeasurements,
@@ -340,5 +342,77 @@ describe('placing terrain piece by piece', () => {
   it('keeps the step number when a published distance repeats a placement one', () => {
     const line = { from: { x: 0, y: 2 }, to: { x: 2, y: 2 }, approximate: false }
     expect(uniqueMeasurements([{ ...line, step: 1 }, line])).toEqual([{ ...line, step: 1 }])
+  })
+})
+
+describe('naming objectives', () => {
+  const hammerAndAnvil = [
+    {
+      player: 'defender',
+      points: [
+        { x: 0, y: 0 },
+        { x: 18, y: 0 },
+        { x: 18, y: 44 },
+        { x: 0, y: 44 },
+      ],
+    },
+    {
+      player: 'attacker',
+      points: [
+        { x: 42, y: 0 },
+        { x: 60, y: 0 },
+        { x: 60, y: 44 },
+        { x: 42, y: 44 },
+      ],
+    },
+  ]
+  const owners = (player: string) => (player === 'attacker' ? 'Ana' : 'Bo')
+  const names = (objectives: Point[], viewer = 'attacker') => objectiveNames(hammerAndAnvil, objectives, viewer, owners)
+
+  it('names an objective in a deployment zone after the zone owner', () => {
+    expect(names([{ x: 10, y: 22 }])).toEqual(["Bo's home"])
+  })
+
+  it('names the objective between both zones the centre', () => {
+    expect(names([{ x: 30, y: 22 }])).toEqual(['Centre'])
+  })
+
+  it('names an objective nearer one zone after its owner', () => {
+    expect(names([{ x: 40, y: 8 }])).toEqual(["Ana's expansion"])
+  })
+
+  it('tells flanks apart from the chooser’s edge', () => {
+    expect(
+      names([
+        { x: 30, y: 6 },
+        { x: 30, y: 38 },
+      ]),
+    ).toEqual(["Ana's right flank", "Ana's left flank"])
+  })
+
+  it('turns left and right round for the other player', () => {
+    expect(names([{ x: 30, y: 6 }], 'defender')).toEqual(["Bo's left flank"])
+  })
+
+  it('names a centre pair by the zone each is nearer', () => {
+    expect(
+      names([
+        { x: 26, y: 22 },
+        { x: 34, y: 22 },
+      ]),
+    ).toEqual(["Centre, Bo's side", "Centre, Ana's side"])
+  })
+
+  it('names a centre pair as near to both by side', () => {
+    expect(
+      names([
+        { x: 30, y: 18 },
+        { x: 30, y: 26 },
+      ]),
+    ).toEqual(["Centre, Ana's right", "Centre, Ana's left"])
+  })
+
+  it('numbers objectives without both deployment zones', () => {
+    expect(objectiveNames([], [{ x: 30, y: 22 }], 'attacker', owners)).toEqual(['Objective 1'])
   })
 })
