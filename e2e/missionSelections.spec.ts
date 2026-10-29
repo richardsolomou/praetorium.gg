@@ -117,7 +117,8 @@ test('source matchup nominations survive undo and reload', async ({ page, browse
   await expect(target).toBeVisible()
   await target
     .getByRole('group', { name: 'Tempting target objective', exact: true })
-    .getByRole('button', { name: 'Objective 2', exact: true })
+    .getByRole('button', { name: /'s expansion$/ })
+    .first()
     .click()
   await expect(target.getByRole('button', { name: 'Record choice', exact: true })).toBeDisabled()
   await target.getByRole('switch', { name: 'It is in No Man’s Land and not a home objective', exact: true }).click()

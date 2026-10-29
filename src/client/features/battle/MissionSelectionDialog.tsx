@@ -11,7 +11,7 @@ import { deploymentsQuery, terrainReferencesQuery } from '../../queries'
 import { deploymentFor } from '../../battleSummary'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
-import { deploymentObjectiveMarkers, objectiveTerrainMarkers } from '../reference/missions/terrainGeometry'
+import { deploymentObjectiveMarkers, objectiveNames, objectiveTerrainMarkers } from '../reference/missions/terrainGeometry'
 import { battleMatchupIds, battlefieldLayout } from './battlefieldLayout'
 import { BattleDialogContent, BattlePromptDialog } from './BattlePromptDialog'
 import type { ReferenceCard } from './MissionCards'
@@ -72,21 +72,27 @@ export function MissionSelectionDialog({
   const terrain = useQuery({ ...query, enabled: Boolean(view.settings.terrainLayoutId) && query.enabled })
   const layout = battlefieldLayout(view.settings.terrainLayoutId, terrain.data?.layouts)
   const deployment = deploymentFor(view.deploymentId, useQuery(deploymentsQuery()).data)
-  const objectives: MissionObjectiveRef[] =
+  const markers =
     !deployment || (view.settings.terrainLayoutId && !layout)
       ? []
       : [
-          ...deploymentObjectiveMarkers(layout?.geometry ?? null, deployment.objectives).map((_, index) => ({
+          ...deploymentObjectiveMarkers(layout?.geometry ?? null, deployment.objectives).map((marker, index) => ({
             key: `deployment-${index}`,
-            name: `Objective ${index + 1}`,
+            position: marker.position,
           })),
-          ...(layout?.geometry
-            ? objectiveTerrainMarkers(layout.geometry).map((marker, index) => ({
-                key: marker.key,
-                name: marker.key === 'group-center' ? 'Centre objective' : `Objective ${index + 1}`,
-              }))
-            : []),
+          ...(layout?.geometry ? objectiveTerrainMarkers(layout.geometry) : []),
         ]
+  const viewer = !view.attackerId || choice.playerId === view.attackerId ? 'attacker' : 'defender'
+  const attacker = view.players.find((player) => player.id === view.attackerId)
+  const defender = attacker && view.players.find((player) => player.id !== attacker.id)
+  const owner = (role: string) => (role === 'attacker' ? (attacker?.name ?? 'Attacker') : (defender?.name ?? 'Defender'))
+  const names = objectiveNames(
+    deployment?.zones ?? [],
+    markers.map((marker) => marker.position),
+    viewer,
+    owner,
+  )
+  const objectives: MissionObjectiveRef[] = markers.map((marker, index) => ({ key: marker.key, name: names[index]! }))
   const consecrated = new Set(choice.consecrated?.map((candidate) => candidate.key))
   const named = manualName.trim()
   const manual = named ? { key: `manual-${named.toLocaleLowerCase()}`, name: named } : null
@@ -264,6 +270,7 @@ export function MissionSelectionDialog({
                         <Button
                           key={candidate.key}
                           variant={objective === candidate.key ? 'default' : 'outline'}
+                          className="h-auto min-h-8 py-1.5 whitespace-normal"
                           aria-pressed={objective === candidate.key}
                           disabled={pending}
                           onClick={() => {
