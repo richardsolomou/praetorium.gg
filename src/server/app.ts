@@ -392,6 +392,8 @@ export function app(): App {
       githubLinked: () => githubSponsors.refresh(),
       captureAuthentication: (userId: string, event: 'account_created' | 'account_signed_in', properties: { method: string }) =>
         telemetry.capture(userId, event, properties),
+      captureSignInMethodAdded: (userId: string, provider: string) =>
+        telemetry.capture(userId, 'sign_in_method_added', { provider, delivery: 'direct' }),
     }
     const auth = createSqliteAuth(authDatabase, process.env.AUTH_SECRET ?? '', authOptions)
     const instance: App = {

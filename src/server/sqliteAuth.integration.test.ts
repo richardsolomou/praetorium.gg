@@ -571,6 +571,23 @@ it('hands a picture a player uploads for their own profile to screening with the
   expect(uploads).toEqual([[created.response.user.id, 'data:image/jpeg;base64,AAAA']])
 })
 
+it('counts a social sign-in linked to an existing player, but not the password they signed up with', async () => {
+  const added: [string, string][] = []
+  const auth = createSqliteAuth(local.database, secret, {
+    environment: testEnvironment,
+    deleteUserData: async () => {},
+    revokeSessionAccess: async () => {},
+    storeSocialAvatar: async () => null,
+    updateProfile: async (data) => ({ ok: true, data }),
+    captureSignInMethodAdded: async (userId, provider) => void added.push([userId, provider]),
+  })
+  const created = await auth.api.signUpEmail({
+    body: { email: `${randomUUID()}@example.com`, password: 'password1234', name: 'Linking player' },
+  })
+  await (await auth.$context).internalAdapter.linkAccount({ userId: created.user.id, providerId: 'google', accountId: randomUUID() })
+  expect(added).toEqual([[created.user.id, 'google']])
+})
+
 it('lists a player’s MCP connections and revokes one with every token it issued', async () => {
   const auth = authFor(testEnvironment)
   const player = await signUpAs(auth, 'Granting player', 'user')
