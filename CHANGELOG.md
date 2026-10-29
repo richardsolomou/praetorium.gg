@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.200.1 (2026-10-29)
+
+### Patch Changes
+
+- 14116b8: Terrain layouts now measure from other terrain and the board edges by default, since a blank mat has no deployment lines to measure from until the terrain is down.
+
 ## 0.200.0 (2026-10-29)
 
 ### Minor Changes
