@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { plainQuotes, printedNumber } from './text'
 import { type TextRoster, type TextRosterUnit, WTC_SECTION } from './textRoster'
 import { GAME_SIZES } from './battle'
@@ -5,8 +6,138 @@ import { GAME_SIZES } from './battle'
 const unitHeader = /^(?:Char\d+:\s*)?(\d+)x\s+(.+?)\s+\(\d[\d,]*\s*pts?\)(?::\s*(.*))?$/i
 const modelLine = /^[•*]\s*(\d+)x\s+([^:]+?)(?::\s*(.*))?$/
 
-/** A New Recruit share link, which opens the list in New Recruit and carries none of it. */
+/** A New Recruit link, which opens the list in New Recruit and carries none of it. */
 export const isNewRecruitLink = (input: string) => /^(?:https?:\/\/)?(?:[\w-]+\.)?newrecruit\.eu(?:[/?#]\S*)?$/i.test(input.trim())
+
+/** The list id of a New Recruit share link, as in `newrecruit.eu/app/list/Z6dRw`. */
+export const newRecruitShareId = (input: string) =>
+  /^(?:https?:\/\/)?(?:[\w-]+\.)?newrecruit\.eu\/app\/list\/([\w-]{1,32})\/?(?:[?#]\S*)?$/i.exec(input.trim())?.[1] ?? null
+
+type ShareNode = {
+  name: string
+  option_id?: string
+  uid?: string
+  amount?: number
+  customName?: string
+  associated?: { uid: string }[]
+  options: ShareNode[]
+}
+
+const shareNode: z.ZodType<ShareNode> = z.lazy(() =>
+  z.object({
+    name: z.string().max(300),
+    option_id: z.string().max(64).optional(),
+    uid: z.string().max(64).optional(),
+    amount: z.number().int().nonnegative().optional(),
+    customName: z.string().max(200).optional(),
+    associated: z
+      .array(z.object({ uid: z.string().max(64) }))
+      .max(20)
+      .optional(),
+    options: z.array(shareNode).max(500).default([]),
+  }),
+)
+
+/** The part of a shared New Recruit list an import reads: BattleScribe's selection tree, which it is built on. */
+export const newRecruitShareSchema = z.object({ name: z.string().max(200), totalCost: z.number().optional(), army: shareNode })
+
+export type NewRecruitShare = z.infer<typeof newRecruitShareSchema>
+
+/**
+ * A shared New Recruit list as the list importer reads army text.
+ *
+ * The tree nests forces, then categories, then units. Inside a unit, a node with an amount and
+ * choices beneath it is a model, a node with neither groups choices, and a leaf is a choice,
+ * counted once when New Recruit leaves its amount out.
+ *
+ * `named` gives the catalogue's own name for a BattleScribe id, which reads a list New Recruit
+ * shows in another language; New Recruit's label stands where the catalogue has no such id.
+ */
+export function fromNewRecruitShare(
+  share: NewRecruitShare,
+  named: (id: string) => string | undefined = () => undefined,
+): TextRoster | null {
+  const book = share.army.options[0]
+  if (!book) return null
+  const label = (node: ShareNode) => (node.option_id && named(node.option_id)) || node.name
+  const forces = book.options
+  const configuration = forces.flatMap((force) => force.options).find((node) => node.option_id === SETUP.configuration)
+  const chosen = (found: (node: ShareNode) => boolean) =>
+    (configuration?.options.filter(found) ?? []).flatMap((node) => leaves(node)).filter((leaf) => (leaf.amount ?? 1) > 0)
+  const size = chosen((node) => node.option_id === SETUP.battleSize)[0]?.name ?? null
+  const others = configuration?.options.filter((node) => !Object.values(SETUP).includes(node.option_id ?? '')) ?? []
+  const detachments = others.find((node) => /detach/i.test(label(node))) ?? others[0]
+  const limit = size ? Number(/\(([\d.,]+)/.exec(size)?.[1]?.replaceAll(/[.,]/g, '') ?? '') || null : null
+  const nodes = forces.flatMap((force) =>
+    force.options
+      .filter((category) => category !== configuration && category.option_id !== SETUP.reference)
+      .flatMap((category) => category.options.filter((unit) => (unit.amount ?? 1) > 0)),
+  )
+  const entries = new Map(nodes.flatMap((node, at) => (node.uid ? [[node.uid, at + 1] as const] : [])))
+  const units = nodes.map((node, at): TextRosterUnit => {
+    const selections: TextRosterUnit['selections'] = []
+    let models = 0
+    let warlord = false
+    const visit = (parent: ShareNode, model: string | undefined, multiplier: number) => {
+      for (const child of parent.options) {
+        const amount = child.amount ?? (child.options.length ? undefined : 1)
+        if (amount === 0) continue
+        if (!child.options.length) {
+          if (/^warlord$/i.test(label(child))) warlord = true
+          else selections.push({ name: label(child), count: amount! * multiplier, ...(model ? { model } : {}) })
+        } else if (amount === undefined) visit(child, model, multiplier)
+        else if (!model) {
+          models += amount * multiplier
+          visit(child, label(child), amount * multiplier)
+        } else {
+          selections.push({ name: label(child), count: amount * multiplier, model })
+          visit(child, model, amount * multiplier)
+        }
+      }
+    }
+    visit(node, undefined, 1)
+    const target = node.associated?.map((link) => entries.get(link.uid)).find((entry) => entry !== undefined)
+    return {
+      name: label(node),
+      ...(node.customName && node.customName !== node.name ? { nickname: node.customName } : {}),
+      selections,
+      leading: null,
+      models: models || 1,
+      entry: at + 1,
+      ...(target ? { attachedToEntry: target } : {}),
+      warlord,
+    }
+  })
+  return {
+    name: share.name.trim() || book.name,
+    ...(share.totalCost ? { reportedPoints: share.totalCost } : {}),
+    faction: book.name,
+    detachment:
+      chosen((node) => node === detachments)
+        .map(label)
+        .join(', ') || null,
+    disposition: chosen((node) => node.option_id === SETUP.disposition).map(label)[0] ?? null,
+    limit,
+    ...(size ? { sizeName: size.replace(/\s*\(.*$/, '') } : {}),
+    units,
+  }
+}
+
+/**
+ * The game system's own setup entries, by BattleScribe id since New Recruit translates their names.
+ * The detachment entry differs by army: the remaining one named for detachments, or in another
+ * language the first of the rest. The reference category holds rules reminders, not units.
+ */
+const SETUP = {
+  configuration: '4ac9-fd30-1e3d-b249',
+  battleSize: '564e-fbc6-5266-3ea4',
+  disposition: '2f69-9148-45b4-86a8',
+  visibility: 'e8ef-836a-a9d1-901d',
+  reference: 'eef1-be80-500a-edfc',
+}
+
+const leaves = (node: ShareNode | undefined): ShareNode[] =>
+  !node ? [] : node.options.length ? node.options.flatMap((child) => leaves(child)) : [node]
 
 export function fromNewRecruitText(input: string): TextRoster | null {
   const newRecruit = /Created with newrecruit\.eu/i.test(input)

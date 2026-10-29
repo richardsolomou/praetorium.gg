@@ -7,6 +7,7 @@ const names: BattlebaseNames = {
   datasheets: { overlord: 'Overlord', warriors: 'Necron Warriors' },
   models: { overlord: 'Overlord', warrior: 'Necron Warrior' },
   wargear: { gauss: 'Gauss flayer', reaper: 'Gauss reaper', glaive: 'Voidscythe' },
+  defaults: {},
   enhancements: { veil: 'Veil of Darkness' },
   detachments: { cursed: 'Cursed Legion' },
   forceDispositions: { purge: 'Purge the Foe' },
@@ -70,6 +71,13 @@ it('reads a BattleBase roster as the list importer reads army text', () => {
       },
     ],
   })
+})
+
+it('leaves standard wargear for the datasheet to give, keeping only the swaps', () => {
+  const standard = { ...names, defaults: { 'warriors/warrior/gauss': 1 } }
+  expect(battlebaseTextRoster(roster(), standard, 2000)!.units[1]!.selections).toEqual([
+    { name: 'Gauss reaper', count: 3, model: 'Necron Warrior' },
+  ])
 })
 
 it('reads nothing from a roster naming a choice the data does not, rather than dropping the choice', () => {

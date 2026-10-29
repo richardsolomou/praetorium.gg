@@ -18,6 +18,10 @@ const armyData = z.object({
     models: z.array(named),
     wargearItems: z.array(named),
     rosterUnitWargearEditSetWargearItems: z.array(z.object({ id: z.string(), wargearItemId: z.string() })),
+    defaultModelWargearLoadouts: z.array(z.object({ id: z.string(), modelId: z.string(), datasheetId: z.string() })).default([]),
+    defaultModelWargearLoadoutWargearSelections: z
+      .array(z.object({ defaultModelLoadoutId: z.string(), wargearChoiceId: z.string(), count: z.number() }))
+      .default([]),
     enhancements: z.array(named),
     detachments: z.array(named),
     forceDispositions: z.array(named),
@@ -53,6 +57,7 @@ async function readNames(): Promise<BattlebaseNames> {
     datasheets: {},
     models: {},
     wargear: {},
+    defaults: {},
     enhancements: {},
     detachments: {},
     forceDispositions: {},
@@ -77,6 +82,11 @@ async function readNames(): Promise<BattlebaseNames> {
       for (const choice of data.rosterUnitWargearEditSetWargearItems) {
         const item = items.get(choice.wargearItemId)
         if (item) names.wargear[choice.id] = item
+      }
+      const loadouts = new Map(data.defaultModelWargearLoadouts.map((loadout) => [loadout.id, `${loadout.datasheetId}/${loadout.modelId}`]))
+      for (const selection of data.defaultModelWargearLoadoutWargearSelections) {
+        const loadout = loadouts.get(selection.defaultModelLoadoutId)
+        if (loadout) names.defaults[`${loadout}/${selection.wargearChoiceId}`] = selection.count
       }
       names.stratagems = [...new Set([...names.stratagems, ...data.stratagems.map((stratagem) => stratagem.title)])]
     }

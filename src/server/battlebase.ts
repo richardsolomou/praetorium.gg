@@ -57,6 +57,20 @@ export async function battlebaseBattles(id: string) {
   return battles.slice(0, MAX_BATTLES)
 }
 
+/** A player's public BattleBase rosters, newest first; null when no player has that name. */
+export async function battlebaseRosters(username: string) {
+  const { user } = await query(
+    z.object({
+      user: z
+        .object({ rosters: z.array(z.object({ id: z.string(), data: z.string(), updatedAt: z.string().nullish() })).max(500) })
+        .nullable(),
+    }),
+    'query Rosters($username: String!) { user(username: $username) { rosters { id data updatedAt } } }',
+    { username },
+  )
+  return user?.rosters.toSorted((left, right) => (right.updatedAt ?? '').localeCompare(left.updatedAt ?? '')) ?? null
+}
+
 /**
  * The code a player puts in their BattleBase tagline to show the account is theirs.
  *

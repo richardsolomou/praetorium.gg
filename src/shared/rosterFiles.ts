@@ -45,7 +45,15 @@ import type { RosterExchange } from '../core/rosterExchange'
 import type { RosterPick } from '../core/roster'
 
 /** Which tool or layout wrote an imported text, as `roster_imported` and `roster_import_failed` report it. */
-type RosterTextFormat = 'praetorium' | 'newrecruit' | 'battlebase' | 'roster-file' | 'listforge' | 'listforge-wtc' | 'warmind' | 'wtc'
+export type RosterTextFormat =
+  | 'praetorium'
+  | 'newrecruit'
+  | 'battlebase'
+  | 'roster-file'
+  | 'listforge'
+  | 'listforge-wtc'
+  | 'warmind'
+  | 'wtc'
 
 function parsedImport(file: string): { parsed: TextRoster; format: RosterTextFormat } | null {
   const praetorium = /Exported with Praetorium\.gg/i.test(file)
@@ -101,31 +109,7 @@ export function importRosterFile(
 ) {
   importRosterSchema.parse(data)
   const found = parsedImport(data.file)
-  if (found) {
-    if (found.parsed.units.length > 100) throw new Error('An imported roster can contain at most 100 entries.')
-    const result = importTextRoster(found.parsed, loaded, factionNames)
-    const currentPoints = result.catalogueId
-      ? (calculateRosterPrice(
-          {
-            catalogueId: result.catalogueId,
-            detachmentIds: result.detachmentIds,
-            disposition: 'disposition' in result ? (result.disposition ?? null) : null,
-            limit: 'limit' in result ? (result.limit ?? 2000) : 2000,
-            units: result.units,
-          },
-          loaded,
-          rules,
-        )?.points ?? null)
-      : null
-    return {
-      ...result,
-      source: savedSource(found.format),
-      format: found.format,
-      reportedPoints: found.parsed.reportedPoints ?? null,
-      currentPoints,
-      sourceUnitCount: found.parsed.units.length,
-    }
-  }
+  if (found) return importParsedRoster(found.parsed, found.format, loaded, factionNames, rules)
   return {
     name: 'Imported list',
     catalogueId: null,
@@ -139,6 +123,39 @@ export function importRosterFile(
     reportedPoints: null,
     currentPoints: null,
     sourceUnitCount: 0,
+  }
+}
+
+/** A list already read into army text, from a pasted export or another app's own format, matched and priced. */
+export function importParsedRoster(
+  parsed: TextRoster,
+  format: RosterTextFormat,
+  loaded: LoadedCatalogue | null,
+  factionNames = loaded?.factions.map((faction) => faction.name) ?? [],
+  rules: LoadedRules | null = null,
+) {
+  if (parsed.units.length > 100) throw new Error('An imported roster can contain at most 100 entries.')
+  const result = importTextRoster(parsed, loaded, factionNames)
+  const currentPoints = result.catalogueId
+    ? (calculateRosterPrice(
+        {
+          catalogueId: result.catalogueId,
+          detachmentIds: result.detachmentIds,
+          disposition: 'disposition' in result ? (result.disposition ?? null) : null,
+          limit: 'limit' in result ? (result.limit ?? 2000) : 2000,
+          units: result.units,
+        },
+        loaded,
+        rules,
+      )?.points ?? null)
+    : null
+  return {
+    ...result,
+    source: savedSource(format),
+    format,
+    reportedPoints: parsed.reportedPoints ?? null,
+    currentPoints,
+    sourceUnitCount: parsed.units.length,
   }
 }
 
@@ -211,7 +228,7 @@ const slug = (value: string) =>
     .replaceAll(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
 
-export function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, factionNames: readonly string[]) {
+function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, factionNames: readonly string[]) {
   const faction = loaded?.factions.find((candidate) => matchesImportFaction(parsed.faction, candidate.name))
   if (!loaded || !faction) {
     return {
@@ -226,11 +243,14 @@ export function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | n
   }
 
   const detachmentName = parsed.detachment
-  const detachments = detachmentName ? detachmentsNamed(detachmentName, loaded.detachments.get(faction.id)?.options ?? []) : []
-  const unknown: UnmatchedName[] =
-    detachments.length || !detachmentName
-      ? []
-      : [{ name: detachmentName, reason: unmatchedDetachmentReason(detachmentName, faction.id, loaded) }]
+  const offered = loaded.detachments.get(faction.id)?.options ?? []
+  const whole = detachmentName ? detachmentsNamed(detachmentName, offered) : []
+  // Where one of several detachments is unknown, the others still count, so their enhancements stay.
+  const parts = whole.length || !detachmentName ? [] : detachmentName.split(/,\s+/)
+  const detachments = whole.length ? whole : parts.flatMap((part) => detachmentsNamed(part, offered))
+  const unknown: UnmatchedName[] = parts
+    .filter((part) => !detachmentsNamed(part, offered).length)
+    .map((part) => ({ name: part, reason: unmatchedDetachmentReason(part, faction.id, loaded) }))
   for (const line of parsed.unread ?? []) unknown.push({ name: line, reason: 'this line is not understood by the text importer' })
   const detachmentIds = detachments.map((detachment) => detachment.id)
   const detachmentSelections = rosterDetachments(loaded, faction.id, detachmentIds).selections
@@ -240,11 +260,18 @@ export function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | n
     parsed.units.filter((other) => normalized(other.name) === normalized(unit.name)).length > 1
       ? `${unit.name} (entry ${at + 1})`
       : unit.name
+  const datasheets = [...(loaded.index.datasheets.get(faction.id) ?? [])].flatMap((id) => {
+    const definition = loaded.index.definitions.get(id)
+    return definition ? [{ id, name: normalized(nameOf(definition, loaded.index.definitions)) }] : []
+  })
+  // A datasheet another app names in the plural, as BattleBase's "Myphitic Blight-haulers", is still the one datasheet it can be.
+  const datasheetNamed = (name: string) => {
+    const exact = datasheets.find((datasheet) => datasheet.name === name)
+    const plural = datasheets.filter((datasheet) => nameVariants(datasheet.name).includes(name))
+    return exact?.id ?? (plural.length === 1 ? plural[0]!.id : undefined)
+  }
   const units = parsed.units.flatMap((unit, sourceIndex) => {
-    const entryId = [...(loaded.index.datasheets.get(faction.id) ?? [])].find((candidate) => {
-      const definition = loaded.index.definitions.get(candidate)
-      return definition && normalized(nameOf(definition, loaded.index.definitions)) === normalized(unit.name)
-    })
+    const entryId = datasheetNamed(normalized(unit.name))
     if (!entryId) {
       unknown.push({ name: label(unit, sourceIndex), reason: unmatchedDatasheetReason(unit.name, faction.id, loaded) })
       return []
@@ -439,10 +466,17 @@ function textRosterPick(
   const labels = new Map<string, string>()
   const statedUnder = new Map<string, Map<string, number>>()
   const respelled = respelledNames(entryId, loaded.index)
+  // Some exporters prefix wargear with the unit it belongs to, as BattleBase's "Scout sniper rifle" is a Scout Squad's "Sniper Rifle".
+  const unitWords = new Set(normalized(unit.name).split(' ').flatMap(nameVariants))
+  const unprefixed = (label: string) => {
+    const words = normalized(label).split(' ')
+    const at = words.findIndex((word, position) => !unitWords.has(word) || position === words.length - 1)
+    return at > 0 ? respelled.get(spellingKey(words.slice(at).join(' '))) : undefined
+  }
   for (const selection of unit.selections) {
     const label = selection.name.replace(/^(?:Enhancements?|Upgrade):\s*(.+)$/i, (_, name: string) => upgradeName(name)).trim()
     const key = spellingKey(normalized(label))
-    const name = (respelled.has(key) ? respelled.get(key) : respelled.get(powerWeaponKey(key))) ?? normalized(label)
+    const name = (respelled.has(key) ? respelled.get(key) : (respelled.get(powerWeaponKey(key)) ?? unprefixed(label))) ?? normalized(label)
     stated.set(name, (stated.get(name) ?? 0) + selection.count)
     if (!labels.has(name)) labels.set(name, label)
     if (!selection.model) continue

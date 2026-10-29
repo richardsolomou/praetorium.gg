@@ -462,6 +462,11 @@ export const submitSchema = z.object({
 
 /** A Praetorium, BattleBase or New Recruit text export, which no roster comes close to filling. */
 export const importRosterSchema = z.object({ file: z.string().min(1).max(200_000) })
+/** Where to look for lists to import: a player's public BattleBase rosters, or New Recruit share links. */
+export const importableRostersSchema = z.discriminatedUnion('source', [
+  z.object({ source: z.literal('battlebase'), username: battlebaseUsernameSchema.shape.username }),
+  z.object({ source: z.literal('newrecruit'), links: z.array(z.string().trim().min(1).max(200)).min(1).max(20) }),
+])
 export type ImportRosterInput = z.infer<typeof importRosterSchema>
 
 export const detachmentRulesSchema = z.object({

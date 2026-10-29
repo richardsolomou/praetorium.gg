@@ -15,6 +15,7 @@ const rows = <T extends z.ZodType>(row: T) =>
 /** The part of a BattleBase roster an import reads; every name in it is an id into BattleBase's own army data. */
 export const battlebaseRosterSchema = z.object({
   title: z.string().max(500).nullish(),
+  battleSizeId: ref.nullish(),
   factionId: ref,
   detachmentId: ref.nullish(),
   detachmentIds: z.array(ref).max(8).nullish(),
@@ -39,17 +40,32 @@ export type BattlebaseNames = {
   models: Record<string, string>
   /** Keyed by the wargear choice a roster records, which names the item it picks. */
   wargear: Record<string, string>
+  /** How many of a wargear choice each model of a datasheet carries before any swap, keyed `datasheet/model/choice`. */
+  defaults: Record<string, number>
   enhancements: Record<string, string>
   detachments: Record<string, string>
   forceDispositions: Record<string, string>
   stratagems: string[]
 }
 
+/** BattleBase's battle sizes, by the id its rosters and battles record. */
+export const BATTLEBASE_SIZES: Record<string, number> = {
+  'battle-size-king-of-the-colosseum': 600,
+  'battle-size-incursion': 1000,
+  'battle-size-strike-force': 2000,
+  'battle-size-onslaught': 3000,
+}
+
 /**
  * A BattleBase roster as the list importer reads army text, or null when any id in it has no
- * name in the data, since an import never drops or guesses what a list contained.
+ * name in the data, since an import never drops or guesses what a list contained. The battle
+ * size is the one given, or the roster's own.
  */
-export function battlebaseTextRoster(roster: BattlebaseRoster, names: BattlebaseNames, limit: number | null): TextRoster | null {
+export function battlebaseTextRoster(
+  roster: BattlebaseRoster,
+  names: BattlebaseNames,
+  limit: number | null = BATTLEBASE_SIZES[roster.battleSizeId ?? ''] ?? null,
+): TextRoster | null {
   const named = (table: Record<string, string>, key: string | null | undefined) => (key ? table[key] : undefined)
   const faction = named(names.factions, roster.factionId)
   const detachmentIds = roster.detachmentIds ?? (roster.detachmentId ? [roster.detachmentId] : [])
@@ -66,6 +82,10 @@ export function battlebaseTextRoster(roster: BattlebaseRoster, names: Battlebase
       const modelName = named(names.models, model.modelId)
       if (!modelName) return null
       for (const choice of roster.unitModelWargear.filter((wargear) => wargear.unitModelId === model.id && wargear.count > 0)) {
+        // Standard wargear is left for the datasheet to give, which fills whatever the swaps leave,
+        // since the catalogue can name it differently, as the "Close combat weapon" it calls "Knives and Fists".
+        const standard = names.defaults[`${unit.datasheetId}/${model.modelId}/${choice.wargearEditSetWargearItemId}`]
+        if (standard !== undefined && standard * model.count >= choice.count) continue
         const item = named(names.wargear, choice.wargearEditSetWargearItemId)
         if (!item) return null
         selections.push({ name: item, count: choice.count, model: modelName })

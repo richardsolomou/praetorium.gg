@@ -17,7 +17,7 @@ import {
   type Stratagem,
   SECONDARY_DECK_MAX,
 } from './battle'
-import { titled } from './battlebaseRoster'
+import { BATTLEBASE_SIZES, titled } from './battlebaseRoster'
 import { PROFILE_NAME_MAX_LENGTH } from './profileName'
 import { routeSlug } from './slug'
 
@@ -91,13 +91,7 @@ export type BattlebaseImport = {
 
 export type BattlebaseSkip = 'unfinished' | 'not-a-player' | 'test-opponent' | 'unreadable'
 
-const BATTLE_SIZES: Record<string, number> = {
-  'battle-size-incursion': 1000,
-  'battle-size-strike-force': 2000,
-  'battle-size-onslaught': 3000,
-}
-
-export const battlebaseLimit = (battle: BattlebaseBattle) => BATTLE_SIZES[battle.battleSetupJson.battleSizeId ?? ''] ?? null
+export const battlebaseLimit = (battle: BattlebaseBattle) => BATTLEBASE_SIZES[battle.battleSetupJson.battleSizeId ?? ''] ?? null
 
 /** One side's army as BattleBase recorded it: `creator` is the side of the player who opened the battle. */
 export function battlebaseArmy(battle: BattlebaseBattle, creator: boolean) {
