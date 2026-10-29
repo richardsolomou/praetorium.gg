@@ -1,6 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { ShelfLink } from '../../components/ShelfLink'
-import type { ReactNode } from 'react'
+import { type ReactNode, useState } from 'react'
 import { buttonClass } from '../../components/buttonClass'
 import { isPracticeSeat } from '../../../core/newBattle'
 import type { Battle } from '../battles/battle'
@@ -47,6 +47,9 @@ export type HomeData = {
 /** A visitor's public shelf, longer because it is the evidence that games are played here. */
 const VISITOR_GAMES = 3
 
+/** An unfinished game untouched this long is left to the battles page rather than headlining the home page. */
+const ABANDONED_AFTER = 14 * 24 * 60 * 60 * 1_000
+
 /** Keep one page width and show the player’s own pending games before friends’ and public games; visitors share the layout but see the public entry points. */
 export function HomeView({
   me,
@@ -67,11 +70,13 @@ export function HomeView({
   recentSimulations,
   onDelete,
 }: HomeData) {
-  const going = mine.filter((battle) => battle.status !== 'finished')
+  const [since] = useState(() => Date.now() - ABANDONED_AFTER)
+  const live = (battle: Battle) => battle.status === 'finished' || battle.lastActivity > since
+  const going = mine.filter((battle) => battle.status !== 'finished' && battle.lastActivity > since)
   const played = mine.filter((battle) => battle.status === 'finished' && !battle.playerDetails?.some(isPracticeSeat)).slice(0, SHOWN)
   // A visitor's hero is the most recent public battle, so the shelf below must not
   // print it again two inches further down.
-  const hero = me ? undefined : open[0]
+  const hero = me ? undefined : open.find(live)
   const { friends: shownFriends, open: rest } = watchedTables(friends, open, hero)
   // Without a game going or played, the lists are what the player comes back for, so they lead.
   const listsFirst = !going.length && !played.length

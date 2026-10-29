@@ -618,7 +618,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
                     <Fact label="Attacker" value={view.players.find((player) => player.id === view.attackerId)?.name ?? 'Not chosen'} />
                   </>
                 )}
-                <Fact label="Battle size" value={battleSizeText(view) ?? 'Legacy format'} />
+                <Fact label="Battle size" value={battleSizeText(view) ?? 'Not set'} />
                 <Fact label="Format" value={formatName(table)} />
                 {/*
                  * A twist changes one rule for the whole battle, so it is not enough to

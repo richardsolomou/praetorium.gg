@@ -72,7 +72,7 @@ export function BattleShelf({
           const battlefield = deploymentName(battle.deploymentId, deployments)
           const setting = [
             ...(label ? [label(battle)] : []),
-            battle.settings.limit ? pointsLabel(battle.settings.limit) : 'Legacy format',
+            ...(battle.settings.limit ? [pointsLabel(battle.settings.limit)] : []),
             ...(battle.settings.manual ? ['Manual tracking'] : battle.mission ? [battle.mission.name] : []),
             ...(battlefield ? [battlefield] : []),
             ...(battle.result?.reason && battle.result.reason !== 'completed' ? [BATTLE_ENDINGS[battle.result.reason]] : []),
