@@ -3,10 +3,13 @@ import { cn } from '@/lib/utils'
 import { groupBy } from '../../../../core/collections'
 
 import {
+  deploymentLines,
   deploymentObjectiveMarkers,
   deploymentNeedsFlip,
   formatInches,
+  type Measurement,
   measurementLabelSize,
+  placementMeasurements,
   objectiveTerrainMarkers,
   placeMeasurementLabel,
   pointInPolygon,
@@ -22,12 +25,18 @@ import {
   territoryBoundary,
 } from './terrainGeometry'
 
+/** What a detailed board measures terrain to; `published` is the layout diagram's own distances, often to objective centres. */
+export type MeasurementSource = 'terrain' | 'lines' | 'edges' | 'published' | 'mat'
+
+const publishedOnly: MeasurementSource[] = ['published']
+
 export function TerrainBoard({
   layout,
   deployment,
   templates,
   className,
   detailed = false,
+  show = publishedOnly,
   ariaLabel,
 }: {
   layout: { name: string; pieces: TerrainPiece[]; geometry: TerrainGeometry | null; publisherUrl?: string }
@@ -39,6 +48,7 @@ export function TerrainBoard({
   }
   className?: string
   detailed?: boolean
+  show?: MeasurementSource[]
   ariaLabel?: string
 }) {
   const patternId = useId().replaceAll(':', '')
@@ -51,9 +61,12 @@ export function TerrainBoard({
     ...(layout.geometry ? objectiveTerrainMarkers(layout.geometry).map((objective) => objective.position) : []),
   ]
 
+  const showMat = detailed && show.includes('mat') && layout.geometry !== null
+  const margin = showMat ? rulerMargin : 0
+
   const svg = (
     <svg
-      viewBox={`0 0 ${board.height} ${board.width}`}
+      viewBox={`${-margin} ${-margin / 2} ${board.height + margin * 1.5} ${board.width + margin * 1.5}`}
       className={cn('border border-edge bg-sunken', className)}
       aria-label={ariaLabel ?? layout.name}
     >
@@ -140,8 +153,25 @@ export function TerrainBoard({
         )}
       </g>
       {detailed && layout.geometry ? (
-        <TerrainMeasurements geometry={layout.geometry} flipped={flipped} arrowId={`${patternId}-arrow`} objectives={objectivePositions} />
+        <TerrainMeasurements
+          geometry={layout.geometry}
+          measurements={[
+            ...(show.includes('terrain') || show.includes('lines') || show.includes('edges')
+              ? placementMeasurements(
+                  layout.geometry,
+                  objectivePositions,
+                  show.includes('lines') && deployment ? deploymentLines(deployment, layout.geometry.board) : [],
+                  { terrain: show.includes('terrain'), edges: show.includes('edges') },
+                )
+              : []),
+            ...(show.includes('published') ? layout.geometry.areas.flatMap((area) => area.measurements) : []),
+          ]}
+          flipped={flipped}
+          arrowId={`${patternId}-arrow`}
+          objectives={objectivePositions}
+        />
       ) : null}
+      {showMat && layout.geometry ? <MatCoordinates geometry={layout.geometry} flipped={flipped} objectives={objectivePositions} /> : null}
       <g transform={upright}>
         {layout.geometry ? (
           <TerrainAnnotations
@@ -354,22 +384,146 @@ function deploymentZoneStroke(player: string) {
   return 'stroke-parchment'
 }
 
+const rulerMargin = 2.2
+
+function MatCoordinates({
+  geometry,
+  flipped,
+  objectives,
+}: {
+  geometry: TerrainGeometry
+  flipped: boolean
+  objectives: { x: number; y: number }[]
+}) {
+  const { board } = geometry
+  const across = Array.from({ length: board.height + 1 }, (_, inch) => inch)
+  const up = Array.from({ length: board.width + 1 }, (_, inch) => inch)
+  const numbered = (inch: number, length: number) => (inch % 6 === 0 && length - inch >= 3) || inch === length
+  const placed = placementMeasurements(geometry, objectives, [], { terrain: false, edges: true })
+  const points = [...new Map(placed.map(({ to, approximate }) => [`${to.x}-${to.y}`, { point: to, approximate }])).values()].map(
+    ({ point, approximate }) => {
+      const portrait = portraitPoint(point, flipped, board)
+      return { portrait, text: `${approximate ? '≈' : ''}${matInches(portrait.x)} · ${matInches(board.width - portrait.y)}` }
+    },
+  )
+  const occupied: LabelBox[] = [
+    ...points.map(({ portrait }) => ({ left: portrait.x - 0.3, right: portrait.x + 0.3, top: portrait.y - 0.3, bottom: portrait.y + 0.3 })),
+    ...objectives.map((position) => {
+      const centre = portraitPoint(position, flipped, board)
+      return { left: centre.x - 1.3, right: centre.x + 1.3, top: centre.y - 1.3, bottom: centre.y + 1.4 }
+    }),
+    ...geometry.areas.flatMap((area) => area.markers.map((marker) => terrainMarkerPosition(area, marker, objectives))),
+    ...terrainAreaJoins(geometry),
+  ].map((box) => {
+    if ('left' in box) return box
+    const centre = portraitPoint(box, flipped, board)
+    return { left: centre.x - 1.1, right: centre.x + 1.1, top: centre.y - 1.1, bottom: centre.y + 1.1 }
+  })
+  const labels = points.map(({ portrait, text }) => {
+    const towardCentre = { x: portrait.x + (portrait.x < board.height / 2 ? 1 : -1), y: portrait.y }
+    return {
+      portrait,
+      text,
+      label: placeMeasurementLabel(portrait, towardCentre, false, text, occupied, board),
+      size: measurementLabelSize(text),
+    }
+  })
+
+  return (
+    <g>
+      <g className="stroke-bone/70" strokeWidth=".08">
+        {across.map((inch) => (
+          <line key={inch} x1={inch} y1={board.width} x2={inch} y2={board.width + (numbered(inch, board.height) ? 0.8 : 0.4)} />
+        ))}
+        {up.map((inch) => (
+          <line key={inch} x1={0} y1={board.width - inch} x2={numbered(inch, board.width) ? -0.8 : -0.4} y2={board.width - inch} />
+        ))}
+      </g>
+      <g className="fill-dim" fontSize=".85">
+        {across
+          .filter((inch) => numbered(inch, board.height) && inch)
+          .map((inch) => (
+            <text key={inch} x={inch} y={board.width + 1.6} textAnchor="middle">
+              {inch}
+            </text>
+          ))}
+        {up
+          .filter((inch) => numbered(inch, board.width) && inch)
+          .map((inch) => (
+            <text key={inch} x={-1} y={board.width - inch} textAnchor="end" dominantBaseline="middle">
+              {inch}
+            </text>
+          ))}
+        <text x={-1} y={board.width + 1.6} textAnchor="end">
+          0
+        </text>
+      </g>
+      {labels.map(({ portrait, label }) => (
+        <line
+          key={`${portrait.x}-${portrait.y}`}
+          x1={portrait.x}
+          y1={portrait.y}
+          x2={label.x}
+          y2={label.y}
+          className="stroke-parchment"
+          strokeWidth=".1"
+        />
+      ))}
+      {labels.map(({ portrait, text, label, size }) => (
+        <g key={`${portrait.x}-${portrait.y}`}>
+          <circle cx={portrait.x} cy={portrait.y} r=".22" className="fill-parchment" />
+          <rect
+            x={label.x - size.width / 2}
+            y={label.y - size.height / 2}
+            width={size.width}
+            height={size.height}
+            rx=".14"
+            className="fill-parchment"
+          />
+          <text
+            x={label.x}
+            y={label.y}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            className="fill-parchment-ink"
+            fontSize=".9"
+            fontWeight="700"
+          >
+            {text}
+          </text>
+          <title>{`${text.replace(' · ', '″ from the left edge, ')}″ from the bottom edge`}</title>
+        </g>
+      ))}
+    </g>
+  )
+}
+
+function ordinal(step: number) {
+  const suffix = step % 100 >= 11 && step % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][step % 10] ?? 'th')
+  return `${step}${suffix}`
+}
+
+/** A mat ruler prints bare numbers, so the label drops the inch mark to read the same. */
+function matInches(value: number) {
+  return formatInches(value).replace('″', '')
+}
+
 function TerrainMeasurements({
   geometry,
+  measurements: all,
   flipped,
   arrowId,
   objectives,
 }: {
   geometry: TerrainGeometry
+  measurements: Measurement[]
   flipped: boolean
   arrowId: string
   objectives: { x: number; y: number }[]
 }) {
   const measurements = [
     ...new Map(
-      geometry.areas
-        .flatMap((area) => area.measurements)
-        .map((measurement) => [`${measurement.from.x}-${measurement.from.y}-${measurement.to.x}-${measurement.to.y}`, measurement]),
+      all.map((measurement) => [`${measurement.from.x}-${measurement.from.y}-${measurement.to.x}-${measurement.to.y}`, measurement]),
     ).values(),
   ]
 
@@ -383,39 +537,73 @@ function TerrainMeasurements({
       occupied.push({ left: centre.x - 1.1, right: centre.x + 1.1, top: centre.y - 1.1, bottom: centre.y + 1.1 })
     }
   }
-  const annotations = measurements.map((measurement, index) => {
-    const from = portraitPoint(measurement.from, flipped, geometry.board)
-    const to = portraitPoint(measurement.to, flipped, geometry.board)
-    const vertical = Math.abs(from.x - to.x) < Math.abs(from.y - to.y)
-    const text = `${measurement.approximate ? '≈' : ''}${formatInches(Math.hypot(to.x - from.x, to.y - from.y))}`
-    const label = placeMeasurementLabel(to, from, vertical, text, occupied, geometry.board)
-    const { width: labelWidth, height: labelHeight } = measurementLabelSize(text)
-    return {
-      key: `${measurement.from.x}-${measurement.from.y}-${measurement.to.x}-${measurement.to.y}-${index}`,
-      from,
-      to,
-      text,
-      label,
-      labelWidth,
-      labelHeight,
-    }
+  for (const join of terrainAreaJoins(geometry)) {
+    const centre = portraitPoint(join, flipped, geometry.board)
+    occupied.push({ left: centre.x - 0.9, right: centre.x + 0.9, top: centre.y - 0.9, bottom: centre.y + 0.9 })
+  }
+  // Each badge sits just inside its piece, past the corner from where its arrows come in, so it never hides them.
+  const steps = measurements.flatMap((measurement) => {
+    if (!measurement.step) return []
+    const corner = portraitPoint(measurement.to, flipped, geometry.board)
+    const inward = measurements
+      .filter((other) => other.to.x === measurement.to.x && other.to.y === measurement.to.y)
+      .map((other) => {
+        const from = portraitPoint(other.from, flipped, geometry.board)
+        const length = Math.hypot(corner.x - from.x, corner.y - from.y) || 1
+        return { x: (corner.x - from.x) / length, y: (corner.y - from.y) / length }
+      })
+      .reduce((sum, direction) => ({ x: sum.x + direction.x, y: sum.y + direction.y }), { x: 0, y: 0 })
+    const length = Math.hypot(inward.x, inward.y) || 1
+    return [{ step: measurement.step, at: { x: corner.x + (inward.x / length) * 1.1, y: corner.y + (inward.y / length) * 1.1 } }]
   })
+  for (const { at } of steps) occupied.push({ left: at.x - 0.6, right: at.x + 0.6, top: at.y - 0.6, bottom: at.y + 0.6 })
+  const length = (measurement: Measurement) => Math.hypot(measurement.to.x - measurement.from.x, measurement.to.y - measurement.from.y)
+  // Short arrows place their labels first: they have the least room before a label drifts away from its arrow.
+  const annotations = measurements
+    .map((measurement, index) => ({ measurement, index }))
+    .sort((left, right) => length(left.measurement) - length(right.measurement))
+    .map(({ measurement, index }) => {
+      const from = portraitPoint(measurement.from, flipped, geometry.board)
+      const to = portraitPoint(measurement.to, flipped, geometry.board)
+      const vertical = Math.abs(from.x - to.x) < Math.abs(from.y - to.y)
+      const distance = formatInches(Math.hypot(to.x - from.x, to.y - from.y))
+      const edge = vertical ? (from.y < to.y ? 'top' : 'bottom') : from.x < to.x ? 'left' : 'right'
+      const text = `${measurement.approximate ? '≈' : ''}${measurement.ruler ? `${distance} from ${edge}` : distance}`
+      const label = placeMeasurementLabel(to, from, vertical, text, occupied, geometry.board)
+      const { width: labelWidth, height: labelHeight } = measurementLabelSize(text)
+      return {
+        index,
+        key: `${measurement.from.x}-${measurement.from.y}-${measurement.to.x}-${measurement.to.y}-${index}`,
+        ruler: measurement.ruler ?? false,
+        from,
+        to,
+        text,
+        label,
+        labelWidth,
+        labelHeight,
+      }
+    })
+    .sort((left, right) => left.index - right.index)
 
   return (
     <g>
-      {annotations.map(({ key, from, to }) => (
-        <line
-          key={key}
-          x1={from.x}
-          y1={from.y}
-          x2={to.x}
-          y2={to.y}
-          className="stroke-side-a"
-          strokeWidth=".12"
-          markerEnd={`url(#${arrowId})`}
-        />
-      ))}
-      {annotations.map(({ key, text, label, labelWidth, labelHeight }) => (
+      {annotations.map(({ key, ruler, from, to, label }) =>
+        ruler ? (
+          <line key={key} x1={to.x} y1={to.y} x2={label.x} y2={label.y} className="stroke-parchment" strokeWidth=".1" />
+        ) : (
+          <line
+            key={key}
+            x1={from.x}
+            y1={from.y}
+            x2={to.x}
+            y2={to.y}
+            className="stroke-side-a"
+            strokeWidth=".12"
+            markerEnd={`url(#${arrowId})`}
+          />
+        ),
+      )}
+      {annotations.map(({ key, ruler, text, label, labelWidth, labelHeight }) => (
         <g key={key}>
           <rect
             x={label.x - labelWidth / 2}
@@ -423,9 +611,17 @@ function TerrainMeasurements({
             width={labelWidth}
             height={labelHeight}
             rx=".14"
-            className="fill-side-a"
+            className={ruler ? 'fill-parchment' : 'fill-side-a'}
           />
-          <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="middle" className="fill-bone" fontSize=".9" fontWeight="700">
+          <text
+            x={label.x}
+            y={label.y}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            className={ruler ? 'fill-parchment-ink' : 'fill-bone'}
+            fontSize=".9"
+            fontWeight="700"
+          >
             {text}
           </text>
         </g>
@@ -434,6 +630,15 @@ function TerrainMeasurements({
         <circle key={`${point.x}-${point.y}`} cx={point.x} cy={point.y} r=".18" className="fill-side-a">
           <title>Measurement endpoint</title>
         </circle>
+      ))}
+      {steps.map(({ step, at }) => (
+        <g key={`step-${step}`}>
+          <circle cx={at.x} cy={at.y} r=".55" className="fill-bone stroke-side-a" strokeWidth=".1" />
+          <text x={at.x} y={at.y} textAnchor="middle" dominantBaseline="central" className="fill-void" fontSize=".65" fontWeight="800">
+            {step}
+          </text>
+          <title>{`Place this piece ${ordinal(step)}`}</title>
+        </g>
       ))}
     </g>
   )
