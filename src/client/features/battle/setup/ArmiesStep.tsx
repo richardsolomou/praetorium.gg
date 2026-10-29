@@ -104,9 +104,9 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
   const confirmingWaivers = rosterWaivers(confirming)
   const oneWaiver = confirmingWaivers.length === 1
   return (
-    <div data-onboarding="battle-setup-armies" className="space-y-4">
+    <div className="space-y-4">
       {team && view.settings.limit !== null ? <SetupNote>Each army spends up to {armyPointsText(view)} points.</SetupNote> : null}
-      <div className="grid items-start gap-6 lg:grid-cols-2">
+      <div className="grid items-start gap-6 md:grid-cols-2">
         {sides.map((side) => (
           <SetupSidePanel key={side.index} side={side} named>
             {side.armies.map((army) => (

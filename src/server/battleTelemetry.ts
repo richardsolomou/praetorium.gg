@@ -20,7 +20,7 @@ export async function captureBattleCommand(
     command: command.kind,
     outcome: result.outcome,
     ...(result.outcome === 'refused' ? { reason: result.code } : {}),
-    ...(command.kind === 'set-setup-step' ? { setup_step: command.step } : {}),
+    ...(command.kind === 'set-setup-step' || command.kind === 'set-setup-checked' ? { setup_step: command.step } : {}),
     ...(command.kind === 'set-unit-formation' ? { formation: command.formation } : {}),
     ...('missed' in command && command.missed ? { missed: true } : {}),
     // The embarks the list asked for; setup can still drop one that no longer fits.

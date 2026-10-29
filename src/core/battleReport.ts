@@ -126,6 +126,8 @@ function describe(
       return `${who} resets battle setup`
     case 'set-setup-step':
       return `${who} moves battle setup to step ${command.step + 1}`
+    case 'set-setup-checked':
+      return `${who} marks setup step ${command.step + 1} ${command.checked ? 'done' : 'not done'}`
     case 'set-attacker':
       return `${who} names ${named.get(command.attackerId) ?? 'someone'} as the attacker`
     case 'set-first-turn':

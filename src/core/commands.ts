@@ -159,6 +159,7 @@ export const commandSchema: z.ZodType<Command> = z.discriminatedUnion('kind', [
       .optional(),
   }),
   z.object({ kind: z.literal('set-setup-step'), step: z.number().int().min(0).max(SETUP_STEP_MAX) }),
+  z.object({ kind: z.literal('set-setup-checked'), step: z.number().int().min(0).max(SETUP_STEP_MAX), checked: z.boolean() }),
   z.object({ kind: z.literal('set-attacker'), attackerId: id }),
   z.object({ kind: z.literal('set-first-turn'), firstPlayerId: id }),
   z.object({ kind: z.literal('set-side-disposition'), side: z.number().int().min(0).max(1), disposition: id }),

@@ -7,6 +7,7 @@ import {
   createRoster,
   desktopContext,
   retryUntilVisible,
+  setupStep,
   signUp,
   startBattle,
   uniqueName,
@@ -48,6 +49,9 @@ test('a built list is priced, deployed and tracked', async ({ browser }) => {
   await bob.goto(link)
   await attachRoster(bob, bobRoster)
   await expect(alice.getByText(bobRoster, { exact: true }).first()).toBeVisible()
+  // The last army in settles the step, which folds it to its answer.
+  await expect(alice.locator('#setup-armies')).toHaveAttribute('data-complete', 'true')
+  await setupStep(alice, 'Armies')
   // The bonus is a fact about the army, so it is set where the army is chosen — claimed
   // as the army arrives, and given back from the same place.
   // Bob's device still writes derived setup facts after his army appears, and a setup

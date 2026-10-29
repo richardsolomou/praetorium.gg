@@ -372,12 +372,16 @@ export async function practiceBattle(page: Page, roster: string, { opponentRoste
   return url
 }
 
-/** Presses a choice until the shared answer shows it, unless the table has already answered. */
+/**
+ * Presses a choice until the shared answer shows it, unless the table has already answered.
+ * A setup step folds once it is settled, which takes the choice off the page and answers it too.
+ */
 async function pressUntilChosen(choice: Locator, button: Locator) {
+  const chosen = async () => !(await choice.isVisible()) || (await choice.locator('button[aria-pressed="true"]').count()) > 0
   await expect(async () => {
-    if ((await choice.locator('button[aria-pressed="true"]').count()) > 0) return
+    if (await chosen()) return
     await button.click({ timeout: 1_000 })
-    await expect(choice.locator('button[aria-pressed="true"]')).not.toHaveCount(0, { timeout: 1_000 })
+    await expect.poll(chosen, { timeout: 1_000 }).toBe(true)
   }).toPass({ timeout: 20_000 })
 }
 
@@ -400,25 +404,37 @@ async function settleDispositions(page: Page) {
 /** Records the first-turn roll-off, and a defender if nobody has, the last answers setup asks for before Start battle. */
 export async function recordFirstTurn(page: Page, firstSide?: string) {
   await chooseDefender(page)
-  await setupStep(page, 'First turn')
+  const step = page.locator('#setup-first-turn')
   const choice = page.getByRole('group', { name: 'First turn' })
-  const side = firstSide ? choice.getByRole('button', { name: firstSide }) : choice.getByRole('button').first()
+  // Folded once recorded, the step names the side on the spine instead of pressing its button.
+  const recorded = async () =>
+    (await step.getAttribute('data-complete')) === 'true' &&
+    (!firstSide ||
+      (await choice.getByRole('button', { name: firstSide, pressed: true }).isVisible()) ||
+      ((await step.textContent()) ?? '').includes(`${firstSide} takes the first turn`))
   await expect(async () => {
-    if ((await side.getAttribute('aria-pressed')) === 'true') return
-    await side.click({ timeout: 1_000 })
-    await expect(side).toHaveAttribute('aria-pressed', 'true', { timeout: 1_000 })
+    if (await recorded()) return
+    await setupStep(page, 'First turn')
+    await (firstSide ? choice.getByRole('button', { name: firstSide }) : choice.getByRole('button').first()).click({ timeout: 1_000 })
+    await expect.poll(recorded, { timeout: 1_000 }).toBe(true)
   }).toPass({ timeout: 20_000 })
 }
 
+/** Brings a setup step into view, opening it if it has folded to its answer. */
 export async function setupStep(page: Page, label: string) {
   const section = page.getByRole('region', { name: label, exact: true })
+  const toggle = section.getByRole('heading').getByRole('button')
+  if ((await toggle.isEnabled()) && (await toggle.getAttribute('aria-expanded')) === 'false') {
+    // Dispatched rather than pressed: a guide's popover hangs over the step above the one it points at.
+    await toggle.dispatchEvent('click')
+    await expect(toggle).toHaveAttribute('aria-expanded', 'true')
+  }
   await section.scrollIntoViewIfNeeded()
   await expect(section).toBeInViewport()
 }
 
 /** Attaches a saved list to a seat: your own by default, or a named one such as a practice opponent's. */
 export async function attachRoster(page: Page, name: string, { forPlayer }: { forPlayer?: string } = {}) {
-  await setupStep(page, 'Armies')
   const chooser = forPlayer
     ? page.getByRole('button', { name: new RegExp(`^(Choose|Change) roster for ${forPlayer}$`) })
     : page.getByRole('button', { name: /^(Choose|Change) roster/ }).first()
@@ -428,10 +444,19 @@ export async function attachRoster(page: Page, name: string, { forPlayer }: { fo
   const choice = dialog.getByRole('button', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`) })
   // Every choice stays disabled until the server answers, which can outlast a short wait on a
   // loaded runner; a stale shared setup redraws and leaves the chooser open to press again.
+  // The last army in settles the step, which folds it, so it is opened again to read the seat.
   await expect(async () => {
-    if (await attached.isVisible()) return
-    if (!(await dialog.isVisible())) await chooser.click({ timeout: 1_000 })
+    if (!(await dialog.isVisible())) {
+      await setupStep(page, 'Armies')
+      if (await attached.isVisible()) return
+      // A phone shows one side of an open step at a time.
+      const sides = page.getByRole('region', { name: 'Armies' }).getByRole('group', { name: 'Show side' })
+      if (forPlayer && (await sides.isVisible())) await sides.getByRole('button', { name: new RegExp(forPlayer) }).click()
+      await chooser.click({ timeout: 1_000 })
+    }
     await choice.click({ timeout: 5_000 })
+    await expect(dialog).toBeHidden({ timeout: 5_000 })
+    await setupStep(page, 'Armies')
     await expect(attached).toBeVisible({ timeout: 5_000 })
   }).toPass({ timeout: 30_000 })
   await expect(dialog).toBeHidden()
@@ -442,16 +467,15 @@ export async function chooseBattlefield(page: Page) {
   if ((await battlefieldStep.getAttribute('data-complete')) === 'true') return
   await settleDispositions(page)
   await setupStep(page, 'Battlefield')
-  const selected = page.getByRole('button', { name: /^Selected layout/ })
   // By position, not by name: which layouts a matchup offers follows the pinned rules data.
   // A choice that loses a race with the other device redraws without it, so press again.
   await expect(async () => {
-    if (await selected.isVisible()) return
+    if ((await battlefieldStep.getAttribute('data-complete')) === 'true') return
     await page
       .getByRole('button', { name: /^Select layout / })
       .first()
       .click({ timeout: 2_000 })
-    await expect(selected).toBeVisible({ timeout: 3_000 })
+    await expect(battlefieldStep).toHaveAttribute('data-complete', 'true', { timeout: 3_000 })
   }).toPass({ timeout: 30_000 })
 }
 
@@ -656,8 +680,9 @@ export async function playTurn(page: Page) {
 export async function startBattle(page: Page, firstSide?: string, takeOpeningTurn = true, openingSecondaries: readonly string[] = []) {
   await chooseBattlefield(page)
   await setupStep(page, 'Secondaries')
-  // One per side this table settles cards for, so every one of them has to be ready.
-  await expect(page.locator('[data-secondary-deck-ready]').first()).toBeVisible()
+  // One per side this table settles cards for, so every one of them has to be ready. A phone
+  // shows one side of the step at a time, so the hand only has to be there.
+  await expect(page.locator('[data-secondary-deck-ready]').first()).toBeAttached()
   await expect(page.locator('[data-secondary-deck-ready="false"]')).toHaveCount(0)
   await recordFirstTurn(page, firstSide)
   await page.getByRole('button', { name: 'Start battle' }).click()

@@ -14,19 +14,17 @@ type Props = { sides: Side[]; first: number | null; disabled: boolean; send: (co
  */
 export function FirstTurnStep({ sides, first, disabled, send }: Props) {
   return (
-    <div data-onboarding="battle-setup-first">
-      <SetupSideChoice
-        label="First turn"
-        sides={sides}
-        chosen={first}
-        roles={{ chosen: 'Takes the first turn', other: 'Takes the second turn' }}
-        disabled={disabled}
-        onChoose={(index) => {
-          // The side's captain stands for the side, the way the attacker is recorded.
-          const captain = sides.find((side) => side.index === index)?.captain.id
-          if (captain) send({ kind: 'set-first-turn', firstPlayerId: captain })
-        }}
-      />
-    </div>
+    <SetupSideChoice
+      label="First turn"
+      sides={sides}
+      chosen={first}
+      roles={{ chosen: 'Takes the first turn', other: 'Takes the second turn' }}
+      disabled={disabled}
+      onChoose={(index) => {
+        // The side's captain stands for the side, the way the attacker is recorded.
+        const captain = sides.find((side) => side.index === index)?.captain.id
+        if (captain) send({ kind: 'set-first-turn', firstPlayerId: captain })
+      }}
+    />
   )
 }

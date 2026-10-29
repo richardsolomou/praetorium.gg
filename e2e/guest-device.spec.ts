@@ -15,6 +15,7 @@ import {
   PHONE,
   chooseFaction,
   scoreboard,
+  setupStep,
 } from './account'
 import { add } from './builder.harness'
 import { productSql, userIdNamed, lastPathSegment, battleIdFor, guestDraft } from './storage'
@@ -64,6 +65,7 @@ test('a guest joins from their own device, plays their side and keeps the game b
   await createBattle(host, { guest: GUEST })
   await attachRoster(host, roster)
   // A side still waiting for its army has no secondaries to set up yet, which is not missing data.
+  await setupStep(host, 'Secondaries')
   await expect(host.getByText('Secondaries open once this side’s army is chosen.')).toBeVisible()
   await expect(host.getByText('Mission and stratagem data is unavailable')).toHaveCount(0)
 
@@ -103,6 +105,9 @@ test('a guest joins from their own device, plays their side and keeps the game b
   await chooser.getByRole('button', { name: 'Bring this roster' }).click()
   await expect(chooser).toBeHidden()
   await expect(host.locator('[data-players="1"]').first()).toBeVisible()
+  // Every army in folds the step to its answer, so open it once it has.
+  await expect(host.locator('#setup-armies')).toHaveAttribute('data-complete', 'true')
+  await setupStep(host, 'Armies')
   await expect(host.getByRole('region', { name: 'Armies' })).toContainText('Ready')
   // The host no longer chooses for a guest who plays their own seat.
   await expect(host.getByRole('button', { name: `Choose roster for ${GUEST}` })).toHaveCount(0)
@@ -118,6 +123,8 @@ test('a guest joins from their own device, plays their side and keeps the game b
   await expect(phase(guest)).toHaveText((await phase(host).textContent())!, { timeout: LIVE_MS })
   // The guest's hand is theirs now, dealt on their device rather than the host's.
   for (let step = 1; step < 6; step += 1) await advance(host)
+  // The board shows before the live signal opens the guest's turn, so the hand is waited for first.
+  await expect(guest.getByRole('dialog', { name: /secondary missions$/ })).toBeVisible({ timeout: LIVE_MS })
   await takeTheTurn(guest)
   await expect(scoreboard(guest).getByText(`${GUEST}’s turn`, { exact: true })).toBeVisible()
   await shotAtWidths(guest, 'guest-battle', { fullPage: true })

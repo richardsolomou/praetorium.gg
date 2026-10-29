@@ -5,6 +5,16 @@ import { formationLabel, SetupSidePanel } from './chrome'
 
 type Rule = 'infiltrators' | 'scouts'
 
+// A unit held back is not on the table to do any of this, and a character and the
+// unit he joined are one unit doing it together or not at all.
+const onTable = (army: Army) => attachedUnitList(army.units).filter((unit) => unit.host.formation === 'battlefield')
+
+/** How many of a side's units start on the table, and how many of those carry the rule. */
+export function prebattleCounts(side: Side, rule: Rule) {
+  const units = side.armies.flatMap(onTable)
+  return { onTable: units.length, carrying: units.filter((unit) => unit.prebattleRules.includes(rule)).length }
+}
+
 /**
  * Every unit on the table carrying one pre-battle ability, side by side.
  *
@@ -18,7 +28,7 @@ type Rule = 'infiltrators' | 'scouts'
  */
 export function PrebattleUnits({ sides, rule, empty }: { sides: Side[]; rule: Rule; empty: string }) {
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-2">
+    <div className="grid items-start gap-6 md:grid-cols-2">
       {sides.map((side) => (
         <SetupSidePanel key={side.index} side={side} className="space-y-3">
           {side.armies.map((army) => (
@@ -31,10 +41,8 @@ export function PrebattleUnits({ sides, rule, empty }: { sides: Side[]; rule: Ru
 }
 
 function ArmyRules({ army, rule, empty, multiple }: { army: Army; rule: Rule; empty: string; multiple: boolean }) {
-  // A unit held back is not on the table to do any of this, and a character and the
-  // unit he joined are one unit doing it together or not at all.
-  const onTable = attachedUnitList(army.units).filter((unit) => unit.host.formation === 'battlefield')
-  const carrying = onTable.filter((unit) => unit.prebattleRules.includes(rule))
+  const standing = onTable(army)
+  const carrying = standing.filter((unit) => unit.prebattleRules.includes(rule))
 
   return (
     <article className="space-y-2">
@@ -43,7 +51,7 @@ function ArmyRules({ army, rule, empty, multiple }: { army: Army; rule: Rule; em
           <span className="block break-words text-xs font-bold uppercase">{army.roster?.name ?? 'No army chosen'}</span>
           {multiple ? <span className="block text-3xs text-dim">{army.playerName}</span> : null}
         </span>
-        <span className="chip shrink-0">{onTable.length} on the table</span>
+        <span className="chip shrink-0">{standing.length} on the table</span>
       </div>
       {carrying.length ? (
         GROUPS.flatMap((group) => {

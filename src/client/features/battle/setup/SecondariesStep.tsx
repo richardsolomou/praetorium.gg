@@ -23,8 +23,8 @@ export function SecondariesStep({ view, sides, send, pending }: Props) {
     .map((result) => result.data)
     .find((data) => data)
   return (
-    <div data-onboarding="battle-setup-secondaries" className="space-y-2">
-      <div className={`grid items-start gap-6 ${sides.length > 1 ? 'lg:grid-cols-2' : ''}`}>
+    <div className="space-y-2">
+      <div className={`grid items-start gap-6 ${sides.length > 1 ? 'md:grid-cols-2' : ''}`}>
         {sides.map((side) => {
           const short = fixedHandShort(side)
           return (

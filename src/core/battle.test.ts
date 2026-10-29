@@ -230,6 +230,19 @@ describe('setup', () => {
     expect(battleView({ token: 'shared-step' }, NAMES, state, ALICE).setupStep).toBe(2)
   })
 
+  it('ticks setup sections independently and clears one without the others', () => {
+    const state = reduceBattle(
+      PLAYERS,
+      log(
+        [BOB, { kind: 'set-setup-checked', step: 6, checked: true }],
+        [ALICE, { kind: 'set-setup-checked', step: 2, checked: true }],
+        [BOB, { kind: 'set-setup-checked', step: 6, checked: false }],
+      ),
+    )
+
+    expect(battleView({ token: 'shared-checks' }, NAMES, state, ALICE).setupChecked).toEqual([2])
+  })
+
   it('records deployment order before the first-turn roll-off', () => {
     const state = reduceBattle(
       PLAYERS,

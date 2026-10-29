@@ -76,7 +76,7 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
 
   return (
     <section>
-      <div data-onboarding="battle-setup-battlefield" className="flex flex-wrap items-start justify-between gap-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         {/* Named like the panel above it, so the two questions the step asks look alike. */}
         <div className="min-w-0">
           <p className="eyebrow">{matchup && !singleColosseum ? `Layouts for ${matchup}` : 'Deployment and terrain layout'}</p>
@@ -108,14 +108,21 @@ export function Battlefield({ view, send, pending, allowedIds, matchup }: Props)
       ) : !options.length ? (
         <p className="mt-3 text-sm text-dim">No combined battlefield layouts match these armies and mission.</p>
       ) : (
-        <div className={singleColosseum ? 'mt-3 flex justify-center' : 'mt-3 grid gap-3 sm:grid-cols-3'}>
+        // A phone swipes between the layouts rather than scrolling past three full boards.
+        <div
+          className={
+            singleColosseum
+              ? 'mt-3 flex justify-center'
+              : '-mx-3 mt-3 flex snap-x snap-mandatory scroll-px-3 gap-3 overflow-x-auto px-3 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 sm:pb-0'
+          }
+        >
           {options.map(({ terrain, deployment }, index) => {
             const selected = view.settings.terrainLayoutId === terrain.id && view.deploymentId === deployment.id
             const label = String.fromCharCode(65 + index)
             return (
               <article
                 key={terrain.id}
-                className={`flex h-full flex-col border bg-panel p-3 transition-colors ${singleColosseum ? 'w-full max-w-md border-edge' : selected ? CHOSEN : 'border-edge hover:border-info'}`}
+                className={`flex h-full flex-col border bg-panel p-3 transition-colors max-sm:w-4/5 max-sm:shrink-0 max-sm:snap-start ${singleColosseum ? 'w-full max-w-md border-edge' : selected ? CHOSEN : 'border-edge hover:border-info'}`}
               >
                 {/*
                  * The board opens the board, the way the mission pack pages do it. A third of a

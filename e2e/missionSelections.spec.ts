@@ -84,7 +84,7 @@ test('source matchup nominations survive undo and reload', async ({ page, browse
   await attachRoster(page, hostRoster)
   await attachRoster(guest, guestRoster)
   await chooseBattlefield(page)
-  await expect(page.getByRole('button', { name: 'Selected layout A: Search and Destroy', exact: true })).toBeVisible()
+  await expect(page.locator('#setup-battlefield')).toContainText('Search and Destroy')
   await startBattle(page, undefined, false)
   await draw(page, ['Burden Of Trust', 'A Tempting Target'])
 

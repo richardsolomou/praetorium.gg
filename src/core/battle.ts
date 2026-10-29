@@ -524,7 +524,7 @@ export const STRATAGEM_LIMITS = ['phase', 'turn', 'battle-round', 'battle', 'unl
 export type StratagemLimit = (typeof STRATAGEM_LIMITS)[number]
 
 /**
- * The last section of setup, which is what a `set-setup-step` may name.
+ * The last section of setup, which is what a `set-setup-step` or `set-setup-checked` may name.
  *
  * The sections themselves are the interface's, not the domain's — this only bounds
  * the number so a command cannot point at nothing.
@@ -903,6 +903,8 @@ export type Command =
   | { kind: 'reset-setup' }
   /** Only older logs carry it; setup progress is otherwise derived from the log. */
   | { kind: 'set-setup-step'; step: number }
+  /** Marks a setup section whose default is already a valid answer as done, or not, for the whole table. */
+  | { kind: 'set-setup-checked'; step: number; checked: boolean }
   | { kind: 'set-attacker'; attackerId: PlayerId }
   | { kind: 'set-first-turn'; firstPlayerId: PlayerId }
   | { kind: 'set-side-disposition'; side: number; disposition: string }
@@ -1207,6 +1209,8 @@ export type BattleState = {
   status: 'setup' | 'playing' | 'finished'
   /** The shared setup section shown on every seated device. */
   setupStep: number
+  /** The setup sections the table has marked done, in ascending order. */
+  setupChecked: number[]
   /** 0 during setup, then 1 through `BATTLE_ROUNDS`. */
   round: number
   phase: Phase
@@ -1408,6 +1412,7 @@ export function emptyBattle(
   return {
     status: 'setup',
     setupStep: 0,
+    setupChecked: [],
     round: 0,
     phase: 'command',
     activePlayerId: null,
@@ -1522,6 +1527,7 @@ export function commandRefusal(state: BattleState, by: PlayerId, command: Comman
       if (state.leagueToken) return refuse('league-sealed', 'these rosters are sealed')
       return state.status === 'setup' ? null : refuse('battle-started', 'the battle has started')
     case 'set-setup-step':
+    case 'set-setup-checked':
       if (state.status !== 'setup') return refuse('battle-started', 'the battle has started')
       return Number.isInteger(command.step) && command.step >= 0 && command.step <= SETUP_STEP_MAX
         ? null
@@ -2045,6 +2051,7 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
     }
     case 'reset-setup': {
       state.setupStep = 0
+      state.setupChecked = []
       state.attackerId = null
       state.firstPlayerId = null
       state.sideDispositions = {}
@@ -2057,6 +2064,11 @@ function apply(state: BattleState, by: PlayerId, command: Command, seq: number) 
     }
     case 'set-setup-step': {
       state.setupStep = command.step
+      return
+    }
+    case 'set-setup-checked': {
+      const others = state.setupChecked.filter((step) => step !== command.step)
+      state.setupChecked = command.checked ? [...others, command.step].toSorted((left, right) => left - right) : others
       return
     }
     case 'set-attacker': {
