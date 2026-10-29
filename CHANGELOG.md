@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.199.2 (2026-10-29)
+
+### Patch Changes
+
+- f1777bd: Terrain layouts always fall back to the board edge for a piece's distances, so pieces are numbered even on deployments whose lines run only one way, and the "Board edges" option is gone.
+- f1777bd: The terrain layout option that shows a layout's own printed distances is now called "Published distances", since many of them run to terrain corners rather than objective centres.
+
 ## 0.199.1 (2026-10-29)
 
 ### Patch Changes
