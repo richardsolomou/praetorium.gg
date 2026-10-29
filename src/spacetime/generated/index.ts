@@ -81,6 +81,7 @@ import * as BattleFeedProcedure from './battle_feed_procedure'
 import * as BattleForOperatorProcedure from './battle_for_operator_procedure'
 import * as CancelFriendInviteProcedure from './cancel_friend_invite_procedure'
 import * as ClaimGuestSeatProcedure from './claim_guest_seat_procedure'
+import * as ClaimImportedBattleProcedure from './claim_imported_battle_procedure'
 import * as ClubByTokenProcedure from './club_by_token_procedure'
 import * as ClubCommandProcedure from './club_command_procedure'
 import * as ClubNamesProcedure from './club_names_procedure'
@@ -99,6 +100,7 @@ import * as DeleteUnitLoadoutProcedure from './delete_unit_loadout_procedure'
 import * as DiscoverRostersProcedure from './discover_rosters_procedure'
 import * as EndRosterLoanProcedure from './end_roster_loan_procedure'
 import * as EventAddressProcedure from './event_address_procedure'
+import * as ExternalAccountsByUserProcedure from './external_accounts_by_user_procedure'
 import * as FavouriteDatasheetsByUserProcedure from './favourite_datasheets_by_user_procedure'
 import * as FavouriteDetachmentsByUserProcedure from './favourite_detachments_by_user_procedure'
 import * as FavouriteFactionsByUserProcedure from './favourite_factions_by_user_procedure'
@@ -121,6 +123,7 @@ import * as LeagueRosterSharingProcedure from './league_roster_sharing_procedure
 import * as LeagueRostersProcedure from './league_rosters_procedure'
 import * as LeaguesVisibleToProcedure from './leagues_visible_to_procedure'
 import * as LendRosterProcedure from './lend_roster_procedure'
+import * as LinkExternalAccountProcedure from './link_external_account_procedure'
 import * as MigrateLeaguesToClubsProcedure from './migrate_leagues_to_clubs_procedure'
 import * as MigrateProductDataProcedure from './migrate_product_data_procedure'
 import * as OnboardingByUserProcedure from './onboarding_by_user_procedure'
@@ -276,6 +279,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('battle_for_operator', BattleForOperatorProcedure.params, BattleForOperatorProcedure.returnType),
   __procedureSchema('cancel_friend_invite', CancelFriendInviteProcedure.params, CancelFriendInviteProcedure.returnType),
   __procedureSchema('claim_guest_seat', ClaimGuestSeatProcedure.params, ClaimGuestSeatProcedure.returnType),
+  __procedureSchema('claim_imported_battle', ClaimImportedBattleProcedure.params, ClaimImportedBattleProcedure.returnType),
   __procedureSchema('club_by_token', ClubByTokenProcedure.params, ClubByTokenProcedure.returnType),
   __procedureSchema('club_command', ClubCommandProcedure.params, ClubCommandProcedure.returnType),
   __procedureSchema('club_names', ClubNamesProcedure.params, ClubNamesProcedure.returnType),
@@ -294,6 +298,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('discover_rosters', DiscoverRostersProcedure.params, DiscoverRostersProcedure.returnType),
   __procedureSchema('end_roster_loan', EndRosterLoanProcedure.params, EndRosterLoanProcedure.returnType),
   __procedureSchema('event_address', EventAddressProcedure.params, EventAddressProcedure.returnType),
+  __procedureSchema('external_accounts_by_user', ExternalAccountsByUserProcedure.params, ExternalAccountsByUserProcedure.returnType),
   __procedureSchema(
     'favourite_datasheets_by_user',
     FavouriteDatasheetsByUserProcedure.params,
@@ -324,6 +329,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('league_rosters', LeagueRostersProcedure.params, LeagueRostersProcedure.returnType),
   __procedureSchema('leagues_visible_to', LeaguesVisibleToProcedure.params, LeaguesVisibleToProcedure.returnType),
   __procedureSchema('lend_roster', LendRosterProcedure.params, LendRosterProcedure.returnType),
+  __procedureSchema('link_external_account', LinkExternalAccountProcedure.params, LinkExternalAccountProcedure.returnType),
   __procedureSchema('migrate_leagues_to_clubs', MigrateLeaguesToClubsProcedure.params, MigrateLeaguesToClubsProcedure.returnType),
   __procedureSchema('migrate_product_data', MigrateProductDataProcedure.params, MigrateProductDataProcedure.returnType),
   __procedureSchema('onboarding_by_user', OnboardingByUserProcedure.params, OnboardingByUserProcedure.returnType),

@@ -1,7 +1,8 @@
 import { createHash } from 'node:crypto'
 import { constantTimeEqual } from 'better-auth/crypto'
 import { byId } from '../core/collections'
-import { isGuestSeat, newBattleSeats, type NewBattlePlayers, type CreateBattleInput } from '../core/newBattle'
+import { guestSeatId, isGuestSeat, newBattleSeats, type NewBattlePlayers, type CreateBattleInput } from '../core/newBattle'
+import { type BattlebaseBattle, battlebaseBattleImport, battlebaseBattleSchema } from '../core/battlebaseBattle'
 import { guestSessionCurrent } from '../core/guestSession'
 import { matchingLeagueBattles } from '../shared/leagueBattleOptions'
 import { battleSummary, type BattleFaction } from '../shared/battleSummary'
@@ -879,6 +880,71 @@ export class PraetoriumService {
     })
     this.notifier.notify([{ kind: 'battle-created', actorId: userId, recipientIds: invited, battleToken: token, league: false }])
     return { battleId: id, token, practice }
+  }
+
+  /**
+   * Brings a player's finished BattleBase battles in as battles of their own.
+   *
+   * A battle the opponent already brought in seats this account on its guest seat, so the game
+   * is one battle between two accounts. Any other seats the opponent as their own account when
+   * they linked their BattleBase account, and as a guest named as on BattleBase until they do.
+   * A failure stops the import; what came in stays, and running it again carries on from there.
+   */
+  async importBattlebaseBattles(
+    userId: string,
+    battlebaseId: string,
+    battles: readonly unknown[],
+    context: (battle: BattlebaseBattle) => Parameters<typeof battlebaseBattleImport>[2],
+  ) {
+    const counts = { imported: 0, joined: 0, alreadyImported: 0, unfinished: 0, skipped: 0 }
+    for (const raw of battles) {
+      const parsed = battlebaseBattleSchema.safeParse(raw)
+      if (!parsed.success) {
+        counts.skipped++
+        continue
+      }
+      const battle = parsed.data
+      if (!battle.isFinished) {
+        counts.unfinished++
+        continue
+      }
+      const claim = await this.repository.claimImportedBattle({ source: 'battlebase', sourceId: battle.id, userId, playerId: battlebaseId })
+      if (claim !== 'absent') {
+        counts[claim === 'claimed' ? 'joined' : claim === 'seated' ? 'alreadyImported' : 'skipped']++
+        continue
+      }
+      const id = randomId()
+      const copy = battlebaseBattleImport(battle, { battlebaseId, userId, guestId: guestSeatId(id, 0) }, context(battle))
+      if (typeof copy === 'string') {
+        counts[copy === 'unfinished' ? 'unfinished' : 'skipped']++
+        continue
+      }
+      await this.repository.createBattle({
+        id,
+        token: randomToken(),
+        userId,
+        guestNames: [copy.guestName],
+        initialCommands: copy.commands.map(({ command }) => command),
+        now: copy.createdAt,
+        imported: {
+          source: 'battlebase',
+          sourceId: copy.sourceId,
+          times: copy.commands.map(({ at }) => at),
+          players: [battlebaseId, copy.opponentId],
+        },
+      })
+      counts.imported++
+    }
+    return counts
+  }
+
+  externalAccounts(userId: string) {
+    return this.repository.externalAccountsByUser(userId)
+  }
+
+  /** How many battles already copied from the account the player now sits in. */
+  linkExternalAccount(...args: Parameters<RepositoryPort['linkExternalAccount']>) {
+    return this.repository.linkExternalAccount(...args)
   }
 
   async leagueBattleOptions(userId: string, input?: string | NewBattlePlayers) {

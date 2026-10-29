@@ -211,7 +211,7 @@ const slug = (value: string) =>
     .replaceAll(/[^a-z0-9]+/g, '-')
     .replace(/^-|-$/g, '')
 
-function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, factionNames: readonly string[]) {
+export function importTextRoster(parsed: TextRoster, loaded: LoadedCatalogue | null, factionNames: readonly string[]) {
   const faction = loaded?.factions.find((candidate) => matchesImportFaction(parsed.faction, candidate.name))
   if (!loaded || !faction) {
     return {

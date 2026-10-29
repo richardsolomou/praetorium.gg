@@ -66,6 +66,7 @@ export const playerSearchKey = (query?: string) => (query === undefined ? ['play
 export const standingsKey = () => ['standings']
 
 export const battlesKey = () => ['battles']
+export const battlebaseAccountKey = () => ['battlebase-account']
 export const publicBattlesKey = () => ['public-battles']
 export const friendBattlesKey = () => ['friend-battles']
 export const battleKey = (token: string) => ['battle', token]

@@ -27,6 +27,35 @@ const battles = table(
   },
 )
 
+/** A battle copied from another tracker, keyed by the source and its own battle id so it is copied once, whichever of its players brings it. */
+const battleImports = table(
+  { name: 'battle_imports' },
+  {
+    battleId: t.string().primaryKey(),
+    key: t.string().unique(),
+  },
+)
+
+/** Which source player sat in each seat of a copied battle, so the seat can find its player's account whenever they link one. */
+const importedSeats = table(
+  { name: 'imported_seats' },
+  {
+    key: t.string().primaryKey(),
+    battleId: t.string().index('btree'),
+    player: t.string().index('btree'),
+  },
+)
+
+/** An account on another tracker that a player proved is theirs, keyed by `externalPlayerKey`. */
+const externalAccounts = table(
+  { name: 'external_accounts' },
+  {
+    key: t.string().primaryKey(),
+    userId: t.string().index('btree'),
+    name: t.string(),
+  },
+)
+
 const battleUsers = table(
   { name: 'battle_users' },
   {
@@ -665,6 +694,9 @@ export const productTables = {
   collectionPhotoLikes,
   favouriteFactions,
   practiceOpponents,
+  battleImports,
+  importedSeats,
+  externalAccounts,
   favouriteDetachments,
   favouriteDatasheets,
   unitLoadouts,

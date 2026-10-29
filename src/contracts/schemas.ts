@@ -289,6 +289,15 @@ export const friendInviteSchema = z.object({ token })
 /** A guest seat in a battle; `replace` retires its link and any device that joined through it. */
 export const guestInviteSchema = z.object({ token, playerId: id, replace: z.boolean().default(false) })
 export const guestInvitationSchema = z.object({ invite: token })
+/** A BattleBase username, as its profile URLs spell them. */
+export const battlebaseUsernameSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .regex(/^[\w.-]{1,64}$/),
+})
+/** A BattleBase account to prove and import from, or none to import again from the one already linked. */
+export const battlebaseImportSchema = battlebaseUsernameSchema.partial()
 
 /**
  * A player's profile, and what to narrow their record by.

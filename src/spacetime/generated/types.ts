@@ -31,6 +31,12 @@ export const AdminSessions = __t.object('AdminSessions', {
 })
 export type AdminSessions = __Infer<typeof AdminSessions>
 
+export const BattleImports = __t.object('BattleImports', {
+  battleId: __t.string(),
+  key: __t.string(),
+})
+export type BattleImports = __Infer<typeof BattleImports>
+
 export const BattleSignal = __t.object('BattleSignal', {
   battleId: __t.string(),
   seq: __t.u32(),
@@ -180,6 +186,13 @@ export const CompletedMigrations = __t.object('CompletedMigrations', {
 })
 export type CompletedMigrations = __Infer<typeof CompletedMigrations>
 
+export const ExternalAccounts = __t.object('ExternalAccounts', {
+  key: __t.string(),
+  userId: __t.string(),
+  name: __t.string(),
+})
+export type ExternalAccounts = __Infer<typeof ExternalAccounts>
+
 export const FavouriteDatasheets = __t.object('FavouriteDatasheets', {
   key: __t.string(),
   userId: __t.string(),
@@ -229,6 +242,13 @@ export const GuestSeats = __t.object('GuestSeats', {
   joinedAt: __t.option(__t.u64()),
 })
 export type GuestSeats = __Infer<typeof GuestSeats>
+
+export const ImportedSeats = __t.object('ImportedSeats', {
+  key: __t.string(),
+  battleId: __t.string(),
+  player: __t.string(),
+})
+export type ImportedSeats = __Infer<typeof ImportedSeats>
 
 export const LeagueAdmins = __t.object('LeagueAdmins', {
   key: __t.string(),

@@ -1,3 +1,4 @@
+import { IMPORT_SOURCES, type ImportSource } from '../core/importSources'
 import { callSpacetime, spacetimeDatabaseUrl, type SpacetimeConnection } from 'ras-stack/spacetime'
 import { offlineContext, SYNC_PRODUCT_ACTIONS } from './offlineContext'
 import { z } from 'zod'
@@ -394,6 +395,7 @@ export class SpacetimeOperator {
     initialCommands?: Command[]
     now: number
     fixtureKey?: string
+    imported?: { source: ImportSource; sourceId: string; times: number[]; players: [string, string] }
   }) {
     return this.read(
       'create_battle',
@@ -408,9 +410,26 @@ export class SpacetimeOperator {
           initialCommands: input.initialCommands ?? [],
           now: input.now,
           ...(input.fixtureKey ? { fixtureKey: input.fixtureKey } : {}),
+          ...(input.imported ? { imported: input.imported } : {}),
         }),
       ],
       battleSnapshot,
+    )
+  }
+
+  async claimImportedBattle(input: { source: ImportSource; sourceId: string; userId: string; playerId: string }) {
+    return this.read('claim_imported_battle', [JSON.stringify(input)], z.enum(['absent', 'seated', 'unavailable', 'claimed']))
+  }
+
+  async linkExternalAccount(input: { source: ImportSource; playerId: string; userId: string; name: string }) {
+    return this.reply('link_external_account', [JSON.stringify(input)], z.number().int().nonnegative())
+  }
+
+  async externalAccountsByUser(userId: string) {
+    return this.read(
+      'external_accounts_by_user',
+      [userId],
+      z.array(z.object({ source: z.enum(IMPORT_SOURCES), playerId: z.string(), name: z.string() })),
     )
   }
 

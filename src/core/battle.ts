@@ -1443,6 +1443,31 @@ export function validate(state: BattleState, by: PlayerId, command: Command, org
 }
 
 /**
+ * The prompts a table works through before play moves on, which another tracker recorded
+ * the game without: settling and reviewing each turn, drawing a full hand, and the cap on
+ * extra command points. Skipping them changes no total the fold reaches.
+ */
+const IMPORTED_GATES: ReadonlySet<RefusalCode> = new Set([
+  'settlement-owed',
+  'cards-owed',
+  'draw-unreviewed',
+  'scoring-unreviewed',
+  'tactical-hand-unreviewed',
+  'draw-limit',
+  'cp-gain-limit',
+])
+
+/**
+ * `validate` for a battle copied from another tracker. It may also have ended a game early
+ * without a concession, the way older logs here still do.
+ */
+export function importedCommandRefusal(state: BattleState, by: PlayerId, command: Command): string | null {
+  if (command.kind === 'end-battle' && command.reason === 'finished-early' && state.status === 'playing') return null
+  const refusal = commandRefusal(state, by, command)
+  return refusal && !IMPORTED_GATES.has(refusal.code) ? refusal.message : null
+}
+
+/**
  * Why `by` may not run `command` against `state`, or null when they may.
  *
  * Every rule about turn order, ownership and legality lives here. The server

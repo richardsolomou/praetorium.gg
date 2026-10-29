@@ -20,10 +20,13 @@ import spacetime, * as module from '../spacetimedb/src/index'
  */
 const released = process.env.RELEASED_CHECKOUT
 /**
- * Procedures the preview seed's read-back leaves out: reads of guest seats, invite links and photos it never creates,
+ * Procedures the preview seed's read-back leaves out: reads of guest seats, invite links, photos and imports it never creates,
  * then writes it has no reason to make. A procedure missing from both the seed and this list fails the check below.
  */
 const UNREACHED = new Set([
+  'claim_imported_battle',
+  'external_accounts_by_user',
+  'link_external_account',
   'collection_photo',
   'collection_photo_for_admin',
   'friend_invite_by_token',

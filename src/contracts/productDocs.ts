@@ -156,6 +156,12 @@ export const PRODUCT_DOCS = [
     description: 'Reports, replays, records, the leaderboard and who can watch.',
   },
   {
+    slug: 'import-battles',
+    section: 'Battles',
+    title: 'Import battles from BattleBase',
+    description: 'Bring your finished BattleBase games into your battles and record.',
+  },
+  {
     slug: 'battle-problems',
     section: 'Battles',
     title: 'Battle problems',
