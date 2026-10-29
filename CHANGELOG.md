@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.196.0 (2026-10-29)
+
+### Minor Changes
+
+- bcde100: What's new sums up recent changes once a week, with a dot on its links in between.
+
+### Patch Changes
+
+- bcde100: What's new groups changes by release day, with new features apart from fixes.
+
 ## 0.195.16 (2026-10-29)
 
 ### Patch Changes
