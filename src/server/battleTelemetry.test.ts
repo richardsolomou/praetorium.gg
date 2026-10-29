@@ -24,6 +24,13 @@ it('reports the formation a unit was set to', async () => {
   expect(submitted()).toMatchObject({ formation: 'deep-strike' })
 })
 
+it('marks an action recorded against an earlier phase', async () => {
+  const missed = { round: 1, turn: 'player', phase: 'command' } as const
+  await captureBattleCommand('player', 'battle-id', { kind: 'adjust-cp', playerId: 'player', delta: 1, missed }, appended, 1, 'direct')
+
+  expect(submitted()).toMatchObject({ missed: true })
+})
+
 it('counts the units an attached list starts embarked, without naming them', async () => {
   const units = [{ key: 'u0', startsEmbarkedIn: 'u2' }, { key: 'u1', startsEmbarkedIn: 'u2' }, { key: 'u2' }]
   const command = { kind: 'attach-roster', roster: { built: { units } } } as unknown as Command

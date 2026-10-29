@@ -1,3 +1,4 @@
+import { posthog } from 'posthog-js'
 import { registerPushDevice, unregisterPushDevice } from './functions'
 import { requestNativePush } from './nativeBridge'
 
@@ -9,7 +10,10 @@ import { requestNativePush } from './nativeBridge'
  */
 export async function registerThisDevice(prompt: boolean) {
   const answer = await requestNativePush(prompt)
-  if (answer?.status === 'granted') await registerPushDevice({ data: { token: answer.token, platform: answer.platform } })
+  if (answer?.status === 'granted') {
+    await registerPushDevice({ data: { token: answer.token, platform: answer.platform } })
+    posthog.capture('push_device_registered', { platform: answer.platform, prompted: prompt })
+  }
   return answer
 }
 
@@ -22,7 +26,10 @@ export async function registerThisDevice(prompt: boolean) {
 export async function forgetThisDevice() {
   try {
     const answer = await requestNativePush(false, 3_000)
-    if (answer?.status === 'granted') await unregisterPushDevice({ data: { token: answer.token } })
+    if (answer?.status === 'granted') {
+      await unregisterPushDevice({ data: { token: answer.token } })
+      posthog.capture('push_device_unregistered', { platform: answer.platform })
+    }
   } catch {
     // The next account to sign in on this device takes its token over anyway.
   }

@@ -87,6 +87,7 @@ export function NativeAuthPage({ search }: { search: NativeAuthSearch }) {
               .generate()
               .then((result) => (result.error || !result.data?.token ? null : { token: result.data.token }))
       if (!exchange) {
+        posthog.capture('account_authentication_failed', { action, method: provider, native: true, reason: 'exchange_failed' })
         setFailed(true)
         return
       }
@@ -128,6 +129,7 @@ export function NativeAuthPage({ search }: { search: NativeAuthSearch }) {
 
     void (search.complete ? finish() : begin()).catch((error: unknown) => {
       posthog.captureException(error, { operation: 'native_auth' })
+      posthog.capture('account_authentication_failed', { action, method: provider, native: true, reason: authFailureReason(error) })
       setFailed(true)
     })
   }, [search])

@@ -1,5 +1,6 @@
 import { IMPORT_SOURCES, type ImportSource } from '../core/importSources'
 import { callSpacetime, spacetimeDatabaseUrl, type SpacetimeConnection } from 'ras-stack/spacetime'
+import { withServerSpan } from '../adapters/posthog'
 import { offlineContext, SYNC_PRODUCT_ACTIONS } from './offlineContext'
 import { z } from 'zod'
 import { collectionProfileSchema } from '../contracts/collection'
@@ -1104,6 +1105,6 @@ export class SpacetimeOperator {
       context.applied = result.applied
       return new Response(result.result, { headers: { 'content-type': 'application/json' } })
     }
-    return callSpacetime(this.connection, reducer, arguments_)
+    return withServerSpan(`spacetime.${reducer}`, () => callSpacetime(this.connection, reducer, arguments_))
   }
 }

@@ -62,12 +62,14 @@ export function RosterAppImport({
       )
       return { found: true as const, rosters }
     },
+    onError: () => posthog.capture('roster_app_import_failed', { source: app, reason: 'request' }),
     onSuccess: (result) => {
       posthog.capture('roster_app_import_found', {
         source: app,
         found: result.found,
         rosters: result.found ? result.rosters.length : 0,
         complete: result.found ? result.rosters.filter((found) => matched(found) && complete(found.imported)).length : 0,
+        unread: result.found ? result.rosters.filter((found) => found.kind === 'unread').length : 0,
       })
       if (result.found)
         setChosen(new Set(result.rosters.filter((found) => matched(found) && complete(found.imported)).map((found) => found.key)))

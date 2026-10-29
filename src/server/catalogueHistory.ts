@@ -9,6 +9,7 @@ import {
   updateAnchor,
 } from '../core/catalogueHistory'
 import { compareText } from '../core/text'
+import { reportServerFailure } from '../adapters/posthog'
 
 /** Where a catalogue directory carries its history, packed and hashed with everything else. */
 export const CATALOGUE_HISTORY_FILE = 'changes/history.json'
@@ -24,19 +25,19 @@ export const MAX_CATALOGUE_HISTORY_BYTES = 16 * 1024 * 1024
  */
 export function parseCatalogueHistory(text: string, label: string): CatalogueHistoryEntry[] | null {
   if (text.length > MAX_CATALOGUE_HISTORY_BYTES) {
-    console.error({ event: 'catalogue_history_refused', file: label, reason: 'too large' })
+    reportServerFailure({ event: 'catalogue_history_refused', file: label, reason: 'too large' })
     return null
   }
   let parsed: unknown
   try {
     parsed = JSON.parse(text)
   } catch {
-    console.error({ event: 'catalogue_history_refused', file: label, reason: 'not JSON' })
+    reportServerFailure({ event: 'catalogue_history_refused', file: label, reason: 'not JSON' })
     return null
   }
   const result = catalogueHistorySchema.safeParse(parsed)
   if (!result.success) {
-    console.error({ event: 'catalogue_history_refused', file: label, reason: result.error.message })
+    reportServerFailure({ event: 'catalogue_history_refused', file: label, reason: result.error.message })
     return null
   }
   return result.data.entries.toSorted(
@@ -57,7 +58,7 @@ export function loadCatalogueHistory(directory: string): CatalogueHistoryEntry[]
   const file = path.join(directory, CATALOGUE_HISTORY_FILE)
   if (!fs.existsSync(file)) return null
   if (fs.statSync(file).size > MAX_CATALOGUE_HISTORY_BYTES) {
-    console.error({ event: 'catalogue_history_refused', file, reason: 'too large' })
+    reportServerFailure({ event: 'catalogue_history_refused', file, reason: 'too large' })
     return null
   }
   return parseCatalogueHistory(fs.readFileSync(file, 'utf8'), file)

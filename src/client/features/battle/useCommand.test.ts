@@ -4,12 +4,13 @@ import { writesPending } from '../../pendingWrites'
 
 const submit = vi.hoisted(() => vi.fn())
 const captureException = vi.hoisted(() => vi.fn())
+const capture = vi.hoisted(() => vi.fn())
 const writeAppSnapshot = vi.hoisted(() => vi.fn())
 vi.mock('../../functions', () => ({ submit }))
 vi.mock('../../offline/appStorage', () => ({ writeAppSnapshot }))
 vi.mock('../../offline/appSnapshot', () => ({ captureAppSnapshot: () => null }))
 vi.mock('../../nativeBridge', () => ({ requestNativeHaptic: () => {} }))
-vi.mock('posthog-js', () => ({ posthog: { captureException } }))
+vi.mock('posthog-js', () => ({ posthog: { captureException, capture } }))
 const device = vi.hoisted(() => ({ savedBattleAt: vi.fn(), predictedBattle: vi.fn() }))
 vi.mock('../../offline/battleFunctions', () => device)
 
@@ -96,6 +97,31 @@ describe('a command sent while the connection drops', () => {
     })
     expect(setProblem).toHaveBeenLastCalledWith('Check your connection and try again.')
     expect(captureException).not.toHaveBeenCalled()
+  })
+
+  it('counts the failed command and the commands dropped behind it', async () => {
+    submit.mockRejectedValueOnce(new TypeError('Load failed'))
+    const command = { kind: 'begin-battle' } as never
+    await drainCommands({
+      token: 'battle',
+      queryClient: new QueryClient(),
+      seen: { current: 0 },
+      queued: {
+        current: [
+          { command, basedOn: 0 },
+          { command, basedOn: 0, background: true },
+        ],
+      },
+      draining: { current: false },
+      setPending: () => {},
+      setProblem: () => {},
+    })
+    expect(capture).toHaveBeenCalledWith('battle_command_failed', {
+      command: 'begin-battle',
+      reason: 'network',
+      dropped_count: 1,
+      background: false,
+    })
   })
 })
 

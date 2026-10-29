@@ -25,6 +25,14 @@ const FEATURES = {
   'native-auth': 'account',
   profile: 'account',
   admin: 'admin',
+  clubs: 'clubs',
+  join: 'battles',
+  collection: 'collection',
+  'whats-new': 'whats-new',
+  'mission-matchups': 'missions',
+  search: 'search',
+  guides: 'docs',
+  'mcp-consent': 'agents',
   'data-updates': 'data-updates',
   support: 'support',
   feedback: 'support',
@@ -78,6 +86,16 @@ export const dropUnactionableExceptions: BeforeSendFn = (event) => {
   return unactionable ? null : event
 }
 
+let impersonating = false
+
+/** While an admin views as a player, the app is the admin's, so it must not count as the player's or the admin's use. */
+export function setImpersonating(value: boolean) {
+  impersonating = value
+}
+
+export const dropWhileImpersonating: BeforeSendFn = (event) =>
+  impersonating && event?.event !== 'admin_impersonation_stopped' ? null : event
+
 const held: [event: string, properties: Properties][] = []
 
 /** Captures now or once the SDK loads: the provider initialises it in an effect, after its children's effects on the first render. */
@@ -93,7 +111,7 @@ export const POSTHOG_BROWSER_OPTIONS = {
   mask_personal_data_properties: true,
   custom_personal_data_properties: ['token'],
   session_recording: { maskAllInputs: true },
-  before_send: [dropUnactionableExceptions, browserEventContext],
+  before_send: [dropWhileImpersonating, dropUnactionableExceptions, browserEventContext],
   loaded: (client) => {
     for (const [event, properties] of held.splice(0)) client.capture(event, properties)
   },

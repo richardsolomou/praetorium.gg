@@ -119,3 +119,9 @@ it.each([{ owner: 'other' }, {}])('rejects an unauthorized creation before captu
   await invoke({ data: { ...dataFor('createBattle', cases[0]!.input), ...override } }).catch(() => {})
   expect([mocks.syncReceipt.mock.calls, mocks.capture.mock.calls]).toEqual([[], []])
 })
+
+it('reports a refused creation by its kind and status, without the message', async () => {
+  mocks.createBattle.mockRejectedValue(new Response('Private refusal', { status: 409 }))
+  await invoke({ data: dataFor('createBattle', cases[0]!.input) })
+  expect(mocks.capture.mock.calls).toEqual([['actor', 'sync_refused', { kind: 'createBattle', outcome: 'refused', cause: 'http-409' }]])
+})

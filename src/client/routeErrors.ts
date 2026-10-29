@@ -8,12 +8,13 @@ import { newerRelease } from './releaseUpdate'
 
 /** React passes errors caught by a route's error page only to console.error, so report them here. */
 export function reportRouteError(error: unknown) {
+  const attempt = typeof window === 'undefined' ? 0 : moduleRecoveryAttempt(window.location.href)
+  if (attempt && isModuleLoadFailure(error))
+    posthog.capture('route_recovery_failed', { failure_kind: 'module_load', recovery_attempt: attempt })
   if (!isFetchNetworkFailure(error) && !(error instanceof CancelledError) && !(error instanceof OfflineRefusal))
     posthog.captureException(error, {
       operation: 'route',
-      ...(isModuleLoadFailure(error)
-        ? { failure_kind: 'module_load', recovery_attempt: typeof window === 'undefined' ? 0 : moduleRecoveryAttempt(window.location.href) }
-        : {}),
+      ...(isModuleLoadFailure(error) ? { failure_kind: 'module_load', recovery_attempt: attempt } : {}),
     })
 }
 
@@ -89,7 +90,11 @@ export function reloadStaleBuild(
     entry,
   }: { href?: string; saving?: boolean; entry?: { state: unknown; push: boolean } } = {},
 ) {
-  if (trigger !== 'try_again' && (saving || !navigator.onLine || staleBuildAttempt(href, release) >= 3)) return false
+  if (trigger !== 'try_again' && (saving || !navigator.onLine || staleBuildAttempt(href, release) >= 3)) {
+    if (trigger === 'route_error' && staleBuildAttempt(href, release) >= 3)
+      posthog.capture('route_recovery_failed', { failure_kind: 'stale_build', recovery_attempt: 3 })
+    return false
+  }
   const url = staleBuildRecoveryUrl(href, release)
   posthog.capture('route_recovery_started', { failure_kind: 'stale_build', recovery_attempt: staleBuildAttempt(url, release), trigger })
   if (window.ReactNativeWebView && window.PraetoriumOfflineStart !== undefined) {

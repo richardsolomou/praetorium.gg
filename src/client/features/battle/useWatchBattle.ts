@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
+import { posthog } from 'posthog-js'
 import { useEffect } from 'react'
 import type { BattleClock } from '../../../core/battleClock'
 import type { BattleView } from '../../../core/battleView'
@@ -41,6 +42,7 @@ export function useWatchBattle(
       const liveUrl = `${location.origin}/api/watch/battles/${encodeURIComponent(view.token)}`
       const snapshot = watchBattle(view, clock, missions, referenceFor, prompts, updatedAt, liveUrl)
       if (!snapshot) return
+      if (following !== view.token) posthog.capture('watch_battle_followed', { status: view.status })
       following = view.token
       setNativeWatchBattle(snapshot)
     }

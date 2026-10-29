@@ -51,14 +51,14 @@ it.each([
   data.roster.picks = picks
   await invoke({ data })
   expect(mocks.capture.mock.calls).toEqual([
-    ['actor', 'roster_created', { limit: 2000, unit_count: count, source: 'editable', visibility: 'private' }],
+    ['actor', 'roster_created', { limit: 2000, unit_count: count, source: 'editable', visibility: 'private', delivery: 'sync' }],
   ])
 })
 
 it('captures a confirmed synced deletion without roster contents', async () => {
   mocks.syncRoster.mockResolvedValue({ outcome: 'applied', version: 2, deleted: true, lifecycle: 'deleted' })
   await invoke({ data: { ...input(), expectedVersion: 1, deleted: true } })
-  expect(mocks.capture.mock.calls).toEqual([['actor', 'roster_deleted']])
+  expect(mocks.capture.mock.calls).toEqual([['actor', 'roster_deleted', { delivery: 'sync' }]])
 })
 
 it.each([
@@ -69,7 +69,7 @@ it.each([
   Object.assign(data.roster, copied)
   await invoke({ data })
   expect(mocks.capture.mock.calls).toEqual([
-    ['actor', 'roster_created', { limit: 2000, unit_count: 0, source: 'editable', visibility: 'private', variant }],
+    ['actor', 'roster_created', { limit: 2000, unit_count: 0, source: 'editable', visibility: 'private', variant, delivery: 'sync' }],
   ])
 })
 
@@ -81,19 +81,23 @@ it('does not repeat creation telemetry after a lost acknowledgement', async () =
   await invoke({ data })
   await invoke({ data })
   expect(mocks.capture.mock.calls).toEqual([
-    ['actor', 'roster_created', { limit: 2000, unit_count: 0, source: 'editable', visibility: 'private' }],
+    ['actor', 'roster_created', { limit: 2000, unit_count: 0, source: 'editable', visibility: 'private', delivery: 'sync' }],
   ])
 })
 
 it.each([
   { outcome: 'applied', version: 2, deleted: false, lifecycle: null },
   { outcome: 'applied', version: 2, deleted: true, lifecycle: null },
-  { outcome: 'conflict', message: 'Changed elsewhere' },
-  { outcome: 'refused', message: 'Locked' },
 ])('does not capture a lifecycle event for %j', async (answer) => {
   mocks.syncRoster.mockResolvedValue(answer)
   await invoke({ data: input() })
   expect(mocks.capture).not.toHaveBeenCalled()
+})
+
+it.each(['conflict', 'refused'] as const)('reports a %s sync without its message', async (outcome) => {
+  mocks.syncRoster.mockResolvedValue({ outcome, message: 'Changed elsewhere' })
+  await invoke({ data: input() })
+  expect(mocks.capture.mock.calls).toEqual([['actor', 'sync_refused', { kind: 'roster', outcome }]])
 })
 
 it('does not capture a creation before the database confirms it', async () => {

@@ -1,6 +1,7 @@
 import type { z } from 'zod'
 import type { rosterVisibilitySchema, saveRosterSchema } from '../contracts/schemas'
 import { app } from './app'
+import { captureMutation } from './mutationTelemetry'
 import { captureRosterCreated } from './rosterTelemetry'
 import { saveOwnedRoster } from './saveOwnedRoster'
 
@@ -15,6 +16,6 @@ export const rosterActions = {
   async setVisibility(owner: string, data: z.infer<typeof rosterVisibilitySchema>) {
     const instance = app()
     await instance.service.rosterService.setRosterVisibility(owner, data.id, data.visibility)
-    await instance.telemetry.capture(owner, 'roster_visibility_updated', { visibility: data.visibility })
+    await captureMutation(owner, 'roster_visibility_updated', { visibility: data.visibility })
   },
 }

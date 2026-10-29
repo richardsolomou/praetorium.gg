@@ -26,6 +26,8 @@ export function maintainSpacetimeConnection<T>(options: {
   open: (issued: T, link: SpacetimeLink<T>) => Connection
   inactive: () => void
   report: (error: unknown) => void
+  /** Called once per outage, when a working connection first drops or fails; another follows only after it recovers. */
+  lost?: (how: 'interrupted' | 'failed') => void
   /** Whether tickets expire and need refreshing; otherwise every reconnect reuses the ticket the connection opened with. */
   expires?: boolean
 }) {
@@ -34,6 +36,7 @@ export function maintainSpacetimeConnection<T>(options: {
   let generation = 0
   let retryDelay = RETRY_MS
   let reported = false
+  let lost = false
   let unavailable = 0
   let connection: Connection | null = null
   let retry: ReturnType<typeof setTimeout> | undefined
@@ -44,6 +47,12 @@ export function maintainSpacetimeConnection<T>(options: {
     if (reported) return
     reported = true
     options.report(error)
+  }
+
+  const loseOnce = (how: 'interrupted' | 'failed') => {
+    if (lost) return
+    lost = true
+    options.lost?.(how)
   }
 
   const note = (error?: unknown) => {
@@ -61,6 +70,7 @@ export function maintainSpacetimeConnection<T>(options: {
     const failed = (error?: unknown) => {
       if (!active || attempt !== generation || retry !== undefined) return
       note(error)
+      loseOnce('failed')
       generation++
       clearTimeout(refresh)
       clearTimeout(recovery)
@@ -89,11 +99,13 @@ export function maintainSpacetimeConnection<T>(options: {
           if (!isCurrent()) return
           retryDelay = RETRY_MS
           reported = false
+          lost = false
         }, RECOVERY_MS)
       }
       const interrupted = (error?: unknown) => {
         if (!isCurrent()) return
         note(error)
+        loseOnce('interrupted')
         clearTimeout(recovery)
         options.inactive()
       }

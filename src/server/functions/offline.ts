@@ -1,6 +1,6 @@
 import { captureBattleCommand } from '../battleTelemetry'
 import { SpacetimeRequestError } from 'ras-stack/spacetime'
-import { offlineActionSchema } from '../../contracts/offlineActions'
+import { offlineActionSchema, type OfflineActionKind } from '../../contracts/offlineActions'
 import { offlineActions } from '../offlineActions'
 import { offlineContext } from '../offlineContext'
 import { commandSchema, idSchema } from '../../core/commands'
@@ -16,16 +16,36 @@ import { app } from '../app'
 import { requireUser, requireUserId } from '../playerSession'
 import { mutationRpc, rpc } from '../rpc'
 import { saveRosterSchema } from '../../contracts/schemas'
+import { captureWrite } from '../mutationTelemetry'
 import { captureRosterCreated } from '../rosterTelemetry'
 import { rosterRow } from '../rosterPersistence'
 
-async function syncRefusal(error: unknown) {
+type SyncKind = OfflineActionKind | 'roster' | 'battle-command'
+
+/** Answers a sync the player has to review on their device, which the request metrics would otherwise count as a success. */
+async function unsynced<T extends { outcome: string }>(userId: string, kind: SyncKind, answer: T, cause?: string) {
+  if (answer.outcome === 'refused' || answer.outcome === 'conflict')
+    await app().telemetry.capture(userId, 'sync_refused', { kind, outcome: answer.outcome, ...(cause ? { cause } : {}) })
+  return answer
+}
+
+async function syncRefusal(userId: string, kind: SyncKind, error: unknown) {
   if (error instanceof Response && error.status >= 400 && error.status < 500 && error.status !== 401 && error.status !== 429)
-    return { outcome: 'refused' as const, message: (await error.text()).slice(0, 2_000) }
+    return unsynced(userId, kind, { outcome: 'refused' as const, message: (await error.text()).slice(0, 2_000) }, `http-${error.status}`)
   if (error instanceof SpacetimeRequestError && error.status === 400)
-    return { outcome: 'refused' as const, message: 'The server refused this saved action. Export your changes before discarding it.' }
+    return unsynced(
+      userId,
+      kind,
+      { outcome: 'refused' as const, message: 'The server refused this saved action. Export your changes before discarding it.' },
+      'database',
+    )
   if (error instanceof z.ZodError)
-    return { outcome: 'refused' as const, message: 'The saved action is incompatible with this application version.' }
+    return unsynced(
+      userId,
+      kind,
+      { outcome: 'refused' as const, message: 'The saved action is incompatible with this application version.' },
+      'incompatible',
+    )
   throw error
 }
 
@@ -83,11 +103,13 @@ export const syncRoster = createServerFn({ method: 'POST' })
             instance,
             player.id,
             data.roster,
-            data.roster.baseRosterId || data.roster.copiedFromRosterId ? { variant: Boolean(data.roster.baseRosterId) } : {},
+            data.roster.baseRosterId || data.roster.copiedFromRosterId
+              ? { delivery: 'sync', variant: Boolean(data.roster.baseRosterId) }
+              : { delivery: 'sync' },
           )
-        else if (result.lifecycle === 'deleted') await instance.telemetry.capture(player.id, 'roster_deleted')
+        else if (result.lifecycle === 'deleted') await captureWrite(player.id, 'roster_deleted', 'sync')
       }
-      return result
+      return unsynced(player.id, 'roster', result)
     }),
   )
 
@@ -113,6 +135,7 @@ export const syncAction = createServerFn({ method: 'POST' })
           saved = await app().service.syncReceipt(data.operationId, player.id, fingerprint)
         }
         if (!saved) throw new Error('The saved action did not commit a receipt.')
+        if (saved.outcome === 'refused') return unsynced(player.id, data.kind, saved, 'database')
         if (saved.outcome === 'applied' && (data.kind === 'createBattle' || data.kind === 'createLeagueBattle')) {
           const { workspace } = await app().service.battleWorkspace(
             data.identifiers.battleToken!,
@@ -123,7 +146,7 @@ export const syncAction = createServerFn({ method: 'POST' })
         }
         return saved
       } catch (error) {
-        return syncRefusal(error)
+        return syncRefusal(player.id, data.kind, error)
       }
     }),
   )
@@ -152,29 +175,51 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
           const catalogue = instance.catalogue()
           if (!catalogue || !rules) throw new Response('Army and game rules are unavailable. Try syncing again later.', { status: 503 })
           if (catalogue.index.revision !== data.catalogueRevision)
-            return {
-              outcome: 'conflict' as const,
-              message:
-                'Army or game rules changed while you were offline. Your battle history is saved on this device; review it before syncing.',
-            }
+            return unsynced(
+              player.id,
+              'battle-command',
+              {
+                outcome: 'conflict' as const,
+                message:
+                  'Army or game rules changed while you were offline. Your battle history is saved on this device; review it before syncing.',
+              },
+              'rules-changed',
+            )
         }
         if (!replay && command.kind === 'attach-roster' && command.roster.built) {
           const captured = data.capturedRoster
           const owned =
             captured && captured.id === command.roster.id ? await instance.service.leagueService.ownRoster(player.id, captured.id) : null
-          if (!captured || !owned) return { outcome: 'refused' as const, message: 'You do not own the captured roster.' }
+          if (!captured || !owned)
+            return unsynced(
+              player.id,
+              'battle-command',
+              { outcome: 'refused' as const, message: 'You do not own the captured roster.' },
+              'roster-not-owned',
+            )
           // A device that predates custom budgets captured none; the saved roster's own budget applies.
           const draft = { ...captured, pointsBudget: captured.pointsBudget === undefined ? owned.pointsBudget : captured.pointsBudget }
           const catalogue = await instance.catalogueFor(draft.catalogueId)
           const rosterRules = await instance.rulesFor(draft.catalogueId)
           if (!catalogue || !rosterRules || catalogue.index.revision !== command.roster.built.revision)
-            return {
-              outcome: 'conflict' as const,
-              message: 'Army data changed while you were offline. Your played roster is saved on this device; review it before syncing.',
-            }
+            return unsynced(
+              player.id,
+              'battle-command',
+              {
+                outcome: 'conflict' as const,
+                message: 'Army data changed while you were offline. Your played roster is saved on this device; review it before syncing.',
+              },
+              'roster-rules-changed',
+            )
           const priced = calculateRosterPrice({ ...draft, units: draft.picks }, catalogue, rosterRules)
           const problem = priced && rosterUseError(priced, draft)
-          if (!priced || problem) return { outcome: 'refused' as const, message: problem || 'Army data is unavailable.' }
+          if (!priced || problem)
+            return unsynced(
+              player.id,
+              'battle-command',
+              { outcome: 'refused' as const, message: problem || 'Army data is unavailable.' },
+              priced ? 'roster-illegal' : 'roster-unpriced',
+            )
           command = {
             ...command,
             roster: rosterSnapshot(
@@ -214,16 +259,22 @@ export const syncBattleCommand = createServerFn({ method: 'POST' })
         if (result.outcome !== 'appended' || applied === true)
           await captureBattleCommand(player.id, battleId, command, { result, finished }, performance.now() - startedAt, 'sync')
         if (result.outcome === 'stale')
-          return {
-            outcome: 'conflict' as const,
-            message: 'Another device advanced this battle. Your offline history is saved; review both histories before continuing.',
-          }
-        if (result.outcome === 'refused') return { outcome: 'refused' as const, message: result.reason }
+          return unsynced(
+            player.id,
+            'battle-command',
+            {
+              outcome: 'conflict' as const,
+              message: 'Another device advanced this battle. Your offline history is saved; review both histories before continuing.',
+            },
+            'stale',
+          )
+        if (result.outcome === 'refused')
+          return unsynced(player.id, 'battle-command', { outcome: 'refused' as const, message: result.reason }, result.code)
         const workspace =
           appended ?? (await instance.service.battleWorkspace(data.token, player.id, await instance.battleReadRulesFor())).workspace
         return { outcome: 'applied' as const, workspace, version: workspace.serverSeq }
       } catch (error) {
-        return syncRefusal(error)
+        return syncRefusal(player.id, 'battle-command', error)
       }
     }),
   )

@@ -4,6 +4,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { Check, ChevronRight, Link2, Plus, UserRound } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { posthog } from 'posthog-js'
+import { isFetchNetworkFailure } from '../../networkErrors'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -113,8 +114,9 @@ export function CreateBattle({
         data: { token, expectedSeq: screen.view.seq, command: { kind: 'attach-saved-roster', rosterId: id } },
       })
       queryClient.setQueryData(battleQuery(token).queryKey, attached.screen)
-    } catch {
+    } catch (error) {
       // The battle exists either way, and its setup shows the seat without an army.
+      posthog.capture('battle_roster_attach_failed', { reason: isFetchNetworkFailure(error) ? 'network' : 'error' })
     }
   }
   const create = useMutation({

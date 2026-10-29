@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
+import { posthog } from 'posthog-js'
 import { useEffect, useState } from 'react'
 import { version } from '../../../../package.json'
 import { Button } from '@/components/ui/button'
@@ -15,7 +16,6 @@ import { markReleaseSeen, NOTICE_INTERVAL, seenRelease, unseenReleases, useSeenR
  */
 export function WhatsNewNotice() {
   const seen = useSeenRelease()
-  const { date } = useDateFormatting()
   const [now] = useState(Date.now)
   useEffect(() => {
     if (seenRelease() === null) markReleaseSeen()
@@ -27,7 +27,21 @@ export function WhatsNewNotice() {
   const releases = unseenReleases(notes, seen.version)
   const changes = [...releases.flatMap((release) => release.features), ...releases.flatMap((release) => release.fixes)]
   if (!changes.length) return null
-  const acknowledge = () => markReleaseSeen()
+  return <Notice since={seen.at} changes={changes} releases={releases.length} />
+}
+
+function Notice({ since, changes, releases }: { since: number; changes: readonly string[]; releases: number }) {
+  const { date } = useDateFormatting()
+  const counts = { releases, changes: changes.length }
+  useEffect(() => {
+    posthog.capture('whats_new_notice_shown', counts)
+    // Counted once per showing; the counts cannot change while it is up.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  const acknowledge = (action: 'opened' | 'dismissed') => {
+    posthog.capture(`whats_new_notice_${action}`, counts)
+    markReleaseSeen()
+  }
   return (
     <aside
       aria-label="What's new"
@@ -37,17 +51,17 @@ export function WhatsNewNotice() {
       className="fixed bottom-4 left-1/2 z-40 flex w-max max-w-[min(40rem,calc(100%-1.5rem))] -translate-x-1/2 flex-wrap items-center gap-2 border border-edge-strong bg-panel p-2 text-sm shadow-lg"
     >
       <p className="min-w-0 basis-full px-2 text-bone sm:basis-0 sm:flex-1">
-        <span className="font-semibold">New since {date(seen.at)}: </span>
+        <span className="font-semibold">New since {date(since)}: </span>
         <span className="line-clamp-2">
           {plainChange(changes[0]!)}
           {changes.length > 1 ? ` (and ${changes.length - 1} more)` : ''}
         </span>
       </p>
       <span className="ml-auto flex gap-2">
-        <Button size="sm" variant="outline" nativeButton={false} render={<Link to="/whats-new" onClick={acknowledge} />}>
+        <Button size="sm" variant="outline" nativeButton={false} render={<Link to="/whats-new" onClick={() => acknowledge('opened')} />}>
           See what's new
         </Button>
-        <Button size="sm" variant="ghost" onClick={acknowledge}>
+        <Button size="sm" variant="ghost" onClick={() => acknowledge('dismissed')}>
           Dismiss
         </Button>
       </span>

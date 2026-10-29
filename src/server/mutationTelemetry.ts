@@ -1,12 +1,21 @@
 import type { z } from 'zod'
 import type { createBattleSchema, createLeagueSchema } from '../contracts/schemas'
+import { AsyncLocalStorage } from 'node:async_hooks'
+import { globalSingleton } from 'ras-stack/server'
 import { app } from './app'
 import { offlineContext } from './offlineContext'
+
+/** Set while an account agent tool runs, so its writes are told apart from the app's. */
+export const agentWrites = globalSingleton('praetorium.agent-writes', () => new AsyncLocalStorage<true>())
+
+export function captureWrite(userId: string, event: string, delivery: 'sync' | 'direct', properties?: Record<string, unknown>) {
+  return app().telemetry.capture(userId, event, { ...properties, delivery, ...(agentWrites.getStore() ? { via: 'agent' } : {}) })
+}
 
 export function captureMutation(userId: string, event: string, properties?: Record<string, unknown>) {
   const sync = offlineContext.getStore()
   if (sync && !sync.applied) return
-  return app().telemetry.capture(userId, event, { ...properties, delivery: sync ? 'sync' : 'direct' })
+  return captureWrite(userId, event, sync ? 'sync' : 'direct', properties)
 }
 
 export function captureBattleCreated(

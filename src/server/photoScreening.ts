@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { parseImageDataUrl } from './privateImages'
+import { reportServerFailure } from '../adapters/posthog'
 
 const ENDPOINT = 'https://api.typesafe.ai/v1/systemone'
 /** Pinned, so probabilities stay comparable across uploads while thresholds are chosen from them. */
@@ -85,7 +86,7 @@ export async function recordScreening(
     (result): Record<string, string | number> =>
       result ? { outcome: 'screened', model: result.model, ...result.probabilities } : { outcome: 'unreadable' },
     (error: unknown) => {
-      console.error({ event: 'image_screening_failed', error })
+      reportServerFailure({ event: 'image_screening_failed', error })
       return { outcome: 'failed' }
     },
   )

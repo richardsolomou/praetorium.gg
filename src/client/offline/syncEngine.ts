@@ -1,3 +1,4 @@
+import { posthog } from 'posthog-js'
 import { jsonByteLength } from '../../core/json'
 import { MAX_LOCAL_OPERATIONS, MAX_LOCAL_STATE_BYTES, type LocalOperation, type LocalState } from '../../contracts/localState'
 import { OfflineRefusal } from './offlineRefusal'
@@ -180,13 +181,15 @@ export class SyncEngine {
         if (current.syncLease?.holder === this.holder) current = { ...current, syncLease: undefined }
         const exists = current.operations.some((candidate) => candidate.id === operation.id)
         if (!exists) return current
-        if (answer.outcome !== 'applied')
+        if (answer.outcome !== 'applied') {
+          posthog.capture('offline_sync_needs_review', { kind: operation.kind, outcome: answer.outcome })
           return {
             ...current,
             operations: current.operations.map((candidate) =>
               candidate.id === operation.id ? { ...candidate, status: answer.outcome, message: answer.message } : candidate,
             ),
           }
+        }
         const operations = current.operations.filter((candidate) => candidate.id !== operation.id)
         const later = operations.some((candidate) => candidate.resource === operation.resource)
         return {
