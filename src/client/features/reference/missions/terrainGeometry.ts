@@ -210,30 +210,28 @@ export function deploymentLines(deployment: { zones: { points: Point[] }[] }, bo
 /**
  * A placement order for the terrain and the fewest square-on distances that put down each piece in turn: two at one
  * outer corner, plus one at a second corner when the piece is tilted. Each distance runs to the nearest of the given
- * printed deployment lines, the board edge with `edges`, or the drawn edge of a piece already down with `terrain`.
- * A piece or marker that can't be fixed in both directions from what is enabled and already down is left out.
+ * printed deployment lines, the board edge, or the drawn edge of a piece already down with `terrain`. The board edges
+ * surround every point, so each piece and marker always has a distance on both axes.
  * Objective markers outside terrain come last; one inside terrain lands wherever its terrain does, so it gets none.
  */
 export function placementMeasurements(
   geometry: TerrainGeometry,
   objectives: Point[],
   lines: (readonly [Point, Point])[],
-  { terrain, edges }: { terrain: boolean; edges: boolean },
+  { terrain }: { terrain: boolean },
 ): Measurement[] {
   const { board } = geometry
   const fixed = [
     ...referenceSegments(lines, 'lines'),
-    ...(edges
-      ? referenceSegments(
-          polygonEdges([
-            { x: 0, y: 0 },
-            { x: board.width, y: 0 },
-            { x: board.width, y: board.height },
-            { x: 0, y: board.height },
-          ]),
-          'edges',
-        )
-      : []),
+    ...referenceSegments(
+      polygonEdges([
+        { x: 0, y: 0 },
+        { x: board.width, y: 0 },
+        { x: board.width, y: board.height },
+        { x: 0, y: board.height },
+      ]),
+      'edges',
+    ),
   ]
   const axisMeasurements = (point: Point, approximate: boolean, references: ReferenceSegment[]) =>
     [
@@ -245,29 +243,25 @@ export function placementMeasurements(
         { x: 0, y: 1 },
         { x: 0, y: -1 },
       ],
-    ].flatMap((directions) => {
-      const nearest = directions
+    ].map((directions) => {
+      const { at, distance, reference } = directions
         .flatMap((direction) =>
-          references.map(({ start, end, reference }) => {
-            const hit = rayHit(point, direction, start, end)
-            return hit && { ...hit, reference }
+          references.map((segment) => {
+            const hit = rayHit(point, direction, segment.start, segment.end)
+            return hit && { ...hit, reference: segment.reference }
           }),
         )
         .filter((hit) => hit !== null)
-        .sort((left, right) => left.distance - right.distance)[0]
-      if (!nearest) return []
-      const { at, distance, reference } = nearest
-      return [{ from: at, to: point, approximate, distance, reference, ruler: reference === 'edges' && distance > longestEdgeArrow }]
+        .sort((left, right) => left.distance - right.distance)[0]!
+      return { from: at, to: point, approximate, distance, reference, ruler: reference === 'edges' && distance > longestEdgeArrow }
     })
   const total = (measurements: { distance: number }[]) => measurements.reduce((sum, measurement) => sum + measurement.distance, 0)
   const place = (corners: Point[], tilted: boolean, approximate: boolean, references: ReferenceSegment[]) => {
     const [first, ...rest] = corners
       .map((corner) => axisMeasurements(corner, approximate, references))
-      .filter((measurements) => measurements.length === 2)
       .sort((left, right) => total(left) - total(right))
-    if (!first) return null
     const second = tilted ? rest.flat().sort((left, right) => left.distance - right.distance)[0] : undefined
-    return [...first, ...(second ? [second] : [])]
+    return [...first!, ...(second ? [second] : [])]
   }
 
   const remaining = [...groupBy(geometry.areas, (area) => area.group ?? area.id).values()].map((areas) => ({
@@ -280,12 +274,7 @@ export function placementMeasurements(
   while (remaining.length) {
     const next = remaining
       .map((piece, index) => ({ index, piece, measurements: place(piece.corners, piece.tilted, piece.approximate, references) }))
-      .sort(
-        (left, right) =>
-          (left.measurements ? total(left.measurements) : Infinity) - (right.measurements ? total(right.measurements) : Infinity),
-      )[0]!
-    // Sorted last, so nothing left can be fixed in both directions from what is down.
-    if (!next.measurements) break
+      .sort((left, right) => total(left.measurements) - total(right.measurements))[0]!
     remaining.splice(next.index, 1)
     steps.push(next.measurements)
     if (terrain) references.push(...next.piece.footprints.flatMap((footprint) => referenceSegments(polygonEdges(footprint), 'terrain')))
@@ -300,7 +289,6 @@ export function placementMeasurements(
         ),
     )
     .map((point) => axisMeasurements(point, false, references))
-    .filter((measurements) => measurements.length === 2)
   return [...steps, ...markers].flatMap((measurements, index) =>
     measurements.map(({ from, to, approximate, ruler, reference }, position) => ({
       from,

@@ -13,7 +13,7 @@ import {
   type TerrainTemplate,
 } from './terrainGeometry'
 
-const sources: string[] = ['terrain', 'lines', 'edges', 'published', 'mat'] satisfies MeasurementSource[]
+const sources: string[] = ['terrain', 'lines', 'published', 'mat'] satisfies MeasurementSource[]
 
 const pressed = 'data-[pressed]:bg-bone/10 data-[pressed]:text-bone'
 
@@ -46,8 +46,8 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
   const objectiveMarkers = deploymentObjectives.some((objective) => objective.kind !== 'terrain')
   const measurements = layout.geometry?.areas.flatMap((area) => area.measurements) ?? []
   const joinedFootprints = layout.geometry ? terrainAreaJoins(layout.geometry).length > 0 : false
-  const [show, setShow] = useState<MeasurementSource[]>(layout.geometry ? ['terrain', 'lines', 'edges'] : ['published'])
-  const placing = show.some((source) => source === 'terrain' || source === 'lines' || source === 'edges')
+  const [show, setShow] = useState<MeasurementSource[]>(layout.geometry ? ['terrain', 'lines'] : ['published'])
+  const placing = show.includes('terrain') || show.includes('lines')
   return (
     <DialogContent size="lg">
       <DialogHeader>
@@ -81,13 +81,9 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
                   Deployment lines
                 </ToggleGroupItem>
               ) : null}
-              <ToggleGroupItem value="edges" className={cn(pressed, measurementColours.edges.border)}>
-                <Tick source="edges" show={show} />
-                Board edges
-              </ToggleGroupItem>
               <ToggleGroupItem value="published" className={cn(pressed, measurementColours.published.border)}>
                 <Tick source="published" show={show} />
-                Objective centres
+                Published distances
               </ToggleGroupItem>
               <ToggleGroupItem value="mat" className={cn(pressed, measurementColours.mat.border)}>
                 <Tick source="mat" show={show} />
@@ -158,9 +154,9 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
               Placement order · distance from the numbered corner, nearest ⅛″
             </span>
           ) : null}
-          {show.includes('edges') ? (
+          {placing ? (
             <span className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-measure-edges" /> Long edge distances: read off the mat's edge ruler
+              <span className="size-2 rounded-full bg-measure-edges" /> Board edge distance · long ones read off the mat's edge ruler
             </span>
           ) : null}
           {show.includes('mat') ? (
