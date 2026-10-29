@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.199.1 (2026-10-29)
+
+### Patch Changes
+
+- 5c51419: Imported lists are read about a quarter faster.
+- 5c51419: Importing rosters or battles from another app shows how many it has read so far.
+
 ## 0.199.0 (2026-10-29)
 
 ### Minor Changes
