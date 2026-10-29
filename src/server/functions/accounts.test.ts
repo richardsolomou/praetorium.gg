@@ -30,7 +30,7 @@ it('records screening probabilities without the photo or image identifier', asyn
   const invoke = uploadCollectionPhoto as unknown as (input: { data: { entryId: string; image: string } }) => Promise<unknown>
   await invoke({ data: { entryId: 'private-unit-id', image: 'private-image' } })
   expect(mocks.capture.mock.calls).toEqual([
-    ['actor', 'collection_photo_uploaded'],
+    ['actor', 'collection_photo_uploaded', { delivery: 'direct' }],
     ['actor', 'collection_photo_screened', { outcome: 'scored', model: 'jev', miniature: 0.9 }],
   ])
 })
