@@ -50,6 +50,7 @@ import {
   meKey,
   playerProfileKey,
   playerRankingsKey,
+  battleRatingChangesKey,
   playerRostersKey,
   playerSearchKey,
   publicBattlesKey,
@@ -886,6 +887,8 @@ export const listLeagueBattles = (args: Parameters<typeof server.listLeagueBattl
 export const standings = () => cachedRead(standingsKey(), () => server.standings())
 export const playerRosters = (args: Parameters<typeof server.playerRosters>[0]) =>
   cachedRead(playerRostersKey(args.data.userId), () => server.playerRosters(args))
+export const battleRatingChanges = (args: Parameters<typeof server.battleRatingChanges>[0]) =>
+  cachedRead(battleRatingChangesKey(args.data.token), () => server.battleRatingChanges(args))
 export const playerRankings = (args: Parameters<typeof server.playerRankings>[0]) =>
   cachedRead(playerRankingsKey(args.data.userId), () => server.playerRankings(args))
 export const userProfile = (args: Parameters<typeof server.userProfile>[0]) =>

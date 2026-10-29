@@ -19,6 +19,7 @@ import { battleClubsQuery, battleReplayKey, deploymentsQuery, gameReferencesQuer
 import { sides, type Side, type SideMission } from '../../sides'
 import { ArmyIdentity } from './ArmyIdentity'
 import { PlayerName } from './PlayerName'
+import { PlayerRatingChange } from './PlayerRatingChange'
 import { Report, reportPlayers } from './Report'
 import { TeamsBattlePoints } from './TeamsBattlePoints'
 import { BattleCombatDialog, type BattleCombatSelection } from '../simulator/BattleCombatDialog'
@@ -362,8 +363,9 @@ function SpectatorSide({
       <div className="space-y-2">
         {side.armies.map((army) => (
           <div key={army.playerId} className="min-w-0">
-            <h2 className={`text-lg leading-tight font-bold uppercase ${colours.text}`}>
+            <h2 className={`flex min-w-0 items-baseline gap-2 text-lg leading-tight font-bold uppercase ${colours.text}`}>
               <PlayerName army={army} />
+              <PlayerRatingChange view={view} playerId={army.playerId} />
             </h2>
             <ArmyIdentity army={army} className="mt-0.5" />
             <ArmyRoster onSimulate={onSimulate} army={army} side={side} actionable={false} pending={false} send={ignoreCommand} />

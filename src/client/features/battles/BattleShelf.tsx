@@ -13,6 +13,7 @@ import { deploymentsQuery } from '../../queries'
 import { useDateFormatting } from '../../dates'
 import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
+import { RatingChange } from '../../components/RatingChange'
 import type { OnboardingTarget } from '../onboarding/onboarding'
 import type { Battle } from './battle'
 
@@ -195,7 +196,7 @@ function Side({
   return (
     <span className={cn('min-w-0 space-y-2', className)}>
       {seats.length ? (
-        seats.map(({ player, army, faction, detachments }) => (
+        seats.map(({ player, army, faction, detachments, ratingChange }) => (
           <span
             key={player.id || player.name}
             className={`flex min-w-0 items-center gap-2.5 ${mirrored ? 'sm:flex-row-reverse sm:text-right' : ''}`}
@@ -205,6 +206,7 @@ function Side({
               <span className={`flex min-w-0 items-baseline gap-1.5 ${mirrored ? 'sm:flex-row-reverse' : ''}`}>
                 <span className="truncate text-sm leading-tight font-bold uppercase">{player.name}</span>
                 {player.id === viewerId ? <span className="eyebrow shrink-0 text-parchment">You</span> : null}
+                {ratingChange === null ? null : <RatingChange change={ratingChange} />}
               </span>
               <span className={`mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-dim ${mirrored ? 'sm:flex-row-reverse' : ''}`}>
                 {faction ? <FactionMark faction={faction} size="sm" /> : null}

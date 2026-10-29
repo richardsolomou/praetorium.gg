@@ -1264,8 +1264,8 @@ export class SpacetimeRepository {
     return this.feed({ scope: 'friends', userId, before: page.before, limit: page.limit })
   }
 
-  async watchableBattlesSince(since: number, limit: number) {
-    return (await this.feed({ scope: 'watchable', since, limit })).battles
+  async watchableBattles(page: { limit: number; before?: BattlesCursor }) {
+    return this.feed({ scope: 'watchable', since: 0, before: page.before, limit: page.limit })
   }
 
   async battlesSeatedBy(userId: string, limit: number, viewerId: string | null) {

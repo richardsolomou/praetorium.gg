@@ -49,7 +49,15 @@ import {
   serviceRecord,
 } from '../core/serviceRecord'
 import { routeSlug } from '../core/slug'
-import { battleOutcome, sideScore, type Standing, type StandingBattle, type StandingFaction, standings } from '../core/standings'
+import {
+  battleOutcome,
+  sideScore,
+  type RatingPoint,
+  type Standing,
+  type StandingBattle,
+  type StandingFaction,
+  standings,
+} from '../core/standings'
 import { opposingSide, refuse } from '../core/battlePrimitives'
 import { swissPairings, swissStandings, type SwissMatch } from '../core/swiss'
 import { seasonDraw, seasonFixtureStatus } from '../core/clubSeason'
@@ -108,6 +116,9 @@ type StandingsFold = {
   days: number
   overall: { faction: null; rows: Standing[] }
   factions: { faction: StandingFaction; rows: Standing[] }[]
+  /** How far each counted battle moved each player's overall rating, by battle token and then player. */
+  changes: ReadonlyMap<string, Readonly<Record<string, number>>>
+  history: ReadonlyMap<string, readonly RatingPoint[]>
 }
 
 /** One player's place in each table they appear in, and the window it covers. */
@@ -116,6 +127,8 @@ type PlayerRankings = {
   days: number
   overall: PlayerRanking<null> | null
   factions: PlayerRanking<StandingFaction>[]
+  /** The player's overall rating after each of their counted battles, oldest first. */
+  history: readonly RatingPoint[]
 }
 
 const SPECTATOR_ID = ''
@@ -129,12 +142,11 @@ const PLAYED_ARMY_BATTLES = 12
 const PUBLIC_FEED_HOLD_MS = 5_000
 const PUBLIC_FEED_HELD_PAGES = 200
 
-/** How far back the standings look, and how many battles they will read to do it. */
+/** How recently a player must have played to be listed; their rating counts every battle the standings read. */
+const STANDINGS_DAYS = 90
 const DAY_MS = 24 * 60 * 60 * 1000
-const STANDINGS_WINDOW_MS = 90 * DAY_MS
-const STANDINGS_BATTLE_LIMIT = 500
-/** Pages of 500 battles a club table reads before it reports itself partial. */
-const CLUB_STANDINGS_PAGES = 20
+/** Pages of 500 battles a standings table reads, newest first, before it rates only those. */
+const STANDINGS_PAGES = 20
 const CLUB_RECENT_BATTLES = 6
 const STANDINGS_HOLD_MS = 60_000
 
@@ -228,7 +240,7 @@ export class PraetoriumService {
     factions?: readonly BattleFaction[],
   ) {
     const { battles: histories, nextCursor } = await this.repository.battlesByUser(userId, page)
-    return { battles: this.battleSummaries(histories, userId, rules, factions), nextCursor }
+    return { battles: await this.withRatingChanges(this.battleSummaries(histories, userId, rules, factions), factions), nextCursor }
   }
 
   /**
@@ -307,21 +319,31 @@ export class PraetoriumService {
     if (this.standingsHeld?.key === key && this.standingsHeld.until > now) return this.standingsHeld.fold
     if (this.standingsPending?.key === key) return this.standingsPending.promise
     const pending = (async () => {
-      const [histories, practice] = await Promise.all([
-        this.repository.watchableBattlesSince(now - STANDINGS_WINDOW_MS, STANDINGS_BATTLE_LIMIT),
-        this.repository.practiceOpponents(),
-      ])
+      const histories: BattleHistory[] = []
+      let before: BattlesCursor | undefined
+      for (let page = 0; page < STANDINGS_PAGES; page++) {
+        const { battles, nextCursor } = await this.repository.watchableBattles({ limit: LEAGUE_RESULTS_BATTLE_LIMIT, before })
+        histories.push(...battles)
+        before = nextCursor ?? undefined
+        if (!before) break
+      }
+      const practice = await this.repository.practiceOpponents()
       const summaries = this.battleSummaries(histories, null, null, factions)
-      const tables = standings(summaries, { exclude: practice.map((opponent) => opponent.id) })
-      // The battle limit can bite before the window does, so the fold reports the days
-      // it actually reached back rather than the ninety it asked for: a page claiming a
-      // window nothing was counted from is a number no reader can check.
-      const oldest =
-        summaries.length < STANDINGS_BATTLE_LIMIT ? now - STANDINGS_WINDOW_MS : Math.min(...summaries.map((battle) => battle.lastActivity))
+      const tables = standings(summaries, {
+        exclude: practice.map((opponent) => opponent.id),
+        activeSince: now - STANDINGS_DAYS * DAY_MS,
+      })
       const fold = {
-        days: Math.max(1, Math.round((now - oldest) / DAY_MS)),
+        days: STANDINGS_DAYS,
         overall: { faction: null, rows: tables.overall },
         factions: tables.factions,
+        changes: new Map(
+          [...tables.changes].map(([battle, change]) => [
+            battle.token,
+            Object.fromEntries(battle.playerIds.map((id, seat) => [id, change[seat]!])),
+          ]),
+        ),
+        history: tables.history,
       }
       this.standingsHeld = { key, until: this.clock() + STANDINGS_HOLD_MS, fold }
       return fold
@@ -367,6 +389,7 @@ export class PraetoriumService {
       factions: fold.factions
         .flatMap(rank)
         .toSorted((one, other) => other.standing.battles - one.standing.battles || one.place - other.place),
+      history: fold.history.get(userId) ?? [],
     }
   }
 
@@ -398,7 +421,10 @@ export class PraetoriumService {
       performance: personalPerformance(summaries, userId, filter),
       facets,
       // What each side did is the record's to count, not the battle list's to carry.
-      battles: shown.slice(0, PROFILE_BATTLE_PAGE).map(({ plays: _plays, ...battle }) => battle),
+      battles: await this.withRatingChanges(
+        shown.slice(0, PROFILE_BATTLE_PAGE).map(({ plays: _plays, ...battle }) => battle),
+        factions,
+      ),
       played: shown.length,
     }
   }
@@ -603,7 +629,7 @@ export class PraetoriumService {
     if (club.visibility === 'private' && !(viewerId && memberIds.has(viewerId))) return null
     const histories: BattleHistory[] = []
     let before: BattlesCursor | undefined
-    for (let page = 0; page < CLUB_STANDINGS_PAGES; page++) {
+    for (let page = 0; page < STANDINGS_PAGES; page++) {
       const { battles, nextCursor } = await this.repository.battlesByClub(token, { limit: LEAGUE_RESULTS_BATTLE_LIMIT, before })
       histories.push(...battles)
       before = nextCursor ?? undefined
@@ -709,6 +735,29 @@ export class PraetoriumService {
       current: current && (seated || current.visibility === 'public') ? summary(current) : null,
       options: seated ? options.map((club) => ({ id: club.id, ...summary(club) })) : [],
     }
+  }
+
+  /** How far one battle moved each player's overall rating, or null when the leaderboard does not count it. */
+  async battleRatingChanges(token: string, factions: readonly BattleFaction[] = []) {
+    const { changes } = await this.standingsFold(factions)
+    return changes.get(token) ?? null
+  }
+
+  /**
+   * Each battle with how far it moved each player's overall rating, from the leaderboard's own fold.
+   *
+   * Only the battle list and a profile's battles carry it: the public feeds refetch
+   * often enough that each would refold the leaderboard every time its hold lapsed.
+   */
+  private async withRatingChanges<T extends { token: string }>(
+    battles: T[],
+    factions: readonly BattleFaction[] = [],
+  ): Promise<(T & { ratingChanges?: Readonly<Record<string, number>> })[]> {
+    const { changes } = await this.standingsFold(factions)
+    return battles.map((battle) => {
+      const ratingChanges = changes.get(battle.token)
+      return ratingChanges ? { ...battle, ratingChanges } : battle
+    })
   }
 
   private battleSummaries(

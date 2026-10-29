@@ -1,8 +1,9 @@
 import { Link } from '@tanstack/react-router'
-import type { Standing, StandingFaction } from '../../../core/standings'
+import type { RatingPoint, Standing, StandingFaction } from '../../../core/standings'
 import { winRate } from '../../../core/standings'
 import { FactionMark } from '../../components/FactionMark'
 import { percentLabel, countLabel } from '../../text'
+import { RatingHistory } from './RatingHistory'
 
 type Ranking<T> = { faction: T; place: number; of: number; standing: Standing }
 
@@ -10,6 +11,7 @@ export type Rankings = {
   days: number
   overall: Ranking<null> | null
   factions: Ranking<StandingFaction>[]
+  history: readonly RatingPoint[]
 }
 
 /**
@@ -19,9 +21,9 @@ export type Rankings = {
  * the rank there. Each one opens the table it came from, because a place is only
  * meaningful next to the players it was measured against.
  *
- * Absent entirely when the player is in none of the tables: the leaderboard counts
- * a bounded window of public battles, so a player whose games are older than it or
- * withheld from it has no place rather than last place.
+ * Absent entirely when the player is in none of the tables: the leaderboard lists
+ * only players with a recent public battle, so a player who has not played lately
+ * or whose games are withheld from it has no place rather than last place.
  */
 export function PlayerRankings({ rankings }: { rankings: Rankings }) {
   const rows = [...(rankings.overall ? [rankings.overall] : []), ...rankings.factions]
@@ -56,6 +58,7 @@ export function PlayerRankings({ rankings }: { rankings: Rankings }) {
           </Link>
         ))}
       </div>
+      <RatingHistory points={rankings.history} />
     </section>
   )
 }

@@ -105,13 +105,13 @@ describe('standings', () => {
   it('leaves out a battle a practice opponent was seated in', () => {
     const practice = duel({ playerIds: ['alice', 'practice'], players: ['Alice', 'Practice opponent'] })
 
-    expect(standings([practice], { exclude: ['practice'] })).toEqual({ overall: [], factions: [] })
+    expect(standings([practice], { exclude: ['practice'] })).toEqual({ overall: [], factions: [], changes: new Map(), history: new Map() })
   })
 
   it('leaves out a battle a guest was seated in', () => {
     const guest = duel({ playerIds: ['alice', guestSeatId('battle', 0)], players: ['Alice', 'Alex'] })
 
-    expect(standings([guest])).toEqual({ overall: [], factions: [] })
+    expect(standings([guest])).toEqual({ overall: [], factions: [], changes: new Map(), history: new Map() })
   })
 
   it('adds up every battle a player appears in', () => {
@@ -120,6 +120,18 @@ describe('standings', () => {
     expect(rows.find((row) => row.id === 'alice')).toEqual(
       expect.objectContaining({ battles: 2, won: 1, lost: 1, points: 85, lastPlayed: 20 }),
     )
+  })
+})
+
+describe('the listed window', () => {
+  const battles = season(['alice', 'bob'], ['alice', 'carol', { lastActivity: 10 }])
+
+  it('leaves out a player whose last battle is older than it', () => {
+    expect(standings(battles, { activeSince: 5 }).overall.map((row) => row.id)).toEqual(['alice', 'carol'])
+  })
+
+  it('keeps every battle in the rating of a player still listed', () => {
+    expect(standings(battles, { activeSince: 5 }).overall[0]?.rating).toBe(rated(battles, 'alice'))
   })
 })
 
@@ -179,6 +191,25 @@ describe('the rating', () => {
     expect(rated(battles, 'ally')).toBe(rated(battles, 'alice'))
   })
 
+  it('rates a lone winner over two allies as beating one player of their average', () => {
+    const lone = [duel({ playerIds: ['alice', 'bob', 'bert'], players: ['Alice', 'Bob', 'Bert'], sides: [0, 1, 1], scores: [60, 45, 0] })]
+
+    expect(rated(lone, 'alice')).toBe(rated([duel()], 'alice'))
+  })
+
+  it('records how far a battle moved each seat to the rating they see', () => {
+    const battles = season(['alice', 'bob'], ['alice', 'bob'])
+    const moved = [...standings(battles).changes.values()].reduce((total, change) => total + change[0]!, 0)
+
+    expect(moved).toBe(rated(battles, 'alice')! - 1000)
+  })
+
+  it('keeps each player’s rating after every battle, ending at the one the table shows', () => {
+    const battles = season(['alice', 'bob'], ['bob', 'alice'], ['alice', 'bob'])
+
+    expect(standings(battles).history.get('alice')?.at(-1)?.rating).toBe(rated(battles, 'alice'))
+  })
+
   it('separates equal ratings by the points a battle behind them', () => {
     const rows = overall(season(['wide', 'a', { scores: [90, 10] }], ['narrow', 'b', { scores: [51, 50] }]))
 
@@ -216,6 +247,13 @@ describe('a faction table', () => {
     const rows = table(battles, 'necrons')!
 
     expect(place(rows, 'zed')).toBeLessThan(place(rows, 'carol'))
+  })
+
+  it('shares one table across every rules version of an army', () => {
+    const custodes = (slug: string) => ({ slug, displayName: 'Adeptus Custodes', icon: null })
+    const battles = [duel({ factions: [custodes('adeptus-custodes'), null] }), duel({ factions: [custodes('mfm-1-6~1f19'), null] })]
+
+    expect(standings(battles).factions.map(({ faction, rows }) => [faction.slug, rows[0]?.battles])).toEqual([['adeptus-custodes', 2]])
   })
 
   it('puts both players in the table when they both brought it', () => {
