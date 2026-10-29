@@ -1,5 +1,15 @@
 # praetorium
 
+## 0.199.0 (2026-10-29)
+
+### Minor Changes
+
+- c36497e: Terrain layouts number the pieces in the order to put them down and measure each one from a piece already placed, a deployment zone line, or the board edge, and you can tick which of those to measure from.
+
+### Patch Changes
+
+- c36497e: Terrain layout distances are coloured by what they measure from, matching their tick boxes, and the key now sits under the board so ticking an option no longer moves it.
+
 ## 0.198.0 (2026-10-29)
 
 ### Minor Changes
