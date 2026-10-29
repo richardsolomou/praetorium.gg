@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.200.0 (2026-10-29)
+
+### Minor Changes
+
+- c403b31: Battle setup is redesigned: both sides face each other down one line, each step folds to its answer once it is settled, steps with a default answer have a checkbox on their number that stays in view while you scroll, and on a phone each step shows one side at a time with tabs to switch.
+
 ## 0.199.5 (2026-10-29)
 
 ### Patch Changes
