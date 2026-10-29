@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.199.4 (2026-10-29)
+
+### Patch Changes
+
+- eb5391e: Mission card choices name objectives by where they sit, such as a player's home, the centre, an expansion or a left flank, instead of Objective 1 to 6.
+- 65f94b4: Linking Google, Apple, Discord or GitHub to your account now says so when the link cannot start, instead of doing nothing.
+
 ## 0.199.3 (2026-10-29)
 
 ### Patch Changes
