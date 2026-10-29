@@ -60,6 +60,7 @@ export const friendInviteKey = (token: string) => ['friend-invite', token]
 export const userProfileKey = (userId?: string) => (userId === undefined ? ['user-profile'] : ['user-profile', userId])
 export const playerRostersKey = (userId: string) => ['player-rosters', userId]
 export const playerRankingsKey = (userId: string) => ['player-rankings', userId]
+export const playerAchievementsKey = (userId: string) => ['player-achievements', userId]
 export const playerProfileKey = (userId: string, filter: PlayerProfileFilter) => ['player-profile', userId, filter]
 /** Without a query, every search. */
 export const playerSearchKey = (query?: string) => (query === undefined ? ['player-search'] : ['player-search', query])

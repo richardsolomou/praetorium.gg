@@ -9,6 +9,7 @@ import { type Infer as __Infer } from 'spacetimedb'
 import * as AbilityRemindersByUserProcedure from '../ability_reminders_by_user_procedure'
 import * as AcceptFriendProcedure from '../accept_friend_procedure'
 import * as AcceptFriendInviteProcedure from '../accept_friend_invite_procedure'
+import * as AchievementFactsByUserProcedure from '../achievement_facts_by_user_procedure'
 import * as AdminCollectionPhotosProcedure from '../admin_collection_photos_procedure'
 import * as BattleByTokenProcedure from '../battle_by_token_procedure'
 import * as BattleChangesProcedure from '../battle_changes_procedure'
@@ -109,6 +110,8 @@ export type AcceptFriendArgs = __Infer<typeof AcceptFriendProcedure.params>
 export type AcceptFriendResult = __Infer<typeof AcceptFriendProcedure.returnType>
 export type AcceptFriendInviteArgs = __Infer<typeof AcceptFriendInviteProcedure.params>
 export type AcceptFriendInviteResult = __Infer<typeof AcceptFriendInviteProcedure.returnType>
+export type AchievementFactsByUserArgs = __Infer<typeof AchievementFactsByUserProcedure.params>
+export type AchievementFactsByUserResult = __Infer<typeof AchievementFactsByUserProcedure.returnType>
 export type AdminCollectionPhotosArgs = __Infer<typeof AdminCollectionPhotosProcedure.params>
 export type AdminCollectionPhotosResult = __Infer<typeof AdminCollectionPhotosProcedure.returnType>
 export type BattleByTokenArgs = __Infer<typeof BattleByTokenProcedure.params>

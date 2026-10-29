@@ -50,6 +50,7 @@ import {
   meKey,
   playerProfileKey,
   playerRankingsKey,
+  playerAchievementsKey,
   battleRatingChangesKey,
   playerRostersKey,
   playerSearchKey,
@@ -891,6 +892,8 @@ export const battleRatingChanges = (args: Parameters<typeof server.battleRatingC
   cachedRead(battleRatingChangesKey(args.data.token), () => server.battleRatingChanges(args))
 export const playerRankings = (args: Parameters<typeof server.playerRankings>[0]) =>
   cachedRead(playerRankingsKey(args.data.userId), () => server.playerRankings(args))
+export const playerAchievements = (args: Parameters<typeof server.playerAchievements>[0]) =>
+  cachedRead(playerAchievementsKey(args.data.userId), () => server.playerAchievements(args))
 export const userProfile = (args: Parameters<typeof server.userProfile>[0]) =>
   cachedRead(userProfileKey(args.data.userId), () => server.userProfile(args))
 export const playerProfile = (args: Parameters<typeof server.playerProfile>[0]) => {

@@ -63,6 +63,7 @@ export const APP_SNAPSHOT_QUERIES = new Set([
   'player-profile',
   'player-rosters',
   'player-rankings',
+  'player-achievements',
   'units',
   'datasheet',
   'loadout-datasheets',

@@ -997,6 +997,10 @@ export class SpacetimeRepository {
     return this.product.collectionProfile(...args)
   }
 
+  achievementFacts(...args: Parameters<SpacetimeOperator['achievementFacts']>) {
+    return this.product.achievementFacts(...args)
+  }
+
   collectionByUser(...args: Parameters<SpacetimeOperator['collectionByUser']>) {
     return this.product.collectionByUser(...args)
   }

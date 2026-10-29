@@ -15,7 +15,7 @@ const RESULT = {
 /**
  * A player at a glance under their name: their last few results, newest first, the army
  * they bring most, and their overall leaderboard place; for a player who only builds,
- * how many lists they publish and the army they build most.
+ * how many lists they publish and the army they build most; and their achievement points.
  *
  * Read from the battles the reader may watch, the same ones the record counts.
  */
@@ -24,12 +24,14 @@ export function ProfileForm({
   userId,
   rank,
   lists,
+  achievementPoints,
 }: {
   battles: readonly Battle[]
   userId: string
   rank: { place: number; of: number } | null
   /** The player's published lists, and the army most of them field. */
   lists: { count: number; main: FactionPresentation | null }
+  achievementPoints: number
 }) {
   const seated = battles.flatMap((battle) => {
     const seat = battle.playerIds.indexOf(userId)
@@ -43,7 +45,7 @@ export function ProfileForm({
   }
   const played = [...armies.values()].toSorted((one, other) => other.battles - one.battles)[0]?.faction
   const main = played ?? lists.main
-  if (!form.length && !main && !rank && !lists.count) return null
+  if (!form.length && !main && !rank && !lists.count && !achievementPoints) return null
   return (
     <div className="flex flex-wrap items-stretch gap-2" data-profile-form>
       {form.length ? (
@@ -89,6 +91,21 @@ export function ProfileForm({
             <span className="figure text-sm font-bold text-bone">
               #{rank.place}
               <span className="font-normal text-faint"> of {rank.of}</span>
+            </span>
+          </Fact>
+        </Link>
+      ) : null}
+      {achievementPoints ? (
+        <Link
+          to="/users/$userId"
+          params={{ userId }}
+          search={{ tab: 'achievements' }}
+          className="flex [&>span]:transition-colors [&>span]:hover:border-edge-strong [&>span]:hover:bg-raised"
+        >
+          <Fact label="Achievements">
+            <span className="figure text-sm font-bold text-bone">
+              {achievementPoints}
+              <span className="font-normal text-faint"> pts</span>
             </span>
           </Fact>
         </Link>

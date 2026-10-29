@@ -60,6 +60,7 @@ import {
   standings,
 } from '../core/standings'
 import { opposingSide, refuse } from '../core/battlePrimitives'
+import { achievements } from '../core/achievements'
 import { swissPairings, swissStandings, type SwissMatch } from '../core/swiss'
 import { seasonDraw, seasonFixtureStatus } from '../core/clubSeason'
 import { LEAGUE_RESULTS_BATTLE_LIMIT, leagueResults } from '../core/leagueResults'
@@ -386,6 +387,30 @@ export class PraetoriumService {
         .toSorted((one, other) => other.standing.battles - one.standing.battles || one.place - other.place),
       history: fold.history.get(userId) ?? [],
     }
+  }
+
+  /**
+   * What a player has earned, from the leaderboard's own finished battles and the facts the module reads.
+   *
+   * A tournament's winner is the top of the table its results page shows, read as an entrant so a private one counts.
+   */
+  async playerAchievements(userId: string, factions: readonly BattleFaction[] = []) {
+    const [battles, practice, facts] = await Promise.all([
+      this.standingResults.battles(factions),
+      this.repository.practiceOpponents(),
+      this.repository.achievementFacts(userId),
+    ])
+    const tournaments = await Promise.all(
+      facts.tournaments.map(async ({ token, eventToken, ...tournament }) => {
+        const results = tournament.played ? await this.leagueResults(token, eventToken, undefined, [], userId) : null
+        return { ...tournament, won: Boolean(results && !results.partial && results.swiss?.[0]?.userId === userId) }
+      }),
+    )
+    return achievements(
+      userId,
+      { ...facts, battles, tournaments },
+      practice.map((opponent) => opponent.id),
+    )
   }
 
   /** Fold the record over the full bounded watchable set, while paginating only the battle list; practice games stay in history but not the record. */

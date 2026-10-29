@@ -47,13 +47,13 @@ const queryFamilies = {
 } as const
 
 const publicQueryFamilies = {
-  collection: ['collection-profile', 'datasheet-photos'],
+  collection: ['collection-profile', 'datasheet-photos', 'player-achievements'],
   // An open battle follows its own signal, or polls while it has none, so every command elsewhere does not refetch it.
   battles: ['public-battles', 'friend-battles', 'player-profile', 'league-battles'],
-  standings: ['standings', 'player-rankings', 'club-standings', 'club-season'],
+  standings: ['standings', 'player-rankings', 'player-achievements', 'club-standings', 'club-season'],
   rosters: ['player-rosters', 'shared-roster', 'roster-access', 'discovered-rosters'],
-  leagues: ['leagues', 'league', 'league-roster', 'league-roster-sharing', 'league-battles'],
-  clubs: ['clubs', 'club', 'club-standings', 'club-season', 'battle-clubs'],
+  leagues: ['leagues', 'league', 'league-roster', 'league-roster-sharing', 'league-battles', 'player-achievements'],
+  clubs: ['clubs', 'club', 'club-standings', 'club-season', 'battle-clubs', 'player-achievements'],
   invites: ['friend-invite'],
   opponents: ['opponents', 'player-search'],
 } as const

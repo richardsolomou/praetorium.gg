@@ -18,11 +18,13 @@ import { recordSummary } from './recordSummary'
 import { ServiceRecordPanel } from './ServiceRecordPanel'
 import { searchText } from '../../searchParams'
 import { PersonalPerformancePanel } from './PersonalPerformancePanel'
+import { AchievementsPanel } from './AchievementsPanel'
 import {
   factionIndexQuery,
   collectionProfileQuery,
   meQuery,
   type PlayerProfileFilter,
+  playerAchievementsQuery,
   playerProfileQuery,
   playerRankingsQuery,
   playerRostersQuery,
@@ -30,7 +32,7 @@ import {
 } from '../../queries'
 import { Problem } from '../../components/Problem'
 
-const TABS = ['record', 'battles', 'rosters', 'collection'] as const
+const TABS = ['record', 'battles', 'rosters', 'collection', 'achievements'] as const
 type ProfileTab = (typeof TABS)[number]
 
 type ProfileSearch = PlayerProfileFilter & { tab?: ProfileTab }
@@ -67,6 +69,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
   const { data: profile } = useQuery(userProfileQuery(userId))
   const { data } = useQuery(playerProfileQuery(userId, filter))
   const { data: rankings } = useQuery(playerRankingsQuery(userId))
+  const { data: achievements } = useQuery(playerAchievementsQuery(userId))
   const collection = useQuery(collectionProfileQuery(userId))
   const { data: published } = useQuery(playerRostersQuery(userId))
   // Only fetched when there is a list to name a faction for, since the index is large.
@@ -99,6 +102,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
         ]
       : rosterTab),
     ...(yourself || collection.data?.entries.length ? [{ value: 'collection' as const, label: 'Collection', count: undefined }] : []),
+    { value: 'achievements' as const, label: 'Achievements', count: achievements ? Object.keys(achievements.earned).length : undefined },
   ]
   const tab = tabs.some((candidate) => candidate.value === search.tab) ? (search.tab as ProfileTab) : tabs[0]!.value
   const built = new Map<string, number>()
@@ -131,6 +135,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
             userId={userId}
             rank={rankings?.overall ?? null}
             lists={{ count: lists.length, main: buildsMost }}
+            achievementPoints={achievements?.points ?? 0}
           />
         ) : null}
       </PageHeader>
@@ -197,6 +202,14 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
                 <Skeleton className="h-40" />
                 <Skeleton className="h-40" />
               </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="achievements" className="mt-4">
+            {achievements ? (
+              <AchievementsPanel achievements={achievements} />
+            ) : (
+              <Skeleton className="h-60" aria-label="Loading achievements" />
             )}
           </TabsContent>
 

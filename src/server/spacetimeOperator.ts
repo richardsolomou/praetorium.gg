@@ -3,6 +3,7 @@ import { callSpacetime, spacetimeDatabaseUrl, type SpacetimeConnection } from 'r
 import { withServerSpan } from '../adapters/posthog'
 import { offlineContext, SYNC_PRODUCT_ACTIONS } from './offlineContext'
 import { z } from 'zod'
+import { achievementFactsSchema } from '../contracts/achievements'
 import { collectionProfileSchema } from '../contracts/collection'
 import type { CollectionImportRow } from '../core/collection'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES, type RosterSource, type RosterVisibility } from '../core/savedRoster'
@@ -757,6 +758,10 @@ export class SpacetimeOperator {
 
   async collectionProfile(userId: string, viewerId: string | null) {
     return this.read('collection_profile', [userId, option(viewerId)], collectionProfileSchema)
+  }
+
+  async achievementFacts(userId: string) {
+    return this.read('achievement_facts_by_user', [userId], achievementFactsSchema)
   }
 
   async collectionByUser(userId: string) {
