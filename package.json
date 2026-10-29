@@ -59,7 +59,7 @@
     "@posthog/mcp": "0.22.3",
     "@resvg/resvg-wasm": "2.6.2",
     "@tanstack/react-table": "^9.3.1",
-    "@tanstack/react-virtual": "^3.14.20",
+    "@tanstack/react-virtual": "^3.14.21",
     "aws4fetch": "1.0.20",
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
