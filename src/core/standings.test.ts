@@ -105,13 +105,13 @@ describe('standings', () => {
   it('leaves out a battle a practice opponent was seated in', () => {
     const practice = duel({ playerIds: ['alice', 'practice'], players: ['Alice', 'Practice opponent'] })
 
-    expect(standings([practice], { exclude: ['practice'] })).toEqual({ overall: [], factions: [] })
+    expect(standings([practice], { exclude: ['practice'] })).toEqual({ overall: [], factions: [], changes: new Map() })
   })
 
   it('leaves out a battle a guest was seated in', () => {
     const guest = duel({ playerIds: ['alice', guestSeatId('battle', 0)], players: ['Alice', 'Alex'] })
 
-    expect(standings([guest])).toEqual({ overall: [], factions: [] })
+    expect(standings([guest])).toEqual({ overall: [], factions: [], changes: new Map() })
   })
 
   it('adds up every battle a player appears in', () => {
@@ -195,6 +195,13 @@ describe('the rating', () => {
     const lone = [duel({ playerIds: ['alice', 'bob', 'bert'], players: ['Alice', 'Bob', 'Bert'], sides: [0, 1, 1], scores: [60, 45, 0] })]
 
     expect(rated(lone, 'alice')).toBe(rated([duel()], 'alice'))
+  })
+
+  it('records how far a battle moved each seat to the rating they see', () => {
+    const battles = season(['alice', 'bob'], ['alice', 'bob'])
+    const moved = [...standings(battles).changes.values()].reduce((total, change) => total + change[0]!, 0)
+
+    expect(moved).toBe(rated(battles, 'alice')! - 1000)
   })
 
   it('separates equal ratings by the points a battle behind them', () => {

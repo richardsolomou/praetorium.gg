@@ -195,7 +195,7 @@ function Side({
   return (
     <span className={cn('min-w-0 space-y-2', className)}>
       {seats.length ? (
-        seats.map(({ player, army, faction, detachments }) => (
+        seats.map(({ player, army, faction, detachments, ratingChange }) => (
           <span
             key={player.id || player.name}
             className={`flex min-w-0 items-center gap-2.5 ${mirrored ? 'sm:flex-row-reverse sm:text-right' : ''}`}
@@ -205,6 +205,7 @@ function Side({
               <span className={`flex min-w-0 items-baseline gap-1.5 ${mirrored ? 'sm:flex-row-reverse' : ''}`}>
                 <span className="truncate text-sm leading-tight font-bold uppercase">{player.name}</span>
                 {player.id === viewerId ? <span className="eyebrow shrink-0 text-parchment">You</span> : null}
+                {ratingChange === null ? null : <RatingChange change={ratingChange} />}
               </span>
               <span className={`mt-0.5 flex min-w-0 items-center gap-1.5 text-xs text-dim ${mirrored ? 'sm:flex-row-reverse' : ''}`}>
                 {faction ? <FactionMark faction={faction} size="sm" /> : null}
@@ -222,6 +223,18 @@ function Side({
           <span className="block text-xs text-faint">Waiting for an opponent</span>
         </span>
       )}
+    </span>
+  )
+}
+
+/** What the battle did to a player's leaderboard rating, signed so a gain and a loss read apart without the colour. */
+function RatingChange({ change }: { change: number }) {
+  return (
+    <span
+      title="Leaderboard rating change"
+      className={cn('readout shrink-0 text-2xs', change > 0 ? 'text-achieved' : change < 0 ? 'text-rust' : 'text-faint')}
+    >
+      {change > 0 ? `+${change}` : change < 0 ? `−${-change}` : '±0'}
     </span>
   )
 }

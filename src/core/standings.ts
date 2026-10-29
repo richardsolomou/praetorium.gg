@@ -42,10 +42,11 @@ export type Standing = {
   lastPlayed: number
 }
 
-/** The overall table and one per faction played, most played first. */
-export type StandingsTables = {
+/** The overall table and one per faction played, most played first, and how far each counted battle moved each seat's overall rating. */
+export type StandingsTables<B extends StandingBattle = StandingBattle> = {
   overall: Standing[]
   factions: { faction: StandingFaction; rows: Standing[] }[]
+  changes: Map<B, number[]>
 }
 
 /** Concession takes precedence over score, and allies share their side’s result. */
@@ -77,7 +78,7 @@ export function sideScore(battle: StandingBattle, side: number) {
  * Exclude practice, guest, and manually tracked battles entirely, including the account holders' side; all table shapes count together.
  * The host plays a guest's side unverified, so counting it would let anyone rate themselves against opponents they made up.
  */
-function counted(battles: readonly StandingBattle[], exclude: readonly string[]) {
+function counted<B extends StandingBattle>(battles: readonly B[], exclude: readonly string[]) {
   const excluded = new Set(exclude)
   return battles.filter(
     (battle) =>
@@ -113,11 +114,12 @@ const mean = (values: readonly number[]) => values.reduce((total, value) => tota
  * Every battle given is rated; `activeSince` only decides who is listed, so a
  * rating does not change because an old battle stopped being shown.
  */
-export function standings(
-  battles: readonly StandingBattle[],
+export function standings<B extends StandingBattle>(
+  battles: readonly B[],
   { exclude = [], activeSince = 0 }: { exclude?: readonly string[]; activeSince?: number } = {},
-): StandingsTables {
+): StandingsTables<B> {
   const overall = new Map<string, Entry>()
+  const changes = new Map<B, number[]>()
   const factions = new Map<string, { faction: StandingFaction; seats: number; entries: Map<string, Entry> }>()
   for (const battle of counted(battles, exclude).toSorted((one, other) => one.lastActivity - other.lastActivity)) {
     const sides = [...new Set(battle.sides)]
@@ -157,6 +159,10 @@ export function standings(
       record(fielded.row, battle, seat)
     })
     const after = rated(before)
+    changes.set(
+      battle,
+      after.map((skill, seat) => shown(skill) - shown(before[seat]!)),
+    )
     players.forEach((player, seat) => {
       player.skill = after[seat]!
       record(player.row, battle, seat)
@@ -168,6 +174,7 @@ export function standings(
       .sort((one, other) => other.seats - one.seats || one.faction.displayName.localeCompare(other.faction.displayName))
       .map(({ faction, entries }) => ({ faction, rows: ranked(entries, activeSince) }))
       .filter((table) => table.rows.length),
+    changes,
   }
 }
 
@@ -201,11 +208,14 @@ function record(row: Standing, battle: StandingBattle, seat: number) {
   row.lastPlayed = Math.max(row.lastPlayed, battle.lastActivity)
 }
 
+/** The rating a player sees. */
+const shown = (skill: Rating) => Math.round(ordinal(skill, DISPLAY))
+
 /** Rounded before sorting, so the printed rating is the one the order was taken from. */
 function ranked(entries: ReadonlyMap<string, Entry>, activeSince: number): Standing[] {
   return [...entries.values()]
     .filter(({ row }) => row.lastPlayed >= activeSince)
-    .map(({ row, skill }) => ({ ...row, rating: Math.round(ordinal(skill, DISPLAY)) }))
+    .map(({ row, skill }) => ({ ...row, rating: shown(skill) }))
     .sort(compareStandings)
 }
 

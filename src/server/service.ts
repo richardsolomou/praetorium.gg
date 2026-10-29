@@ -108,6 +108,8 @@ type StandingsFold = {
   days: number
   overall: { faction: null; rows: Standing[] }
   factions: { faction: StandingFaction; rows: Standing[] }[]
+  /** How far each counted battle moved each seat's overall rating, by battle token. */
+  changes: ReadonlyMap<string, readonly number[]>
 }
 
 /** One player's place in each table they appear in, and the window it covers. */
@@ -227,7 +229,7 @@ export class PraetoriumService {
     factions?: readonly BattleFaction[],
   ) {
     const { battles: histories, nextCursor } = await this.repository.battlesByUser(userId, page)
-    return { battles: this.battleSummaries(histories, userId, rules, factions), nextCursor }
+    return { battles: await this.withRatingChanges(this.battleSummaries(histories, userId, rules, factions), factions), nextCursor }
   }
 
   /**
@@ -324,6 +326,7 @@ export class PraetoriumService {
         days: STANDINGS_DAYS,
         overall: { faction: null, rows: tables.overall },
         factions: tables.factions,
+        changes: new Map([...tables.changes].map(([battle, change]) => [battle.token, change])),
       }
       this.standingsHeld = { key, until: this.clock() + STANDINGS_HOLD_MS, fold }
       return fold
@@ -400,7 +403,10 @@ export class PraetoriumService {
       performance: personalPerformance(summaries, userId, filter),
       facets,
       // What each side did is the record's to count, not the battle list's to carry.
-      battles: shown.slice(0, PROFILE_BATTLE_PAGE).map(({ plays: _plays, ...battle }) => battle),
+      battles: await this.withRatingChanges(
+        shown.slice(0, PROFILE_BATTLE_PAGE).map(({ plays: _plays, ...battle }) => battle),
+        factions,
+      ),
       played: shown.length,
     }
   }
@@ -711,6 +717,23 @@ export class PraetoriumService {
       current: current && (seated || current.visibility === 'public') ? summary(current) : null,
       options: seated ? options.map((club) => ({ id: club.id, ...summary(club) })) : [],
     }
+  }
+
+  /**
+   * Each battle with how far it moved each seat's overall rating, from the leaderboard's own fold.
+   *
+   * Only the battle list and a profile's battles carry it: the public feeds refetch
+   * often enough that each would refold the leaderboard every time its hold lapsed.
+   */
+  private async withRatingChanges<T extends { token: string }>(
+    battles: T[],
+    factions: readonly BattleFaction[] = [],
+  ): Promise<(T & { ratingChanges?: readonly number[] })[]> {
+    const { changes } = await this.standingsFold(factions)
+    return battles.map((battle) => {
+      const ratingChanges = changes.get(battle.token)
+      return ratingChanges ? { ...battle, ratingChanges } : battle
+    })
   }
 
   private battleSummaries(
