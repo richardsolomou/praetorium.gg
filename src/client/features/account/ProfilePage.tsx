@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ImagePlus, Trash2, UserRound } from 'lucide-react'
 import { classifyAuthCallbackFailure } from 'ras-stack/auth/client'
 import { useAuthAction } from 'ras-stack/auth/react'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { posthog } from 'posthog-js'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label'
 import { PROFILE_NAME_MAX_LENGTH } from '../../../core/profileName'
 import { authClient } from '../../authClient'
 import { AccountSecurity } from './AccountSecurity'
+import { authFailureReason } from './authFailureReason'
 import { PlayerDefaultsSettings } from './PlayerDefaultsSettings'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -39,6 +40,10 @@ export function ProfilePage({ error, verified }: { error?: string; verified?: bo
   const { data: me } = useQuery(meQuery())
   const { data: methods } = useQuery({ ...accountMethodsQuery(), enabled: Boolean(me) })
   const callbackError = accountLinkErrorMessage(error)
+  // A link that failed at the provider comes back here with only its code, so the provider is not known.
+  useEffect(() => {
+    if (error) posthog.capture('account_authentication_failed', { action: 'link', method: 'social', reason: authFailureReason(error) })
+  }, [error])
   if (!me && callbackError) {
     return <SignInRequired title="Could not complete account verification" explanation={`${callbackError} Sign in to try again.`} />
   }

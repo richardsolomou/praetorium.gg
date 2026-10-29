@@ -20,7 +20,7 @@ import {
 } from 'ras-stack/auth'
 import { standardAuthEmails, type EmailDelivery } from 'ras-stack/email'
 import { errorHasCode } from 'ras-stack/server'
-import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS } from '../authConfig'
+import { PASSWORD_MIN_LENGTH, SOCIAL_PROVIDERS, type SocialAuthProvider } from '../authConfig'
 import { account, schema, session as sessionTable, user } from '../db/authSchema'
 import { oauthAccessToken, oauthClient, oauthConsent, oauthRefreshToken, oauthSchema } from '../db/oauthSchema'
 import type { AdminConnection, AdminSession } from '../admin'
@@ -47,6 +47,8 @@ type AuthOptions = {
   /** Called after a player links GitHub, so their sponsorship shows before they leave the callback. */
   githubLinked?: () => Promise<void>
   captureAuthentication?: (userId: string, event: 'account_created' | 'account_signed_in', properties: { method: string }) => Promise<void>
+  /** Called when a player adds a social sign-in to an account they already had. */
+  captureSignInMethodAdded?: (userId: string, provider: SocialAuthProvider) => Promise<void>
 }
 
 export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret: string, options: AuthOptions) {
@@ -256,6 +258,12 @@ export function createSqliteAuth(database: LibSQLDatabase<typeof schema>, secret
           after: async (created, context) => {
             await claimInitialAdmin(created.userId)
             await applySocialAvatarIfMissing(created, context)
+            const provider = SOCIAL_PROVIDERS.find((method) => method === created.providerId)
+            // An account made in the same request as its player is how they signed up, not a method added later.
+            if (provider && !(context && createdAccounts.has(context.context)))
+              await options
+                .captureSignInMethodAdded?.(created.userId, provider)
+                .catch(async (error: unknown) => (await auth.$context).logger.error('Authentication analytics capture failed', error))
             if (created.providerId === 'github')
               await options
                 .githubLinked?.()

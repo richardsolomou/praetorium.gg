@@ -91,7 +91,6 @@ export function NativeAuthPage({ search }: { search: NativeAuthSearch }) {
         setFailed(true)
         return
       }
-      if (action === 'link') posthog.capture('sign_in_method_added', { method: provider, native: true })
       returnToApplication({ action, bridge, next, provider }, exchange, challenge)
     }
 
