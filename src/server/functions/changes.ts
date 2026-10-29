@@ -2,7 +2,7 @@ import { createServerFn } from '@tanstack/react-start'
 import { z } from 'zod'
 import type { IndexedUpdate } from '../../contracts/catalogueChanges'
 import type { CatalogueChange } from '../../core/catalogueChanges'
-import { decodeHistoryCursor, encodeHistoryCursor, historyPage } from '../../core/catalogueHistory'
+import { decodeHistoryCursor, encodeHistoryCursor, historyPage, updateSummary } from '../../core/catalogueHistory'
 import { app } from '../app'
 import { factionHistory, indexedUpdate, listedHistory, recentReferenceChanges } from '../catalogueChangeLog'
 import { historyAnchor } from '../catalogueHistory'
@@ -73,7 +73,7 @@ export const armyUpdates = createServerFn({ method: 'GET' })
               slug,
               recordedAt: entry.recordedAt,
               anchor: historyAnchor(entry),
-              changes: entry.changes.factions.reduce((total, faction) => total + faction.changes.length, entry.changes.omitted),
+              changes: updateSummary(entry.changes).total,
             },
           ]
         }),

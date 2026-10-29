@@ -5,7 +5,7 @@ import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
 import {
   factionHistory,
   factionsLastUpdated,
-  linkedChanges,
+  indexedUpdate,
   listedHistory,
   referenceHistory,
   referencesLastUpdated,
@@ -19,13 +19,22 @@ const canonical = {
   detachments: [{ catalogueId: 'marines', id: 'gladius', factionSlug: 'space-marines', slug: 'gladius-task-force' }],
 } as unknown as CanonicalCatalogue
 
-const set = (changes: CatalogueChangeSet['factions'][number]['changes']): CatalogueChangeSet => ({
+type Changes = CatalogueChangeSet['factions'][number]['changes']
+
+const set = (changes: Changes): CatalogueChangeSet => ({
   factions: [{ catalogueId: 'marines', faction: 'Space Marines', changes }],
   omitted: 0,
 })
 
-const links = (changes: CatalogueChangeSet['factions'][number]['changes'], data: CanonicalCatalogue | null = canonical) =>
-  linkedChanges(set(changes), data).factions[0]!.changes.map((change) => change.link)
+const historyOf = (factions: CatalogueChangeSet['factions']): CatalogueHistoryEntry => ({
+  from: 'from',
+  revisions: {},
+  recordedAt: 1,
+  changes: { factions, omitted: 0 },
+})
+
+const links = (changes: Changes, data: CanonicalCatalogue | null = canonical) =>
+  indexedUpdate(historyOf(set(changes).factions), data).groups[0]!.changes.map((change) => change.link)
 
 it('links a repriced datasheet to its reference page', () => {
   expect(links([{ kind: 'datasheet-points', id: 'intercessors', name: 'Intercessor Squad', rows: [] }])).toEqual([
@@ -55,6 +64,19 @@ it('links a removed datasheet nowhere, even while an entry with its id remains',
 
 it('links nothing the current data no longer holds', () => {
   expect(links([{ kind: 'detachment-points', id: 'anvil', name: 'Anvil Siege Force', from: '1', to: '2' }])).toEqual([null])
+})
+
+it('links a change several armies share through the first army that has the page', () => {
+  const change: Changes[number] = { kind: 'datasheet-points', id: 'intercessors', name: 'Intercessor Squad', rows: [] }
+  const shared = indexedUpdate(
+    historyOf([
+      { catalogueId: 'chapter', faction: 'A Chapter', changes: [change] },
+      { catalogueId: 'marines', faction: 'Space Marines', changes: [change] },
+    ]),
+    canonical,
+  )
+
+  expect(shared.groups[0]!.changes[0]!.link).toEqual({ kind: 'datasheet', faction: 'space-marines', slug: 'intercessor-squad' })
 })
 
 it('links nothing while the instance holds no data', () => {

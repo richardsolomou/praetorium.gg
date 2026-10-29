@@ -13,7 +13,15 @@ import { compareText } from './text'
  * name inside the detachment that offers them.
  */
 
-type PointsRow = { models: string; cost: string; keyword: string | null; faction: string | null; detachment: string | null }
+type PointsRow = {
+  models: string
+  cost: string
+  keyword: string | null
+  faction: string | null
+  detachment: string | null
+  /** The copies of the datasheet a row prices, such as "Your 3rd + Unit Costs". */
+  copies?: string
+}
 type PricedOption = { name: string; points: number | null }
 
 /** The part of a compiled reference catalogue a change set is read from. */
@@ -174,14 +182,22 @@ const rowsOf = (sheet: Datasheet): PointsRow[] =>
       ? []
       : [{ models: '', cost: String(sheet.points), keyword: null, faction: null, detachment: null }]
 
-const rowIdentity = (row: PointsRow) => key(row.models, row.keyword, row.faction, row.detachment)
-const rowCondition = (row: PointsRow) => [row.keyword, row.faction, row.detachment].filter(Boolean).join(', ') || null
+/** A copy tier as a short label, "Your 1st To 2nd Units Cost" as "1st–2nd unit"; an unfamiliar one as printed. */
+function copiesLabel(copies: string | undefined) {
+  if (!copies) return null
+  const tier = /^your (\d+(?:st|nd|rd|th))(?: to (\d+(?:st|nd|rd|th)))?\s*(\+)?\s*units? costs?$/i.exec(copies.trim())
+  return tier ? `${tier[1]}${tier[2] ? `–${tier[2]}` : (tier[3] ?? '')} unit` : copies
+}
+
+const rowIdentity = (row: PointsRow) => key(row.models, row.keyword, row.faction, row.detachment, row.copies ?? null)
+const rowCondition = (row: PointsRow) =>
+  [row.keyword, row.faction, row.detachment, copiesLabel(row.copies)].filter(Boolean).join(', ') || null
 
 function datasheetChanges(before: Datasheet, after: Datasheet): CatalogueChange[] {
   const old = rowsOf(before)
   const next = rowsOf(after)
   const singleUnconditional = (rows: readonly PointsRow[]) =>
-    rows.length === 1 && !rows[0]!.keyword && !rows[0]!.faction && !rows[0]!.detachment
+    rows.length === 1 && !rows[0]!.keyword && !rows[0]!.faction && !rows[0]!.detachment && !rows[0]!.copies
   if (singleUnconditional(old) && singleUnconditional(next)) {
     old[0] = { ...old[0]!, models: '' }
     next[0] = { ...next[0]!, models: '' }
@@ -243,7 +259,8 @@ function compared<T extends { catalogueId: string; faction: string; id: string; 
   const next = byIdentity(after, identity, same)
   const oldUnmatched = [...old.unique].filter(([id]) => !next.unique.has(id))
   const newUnmatched = [...next.unique].filter(([id]) => !old.unique.has(id))
-  const byName = (records: readonly [string, T][]) => groupBy(records, ([, record]) => key(record.faction, record.name))
+  // Sources recapitalise names between books, "Grav-tank" becoming "Grav-Tank".
+  const byName = (records: readonly [string, T][]) => groupBy(records, ([, record]) => key(record.faction, record.name.toLowerCase()))
   const newNames = matchNames ? byName(newUnmatched) : new Map<string, [string, T][]>()
   const oldNames = matchNames ? byName(oldUnmatched) : new Map<string, [string, T][]>()
   const replacements = new Map<string, T>()

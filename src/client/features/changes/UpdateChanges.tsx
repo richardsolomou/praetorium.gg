@@ -1,33 +1,35 @@
+import { Link } from '@tanstack/react-router'
+import { Fragment } from 'react'
 import { FactionReferenceLink } from '../../components/FactionReferenceLink'
-import type { LinkedChange, LinkedChangeSet } from '../../../contracts/catalogueChanges'
-import { type ChangeSection, changeDetail, changeSection } from '../../catalogueChanges'
-import { UpdateFactionLabel } from './UpdateFactionLabel'
-
-const SECTIONS: readonly ChangeSection[] = ['Datasheets', 'Detachments', 'Enhancements', 'Upgrades']
+import type { IndexedUpdate, LinkedChange, LinkedChangeGroup } from '../../../contracts/catalogueChanges'
+import {
+  CHANGE_OUTCOMES,
+  CHANGE_SECTIONS,
+  type ChangeSection,
+  changeDetail,
+  changeOutcome,
+  changeSection,
+  pointsRows,
+} from '../../catalogueChanges'
 
 /**
- * Every change one update records, grouped by faction and then by section, as the body of its
- * row on the index. Each faction's block carries the anchor the row's faction links point to.
+ * Every change one update records, as the body of its row: one block per set of armies that
+ * share the same changes, each split by section. The armies are named on the index, where
+ * they link to their own updates, and on an army's page only when its changes differ by version.
  */
-export function UpdateChanges({ update }: { update: LinkedChangeSet }) {
+export function UpdateChanges({ update, named }: { update: IndexedUpdate; named: boolean }) {
   return (
-    <div className="space-y-6">
-      {update.factions.map((faction) => (
-        <div key={faction.catalogueId} id={faction.anchor} data-faction={faction.faction} className="scroll-mt-header">
-          <h3 className="border-b border-edge pb-3 text-base normal-case">
-            {faction.slug ? (
-              <FactionReferenceLink to="/factions/$catalogueId" params={{ catalogueId: faction.slug }} className="hover:text-bone">
-                <UpdateFactionLabel name={faction.faction} />
-              </FactionReferenceLink>
-            ) : (
-              <UpdateFactionLabel name={faction.faction} />
-            )}
-          </h3>
-          {SECTIONS.map((section) => {
-            const changes = faction.changes.filter((change) => changeSection(change) === section)
-            return changes.length ? <ChangeList key={section} section={section} changes={changes} /> : null
-          })}
-        </div>
+    <div className="space-y-5">
+      {update.groups.map((group) => (
+        <section key={group.factions.map((faction) => faction.catalogueId).join()} data-factions={slugsOf(group)}>
+          {named || update.groups.length > 1 ? <GroupHeading group={group} linked={named} /> : null}
+          <dl className="grid gap-x-4 sm:grid-cols-[7.5rem_minmax(0,1fr)]">
+            {CHANGE_SECTIONS.map((section) => {
+              const changes = group.changes.filter((change) => changeSection(change) === section)
+              return changes.length ? <ChangeList key={section} section={section} changes={changes} /> : null
+            })}
+          </dl>
+        </section>
       ))}
       {update.omitted ? (
         <p className="text-xs text-dim">
@@ -38,29 +40,71 @@ export function UpdateChanges({ update }: { update: LinkedChangeSet }) {
   )
 }
 
+const slugsOf = (group: LinkedChangeGroup) => [...new Set(group.factions.flatMap((faction) => faction.slug ?? []))].join(' ')
+
+function GroupHeading({ group, linked }: { group: LinkedChangeGroup; linked: boolean }) {
+  return (
+    <h3 className="mb-1 border-b border-edge pb-1.5 font-sans text-sm leading-relaxed font-semibold normal-case">
+      {group.factions.length > 1 ? <span className="eyebrow mr-2">{group.factions.length} armies</span> : null}
+      {group.factions.map((faction, at) => (
+        <Fragment key={faction.catalogueId}>
+          {at ? <span className="text-faint">, </span> : null}
+          {linked && faction.slug ? (
+            <Link to="/data-updates/$catalogueId" params={{ catalogueId: faction.slug }} className="text-bone hover:text-info">
+              {faction.faction}
+            </Link>
+          ) : (
+            <span className="text-bone">{faction.faction}</span>
+          )}
+        </Fragment>
+      ))}
+    </h3>
+  )
+}
+
+const OUTCOME_TONE = { repriced: 'text-discarded', removed: 'text-destructive', added: 'text-achieved' } as const
+
+/** A section's changes under what happened to them, so a row needs only its name, and its price when that moved. */
 function ChangeList({ section, changes }: { section: ChangeSection; changes: LinkedChange[] }) {
   return (
-    <div className="mt-4">
-      <p className="eyebrow">{section}</p>
-      <ul className="mt-2 divide-y divide-edge border border-edge bg-panel">
-        {changes.map((change) => (
-          <li
-            key={JSON.stringify(change)}
-            className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-3 py-3 text-sm sm:px-4"
-          >
-            <span className="min-w-0 break-words">
-              <ChangeName change={change} />
-              {'detachment' in change ? <span className="mt-0.5 block text-xs text-dim">{change.detachment}</span> : null}
-            </span>
-            <span
-              className={`readout text-xs ${change.kind.endsWith('removed') ? 'text-destructive' : change.kind.endsWith('added') ? 'text-achieved' : 'text-discarded'}`}
-            >
-              {changeDetail(change)}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <>
+      <dt className="eyebrow pt-2">{section}</dt>
+      <dd className="mb-3 space-y-2 pt-1.5 sm:mb-1">
+        {CHANGE_OUTCOMES.map((result) => {
+          const listed = changes.filter((change) => changeOutcome(change) === result)
+          if (!listed.length) return null
+          return (
+            <div key={result}>
+              <p className={`text-xs font-semibold capitalize ${OUTCOME_TONE[result]}`}>
+                {result} <span className="readout font-normal text-dim">{listed.length}</span>
+              </p>
+              <ul className={result === 'repriced' ? 'grid' : 'grid gap-x-6 sm:grid-cols-2'}>
+                {listed.map((change) => (
+                  <li
+                    key={JSON.stringify(change)}
+                    className="flex flex-wrap items-baseline justify-between gap-x-4 border-b border-edge/60 py-1 text-sm leading-snug"
+                  >
+                    <span className="min-w-0 break-words">
+                      <ChangeName change={change} />
+                      {'detachment' in change ? <span className="text-xs text-dim"> · {change.detachment}</span> : null}
+                    </span>
+                    {result === 'repriced' ? <PriceChange change={change} /> : null}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        })}
+      </dd>
+    </>
+  )
+}
+
+function PriceChange({ change }: { change: LinkedChange }) {
+  return (
+    <span className="readout ml-auto flex flex-col items-end text-xs text-discarded">
+      {change.kind === 'datasheet-points' ? pointsRows(change.rows).map((row) => <span key={row}>{row}</span>) : changeDetail(change)}
+    </span>
   )
 }
 

@@ -1,7 +1,12 @@
 import { z } from 'zod'
 import { fromBase64Url, toBase64Url } from './base64'
-import { type CatalogueChangeSet, catalogueChangeSetSchema, isEmptyChangeSet, type RecordedChangeSet } from './catalogueChanges'
-import { routeSlug } from './slug'
+import {
+  type CatalogueChange,
+  type CatalogueChangeSet,
+  catalogueChangeSetSchema,
+  isEmptyChangeSet,
+  type RecordedChangeSet,
+} from './catalogueChanges'
 import { compareText } from './text'
 
 /**
@@ -111,12 +116,42 @@ export function historySince(history: readonly CatalogueHistoryEntry[], after: n
 /** An update with at most this many changes is shown open on the index; a larger one starts closed. */
 const INLINE_UPDATE_CHANGES = 5
 
-/** How many of an update's factions its row names before counting the rest. */
-export const INDEX_FACTIONS = 6
+/** Changes that the same armies all recorded. */
+export type SharedChanges = { factions: { catalogueId: string; faction: string }[]; changes: CatalogueChange[] }
 
-/** Every change an update records, the ones past the change set's bound included. */
-const changeCount = (changes: CatalogueChangeSet) =>
-  changes.factions.reduce((total, faction) => total + faction.changes.length, 0) + changes.omitted
+/**
+ * An update's changes, each said once under every army that recorded it, in groups of the
+ * changes the same armies share. Armies built on one book, such as the Space Marine chapters,
+ * record the same change apiece, which would otherwise repeat for every one of them.
+ */
+function sharedChanges(changes: CatalogueChangeSet): SharedChanges[] {
+  const armies = new Map<string, { change: CatalogueChange; factions: SharedChanges['factions'] }>()
+  for (const { catalogueId, faction, changes: recorded } of changes.factions)
+    for (const change of recorded) {
+      const shared = armies.get(JSON.stringify(change)) ?? { change, factions: [] }
+      shared.factions.push({ catalogueId, faction })
+      armies.set(JSON.stringify(change), shared)
+    }
+  const groups = new Map<string, SharedChanges>()
+  for (const { change, factions } of armies.values()) {
+    const key = JSON.stringify(factions.map((faction) => faction.catalogueId))
+    const group = groups.get(key) ?? { factions, changes: [] }
+    group.changes.push(change)
+    groups.set(key, group)
+  }
+  return [...groups.values()]
+}
+
+/**
+ * What an update's row says: its changes grouped by the armies that share them, how many
+ * distinct changes there are, the ones past the change set's bound included, and whether it
+ * is small enough to start open.
+ */
+export function updateSummary(changes: CatalogueChangeSet) {
+  const groups = sharedChanges(changes)
+  const total = groups.reduce((sum, group) => sum + group.changes.length, 0) + changes.omitted
+  return { groups, total, open: total <= INLINE_UPDATE_CHANGES }
+}
 
 /**
  * The fragment an update's row on the index is addressed by: the UTC day it was recorded,
@@ -126,40 +161,3 @@ const changeCount = (changes: CatalogueChangeSet) =>
  */
 export const updateAnchor = (recordedAt: number, digest: string) =>
   `update-${new Date(recordedAt).toISOString().slice(0, 10)}-${digest.slice(0, 8)}`
-
-/**
- * The fragment each faction's block inside an update is addressed by: the update's own
- * fragment, then the faction's name as the page prints it, made URL-safe, with a number
- * after any a second faction already took. The row's faction links and the blocks both
- * read this.
- */
-export function factionAnchors(update: string, factions: readonly { catalogueId: string; faction: string }[]) {
-  const taken = new Set<string>()
-  const anchors = new Map<string, string>()
-  for (const { catalogueId, faction } of factions) {
-    const base = `${update}-${routeSlug(faction) || 'faction'}`
-    let anchor = base
-    for (let copy = 2; taken.has(anchor); copy++) anchor = `${base}-${copy}`
-    taken.add(anchor)
-    anchors.set(catalogueId, anchor)
-  }
-  return anchors
-}
-
-/**
- * What an update's row says: its total, the factions it reached most first with their counts
- * and anchors, how many more there were, and whether it is small enough to start open.
- */
-export function updateSummary(update: string, changes: CatalogueChangeSet) {
-  const anchors = factionAnchors(update, changes.factions)
-  const factions = changes.factions
-    .map((faction) => ({ faction: faction.faction, anchor: anchors.get(faction.catalogueId)!, count: faction.changes.length }))
-    .toSorted((left, right) => right.count - left.count || compareText(left.faction, right.faction))
-  const total = changeCount(changes)
-  return {
-    total,
-    open: total <= INLINE_UPDATE_CHANGES,
-    factions: factions.slice(0, INDEX_FACTIONS),
-    more: Math.max(factions.length - INDEX_FACTIONS, 0),
-  }
-}

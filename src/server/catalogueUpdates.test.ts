@@ -47,36 +47,8 @@ describe('an update’s anchor', () => {
 })
 
 describe('an update as the index lists it', () => {
-  it('starts open with five changes and closed with six', () => {
-    expect([indexedUpdate(entry('a', 1, [['Orks', 5]]), null).open, indexedUpdate(entry('b', 1, [['Orks', 6]]), null).open]).toEqual([
-      true,
-      false,
-    ])
-  })
-
-  it('links each faction to the anchor its block carries in the row’s body', () => {
-    const update = indexedUpdate(
-      entry('a', 1, [
-        ['Orks', 4],
-        ['Emperor’s Children', 3],
-        ['Aeldari', 2],
-      ]),
-      null,
-    )
-
-    expect(update.factions.map((faction) => faction.anchor).toSorted()).toEqual(
-      update.changes.factions.map((faction) => faction.anchor).toSorted(),
-    )
-  })
-
-  it('nests each faction’s anchor inside its update’s', () => {
-    const update = indexedUpdate(entry('a', july22(4)), null)
-
-    expect(update.changes.factions.map((faction) => faction.anchor)).toEqual([`${update.anchor}-orks`])
-  })
-
   it('carries every change, whether it starts open or closed', () => {
-    expect(indexedUpdate(entry('a', 1, [['Orks', 9]]), null).changes.factions[0]?.changes).toHaveLength(9)
+    expect(indexedUpdate(entry('a', 1, [['Orks', 9]]), null).groups[0]?.changes).toHaveLength(9)
   })
 
   it('reaches every update once, a page at a time', () => {

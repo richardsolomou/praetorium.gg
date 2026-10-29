@@ -43,7 +43,7 @@ it.each(['faction', 'reference'] as const)('shows inherited edition history on i
 type ArmyUpdates = (input: {
   data: { factions: string[] }
 }) => Promise<{ slug: string; recordedAt: number; anchor: string; changes: number }[]>
-type ChangeLog = (input: { data: { faction: string } }) => Promise<{ updates: { anchor: string }[] }>
+type ChangeLog = (input: { data: { faction: string } }) => Promise<{ updates: { anchor: string; total: number }[] }>
 
 const later: CatalogueHistoryEntry = {
   from: 'later',
@@ -52,12 +52,12 @@ const later: CatalogueHistoryEntry = {
   changes: { factions: [{ catalogueId: faction, faction: 'Parent', changes: [change, change] }], omitted: 3 },
 }
 
-it("names an army's newest update as its updates page addresses it, counting what the update left unlisted", async () => {
+it("names an army's newest update as its updates page addresses and counts it", async () => {
   mocks.catalogueHistoryFor.mockResolvedValue([later, ...history])
   mocks.canonicalCatalogueFor.mockResolvedValue(canonical)
   const [newest] = await (armyUpdates as unknown as ArmyUpdates)({ data: { factions: [faction] } })
   const [page] = (await (catalogueChangeLog as unknown as ChangeLog)({ data: { faction } })).updates
-  expect(newest).toEqual({ slug: faction, recordedAt: 5, anchor: page!.anchor, changes: 5 })
+  expect(newest).toEqual({ slug: faction, recordedAt: 5, anchor: page!.anchor, changes: page!.total })
 })
 
 it('leaves out an army no update has reached', async () => {

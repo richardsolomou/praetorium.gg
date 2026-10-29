@@ -8,8 +8,6 @@ import {
   historyKey,
   historyPage,
   historySince,
-  factionAnchors,
-  INDEX_FACTIONS,
   updateAnchor,
   updateSummary,
 } from './catalogueHistory'
@@ -116,40 +114,34 @@ describe('what an update’s row says', () => {
     factions: counts.map(([faction, count]) => ({ catalogueId: faction.toLowerCase(), faction, changes: removed(count) })),
     omitted: 0,
   })
-  const row = (set: CatalogueChangeSet) => updateSummary('update-2026-07-22-0123abcd', set)
+  const factionsOf = (set: CatalogueChangeSet) => updateSummary(set).groups.map((group) => group.factions.map((f) => f.faction))
 
-  it('names the factions it reached most first, with their counts and anchors', () => {
-    expect(row(reaching(['Orks', 2], ['Aeldari', 9], ['Necrons', 2])).factions).toEqual([
-      { faction: 'Aeldari', anchor: 'update-2026-07-22-0123abcd-aeldari', count: 9 },
-      { faction: 'Necrons', anchor: 'update-2026-07-22-0123abcd-necrons', count: 2 },
-      { faction: 'Orks', anchor: 'update-2026-07-22-0123abcd-orks', count: 2 },
-    ])
+  it('says a change every army recorded once, under all of them', () => {
+    expect(factionsOf(reaching(['Blood Angels', 2], ['Dark Angels', 2]))).toEqual([['Blood Angels', 'Dark Angels']])
+  })
+
+  it('keeps the changes only some armies recorded under those armies', () => {
+    expect(factionsOf(reaching(['Blood Angels', 2], ['Dark Angels', 3]))).toEqual([['Blood Angels', 'Dark Angels'], ['Dark Angels']])
+  })
+
+  it('counts a change shared by several armies once', () => {
+    expect(updateSummary(reaching(['Blood Angels', 2], ['Dark Angels', 3])).total).toBe(3)
   })
 
   it('counts every change, including those past the change set’s bound', () => {
-    expect(row({ ...reaching(['Orks', 3]), omitted: 4 }).total).toBe(7)
-  })
-
-  it('names the first few factions and counts the rest', () => {
-    const many = row(reaching(...Array.from({ length: INDEX_FACTIONS + 3 }, (_, at): [string, number] => [`Faction ${at}`, 1])))
-
-    expect({ named: many.factions.length, more: many.more }).toEqual({ named: INDEX_FACTIONS, more: 3 })
-  })
-
-  it('counts no more factions when every one is named', () => {
-    expect(row(reaching(['Orks', 1])).more).toBe(0)
+    expect(updateSummary({ ...reaching(['Orks', 3]), omitted: 4 }).total).toBe(7)
   })
 
   it('starts open for an update of five changes', () => {
-    expect(row(reaching(['Orks', 3], ['Necrons', 2])).open).toBe(true)
+    expect(updateSummary(reaching(['Orks', 5], ['Necrons', 5])).open).toBe(true)
   })
 
   it('starts closed for an update of six changes', () => {
-    expect(row(reaching(['Orks', 3], ['Necrons', 3])).open).toBe(false)
+    expect(updateSummary(reaching(['Orks', 3], ['Necrons', 6])).open).toBe(false)
   })
 
   it('counts changes past the bound toward whether an update starts open', () => {
-    expect(row({ ...reaching(['Orks', 5]), omitted: 1 }).open).toBe(false)
+    expect(updateSummary({ ...reaching(['Orks', 5]), omitted: 1 }).open).toBe(false)
   })
 })
 
@@ -170,45 +162,5 @@ describe('the anchors an update is addressed by', () => {
 
   it('is URL-safe', () => {
     expect(updateAnchor(day, '0123abcd4567ef89')).toMatch(/^[a-z0-9-]+$/)
-  })
-
-  it('addresses each faction inside its update by the name the page prints', () => {
-    const anchors = factionAnchors('update-2026-07-22-0123abcd', [
-      { catalogueId: 'ec', faction: 'Emperor’s Children' },
-      { catalogueId: 'tau', faction: 'T’au Empire' },
-    ])
-
-    expect([...anchors.values()]).toEqual(['update-2026-07-22-0123abcd-emperors-children', 'update-2026-07-22-0123abcd-tau-empire'])
-  })
-
-  it('tells two factions of one name apart', () => {
-    const anchors = factionAnchors('update-x', [
-      { catalogueId: 'a', faction: 'Orks' },
-      { catalogueId: 'b', faction: 'Orks' },
-    ])
-
-    expect([...anchors.values()]).toEqual(['update-x-orks', 'update-x-orks-2'])
-  })
-
-  it('keeps one faction in two updates apart', () => {
-    const faction = [{ catalogueId: 'orks', faction: 'Orks' }]
-
-    expect(factionAnchors('update-a', faction).get('orks')).not.toBe(factionAnchors('update-b', faction).get('orks'))
-  })
-
-  it('links a row’s factions to the anchors its body renders', () => {
-    const twoOrks: CatalogueChangeSet = {
-      factions: [
-        { catalogueId: 'orks', faction: 'Orks', changes: [{ kind: 'datasheet-removed', id: 'lootas', name: 'Lootas' }] },
-        { catalogueId: 'orks-2', faction: 'Orks', changes: [{ kind: 'datasheet-removed', id: 'burnas', name: 'Burna Boyz' }] },
-      ],
-      omitted: 0,
-    }
-
-    expect(
-      updateSummary('update-x', twoOrks)
-        .factions.map((faction) => faction.anchor)
-        .toSorted(),
-    ).toEqual([...factionAnchors('update-x', twoOrks.factions).values()].toSorted())
   })
 })

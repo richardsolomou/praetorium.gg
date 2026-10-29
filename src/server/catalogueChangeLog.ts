@@ -1,8 +1,8 @@
-import type { CatalogueChange, CatalogueChangeSet } from '../core/catalogueChanges'
+import type { CatalogueChange } from '../core/catalogueChanges'
 import { editionFamilyId } from '../core/catalogueEdition'
-import { type CatalogueHistoryEntry, factionAnchors, updateSummary } from '../core/catalogueHistory'
+import { type CatalogueHistoryEntry, updateSummary } from '../core/catalogueHistory'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
-import type { IndexedUpdate, LinkedChangeSet, ReferenceLink } from '../contracts/catalogueChanges'
+import type { IndexedUpdate, ReferenceLink } from '../contracts/catalogueChanges'
 import { historyAnchor } from './catalogueHistory'
 import { groupBy, remember } from '../core/collections'
 
@@ -58,34 +58,29 @@ function linkOf(routes: Routes, catalogueId: string, change: CatalogueChange): R
 }
 
 /**
- * A recorded change set with each change linked to the page that now describes it.
+ * An update as the index lists it, its changes grouped by the armies that share them and each
+ * linked to the page that now describes it, through the first of those armies that has one.
  *
  * Linked against the data the instance holds today rather than the data the change came
  * from, so a link always leads somewhere: something since removed or renamed out of its
  * address is shown without one, never with a guess at where it went.
  */
-export function linkedChanges(changes: CatalogueChangeSet, canonical: CanonicalCatalogue | null, update = 'update'): LinkedChangeSet {
-  const routes = canonical ? routesOf(canonical) : null
-  const anchors = factionAnchors(update, changes.factions)
-  return {
-    omitted: changes.omitted,
-    factions: changes.factions.map((faction) => ({
-      ...faction,
-      anchor: anchors.get(faction.catalogueId)!,
-      slug: routes?.factions.get(faction.catalogueId) ?? null,
-      changes: faction.changes.map((change) => ({ ...change, link: routes ? linkOf(routes, faction.catalogueId, change) : null })),
-    })),
-  }
-}
-
-/** One update as the index lists it: its row, and every change it recorded for the row to open onto. */
 export function indexedUpdate(entry: CatalogueHistoryEntry, canonical: CanonicalCatalogue | null): IndexedUpdate {
-  const anchor = historyAnchor(entry)
+  const routes = canonical ? routesOf(canonical) : null
+  const { groups, total, open } = updateSummary(entry.changes)
   return {
-    anchor,
+    anchor: historyAnchor(entry),
     recordedAt: entry.recordedAt,
-    ...updateSummary(anchor, entry.changes),
-    changes: linkedChanges(entry.changes, canonical, anchor),
+    total,
+    open,
+    omitted: entry.changes.omitted,
+    groups: groups.map(({ factions, changes }) => ({
+      factions: factions.map((faction) => ({ ...faction, slug: routes?.factions.get(faction.catalogueId) ?? null })),
+      changes: changes.map((change) => ({
+        ...change,
+        link: routes ? (factions.map(({ catalogueId }) => linkOf(routes, catalogueId, change)).find(Boolean) ?? null) : null,
+      })),
+    })),
   }
 }
 
