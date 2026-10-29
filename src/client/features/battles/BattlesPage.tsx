@@ -10,7 +10,7 @@ import type { Battle } from './battle'
 import { BattleShelf } from './BattleShelf'
 import { CreateBattle } from './CreateBattle'
 import { DeleteBattleDialog } from './DeleteBattle'
-import { ImportBattlebase } from './ImportBattlebase'
+import { ImportBattles } from './ImportBattles'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { battlesFrom, battlesQuery, friendBattlesQuery, meQuery, publicBattlesQuery } from '../../queries'
@@ -49,7 +49,7 @@ export function BattlesPage({ view: asked }: { view: BattlesView }) {
           me ? (
             <>
               <GuideHelp task="battle">Battle guide</GuideHelp>
-              {view === 'mine' ? <ImportBattlebase /> : null}
+              {view === 'mine' ? <ImportBattles /> : null}
               {view === 'mine' && !battles.length ? null : <CreateBattle />}
             </>
           ) : (

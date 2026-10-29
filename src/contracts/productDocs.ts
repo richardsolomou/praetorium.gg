@@ -158,8 +158,8 @@ export const PRODUCT_DOCS = [
   {
     slug: 'import-battles',
     section: 'Battles',
-    title: 'Import battles from BattleBase',
-    description: 'Bring your finished BattleBase games into your battles and record.',
+    title: 'Import battles',
+    description: 'Bring your finished games in from another battle tracker.',
   },
   {
     slug: 'battle-problems',
