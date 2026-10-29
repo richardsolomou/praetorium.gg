@@ -156,13 +156,17 @@ function markerPositionIsOpen(
   )
 }
 
-function pointToSegmentDistance(point: { x: number; y: number }, start: { x: number; y: number }, end: { x: number; y: number }) {
+function pointToSegmentDistance(point: Point, start: Point, end: Point) {
+  const nearest = nearestOnSegment(point, start, end)
+  return Math.hypot(point.x - nearest.x, point.y - nearest.y)
+}
+
+function nearestOnSegment(point: Point, start: Point, end: Point) {
   const dx = end.x - start.x
   const dy = end.y - start.y
   const lengthSquared = dx * dx + dy * dy
-  if (!lengthSquared) return Math.hypot(point.x - start.x, point.y - start.y)
-  const amount = Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared))
-  return Math.hypot(point.x - (start.x + amount * dx), point.y - (start.y + amount * dy))
+  const amount = lengthSquared ? Math.max(0, Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared)) : 0
+  return { x: start.x + amount * dx, y: start.y + amount * dy }
 }
 
 export function pointInPolygon(point: { x: number; y: number }, polygon: { x: number; y: number }[]) {
@@ -177,6 +181,192 @@ export function pointInPolygon(point: { x: number; y: number }, polygon: { x: nu
     if (crosses) inside = !inside
   }
   return inside
+}
+
+export type Measurement = TerrainGeometry['areas'][number]['measurements'][number] & {
+  /** Read off the mat's printed edge ruler rather than drawn as an arrow. */
+  ruler?: boolean
+  /** On the first distance of each piece: its turn in the placement order. */
+  step?: number
+  /** What a placement distance runs from; publisher distances have none. */
+  reference?: PlacementReference
+}
+
+export type PlacementReference = 'terrain' | 'lines' | 'edges'
+
+type ReferenceSegment = { start: Point; end: Point; reference: PlacementReference }
+
+const referenceSegments = (segments: (readonly [Point, Point])[], reference: PlacementReference): ReferenceSegment[] =>
+  segments.map(([start, end]) => ({ start, end, reference }))
+
+/** Beyond this, a distance to the board edge is read off the mat's edge ruler: an arrow that long crosses the others. */
+const longestEdgeArrow = 12
+
+/** The deployment zone edges that cross the board: the lines a mat prints. Territory boundaries are not printed. */
+export function deploymentLines(deployment: { zones: { points: Point[] }[] }, board: TerrainGeometry['board']) {
+  return deployment.zones.flatMap((zone) => territoryBoundary(zone.points, board))
+}
+
+/**
+ * A placement order for the terrain and the fewest square-on distances that put down each piece in turn: two at one
+ * outer corner, plus one at a second corner when the piece is tilted. Each distance runs to the nearest of the given
+ * printed deployment lines, the board edge with `edges`, or the drawn edge of a piece already down with `terrain`.
+ * A piece or marker that can't be fixed in both directions from what is enabled and already down is left out.
+ * Objective markers outside terrain come last; one inside terrain lands wherever its terrain does, so it gets none.
+ */
+export function placementMeasurements(
+  geometry: TerrainGeometry,
+  objectives: Point[],
+  lines: (readonly [Point, Point])[],
+  { terrain, edges }: { terrain: boolean; edges: boolean },
+): Measurement[] {
+  const { board } = geometry
+  const fixed = [
+    ...referenceSegments(lines, 'lines'),
+    ...(edges
+      ? referenceSegments(
+          polygonEdges([
+            { x: 0, y: 0 },
+            { x: board.width, y: 0 },
+            { x: board.width, y: board.height },
+            { x: 0, y: board.height },
+          ]),
+          'edges',
+        )
+      : []),
+  ]
+  const axisMeasurements = (point: Point, approximate: boolean, references: ReferenceSegment[]) =>
+    [
+      [
+        { x: 1, y: 0 },
+        { x: -1, y: 0 },
+      ],
+      [
+        { x: 0, y: 1 },
+        { x: 0, y: -1 },
+      ],
+    ].flatMap((directions) => {
+      const nearest = directions
+        .flatMap((direction) =>
+          references.map(({ start, end, reference }) => {
+            const hit = rayHit(point, direction, start, end)
+            return hit && { ...hit, reference }
+          }),
+        )
+        .filter((hit) => hit !== null)
+        .sort((left, right) => left.distance - right.distance)[0]
+      if (!nearest) return []
+      const { at, distance, reference } = nearest
+      return [{ from: at, to: point, approximate, distance, reference, ruler: reference === 'edges' && distance > longestEdgeArrow }]
+    })
+  const total = (measurements: { distance: number }[]) => measurements.reduce((sum, measurement) => sum + measurement.distance, 0)
+  const place = (corners: Point[], tilted: boolean, approximate: boolean, references: ReferenceSegment[]) => {
+    const [first, ...rest] = corners
+      .map((corner) => axisMeasurements(corner, approximate, references))
+      .filter((measurements) => measurements.length === 2)
+      .sort((left, right) => total(left) - total(right))
+    if (!first) return null
+    const second = tilted ? rest.flat().sort((left, right) => left.distance - right.distance)[0] : undefined
+    return [...first, ...(second ? [second] : [])]
+  }
+
+  const remaining = [...groupBy(geometry.areas, (area) => area.group ?? area.id).values()].map((areas) => ({
+    approximate: areas.some((area) => area.measurements.some((measurement) => measurement.approximate)),
+    footprints: areas.map((area) => area.points),
+    ...footprintCorners(areas.map((area) => area.points)),
+  }))
+  const references = [...fixed]
+  const steps: Measurement[][] = []
+  while (remaining.length) {
+    const next = remaining
+      .map((piece, index) => ({ index, piece, measurements: place(piece.corners, piece.tilted, piece.approximate, references) }))
+      .sort(
+        (left, right) =>
+          (left.measurements ? total(left.measurements) : Infinity) - (right.measurements ? total(right.measurements) : Infinity),
+      )[0]!
+    // Sorted last, so nothing left can be fixed in both directions from what is down.
+    if (!next.measurements) break
+    remaining.splice(next.index, 1)
+    steps.push(next.measurements)
+    if (terrain) references.push(...next.piece.footprints.flatMap((footprint) => referenceSegments(polygonEdges(footprint), 'terrain')))
+  }
+  const markers = objectives
+    .filter(
+      (point) =>
+        !geometry.areas.some(
+          (area) =>
+            pointInPolygon(point, area.points) ||
+            polygonEdges(area.points).some(([start, end]) => pointToSegmentDistance(point, start, end) < 0.1),
+        ),
+    )
+    .map((point) => axisMeasurements(point, false, references))
+    .filter((measurements) => measurements.length === 2)
+  return [...steps, ...markers].flatMap((measurements, index) =>
+    measurements.map(({ from, to, approximate, ruler, reference }, position) => ({
+      from,
+      to,
+      approximate,
+      ruler,
+      reference,
+      ...(position ? {} : { step: index + 1 }),
+    })),
+  )
+}
+
+/**
+ * A terrain area's four real corners: the outline points nearest the corners of the tightest rectangle around its
+ * footprints. Outlines are hand-traced with wavy sides, so the tightest rectangle is what shows the piece's rotation.
+ */
+export function footprintCorners(footprints: Point[][]) {
+  const points = footprints.flat()
+  const box = (angle: number) => {
+    const along = { x: Math.cos(angle), y: Math.sin(angle) }
+    const projected = points.map((point) => ({ u: point.x * along.x + point.y * along.y, v: point.y * along.x - point.x * along.y }))
+    const us = projected.map((point) => point.u)
+    const vs = projected.map((point) => point.v)
+    const [minU, maxU, minV, maxV] = [Math.min(...us), Math.max(...us), Math.min(...vs), Math.max(...vs)]
+    return {
+      angle,
+      projected,
+      area: (maxU - minU) * (maxV - minV),
+      corners: [minU, maxU].flatMap((u) => [minV, maxV].map((v) => ({ u, v }))),
+    }
+  }
+  const angles = footprints
+    .flatMap((footprint) => polygonEdges(footprint))
+    .filter(([start, end]) => Math.hypot(end.x - start.x, end.y - start.y) > 1)
+    .map(([start, end]) => ((Math.atan2(end.y - start.y, end.x - start.x) % (Math.PI / 2)) + Math.PI / 2) % (Math.PI / 2))
+  // Ties go to the squarer angle, so a footprint split along its diagonal still reads as the rectangle it is.
+  const tightest = [0, ...angles]
+    .map(box)
+    .sort(
+      (left, right) =>
+        left.area - right.area || Math.min(left.angle, Math.PI / 2 - left.angle) - Math.min(right.angle, Math.PI / 2 - right.angle),
+    )[0]!
+  const corners = tightest.corners.map(
+    (corner) =>
+      points
+        .map((point, index) => ({
+          point,
+          distance: Math.hypot(tightest.projected[index]!.u - corner.u, tightest.projected[index]!.v - corner.v),
+        }))
+        .sort((left, right) => left.distance - right.distance)[0]!.point,
+  )
+  const tilted = Math.min(tightest.angle, Math.PI / 2 - tightest.angle) > 0.01
+  return { corners: [...new Map(corners.map((corner) => [`${corner.x}-${corner.y}`, corner])).values()], tilted }
+}
+
+/** Where a ray along a board axis first crosses a segment, or null when it misses or runs along it. */
+function rayHit(origin: Point, direction: Point, start: Point, end: Point) {
+  const along = direction.x ? 'x' : 'y'
+  const across = direction.x ? 'y' : 'x'
+  if (start[across] === end[across]) return null
+  const amount = (origin[across] - start[across]) / (end[across] - start[across])
+  if (amount < 0 || amount > 1) return null
+  const hit = start[along] + amount * (end[along] - start[along])
+  const distance = (hit - origin[along]) * direction[along]
+  if (distance <= 0.05) return null
+  return { distance, at: { ...origin, [along]: round(hit) } }
 }
 
 /** The edges of a territory that cross the board rather than run along its edge. */
@@ -207,12 +397,13 @@ export function placeMeasurementLabel(
   const direction = length ? { x: (boardEdge.x - arrow.x) / length, y: (boardEdge.y - arrow.y) / length } : { x: 0, y: 0 }
   const perpendicular = { x: -direction.y, y: direction.x }
   const inlineDistance = (vertical ? height : width) / 2 + 1.05
-  const offsets = [0, 0.9, -0.9, 1.8, -1.8].flatMap((sideways) =>
-    [0, 1.5, 3, 4.5, 6].map((back) => ({
+  const offsets = [0, 0.9, -0.9, 1.8, -1.8]
+    .flatMap((sideways) => [0, 1.5, 3, 4.5, 6].map((back) => ({ sideways, back })))
+    .sort((left, right) => Math.hypot(left.sideways, left.back) - Math.hypot(right.sideways, right.back))
+    .map(({ sideways, back }) => ({
       x: direction.x * (inlineDistance + back) + perpendicular.x * sideways,
       y: direction.y * (inlineDistance + back) + perpendicular.y * sideways,
-    })),
-  )
+    }))
 
   for (const offset of offsets) {
     const x = Math.min(board.height - width / 2 - 0.25, Math.max(width / 2 + 0.25, arrow.x + offset.x))

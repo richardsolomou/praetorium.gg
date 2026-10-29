@@ -1,6 +1,7 @@
 import { expect, test } from './test'
 import {
   attachRoster,
+  showOnlyPublishedDistances,
   befriend,
   chooseBattlefield,
   createBattle,
@@ -115,6 +116,8 @@ test('battle setup stays shared and does not wait for the other device', async (
     .click()
   const normalLayout = alice.getByRole('dialog')
   await expect(normalLayout.getByRole('img')).toBeVisible()
+  await expect(normalLayout.getByText('Placement order', { exact: false })).toBeVisible()
+  await showOnlyPublishedDistances(normalLayout)
   await expect(normalLayout.getByText('Placement distance · nearest ⅛″')).toBeVisible()
   await expect(normalLayout.locator('line[marker-end]')).toHaveCount(42)
   await alice.screenshot({ path: test.info().outputPath('setup-battlefield-dialog.png'), fullPage: true })
@@ -226,6 +229,7 @@ test('both devices settle mandatory tactical cards without racing', async ({ bro
   await alice.screenshot({ path: test.info().outputPath('setup-colosseum-battlefield.png'), fullPage: true })
   await alice.getByRole('button', { name: 'Enlarge Colosseum battlefield' }).click()
   await expect(alice.getByRole('dialog').getByRole('img')).toBeVisible()
+  await showOnlyPublishedDistances(alice.getByRole('dialog'))
   await expect(alice.getByRole('dialog').getByText('Deployment depth')).toBeVisible()
   await expect(alice.getByRole('dialog').locator('line[marker-end]')).toHaveCount(28)
   await expect(alice.getByRole('dialog').getByText('≈ Approximate placement · nearest ⅛″')).toBeVisible()

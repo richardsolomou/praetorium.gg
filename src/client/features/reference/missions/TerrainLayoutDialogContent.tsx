@@ -1,6 +1,9 @@
-import { Eye } from 'lucide-react'
+import { Eye, Square, SquareCheck } from 'lucide-react'
+import { useState } from 'react'
+import { cn } from '@/lib/utils'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../../components/Dialog'
-import { TerrainBoard } from './TerrainBoard'
+import { measurementColours, type MeasurementSource, TerrainBoard } from './TerrainBoard'
 import {
   deploymentObjectiveMarkers,
   terrainAreaJoins,
@@ -8,6 +11,10 @@ import {
   type TerrainPiece,
   type TerrainTemplate,
 } from './terrainGeometry'
+
+const sources: string[] = ['terrain', 'lines', 'edges', 'published', 'mat'] satisfies MeasurementSource[]
+
+const pressed = 'data-[pressed]:bg-bone/10 data-[pressed]:text-bone'
 
 type Props = {
   title: string
@@ -38,6 +45,8 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
   const objectiveMarkers = deploymentObjectives.some((objective) => objective.kind !== 'terrain')
   const measurements = layout.geometry?.areas.flatMap((area) => area.measurements) ?? []
   const joinedFootprints = layout.geometry ? terrainAreaJoins(layout.geometry).length > 0 : false
+  const [show, setShow] = useState<MeasurementSource[]>(layout.geometry ? ['terrain', 'lines', 'edges'] : ['published'])
+  const placing = show.some((source) => source === 'terrain' || source === 'lines' || source === 'edges')
   return (
     <DialogContent size="lg">
       <DialogHeader>
@@ -45,6 +54,55 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
         <DialogDescription>{description}</DialogDescription>
       </DialogHeader>
       <DialogBody>
+        {layout.geometry ? (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="text-xs text-dim">Measure to</span>
+            <ToggleGroup
+              multiple
+              value={show}
+              onValueChange={(value) => setShow(value.filter((source): source is MeasurementSource => sources.includes(source)))}
+              variant="outline"
+              size="sm"
+              className="flex-wrap"
+              aria-label="Measurements to show"
+            >
+              <ToggleGroupItem value="terrain" className={cn(pressed, measurementColours.terrain.border)}>
+                <Tick source="terrain" show={show} />
+                Other terrain
+              </ToggleGroupItem>
+              {deployment?.zones.length ? (
+                <ToggleGroupItem value="lines" className={cn(pressed, measurementColours.lines.border)}>
+                  <Tick source="lines" show={show} />
+                  Deployment lines
+                </ToggleGroupItem>
+              ) : null}
+              <ToggleGroupItem value="edges" className={cn(pressed, measurementColours.edges.border)}>
+                <Tick source="edges" show={show} />
+                Board edges
+              </ToggleGroupItem>
+              <ToggleGroupItem value="published" className={cn(pressed, measurementColours.published.border)}>
+                <Tick source="published" show={show} />
+                Objective centres
+              </ToggleGroupItem>
+              <ToggleGroupItem value="mat" className={cn(pressed, measurementColours.mat.border)}>
+                <Tick source="mat" show={show} />
+                Mat ruler
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+        ) : null}
+        {/* A grid row sizes a bare svg shorter than it draws, so the legend below would overlap the board's bottom edge. */}
+        <div>
+          <TerrainBoard
+            layout={layout}
+            deployment={deployment}
+            templates={templates}
+            className="mx-auto w-full max-w-5xl"
+            detailed
+            show={show}
+            ariaLabel={ariaLabel}
+          />
+        </div>
         <div className="flex flex-wrap gap-x-5 gap-y-2 border-y border-edge py-2 text-xs text-dim">
           <span className="flex items-center gap-2">
             <span className="size-3 border border-azure bg-raised" /> Terrain area footprint
@@ -87,15 +145,33 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
               {layout.geometry ? '40 mm objective marker · outside terrain' : '40 mm objective marker'}
             </span>
           ) : null}
-          {measurements.some((measurement) => !measurement.approximate) ? (
+          {placing ? (
             <span className="flex items-center gap-2">
-              <span className="h-px w-4 bg-side-a" />
+              <span className="flex size-3 items-center justify-center rounded-full border border-bone bg-void text-[0.5rem] font-extrabold text-bone">
+                1
+              </span>
+              Placement order · distance from the numbered corner, nearest ⅛″
+            </span>
+          ) : null}
+          {show.includes('edges') ? (
+            <span className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-measure-edges" /> Long edge distances: read off the mat's edge ruler
+            </span>
+          ) : null}
+          {show.includes('mat') ? (
+            <span className="flex items-center gap-2">
+              <span className="size-2 rounded-full bg-measure-mat" /> Across from the left edge · up from the bottom edge
+            </span>
+          ) : null}
+          {show.includes('published') && measurements.some((measurement) => !measurement.approximate) ? (
+            <span className="flex items-center gap-2">
+              <span className="h-px w-4 bg-measure-published" />
               {layout.publisherUrl ? 'Deployment depth' : 'Placement distance · nearest ⅛″'}
             </span>
           ) : null}
-          {measurements.some((measurement) => measurement.approximate) ? (
+          {show.includes('published') && measurements.some((measurement) => measurement.approximate) ? (
             <span className="flex items-center gap-2">
-              <span className="h-px w-4 bg-side-a" /> ≈ Approximate placement · nearest ⅛″
+              <span className="h-px w-4 bg-measure-published" /> ≈ Approximate placement · nearest ⅛″
             </span>
           ) : null}
           <span>
@@ -103,24 +179,28 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
             Grid: 1″ · heavier line every 5″
           </span>
         </div>
-        {layout.publisherUrl && measurements.some((measurement) => measurement.approximate) ? (
+        {placing ? (
+          <p className="text-xs text-dim">
+            Put the pieces down in numbered order, measuring each one square from its numbered corner. A tilted piece has one more distance
+            at a second corner to set its angle.
+          </p>
+        ) : null}
+        {show.includes('mat') ? (
+          <p className="text-xs text-dim">
+            Read each pair off a mat with printed inch marks: find the first number along the bottom edge and the second up the left edge,
+            then place the marked corner or objective where they cross.
+          </p>
+        ) : null}
+        {show.includes('published') && layout.publisherUrl && measurements.some((measurement) => measurement.approximate) ? (
           <p className="text-xs text-dim">
             Measure to the marked wall corners and objective centres. Keep the ruin walls parallel to the board edges.
           </p>
         ) : null}
-        {!layout.publisherUrl && layout.geometry?.areas.some((area) => area.measurements.length > 2) ? (
+        {show.includes('published') && !layout.publisherUrl && layout.geometry?.areas.some((area) => area.measurements.length > 2) ? (
           <p className="text-xs text-dim">
             For tilted terrain, match the two distances at the first marked corner, then the distance at the second corner.
           </p>
         ) : null}
-        <TerrainBoard
-          layout={layout}
-          deployment={deployment}
-          templates={templates}
-          className="mx-auto w-full max-w-5xl"
-          detailed
-          ariaLabel={ariaLabel}
-        />
         {layout.publisherObjectiveUrl && layout.publisherTerrainUrl ? (
           <p className="flex flex-wrap gap-4 text-sm text-info">
             <a href={layout.publisherObjectiveUrl} target="_blank" rel="noopener noreferrer" className="underline">
@@ -133,5 +213,14 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
         ) : null}
       </DialogBody>
     </DialogContent>
+  )
+}
+
+/** Ticked boxes take their option's colour on the board, so the toggles double as its key. */
+function Tick({ source, show }: { source: MeasurementSource; show: MeasurementSource[] }) {
+  return show.includes(source) ? (
+    <SquareCheck className={measurementColours[source].text} aria-hidden />
+  ) : (
+    <Square className="text-dim" aria-hidden />
   )
 }

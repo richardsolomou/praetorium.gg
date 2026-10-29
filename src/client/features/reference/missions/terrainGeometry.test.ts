@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   deploymentNeedsFlip,
+  footprintCorners,
   formatInches,
   objectiveTerrainMarkers,
   placeMeasurementLabel,
+  placementMeasurements,
   pointInPolygon,
   polygonCentroid,
   portraitPoint,
@@ -296,5 +298,52 @@ describe('joining footprints into one terrain area', () => {
     expect(terrainAreaJoins({ board, areas: [footprint('a', square(0, 0, 4), 'a'), footprint('b', square(6, 0, 4), 'a')] })).toEqual([
       { x: 5, y: 2 },
     ])
+  })
+})
+
+describe('placing terrain piece by piece', () => {
+  it('reads a rectangle drawn as two triangles split along its diagonal as square to the board', () => {
+    const corners = footprintCorners([
+      [
+        { x: 10, y: 10 },
+        { x: 20, y: 10 },
+        { x: 20, y: 16 },
+      ],
+      [
+        { x: 10, y: 10 },
+        { x: 20, y: 16 },
+        { x: 10, y: 16 },
+      ],
+    ])
+    expect(corners.tilted).toBe(false)
+  })
+
+  it('never measures to an objective inside terrain', () => {
+    const geometry = { board, areas: [openArea(square(10, 10, 6))] }
+    const ends = placementMeasurements(geometry, [{ x: 13, y: 13 }], [], { terrain: true, edges: true }).map(
+      (measurement) => measurement.to,
+    )
+    expect(ends).not.toContainEqual({ x: 13, y: 13 })
+  })
+
+  it('leaves out a piece that only one distance could fix', () => {
+    const geometry = { board, areas: [openArea(square(2, 2, 4))] }
+    const line = [
+      { x: 20, y: 0 },
+      { x: 20, y: 44 },
+    ] as const
+    expect(placementMeasurements(geometry, [], [line], { terrain: true, edges: false })).toEqual([])
+  })
+
+  it('measures a later piece from the edge of one already down when that is nearest', () => {
+    const geometry = {
+      board,
+      areas: [
+        { ...openArea(square(2, 2, 4)), id: 'first' },
+        { ...openArea(square(9, 2, 4)), id: 'second' },
+      ],
+    }
+    const froms = placementMeasurements(geometry, [], [], { terrain: true, edges: true }).map((measurement) => measurement.from)
+    expect(froms).toContainEqual({ x: 6, y: 2 })
   })
 })
