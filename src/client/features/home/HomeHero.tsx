@@ -19,7 +19,7 @@ import { SOURCE } from '../../projectLinks'
  */
 export function HomeHero({ battle }: { battle?: Battle }) {
   return (
-    <section className="relative overflow-hidden border-b border-edge bg-panel">
+    <section className="relative overflow-hidden border-b border-edge bg-masthead">
       <div className="plot-grid" />
       <div className="relative mx-auto grid w-full max-w-6xl gap-8 px-5 py-10 sm:px-6 md:py-16 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-center lg:gap-14">
         <div>

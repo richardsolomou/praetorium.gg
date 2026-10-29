@@ -169,7 +169,7 @@ function Welcome({ name, returning, newBattle, stats }: { name: string; returnin
   const firstName = name.trim().split(/\s+/)[0]
   const greeting = returning ? 'Welcome back' : 'Welcome'
   return (
-    <section className="relative overflow-hidden border-b border-edge bg-panel">
+    <section className="relative overflow-hidden border-b border-edge bg-masthead">
       <div className="plot-grid" />
       <div className="relative mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-x-6 gap-y-4 px-5 py-6 sm:px-6 sm:py-7">
         <div className="w-full sm:w-auto">

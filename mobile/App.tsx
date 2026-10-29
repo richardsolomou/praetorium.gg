@@ -79,7 +79,7 @@ import { pushAnswer } from './src/pushDevice'
 import { NATIVE_USER_AGENT } from './src/version'
 import { deleteSecureValue, getSecureValue, setSecureValue } from './src/secureStorage'
 
-const BACKGROUND = '#0e1316'
+const BACKGROUND = '#0f1113'
 /** The web header's and tab bar's `--color-sunken`, so the safe areas continue them. */
 const BARS = '#090d0f'
 const PENDING_AUTH_KEY = 'praetorium.native-auth.pending'
