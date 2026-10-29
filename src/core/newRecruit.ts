@@ -73,7 +73,8 @@ export function fromNewRecruitShare(
       .filter((category) => category !== configuration && category.option_id !== SETUP.reference)
       .flatMap((category) => category.options.filter((unit) => (unit.amount ?? 1) > 0)),
   )
-  const entries = new Map(nodes.flatMap((node, at) => (node.uid ? [[node.uid, at + 1] as const] : [])))
+  // A bodyguard names the characters joining it, so each of them is attached to the bodyguard's entry.
+  const bodyguards = new Map(nodes.flatMap((node, at) => (node.associated ?? []).map((link) => [link.uid, at + 1] as const)))
   const units = nodes.map((node, at): TextRosterUnit => {
     const selections: TextRosterUnit['selections'] = []
     let models = 0
@@ -88,6 +89,7 @@ export function fromNewRecruitShare(
         } else if (amount === undefined) visit(child, model, multiplier)
         else if (!model) {
           models += amount * multiplier
+          selections.push({ name: label(child), count: amount * multiplier })
           visit(child, label(child), amount * multiplier)
         } else {
           selections.push({ name: label(child), count: amount * multiplier, model })
@@ -96,7 +98,7 @@ export function fromNewRecruitShare(
       }
     }
     visit(node, undefined, 1)
-    const target = node.associated?.map((link) => entries.get(link.uid)).find((entry) => entry !== undefined)
+    const target = node.uid ? bodyguards.get(node.uid) : undefined
     return {
       name: label(node),
       ...(node.customName && node.customName !== node.name ? { nickname: node.customName } : {}),

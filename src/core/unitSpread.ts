@@ -9,7 +9,7 @@
  */
 
 import type { CatalogueIndex, Definition } from './catalogue'
-import { isCollectiveGroup } from './collective'
+import { isCollectiveGroup, storesUnitTotal } from './collective'
 import {
   childrenOf,
   hasMutableMinimum,
@@ -57,13 +57,13 @@ export function withUnitSpread(
     return keepingReplacedSquadmates(selection, placed, path.slice(0, -1), index)
   }
   if (repeatedEntry && entry?.type === 'upgrade' && groupId) {
-    return spreadRepeatedUpgrade(selection, path, counts[groupId] ?? 0, repeatedEntry)
+    return spreadRepeatedUpgrade(selection, path, counts[groupId] ?? 0, repeatedEntry, index)
   }
   if (entry?.type === 'upgrade' && groupId) {
     return withCounts(selection, [{ path, count: counts[groupId] ?? 0 }])
   }
 
-  const repeating = repeatedCarrierOn(path, index)
+  const repeating = repeatedCarrierOn(path, index) ?? splitCarrierOf(selection, path, group, index)
   if (!repeating)
     return group
       ? keepingTheSquad(selection, spreadOptions(selection, path, counts, group, index), path, index)
@@ -94,6 +94,18 @@ export function withUnitChoice(
   if (!selectedCarriers(carrier, path, index)) return selection
   const chosen = withChoice(carrier, key, optionId, index, options)
   return keepingReplacedSquadmates(selection, keepingTheSquad(selection, chosen, path, index), path, index)
+}
+
+/**
+ * A model another spread has already divided, as Death Company Marines given different pistols
+ * are, carrying a group whose options count for the whole squad: each part takes its own share.
+ */
+function splitCarrierOf(selection: Selection, path: readonly string[], group: Definition | undefined, index: CatalogueIndex) {
+  if (!group || !isCollectiveGroup(group, index)) return null
+  const modelPath = path.slice(0, -1)
+  const definition = index.definitions.get(modelPath.at(-1) ?? '')
+  if (!definition || resolve(definition, index).type !== 'model' || allAt(selection, modelPath).length < 2) return null
+  return { path: [...modelPath], definition }
 }
 
 /** Expand each spread option so required descendants and their rules survive. */
@@ -253,7 +265,39 @@ function standing(present: readonly Selection[], option: { id: string; definitio
   return left > 0 ? [...kept, expand(option.id, option.definition, index, MAX_DEPTH, left, new Set(), 1)] : kept
 }
 
-function spreadRepeatedUpgrade(selection: Selection, path: readonly string[], requested: number, repeating: { path: string[] }) {
+/**
+ * Some of a model selection's bodies, from `offset`, as a selection of their own. A count the
+ * selection stores for all its bodies, as a squad's collective chainswords are, is shared out
+ * rather than copied, so splitting five marines by pistol still leaves five chainswords.
+ */
+function part(model: Selection, offset: number, count: number, index: CatalogueIndex): Selection {
+  const bodies = model.count ?? 1
+  if (offset === 0 && count === bodies) return model
+  const share = (total: number) => Math.floor((total * (offset + count)) / bodies) - Math.floor((total * offset) / bodies)
+  const within = (node: Selection): Selection => {
+    if (!node.selections) return node
+    const holder = index.definitions.get(node.id)
+    return {
+      ...node,
+      selections: node.selections.flatMap((child) => {
+        const definition = index.definitions.get(child.id)
+        if (!definition || resolve(definition, index).type === 'model') return [child]
+        if (!storesUnitTotal(definition, holder, index)) return [within(child)]
+        const held = share(child.count ?? 1)
+        return held > 0 ? [{ ...child, count: held }] : []
+      }),
+    }
+  }
+  return { ...within(model), count }
+}
+
+function spreadRepeatedUpgrade(
+  selection: Selection,
+  path: readonly string[],
+  requested: number,
+  repeating: { path: string[] },
+  index: CatalogueIndex,
+) {
   const modelId = repeating.path.at(-1)
   if (!modelId) return selection
   const models = allAt(selection, repeating.path)
@@ -265,8 +309,8 @@ function spreadRepeatedUpgrade(selection: Selection, path: readonly string[], re
     const count = model.count ?? 1
     const base = withoutSelectionAt(model, withinModel)
     const taking = Math.min(remaining, count)
-    if (taking) variants.push(withCounts({ ...base, count: taking }, [{ path: withinModel, count: 1 }]))
-    if (taking < count) variants.push({ ...base, count: count - taking })
+    if (taking) variants.push(withCounts(part(base, 0, taking, index), [{ path: withinModel, count: 1 }]))
+    if (taking < count) variants.push(part(base, taking, count - taking, index))
     remaining -= taking
   }
   return replaceAt(selection, repeating.path.slice(0, -1), modelId, variants)
@@ -307,8 +351,10 @@ function spreadRepeatedGroup(
     .filter((request) => request.remaining > 0)
   // A body a request leaves over, as one the squad has just grown by, keeps what the
   // data gives every model; a request for none of the options puts them all down.
-  const unassigned = (base: Selection, count: number) =>
-    defaultId && requested.length ? withChoice({ ...base, count }, withinModel.join('/'), defaultId, index) : { ...base, count }
+  const unassigned = (base: Selection, offset: number, count: number) =>
+    defaultId && requested.length
+      ? withChoice(part(base, offset, count, index), withinModel.join('/'), defaultId, index)
+      : part(base, offset, count, index)
   const variants: Selection[] = []
   let requestAt = 0
 
@@ -319,12 +365,12 @@ function spreadRepeatedGroup(
       const request = requested[requestAt]
       if (!request) break
       const count = Math.min(remaining, request.remaining)
-      variants.push(withChoice({ ...base, count }, withinModel.join('/'), request.optionId, index))
+      variants.push(withChoice(part(base, (model.count ?? 1) - remaining, count, index), withinModel.join('/'), request.optionId, index))
       remaining -= count
       request.remaining -= count
       if (request.remaining === 0) requestAt += 1
     }
-    if (remaining > 0 && !disposable) variants.push(unassigned(base, remaining))
+    if (remaining > 0 && !disposable) variants.push(unassigned(base, (model.count ?? 1) - remaining, remaining))
   }
   for (; requestAt < requested.length; requestAt += 1) {
     if (!optionalCarrier) break
@@ -396,15 +442,15 @@ function spreadIndependentRepeatedGroup(
         continue
       }
       const full = Math.min(modelCount, Math.floor(remaining / capacity))
-      if (full > 0) equipped.push(withIndependentOption({ ...model, count: full }, withinModel, option, capacity, index))
+      if (full > 0) equipped.push(withIndependentOption(part(model, 0, full, index), withinModel, option, capacity, index))
       remaining -= full * capacity
 
       const partial = remaining > 0 && full < modelCount ? remaining : 0
-      if (partial > 0) equipped.push(withIndependentOption({ ...model, count: 1 }, withinModel, option, partial, index))
+      if (partial > 0) equipped.push(withIndependentOption(part(model, full, 1, index), withinModel, option, partial, index))
       if (partial > 0) remaining = 0
 
       const untouched = modelCount - full - Number(partial > 0)
-      if (untouched > 0) equipped.push({ ...model, count: untouched })
+      if (untouched > 0) equipped.push(part(model, modelCount - untouched, untouched, index))
     }
     variants = equipped
   }

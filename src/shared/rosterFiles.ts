@@ -465,6 +465,8 @@ function textRosterPick(
   const stated = new Map<string, number>()
   const labels = new Map<string, string>()
   const statedUnder = new Map<string, Map<string, number>>()
+  // Lines no model holds, which are the only ones that can name a body: a Terminator Champion's "Paired accursed weapons" is not a Terminator.
+  const statedLines = new Map<string, number>()
   const respelled = respelledNames(entryId, loaded.index)
   // Some exporters prefix wargear with the unit it belongs to, as BattleBase's "Scout sniper rifle" is a Scout Squad's "Sniper Rifle".
   const unitWords = new Set(normalized(unit.name).split(' ').flatMap(nameVariants))
@@ -478,6 +480,7 @@ function textRosterPick(
     const key = spellingKey(normalized(label))
     const name = (respelled.has(key) ? respelled.get(key) : (respelled.get(powerWeaponKey(key)) ?? unprefixed(label))) ?? normalized(label)
     stated.set(name, (stated.get(name) ?? 0) + selection.count)
+    if (!selection.model) statedLines.set(name, (statedLines.get(name) ?? 0) + selection.count)
     if (!labels.has(name)) labels.set(name, label)
     if (!selection.model) continue
     const model = normalized(selection.model)
@@ -558,7 +561,7 @@ function textRosterPick(
       // says what each model is: the rest are left out on purpose, and the weapons it
       // lists are no longer evidence of more bodies.
       if (choice.options.some((option) => isModel(option.id, loaded.index))) {
-        const named = (option: { name: string }) => stated.get(normalized(option.name)) ?? 0
+        const named = (option: { name: string }) => statedLines.get(normalized(option.name)) ?? 0
         const bodies = choices
           .filter((other) => other === choice || other.key.startsWith(`${choice.key}/`))
           .flatMap((other) => other.options)
@@ -613,8 +616,9 @@ function textRosterPick(
       }
       return pieces
     }
+    // A line stated under its model is that model's alone, as a heavy weapon Terminator's power fist is not a squadmate's.
     const leftFor = (at: number, id: string) => {
-      const pieces = spreadPlaced(choices[at]!.key)
+      const pieces = scopes[at]!.scoped ? new Map<string, number>() : spreadPlaced(choices[at]!.key)
       return [...(aliases[at]!.get(id) ?? [])].some(([name]) => (scopes[at]!.stated.get(name) ?? 0) > (pieces.get(name) ?? 0))
     }
     const pick = {

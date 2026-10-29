@@ -228,7 +228,6 @@ function shared(): NewRecruitShare {
                       name: 'Warboss',
                       uid: 'boss',
                       amount: 1,
-                      associated: [{ uid: 'boyz' }],
                       options: [leaf('Warlord', 1), { name: 'Wargear', options: [leaf('Big Choppa'), leaf('Slugga', 1)] }],
                     },
                   ],
@@ -240,6 +239,7 @@ function shared(): NewRecruitShare {
                       name: 'Boyz',
                       uid: 'boyz',
                       amount: 1,
+                      associated: [{ uid: 'boss' }],
                       options: [
                         { name: '1-2 Nobz', options: [{ name: 'Nob', amount: 1, options: [leaf('Big Choppa', 1)] }] },
                         { name: '9-18 Boyz', options: [{ name: 'Boy', amount: 9, options: [leaf('Choppa', 1), leaf('Slugga', 0)] }] },
@@ -272,10 +272,23 @@ describe('fromNewRecruitShare', () => {
       name: 'Boyz',
       models: 10,
       selections: [
+        { name: 'Nob', count: 1 },
         { name: 'Big Choppa', count: 1, model: 'Nob' },
+        { name: 'Boy', count: 9 },
         { name: 'Choppa', count: 9, model: 'Boy' },
       ],
     })
+  })
+
+  it('names what it holds as the catalogue does, for a list New Recruit shows in another language', () => {
+    const named = (id: string) => ({ boy: 'Boy' })[id]
+    const share = shared()
+    const boy = share.army.options[0]!.options[0]!.options[2]!.options[0]!.options[1]!.options[0]!
+    Object.assign(boy, { name: 'Junge', option_id: 'boy' })
+    expect(fromNewRecruitShare(share, named)!.units[1]!.selections.slice(2)).toEqual([
+      { name: 'Boy', count: 9 },
+      { name: 'Choppa', count: 9, model: 'Boy' },
+    ])
   })
 
   it('reads the Warlord and the unit a character joins', () => {

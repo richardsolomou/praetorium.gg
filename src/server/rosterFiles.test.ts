@@ -6,6 +6,7 @@ import { descriptionKey } from './datacards'
 import {
   exportRosterFile,
   importRosterExchange,
+  importParsedRoster,
   importRosterFile,
   importRosterCatalogueId,
   matchesImportFaction,
@@ -2502,5 +2503,185 @@ describe('import faction names', () => {
     ['Heretic Astartes', 'Chaos - Chaos Space Marines'],
   ])('reads the faction keyword %s as %s', (keyword, catalogue) => {
     expect(matchesImportFaction(keyword, catalogue)).toBe(true)
+  })
+})
+
+describe('a list another app read into army text', () => {
+  const list = (detachment: string, unit: { name: string; selections?: { name: string; count: number; model?: string }[] }) =>
+    importParsedRoster(
+      {
+        name: 'Tomb World',
+        faction: 'Necrons',
+        detachment,
+        disposition: null,
+        limit: 2000,
+        units: [{ name: unit.name, selections: unit.selections ?? [], leading: null, models: 3, warlord: false }],
+      },
+      'battlebase',
+      loaded,
+    )
+
+  it('keeps the detachments it knows when another is unknown', () => {
+    const imported = list('Pantheon of Woe, Retired Host', { name: 'Tomb Blades' })
+    expect([imported.detachmentIds, imported.unknown.map((entry) => entry.name)]).toEqual([['pantheon'], ['Retired Host']])
+  })
+
+  it('finds a datasheet the app names in the singular', () => {
+    expect(list('Pantheon of Woe', { name: 'Tomb Blade' }).units.map((unit) => unit.entryId)).toEqual(['tomb-blades'])
+  })
+
+  it('places wargear the app prefixes with its unit', () => {
+    const pick = list('Pantheon of Woe', { name: 'Tomb Blades', selections: [{ name: 'Tomb Blade particle beamer', count: 3 }] }).units[0]!
+    const built = buildUnit(pick.entryId, loaded.index, pick.models, pick.choices, { spreads: pick.spreads })!
+    expect(wargearOf(built.selection, loaded.index)).toEqual([{ name: 'Particle beamer', count: 3 }])
+  })
+})
+
+describe('a squad whose models are named for their loadouts', () => {
+  const upgrade = (id: string, name: string) => ({
+    id,
+    name,
+    type: 'upgrade' as const,
+    constraints: [{ id: `${id}-min`, type: 'min' as const, value: 1, field: 'selections', scope: 'parent' }],
+  })
+  const loadout = (id: string, name: string, weapons: [string, string][], max?: number) => ({
+    id,
+    name,
+    type: 'model' as const,
+    ...(max ? { constraints: [{ id: `${id}-max`, type: 'max' as const, value: max, field: 'selections', scope: 'parent' }] } : {}),
+    selectionEntries: weapons.map(([weapon, weaponName]) => upgrade(`${id}-${weapon}`, weaponName)),
+  })
+  const chaos: LoadedCatalogue = {
+    ...loaded,
+    index: buildIndex(
+      [
+        system,
+        {
+          catalogue: {
+            id: 'chaos',
+            name: 'Chaos - Chaos Space Marines',
+            selectionEntries: [
+              {
+                id: 'squad',
+                name: 'Chaos Terminator Squad',
+                type: 'unit',
+                selectionEntryGroups: [
+                  {
+                    id: 'champion-group',
+                    name: 'Terminator Champion',
+                    selectionEntries: [
+                      {
+                        id: 'champion',
+                        name: 'Terminator Champion',
+                        type: 'model',
+                        constraints: [
+                          { id: 'champion-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                          { id: 'champion-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                        ],
+                        selectionEntryGroups: [
+                          {
+                            id: 'champion-wargear',
+                            name: 'Wargear',
+                            defaultSelectionEntryId: 'champion-bolter',
+                            constraints: [
+                              { id: 'champion-wargear-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                              { id: 'champion-wargear-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                            ],
+                            selectionEntries: [
+                              { id: 'champion-bolter', name: 'Combi-bolter and accursed weapon', type: 'upgrade' },
+                              { id: 'champion-paired', name: 'Paired accursed weapons', type: 'upgrade' },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                  {
+                    id: 'terminators',
+                    name: 'Chaos Terminators',
+                    defaultSelectionEntryId: 'accursed',
+                    constraints: [
+                      { id: 'terminators-min', type: 'min', value: 4, field: 'selections', scope: 'parent' },
+                      { id: 'terminators-max', type: 'max', value: 4, field: 'selections', scope: 'parent' },
+                    ],
+                    selectionEntries: [
+                      loadout('accursed', 'Accursed weapon and combi-bolter', [
+                        ['weapon', 'Accursed weapon'],
+                        ['bolter', 'Combi-bolter'],
+                      ]),
+                      loadout('fist', 'Power fist and combi-bolter', [
+                        ['weapon', 'Power fist'],
+                        ['bolter', 'Combi-bolter'],
+                      ]),
+                      loadout('paired', 'Paired accursed weapons', [['weapon', 'Paired accursed weapons']], 1),
+                      {
+                        ...loadout('heavy', 'Heavy weapon', [['gun', 'Reaper autocannon']], 1),
+                        selectionEntryGroups: [
+                          {
+                            id: 'heavy-melee',
+                            name: 'Melee weapon',
+                            defaultSelectionEntryId: 'heavy-accursed',
+                            constraints: [
+                              { id: 'heavy-melee-min', type: 'min', value: 1, field: 'selections', scope: 'parent' },
+                              { id: 'heavy-melee-max', type: 'max', value: 1, field: 'selections', scope: 'parent' },
+                            ],
+                            selectionEntries: [
+                              { id: 'heavy-accursed', name: 'Accursed weapon', type: 'upgrade' },
+                              { id: 'heavy-fist', name: 'Power fist', type: 'upgrade' },
+                            ],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      ],
+      'test-revision',
+    ),
+    factions: [{ id: 'chaos', name: 'Chaos - Chaos Space Marines', references: [] }],
+    detachments: new Map(),
+  }
+
+  it('fields each model the list states with the wargear stated under it', () => {
+    const pick = importParsedRoster(
+      {
+        name: 'Iron Warriors',
+        faction: 'Chaos Space Marines',
+        detachment: null,
+        disposition: null,
+        limit: 2000,
+        units: [
+          {
+            name: 'Chaos Terminator Squad',
+            selections: [
+              { name: 'Terminator Champion', count: 1 },
+              { name: 'Paired accursed weapons', count: 1, model: 'Terminator Champion' },
+              { name: 'Heavy weapon', count: 1 },
+              { name: 'Power fist', count: 1, model: 'Heavy weapon' },
+              { name: 'Power fist and combi-bolter', count: 2 },
+              { name: 'Power fist', count: 2, model: 'Power fist and combi-bolter' },
+              { name: 'Accursed weapon and combi-bolter', count: 1 },
+            ],
+            leading: null,
+            models: 5,
+            warlord: false,
+          },
+        ],
+      },
+      'newrecruit',
+      chaos,
+    ).units[0]!
+    const built = buildUnit(pick.entryId, chaos.index, pick.models, pick.choices, { spreads: pick.spreads })!
+    expect(wargearOf(built.selection, chaos.index).toSorted((left, right) => left.name.localeCompare(right.name))).toEqual([
+      { name: 'Accursed weapon', count: 1 },
+      { name: 'Combi-bolter', count: 3 },
+      { name: 'Paired accursed weapons', count: 1 },
+      { name: 'Power fist', count: 3 },
+      { name: 'Reaper autocannon', count: 1 },
+    ])
   })
 })
