@@ -1,51 +1,81 @@
 import { useQuery } from '@tanstack/react-query'
+import { Link } from '@tanstack/react-router'
+import { useEffect, useState } from 'react'
 import { version } from '../../../../package.json'
-import { PageContent, PageHeader } from '../../components/Page'
-import { releaseNotesQuery } from '../../queries'
-import { UpdatesNavigation } from '../changes/UpdatesNavigation'
+import { Button } from '@/components/ui/button'
+import { useDateFormatting } from '../../dates'
+import { releaseNotesQuery, releaseQuery } from '../../queries'
+import { newerRelease } from '../../releaseUpdate'
+import { markReleaseSeen, NOTICE_INTERVAL, seenRelease, unseenReleases, useSeenRelease, useUnseenRelease } from './seenRelease'
 
-export function WhatsNewPage() {
-  const { data: notes } = useQuery(releaseNotesQuery())
+/**
+ * Says what changed at most once a week, so a day of releases reads as one summary.
+ *
+ * A first visit has nothing to compare against, so it only records the version.
+ */
+export function WhatsNewNotice() {
+  const seen = useSeenRelease()
+  const { date } = useDateFormatting()
+  const [now] = useState(Date.now)
+  useEffect(() => {
+    if (seenRelease() === null) markReleaseSeen()
+  }, [])
+  const due = seen !== null && newerRelease(seen.version, version) && now - seen.at >= NOTICE_INTERVAL
+  const { data: notes } = useQuery({ ...releaseNotesQuery(), enabled: due })
+  const { data: latest } = useQuery(releaseQuery())
+  if (!due || !notes || (latest && newerRelease(version, latest.version))) return null
+  const releases = unseenReleases(notes, seen.version)
+  const changes = [...releases.flatMap((release) => release.features), ...releases.flatMap((release) => release.fixes)]
+  if (!changes.length) return null
+  const acknowledge = () => markReleaseSeen()
   return (
-    <main className="w-full">
-      <PageHeader
-        eyebrow="Updates"
-        title="What's new"
-        description="The latest improvements to army building, battle tracking and the rest of Praetorium."
-      >
-        <UpdatesNavigation current="app" />
-      </PageHeader>
-      <PageContent className="space-y-4 sm:pt-6">
-        {(notes ?? []).map((note) => (
-          <section
-            key={note.version}
-            aria-labelledby={`release-${note.version}`}
-            className={`grid overflow-hidden border bg-panel sm:grid-cols-[10rem_minmax(0,1fr)] ${note.version === version ? 'border-parchment/40' : 'border-edge'}`}
-          >
-            <div
-              className={`border-b p-4 sm:border-r sm:border-b-0 ${note.version === version ? 'border-parchment/20 bg-parchment/5' : 'border-edge bg-raised/40'}`}
-            >
-              <h2
-                id={`release-${note.version}`}
-                className="flex flex-wrap items-center justify-between gap-3 text-sm font-sans font-normal normal-case sm:block"
-              >
-                <span className="block">
-                  <span className="eyebrow">Version</span> <span className="figure mt-1 block text-2xl text-bone">{note.version}</span>
-                </span>{' '}
-                {note.version === version ? <span className="chip border-parchment/30 text-parchment sm:mt-3">This version</span> : null}
-              </h2>
-            </div>
-            <ul className="divide-y divide-edge px-4 py-1 sm:px-5">
-              {note.changes.map((change) => (
-                <li key={change} className="flex items-start gap-3 py-3 text-sm leading-relaxed text-bone">
-                  <span aria-hidden className={`mt-2 size-1.5 shrink-0 ${note.version === version ? 'bg-parchment' : 'bg-faint'}`} />
-                  <span>{change}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ))}
-      </PageContent>
-    </main>
+    <aside
+      aria-label="What's new"
+      aria-live="polite"
+      data-whats-new
+      data-print-hide
+      className="fixed bottom-4 left-1/2 z-40 flex w-max max-w-[min(40rem,calc(100%-1.5rem))] -translate-x-1/2 flex-wrap items-center gap-2 border border-edge-strong bg-panel p-2 text-sm shadow-lg"
+    >
+      <p className="min-w-0 basis-full px-2 text-bone sm:basis-0 sm:flex-1">
+        <span className="font-semibold">New since {date(seen.at)}: </span>
+        <span className="line-clamp-2">
+          {plainChange(changes[0]!)}
+          {changes.length > 1 ? ` (and ${changes.length - 1} more)` : ''}
+        </span>
+      </p>
+      <span className="ml-auto flex gap-2">
+        <Button size="sm" variant="outline" nativeButton={false} render={<Link to="/whats-new" onClick={acknowledge} />}>
+          See what's new
+        </Button>
+        <Button size="sm" variant="ghost" onClick={acknowledge}>
+          Dismiss
+        </Button>
+      </span>
+    </aside>
+  )
+}
+
+/** The shell cannot afford the page's markdown renderer, so the notice drops the emphasis and code markers instead. */
+const plainChange = (change: string) => change.replace(/\*\*|__|`/g, '')
+
+/** Marks a way into What's new while this build has changes the player has not looked at; pair it with `unseenLabel`. */
+export function UnseenDot() {
+  return <span aria-hidden data-whats-new-unseen className="size-1.5 shrink-0 rounded-full bg-parchment" />
+}
+
+export const unseenLabel = "What's new, new changes"
+
+export function WhatsNewLink() {
+  const unseen = useUnseenRelease()
+  return (
+    <Link
+      to="/whats-new"
+      data-listed-in-more
+      aria-label={unseen ? unseenLabel : undefined}
+      className="inline-flex items-center gap-1.5 transition-colors hover:text-bone"
+    >
+      What's new
+      {unseen ? <UnseenDot /> : null}
+    </Link>
   )
 }

@@ -32,6 +32,7 @@ import { Account } from './Account'
 import { GlobalSearch, GlobalSearchProvider } from './GlobalSearch'
 import { TextSourcesDialog } from '../../components/TextSourcesDialog'
 import { ReleaseUpdateNotice } from './ReleaseUpdateNotice'
+import { WhatsNewLink, WhatsNewNotice } from './WhatsNew'
 import { Toaster } from '@/components/ui/sonner'
 import { ImpersonationBanner } from './ImpersonationBanner'
 import { NativeAppNavigation } from './NativeAppNavigation'
@@ -255,6 +256,7 @@ export function AppShell() {
                 <Impersonation />
                 <NativePushRegistration />
                 <ReleaseUpdateNotice />
+                {immersive || /^\/battles\/[^/]+/.test(path) ? null : <WhatsNewNotice />}
                 <Toaster theme="dark" position="top-center" containerAriaLabel="Messages" />
                 {/*
                  * Said plainly and on every page, because the name is drawn from Games
@@ -286,9 +288,7 @@ export function AppShell() {
                       <Link to="/data-updates" data-listed-in-more className="transition-colors hover:text-bone">
                         Data updates
                       </Link>
-                      <Link to="/whats-new" data-listed-in-more className="transition-colors hover:text-bone">
-                        What's new
-                      </Link>
+                      <WhatsNewLink />
                     </p>
                   </footer>
                 )}

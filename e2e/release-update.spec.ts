@@ -67,12 +67,25 @@ test('failed release checks leave the page usable without an update notice', asy
   await expect(page.getByRole('link', { name: 'Rosters', exact: true }).first()).toBeVisible()
 })
 
-test("an update shows no what's new notice", async ({ page }) => {
+test("what's new waits a week after the last look, then says what changed once", async ({ page }) => {
+  const notice = page.getByRole('complementary', { name: "What's new" })
+  const unseen = page.locator('[data-web-app-footer]').getByRole('link', { name: "What's new, new changes" })
+  const lookedAt = (daysAgo: number) =>
+    page.evaluate(
+      (at) => localStorage.setItem('praetorium-seen-release', JSON.stringify({ version: '0.0.1', at })),
+      Date.now() - daysAgo * 86_400_000,
+    )
   await page.goto('/')
-  await page.evaluate(() => localStorage.setItem('praetorium-seen-release', '0.0.1'))
+  await lookedAt(1)
   await page.reload()
-  await expect(page.getByRole('link', { name: 'Rosters', exact: true }).first()).toBeVisible()
-  await expect(page.getByRole('complementary', { name: "What's new" })).toHaveCount(0)
+  await expect(unseen).toBeVisible()
+  await expect(notice).toHaveCount(0)
+  await lookedAt(8)
+  await page.reload()
+  await expect(notice).toContainText('New since')
+  await notice.getByRole('button', { name: 'Dismiss', exact: true }).click()
+  await expect(notice).toHaveCount(0)
+  await expect(unseen).toHaveCount(0)
 })
 
 const staleBuildMarker = /[?&]__build_retry=\d+\.(\d)\.99\.0\.0(?:&|#|$)/

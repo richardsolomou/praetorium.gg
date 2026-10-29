@@ -24,6 +24,8 @@ import { meQuery } from '../../queries'
 import { PageContent } from '../../components/Page'
 import { openConversations, unreadReplies, useSupportTickets } from '../feedback/support'
 import { countLabel } from '../../text'
+import { useUnseenRelease } from './seenRelease'
+import { UnseenDot, unseenLabel } from './WhatsNew'
 
 type MoreLink = { description: string; icon: LucideIcon; label: string; to: LinkProps['to'] }
 
@@ -47,20 +49,24 @@ const ACCOUNT: readonly MoreLink[] = [
   { description: 'The models on your shelf', icon: Boxes, label: 'Collection', to: '/collection' },
 ]
 
+const WHATS_NEW: MoreLink = { description: 'Changes to the app', icon: Sparkles, label: "What's new", to: '/whats-new' }
+
 const HELP: readonly MoreLink[] = [
   { description: 'Army lists, imports and battle tracking', icon: GraduationCap, label: 'Docs', to: '/docs' },
-  { description: 'Changes to the app', icon: Sparkles, label: "What's new", to: '/whats-new' },
   { description: 'Points and datasheet changes', icon: History, label: 'Data updates', to: '/data-updates' },
 ]
 
 const rowClass = 'flex min-h-14 w-full items-center gap-3 px-3 py-2.5 text-left text-bone hover:bg-raised'
 
-function Row({ icon: Icon, label, description }: Omit<MoreLink, 'to'>) {
+function Row({ icon: Icon, label, description, unseen = false }: Omit<MoreLink, 'to'> & { unseen?: boolean }) {
   return (
     <>
       <Icon className="size-5 shrink-0 text-info" />
       <span className="min-w-0 flex-1">
-        <span className="block font-semibold">{label}</span>
+        <span className="flex items-center gap-2 font-semibold">
+          {label}
+          {unseen ? <UnseenDot /> : null}
+        </span>
         <span className="block text-xs text-dim">{description}</span>
       </span>
       <ChevronRight className="size-4 shrink-0 text-faint" />
@@ -110,6 +116,7 @@ export function NativeMorePage() {
   const { data: me } = useQuery(meQuery())
   const { tickets } = useSupportTickets()
   const unread = unreadReplies(tickets)
+  const unseenRelease = useUnseenRelease()
 
   return (
     <main className="w-full bg-sunken">
@@ -131,6 +138,9 @@ export function NativeMorePage() {
             </Group>
           ) : null}
           <Group id="more-help-heading" title="Help">
+            <Link to={WHATS_NEW.to} aria-label={unseenRelease ? unseenLabel : undefined} className={rowClass}>
+              <Row {...WHATS_NEW} unseen={unseenRelease} />
+            </Link>
             <Links links={HELP} />
             <button type="button" onClick={openConversations} className={rowClass}>
               <Row

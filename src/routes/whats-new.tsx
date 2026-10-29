@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { WhatsNewPage } from '../client/features/shell/WhatsNew'
+import { WhatsNewPage } from '../client/features/changes/WhatsNewPage'
 import { pageHead } from '../client/linkPreview'
 import { releaseNotesQuery } from '../client/queries'
 
