@@ -8,6 +8,7 @@ import {
   deploymentNeedsFlip,
   formatInches,
   type Measurement,
+  type PlacementReference,
   measurementLabelSize,
   placementMeasurements,
   objectiveTerrainMarkers,
@@ -25,8 +26,8 @@ import {
   territoryBoundary,
 } from './terrainGeometry'
 
-/** What a detailed board measures terrain to; `published` is the layout diagram's own distances, often to objective centres. */
-export type MeasurementSource = 'terrain' | 'lines' | 'edges' | 'published' | 'mat'
+/** What a detailed board measures terrain to; `published` is the layout diagram's own distances, which some layouts run to objective centres. */
+export type MeasurementSource = 'terrain' | 'lines' | 'published' | 'mat'
 
 const publishedOnly: MeasurementSource[] = ['published']
 
@@ -45,8 +46,6 @@ export const measurementColours = {
     stroke: 'stroke-measure-lines',
   },
   edges: {
-    border: 'data-[pressed]:border-measure-edges',
-    text: 'text-measure-edges',
     fill: 'fill-measure-edges',
     stroke: 'stroke-measure-edges',
   },
@@ -57,7 +56,7 @@ export const measurementColours = {
     stroke: 'stroke-measure-published',
   },
   mat: { border: 'data-[pressed]:border-measure-mat', text: 'text-measure-mat', fill: 'fill-measure-mat', stroke: 'stroke-measure-mat' },
-} satisfies Record<MeasurementSource, { border: string; text: string; fill: string; stroke: string }>
+} satisfies Record<MeasurementSource | 'edges', { border?: string; text?: string; fill: string; stroke: string }>
 
 export function TerrainBoard({
   layout,
@@ -93,17 +92,16 @@ export function TerrainBoard({
     ],
     [geometry, objectives],
   )
-  const [terrain, lines, edges] = [show.includes('terrain'), show.includes('lines'), show.includes('edges')]
+  const [terrain, lines] = [show.includes('terrain'), show.includes('lines')]
   // Placement walks every corner against every edge drawn so far, so it only reruns when the layout or toggles change.
   const placement = useMemo(
     () =>
-      detailed && geometry && (terrain || lines || edges)
+      detailed && geometry && (terrain || lines)
         ? placementMeasurements(geometry, objectivePositions, lines && deployment ? deploymentLines(deployment, geometry.board) : [], {
             terrain,
-            edges,
           })
         : [],
-    [detailed, geometry, objectivePositions, deployment, terrain, lines, edges],
+    [detailed, geometry, objectivePositions, deployment, terrain, lines],
   )
 
   const showMat = detailed && show.includes('mat') && layout.geometry !== null
@@ -437,7 +435,7 @@ function MatCoordinates({
   const across = Array.from({ length: board.height + 1 }, (_, inch) => inch)
   const up = Array.from({ length: board.width + 1 }, (_, inch) => inch)
   const numbered = (inch: number, length: number) => (inch % 6 === 0 && length - inch >= 3) || inch === length
-  const placed = useMemo(() => placementMeasurements(geometry, objectives, [], { terrain: false, edges: true }), [geometry, objectives])
+  const placed = useMemo(() => placementMeasurements(geometry, objectives, [], { terrain: false }), [geometry, objectives])
   const points = [...new Map(placed.map(({ to, approximate }) => [`${to.x}-${to.y}`, { point: to, approximate }])).values()].map(
     ({ point, approximate }) => {
       const portrait = portraitPoint(point, flipped, board)
@@ -548,7 +546,7 @@ function TerrainMeasurements({
   geometry: TerrainGeometry
   measurements: Measurement[]
   flipped: boolean
-  arrowId: (source: Exclude<MeasurementSource, 'mat'>) => string
+  arrowId: (source: PlacementReference | 'published') => string
   objectives: { x: number; y: number }[]
 }) {
   const measurements = [
@@ -600,7 +598,7 @@ function TerrainMeasurements({
       const edge = vertical ? (from.y < to.y ? 'top' : 'bottom') : from.x < to.x ? 'left' : 'right'
       const text = `${measurement.approximate ? '≈' : ''}${measurement.ruler ? `${distance} from ${edge}` : distance}`
       const label = placeMeasurementLabel(to, from, vertical, text, occupied, geometry.board)
-      const source: Exclude<MeasurementSource, 'mat'> = measurement.reference ?? 'published'
+      const source: PlacementReference | 'published' = measurement.reference ?? 'published'
       const { width: labelWidth, height: labelHeight } = measurementLabelSize(text)
       return {
         index,

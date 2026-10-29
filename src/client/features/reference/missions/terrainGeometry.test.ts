@@ -320,19 +320,8 @@ describe('placing terrain piece by piece', () => {
 
   it('never measures to an objective inside terrain', () => {
     const geometry = { board, areas: [openArea(square(10, 10, 6))] }
-    const ends = placementMeasurements(geometry, [{ x: 13, y: 13 }], [], { terrain: true, edges: true }).map(
-      (measurement) => measurement.to,
-    )
+    const ends = placementMeasurements(geometry, [{ x: 13, y: 13 }], [], { terrain: true }).map((measurement) => measurement.to)
     expect(ends).not.toContainEqual({ x: 13, y: 13 })
-  })
-
-  it('leaves out a piece that only one distance could fix', () => {
-    const geometry = { board, areas: [openArea(square(2, 2, 4))] }
-    const line = [
-      { x: 20, y: 0 },
-      { x: 20, y: 44 },
-    ] as const
-    expect(placementMeasurements(geometry, [], [line], { terrain: true, edges: false })).toEqual([])
   })
 
   it('measures a later piece from the edge of one already down when that is nearest', () => {
@@ -343,7 +332,7 @@ describe('placing terrain piece by piece', () => {
         { ...openArea(square(9, 2, 4)), id: 'second' },
       ],
     }
-    const froms = placementMeasurements(geometry, [], [], { terrain: true, edges: true }).map((measurement) => measurement.from)
+    const froms = placementMeasurements(geometry, [], [], { terrain: true }).map((measurement) => measurement.from)
     expect(froms).toContainEqual({ x: 6, y: 2 })
   })
 })
