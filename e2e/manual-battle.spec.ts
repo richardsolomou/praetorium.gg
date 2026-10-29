@@ -5,6 +5,7 @@ import {
   attachRoster,
   createBattle,
   createRoster,
+  recordFirstTurn,
   setupStep,
   signUp,
   uniqueName,
@@ -36,16 +37,11 @@ test('a table keeps score by hand in a manually tracked battle', async ({ page }
   await attachRoster(page, roster)
   await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
   await expect(page.getByText('Not battle ready')).toHaveCount(0)
-  await setupStep(page, 'First turn')
-  const first = page.getByRole('group', { name: 'First turn' }).getByRole('button').first()
-  await expect(async () => {
-    if ((await first.getAttribute('aria-pressed')) !== 'true') await first.click({ timeout: 1_000 })
-    await expect(first).toHaveAttribute('aria-pressed', 'true', { timeout: 1_000 })
-  }).toPass({ timeout: 20_000 })
+  await recordFirstTurn(page)
   await expectNoPageOverflow(page)
   await page.setViewportSize(phone)
   await setupStep(page, 'First turn')
-  await expect(first).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('group', { name: 'First turn' }).getByRole('button', { pressed: true })).toHaveCount(1)
   await expectNoPageOverflow(page)
   await page.setViewportSize(desktopContext.viewport)
   await page.getByRole('button', { name: 'Start battle' }).click()

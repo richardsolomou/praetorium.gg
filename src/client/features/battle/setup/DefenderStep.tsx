@@ -16,18 +16,16 @@ export function DefenderStep({
   const attacker = sideOf(sides, attackerId)
   const chosen = attacker ? (sides.find((side) => side.index !== attacker.index)?.index ?? null) : null
   return (
-    <div data-onboarding="battle-setup-defender">
-      <SetupSideChoice
-        label="Defender"
-        sides={sides}
-        chosen={chosen}
-        roles={{ chosen: 'Defender · deploys first', other: 'Attacker · deploys second' }}
-        disabled={disabled}
-        onChoose={(index) => {
-          const opposingCaptain = sides.find((side) => side.index !== index)?.captain.id
-          if (opposingCaptain) send({ kind: 'set-attacker', attackerId: opposingCaptain })
-        }}
-      />
-    </div>
+    <SetupSideChoice
+      label="Defender"
+      sides={sides}
+      chosen={chosen}
+      roles={{ chosen: 'Defender · deploys first', other: 'Attacker · deploys second' }}
+      disabled={disabled}
+      onChoose={(index) => {
+        const opposingCaptain = sides.find((side) => side.index !== index)?.captain.id
+        if (opposingCaptain) send({ kind: 'set-attacker', attackerId: opposingCaptain })
+      }}
+    />
   )
 }

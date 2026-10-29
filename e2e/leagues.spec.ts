@@ -16,6 +16,7 @@ import {
   chooseOption,
   PHONE,
   uploadAvatar,
+  setupStep,
 } from './account'
 import {
   productOperator,
@@ -1722,6 +1723,8 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expect(battleChooser.getByRole('button', { name: 'Start battle' })).toBeEnabled()
   await battleChooser.getByRole('button', { name: 'Start battle' }).click()
   await expect(owner).toHaveURL(/\/battles\/[^/?]+$/)
+  // Sealed lists arrive attached, so the step has already folded to its answer.
+  await setupStep(owner, 'Armies')
   const ownerSetup = owner.getByRole('region', { name: 'Armies' })
   await expect(ownerSetup.locator('[data-players]').filter({ hasText: alliedName }).getByText(alliedName, { exact: true })).toHaveCount(2)
   await expect(ownerSetup.locator('[data-players]').filter({ hasText: ownerName })).toHaveCount(1)
@@ -1771,6 +1774,8 @@ test('a 2v1 event assigns entrant sizes, filters rosters, and prepares a battle'
   await expect(alliedBattleChooser.getByLabel('Opponent')).toContainText(ownerName)
   await alliedBattleChooser.getByRole('button', { name: 'Start battle' }).click()
   await expect(allied).toHaveURL(/\/battles\/[^/?]+$/)
+  // Sealed lists arrive attached, so the step has already folded to its answer.
+  await setupStep(allied, 'Armies')
   const alliedSetup = allied.getByRole('region', { name: 'Armies' })
   await expect(alliedSetup.locator('[data-players]').filter({ hasText: alliedName }).getByText(alliedName, { exact: true })).toHaveCount(2)
   await expect(alliedSetup.locator('[data-players]').filter({ hasText: ownerName })).toHaveCount(1)
@@ -1997,6 +2002,8 @@ test('a doubles event pairs teams, filters half-size rosters, and starts a four-
   await expectWithinPage(owner, battleChooser)
   await battleChooser.getByRole('button', { name: 'Start battle' }).click()
   await expect(owner).toHaveURL(/\/battles\/[^/?]+$/)
+  // Sealed lists arrive attached, so the step has already folded to its answer.
+  await setupStep(owner, 'Armies')
   const sides = owner.getByRole('region', { name: 'Armies' }).locator('[data-players]')
   await expect(sides).toHaveCount(2)
   await expect(sides.nth(0)).toContainText(names[0])

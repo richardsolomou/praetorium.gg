@@ -76,6 +76,8 @@ export type BattleView = {
   token: string
   status: BattleState['status']
   setupStep: number
+  /** Absent from views an older server drew or a device cached before it existed. */
+  setupChecked?: number[]
   round: number
   phase: Phase
   rounds: number
@@ -220,6 +222,7 @@ export function battleView(
     token: battle.token,
     status: state.status,
     setupStep: state.setupStep,
+    setupChecked: state.setupChecked,
     round: state.round,
     phase: state.phase,
     rounds: BATTLE_ROUNDS,

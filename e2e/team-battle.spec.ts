@@ -103,6 +103,9 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
   await attachRoster(ally, allyRoster)
   await expect(partner.getByText(allyRoster, { exact: true }).first()).toBeVisible()
   await attachRoster(partner, partnerRoster)
+  // Every army in settles the step, which folds it to its answer; open it to read the seats.
+  await setupStep(host, 'Armies')
+  await setupStep(ally, 'Armies')
   // Setup groups the allies under one heading rather than listing three players flat.
   const alliedNames = host.locator('[data-players]').filter({ hasText: allyName }).first()
   await expect(alliedNames).toContainText(partnerName)
@@ -125,7 +128,9 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
     await expect(bonus(host, 'Remove')).toBeVisible({ timeout: 3_000 })
   }).toPass({ timeout: 30_000 })
   await chooseBattlefield(host)
-  await setupStep(host, 'Secondaries')
+  // Dealt cards settle the step, which folds it to its answer, so open it once they are.
+  await expect(partner.locator('#setup-secondaries')).toHaveAttribute('data-complete', 'true')
+  await setupStep(partner, 'Secondaries')
   // Any player at the table can referee either side's secondary choices.
   await expect(partner.getByRole('group', { name: 'Secondary play' })).toHaveCount(2)
   await expect(partner.getByRole('button', { name: /^Fixed/ })).toHaveCount(2)
@@ -197,6 +202,8 @@ test('a 2v1 opened from the allied side seats its opener with their ally and pla
   await attachRoster(host, hostRoster)
   await attachRoster(host, practiceRoster, { forPlayer: PRACTICE_OPPONENT })
   await attachRoster(ally, allyRoster)
+  await setupStep(host, 'Armies')
+  await setupStep(ally, 'Armies')
   // The opener and the ally they chose are one side, named as one.
   await expect(host.locator('[data-players]').filter({ hasText: hostName }).first()).toContainText(allyName)
   await expect(ally.getByText(hostRoster, { exact: true }).first()).toBeVisible()

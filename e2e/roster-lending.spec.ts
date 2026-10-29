@@ -12,6 +12,7 @@ import {
   uniqueName,
   expectNoPageOverflow,
   PHONE,
+  setupStep,
 } from './account'
 import type { Page } from '@playwright/test'
 
@@ -61,6 +62,7 @@ test('a friend fields a lent roster, and the battle keeps it after the loan ends
   await borrower.getByRole('dialog', { name: /roster$/ }).screenshot({ path: test.info().outputPath('roster-lending-chooser.png') })
   await borrower.keyboard.press('Escape')
   await attachRoster(borrower, rosterName)
+  await setupStep(borrower, 'Armies')
   const armies = borrower.getByRole('region', { name: 'Armies' })
   await expect(armies.getByText(`Lent by ${ownerName}`)).toBeVisible()
 
@@ -69,6 +71,7 @@ test('a friend fields a lent roster, and the battle keeps it after the loan ends
   await expect(borrower.getByLabel('Loading roster count')).toHaveCount(0)
   await expect(borrower.locator('[data-lent-rosters]')).toHaveCount(0)
   await borrower.goto(battle)
+  await setupStep(borrower, 'Armies')
   await expect(borrower.getByRole('region', { name: 'Armies' }).getByText(`Lent by ${ownerName}`)).toBeVisible()
 })
 

@@ -129,8 +129,15 @@ test('a casual player practises a round, corrects an action and reviews the fini
   await dialog.getByRole('button', { name: 'Start battle', exact: true }).click()
   await attachRoster(page, roster)
   await attachRoster(page, roster, { forPlayer: PRACTICE_OPPONENT })
+  // Both hands are dealt once both armies are in.
+  await expect(page.locator('#setup-secondaries')).toHaveAttribute('data-complete', 'true')
   await setupStep(page, 'Secondaries')
-  for (const prep of await page.locator('[data-secondary-deck-ready]').all()) {
+  // A phone shows one side of the step at a time, so each hand is switched to before it is set.
+  const sides = page.getByRole('region', { name: 'Secondaries' }).getByRole('group', { name: 'Show side' })
+  const decks = page.locator('[data-secondary-deck-ready]')
+  for (let at = 0; at < (await decks.count()); at += 1) {
+    if (await sides.isVisible()) await sides.getByRole('button').nth(at).click()
+    const prep = decks.nth(at)
     await prep.getByRole('button', { name: /^Fixed Select/ }).click()
     await prep.getByRole('button', { name: /^Select Engage on All Fronts$/i }).click()
     await prep.getByRole('button', { name: 'Select Bring It Down', exact: true }).click()

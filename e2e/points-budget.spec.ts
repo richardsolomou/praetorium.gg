@@ -110,7 +110,7 @@ test('a custom points budget is validated, enforced, saved and fielded', async (
   await setupStep(page, 'Armies')
   const armies = page.getByRole('region', { name: 'Armies' })
   await atEachWidth(page, async (width) => {
-    await expect(armies).toContainText('Strike Force · 2,500-point budget')
+    await expect(page.getByRole('region', { name: 'Format' })).toContainText('Strike Force · 2,500-point budget')
     await expect(armies.getByText(/of 2,500 points$/).first()).toBeVisible()
     await expect(page.locator('#setup-armies')).toHaveAttribute('data-complete', 'true')
     await expectNoHorizontalOverflow(armies)

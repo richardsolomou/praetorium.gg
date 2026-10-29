@@ -53,13 +53,13 @@ export function ReservesStep({ view, sides, send, problem, sentFrom, onSent }: P
   }
   const redeploy = view.firstPlayerId !== null
   return (
-    <div data-onboarding="battle-setup-reserves" className="space-y-4">
+    <div className="space-y-4">
       {redeploy ? (
         <SetupNote>
           If an army rule lets you redeploy a unit after the first-turn roll, record that move here. It does not count towards the limit.
         </SetupNote>
       ) : null}
-      <div className="grid items-start gap-6 lg:grid-cols-2">
+      <div className="grid items-start gap-6 md:grid-cols-2">
         {sides.map((side) => (
           <ReserveSide key={side.index} side={side} moves={moves} />
         ))}

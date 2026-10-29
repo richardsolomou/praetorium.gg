@@ -131,6 +131,7 @@ test('going back on a phone closes the roster chooser and stays on the battle', 
 
   const seat = page.getByRole('region', { name: 'Armies' }).locator('article').first()
   await (await openChooser(page)).locator(`[data-roster="${name}"]`).click()
+  await setupStep(page, 'Armies')
   await expect(seat.getByText(name, { exact: true })).toBeVisible()
   await expect(page).toHaveURL(battle)
 

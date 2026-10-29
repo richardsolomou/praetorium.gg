@@ -45,7 +45,12 @@ export function BattlePromptDialog({
   )
 
   return (
-    <div data-battle-prompt data-battle-prompt-inspecting={inspecting || undefined} className="contents">
+    // Marked only while open, so a closed prompt mounted beside other dialogs does not reshape them.
+    <div
+      data-battle-prompt={(open ?? internalOpen) || undefined}
+      data-battle-prompt-inspecting={inspecting || undefined}
+      className="contents"
+    >
       <InspectContext.Provider value={register ? inspect : null}>
         <Dialog
           {...props}
