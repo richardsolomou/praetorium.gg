@@ -1,9 +1,9 @@
 import { expect, it } from 'vitest'
-import { parseReleaseNotes } from './releaseNotes'
+import { dateReleaseHeadings, parseReleaseNotes } from './releaseNotes'
 
 const changelog = `# praetorium
 
-## 0.133.1
+## 0.133.1 (2026-10-28)
 
 ### Patch Changes
 
@@ -23,11 +23,16 @@ const changelog = `# praetorium
   Keep it running while the screen sleeps.
 `
 
-it('reads each release with its changes, without commit prefixes', () => {
+it('reads each release with its date, features and fixes, without commit prefixes', () => {
   expect(parseReleaseNotes(changelog, 5)).toEqual([
-    { version: '0.133.1', changes: ["Show each unit's points before and after.", 'Mark saved rosters that use older rules.'] },
-    { version: '0.133.0', changes: ['Simulate roster loadouts against benchmarks.'] },
-    { version: '0.132.9', changes: ['Fix the reminder timer. Keep it running while the screen sleeps.'] },
+    {
+      version: '0.133.1',
+      date: '2026-10-28',
+      features: [],
+      fixes: ["Show each unit's points before and after.", 'Mark saved rosters that use older rules.'],
+    },
+    { version: '0.133.0', date: null, features: ['Simulate roster loadouts against benchmarks.'], fixes: [] },
+    { version: '0.132.9', date: null, features: [], fixes: ['Fix the reminder timer. Keep it running while the screen sleeps.'] },
   ])
 })
 
@@ -38,4 +43,12 @@ it('stops at the requested number of releases', () => {
 it('skips a release with no changes for players', () => {
   const quiet = changelog.replace('## 0.133.0', '## 0.133.2\n\n### Patch Changes\n\n## 0.133.0')
   expect(parseReleaseNotes(quiet, 2).map((release) => release.version)).toEqual(['0.133.1', '0.133.0'])
+})
+
+it('dates only the headings that have no date yet', () => {
+  expect(dateReleaseHeadings(changelog, '2026-10-29').match(/^## .+$/gm)).toEqual([
+    '## 0.133.1 (2026-10-28)',
+    '## 0.133.0 (2026-10-29)',
+    '## 0.132.9 (2026-10-29)',
+  ])
 })

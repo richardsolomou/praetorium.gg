@@ -82,9 +82,11 @@ export const armyUpdates = createServerFn({ method: 'GET' })
     }),
   )
 
-/** How many app releases What's new lists. */
-const RELEASE_NOTES = 15
-const releaseNotes = parseReleaseNotes(changelog, RELEASE_NOTES)
+/** How many release days What's new lists, enough to cover the weekly notice when it is a few days late. */
+const RELEASE_DAYS = 14
+const allReleaseNotes = parseReleaseNotes(changelog, Infinity)
+const releaseDays = new Set([...new Set(allReleaseNotes.map((note) => note.date))].slice(0, RELEASE_DAYS))
+const releaseNotes = allReleaseNotes.filter((note) => releaseDays.has(note.date))
 
 /** The app's own release notes, kept apart from the game-data updates above. */
 export const appReleaseNotes = createServerFn({ method: 'GET' }).handler(() => rpc(async () => releaseNotes))

@@ -82,8 +82,8 @@ test('the mobile website uses application navigation below 860 pixels', async ({
       '/clubs',
       '/tournaments',
       '/leaderboard',
-      '/docs',
       '/whats-new',
+      '/docs',
       '/data-updates',
       '/support',
     ])

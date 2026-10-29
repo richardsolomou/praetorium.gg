@@ -37,7 +37,7 @@ export function discordAnnouncement(changelog: string, version: string) {
   }).toString()
   link.hash = `release-${version}`
   const heading = `## 📜 Praetorium v${version} is live\n[Full update notes](${link.href}) · [GitHub release](https://github.com/richardsolomou/praetorium.gg/releases/tag/v${version})\n\n`
-  const changes = release.changes.map((change) => `- ${change}`).join('\n')
+  const changes = [...release.features, ...release.fixes].map((change) => `- ${change}`).join('\n')
   const budget = 2000 - heading.length - SPACER.length
   const summary = changes.length <= budget ? changes : `${changes.slice(0, budget - 1).trimEnd()}…`
   return { content: `${heading}${summary}${SPACER}`, allowed_mentions: { parse: [] }, flags: SUPPRESS_EMBEDS }
