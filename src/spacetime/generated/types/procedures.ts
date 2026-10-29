@@ -16,6 +16,7 @@ import * as BattleFeedProcedure from '../battle_feed_procedure'
 import * as BattleForOperatorProcedure from '../battle_for_operator_procedure'
 import * as CancelFriendInviteProcedure from '../cancel_friend_invite_procedure'
 import * as ClaimGuestSeatProcedure from '../claim_guest_seat_procedure'
+import * as ClaimImportedBattleProcedure from '../claim_imported_battle_procedure'
 import * as ClubByTokenProcedure from '../club_by_token_procedure'
 import * as ClubCommandProcedure from '../club_command_procedure'
 import * as ClubNamesProcedure from '../club_names_procedure'
@@ -34,6 +35,7 @@ import * as DeleteUnitLoadoutProcedure from '../delete_unit_loadout_procedure'
 import * as DiscoverRostersProcedure from '../discover_rosters_procedure'
 import * as EndRosterLoanProcedure from '../end_roster_loan_procedure'
 import * as EventAddressProcedure from '../event_address_procedure'
+import * as ExternalAccountsByUserProcedure from '../external_accounts_by_user_procedure'
 import * as FavouriteDatasheetsByUserProcedure from '../favourite_datasheets_by_user_procedure'
 import * as FavouriteDetachmentsByUserProcedure from '../favourite_detachments_by_user_procedure'
 import * as FavouriteFactionsByUserProcedure from '../favourite_factions_by_user_procedure'
@@ -56,6 +58,7 @@ import * as LeagueRosterSharingProcedure from '../league_roster_sharing_procedur
 import * as LeagueRostersProcedure from '../league_rosters_procedure'
 import * as LeaguesVisibleToProcedure from '../leagues_visible_to_procedure'
 import * as LendRosterProcedure from '../lend_roster_procedure'
+import * as LinkExternalAccountProcedure from '../link_external_account_procedure'
 import * as MigrateLeaguesToClubsProcedure from '../migrate_leagues_to_clubs_procedure'
 import * as MigrateProductDataProcedure from '../migrate_product_data_procedure'
 import * as OnboardingByUserProcedure from '../onboarding_by_user_procedure'
@@ -118,6 +121,8 @@ export type CancelFriendInviteArgs = __Infer<typeof CancelFriendInviteProcedure.
 export type CancelFriendInviteResult = __Infer<typeof CancelFriendInviteProcedure.returnType>
 export type ClaimGuestSeatArgs = __Infer<typeof ClaimGuestSeatProcedure.params>
 export type ClaimGuestSeatResult = __Infer<typeof ClaimGuestSeatProcedure.returnType>
+export type ClaimImportedBattleArgs = __Infer<typeof ClaimImportedBattleProcedure.params>
+export type ClaimImportedBattleResult = __Infer<typeof ClaimImportedBattleProcedure.returnType>
 export type ClubByTokenArgs = __Infer<typeof ClubByTokenProcedure.params>
 export type ClubByTokenResult = __Infer<typeof ClubByTokenProcedure.returnType>
 export type ClubCommandArgs = __Infer<typeof ClubCommandProcedure.params>
@@ -154,6 +159,8 @@ export type EndRosterLoanArgs = __Infer<typeof EndRosterLoanProcedure.params>
 export type EndRosterLoanResult = __Infer<typeof EndRosterLoanProcedure.returnType>
 export type EventAddressArgs = __Infer<typeof EventAddressProcedure.params>
 export type EventAddressResult = __Infer<typeof EventAddressProcedure.returnType>
+export type ExternalAccountsByUserArgs = __Infer<typeof ExternalAccountsByUserProcedure.params>
+export type ExternalAccountsByUserResult = __Infer<typeof ExternalAccountsByUserProcedure.returnType>
 export type FavouriteDatasheetsByUserArgs = __Infer<typeof FavouriteDatasheetsByUserProcedure.params>
 export type FavouriteDatasheetsByUserResult = __Infer<typeof FavouriteDatasheetsByUserProcedure.returnType>
 export type FavouriteDetachmentsByUserArgs = __Infer<typeof FavouriteDetachmentsByUserProcedure.params>
@@ -198,6 +205,8 @@ export type LeaguesVisibleToArgs = __Infer<typeof LeaguesVisibleToProcedure.para
 export type LeaguesVisibleToResult = __Infer<typeof LeaguesVisibleToProcedure.returnType>
 export type LendRosterArgs = __Infer<typeof LendRosterProcedure.params>
 export type LendRosterResult = __Infer<typeof LendRosterProcedure.returnType>
+export type LinkExternalAccountArgs = __Infer<typeof LinkExternalAccountProcedure.params>
+export type LinkExternalAccountResult = __Infer<typeof LinkExternalAccountProcedure.returnType>
 export type MigrateLeaguesToClubsArgs = __Infer<typeof MigrateLeaguesToClubsProcedure.params>
 export type MigrateLeaguesToClubsResult = __Infer<typeof MigrateLeaguesToClubsProcedure.returnType>
 export type MigrateProductDataArgs = __Infer<typeof MigrateProductDataProcedure.params>

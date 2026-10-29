@@ -149,7 +149,7 @@ test('an unmatched import reports one failed attempt and no completed save', asy
   )
 })
 
-test('a pasted New Recruit link asks for the exported text and reports no list contents', async ({ page }) => {
+test('a New Recruit link that cannot be opened asks for the exported text and reports no list contents', async ({ page }) => {
   await signUp(page, uniqueName('Import link analytics'))
   await page.goto('/rosters')
   await page.waitForLoadState('networkidle')
@@ -158,7 +158,7 @@ test('a pasted New Recruit link asks for the exported text and reports no list c
   await page.getByRole('button', { name: 'Import roster', exact: true }).click()
   await page.getByLabel('Roster text').fill('https://www.newrecruit.eu/app/list/AbC123xyz')
   await page.getByRole('button', { name: 'Import pasted roster' }).click()
-  await expect(page.getByText('In New Recruit, export the list as text, then paste the text here.')).toBeVisible()
+  await expect(page.getByText('export the list as text and paste the text here.')).toBeVisible()
   await expect
     .poll(() => events)
     .toEqual([

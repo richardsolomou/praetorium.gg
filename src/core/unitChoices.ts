@@ -37,7 +37,7 @@ import {
   selectionCountBoundsAt,
   type Selection,
 } from './evaluate'
-import { allAt, at, countAt, withCounts, withSpread } from './selection'
+import { allAt, at, countAt, replaceAt, withCounts, withSpread } from './selection'
 import { isResizable, modelCountOf, sizeOf } from './unitSize'
 
 /** A decision the data leaves to the player: one of these, in this slot. */
@@ -467,9 +467,14 @@ function collectUnitChoices(
         }
       }
 
-      // What is inside an entry is held by however many of it the selection holds.
+      // What is inside an entry is held by however many of it the selection holds, across every
+      // selection a spread has divided a model into, as Death Company Marines given different pistols are.
       if (inner.type !== 'upgrade' || allAt(selection, here).some((selected) => (selected.count ?? 1) > 0)) {
-        walk(child.definition, here, left - 1, visited, inner.type === undefined ? carriers : (at(selection, here)?.count ?? 1), enclosing)
+        const held =
+          inner.type === 'model'
+            ? allAt(selection, here).reduce((total, selected) => total + (selected.count ?? 1), 0) || 1
+            : (at(selection, here)?.count ?? 1)
+        walk(child.definition, here, left - 1, visited, inner.type === undefined ? carriers : held, enclosing)
       }
     }
   }
@@ -576,11 +581,20 @@ function legalMaximum(
   context: EvaluateOptions,
 ): number {
   const targetId = resolve(option.definition, index).id
+  // A model a spread has divided between selections is judged whole, since the limits count across the unit.
+  const carrier = path.slice(0, -1)
+  const parts = allAt(selection, carrier)
+  const whole =
+    parts.length > 1
+      ? replaceAt(selection, carrier.slice(0, -1), carrier.at(-1)!, [
+          { ...parts[0]!, count: parts.reduce((total, part) => total + (part.count ?? 1), 0) },
+        ])
+      : selection
   for (let count = room; count >= 1; count--) {
     const other = siblings.find((candidate) => candidate.id !== option.id)
     const counts: Record<string, number> = { [option.id]: count }
     if (other) counts[other.id] = room - count
-    const candidate = withSpread(selection, path.join('/'), counts)
+    const candidate = withSpread(whole, path.join('/'), counts)
     const errors = evaluationErrorsFor(targetId, [...(context.roster ?? []), candidate], index, {
       primaryCatalogueId: context.primaryCatalogueId,
       modifierCache: context.modifierCache,

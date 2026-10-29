@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fromNewRecruitText, isNewRecruitLink } from './newRecruit'
+import { fromNewRecruitShare, fromNewRecruitText, isNewRecruitLink, newRecruitShareId, type NewRecruitShare } from './newRecruit'
 
 const exportText = `+++++++++++++++++++++++++++++++++++++++++++++++
 + FACTION KEYWORD: Xenos - Test Faction
@@ -190,5 +190,123 @@ describe('New Recruit share links', () => {
 
   it('does not take another site for a link', () => {
     expect(isNewRecruitLink('https://newrecruit.eu.example.com/app/list/AbC123xyz')).toBe(false)
+  })
+})
+
+/** A shared list as New Recruit's selection tree holds it, with its setup named in German as a translated list is. */
+function shared(): NewRecruitShare {
+  const leaf = (name: string, amount?: number) => ({ name, ...(amount === undefined ? {} : { amount }), options: [] })
+  return {
+    name: 'Die Jungs',
+    totalCost: 140,
+    army: {
+      name: 'Die Jungs',
+      options: [
+        {
+          name: 'Xenos - Orks',
+          options: [
+            {
+              name: 'Army Roster',
+              options: [
+                {
+                  name: 'Konfiguration',
+                  option_id: '4ac9-fd30-1e3d-b249',
+                  options: [
+                    { name: 'Kampfgrösse', option_id: '564e-fbc6-5266-3ea4', options: [leaf('Angriffsstreitmacht (2.000 Punkte)', 1)] },
+                    {
+                      name: 'Kontingent',
+                      option_id: '73c2-d0ed-3c7e-7e17',
+                      options: [{ name: 'Kontingent', options: [leaf('War Horde', 1)] }],
+                    },
+                    { name: 'Force Disposition', option_id: '2f69-9148-45b4-86a8', options: [leaf('Take and Hold', 1)] },
+                  ],
+                },
+                {
+                  name: 'Character',
+                  options: [
+                    {
+                      name: 'Warboss',
+                      uid: 'boss',
+                      amount: 1,
+                      options: [leaf('Warlord', 1), { name: 'Wargear', options: [leaf('Big Choppa'), leaf('Slugga', 1)] }],
+                    },
+                  ],
+                },
+                {
+                  name: 'Battleline',
+                  options: [
+                    {
+                      name: 'Boyz',
+                      uid: 'boyz',
+                      amount: 1,
+                      associated: [{ uid: 'boss' }],
+                      options: [
+                        { name: '1-2 Nobz', options: [{ name: 'Nob', amount: 1, options: [leaf('Big Choppa', 1)] }] },
+                        { name: '9-18 Boyz', options: [{ name: 'Boy', amount: 9, options: [leaf('Choppa', 1), leaf('Slugga', 0)] }] },
+                      ],
+                    },
+                  ],
+                },
+                { name: 'Reference', option_id: 'eef1-be80-500a-edfc', options: [leaf("Martial Ka'tah Reference", 1)] },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+  }
+}
+
+describe('fromNewRecruitShare', () => {
+  it('reads a translated list’s setup by its BattleScribe ids', () => {
+    expect(fromNewRecruitShare(shared())).toMatchObject({
+      faction: 'Xenos - Orks',
+      detachment: 'War Horde',
+      disposition: 'Take and Hold',
+      limit: 2000,
+    })
+  })
+
+  it('counts each model and the choices it carries, leaving out a choice taken none of', () => {
+    expect(fromNewRecruitShare(shared())!.units[1]).toMatchObject({
+      name: 'Boyz',
+      models: 10,
+      selections: [
+        { name: 'Nob', count: 1 },
+        { name: 'Big Choppa', count: 1, model: 'Nob' },
+        { name: 'Boy', count: 9 },
+        { name: 'Choppa', count: 9, model: 'Boy' },
+      ],
+    })
+  })
+
+  it('names what it holds as the catalogue does, for a list New Recruit shows in another language', () => {
+    const named = (id: string) => ({ boy: 'Boy' })[id]
+    const share = shared()
+    const boy = share.army.options[0]!.options[0]!.options[2]!.options[0]!.options[1]!.options[0]!
+    Object.assign(boy, { name: 'Junge', option_id: 'boy' })
+    expect(fromNewRecruitShare(share, named)!.units[1]!.selections.slice(2)).toEqual([
+      { name: 'Boy', count: 9 },
+      { name: 'Choppa', count: 9, model: 'Boy' },
+    ])
+  })
+
+  it('reads the Warlord and the unit a character joins', () => {
+    expect(fromNewRecruitShare(shared())!.units[0]).toMatchObject({
+      warlord: true,
+      attachedToEntry: 2,
+      selections: [
+        { name: 'Big Choppa', count: 1 },
+        { name: 'Slugga', count: 1 },
+      ],
+    })
+  })
+
+  it('leaves out the rules reminders in the reference category', () => {
+    expect(fromNewRecruitShare(shared())!.units.map((unit) => unit.name)).toEqual(['Warboss', 'Boyz'])
+  })
+
+  it('finds the list id in a share link', () => {
+    expect(newRecruitShareId('https://www.newrecruit.eu/app/list/Z6dRw?ref=x')).toBe('Z6dRw')
   })
 })

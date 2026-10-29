@@ -1378,3 +1378,96 @@ describe('per-model wargear on a model its group counts', () => {
     ])
   })
 })
+
+describe('a squad divided by one choice and then another', () => {
+  const index = indexOf({
+    sharedSelectionEntries: [
+      {
+        id: 'squad',
+        name: 'Death Company',
+        type: 'unit' as const,
+        selectionEntries: [
+          {
+            id: 'marine',
+            name: 'Marine',
+            type: 'model' as const,
+            constraints: [
+              { id: 'marine-min', type: 'min' as const, value: 5, field: 'selections', scope: 'parent' },
+              { id: 'marine-max', type: 'max' as const, value: 5, field: 'selections', scope: 'parent' },
+            ],
+            selectionEntryGroups: [
+              {
+                id: 'pistol',
+                name: 'Pistol',
+                defaultSelectionEntryId: 'bolt',
+                constraints: [
+                  ...mandatory('pistol-min'),
+                  { id: 'pistol-max', type: 'max' as const, value: 1, field: 'selections', scope: 'parent' },
+                ],
+                selectionEntries: [
+                  { id: 'bolt', name: 'Bolt pistol', type: 'upgrade' as const },
+                  { id: 'plasma', name: 'Plasma pistol', type: 'upgrade' as const },
+                ],
+              },
+              {
+                id: 'melee',
+                name: 'Melee',
+                defaultSelectionEntryId: 'sword',
+                constraints: [
+                  ...mandatory('melee-min'),
+                  { id: 'melee-max', type: 'max' as const, value: 1, field: 'selections', scope: 'parent' },
+                ],
+                selectionEntries: [
+                  { id: 'sword', name: 'Chainsword', type: 'upgrade' as const, collective: true },
+                  {
+                    id: 'fist',
+                    name: 'Power fist',
+                    type: 'upgrade' as const,
+                    constraints: [
+                      {
+                        id: 'fist-max',
+                        type: 'max' as const,
+                        value: 2,
+                        field: 'selections',
+                        scope: 'unit',
+                        includeChildSelections: true,
+                        shared: true,
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  const pistols = { 'marine/pistol': { bolt: 3, plasma: 2 } }
+
+  it('keeps the whole squad’s count of what the first choice did not touch', () => {
+    const built = buildUnit('squad', index, 5, undefined, { spreads: pistols })!
+    expect(wargearOf(built.selection, index)).toContainEqual({ name: 'Chainsword', count: 5 })
+  })
+
+  it('gives each part of the squad its own share of the second choice', () => {
+    const built = buildUnit('squad', index, 5, undefined, { spreads: { ...pistols, 'marine/melee': { sword: 3, fist: 2 } } })!
+    expect(wargearOf(built.selection, index).toSorted((left, right) => left.name.localeCompare(right.name))).toEqual([
+      { name: 'Bolt pistol', count: 3 },
+      { name: 'Chainsword', count: 3 },
+      { name: 'Plasma pistol', count: 2 },
+      { name: 'Power fist', count: 2 },
+    ])
+  })
+
+  it('limits the second choice by the whole squad', () => {
+    const built = buildUnit('squad', index, 5, undefined, { spreads: { ...pistols, 'marine/melee': { sword: 3, fist: 2 } } })!
+    const melee = built.choices.find((choice) => choice.name === 'Melee')
+    expect(melee?.options.find((option) => option.id === 'fist')?.max).toBe(2)
+  })
+
+  it('offers the second choice to every model', () => {
+    const built = buildUnit('squad', index, 5, undefined, { spreads: pistols })!
+    expect(built.choices.find((choice) => choice.name === 'Melee')?.room).toBe(5)
+  })
+})

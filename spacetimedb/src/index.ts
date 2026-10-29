@@ -15,6 +15,7 @@ import {
   POINTS_BUDGET_MIN,
   pointsBudgetError,
   pointsBudgetOf,
+  importedCommandRefusal,
   reduceBattle,
   validate,
   type FormatRuleId,
@@ -84,6 +85,7 @@ import {
 import { boundedProgress, countsAsList, MAX_COLLECTION_MODELS, MAX_COLLECTION_DATASHEETS, MAX_COUNTS_AS } from '../../src/core/collection'
 import { TABLE_SHAPES, type TableShape } from '../../src/core/tableShape'
 import { guestSeatId, isGuestSeat } from '../../src/core/newBattle'
+import { externalPlayerKey, IMPORT_SOURCES } from '../../src/core/importSources'
 import { claimedLog, guestClaimRefusal, guestDeviceSubject, guestSessionCurrent } from '../../src/core/guestSession'
 import { PROFILE_NAME_MAX_LENGTH } from '../../src/core/profileName'
 import type { Roster } from '../../src/core/battle'
@@ -431,6 +433,8 @@ function deleteBattle(ctx: Context, battleId: string) {
       if (pairing.battleId === battleId) ctx.db.leagueRoundPairings.key.update({ ...pairing, battleId: undefined })
   ctx.db.leagueEventBattles.battleId.delete(battleId)
   ctx.db.clubBattles.battleId.delete(battleId)
+  ctx.db.battleImports.battleId.delete(battleId)
+  for (const row of Array.from(ctx.db.importedSeats.battleId.filter(battleId))) ctx.db.importedSeats.key.delete(row.key)
   ctx.db.battles.id.delete(battleId)
 }
 
@@ -714,6 +718,7 @@ export const deleteUserData = spacetime.reducer({ userId: t.string() }, (ctx, { 
     ctx.db.tournamentAdmins.key.delete(row.key)
   }
   for (const row of Array.from(ctx.db.userOnboardingTasks.userId.filter(userId))) ctx.db.userOnboardingTasks.key.delete(row.key)
+  for (const row of Array.from(ctx.db.externalAccounts.userId.filter(userId))) ctx.db.externalAccounts.key.delete(row.key)
   ctx.db.userOnboarding.userId.delete(userId)
   ctx.db.pushPreferences.userId.delete(userId)
   ctx.db.playerDefaults.userId.delete(userId)
@@ -956,6 +961,16 @@ const newBattle = z.strictObject({
   guestNames: z.array(z.string().trim().min(1).max(PROFILE_NAME_MAX_LENGTH)).max(2).default([]),
   initialCommands: z.array(commandSchema).max(1_000),
   now: z.number().int().nonnegative(),
+  /** A finished battle copied from another tracker, with when each of its commands happened there. */
+  imported: z
+    .strictObject({
+      source: z.enum(IMPORT_SOURCES),
+      sourceId: idInput,
+      times: z.array(z.number().int().nonnegative()).max(1_000),
+      /** Each seat's player in the source, the importing account's first and then the guest's. */
+      players: z.tuple([idInput, idInput]),
+    })
+    .optional(),
   /** The club season fixture this battle plays, which it is linked to as it starts. */
   fixtureKey: z
     .string()
@@ -1258,23 +1273,28 @@ export const claimGuestSeat = spacetime.procedure(
         input.userId,
       )
       if (refusal) return productJson(refusal)
-      tx.db.battleUsers.key.delete(seat.key)
-      tx.db.battleUsers.insert({
-        ...seat,
-        key: JSON.stringify([input.battleId, input.userId]),
-        userId: input.userId,
-        guestName: undefined,
-        claimedSeat: input.seatId,
-      })
-      tx.db.guestSeats.seatId.delete(input.seatId)
-      endGuestSessions(tx, input.seatId)
-      for (const one of [...seats.map((other) => other.id), input.userId]) touchProduct(tx, one, 'battles', 'onboarding')
-      touchPublic(tx, 'battles')
-      touchPublic(tx, 'standings')
-      touchAdmin(tx)
+      claimSeat(tx, seat, input.userId, seats)
       return productJson('claimed')
     }),
 )
+
+/** Puts an account on a guest seat for good: the log keeps the seat, which every read names as the account. */
+function claimSeat(ctx: Context, seat: ReturnType<typeof guestSeatIn>, userId: string, seats: readonly { id: string }[]) {
+  ctx.db.battleUsers.key.delete(seat.key)
+  ctx.db.battleUsers.insert({
+    ...seat,
+    key: JSON.stringify([seat.battleId, userId]),
+    userId,
+    guestName: undefined,
+    claimedSeat: seat.userId,
+  })
+  ctx.db.guestSeats.seatId.delete(seat.userId)
+  endGuestSessions(ctx, seat.userId)
+  for (const one of [...seats.map((other) => other.id), userId]) touchProduct(ctx, one, 'battles', 'onboarding')
+  touchPublic(ctx, 'battles')
+  touchPublic(ctx, 'standings')
+  touchAdmin(ctx)
+}
 
 /** Disconnects the device that held a guest seat, which its next token can no longer reconnect. */
 function endGuestSessions(ctx: Context, seatId: string) {
@@ -1339,6 +1359,85 @@ export const productStats = spacetime.procedure({ userIds: t.array(t.string()) }
 )
 
 const PRACTICE_OPPONENTS_MAX = 100
+
+const externalPlayer = { source: z.enum(IMPORT_SOURCES), playerId: idInput }
+const claimImportedInput = z.strictObject({ ...externalPlayer, sourceId: idInput, userId: idInput })
+const linkExternalInput = z.strictObject({
+  ...externalPlayer,
+  userId: idInput,
+  name: z.string().trim().min(1).max(PROFILE_NAME_MAX_LENGTH),
+})
+
+/**
+ * Seats an account in every copied battle its player sat in as a guest. A seat it cannot take is
+ * left as it is: a battle it already sits in, or one still being played. Returns how many it took.
+ */
+function seatExternalPlayer(ctx: Context, player: string, userId: string, battleId?: string) {
+  let seated = 0
+  for (const row of Array.from(ctx.db.importedSeats.player.filter(player))) {
+    if (battleId !== undefined && row.battleId !== battleId) continue
+    const [, seatId] = JSON.parse(row.key) as [string, string]
+    const seat = ctx.db.battleUsers.key.find(JSON.stringify([row.battleId, seatId]))
+    if (seat?.guestName === undefined) continue
+    const { seats, state } = battleState(ctx, row.battleId)
+    if (
+      guestClaimRefusal(
+        state,
+        seats.map((one) => one.id),
+        userId,
+      )
+    )
+      continue
+    claimSeat(ctx, seat, userId, seats)
+    seated++
+  }
+  return seated
+}
+
+/**
+ * Seats an account in a battle another of its players already copied, on the seat its source
+ * player sat in: `absent` when nobody has copied it, `seated` when the account already sits there,
+ * `unavailable` when that seat is taken, and `claimed` once the account sits there.
+ */
+export const claimImportedBattle = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
+  operatorTx(ctx, (tx) => {
+    const input = decodePayload(claimImportedInput, payload, 'Invalid imported battle')
+    if (isGuestSeat(input.userId)) throw new SenderError('Invalid user ID')
+    const row = tx.db.battleImports.key.find(JSON.stringify([input.source, input.sourceId]))
+    if (!row) return productJson('absent')
+    if (tx.db.battleUsers.key.find(JSON.stringify([row.battleId, input.userId]))) return productJson('seated')
+    const seated = seatExternalPlayer(tx, externalPlayerKey(input.source, input.playerId), input.userId, row.battleId)
+    return productJson(seated ? 'claimed' : 'unavailable')
+  }),
+)
+
+/**
+ * Records that an account on another tracker is this player's, once they proved it, and seats them
+ * in every battle already copied from it where they sat as a guest. A later proof moves the
+ * account to whoever gave it; battles the earlier owner was already seated in stay theirs.
+ */
+export const linkExternalAccount = spacetime.procedure({ payload: t.string() }, t.u32(), (ctx, { payload }) =>
+  operatorTx(ctx, (tx) => {
+    const input = decodePayload(linkExternalInput, payload, 'Invalid external account')
+    if (isGuestSeat(input.userId)) throw new SenderError('Invalid user ID')
+    const key = externalPlayerKey(input.source, input.playerId)
+    tx.db.externalAccounts.key.delete(key)
+    tx.db.externalAccounts.insert({ key, userId: input.userId, name: input.name })
+    return seatExternalPlayer(tx, key, input.userId)
+  }),
+)
+
+/** The accounts on other trackers a player proved are theirs. */
+export const externalAccountsByUser = spacetime.procedure({ userId: t.string() }, t.string(), (ctx, { userId }) =>
+  operatorTx(ctx, (tx) =>
+    productJson(
+      Array.from(tx.db.externalAccounts.userId.filter(userId), (row) => {
+        const [source, playerId] = JSON.parse(row.key) as [string, string]
+        return { source, playerId, name: row.name }
+      }),
+    ),
+  ),
+)
 
 export const practiceOpponentIds = spacetime.procedure({}, t.string(), (ctx) =>
   operatorTx(ctx, (tx) => {
@@ -3637,6 +3736,7 @@ function insertBattle(
   { id, token, now, by, seats }: { id: string; token: string; now: number; by: string; seats: readonly BattleSeat[] },
   initialCommands: readonly Command[],
   refusal: (state: BattleState, command: Command) => string | null,
+  times: readonly number[] = [],
 ) {
   ctx.db.battles.insert({ id, token, createdAt: BigInt(now) })
   for (const [index, seat] of seats.entries()) {
@@ -3665,22 +3765,23 @@ function insertBattle(
     )
     if (refused) throw new SenderError(`new battle command was refused: ${refused}`)
     const seq = index + 1
+    const at = Math.max(now, times[index] ?? now, log.at(-1)?.at ?? now)
     ctx.db.commands.insert({
       key: JSON.stringify([id, seq]),
       battleId: id,
       seq,
       userId: by,
-      at: BigInt(now),
+      at: BigInt(at),
       body: JSON.stringify(command),
     })
-    log.push({ seq, by, at: now, command })
+    log.push({ seq, by, at, command })
   }
 }
 
 function createBattleIn(tx: Context, args: unknown[]) {
   const [payload] = z.tuple([textArg]).parse(args)
   const battle = decodePayload(newBattle, payload, 'Invalid battle')
-  const { id, token, userId, allyIds, opponentIds, guestNames, initialCommands, now } = battle
+  const { id, token, userId, allyIds, opponentIds, guestNames, initialCommands, now, imported } = battle
   const seats: BattleSeat[] = [
     { id: userId, side: 0 },
     ...allyIds.map((seatId) => ({ id: seatId, side: 0 })),
@@ -3694,6 +3795,33 @@ function createBattleIn(tx: Context, args: unknown[]) {
     new Set(seats.map((seat) => seat.id)).size !== seats.length
   )
     throw new SenderError('Invalid battle seats')
+  if (imported) {
+    const [importer, opponent] = imported.players.map((player) => externalPlayerKey(imported.source, player))
+    if (
+      seats.length !== 2 ||
+      !guestNames.length ||
+      battle.fixtureKey !== undefined ||
+      imported.times.length !== initialCommands.length ||
+      tx.db.externalAccounts.key.find(importer!)?.userId !== userId
+    )
+      throw new SenderError('Invalid imported battle')
+    const key = JSON.stringify([imported.source, imported.sourceId])
+    if (tx.db.battleImports.key.find(key)) throw new SenderError('Battle already imported')
+    insertBattle(
+      tx,
+      { id, token, now, by: userId, seats },
+      initialCommands,
+      (state, command) => importedCommandRefusal(state, userId, command),
+      imported.times,
+    )
+    tx.db.battleImports.insert({ battleId: id, key })
+    for (const [at, player] of [importer!, opponent!].entries())
+      tx.db.importedSeats.insert({ key: JSON.stringify([id, seats[at]!.id]), battleId: id, player })
+    // An opponent who proved the source account is theirs plays their own seat from the start.
+    const linked = tx.db.externalAccounts.key.find(opponent!)?.userId
+    if (linked && linked !== userId) seatExternalPlayer(tx, opponent!, linked, id)
+    return productJson(battleData(tx, id))
+  }
   // A club game started from its club is tagged at birth, for players who all belong to it.
   insertBattle(
     tx,

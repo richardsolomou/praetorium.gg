@@ -40,6 +40,18 @@ Another device took the seat. Take the seat back and send the new link.
 
 Nobody is seated at the battle any more, so there is nothing to watch.
 
+### Your BattleBase tagline doesn't show the code yet
+
+Save the tagline on BattleBase, check it shows the whole code, and choose **Import battles** again. The code belongs to your Praetorium account and that BattleBase username, so a code shown to someone else won't work for you.
+
+### Some games were left out
+
+Only finished, public games you played in can be imported. Make a game public in the app, then import again.
+
+### An army shows as a list rather than units
+
+Praetorium rebuilds an army only when it finds every unit in it. Where one isn't in its datasheets, the army shows as the app listed it, with nothing left out.
+
 ## Limits
 
 - Praetorium records what you tell it. It doesn't roll dice, check movement, range or line of sight, or judge whether a score was earned. In a manual battle it doesn't check scores or CP at all.

@@ -9,16 +9,20 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../../components/Dialog'
-import { importRoster, saveRoster } from '../../functions'
+import { findImportableRosters, importRoster, saveRoster } from '../../functions'
 import { invalidateSavedRosters, playerDefaultsQuery } from '../../queries'
 import { isRosterExchangeCode } from '../../../core/rosterExchange'
-import { isNewRecruitLink } from '../../../core/newRecruit'
+import { isNewRecruitLink, newRecruitShareId } from '../../../core/newRecruit'
 import { structuredRosterFile, type StructuredRosterFile } from '../../../core/structuredRosterFile'
 import { importRosterFormat } from '../../../shared/rosterFiles'
 import { battleSizeLabel } from '../../../core/battle'
 import { importFailureReport } from '../feedback/feedback'
 import { sendFeedback } from '../feedback/sendFeedback'
 import { Problem } from '../../components/Problem'
+import { Choice } from '../../components/Choice'
+import { toast } from 'sonner'
+import { countLabel } from '../../text'
+import { type RosterApp, RosterAppImport } from './RosterAppImport'
 
 type Imported = Awaited<ReturnType<typeof importRoster>>
 type Matched<T> = T extends { catalogueId: string | null; source: string | null }
@@ -95,26 +99,30 @@ function Shortfall({ title, rows }: { title: string; rows: readonly { key: strin
  */
 export function RosterImport({ onImport, blocked }: { onImport?: (imported: MatchedImport) => void; blocked?: () => void }) {
   const [open, setOpen] = useState(false)
+  const [mode, setMode] = useState<'text' | RosterApp>('text')
+  /** A list found in another app and opened for review, which pasted text never fills. */
+  const [picked, setPicked] = useState<MatchedImport | null>(null)
   const [text, setText] = useState('')
   const [droppedFile, setDroppedFile] = useState<Error | null>(null)
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
+  const saveImported = async (imported: MatchedImport) => {
+    const defaults = await queryClient.query({ ...playerDefaultsQuery(), staleTime: 'static' })
+    const { id } = await saveRoster({
+      data: {
+        ...importedSetup(imported, defaults.battleSize),
+        picks: imported.units,
+        prep: null,
+        visibility: defaults.rosterVisibility,
+        source: imported.source,
+      },
+    })
+    return id
+  }
   const keep = useMutation({
     onError: () => posthog.capture('roster_import_save_failed', { reason: 'request' }),
-    mutationFn: async (imported: MatchedImport) => {
-      const defaults = await queryClient.query({ ...playerDefaultsQuery(), staleTime: 'static' })
-      const { id } = await saveRoster({
-        data: {
-          ...importedSetup(imported, defaults.battleSize),
-          picks: imported.units,
-          prep: null,
-          visibility: defaults.rosterVisibility,
-          source: imported.source,
-        },
-      })
-      return id
-    },
+    mutationFn: saveImported,
     onSuccess: async (id, imported) => {
       posthog.capture('roster_import_saved', { source: imported.source, pick_count: imported.units.length })
       if (imported.unknown.length || imported.unplaced.length)
@@ -128,6 +136,20 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
       await navigate({ to: '/rosters/$id', params: { id } })
     },
   })
+  /** Lists that matched completely, saved one after another so a failure leaves the ones before it saved. */
+  const keepAll = useMutation({
+    onError: () => posthog.capture('roster_import_save_failed', { reason: 'request', bulk: true }),
+    mutationFn: async (imported: readonly MatchedImport[]) => {
+      for (const list of imported) await saveImported(list)
+      return imported
+    },
+    onSuccess: async (imported) => {
+      posthog.capture('roster_import_saved', { source: imported[0]?.source, bulk: true, rosters: imported.length })
+      await invalidateSavedRosters(queryClient)
+      setOpen(false)
+      toast(`Imported ${countLabel(imported.length, 'roster')}.`)
+    },
+  })
 
   const inputOf = (file: string) => (isRosterExchangeCode(file) ? 'exchange-code' : 'text')
   const formatOf = (file: string) => (isRosterExchangeCode(file) ? 'praetorium' : importRosterFormat(file))
@@ -135,9 +157,14 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
     onMutate: (file) => posthog.capture('roster_import_submitted', { input: inputOf(file) }),
     mutationFn: async (file: string): Promise<MatchedImport> => {
       if (isNewRecruitLink(file)) {
+        const found = newRecruitShareId(file)
+          ? await findImportableRosters({ data: { source: 'newrecruit', links: [file] } }).catch(() => null)
+          : null
+        const shared = found?.found ? found.rosters[0] : undefined
+        if (shared?.kind === 'read' && matched(shared.imported)) return shared.imported
         posthog.capture('roster_import_failed', { reason: 'share_link', input: inputOf(file), format: 'newrecruit' })
         throw new Error(
-          'That is a New Recruit link, and Praetorium cannot open New Recruit lists from a link. In New Recruit, export the list as text, then paste the text here.',
+          'That New Recruit link could not be opened. Copy the share link from the list in New Recruit, or export the list as text and paste the text here.',
         )
       }
       const structured = structuredRosterFile(file)
@@ -182,10 +209,10 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
     },
   })
 
-  const review = bring.data ?? null
-  const fromCode = bring.variables !== undefined && isRosterExchangeCode(bring.variables)
-  const working = bring.isPending || keep.isPending
-  const failure = droppedFile ?? bring.error ?? keep.error
+  const review = picked ?? bring.data ?? null
+  const fromCode = !picked && bring.variables !== undefined && isRosterExchangeCode(bring.variables)
+  const working = bring.isPending || keep.isPending || keepAll.isPending
+  const failure = droppedFile ?? bring.error ?? keep.error ?? keepAll.error
 
   // A scanned QR code opens this page with the code in the fragment, which never reaches the server.
   const hash = useLocation({ select: (location) => location.hash })
@@ -225,6 +252,8 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
     posthog.capture('roster_import_started', { input: 'text' })
     bring.reset()
     keep.reset()
+    keepAll.reset()
+    setPicked(null)
     setDroppedFile(null)
     setOpen(true)
   }
@@ -235,20 +264,26 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
         <FileUp /> Import roster
       </Button>
       <Dialog open={open} onOpenChange={(next) => !working && setOpen(next)}>
-        <DialogContent size="md">
+        <DialogContent
+          size="md"
+          actions={
+            <GuideHelp icon task="roster-tools" step={review ? 'tools-review' : 'tools-input'}>
+              Import guide
+            </GuideHelp>
+          }
+        >
           <DialogHeader>
             <DialogTitle className="text-2xl">Import roster</DialogTitle>
             <DialogDescription>
               {review
                 ? 'Review the matched list and any missing choices before continuing.'
-                : 'Paste a supported army-text export or an exchange code. You will review the entries and points before importing.'}
+                : mode !== 'text'
+                  ? 'Find your lists and import them together. A list with anything to check opens for review first.'
+                  : 'Paste a supported army-text export or an exchange code. You will review the entries and points before importing.'}
             </DialogDescription>
           </DialogHeader>
 
           <DialogBody>
-            <GuideHelp task="roster-tools" step={review ? 'tools-review' : 'tools-input'}>
-              Import guide
-            </GuideHelp>
             {review ? (
               <div data-onboarding="import-review" className="space-y-3">
                 <p className="text-sm">
@@ -308,51 +343,78 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
                     advanceOnboarding('roster-tools', 'tools-review', 'tools-input')
                     bring.reset()
                     keep.reset()
+                    setPicked(null)
                   }}
                 >
-                  {fromCode ? 'Edit code' : 'Edit pasted text'}
+                  {picked ? 'Back to the lists' : fromCode ? 'Edit code' : 'Edit pasted text'}
                 </Button>
               </div>
-            ) : (
-              <div className="space-y-2">
-                <Label htmlFor="roster-text" className="eyebrow">
-                  Roster text or exchange code
-                </Label>
-                <Textarea
-                  data-onboarding="import-input"
-                  id="roster-text"
-                  value={text}
-                  onChange={(event) => {
-                    setDroppedFile(null)
-                    setText(event.target.value)
-                  }}
-                  // Cancelling dragover for files makes the box a drop target, so a dropped roster file is refused rather than opened.
-                  onDragOver={(event) => event.dataTransfer.types.includes('Files') && event.preventDefault()}
-                  onDrop={(event) => {
-                    const format = structuredRosterFile(event.dataTransfer.files[0]?.name ?? '')
-                    if (!format) return
-                    event.preventDefault()
-                    bring.reset()
-                    setDroppedFile(refuseRosterFile(format, 'file'))
-                  }}
-                  placeholder="Paste Games Workshop roster text or an exchange code…"
-                  className="h-52 min-h-52 field-sizing-fixed resize-none overflow-y-auto font-mono text-xs"
-                  disabled={working}
-                  maxLength={200_000}
+            ) : null}
+            {/* Kept mounted under a review, so the lists found are still there to go back to. */}
+            <div hidden={Boolean(review)} className="space-y-3">
+              <Choice
+                label="Import from"
+                value={mode}
+                disabled={working}
+                options={[
+                  { value: 'text', name: 'Pasted text', detail: 'An export or exchange code' },
+                  { value: 'battlebase', name: 'BattleBase', detail: 'A player’s public rosters' },
+                  { value: 'newrecruit', name: 'New Recruit', detail: 'Share links' },
+                ]}
+                onChange={(next) => {
+                  bring.reset()
+                  setMode(next)
+                }}
+              />
+              {mode !== 'text' ? (
+                <RosterAppImport
+                  key={mode}
+                  app={mode}
+                  working={working}
+                  onReview={setPicked}
+                  onImport={onImport || blocked ? undefined : (lists) => keepAll.mutate(lists)}
                 />
-                <Button
-                  className="w-full"
-                  disabled={!text.trim() || working}
-                  onClick={() => {
-                    setDroppedFile(null)
-                    bring.mutate(text)
-                  }}
-                >
-                  {working ? <LoaderCircle className="animate-spin" /> : <Copy />}
-                  Import pasted roster
-                </Button>
-              </div>
-            )}
+              ) : (
+                <div className="space-y-2">
+                  <Label htmlFor="roster-text" className="eyebrow">
+                    Roster text or exchange code
+                  </Label>
+                  <Textarea
+                    data-onboarding="import-input"
+                    id="roster-text"
+                    value={text}
+                    onChange={(event) => {
+                      setDroppedFile(null)
+                      setText(event.target.value)
+                    }}
+                    // Cancelling dragover for files makes the box a drop target, so a dropped roster file is refused rather than opened.
+                    onDragOver={(event) => event.dataTransfer.types.includes('Files') && event.preventDefault()}
+                    onDrop={(event) => {
+                      const format = structuredRosterFile(event.dataTransfer.files[0]?.name ?? '')
+                      if (!format) return
+                      event.preventDefault()
+                      bring.reset()
+                      setDroppedFile(refuseRosterFile(format, 'file'))
+                    }}
+                    placeholder="Paste Games Workshop roster text or an exchange code…"
+                    className="h-52 min-h-52 field-sizing-fixed resize-none overflow-y-auto font-mono text-xs"
+                    disabled={working}
+                    maxLength={200_000}
+                  />
+                  <Button
+                    className="w-full"
+                    disabled={!text.trim() || working}
+                    onClick={() => {
+                      setDroppedFile(null)
+                      bring.mutate(text)
+                    }}
+                  >
+                    {working ? <LoaderCircle className="animate-spin" /> : <Copy />}
+                    Import pasted roster
+                  </Button>
+                </div>
+              )}
+            </div>
 
             {failure ? <Problem error={failure} className="whitespace-pre-line" /> : null}
           </DialogBody>

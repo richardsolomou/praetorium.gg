@@ -45,6 +45,10 @@ export default defineConfig({
       ...(process.env.PLAYWRIGHT_STARTUP_REPORT ? { LOCAL_STARTUP_REPORT: process.env.PLAYWRIGHT_STARTUP_REPORT } : {}),
       NO_COLOR: '',
       EXPO_PUSH_ACCESS_TOKEN: 'unused-e2e-token',
+      // Other apps' services are never reached from a browser test; a closed port answers in their place.
+      BATTLEBASE_URL: 'http://127.0.0.1:9',
+      BATTLEBASE_APP_URL: 'http://127.0.0.1:9',
+      NEWRECRUIT_URL: 'http://127.0.0.1:9',
       CATALOGUE_DIR: catalogue,
       ...(inspectPort ? { LOCAL_SERVER_INSPECT_PORT: String(inspectPort) } : {}),
       ...(processCoverage ? { LOCAL_COVERAGE_DIR: processCoverage } : {}),

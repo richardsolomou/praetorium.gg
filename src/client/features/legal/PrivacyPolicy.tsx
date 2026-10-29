@@ -2,7 +2,7 @@ import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
-    <LegalPage eyebrow="Legal" title="Privacy policy" updated="25 October 2026">
+    <LegalPage eyebrow="Legal" title="Privacy policy" updated="29 October 2026">
       <LegalSection title="Scope">
         <p>
           Praetorium builds Warhammer 40,000 army lists and tracks battles between the players seated at them. This policy covers the
@@ -26,7 +26,9 @@ export function PrivacyPolicy() {
           Saved rosters — their name, tags, detachment and unit picks — battle records, including the players, armies, setup choices, scores
           and actions recorded during a game, friendships, the friends you lend a roster to, datasheets in your collection with their owned,
           built and painted model counts and photos, your wishlist, favourites, the combat simulator matchups you last ran, practice
-          opponents you seat, and the names you give guest opponents.
+          opponents you seat, the names you give guest opponents, the finished public BattleBase games you import, with their armies and
+          your opponents' BattleBase names, and the BattleBase account you link. A linked account puts you in your seat in any game imported
+          with you in it, whoever imports it. An imported game is a battle like any other: public, and in records and standings.
         </p>
         <h3 className="text-sm tracking-label text-bone">Technical data</h3>
         <p>
@@ -114,6 +116,7 @@ export function PrivacyPolicy() {
           <li>PostHog, for the usage measurement described above.</li>
           <li>An email delivery provider, to send account email.</li>
           <li>Apple, Google, Discord or GitHub, when you use one of them to sign in.</li>
+          <li>BattleBase, which receives the BattleBase username you enter when you import your games from it.</li>
           <li>
             TypeSafe, which checks each collection photo and profile picture you upload for content that does not belong on the service.
           </li>

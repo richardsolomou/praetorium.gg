@@ -1157,6 +1157,18 @@ export class SpacetimeRepository {
     await this.product.createBattle(...args)
   }
 
+  claimImportedBattle(...args: Parameters<SpacetimeOperator['claimImportedBattle']>) {
+    return this.product.claimImportedBattle(...args)
+  }
+
+  linkExternalAccount(...args: Parameters<SpacetimeOperator['linkExternalAccount']>) {
+    return this.product.linkExternalAccount(...args)
+  }
+
+  externalAccountsByUser(userId: string) {
+    return this.product.externalAccountsByUser(userId)
+  }
+
   deleteBattleForOperator(battleId: string) {
     return this.product.deleteBattleForOperator(battleId)
   }

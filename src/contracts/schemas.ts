@@ -289,6 +289,15 @@ export const friendInviteSchema = z.object({ token })
 /** A guest seat in a battle; `replace` retires its link and any device that joined through it. */
 export const guestInviteSchema = z.object({ token, playerId: id, replace: z.boolean().default(false) })
 export const guestInvitationSchema = z.object({ invite: token })
+/** A BattleBase username, as its profile URLs spell them. */
+export const battlebaseUsernameSchema = z.object({
+  username: z
+    .string()
+    .trim()
+    .regex(/^[\w.-]{1,64}$/),
+})
+/** A BattleBase account to prove and import from, or none to import again from the one already linked. */
+export const battlebaseImportSchema = battlebaseUsernameSchema.partial()
 
 /**
  * A player's profile, and what to narrow their record by.
@@ -453,6 +462,11 @@ export const submitSchema = z.object({
 
 /** A Praetorium, BattleBase or New Recruit text export, which no roster comes close to filling. */
 export const importRosterSchema = z.object({ file: z.string().min(1).max(200_000) })
+/** Where to look for lists to import: a player's public BattleBase rosters, or New Recruit share links. */
+export const importableRostersSchema = z.discriminatedUnion('source', [
+  z.object({ source: z.literal('battlebase'), username: battlebaseUsernameSchema.shape.username }),
+  z.object({ source: z.literal('newrecruit'), links: z.array(z.string().trim().min(1).max(200)).min(1).max(20) }),
+])
 export type ImportRosterInput = z.infer<typeof importRosterSchema>
 
 export const detachmentRulesSchema = z.object({
