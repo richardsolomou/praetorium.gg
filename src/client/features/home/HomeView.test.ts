@@ -141,13 +141,17 @@ describe('battle rows', () => {
       scores: [0, 0],
       sides: [0, 1],
       deploymentId: null,
-      lastActivity: 0,
+      lastActivity: Date.now(),
       settings: { limit: 2000 },
       ...overrides,
     }) as unknown as Battle
 
   it("lists two of the player's games in progress", () => {
     expect((render({ mine: ['a', 'b', 'c'].map((token) => battle(token)) }).match(/aria-label="Open /g) ?? []).length).toBe(2)
+  })
+
+  it('leaves a game untouched for weeks off the home page', () => {
+    expect(render({ mine: [battle('a', { lastActivity: 0 })] })).not.toContain('aria-label="Open ')
   })
 
   it('links to every battle when more games are in progress than shown', () => {
