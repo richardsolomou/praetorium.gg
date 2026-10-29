@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.201.0 (2026-10-29)
+
+### Minor Changes
+
+- ba836f9: Profiles have an Achievements tab with medals for nearly everything you can do, from building your first roster to 100-win streaks, and achievement points show under the player's name.
+
 ## 0.200.1 (2026-10-29)
 
 ### Patch Changes
