@@ -40,16 +40,4 @@ Either way, a game comes in once: whichever of you imports first brings it in, a
 
 Imported games are battles like any other: in your record and on your profile, among public battles, and on the [leaderboard](/leaderboard) once your opponent is in the battle too, as with any game against a guest.
 
-## Common problems
-
-### Your BattleBase tagline doesn't show the code yet
-
-Save the tagline on BattleBase, check it shows the whole code, and choose **Import battles** again. The code belongs to your Praetorium account and that BattleBase username, so a code shown to someone else won't work for you.
-
-### Some games were left out
-
-Only finished, public games you played in can be imported. Make a game public in the app, then import again.
-
-### An army shows as a list rather than units
-
-Praetorium rebuilds an army only when it finds every unit in it. Where one isn't in its datasheets, the army shows as the app listed it, with nothing left out.
+For a code that isn't found or games that were left out, see [Battle problems](/docs/battle-problems#your-battlebase-tagline-doesn-t-show-the-code-yet).
