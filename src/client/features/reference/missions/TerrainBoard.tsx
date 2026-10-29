@@ -30,6 +30,35 @@ export type MeasurementSource = 'terrain' | 'lines' | 'edges' | 'published' | 'm
 
 const publishedOnly: MeasurementSource[] = ['published']
 
+/** One colour per measurement option, so the board shows which distance comes from which. */
+export const measurementColours = {
+  terrain: {
+    border: 'data-[pressed]:border-measure-terrain',
+    text: 'text-measure-terrain',
+    fill: 'fill-measure-terrain',
+    stroke: 'stroke-measure-terrain',
+  },
+  lines: {
+    border: 'data-[pressed]:border-measure-lines',
+    text: 'text-measure-lines',
+    fill: 'fill-measure-lines',
+    stroke: 'stroke-measure-lines',
+  },
+  edges: {
+    border: 'data-[pressed]:border-measure-edges',
+    text: 'text-measure-edges',
+    fill: 'fill-measure-edges',
+    stroke: 'stroke-measure-edges',
+  },
+  published: {
+    border: 'data-[pressed]:border-measure-published',
+    text: 'text-measure-published',
+    fill: 'fill-measure-published',
+    stroke: 'stroke-measure-published',
+  },
+  mat: { border: 'data-[pressed]:border-measure-mat', text: 'text-measure-mat', fill: 'fill-measure-mat', stroke: 'stroke-measure-mat' },
+} satisfies Record<MeasurementSource, { border: string; text: string; fill: string; stroke: string }>
+
 export function TerrainBoard({
   layout,
   deployment,
@@ -99,18 +128,21 @@ export function TerrainBoard({
           <rect width="1" height="1" className="fill-bone/15" />
           <line x1="0" y1="0" x2="0" y2="1" className="stroke-bone/35" strokeWidth=".15" />
         </pattern>
-        <marker
-          id={`${patternId}-arrow`}
-          viewBox="0 0 1.2 1.2"
-          refX="1.2"
-          refY=".6"
-          markerWidth=".65"
-          markerHeight=".65"
-          orient="auto-start-reverse"
-          markerUnits="userSpaceOnUse"
-        >
-          <path d="M 0 0 L 1.2 .6 L 0 1.2 Z" className="fill-side-a" />
-        </marker>
+        {(['terrain', 'lines', 'edges', 'published'] as const).map((source) => (
+          <marker
+            key={source}
+            id={`${patternId}-arrow-${source}`}
+            viewBox="0 0 1.2 1.2"
+            refX="1.2"
+            refY=".6"
+            markerWidth=".65"
+            markerHeight=".65"
+            orient="auto-start-reverse"
+            markerUnits="userSpaceOnUse"
+          >
+            <path d="M 0 0 L 1.2 .6 L 0 1.2 Z" className={measurementColours[source].fill} />
+          </marker>
+        ))}
       </defs>
       <rect width={board.height} height={board.width} fill={`url(#${patternId}-major)`} />
       <g transform={upright}>
@@ -173,7 +205,7 @@ export function TerrainBoard({
           geometry={layout.geometry}
           measurements={[...placement, ...(show.includes('published') ? layout.geometry.areas.flatMap((area) => area.measurements) : [])]}
           flipped={flipped}
-          arrowId={`${patternId}-arrow`}
+          arrowId={(source) => `${patternId}-arrow-${source}`}
           objectives={objectivePositions}
         />
       ) : null}
@@ -471,30 +503,22 @@ function MatCoordinates({
           y1={portrait.y}
           x2={label.x}
           y2={label.y}
-          className="stroke-parchment"
+          className={measurementColours.mat.stroke}
           strokeWidth=".1"
         />
       ))}
       {labels.map(({ portrait, text, label, size }) => (
         <g key={`${portrait.x}-${portrait.y}`}>
-          <circle cx={portrait.x} cy={portrait.y} r=".22" className="fill-parchment" />
+          <circle cx={portrait.x} cy={portrait.y} r=".22" className={measurementColours.mat.fill} />
           <rect
             x={label.x - size.width / 2}
             y={label.y - size.height / 2}
             width={size.width}
             height={size.height}
             rx=".14"
-            className="fill-parchment"
+            className={measurementColours.mat.fill}
           />
-          <text
-            x={label.x}
-            y={label.y}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            className="fill-parchment-ink"
-            fontSize=".9"
-            fontWeight="700"
-          >
+          <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="middle" className="fill-void" fontSize=".9" fontWeight="700">
             {text}
           </text>
           <title>{`${text.replace(' · ', '″ from the left edge, ')}″ from the bottom edge`}</title>
@@ -524,7 +548,7 @@ function TerrainMeasurements({
   geometry: TerrainGeometry
   measurements: Measurement[]
   flipped: boolean
-  arrowId: string
+  arrowId: (source: Exclude<MeasurementSource, 'mat'>) => string
   objectives: { x: number; y: number }[]
 }) {
   const measurements = [
@@ -576,10 +600,12 @@ function TerrainMeasurements({
       const edge = vertical ? (from.y < to.y ? 'top' : 'bottom') : from.x < to.x ? 'left' : 'right'
       const text = `${measurement.approximate ? '≈' : ''}${measurement.ruler ? `${distance} from ${edge}` : distance}`
       const label = placeMeasurementLabel(to, from, vertical, text, occupied, geometry.board)
+      const source: Exclude<MeasurementSource, 'mat'> = measurement.reference ?? 'published'
       const { width: labelWidth, height: labelHeight } = measurementLabelSize(text)
       return {
         index,
         key: `${measurement.from.x}-${measurement.from.y}-${measurement.to.x}-${measurement.to.y}-${index}`,
+        source,
         ruler: measurement.ruler ?? false,
         from,
         to,
@@ -593,9 +619,9 @@ function TerrainMeasurements({
 
   return (
     <g>
-      {annotations.map(({ key, ruler, from, to, label }) =>
+      {annotations.map(({ key, source, ruler, from, to, label }) =>
         ruler ? (
-          <line key={key} x1={to.x} y1={to.y} x2={label.x} y2={label.y} className="stroke-parchment" strokeWidth=".1" />
+          <line key={key} x1={to.x} y1={to.y} x2={label.x} y2={label.y} className={measurementColours[source].stroke} strokeWidth=".1" />
         ) : (
           <line
             key={key}
@@ -603,13 +629,13 @@ function TerrainMeasurements({
             y1={from.y}
             x2={to.x}
             y2={to.y}
-            className="stroke-side-a"
+            className={measurementColours[source].stroke}
             strokeWidth=".12"
-            markerEnd={`url(#${arrowId})`}
+            markerEnd={`url(#${arrowId(source)})`}
           />
         ),
       )}
-      {annotations.map(({ key, ruler, text, label, labelWidth, labelHeight }) => (
+      {annotations.map(({ key, source, text, label, labelWidth, labelHeight }) => (
         <g key={key}>
           <rect
             x={label.x - labelWidth / 2}
@@ -617,30 +643,22 @@ function TerrainMeasurements({
             width={labelWidth}
             height={labelHeight}
             rx=".14"
-            className={ruler ? 'fill-parchment' : 'fill-side-a'}
+            className={measurementColours[source].fill}
           />
-          <text
-            x={label.x}
-            y={label.y}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            className={ruler ? 'fill-parchment-ink' : 'fill-bone'}
-            fontSize=".9"
-            fontWeight="700"
-          >
+          <text x={label.x} y={label.y} textAnchor="middle" dominantBaseline="middle" className="fill-void" fontSize=".9" fontWeight="700">
             {text}
           </text>
         </g>
       ))}
       {[...new Map(annotations.map(({ to }) => [`${to.x}-${to.y}`, to])).values()].map((point) => (
-        <circle key={`${point.x}-${point.y}`} cx={point.x} cy={point.y} r=".18" className="fill-side-a">
+        <circle key={`${point.x}-${point.y}`} cx={point.x} cy={point.y} r=".18" className="fill-bone">
           <title>Measurement endpoint</title>
         </circle>
       ))}
       {steps.map(({ step, at }) => (
         <g key={`step-${step}`}>
-          <circle cx={at.x} cy={at.y} r=".55" className="fill-bone stroke-side-a" strokeWidth=".1" />
-          <text x={at.x} y={at.y} textAnchor="middle" dominantBaseline="central" className="fill-void" fontSize=".65" fontWeight="800">
+          <circle cx={at.x} cy={at.y} r=".55" className="fill-void stroke-bone" strokeWidth=".12" />
+          <text x={at.x} y={at.y} textAnchor="middle" dominantBaseline="central" className="fill-bone" fontSize=".65" fontWeight="800">
             {step}
           </text>
           <title>{`Place this piece ${ordinal(step)}`}</title>

@@ -54,6 +54,11 @@
   --color-achieved: #7cc48a;
   --color-discarded: #e3ab52;
   --color-rust: #d0625a;
+  --color-measure-terrain: #c39bff;
+  --color-measure-lines: #f57fd8;
+  --color-measure-edges: #f4e25c;
+  --color-measure-published: #8b97ff;
+  --color-measure-mat: #b4e85a;
 
   /*
    * Two label sizes below `text-xs`, for chips, eyebrows and the counts on a

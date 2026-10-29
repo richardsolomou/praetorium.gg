@@ -188,7 +188,16 @@ export type Measurement = TerrainGeometry['areas'][number]['measurements'][numbe
   ruler?: boolean
   /** On the first distance of each piece: its turn in the placement order. */
   step?: number
+  /** What a placement distance runs from; publisher distances have none. */
+  reference?: PlacementReference
 }
+
+export type PlacementReference = 'terrain' | 'lines' | 'edges'
+
+type ReferenceSegment = { start: Point; end: Point; reference: PlacementReference }
+
+const referenceSegments = (segments: (readonly [Point, Point])[], reference: PlacementReference): ReferenceSegment[] =>
+  segments.map(([start, end]) => ({ start, end, reference }))
 
 /** Beyond this, a distance to the board edge is read off the mat's edge ruler: an arrow that long crosses the others. */
 const longestEdgeArrow = 12
@@ -213,17 +222,20 @@ export function placementMeasurements(
 ): Measurement[] {
   const { board } = geometry
   const fixed = [
-    ...lines,
+    ...referenceSegments(lines, 'lines'),
     ...(edges
-      ? polygonEdges([
-          { x: 0, y: 0 },
-          { x: board.width, y: 0 },
-          { x: board.width, y: board.height },
-          { x: 0, y: board.height },
-        ])
+      ? referenceSegments(
+          polygonEdges([
+            { x: 0, y: 0 },
+            { x: board.width, y: 0 },
+            { x: board.width, y: board.height },
+            { x: 0, y: board.height },
+          ]),
+          'edges',
+        )
       : []),
   ]
-  const axisMeasurements = (point: Point, approximate: boolean, references: (readonly [Point, Point])[]) =>
+  const axisMeasurements = (point: Point, approximate: boolean, references: ReferenceSegment[]) =>
     [
       [
         { x: 1, y: 0 },
@@ -235,17 +247,20 @@ export function placementMeasurements(
       ],
     ].flatMap((directions) => {
       const nearest = directions
-        .flatMap((direction) => references.map(([start, end]) => rayHit(point, direction, start, end)))
+        .flatMap((direction) =>
+          references.map(({ start, end, reference }) => {
+            const hit = rayHit(point, direction, start, end)
+            return hit && { ...hit, reference }
+          }),
+        )
         .filter((hit) => hit !== null)
         .sort((left, right) => left.distance - right.distance)[0]
       if (!nearest) return []
-      const onEdge = [0, board.width].includes(nearest.at.x) || [0, board.height].includes(nearest.at.y)
-      return [
-        { from: nearest.at, to: point, approximate, distance: nearest.distance, ruler: onEdge && nearest.distance > longestEdgeArrow },
-      ]
+      const { at, distance, reference } = nearest
+      return [{ from: at, to: point, approximate, distance, reference, ruler: reference === 'edges' && distance > longestEdgeArrow }]
     })
   const total = (measurements: { distance: number }[]) => measurements.reduce((sum, measurement) => sum + measurement.distance, 0)
-  const place = (corners: Point[], tilted: boolean, approximate: boolean, references: (readonly [Point, Point])[]) => {
+  const place = (corners: Point[], tilted: boolean, approximate: boolean, references: ReferenceSegment[]) => {
     const [first, ...rest] = corners
       .map((corner) => axisMeasurements(corner, approximate, references))
       .filter((measurements) => measurements.length === 2)
@@ -273,7 +288,7 @@ export function placementMeasurements(
     if (!next.measurements) break
     remaining.splice(next.index, 1)
     steps.push(next.measurements)
-    if (terrain) references.push(...next.piece.footprints.flatMap((footprint) => polygonEdges(footprint)))
+    if (terrain) references.push(...next.piece.footprints.flatMap((footprint) => referenceSegments(polygonEdges(footprint), 'terrain')))
   }
   const markers = objectives
     .filter(
@@ -287,11 +302,12 @@ export function placementMeasurements(
     .map((point) => axisMeasurements(point, false, references))
     .filter((measurements) => measurements.length === 2)
   return [...steps, ...markers].flatMap((measurements, index) =>
-    measurements.map(({ from, to, approximate, ruler }, position) => ({
+    measurements.map(({ from, to, approximate, ruler, reference }, position) => ({
       from,
       to,
       approximate,
       ruler,
+      reference,
       ...(position ? {} : { step: index + 1 }),
     })),
   )

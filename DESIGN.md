@@ -12,6 +12,11 @@ colors:
   chart-blue: '#9db6d4'
   admin-violet: '#b9a0df'
   supporter-gold: '#d9b76e'
+  measure-terrain: '#c39bff'
+  measure-lines: '#f57fd8'
+  measure-edges: '#f4e25c'
+  measure-published: '#8b97ff'
+  measure-mat: '#b4e85a'
   void: '#0f1113'
   masthead: '#0e1316'
   panel: '#141a1e'
@@ -92,7 +97,7 @@ components:
 ## Colors
 
 - Code names: Field Green is `parchment`/`azure` (`primary` in generated components), Map Green `achieved`, Signal Amber `discarded`, Chart Blue `info`, Admin Violet `admin`, Supporter Gold `supporter`.
-- One job per colour, always paired with a label: green action, selection, focus; Side A/B red and blue the sides (red also danger); Map Green achieved or best; Amber warnings and discarded; Rust losses; violet and gold role marks.
+- One job per colour, always paired with a label: green action, selection, focus; Side A/B red and blue the sides (red also danger); Map Green achieved or best; Amber warnings and discarded; Rust losses; violet and gold role marks; `measure-*` the terrain board's distances, one per thing measured from, in hues the board itself never uses.
 - Neutrals: Void page; Masthead the gridded band that opens a page; Panel cards, dialogs, menus; Raised tab lists, tooltips, disabled primary; Sunken footers, table headers, dialog action strips.
 
 ## Typography

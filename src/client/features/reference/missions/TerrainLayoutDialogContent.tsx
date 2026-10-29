@@ -1,8 +1,9 @@
 import { Eye, Square, SquareCheck } from 'lucide-react'
 import { useState } from 'react'
+import { cn } from '@/lib/utils'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../../components/Dialog'
-import { type MeasurementSource, TerrainBoard } from './TerrainBoard'
+import { measurementColours, type MeasurementSource, TerrainBoard } from './TerrainBoard'
 import {
   deploymentObjectiveMarkers,
   terrainAreaJoins,
@@ -13,7 +14,7 @@ import {
 
 const sources: string[] = ['terrain', 'lines', 'edges', 'published', 'mat'] satisfies MeasurementSource[]
 
-const pressed = 'data-[pressed]:border-parchment data-[pressed]:bg-parchment/15 data-[pressed]:text-bone'
+const pressed = 'data-[pressed]:bg-bone/10 data-[pressed]:text-bone'
 
 type Props = {
   title: string
@@ -65,31 +66,43 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
               className="flex-wrap"
               aria-label="Measurements to show"
             >
-              <ToggleGroupItem value="terrain" className={pressed}>
-                <Tick on={show.includes('terrain')} />
+              <ToggleGroupItem value="terrain" className={cn(pressed, measurementColours.terrain.border)}>
+                <Tick source="terrain" show={show} />
                 Other terrain
               </ToggleGroupItem>
               {deployment?.zones.length ? (
-                <ToggleGroupItem value="lines" className={pressed}>
-                  <Tick on={show.includes('lines')} />
+                <ToggleGroupItem value="lines" className={cn(pressed, measurementColours.lines.border)}>
+                  <Tick source="lines" show={show} />
                   Deployment lines
                 </ToggleGroupItem>
               ) : null}
-              <ToggleGroupItem value="edges" className={pressed}>
-                <Tick on={show.includes('edges')} />
+              <ToggleGroupItem value="edges" className={cn(pressed, measurementColours.edges.border)}>
+                <Tick source="edges" show={show} />
                 Board edges
               </ToggleGroupItem>
-              <ToggleGroupItem value="published" className={pressed}>
-                <Tick on={show.includes('published')} />
+              <ToggleGroupItem value="published" className={cn(pressed, measurementColours.published.border)}>
+                <Tick source="published" show={show} />
                 Objective centres
               </ToggleGroupItem>
-              <ToggleGroupItem value="mat" className={pressed}>
-                <Tick on={show.includes('mat')} />
+              <ToggleGroupItem value="mat" className={cn(pressed, measurementColours.mat.border)}>
+                <Tick source="mat" show={show} />
                 Mat ruler
               </ToggleGroupItem>
             </ToggleGroup>
           </div>
         ) : null}
+        {/* A grid row sizes a bare svg shorter than it draws, so the legend below would overlap the board's bottom edge. */}
+        <div>
+          <TerrainBoard
+            layout={layout}
+            deployment={deployment}
+            templates={templates}
+            className="mx-auto w-full max-w-5xl"
+            detailed
+            show={show}
+            ariaLabel={ariaLabel}
+          />
+        </div>
         <div className="flex flex-wrap gap-x-5 gap-y-2 border-y border-edge py-2 text-xs text-dim">
           <span className="flex items-center gap-2">
             <span className="size-3 border border-azure bg-raised" /> Terrain area footprint
@@ -134,29 +147,31 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
           ) : null}
           {placing ? (
             <span className="flex items-center gap-2">
-              <span className="flex size-3 items-center justify-center rounded-full bg-bone text-[0.5rem] font-extrabold text-void">1</span>
+              <span className="flex size-3 items-center justify-center rounded-full border border-bone bg-void text-[0.5rem] font-extrabold text-bone">
+                1
+              </span>
               Placement order · distance from the numbered corner, nearest ⅛″
             </span>
           ) : null}
           {show.includes('edges') ? (
             <span className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-parchment" /> Long edge distances: read off the mat's edge ruler
+              <span className="size-2 rounded-full bg-measure-edges" /> Long edge distances: read off the mat's edge ruler
             </span>
           ) : null}
           {show.includes('mat') ? (
             <span className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-parchment" /> Across from the left edge · up from the bottom edge
+              <span className="size-2 rounded-full bg-measure-mat" /> Across from the left edge · up from the bottom edge
             </span>
           ) : null}
           {show.includes('published') && measurements.some((measurement) => !measurement.approximate) ? (
             <span className="flex items-center gap-2">
-              <span className="h-px w-4 bg-side-a" />
+              <span className="h-px w-4 bg-measure-published" />
               {layout.publisherUrl ? 'Deployment depth' : 'Placement distance · nearest ⅛″'}
             </span>
           ) : null}
           {show.includes('published') && measurements.some((measurement) => measurement.approximate) ? (
             <span className="flex items-center gap-2">
-              <span className="h-px w-4 bg-side-a" /> ≈ Approximate placement · nearest ⅛″
+              <span className="h-px w-4 bg-measure-published" /> ≈ Approximate placement · nearest ⅛″
             </span>
           ) : null}
           <span>
@@ -186,15 +201,6 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
             For tilted terrain, match the two distances at the first marked corner, then the distance at the second corner.
           </p>
         ) : null}
-        <TerrainBoard
-          layout={layout}
-          deployment={deployment}
-          templates={templates}
-          className="mx-auto w-full max-w-5xl"
-          detailed
-          show={show}
-          ariaLabel={ariaLabel}
-        />
         {layout.publisherObjectiveUrl && layout.publisherTerrainUrl ? (
           <p className="flex flex-wrap gap-4 text-sm text-info">
             <a href={layout.publisherObjectiveUrl} target="_blank" rel="noopener noreferrer" className="underline">
@@ -210,6 +216,11 @@ export function TerrainLayoutDialogContent({ title, description, layout, deploym
   )
 }
 
-function Tick({ on }: { on: boolean }) {
-  return on ? <SquareCheck className="text-parchment" aria-hidden /> : <Square className="text-dim" aria-hidden />
+/** Ticked boxes take their option's colour on the board, so the toggles double as its key. */
+function Tick({ source, show }: { source: MeasurementSource; show: MeasurementSource[] }) {
+  return show.includes(source) ? (
+    <SquareCheck className={measurementColours[source].text} aria-hidden />
+  ) : (
+    <Square className="text-dim" aria-hidden />
+  )
 }
