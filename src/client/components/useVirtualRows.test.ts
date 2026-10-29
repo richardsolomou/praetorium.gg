@@ -38,8 +38,8 @@ for (const target of ['viewport', 'row'] as const) {
     vi.stubGlobal('requestAnimationFrame', view.requestAnimationFrame)
     const scroller = {
       ownerDocument: { defaultView: view },
-      offsetWidth: 300,
-      offsetHeight: 60,
+      clientWidth: 300,
+      clientHeight: 60,
       scrollTop: 0,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
@@ -52,6 +52,8 @@ for (const target of ['viewport', 'row'] as const) {
     hooks.changed.mockClear()
     const element = target === 'viewport' ? scroller : row
     const observer = observers.find((candidate) => candidate.targets.includes(element))!
+    // The viewport is read from client dimensions; rows are read from the observer entry.
+    if (target === 'viewport') Object.assign(scroller, { clientHeight: 120 })
     observer.callback(
       [
         { target: element, borderBoxSize: [{ inlineSize: 300, blockSize: target === 'viewport' ? 120 : 40 }] },
