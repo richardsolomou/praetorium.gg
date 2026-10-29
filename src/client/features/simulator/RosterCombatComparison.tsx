@@ -21,6 +21,7 @@ import { BenchmarkTargets } from './BenchmarkTargets'
 import { RosterPicker } from './RosterPicker'
 import { benchmarkRosters, defaultBenchmarkTargets, parseBenchmarkTargets, type BenchmarkTarget } from './benchmarks'
 import { Problem } from '../../components/Problem'
+import { ProgressBar } from '../../components/ProgressBar'
 import { friendLeagueLabel, friendLeagueSource, OwnerAvatars, type RosterOwner, useSimulatorRosters } from './rosterOwners'
 
 export type RosterCombatSource = {
@@ -379,14 +380,7 @@ export function RosterCombatComparison({
               : ''}
         </output>
       </div>
-      {running ? (
-        <progress
-          aria-label="Matchups calculated"
-          max={total || undefined}
-          value={total ? (comparison?.completed ?? 0) : undefined}
-          className="block h-1 w-full appearance-none overflow-hidden border-0 bg-raised [&::-moz-progress-bar]:bg-primary [&::-webkit-progress-bar]:bg-raised [&::-webkit-progress-value]:bg-primary [&::-webkit-progress-value]:transition-[width] [&::-webkit-progress-value]:duration-300 motion-reduce:[&::-webkit-progress-value]:transition-none"
-        />
-      ) : null}
+      {running ? <ProgressBar label="Matchups calculated" value={comparison?.completed} max={total} /> : null}
       {problem ? <Problem>{problem}</Problem> : null}
       <p className="text-xs text-dim">
         {liveKey === undefined ? 'Full health' : 'Live models and wounds'} · Default conditions

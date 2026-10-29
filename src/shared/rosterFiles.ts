@@ -126,6 +126,16 @@ export function importRosterFile(
   }
 }
 
+/** A list already read into army text matched unit by unit, for a caller that prices it itself. */
+export function matchParsedRoster(
+  parsed: TextRoster,
+  loaded: LoadedCatalogue | null,
+  factionNames = loaded?.factions.map((faction) => faction.name) ?? [],
+) {
+  if (parsed.units.length > 100) throw new Error('An imported roster can contain at most 100 entries.')
+  return importTextRoster(parsed, loaded, factionNames)
+}
+
 /** A list already read into army text, from a pasted export or another app's own format, matched and priced. */
 export function importParsedRoster(
   parsed: TextRoster,
@@ -134,8 +144,7 @@ export function importParsedRoster(
   factionNames = loaded?.factions.map((faction) => faction.name) ?? [],
   rules: LoadedRules | null = null,
 ) {
-  if (parsed.units.length > 100) throw new Error('An imported roster can contain at most 100 entries.')
-  const result = importTextRoster(parsed, loaded, factionNames)
+  const result = matchParsedRoster(parsed, loaded, factionNames)
   const currentPoints = result.catalogueId
     ? (calculateRosterPrice(
         {
@@ -647,13 +656,18 @@ function textRosterPick(
   // Read again from the unit as first picked: a choice can open another, as a Trygon's
   // Character upgrade opens its enhancements, and a default the list swaps away no longer
   // accounts for what it states, as a Lord Commissar's power weapon taken for a power fist.
+  // Building is most of an import's time, so a read or build that would repeat the last one is skipped.
   const opened = buildUnit(entryId, loaded.index, first.pick.models, first.pick.choices, { ...context, spreads: first.pick.spreads })
-  const { pick, placed, fieldedKinds } = opened ? pickFrom(opened.selection) : first
+  const reopened = opened && JSON.stringify(opened.selection) !== JSON.stringify(built?.selection)
+  const { pick, placed, fieldedKinds } = opened && reopened ? pickFrom(opened.selection) : first
   const toggles = pick.toggles
 
   // Only the unit the pick builds says what was kept: an option the datasheet offers can
   // still be left off it, as a heavy weapon is when its model is not in the squad.
-  const imported = buildUnit(entryId, loaded.index, pick.models, pick.choices, { ...context, spreads: pick.spreads })
+  const imported =
+    pick === first.pick || JSON.stringify(pick) === JSON.stringify(first.pick)
+      ? opened
+      : buildUnit(entryId, loaded.index, pick.models, pick.choices, { ...context, spreads: pick.spreads })
   const carried = imported ? carriedNames(imported.selection, loaded.index) : new Set<string>()
   const unplaced = [...stated.keys()]
     .filter(

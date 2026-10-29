@@ -22,7 +22,7 @@ import { unitBattleDetailsIn } from '../shared/catalogue'
 import { gameReferencesFor } from '../shared/gameReferences'
 import { calculateRosterPrice } from '../shared/pricing'
 import type { LoadedCatalogue } from '../shared/catalogueIndex'
-import { importParsedRoster } from '../shared/rosterFiles'
+import { matchParsedRoster } from '../shared/rosterFiles'
 import type { LoadedRules } from '../shared/rules'
 
 export type ImportCatalogue = {
@@ -74,7 +74,7 @@ function army(battle: BattlebaseBattle, creator: boolean, { loaded, rules, facti
   const list = parsed?.success ? battlebaseTextRoster(parsed.data, names, limit) : null
   const named = { roster: namedArmy(ids, list, factions, limit, revision), units: {} }
   if (!list || !parsed?.success || limit === null) return named
-  const imported = importParsedRoster(list, 'battlebase', loaded, undefined, rules)
+  const imported = matchParsedRoster(list, loaded)
   if (!imported.catalogueId || imported.units.length !== list.units.length) return named
   const saved = {
     id: '',

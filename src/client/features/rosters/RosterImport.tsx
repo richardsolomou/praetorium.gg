@@ -160,7 +160,7 @@ export function RosterImport({ onImport, blocked }: { onImport?: (imported: Matc
         const found = newRecruitShareId(file)
           ? await findImportableRosters({ data: { source: 'newrecruit', links: [file] } }).catch(() => null)
           : null
-        const shared = found?.found ? found.rosters[0] : undefined
+        const shared = found?.found ? await found.rosters[0]?.catch(() => undefined) : undefined
         if (shared?.kind === 'read' && matched(shared.imported)) return shared.imported
         posthog.capture('roster_import_failed', { reason: 'share_link', input: inputOf(file), format: 'newrecruit' })
         throw new Error(

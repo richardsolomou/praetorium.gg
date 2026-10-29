@@ -4,7 +4,7 @@ import { battlebaseBattles, battlebaseCode, battlebasePlayer } from '../battleba
 import { battlebaseNames } from '../battlebaseData'
 import { battlebaseContext } from '../battlebaseImport'
 import { requireUserId } from '../playerSession'
-import { mutationRpc, rpc } from '../rpc'
+import { inTurn, mutationRpc, rpc } from '../rpc'
 import { battlebaseImportSchema, battlebaseUsernameSchema } from '../../contracts/schemas'
 
 /** The code this account puts in its BattleBase tagline to show the BattleBase account is its own. */
@@ -23,7 +23,8 @@ export const battlebaseAccount = createServerFn({ method: 'GET' }).handler(() =>
 
 /**
  * Links the BattleBase account a username names once its tagline carries this player's code, and
- * imports its finished public battles. Without a username it imports again from the linked account.
+ * imports its finished public battles, streaming each battle's outcome and then the totals. Without
+ * a username it imports again from the linked account.
  */
 export const importBattlebaseBattles = createServerFn({ method: 'POST' })
   .validator(battlebaseImportSchema)
@@ -43,16 +44,18 @@ export const importBattlebaseBattles = createServerFn({ method: 'POST' })
       const [loaded, rules] = [instance.catalogue(), await instance.rulesFor()]
       if (!loaded || !rules) throw new Response('Army data is unavailable. Try again later.', { status: 503 })
       const [factions, names, battles] = await Promise.all([instance.battleFactionsFor(), battlebaseNames(), battlebaseBattles(player.id)])
-      const counts = await instance.service.importBattlebaseBattles(userId, player.id, battles, (battle) =>
-        battlebaseContext(battle, { loaded, rules, factions, names }),
+      const outcomes = inTurn(battles, async (battle) =>
+        instance.service.importBattlebaseBattle(userId, player.id, battle, (parsed) =>
+          battlebaseContext(parsed, { loaded, rules, factions, names }),
+        ),
       )
-      // Linking already seated the account in the battles it joined, which the import then finds it in.
-      return {
-        outcome: 'imported' as const,
-        username: player.username,
-        ...counts,
-        joined: counts.joined + joined,
-        alreadyImported: Math.max(0, counts.alreadyImported - joined),
-      }
+      // Each battle streams its outcome as it comes in; the totals follow the last.
+      const counts = Promise.all(outcomes).then((done) => {
+        const tally = { imported: 0, joined: 0, alreadyImported: 0, unfinished: 0, skipped: 0 }
+        for (const outcome of done) tally[outcome]++
+        // Linking already seated the account in the battles it joined, which the import then finds it in.
+        return { ...tally, joined: tally.joined + joined, alreadyImported: Math.max(0, tally.alreadyImported - joined) }
+      })
+      return { outcome: 'imported' as const, username: player.username, outcomes, counts }
     }),
   )

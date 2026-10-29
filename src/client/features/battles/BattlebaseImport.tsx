@@ -7,12 +7,15 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { DialogBody, DialogFooter } from '../../components/Dialog'
 import { Problem } from '../../components/Problem'
+import { ProgressBar } from '../../components/ProgressBar'
 import { battlebaseAccount, battlebaseImportCode, importBattlebaseBattles } from '../../functions'
 import { battlebaseAccountKey, battlesKey } from '../../queries/queryKeys'
 import { countLabel } from '../../text'
 import { useCopyText } from '../../useCopyText'
 
-type Imported = Extract<Awaited<ReturnType<typeof importBattlebaseBattles>>, { outcome: 'imported' }>
+type Imported = { username: string } & Awaited<
+  Extract<Awaited<ReturnType<typeof importBattlebaseBattles>>, { outcome: 'imported' }>['counts']
+>
 
 /**
  * Imports a player's finished BattleBase battles. The first import links the BattleBase account
@@ -28,8 +31,22 @@ export function BattlebaseImport({ picker, onBusy, onDone }: { picker: ReactNode
   const code = useMutation({
     mutationFn: () => battlebaseImportCode({ data: { username: username.trim() } }),
   })
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const run = useMutation({
-    mutationFn: () => importBattlebaseBattles({ data: linked ? {} : { username: username.trim() } }),
+    mutationFn: async () => {
+      setProgress(null)
+      const result = await importBattlebaseBattles({ data: linked ? {} : { username: username.trim() } })
+      if (result.outcome !== 'imported') return result
+      const total = result.outcomes.length
+      let done = 0
+      setProgress({ done, total })
+      for (const outcome of result.outcomes)
+        void outcome.then(
+          () => setProgress({ done: ++done, total }),
+          () => {},
+        )
+      return { outcome: result.outcome, username: result.username, ...(await result.counts) }
+    },
     onSuccess: async (result) => {
       if (result.outcome !== 'imported') return
       posthog.capture('battles_imported', {
@@ -135,6 +152,14 @@ export function BattlebaseImport({ picker, onBusy, onDone }: { picker: ReactNode
               ) : null}
             </>
           )}
+          {run.isPending ? (
+            <ProgressBar
+              label="Battles read"
+              value={progress?.done}
+              max={progress?.total}
+              status={progress?.total ? `Read ${progress.done} of ${countLabel(progress.total, 'battle')}…` : 'Finding your battles…'}
+            />
+          ) : null}
         </DialogBody>
       )}
       <DialogFooter>
