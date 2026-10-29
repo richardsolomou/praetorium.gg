@@ -1,3 +1,5 @@
+import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
+import { getRequest } from '@tanstack/react-start/server'
 import { createTanStackRpc } from 'ras-stack/tanstack/server'
 import { createPostHogRpcLogger, createPostHogRpcObserver } from 'ras-stack/posthog/server'
 import type { RpcLogger, RpcObserver } from 'ras-stack/server'
@@ -29,3 +31,29 @@ export const { rpc, mutationRpc } = createTanStackRpc({
   logError: reportRpcError,
   observe: observeRpc,
 })
+
+/**
+ * Work on each item in turn, as promises a server function returns so its answer streams each
+ * result when it is ready. Other requests run between items, and a failure fails every item after
+ * it, so work stops where it went wrong as it would in one loop.
+ */
+export function inTurn<T, R>(items: readonly T[], work: (item: T) => Promise<R>): Promise<R>[] {
+  const request = getRequest()
+  const context = { method: request.method, path: new URL(request.url).pathname }
+  let previous: Promise<unknown> = Promise.resolve()
+  return items.map((item) => {
+    const result = previous.then(async () => {
+      await yieldToEventLoop()
+      try {
+        return await work(item)
+      } catch (error) {
+        // The answer has already left the wrapper that reports failures and reads refusals, so this does both.
+        if (error instanceof Response) throw new Error((await error.text()) || `request failed (${error.status})`, { cause: error })
+        await Promise.resolve(reportRpcError(error, context, request)).catch(() => {})
+        throw error
+      }
+    })
+    previous = result
+    return result
+  })
+}

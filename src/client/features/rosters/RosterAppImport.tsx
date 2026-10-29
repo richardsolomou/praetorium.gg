@@ -7,11 +7,12 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Problem } from '../../components/Problem'
+import { ProgressBar } from '../../components/ProgressBar'
 import { findImportableRosters } from '../../functions'
 import { countLabel } from '../../text'
 import type { MatchedImport } from './RosterImport'
 
-type Found = Extract<Awaited<ReturnType<typeof findImportableRosters>>, { found: true }>['rosters'][number]
+type Found = Awaited<Extract<Awaited<ReturnType<typeof findImportableRosters>>, { found: true }>['rosters'][number]>
 export type RosterApp = 'battlebase' | 'newrecruit'
 
 const matched = (found: Found): found is Extract<Found, { kind: 'read' }> & { imported: MatchedImport } =>
@@ -37,14 +38,30 @@ export function RosterAppImport({
   const [username, setUsername] = useState('')
   const [links, setLinks] = useState('')
   const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set())
+  const [progress, setProgress] = useState<{ read: number; total: number } | null>(null)
   const find = useMutation({
-    mutationFn: () =>
-      findImportableRosters({
+    mutationFn: async () => {
+      setProgress(null)
+      const result = await findImportableRosters({
         data:
           app === 'battlebase'
             ? { source: 'battlebase', username: username.trim() }
             : { source: 'newrecruit', links: links.split(/\s+/).filter(Boolean).slice(0, 20) },
-      }),
+      })
+      if (!result.found) return result
+      const total = result.rosters.length
+      let read = 0
+      setProgress({ read, total })
+      const rosters = await Promise.all(
+        result.rosters.map((pending) =>
+          pending.then((found) => {
+            setProgress({ read: ++read, total })
+            return found
+          }),
+        ),
+      )
+      return { found: true as const, rosters }
+    },
     onSuccess: (result) => {
       posthog.capture('roster_app_import_found', {
         source: app,
@@ -118,6 +135,14 @@ export function RosterAppImport({
           </>
         )}
       </form>
+      {find.isPending ? (
+        <ProgressBar
+          label="Lists read"
+          value={progress?.read}
+          max={progress?.total}
+          status={progress?.total ? `Read ${progress.read} of ${countLabel(progress.total, 'list')}…` : 'Finding lists…'}
+        />
+      ) : null}
       {find.error ? <Problem error={find.error} /> : null}
       {find.data && !find.data.found ? <Problem>No BattleBase player is called {username.trim()}.</Problem> : null}
       {rosters && !rosters.length ? <p className="text-sm text-dim">{username.trim()} has no public rosters.</p> : null}
