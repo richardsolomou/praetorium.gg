@@ -1,5 +1,20 @@
 # praetorium
 
+## 0.197.0 (2026-10-29)
+
+### Minor Changes
+
+- 9f74d8b: Your battles and player profiles now show how much each battle moved each player's leaderboard rating.
+- 9f74d8b: Player profiles chart the player's leaderboard rating after every counted battle.
+
+### Patch Changes
+
+- 9f74d8b: A finished battle shows how much it moved each player's leaderboard rating beside their name.
+- 9f74d8b: Leaderboard ratings no longer drop when your older battles pass the 90-day window.
+- 9f74d8b: The leaderboard shows one table per army instead of a separate table for each rules version.
+- 9f74d8b: A single result now moves your leaderboard rating less, because dice decide more of a battle than the old rating assumed.
+- 9f74d8b: A lone player who beats two allies in a team battle no longer gains as if they had beaten two players at once.
+
 ## 0.196.1 (2026-10-29)
 
 ### Patch Changes
