@@ -12,7 +12,8 @@ colors:
   chart-blue: '#9db6d4'
   admin-violet: '#b9a0df'
   supporter-gold: '#d9b76e'
-  void: '#0e1316'
+  void: '#0f1113'
+  masthead: '#0e1316'
   panel: '#141a1e'
   raised: '#1b2328'
   sunken: '#090d0f'
@@ -92,7 +93,7 @@ components:
 
 - Code names: Field Green is `parchment`/`azure` (`primary` in generated components), Map Green `achieved`, Signal Amber `discarded`, Chart Blue `info`, Admin Violet `admin`, Supporter Gold `supporter`.
 - One job per colour, always paired with a label: green action, selection, focus; Side A/B red and blue the sides (red also danger); Map Green achieved or best; Amber warnings and discarded; Rust losses; violet and gold role marks.
-- Neutrals: Void page; Panel cards, dialogs, menus; Raised tab lists, tooltips, disabled primary; Sunken footers, table headers, dialog action strips.
+- Neutrals: Void page; Masthead the gridded band that opens a page; Panel cards, dialogs, menus; Raised tab lists, tooltips, disabled primary; Sunken footers, table headers, dialog action strips.
 
 ## Typography
 
