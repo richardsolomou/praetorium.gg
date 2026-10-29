@@ -729,7 +729,7 @@ test('Tipping Point shows five layout objectives with a shared central area', as
   await page.goto('/missions/chapter-approved-2026-2027/matchups/take-and-hold/reconnaissance')
   const dialog = page.getByRole('dialog')
   await retryUntilVisible(dialog, () => page.getByRole('button', { name: 'Enlarge terrain layout A: Tipping Point' }).click())
-  await expect(dialog.getByText('Objective terrain', { exact: true }).first()).toBeVisible()
+  await expect(dialog.getByText('Objective terrain', { exact: true }).filter({ visible: true })).toBeVisible()
   await expect(dialog.locator('svg title').filter({ hasText: /^Objective marker outside terrain \(40 mm\)$/ })).toHaveCount(0)
   const objectives = dialog.locator('svg title').filter({ hasText: /^Objective terrain$/ })
   await expect(objectives).toHaveCount(5)
