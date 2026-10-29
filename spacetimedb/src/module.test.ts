@@ -1391,6 +1391,13 @@ describe('battle changes', () => {
     host.call(TestAuth.internal(), (ctx) => ctx.db.battleChanges.battleId.delete('old'))
     expect(changes(host, 0).battleIds).toEqual(['old'])
   })
+
+  it('leaves deleted battles out when read from the start', () => {
+    const host = harness()
+    for (const id of ['kept', 'gone']) create(host, id)
+    host.call(host.operator, (ctx) => module.deleteUserData(ctx, { userId: 'gone-creator' }))
+    expect(changes(host, 0).battleIds).toEqual(['kept'])
+  })
 })
 
 describe('battle commands', () => {

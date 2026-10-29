@@ -1090,7 +1090,8 @@ export const battleFeed = spacetime.procedure({ payload: t.string() }, t.string(
 )
 
 /**
- * The battles whose log or seats changed after revision `after`, deleted ones included, and the revision read up to.
+ * The battles whose log or seats changed after revision `after`, deleted ones included after a nonzero cursor, and the
+ * revision read up to.
  * Read from zero, it first indexes the battles older than `battle_changes`. `battle_changes` holds one small row per
  * battle, so this scans it whole rather than battles and their commands.
  */
@@ -1099,7 +1100,9 @@ export const battleChanges = spacetime.procedure({ after: t.u64() }, t.string(),
     if (after === 0n)
       for (const battle of Array.from(tx.db.battles.iter())) if (!tx.db.battleChanges.battleId.find(battle.id)) touchBattle(tx, battle.id)
     const battleIds: string[] = []
-    for (const row of tx.db.battleChanges.iter()) if (row.revision > after) battleIds.push(row.battleId)
+    // A reader from zero holds nothing to evict, so it skips the markers deleted battles leave.
+    for (const row of tx.db.battleChanges.iter())
+      if (row.revision > after && (after > 0n || tx.db.battles.id.find(row.battleId))) battleIds.push(row.battleId)
     return productJson({ cursor: tx.db.publicRevisions.scope.find('battles')?.revision ?? 0n, battleIds })
   }),
 )
