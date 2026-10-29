@@ -38,7 +38,7 @@ export function priceOf(loaded: LoadedCatalogue, catalogueId: string, entryId: s
   const wargearAdjustment = mfmOptionAdjustment(loaded.index, built, mfmUnit, [], options)
   return (
     evaluate([...roster, built.selection], loaded.index, options).selectionPoints[0]![roster.length]! +
-    unitPointAdjustment(loaded, catalogueId, catalogueId, entryId, built.size.models) +
+    unitPointAdjustment(loaded, catalogueId, catalogueId, entryId) +
     wargearAdjustment
   )
 }

@@ -647,3 +647,36 @@ it('prices a Legends datasheet from the field manual entry that names it without
   ])
   expect(priceOf(catalogue, 'cat', 'shroud')).toBe(140)
 })
+
+it('prices a datasheet whose models are all optional from the unit it lists', () => {
+  const catalogue = bookOf({
+    selectionEntries: [
+      {
+        id: 'battery',
+        name: 'Sentry Battery',
+        type: 'unit',
+        selectionEntries: [
+          {
+            id: 'turret',
+            name: 'Sentry Turret',
+            type: 'model',
+            costs: points(30),
+            constraints: [{ id: 'turret-max', type: 'max', value: 3, field: 'selections', scope: 'parent' }],
+          },
+        ],
+      },
+    ],
+  })
+  catalogue.mfm = new Map([
+    [
+      'test-catalogue',
+      {
+        slug: 'test-catalogue',
+        version: '1.6',
+        units: [{ name: 'Sentry Battery', pricing: [{ range: '[1,)', costs: [{ models: 1, points: 30 }] }] }],
+      },
+    ],
+  ])
+
+  expect(priceOf(catalogue, 'cat', 'battery')).toBe(30)
+})

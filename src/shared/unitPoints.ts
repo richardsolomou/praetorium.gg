@@ -63,16 +63,20 @@ function cardPoints(loaded: LoadedCatalogue, catalogueId: string, entryId: strin
   return Number(prices[0]!.cost)
 }
 
-/** Replace the catalogue's default price with the card's current row, keeping evaluated choice and context costs. */
+/**
+ * Replace the catalogue's default price with the card's current row, keeping evaluated choice and context costs.
+ * Without `models`, the default unit is priced at its own size: a datasheet built without a model count can differ from
+ * one built at that size, and a list price must compare against the unit it lists.
+ */
 export function unitPointAdjustment(
   loaded: LoadedCatalogue,
   primaryCatalogueId: string,
   catalogueId: string,
   entryId: string,
-  models: number,
+  models?: number,
   copy = 1,
 ) {
-  return cachedIn(cache, loaded, JSON.stringify([primaryCatalogueId, catalogueId, entryId, models, copy]), () =>
+  return cachedIn(cache, loaded, JSON.stringify([primaryCatalogueId, catalogueId, entryId, models ?? null, copy]), () =>
     computeUnitPointAdjustment(loaded, primaryCatalogueId, catalogueId, entryId, models, copy),
   )
 }
@@ -82,26 +86,30 @@ function computeUnitPointAdjustment(
   primaryCatalogueId: string,
   catalogueId: string,
   entryId: string,
-  models: number,
+  requestedModels: number | undefined,
   copy: number,
 ) {
   const unit = mfmUnitFor(loaded, primaryCatalogueId, entryId)
-  const built = buildUnit(entryId, loaded.index, models, undefined, { primaryCatalogueId, mustering: true, choiceCache: pricingChoices })
-  const fixed = built && !isResizable(built.size)
+  const built = buildUnit(entryId, loaded.index, requestedModels, undefined, {
+    primaryCatalogueId,
+    mustering: true,
+    choiceCache: pricingChoices,
+  })
+  if (!built) return 0
+  const models = requestedModels ?? built.size.models
+  const fixed = !isResizable(built.size)
   const price = unit
     ? (mfmPrice(unit, models, copy) ?? (fixed ? mfmPrice(unit, 1, copy) : null))
     : (cardPoints(loaded, catalogueId, entryId, models) ?? (fixed ? cardPoints(loaded, catalogueId, entryId, 1) : null))
+  if (price === null) return 0
   const comparableCopies = Math.min(copy, 6)
-  const evaluated =
-    built && price !== null
-      ? evaluate(
-          Array.from({ length: comparableCopies }, () => built.selection),
-          loaded.index,
-          { primaryCatalogueId, mustering: true },
-        )
-      : null
-  const cataloguePrice = evaluated?.selectionPoints[0]?.[comparableCopies - 1]
-  return evaluated && !evaluated.unhandled.length && cataloguePrice !== undefined ? price! - cataloguePrice : 0
+  const evaluated = evaluate(
+    Array.from({ length: comparableCopies }, () => built.selection),
+    loaded.index,
+    { primaryCatalogueId, mustering: true },
+  )
+  const cataloguePrice = evaluated.selectionPoints[0]?.[comparableCopies - 1]
+  return !evaluated.unhandled.length && cataloguePrice !== undefined ? price - cataloguePrice : 0
 }
 
 type MfmDetachment = NonNullable<ReturnType<typeof mfmDetachmentFor>>
