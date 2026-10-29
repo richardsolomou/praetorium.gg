@@ -1,5 +1,12 @@
 # praetorium
 
+## 0.201.1 (2026-10-29)
+
+### Patch Changes
+
+- f66e484: Battles without a battle size yet no longer say "Legacy format".
+- f66e484: Unfinished battles untouched for two weeks no longer headline the home page; they stay on the battles page.
+
 ## 0.201.0 (2026-10-29)
 
 ### Minor Changes
