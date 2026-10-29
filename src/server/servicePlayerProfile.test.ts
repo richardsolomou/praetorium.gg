@@ -12,7 +12,9 @@ it('shows a player’s battles in their profile to an anonymous reader', async (
   }
   const repository = {
     battlesSeatedBy: vi.fn().mockResolvedValue([history]),
-    watchableBattles: vi.fn().mockResolvedValue({ battles: [history], nextCursor: null }),
+    battleChanges: vi.fn().mockResolvedValue({ cursor: 1, battleIds: ['battle'] }),
+    battlesByIds: vi.fn().mockResolvedValue([history]),
+    profilesByIds: vi.fn().mockResolvedValue(new Map()),
     practiceOpponents: vi.fn().mockResolvedValue([]),
   } as unknown as RepositoryPort
   const service = new PraetoriumService(
@@ -31,7 +33,9 @@ it('shows how far each profile battle moved each player’s rating', async () =>
   }
   const repository = {
     battlesSeatedBy: vi.fn().mockResolvedValue([history]),
-    watchableBattles: vi.fn().mockResolvedValue({ battles: [history], nextCursor: null }),
+    battleChanges: vi.fn().mockResolvedValue({ cursor: 1, battleIds: ['battle'] }),
+    battlesByIds: vi.fn().mockResolvedValue([history]),
+    profilesByIds: vi.fn().mockResolvedValue(new Map()),
     practiceOpponents: vi.fn().mockResolvedValue([]),
   } as unknown as RepositoryPort
   const service = new PraetoriumService(
@@ -60,7 +64,9 @@ function recordAgainst(opponent: { id: string; name: string }, practiceIds: stri
   }
   const repository = {
     battlesSeatedBy: vi.fn().mockResolvedValue([history]),
-    watchableBattles: vi.fn().mockResolvedValue({ battles: [history], nextCursor: null }),
+    battleChanges: vi.fn().mockResolvedValue({ cursor: 1, battleIds: ['battle'] }),
+    battlesByIds: vi.fn().mockResolvedValue([history]),
+    profilesByIds: vi.fn().mockResolvedValue(new Map()),
     practiceOpponents: vi.fn().mockResolvedValue(practiceIds.map((id) => ({ id, name: 'Practice Opponent', image: null }))),
   } as unknown as RepositoryPort
   const service = new PraetoriumService(

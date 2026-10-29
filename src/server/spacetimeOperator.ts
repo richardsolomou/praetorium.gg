@@ -382,6 +382,14 @@ export class SpacetimeOperator {
     return this.read('battle_for_operator', [battleId], battleSnapshot)
   }
 
+  async battleChanges(after: number) {
+    return this.read('battle_changes', [after], z.object({ cursor: z.number().int().nonnegative(), battleIds: z.array(z.string()) }))
+  }
+
+  async battlesForOperator(battleIds: readonly string[]) {
+    return this.read('battles_for_operator', [battleIds], z.array(battleSnapshot))
+  }
+
   async publicStandingsRevision() {
     return this.reply('public_standings_revision', [], z.string().regex(/^[0-9]+$/))
   }
@@ -467,14 +475,13 @@ export class SpacetimeOperator {
   }
 
   async battleFeed(input: {
-    scope: 'user' | 'league' | 'club' | 'season' | 'public' | 'friends' | 'watchable' | 'profile'
+    scope: 'user' | 'league' | 'club' | 'season' | 'public' | 'friends' | 'profile'
     userId?: string | null
     viewerId?: string | null
     withUserId?: string | null
     leagueToken?: string | null
     eventToken?: string | null
     clubToken?: string
-    since?: number | null
     before?: { at: number; id: string } | null
     limit: number
   }) {
@@ -489,7 +496,7 @@ export class SpacetimeOperator {
           leagueToken: input.leagueToken ?? null,
           eventToken: input.eventToken ?? null,
           ...(input.clubToken ? { clubToken: input.clubToken } : {}),
-          since: input.since ?? null,
+          since: null,
           before: input.before ?? null,
           limit: input.limit,
         }),

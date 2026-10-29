@@ -73,6 +73,7 @@ import { LeagueService } from './services/leagueService'
 import { ClubService } from './services/clubService'
 import { RosterService } from './services/rosterService'
 import { SocialService } from './services/socialService'
+import { StandingResults } from './standingResults'
 import type { BattleHistory, BattleSeats, RepositoryPort, SpacetimeRepository } from './spacetimeRepository'
 
 /**
@@ -181,6 +182,7 @@ export class PraetoriumService {
   readonly clubService: ClubService
   readonly rosterService: RosterService
   readonly socialService: SocialService
+  private readonly standingResults: StandingResults
 
   constructor(
     private readonly repository: RepositoryPort,
@@ -193,6 +195,7 @@ export class PraetoriumService {
     this.clubService = new ClubService(repository, clock, notifier)
     this.rosterService = new RosterService(repository, clock)
     this.socialService = new SocialService(repository, clock, notifier)
+    this.standingResults = new StandingResults(repository)
   }
 
   onboardingProgress(userId: string) {
@@ -312,7 +315,7 @@ export class PraetoriumService {
     return { battles: this.battleSummaries(histories, userId, rules, factions), nextCursor }
   }
 
-  /** The leaderboard folds one bounded set of watchable battles for all faction filters and caches the derived result for one minute. */
+  /** The leaderboard rates every finished battle for all faction filters and caches the derived result for one minute. */
   private async standingsFold(factions: readonly BattleFaction[]) {
     const now = this.clock()
     const revision = await this.standingsRevision?.()
@@ -320,16 +323,7 @@ export class PraetoriumService {
     if (this.standingsHeld?.key === key && this.standingsHeld.until > now) return this.standingsHeld.fold
     if (this.standingsPending?.key === key) return this.standingsPending.promise
     const pending = (async () => {
-      const histories: BattleHistory[] = []
-      let before: BattlesCursor | undefined
-      for (let page = 0; page < STANDINGS_PAGES; page++) {
-        const { battles, nextCursor } = await this.repository.watchableBattles({ limit: LEAGUE_RESULTS_BATTLE_LIMIT, before })
-        histories.push(...battles)
-        before = nextCursor ?? undefined
-        if (!before) break
-      }
-      const practice = await this.repository.practiceOpponents()
-      const summaries = this.battleSummaries(histories, null, null, factions)
+      const [summaries, practice] = await Promise.all([this.standingResults.battles(factions), this.repository.practiceOpponents()])
       const tables = standings(summaries, {
         exclude: practice.map((opponent) => opponent.id),
         activeSince: now - STANDINGS_DAYS * DAY_MS,

@@ -76,9 +76,11 @@ import * as AcceptFriendProcedure from './accept_friend_procedure'
 import * as AcceptFriendInviteProcedure from './accept_friend_invite_procedure'
 import * as AdminCollectionPhotosProcedure from './admin_collection_photos_procedure'
 import * as BattleByTokenProcedure from './battle_by_token_procedure'
+import * as BattleChangesProcedure from './battle_changes_procedure'
 import * as BattleClubsProcedure from './battle_clubs_procedure'
 import * as BattleFeedProcedure from './battle_feed_procedure'
 import * as BattleForOperatorProcedure from './battle_for_operator_procedure'
+import * as BattlesForOperatorProcedure from './battles_for_operator_procedure'
 import * as CancelFriendInviteProcedure from './cancel_friend_invite_procedure'
 import * as ClaimGuestSeatProcedure from './claim_guest_seat_procedure'
 import * as ClaimImportedBattleProcedure from './claim_imported_battle_procedure'
@@ -274,9 +276,11 @@ const proceduresSchema = __procedures(
   __procedureSchema('accept_friend_invite', AcceptFriendInviteProcedure.params, AcceptFriendInviteProcedure.returnType),
   __procedureSchema('admin_collection_photos', AdminCollectionPhotosProcedure.params, AdminCollectionPhotosProcedure.returnType),
   __procedureSchema('battle_by_token', BattleByTokenProcedure.params, BattleByTokenProcedure.returnType),
+  __procedureSchema('battle_changes', BattleChangesProcedure.params, BattleChangesProcedure.returnType),
   __procedureSchema('battle_clubs', BattleClubsProcedure.params, BattleClubsProcedure.returnType),
   __procedureSchema('battle_feed', BattleFeedProcedure.params, BattleFeedProcedure.returnType),
   __procedureSchema('battle_for_operator', BattleForOperatorProcedure.params, BattleForOperatorProcedure.returnType),
+  __procedureSchema('battles_for_operator', BattlesForOperatorProcedure.params, BattlesForOperatorProcedure.returnType),
   __procedureSchema('cancel_friend_invite', CancelFriendInviteProcedure.params, CancelFriendInviteProcedure.returnType),
   __procedureSchema('claim_guest_seat', ClaimGuestSeatProcedure.params, ClaimGuestSeatProcedure.returnType),
   __procedureSchema('claim_imported_battle', ClaimImportedBattleProcedure.params, ClaimImportedBattleProcedure.returnType),

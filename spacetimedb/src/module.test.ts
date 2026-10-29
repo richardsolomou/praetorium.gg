@@ -1353,6 +1353,46 @@ describe('public battle feed', () => {
   })
 })
 
+describe('battle changes', () => {
+  const create = ({ operator, procedure }: ReturnType<typeof harness>, id: string) =>
+    module.createBattle(procedure(operator), {
+      payload: JSON.stringify({
+        id,
+        token: `${id}-token`,
+        userId: `${id}-creator`,
+        allyIds: [],
+        opponentIds: [`${id}-opponent`],
+        initialCommands: [],
+        now: NOW,
+      }),
+    })
+  const changes = ({ operator, procedure }: ReturnType<typeof harness>, after: number) =>
+    JSON.parse(module.battleChanges(procedure(operator), { after: BigInt(after) })) as { cursor: number; battleIds: string[] }
+
+  it('names only the battles changed after a cursor, deleted ones included', () => {
+    const host = harness()
+    for (const id of ['one', 'two', 'three']) create(host, id)
+    const { cursor } = changes(host, 0)
+    module.submitBattle(host.procedure(host.operator), {
+      battleId: 'one',
+      userId: 'one-creator',
+      expectedSeq: 0,
+      body: JSON.stringify({ kind: 'set-setup-step', step: 1 }),
+      now: BigInt(NOW),
+      externalRefusal: '',
+    })
+    host.call(host.operator, (ctx) => module.deleteUserData(ctx, { userId: 'two-creator' }))
+    expect(changes(host, cursor).battleIds.toSorted()).toEqual(['one', 'two'])
+  })
+
+  it('indexes battles from before the index when read from the start', () => {
+    const host = harness()
+    create(host, 'old')
+    host.call(TestAuth.internal(), (ctx) => ctx.db.battleChanges.battleId.delete('old'))
+    expect(changes(host, 0).battleIds).toEqual(['old'])
+  })
+})
+
 describe('battle commands', () => {
   const creator = 'creator'
   const create = (procedure: ReturnType<typeof harness>['procedure'], operator: TestAuth, initialCommands: unknown[] = []) =>

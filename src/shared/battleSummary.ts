@@ -12,6 +12,15 @@ export type BattleFaction = {
   detachments?: readonly { name: string; referenceRoute?: { catalogueId: string; slug: string } | null }[]
 }
 
+/** The catalogue army a built list came from, as `factionsById` names it. */
+export function builtFaction(
+  built: Pick<NonNullable<NonNullable<BattleState['players'][number]['roster']>['built']>, 'catalogueId' | 'edition'> | undefined,
+  factionsById: ReadonlyMap<string, BattleFaction>,
+): StandingFaction | null {
+  const faction = built?.catalogueId ? factionsById.get(built.catalogueId) : undefined
+  return faction ? { slug: faction.slug, displayName: faction.displayName, icon: faction.icon, edition: built?.edition ?? null } : null
+}
+
 export function battleSummary(
   {
     battle,
@@ -41,12 +50,7 @@ export function battleSummary(
     armies: state.players.map((player) => player.roster?.name ?? null),
     // The catalogue army each seat brought, so a battle can also be counted as a
     // result for the faction that fielded it. A pasted list has none.
-    factions: state.players.map((player) => {
-      const faction = player.roster?.built?.catalogueId ? factionsById.get(player.roster.built.catalogueId) : undefined
-      return faction
-        ? { slug: faction.slug, displayName: faction.displayName, icon: faction.icon, edition: player.roster?.built?.edition ?? null }
-        : null
-    }),
+    factions: state.players.map((player) => builtFaction(player.roster?.built, factionsById)),
     detachments: state.players.map(
       (player) =>
         player.roster?.built?.detachments?.map((detachment) => detachment.name) ??

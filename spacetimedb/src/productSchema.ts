@@ -465,6 +465,18 @@ const clubBattles = table(
   },
 )
 
+/**
+ * The `battles` revision at which each battle's log or seats last changed, so a reader keeping its own copy of results
+ * rereads only what changed since it last read. The row outlives its battle, which tells that reader it is gone.
+ */
+const battleChanges = table(
+  { name: 'battle_changes' },
+  {
+    battleId: t.string().primaryKey(),
+    revision: t.u64().index('btree'),
+  },
+)
+
 /** Retired roster-tied stock. SpacetimeDB refuses to drop a table that still holds rows, so it stays until it is emptied. */
 const collectionStock = table(
   { name: 'collection_stock' },
@@ -683,6 +695,7 @@ export const productTables = {
   clubs,
   clubMembers,
   clubBattles,
+  battleChanges,
   clubSeasons,
   clubSeasonPlayers,
   completedMigrations,

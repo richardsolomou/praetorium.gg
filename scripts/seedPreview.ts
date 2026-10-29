@@ -368,6 +368,7 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
   const page = { limit: 100 }
   await product.health()
   await product.publicStandingsRevision()
+  await repository.battlesByIds((await repository.battleChanges(0)).battleIds.slice(0, 500))
   await product.productStats(userIds)
   await product.pushTargets(userIds)
   await repository.practiceOpponents()

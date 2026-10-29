@@ -20,7 +20,8 @@ it.each([{ id: 'preview', name: 'Custodes codex', status: 'preview' as const }, 
     }
     const repository = {
       battlesByUser: vi.fn().mockResolvedValue({ battles: [history], nextCursor: null }),
-      watchableBattles: vi.fn().mockResolvedValue({ battles: [], nextCursor: null }),
+      battleChanges: vi.fn().mockResolvedValue({ cursor: 0, battleIds: [] }),
+      profilesByIds: vi.fn().mockResolvedValue(new Map()),
       practiceOpponents: vi.fn().mockResolvedValue([]),
     } as unknown as RepositoryPort
     const service = new PraetoriumService(
