@@ -202,6 +202,7 @@ export function deploymentLines(deployment: { zones: { points: Point[] }[] }, bo
  * A placement order for the terrain and the fewest square-on distances that put down each piece in turn: two at one
  * outer corner, plus one at a second corner when the piece is tilted. Each distance runs to the nearest of the given
  * printed deployment lines, the board edge with `edges`, or the drawn edge of a piece already down with `terrain`.
+ * A piece or marker that can't be fixed in both directions from what is enabled and already down is left out.
  * Objective markers outside terrain come last; one inside terrain lands wherever its terrain does, so it gets none.
  */
 export function placementMeasurements(
@@ -247,7 +248,7 @@ export function placementMeasurements(
   const place = (corners: Point[], tilted: boolean, approximate: boolean, references: (readonly [Point, Point])[]) => {
     const [first, ...rest] = corners
       .map((corner) => axisMeasurements(corner, approximate, references))
-      .filter((measurements) => measurements.length)
+      .filter((measurements) => measurements.length === 2)
       .sort((left, right) => total(left) - total(right))
     if (!first) return null
     const second = tilted ? rest.flat().sort((left, right) => left.distance - right.distance)[0] : undefined
@@ -268,8 +269,10 @@ export function placementMeasurements(
         (left, right) =>
           (left.measurements ? total(left.measurements) : Infinity) - (right.measurements ? total(right.measurements) : Infinity),
       )[0]!
+    // Sorted last, so nothing left can be fixed in both directions from what is down.
+    if (!next.measurements) break
     remaining.splice(next.index, 1)
-    if (next.measurements) steps.push(next.measurements)
+    steps.push(next.measurements)
     if (terrain) references.push(...next.piece.footprints.flatMap((footprint) => polygonEdges(footprint)))
   }
   const markers = objectives
@@ -282,6 +285,7 @@ export function placementMeasurements(
         ),
     )
     .map((point) => axisMeasurements(point, false, references))
+    .filter((measurements) => measurements.length === 2)
   return [...steps, ...markers].flatMap((measurements, index) =>
     measurements.map(({ from, to, approximate, ruler }, position) => ({
       from,

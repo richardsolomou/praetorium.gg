@@ -326,6 +326,15 @@ describe('placing terrain piece by piece', () => {
     expect(ends).not.toContainEqual({ x: 13, y: 13 })
   })
 
+  it('leaves out a piece that only one distance could fix', () => {
+    const geometry = { board, areas: [openArea(square(2, 2, 4))] }
+    const line = [
+      { x: 20, y: 0 },
+      { x: 20, y: 44 },
+    ] as const
+    expect(placementMeasurements(geometry, [], [line], { terrain: true, edges: false })).toEqual([])
+  })
+
   it('measures a later piece from the edge of one already down when that is nearest', () => {
     const geometry = {
       board,

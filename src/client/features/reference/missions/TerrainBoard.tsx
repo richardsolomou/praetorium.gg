@@ -1,4 +1,4 @@
-import { useId } from 'react'
+import { useId, useMemo } from 'react'
 import { cn } from '@/lib/utils'
 import { groupBy } from '../../../../core/collections'
 
@@ -55,11 +55,27 @@ export function TerrainBoard({
   const board = layout.geometry?.board ?? { width: 60, height: 44 }
   const flipped = deploymentNeedsFlip(deployment?.zones ?? [], board)
   const upright = flipped ? `translate(${board.height} 0) rotate(90)` : `translate(0 ${board.width}) rotate(-90)`
-  const objectives = deploymentObjectiveMarkers(layout.geometry, deployment?.objectives ?? [])
-  const objectivePositions = [
-    ...objectives.map((objective) => objective.position),
-    ...(layout.geometry ? objectiveTerrainMarkers(layout.geometry).map((objective) => objective.position) : []),
-  ]
+  const { geometry } = layout
+  const objectives = useMemo(() => deploymentObjectiveMarkers(geometry, deployment?.objectives ?? []), [geometry, deployment?.objectives])
+  const objectivePositions = useMemo(
+    () => [
+      ...objectives.map((objective) => objective.position),
+      ...(geometry ? objectiveTerrainMarkers(geometry).map((objective) => objective.position) : []),
+    ],
+    [geometry, objectives],
+  )
+  const [terrain, lines, edges] = [show.includes('terrain'), show.includes('lines'), show.includes('edges')]
+  // Placement walks every corner against every edge drawn so far, so it only reruns when the layout or toggles change.
+  const placement = useMemo(
+    () =>
+      detailed && geometry && (terrain || lines || edges)
+        ? placementMeasurements(geometry, objectivePositions, lines && deployment ? deploymentLines(deployment, geometry.board) : [], {
+            terrain,
+            edges,
+          })
+        : [],
+    [detailed, geometry, objectivePositions, deployment, terrain, lines, edges],
+  )
 
   const showMat = detailed && show.includes('mat') && layout.geometry !== null
   const margin = showMat ? rulerMargin : 0
@@ -155,17 +171,7 @@ export function TerrainBoard({
       {detailed && layout.geometry ? (
         <TerrainMeasurements
           geometry={layout.geometry}
-          measurements={[
-            ...(show.includes('terrain') || show.includes('lines') || show.includes('edges')
-              ? placementMeasurements(
-                  layout.geometry,
-                  objectivePositions,
-                  show.includes('lines') && deployment ? deploymentLines(deployment, layout.geometry.board) : [],
-                  { terrain: show.includes('terrain'), edges: show.includes('edges') },
-                )
-              : []),
-            ...(show.includes('published') ? layout.geometry.areas.flatMap((area) => area.measurements) : []),
-          ]}
+          measurements={[...placement, ...(show.includes('published') ? layout.geometry.areas.flatMap((area) => area.measurements) : [])]}
           flipped={flipped}
           arrowId={`${patternId}-arrow`}
           objectives={objectivePositions}
@@ -399,7 +405,7 @@ function MatCoordinates({
   const across = Array.from({ length: board.height + 1 }, (_, inch) => inch)
   const up = Array.from({ length: board.width + 1 }, (_, inch) => inch)
   const numbered = (inch: number, length: number) => (inch % 6 === 0 && length - inch >= 3) || inch === length
-  const placed = placementMeasurements(geometry, objectives, [], { terrain: false, edges: true })
+  const placed = useMemo(() => placementMeasurements(geometry, objectives, [], { terrain: false, edges: true }), [geometry, objectives])
   const points = [...new Map(placed.map(({ to, approximate }) => [`${to.x}-${to.y}`, { point: to, approximate }])).values()].map(
     ({ point, approximate }) => {
       const portrait = portraitPoint(point, flipped, board)
