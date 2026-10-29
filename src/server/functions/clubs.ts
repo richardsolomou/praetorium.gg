@@ -46,7 +46,7 @@ export const publishClubSeason = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.clubService.publishSeason(token, userId, draw)
-      await app().telemetry.capture(userId, 'club_season_published', { players: draw.playerIds.length })
+      await captureMutation(userId, 'club_season_published', { players: draw.playerIds.length })
     }),
   )
 
@@ -100,7 +100,7 @@ export const createClub = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.clubService.createClub(userId, data)
-      await app().telemetry.capture(userId, 'club_created', { visibility: data.visibility, admission: data.admission })
+      await captureMutation(userId, 'club_created', { visibility: data.visibility, admission: data.admission })
       return result
     }),
   )
@@ -121,7 +121,7 @@ export const deleteClub = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.clubService.deleteClub(data.token, userId)
-      await app().telemetry.capture(userId, 'club_deleted')
+      await captureMutation(userId, 'club_deleted')
     }),
   )
 
@@ -131,7 +131,7 @@ export const joinClub = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const status = await app().service.clubService.joinClub(data.token, userId)
-      await app().telemetry.capture(userId, 'club_joined', { status })
+      await captureMutation(userId, 'club_joined', { status })
       return status
     }),
   )
@@ -142,7 +142,7 @@ export const leaveClub = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.clubService.leaveClub(data.token, userId)
-      await app().telemetry.capture(userId, 'club_left')
+      await captureMutation(userId, 'club_left')
     }),
   )
 
@@ -152,7 +152,7 @@ export const moderateClubMember = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.clubService.moderateClubMember(data.token, userId, data.userId, data.accept)
-      await app().telemetry.capture(userId, 'club_member_moderated', { result })
+      await captureMutation(userId, 'club_member_moderated', { result })
       return result
     }),
   )
@@ -173,7 +173,7 @@ export const setClubAdmins = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.clubService.setClubAdmins(data.token, userId, data.userIds)
-      await app().telemetry.capture(userId, 'club_admins_set', { admins: data.userIds.length })
+      await captureMutation(userId, 'club_admins_set', { admins: data.userIds.length })
       return result
     }),
   )

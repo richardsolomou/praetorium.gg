@@ -103,7 +103,7 @@ export const createClubGame = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.leagueService.createClubGame(userId, data)
-      await app().telemetry.capture(userId, 'club_game_created', {
+      await captureMutation(userId, 'club_game_created', {
         format: data.format,
         roster_limit: data.rosterLimit,
       })
@@ -226,7 +226,7 @@ export const shareLeagueRoster = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.leagueService.shareRoster(data.token, data.eventToken, userId, data.submittedAt, data.rosterId)
-      await app().telemetry.capture(userId, 'league_roster_published')
+      await captureMutation(userId, 'league_roster_published')
       return result
     }),
   )
@@ -293,7 +293,7 @@ export const setLeagueAdmins = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.leagueService.setLeagueAdmins(data.token, userId, data.userIds)
-      await app().telemetry.capture(userId, 'league_admins_updated', { count: data.userIds.length, added: result.added.length })
+      await captureMutation(userId, 'league_admins_updated', { count: data.userIds.length, added: result.added.length })
       return null
     }),
   )
@@ -322,7 +322,7 @@ export const dropLeagueEntrant = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       await app().service.leagueService.dropLeagueEntrant(data.token, data.eventToken ?? '', userId, data.userId)
-      await app().telemetry.capture(userId, 'league_entrant_dropped', { withdrew: data.userId === userId })
+      await captureMutation(userId, 'league_entrant_dropped', { withdrew: data.userId === userId })
     }),
   )
 
@@ -332,7 +332,7 @@ export const pairLeagueRound = createServerFn({ method: 'POST' })
     mutationRpc(async () => {
       const userId = await requireUserId()
       const result = await app().service.pairLeagueRound(data.token, data.eventToken, userId)
-      await app().telemetry.capture(userId, 'league_round_paired', { round: result.round })
+      await captureMutation(userId, 'league_round_paired', { round: result.round })
       return result
     }),
   )
