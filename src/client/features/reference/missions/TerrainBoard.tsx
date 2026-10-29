@@ -23,6 +23,7 @@ import {
   type TerrainPiece,
   type TerrainTemplate,
   terrainMarkerPosition,
+  uniqueMeasurements,
   territoryBoundary,
 } from './terrainGeometry'
 
@@ -549,11 +550,7 @@ function TerrainMeasurements({
   arrowId: (source: PlacementReference | 'published') => string
   objectives: { x: number; y: number }[]
 }) {
-  const measurements = [
-    ...new Map(
-      all.map((measurement) => [`${measurement.from.x}-${measurement.from.y}-${measurement.to.x}-${measurement.to.y}`, measurement]),
-    ).values(),
-  ]
+  const measurements = uniqueMeasurements(all)
 
   const occupied: LabelBox[] = objectives.map((position) => {
     const centre = portraitPoint(position, flipped, geometry.board)

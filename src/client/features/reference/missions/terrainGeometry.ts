@@ -202,6 +202,12 @@ const referenceSegments = (segments: (readonly [Point, Point])[], reference: Pla
 /** Beyond this, a distance to the board edge is read off the mat's edge ruler: an arrow that long crosses the others. */
 const longestEdgeArrow = 12
 
+/** Drops repeats of a distance along the same line, keeping the first: placement, so it keeps its step number. */
+export function uniqueMeasurements(measurements: Measurement[]) {
+  const line = (measurement: Measurement) => `${measurement.from.x}-${measurement.from.y}-${measurement.to.x}-${measurement.to.y}`
+  return measurements.filter((measurement, index) => measurements.findIndex((other) => line(other) === line(measurement)) === index)
+}
+
 /** The deployment zone edges that cross the board: the lines a mat prints. Territory boundaries are not printed. */
 export function deploymentLines(deployment: { zones: { points: Point[] }[] }, board: TerrainGeometry['board']) {
   return deployment.zones.flatMap((zone) => territoryBoundary(zone.points, board))

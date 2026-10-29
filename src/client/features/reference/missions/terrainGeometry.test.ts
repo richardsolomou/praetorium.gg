@@ -13,6 +13,7 @@ import {
   terrainAreaJoins,
   terrainMarkerPosition,
   territoryBoundary,
+  uniqueMeasurements,
 } from './terrainGeometry'
 
 const square = (x: number, y: number, size: number) => [
@@ -334,5 +335,10 @@ describe('placing terrain piece by piece', () => {
     }
     const froms = placementMeasurements(geometry, [], [], { terrain: true }).map((measurement) => measurement.from)
     expect(froms).toContainEqual({ x: 6, y: 2 })
+  })
+
+  it('keeps the step number when a published distance repeats a placement one', () => {
+    const line = { from: { x: 0, y: 2 }, to: { x: 2, y: 2 }, approximate: false }
+    expect(uniqueMeasurements([{ ...line, step: 1 }, line])).toEqual([{ ...line, step: 1 }])
   })
 })
