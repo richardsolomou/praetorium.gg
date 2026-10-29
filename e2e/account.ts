@@ -463,7 +463,8 @@ export async function confirmScoring(prompt: Locator, name: string | RegExp) {
   const confirm = prompt.getByRole('button', { name })
   const next = prompt.getByRole('button', { name: 'Next card', exact: true })
   await expect(async () => {
-    if (await next.isVisible()) await next.click()
+    // Bounded, because the scroll an earlier press started can turn Next card into the confirm before this lands.
+    if (await next.isVisible()) await next.click({ timeout: 1_000 })
     await expect(confirm).toBeVisible({ timeout: 1_000 })
   }).toPass({ timeout: 15_000 })
   await confirm.click()
