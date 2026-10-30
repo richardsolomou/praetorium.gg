@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.206.0 (2026-10-30)
+
+### Minor Changes
+
+- 8d64689: The combat simulator can spend a Command Re-roll on a hit, wound, save or Attacks roll and shows how much it changes the result compared with not using it.
+
 ## 0.205.0 (2026-10-30)
 
 ### Minor Changes
