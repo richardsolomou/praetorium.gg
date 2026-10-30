@@ -51,7 +51,10 @@ import {
 } from '../core/serviceRecord'
 import { routeSlug } from '../core/slug'
 import {
+  armyOf,
   battleOutcome,
+  compareStandings,
+  OVERALL,
   sideScore,
   type RatingPoint,
   type Standing,
@@ -60,7 +63,7 @@ import {
   standings,
 } from '../core/standings'
 import { opposingSide, refuse } from '../core/battlePrimitives'
-import { achievements } from '../core/achievements'
+import { ACHIEVEMENTS, achievementPoints, achievements, type AchievementId, type EarnedAchievements } from '../core/achievements'
 import { swissPairings, swissStandings, type SwissMatch } from '../core/swiss'
 import { seasonDraw, seasonFixtureStatus } from '../core/clubSeason'
 import { LEAGUE_RESULTS_BATTLE_LIMIT, leagueResults } from '../core/leagueResults'
@@ -74,7 +77,7 @@ import { LeagueService } from './services/leagueService'
 import { ClubService } from './services/clubService'
 import { RosterService } from './services/rosterService'
 import { SocialService } from './services/socialService'
-import { StandingResults } from './standingResults'
+import { StandingsRefresh, storedBattle } from './standingsRefresh'
 import type { BattleHistory, BattleSeats, RepositoryPort, SpacetimeRepository } from './spacetimeRepository'
 
 /**
@@ -114,16 +117,6 @@ type StandingsTable = { faction: StandingFaction | null; players: number; rows: 
 /** The overall table, a table per faction played, and how many days back they reach. */
 type StandingsAnswer = { days: number; overall: StandingsTable; factions: (StandingsTable & { faction: StandingFaction })[] }
 
-/** Every row of every table, before the leaderboard slices it. Ranks are read off this. */
-type StandingsFold = {
-  days: number
-  overall: { faction: null; rows: Standing[] }
-  factions: { faction: StandingFaction; rows: Standing[] }[]
-  /** How far each counted battle moved each player's overall rating, by battle token and then player. */
-  changes: ReadonlyMap<string, Readonly<Record<string, number>>>
-  history: ReadonlyMap<string, readonly RatingPoint[]>
-}
-
 /** One player's place in each table they appear in, and the window it covers. */
 type PlayerRanking<T> = { faction: T; place: number; of: number; standing: Standing }
 type PlayerRankings = {
@@ -135,6 +128,9 @@ type PlayerRankings = {
 }
 
 const SPECTATOR_ID = ''
+
+const ACHIEVEMENT_IDS = new Set<string>(ACHIEVEMENTS.map((achievement) => achievement.id))
+type AchievementRows = { achievementId: AchievementId; earnedAt: number | null; seen: boolean }[]
 
 /** A page of the battle list. History grows for an account's lifetime; a page does not. */
 export const BATTLES_PAGE = 25
@@ -148,10 +144,11 @@ const PUBLIC_FEED_HELD_PAGES = 200
 /** How recently a player must have played to be listed; their rating counts every battle the standings read. */
 const STANDINGS_DAYS = 90
 const DAY_MS = 24 * 60 * 60 * 1000
-/** Pages of 500 battles a standings table reads, newest first, before it rates only those. */
+/** Pages of 500 battles a club's table reads, newest first, before it rates only those. */
 const STANDINGS_PAGES = 20
 const CLUB_RECENT_BATTLES = 6
-const STANDINGS_HOLD_MS = 60_000
+/** How long one leaderboard read serves repeated reads, such as a burst of tabs refetching after the same signal. */
+const STANDINGS_HOLD_MS = 5_000
 
 /** How much of a table is sent. Nobody reads past this, and every faction played costs one. */
 const STANDINGS_ROWS = 50
@@ -183,20 +180,23 @@ export class PraetoriumService {
   readonly clubService: ClubService
   readonly rosterService: RosterService
   readonly socialService: SocialService
-  private readonly standingResults: StandingResults
+  private readonly standingsRefresh: StandingsRefresh
+  /** Each player's medal check in progress, so a burst of reads checks once. */
+  private readonly achievementChecks = new Map<string, Promise<AchievementRows>>()
+  private definitionsSynced: Promise<boolean> | null = null
 
   constructor(
     private readonly repository: RepositoryPort,
     private readonly clock: () => number,
     private readonly randomIndex: (limit: number) => number,
     private readonly notifier: Notifier = silentNotifier,
-    private readonly standingsRevision?: () => Promise<string>,
+    battleFactions: () => Promise<readonly BattleFaction[]> = async () => [],
   ) {
     this.leagueService = new LeagueService(repository, clock, notifier)
     this.clubService = new ClubService(repository, clock, notifier)
     this.rosterService = new RosterService(repository, clock)
     this.socialService = new SocialService(repository, clock, notifier)
-    this.standingResults = new StandingResults(repository)
+    this.standingsRefresh = new StandingsRefresh(repository, battleFactions)
   }
 
   onboardingProgress(userId: string) {
@@ -211,10 +211,8 @@ export class PraetoriumService {
     return this.repository.collectionProfile(userId, viewerId)
   }
 
-  /** The last standings folded, and when they stop being offered. See `standings`. */
-  private standingsHeld: { key: string; until: number; fold: StandingsFold } | null = null
+  private standingsHeld: { key: string; until: number; answer: Promise<StandingsAnswer> } | null = null
   private readonly publicFeedHeld = new Map<string, { until: number; page: Promise<unknown> }>()
-  private standingsPending: { key: string; promise: Promise<StandingsFold> } | null = null
 
   adminUsers(input: Parameters<SpacetimeRepository['adminUsers']>[0]) {
     return this.repository.adminUsers(input)
@@ -245,7 +243,7 @@ export class PraetoriumService {
     factions?: readonly BattleFaction[],
   ) {
     const { battles: histories, nextCursor } = await this.repository.battlesByUser(userId, page)
-    return { battles: await this.withRatingChanges(this.battleSummaries(histories, userId, rules, factions), factions), nextCursor }
+    return { battles: await this.withRatingChanges(this.battleSummaries(histories, userId, rules, factions)), nextCursor }
   }
 
   /**
@@ -316,88 +314,160 @@ export class PraetoriumService {
     return { battles: this.battleSummaries(histories, userId, rules, factions), nextCursor }
   }
 
-  /** The leaderboard rates every finished battle for all faction filters and caches the derived result for one minute. */
-  private async standingsFold(factions: readonly BattleFaction[]) {
-    const now = this.clock()
-    const revision = await this.standingsRevision?.()
-    const key = JSON.stringify([revision, factions.map(({ id, slug, displayName }) => [id, slug, displayName])])
-    if (this.standingsHeld?.key === key && this.standingsHeld.until > now) return this.standingsHeld.fold
-    if (this.standingsPending?.key === key) return this.standingsPending.promise
-    const pending = (async () => {
-      const [summaries, practice] = await Promise.all([this.standingResults.battles(factions), this.repository.practiceOpponents()])
-      const tables = standings(summaries, {
-        exclude: practice.map((opponent) => opponent.id),
-        activeSince: now - STANDINGS_DAYS * DAY_MS,
-      })
-      const fold = {
-        days: STANDINGS_DAYS,
-        overall: { faction: null, rows: tables.overall },
-        factions: tables.factions,
-        changes: new Map(
-          [...tables.changes].map(([battle, change]) => [
-            battle.token,
-            Object.fromEntries(battle.playerIds.map((id, seat) => [id, change[seat]!])),
-          ]),
-        ),
-        history: tables.history,
-      }
-      this.standingsHeld = { key, until: this.clock() + STANDINGS_HOLD_MS, fold }
-      return fold
-    })()
-    this.standingsPending = { key, promise: pending }
-    try {
-      return await pending
-    } finally {
-      if (this.standingsPending?.promise === pending) this.standingsPending = null
-    }
+  /** Brings the stored results and ratings up to the battles; reads call it first, so they never serve ratings older than a battle they could see. */
+  refreshStandings() {
+    return this.standingsRefresh.refresh()
+  }
+
+  /** Each army's table as a reader is shown it, keyed by the slug the stored ratings name it with. */
+  private armyTables(factions: readonly BattleFaction[]) {
+    return new Map(
+      factions.map(({ slug: _slug, displayName, icon }) => [armyOf({ displayName }), { slug: armyOf({ displayName }), displayName, icon }]),
+    )
+  }
+
+  /** Names each row from its account, so a renamed player is shown under their current name. */
+  private async namedRows<T extends { id: string }>(rows: readonly T[]): Promise<(T & { name: string; image: string | null })[]> {
+    const profiles = await this.repository.profilesByIds([...new Set(rows.map((row) => row.id))])
+    return rows.map((row) => {
+      const profile = profiles.get(row.id)
+      return { ...row, name: profile?.name ?? 'Unknown player', image: profile?.image ?? null }
+    })
   }
 
   async standings(factions: readonly BattleFaction[] = []): Promise<StandingsAnswer> {
-    const { days, overall, factions: played } = await this.standingsFold(factions)
-    const page = <T extends StandingFaction | null>(table: { faction: T; rows: Standing[] }) => ({
-      faction: table.faction,
-      players: table.rows.length,
-      rows: table.rows.slice(0, STANDINGS_ROWS),
+    const now = this.clock()
+    const revision = await this.refreshStandings()
+    const key = JSON.stringify([revision, factions.map(({ id, displayName, icon }) => [id, displayName, icon])])
+    if (this.standingsHeld?.key === key && this.standingsHeld.until > now) return this.standingsHeld.answer
+    const read = async (): Promise<StandingsAnswer> => {
+      const tables = await this.repository.leaderboard(now - STANDINGS_DAYS * DAY_MS, STANDINGS_ROWS)
+      const armies = this.armyTables(factions)
+      const named = await this.namedRows(tables.flatMap((table) => table.rows))
+      const rows = (table: (typeof tables)[number]) =>
+        table.rows.map((row) => named.find((one) => one.id === row.id)!).sort(compareStandings)
+      const overall = tables.find((table) => table.table === OVERALL)
+      return {
+        days: STANDINGS_DAYS,
+        overall: { faction: null, players: overall?.players ?? 0, rows: overall ? rows(overall) : [] },
+        factions: tables
+          .flatMap((table) => {
+            const faction = table.table === OVERALL ? undefined : armies.get(table.table)
+            return faction ? [{ faction, seats: table.seats, players: table.players, rows: rows(table) }] : []
+          })
+          .sort((one, other) => other.seats - one.seats || one.faction.displayName.localeCompare(other.faction.displayName))
+          .map(({ seats: _seats, ...table }) => table),
+      }
+    }
+    const answer = read()
+    this.standingsHeld = { key, until: now + STANDINGS_HOLD_MS, answer }
+    answer.catch(() => {
+      if (this.standingsHeld?.answer === answer) this.standingsHeld = null
     })
-    return { days, overall: page(overall), factions: played.map(page) }
+    return answer
   }
 
-  /**
-   * Where one player sits in each table they appear in.
-   *
-   * The same held fold the leaderboard pages, so a rank on a profile is the row
-   * that page would show and cannot drift from it. A player outside the rows the
-   * leaderboard sends still has a rank here, because the fold is not sliced until
-   * the leaderboard asks.
-   */
+  /** Where one player sits in each table they appear in, read from the same stored ratings the leaderboard pages. */
   async playerRankings(userId: string, factions: readonly BattleFaction[] = []): Promise<PlayerRankings> {
-    const fold = await this.standingsFold(factions)
-    const rank = <T extends StandingFaction | null>({ faction, rows }: { faction: T; rows: Standing[] }) => {
-      const at = rows.findIndex((row) => row.id === userId)
-      return at === -1 ? [] : [{ faction, place: at + 1, of: rows.length, standing: rows[at] as Standing }]
-    }
+    await this.refreshStandings()
+    const { places, history } = await this.repository.playerStandings(userId, this.clock() - STANDINGS_DAYS * DAY_MS)
+    const [named] = await this.namedRows([{ id: userId }])
+    const armies = this.armyTables(factions)
+    const ranking = <T>(faction: T, place: (typeof places)[number]) => ({
+      faction,
+      place: place.place,
+      of: place.of,
+      standing: { ...place.standing, name: named!.name, image: named!.image },
+    })
+    const overall = places.find((place) => place.table === OVERALL)
     return {
-      days: fold.days,
-      overall: rank(fold.overall)[0] ?? null,
+      days: STANDINGS_DAYS,
+      overall: overall ? ranking(null, overall) : null,
       // Ordered by how much of this player's own record each army accounts for. The
       // leaderboard's order is how much everybody has played it, which on a profile
       // puts the army they brought once above the one they always bring.
-      factions: fold.factions
-        .flatMap(rank)
+      factions: places
+        .flatMap((place) => {
+          const faction = place.table === OVERALL ? undefined : armies.get(place.table)
+          return faction ? [ranking(faction, place)] : []
+        })
         .toSorted((one, other) => other.standing.battles - one.standing.battles || one.place - other.place),
-      history: fold.history.get(userId) ?? [],
+      history,
     }
   }
 
   /**
-   * What a player has earned, from the leaderboard's own finished battles and the facts the module reads.
+   * What a player has earned, as last checked. A write that could change it has the player checked again here, on the
+   * next read, rather than every player on every write.
+   */
+  async playerAchievements(userId: string, factions: readonly BattleFaction[] = []): Promise<EarnedAchievements> {
+    const earned: Partial<Record<AchievementId, number | null>> = {}
+    for (const row of await this.checkedAchievements(userId, factions)) earned[row.achievementId] = row.earnedAt
+    return { earned, points: achievementPoints(earned) }
+  }
+
+  /** The medals a player has earned and not yet been told of. */
+  async newAchievements(userId: string, factions: readonly BattleFaction[] = []) {
+    return (await this.checkedAchievements(userId, factions)).flatMap((row) =>
+      row.seen ? [] : [{ id: row.achievementId, earnedAt: row.earnedAt }],
+    )
+  }
+
+  markAchievementsSeen(userId: string, achievementIds: readonly string[]) {
+    return this.repository.markAchievementsSeen(userId, achievementIds)
+  }
+
+  /**
+   * Has every player checked again, quietly, once the medals on offer differ from the ones they were checked against.
+   * Once per process, and before any check: a check ahead of it would announce every medal a player already held.
+   */
+  syncAchievementDefinitions() {
+    const definitions = ACHIEVEMENTS.map(({ id, metric, count }) => [id, metric, count])
+    this.definitionsSynced ??= this.repository
+      .syncAchievementDefinitions(createHash('sha256').update(JSON.stringify(definitions)).digest('hex').slice(0, 16))
+      .catch((error: unknown) => {
+        this.definitionsSynced = null
+        throw error
+      })
+    return this.definitionsSynced
+  }
+
+  private checkedAchievements(userId: string, factions: readonly BattleFaction[]) {
+    const running = this.achievementChecks.get(userId)
+    if (running) return running
+    const check = this.checkAchievements(userId, factions).finally(() => this.achievementChecks.delete(userId))
+    this.achievementChecks.set(userId, check)
+    return check
+  }
+
+  private async checkAchievements(userId: string, factions: readonly BattleFaction[]): Promise<AchievementRows> {
+    await this.syncAchievementDefinitions()
+    // A finished battle reaches a player's revision only once the refresh stores its result.
+    await this.refreshStandings()
+    const status = await this.repository.achievementStatus(userId)
+    const known = (rows: typeof status.earned) =>
+      rows.filter((row): row is AchievementRows[number] => ACHIEVEMENT_IDS.has(row.achievementId))
+    if (status.revision === status.checked) return known(status.earned)
+    // Read after the revision, so a write landing during the check leaves the player to be checked again.
+    const { earned } = await this.earnedAchievements(userId, factions)
+    const saved = await this.repository.saveAchievements({
+      userId,
+      revision: status.revision,
+      earned: Object.entries(earned).map(([achievementId, earnedAt]) => ({ achievementId, earnedAt: earnedAt ?? null })),
+    })
+    return known(saved ? (await this.repository.achievementStatus(userId)).earned : status.earned)
+  }
+
+  /**
+   * What a player has earned, from their stored battle results and the facts the module reads.
    *
    * A tournament's winner is the top of the table its results page shows, read as an entrant so a private one counts.
    */
-  async playerAchievements(userId: string, factions: readonly BattleFaction[] = []) {
-    const [battles, practice, facts] = await Promise.all([
-      this.standingResults.battles(factions),
-      this.repository.practiceOpponents(),
+  private async earnedAchievements(userId: string, factions: readonly BattleFaction[]) {
+    const factionsById = byId(factions)
+    const [stored, practice, facts] = await Promise.all([
+      this.repository.battleResultsByUser(userId),
+      this.repository.practiceOpponentIds(),
       this.repository.achievementFacts(userId),
     ])
     const signups = new Map(
@@ -413,14 +483,14 @@ export class PraetoriumService {
     })
     const tournaments = await Promise.all(
       facts.tournaments.map(async ({ token, eventToken, ...tournament }) => {
-        const results = tournament.played ? await this.leagueResults(token, eventToken, undefined, [], userId) : null
-        return { ...tournament, won: Boolean(results && !results.partial && results.swiss?.[0]?.userId === userId) }
+        const table = tournament.played ? await this.leagueResults(token, eventToken, undefined, [], userId) : null
+        return { ...tournament, won: Boolean(table && !table.partial && table.swiss?.[0]?.userId === userId) }
       }),
     )
     return achievements(
       userId,
-      { ...facts, battles, recruits, tournaments },
-      practice.map((opponent) => opponent.id),
+      { ...facts, battles: stored.map((row) => storedBattle(row, factionsById)), recruits, tournaments },
+      practice,
     )
   }
 
@@ -452,10 +522,7 @@ export class PraetoriumService {
       performance: personalPerformance(summaries, userId, filter),
       facets,
       // What each side did is the record's to count, not the battle list's to carry.
-      battles: await this.withRatingChanges(
-        shown.slice(0, PROFILE_BATTLE_PAGE).map(({ plays: _plays, ...battle }) => battle),
-        factions,
-      ),
+      battles: await this.withRatingChanges(shown.slice(0, PROFILE_BATTLE_PAGE).map(({ plays: _plays, ...battle }) => battle)),
       played: shown.length,
     }
   }
@@ -769,22 +836,20 @@ export class PraetoriumService {
   }
 
   /** How far one battle moved each player's overall rating, or null when the leaderboard does not count it. */
-  async battleRatingChanges(token: string, factions: readonly BattleFaction[] = []) {
-    const { changes } = await this.standingsFold(factions)
-    return changes.get(token) ?? null
+  async battleRatingChanges(token: string) {
+    await this.refreshStandings()
+    return (await this.repository.ratingChanges([token]))[0]?.changes ?? null
   }
 
-  /**
-   * Each battle with how far it moved each player's overall rating, from the leaderboard's own fold.
-   *
-   * Only the battle list and a profile's battles carry it: the public feeds refetch
-   * often enough that each would refold the leaderboard every time its hold lapsed.
-   */
+  /** Each battle with how far it moved each player's overall rating, from the leaderboard's stored ratings. */
   private async withRatingChanges<T extends { token: string }>(
     battles: T[],
-    factions: readonly BattleFaction[] = [],
   ): Promise<(T & { ratingChanges?: Readonly<Record<string, number>> })[]> {
-    const { changes } = await this.standingsFold(factions)
+    const finished = battles.flatMap((battle) => ('status' in battle && battle.status !== 'finished' ? [] : [battle.token]))
+    if (finished.length) await this.refreshStandings()
+    const changes = new Map<string, Readonly<Record<string, number>>>()
+    for (let at = 0; at < finished.length; at += 500)
+      for (const row of await this.repository.ratingChanges(finished.slice(at, at + 500))) changes.set(row.token, row.changes)
     return battles.map((battle) => {
       const ratingChanges = changes.get(battle.token)
       return ratingChanges ? { ...battle, ratingChanges } : battle

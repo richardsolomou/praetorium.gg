@@ -2694,3 +2694,23 @@ describe('collection photo thumbnail inventory', () => {
     )
   })
 })
+
+describe('derived standings and medals', () => {
+  it('leaves a player to be checked again when a write lands during their check', () => {
+    const h = harness()
+    h.call(h.operator, (ctx) => ctx.db.achievementChecks.insert({ userId: 'player', revision: 2n, checked: 0n, quiet: false }))
+    const save = (revision: number) =>
+      module.saveAchievements(h.procedure(h.operator), {
+        payload: JSON.stringify({ userId: 'player', revision, earned: [{ achievementId: 'first-blood', earnedAt: 1 }] }),
+      })
+    expect(save(1)).toBe(false)
+  })
+
+  it('finds the standings refresh busy while another server holds it', () => {
+    const h = harness()
+    const claim = (holder: string) =>
+      JSON.parse(module.claimStandingsRefresh(h.procedure(h.operator), { holder, results: '1', ratings: '1' })) as { state: string }
+    claim('first')
+    expect(claim('second').state).toBe('busy')
+  })
+})

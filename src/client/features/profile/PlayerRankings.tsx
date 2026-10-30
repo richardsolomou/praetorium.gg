@@ -17,7 +17,7 @@ export type Rankings = {
 /**
  * Where this player sits on the leaderboard, overall and with each army.
  *
- * The same rows that page prints, read from the same held fold, so a rank here is
+ * The same rows that page prints, read from the same stored ratings, so a rank here is
  * the rank there. Each one opens the table it came from, because a place is only
  * meaningful next to the players it was measured against.
  *

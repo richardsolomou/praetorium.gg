@@ -102,12 +102,19 @@ const DISPLAY = { alpha: 20, target: 1000 }
  */
 const BETA = 25 / 3
 
-type Entry = { row: Standing; skill: Rating }
-
 const mean = (values: readonly number[]) => values.reduce((total, value) => total + value, 0) / values.length
 
+/** The overall table's key. A faction table's key is its army's slug, which every rules version of the army shares. */
+export const OVERALL = ''
+
+export const armyOf = (faction: Pick<StandingFaction, 'displayName'>) => routeSlug(faction.displayName)
+
+/** One player's place in one table as it stands: their skill and their record so far. */
+export type Rated = { skill: Rating; row: Standing }
+
 /**
- * Rate every finished battle in the order it finished.
+ * Rate one counted battle, moving the entry `held` hands out for each seat in the overall table and, for a seat
+ * that brought a catalogue army, that army's table. Returns how far it moved each seat's overall rating.
  *
  * A side is rated as one player of its allies' average skill, and each ally moves
  * as that player would: OpenSkill's own teams add their members up, which rates
@@ -116,7 +123,46 @@ const mean = (values: readonly number[]) => values.reduce((total, value) => tota
  * A faction rating moves only with the battles its player fielded that faction in,
  * but against everybody else's overall rating: rated only against each other, a
  * faction table's handful of games would measure its players against nothing.
- * Every rules version of an army shares its table.
+ */
+export function rateBattle(battle: StandingBattle, held: (table: string, seat: number) => Rated): number[] {
+  const sides = [...new Set(battle.sides)]
+  const teams = sides.map((side) => battle.sides.flatMap((seated, seat) => (seated === side ? [seat] : [])))
+  const rank = sides.map((side) => (battleOutcome(battle, side) === 'lost' ? 1 : 0))
+  /** Every seat's rating after this battle, had the seats come to it with these. */
+  const rated = (skills: readonly Rating[]) => {
+    const average = teams.map((team) => ({
+      mu: mean(team.map((seat) => skills[seat]!.mu)),
+      sigma: Math.sqrt(mean(team.map((seat) => skills[seat]!.sigma ** 2))),
+    }))
+    const result = rate(
+      average.map((side) => [side]),
+      { rank, beta: BETA },
+    )
+    return skills.map((skill, seat) => {
+      const side = sides.indexOf(battle.sides[seat]!)
+      const after = result[side]![0]!
+      return { mu: skill.mu + after.mu - average[side]!.mu, sigma: (skill.sigma * after.sigma) / average[side]!.sigma }
+    })
+  }
+  const players = battle.playerIds.map((_, seat) => held(OVERALL, seat))
+  const before = players.map((player) => player.skill)
+  battle.playerIds.forEach((_, seat) => {
+    const brought = battle.factions[seat]
+    if (!brought) return
+    const fielded = held(armyOf(brought), seat)
+    fielded.skill = rated(before.with(seat, fielded.skill))[seat]!
+    record(fielded.row, battle, seat)
+  })
+  const after = rated(before)
+  players.forEach((player, seat) => {
+    player.skill = after[seat]!
+    record(player.row, battle, seat)
+  })
+  return after.map((skill, seat) => shownRating(skill) - shownRating(before[seat]!))
+}
+
+/**
+ * Rate every finished battle in the order it finished.
  *
  * Every battle given is rated; `activeSince` only decides who is listed, so a
  * rating does not change because an old battle stopped being shown.
@@ -125,58 +171,28 @@ export function standings<B extends StandingBattle>(
   battles: readonly B[],
   { exclude = [], activeSince = 0 }: { exclude?: readonly string[]; activeSince?: number } = {},
 ): StandingsTables<B> {
-  const overall = new Map<string, Entry>()
+  const overall = new Map<string, Rated>()
   const changes = new Map<B, number[]>()
   const history = new Map<string, RatingPoint[]>()
-  const factions = new Map<string, { faction: StandingFaction; seats: number; entries: Map<string, Entry> }>()
+  const factions = new Map<string, { faction: StandingFaction; seats: number; entries: Map<string, Rated> }>()
   for (const battle of counted(battles, exclude).toSorted((one, other) => one.lastActivity - other.lastActivity)) {
-    const sides = [...new Set(battle.sides)]
-    const teams = sides.map((side) => battle.sides.flatMap((seated, seat) => (seated === side ? [seat] : [])))
-    const rank = sides.map((side) => (battleOutcome(battle, side) === 'lost' ? 1 : 0))
-    /** Every seat's rating after this battle, had the seats come to it with these. */
-    const rated = (skills: readonly Rating[]) => {
-      const average = teams.map((team) => ({
-        mu: mean(team.map((seat) => skills[seat]!.mu)),
-        sigma: Math.sqrt(mean(team.map((seat) => skills[seat]!.sigma ** 2))),
-      }))
-      const result = rate(
-        average.map((side) => [side]),
-        { rank, beta: BETA },
-      )
-      return skills.map((skill, seat) => {
-        const side = sides.indexOf(battle.sides[seat]!)
-        const after = result[side]![0]!
-        return { mu: skill.mu + after.mu - average[side]!.mu, sigma: (skill.sigma * after.sigma) / average[side]!.sigma }
-      })
-    }
-    const players = battle.playerIds.map((id, seat) => entry(overall, battle, id, seat))
-    const before = players.map((player) => player.skill)
-    battle.playerIds.forEach((id, seat) => {
-      const brought = battle.factions[seat]
-      if (!brought) return
-      const army = routeSlug(brought.displayName)
-      const table = factions.get(army) ?? {
-        faction: { slug: army, displayName: brought.displayName, icon: brought.icon },
+    const change = rateBattle(battle, (table, seat) => {
+      if (table === OVERALL) return entry(overall, battle, seat)
+      const brought = battle.factions[seat]!
+      const army = factions.get(table) ?? {
+        faction: { slug: table, displayName: brought.displayName, icon: brought.icon },
         seats: 0,
-        entries: new Map<string, Entry>(),
+        entries: new Map<string, Rated>(),
       }
-      factions.set(army, table)
-      table.seats += 1
-      const fielded = entry(table.entries, battle, id, seat)
-      fielded.skill = rated(before.with(seat, fielded.skill))[seat]!
-      record(fielded.row, battle, seat)
+      factions.set(table, army)
+      army.seats += 1
+      return entry(army.entries, battle, seat)
     })
-    const after = rated(before)
-    changes.set(
-      battle,
-      after.map((skill, seat) => shown(skill) - shown(before[seat]!)),
-    )
-    players.forEach((player, seat) => {
-      player.skill = after[seat]!
-      record(player.row, battle, seat)
-      const points = history.get(player.row.id) ?? []
-      points.push({ at: battle.lastActivity, rating: shown(player.skill) })
-      history.set(player.row.id, points)
+    changes.set(battle, change)
+    battle.playerIds.forEach((id) => {
+      const points = history.get(id) ?? []
+      points.push({ at: battle.lastActivity, rating: shownRating(overall.get(id)!.skill) })
+      history.set(id, points)
     })
   }
   return {
@@ -190,26 +206,18 @@ export function standings<B extends StandingBattle>(
   }
 }
 
-function entry(entries: Map<string, Entry>, battle: StandingBattle, id: string, seat: number): Entry {
+function entry(entries: Map<string, Rated>, battle: StandingBattle, seat: number): Rated {
+  const id = battle.playerIds[seat]!
   const known = entries.get(id)
   if (known) return known
-  const created = {
-    row: {
-      id,
-      name: battle.players[seat] ?? 'Unknown player',
-      image: battle.playerDetails?.[seat]?.image ?? null,
-      battles: 0,
-      won: 0,
-      lost: 0,
-      drawn: 0,
-      rating: 0,
-      points: 0,
-      lastPlayed: 0,
-    },
-    skill: rating(),
-  }
+  const created = newcomer(id, battle.players[seat] ?? 'Unknown player', battle.playerDetails?.[seat]?.image ?? null)
   entries.set(id, created)
   return created
+}
+
+/** A player in a table before their first battle in it. */
+export function newcomer(id: string, name = '', image: string | null = null): Rated {
+  return { row: { id, name, image, battles: 0, won: 0, lost: 0, drawn: 0, rating: 0, points: 0, lastPlayed: 0 }, skill: rating() }
 }
 
 function record(row: Standing, battle: StandingBattle, seat: number) {
@@ -221,17 +229,17 @@ function record(row: Standing, battle: StandingBattle, seat: number) {
 }
 
 /** The rating a player sees. */
-const shown = (skill: Rating) => Math.round(ordinal(skill, DISPLAY))
+export const shownRating = (skill: Rating) => Math.round(ordinal(skill, DISPLAY))
 
 /** Rounded before sorting, so the printed rating is the one the order was taken from. */
-function ranked(entries: ReadonlyMap<string, Entry>, activeSince: number): Standing[] {
+function ranked(entries: ReadonlyMap<string, Rated>, activeSince: number): Standing[] {
   return [...entries.values()]
     .filter(({ row }) => row.lastPlayed >= activeSince)
-    .map(({ row, skill }) => ({ ...row, rating: shown(skill) }))
+    .map(({ row, skill }) => ({ ...row, rating: shownRating(skill) }))
     .sort(compareStandings)
 }
 
-function compareStandings(one: Standing, other: Standing): number {
+export function compareStandings(one: Standing, other: Standing): number {
   return (
     other.rating - one.rating ||
     other.won - one.won ||

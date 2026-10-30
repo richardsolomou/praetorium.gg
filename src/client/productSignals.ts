@@ -22,6 +22,7 @@ const queryFamilies = {
     'outdated-league-entries',
     'unit-loadouts',
     'league-roster-sharing',
+    'achievement-news',
   ],
   collection: [
     'collection',
@@ -33,17 +34,28 @@ const queryFamilies = {
     'collection-photo-shows',
     'collection-profile',
     'datasheet-photos',
+    'achievement-news',
   ],
-  favourites: ['favourite-factions', 'favourite-detachments', 'favourite-datasheets'],
-  friends: ['friendships', 'friend-battles', 'opponents', 'player-profile', 'player-search'],
+  favourites: ['favourite-factions', 'favourite-detachments', 'favourite-datasheets', 'achievement-news'],
+  friends: ['friendships', 'friend-battles', 'opponents', 'player-profile', 'player-search', 'achievement-news'],
   invites: ['friend-invite'],
   onboarding: ['onboarding'],
-  settings: ['notification-settings', 'player-defaults', 'ability-reminders', 'public-battles', 'friend-battles', 'played-armies'],
-  leagues: ['leagues', 'league', 'league-roster', 'league-roster-sharing', 'league-battles', 'opponents'],
-  clubs: ['clubs', 'club', 'club-standings', 'club-season', 'battle-clubs'],
+  settings: [
+    'notification-settings',
+    'player-defaults',
+    'ability-reminders',
+    'public-battles',
+    'friend-battles',
+    'played-armies',
+    'achievement-news',
+  ],
+  leagues: ['leagues', 'league', 'league-roster', 'league-roster-sharing', 'league-battles', 'opponents', 'achievement-news'],
+  clubs: ['clubs', 'club', 'club-standings', 'club-season', 'battle-clubs', 'achievement-news'],
   // Standings and rankings change only when a battle finishes, which the public standings signal reports.
   battles: ['battles', 'public-battles', 'friend-battles', 'player-profile', 'league-battles', 'played-armies', 'battle-clubs'],
-  simulator: ['recent-matchups'],
+  simulator: ['recent-matchups', 'achievement-news'],
+  // Medals a player earns in battle, or by someone else's hand, such as a like.
+  achievements: ['achievement-news', 'player-achievements'],
 } as const
 
 const publicQueryFamilies = {

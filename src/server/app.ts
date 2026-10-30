@@ -409,7 +409,7 @@ export function app(): App {
         }
       },
       service: new PraetoriumService(repository, Date.now, randomInt, push ? pushNotifier(repository, push) : silentNotifier, () =>
-        operator.publicStandingsRevision(),
+        instance.battleFactionsFor(),
       ),
       auth,
       spacetimeToken: async (headers) => (await auth.api.getToken({ headers })).token,
@@ -477,6 +477,14 @@ export function app(): App {
       .ready()
       .then(maintainPhotos)
       .catch((error: unknown) => reportServerFailure({ event: 'collection_photo_maintenance_failed', error }))
+    // A new release may offer different medals, and a new database has no stored ratings yet; both catch up in the background.
+    void startup
+      .ready()
+      .then(async () => {
+        await instance.service.syncAchievementDefinitions()
+        await instance.service.refreshStandings()
+      })
+      .catch((error: unknown) => reportServerFailure({ event: 'derived_tables_refresh_failed', error }))
     return instance
   }
   const instance = globalSingleton('praetorium.app', createApp)

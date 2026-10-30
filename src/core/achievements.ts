@@ -1,4 +1,4 @@
-/** Achievements are derived from what a player has done on every read; nothing records that one was earned. */
+/** Achievements are derived from what a player has done; the server stores what each check finds, so a new medal can be announced once. */
 
 import { isGuestSeat } from './newBattle'
 import { battleOutcome, counted, sideScore, type StandingBattle } from './standings'
@@ -636,16 +636,17 @@ export function achievements(playerId: string, facts: AchievementFacts, exclude:
     app: facts.app,
   }
   const earned: Partial<Record<AchievementId, number | null>> = {}
-  let points = 0
   for (const achievement of ACHIEVEMENTS) {
     if (achievement.metric === 'painted') {
       if (facts.painted >= achievement.count) earned[achievement.id] = null
     } else {
       const at = nth(metrics[achievement.metric], achievement.count)
-      if (at === null) continue
-      earned[achievement.id] = at
+      if (at !== null) earned[achievement.id] = at
     }
-    if (earned[achievement.id] !== undefined) points += ACHIEVEMENT_TIERS[achievement.tier]
   }
-  return { earned, points }
+  return { earned, points: achievementPoints(earned) }
+}
+
+export function achievementPoints(earned: Partial<Record<AchievementId, number | null>>) {
+  return ACHIEVEMENTS.reduce((points, achievement) => points + (achievement.id in earned ? ACHIEVEMENT_TIERS[achievement.tier] : 0), 0)
 }

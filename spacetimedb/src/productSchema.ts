@@ -477,6 +477,113 @@ const battleChanges = table(
   },
 )
 
+/**
+ * Each finished battle's result as the operator folded it from the log, so the leaderboard and achievements read one
+ * row per battle rather than folding logs. The operator rewrites it whenever `battle_changes` names the battle.
+ */
+const battleResults = table(
+  { name: 'battle_results' },
+  {
+    battleId: t.string().primaryKey(),
+    finishedAt: t.u64(),
+    /** The UTC day it finished on, so the battles since a time are found a day at a time. */
+    finishedDay: t.u32().index('btree'),
+    /** JSON: seats, sides, scores, concession, armies and whether it was tracked by hand. */
+    result: t.string(),
+  },
+)
+
+/**
+ * One seat's rating and record in one table right after one counted battle: `table` is '' for the overall table and an
+ * army's slug for its own. Written by the operator in the order battles finished; a change to an older battle rewrites
+ * every step from it on.
+ */
+const ratingSteps = table(
+  { name: 'rating_steps' },
+  {
+    key: t.string().primaryKey(),
+    battleId: t.string().index('btree'),
+    playerId: t.string().index('btree'),
+    holder: t.string().index('btree'),
+    table: t.string(),
+    finishedAt: t.u64(),
+    finishedDay: t.u32().index('btree'),
+    mu: t.f64(),
+    sigma: t.f64(),
+    rating: t.i32(),
+    change: t.i32(),
+    battles: t.u32(),
+    won: t.u32(),
+    lost: t.u32(),
+    drawn: t.u32(),
+    points: t.f64(),
+  },
+)
+
+/** Each player's latest step in each table they have played in, which is what the leaderboard lists. */
+const standings = table(
+  { name: 'standings' },
+  {
+    holder: t.string().primaryKey(),
+    table: t.string().index('btree'),
+    playerId: t.string().index('btree'),
+    battleId: t.string(),
+    finishedAt: t.u64(),
+    mu: t.f64(),
+    sigma: t.f64(),
+    rating: t.i32(),
+    battles: t.u32(),
+    won: t.u32(),
+    lost: t.u32(),
+    drawn: t.u32(),
+    points: t.f64(),
+  },
+)
+
+/**
+ * How far the operator's derived tables have caught up. For `standings`: the `battle_changes` revision read up to, the
+ * versions the results and ratings were derived with, the finish time ratings must be replayed from, and which server
+ * holds the refresh. For `achievements`: the definitions every stored medal was checked against.
+ */
+const derivedState = table(
+  { name: 'derived_state' },
+  {
+    name: t.string().primaryKey(),
+    cursor: t.u64(),
+    results: t.string(),
+    ratings: t.string(),
+    ratingsFrom: t.option(t.u64()),
+    holder: t.string(),
+    heldUntil: t.u64(),
+  },
+)
+
+/**
+ * Whether a player's medals need checking again: `revision` rises with every write that could change what they have
+ * earned, and `checked` is the revision their medals were last checked at. A quiet check stores new medals as seen.
+ */
+const achievementChecks = table(
+  { name: 'achievement_checks' },
+  {
+    userId: t.string().primaryKey(),
+    revision: t.u64(),
+    checked: t.u64(),
+    quiet: t.bool(),
+  },
+)
+
+/** The medals a player has earned, when, and whether they have been told. */
+const earnedAchievements = table(
+  { name: 'earned_achievements' },
+  {
+    key: t.string().primaryKey(),
+    userId: t.string().index('btree'),
+    achievementId: t.string(),
+    earnedAt: t.option(t.u64()),
+    seen: t.bool(),
+  },
+)
+
 /** Retired roster-tied stock. SpacetimeDB refuses to drop a table that still holds rows, so it stays until it is emptied. */
 const collectionStock = table(
   { name: 'collection_stock' },
@@ -696,6 +803,12 @@ export const productTables = {
   clubMembers,
   clubBattles,
   battleChanges,
+  battleResults,
+  ratingSteps,
+  standings,
+  derivedState,
+  achievementChecks,
+  earnedAchievements,
   clubSeasons,
   clubSeasonPlayers,
   completedMigrations,

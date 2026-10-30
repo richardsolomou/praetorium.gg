@@ -3,7 +3,14 @@ import { callSpacetime, spacetimeDatabaseUrl, type SpacetimeConnection } from 'r
 import { withServerSpan } from '../adapters/posthog'
 import { offlineContext, SYNC_PRODUCT_ACTIONS } from './offlineContext'
 import { z } from 'zod'
-import { achievementFactsSchema } from '../contracts/achievements'
+import { achievementFactsSchema, achievementStatusSchema } from '../contracts/achievements'
+import {
+  leaderboardSchema,
+  playerStandingsSchema,
+  standingStepSchema,
+  storedBattleResultSchema,
+  type StandingStep,
+} from '../contracts/battleResults'
 import { collectionProfileSchema } from '../contracts/collection'
 import type { CollectionImportRow } from '../core/collection'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES, type RosterSource, type RosterVisibility } from '../core/savedRoster'
@@ -391,8 +398,76 @@ export class SpacetimeOperator {
     return this.read('battles_for_operator', [battleIds], z.array(battleSnapshot))
   }
 
-  async publicStandingsRevision() {
-    return this.reply('public_standings_revision', [], z.string().regex(/^[0-9]+$/))
+  async claimStandingsRefresh(holder: string, results: string, ratings: string) {
+    return this.read(
+      'claim_standings_refresh',
+      [holder, results, ratings],
+      z.discriminatedUnion('state', [
+        z.object({ state: z.literal('fresh'), standings: z.string() }),
+        z.object({ state: z.literal('busy'), standings: z.string() }),
+        z.object({
+          state: z.literal('claimed'),
+          cursor: z.number().int().nonnegative(),
+          ratingsFrom: z.number().int().nonnegative().nullable(),
+        }),
+      ]),
+    )
+  }
+
+  async saveBattleResults(input: { holder: string; results: z.input<typeof storedBattleResultSchema>[]; removed: string[] }) {
+    return this.read('save_battle_results', [JSON.stringify(input)], z.object({ ratingsFrom: z.number().int().nonnegative().nullable() }))
+  }
+
+  async battleResultsAfter(afterAt: number, afterId: string, limit: number) {
+    return this.read('battle_results_after', [afterAt, afterId, limit], z.array(storedBattleResultSchema))
+  }
+
+  async ratingsBefore(from: number, playerIds: readonly string[]) {
+    return this.read('ratings_before', [from, [...playerIds]], z.array(standingStepSchema))
+  }
+
+  async saveRatingSteps(input: { holder: string; from: number; first: boolean; steps: StandingStep[] }) {
+    return this.reply('save_rating_steps', [JSON.stringify(input)], z.literal(true))
+  }
+
+  async finishStandingsRefresh(holder: string, cursor: number, results: string, ratings: string, replayedFrom: number | null) {
+    return this.reply('finish_standings_refresh', [holder, cursor, results, ratings, option(replayedFrom)], z.string())
+  }
+
+  async leaderboard(activeSince: number, limit: number) {
+    return this.read('leaderboard', [activeSince, limit], leaderboardSchema)
+  }
+
+  async playerStandings(userId: string, activeSince: number) {
+    return this.read('player_standings', [userId, activeSince], playerStandingsSchema)
+  }
+
+  async ratingChanges(tokens: readonly string[]) {
+    return this.read(
+      'rating_changes',
+      [[...tokens]],
+      z.array(z.object({ token: z.string(), changes: z.record(z.string(), z.number().int()) })),
+    )
+  }
+
+  async battleResultsByUser(userId: string) {
+    return this.read('battle_results_by_user', [userId], z.array(storedBattleResultSchema))
+  }
+
+  async achievementStatus(userId: string) {
+    return this.read('achievement_status', [userId], achievementStatusSchema)
+  }
+
+  async saveAchievements(input: { userId: string; revision: number; earned: { achievementId: string; earnedAt: number | null }[] }) {
+    return this.reply('save_achievements', [JSON.stringify(input)], z.boolean())
+  }
+
+  async markAchievementsSeen(userId: string, achievementIds: readonly string[]) {
+    return this.reply('mark_achievements_seen', [userId, [...achievementIds]], z.boolean())
+  }
+
+  async syncAchievementDefinitions(version: string) {
+    return this.reply('sync_achievement_definitions', [version], z.boolean())
   }
 
   async createBattle(input: {

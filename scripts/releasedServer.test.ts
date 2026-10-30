@@ -2,15 +2,14 @@ import { existsSync } from 'node:fs'
 import { mkdtemp, rm, symlink } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
-import { ConnectionId } from 'spacetimedb'
-import { createModuleTestHarness, TestAuth } from 'spacetimedb/server/test-utils'
 import { afterEach, expect, it, vi } from 'vitest'
 
 // The test host stubs environment reads, so the module reads these instead.
 const env = vi.hoisted((): Record<string, string> => ({}))
 vi.mock('spacetime:sys@2.2', async (original) => ({ ...(await original<object>()), env_get: (key: string) => env[key] ?? null }))
 
-import spacetime, * as module from '../spacetimedb/src/index'
+import spacetime from '../spacetimedb/src/index'
+import { moduleFetch, snake } from '../src/server/moduleFetch.fixtures'
 
 /**
  * A deploy publishes this module while the released server still serves, for the minutes the new server takes to warm
@@ -44,6 +43,8 @@ const UNREACHED = new Set([
   'lend_roster',
   'migrate_leagues_to_clubs',
   'migrate_product_data',
+  'public_standings_revision',
+  'ratings_before',
   'reject_friend',
   'remove_battle',
   'remove_friend',
@@ -63,8 +64,6 @@ const UNREACHED = new Set([
   'sync_roster',
   'update_onboarding',
 ])
-const URL_PREFIX = 'http://127.0.0.1:3999/v1/database/praetorium/call/'
-const BIG_INTEGERS = new Set(['I64', 'U64', 'I128', 'U128', 'I256', 'U256'])
 
 afterEach(() => {
   vi.unstubAllEnvs()
@@ -88,46 +87,9 @@ async function seedThrough(checkoutPath: string) {
   for (const name of ['node_modules', '.ras'])
     if (!existsSync(path.join(checkout, name))) await symlink(path.resolve(name), path.join(checkout, name), 'dir')
 
-  const host = createModuleTestHarness(spacetime, module)
-  const operator = TestAuth.fromJwtPayload(
-    JSON.stringify({ iss: 'https://spacetime.test', sub: 'operator', aud: ['spacetimedb'] }),
-    new ConnectionId(1n),
-  )
-  Object.assign(env, {
-    AUTH_ISSUER: 'http://127.0.0.1:8799/api/auth',
-    AUTH_AUDIENCE: 'praetorium',
-    OPERATOR_IDENTITY: host.withReducerTx(operator, (ctx) => ctx.sender.toHexString()),
-  })
-  host.withReducerTx(TestAuth.internal(), (ctx) => module.init(ctx, {}))
-
-  const exports = module as unknown as Record<string, (ctx: unknown, params: Record<string, unknown>) => unknown>
-  const definitions = [
-    ...spacetime.moduleDef.reducers.map(({ sourceName, params }) => ({ sourceName, params, reducer: true })),
-    ...spacetime.moduleDef.procedures.map(({ sourceName, params }) => ({ sourceName, params, reducer: false })),
-  ]
-  const callable = new Map(definitions.map((definition) => [snake(definition.sourceName), definition]))
-  const called = new Set<string>()
+  const { called, request } = moduleFetch(env, 'http://127.0.0.1:8799/api/auth')
   // The released `SpacetimeOperator` calls the module over HTTP; this answers those calls from the module in memory.
-  vi.stubGlobal('fetch', async (input: string | { href: string }, init: { body: string }) => {
-    const url = typeof input === 'string' ? input : input.href
-    const target = url.startsWith(URL_PREFIX) ? callable.get(url.slice(URL_PREFIX.length)) : undefined
-    if (!target) throw new Error(`The released server called ${url}, which this module does not have`)
-    called.add(url.slice(URL_PREFIX.length))
-    const values = JSON.parse(init.body) as unknown[]
-    const params = Object.fromEntries(
-      target.params.elements.map((element, index) => [element.name, argument(element.algebraicType.tag, values[index])]),
-    )
-    const run = exports[target.sourceName]!
-    try {
-      if (target.reducer) {
-        host.withReducerTx(operator, (ctx) => run(ctx, params))
-        return new Response(null)
-      }
-      return Response.json(run(host.procedureContext(operator), params) ?? null)
-    } catch (error) {
-      return new Response(error instanceof Error ? error.message : String(error), { status: 530 })
-    }
-  })
+  vi.stubGlobal('fetch', request)
 
   const directory = await mkdtemp(path.join(tmpdir(), 'praetorium-released-server-'))
   try {
@@ -154,18 +116,6 @@ async function seedThrough(checkoutPath: string) {
     await rm(directory, { recursive: true, force: true })
   }
   return called
-}
-
-const snake = (name: string) => name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`)
-
-/** Decodes an argument from the HTTP call's JSON into what the module function takes: an option arrives as `{ some }` or `{ none }`. */
-function argument(tag: string, value: unknown) {
-  if (BIG_INTEGERS.has(tag)) return BigInt(value as number)
-  if (tag === 'Sum' && value && typeof value === 'object') {
-    if ('some' in value) return value.some
-    if ('none' in value) return undefined
-  }
-  return value
 }
 
 type SeededRoster = { id: string; name: string; catalogueId: string; limit: number; disposition: unknown }

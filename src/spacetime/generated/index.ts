@@ -75,16 +75,20 @@ import * as AbilityRemindersByUserProcedure from './ability_reminders_by_user_pr
 import * as AcceptFriendProcedure from './accept_friend_procedure'
 import * as AcceptFriendInviteProcedure from './accept_friend_invite_procedure'
 import * as AchievementFactsByUserProcedure from './achievement_facts_by_user_procedure'
+import * as AchievementStatusProcedure from './achievement_status_procedure'
 import * as AdminCollectionPhotosProcedure from './admin_collection_photos_procedure'
 import * as BattleByTokenProcedure from './battle_by_token_procedure'
 import * as BattleChangesProcedure from './battle_changes_procedure'
 import * as BattleClubsProcedure from './battle_clubs_procedure'
 import * as BattleFeedProcedure from './battle_feed_procedure'
 import * as BattleForOperatorProcedure from './battle_for_operator_procedure'
+import * as BattleResultsAfterProcedure from './battle_results_after_procedure'
+import * as BattleResultsByUserProcedure from './battle_results_by_user_procedure'
 import * as BattlesForOperatorProcedure from './battles_for_operator_procedure'
 import * as CancelFriendInviteProcedure from './cancel_friend_invite_procedure'
 import * as ClaimGuestSeatProcedure from './claim_guest_seat_procedure'
 import * as ClaimImportedBattleProcedure from './claim_imported_battle_procedure'
+import * as ClaimStandingsRefreshProcedure from './claim_standings_refresh_procedure'
 import * as ClubByTokenProcedure from './club_by_token_procedure'
 import * as ClubCommandProcedure from './club_command_procedure'
 import * as ClubNamesProcedure from './club_names_procedure'
@@ -107,6 +111,7 @@ import * as ExternalAccountsByUserProcedure from './external_accounts_by_user_pr
 import * as FavouriteDatasheetsByUserProcedure from './favourite_datasheets_by_user_procedure'
 import * as FavouriteDetachmentsByUserProcedure from './favourite_detachments_by_user_procedure'
 import * as FavouriteFactionsByUserProcedure from './favourite_factions_by_user_procedure'
+import * as FinishStandingsRefreshProcedure from './finish_standings_refresh_procedure'
 import * as FriendInviteByInviterProcedure from './friend_invite_by_inviter_procedure'
 import * as FriendInviteByTokenProcedure from './friend_invite_by_token_procedure'
 import * as FriendLeagueRostersProcedure from './friend_league_rosters_procedure'
@@ -118,6 +123,7 @@ import * as HeldCollectionPhotosProcedure from './held_collection_photos_procedu
 import * as HomeRostersByUserProcedure from './home_rosters_by_user_procedure'
 import * as ImportCollectionProcedure from './import_collection_procedure'
 import * as JoinGuestSeatProcedure from './join_guest_seat_procedure'
+import * as LeaderboardProcedure from './leaderboard_procedure'
 import * as LeagueBattleCandidatesProcedure from './league_battle_candidates_procedure'
 import * as LeagueByTokenProcedure from './league_by_token_procedure'
 import * as LeagueCommandProcedure from './league_command_procedure'
@@ -127,17 +133,21 @@ import * as LeagueRostersProcedure from './league_rosters_procedure'
 import * as LeaguesVisibleToProcedure from './leagues_visible_to_procedure'
 import * as LendRosterProcedure from './lend_roster_procedure'
 import * as LinkExternalAccountProcedure from './link_external_account_procedure'
+import * as MarkAchievementsSeenProcedure from './mark_achievements_seen_procedure'
 import * as MigrateLeaguesToClubsProcedure from './migrate_leagues_to_clubs_procedure'
 import * as MigrateProductDataProcedure from './migrate_product_data_procedure'
 import * as OnboardingByUserProcedure from './onboarding_by_user_procedure'
 import * as OperatorHealthProcedure from './operator_health_procedure'
 import * as OutdatedLeagueEntriesForRosterProcedure from './outdated_league_entries_for_roster_procedure'
 import * as PlayerDefaultsProcedure from './player_defaults_procedure'
+import * as PlayerStandingsProcedure from './player_standings_procedure'
 import * as PracticeOpponentIdsProcedure from './practice_opponent_ids_procedure'
 import * as ProductStatsProcedure from './product_stats_procedure'
 import * as PublicStandingsRevisionProcedure from './public_standings_revision_procedure'
 import * as PushEnabledProcedure from './push_enabled_procedure'
 import * as PushTargetsProcedure from './push_targets_procedure'
+import * as RatingChangesProcedure from './rating_changes_procedure'
+import * as RatingsBeforeProcedure from './ratings_before_procedure'
 import * as RecentMatchupsByUserProcedure from './recent_matchups_by_user_procedure'
 import * as RejectFriendProcedure from './reject_friend_procedure'
 import * as RemoveBattleProcedure from './remove_battle_procedure'
@@ -153,6 +163,9 @@ import * as RostersByIdsProcedure from './rosters_by_ids_procedure'
 import * as RostersByUserProcedure from './rosters_by_user_procedure'
 import * as RostersLentToProcedure from './rosters_lent_to_procedure'
 import * as SaveAbilityReminderProcedure from './save_ability_reminder_procedure'
+import * as SaveAchievementsProcedure from './save_achievements_procedure'
+import * as SaveBattleResultsProcedure from './save_battle_results_procedure'
+import * as SaveRatingStepsProcedure from './save_rating_steps_procedure'
 import * as SaveRosterProcedure from './save_roster_procedure'
 import * as SaveUnitLoadoutProcedure from './save_unit_loadout_procedure'
 import * as SetPlayerDefaultsProcedure from './set_player_defaults_procedure'
@@ -162,6 +175,7 @@ import * as SetRosterLockedProcedure from './set_roster_locked_procedure'
 import * as SetRosterVisibilityProcedure from './set_roster_visibility_procedure'
 import * as ShareBattleProcedure from './share_battle_procedure'
 import * as SubmitBattleProcedure from './submit_battle_procedure'
+import * as SyncAchievementDefinitionsProcedure from './sync_achievement_definitions_procedure'
 import * as SyncProductProcedure from './sync_product_procedure'
 import * as SyncReceiptProcedure from './sync_receipt_procedure'
 import * as SyncRosterProcedure from './sync_roster_procedure'
@@ -276,16 +290,20 @@ const proceduresSchema = __procedures(
   __procedureSchema('accept_friend', AcceptFriendProcedure.params, AcceptFriendProcedure.returnType),
   __procedureSchema('accept_friend_invite', AcceptFriendInviteProcedure.params, AcceptFriendInviteProcedure.returnType),
   __procedureSchema('achievement_facts_by_user', AchievementFactsByUserProcedure.params, AchievementFactsByUserProcedure.returnType),
+  __procedureSchema('achievement_status', AchievementStatusProcedure.params, AchievementStatusProcedure.returnType),
   __procedureSchema('admin_collection_photos', AdminCollectionPhotosProcedure.params, AdminCollectionPhotosProcedure.returnType),
   __procedureSchema('battle_by_token', BattleByTokenProcedure.params, BattleByTokenProcedure.returnType),
   __procedureSchema('battle_changes', BattleChangesProcedure.params, BattleChangesProcedure.returnType),
   __procedureSchema('battle_clubs', BattleClubsProcedure.params, BattleClubsProcedure.returnType),
   __procedureSchema('battle_feed', BattleFeedProcedure.params, BattleFeedProcedure.returnType),
   __procedureSchema('battle_for_operator', BattleForOperatorProcedure.params, BattleForOperatorProcedure.returnType),
+  __procedureSchema('battle_results_after', BattleResultsAfterProcedure.params, BattleResultsAfterProcedure.returnType),
+  __procedureSchema('battle_results_by_user', BattleResultsByUserProcedure.params, BattleResultsByUserProcedure.returnType),
   __procedureSchema('battles_for_operator', BattlesForOperatorProcedure.params, BattlesForOperatorProcedure.returnType),
   __procedureSchema('cancel_friend_invite', CancelFriendInviteProcedure.params, CancelFriendInviteProcedure.returnType),
   __procedureSchema('claim_guest_seat', ClaimGuestSeatProcedure.params, ClaimGuestSeatProcedure.returnType),
   __procedureSchema('claim_imported_battle', ClaimImportedBattleProcedure.params, ClaimImportedBattleProcedure.returnType),
+  __procedureSchema('claim_standings_refresh', ClaimStandingsRefreshProcedure.params, ClaimStandingsRefreshProcedure.returnType),
   __procedureSchema('club_by_token', ClubByTokenProcedure.params, ClubByTokenProcedure.returnType),
   __procedureSchema('club_command', ClubCommandProcedure.params, ClubCommandProcedure.returnType),
   __procedureSchema('club_names', ClubNamesProcedure.params, ClubNamesProcedure.returnType),
@@ -316,6 +334,7 @@ const proceduresSchema = __procedures(
     FavouriteDetachmentsByUserProcedure.returnType,
   ),
   __procedureSchema('favourite_factions_by_user', FavouriteFactionsByUserProcedure.params, FavouriteFactionsByUserProcedure.returnType),
+  __procedureSchema('finish_standings_refresh', FinishStandingsRefreshProcedure.params, FinishStandingsRefreshProcedure.returnType),
   __procedureSchema('friend_invite_by_inviter', FriendInviteByInviterProcedure.params, FriendInviteByInviterProcedure.returnType),
   __procedureSchema('friend_invite_by_token', FriendInviteByTokenProcedure.params, FriendInviteByTokenProcedure.returnType),
   __procedureSchema('friend_league_rosters', FriendLeagueRostersProcedure.params, FriendLeagueRostersProcedure.returnType),
@@ -327,6 +346,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('home_rosters_by_user', HomeRostersByUserProcedure.params, HomeRostersByUserProcedure.returnType),
   __procedureSchema('import_collection', ImportCollectionProcedure.params, ImportCollectionProcedure.returnType),
   __procedureSchema('join_guest_seat', JoinGuestSeatProcedure.params, JoinGuestSeatProcedure.returnType),
+  __procedureSchema('leaderboard', LeaderboardProcedure.params, LeaderboardProcedure.returnType),
   __procedureSchema('league_battle_candidates', LeagueBattleCandidatesProcedure.params, LeagueBattleCandidatesProcedure.returnType),
   __procedureSchema('league_by_token', LeagueByTokenProcedure.params, LeagueByTokenProcedure.returnType),
   __procedureSchema('league_command', LeagueCommandProcedure.params, LeagueCommandProcedure.returnType),
@@ -336,6 +356,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('leagues_visible_to', LeaguesVisibleToProcedure.params, LeaguesVisibleToProcedure.returnType),
   __procedureSchema('lend_roster', LendRosterProcedure.params, LendRosterProcedure.returnType),
   __procedureSchema('link_external_account', LinkExternalAccountProcedure.params, LinkExternalAccountProcedure.returnType),
+  __procedureSchema('mark_achievements_seen', MarkAchievementsSeenProcedure.params, MarkAchievementsSeenProcedure.returnType),
   __procedureSchema('migrate_leagues_to_clubs', MigrateLeaguesToClubsProcedure.params, MigrateLeaguesToClubsProcedure.returnType),
   __procedureSchema('migrate_product_data', MigrateProductDataProcedure.params, MigrateProductDataProcedure.returnType),
   __procedureSchema('onboarding_by_user', OnboardingByUserProcedure.params, OnboardingByUserProcedure.returnType),
@@ -346,11 +367,14 @@ const proceduresSchema = __procedures(
     OutdatedLeagueEntriesForRosterProcedure.returnType,
   ),
   __procedureSchema('player_defaults', PlayerDefaultsProcedure.params, PlayerDefaultsProcedure.returnType),
+  __procedureSchema('player_standings', PlayerStandingsProcedure.params, PlayerStandingsProcedure.returnType),
   __procedureSchema('practice_opponent_ids', PracticeOpponentIdsProcedure.params, PracticeOpponentIdsProcedure.returnType),
   __procedureSchema('product_stats', ProductStatsProcedure.params, ProductStatsProcedure.returnType),
   __procedureSchema('public_standings_revision', PublicStandingsRevisionProcedure.params, PublicStandingsRevisionProcedure.returnType),
   __procedureSchema('push_enabled', PushEnabledProcedure.params, PushEnabledProcedure.returnType),
   __procedureSchema('push_targets', PushTargetsProcedure.params, PushTargetsProcedure.returnType),
+  __procedureSchema('rating_changes', RatingChangesProcedure.params, RatingChangesProcedure.returnType),
+  __procedureSchema('ratings_before', RatingsBeforeProcedure.params, RatingsBeforeProcedure.returnType),
   __procedureSchema('recent_matchups_by_user', RecentMatchupsByUserProcedure.params, RecentMatchupsByUserProcedure.returnType),
   __procedureSchema('reject_friend', RejectFriendProcedure.params, RejectFriendProcedure.returnType),
   __procedureSchema('remove_battle', RemoveBattleProcedure.params, RemoveBattleProcedure.returnType),
@@ -366,6 +390,9 @@ const proceduresSchema = __procedures(
   __procedureSchema('rosters_by_user', RostersByUserProcedure.params, RostersByUserProcedure.returnType),
   __procedureSchema('rosters_lent_to', RostersLentToProcedure.params, RostersLentToProcedure.returnType),
   __procedureSchema('save_ability_reminder', SaveAbilityReminderProcedure.params, SaveAbilityReminderProcedure.returnType),
+  __procedureSchema('save_achievements', SaveAchievementsProcedure.params, SaveAchievementsProcedure.returnType),
+  __procedureSchema('save_battle_results', SaveBattleResultsProcedure.params, SaveBattleResultsProcedure.returnType),
+  __procedureSchema('save_rating_steps', SaveRatingStepsProcedure.params, SaveRatingStepsProcedure.returnType),
   __procedureSchema('save_roster', SaveRosterProcedure.params, SaveRosterProcedure.returnType),
   __procedureSchema('save_unit_loadout', SaveUnitLoadoutProcedure.params, SaveUnitLoadoutProcedure.returnType),
   __procedureSchema('set_player_defaults', SetPlayerDefaultsProcedure.params, SetPlayerDefaultsProcedure.returnType),
@@ -375,6 +402,11 @@ const proceduresSchema = __procedures(
   __procedureSchema('set_roster_visibility', SetRosterVisibilityProcedure.params, SetRosterVisibilityProcedure.returnType),
   __procedureSchema('share_battle', ShareBattleProcedure.params, ShareBattleProcedure.returnType),
   __procedureSchema('submit_battle', SubmitBattleProcedure.params, SubmitBattleProcedure.returnType),
+  __procedureSchema(
+    'sync_achievement_definitions',
+    SyncAchievementDefinitionsProcedure.params,
+    SyncAchievementDefinitionsProcedure.returnType,
+  ),
   __procedureSchema('sync_product', SyncProductProcedure.params, SyncProductProcedure.returnType),
   __procedureSchema('sync_receipt', SyncReceiptProcedure.params, SyncReceiptProcedure.returnType),
   __procedureSchema('sync_roster', SyncRosterProcedure.params, SyncRosterProcedure.returnType),

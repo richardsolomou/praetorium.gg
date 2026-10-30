@@ -20,6 +20,14 @@ export const AccessExpiry = __t.object('AccessExpiry', {
 })
 export type AccessExpiry = __Infer<typeof AccessExpiry>
 
+export const AchievementChecks = __t.object('AchievementChecks', {
+  userId: __t.string(),
+  revision: __t.u64(),
+  checked: __t.u64(),
+  quiet: __t.bool(),
+})
+export type AchievementChecks = __Infer<typeof AchievementChecks>
+
 export const AdminRevisions = __t.object('AdminRevisions', {
   scope: __t.string(),
   revision: __t.u64(),
@@ -42,6 +50,14 @@ export const BattleImports = __t.object('BattleImports', {
   key: __t.string(),
 })
 export type BattleImports = __Infer<typeof BattleImports>
+
+export const BattleResults = __t.object('BattleResults', {
+  battleId: __t.string(),
+  finishedAt: __t.u64(),
+  finishedDay: __t.u32(),
+  result: __t.string(),
+})
+export type BattleResults = __Infer<typeof BattleResults>
 
 export const BattleSignal = __t.object('BattleSignal', {
   battleId: __t.string(),
@@ -191,6 +207,26 @@ export const CompletedMigrations = __t.object('CompletedMigrations', {
   at: __t.u64(),
 })
 export type CompletedMigrations = __Infer<typeof CompletedMigrations>
+
+export const DerivedState = __t.object('DerivedState', {
+  name: __t.string(),
+  cursor: __t.u64(),
+  results: __t.string(),
+  ratings: __t.string(),
+  ratingsFrom: __t.option(__t.u64()),
+  holder: __t.string(),
+  heldUntil: __t.u64(),
+})
+export type DerivedState = __Infer<typeof DerivedState>
+
+export const EarnedAchievements = __t.object('EarnedAchievements', {
+  key: __t.string(),
+  userId: __t.string(),
+  achievementId: __t.string(),
+  earnedAt: __t.option(__t.u64()),
+  seen: __t.bool(),
+})
+export type EarnedAchievements = __Infer<typeof EarnedAchievements>
 
 export const ExternalAccounts = __t.object('ExternalAccounts', {
   key: __t.string(),
@@ -439,6 +475,26 @@ export const PushTokens = __t.object('PushTokens', {
 })
 export type PushTokens = __Infer<typeof PushTokens>
 
+export const RatingSteps = __t.object('RatingSteps', {
+  key: __t.string(),
+  battleId: __t.string(),
+  playerId: __t.string(),
+  holder: __t.string(),
+  table: __t.string(),
+  finishedAt: __t.u64(),
+  finishedDay: __t.u32(),
+  mu: __t.f64(),
+  sigma: __t.f64(),
+  rating: __t.i32(),
+  change: __t.i32(),
+  battles: __t.u32(),
+  won: __t.u32(),
+  lost: __t.u32(),
+  drawn: __t.u32(),
+  points: __t.f64(),
+})
+export type RatingSteps = __Infer<typeof RatingSteps>
+
 export const RecentMatchups = __t.object('RecentMatchups', {
   key: __t.string(),
   userId: __t.string(),
@@ -542,6 +598,23 @@ export const Settings = __t.object('Settings', {
   audience: __t.string(),
 })
 export type Settings = __Infer<typeof Settings>
+
+export const Standings = __t.object('Standings', {
+  holder: __t.string(),
+  table: __t.string(),
+  playerId: __t.string(),
+  battleId: __t.string(),
+  finishedAt: __t.u64(),
+  mu: __t.f64(),
+  sigma: __t.f64(),
+  rating: __t.i32(),
+  battles: __t.u32(),
+  won: __t.u32(),
+  lost: __t.u32(),
+  drawn: __t.u32(),
+  points: __t.f64(),
+})
+export type Standings = __Infer<typeof Standings>
 
 export const SyncReceipts = __t.object('SyncReceipts', {
   id: __t.string(),

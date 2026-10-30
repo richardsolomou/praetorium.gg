@@ -32,6 +32,7 @@ import { Account } from './Account'
 import { GlobalSearch, GlobalSearchProvider } from './GlobalSearch'
 import { TextSourcesDialog } from '../../components/TextSourcesDialog'
 import { ReleaseUpdateNotice } from './ReleaseUpdateNotice'
+import { AchievementToasts } from '../profile/AchievementToasts'
 import { WhatsNewLink, WhatsNewNotice } from './WhatsNew'
 import { Toaster } from '@/components/ui/sonner'
 import { ImpersonationBanner } from './ImpersonationBanner'
@@ -261,6 +262,8 @@ export function AppShell() {
                 <Impersonation />
                 <NativePushRegistration />
                 <ReleaseUpdateNotice />
+                {/* An administrator viewing as a player must not use up the player's announcements. */}
+                {me && !impersonating && <AchievementToasts userId={me.id} />}
                 {immersive || /^\/battles\/[^/]+/.test(path) ? null : <WhatsNewNotice />}
                 <Toaster theme="dark" position="top-center" containerAriaLabel="Messages" />
                 {/*

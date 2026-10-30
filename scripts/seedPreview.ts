@@ -15,6 +15,7 @@ import { localAuthDatabase } from '../src/server/localAuthDatabase'
 import { rosterRow } from '../src/server/rosterPersistence'
 import { SpacetimeOperator } from '../src/server/spacetimeOperator'
 import { SpacetimeRepository } from '../src/server/spacetimeRepository'
+import { PraetoriumService } from '../src/server/service'
 import { unitBattleDetailsIn } from '../src/shared/catalogue'
 import { buildLeagueBattle } from '../src/shared/leagueBattle'
 import { catalogueBaseUrl, fetchCurrentSnapshot, installedSnapshot } from '../src/server/catalogueSnapshot'
@@ -366,8 +367,10 @@ export async function seedPreview(providedSnapshots?: PreviewSnapshots) {
  */
 async function readBack(repository: SpacetimeRepository, product: SpacetimeOperator, userIds: readonly string[]) {
   const page = { limit: 100 }
+  const service = new PraetoriumService(repository, Date.now, () => 0)
   await product.health()
-  await product.publicStandingsRevision()
+  await service.syncAchievementDefinitions()
+  await service.standings()
   await repository.battlesByIds((await repository.battleChanges(0)).battleIds.slice(0, 500))
   await product.productStats(userIds)
   await product.pushTargets(userIds)
@@ -394,6 +397,11 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
     await repository.favouriteDatasheetsByUser(userId)
     await repository.collectionProfile(userId, userId)
     await repository.achievementFacts(userId)
+    await service.playerRankings(userId)
+    await service.markAchievementsSeen(
+      userId,
+      (await service.newAchievements(userId)).map((achievement) => achievement.id),
+    )
     await repository.collectionWishesByUser(userId)
     for (const entry of await repository.collectionByUser(userId)) await repository.datasheetPhotos(entry.entryId, userId, 100)
     await repository.homeRostersByUser(userId)
@@ -415,6 +423,7 @@ async function readBack(repository: SpacetimeRepository, product: SpacetimeOpera
     await repository.battlesByFriends(userId, page)
     for (const { battle, players } of battles) {
       await repository.battleClubs(battle.id)
+      await service.battleRatingChanges(battle.token)
       await product.battleForOperator(battle.id)
       await repository.leagueBattleCandidates(
         userId,
