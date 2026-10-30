@@ -43,6 +43,9 @@ import {
 
 export type RosterRowLayout = 'card' | 'base' | 'variant'
 
+/** A row's checkbox while the library is choosing rosters to archive or unarchive together. */
+export type RosterRowSelection = { checked: boolean; disabled: boolean; onCheckedChange: (checked: boolean) => void }
+
 /** A list on its own is a card; a base shares its card with its variants, which are the slim rows beneath it. */
 export const rosterRowFrame: Record<RosterRowLayout, string> = {
   card: 'border border-edge bg-panel hover:border-info hover:bg-raised',
@@ -74,6 +77,7 @@ export function RosterRow({
   updates,
   showVisibility = true,
   onNeedsAccount,
+  selection,
 }: {
   roster: SavedRoster
   layout?: RosterRowLayout
@@ -98,6 +102,7 @@ export function RosterRow({
   updates?: RosterUpdates
   /** A visitor's list on this device, whose account-only actions ask them to sign up instead. */
   onNeedsAccount?: (reason: AccountReason) => void
+  selection?: RosterRowSelection
 }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const title = rosterTitle(roster, faction, label)
@@ -110,10 +115,23 @@ export function RosterRow({
           <article
             data-roster={title}
             data-variant={layout === 'variant' || undefined}
-            className={`flex items-center gap-2 p-2 ${rosterRowFrame[layout]}`}
+            data-selected={selection?.checked || undefined}
+            className={`flex items-center gap-2 p-2 ${rosterRowFrame[layout]} data-selected:bg-raised`}
           />
         }
       >
+        {selection ? (
+          <label className="-my-1 flex size-10 shrink-0 cursor-pointer items-center justify-center has-disabled:cursor-not-allowed">
+            <input
+              type="checkbox"
+              className="size-5 accent-parchment"
+              aria-label={`Select ${title}`}
+              checked={selection.checked}
+              disabled={selection.disabled}
+              onChange={(event) => selection.onCheckedChange(event.target.checked)}
+            />
+          </label>
+        ) : null}
         <Link to="/rosters/$id" params={{ id: roster.id }} className="flex min-w-0 flex-1 flex-wrap items-center gap-2 p-1">
           {layout === 'variant' ? (
             <RosterVariantSummary

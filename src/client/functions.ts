@@ -5,6 +5,7 @@ import { accountChanged, accountGuard, cachedRead, cachedPage } from './offline/
 import { hasLocalChanges, localOwner, syncLocalWork } from './offline/localRuntime'
 import { byId } from '../core/collections'
 import { lockedRosterRefusal } from '../core/rosterLock'
+import { ROSTER_BATCH_CHANGES } from '../core/rosterLibrary'
 import { rosterDifferences } from '../core/rosterDifferences'
 import { convertedSetup } from '../core/rosterSetup'
 import { datasheetSchema, saveRosterSchema } from '../contracts/schemas'
@@ -558,6 +559,29 @@ export async function setRosterArchived(args: Parameters<typeof server.setRoster
   const local = await localDocument<LocalRoster | null>(resource)
   if (local)
     await rememberDocument(resource, { ...local, archived: args.data.archived, updatedAt: saved.updatedAt }, saved.updatedAt, owner)
+  return saved
+}
+
+/**
+ * A library action on several rosters is accepted by the server all together, after this device has sent their saved
+ * changes, so unlike most single actions it needs a connection.
+ */
+export async function changeRosters(args: Parameters<typeof server.changeRosters>[0]): ReturnType<typeof server.changeRosters> {
+  const owner = localOwner()?.id
+  const waiting = async () => (await Promise.all(args.data.ids.map((id) => hasLocalChanges(`roster:${id}`)))).some(Boolean)
+  if (localEngine()) {
+    if (!navigator.onLine) throw new Error('Connect to the internet to change several rosters at once.')
+    if (await waiting()) await syncLocalWork()
+    if (await waiting()) throw new Error('Some of these rosters have changes waiting to sync. Sync or review them first.')
+  }
+  const saved = await server.changeRosters(args)
+  const { action } = args.data
+  for (const { id, updatedAt } of saved) {
+    const resource = `roster:${id}`
+    const local = await localDocument<LocalRoster | null>(resource)
+    if (action === 'delete') await rememberDocument(resource, null, updatedAt, owner)
+    else if (local) await rememberDocument(resource, { ...local, ...ROSTER_BATCH_CHANGES[action], updatedAt }, updatedAt, owner)
+  }
   return saved
 }
 

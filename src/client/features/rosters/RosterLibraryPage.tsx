@@ -34,6 +34,7 @@ import { rosterSetupOf } from './rosterDraft'
 import { factionSelectGroups } from './builder/factions'
 import { NoFilterMatches, RosterFilters, type RosterUpdateFilter } from './RosterFilters'
 import { RosterRow } from './RosterRow'
+import { RosterSelectionToolbar } from './RosterSelectionToolbar'
 import { type SavedRoster, useRosterActions } from './rosterLibrary'
 import { keepRosterSort } from './rosterSort'
 import { type RosterSort, sortRosters } from '../../../core/rosterSort'
@@ -45,7 +46,7 @@ import { RosterViews } from './RosterViews'
 import { useDispositionNames } from '../battle/setup/chrome'
 import { useOrigin } from '../../useOrigin'
 import type { RosterVisibility } from '../../../core/savedRoster'
-import { ROSTER_LIBRARY_BATCH_SIZE } from '../../../core/rosterLibrary'
+import { ROSTER_BATCH_MAX, ROSTER_LIBRARY_BATCH_SIZE, type RosterBatchAction } from '../../../core/rosterLibrary'
 import { variantCards, variantGroups } from '../../../core/rosterVariants'
 import { useRosterPages } from './rosterPages'
 import { errorMessage } from '../../queryClient'
@@ -181,9 +182,34 @@ export function RosterLibraryPage({
   // A visitor keeps one list; making another asks them to sign up first.
   const another = guest ? () => account.ask('another-roster') : undefined
   const { keepImported, saveError: importError } = useNewRoster()
-  const [deleting, setDeleting] = useState<SavedRoster | null>(null)
+  // Rosters chosen together are deleted in one action; a row's own Delete goes through the single path.
+  const [deleting, setDeleting] = useState<{ rosters: SavedRoster[]; together: boolean } | null>(null)
   const [session, setEditing] = useWorkspaceState<EditingSession>(WORKSPACE_PATH, SETUP_STATE)
   const editing = saved.find((roster) => roster.id === session?.rosterId) ?? null
+  // Only a signed-in player's own rosters can be changed together; rosters a filter hides stay out of the action.
+  const [selecting, setSelecting] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(new Set())
+  const selected = shown.filter((roster) => selectedIds.has(roster.id))
+  const stopSelecting = () => {
+    setSelecting(false)
+    setSelectedIds(new Set())
+    actions.batch.reset()
+  }
+  const changeSelected = (action: RosterBatchAction, ids: string[]) => actions.batch.mutate({ ids, action }, { onSuccess: stopSelecting })
+  const selectionOf = (roster: SavedRoster) =>
+    selecting
+      ? {
+          checked: selectedIds.has(roster.id),
+          disabled: actions.batch.isPending || (!selectedIds.has(roster.id) && selected.length >= ROSTER_BATCH_MAX),
+          onCheckedChange: (checked: boolean) =>
+            setSelectedIds((current) => {
+              const next = new Set(current)
+              if (checked) next.add(roster.id)
+              else next.delete(roster.id)
+              return next
+            }),
+        }
+      : undefined
 
   const renderCard = ({ head, variants }: (typeof cards)[number]) => {
     const row = ({ roster, index }: typeof head, layout: 'card' | 'base' | 'variant') => (
@@ -204,8 +230,9 @@ export function RosterLibraryPage({
         actions={actions}
         origin={origin}
         onEdit={() => setEditing({ rosterId: roster.id, draft: rosterSetupOf(roster) })}
-        onDelete={() => setDeleting(roster)}
+        onDelete={() => setDeleting({ rosters: [roster], together: false })}
         onNeedsAccount={guest ? account.ask : undefined}
+        selection={selectionOf(roster)}
       />
     )
     return variants.length ? (
@@ -219,17 +246,24 @@ export function RosterLibraryPage({
   }
 
   const filtered = Boolean(search.limit !== undefined || search.faction || search.visibility || search.updates)
-  const archivable = Boolean(deleting && !deleting.archived && !guest)
+  const deletingCount = deleting?.rosters.length ?? 0
+  const unarchived = guest ? [] : (deleting?.rosters.filter((roster) => !roster.archived) ?? [])
+  const archivable = unarchived.length > 0
   const deleteAction = (
     <AlertDialogAction
       variant="destructive"
       className={archivable ? 'sm:mr-auto' : undefined}
       onClick={() => {
-        if (deleting) actions.remove.mutate(deleting.id)
+        if (deleting?.together)
+          changeSelected(
+            'delete',
+            deleting.rosters.map((roster) => roster.id),
+          )
+        else if (deleting) actions.remove.mutate(deleting.rosters[0]!.id)
         setDeleting(null)
       }}
     >
-      Delete roster
+      {deletingCount === 1 ? 'Delete roster' : `Delete ${countLabel(deletingCount, 'roster')}`}
     </AlertDialogAction>
   )
 
@@ -318,7 +352,26 @@ export function RosterLibraryPage({
             ) : (
               <span className="readout">{active.length}</span>
             )}
+            {me && !libraryPending && !libraryError && shown.length ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="self-center tracking-normal normal-case"
+                onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
+              >
+                {selecting ? 'Done' : 'Select'}
+              </Button>
+            ) : null}
           </div>
+          {selecting ? (
+            <RosterSelectionToolbar
+              selected={selected}
+              pending={actions.batch.isPending}
+              error={actions.batch.error}
+              onChange={changeSelected}
+              onDelete={() => setDeleting({ rosters: selected, together: true })}
+            />
+          ) : null}
           <div className="mt-2 space-y-3">
             {libraryError ? (
               <PageState
@@ -407,26 +460,37 @@ export function RosterLibraryPage({
       <AlertDialog open={Boolean(deleting)} onOpenChange={(open) => !open && setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {deleting?.name}?</AlertDialogTitle>
+            <AlertDialogTitle>
+              Delete {deletingCount === 1 ? deleting?.rosters[0]?.name : countLabel(deletingCount, 'roster')}?
+            </AlertDialogTitle>
             <AlertDialogDescription>
               {guest
                 ? 'This removes the roster from this device for good. A copy you brought to a battle is kept there.'
-                : deleting?.archived
-                  ? 'This removes the saved roster for good. Frozen copies in battles and tournaments are kept.'
-                  : 'Deleting removes the roster for good; archiving hides it until you unarchive it. Frozen copies in battles and tournaments are kept either way.'}
+                : deletingCount === 1
+                  ? archivable
+                    ? 'Deleting removes the roster for good; archiving hides it until you unarchive it. Frozen copies in battles and tournaments are kept either way.'
+                    : 'This removes the saved roster for good. Frozen copies in battles and tournaments are kept.'
+                  : archivable
+                    ? 'Deleting removes these rosters for good; archiving hides them until you unarchive them. Frozen copies in battles and tournaments are kept either way.'
+                    : 'This removes these saved rosters for good. Frozen copies in battles and tournaments are kept.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             {archivable ? deleteAction : null}
-            <AlertDialogCancel>Keep roster</AlertDialogCancel>
+            <AlertDialogCancel>{deletingCount === 1 ? 'Keep roster' : 'Keep rosters'}</AlertDialogCancel>
             {archivable ? (
               <AlertDialogAction
                 onClick={() => {
-                  if (deleting) actions.archive.mutate({ id: deleting.id, archived: true })
+                  if (deleting?.together)
+                    changeSelected(
+                      'archive',
+                      unarchived.map((roster) => roster.id),
+                    )
+                  else actions.archive.mutate({ id: unarchived[0]!.id, archived: true })
                   setDeleting(null)
                 }}
               >
-                Archive roster
+                {deletingCount === 1 ? 'Archive roster' : `Archive ${countLabel(unarchived.length, 'roster')}`}
               </AlertDialogAction>
             ) : (
               deleteAction

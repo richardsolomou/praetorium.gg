@@ -4,7 +4,7 @@ import { detachmentIds, ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../../src/co
 import { migrateStoredRoster } from '../../src/core/savedRosterMigrations'
 import { LOCKED_ROSTER_MESSAGE, lockedRosterRefusal, storedRosterContent } from '../../src/core/rosterLock'
 import { listUnitCount } from '../../src/core/attachedUnits'
-import { ROSTER_LIBRARY_BATCH_SIZE } from '../../src/core/rosterLibrary'
+import { ROSTER_BATCH_ACTIONS, ROSTER_BATCH_CHANGES, ROSTER_BATCH_MAX, ROSTER_LIBRARY_BATCH_SIZE } from '../../src/core/rosterLibrary'
 import { orderVariantGroup } from '../../src/core/rosterVariants'
 import { discoveryPage, rosterDiscoveryQuerySchema } from '../../src/core/rosterDiscovery'
 import { MAX_DATASHEET_PHOTOS, rankCollectionPhotos } from '../../src/core/collectionPhotos'
@@ -2604,6 +2604,33 @@ export const setRosterArchived = spacetime.procedure(
   { id: t.string(), userId: t.string(), archived: t.bool(), now: t.u64() },
   t.bool(),
   (ctx, { id, userId, archived, now }) => operatorTx(ctx, (tx) => updateOwnedRoster(tx, id, userId, now, { archived })),
+)
+
+/**
+ * Applies one library action to every roster in the batch, or to none when one is not the player's. Each roster goes
+ * through the same write as its single action; the answer is each roster's new version.
+ */
+export const changeRosters = spacetime.procedure(
+  { ids: t.array(t.string()), userId: t.string(), action: t.string(), now: t.u64() },
+  t.string(),
+  (ctx, { ids, userId, action, now }) =>
+    operatorTx(ctx, (tx) => {
+      const known = ROSTER_BATCH_ACTIONS.find((candidate) => candidate === action)
+      if (!known || !ids.length || ids.length > ROSTER_BATCH_MAX || new Set(ids).size !== ids.length || !ids.every(validId))
+        throw new SenderError('Invalid roster batch')
+      const rosters = ids.flatMap((id) => ownedRoster(tx, id, userId) ?? [])
+      if (rosters.length !== ids.length) return productJson(null)
+      return productJson(
+        rosters.map((roster) => {
+          if (known === 'delete') {
+            deleteRosterRow(tx, roster)
+            return { id: roster.id, updatedAt: nextVersion(roster, now) }
+          }
+          updateOwnedRoster(tx, roster.id, userId, now, ROSTER_BATCH_CHANGES[known])
+          return { id: roster.id, updatedAt: tx.db.rosters.id.find(roster.id)!.updatedAt }
+        }),
+      )
+    }),
 )
 
 export const deleteRoster = spacetime.reducer({ id: t.string(), userId: t.string() }, (ctx, { id, userId }) => {

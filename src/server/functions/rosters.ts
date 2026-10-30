@@ -35,6 +35,7 @@ import {
   rosterIdsSchema,
   rosterInBattleSchema,
   rosterArchiveSchema,
+  rosterBatchSchema,
   rosterLockSchema,
   renameUnitLoadoutSchema,
   playedArmiesSchema,
@@ -527,6 +528,18 @@ export const setRosterArchived = createServerFn({ method: 'POST' })
       const userId = await requireUserId()
       const saved = await app().service.rosterService.setRosterArchived(userId, data.id, data.archived)
       await captureMutation(userId, 'roster_archive_updated', { archived: data.archived })
+      return saved
+    }),
+  )
+
+/** Applies one library action to several of the player's rosters together, or to none of them. */
+export const changeRosters = createServerFn({ method: 'POST' })
+  .validator(rosterBatchSchema)
+  .handler(({ data }) =>
+    mutationRpc(async () => {
+      const userId = await requireUserId()
+      const saved = await app().service.rosterService.changeRosters(userId, data.ids, data.action)
+      await captureMutation(userId, 'rosters_changed', { action: data.action, count: data.ids.length })
       return saved
     }),
   )

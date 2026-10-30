@@ -2110,6 +2110,67 @@ describe('roster lock', () => {
   })
 })
 
+describe('changing several rosters together', () => {
+  const save = (setup: ReturnType<typeof harness>, id: string, userId = 'owner') =>
+    module.saveRoster(setup.procedure(setup.operator), {
+      payload: JSON.stringify({
+        id,
+        userId,
+        name: id,
+        automaticName: false,
+        catalogueId: 'catalogue-proof',
+        detachmentId: null,
+        disposition: null,
+        limit: 1_000,
+        picks: '[]',
+        prep: null,
+        tags: '[]',
+        waivedRules: '[]',
+        optionalRules: '[]',
+        borrowedDetachmentId: null,
+        baseRosterId: null,
+        visibility: 'private',
+        source: 'editable',
+        now: NOW,
+      }),
+    })
+  const change = (setup: ReturnType<typeof harness>, ids: string[], action: string) =>
+    module.changeRosters(setup.procedure(setup.operator), { ids, userId: 'owner', action, now: BigInt(NOW + 1) })
+  const rows = (setup: ReturnType<typeof harness>) => Array.from(setup.test.db.rosters.iter()).sort((a, b) => a.id.localeCompare(b.id))
+
+  it('archives every roster in the batch', () => {
+    const setup = harness()
+    save(setup, 'first')
+    save(setup, 'second')
+    change(setup, ['first', 'second'], 'archive')
+    expect(rows(setup).map((row) => row.archived)).toEqual([true, true])
+  })
+
+  it('deletes every roster in the batch', () => {
+    const setup = harness()
+    save(setup, 'first')
+    save(setup, 'second')
+    change(setup, ['first', 'second'], 'delete')
+    expect(rows(setup)).toEqual([])
+  })
+
+  it('deletes none of the batch when one roster belongs to someone else', () => {
+    const setup = harness()
+    save(setup, 'first')
+    save(setup, 'theirs', 'other')
+    change(setup, ['first', 'theirs'], 'delete')
+    expect(rows(setup).map((row) => row.id)).toEqual(['first', 'theirs'])
+  })
+
+  it('changes no visibility in the batch when one roster belongs to someone else', () => {
+    const setup = harness()
+    save(setup, 'first')
+    save(setup, 'theirs', 'other')
+    change(setup, ['first', 'theirs'], 'unlisted')
+    expect(rows(setup).map((row) => row.visibility)).toEqual(['private', 'private'])
+  })
+})
+
 describe('saved unit loadouts', () => {
   const loadout = (id: string, userId = 'owner', pick: object = { entryId: 'captain', choices: { pistol: 'plasma' } }) => ({
     id,
