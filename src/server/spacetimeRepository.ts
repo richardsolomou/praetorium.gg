@@ -999,6 +999,10 @@ export class SpacetimeRepository {
     return this.product.setRosterArchived(...args)
   }
 
+  changeRosters(...args: Parameters<SpacetimeOperator['changeRosters']>) {
+    return this.product.changeRosters(...args)
+  }
+
   collectionProfile(...args: Parameters<SpacetimeOperator['collectionProfile']>) {
     return this.product.collectionProfile(...args)
   }

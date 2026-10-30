@@ -23,6 +23,7 @@ const released = process.env.RELEASED_CHECKOUT
  * then writes it has no reason to make. A procedure missing from both the seed and this list fails the check below.
  */
 const UNREACHED = new Set([
+  'change_rosters',
   'claim_imported_battle',
   'external_accounts_by_user',
   'link_external_account',

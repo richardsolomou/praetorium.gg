@@ -1,3 +1,4 @@
+import type { RosterBatchAction } from '../../core/rosterLibrary'
 import { randomId } from 'ras-stack/auth'
 import { listUnitCount } from '../../core/attachedUnits'
 import type { FormatRuleId, OptionalRuleId, Secondary, Stratagem } from '../../core/battle'
@@ -198,6 +199,12 @@ export class RosterService {
     if (!(await this.repository.setRosterArchived(id, userId, archived, this.clock())))
       throw new Response('you do not own this roster', { status: 403 })
     return { updatedAt: await this.storedUpdatedAt(id, userId) }
+  }
+
+  async changeRosters(userId: string, ids: readonly string[], action: RosterBatchAction) {
+    const saved = await this.repository.changeRosters(ids, userId, action, this.clock())
+    if (!saved) throw new Response('you do not own every one of these rosters', { status: 403 })
+    return saved
   }
 
   private async storedUpdatedAt(id: string, userId: string) {

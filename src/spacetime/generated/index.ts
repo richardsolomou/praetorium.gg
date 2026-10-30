@@ -86,6 +86,7 @@ import * as BattleResultsAfterProcedure from './battle_results_after_procedure'
 import * as BattleResultsByUserProcedure from './battle_results_by_user_procedure'
 import * as BattlesForOperatorProcedure from './battles_for_operator_procedure'
 import * as CancelFriendInviteProcedure from './cancel_friend_invite_procedure'
+import * as ChangeRostersProcedure from './change_rosters_procedure'
 import * as ClaimGuestSeatProcedure from './claim_guest_seat_procedure'
 import * as ClaimImportedBattleProcedure from './claim_imported_battle_procedure'
 import * as ClaimStandingsRefreshProcedure from './claim_standings_refresh_procedure'
@@ -301,6 +302,7 @@ const proceduresSchema = __procedures(
   __procedureSchema('battle_results_by_user', BattleResultsByUserProcedure.params, BattleResultsByUserProcedure.returnType),
   __procedureSchema('battles_for_operator', BattlesForOperatorProcedure.params, BattlesForOperatorProcedure.returnType),
   __procedureSchema('cancel_friend_invite', CancelFriendInviteProcedure.params, CancelFriendInviteProcedure.returnType),
+  __procedureSchema('change_rosters', ChangeRostersProcedure.params, ChangeRostersProcedure.returnType),
   __procedureSchema('claim_guest_seat', ClaimGuestSeatProcedure.params, ClaimGuestSeatProcedure.returnType),
   __procedureSchema('claim_imported_battle', ClaimImportedBattleProcedure.params, ClaimImportedBattleProcedure.returnType),
   __procedureSchema('claim_standings_refresh', ClaimStandingsRefreshProcedure.params, ClaimStandingsRefreshProcedure.returnType),

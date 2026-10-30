@@ -21,6 +21,7 @@ import * as BattleResultsAfterProcedure from '../battle_results_after_procedure'
 import * as BattleResultsByUserProcedure from '../battle_results_by_user_procedure'
 import * as BattlesForOperatorProcedure from '../battles_for_operator_procedure'
 import * as CancelFriendInviteProcedure from '../cancel_friend_invite_procedure'
+import * as ChangeRostersProcedure from '../change_rosters_procedure'
 import * as ClaimGuestSeatProcedure from '../claim_guest_seat_procedure'
 import * as ClaimImportedBattleProcedure from '../claim_imported_battle_procedure'
 import * as ClaimStandingsRefreshProcedure from '../claim_standings_refresh_procedure'
@@ -148,6 +149,8 @@ export type BattlesForOperatorArgs = __Infer<typeof BattlesForOperatorProcedure.
 export type BattlesForOperatorResult = __Infer<typeof BattlesForOperatorProcedure.returnType>
 export type CancelFriendInviteArgs = __Infer<typeof CancelFriendInviteProcedure.params>
 export type CancelFriendInviteResult = __Infer<typeof CancelFriendInviteProcedure.returnType>
+export type ChangeRostersArgs = __Infer<typeof ChangeRostersProcedure.params>
+export type ChangeRostersResult = __Infer<typeof ChangeRostersProcedure.returnType>
 export type ClaimGuestSeatArgs = __Infer<typeof ClaimGuestSeatProcedure.params>
 export type ClaimGuestSeatResult = __Infer<typeof ClaimGuestSeatProcedure.returnType>
 export type ClaimImportedBattleArgs = __Infer<typeof ClaimImportedBattleProcedure.params>

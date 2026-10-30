@@ -3,6 +3,7 @@ import { QueryClient } from '@tanstack/react-query'
 import { emptyLocalState } from '../../contracts/localState'
 import { saveRosterSchema } from '../../contracts/schemas'
 import {
+  changeRosters,
   copyRoster,
   rosterAccess,
   saveRoster,
@@ -20,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   queue: vi.fn(),
   setLocked: vi.fn(),
   setArchived: vi.fn(),
+  changeMany: vi.fn(),
   access: vi.fn(),
   engines: new Map<string, ReturnType<typeof engine>>(),
 }))
@@ -28,6 +30,7 @@ vi.mock('../../server/functions', () => ({
   savedRosterSummaries: mocks.summaries,
   setRosterLocked: mocks.setLocked,
   setRosterArchived: mocks.setArchived,
+  changeRosters: mocks.changeMany,
   rosterAccess: mocks.access,
 }))
 vi.mock('./actionFunctions', () => ({ playerDefaults: mocks.defaults }))
@@ -157,6 +160,11 @@ it('asks for a connection before locking a roster saved on the device', async ()
 it('asks for a connection before archiving a roster saved on the device', async () => {
   await expect(setRosterArchived({ data: { id: 'original', archived: true } })).rejects.toThrow(/Connect/)
   expect(mocks.setArchived).not.toHaveBeenCalled()
+})
+
+it('asks for a connection before changing several rosters saved on the device', async () => {
+  await expect(changeRosters({ data: { ids: ['original'], action: 'delete' } })).rejects.toThrow(/Connect/)
+  expect(mocks.changeMany).not.toHaveBeenCalled()
 })
 
 async function holdBudget() {

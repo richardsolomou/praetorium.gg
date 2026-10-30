@@ -6,7 +6,9 @@ import type { RosterTextExport } from './RosterExportDialog'
 import type { RosterExchangeCode } from './RosterExchangeDialog'
 import { encodeRosterExchange } from '../../../core/rosterExchange'
 import type { RosterVisibility } from '../../../core/savedRoster'
+import type { RosterBatchAction } from '../../../core/rosterLibrary'
 import {
+  changeRosters,
   copyRoster,
   deleteRoster,
   exportRoster,
@@ -90,6 +92,11 @@ export function useRosterActions(origin: string, device?: DeviceRoster | null) {
     onSuccess: refresh,
   })
 
+  const batch = useMutation({
+    mutationFn: ({ ids, action }: { ids: string[]; action: RosterBatchAction }) => changeRosters({ data: { ids, action } }),
+    onSuccess: refresh,
+  })
+
   const take = useMutation({
     mutationFn: async ({ roster: summary, title }: { roster: SavedRoster; title: string }) => {
       const roster = await load(summary)
@@ -164,6 +171,7 @@ export function useRosterActions(origin: string, device?: DeviceRoster | null) {
     access,
     lock,
     archive,
+    batch,
     take,
     exchange,
     update,

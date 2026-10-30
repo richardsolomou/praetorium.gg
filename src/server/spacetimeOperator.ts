@@ -1,3 +1,4 @@
+import type { RosterBatchAction } from '../core/rosterLibrary'
 import { IMPORT_SOURCES, type ImportSource } from '../core/importSources'
 import { callSpacetime, spacetimeDatabaseUrl, type SpacetimeConnection } from 'ras-stack/spacetime'
 import { withServerSpan } from '../adapters/posthog'
@@ -834,6 +835,15 @@ export class SpacetimeOperator {
 
   async setRosterArchived(id: string, userId: string, archived: boolean, now: number) {
     return this.reply('set_roster_archived', [id, userId, archived, now], z.boolean())
+  }
+
+  /** Each roster's new version, or null when one is not the player's and none changed. */
+  async changeRosters(ids: readonly string[], userId: string, action: RosterBatchAction, now: number) {
+    return this.read(
+      'change_rosters',
+      [[...ids], userId, action, now],
+      z.array(z.object({ id: z.string(), updatedAt: z.number().int().nonnegative() })).nullable(),
+    )
   }
 
   async deleteRoster(id: string, userId: string) {

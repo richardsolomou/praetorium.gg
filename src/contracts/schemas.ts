@@ -34,7 +34,7 @@ import {
 } from '../core/commands'
 import { currentCatalogueId, currentEntryId, currentRosterIds } from '../core/retiredCatalogueIds'
 import { ROSTER_SOURCES, ROSTER_VISIBILITIES } from '../core/savedRoster'
-import { ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
+import { ROSTER_BATCH_ACTIONS, ROSTER_BATCH_MAX, ROSTER_LIBRARY_BATCH_SIZE } from '../core/rosterLibrary'
 import { ROSTER_AUDIENCES, rosterDiscoveryCursorSchema, rosterDiscoveryFilterSchema } from '../core/rosterDiscovery'
 import { ROSTER_SORTS } from '../core/rosterSort'
 import { isPlayerDefaults } from '../core/playerDefaults'
@@ -496,6 +496,14 @@ export const rosterDiscoverySchema = rosterDiscoveryFilterSchema.extend({
 export const rosterVisibilitySchema = z.object({ id, visibility: z.enum(ROSTER_VISIBILITIES) })
 export const rosterLockSchema = z.object({ id, locked: z.boolean() })
 export const rosterArchiveSchema = z.object({ id, archived: z.boolean() })
+export const rosterBatchSchema = z.object({
+  ids: z
+    .array(id)
+    .min(1)
+    .max(ROSTER_BATCH_MAX)
+    .refine((ids) => new Set(ids).size === ids.length),
+  action: z.enum(ROSTER_BATCH_ACTIONS),
+})
 export const rosterLoanSchema = z.object({ id, borrowerId: id })
 export const playedArmiesSchema = rosterDiscoveryFilterSchema.extend({ before: battlesCursor.nullable().default(null) })
 export const playedArmySchema = z.object({ token, playerId: id })
