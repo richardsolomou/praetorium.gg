@@ -1,5 +1,11 @@
 # praetorium
 
+## 0.203.3 (2026-10-30)
+
+### Patch Changes
+
+- 33330ad: Your battle list, player profiles and friends' battles load faster.
+
 ## 0.203.2 (2026-10-30)
 
 ### Patch Changes
