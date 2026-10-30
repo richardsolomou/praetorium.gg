@@ -15,6 +15,7 @@ import { openRevealedLeagueRosters } from '../../functions'
 import { factionIndexQuery, gameReferencesQuery } from '../../queries'
 import { revealedLeagueRostersKey } from '../../queries/queryKeys'
 import { useExportText } from '../../useCopyText'
+import { dispositionIn } from '../battle/setup/chrome'
 import { RosterSummary } from '../rosters/RosterSummary'
 import { EntrantGroup, IconAction, ViewRosterButton } from './LeagueEntrants'
 import { DropEntrant } from './LeagueDrop'
@@ -88,7 +89,7 @@ export function LeagueArmies({
         event,
         capturedAt: new Date(),
         rosters,
-        dispositionName: (id) => references?.dispositions.find((disposition) => disposition.id === id)?.name ?? id,
+        dispositionName: (id) => dispositionIn(references, id)?.name,
         version,
       })
       posthog.capture('league_rosters_exported', { rosters: sealed.size })
@@ -166,7 +167,7 @@ export function LeagueArmies({
           }}
           faction={faction}
           points={army.points}
-          dispositionName={references?.dispositions.find((disposition) => disposition.id === army.disposition)?.name}
+          dispositionName={dispositionIn(references, army.disposition)?.name}
           showLock={false}
           dateLabel="sealed"
         />

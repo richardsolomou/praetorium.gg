@@ -43,6 +43,5 @@ export const escapeRegExp = (value: string) => value.replaceAll(/[.*+?^${}()|[\]
 
 export const countLabel = (total: number, one: string, many = `${one}s`) => `${total} ${total === 1 ? one : many}`
 
-/** "a, b and c": the house style has no serial comma. */
-export const formatList = (items: readonly string[]) =>
-  items.length < 3 ? items.join(' and ') : `${items.slice(0, -1).join(', ')} and ${items.at(-1)}`
+/** "a, b and c": British English has no serial comma. */
+export const formatList = (items: readonly string[]) => new Intl.ListFormat('en-GB').format(items)

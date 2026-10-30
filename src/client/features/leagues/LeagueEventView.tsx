@@ -26,7 +26,8 @@ import {
 import { createLeagueBattle, joinLeague, submitLeagueRoster } from '../../functions'
 import { rosterWaivers, WaiverConfirmDialog } from '../../components/FormatWaivers'
 import { entrantLabels } from '../../playerLabels'
-import { battlesFrom, gameReferencesQuery, leagueBattlesQuery, leagueResultsQuery } from '../../queries'
+import { battlesFrom, leagueBattlesQuery, leagueResultsQuery } from '../../queries'
+import { useDispositionNames } from '../battle/setup/chrome'
 import { BattleShelf } from '../battles/BattleShelf'
 import type { SavedRoster } from '../rosters/rosterLibrary'
 import { DoublesBattleChooser, LeagueBattleChooser, OneOnOneBattleChooser, startBattleLabel } from './LeagueBattleChoosers'
@@ -106,7 +107,7 @@ export function LeagueEventView({
   const revealed = Boolean(league.revealedAt)
   const battleHistory = useInfiniteQuery({ ...leagueBattlesQuery(token, league.eventToken), enabled: revealed })
   const { data: results } = useQuery({ ...leagueResultsQuery(token, league.eventToken), enabled: revealed })
-  const { data: gameReferences } = useQuery(gameReferencesQuery())
+  const nameDisposition = useDispositionNames()
   const moment = useMoment()
   const now = useNow(league.sealBy)
   const [choosing, setChoosing] = useState(Boolean(chooseRoster))
@@ -270,8 +271,7 @@ export function LeagueEventView({
   // A pair names the card it sealed once the reader may see it: its own members before the reveal, everyone after.
   const pairNames = (members: LeagueEntryView[]) => {
     const card = league.entries.find((entry) => entry.userId === members[0]?.userId)?.team?.disposition
-    // Waits for the references rather than flashing the card's id.
-    const named = card && gameReferences ? (gameReferences.dispositions.find((disposition) => disposition.id === card)?.name ?? card) : null
+    const named = nameDisposition(card)?.name
     return [formatList(members.map(label)), named && `plays ${named}`].filter(Boolean).join(' · ')
   }
   // The revealed rosters split by side or pair the way the entrant list does, so a pairing reads the same before and after.

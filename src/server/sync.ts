@@ -2,6 +2,7 @@ import fs from 'node:fs'
 import { hash, randomUUID } from 'node:crypto'
 import path from 'node:path'
 import { unzipSync } from 'fflate'
+import { z } from 'zod'
 import { type BattlemasterSource } from './catalogueSources'
 import { boundedBytes } from './boundedBody'
 import { fetchWithRetry } from './fetch'
@@ -10,17 +11,20 @@ import { replaceDirectory } from './replaceDirectory'
 
 export type SyncState = { status: 'absent' | 'working' | 'ready' | 'failed'; detail: string | null }
 
-type BattlemasterCatalog = {
-  catalogKey: string
-  layouts: {
-    id: string
-    owner: string
-    ownerUsername?: string
-    name?: string
-    updatedAt?: string
-    layoutKey: string
-  }[]
-}
+const battlemasterCatalogSchema = z.object({
+  catalogKey: z.string(),
+  layouts: z.array(
+    z.object({
+      id: z.string(),
+      owner: z.string(),
+      ownerUsername: z.string().optional(),
+      name: z.string().optional(),
+      updatedAt: z.string().optional(),
+      layoutKey: z.string(),
+    }),
+  ),
+})
+type BattlemasterCatalog = z.infer<typeof battlemasterCatalogSchema>
 
 type BattlemasterDetail = {
   format?: string
@@ -39,6 +43,8 @@ type BattlemasterDetail = {
 
 const MAX_BATTLEMASTER_FILE_BYTES = 5 * 1024 * 1024
 const MAX_BATTLEMASTER_TOTAL_BYTES = 64 * 1024 * 1024
+// The 45-layout catalogue is about 42 KB; this leaves room for it to grow twentyfold.
+const MAX_BATTLEMASTER_CATALOG_BYTES = 1024 * 1024
 
 /** The live layout catalogue for `source` and the revision that pins it. */
 export async function battlemasterCatalogue(source: BattlemasterSource) {
@@ -48,8 +54,13 @@ export async function battlemasterCatalogue(source: BattlemasterSource) {
   url.searchParams.set('text', '0')
   const response = await fetchWithRetry(url)
   if (!response.ok) throw new Error(`catalog answered ${response.status}`)
-  const catalog = (await response.json()) as BattlemasterCatalog
-  if (!catalog.catalogKey || !catalog.layouts?.length) throw new Error('catalog is empty')
+  const body = parseJson(
+    await boundedBytes(response, MAX_BATTLEMASTER_CATALOG_BYTES, `catalog exceeds ${MAX_BATTLEMASTER_CATALOG_BYTES} bytes`),
+  )
+  if (!battlemasterCatalogSchema.safeParse(body).success) throw new Error('catalog has an unexpected shape')
+  // The validated body itself, not the parsed copy, keeps every served field in its order for catalog.json.
+  const catalog = body as BattlemasterCatalog
+  if (!catalog.catalogKey || !catalog.layouts.length) throw new Error('catalog is empty')
   return { catalog, revision: hash('sha256', catalog.catalogKey) }
 }
 

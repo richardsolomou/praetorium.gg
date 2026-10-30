@@ -22,7 +22,7 @@ export function leagueRosterBundle({
   event: string
   capturedAt: Date
   rosters: readonly BundledRoster[]
-  dispositionName: (id: string) => string
+  dispositionName: (id: string) => string | undefined
   version: string
 }) {
   const sections = rosters.map((entry) =>
@@ -35,7 +35,7 @@ export function leagueRosterBundle({
   return [[event, `Captured ${capturedAt.toISOString()}`, SEALED_COPIES_NOTICE].join('\n'), ...sections].join('\n\n') + '\n'
 }
 
-function sealedRosterText(roster: Roster, faction: string, dispositionName: (id: string) => string, version: string) {
+function sealedRosterText(roster: Roster, faction: string, dispositionName: (id: string) => string | undefined, version: string) {
   const built = roster.built
   if (!built) return roster.text
   const keys = built.units.map((unit) => unit.key)
@@ -45,7 +45,7 @@ function sealedRosterText(roster: Roster, faction: string, dispositionName: (id:
       name: roster.name,
       faction,
       detachments: builtDetachments(built),
-      dispositions: dispositions.map(dispositionName),
+      dispositions: dispositions.map(dispositionName).filter((name) => name !== undefined),
       size: GAME_SIZES.find((size) => size.limit === built.limit)?.name ?? 'Battle',
       limit: built.limit,
       ...(built.pointsBudget ? { pointsBudget: built.pointsBudget } : {}),
