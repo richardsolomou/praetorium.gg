@@ -14,7 +14,7 @@ import { combatAttackInput, combatAttacks } from './combatScenario'
 import { combatUnitKeywords, combatUnitSequenceError, combatUnitTarget, type CombatMember } from './combatUnit'
 
 export type CombatantSnapshot = CombatMember & { ruleChoices?: Readonly<Record<string, number>> }
-export type CombatMatchupChoices = {
+type CombatMatchupChoices = {
   preferences: Readonly<Record<string, string>>
   excluded: Readonly<Record<CombatPhase, readonly string[]>>
   /** Defence-group labels the player moved earlier in the allocation order. */

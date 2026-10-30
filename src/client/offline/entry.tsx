@@ -1,13 +1,14 @@
 import { createRoot } from 'react-dom/client'
 import { RouterProvider, createMemoryHistory } from '@tanstack/react-router'
 import { getRouter } from '../../router'
+import { NATIVE_EVENTS } from '../../contracts/nativeBridge'
 
 const router = getRouter()
-window.addEventListener('praetorium-app-navigate', (event) => {
+window.addEventListener(NATIVE_EVENTS.navigate, (event) => {
   const target = new URL(String((event as CustomEvent).detail), location.origin)
   if (target.origin === location.origin) void router.navigate({ href: target.pathname + target.search + target.hash })
 })
-window.addEventListener('praetorium-app-back', () => router.history.back())
+window.addEventListener(NATIVE_EVENTS.appBack, () => router.history.back())
 const start = window.PraetoriumOfflineStart ?? window.location.pathname + window.location.search + window.location.hash
 if (window.ReactNativeWebView) {
   router.update({ context: router.options.context, history: createMemoryHistory({ initialEntries: [start] }) })

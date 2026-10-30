@@ -177,7 +177,7 @@ export function DrawDialog({
                 : carried.length
                   ? `${drawn.length} drawn this turn, on top of the ${carried.length} your hand was already holding. `
                   : `${drawn.length} drawn this turn. `}
-              {side.remainingSecondaries.length} cards left.
+              {countLabel(side.remainingSecondaries.length, 'card')} left.
             </DialogDescription>
           </DialogHeader>
           <DialogBody className="gap-2">

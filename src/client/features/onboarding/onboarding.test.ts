@@ -108,16 +108,12 @@ describe('onboarding steps', () => {
     expect(onboardingStepPastAbsentTarget('simulator-results')).toBeUndefined()
   })
 
-  it('moves the compact prompt out of the way of a control at the foot of the screen', () => {
-    expect(onboardingPromptAtTop(800, 844)).toBe(true)
-  })
-
-  it('leaves the compact prompt at the foot of the screen for a control above it', () => {
-    expect(onboardingPromptAtTop(200, 844)).toBe(false)
-  })
-
-  it('leaves the compact prompt where it is when no control was found', () => {
-    expect(onboardingPromptAtTop(undefined, 844)).toBe(false)
+  it.each([
+    ['at the foot of the screen', 800, true],
+    ['above the foot of the screen', 200, false],
+    ['not found', undefined, false],
+  ])('moves the compact prompt to the top for a control %s: %s', (_, top, atTop) => {
+    expect(onboardingPromptAtTop(top, 844)).toBe(atTop)
   })
 
   it('sends a player who is already reading the step’s page nowhere', () => {

@@ -14,10 +14,11 @@ import {
 } from '../../../core/league'
 import { remindLeagueEntrants, revealLeague } from '../../functions'
 import { entryRules, namesPhrase, useLeagueRefresh, type League } from './leagueEvent'
-import { useMoment } from './EventSchedule'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Problem } from '../../components/Problem'
 import { countLabel } from '../../text'
+import { entrantLabels } from '../../playerLabels'
+import { useMoment } from '../../dates'
 
 /** What the organizer still has to do before every roster can open, said to everyone so nobody wonders what the wait is. */
 const ORGANIZER_STEPS: Partial<Record<LeagueRevealCheck['step'], string>> = {
@@ -151,10 +152,9 @@ export function RemindEntrants({ token, league, viewerId }: { token: string; lea
     onSuccess: refresh,
   })
   if (league.revealedAt !== null || leagueSealingClosed(league, now) || (!waiting.length && league.remindedAt === null)) return null
+  const labels = entrantLabels(league.entries)
   const note = [
-    waiting.length && !cooling
-      ? `Notifies ${namesPhrase(waiting.map((userId) => league.entries.find((entry) => entry.userId === userId)?.name ?? 'a player'))}.`
-      : null,
+    waiting.length && !cooling ? `Notifies ${namesPhrase(waiting.map((userId) => labels.get(userId) ?? 'a player'))}.` : null,
     league.remindedAt === null ? null : `Last reminder ${moment(league.remindedAt)}.`,
     cooling && nextAt !== null && waiting.length ? `You can send another from ${moment(nextAt)}.` : null,
   ]

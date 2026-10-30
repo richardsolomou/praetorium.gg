@@ -25,7 +25,8 @@ export function ModelCounter({
   maxAction?: boolean
   onChange: (count: number) => void | Promise<unknown>
 }) {
-  const [draft, setDraft] = useState(count === null ? '' : String(count))
+  const countText = count === null ? '' : String(count)
+  const [draft, setDraft] = useState(countText)
   const [saving, setSaving] = useState(false)
   const pendingCount = useRef<number | null>(null)
   const focused = useRef(false)
@@ -49,7 +50,7 @@ export function ModelCounter({
     } catch {
       if (revision.current === attempt) {
         pendingCount.current = null
-        setDraft(count === null ? '' : String(count))
+        setDraft(countText)
       }
     } finally {
       if (revision.current === attempt) setSaving(false)
@@ -85,11 +86,11 @@ export function ModelCounter({
           focused.current = false
           if (event.currentTarget.parentElement?.contains(event.relatedTarget)) return
           if (valid) void save(value)
-          else setDraft(count === null ? '' : String(count))
+          else setDraft(countText)
         }}
         onKeyDown={(event) => {
           if (event.key === 'Enter') event.currentTarget.blur()
-          if (event.key === 'Escape') setDraft(count === null ? '' : String(count))
+          if (event.key === 'Escape') setDraft(countText)
         }}
         className={`readout h-6 min-w-0 rounded-sm border border-edge-strong bg-transparent text-center outline-none [appearance:textfield] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${compact ? 'col-span-2 row-start-1 w-full px-0 text-xs @[18rem]:col-span-1 @[18rem]:row-auto' : 'w-14 px-1 text-sm'}`}
       />

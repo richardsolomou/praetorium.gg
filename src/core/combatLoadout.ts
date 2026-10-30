@@ -1,14 +1,13 @@
 import { groupBy } from './collections'
-import { definitionAndTarget, type CatalogueIndex, type Definition, type Profile } from './catalogue'
+import { definitionAndTarget, type CatalogueIndex, type Definition, type Profile, resolve } from './catalogue'
 import type { StructuredDatasheetProfile } from './datasheet'
 import { fieldedCount, isCollectiveGroup } from './collective'
-import { resolve } from './definitions'
 import { datasheetProfileKind, weaponPhase } from './datasheetStructure'
 import { withoutFactionPrefix } from './name'
 import { selectionCountBoundsAt, type EvaluateOptions, type Selection } from './evaluate'
 import { wargearKey, wargearOf, type Wargear } from './wargear'
 
-export type CombatEquipment = Wargear & { profileIds?: string[] }
+type CombatEquipment = Wargear & { profileIds?: string[] }
 export type CombatCarrier = {
   name: string
   models: number

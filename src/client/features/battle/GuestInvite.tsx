@@ -12,7 +12,7 @@ import { battleQuery, guestInviteQuery } from '../../queries'
 
 import { useNativeShare } from '../../nativeBridge'
 import { useOrigin } from '../../useOrigin'
-import { useShareLink } from '../../useShareLink'
+import { shareButtonLabel, useShareLink } from '../../useShareLink'
 
 /**
  * The link and QR code a host shows a guest so they play their own side on their own device.
@@ -86,7 +86,7 @@ function GuestInviteDialog({ token, playerId, name, onClose }: { token: string; 
                 )}
                 <p className="break-all text-xs text-dim">{url}</p>
                 <Button className="w-full" onClick={() => void share()}>
-                  {link.shared ? (link.shared === 'copied' ? 'Link copied' : 'Link shared') : nativeShare ? 'Share link' : 'Copy link'}
+                  {shareButtonLabel(link.shared, nativeShare, 'link')}
                 </Button>
                 {link.problem ? <Problem error={link.problem} /> : null}
                 <p className="text-xs text-dim">The first device to open it takes the seat for 30 days.</p>

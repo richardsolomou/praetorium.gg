@@ -1,3 +1,6 @@
+import { countBy } from './collections'
+import { compareText } from './text'
+
 /**
  * Datasheets in the player's armies that none of the player's own rosters use.
  *
@@ -10,9 +13,10 @@ export function wishlistSuggestions(
 ) {
   const used = new Set(own.flatMap((roster) => roster.entryIds))
   const fielded = armies.flatMap(({ rosters }) => {
-    const counts = new Map<string, number>()
-    for (const roster of rosters)
-      for (const entryId of new Set(roster.entryIds)) if (!used.has(entryId)) counts.set(entryId, (counts.get(entryId) ?? 0) + 1)
+    const counts = countBy(
+      rosters.flatMap((roster) => [...new Set(roster.entryIds)].filter((entryId) => !used.has(entryId))),
+      (entryId) => entryId,
+    )
     return [...counts].map(([entryId, count]) => ({ entryId, rosters: count, of: rosters.length }))
   })
   const suggested = new Set(fielded.map(({ entryId }) => entryId))
@@ -21,7 +25,7 @@ export function wishlistSuggestions(
     .toSorted((a, b) => a.name.localeCompare(b.name))
     .map((datasheet) => ({ entryId: datasheet.id, rosters: 0, of: 0 }))
   return [
-    ...fielded.toSorted((a, b) => b.rosters / b.of - a.rosters / a.of || b.rosters - a.rosters || a.entryId.localeCompare(b.entryId)),
+    ...fielded.toSorted((a, b) => b.rosters / b.of - a.rosters / a.of || b.rosters - a.rosters || compareText(a.entryId, b.entryId)),
     ...unfielded,
   ]
 }

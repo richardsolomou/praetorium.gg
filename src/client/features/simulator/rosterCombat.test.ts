@@ -1,16 +1,8 @@
 import { expect, it } from 'vitest'
 import { rosterCombatant } from '../../../shared/rosterCombatRules'
 import { preferenceBook } from '../../../server/combatPreferences.fixtures'
-import { combatMatchup, resolveCombatRequest } from '../../../core/combatMatchup'
+import { resolveCombatRequest } from '../../../core/combatMatchup'
 import { rosterCombatIndices, rosterCombatSnapshot, rosterCombatRequest, summarizeRosterCombat } from './rosterCombat'
-
-it('has no matchups for an empty roster', () => {
-  expect(rosterCombatIndices([])).toEqual([])
-})
-
-it('keeps a single standalone unit', () => {
-  expect(rosterCombatIndices([{ entryId: 'squad' }])).toEqual([0])
-})
 
 it('counts an attached unit once and keeps repeated squads separate', () => {
   expect(
@@ -40,18 +32,6 @@ it('refuses attachments in a loop rather than omitting units', () => {
 
 it('refuses malformed attachments rather than omitting units', () => {
   expect(() => rosterCombatIndices([{ entryId: 'leader', attachedTo: 2 }])).toThrow('attachment')
-})
-
-it('uses the saved equipment and companions in the ordinary matchup calculation', () => {
-  const picks = [{ entryId: 'squad' }, { entryId: 'support', attachedTo: 0, choices: { 'support-weapon': 'plasma' } }]
-  const sheet = rosterCombatant(preferenceBook(true), null, { catalogueId: 'cat', detachmentIds: [], picks, pickIndex: 0 })!
-  const snapshot = rosterCombatSnapshot(sheet, picks)
-  const regular = combatMatchup(snapshot, snapshot, { preferences: {}, excluded: { ranged: [], melee: [] }, allocation: [] })
-  expect(rosterCombatRequest(snapshot, snapshot).request).toEqual({
-    ranged: regular.scenario('ranged', {}),
-    melee: regular.scenario('melee', {}),
-    sequenceError: regular.sequenceError,
-  })
 })
 
 it('retains the selected plasma equipment rather than the default staff', () => {

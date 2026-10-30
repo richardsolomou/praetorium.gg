@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { collectionCsv, importChange, parseCsv, readCollectionCsv, type ImportedRow } from './collectionCsv'
+import { collectionCsv, importChange, readCollectionCsv, type ImportedRow } from './collectionCsv'
+import { parseCsv } from './csv'
 
 const sheets = [
   { id: 'warriors', name: 'Necron Warriors', faction: 'Necrons' },

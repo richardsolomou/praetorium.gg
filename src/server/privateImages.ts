@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto'
 import { notFound } from './notFound'
 import { objectsIn, privateR2Client } from './r2Client'
 
@@ -13,6 +12,9 @@ const FORMATS = {
 }
 
 type ImageFormat = keyof typeof FORMATS
+
+/** The content type `bytes` start with, among the raster formats accepted anywhere. */
+export const sniffedImageType = (bytes: Buffer) => Object.values(FORMATS).find((format) => format.matches(bytes))?.contentType
 
 /** An image data URL's bytes, when they match its declared format and that format is one of `formats`; otherwise null. */
 export function parseImageDataUrl(image: string, formats: readonly ImageFormat[] = ['png', 'jpeg', 'webp']) {
@@ -40,31 +42,16 @@ export function privateObjects(environment: NodeJS.ProcessEnv = process.env): Pr
   return objects && { ...objects, put: (key, body, contentType) => objects.put(key, body, { 'content-type': contentType }) }
 }
 
-/** Stores an uploaded image under `prefix` and a random id after checking its bytes match its declared type; returns the id. */
-export async function storePrivateImage(
-  objects: PrivateObjects | null,
-  prefix: string,
-  image: string,
-  { maxBytes, refusal }: { maxBytes: number; refusal: string },
-): Promise<string> {
-  if (!objects) throw new Response('image uploads are not available', { status: 503 })
-  const parsed = parseImageDataUrl(image)
-  if (!parsed || parsed.bytes.byteLength > maxBytes) throw new Response(refusal, { status: 400 })
-  const id = randomUUID()
-  await objects.put(`${prefix}${id}`, parsed.bytes, parsed.contentType)
-  return id
-}
-
 /** Serves a stored image with the type its bytes were checked against on upload, never cached because access can be revoked. */
 export async function privateImageResponse(objects: PrivateObjects | null, key: string) {
   if (!objects) return new Response('image storage is not available', { status: 503, headers: { 'Cache-Control': 'no-store' } })
   const stored = await objects.get(key)
   const bytes = stored && Buffer.from(stored)
-  const format = bytes && Object.values(FORMATS).find((candidate) => candidate.matches(bytes))
-  if (!bytes || !format) return notFound()
+  const contentType = bytes && sniffedImageType(bytes)
+  if (!bytes || !contentType) return notFound()
   return new Response(new Uint8Array(bytes), {
     headers: {
-      'Content-Type': format.contentType,
+      'Content-Type': contentType,
       'Cache-Control': 'private, no-store',
       'X-Content-Type-Options': 'nosniff',
     },

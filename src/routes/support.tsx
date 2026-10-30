@@ -1,6 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useEffect } from 'react'
-import { openConversation } from '../client/features/feedback/support'
+import { createFileRoute } from '@tanstack/react-router'
 import { Support } from '../client/features/legal/Support'
 import { pageHead } from '../client/linkPreview'
 import { searchText } from '../client/searchParams'
@@ -20,12 +18,5 @@ export const Route = createFileRoute('/support')({
 })
 
 function SupportRoute() {
-  const { conversation } = Route.useSearch()
-  const navigate = useNavigate()
-  useEffect(() => {
-    if (!conversation) return
-    openConversation(conversation)
-    void navigate({ to: '/support', search: {}, replace: true })
-  }, [conversation, navigate])
-  return <Support />
+  return <Support conversation={Route.useSearch().conversation} />
 }

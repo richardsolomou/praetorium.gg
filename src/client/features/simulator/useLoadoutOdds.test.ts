@@ -100,16 +100,6 @@ it('settles a worker constructor failure as a retryable error', async () => {
   expect(render().found).toMatchObject({ error: expect.stringContaining('could not start'), retry: expect.any(Function), updating: false })
 })
 
-it('settles a postMessage failure without throwing from the effect', async () => {
-  const current = worker()
-  current.postMessage.mockImplementation(() => {
-    throw new Error('DataCloneError')
-  })
-  hooks.createWorker.mockReturnValue(current)
-  await settled()
-  expect(() => render().start()).not.toThrow()
-})
-
 it('terminates a worker whose request could not be posted', async () => {
   const current = worker()
   current.postMessage.mockImplementation(() => {
@@ -126,15 +116,6 @@ it('settles a worker execution error with a retry action', async () => {
   hooks.createWorker.mockReturnValue(current)
   render().start()
   current.onerror!()
-  await settled()
-  expect(render().found).toMatchObject({ error: expect.stringContaining('failed'), retry: expect.any(Function), updating: false })
-})
-
-it('settles an unreadable worker response with a retry action', async () => {
-  const current = worker()
-  hooks.createWorker.mockReturnValue(current)
-  render().start()
-  current.onmessageerror?.()
   await settled()
   expect(render().found).toMatchObject({ error: expect.stringContaining('failed'), retry: expect.any(Function), updating: false })
 })

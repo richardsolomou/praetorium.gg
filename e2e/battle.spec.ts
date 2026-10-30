@@ -22,8 +22,9 @@ import {
   practiceBattle,
   PHONE,
   uploadAvatar,
+  playerPanel,
 } from './account'
-import { battleLog, productSql, lastPathSegment, battleIdFor } from './storage'
+import { battleCommands, battleLog, productSql, lastPathSegment, battleIdFor } from './storage'
 import { expectNoHorizontalOverflow } from './builder.harness'
 
 test('the opening draw prompt starts at the top, pins its actions and holds the page still on a phone', async ({ page }) => {
@@ -58,7 +59,7 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await practiceBattle(page, roster)
   await startBattle(page, undefined, true, ['Cleanse', 'Centre Ground'])
 
-  const ongoing = page.locator('[data-panel="player"][data-side="0"]')
+  const ongoing = playerPanel(page, 0)
   await expect(ongoing.locator('[data-secondary]')).toHaveCount(2)
   await expect(ongoing.locator('[data-secondary] [aria-label="Victory points by battle round"]')).toHaveCount(0)
   for (const width of [900, 1100, 1440]) {
@@ -124,12 +125,12 @@ test('Cleanse and Centre Ground prompt for scoring on the first turn', async ({ 
   await page.getByRole('button', { name: 'Pass the turn', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'command phase' })).toBeVisible()
   await page.reload()
-  await expect(page.locator('[data-panel="player"][data-side="0"] [data-stat="secondary"]')).toHaveText('5')
+  await expect(playerPanel(page, 0).locator('[data-stat="secondary"]')).toHaveText('5')
   await page
     .getByRole('dialog', { name: /secondary missions$/ })
     .getByRole('button', { name: 'Minimize dialog' })
     .click()
-  const side = page.locator('[data-panel="player"][data-side="0"]')
+  const side = playerPanel(page, 0)
   await side.getByRole('button', { name: 'Show 2 resolved missions', exact: true }).click()
   const cleanse = side.locator('[data-secondary]').filter({ has: page.getByRole('button', { name: 'Read Cleanse', exact: true }) })
   const centre = side.locator('[data-secondary]').filter({ has: page.getByRole('button', { name: 'Read Centre Ground', exact: true }) })
@@ -771,19 +772,10 @@ test('a secret mission chosen before they were retired is handed off before its 
   // No supported mission pack offers secret missions any more, so these stand in for a battle that chose them earlier.
   const { id, append, first: aliceId, second: bobId } = await battleLog(alice)
   const deckCard = async (playerId: string, name: string) => {
-    const rows = await productSql<{
-      seq: number
-      user_id: string
-      body: string
-    }>`SELECT seq, user_id, body FROM commands WHERE battle_id = ${id}`
-    const decks = rows
-      .toSorted((left, right) => left.seq - right.seq)
-      .map((row) => ({
-        by: row.user_id,
-        body: JSON.parse(row.body) as { kind: string; playerId?: string; secondaryDeck?: { key: string; name: string }[] },
-      }))
-      .filter(({ by, body }) => body.kind === 'set-prep' && (body.playerId ?? by) === playerId && body.secondaryDeck)
-    const card = decks.at(-1)?.body.secondaryDeck?.find((candidate) => candidate.name === name)
+    const decks = (await battleCommands(id)).flatMap(({ by, body }) =>
+      body.kind === 'set-prep' && (body.playerId ?? by) === playerId && body.secondaryDeck ? [body.secondaryDeck] : [],
+    )
+    const card = decks.at(-1)?.find((candidate) => candidate.name === name)
     if (!card) throw new Error(`${name} is not in the deck`)
     return { key: card.key, name: card.name }
   }

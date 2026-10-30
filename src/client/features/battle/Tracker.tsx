@@ -33,7 +33,7 @@ import {
   type ReminderDismissalScope,
 } from './reminderDismissals'
 import { armyRulesRequest } from './sideRules'
-import { type Side, type SideMission, sides } from '../../sides'
+import { formatName, type Side, type SideMission, sides } from '../../sides'
 import { asSecondary, battleSizeText } from '../../../core/battle'
 import type { BattleClock } from '../../../core/battleClock'
 import type { BattleView, MissionChoiceView } from '../../../core/battleView'
@@ -378,10 +378,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
       onAnswersChange: (answers: ScoringAnswers) => setScoringDrafts((current) => new Map(current).set(id, { signature, answers })),
     }
   }
-  const activeNeedsReferences = Boolean(
-    (active?.primaryCard && active.primaryCard.awards === undefined) ||
-    active?.secondaries.some((card) => card.status === 'active' && card.awards === undefined),
-  )
+  const activeNeedsReferences = needsCardReferences(active)
   const blockReason =
     settlementRound !== null
       ? 'Finish the previous turn’s scoring first.'
@@ -431,10 +428,7 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
     settlementRound !== null && settlementSide && secretMissionActionSide?.captain.id === settlementSide.captain.id,
   )
   const settlementRuleResults = ruleResults.filter((_, index) => ruleRequests[index]?.side === settlementSide?.index)
-  const settlementNeedsReferences = Boolean(
-    (settlementSide?.primaryCard && settlementSide.primaryCard.awards === undefined) ||
-    settlementSide?.secondaries.some((secondary) => secondary.status === 'active' && secondary.awards === undefined),
-  )
+  const settlementNeedsReferences = needsCardReferences(settlementSide)
   const settlementRulesPending = settlementNeedsReferences && (settlementRuleResults.some((result) => result.isPending) || deckUnknown)
   const owedCards =
     settlementRound !== null && settlementSide
@@ -575,7 +569,6 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
               pending={pending || promptMinimized}
               blocked={promptMinimized}
               send={sendAction}
-              awardsFor={awardsFor}
               referenceFor={referenceFor}
               writtenFor={writtenFor}
               guides={guidesFor(side)}
@@ -830,18 +823,16 @@ export function Tracker({ view, clock, missions, send, pending, problem }: Props
   )
 }
 
+const needsCardReferences = (side: Side | undefined) =>
+  Boolean(
+    (side?.primaryCard && side.primaryCard.awards === undefined) ||
+    side?.secondaries.some((card) => card.status === 'active' && card.awards === undefined),
+  )
+
 const discardableSecondaries = (side: Side) =>
   side.secondaryMode === 'tactical'
     ? side.secondaries.filter((card) => !card.secret && card.status === 'active').map((card) => card.key)
     : []
-
-/** The shape of the table only: a seat nobody signs in to is already named for what it is. */
-function formatName(table: Side[]) {
-  return table
-    .map((side) => side.armies.length)
-    .toSorted((left, right) => right - left)
-    .join('v')
-}
 
 /** The cards a side was holding, as keys, so a later hand can be told from this one. */
 const heldKeys = (side: Side | undefined) => (side?.secondaries ?? []).filter((card) => card.status === 'active').map((card) => card.key)

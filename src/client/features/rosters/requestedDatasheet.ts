@@ -1,9 +1,9 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useMemo } from 'react'
+import { searchText } from '../../searchParams'
 
 /** A datasheet a reference page asked to add to a list, dropped once the builder has answered. */
-export const requestedDatasheetSearch = (search: Record<string, unknown>): { add?: string } =>
-  typeof search.add === 'string' && search.add && search.add.length <= 64 ? { add: search.add } : {}
+export const requestedDatasheetSearch = (search: Record<string, unknown>) => ({ add: searchText(search.add, 64) })
 
 export function useRequestedDatasheet(add: string | undefined) {
   const navigate = useNavigate()

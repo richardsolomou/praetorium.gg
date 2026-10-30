@@ -14,6 +14,7 @@ import {
   practiceBattle,
   PHONE,
   desktopContext,
+  playerPanel,
 } from './account'
 import { shot, closePicker } from './builder.harness'
 import { lastPathSegment } from './storage'
@@ -157,8 +158,7 @@ for (const [size, label] of [
 
     const army = page.locator('[data-army-roster]')
     const squad = army.locator(`[data-unit="${SQUAD}"]`)
-    await page
-      .locator('[data-panel="player"][data-side="0"]')
+    await playerPanel(page, 0)
       .getByRole('button', { name: `Open ${roster}` })
       .click()
     await expect(squad).toContainText(`Rot Alpha${SQUAD}`)
@@ -168,8 +168,7 @@ for (const [size, label] of [
 
     const opponentTab = page.getByRole('tab', { name: 'Opponent' })
     if (await opponentTab.isVisible()) await opponentTab.click()
-    await page
-      .locator('[data-panel="player"][data-side="1"]')
+    await playerPanel(page, 1)
       .getByRole('button', { name: `Open ${roster}` })
       .click()
     await expect(squad).toContainText(`Rot Alpha${SQUAD}`)

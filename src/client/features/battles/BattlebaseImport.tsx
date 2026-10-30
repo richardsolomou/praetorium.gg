@@ -9,8 +9,8 @@ import { DialogBody, DialogFooter } from '../../components/Dialog'
 import { Problem } from '../../components/Problem'
 import { ProgressBar } from '../../components/ProgressBar'
 import { battlebaseAccount, battlebaseImportCode, importBattlebaseBattles } from '../../functions'
-import { battlebaseAccountKey, battlesKey } from '../../queries/queryKeys'
-import { countLabel } from '../../text'
+import { battlebaseAccountKey, battlesKey, playerProfileKey } from '../../queries/queryKeys'
+import { countLabel, formatList } from '../../text'
 import { useCopyText } from '../../useCopyText'
 
 type Imported = { username: string } & Awaited<
@@ -63,7 +63,7 @@ export function BattlebaseImport({ picker, onBusy, onDone }: { picker: ReactNode
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: battlebaseAccountKey() }),
         queryClient.invalidateQueries({ queryKey: battlesKey() }),
-        queryClient.invalidateQueries({ queryKey: ['player-profile'] }),
+        queryClient.invalidateQueries({ queryKey: playerProfileKey() }),
       ])
     },
   })
@@ -184,7 +184,7 @@ function ImportResult({ result }: { result: Imported }) {
     result.alreadyImported ? `${countLabel(result.alreadyImported, 'game')} already here` : null,
     result.unfinished ? countLabel(result.unfinished, 'unfinished game') : null,
     result.skipped ? `${countLabel(result.skipped, 'game')} that couldn’t be read` : null,
-  ].filter(Boolean)
+  ].filter((note) => note !== null)
   return (
     <DialogBody>
       <output className="block text-lg font-bold">{added ? `Added ${countLabel(added, 'battle')}.` : 'No new battles to add.'}</output>
@@ -194,7 +194,7 @@ function ImportResult({ result }: { result: Imported }) {
           seat.
         </p>
       ) : null}
-      {notes.length ? <p className="text-sm text-dim">Left out: {notes.join(', ')}.</p> : null}
+      {notes.length ? <p className="text-sm text-dim">Left out: {formatList(notes)}.</p> : null}
       <p className="text-sm text-dim">
         Your BattleBase account {result.username} is linked, so games anyone brings in with you in them put you in your seat. You can remove
         the code from your tagline.

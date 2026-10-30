@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { Download } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import { type ReactNode, useCallback, useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,7 +19,7 @@ import {
   DialogTrigger,
 } from '../../components/Dialog'
 import { Problem } from '../../components/Problem'
-import { SOURCE } from '../../projectLinks'
+import { NEW_ISSUE } from '../../projectLinks'
 import { errorMessage } from '../../queryClient'
 import { FEEDBACK_MESSAGE_MAX_LENGTH, feedbackTicketMessage } from '../feedback/feedback'
 import { openConversation, refreshSupport, startConversation } from '../feedback/support'
@@ -35,7 +35,6 @@ export function ImportBattles() {
   const [open, setOpen] = useState(false)
   const [app, setApp] = useState<ImportSource | 'other'>('battlebase')
   const [busy, setBusy] = useState(false)
-  const onBusy = useCallback((next: boolean) => setBusy(next), [])
   const close = () => {
     setOpen(false)
     setApp('battlebase')
@@ -65,9 +64,9 @@ export function ImportBattles() {
         {/* Mounted only while open, so each opening starts afresh. */}
         {open ? (
           app === 'other' ? (
-            <SuggestApp picker={picker} onBusy={onBusy} onDone={close} />
+            <SuggestApp picker={picker} onBusy={setBusy} onDone={close} />
           ) : (
-            <BattlebaseImport picker={picker} onBusy={onBusy} onDone={close} />
+            <BattlebaseImport picker={picker} onBusy={setBusy} onDone={close} />
           )
         ) : null}
       </DialogContent>
@@ -153,7 +152,7 @@ function SuggestApp({ picker, onBusy, onDone }: { picker: ReactNode; onBusy: (bu
         {failure === 'unavailable' ? (
           <Problem>
             Your suggestion could not be sent from this browser, which may be blocking analytics. You can{' '}
-            <a href={`${SOURCE}/issues/new`} target="_blank" rel="noreferrer" className="text-info underline hover:text-parchment">
+            <a href={NEW_ISSUE} target="_blank" rel="noreferrer" className="text-info underline hover:text-parchment">
               suggest it on GitHub
             </a>{' '}
             instead.

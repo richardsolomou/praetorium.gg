@@ -2,6 +2,9 @@ import { parseLocalState, type LocalState } from '../contracts/localState'
 import { useSyncExternalStore } from 'react'
 import type { AppSnapshot } from '../contracts/appSnapshot'
 import type { WatchBattle } from '../contracts/watchBattle'
+import { NATIVE_EVENTS, type NativeEvent, type NativePushAnswer } from '../contracts/nativeBridge'
+
+export type { NativePushAnswer }
 
 type NativeCapability =
   | 'local-state'
@@ -14,8 +17,6 @@ type NativeCapability =
   | 'github-auth'
   | 'notifications'
   | 'offline-reference'
-  | 'open-window'
-  | 'print'
   | 'share'
   | 'watch-battle'
 
@@ -55,7 +56,7 @@ type NativeAnswer = Record<string, unknown>
  */
 function askNative<T>(
   capability: NativeCapability,
-  event: string,
+  event: NativeEvent,
   message: Record<string, unknown>,
   timeoutMs: number,
   read: (answer: NativeAnswer) => T | null,
@@ -91,7 +92,7 @@ export async function requestNativeLocalState(
 ): Promise<NativeLocalState> {
   const answer = await askNative(
     'local-state',
-    'praetorium-native-local-state',
+    NATIVE_EVENTS.localState,
     { type: 'native-local-state', owner, ...write },
     10_000,
     (detail) => detail as NativeLocalState & { error?: string },
@@ -110,7 +111,7 @@ export async function requestNativeLocalState(
 export async function exportNativeWork(state: LocalState): Promise<boolean> {
   const answer = await askNative(
     'local-state',
-    'praetorium-native-export-work',
+    NATIVE_EVENTS.exportWork,
     { type: 'native-export-work', state },
     120_000,
     (detail) => detail as { error?: string },
@@ -154,14 +155,6 @@ export function setNativeAccountMenuOpen(open: boolean) {
   return send('account', { type: 'native-account-menu', open })
 }
 
-/** What the shell said about notifications on this device. */
-export type NativePushAnswer =
-  | { status: 'granted'; token: string; platform: 'ios' | 'android' }
-  | { status: 'denied' | 'undetermined' | 'unavailable' }
-
-/** The event the shell dispatches on `window` with its answer. */
-export const NATIVE_PUSH_EVENT = 'praetorium-native-push'
-
 export function supportsNativePush() {
   return supports('notifications')
 }
@@ -180,7 +173,7 @@ function nativePushAnswer(answer: NativeAnswer): NativePushAnswer | null {
  * waits on a person, a silent check only on the operating system.
  */
 export async function requestNativePush(prompt: boolean, timeoutMs = prompt ? 120_000 : 10_000): Promise<NativePushAnswer | null> {
-  const answer = await askNative('notifications', NATIVE_PUSH_EVENT, { type: 'native-push', prompt }, timeoutMs, nativePushAnswer)
+  const answer = await askNative('notifications', NATIVE_EVENTS.push, { type: 'native-push', prompt }, timeoutMs, nativePushAnswer)
   return typeof answer === 'string' ? null : answer
 }
 
@@ -202,15 +195,13 @@ const savedAnswer = (answer: NativeAnswer) => answer.saved === true
 
 export async function requestNativeAppSnapshot(snapshot: AppSnapshot | null): Promise<boolean> {
   return (
-    (await askNative('app-snapshot', 'praetorium-native-app-snapshot', { type: 'native-app-snapshot', snapshot }, 15_000, savedAnswer)) ===
-    true
+    (await askNative('app-snapshot', NATIVE_EVENTS.appSnapshot, { type: 'native-app-snapshot', snapshot }, 15_000, savedAnswer)) === true
   )
 }
 
 export async function requestNativeOfflineSave(doc: { html: string; savedAt: number }): Promise<boolean> {
   return (
-    (await askNative('offline-reference', 'praetorium-native-offline', { type: 'native-offline-save', ...doc }, 60_000, savedAnswer)) ===
-    true
+    (await askNative('offline-reference', NATIVE_EVENTS.offline, { type: 'native-offline-save', ...doc }, 60_000, savedAnswer)) === true
   )
 }
 
@@ -219,8 +210,8 @@ export function setNativeWatchBattle(snapshot: WatchBattle | null) {
 }
 
 function subscribeCapabilities(changed: () => void) {
-  window.addEventListener('praetorium-native-capabilities', changed)
-  return () => window.removeEventListener('praetorium-native-capabilities', changed)
+  window.addEventListener(NATIVE_EVENTS.capabilities, changed)
+  return () => window.removeEventListener(NATIVE_EVENTS.capabilities, changed)
 }
 
 export function useNativeWatchBattleAvailability() {

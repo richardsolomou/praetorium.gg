@@ -1,6 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useCallback, useEffect, useState } from 'react'
-import { CombatSimulator } from '../client/features/simulator/CombatSimulator'
+import { SimulatorRoute } from '../client/features/simulator/SimulatorRoute'
 import { pageHead } from '../client/linkPreview'
 import { factionIndexQuery } from '../client/queries'
 import { searchText } from '../client/searchParams'
@@ -25,14 +24,5 @@ export const Route = createFileRoute('/simulator')({
 
 function SimulatorPage() {
   const { s, from } = Route.useSearch()
-  const [reference] = useState(from)
-  const navigate = Route.useNavigate()
-  useEffect(() => {
-    if (from) void navigate({ search: ({ from: _from, ...rest }) => rest, replace: true, resetScroll: false })
-  }, [from, navigate])
-  const share = useCallback(
-    (shared: string | undefined) => void navigate({ search: shared ? { s: shared } : {}, replace: true, resetScroll: false }),
-    [navigate],
-  )
-  return <CombatSimulator shared={s} onShare={share} reference={reference} />
+  return <SimulatorRoute s={s} from={from} />
 }

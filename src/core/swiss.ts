@@ -1,3 +1,5 @@
+import { compareText } from './text'
+
 /**
  * Swiss rounds for a one-on-one tournament: who plays whom each round, and who leads.
  *
@@ -16,7 +18,7 @@ export type SwissMatch = {
   vp: readonly [number, number]
 }
 
-export type SwissRow = {
+type SwissRow = {
   userId: string
   played: number
   won: number
@@ -74,7 +76,7 @@ export function swissStandings(
     row.schedule = (opponents.get(row.userId) ?? []).reduce((sum, id) => sum + (rows.get(id)?.points ?? 0), 0)
   return [...rows.values()].toSorted(
     (one, other) =>
-      other.points - one.points || other.vp - one.vp || other.schedule - one.schedule || one.userId.localeCompare(other.userId),
+      other.points - one.points || other.vp - one.vp || other.schedule - one.schedule || compareText(one.userId, other.userId),
   )
 }
 

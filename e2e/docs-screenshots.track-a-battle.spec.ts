@@ -10,6 +10,7 @@ import {
   PRACTICE_OPPONENT,
   signUp,
   startBattle,
+  playerPanel,
 } from './account'
 
 docsScreenshots()
@@ -45,7 +46,7 @@ test('track a battle', async ({ page }) => {
   await startBattle(page)
   await capture('track-a-battle-phase', page.locator('[data-turn-control]'), advanceButton(page))
 
-  const side = page.locator('[data-panel="player"][data-side="0"]')
+  const side = playerPanel(page, 0)
   await capture('track-a-battle-stratagems', side, side.getByRole('button', { name: 'Use Command Re-roll', exact: true }))
 
   await advance(page)

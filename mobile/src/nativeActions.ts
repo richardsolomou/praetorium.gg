@@ -1,8 +1,10 @@
 import { parseSavedReference, type SavedReference } from './offlineReference'
 import { classifyNavigation } from './navigation'
 import { MAX_APP_SNAPSHOT_BYTES, parseAppSnapshot, type AppSnapshot } from '../../src/contracts/appSnapshot'
+import { scriptJson } from '../../src/contracts/embeddedReference'
 import { MAX_LOCAL_STATE_BYTES, parseLocalState, type LocalState } from '../../src/contracts/localState'
 
+import { NATIVE_EVENTS, type NativeEvent } from '../../src/contracts/nativeBridge'
 import { MAX_WATCH_MESSAGE_BYTES, parseWatchBattle, type WatchBattle } from '../../src/contracts/watchBattle'
 
 /** The id a request carries so its answer can find it, and the local state epoch, which is shaped the same. */
@@ -26,14 +28,8 @@ export type NativeActionRequest =
   | { kind: 'push'; id: string; prompt: boolean }
   | { kind: 'share'; title?: string; url: string }
 
-/** The shell's answer to a `push` request, as the web application reads it. */
-export type NativePushAnswer =
-  | { status: 'granted'; token: string; platform: 'ios' | 'android' }
-  | { status: 'denied' | 'undetermined' | 'unavailable' }
-
-export function nativePushAnswerScript(id: string, answer: NativePushAnswer) {
-  const detail = JSON.stringify({ id, ...answer })
-  return `window.dispatchEvent(new CustomEvent('praetorium-native-push', { detail: ${detail} })); true;`
+export function nativeAnswerScript(event: NativeEvent, detail: unknown) {
+  return `window.dispatchEvent(new CustomEvent('${event}', { detail: ${scriptJson(detail)} })); true;`
 }
 
 export function parseNativeActionRequest(message: string): NativeActionRequest | null {
@@ -112,7 +108,7 @@ export function parseNativeActionRequest(message: string): NativeActionRequest |
 }
 
 export const NATIVE_BRIDGE_SCRIPT = `(() => {
-  const capabilities = ['app-navigation', 'app-snapshot', 'local-state', 'back-gesture', 'battle-active', 'github-auth', 'haptic', 'notifications', 'offline-reference', 'open-window', 'print', 'share'];
+  const capabilities = ['app-navigation', 'app-snapshot', 'local-state', 'back-gesture', 'battle-active', 'github-auth', 'haptic', 'notifications', 'offline-reference', 'share'];
   window.PraetoriumNative = Object.freeze({ bridgeVersion: 3, capabilities });
   const disableZoom = () => {
     const viewport = document.querySelector('meta[name="viewport"]');
@@ -175,6 +171,6 @@ export function nativeWatchCapabilityScript(enabled: boolean) {
     const capabilities = window.PraetoriumNative.capabilities.filter(value => value !== 'watch-battle');
     ${enabled ? "capabilities.push('watch-battle');" : ''}
     window.PraetoriumNative = Object.freeze({ ...window.PraetoriumNative, capabilities });
-    window.dispatchEvent(new CustomEvent('praetorium-native-capabilities'));
+    window.dispatchEvent(new CustomEvent('${NATIVE_EVENTS.capabilities}'));
   })(); true;`
 }

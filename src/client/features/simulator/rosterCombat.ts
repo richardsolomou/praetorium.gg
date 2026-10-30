@@ -8,13 +8,14 @@ import type { combatantDatasheet } from '../../functions'
 import { combatAtHealth } from '../../../core/combatSurvivors'
 import type { CombatRoster } from './useCombatant'
 import type { RosterOwner } from './rosterOwners'
-import type { Roster } from '../../../core/battle'
+import type { BuiltRoster } from '../../../core/battle'
+import type { CombatMetric } from './CombatValue'
 
 type ProjectedCombatant = NonNullable<Awaited<ReturnType<typeof combatantDatasheet>>>
 export type RosterCombatSummary = Record<
   'ranged' | 'melee' | 'combined',
   {
-    result?: Pick<CombatResult, 'wipe' | 'meanDamage' | 'meanKills' | 'uncappedKills'>
+    result?: Pick<CombatResult, CombatMetric>
     error?: string
   }
 >
@@ -30,7 +31,7 @@ export type RosterCombatUnit = {
 }
 
 /** A sealed league list at full strength, starting from its first unit; null when it kept no loadouts. */
-export function sealedCombatRoster(roster: Roster | null | undefined): CombatRoster | null {
+export function sealedCombatRoster(roster: { built?: Omit<BuiltRoster, 'units'> } | null | undefined): CombatRoster | null {
   const built = roster?.built
   if (!built?.picks?.length) return null
   return {

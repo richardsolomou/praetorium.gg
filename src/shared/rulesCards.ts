@@ -1,10 +1,8 @@
 import type { Stratagem } from '../core/battle'
-import type { WhenDrawn } from '../contracts/missions'
 import type { MissionSelectionKind } from '../core/missionSelections'
-import type { MissionAction } from '../contracts/missions'
+import type { MissionAction, WhenDrawn } from '../contracts/missions'
 import type { MissionAward as Award } from '../core/scoring'
 
-export type { MissionAward as Award, AwardTrigger } from '../core/scoring'
 export type Mission = {
   id: string
   name: string
@@ -36,7 +34,7 @@ export function missionForIn(
   missions: ReadonlyMap<string, Mission>,
   one: string | null,
   two: string | null,
-  missionPackId: string | null = null,
+  missionPackId: string | null,
 ): Mission | null {
   if (!one || !two) return null
   if (missionPackId) {

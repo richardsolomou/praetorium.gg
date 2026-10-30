@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { PageContent, PageHeader } from '../../components/Page'
+import { PRIVACY_EMAIL } from '../../projectLinks'
 
 export function LegalPage({ eyebrow, title, updated, children }: { eyebrow: string; title: string; updated: string; children: ReactNode }) {
   return (
@@ -24,4 +25,12 @@ export function LegalSection({ title, children }: { title: string; children: Rea
 
 export function LegalLinks({ children }: { children: ReactNode }) {
   return <ul className="list-disc space-y-1 pl-5 marker:text-edge-strong">{children}</ul>
+}
+
+export function PrivacyEmail() {
+  return (
+    <a href={`mailto:${PRIVACY_EMAIL}`} className="text-info hover:text-parchment">
+      {PRIVACY_EMAIL}
+    </a>
+  )
 }

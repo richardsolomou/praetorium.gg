@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../../core/rosterLibrary'
 import { variantCards, variantGroups } from '../../../core/rosterVariants'
-import { factionIndexQuery, gameReferencesQuery } from '../../queries'
+import { factionIndexQuery } from '../../queries'
+import { useDispositionNames } from '../battle/setup/chrome'
 import type { SavedRoster } from './rosterLibrary'
 import { useRosterPages } from './rosterPages'
 import { sortRosters } from '../../../core/rosterSort'
@@ -31,7 +32,7 @@ export function RosterChoices({
 }) {
   const [shownCount, setShownCount] = useState(ROSTER_LIBRARY_BATCH_SIZE)
   const { data: available, isPending: factionsLoading } = useQuery(factionIndexQuery())
-  const { data: references } = useQuery(gameReferencesQuery())
+  const nameDisposition = useDispositionNames()
   // Recently updated first, the library's own default: its chosen order lives in a cookie scoped to `/rosters`.
   const shown = variantGroups(sortRosters(rosters, 'updated-desc')).slice(0, shownCount)
   const pages = useRosterPages(
@@ -48,7 +49,7 @@ export function RosterChoices({
       faction,
       points: page?.points,
       label: page?.label,
-      dispositionName: references?.dispositions.find((entry) => entry.id === roster.disposition)?.name,
+      dispositionName: nameDisposition(roster.disposition)?.name,
       pointsLoading: pages.pending(index),
       problem: page?.problem ?? null,
       differences: page?.differences ?? null,

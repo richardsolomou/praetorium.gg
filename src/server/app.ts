@@ -1,4 +1,3 @@
-import path from 'node:path'
 import { randomInt } from 'node:crypto'
 import { globalSingleton } from 'ras-stack/server'
 import pRetry from 'p-retry'
@@ -6,7 +5,7 @@ import os from 'node:os'
 import { setImmediate as yieldToEventLoop } from 'node:timers/promises'
 import { deploymentHost, reportServerFailure, serverTelemetry } from '../adapters/posthog'
 import { catalogueDirectory, type LoadedCatalogue, loadCatalogue } from './catalogueIndex'
-import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type TerrainReadRules, loadRulesSteps } from './rules'
+import { type LoadedRules, loadRulesSteps } from './rules'
 import {
   catalogueBaseUrl,
   catalogueLock,
@@ -36,7 +35,7 @@ import { referenceCatalogue } from './canonicalCatalogue'
 import { loadCatalogueHistory } from './catalogueHistory'
 import type { CanonicalCatalogue } from '../contracts/catalogue'
 import type { CatalogueHistoryEntry } from '../core/catalogueHistory'
-import { combatUnitsFor } from './combatUnits'
+import { combatUnitsFor } from '../shared/combatUnits'
 import { publishedFaction } from './referenceCatalogue'
 import { factionIndexFor, factionsFor } from '../shared/factionReferences'
 import { battleDetachmentData, type BattleDetachmentData } from '../shared/battleDetachmentData'
@@ -64,12 +63,8 @@ type App = {
   /** Stratagems and mission cards, null when that source has not been synced. */
   rules: () => LoadedRules | null
   rulesFor: (catalogueId?: string) => Promise<LoadedRules | null>
-  battleMissionRulesFor: () => Promise<BattleMissionRules | null>
-  battleReadRulesFor: () => Promise<BattleReadRules | null>
   battleFactionsFor: () => Promise<BattleFaction[]>
-  terrainReadRulesFor: (matchupIds: readonly string[]) => Promise<TerrainReadRules | null>
   battleDetachmentDataFor: (catalogueId: string) => Promise<BattleDetachmentData | null>
-  rosterLabelRulesFor: (catalogueId?: string) => Promise<Pick<LoadedRules, 'factionNames'> | null>
   /** What each army-data update changed, as the snapshot carries it; null when it carries none. */
   catalogueHistory: () => CatalogueHistoryEntry[] | null
   catalogueHistoryFor: () => Promise<CatalogueHistoryEntry[] | null>
@@ -268,24 +263,12 @@ function catalogueReads(getInstance: () => App, loaded: ReturnType<typeof catalo
         ? versions().pageCanonical(catalogueId, await versions().canonicalForRequest(catalogueId), () => getInstance().canonicalCatalogue())
         : getInstance().canonicalCatalogue(),
     rulesFor: async (catalogueId?: string) => versions().rulesFor(catalogueId),
-    battleMissionRulesFor: async () => getInstance().rules(),
-    battleReadRulesFor: async () => getInstance().rules(),
     battleFactionsFor: async () => versions().battleFactions(),
-    terrainReadRulesFor: async (matchupIds: readonly string[]) => {
-      const rules = getInstance().rules()
-      return rules
-        ? {
-            terrainTemplates: rules.terrainTemplates,
-            terrainLayouts: rules.terrainLayouts.filter((layout) => matchupIds.includes(layout.matchupId)),
-          }
-        : null
-    },
     battleDetachmentDataFor: async (catalogueId: string) => {
       const catalogue = versions().catalogueFor(catalogueId)
       const rules = versions().rulesFor(catalogueId)
       return catalogue && rules ? battleDetachmentData(catalogue, rules, catalogueId) : null
     },
-    rosterLabelRulesFor: async (catalogueId?: string) => versions().rulesFor(catalogueId),
     catalogueHistoryFor: async () => getInstance().catalogueHistory(),
     combatUnitsFor: async () => getInstance().combatUnits(),
     factionIndexFor: async () => {
@@ -302,17 +285,13 @@ function catalogueReads(getInstance: () => App, loaded: ReturnType<typeof catalo
           }
         : null
     },
-    factionsFor: async () => {
-      return versions().factions()
-    },
+    factionsFor: async () => versions().factions(),
     factionFor: async (catalogueId: string) => {
       const faction = versions().factionFor(catalogueId)
       return faction ? publishedFaction(faction, versions().catalogueFor(faction.id)) : null
     },
     factionIconFor: async (id: string) => getInstance().rules()?.factionIcons.get(id) ?? null,
-    searchIndexFor: async () => {
-      return loaded.searchIndex()
-    },
+    searchIndexFor: async () => loaded.searchIndex(),
   }
 }
 
@@ -337,8 +316,7 @@ function useCatalogueLoaders(instance: App, directory: string) {
 export function app(): App {
   const createApp = (): App => {
     const telemetry = serverTelemetry()
-    const dataDirectory = path.resolve(process.env.DATA_DIR ?? '/data')
-    let catalogueDataDirectory = catalogueDirectory(dataDirectory)
+    let catalogueDataDirectory = catalogueDirectory()
     const email = emailDelivery()
     const localAuth = localAuthDatabase(process.env.AUTH_SQLITE_PATH ?? '')
     const authDatabase = localAuth.database
@@ -416,7 +394,7 @@ export function app(): App {
       spacetimeGuestToken: auth.spacetimeGuestToken,
       email,
       refreshCatalogue: () => {
-        const next = catalogueDirectory(dataDirectory)
+        const next = catalogueDirectory()
         if (next === catalogueDataDirectory) return
         useCatalogueLoaders(instance, next)
         catalogueDataDirectory = next
@@ -490,7 +468,7 @@ export function app(): App {
   const instance = globalSingleton('praetorium.app', createApp)
   if (process.env.CATALOGUE_LIVE_DIR) instance.refreshCatalogue()
   if (process.env.PRAETORIUM_LOCAL_DEV === 'true' && instance.hotReloadToken !== hotReloadToken) {
-    useCatalogueLoaders(instance, catalogueDirectory(path.resolve(process.env.DATA_DIR ?? '/data')))
+    useCatalogueLoaders(instance, catalogueDirectory())
     instance.hotReloadToken = hotReloadToken
     // Not warmed again here: rebuilding every catalogue projection after an edit held the
     // dev server's only thread for minutes, so each projection rebuilds when first read.

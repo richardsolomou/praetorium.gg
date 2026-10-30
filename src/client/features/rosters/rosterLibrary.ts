@@ -17,7 +17,7 @@ import {
   setRosterVisibility,
   sharedRoster,
 } from '../../functions'
-import { invalidateSavedRosters, savedRosterSummariesQuery } from '../../queries'
+import { invalidateSavedRosters, type QueryData, savedRosterSummariesQuery } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { shareLink } from '../../nativeBridge'
 import type { RosterSetupReview } from './rosterSetupReview'
@@ -25,13 +25,13 @@ import { exportInput } from './rosterDraft'
 import { claimInput, clearGuestDraft, type GuestDraft, keepReviewedDraft } from './guestDraft'
 
 /** One saved list, as the library reads it back. */
-export type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRosterSummariesQuery>['queryFn']>>>[number]
+export type SavedRoster = QueryData<typeof savedRosterSummariesQuery>[number]
 
 /**
  * Everything a saved list can have done to it from the library.
  *
- * Gathered here because the same six actions are offered twice on every row — from
- * the overflow button and from the right-click menu — and because sharing has a
+ * Gathered here because every action is offered twice on each row — from the
+ * overflow button and from the right-click menu — and because sharing has a
  * rollback that has no business in a component.
  */
 export function useRosterActions(origin: string, device?: DeviceRoster | null) {

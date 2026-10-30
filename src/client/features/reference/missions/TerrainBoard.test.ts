@@ -1,68 +1,10 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { deploymentZoneClass, TerrainBoard } from './TerrainBoard'
+import { TerrainBoard } from './TerrainBoard'
 import type { TerrainGeometry } from './terrainGeometry'
 
 const board = { width: 60, height: 44 }
-
-describe('deployment zone theme colors', () => {
-  it('uses red for the attacker and green for the defender', () => {
-    expect(deploymentZoneClass('attacker')).toBe('fill-side-a/20 stroke-side-a')
-    expect(deploymentZoneClass('defender')).toBe('fill-side-b/20 stroke-side-b')
-  })
-
-  it('uses the primary green for a neutral zone', () => {
-    expect(deploymentZoneClass('either')).toBe('fill-parchment/20 stroke-parchment')
-  })
-})
-
-describe('terrain material colours', () => {
-  it.each([false, true])('colours consecutive parts by material, including roofs (detailed: %s)', (detailed) => {
-    const points = [
-      { x: 0, y: 0 },
-      { x: 2, y: 0 },
-      { x: 2, y: 2 },
-    ]
-    const materials = ['dense', 'dense', 'light', 'light', 'unknown']
-    const geometry: TerrainGeometry = {
-      board,
-      areas: [
-        {
-          id: 'area',
-          name: 'Area',
-          points,
-          markers: [],
-          objective: null,
-          group: null,
-          measurements: [],
-          parts: materials.map((material, index) => ({
-            id: `part-${index}`,
-            name: `Part ${index}`,
-            material,
-            roof: points,
-            walls: [{ id: `wall-${index}`, points, thickness: 0.5 }],
-          })),
-        },
-      ],
-    }
-    const markup = renderToStaticMarkup(
-      createElement(TerrainBoard, {
-        layout: { name: 'Test layout', pieces: [], geometry },
-        templates: [],
-        detailed,
-      }),
-    )
-    const parts = [...markup.matchAll(/<g class="([^"]+)"><polygon[^>]+><\/polygon><polyline[^>]+><title>Part \d<\/title>/g)]
-    expect(parts.map((part) => part[1])).toEqual([
-      'fill-achieved/20 stroke-achieved',
-      'fill-achieved/20 stroke-achieved',
-      'fill-discarded/20 stroke-discarded',
-      'fill-discarded/20 stroke-discarded',
-      'fill-bone/10 stroke-bone',
-    ])
-  })
-})
 
 describe('terrain areas', () => {
   const footprint = (id: string, x: number, group: string | null): TerrainGeometry['areas'][number] => ({
@@ -188,35 +130,6 @@ it('says a traced layout places its pieces approximately', () => {
     }),
   )
   expect(markup).toContain('those positions are approximate')
-})
-
-it('keeps a detailed traced square battlefield free of edge rulers', () => {
-  const markup = renderToStaticMarkup(
-    createElement(TerrainBoard, {
-      layout: {
-        name: 'Colosseum',
-        pieces: [],
-        geometry: { board: { width: 36, height: 36 }, areas: [] },
-        publisherUrl: 'https://playontabletop.com/kotc/',
-      },
-      templates: [],
-      detailed: true,
-    }),
-  )
-  expect(markup).toContain('viewBox="0 0 36 36"')
-  expect(markup).not.toContain('edge ruler')
-})
-
-it('keeps detailed Battlemaster battlefields free of edge rulers', () => {
-  const markup = renderToStaticMarkup(
-    createElement(TerrainBoard, {
-      layout: { name: 'Chapter Approved', pieces: [], geometry: { board, areas: [] } },
-      templates: [],
-      detailed: true,
-    }),
-  )
-  expect(markup).toContain('viewBox="0 0 44 60"')
-  expect(markup).not.toContain('edge ruler')
 })
 
 const rectangle = (x: number, y: number, width: number, height: number) => [

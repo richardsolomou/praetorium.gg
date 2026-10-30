@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test'
 import type { LocalState } from '../src/contracts/localState'
+import type { Command } from '../src/core/battle'
 import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -152,6 +153,18 @@ export async function seatsBySide(battleId: string) {
   return seats.toSorted((left, right) => left.side - right.side).map((seat) => seat.user_id)
 }
 
+/** The battle's logged commands in log order. */
+export async function battleCommands(battleId: string) {
+  const rows = await productSql<{
+    seq: number
+    user_id: string
+    body: string
+  }>`SELECT seq, user_id, body FROM commands WHERE battle_id = ${battleId}`
+  return rows
+    .toSorted((left, right) => left.seq - right.seq)
+    .map((row) => ({ seq: row.seq, by: row.user_id, body: JSON.parse(row.body) as Command }))
+}
+
 /** Appends a command after whatever the log ends on now: an open battle page can still be writing its own. */
 export async function appendCommand(battleId: string, by: string, body: object) {
   const seq =
@@ -162,10 +175,7 @@ export async function appendCommand(battleId: string, by: string, body: object) 
 /** Appends commands to the open battle's log, for journeys that only need to reach a later state. */
 export async function battleLog(page: Page) {
   const id = await battleIdFor(lastPathSegment(page.url()))
-  const commands = await productSql<{ body: string }>`SELECT body FROM commands WHERE battle_id = ${id}`
-  const begun = commands
-    .map((command) => JSON.parse(command.body) as { kind: string; firstPlayerId?: string })
-    .find((body) => body.kind === 'begin-battle')
+  const begun = (await battleCommands(id)).map(({ body }) => body).find((body) => body.kind === 'begin-battle')
   if (!begun?.firstPlayerId) throw new Error('Battle did not start')
   const [second] = await productSql<{
     user_id: string

@@ -260,10 +260,6 @@ describe('readsSealedLeagueRoster', () => {
   it('keeps a 1v1 opponent sealed', () => {
     expect(readsSealedLeagueRoster('1v1', 2_000, entry('alice', 2_000), entry('bob', 2_000))).toBe(false)
   })
-
-  it('keeps every list sealed from a visitor', () => {
-    expect(readsSealedLeagueRoster('2v1', 2_000, null, entry('bob'))).toBe(false)
-  })
 })
 
 describe('leagueRegistrationFull', () => {

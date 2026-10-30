@@ -6,7 +6,7 @@
  * absent from a default list, and walking only what was built would never offer it.
  */
 
-import { definitionAndTarget, type CatalogueIndex, type Definition } from './catalogue'
+import { definitionAndTarget, type CatalogueIndex, type Definition, resolve } from './catalogue'
 import { scaleOf } from './collective'
 import { remember } from './collections'
 import {
@@ -26,7 +26,6 @@ import {
   repeatedModelOn,
   replacesSquadmate,
   requiredCount,
-  resolve,
   UNBOUNDED,
 } from './definitions'
 import {

@@ -6,7 +6,7 @@ import { setSessionCookie } from 'better-auth/cookies'
 import { randomToken } from 'ras-stack/auth'
 import { z } from 'zod'
 import { SOCIAL_PROVIDERS } from '../authConfig'
-import { PKCE_VALUE } from '../contracts/nativeAuth'
+import { NATIVE_AUTH_ERROR_QUERY, NATIVE_AUTH_SUCCESS_QUERY, PKCE_VALUE } from '../contracts/nativeAuth'
 
 const EXCHANGE_MINUTES = 3
 const NULL_ORIGIN_ENDPOINTS = new Set(['/native-auth-token/exchange', '/native-auth-token/consume'])
@@ -31,8 +31,8 @@ const generateBody = z.object({
         return (
           value.startsWith('/') &&
           parsed.origin === origin.origin &&
-          !parsed.searchParams.has('__native_auth') &&
-          !parsed.searchParams.has('__native_auth_error')
+          !parsed.searchParams.has(NATIVE_AUTH_SUCCESS_QUERY) &&
+          !parsed.searchParams.has(NATIVE_AUTH_ERROR_QUERY)
         )
       } catch {
         return false
@@ -118,7 +118,7 @@ export function nativeAuthToken() {
           const terminal = (message: string) => {
             if (context.body.navigation !== '1') return context.error('BAD_REQUEST', { message })
             const destination = new URL('/sign-in', context.context.baseURL || 'https://praetorium.gg')
-            destination.searchParams.set('__native_auth_error', context.body.id)
+            destination.searchParams.set(NATIVE_AUTH_ERROR_QUERY, context.body.id)
             context.setHeader('cache-control', 'no-store')
             return context.redirect(destination.toString())
           }
@@ -141,7 +141,7 @@ export function nativeAuthToken() {
             return context.json({ id: context.body.id, action: record.action, provider: record.provider, next: record.next })
           }
           const destination = new URL(record.next, context.context.baseURL || 'https://praetorium.gg')
-          destination.searchParams.set('__native_auth', context.body.id)
+          destination.searchParams.set(NATIVE_AUTH_SUCCESS_QUERY, context.body.id)
           context.setHeader('cache-control', 'no-store')
           throw context.redirect(destination.toString())
         },

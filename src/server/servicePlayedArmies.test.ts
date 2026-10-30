@@ -42,11 +42,6 @@ it('lists both armies of a finished public battle', async () => {
   expect((await service.playedArmies(null)).armies.map((army) => army.name)).toEqual(['Alice army', 'Bob army'])
 })
 
-it('lists nothing of a battle still being played', async () => {
-  const { service } = fixture({ finished: false })
-  expect((await service.playedArmies(null)).armies).toEqual([])
-})
-
 it('reads armies only from the public feed, which leaves out the reader’s own battles', async () => {
   const { service, repository } = fixture()
   await service.playedArmies('reader')

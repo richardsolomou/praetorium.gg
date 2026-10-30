@@ -20,12 +20,17 @@ afterEach(() => {
   construction.local.mockReset()
 })
 
-it('keeps authoritative battle missions until local rules are available', () => {
+function runtimeClient(onLine: boolean) {
   vi.stubGlobal('window', {})
-  vi.stubGlobal('navigator', { onLine: false })
+  vi.stubGlobal('navigator', { onLine })
   const client = new QueryClient()
   configureLocalRuntime(client, () => {})
-  client.setQueryData(['me'], { id: 'alice' })
+  client.setQueryData(['me'], { id: ALICE })
+  return client
+}
+
+it('keeps authoritative battle missions until local rules are available', () => {
+  const client = runtimeClient(false)
   const screen = { kind: 'battle', view: { seq: 0 }, missions: [{ side: 0, mission: { id: 'primary' } }] }
   client.setQueryData(['battle', 'token'], screen)
   const state = emptyLocalState('alice')
@@ -55,12 +60,8 @@ it('preserves report labels in the finished local battle timeline', () => {
 })
 
 it('keeps connected authoritative battle data without constructing clean downloaded workspaces', () => {
-  vi.stubGlobal('window', {})
-  vi.stubGlobal('navigator', { onLine: true })
   construction.data.mockReturnValue({})
-  const client = new QueryClient()
-  configureLocalRuntime(client, () => {})
-  client.setQueryData(['me'], { id: 'alice' })
+  const client = runtimeClient(true)
   const screen = { kind: 'battle', view: { seq: 0 }, missions: [{ side: 0, mission: { id: 'primary' } }] }
   client.setQueryData(['battle', 'token'], screen)
   const state = emptyLocalState('alice')
@@ -74,11 +75,7 @@ it('keeps connected authoritative battle data without constructing clean downloa
 })
 
 it('does not restore construction data while projecting roster work without battles', () => {
-  vi.stubGlobal('window', {})
-  vi.stubGlobal('navigator', { onLine: true })
-  const client = new QueryClient()
-  configureLocalRuntime(client, () => {})
-  client.setQueryData(['me'], { id: 'alice' })
+  runtimeClient(true)
   const state = emptyLocalState('alice')
   state.documents['roster:army'] = { data: { id: 'army' }, serverVersion: 1 }
   projectBattles(state)
@@ -86,12 +83,8 @@ it('does not restore construction data while projecting roster work without batt
 })
 
 it.each([false, true])('projects a battle that needs local rules while online=%s', (online) => {
-  vi.stubGlobal('window', {})
-  vi.stubGlobal('navigator', { onLine: online })
   construction.data.mockReturnValue({})
-  const client = new QueryClient()
-  configureLocalRuntime(client, () => {})
-  client.setQueryData(['me'], { id: ALICE })
+  const client = runtimeClient(online)
   const saved = workspace()
   const state = emptyLocalState(ALICE)
   state.documents['battle:token'] = { data: saved, serverVersion: 0 }
@@ -102,12 +95,8 @@ it.each([false, true])('projects a battle that needs local rules while online=%s
 })
 
 it('keeps the connected battle screen while an earlier conflict awaits review', () => {
-  vi.stubGlobal('window', {})
-  vi.stubGlobal('navigator', { onLine: true })
   construction.data.mockReturnValue({})
-  const client = new QueryClient()
-  configureLocalRuntime(client, () => {})
-  client.setQueryData(['me'], { id: ALICE })
+  const client = runtimeClient(true)
   const screen = { kind: 'battle', view: { seq: 0 }, missions: [] }
   client.setQueryData(['battle', 'token'], screen)
   const state = emptyLocalState(ALICE)

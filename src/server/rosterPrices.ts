@@ -50,7 +50,7 @@ export async function cachedRosterTotalsFor(rosters: readonly TotalsRoster[]) {
   const { values, missing } = cachedByPosition(rosters, revision, rosterTotalsCache)
   for (const [catalogueId, positions] of missing) {
     const loaded = await app().catalogueFor(catalogueId)
-    const rules = await app().rosterLabelRulesFor(catalogueId)
+    const rules = await app().rulesFor(catalogueId)
     for (const index of positions) {
       const roster = rosters[index]!
       const totals = calculateRosterTotals(

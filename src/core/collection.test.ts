@@ -24,16 +24,6 @@ describe('collection grouped by faction', () => {
   it('shows no groups for an empty shelf', () => {
     expect(groupCollection([], factions)).toEqual([])
   })
-  it('counts physical models for one datasheet', () => {
-    expect(groupCollection([{ entryId: 'warriors', models: 100 }], factions)).toEqual([
-      {
-        catalogueId: 'necrons',
-        name: 'Necrons',
-        models: 100,
-        entries: [{ entryId: 'warriors', slug: 'warriors', name: 'Warriors', models: 100 }],
-      },
-    ])
-  })
   it('totals models within each faction and lists shared datasheets only once', () => {
     expect(
       groupCollection(

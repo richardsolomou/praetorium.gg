@@ -18,7 +18,7 @@ export async function saveOwnedRoster(
     ? calculateRosterTotals(
         { ...data, units: data.picks },
         await instance.catalogueFor(data.catalogueId),
-        await instance.rosterLabelRulesFor(data.catalogueId),
+        await instance.rulesFor(data.catalogueId),
       )
     : null
   return instance.service.rosterService.saveRoster(userId, {

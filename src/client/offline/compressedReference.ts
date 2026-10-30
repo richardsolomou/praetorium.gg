@@ -1,4 +1,5 @@
 import { gunzipSync, strFromU8, strToU8 } from 'fflate'
+import { toBase64 } from '../../core/base64'
 import { MAX_OFFLINE_BYTES, isConstructionData, isReferenceBundle, type OfflineReferenceData } from '../../contracts/offlineReference'
 
 /**
@@ -49,7 +50,7 @@ export async function pack(value: unknown, signal?: AbortSignal) {
   if (blob.size > MAX_OFFLINE_BYTES) throw new Error('The reference exceeds this device’s download limit.')
   const compressed = blob.stream().pipeThrough(new CompressionStream('gzip'), { signal })
   const bytes = new Uint8Array(await new Response(compressed).arrayBuffer())
-  return btoa(strFromU8(bytes, true))
+  return toBase64(bytes)
 }
 
 /** Construction data still packed as it was saved, by the reference that carries it. */

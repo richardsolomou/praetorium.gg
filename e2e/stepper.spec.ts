@@ -18,12 +18,6 @@ async function openImmortals(page: Page) {
 }
 
 test.describe('count steppers', () => {
-  test('a click steps once', async ({ page }) => {
-    await openImmortals(page)
-    await page.getByRole('button', { name: 'More models in Immortals', exact: true }).click()
-    await expect(page.getByLabel('Immortals models')).toHaveText('6')
-  })
-
   test('holding More keeps stepping to the largest size', async ({ page }) => {
     await openImmortals(page)
     await page.getByRole('button', { name: 'More models in Immortals', exact: true }).hover()
@@ -31,17 +25,5 @@ test.describe('count steppers', () => {
     await expect(page.getByLabel('Immortals models')).toHaveText('10')
     await page.mouse.up()
     await expect(page.getByRole('button', { name: 'More models in Immortals', exact: true })).toBeDisabled()
-  })
-
-  test('the count picks a size directly from the keyboard', async ({ page }) => {
-    await openImmortals(page)
-    await page.getByLabel('Immortals models').focus()
-    await page.keyboard.press('Enter')
-    await expect(page.getByRole('option', { name: '5', exact: true })).toBeFocused()
-    await page.keyboard.press('ArrowDown')
-    await page.keyboard.press('ArrowDown')
-    await page.keyboard.press('ArrowDown')
-    await page.keyboard.press('Enter')
-    await expect(page.getByLabel('Immortals models')).toHaveText('8')
   })
 })

@@ -1,3 +1,5 @@
+import { capitalised } from './text'
+
 /**
  * Some community transcriptions shorten printed rules, as in "This unit's melee attacks have +1 AP".
  * The compiler reads the printed phrasing, so each shorthand sentence it recognises is rewritten into
@@ -37,15 +39,15 @@ function rerollEffect(rest: string) {
     /^re-roll (hit|wound) rolls(?: and (hit|wound) rolls)? of 1$|^re-roll (hit|wound) rolls of 1 and (hit|wound) rolls of 1$/i.exec(rest)
   if (ones) {
     const rolls = [ones[1] ?? ones[3], ones[2] ?? ones[4]].filter(Boolean) as string[]
-    return rolls.map((roll) => `re-roll a ${roll[0]!.toUpperCase()}${roll.slice(1).toLowerCase()} roll of 1`).join(' and ')
+    return rolls.map((roll) => `re-roll a ${capitalised(roll.toLowerCase())} roll of 1`).join(' and ')
   }
   const all = /^re-roll (hit|wound) rolls$/i.exec(rest)
-  return all ? `you can re-roll the ${all[1]![0]!.toUpperCase()}${all[1]!.slice(1).toLowerCase()} roll` : null
+  return all ? `you can re-roll the ${capitalised(all[1]!.toLowerCase())} roll` : null
 }
 
 function bonusEffect(rest: string) {
   const roll = /^\+(\d) to (hit|wound) rolls$/i.exec(rest)
-  if (roll) return `add ${roll[1]} to the ${roll[2]![0]!.toUpperCase()}${roll[2]!.slice(1).toLowerCase()} roll`
+  if (roll) return `add ${roll[1]} to the ${capitalised(roll[2]!.toLowerCase())} roll`
   const ap = /^\+(\d) AP$/i.exec(rest)
   return ap ? `improve the Armour Penetration characteristic of that attack by ${ap[1]}` : null
 }

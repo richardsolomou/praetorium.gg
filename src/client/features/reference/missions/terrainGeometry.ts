@@ -119,6 +119,14 @@ export function deploymentObjectiveMarkers(geometry: TerrainGeometry | null, obj
   }))
 }
 
+/** Every objective on a battlefield: the deployment's own markers, then the terrain's. */
+export function battlefieldObjectives(geometry: TerrainGeometry | null, objectives: { x: number; y: number }[]) {
+  return [
+    ...deploymentObjectiveMarkers(geometry, objectives).map((marker, index) => ({ key: `deployment-${index}`, position: marker.position })),
+    ...(geometry ? objectiveTerrainMarkers(geometry) : []),
+  ]
+}
+
 /** Six-objective layouts put their inner pair about 8″ from the centre and every expansion at least 15″ out. */
 const centreRadius = 12
 

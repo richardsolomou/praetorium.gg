@@ -10,6 +10,7 @@ import {
   concede,
   desktopContext,
   scoreboard,
+  playerPanel,
 } from './account'
 
 /** Narrow screens show one column at a time behind the battle tabs. */
@@ -40,7 +41,7 @@ test('missed stratagems and scores are recorded late, refused past their limit, 
   await practiceBattle(page, roster)
   await startBattle(page)
 
-  const side = page.locator('[data-panel="player"][data-side="0"]')
+  const side = playerPanel(page, 0)
   await show(page, 'Your side')
   await side.getByRole('button', { name: '+1 CP', exact: true }).click()
   await expect(side.locator('[data-stat="cp"]')).toHaveText('2')

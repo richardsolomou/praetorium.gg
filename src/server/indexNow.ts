@@ -1,4 +1,5 @@
 import { notFound } from './notFound.ts'
+import { unescapeHtml } from './escapeHtml.ts'
 
 /**
  * IndexNow tells Bing and the engines that share its submissions which pages changed, so a
@@ -29,7 +30,7 @@ function sitemapEntries(xml: string) {
   const entries = new Map<string, string | null>()
   for (const [, url] of xml.matchAll(/<url>(.*?)<\/url>/gs)) {
     const loc = /<loc>(.*?)<\/loc>/s.exec(url!)?.[1]
-    if (loc) entries.set(unescapeXml(loc), /<lastmod>(.*?)<\/lastmod>/s.exec(url!)?.[1] ?? null)
+    if (loc) entries.set(unescapeHtml(loc), /<lastmod>(.*?)<\/lastmod>/s.exec(url!)?.[1] ?? null)
   }
   return entries
 }
@@ -39,6 +40,3 @@ export function sitemapChanges(before: string, after: string) {
   const previous = sitemapEntries(before)
   return [...sitemapEntries(after)].filter(([url, modified]) => !previous.has(url) || previous.get(url) !== modified).map(([url]) => url)
 }
-
-const unescapeXml = (value: string) =>
-  value.replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&quot;', '"').replaceAll('&amp;', '&')

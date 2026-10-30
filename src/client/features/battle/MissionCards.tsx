@@ -15,7 +15,6 @@ import { MissionSelectionDialog } from './MissionSelectionDialog'
 import type { MissionSelectionKind } from '../../../core/missionSelections'
 
 import type { MissionAction } from '../../../contracts/missions'
-import type { MissionAward as Award } from '../../missionText'
 import { countLabel } from '../../text'
 
 /** A card, and the action it names, because the reader prints both. */
@@ -31,7 +30,6 @@ type Props = {
   actionable: boolean
   pending: boolean
   send: (command: Command) => void
-  awardsFor: (key: string, mode?: string) => Award[]
   referenceFor: (key: string) => ReferenceCard | undefined
   guides: { primary: number; secondary: number }
 }

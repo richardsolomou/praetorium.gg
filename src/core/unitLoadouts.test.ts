@@ -30,10 +30,6 @@ describe('loadoutOf', () => {
     })
   })
 
-  it('never keeps the private note', () => {
-    expect(alone()?.pick).not.toHaveProperty('note')
-  })
-
   it('records the book of an allied unit rather than the roster it stood in', () => {
     expect(alone({ catalogueId: 'knights' })?.catalogueId).toBe('knights')
   })

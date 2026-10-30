@@ -9,3 +9,8 @@ export * from './queries/release'
 export * from './queries/rosters'
 export * from './queries/simulator'
 export * from './queries/support'
+
+/** What a query option factory's fetch resolves to: the query's data, or one page of an infinite query. */
+export type QueryData<Options extends (...args: never[]) => { queryFn?: unknown }> = Awaited<
+  ReturnType<Extract<ReturnType<Options>['queryFn'], (...args: never[]) => unknown>>
+>

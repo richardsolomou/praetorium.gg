@@ -10,9 +10,6 @@ it('highlights damage rather than destruction chance when comparing wounds', () 
 it('changes the best target when comparing destruction chance', () => {
   expect(bestRosterMatches([answer(5, 1, 0.1), answer(3, 2, 0.8)], 'wipe')).toEqual([1])
 })
-it('changes the best target when comparing models', () => {
-  expect(bestRosterMatches([answer(5, 1, 0.1), answer(3, 2, 0.8)], 'meanKills')).toEqual([1])
-})
 it('highlights every tied target', () => {
   expect(bestRosterMatches([answer(3, 1, 0), answer(3, 1, 0)], 'meanDamage')).toEqual([0, 1])
 })

@@ -123,13 +123,13 @@ it('refuses an edit to a locked roster before saving it on the device', async ()
 it('saves a visibility change to a locked roster on the device', async () => {
   await holdLocked()
   await setRosterVisibility({ data: { id: 'original', visibility: 'private' } })
-  expect(mocks.queue.mock.calls[0]?.[3]).toMatchObject({ visibility: 'private', locked: true })
+  expect(mocks.queue.mock.calls[0]?.[3].data).toMatchObject({ visibility: 'private', locked: true })
 })
 
 it('starts a copy of a locked roster unlocked', async () => {
   await holdLocked()
   await copyRoster({ data: { id: 'original', variant: true } })
-  expect(mocks.queue.mock.calls[0]?.[3]).toMatchObject({ baseRosterId: 'original', locked: false })
+  expect(mocks.queue.mock.calls[0]?.[3].data).toMatchObject({ baseRosterId: 'original', locked: false })
 })
 
 async function readOthersRoster() {
@@ -141,7 +141,7 @@ async function readOthersRoster() {
 it("copies another player's readable roster into the reader's own list", async () => {
   await readOthersRoster()
   await copyRoster({ data: { id: 'published', variant: false } })
-  expect(mocks.queue.mock.calls[0]?.[3]).toMatchObject({ name: 'Copy of Their army', baseRosterId: null, visibility: 'private' })
+  expect(mocks.queue.mock.calls[0]?.[3].data).toMatchObject({ name: 'Copy of Their army', baseRosterId: null, visibility: 'private' })
 })
 
 it("refuses a variant of another player's roster", async () => {
@@ -170,17 +170,17 @@ it('keeps a custom points budget when a save from an older screen does not state
   await holdBudget()
   const { pointsBudget: _unstated, ...older } = { ...roster, limit: 2000 }
   await saveRoster({ data: { ...older, name: 'Renamed' } })
-  expect(mocks.queue.mock.calls[0]?.[3]).toMatchObject({ name: 'Renamed', pointsBudget: 1500 })
+  expect(mocks.queue.mock.calls[0]?.[3].data).toMatchObject({ name: 'Renamed', pointsBudget: 1500 })
 })
 
 it('clears a custom points budget when a save asks for the standard total', async () => {
   await holdBudget()
   await saveRoster({ data: { ...roster, limit: 2000, pointsBudget: null } })
-  expect(mocks.queue.mock.calls[0]?.[3]).toMatchObject({ pointsBudget: null })
+  expect(mocks.queue.mock.calls[0]?.[3].data).toMatchObject({ pointsBudget: null })
 })
 
 it('copies a custom points budget into a variant saved on the device', async () => {
   await holdBudget()
   await copyRoster({ data: { id: 'original', variant: true } })
-  expect(mocks.queue.mock.calls[0]?.[3]).toMatchObject({ limit: 2000, pointsBudget: 1500 })
+  expect(mocks.queue.mock.calls[0]?.[3].data).toMatchObject({ limit: 2000, pointsBudget: 1500 })
 })

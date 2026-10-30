@@ -24,7 +24,6 @@ vi.mock('./app', () => ({
     telemetry: { capture },
     catalogueFor: async () => shelf.value,
     rulesFor: async () => null,
-    battleReadRulesFor: async () => null,
   }),
 }))
 

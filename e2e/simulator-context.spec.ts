@@ -1,6 +1,15 @@
 import { expect, test, type Locator, type Page } from './test'
 import { encodeSimulatorState, type SimulatorState } from '../src/contracts/simulatorState'
-import { addUnit, createRoster, signUp, waitForRosterSave, expectNoPageOverflow, chooseOption, nextFrames } from './account'
+import {
+  addUnit,
+  createRoster,
+  signUp,
+  waitForRosterSave,
+  expectNoHorizontalOverflow,
+  expectNoPageOverflow,
+  chooseOption,
+  nextFrames,
+} from './account'
 import { chooseCombatUnit, openCombatControls, combatSettled, simulatorState } from './combat'
 
 declare global {
@@ -50,7 +59,7 @@ async function choose(page: Page, control: string, name: string) {
 
 async function noOverflow(page: Page, scope: Locator) {
   await expectNoPageOverflow(page)
-  expect(await scope.evaluate((element) => element.scrollWidth <= element.clientWidth + 1)).toBe(true)
+  await expectNoHorizontalOverflow(scope)
 }
 
 async function selectedProfile(page: Page, prefix: string) {

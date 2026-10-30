@@ -14,6 +14,7 @@ import {
   uniqueName,
   expectNoPageOverflow,
   PHONE,
+  playerPanel,
 } from './account'
 import { productOperator, withAuthSql } from './storage'
 import { expectNoHorizontalOverflow } from './builder.harness'
@@ -142,19 +143,19 @@ test('a 2v1 draws the allied pair as one side with one pool of everything', asyn
 
   // One panel for the pair, carrying both armies and a single command point pool.
   await expect(sidePanels(ally)).toHaveCount(2)
-  await expect(side(ally, 1).getByRole('button', { name: `Open ${allyRoster}`, exact: true })).toHaveText('Army')
-  await expect(side(ally, 1).getByRole('button', { name: `Open ${partnerRoster}`, exact: true })).toHaveText('Army')
-  await expect(side(ally, 1).locator('[data-stat="cp"]')).toHaveCount(1)
+  await expect(playerPanel(ally, 1).getByRole('button', { name: `Open ${allyRoster}`, exact: true })).toHaveText('Army')
+  await expect(playerPanel(ally, 1).getByRole('button', { name: `Open ${partnerRoster}`, exact: true })).toHaveText('Army')
+  await expect(playerPanel(ally, 1).locator('[data-stat="cp"]')).toHaveCount(1)
 
   // A command point one ally gains is the same one their partner is holding.
-  await side(ally, 1).getByRole('button', { name: '+1 CP' }).click()
-  await expect(side(ally, 1).locator('[data-stat="cp"]')).toHaveText('2')
-  await expect(side(partner, 1).locator('[data-stat="cp"]')).toHaveText('2')
-  await expect(side(host, 1).locator('[data-stat="cp"]')).toHaveText('2')
+  await playerPanel(ally, 1).getByRole('button', { name: '+1 CP' }).click()
+  await expect(playerPanel(ally, 1).locator('[data-stat="cp"]')).toHaveText('2')
+  await expect(playerPanel(partner, 1).locator('[data-stat="cp"]')).toHaveText('2')
+  await expect(playerPanel(host, 1).locator('[data-stat="cp"]')).toHaveText('2')
 
   // One army between the pair, so one bonus, paid to the side as the battle began.
-  await expect(side(host, 1)).toContainText('Battle ready included')
-  await expect(side(host, 1).locator('[data-stat="vp"]')).toHaveText('10')
+  await expect(playerPanel(host, 1)).toContainText('Battle ready included')
+  await expect(playerPanel(host, 1).locator('[data-stat="vp"]')).toHaveText('10')
 
   await ally.screenshot({ path: test.info().outputPath('team-battle-tracker.png'), fullPage: true })
 })
@@ -216,7 +217,7 @@ test('a 2v1 opened from the allied side seats its opener with their ally and pla
   await startBattle(host, `${hostName} & ${allyName}`)
 
   // One pool, holding what each ally brought: the opener's detachment and their ally's.
-  const ours = side(host, 0)
+  const ours = playerPanel(host, 0)
   // Both allies are pictured and named at the top of the one panel they share.
   await expect(ours.getByRole('link', { name: hostName })).toBeVisible()
   await expect(ours.getByRole('link', { name: allyName })).toBeVisible()
@@ -230,7 +231,7 @@ test('a 2v1 opened from the allied side seats its opener with their ally and pla
   await expect(ours.getByRole('button', { name: /^About Protocol of the Eternal Revenant$/i })).toBeVisible()
   await expect(ours.getByRole('button', { name: /^About Reanimation Crypts$/i })).toBeVisible()
   // The side across the table keeps its own, which is what says the pool is per side.
-  await expect(side(host, 1).getByRole('button', { name: /^About Reanimation Crypts$/i })).toHaveCount(0)
+  await expect(playerPanel(host, 1).getByRole('button', { name: /^About Reanimation Crypts$/i })).toHaveCount(0)
   await expect(sidePanels(host)).toHaveCount(2)
 
   await host.screenshot({ path: test.info().outputPath('team-battle-allied-opener.png'), fullPage: true })
@@ -269,14 +270,13 @@ test('a manual 2v2 seats two armies on each side with one shared pool', async ({
 
   await expect(sidePanels(host)).toHaveCount(2)
   for (const [index, roster] of rosters.entries()) {
-    await expect(side(host, index < 2 ? 0 : 1).getByRole('button', { name: `Open ${roster}`, exact: true })).toHaveText('Army')
+    await expect(playerPanel(host, index < 2 ? 0 : 1).getByRole('button', { name: `Open ${roster}`, exact: true })).toHaveText('Army')
   }
-  await expect(side(host, 0).locator('[data-stat="cp"]')).toHaveCount(1)
-  await expect(side(host, 1).locator('[data-stat="cp"]')).toHaveCount(1)
+  await expect(playerPanel(host, 0).locator('[data-stat="cp"]')).toHaveCount(1)
+  await expect(playerPanel(host, 1).locator('[data-stat="cp"]')).toHaveCount(1)
 
   await host.setViewportSize(PHONE)
   await expectNoPageOverflow(host)
 })
 
 const sidePanels = (page: Page) => page.locator('[data-panel="player"]')
-const side = (page: Page, index: number) => page.locator(`[data-panel="player"][data-side="${index}"]`)

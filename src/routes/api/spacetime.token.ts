@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { app } from '../../server/app'
 import { heldGuestSeat } from '../../server/guestSession'
-import { currentUser } from '../../server/playerSession'
+import { currentUserId } from '../../server/playerSession'
 import { guestDeviceHash } from '../../server/service'
 import { spacetimePublicUri } from '../../server/spacetimePublicUri'
 
@@ -14,7 +14,7 @@ export const Route = createFileRoute('/api/spacetime/token')({
         const battle = new URL(request.url).searchParams.get('battle')
         // Like every battle read, the seat this device holds comes before the account, and only in its own battle.
         const guest = battle ? await heldGuestSeat(battle) : null
-        const viewerId = guest?.seat ?? (await currentUser(request))?.id
+        const viewerId = guest?.seat ?? (await currentUserId(request))
         if (!viewerId) return new Response('Sign in required', { status: 401 })
         const battleId = battle ? await instance.service.userBattleId(battle, viewerId) : null
         const token = guest

@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router'
 import type { ComponentPropsWithRef } from 'react'
 import { catalogueEditionId, editionFamilyId } from '../../core/catalogueEdition'
 import { factionReferenceRoute } from '../../core/factionReferenceRoute'
+import { factionFor } from '../factions'
 import { factionIndexQuery } from '../queries'
 
 type Props = Omit<ComponentPropsWithRef<'a'>, 'href'> & {
@@ -16,7 +17,7 @@ type Props = Omit<ComponentPropsWithRef<'a'>, 'href'> & {
 export function FactionReferenceLink({ to, params, ...props }: Props) {
   const { data } = useQuery(factionIndexQuery())
   const faction =
-    data?.factions.find((entry) => entry.id === params.catalogueId || entry.slug === params.catalogueId) ??
+    factionFor(data, params.catalogueId) ??
     data?.factions.find((entry) => entry.isDefault && editionFamilyId(entry.id) === editionFamilyId(params.catalogueId)) ??
     data?.factions.find((entry) => editionFamilyId(entry.id) === editionFamilyId(params.catalogueId))
   const editionId = catalogueEditionId(params.catalogueId)

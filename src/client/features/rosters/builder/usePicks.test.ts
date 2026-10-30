@@ -6,68 +6,60 @@ import { pickEditor, requestedUnit, settledWarlord } from './usePicks'
 const group = 'members/heavy-terminator/heavy-weapon'
 const nested = `${group}/launcher/ammunition`
 
+type Edit = ReturnType<typeof pickEditor>
+
+/** An editor over a list, and what its edits leave the list holding. */
+function editor(initial: KeyedPick[], context: Parameters<typeof pickEditor>[1], nextKey: () => number = () => 1) {
+  let picks = initial
+  const edit = pickEditor((update) => (picks = typeof update === 'function' ? update(picks) : update), context, nextKey)
+  return { edit, picks: () => picks }
+}
+
 /** What one edit leaves the list holding. */
-function edited(spreads: Record<string, Record<string, number>>, run: (edit: ReturnType<typeof pickEditor>) => void) {
-  let picks: KeyedPick[] = [{ key: 0, entryId: 'squad', catalogueId: 'imperium', spreads }]
-  const edit = pickEditor(
-    (update) => {
-      picks = typeof update === 'function' ? update(picks) : update
-    },
-    { catalogueId: 'imperium', units: [] },
-    () => 1,
-  )
+function edited(spreads: Record<string, Record<string, number>>, run: (edit: Edit) => void) {
+  const { edit, picks } = editor([{ key: 0, entryId: 'squad', catalogueId: 'imperium', spreads }], { catalogueId: 'imperium', units: [] })
   run(edit)
-  return picks[0]
+  return picks()[0]
 }
 
 function harness(models = 3) {
-  let picks: KeyedPick[] = [{ key: 0, entryId: 'squad', catalogueId: 'imperium' }]
-  const edit = pickEditor(
-    (update) => {
-      picks = typeof update === 'function' ? update(picks) : update
-    },
-    {
-      catalogueId: 'imperium',
-      units: [
-        {
-          size: { models, min: 1, max: 6 },
-          toggles: [],
-          choices: [
-            {
-              key: 'weapons',
-              options: [
-                { id: 'blaster', count: 3 },
-                { id: 'carbine', count: 0 },
-              ],
-            },
-          ],
-        },
-      ],
-    },
-    () => 1,
-  )
-  return { edit, pick: () => picks[0] }
+  const { edit, picks } = editor([{ key: 0, entryId: 'squad', catalogueId: 'imperium' }], {
+    catalogueId: 'imperium',
+    units: [
+      {
+        size: { models, min: 1, max: 6 },
+        toggles: [],
+        choices: [
+          {
+            key: 'weapons',
+            options: [
+              { id: 'blaster', count: 3 },
+              { id: 'carbine', count: 0 },
+            ],
+          },
+        ],
+      },
+    ],
+  })
+  return { edit, pick: () => picks()[0] }
 }
 
 describe('consecutive counter presses', () => {
   it('resizes from the current equipment and removes remembered inactive compositions', () => {
-    let picks: KeyedPick[] = [
-      {
-        key: 0,
-        entryId: 'squad',
-        models: 3,
-        choices: { composition: 'three', banner: 'vexilla' },
-        spreads: {
-          'composition/two/weapons': { spear: 0, axe: 2 },
-          'composition/three/weapons': { spear: 1, axe: 2 },
-          banner: { vexilla: 1 },
+    const { edit, picks } = editor(
+      [
+        {
+          key: 0,
+          entryId: 'squad',
+          models: 3,
+          choices: { composition: 'three', banner: 'vexilla' },
+          spreads: {
+            'composition/two/weapons': { spear: 0, axe: 2 },
+            'composition/three/weapons': { spear: 1, axe: 2 },
+            banner: { vexilla: 1 },
+          },
         },
-      },
-    ]
-    const edit = pickEditor(
-      (update) => {
-        picks = typeof update === 'function' ? update(picks) : update
-      },
+      ],
       {
         catalogueId: 'cat',
         units: [
@@ -94,16 +86,15 @@ describe('consecutive counter presses', () => {
           },
         ],
       },
-      () => 1,
     )
     edit.resize(0, () => 2)
-    expect(picks[0]).toMatchObject({
+    expect(picks()[0]).toMatchObject({
       models: 2,
       choices: { banner: 'vexilla' },
       spreads: { 'composition/three/weapons': { spear: 1, axe: 2 }, banner: { vexilla: 1 } },
     })
-    expect(picks[0]?.spreads).not.toHaveProperty('composition/two/weapons')
-    expect(picks[0]?.choices).not.toHaveProperty('composition')
+    expect(picks()[0]?.spreads).not.toHaveProperty('composition/two/weapons')
+    expect(picks()[0]?.choices).not.toHaveProperty('composition')
   })
   it('saves the shown counts a press leaves alone when the group has no saved spread yet', () => {
     const { edit, pick } = harness()
@@ -148,16 +139,12 @@ describe('resizing a squad with saved model counts', () => {
   type Unit = NonNullable<Parameters<typeof pickEditor>[1]['units'][number]>
   const member = (choiceKey: string) => ({ choiceKey })
   const resized = (unit: Unit, spreads: KeyedPick['spreads'], step: (models: number) => number, presses = 1) => {
-    let picks: KeyedPick[] = [{ key: 0, entryId: 'squad', catalogueId: 'cat', models: unit.size.models, spreads }]
-    const edit = pickEditor(
-      (update) => {
-        picks = typeof update === 'function' ? update(picks) : update
-      },
-      { catalogueId: 'cat', units: [unit] },
-      () => 1,
-    )
+    const { edit, picks } = editor([{ key: 0, entryId: 'squad', catalogueId: 'cat', models: unit.size.models, spreads }], {
+      catalogueId: 'cat',
+      units: [unit],
+    })
     for (let press = 0; press < presses; press++) edit.resize(0, step)
-    return picks[0]
+    return picks()[0]
   }
   const eradicators: Unit = {
     size: { models: 3, min: 3, max: 6 },
@@ -238,16 +225,13 @@ describe('resizing a squad with saved model counts', () => {
 
 describe('datasheet roster caps', () => {
   const editWithLimit = (limit: number | null, initial: number) => {
-    let picks: KeyedPick[] = Array.from({ length: initial }, (_, key) => ({ key, entryId: 'squad', catalogueId: 'imperium' }))
     let nextKey = initial
-    const edit = pickEditor(
-      (update) => {
-        picks = typeof update === 'function' ? update(picks) : update
-      },
+    const { edit, picks } = editor(
+      Array.from({ length: initial }, (_, key) => ({ key, entryId: 'squad', catalogueId: 'imperium' })),
       { catalogueId: 'imperium', units: [], limits: new Map([['squad', limit]]) },
       () => nextKey++,
     )
-    return { edit, count: () => picks.length }
+    return { edit, count: () => picks().length }
   }
 
   it('adds the first and final allowed copies', () => {
@@ -282,17 +266,14 @@ describe('applying a saved loadout', () => {
     loadout: Parameters<ReturnType<typeof pickEditor>['apply']>[0],
     limits: ReadonlyMap<string, number | null> = new Map([['squad', null]]),
   ) => {
-    let picks: KeyedPick[] = [{ key: 0, entryId: 'captain', catalogueId: 'imperium' }]
     let next = 1
-    const edit = pickEditor(
-      (update) => {
-        picks = typeof update === 'function' ? update(picks) : update
-      },
+    const { edit, picks } = editor(
+      [{ key: 0, entryId: 'captain', catalogueId: 'imperium' }],
       { catalogueId: 'imperium', units: [], limits },
       () => next++,
     )
     edit.apply(loadout)
-    return picks.slice(1)
+    return picks().slice(1)
   }
   const attached = [
     { entryId: 'squad', catalogueId: 'imperium' },
@@ -423,18 +404,14 @@ it('explains a requested unit blocked by current construction prerequisites', ()
 })
 
 describe('unit nicknames and notes', () => {
-  function annotated(run: (edit: ReturnType<typeof pickEditor>) => void) {
-    let picks: KeyedPick[] = [{ key: 0, entryId: 'squad', catalogueId: 'imperium', nickname: 'Alpha', note: 'Hold home.' }]
-    let next = 1
-    const edit = pickEditor(
-      (update) => {
-        picks = typeof update === 'function' ? update(picks) : update
-      },
-      { catalogueId: 'imperium', units: [], limits: new Map([['squad', null]]) },
-      () => next++,
-    )
+  function annotated(run: (edit: Edit) => void) {
+    const { edit, picks } = editor([{ key: 0, entryId: 'squad', catalogueId: 'imperium', nickname: 'Alpha', note: 'Hold home.' }], {
+      catalogueId: 'imperium',
+      units: [],
+      limits: new Map([['squad', null]]),
+    })
     run(edit)
-    return picks
+    return picks()
   }
 
   it('renames one unit', () => {
@@ -451,21 +428,18 @@ describe('unit nicknames and notes', () => {
 })
 
 describe('starting embarks', () => {
-  function embarked(run: (edit: ReturnType<typeof pickEditor>) => void, start: Partial<KeyedPick>[] = [{}, {}, {}]) {
-    let picks: KeyedPick[] = [
-      { key: 10, entryId: 'squad', catalogueId: 'imperium', ...start[0] },
-      { key: 11, entryId: 'captain', catalogueId: 'imperium', ...start[1] },
-      { key: 12, entryId: 'rhino', catalogueId: 'imperium', ...start[2] },
-    ]
-    const edit = pickEditor(
-      (update) => {
-        picks = typeof update === 'function' ? update(picks) : update
-      },
+  function embarked(run: (edit: Edit) => void, start: Partial<KeyedPick>[] = [{}, {}, {}]) {
+    const { edit, picks } = editor(
+      [
+        { key: 10, entryId: 'squad', catalogueId: 'imperium', ...start[0] },
+        { key: 11, entryId: 'captain', catalogueId: 'imperium', ...start[1] },
+        { key: 12, entryId: 'rhino', catalogueId: 'imperium', ...start[2] },
+      ],
       { catalogueId: 'imperium', units: [], limits: new Map([['squad', null]]) },
       () => 13,
     )
     run(edit)
-    return picks
+    return picks()
   }
 
   it('starts a unit in a transport', () => {
@@ -499,20 +473,17 @@ describe('starting embarks', () => {
 })
 
 describe('adding a unit to attach', () => {
-  function added(limits: Map<string, number | null>, run: (edit: ReturnType<typeof pickEditor>) => void) {
-    let picks: KeyedPick[] = [
-      { key: 0, entryId: 'squad', catalogueId: 'cat' },
-      { key: 1, entryId: 'captain', catalogueId: 'cat' },
-    ]
-    const edit = pickEditor(
-      (update) => {
-        picks = typeof update === 'function' ? update(picks) : update
-      },
+  function added(limits: Map<string, number | null>, run: (edit: Edit) => void) {
+    const { edit, picks } = editor(
+      [
+        { key: 0, entryId: 'squad', catalogueId: 'cat' },
+        { key: 1, entryId: 'captain', catalogueId: 'cat' },
+      ],
       { catalogueId: 'cat', units: [], limits },
       () => 2,
     )
     run(edit)
-    return picks
+    return picks()
   }
   const open = new Map<string, number | null>([
     ['captain', null],

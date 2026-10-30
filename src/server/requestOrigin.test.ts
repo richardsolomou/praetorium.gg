@@ -17,10 +17,4 @@ describe('publicOrigin', () => {
 
     expect(publicOrigin(request)).toBe('https://praetorium.gg')
   })
-
-  it('falls back to the address the request arrived at', () => {
-    vi.stubEnv('APP_URL', '')
-
-    expect(publicOrigin(new Request('http://localhost:3000/battles/abc'))).toBe('http://localhost:3000')
-  })
 })

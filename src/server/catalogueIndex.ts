@@ -12,6 +12,7 @@ import { readSharedJson } from './sharedJson'
 import { type LoadedCatalogue, catalogueFromIndex } from '../shared/catalogueIndex'
 import { completeSteps, type Steps } from '../shared/steps'
 import { liveCatalogueRevision } from './liveCatalogue'
+import { readRevisions } from './catalogueSources'
 export * from '../shared/catalogueIndex'
 export function catalogueDirectory(dataDirectory = process.env.DATA_DIR ?? '/data') {
   const live = liveCatalogueRevision()
@@ -26,7 +27,7 @@ export function* loadCatalogueSteps(directory = catalogueDirectory(), edition?: 
   const revisionFile = path.join(directory, 'revision.json')
   if (!fs.existsSync(definitions) || !fs.existsSync(revisionFile)) return null
 
-  const revision: Record<string, string> = JSON.parse(fs.readFileSync(revisionFile, 'utf8'))
+  const revision = readRevisions(directory)
   if (!revision.definitions) return null
 
   const strings = new Map<string, string>()

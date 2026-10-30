@@ -8,7 +8,6 @@ import { app } from './app'
 import { unitBattleDetailsIn } from '../shared/catalogue'
 import { calculateRosterPrice, savedRosterPriceInput } from '../shared/pricing'
 
-export { rosterUseProblem, rosterUseError } from '../core/rosterLegality'
 import { rosterUseError } from '../core/rosterLegality'
 
 /**

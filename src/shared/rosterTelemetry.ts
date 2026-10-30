@@ -58,8 +58,12 @@ export function rosterPricedProperties(
 }
 
 /** `roster_datasheet_loaded` for a roster's own loadout datasheets; the caller adds `duration_ms`. */
-export const rosterDatasheetLoadedProperties = (data: { picks: readonly unknown[] }, result: { datacardJoin: string }) => ({
+export const rosterDatasheetLoadedProperties = (
+  data: { picks: readonly unknown[] },
+  result: { datacardJoin: string },
+  persisted: boolean,
+) => ({
   unit_count: data.picks.length,
-  persisted: false,
+  persisted,
   datacard_join: result.datacardJoin,
 })

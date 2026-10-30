@@ -1,3 +1,4 @@
+import type { PriceInput } from '../../contracts/schemas'
 import type { PlayerProfileFilter } from './battles'
 
 export const meKey = () => ['me']
@@ -62,7 +63,8 @@ export const playerRostersKey = (userId: string) => ['player-rosters', userId]
 export const playerRankingsKey = (userId: string) => ['player-rankings', userId]
 export const playerAchievementsKey = (userId: string) => ['player-achievements', userId]
 export const newAchievementsKey = () => ['achievement-news']
-export const playerProfileKey = (userId: string, filter: PlayerProfileFilter) => ['player-profile', userId, filter]
+/** Without a player, every player's profile. */
+export const playerProfileKey = (...player: [userId: string, filter: PlayerProfileFilter] | []) => ['player-profile', ...player]
 /** Without a query, every search. */
 export const playerSearchKey = (query?: string) => (query === undefined ? ['player-search'] : ['player-search', query])
 export const standingsKey = () => ['standings']
@@ -108,3 +110,18 @@ export const leagueBattlesKey = (token: string, eventToken: string) => ['league-
 /** Without a roster, every roster's outdated entries. */
 export const outdatedLeagueEntriesKey = (rosterId?: string) =>
   rosterId === undefined ? ['outdated-league-entries'] : ['outdated-league-entries', rosterId]
+
+export function rosterPriceKey(data: PriceInput) {
+  return [
+    'price',
+    data.catalogueId,
+    data.detachmentIds,
+    data.disposition,
+    data.limit,
+    data.waivedRules ?? [],
+    data.borrowedDetachmentId ?? null,
+    data.optionalRules ?? [],
+    ...(data.includeUnitLimits ? ['unit-limits'] : []),
+    data.units,
+  ]
+}

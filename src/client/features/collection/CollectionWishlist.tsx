@@ -12,7 +12,7 @@ import { CollectionCard, CollectionCardGrid } from './CollectionCard'
 
 const SUGGESTIONS_SHOWN = 6
 
-type Datasheet = { id: string; slug: string; name: string; catalogueId: string; faction: string; presentation?: FactionPresentation }
+export type Datasheet = { id: string; slug: string; name: string; catalogueId: string; faction: string; presentation?: FactionPresentation }
 
 /** Models a player plans to buy, counted apart from those they own. */
 export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<string, Datasheet> }) {
@@ -54,8 +54,7 @@ export function CollectionWishlist({ datasheets }: { datasheets: ReadonlyMap<str
         placeholder="Add to wishlist…"
         searchPlaceholder="Search datasheets…"
         loading={units.isPending}
-        value=""
-        onValueChange={(value) => void set((JSON.parse(value) as [string, string])[1], 1).catch(() => undefined)}
+        onUnitChange={(_, entryId) => void set(entryId, 1).catch(() => undefined)}
         index={(units.data ?? []).map((book) => ({ ...book, units: book.units.filter((unit) => !wishes.data?.[unit.id]) }))}
       />
       {wanted.length ? (

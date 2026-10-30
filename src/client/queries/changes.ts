@@ -3,7 +3,7 @@ import { currentReference, referenceData, savedQuery } from '../offline/runtime'
 import { armyUpdates, catalogueChangeLog, referenceChanges, rosterChanges, savedRosterChangedIds } from '../functions'
 import type { ReferenceLink } from '../../contracts/catalogueChanges'
 import { referenceStaleTime, SSR_STALE_TIME } from './shared'
-import { anySignal } from '../abortSignals'
+import { withTimeout } from '../abortSignals'
 import { armyUpdatesKey, catalogueChangesKey, rosterChangesKey, savedRosterChangedIdsKey } from './queryKeys'
 
 /**
@@ -38,7 +38,7 @@ export const referenceChangesQuery = (link: ReferenceLink) => {
       if (saved && currentReference()) return saved
       if (referenceData() && !navigator.onLine) return saved ?? []
       try {
-        return await referenceChanges({ data: link, signal: anySignal([signal, AbortSignal.timeout(5000)]) })
+        return await referenceChanges({ data: link, signal: withTimeout(signal, 5000) })
       } catch (error) {
         if (referenceData()) return saved ?? []
         throw error

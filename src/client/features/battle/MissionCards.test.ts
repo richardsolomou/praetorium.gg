@@ -12,6 +12,8 @@ function primaryMarkup(input = props()) {
   return renderToStaticMarkup(createElement(QueryClientProvider, { client: new QueryClient() }, createElement(PrimaryMission, input)))
 }
 
+const secondaryMarkup = (input = props()) => renderToStaticMarkup(createElement(SecondaryMissions, input))
+
 function props() {
   const state = reduceBattle(
     [ALICE, BOB],
@@ -73,7 +75,7 @@ describe('mission scorecards', () => {
   it('shows each secondary’s own round scores rather than the category total', () => {
     const input = props()
     input.side.rounds[1]!.secondary = 9
-    const markup = renderToStaticMarkup(createElement(SecondaryMissions, input))
+    const markup = secondaryMarkup(input)
     expect(markup).toContain('aria-label="Round 2: 2 VP"')
   })
 
@@ -107,14 +109,14 @@ describe('mission scorecards', () => {
       secondaryGameCap: 45,
       fixedSecondaryCap: 20,
     }
-    const markup = renderToStaticMarkup(createElement(SecondaryMissions, input))
+    const markup = secondaryMarkup(input)
     expect(markup).toContain('</span>/20</span>')
   })
 
   it('keeps returned cards out of the scorecards', () => {
     const input = props()
     input.side.secondaries[0]!.status = 'returned'
-    const markup = renderToStaticMarkup(createElement(SecondaryMissions, input))
+    const markup = secondaryMarkup(input)
     expect(markup).not.toContain('data-secondary="cleanse"')
   })
 
@@ -122,14 +124,14 @@ describe('mission scorecards', () => {
     const input = props()
     input.side.secondaryMode = 'tactical'
     input.side.remainingSecondaries = [{ key: 'beacon', name: 'Beacon' }]
-    const markup = renderToStaticMarkup(createElement(SecondaryMissions, input))
+    const markup = secondaryMarkup(input)
     expect(markup).toContain('aria-label="View remaining secondary missions (1)"')
   })
 
   it('does not offer a deck reference when the view withholds it', () => {
     const input = props()
     input.side.secondaryMode = 'tactical'
-    const markup = renderToStaticMarkup(createElement(SecondaryMissions, input))
+    const markup = secondaryMarkup(input)
     expect(markup).not.toContain('View remaining secondary missions')
   })
 
@@ -148,21 +150,21 @@ describe('mission scorecards', () => {
   })
 
   it('shares secondary round labels across the summary and active cards', () => {
-    const markup = renderToStaticMarkup(createElement(SecondaryMissions, props()))
+    const markup = secondaryMarkup()
     expect(markup.match(/>R1</g)).toHaveLength(1)
   })
 
   it('does not repeat empty round tracks on active tactical missions', () => {
     const input = props()
     input.side.secondaryMode = 'tactical'
-    const markup = renderToStaticMarkup(createElement(SecondaryMissions, input))
+    const markup = secondaryMarkup(input)
     expect(markup.slice(markup.indexOf('data-secondary="cleanse"'))).not.toContain('Round 5: not played')
   })
 
   it('preserves earned round history on active tactical missions', () => {
     const input = props()
     input.side.secondaryMode = 'tactical'
-    const markup = renderToStaticMarkup(createElement(SecondaryMissions, input))
+    const markup = secondaryMarkup(input)
     expect(markup).toContain('R2 · 2 VP')
   })
 
@@ -171,7 +173,7 @@ describe('mission scorecards', () => {
     input.side.secondaryMode = 'tactical'
     input.side.secondaries[0]!.rounds = [0, 0, 0, 0, 0]
     input.side.secondaries[0]!.points = 0
-    const markup = renderToStaticMarkup(createElement(SecondaryMissions, input))
+    const markup = secondaryMarkup(input)
     expect(markup).not.toContain('aria-label="Scored rounds"')
   })
 
@@ -179,7 +181,7 @@ describe('mission scorecards', () => {
     const input = props()
     input.side.secondaryMode = 'tactical'
     input.side.secondaries[0]!.rounds = [5, 0, 0, 0, 0]
-    const markup = renderToStaticMarkup(createElement(SecondaryMissions, input))
+    const markup = secondaryMarkup(input)
     expect(markup).toContain('aria-label="Round 1: 5 VP">R1</li>')
   })
 
@@ -187,7 +189,7 @@ describe('mission scorecards', () => {
     const input = props()
     input.view.status = 'finished'
     input.side.secondaries[0]!.status = 'achieved'
-    const markup = renderToStaticMarkup(createElement(SecondaryMissions, input))
+    const markup = secondaryMarkup(input)
     expect(markup).toContain('data-secondary="cleanse"')
   })
 
@@ -195,7 +197,7 @@ describe('mission scorecards', () => {
     const input = props()
     input.view.status = 'finished'
     input.side.secondaries[0]!.status = 'achieved'
-    const markup = renderToStaticMarkup(createElement(SecondaryMissions, input))
+    const markup = secondaryMarkup(input)
     expect(markup).toContain('aria-label="Scored rounds"')
     expect(markup.slice(markup.indexOf('data-secondary="cleanse"'))).not.toContain('Round 5:')
   })
@@ -205,7 +207,7 @@ describe('mission scorecards', () => {
     input.view.status = 'finished'
     input.side.secondaries[0]!.status = 'achieved'
     input.side.secondaries[0]!.rounds = [5, 0, 0, 0, 0]
-    const markup = renderToStaticMarkup(createElement(SecondaryMissions, input))
+    const markup = secondaryMarkup(input)
     expect(markup).not.toContain('R1 · 5 VP')
   })
 
@@ -213,7 +215,7 @@ describe('mission scorecards', () => {
     const input = props()
     input.view.status = 'finished'
     input.side.secondaries[0]!.status = 'achieved'
-    const markup = renderToStaticMarkup(createElement(SecondaryMissions, input))
+    const markup = secondaryMarkup(input)
     expect(markup).toContain('R1 · 3 VP')
   })
 

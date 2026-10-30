@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { UserX } from 'lucide-react'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent } from '@/components/ui/tabs'
+import { countBy } from '../../../core/collections'
 import { BattleShelf } from '../battles/BattleShelf'
 import { PageTabsList } from '../../components/PageTabs'
 import { PageContent, PageHeader } from '../../components/Page'
@@ -105,9 +106,7 @@ export function PlayerProfilePage({ userId, search }: { userId: string; search: 
     { value: 'achievements' as const, label: 'Achievements', count: achievements ? Object.keys(achievements.earned).length : undefined },
   ]
   const tab = tabs.some((candidate) => candidate.value === search.tab) ? (search.tab as ProfileTab) : tabs[0]!.value
-  const built = new Map<string, number>()
-  for (const roster of lists) built.set(roster.catalogueId, (built.get(roster.catalogueId) ?? 0) + 1)
-  const mostBuilt = [...built].toSorted((one, other) => other[1] - one[1])[0]?.[0]
+  const mostBuilt = [...countBy(lists, (roster) => roster.catalogueId)].toSorted((one, other) => other[1] - one[1])[0]?.[0]
   const buildsMost = factions.data?.factions.find((faction) => faction.id === mostBuilt) ?? null
   return (
     <main className="w-full">

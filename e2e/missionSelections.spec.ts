@@ -16,6 +16,7 @@ import {
   expectNoPageOverflow,
   practiceBattle,
   chooseOption,
+  playerPanel,
 } from './account'
 import { expectWorkSynced } from './storage'
 import { expectNoHorizontalOverflow } from './builder.harness'
@@ -160,7 +161,7 @@ test('source matchup nominations survive undo and reload', async ({ page, browse
   await openChoices(page)
   await expect(page.getByText('1 guard nomination', { exact: true })).toBeVisible()
   await expect(page.getByText('1 condemned unit · fallback', { exact: true })).toBeVisible()
-  const hostSide = page.locator('[data-panel="player"][data-side="0"]')
+  const hostSide = playerPanel(page, 0)
   const burden = hostSide
     .locator('[data-secondary]')
     .filter({ has: page.getByRole('button', { name: 'Read Burden Of Trust', exact: true }) })
@@ -185,7 +186,7 @@ test('a skipped choice leaves the turn free and stays on its card until recorded
   await guards.getByRole('button', { name: 'Skip', exact: true }).click()
   await expect(guards).toBeHidden()
   await expect(advanceButton(page)).toBeEnabled()
-  const side = page.locator('[data-panel="player"][data-side="0"]')
+  const side = playerPanel(page, 0)
   await side.getByRole('button', { name: 'Record guards', exact: true }).click()
   await guards.getByRole('button', { name: 'Record choice', exact: true }).click()
   await expect(side.getByRole('button', { name: 'Record guards', exact: true })).toHaveCount(0)
@@ -198,7 +199,7 @@ test('manual Beacon nomination persists and a destroyed Beacon cannot be replace
   await practiceBattle(page, roster)
   await startBattle(page, undefined, false)
   await draw(page, ['Beacon', 'Cleanse'])
-  const side = page.locator('[data-panel="player"][data-side="0"]')
+  const side = playerPanel(page, 0)
   await expect(advanceButton(page)).toBeEnabled()
   await side.getByRole('button', { name: 'Record Beacon', exact: true }).click()
   const nomination = page.getByRole('dialog', { name: 'Beacon · choices', exact: true })
@@ -247,8 +248,10 @@ async function openChoices(page: Page) {
     if ((await summary.locator('..').getAttribute('open')) === null) await summary.click()
 }
 
-const primaryCard = (page: Page, side: number) =>
-  page.locator(`[data-panel="player"][data-side="${side}"] section`).filter({ has: page.getByText('Primary mission', { exact: true }) })
+const primaryCard = (page: Page, side: 0 | 1) =>
+  playerPanel(page, side)
+    .locator('section')
+    .filter({ has: page.getByText('Primary mission', { exact: true }) })
 
 test('Consecrate records end-of-turn objectives that stay consecrated into the next turn', async ({ page }) => {
   const name = uniqueName('Consecrate captain')

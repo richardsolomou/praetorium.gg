@@ -34,6 +34,7 @@ import {
 } from './lib/catalogueHistoryPlan'
 import type { WorkerResult, WorkerTask } from './catalogueHistoryWorker'
 import { userCacheRoot } from './lib/catalogueCache'
+import { git } from './lib/git'
 
 const root = path.join(import.meta.dirname, '..')
 const { values } = parseArgs({
@@ -55,7 +56,6 @@ const clonesRoot = path.resolve(values.clones ?? path.join(userCacheRoot(), 'ups
 
 const started = performance.now()
 const base = catalogueBaseUrl()
-const git = (...command: string[]) => execFileSync('git', command, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 })
 
 async function listed() {
   const found: ListedSnapshot[] = []
@@ -95,10 +95,11 @@ function upstreamSources() {
     const source = config[name]
     const directory = path.join(clonesRoot, source.repository.replace('/', '__'))
     if (fs.existsSync(path.join(directory, 'HEAD')) || fs.existsSync(path.join(directory, '.git'))) {
-      git('-C', directory, 'fetch', '--quiet', 'origin', source.branch)
+      git(directory, 'fetch', '--quiet', 'origin', source.branch)
     } else {
       fs.mkdirSync(path.dirname(directory), { recursive: true })
       git(
+        process.cwd(),
         'clone',
         '--quiet',
         '--bare',
@@ -110,9 +111,8 @@ function upstreamSources() {
       )
     }
     const ref = `refs/heads/${source.branch}`
-    if (fs.existsSync(path.join(directory, 'FETCH_HEAD'))) git('-C', directory, 'update-ref', ref, 'FETCH_HEAD')
+    if (fs.existsSync(path.join(directory, 'FETCH_HEAD'))) git(directory, 'update-ref', ref, 'FETCH_HEAD')
     const log = git(
-      '-C',
       directory,
       'log',
       '--first-parent',

@@ -1,5 +1,15 @@
 import { expect, test } from './test'
-import { chooseBattlefield, createRoster, setupStep, signUp, startBattle, uniqueName, addUnit, practiceBattle } from './account'
+import {
+  chooseBattlefield,
+  createRoster,
+  setupStep,
+  signUp,
+  startBattle,
+  uniqueName,
+  addUnit,
+  practiceBattle,
+  playerPanel,
+} from './account'
 
 test('reserve choices over the points limit are disabled with the reason beside them', async ({ page }) => {
   await signUp(page, uniqueName('Reserves'))
@@ -40,7 +50,7 @@ test('a unit arriving from reserves mid-battle becomes a combat target', async (
   await expect(reserved.getByRole('button', { name: 'Start Immortals in Battlefield', exact: true })).toBeVisible()
   await startBattle(page)
 
-  const panel = page.locator('[data-panel="player"][data-side="0"]')
+  const panel = playerPanel(page, 0)
   const simulate = panel.getByRole('button', { name: `Simulate ${player}'s combat`, exact: true })
   await expect(simulate).toHaveCount(0)
   await panel.getByRole('button', { name: `Open ${roster}`, exact: true }).click()

@@ -208,7 +208,7 @@ jobs:
           node scripts/publishWebAssets.ts "$RUNNER_TEMP/previous-assets" "$RUNNER_TEMP/current-assets"
           node scripts/configureDokployNode.ts assets "$TARGET" "$RUNNER_TEMP/previous-assets" "$RUNNER_TEMP/current-assets"
       - name: Publish the matching product module
-        if: inputs['skip-product-publish'] != true
+        if: ${{ !inputs.skip-product-publish }}
         env:
           IMAGE: ${{ steps.image.outputs.reference }}
         run: |

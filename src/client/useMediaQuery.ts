@@ -16,3 +16,6 @@ export function useMediaQuery(query: string, server = false) {
     () => server,
   )
 }
+
+/** Whether the reader has asked for less motion, read at the moment of a scroll or animation. */
+export const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches

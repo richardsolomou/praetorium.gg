@@ -8,7 +8,6 @@ import type { RosterCombatSummary, RosterCombatUnit } from './rosterCombat'
 import { combatUnitTarget } from '../../../core/combatUnit'
 import { countLabel } from '../../text'
 
-type Metric = CombatMetric
 const metrics = [
   ['meanDamage', 'Wounds lost'],
   ['meanKills', 'Models lost'],
@@ -33,7 +32,7 @@ function modelCount(unit: RosterCombatUnit) {
   return `${count} · ${wounds} wounds`
 }
 
-export function bestRosterMatches(results: (RosterCombatSummary[keyof RosterCombatSummary] | undefined)[], metric: Metric) {
+export function bestRosterMatches(results: (RosterCombatSummary[keyof RosterCombatSummary] | undefined)[], metric: CombatMetric) {
   if (results.some((answer) => !answer)) return []
   const best = Math.max(0, ...results.map((answer) => answer?.result?.[metric] ?? 0))
   return best > 0 ? results.flatMap((answer, index) => (answer?.result?.[metric] === best ? [index] : [])) : []
@@ -71,7 +70,7 @@ export function RosterCombatTable({
   benchmarkTargets?: boolean
 }) {
   const [phase, setPhase] = useState<keyof RosterCombatSummary>('ranged')
-  const [metric, setMetric] = useState<Metric>('meanDamage')
+  const [metric, setMetric] = useState<CombatMetric>('meanDamage')
   const [highlight, setHighlight] = useState(benchmarkTargets ? 'attackers' : 'targets')
   const [optionsOpen, setOptionsOpen] = useState(false)
   const attackingHealth = useMemo(() => attackers.map(modelCount), [attackers])

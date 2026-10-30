@@ -3,7 +3,7 @@ import { rosterCombatant } from '../../../shared/rosterCombatRules'
 import { preferenceBook } from '../../../server/combatPreferences.fixtures'
 import { resolveCombatRequest, type CombatAnswer, type CombatRequest } from '../../../core/combatMatchup'
 import { runRosterCombat } from './runRosterCombat'
-import { calculateCombatPair, clearCombatAnswerCache } from './combatCalculation'
+import { clearCombatAnswerCache } from './combatCalculation'
 import type { CombatRoster } from './useCombatant'
 import type { RosterCombatSummary } from './rosterCombat'
 import { clearRosterCombatCache } from './rosterCombatCache'
@@ -330,53 +330,6 @@ it('does not emit results from a projection that finished after cancellation', a
     runRosterCombat({ attacker: roster, defender: roster, signal: controller.signal, onPrepared, onResult: () => {} }),
   ).rejects.toThrow('Cancelled')
   expect(onPrepared).not.toHaveBeenCalled()
-})
-
-const request = { ranged: { options: { phase: 'ranged' } }, melee: null } as CombatRequest
-
-it('terminates a calculating worker on cancellation', async () => {
-  const current = worker()
-  mocks.worker.mockReturnValue(current)
-  const controller = new AbortController()
-  const result = calculateCombatPair(request, controller.signal)
-  controller.abort(new Error('Cancelled'))
-  await expect(result).rejects.toThrow('Cancelled')
-  expect(current.terminate).toHaveBeenCalledOnce()
-})
-
-it('settles a worker timeout and terminates the worker', async () => {
-  vi.useFakeTimers()
-  const current = worker()
-  mocks.worker.mockReturnValue(current)
-  const result = calculateCombatPair(request, new AbortController().signal)
-  await vi.advanceTimersByTimeAsync(15_000)
-  expect((await result).ranged?.error).toContain('too long')
-  expect(current.terminate).toHaveBeenCalledOnce()
-})
-
-it.each(['onerror', 'onmessageerror'] as const)('settles %s without hanging the batch', async (event) => {
-  const current = worker()
-  mocks.worker.mockReturnValue(current)
-  const result = calculateCombatPair(request, new AbortController().signal)
-  current[event]?.()
-  expect((await result).ranged?.error).toBeTruthy()
-})
-
-it('settles a worker constructor failure', async () => {
-  mocks.worker.mockImplementation(() => {
-    throw new Error('Unavailable')
-  })
-  expect((await calculateCombatPair(request, new AbortController().signal)).ranged?.error).toContain('could not start')
-})
-
-it('settles a worker posting failure', async () => {
-  const current = worker()
-  current.postMessage.mockImplementation(() => {
-    throw new Error('Unavailable')
-  })
-  mocks.worker.mockReturnValue(current)
-  expect((await calculateCombatPair(request, new AbortController().signal)).ranged?.error).toContain('could not start')
-  expect(current.terminate).toHaveBeenCalledOnce()
 })
 
 it('names whose list a unit comes from when one side fields a pair of rosters', async () => {

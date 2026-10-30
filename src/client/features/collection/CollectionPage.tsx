@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Skeleton } from '@/components/ui/skeleton'
-import { FactionMark, type FactionPresentation } from '../../components/FactionMark'
+import { FactionMark } from '../../components/FactionMark'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { SignInRequired } from '../../components/SignInRequired'
@@ -33,12 +33,10 @@ import { CollectionEntryCounts } from './CollectionEntryCounts'
 import { CollectionExchange } from './CollectionExchange'
 import { CollectionCountsAs, CountsAsDialog } from './CollectionCountsAs'
 import { CollectionPhoto } from './CollectionPhoto'
-import { CollectionWishlist } from './CollectionWishlist'
+import { CollectionWishlist, type Datasheet } from './CollectionWishlist'
 import { RemoveFromCollection } from './RemoveFromCollection'
 import { groupBy } from '../../../core/collections'
 import { countLabel } from '../../text'
-
-type Datasheet = { id: string; slug: string; name: string; catalogueId: string; faction: string; presentation?: FactionPresentation }
 
 const SUGGESTIONS_SHOWN = 6
 
@@ -147,8 +145,7 @@ export function CollectionPage() {
             placeholder="Add a datasheet…"
             searchPlaceholder="Search datasheets…"
             loading={units.isPending}
-            value=""
-            onValueChange={(value) => add((JSON.parse(value) as [string, string])[1])}
+            onUnitChange={(_, entryId) => add(entryId)}
             index={(units.data ?? []).map((book) => ({ ...book, units: book.units.filter((unit) => !owned.has(unit.id)) }))}
           />
           <p className="flex flex-wrap items-baseline gap-x-4 gap-y-1 sm:ml-auto">

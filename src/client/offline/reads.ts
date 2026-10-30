@@ -1,9 +1,18 @@
 import { CancelledError } from '@tanstack/react-query'
-import { localClient, localOwner } from './localRuntime'
+import { localClient, localEngine, localOwner } from './localRuntime'
 import { OfflineRefusal } from './offlineRefusal'
 
 /** A read finished for the account that just left: dropped like a cancelled read, so the screen loads again for the new one. */
 export const accountChanged = () => new CancelledError({ revert: true, silent: true })
+
+/** Throws `accountChanged` once the account or its local store differs from when the guard was made. */
+export function accountGuard() {
+  const owner = localOwner()?.id
+  const engine = localEngine()
+  return () => {
+    if (localOwner()?.id !== owner || localEngine() !== engine) throw accountChanged()
+  }
+}
 
 export async function cachedRead<T>(
   key: readonly unknown[],

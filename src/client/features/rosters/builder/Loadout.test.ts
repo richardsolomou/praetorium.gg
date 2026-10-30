@@ -11,6 +11,57 @@ import { loadoutDatasheetsQuery } from '../../../queries'
 import type { LoadoutUnit } from './loadoutModel'
 import type { loadoutDatasheets } from '../../../../server/functions'
 
+/** The loadout panel for a unit whose datasheet carries these profiles. */
+function loadoutMarkup(unit: LoadoutUnit | null, profiles: Datasheet['profiles'] = [], loading = false) {
+  const queryClient = new QueryClient()
+  const picks = [{ entryId: unit?.entryId ?? 'unit' }]
+  if (unit) {
+    const sheet: Datasheet = {
+      id: unit.entryId,
+      slug: unit.entryId,
+      referenceRoute: null,
+      name: unit.name,
+      points: unit.points,
+      keywords: [],
+      profiles,
+      abilities: [],
+      composition: [],
+      loadout: null,
+      wargearOptions: [],
+      baseSize: null,
+      transport: null,
+      costs: [],
+      attachments: [],
+      leaders: [],
+      supporters: [],
+      keywordRules: [],
+    }
+    const data: NonNullable<Awaited<ReturnType<typeof loadoutDatasheets>>> = {
+      selected: { ...sheet, detachments: [], attribution: null },
+      available: { ...sheet, detachments: [], attribution: null },
+      carriers: [],
+      datacardJoin: 'missing',
+    }
+    queryClient.setQueryData(loadoutDatasheetsQuery('catalogue', unit.entryId, [], picks, 0).queryKey, data)
+  }
+  return renderToStaticMarkup(
+    createElement(
+      QueryClientProvider,
+      { client: queryClient },
+      createElement(Loadout, {
+        catalogueId: 'catalogue',
+        unit,
+        loading,
+        detachmentIds: [],
+        picks,
+        pickIndex: 0,
+        onChoose: () => undefined,
+        onSpread: () => undefined,
+      }),
+    ),
+  )
+}
+
 it.each(['dual', 'gun'])('shows every bundle profile before choosing when %s is selected', (chosen) => {
   const markup = renderToStaticMarkup(
     createElement(EitherChoice, {
@@ -76,35 +127,6 @@ it.each(['dual', 'gun'])('shows every bundle profile before choosing when %s is 
 })
 
 it.each([true, false])('offers one composition control when fixed sizes are %s', (fixedSizes) => {
-  const queryClient = new QueryClient()
-  const picks = [{ entryId: 'unit' }]
-  const sheet: Datasheet = {
-    id: 'unit',
-    slug: 'unit',
-    referenceRoute: null,
-    name: 'Squad',
-    points: 180,
-    keywords: [],
-    profiles: [],
-    abilities: [],
-    composition: [],
-    loadout: null,
-    wargearOptions: [],
-    baseSize: null,
-    transport: null,
-    costs: [],
-    attachments: [],
-    leaders: [],
-    supporters: [],
-    keywordRules: [],
-  }
-  const data: NonNullable<Awaited<ReturnType<typeof loadoutDatasheets>>> = {
-    selected: { ...sheet, detachments: [], attribution: null },
-    available: { ...sheet, detachments: [], attribution: null },
-    carriers: [],
-    datacardJoin: 'missing',
-  }
-  queryClient.setQueryData(loadoutDatasheetsQuery('catalogue', 'unit', [], picks, 0).queryKey, data)
   const choice = (key: string, names: string[]) => ({
     key,
     name: key,
@@ -125,56 +147,13 @@ it.each([true, false])('offers one composition control when fixed sizes are %s',
     models: [],
     choices: [choice('Unit Composition', ['2 models', '3 models']), choice('Vexilla', ['Vexilla'])],
   }
-  const markup = renderToStaticMarkup(
-    createElement(
-      QueryClientProvider,
-      { client: queryClient },
-      createElement(Loadout, {
-        catalogueId: 'catalogue',
-        unit,
-        detachmentIds: [],
-        picks,
-        pickIndex: 0,
-        onChoose: () => undefined,
-        onSpread: () => undefined,
-      }),
-    ),
-  )
+  const markup = loadoutMarkup(unit)
   expect(markup).toContain('Select Vexilla')
   expect(markup.includes('Select 3 models')).toBe(!fixedSizes)
 })
 
 it('lists weapons a chosen bundle replaced among the equipped weapons of a unit without model cards', () => {
-  const queryClient = new QueryClient()
-  const picks = [{ entryId: 'walker' }]
   const gun = (name: string, count: number) => ({ id: name, name, type: 'Ranged Weapons', count, values: [{ name: 'A', value: '6' }] })
-  const sheet: Datasheet = {
-    id: 'walker',
-    slug: 'walker',
-    referenceRoute: null,
-    name: 'Walker',
-    points: 190,
-    keywords: [],
-    profiles: [gun('Missile launcher', 1), gun('Excruciator cannon', 2)],
-    abilities: [],
-    composition: [],
-    loadout: null,
-    wargearOptions: [],
-    baseSize: null,
-    transport: null,
-    costs: [],
-    attachments: [],
-    leaders: [],
-    supporters: [],
-    keywordRules: [],
-  }
-  const data: NonNullable<Awaited<ReturnType<typeof loadoutDatasheets>>> = {
-    selected: { ...sheet, detachments: [], attribution: null },
-    available: { ...sheet, detachments: [], attribution: null },
-    carriers: [],
-    datacardJoin: 'missing',
-  }
-  queryClient.setQueryData(loadoutDatasheetsQuery('catalogue', 'walker', [], picks, 0).queryKey, data)
   const unit: LoadoutUnit = {
     entryId: 'walker',
     name: 'Walker',
@@ -206,21 +185,7 @@ it('lists weapons a chosen bundle replaced among the equipped weapons of a unit 
       },
     ],
   }
-  const markup = renderToStaticMarkup(
-    createElement(
-      QueryClientProvider,
-      { client: queryClient },
-      createElement(Loadout, {
-        catalogueId: 'catalogue',
-        unit,
-        detachmentIds: [],
-        picks,
-        pickIndex: 0,
-        onChoose: () => undefined,
-        onSpread: () => undefined,
-      }),
-    ),
-  )
+  const markup = loadoutMarkup(unit, [gun('Missile launcher', 1), gun('Excruciator cannon', 2)])
   const equipped = markup.slice(
     markup.indexOf('Equipped ranged weapons'),
     markup.indexOf('</section>', markup.indexOf('Equipped ranged weapons')),
@@ -364,23 +329,7 @@ it('keeps the weapons of an inactive customizable loadout in separate boxes', ()
 
 describe('loadout loading state', () => {
   it('does not ask for a selection while the selected unit is resolving', () => {
-    const queryClient = new QueryClient()
-    const markup = renderToStaticMarkup(
-      createElement(
-        QueryClientProvider,
-        { client: queryClient },
-        createElement(Loadout, {
-          catalogueId: 'catalogue',
-          unit: null,
-          loading: true,
-          detachmentIds: [],
-          picks: [{ entryId: 'unit' }],
-          pickIndex: 0,
-          onChoose: () => undefined,
-          onSpread: () => undefined,
-        }),
-      ),
-    )
+    const markup = loadoutMarkup(null, [], true)
 
     expect(markup).toContain('aria-label="Loading loadout"')
     expect(markup).not.toContain('Select a unit from the roster')

@@ -2,17 +2,15 @@ import { Link } from '@tanstack/react-router'
 import { Bug, Mail, MessagesSquare, UserX, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { version } from '../../../../package.json'
-import { cn } from '@/lib/utils'
-import { DISCORD, SOURCE } from '../../projectLinks'
+import { DISCORD, NEW_ISSUE, PRIVACY_EMAIL } from '../../projectLinks'
+import { SectionHeading } from '../../components/SectionHeading'
 
-/** How feedback reaches us and the other channels, beside the Support page and each conversation. */
-export function SupportAside({ className }: { className?: string }) {
+/** How feedback reaches us and the other channels, beside the Support page. */
+export function SupportAside() {
   return (
-    <aside aria-label="Contact us" className={cn('space-y-8 text-sm text-dim', className)}>
+    <aside aria-label="Contact us" className="space-y-8 text-sm text-dim">
       <section aria-labelledby="how-feedback-works" className="space-y-2">
-        <h2 id="how-feedback-works" className="rubric border-b border-edge pb-2">
-          How feedback works
-        </h2>
+        <SectionHeading id="how-feedback-works" title="How feedback works" />
         <p>
           Send feedback from any page, through the account menu or the More tab. It sends us that page, your device and this version of
           Praetorium with your message, and you can attach a screenshot.
@@ -24,18 +22,16 @@ export function SupportAside({ className }: { className?: string }) {
       </section>
 
       <section aria-labelledby="other-ways" className="space-y-2">
-        <h2 id="other-ways" className="rubric border-b border-edge pb-2">
-          Other ways to reach us
-        </h2>
+        <SectionHeading id="other-ways" title="Other ways to reach us" />
         <ul className="divide-y divide-edge">
           <Channel icon={MessagesSquare} href={DISCORD} label="Praetorium Discord">
             Community help and feature ideas.
           </Channel>
-          <Channel icon={Bug} href={`${SOURCE}/issues/new`} label="Public issue tracker">
+          <Channel icon={Bug} href={NEW_ISSUE} label="Public issue tracker">
             Report a problem in public. Include what you expected, what happened, the page address, your device, operating system and
             Praetorium version. Never include a password, two-factor secret, recovery code or private roster link.
           </Channel>
-          <Channel icon={Mail} href="mailto:privacy@praetorium.gg" label="privacy@praetorium.gg">
+          <Channel icon={Mail} href={`mailto:${PRIVACY_EMAIL}`} label={PRIVACY_EMAIL}>
             For a private account, privacy or deletion request.
           </Channel>
           <li className="flex gap-3 py-3">

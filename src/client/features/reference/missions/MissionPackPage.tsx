@@ -6,6 +6,7 @@ import { gameReferencesQuery } from '../../../queries'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { RuleText } from '../../../components/RuleText'
 import { matchupMission } from './dispositionMatchups'
+import { SectionHeading } from '../../../components/SectionHeading'
 
 export function MissionPackPage({ packId }: { packId: string }) {
   const { data } = useQuery(gameReferencesQuery())
@@ -51,8 +52,8 @@ export function MissionPackPage({ packId }: { packId: string }) {
       </PageHeader>
       <PageContent className="space-y-6">
         <section id="matrix">
-          <h2 className="rubric border-b border-edge pb-2">Force dispositions</h2>
-          <p className="mt-2 text-sm text-dim">Your disposition down the left, your opponent’s across the top.</p>
+          <SectionHeading title="Force dispositions" />
+          <p className="text-sm text-dim">Your disposition down the left, your opponent’s across the top.</p>
           {/* Bleeds to the window on a phone, so the cut-off column reads as a scroller. */}
           <div className="-mx-3 mt-3 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0">
             <div
@@ -104,11 +105,8 @@ export function MissionPackPage({ packId }: { packId: string }) {
         </section>
 
         <section>
-          <h2 className="rubric flex justify-between border-b border-edge pb-2">
-            <span>Secondary missions</span>
-            <span className="readout">{data.secondaries.length}</span>
-          </h2>
-          <div className="mt-2 grid gap-px border border-edge bg-panel sm:grid-cols-2">
+          <SectionHeading title="Secondary missions" count={data.secondaries.length} />
+          <div className="grid gap-px border border-edge bg-panel sm:grid-cols-2">
             {data.secondaries.map((card) => (
               <Link
                 key={card.key}
@@ -125,10 +123,7 @@ export function MissionPackPage({ packId }: { packId: string }) {
 
         {pack.twists.length ? (
           <section>
-            <h2 className="rubric flex justify-between border-b border-edge pb-2">
-              <span>Mission twists</span>
-              <span className="readout">{pack.twists.length}</span>
-            </h2>
+            <SectionHeading title="Mission twists" count={pack.twists.length} />
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               {pack.twists.map((twist) => (
                 <article id={`twist-${twist.id}`} key={twist.id} className="scroll-mt-header border border-edge bg-panel p-4">

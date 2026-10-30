@@ -110,7 +110,6 @@ vi.mock('../app', () => ({
     catalogueFor: mocks.catalogueFor,
     catalogue: mocks.catalogue,
     rulesFor: mocks.rulesFor,
-    battleReadRulesFor: async () => null,
   }),
 }))
 

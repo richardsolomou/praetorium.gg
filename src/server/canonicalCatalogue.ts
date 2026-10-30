@@ -29,6 +29,7 @@ import { factionContentOf, factionDisplayName } from '../shared/factionNames'
 import { loadRules, type LoadedRules } from './rules'
 import { mfmAttribution, mfmCopyLabel, mfmCostRows } from './mfm'
 import { readSharedJson } from './sharedJson'
+import { readRevisions } from './catalogueSources'
 import { mfmUnitFor } from '../shared/unitPoints'
 
 export const CANONICAL_CATALOGUE_FORMAT = 'praetorium.canonical-catalogue.v1' as const
@@ -556,7 +557,7 @@ export function referenceCatalogue(directory: string, catalogue: () => LoadedCat
   if (process.env.PRAETORIUM_LOCAL_DEV === 'true' && process.env.LOCAL_TEST_MODE !== 'true') {
     const local = process.env.LOCAL_CANONICAL_FILE ?? path.resolve('.output/canonical-catalogue.json')
     const candidate = currentCanonicalCatalogue(local)
-    const revisions = JSON.parse(fs.readFileSync(path.join(directory, 'revision.json'), 'utf8')) as Record<string, string>
+    const revisions = readRevisions(directory)
     if (candidate && Object.entries(revisions).every(([source, revision]) => candidate.revisions[source] === revision)) return candidate
   }
   const packaged = loadCanonicalCatalogue(directory)
@@ -604,8 +605,7 @@ export function* canonicalCatalogueFromSnapshotSteps(
   rules: LoadedRules | null,
   directory = catalogueDirectory(),
 ): CanonicalCatalogueSteps {
-  const revisionFile = path.join(directory, 'revision.json')
-  const revisions = JSON.parse(fs.readFileSync(revisionFile, 'utf8')) as Record<string, string>
+  const revisions = readRevisions(directory)
   delete revisions.rules
   return yield* canonicalCatalogueSteps(loaded, revisions, rules)
 }

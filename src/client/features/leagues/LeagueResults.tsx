@@ -7,9 +7,8 @@ import { leagueResultsCsv } from '../../../core/leagueResultsCsv'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
 import { SectionHeading } from '../../components/SectionHeading'
-import { downloadFile, safeFileName } from '../../downloadFile'
-import { nativeBridgeVersion } from '../../nativeBridge'
-import { useCopyText } from '../../useCopyText'
+import { safeFileName } from '../../downloadFile'
+import { useExportText } from '../../useCopyText'
 
 /**
  * An event's table from its finished battles: in open play wins, then draws, then victory points; in Swiss rounds
@@ -39,8 +38,7 @@ export function LeagueResults<Entry extends { userId: string; name: string; imag
 }) {
   const columns = swiss ? SWISS_COLUMNS : COLUMNS
   const people = new Map(entries.map((entry) => [entry.userId, entry]))
-  const { copy, copied, problem } = useCopyText()
-  const native = nativeBridgeVersion() !== undefined
+  const { exportText, native, copied, problem } = useExportText()
   const exportFile = async () => {
     const csv = leagueResultsCsv({
       event,
@@ -53,8 +51,11 @@ export function LeagueResults<Entry extends { userId: string; name: string; imag
       }),
     })
     posthog.capture('league_results_exported', { swiss, partial, players: rows.length })
-    if (native) await copy(csv, { failure: 'Copy failed. Try again.', operation: 'league_results_export_copy' })
-    else downloadFile(`${safeFileName(event, 'event')}-results.csv`, csv, 'text/csv;charset=utf-8')
+    await exportText(csv, {
+      name: `${safeFileName(event, 'event')}-results.csv`,
+      type: 'text/csv;charset=utf-8',
+      operation: 'league_results_export_copy',
+    })
   }
   return (
     <section data-league-results>

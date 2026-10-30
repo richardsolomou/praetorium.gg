@@ -1,15 +1,23 @@
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { MessageSquareWarning } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { PageContent, PageHeader } from '../../components/Page'
-import { openFeedback } from '../feedback/support'
+import { openConversation, openFeedback } from '../feedback/support'
 import { YourFeedback } from '../feedback/YourFeedback'
 import { DocsSearchField, DocsSearchResults, TroubleshootingLinks } from '../docs/DocsSearch'
 import { SupportAside } from './SupportAside'
+import { SectionHeading } from '../../components/SectionHeading'
 
-export function Support() {
+/** `conversation`, which a reply email links to, opens over the page and leaves the address. */
+export function Support({ conversation }: { conversation?: string }) {
   const [query, setQuery] = useState('')
+  const navigate = useNavigate()
+  useEffect(() => {
+    if (!conversation) return
+    openConversation(conversation)
+    void navigate({ to: '/support', search: {}, replace: true })
+  }, [conversation, navigate])
   return (
     <main className="w-full">
       <PageHeader
@@ -27,9 +35,7 @@ export function Support() {
           <div className="min-w-0 space-y-10">
             <YourFeedback />
             <section aria-labelledby="find-an-answer" className="space-y-3">
-              <h2 id="find-an-answer" className="rubric border-b border-edge pb-2">
-                Find an answer
-              </h2>
+              <SectionHeading id="find-an-answer" title="Find an answer" />
               <p className="text-sm text-dim">
                 Search the docs for a task or the message you’re seeing, or open the list of fixes for the part of Praetorium you’re using.
               </p>

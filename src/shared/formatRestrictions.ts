@@ -39,7 +39,7 @@ export const warlordCountProblem = (warlords: number) =>
  * told about it: the restriction the player switched off is the restriction they
  * agreed with their table not to play.
  */
-export function kotcViolations(detachments: number, units: readonly KotcUnit[], limit = 600, waived: readonly string[] = []) {
+export function kotcViolations(detachments: number, units: readonly KotcUnit[], limit: number, waived: readonly string[]) {
   const errors: EvaluationError[] = []
   const add = (message: string, unit?: KotcUnit, broken?: EvaluationError['limit']) =>
     errors.push({

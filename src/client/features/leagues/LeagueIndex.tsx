@@ -6,7 +6,7 @@ import { Link } from '@tanstack/react-router'
 import { BookOpen, Users } from 'lucide-react'
 import { buttonClass } from '../../components/buttonClass'
 import { isLeagueOrganizer } from '../../../core/league'
-import { leaguesQuery, meQuery } from '../../queries'
+import { leaguesQuery, meQuery, type QueryData } from '../../queries'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PageState } from '../../components/PageState'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
@@ -135,7 +135,7 @@ function LeagueShelf({
   )
 }
 
-type TournamentSummary = Awaited<ReturnType<NonNullable<ReturnType<typeof leaguesQuery>['queryFn']>>>[number]
+type TournamentSummary = QueryData<typeof leaguesQuery>[number]
 
 /** Where the reader's own entry stands, tinted by whether it needs them: amber to act, green once done. */
 function ownEntryStatus(entry: { status: 'pending' | 'accepted' | 'rejected'; submitted: boolean }, revealed: boolean) {

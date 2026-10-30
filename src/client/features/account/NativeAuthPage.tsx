@@ -3,7 +3,7 @@ import { posthog } from 'posthog-js'
 import type { SocialAuthProvider } from '../../../authConfig'
 import { authClient } from '../../authClient'
 import { nativeAuthExchange, type NativeAuthAction } from '../../nativeAuth'
-import { authFailureReason } from './authFailureReason'
+import { captureAuthFailure } from './authFailureReason'
 
 const NATIVE_AUTH_CALLBACK = 'praetorium://auth'
 
@@ -71,12 +71,7 @@ export function NativeAuthPage({ search }: { search: NativeAuthSearch }) {
 
     const finish = async () => {
       if (search.error) {
-        posthog.capture('account_authentication_failed', {
-          action,
-          method: provider,
-          native: true,
-          reason: authFailureReason(search.error),
-        })
+        captureAuthFailure(search.error, { action, method: provider, native: true })
         returnToApplication({ action, bridge, next, provider }, undefined, challenge)
         return
       }
@@ -101,26 +96,16 @@ export function NativeAuthPage({ search }: { search: NativeAuthSearch }) {
         if (!sessionToken) throw new Error('missing session token')
         const exchanged = await authClient.oneTimeToken.verify({ token: sessionToken })
         if (exchanged.error) throw exchanged.error
-        const linked = await authClient.linkSocial({
-          provider,
-          callbackURL: nativeAuthPath({ action, bridge, challenge, complete: true, next, provider }),
-          errorCallbackURL: nativeAuthPath({ action, bridge, challenge, complete: true, next, provider }),
-        })
+        const back = nativeAuthPath({ action, bridge, challenge, complete: true, next, provider })
+        const linked = await authClient.linkSocial({ provider, callbackURL: back, errorCallbackURL: back })
         if (linked.error) throw linked.error
         return
       }
+      const back = nativeAuthPath({ action, bridge, challenge, complete: true, next, provider, requestSignUp: search.requestSignUp })
       const signedIn = await authClient.signIn.social({
         provider,
-        callbackURL: nativeAuthPath({ action, bridge, challenge, complete: true, next, provider, requestSignUp: search.requestSignUp }),
-        errorCallbackURL: nativeAuthPath({
-          action,
-          bridge,
-          challenge,
-          complete: true,
-          next,
-          provider,
-          requestSignUp: search.requestSignUp,
-        }),
+        callbackURL: back,
+        errorCallbackURL: back,
         requestSignUp: search.requestSignUp,
       })
       if (signedIn.error) throw signedIn.error
@@ -128,7 +113,7 @@ export function NativeAuthPage({ search }: { search: NativeAuthSearch }) {
 
     void (search.complete ? finish() : begin()).catch((error: unknown) => {
       posthog.captureException(error, { operation: 'native_auth' })
-      posthog.capture('account_authentication_failed', { action, method: provider, native: true, reason: authFailureReason(error) })
+      captureAuthFailure(error, { action, method: provider, native: true })
       setFailed(true)
     })
   }, [search])

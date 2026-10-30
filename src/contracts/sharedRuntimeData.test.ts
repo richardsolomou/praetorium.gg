@@ -1,4 +1,5 @@
 import { expect, it } from 'vitest'
+import { packRuntimeData, unpackRuntimeData } from './runtimeData'
 import { shareRuntimeData, restoreRuntimeData } from './sharedRuntimeData'
 
 it('shares unchanged records after upstream reorders an array', () => {
@@ -14,7 +15,6 @@ it('shares unchanged records after upstream reorders an array', () => {
     restored: value,
   })
 })
-import { packRuntimeData, unpackRuntimeData } from './runtimeData'
 
 it('shares identical rules while retaining changed and added faction records', () => {
   const base = packRuntimeData(

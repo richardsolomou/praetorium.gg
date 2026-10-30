@@ -2,7 +2,6 @@ import { routeSlug } from '../core/slug'
 import { type MissionPack, packText } from './missionPacks'
 import { english, records } from '../shared/datacards'
 import type { MissionTwist } from '../contracts/missions'
-export type { MissionTwist } from '../contracts/missions'
 
 /**
  * The optional twist a pack offers, which changes one rule for the whole battle.

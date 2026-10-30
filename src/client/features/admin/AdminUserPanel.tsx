@@ -42,6 +42,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Problem } from '../../components/Problem'
 import { countLabel, formatList } from '../../text'
 import { useCopyText } from '../../useCopyText'
+import { SectionHeading } from '../../components/SectionHeading'
 
 type Role = AdminUser['role']
 type Section = 'profile' | 'access' | 'sign-in' | 'sessions' | 'connections'
@@ -288,7 +289,7 @@ export function AdminUserPanel({ user, current, onClose }: { user: AdminUser; cu
 
           {current ? null : (
             <section className="border border-destructive/40 p-4">
-              <h2 className="rubric border-b border-edge pb-2 text-destructive">Delete account</h2>
+              <SectionHeading title="Delete account" className="text-destructive" />
               <div className="mt-3 flex flex-col items-start gap-3">
                 <p className="text-sm text-dim">
                   {isAdmin ? 'Remove the administrator role before deleting this account.' : deletionImpact(user)}
@@ -471,10 +472,7 @@ function confirmationCopy(user: AdminUser, confirming: Confirming) {
 function Section({ title, total, children }: { title: string; total?: number; children: ReactNode }) {
   return (
     <section>
-      <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-        <span>{title}</span>
-        {total === undefined ? null : <span className="readout">{total}</span>}
-      </h2>
+      <SectionHeading title={title} count={total} />
       <div className="mt-3 space-y-2">{children}</div>
     </section>
   )

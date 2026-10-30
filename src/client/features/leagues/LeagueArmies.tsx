@@ -2,24 +2,21 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { Calculator, Download } from 'lucide-react'
 import { posthog } from 'posthog-js'
-import type { ReactElement, ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { version } from '../../../../package.json'
 import type { LeagueArmy, LeagueEntryView } from '../../../core/league'
 import { leagueRosterBundle, type BundledRoster } from '../../../core/leagueRosterBundle'
 import type { FactionPresentation } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { Problem } from '../../components/Problem'
-import { downloadFile, safeFileName } from '../../downloadFile'
+import { safeFileName } from '../../downloadFile'
 import { factionFor } from '../../factions'
 import { openRevealedLeagueRosters } from '../../functions'
-import { nativeBridgeVersion } from '../../nativeBridge'
 import { factionIndexQuery, gameReferencesQuery } from '../../queries'
 import { revealedLeagueRostersKey } from '../../queries/queryKeys'
-import { useCopyText } from '../../useCopyText'
+import { useExportText } from '../../useCopyText'
 import { RosterSummary } from '../rosters/RosterSummary'
-import { EntrantGroup, ViewRosterButton } from './LeagueEntrants'
+import { EntrantGroup, IconAction, ViewRosterButton } from './LeagueEntrants'
 import { DropEntrant } from './LeagueDrop'
 import { UnsealRoster } from './LeagueUnseal'
 
@@ -70,8 +67,7 @@ export function LeagueArmies({
 }) {
   const { data: factions } = useQuery(factionIndexQuery())
   const { data: references } = useQuery(gameReferencesQuery())
-  const { copy, copied, problem } = useCopyText()
-  const native = nativeBridgeVersion() !== undefined
+  const { exportText, native, copied, problem } = useExportText()
   const entries = groups.flatMap((group) => group.entries)
   const openRosters = () => openRevealedLeagueRosters({ data: { token, eventToken } })
   // The app copies rather than downloads, and iOS refuses a clipboard write that waits on the network after the tap.
@@ -96,8 +92,11 @@ export function LeagueArmies({
         version,
       })
       posthog.capture('league_rosters_exported', { rosters: sealed.size })
-      if (native) await copy(text, { failure: 'Copy failed. Try again.', operation: 'league_rosters_export_copy' })
-      else downloadFile(`${safeFileName(event, 'event')}-rosters.txt`, text, 'text/plain;charset=utf-8')
+      await exportText(text, {
+        name: `${safeFileName(event, 'event')}-rosters.txt`,
+        type: 'text/plain;charset=utf-8',
+        operation: 'league_rosters_export_copy',
+      })
     },
   })
   return (
@@ -196,7 +195,7 @@ export function LeagueArmies({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    className={ICON_ACTION}
+                    className="text-dim hover:text-info pointer-coarse:size-11"
                     aria-label={`Simulate against ${named}`}
                     onClick={() => onSimulate(entry.userId)}
                   />
@@ -231,18 +230,4 @@ export function LeagueArmies({
       </article>
     )
   }
-}
-
-const ICON_ACTION = 'text-dim hover:text-info pointer-coarse:size-11'
-
-/** A borderless icon with its name in a tooltip, the way entrant rows offer their actions. */
-function IconAction({ tooltip, trigger, children }: { tooltip: string; trigger: ReactElement; children: ReactNode }) {
-  return (
-    <Tooltip>
-      <TooltipTrigger render={trigger}>{children}</TooltipTrigger>
-      <TooltipContent role="tooltip" side="bottom">
-        {tooltip}
-      </TooltipContent>
-    </Tooltip>
-  )
 }

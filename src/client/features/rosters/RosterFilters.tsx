@@ -10,7 +10,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Label } from '@/components/ui/label'
-import { GAME_SIZES } from '../../../core/battle'
+import { GAME_SIZES, battleSizeOptionLabel } from '../../../core/battle'
 import type { RosterVisibility } from '../../../core/savedRoster'
 import {
   Dialog,
@@ -42,10 +42,7 @@ const BATTLE_SIZE_GROUPS: SearchableGroup[] = [
     label: '',
     items: [
       { label: 'All battle sizes', value: 'all' },
-      ...GAME_SIZES.map((size) => ({
-        label: `${size.name.replace(` (${size.limit})`, '')} · ${size.limit} points`,
-        value: String(size.limit),
-      })),
+      ...GAME_SIZES.map((size) => ({ label: battleSizeOptionLabel(size), value: String(size.limit) })),
     ],
   },
 ]

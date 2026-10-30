@@ -1,4 +1,5 @@
-import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
+import { Link } from '@tanstack/react-router'
+import { LegalLinks, LegalPage, LegalSection, PrivacyEmail } from './LegalPage'
 
 export function Terms() {
   return (
@@ -14,11 +15,8 @@ export function Terms() {
 
       <LegalSection title="Accounts">
         <p>
-          You must be at least 13 years old. Give accurate information, keep your credentials private, and email{' '}
-          <a href="mailto:privacy@praetorium.gg" className="text-info hover:text-parchment">
-            privacy@praetorium.gg
-          </a>{' '}
-          if you think an account has been compromised. You are responsible for activity under your account.
+          You must be at least 13 years old. Give accurate information, keep your credentials private, and email <PrivacyEmail /> if you
+          think an account has been compromised. You are responsible for activity under your account.
         </p>
         <p>We may suspend or close accounts that break these terms or endanger the service or its players.</p>
       </LegalSection>
@@ -41,9 +39,9 @@ export function Terms() {
           you, the players seated opposite you, and anyone you share an unlisted or public list with. You are responsible for the names,
           tags and text you type. You can export any roster at any time. Deleting a saved roster removes the saved list, while frozen copies
           in battles and tournaments remain as described in the{' '}
-          <a href="/privacy" className="text-info hover:text-parchment">
+          <Link to="/privacy" className="text-info hover:text-parchment">
             privacy policy
-          </a>
+          </Link>
           .
         </p>
       </LegalSection>
@@ -51,9 +49,9 @@ export function Terms() {
       <LegalSection title="Game data and trademarks">
         <p>
           Unit, points and rules data comes from the community projects listed on the{' '}
-          <a href="/sources" className="text-info hover:text-parchment">
+          <Link to="/sources" className="text-info hover:text-parchment">
             data sources page
-          </a>
+          </Link>
           . Each source retains its rights in its work. Warhammer 40,000 and related marks belong to Games Workshop. Praetorium is
           unofficial and is not endorsed by or affiliated with Games Workshop; nothing here is an official product or rules reference.
         </p>
@@ -76,14 +74,11 @@ export function Terms() {
 
       <LegalSection title="Ending">
         <p>
-          Delete your account from your profile whenever you like, or email{' '}
-          <a href="mailto:privacy@praetorium.gg" className="text-info hover:text-parchment">
-            privacy@praetorium.gg
-          </a>{' '}
-          for help. When an account ends, its data is handled as the{' '}
-          <a href="/privacy" className="text-info hover:text-parchment">
+          Delete your account from your profile whenever you like, or email <PrivacyEmail /> for help. When an account ends, its data is
+          handled as the{' '}
+          <Link to="/privacy" className="text-info hover:text-parchment">
             privacy policy
-          </a>{' '}
+          </Link>{' '}
           describes.
         </p>
       </LegalSection>

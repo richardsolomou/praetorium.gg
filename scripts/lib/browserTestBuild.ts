@@ -1,8 +1,9 @@
 import { execFile } from 'node:child_process'
 import { createHash, hash, randomUUID } from 'node:crypto'
-import { access, cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
+import { access, cp, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { promisify } from 'node:util'
+import { testFile, treeFingerprint } from './compilerSources.ts'
 import { publishDirectory } from './publishDirectory.ts'
 
 const execute = promisify(execFile)
@@ -47,27 +48,13 @@ export async function browserTestBuildFingerprint(worktree: string, catalogue: s
     catalogueIdentity = hash('sha256', manifest)
     if (snapshot.id !== catalogueIdentity) throw new Error('Browser tests require a verified catalogue snapshot manifest')
   } else {
-    const entries = await readdir(catalogue, { recursive: true, withFileTypes: true })
-    const files = entries
-      .filter((entry) => entry.isFile())
-      .map((entry) => path.relative(catalogue, path.join(entry.parentPath, entry.name)))
-      .sort()
-    const source = createHash('sha256').update('source-catalogue')
-    for (const file of files)
-      source
-        .update(file)
-        .update('\0')
-        .update(await readFile(path.join(catalogue, file)))
-        .update('\0')
-    catalogueIdentity = source.digest('hex')
+    catalogueIdentity = treeFingerprint(catalogue, ['.'])
   }
   const { stdout } = await execute('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ...inputs], {
     cwd: worktree,
     maxBuffer: 8_000_000,
   })
-  const files = [...new Set([...stdout.split('\0').filter(Boolean), ...environmentFiles])]
-    .filter((file) => !/\.(?:integration\.)?test\.[^.]+$/.test(file))
-    .sort()
+  const files = [...new Set([...stdout.split('\0').filter(Boolean), ...environmentFiles])].filter((file) => !testFile.test(file)).sort()
   const hasher = createHash('sha256').update(
     JSON.stringify([
       process.version,

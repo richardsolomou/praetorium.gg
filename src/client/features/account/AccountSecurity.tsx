@@ -14,7 +14,7 @@ import { authClient } from '../../authClient'
 import { hasNativeAuthBridge, requestNativeAuth, useGithubAuthAvailability } from '../../nativeAuth'
 import { accountMethodsQuery, mcpConnectionsQuery, meQuery } from '../../queries'
 import { AuthMethodIcon } from './AuthMethodIcon'
-import { authFailureReason } from './authFailureReason'
+import { captureAuthFailure } from './authFailureReason'
 import { ConnectedAppIcon } from './ConnectedAppIcon'
 import { GithubSupporter } from './GithubSupporter'
 import {
@@ -33,6 +33,7 @@ import { Problem } from '../../components/Problem'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { useCopyText } from '../../useCopyText'
 import { useQrCode } from '../../components/useQrCode'
+import { SectionHeading } from '../../components/SectionHeading'
 
 type AccountIdentity = {
   email: string
@@ -87,7 +88,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
   return (
     <div className="ph-no-capture grid gap-6">
       <section id="sign-in-methods" className="border border-edge bg-panel p-5 md:p-7">
-        <h2 className="rubric border-b border-edge pb-2">Sign-in and security</h2>
+        <SectionHeading title="Sign-in and security" />
         {methodsPending ? <AccountMethodsSkeleton /> : null}
         {methods ? (
           <div className="mt-4 grid items-start gap-3 lg:grid-cols-2">
@@ -190,11 +191,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
                           }
                           const started = await authClient.linkSocial({ provider, callbackURL: '/profile', errorCallbackURL: '/profile' })
                           if (started.error) {
-                            posthog.capture('account_authentication_failed', {
-                              action: 'link',
-                              method: provider,
-                              reason: authFailureReason(started.error),
-                            })
+                            captureAuthFailure(started.error, { action: 'link', method: provider })
                             setLinkError(true)
                           }
                         }}
@@ -237,8 +234,8 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
       {preferences}
 
       <section className="border border-edge bg-panel p-5 md:p-7">
-        <h2 className="rubric border-b border-edge pb-2">Connected apps</h2>
-        <p className="mt-2 text-sm text-dim">
+        <SectionHeading title="Connected apps" />
+        <p className="text-sm text-dim">
           Apps you have allowed to read or change your rosters and battles.{' '}
           <Link to="/docs/$docId" params={{ docId: 'connect-an-assistant' }} className="text-info underline-offset-4 hover:underline">
             Connect Claude, ChatGPT or Gemini
@@ -276,7 +273,7 @@ export function AccountSecurity({ me, preferences }: { me: AccountIdentity; pref
       </section>
 
       <section className="border border-destructive/40 bg-panel p-5 md:p-7">
-        <h2 className="rubric border-b border-edge pb-2 text-destructive">Delete account</h2>
+        <SectionHeading title="Delete account" className="text-destructive" />
         <div className="mt-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-dim">
             Permanently deletes your rosters, friendships, tournaments, the clubs you own and every battle you played.

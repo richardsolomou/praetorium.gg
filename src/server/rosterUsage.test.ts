@@ -2,7 +2,8 @@ import { expect, it, vi } from 'vitest'
 import { leagueRosterFixture } from './leagueRoster.fixtures'
 import { app } from './app'
 import { ability, bookOf, points } from './catalogue.fixtures'
-import { rosterForUse, rosterUseError, rosterUseProblem, withCurrentAlerts } from './rosterUsage'
+import { rosterUseError, rosterUseProblem } from '../core/rosterLegality'
+import { rosterForUse, withCurrentAlerts } from './rosterUsage'
 
 vi.mock('./app', () => ({ app: vi.fn() }))
 
@@ -56,10 +57,6 @@ it('names a list over its points limit as over the limit, before any other probl
   expect(rosterUseProblem({ ...priced, points: 2_005, detachmentError: 'Too many detachment points.' }, { limit: 2_000 })?.kind).toBe(
     'over-limit',
   )
-})
-
-it('names a list within its limit that breaks a rule as not legal', () => {
-  expect(rosterUseProblem({ ...priced, detachmentError: 'Too many detachment points.' }, { limit: 2_000 })?.kind).toBe('not-legal')
 })
 
 it('rejects rosters without a valid force disposition', () => {

@@ -22,10 +22,9 @@ import {
 import { clubSeasonQuery } from '../../queries'
 import { countLabel, formatList } from '../../text'
 import { useNow } from '../../useNow'
-import { useMoment } from '../leagues/EventSchedule'
-import { inputMoment, momentFromInput } from '../leagues/LeagueForm'
 import { LeagueResults } from '../leagues/LeagueResults'
 import { useClubRefresh, usePlayClubGame, type Club } from './club'
+import { useMoment, inputMoment, momentFromInput } from '../../dates'
 
 type Season = NonNullable<Awaited<ReturnType<typeof clubSeason>>>
 type Fixture = Season['fixtures'][number]

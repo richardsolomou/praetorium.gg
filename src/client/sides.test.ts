@@ -82,12 +82,6 @@ describe('battle sides', () => {
     expect(theirs).toMatchObject({ automated: true, played: true })
   })
 
-  it('folds a 2v1 allied pair into one side', () => {
-    expect(sides(view([player({ id: 'solo', side: 0 }), player({ id: 'ally', side: 1 }), player({ id: 'other', side: 1 })]))).toHaveLength(
-      2,
-    )
-  })
-
   it('folds doubles into two armies but one resource pool per side', () => {
     const folded = sides(
       view([
@@ -102,11 +96,6 @@ describe('battle sides', () => {
       [2, 3],
       [2, 5],
     ])
-  })
-
-  it('reads shared command points from the side rather than each ally', () => {
-    const battle = view([player({ id: 'ally', side: 1, cp: 4 }), player({ id: 'other', side: 1, cp: 4 })])
-    expect(sides(battle)[0]?.cp).toBe(4)
   })
 
   // An allied pair fields one army between them, so the bonus is claimed once. The

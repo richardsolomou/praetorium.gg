@@ -9,6 +9,7 @@ import { Dialog, DialogBody, DialogContent, DialogHeader, DialogTitle } from '..
 import { MAX_COMBAT_MODELS } from '../../../core/combat'
 import { modelCountChoices } from '../../../core/unitSize'
 import { FactionLabel, FactionMark } from '../../components/FactionMark'
+import { factionFor } from '../../factions'
 import { SearchableSelect } from '../../components/SearchableSelect'
 import { combatLoadoutsQuery, combatUnitsQuery, factionIndexQuery, factionQuery, loadoutDatasheetsQuery } from '../../queries'
 import { Loadout } from '../rosters/builder/Loadout'
@@ -26,8 +27,6 @@ import { attachedUnit } from '../../../core/attachedUnits'
 import { rulesVersionLabel } from '../../../core/catalogueEdition'
 import { Problem } from '../../components/Problem'
 import { countLabel } from '../../text'
-
-const unitValue = (catalogueId: string, id: string) => JSON.stringify([catalogueId, id])
 
 export function CombatantCard({
   side,
@@ -75,7 +74,7 @@ export function CombatantCard({
   const selectedFaction = indexedFaction ?? (combatant.roster ? rosterFaction.data : undefined)
   const factionIcon = (catalogueId: string | undefined) => {
     const faction =
-      factions.data?.factions.find((entry) => entry.id === catalogueId || entry.slug === catalogueId) ??
+      (catalogueId ? factionFor(factions.data, catalogueId) : undefined) ??
       (catalogueId === combatant.faction ? selectedFaction : undefined)
     return faction ? <FactionMark faction={faction} size="sm" /> : undefined
   }
@@ -101,18 +100,13 @@ export function CombatantCard({
     )
       ? [
           {
-            label: selectedFaction ? `${selectedFaction.displayName} · ${rulesVersionLabel(selectedFaction)}` : 'Selected unit',
-            items: [
-              {
-                value: unitValue(combatant.faction, pick.entryId),
-                label: unit.name,
-                detail: `${unit.points} pts`,
-                icon: factionIcon(combatant.faction),
-              },
-            ],
+            catalogueId: combatant.faction,
+            name: selectedFaction ? `${selectedFaction.displayName} · ${rulesVersionLabel(selectedFaction)}` : 'Selected unit',
+            units: [{ id: pick.entryId, name: unit.name, points: unit.points }],
+            icon: factionIcon(combatant.faction),
           },
         ]
-      : []
+      : undefined
   const unitPicker = combatant.roster ? (
     <SearchableSelect
       ariaLabel={`${side} unit`}
@@ -147,12 +141,9 @@ export function CombatantCard({
       searchPlaceholder="Search units…"
       index={catalogueUnits.data ?? []}
       emptyText={catalogueUnits.isPending ? 'Loading units…' : undefined}
-      extraGroups={selectedOutsideIndex}
-      value={pick ? unitValue(combatant.faction, pick.entryId) : ''}
-      onValueChange={(value) => {
-        const [catalogueId, id] = JSON.parse(value) as [string, string]
-        combatant.selectUnit(catalogueId, id)
-      }}
+      extraBooks={selectedOutsideIndex}
+      selected={pick ? { catalogueId: combatant.faction, entryId: pick.entryId } : undefined}
+      onUnitChange={combatant.selectUnit}
     />
   )
   const warmLoadout = (index: number) => {

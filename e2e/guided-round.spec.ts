@@ -1,16 +1,16 @@
 import { waitForOfflineApp } from './offline'
 import { expect, test } from './test'
-import { advance, advanceButton, createRoster, desktopContext, setupBattle, signUp, takeTheTurn, uniqueName } from './account'
-import { battleLog, productSql, lastPathSegment, battleIdFor } from './storage'
+import { advance, advanceButton, createRoster, desktopContext, setupBattle, signUp, takeTheTurn, uniqueName, playerPanel } from './account'
+import { battleCommands, battleLog, lastPathSegment, battleIdFor } from './storage'
+import type { Command } from '../src/core/battle'
 
 /** The battle's logged command bodies, in log order. */
 async function loggedCommands(battleId: string) {
-  const rows = await productSql<{ seq: number; body: string }>`SELECT seq, body FROM commands WHERE battle_id = ${battleId}`
-  return rows.toSorted((left, right) => left.seq - right.seq).map((row) => JSON.parse(row.body))
+  return (await battleCommands(battleId)).map(({ body }) => body)
 }
 
-const isFinalSettlement = (command: { kind: string; scores?: { final?: object }[] }) =>
-  command.kind === 'score-settlement' && Boolean(command.scores?.some((score) => score.final))
+const isFinalSettlement = (command: Command): command is Extract<Command, { kind: 'score-settlement' }> =>
+  command.kind === 'score-settlement' && command.scores.some((score) => score.category === 'primary' && score.final)
 
 test('New Orders, discard CP and carried cards survive a complete two-player round', async ({ page, browser }) => {
   test.setTimeout(180_000)
@@ -21,7 +21,7 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
   await signUp(page, uniqueName('Round host'))
   const ours = await createRoster(page, { faction: 'Necrons', detachment: /Awakened Dynasty/, name: 'First army' })
   await setupBattle(page, opponent, { opponent: name, hostRoster: ours, guestRoster: theirs, openingSecondaries: ['Cleanse', 'Plunder'] })
-  const side = page.locator('[data-panel="player"][data-side="0"]')
+  const side = playerPanel(page, 0)
   await side.getByRole('button', { name: 'Use New Orders', exact: true }).click()
   await page
     .getByRole('dialog', { name: 'New Orders', exact: true })
@@ -33,9 +33,9 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
   expect(commands.findLast((command) => command.kind === 'set-battlefield')?.terrainLayoutId).toBe('ed87b70c-bb09-49c7-bf06-54ca47956dcd')
   const orders = commands.filter((command) => command.kind === 'use-new-orders')
   expect(orders).toHaveLength(1)
-  test.info().annotations.push({ type: 'New Orders replacement', description: orders[0].secondary.name })
+  test.info().annotations.push({ type: 'New Orders replacement', description: orders[0]!.secondary.name })
   await test.info().attach('New Orders replacement', {
-    body: Buffer.from(JSON.stringify({ name: orders[0].secondary.name })),
+    body: Buffer.from(JSON.stringify({ name: orders[0]!.secondary.name })),
     contentType: 'application/json',
   })
   const target = opponent.getByRole('dialog', { name: 'A Tempting Target · choices', exact: true })
@@ -83,9 +83,7 @@ test('New Orders, discard CP and carried cards survive a complete two-player rou
   )
   await opponent.reload()
   await expect(opponent.locator('[data-scoreboard]')).toContainText('Round 2 of 5')
-  await expect(
-    opponent.locator('[data-panel="player"][data-side="0"]').getByRole('button', { name: 'Read Plunder', exact: true }),
-  ).toBeVisible()
+  await expect(playerPanel(opponent, 0).getByRole('button', { name: 'Read Plunder', exact: true })).toBeVisible()
 })
 
 test('both sides settle source final awards beyond round caps through cold offline resume', async ({

@@ -67,7 +67,7 @@ export const listLeagueBattles = createServerFn({ method: 'GET' })
         data.token,
         data.eventToken,
         { limit: BATTLES_PAGE, before: data.before ?? undefined },
-        await app().battleMissionRulesFor(),
+        await app().rulesFor(),
         await app().battleFactionsFor(),
         await currentUserId(),
       )
@@ -81,7 +81,7 @@ export const leagueResults = createServerFn({ method: 'GET' })
       app().service.leagueResults(
         data.token,
         data.eventToken,
-        await app().battleMissionRulesFor(),
+        await app().rulesFor(),
         await app().battleFactionsFor(),
         await currentUserId(),
       ),

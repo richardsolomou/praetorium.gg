@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { eventFullName, eventLink } from '../leagues/leagueEvent'
 import { ChevronRight, ScrollText, UserPlus } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { SectionHeading } from '../../components/SectionHeading'
 
 /** An event that has accepted the player and is still waiting for their list. */
 export type RosterDue = Parameters<typeof eventFullName>[0] & Parameters<typeof eventLink>[0]
@@ -11,10 +12,11 @@ export function HomeWaiting({ rostersDue, friendRequests }: { rostersDue: readon
   if (!rostersDue.length && !friendRequests) return null
   return (
     <section data-home-waiting>
-      <h2 className="rubric flex items-baseline justify-between border-b border-discarded/40 pb-2 text-discarded">
-        <span>Needs your attention</span>
-        <span className="readout">{rostersDue.length + friendRequests}</span>
-      </h2>
+      <SectionHeading
+        title="Needs your attention"
+        count={rostersDue.length + friendRequests}
+        className="mb-0 border-discarded/40 text-discarded"
+      />
       <ul className="divide-y divide-edge border-b border-edge">
         {rostersDue.map((league) => (
           <li key={league.token}>

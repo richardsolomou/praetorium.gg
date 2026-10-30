@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { isTeamFormat, alliedLeagueRosterLimit, type LeagueEntryView } from '../../../core/league'
+import { withMember } from '../../../core/collections'
 import {
   addLeagueEntrants,
   admitLeagueEntries,
@@ -23,7 +24,8 @@ import { entrantGroups, entryRules, eventFullName, eventPath, leagueNoun, soloOr
 import { Problem } from '../../components/Problem'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { formatList, countLabel } from '../../text'
-import { SHARED_LABEL, useInviteShareLabel } from '../friends/friendInvite'
+import { useNativeShare } from '../../nativeBridge'
+import { shareButtonLabel } from '../../useShareLink'
 
 /** Draws one entrant with whatever the reader may do about them; the organizer's controls ride in `controls`, and `last` closes the row. */
 type EntrantRowRenderer = (entry: LeagueEntryView, detail: ReactNode, controls?: ReactNode, last?: ReactNode) => ReactNode
@@ -69,8 +71,8 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
 
   const labels = entrantLabels(league.entries)
   const label = (entry: LeagueEntryView) => labels.get(entry.userId) ?? entry.name
-  const nameOf = (userId: string) => labels.get(userId) ?? league.entries.find((entry) => entry.userId === userId)?.name ?? 'someone'
-  const byJoin = [...league.entries].sort((left, right) => left.joinedAt - right.joinedAt)
+  const nameOf = (userId: string) => labels.get(userId) ?? 'someone'
+  const byJoin = league.entries.toSorted((left, right) => left.joinedAt - right.joinedAt)
   const accepted = byJoin.filter((entry) => entry.status === 'accepted')
   const pending = byJoin.filter((entry) => entry.status === 'pending')
   const rejected = byJoin.filter((entry) => entry.status === 'rejected')
@@ -152,7 +154,7 @@ export function OrganizerEntrants({ league, token, row }: { league: League; toke
           aria-label={`Pick ${label(entry)} for a ${league.format === '2v1' ? 'pair' : 'team'}`}
           checked={checked}
           disabled={!checked && pickedLive.length === 2}
-          onChange={() => setPicked(checked ? pickedLive.filter((id) => id !== entry.userId) : [...pickedLive, entry.userId])}
+          onChange={() => setPicked(withMember(pickedLive, entry.userId))}
         />
         Pick
       </label>
@@ -416,10 +418,10 @@ function SizeToggle({
 export function InvitePanel({ league }: { league: League }) {
   const origin = useOrigin()
   const invite = useInviteShare(eventPath(league), eventFullName(league), 'league_invite_shared')
-  const shareLabel = useInviteShareLabel()
+  const shareLabel = shareButtonLabel(invite.feedback, useNativeShare(), 'invite')
   return (
     <section className="border border-edge bg-panel p-4">
-      <h2 className="rubric border-b border-edge pb-2">Invite players</h2>
+      <SectionHeading title="Invite players" className="mb-0" />
       <p className="mt-1 text-xs text-dim">
         {league.club
           ? 'Members also find it on the club page.'
@@ -429,7 +431,7 @@ export function InvitePanel({ league }: { league: League }) {
       </p>
       <button
         type="button"
-        aria-label={invite.feedback === 'copied' ? 'Invite link copied' : invite.feedback === 'shared' ? 'Invite shared' : shareLabel}
+        aria-label={shareLabel}
         disabled={!origin}
         className="group mt-3 block w-full border border-edge-strong bg-sunken text-left hover:border-info disabled:opacity-60"
         onClick={() => void invite.share()}
@@ -448,7 +450,7 @@ export function InvitePanel({ league }: { league: League }) {
           className={`flex items-center justify-center gap-1.5 border-t border-edge-strong px-3 py-2 text-xs font-semibold tracking-label uppercase group-hover:bg-raised pointer-coarse:min-h-11 ${invite.feedback === 'copied' || invite.feedback === 'shared' ? 'text-achieved' : 'text-parchment'}`}
         >
           {invite.feedback === 'copied' || invite.feedback === 'shared' ? <Check className="size-3.5" /> : <Share2 className="size-3.5" />}
-          {invite.feedback === 'copied' || invite.feedback === 'shared' ? SHARED_LABEL[invite.feedback] : shareLabel}
+          {shareLabel}
         </span>
       </button>
       <p aria-live="polite" className={`mt-2 text-xs ${invite.feedback === 'error' ? 'text-destructive' : 'sr-only'}`}>
@@ -541,7 +543,7 @@ function AddPlayers({ league, token }: { league: League; token: string }) {
                           className="size-5 accent-parchment"
                           checked={checked}
                           disabled={add.isPending || (!checked && places !== null && picked.length >= places)}
-                          onChange={() => setPicked(checked ? picked.filter((id) => id !== person.id) : [...picked, person.id])}
+                          onChange={() => setPicked(withMember(picked, person.id))}
                         />
                         <PlayerAvatar name={person.name} image={person.image} className="size-8 text-3xs" />
                         <span className="min-w-0 truncate font-bold uppercase">{person.name}</span>

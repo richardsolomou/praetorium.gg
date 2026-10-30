@@ -6,16 +6,16 @@ import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuTrigger } 
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 import { pointsLabel } from '../../../core/battle'
-import { battleOutcome } from '../../../core/standings'
-import { BATTLE_ENDINGS, battleOutcomeStage, battleStage } from '../../battleStage'
+import { BATTLE_ENDINGS, sideLost, viewerStage } from '../../battleStage'
 import { deploymentName, summarySides, type SummarySide } from '../../battleSummary'
 import { deploymentsQuery } from '../../queries'
 import { useDateFormatting } from '../../dates'
 import { FactionMark } from '../../components/FactionMark'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { RatingChange } from '../../components/RatingChange'
-import type { OnboardingTarget } from '../onboarding/onboarding'
+import type { OnboardingTarget } from '../../onboardingTargets'
 import type { Battle } from './battle'
+import { SectionHeading } from '../../components/SectionHeading'
 
 /**
  * One heading's worth of battles, a short card each: how it stands, who sits on each side
@@ -53,22 +53,14 @@ export function BattleShelf({
   if (!battles.length) return null
   return (
     <section data-onboarding={onboarding} data-battle-shelf={name ?? ''}>
-      {title ? (
-        <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-          <span>{title}</span>
-          <span className="readout">{battles.length}</span>
-        </h2>
-      ) : null}
+      {title ? <SectionHeading title={title} count={battles.length} /> : null}
       <div className={`grid gap-4 ${title ? 'mt-3' : ''}`}>
         {battles.map((battle) => {
           const canDelete = Boolean(viewerId && onDelete && battle.playerIds[0] === viewerId)
           const seat = viewerId ? battle.playerIds.indexOf(viewerId) : -1
           // Folded into sides rather than read seat by seat: an ally of a 2v1 sits second.
           const [ours, theirs] = summarySides(battle)
-          const stage =
-            seat !== -1 && battle.status === 'finished'
-              ? battleOutcomeStage(battleOutcome(battle, battle.sides[seat]!))
-              : battleStage(battle.status)
+          const stage = viewerStage(battle, viewerId)
           const battlefield = deploymentName(battle.deploymentId, deployments)
           const setting = [
             ...(label ? [label(battle)] : []),
@@ -80,9 +72,7 @@ export function BattleShelf({
           const scored = battle.status !== 'setup'
           const a = ours?.score ?? 0
           const b = theirs?.score ?? 0
-          // Fading the losers lifts the winners; a draw fades neither.
-          const lost = (side?: SummarySide) =>
-            battle.status === 'finished' && side !== undefined && battleOutcome(battle, side.index) === 'lost'
+          const lost = (side?: SummarySide) => side !== undefined && sideLost(battle, side.index)
           const faded = 'opacity-50'
           return (
             <ContextMenu key={battle.token}>

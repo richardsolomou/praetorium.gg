@@ -549,7 +549,7 @@ function gamePastAt({ game, event }: Extract<EventHost, { kind: 'club' }>) {
 }
 
 function pastClubGame(ctx: Context, host: EventHost) {
-  return host.kind === 'club' && !clubGameOpen({ pastAt: gamePastAt(host) }, safeNumber(ctx.timestamp.microsSinceUnixEpoch / 1_000n))
+  return host.kind === 'club' && !clubGameOpen({ pastAt: gamePastAt(host) }, safeNumber(nowMs(ctx)))
 }
 
 /** How many battles a club has and when the latest began, for its card. */
@@ -609,10 +609,11 @@ type SeasonRow = NonNullable<ReturnType<Context['db']['clubSeasons']['id']['find
 
 const seasonPlayerKey = (seasonId: string, userId: string) => JSON.stringify([seasonId, userId])
 
+const byJoined = (a: { joinedAt: bigint; userId: string }, b: { joinedAt: bigint; userId: string }) =>
+  a.joinedAt < b.joinedAt ? -1 : a.joinedAt > b.joinedAt ? 1 : a.userId.localeCompare(b.userId)
+
 function seasonPlayers(ctx: Context, seasonId: string) {
-  return Array.from(ctx.db.clubSeasonPlayers.seasonId.filter(seasonId)).sort((a, b) =>
-    a.joinedAt < b.joinedAt ? -1 : a.joinedAt > b.joinedAt ? 1 : a.userId.localeCompare(b.userId),
-  )
+  return Array.from(ctx.db.clubSeasonPlayers.seasonId.filter(seasonId)).sort(byJoined)
 }
 
 /** A season takes its players and fixtures with it; its battles stay. */
@@ -710,7 +711,7 @@ export const onConnect = spacetime.clientConnected((ctx) => {
         device?.deviceHash !== undefined &&
         device.joinedAt !== undefined &&
         guestDeviceSubject(device.deviceHash) === subject &&
-        guestSessionCurrent(safeNumber(device.joinedAt), safeNumber(ctx.timestamp.microsSinceUnixEpoch / 1_000n))
+        guestSessionCurrent(safeNumber(device.joinedAt), safeNumber(nowMs(ctx)))
       )
     },
   })
@@ -1396,7 +1397,7 @@ export const claimStandingsRefresh = spacetime.procedure(
  */
 export const saveBattleResults = spacetime.procedure({ payload: t.string() }, t.string(), (ctx, { payload }) =>
   operatorTx(ctx, (tx) => {
-    const input = resultWrite.parse(JSON.parse(payload))
+    const input = decodePayload(resultWrite, payload, 'Invalid battle results')
     heldStandings(tx, input.holder)
     let moved = false
     const changed = (
@@ -1461,7 +1462,7 @@ export const ratingsBefore = spacetime.procedure({ from: t.u64(), playerIds: t.a
  */
 export const saveRatingSteps = spacetime.procedure({ payload: t.string() }, t.bool(), (ctx, { payload }) =>
   operatorTx(ctx, (tx) => {
-    const input = stepWrite.parse(JSON.parse(payload))
+    const input = decodePayload(stepWrite, payload, 'Invalid rating steps')
     heldStandings(tx, input.holder)
     if (input.first) {
       const holders = new Set<string>()
@@ -1647,7 +1648,7 @@ const achievementWrite = z.object({
  */
 export const saveAchievements = spacetime.procedure({ payload: t.string() }, t.bool(), (ctx, { payload }) =>
   operatorTx(ctx, (tx) => {
-    const input = achievementWrite.parse(JSON.parse(payload))
+    const input = decodePayload(achievementWrite, payload, 'Invalid achievements')
     const check = tx.db.achievementChecks.userId.find(input.userId)
     if (!check || check.revision !== BigInt(input.revision) || derivedState(tx, ACHIEVEMENTS).version !== input.definitions) return false
     const stored = new Map(Array.from(tx.db.earnedAchievements.userId.filter(input.userId), (row) => [row.achievementId, row]))
@@ -3531,9 +3532,7 @@ export const publicStandingsRevision = spacetime.procedure({}, t.string(), (ctx)
 )
 
 function leagueEntriesFor(ctx: Context, eventId: string) {
-  return Array.from(ctx.db.leagueEventEntries.eventId.filter(eventId)).sort((a, b) =>
-    a.joinedAt < b.joinedAt ? -1 : a.joinedAt > b.joinedAt ? 1 : a.userId.localeCompare(b.userId),
-  )
+  return Array.from(ctx.db.leagueEventEntries.eventId.filter(eventId)).sort(byJoined)
 }
 
 function droppedFrom(ctx: Context, eventId: string, userId: string) {
@@ -4228,9 +4227,7 @@ const clubCommandInput = z.discriminatedUnion('op', [
 ])
 
 function clubMembersOf(ctx: Context, clubId: string) {
-  return Array.from(ctx.db.clubMembers.clubId.filter(clubId)).sort((a, b) =>
-    a.joinedAt < b.joinedAt ? -1 : a.joinedAt > b.joinedAt ? 1 : a.userId.localeCompare(b.userId),
-  )
+  return Array.from(ctx.db.clubMembers.clubId.filter(clubId)).sort(byJoined)
 }
 
 function clubMemberRows(ctx: Context, club: ClubRow) {
@@ -5854,7 +5851,7 @@ export const syncProduct = spacetime.procedure({ payload: t.string() }, t.string
       if (prior.owner !== input.owner || prior.fingerprint !== input.fingerprint) throw new SenderError('Operation ID reused')
       return input.reportApplied ? productJson({ result: prior.result, applied: false }) : prior.result
     }
-    const now = safeNumber(tx.timestamp.microsSinceUnixEpoch / 1_000n)
+    const now = safeNumber(nowMs(tx))
     if (input.createdAt < now - SYNC_RETENTION_MS || input.createdAt > now + 5 * 60_000)
       throw new SenderError('Saved action expired; review it before sending it again')
     const receipts = Array.from(tx.db.syncReceipts.owner.filter(input.owner))

@@ -65,11 +65,7 @@ it.each(['preview', 'released', 'retired'] as const)('queues a saved %s league r
       identifiers: {},
     },
     'league:league',
-    undefined,
-    ['roster:roster'],
-    undefined,
-    'alice',
-    undefined,
+    { dependencies: ['roster:roster'], owner: 'alice' },
   )
 })
 

@@ -18,7 +18,7 @@ import { RuleText } from '../../../components/RuleText'
 import { type Army, type Side } from '../../../sides'
 import { formationLabel, SetupNote, SetupSidePanel } from './chrome'
 import { reserveSections, reserveUnitLabel } from './reservesModel'
-import { asSentence } from '../../../text'
+import { asSentence, countLabel } from '../../../text'
 import { Problem } from '../../../components/Problem'
 
 type FormationCommand = Extract<Command, { kind: 'set-unit-formation' }>
@@ -100,7 +100,7 @@ function ArmySetup({ army, multiple, moves }: { army: Army; multiple: boolean; m
           {multiple ? <span className="block text-3xs text-dim">{army.playerName}</span> : null}
         </span>
         <span className="flex max-w-full shrink-0 flex-wrap justify-end gap-1">
-          <span className="chip">{listed} units</span>
+          <span className="chip">{countLabel(listed, 'unit')}</span>
           {multiple || reserveLimit === undefined ? null : (
             <span className="chip">
               {reservePoints}/{reserveLimit} reserve points
@@ -299,7 +299,7 @@ function TransportBoarding({
                     <div key={unit.host.key} className="flex items-center justify-between gap-2 rounded-sm bg-sunken px-2 py-1.5">
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-bone">{reserveUnitLabel(units, unit)}</p>
-                        <p className="text-3xs text-dim">{models} models</p>
+                        <p className="text-3xs text-dim">{countLabel(models, 'model')}</p>
                         {refusal ? (
                           <p id={`${reasonId}-${unit.host.key}`} className="text-3xs text-discarded">
                             {refusal}

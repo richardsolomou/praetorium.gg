@@ -1,7 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Navigate } from '@tanstack/react-router'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { BattleUnavailable } from './BattleUnavailable'
 import { FullPageState } from '../../components/PageState'
 import { Setup } from './setup/Setup'
 import { Spectator } from './Spectator'
@@ -29,7 +28,14 @@ export function BattlePage({ token }: { token: string }) {
 
   if (isPending) return <FullPageState loading title="Loading battle" explanation="Opening the battle history." />
   if (!screen) return <Navigate to="/battles" replace />
-  if (screen.kind === 'unavailable') return <BattleUnavailable />
+  if (screen.kind === 'unavailable')
+    return (
+      <FullPageState
+        eyebrow="Battle"
+        title="This battle is not open"
+        explanation="Nobody is seated at this battle, so there is nothing to watch."
+      />
+    )
   if (screen.kind === 'spectator')
     return (
       <Spectator view={screen.view} clock={screen.clock} missions={screen.missions} report={screen.report} timeline={screen.timeline} />

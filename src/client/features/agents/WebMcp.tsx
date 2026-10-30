@@ -9,9 +9,9 @@ import { isFetchNetworkFailure } from '../../networkErrors'
 import { captureAppSnapshot } from '../../offline/appSnapshot'
 import { writeAppSnapshot, APP_ACCOUNT_EVENT } from '../../offline/appStorage'
 import type { AgentToolDescriptor } from '../../../contracts/agentTools'
-import { browserModelContext, installWebMcp, type ToolResult } from './registerWebMcp'
+import { browserModelContext, failure, installWebMcp, type ToolResult } from './registerWebMcp'
 import { WriteApproval, type WriteProposal } from './WriteApproval'
-import { anySignal } from '../../abortSignals'
+import { withTimeout } from '../../abortSignals'
 import { Problem } from '../../components/Problem'
 
 export function WebMcp() {
@@ -37,7 +37,7 @@ export function WebMcp() {
               prepare: (tool, input, signal) =>
                 prepareBrowserAgentTool({
                   data: { name: tool.name, input, expectedUserId: userId },
-                  signal: anySignal([signal, AbortSignal.timeout(30_000)]),
+                  signal: withTimeout(signal, 30_000),
                 }),
               approve: (tool, input, summary, signal) => approval.request(tool, input, summary, signal),
               finishWrite: (error) => {
@@ -47,14 +47,10 @@ export function WebMcp() {
                 // Once a write is dispatched, cancellation cannot undo it; await its result without retrying.
                 const serialized = await callBrowserAgentTool({
                   data: { name: tool.name, input, expectedUserId: userId },
-                  signal: tool.readOnly ? anySignal([signal, AbortSignal.timeout(30_000)]) : AbortSignal.timeout(30_000),
+                  signal: withTimeout(tool.readOnly ? signal : undefined, 30_000),
                 })
                 const result = JSON.parse(serialized) as ToolResult
-                if (lifetime.signal.aborted)
-                  return {
-                    content: [{ type: 'text' as const, text: 'Your account changed. Check the result after signing in.' }],
-                    isError: true,
-                  }
+                if (lifetime.signal.aborted) return failure('Your account changed. Check the result after signing in.')
                 if (!tool.readOnly) {
                   await client.invalidateQueries({ predicate: (query) => query.queryKey[0] !== 'me' }).catch(() => {})
                   await writeAppSnapshot(captureAppSnapshot(client)).catch(() => {})

@@ -36,7 +36,6 @@ type Props = {
 /** Only what can be played right now, unless the player asks for the rest; the rest show why they cannot be played. */
 export function Stratagems({ side, phase, coreKeys, pending, send, writtenFor, onRecordMissed }: Props) {
   const [showAll, setShowAll] = useState(false)
-  if (!side.stratagems.length) return null
   const hidden = hiddenNow(side.stratagems, phase, side.isActive)
 
   return (

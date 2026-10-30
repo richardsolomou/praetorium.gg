@@ -1,8 +1,9 @@
 import { partialMatchKey } from '@tanstack/react-query'
 import { requireReviewedRoster, type ReviewedServerSave } from './offline/reviewedRoster'
 import { projectBattles } from './offline/battleFunctions'
-import { accountChanged, cachedRead, cachedPage } from './offline/reads'
+import { accountChanged, accountGuard, cachedRead, cachedPage } from './offline/reads'
 import { hasLocalChanges, localOwner, syncLocalWork } from './offline/localRuntime'
+import { byId } from '../core/collections'
 import { lockedRosterRefusal } from '../core/rosterLock'
 import { rosterDifferences } from '../core/rosterDifferences'
 import { convertedSetup } from '../core/rosterSetup'
@@ -35,8 +36,7 @@ import type { LocalState } from '../contracts/localState'
 import { playerDefaults } from './offline/actionFunctions'
 import { localRosterAssessment } from './offline/rosterAssessment'
 import { calculationRead } from './offline/calculationRead'
-import { anySignal } from './abortSignals'
-import { rosterPriceKey } from './queries/rosterPriceKey'
+import { withTimeout } from './abortSignals'
 import {
   armyUpdatesKey,
   catalogueChangesKey,
@@ -64,6 +64,7 @@ import {
   sharedRosterKey,
   standingsKey,
   userProfileKey,
+  rosterPriceKey,
 } from './queries/queryKeys'
 
 export * from '../server/functions'
@@ -248,9 +249,7 @@ export async function rosterAccess(args: Parameters<typeof server.rosterAccess>[
 export async function rosterBootstrap(args: Parameters<typeof server.rosterBootstrap>[0]): ReturnType<typeof server.rosterBootstrap> {
   const owner = localOwner()?.id
   const engine = localEngine()
-  const assertAccount = () => {
-    if (localOwner()?.id !== owner || localEngine() !== engine) throw accountChanged()
-  }
+  const assertAccount = accountGuard()
   const resource = `roster:${args.data.id}`
   const local = !args.data.battle ? await localDocument<LocalRoster | null>(resource) : undefined
   const fromLocal = async (
@@ -298,6 +297,8 @@ export async function sharedRoster(args: Parameters<typeof server.sharedRoster>[
   return access?.roster ?? null
 }
 
+export const DELETED_ROSTER_MESSAGE = 'This roster was deleted. Save it as a new roster.'
+
 export async function saveRoster(
   args: Parameters<typeof server.saveRoster>[0],
   reviewed?: RosterInput,
@@ -324,7 +325,7 @@ export async function saveRoster(
     requireReviewedRoster(saved, args.data)
     return { id: args.data.id, updatedAt: answer.version }
   }
-  const input: RosterInput & { id: string } = {
+  const input = {
     ...saveRosterSchema.parse(args.data),
     id: args.data.id ?? crypto.randomUUID(),
     baseRosterId: (args.data as RosterInput & { baseRosterId?: string | null }).baseRosterId ?? null,
@@ -342,7 +343,7 @@ export async function saveRoster(
     await rememberDocument(resource, opened.roster, opened.roster.updatedAt, owner, null)
     previous = await localDocument<LocalRoster | null>(resource)
   }
-  if (previous === null) throw new Error('This roster was deleted. Save it as a new roster.')
+  if (previous === null) throw new Error(DELETED_ROSTER_MESSAGE)
   const now = Math.max(Date.now(), (previous?.updatedAt ?? 0) + 1)
   const roster: LocalRoster = {
     ...input,
@@ -353,9 +354,8 @@ export async function saveRoster(
     pointsBudget: input.pointsBudget === undefined ? (previous?.pointsBudget ?? null) : input.pointsBudget,
     optionalRules: input.optionalRules ?? [],
     waivedRules: input.waivedRules ?? [],
-    baseRosterId: previous?.baseRosterId ?? (input as RosterInput & { baseRosterId?: string | null }).baseRosterId ?? null,
-    copiedFromRosterId:
-      previous?.copiedFromRosterId ?? (input as RosterInput & { copiedFromRosterId?: string | null }).copiedFromRosterId ?? null,
+    baseRosterId: previous?.baseRosterId ?? input.baseRosterId,
+    copiedFromRosterId: previous?.copiedFromRosterId ?? input.copiedFromRosterId,
     visibility: input.visibility ?? 'private',
     source: input.source ?? 'editable',
     prep: input.prep ? { ...input.prep, remindersEnabled: input.prep.remindersEnabled ?? true } : null,
@@ -367,21 +367,16 @@ export async function saveRoster(
   if (refusal) throw new Error(refusal)
   const price = roster.automaticName ? pricedRoster(roster) : null
   if (roster.automaticName) roster.name = price?.label ?? previous?.name ?? ''
-  await queueLocal(
-    'saveRoster',
-    { ...roster, name: roster.automaticName ? '' : roster.name },
-    resource,
-    roster,
-    undefined,
-    undefined,
+  await queueLocal('saveRoster', { ...roster, name: roster.automaticName ? '' : roster.name }, resource, {
+    data: roster,
     owner,
-    reviewed
+    update: reviewed
       ? (current) => {
           requireReviewedRoster(current, reviewed)
           return roster
         }
       : undefined,
-  )
+  })
   if (!previous && navigator.onLine) await attemptLocalSync()
   if (localOwner()?.id !== owner) throw new Error('The account changed while saving this roster.')
   return { id: input.id, updatedAt: now }
@@ -429,7 +424,7 @@ function overlaySummaries(
   all = false,
   retained?: Set<string>,
 ) {
-  const byId = new Map(summaries.map((roster) => [roster.id, roster]))
+  const listed = byId(summaries)
   for (const [resource, document] of Object.entries(state?.documents ?? {})) {
     if (
       !resource.startsWith('roster:') ||
@@ -437,10 +432,10 @@ function overlaySummaries(
     )
       continue
     const roster = document.data as LocalRoster | null
-    if (!roster) byId.delete(resource.slice(7))
-    else byId.set(roster.id, summaryFor(roster))
+    if (!roster) listed.delete(resource.slice(7))
+    else listed.set(roster.id, summaryFor(roster))
   }
-  return [...byId.values()].sort((left, right) => right.updatedAt - left.updatedAt)
+  return [...listed.values()].sort((left, right) => right.updatedAt - left.updatedAt)
 }
 export function projectLocalState(state: LocalState) {
   const client = localClient()
@@ -482,7 +477,7 @@ export async function deleteRoster(args: Parameters<typeof server.deleteRoster>[
   if (!localEngine()) return server.deleteRoster(args)
   const roster = await sharedRoster({ data: args.data })
   if (!roster) return null
-  await queueLocal('deleteRoster', draftFor(roster), `roster:${roster.id}`, null, undefined, undefined, owner)
+  await queueLocal('deleteRoster', draftFor(roster), `roster:${roster.id}`, { data: null, owner })
   return null
 }
 
@@ -609,15 +604,12 @@ export async function savedRosterLoadoutDatasheets(
 
 export async function savedRosterSummaries(args?: { signal?: AbortSignal }): ReturnType<typeof server.savedRosterSummaries> {
   const engine = localEngine()
-  const owner = localOwner()?.id
-  const assertAccount = () => {
-    if (localOwner()?.id !== owner || localEngine() !== engine) throw accountChanged()
-  }
+  const assertAccount = accountGuard()
   const summaries = await cachedRead(savedRosterSummariesKey(), async () => {
     const before = await engine?.storage.read()
     assertAccount()
     const fresh = await server.savedRosterSummaries({
-      signal: args?.signal ? anySignal([args.signal, AbortSignal.timeout(5_000)]) : AbortSignal.timeout(5_000),
+      signal: withTimeout(args?.signal, 5_000),
     })
     assertAccount()
     const ids = new Set(fresh.map((roster) => roster.id))
@@ -673,9 +665,7 @@ export async function savedRosterPage(args: Parameters<typeof server.savedRoster
   const engine = localEngine()
   if (!engine) return server.savedRosterPage(args)
   const owner = localOwner()!.id
-  const assertAccount = () => {
-    if (localOwner()?.id !== owner || localEngine() !== engine) throw accountChanged()
-  }
+  const assertAccount = accountGuard()
   const before = await engine.storage.read()
   assertAccount()
   const fresh = await calculationRead(
@@ -721,9 +711,7 @@ export async function homeRosters(args?: { signal?: AbortSignal }): ReturnType<t
   const engine = localEngine()
   if (!engine) return server.homeRosters(args)
   const owner = localOwner()!.id
-  const assertAccount = () => {
-    if (localOwner()?.id !== owner || localEngine() !== engine) throw accountChanged()
-  }
+  const assertAccount = accountGuard()
   const before = await engine.storage.read()
   assertAccount()
   const fresh = await calculationRead(
@@ -761,7 +749,7 @@ export async function homeRosters(args?: { signal?: AbortSignal }): ReturnType<t
   if (fresh) {
     const page = await savedRosterPage({ data: { ids: recent.map((roster) => roster.id) }, signal: args?.signal })
     assertAccount()
-    const rows = new Map(page.map((row) => [row.id, row]))
+    const rows = byId(page)
     return {
       count: active.length,
       rosters: recent.map((roster) => ({

@@ -10,16 +10,17 @@ import { Label } from '@/components/ui/label'
 import { PROFILE_NAME_MAX_LENGTH } from '../../../core/profileName'
 import { authClient } from '../../authClient'
 import { AccountSecurity } from './AccountSecurity'
-import { authFailureReason } from './authFailureReason'
+import { captureAuthFailure } from './authFailureReason'
 import { PlayerDefaultsSettings } from './PlayerDefaultsSettings'
 import { PageContent, PageHeader } from '../../components/Page'
 import { PlayerAvatar } from '../../components/PlayerAvatar'
 import { SignInRequired } from '../../components/SignInRequired'
-import { accountMethodsQuery, meQuery } from '../../queries'
+import { accountMethodsQuery, meQuery, type QueryData } from '../../queries'
 import { errorMessage } from '../../queryClient'
 import { prepareProfileImage } from './profileImage'
 import { refreshProfileQueries } from './refreshProfileQueries'
 import { Problem } from '../../components/Problem'
+import { SectionHeading } from '../../components/SectionHeading'
 
 const accountLinkErrorMessage = (error?: string) => {
   if (!error) return undefined
@@ -42,7 +43,7 @@ export function ProfilePage({ error, verified }: { error?: string; verified?: bo
   const callbackError = accountLinkErrorMessage(error)
   // A link that failed at the provider comes back here with only its code, so the provider is not known.
   useEffect(() => {
-    if (error) posthog.capture('account_authentication_failed', { action: 'link', method: 'social', reason: authFailureReason(error) })
+    if (error) captureAuthFailure(error, { action: 'link', method: 'social' })
   }, [error])
   if (!me && callbackError) {
     return <SignInRequired title="Could not complete account verification" explanation={`${callbackError} Sign in to try again.`} />
@@ -59,7 +60,7 @@ function ProfileForm({
   callbackError,
   verified,
 }: {
-  me: NonNullable<Awaited<ReturnType<NonNullable<ReturnType<typeof meQuery>['queryFn']>>>>
+  me: NonNullable<QueryData<typeof meQuery>>
   callbackError?: string
   verified?: boolean
 }) {
@@ -129,7 +130,7 @@ function ProfileForm({
           }}
         >
           <section>
-            <h2 className="rubric border-b border-edge pb-2">Profile picture</h2>
+            <SectionHeading title="Profile picture" />
             <div className="mt-4 flex items-center gap-4">
               <PlayerAvatar name={name || me.name} image={image} className="size-24 text-3xl" />
               <div className="flex flex-wrap gap-2">
@@ -165,7 +166,7 @@ function ProfileForm({
           </section>
 
           <section className="space-y-4">
-            <h2 className="rubric border-b border-edge pb-2">Details</h2>
+            <SectionHeading title="Details" />
             <div className="space-y-2">
               <Label htmlFor="profile-name">Display name</Label>
               <Input
@@ -201,7 +202,7 @@ function ProfileForm({
           me={me}
           preferences={
             <div className="border border-edge bg-panel p-5 md:p-7">
-              <h2 className="rubric border-b border-edge pb-2">Preferences</h2>
+              <SectionHeading title="Preferences" />
               <div className="mt-4">
                 <PlayerDefaultsSettings />
               </div>

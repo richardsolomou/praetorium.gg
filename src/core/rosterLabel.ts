@@ -9,7 +9,7 @@ export type LabelUnit = {
   warlord?: boolean
 }
 
-export type LabelInput = {
+type LabelInput = {
   /** The faction as the interface names it, used only when no detachment is picked yet. */
   factionName?: string
   detachmentNames?: readonly string[]

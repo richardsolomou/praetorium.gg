@@ -5,8 +5,8 @@
  * depends on the code its scripts import, the catalogue configuration they read from disk, and the
  * installed dependencies and toolchain; anything else cannot change what it records.
  */
-import { execFileSync } from 'node:child_process'
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { changedFiles } from './lib/git.ts'
 import { stepOutput } from './lib/stepOutput.ts'
 import { importClosures } from './lib/moduleGraph.ts'
 
@@ -29,9 +29,7 @@ export function needsCatalogueCoverage(files: readonly string[], reached: Readon
 if (isEntryPoint(import.meta.url)) {
   const { BASE_SHA: base, HEAD_SHA: head } = process.env
   if (!base || !head) throw new Error('catalogue coverage scope requires BASE_SHA and HEAD_SHA')
-  const files = execFileSync('git', ['diff', '--name-only', '--no-renames', '-z', base, head, '--'], { encoding: 'utf8' })
-    .split('\0')
-    .filter(Boolean)
+  const files = changedFiles(base, head)
   const reached = new Set([...(await importClosures(process.cwd(), coverageEntries)).values()].flat())
   stepOutput({ needed: needsCatalogueCoverage(files, reached) })
 }

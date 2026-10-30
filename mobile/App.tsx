@@ -59,7 +59,7 @@ import { initialLaunch } from './src/initialLaunch'
 import {
   NATIVE_BRIDGE_SCRIPT,
   nativeWatchCapabilityScript,
-  nativePushAnswerScript,
+  nativeAnswerScript,
   parseNativeActionRequest,
   type NativeActionRequest,
 } from './src/nativeActions'
@@ -78,6 +78,7 @@ import { notificationUrl } from './src/notifications'
 import { pushAnswer } from './src/pushDevice'
 import { NATIVE_USER_AGENT } from './src/version'
 import { deleteSecureValue, getSecureValue, setSecureValue } from './src/secureStorage'
+import { NATIVE_EVENTS } from '../src/contracts/nativeBridge'
 
 const BACKGROUND = '#0f1113'
 /** The web header's and tab bar's `--color-sunken`, so the safe areas continue them. */
@@ -100,6 +101,7 @@ const pendingAuthStorage = process.env.EXPO_PUBLIC_NATIVE_AUTH_TEST_APP_URL
       deleteItemAsync: deleteSecureValue,
     }
 const ACTIVE_BATTLE_KEEP_AWAKE_TAG = 'praetorium-active-battle'
+const alertProviderRetry = () => Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
 const POSTHOG_OPTIONS = {
   host: process.env.EXPO_PUBLIC_POSTHOG_HOST,
   // Browser replay provides DOM-aware masking; native screenshot replay cannot
@@ -273,7 +275,7 @@ function AppShell() {
       } else {
         await pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
         commitShell(warmUrlReceived(shellRef.current, url))
-        Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
+        alertProviderRetry()
       }
     },
     [commitAndDrain, commitShell],
@@ -292,7 +294,7 @@ function AppShell() {
         else {
           await pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
           if (result.type !== WebBrowser.WebBrowserResultType.CANCEL && result.type !== WebBrowser.WebBrowserResultType.DISMISS) {
-            Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
+            alertProviderRetry()
           }
         }
       } catch (error) {
@@ -340,9 +342,7 @@ function AppShell() {
   const navigateApplication = useCallback(
     (url: string) => {
       if (offlineView && classifyNavigation(url).kind === 'internal') {
-        webView.current?.injectJavaScript(
-          `window.dispatchEvent(new CustomEvent('praetorium-app-navigate', { detail: ${JSON.stringify(url)} })); true;`,
-        )
+        webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.navigate, url))
         return
       }
       setOfflineView(null)
@@ -366,9 +366,7 @@ function AppShell() {
           } finally {
             if (file.exists) file.delete()
           }
-          webView.current?.injectJavaScript(
-            `window.dispatchEvent(new CustomEvent('praetorium-native-export-work', { detail: ${JSON.stringify({ id: action.id, error }).replaceAll('<', '\u003c')} })); true;`,
-          )
+          webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.exportWork, { id: action.id, error }))
           break
         }
         case 'local-state': {
@@ -382,9 +380,7 @@ function AppShell() {
             captureNativeException('local_state_save', error)
             answer = { saved: false, error: 'Changes could not be saved on this device.' }
           }
-          webView.current?.injectJavaScript(
-            `window.dispatchEvent(new CustomEvent('praetorium-native-local-state', { detail: ${JSON.stringify({ id: action.id, ...answer }).replaceAll('<', '\\u003c')} })); true;`,
-          )
+          webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.localState, { id: action.id, ...answer }))
           break
         }
         case 'watch-battle':
@@ -399,9 +395,7 @@ function AppShell() {
           } catch (error) {
             captureNativeException('app_snapshot_save', error)
           }
-          webView.current?.injectJavaScript(
-            `window.dispatchEvent(new CustomEvent('praetorium-native-app-snapshot', { detail: ${JSON.stringify({ id: action.id, saved })} })); true;`,
-          )
+          webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.appSnapshot, { id: action.id, saved }))
           break
         }
         case 'offline-save': {
@@ -413,10 +407,7 @@ function AppShell() {
           } catch (error) {
             captureNativeException('offline_reference_save', error)
           }
-          const detail = JSON.stringify({ id: action.id, saved })
-          webView.current?.injectJavaScript(
-            `window.dispatchEvent(new CustomEvent('praetorium-native-offline', { detail: ${detail} })); true;`,
-          )
+          webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.offline, { id: action.id, saved }))
           break
         }
         case 'back-gesture':
@@ -445,7 +436,7 @@ function AppShell() {
             captureNativeException('native_push', error)
             return { status: 'unavailable' } as const
           })
-          webView.current?.injectJavaScript(nativePushAnswerScript(action.id, answer))
+          webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.push, { id: action.id, ...answer }))
           break
         }
         case 'share':
@@ -496,7 +487,7 @@ function AppShell() {
   useEffect(() => {
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       if (!historyBack) return false
-      if (offlineView) webView.current?.injectJavaScript("window.dispatchEvent(new Event('praetorium-app-back')); true;")
+      if (offlineView) webView.current?.injectJavaScript(nativeAnswerScript(NATIVE_EVENTS.appBack, null))
       else webView.current?.goBack()
       return true
     })
@@ -560,7 +551,7 @@ function AppShell() {
               } else {
                 void pendingAuthStorage.deleteItemAsync(PENDING_AUTH_KEY)
                 commitShell(initialUrlReceived(shellRef.current, null))
-                Alert.alert('Sign-in did not finish', 'Return to Praetorium and try the provider again.')
+                alertProviderRetry()
               }
             } else if (active && pending?.callbackUrl) {
               await handleAuthCallback(pending.callbackUrl, pending)
@@ -623,7 +614,7 @@ function AppShell() {
       if (!saved) return
       const target = new URL(url, APP_URL)
       offlinePath.current = target.pathname + target.search + target.hash
-      setOfflineView({ path: target.pathname + target.search + target.hash, html: saved.html })
+      setOfflineView({ path: offlinePath.current, html: saved.html })
     } catch (error) {
       captureNativeException('offline_reference_read', error)
     }
@@ -683,7 +674,10 @@ function AppShell() {
             if (navigationType !== 'click') return true
             const decision = classifyNavigation(url)
             if (decision.kind === 'external') void openExternal(decision.url)
-            if (decision.kind === 'internal') retryOnline(new URL(decision.url).pathname + new URL(decision.url).search)
+            if (decision.kind === 'internal') {
+              const { pathname, search } = new URL(decision.url)
+              retryOnline(pathname + search)
+            }
             return false
           }}
           onContentProcessDidTerminate={recoverSavedRenderer}
@@ -728,8 +722,6 @@ function AppShell() {
               openSavedReference(nativeEvent.url || shellRef.current.lastInternalUrl)
           }}
           onHttpError={({ nativeEvent }) => {
-            // A failing sub-resource must not tear down the loaded document; only
-            // an error on the main frame itself is a load failure.
             if (!isMainFrameHttpError(nativeEvent.url, nativeEvent.statusCode, mainFrameUrl.current)) return
             captureNativeException('web_http', new Error(`WebView HTTP error ${nativeEvent.statusCode}: ${nativeEvent.description}`))
             cancelScheduledDrain()

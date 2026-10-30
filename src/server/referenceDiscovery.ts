@@ -54,7 +54,7 @@ export async function referenceSitemap(request: Request) {
     add(`/rules/${document.slug}`)
     for (const section of document.sections) add(`/rules/${document.slug}/${section.slug}`)
   }
-  const rules = await app().battleReadRulesFor()
+  const rules = await app().rulesFor()
   if (rules) for (const disposition of gameReferencesFor(rules).dispositions) add(`/force-dispositions/${disposition.id}`)
   // The history rides in the snapshot but is not part of the corpus revision, so the updates
   // it carries are part of the cache key.

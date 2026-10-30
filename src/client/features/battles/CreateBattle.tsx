@@ -17,7 +17,8 @@ import { useStartBattle } from './useStartBattle'
 import { disambiguatedPlayerLabels } from '../../playerLabels'
 import { advanceOnboarding } from '../onboarding/onboarding'
 import { useNativeShare } from '../../nativeBridge'
-import { InviteQr, SHARED_LABEL, useFriendInvite } from '../friends/friendInvite'
+import { InviteQr, useFriendInvite } from '../friends/friendInvite'
+import { shareButtonLabel } from '../../useShareLink'
 import { seatedPlayers, seatsFor, type Seat, type SoloPairRole } from '../../seats'
 import { Choice } from '../../components/Choice'
 import {
@@ -131,10 +132,13 @@ export function CreateBattle({
         ...(players.allyId ? { allyId: players.allyId } : {}),
       }
       // A league seats only its entrants, so a table with a guest at it has no league match to offer.
-      if (!casual && !guests.length) {
+      const leagueMatch = async () => {
+        if (casual || guests.length) return null
         const matches = await leagueBattleOptions({ data: playerData })
-        if (matches.length) return { kind: 'league' as const, matches }
+        return matches.length ? { kind: 'league' as const, matches } : null
       }
+      const offered = await leagueMatch()
+      if (offered) return offered
       const missionPackId = tracking === 'manual' ? null : await defaultMissionPackId()
       let battle
       try {
@@ -149,10 +153,8 @@ export function CreateBattle({
           },
         })
       } catch (error) {
-        if (!casual && !guests.length) {
-          const matches = await leagueBattleOptions({ data: playerData })
-          if (matches.length) return { kind: 'league' as const, matches }
-        }
+        const fallback = await leagueMatch()
+        if (fallback) return fallback
         throw error
       }
       if (rosterId) await bringRoster(battle.token, rosterId)
@@ -368,7 +370,7 @@ export function CreateBattle({
 /** Until a player has a friend, the way to seat a real opponent is to invite one. */
 function InviteOpponent() {
   const invite = useFriendInvite()
-  const shareLabel = useNativeShare() ? 'Share invite link' : 'Copy invite link'
+  const nativeShare = useNativeShare()
 
   return (
     <div className="space-y-1">
@@ -377,7 +379,7 @@ function InviteOpponent() {
         <div className="flex gap-2">
           <Button variant="outline" size="sm" disabled={invite.busy} onClick={() => void invite.share()}>
             {invite.feedback ? <Check /> : <Link2 />}
-            {invite.creating ? 'Creating…' : invite.feedback ? SHARED_LABEL[invite.feedback] : shareLabel}
+            {invite.creating ? 'Creating…' : shareButtonLabel(invite.feedback, nativeShare, 'invite')}
           </Button>
           {invite.url ? <InviteQr url={invite.url} disabled={invite.busy} size="sm" /> : null}
         </div>

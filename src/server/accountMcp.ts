@@ -108,7 +108,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
     ({ before }) =>
       resultOf(async () => {
         const instance = app()
-        const [rules, factions] = await Promise.all([instance.battleMissionRulesFor(), instance.factionIndexFor()])
+        const [rules, factions] = await Promise.all([instance.rulesFor(), instance.factionIndexFor()])
         return instance.service.battles(owner(), rules, { limit: BATTLES_PAGE, before: before ?? undefined }, factions?.factions ?? [])
       }),
   )
@@ -124,7 +124,7 @@ export function registerAccountMcpTools(server: AgentTools, userId: string | nul
       resultOf(async () => {
         const instance = app()
         await instance.service.userBattleId(token, owner())
-        return { battle: await instance.service.screen(token, owner(), await instance.battleReadRulesFor()) }
+        return { battle: await instance.service.screen(token, owner(), await instance.rulesFor()) }
       }),
   )
   server.registerTool(

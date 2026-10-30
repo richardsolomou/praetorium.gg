@@ -2,8 +2,6 @@ import type { GlobalSearchResult } from '../../functions'
 import { PRODUCT_DOCS } from '../../../contracts/productDocs'
 import { matchesSearch } from '../../text'
 
-export const SEARCH_DEBOUNCE_MS = 250
-
 export const globalSearchGroups: GlobalSearchResult['group'][] = [
   'Pages',
   'Factions',

@@ -1,7 +1,8 @@
 import { hash } from 'node:crypto'
 import { PROFILE_IMAGE_MAX_LENGTH } from '../authConfig'
 import { configuredObjectStore, type ObjectStore, publicAssetsBaseUrl, putIfAbsent } from './objectStorage'
-import { parseImageDataUrl } from './privateImages'
+import { boundedBytes } from './boundedBody'
+import { parseImageDataUrl, sniffedImageType } from './privateImages'
 
 const CONTENT_TYPE_EXTENSION: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' }
 const FETCHED_IMAGE_MAX_BYTES = 5_000_000
@@ -42,19 +43,17 @@ export async function storeProfileImage(dataUrl: string): Promise<string> {
 export async function storeProfileImageFromUrl(url: string): Promise<string | null> {
   const store = configuredObjectStore()
   if (!store) return null
-  let response: Response
+  let bytes: Buffer
   try {
-    response = await fetch(url, { signal: AbortSignal.timeout(5000) })
+    const response = await fetch(url, { signal: AbortSignal.timeout(5000) })
+    if (!response.ok) return null
+    bytes = await boundedBytes(response, FETCHED_IMAGE_MAX_BYTES, 'profile picture too large')
   } catch {
     return null
   }
-  if (!response.ok) return null
-  const contentType = response.headers.get('content-type')?.split(';')[0]?.trim().toLowerCase()
-  const extension = contentType ? CONTENT_TYPE_EXTENSION[contentType] : undefined
-  if (!extension) return null
-  const bytes = Buffer.from(await response.arrayBuffer())
-  if (bytes.byteLength === 0 || bytes.byteLength > FETCHED_IMAGE_MAX_BYTES) return null
-  return storeAvatarBytes(store, bytes, extension, contentType as string)
+  const contentType = sniffedImageType(bytes)
+  if (!contentType) return null
+  return storeAvatarBytes(store, bytes, CONTENT_TYPE_EXTENSION[contentType] as string, contentType)
 }
 
 async function storeAvatarBytes(store: ObjectStore, bytes: Buffer, extension: string, contentType: string): Promise<string> {

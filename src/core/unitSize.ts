@@ -8,15 +8,15 @@
  * report a minimum of six for a five-model squad.
  */
 
-import type { CatalogueIndex } from './catalogue'
-import { childrenOf, maximumCount, replacesSquadmate, requiredCount, resolve, UNBOUNDED } from './definitions'
+import { type CatalogueIndex, resolve } from './catalogue'
+import { childrenOf, maximumCount, replacesSquadmate, requiredCount, UNBOUNDED } from './definitions'
 import type { Selection } from './evaluate'
 import { defaultSelection } from './expand'
 
 export type UnitSize = { min: number; max: number; models: number; path: string[]; options?: number[] }
 
 /** A group whose size the data lets the player change, and the selection to change. */
-export type BoundedGroup = { min: number; max: number; total: number; adjust: string[] }
+type BoundedGroup = { min: number; max: number; total: number; adjust: string[] }
 
 /** Every group in this selection whose size can vary, for a caller scaling all of them at once. */
 export const boundedGroups = (selection: Selection, index: CatalogueIndex): BoundedGroup[] => survey(selection, index, []).groups

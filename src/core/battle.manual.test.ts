@@ -48,16 +48,12 @@ describe('manual tracking', () => {
     expect(fold([ALICE, configure()], [ALICE, configure({ manual: false, missionPackId: 'pack' })]).settings.manual).toBeUndefined()
   })
 
-  it('refuses a manual battle that names a mission pack', () => {
-    expect(commandRefusal(fold(), ALICE, configure({ missionPackId: 'pack' }))?.code).toBe('manual-tracking')
-  })
-
-  it('refuses a manual battle that names a mission twist', () => {
-    expect(commandRefusal(fold(), ALICE, configure({ twistId: 'twist' }))?.code).toBe('manual-tracking')
-  })
-
-  it('refuses a manual battle that names a terrain layout', () => {
-    expect(commandRefusal(fold(), ALICE, configure({ terrainLayoutId: 'layout' }))?.code).toBe('manual-tracking')
+  it.each([
+    ['mission pack', { missionPackId: 'pack' }],
+    ['mission twist', { twistId: 'twist' }],
+    ['terrain layout', { terrainLayoutId: 'layout' }],
+  ])('refuses a manual battle that names a %s', (_name, settings) => {
+    expect(commandRefusal(fold(), ALICE, configure(settings))?.code).toBe('manual-tracking')
   })
 
   it('keeps a league battle on its mission pack', () => {

@@ -3,6 +3,7 @@ import { Crown } from 'lucide-react'
 import { setLeagueTeamWarlord } from '../../functions'
 import { useLeagueRefresh } from './leagueEvent'
 import { Problem } from '../../components/Problem'
+import { SectionHeading } from '../../components/SectionHeading'
 
 /**
  * Whose Warlord leads a fixed pair. Each sealed roster names its own, so either can be played alone, and the pair
@@ -29,9 +30,7 @@ export function TeamWarlordPanel({
   const shown = choose.isPending ? choose.variables : team.warlord
   return (
     <section data-team-warlord aria-labelledby="team-warlord" className="border border-edge bg-panel p-4">
-      <h2 id="team-warlord" className="rubric border-b border-edge pb-2">
-        Team Warlord
-      </h2>
+      <SectionHeading id="team-warlord" title="Team Warlord" className="mb-0" />
       <p className="mt-1 text-xs text-dim">
         {team.warlord
           ? 'This Warlord leads your team. You can change it until the rosters are revealed.'

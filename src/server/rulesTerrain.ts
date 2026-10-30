@@ -4,8 +4,6 @@ import { createHash, hash } from 'node:crypto'
 import type { Point, TerrainGeometry } from '../contracts/terrain'
 import { battlemasterObjectiveHosts } from './battlemasterObjectives'
 
-export type { Deployment, Point, TerrainGeometry, TerrainLayout, TerrainTemplate } from '../contracts/terrain'
-
 type Footprint = { origin: Point; widthIn: number; heightIn: number; rotationDeg: number }
 type Part = {
   id?: string

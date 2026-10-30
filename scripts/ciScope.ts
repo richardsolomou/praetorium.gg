@@ -1,5 +1,5 @@
-import { execFileSync } from 'node:child_process'
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { changedFiles } from './lib/git.ts'
 import { stepOutput } from './lib/stepOutput.ts'
 
 /** Paths that no runtime lane, build or deploy reads; `static` still checks them. CHANGELOG.md is not here: the app imports it. */
@@ -22,10 +22,7 @@ if (isEntryPoint(import.meta.url)) {
   let runtime = true
   if (process.env.GITHUB_EVENT_NAME === 'pull_request') {
     if (!base || !head) throw new Error('pull request comparison requires BASE_SHA and HEAD_SHA')
-    const files = execFileSync('git', ['diff', '--name-only', '--no-renames', '-z', `${base}...${head}`, '--'], { encoding: 'utf8' })
-      .split('\0')
-      .filter(Boolean)
-    runtime = needsRuntimeChecks(files)
+    runtime = needsRuntimeChecks(changedFiles(`${base}...${head}`))
   }
   stepOutput({ runtime })
 }

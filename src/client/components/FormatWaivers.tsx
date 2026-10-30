@@ -1,9 +1,21 @@
-import { TriangleAlert, X } from 'lucide-react'
+import { Link } from '@tanstack/react-router'
+import { Pencil, TriangleAlert, X } from 'lucide-react'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { cn } from '@/lib/utils'
 import { type FormatRule, waivedFormatRules } from '../../core/battle'
 import { countLabel } from '../text'
+import { buttonClass } from './buttonClass'
 
 /**
  * How a list says it is not playing all of its format.
@@ -23,6 +35,9 @@ export function rosterWaivers(
 
 /** The waived restrictions as one readable list, for a sentence that names them. */
 const waiverLabels = (rules: readonly FormatRule[]) => rules.map((rule) => rule.label).join(', ')
+
+const switchedOff = (rules: readonly FormatRule[]) =>
+  `${rules.length} format ${rules.length === 1 ? 'restriction is' : 'restrictions are'} switched off`
 
 /**
  * A mark beside a list's identity, which says what it is on hover.
@@ -44,9 +59,7 @@ export function WaiverChip({ rules, className = '' }: { rules: readonly FormatRu
         <span className="sr-only">{summary}</span>
       </TooltipTrigger>
       <TooltipContent className="block">
-        <span className="block font-semibold">
-          {rules.length} format {rules.length === 1 ? 'restriction is' : 'restrictions are'} switched off
-        </span>
+        <span className="block font-semibold">{switchedOff(rules)}</span>
         <span className="mt-0.5 block">{waiverLabels(rules)}</span>
       </TooltipContent>
     </Tooltip>
@@ -64,7 +77,7 @@ export function WaiverNote({ rules, className = '' }: { rules: readonly FormatRu
  * about them. A run-on sentence made the reader count commas to find out what they
  * were agreeing to.
  */
-export function WaiverList({ rules }: { rules: readonly FormatRule[] }) {
+function WaiverList({ rules }: { rules: readonly FormatRule[] }) {
   return (
     <ul className="my-3 min-w-0 space-y-1.5 border border-discarded/40 bg-discarded/5 p-2.5">
       {rules.map((rule) => (
@@ -77,6 +90,65 @@ export function WaiverList({ rules }: { rules: readonly FormatRule[] }) {
         </li>
       ))}
     </ul>
+  )
+}
+
+type WaivingRoster = Parameters<typeof rosterWaivers>[0] & { id: string; name: string }
+
+/** Asks before a waiving list is brought anyway; `consequence` finishes "Praetorium has not checked them, so …". */
+export function WaiverConfirmDialog<Roster extends WaivingRoster>({
+  roster,
+  noun,
+  consequence,
+  confirmLabel,
+  pending,
+  onCancel,
+  onConfirm,
+}: {
+  roster: Roster | null
+  noun: string
+  consequence: string
+  confirmLabel: string
+  pending: boolean
+  onCancel: () => void
+  onConfirm: (roster: Roster) => void
+}) {
+  const rules = rosterWaivers(roster)
+  const one = rules.length === 1
+  return (
+    <AlertDialog open={roster !== null} onOpenChange={(open) => !open && !pending && onCancel()}>
+      <AlertDialogContent aria-busy={pending} className="border-discarded/50 sm:max-w-lg [&>*]:min-w-0">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2 text-discarded">
+            <TriangleAlert className="size-5 shrink-0" aria-hidden />
+            {one ? `This ${noun} waives a rule` : `This ${noun} waives ${rules.length} rules`}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {roster?.name} is not playing {one ? 'one of' : 'some of'} the rules of its battle size:
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <WaiverList rules={rules} />
+        <p className="text-sm text-dim">
+          Praetorium has not checked {one ? 'it' : 'them'}, so {consequence}
+        </p>
+        <AlertDialogFooter className="sm:flex-wrap">
+          {roster ? (
+            <Link
+              to="/rosters/$id"
+              params={{ id: roster.id }}
+              data-slot="button"
+              className={buttonClass({ variant: 'outline', className: 'sm:mr-auto' })}
+            >
+              <Pencil /> Edit roster
+            </Link>
+          ) : null}
+          <AlertDialogCancel disabled={pending}>Choose another</AlertDialogCancel>
+          <AlertDialogAction disabled={pending} onClick={() => roster && onConfirm(roster)}>
+            {confirmLabel}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   )
 }
 
@@ -107,9 +179,7 @@ export function WaiverWarning({
     >
       <TriangleAlert className="mt-px size-4 shrink-0" aria-hidden />
       <div className="min-w-0 flex-1">
-        <p className="font-semibold uppercase">
-          {rules.length} format {rules.length === 1 ? 'restriction is' : 'restrictions are'} switched off
-        </p>
+        <p className="font-semibold uppercase">{switchedOff(rules)}</p>
         <ul className="mt-1 list-inside list-disc">
           {rules.map((rule) => (
             <li key={rule.id}>

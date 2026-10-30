@@ -1,3 +1,5 @@
+import { compareText } from './text'
+
 export const ROSTER_SORTS = [
   'updated-desc',
   'updated-asc',
@@ -14,7 +16,7 @@ type SortableRoster = { id: string; name: string; limit: number; createdAt: numb
 
 /** Negative when `left` comes first in this order; every order ends on name and then ID, so no two rosters tie. */
 export function compareRosters(sort: RosterSort) {
-  const name = (left: SortableRoster, right: SortableRoster) => left.name.localeCompare(right.name) || left.id.localeCompare(right.id)
+  const name = (left: SortableRoster, right: SortableRoster) => left.name.localeCompare(right.name) || compareText(left.id, right.id)
   return (left: SortableRoster, right: SortableRoster) => {
     switch (sort) {
       case 'created-desc':

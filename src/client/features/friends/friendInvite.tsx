@@ -11,13 +11,7 @@ import { useNativeShare } from '../../nativeBridge'
 import { useOrigin } from '../../useOrigin'
 import { useQrCode } from '../../components/useQrCode'
 import { Problem } from '../../components/Problem'
-import { useShareLink } from '../../useShareLink'
-
-/** What a share button reads once the link has gone out. */
-export const SHARED_LABEL = { copied: 'Link copied', shared: 'Invite shared' } as const
-
-/** What a share button reads before the invite goes out. */
-export const useInviteShareLabel = () => (useNativeShare() ? 'Share invite' : 'Copy invite link')
+import { shareButtonLabel, useShareLink } from '../../useShareLink'
 
 /** The player's one-time friend invite: its link, and sharing, replacing or cancelling it. */
 export function useFriendInvite() {
@@ -55,14 +49,10 @@ export function useFriendInvite() {
   }
 }
 
-export function InviteQr({
-  url,
-  disabled,
-  ...trigger
-}: { url: string; disabled: boolean } & Pick<ComponentProps<typeof Button>, 'variant' | 'size'>) {
+export function InviteQr({ url, disabled, ...trigger }: { url: string; disabled: boolean } & Pick<ComponentProps<typeof Button>, 'size'>) {
   const [open, setOpen] = useState(false)
   const { image, failed } = useQrCode(open ? url : null, 256)
-  const shareLabel = useInviteShareLabel()
+  const shareLabel = shareButtonLabel(null, useNativeShare(), 'invite')
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button variant="outline" {...trigger} disabled={disabled} />}>

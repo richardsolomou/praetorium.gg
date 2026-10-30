@@ -27,13 +27,11 @@ runs:
       with:
         node-version: ${{ inputs.node-version }}
     - uses: ./.github/actions/e2e-dependencies
-    - name: Sync the catalogue
-      shell: bash
-      run: pnpm catalogue:sync
-      env:
-        R2_ACCOUNT_ID: ${{ inputs.r2-account-id }}
-        R2_ACCESS_KEY_ID: ${{ inputs.r2-access-key-id }}
-        R2_SECRET_ACCESS_KEY: ${{ inputs.r2-secret-access-key }}
+    - uses: ./.github/actions/catalogue-sync
+      with:
+        r2-account-id: ${{ inputs.r2-account-id }}
+        r2-access-key-id: ${{ inputs.r2-access-key-id }}
+        r2-secret-access-key: ${{ inputs.r2-secret-access-key }}
     - uses: actions/download-artifact@v8
       with:
         name: browser-test-build

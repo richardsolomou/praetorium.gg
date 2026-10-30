@@ -8,7 +8,7 @@
  * come out the size the player set it to.
  */
 
-import type { CatalogueIndex, Definition } from './catalogue'
+import { type CatalogueIndex, type Definition, resolve } from './catalogue'
 import { isCollectiveGroup, storesUnitTotal } from './collective'
 import {
   childrenOf,
@@ -20,7 +20,6 @@ import {
   repeatedModelOn,
   replacesSquadmate,
   requiredCount,
-  resolve,
   UNBOUNDED,
 } from './definitions'
 import { type EvaluateOptions, type Selection, selectionCountBoundsAt } from './evaluate'

@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { fieldedRoster } from './fieldedRoster'
 import { BattleRosterSnapshot } from './BattleRosterSnapshot'
-import { RosterEditor } from './RosterEditor'
+import { ListBuilder } from './ListBuilder'
+import { NO_PREP } from './rosterDraft'
 import { battleQuery, leagueRosterQuery, rosterAccessQuery } from '../../queries'
 import { FullPageState } from '../../components/PageState'
 
@@ -24,7 +25,7 @@ export function RosterPage({
   editable: boolean
   snapshot: boolean
   leagueSnapshot?: boolean
-  requested?: Parameters<typeof RosterEditor>[0]['requested']
+  requested?: Parameters<typeof ListBuilder>[0]['requested']
 }) {
   const { data: screen } = useQuery({ ...battleQuery(battle ?? ''), enabled: snapshot && Boolean(battle) })
   const { data: sealed } = useQuery({
@@ -50,19 +51,23 @@ export function RosterPage({
     return <FullPageState eyebrow="404" title="Nothing here" explanation="This roster does not exist or you no longer have access to it." />
   if (!roster) return null
   return (
-    <RosterEditor
-      roster={roster}
-      faction={access.faction}
-      editable={editable && !roster.locked}
-      locked={editable && roster.locked}
-      print={print}
-      battle={battle}
-      simulatorSource={access.editable || battle ? undefined : { id: roster.id }}
-      variants={access.variants}
-      differences={access.differences}
-      copiedFrom={access.copiedFrom ?? null}
-      lentBy={access.lentBy ?? null}
-      requested={requested}
-    />
+    <main className="flex h-full w-full min-w-0 max-w-full flex-col overflow-x-hidden">
+      <ListBuilder
+        key={roster.id}
+        prep={roster.prep ?? NO_PREP}
+        initial={roster}
+        initialFaction={access.faction}
+        editable={editable && !roster.locked}
+        locked={editable && roster.locked}
+        print={print}
+        battle={battle}
+        simulatorSource={access.editable || battle ? undefined : { id: roster.id }}
+        variants={access.variants}
+        differences={access.differences}
+        copiedFrom={access.copiedFrom ?? null}
+        lentBy={access.lentBy ?? null}
+        requested={requested}
+      />
+    </main>
   )
 }

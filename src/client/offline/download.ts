@@ -7,14 +7,14 @@ import {
   type OfflineReferenceVersion,
   type OfflineAppVersion,
 } from '../../contracts/offlineReference'
-import { anySignal } from '../abortSignals'
+import { withTimeout } from '../abortSignals'
 import { dataUrl } from '../imageFile'
 import { referenceJsonExpression } from '../../contracts/embeddedReference'
 import { compressReference, updatedReference } from './compressedReference'
 
 /** An app file, fetched without cookies and abandoned after 30 seconds. */
 const fetchAsset = (url: string | URL, signal: AbortSignal, init: RequestInit = {}) =>
-  fetch(url, { ...init, credentials: 'omit', signal: anySignal([signal, AbortSignal.timeout(30_000)]) })
+  fetch(url, { ...init, credentials: 'omit', signal: withTimeout(signal, 30_000) })
 
 async function fetchManifest(url: string, signal: AbortSignal) {
   const response = await fetchAsset(url, signal, { cache: 'no-store' })
@@ -63,7 +63,7 @@ export const constructionBundleFor = (manifest: OfflineReferenceVersion, otherVe
   otherVersions ? manifest.construction.complete : manifest.construction.current
 
 export async function bundleAt(url: string, signal: AbortSignal): Promise<OfflineReferenceBundle> {
-  const downloadSignal = anySignal([signal, AbortSignal.timeout(60_000)])
+  const downloadSignal = withTimeout(signal, 60_000)
   const response = await fetch(url, { credentials: 'omit', signal: downloadSignal })
   if (!response.ok || !response.body) throw new Error('The reference bundle is unavailable')
   const reader = response.body.pipeThrough(new DecompressionStream('gzip')).getReader()

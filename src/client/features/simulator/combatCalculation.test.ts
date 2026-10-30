@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { calculateCombatPair, clearCombatAnswerCache, combatCalculator } from './combatCalculation'
 import { DEFAULT_COMBAT_OPTIONS } from '../../../core/combat'
 import { resolveCombatRequest, type CombatAnswer, type CombatRequest } from '../../../core/combatMatchup'
@@ -101,13 +101,18 @@ it('falls back locally after server failure and avoids repeating failed requests
 })
 
 it('falls back locally when the server request times out', async () => {
-  vi.useFakeTimers()
-  mocks.server.mockImplementation(
-    ({ signal }: { signal: AbortSignal }) => new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason))),
-  )
-  const pending = calculateCombatPair(request(), new AbortController().signal)
-  await vi.advanceTimersByTimeAsync(16_000)
-  expect(await pending).toEqual(resolveCombatRequest(request()))
+  const deadline = new AbortController()
+  const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(deadline.signal)
+  try {
+    mocks.server.mockImplementation(
+      ({ signal }: { signal: AbortSignal }) => new Promise((_, reject) => signal.addEventListener('abort', () => reject(signal.reason))),
+    )
+    const pending = calculateCombatPair(request(), new AbortController().signal)
+    deadline.abort(new DOMException('The operation timed out.', 'TimeoutError'))
+    expect(await pending).toEqual(resolveCombatRequest(request()))
+  } finally {
+    timeout.mockRestore()
+  }
 })
 
 it('cancels a server request without starting local work or caching its late answer', async () => {
@@ -130,4 +135,61 @@ it('cancels a server request without starting local work or caching its late ans
   )
   await calculateCombatPair(request(), new AbortController().signal)
   expect(mocks.server).toHaveBeenCalledTimes(2)
+})
+
+describe('a local worker', () => {
+  beforeEach(() => vi.stubGlobal('navigator', { onLine: false }))
+  const idleWorker = () => {
+    const current = worker()
+    current.postMessage.mockReset()
+    return current
+  }
+
+  it('terminates a calculating worker on cancellation', async () => {
+    const current = idleWorker()
+    mocks.worker.mockReturnValue(current)
+    const controller = new AbortController()
+    const result = calculateCombatPair(request(), controller.signal)
+    controller.abort(new Error('Cancelled'))
+    await expect(result).rejects.toThrow('Cancelled')
+    expect(current.terminate).toHaveBeenCalledOnce()
+  })
+
+  it('settles a worker timeout and terminates the worker', async () => {
+    vi.useFakeTimers()
+    const current = idleWorker()
+    mocks.worker.mockReturnValue(current)
+    const result = calculateCombatPair(request(), new AbortController().signal)
+    await vi.advanceTimersByTimeAsync(15_000)
+    expect((await result).ranged?.error).toContain('too long')
+    expect(current.terminate).toHaveBeenCalledOnce()
+  })
+
+  it.each([
+    ['onerror', 'calculation failed'],
+    ['onmessageerror', 'could not be read'],
+  ] as const)('settles %s without hanging the batch', async (event, message) => {
+    const current = idleWorker()
+    mocks.worker.mockReturnValue(current)
+    const result = calculateCombatPair(request(), new AbortController().signal)
+    current[event]?.()
+    expect((await result).ranged?.error).toContain(message)
+  })
+
+  it('settles a worker constructor failure', async () => {
+    mocks.worker.mockImplementation(() => {
+      throw new Error('Unavailable')
+    })
+    expect((await calculateCombatPair(request(), new AbortController().signal)).ranged?.error).toContain('could not start')
+  })
+
+  it('settles a worker posting failure', async () => {
+    const current = idleWorker()
+    current.postMessage.mockImplementation(() => {
+      throw new Error('Unavailable')
+    })
+    mocks.worker.mockReturnValue(current)
+    expect((await calculateCombatPair(request(), new AbortController().signal)).ranged?.error).toContain('could not start')
+    expect(current.terminate).toHaveBeenCalledOnce()
+  })
 })

@@ -1,5 +1,4 @@
 import { GuideHelp } from '../../onboarding/GuideHelp'
-import type { RosterAttachment } from '../useCommand'
 import { useQuery } from '@tanstack/react-query'
 import { Check, ChevronDown } from 'lucide-react'
 import { Fragment, useEffect, useState, type ReactNode } from 'react'
@@ -21,12 +20,13 @@ import {
   isKotcLimit,
   pointsBudgetsAgree,
   rosterBattleFormat,
+  pointsLabel,
   teamArmyProblems,
 } from '../../../../core/battle'
 import { ArmyPoints } from './ArmyPoints'
 import { battleClubsQuery, deploymentsQuery, gameReferencesQuery } from '../../../queries'
 import { fixedHandShort, missionCardsReady, type Side, type SideMission, sideName, sideOf, sides as foldSides } from '../../../sides'
-import type { SendCommand } from '../useCommand'
+import type { RosterAttachment, SendCommand } from '../useCommand'
 import { ClubChoice } from './ClubChoice'
 import { SearchableSelect, type SearchableGroup } from '../../../components/SearchableSelect'
 import { advanceOnboarding } from '../../onboarding/onboarding'
@@ -57,7 +57,8 @@ import type { OnboardingTarget } from '../../../onboardingTargets'
 import { attachedUnitList } from '../../../../core/attachedUnits'
 import { Choice } from '../../../components/Choice'
 import { MANUAL_TRACKING_LIMITS } from '../manualTracking'
-import { formatList } from '../../../text'
+import { countLabel, formatList } from '../../../text'
+import { deploymentFor } from '../../../battleSummary'
 
 type Props = {
   view: BattleView
@@ -116,6 +117,7 @@ const BUDGET_MISMATCH = 'Choose rosters with the same points budget for each sid
 export function Setup({ view, mission, missions, send: sendCommand, attachRoster, pending, problem }: Props) {
   const table = foldSides(view, missions)
   const manual = view.settings.manual === true
+  const skipped = (id: SectionId) => manual && MANUAL_SKIPS.has(id)
   const yours = table.find((side) => side.isViewer)
   const { data: references } = useQuery(gameReferencesQuery())
   const { data: deployments } = useQuery(deploymentsQuery())
@@ -175,8 +177,8 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
               armyProblem.code === 'allies-mismatch'
                 ? 'choose lists saved to the same points total.'
                 : sharedSidePoints(view, armyProblem.side) !== null
-                  ? `allies spend more than their ${sharedSidePoints(view, armyProblem.side)!.toLocaleString('en')} points.`
-                  : `an army spends more than its ${armyPointsFor(view, armyProblem.side)?.toLocaleString('en')} points.`
+                  ? `allies spend more than their ${pointsLabel(sharedSidePoints(view, armyProblem.side)!)}.`
+                  : `an army spends more than its ${pointsLabel(armyPointsFor(view, armyProblem.side)!)}.`
             }`
           : null
       : !ready
@@ -321,7 +323,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
         { kind: 'set-setup-checked', step: SECTION_IDS.indexOf(id), checked: ticking },
         { complete: () => setFolding((current) => ({ ...current, [id]: undefined })) },
       )
-      if (ticking) land(SECTION_IDS.slice(SECTION_IDS.indexOf(id) + 1).find((later) => !(manual && MANUAL_SKIPS.has(later))))
+      if (ticking) land(SECTION_IDS.slice(SECTION_IDS.indexOf(id) + 1).find((later) => !skipped(later)))
     },
   })
   const isOpen = (id: SectionId) => folding[id] ?? (!locked[id] && !settled[id])
@@ -333,7 +335,7 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
     if (closing && scrolledPast) land(id)
   }
   /** The first step the table still owes an answer to, which the bar takes the reader to. */
-  const next = SECTION_IDS.find((id) => !locked[id] && !complete[id] && !NOTHING_OWED.has(id) && !(manual && MANUAL_SKIPS.has(id)))
+  const next = SECTION_IDS.find((id) => !locked[id] && !complete[id] && !NOTHING_OWED.has(id) && !skipped(id))
   const step = (id: SectionId) => ({
     id,
     complete: complete[id],
@@ -342,8 +344,9 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
     current: next === id,
     open: isOpen(id),
     onToggle: () => toggle(id),
+    skipped: skipped(id),
   })
-  const deployment = deployments?.find((pattern) => pattern.id === view.deploymentId)
+  const deployment = deploymentFor(view.deploymentId, deployments)
   const club = clubs?.current?.name
 
   return (
@@ -492,7 +495,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
             <SpineStep
               {...step('mission')}
               check={check('mission')}
-              skipped={manual}
               number={3}
               name="Mission"
               onboarding="battle-setup-mission"
@@ -552,7 +554,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
 
             <SpineStep
               {...step('battlefield')}
-              skipped={manual}
               number={4}
               name="Battlefield"
               onboarding="battle-setup-battlefield"
@@ -587,7 +588,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
 
             <SpineStep
               {...step('defender')}
-              skipped={manual}
               number={5}
               name="Defender"
               onboarding="battle-setup-defender"
@@ -616,7 +616,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
             <SpineStep
               {...step('secondaries')}
               check={check('secondaries')}
-              skipped={manual}
               number={6}
               name="Secondaries"
               onboarding="battle-setup-secondaries"
@@ -635,7 +634,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
             <SpineStep
               {...step('reserves')}
               check={check('reserves')}
-              skipped={manual}
               number={7}
               name="Reserves"
               onboarding="battle-setup-reserves"
@@ -651,7 +649,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
             <SpineStep
               {...step('deploy')}
               check={check('deploy')}
-              skipped={manual}
               number={8}
               name="Deploy"
               onboarding="battle-setup-deploy"
@@ -701,7 +698,6 @@ export function Setup({ view, mission, missions, send: sendCommand, attachRoster
             <SpineStep
               {...step('pre-battle')}
               check={check('pre-battle')}
-              skipped={manual}
               number={10}
               name="Pre-battle rules"
               sides={table}
@@ -996,7 +992,7 @@ function ArmyAnswer({ side, manual }: { side: Side; manual: boolean }) {
   const units = chosen.reduce((total, army) => total + army.unitCount, 0)
   return (
     <Answer
-      value={`${units} ${units === 1 ? 'unit' : 'units'}`}
+      value={countLabel(units, 'unit')}
       detail={
         chosen.length < side.armies.length
           ? `${side.armies.length - chosen.length} army still to choose`
@@ -1038,7 +1034,10 @@ function ReservesAnswer({ side }: { side: Side }) {
   if (!units.length) return <Answer value="No units yet" tone="quiet" />
   const held = units.filter((unit) => unit.host.formation !== 'battlefield').length
   return (
-    <Answer value={held ? `${held} held back` : 'All on the table'} detail={`${units.length - held} of ${units.length} units deploy`} />
+    <Answer
+      value={held ? `${held} held back` : 'All on the table'}
+      detail={`${units.length - held} of ${countLabel(units.length, 'unit')} deploy`}
+    />
   )
 }
 
@@ -1048,6 +1047,6 @@ function PrebattleAnswer({ side, rule }: { side: Side; rule: 'infiltrators' | 's
   return rule === 'infiltrators' ? (
     <Answer value={`${onTable} to deploy`} detail={carrying ? `${carrying} infiltrating` : 'None infiltrating'} />
   ) : (
-    <Answer value={carrying ? `${carrying} scout${carrying === 1 ? '' : 's'}` : 'No moves'} detail="Before the first turn" />
+    <Answer value={carrying ? countLabel(carrying, 'scout') : 'No moves'} detail="Before the first turn" />
   )
 }

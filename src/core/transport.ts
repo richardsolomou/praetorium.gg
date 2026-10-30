@@ -15,7 +15,7 @@ type Pool = { capacity: number; carries: string; maxWounds?: number }
  * the printed selector, so `matchesKeywordSelector` decides what "Adeptus Astartes
  * Infantry" or "Gravis/Terminator" covers.
  */
-export type TransportRule = {
+type TransportRule = {
   loads: Pool[][]
   excluded: { keywords: string; except?: string }[]
   space: { keywords?: string; moreWoundsThan?: number; size: number }[]

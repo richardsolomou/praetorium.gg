@@ -47,7 +47,7 @@ const exchangeSchema = payloadSchema.refine((payload) => !pointsBudgetError(payl
 /** A roster's contents, unit nicknames and rules identity; owner, visibility, preparation, reminders and unit notes are never part of it. */
 export type RosterExchange = z.infer<typeof payloadSchema>
 
-export type RosterExchangeProblem = 'malformed' | 'oversized' | 'unsupported-version'
+type RosterExchangeProblem = 'malformed' | 'oversized' | 'unsupported-version'
 
 export class RosterExchangeError extends Error {
   constructor(
@@ -63,6 +63,12 @@ export const ROSTER_EXCHANGE_RULES_UNAVAILABLE =
 
 const malformed = () =>
   new RosterExchangeError('malformed', 'This exchange code is incomplete or damaged. Copy the whole code again or scan its QR code.')
+
+const oversized = () =>
+  new RosterExchangeError(
+    'oversized',
+    `This exchange code is longer than ${ROSTER_EXCHANGE_MAX_CODE_LENGTH.toLocaleString('en')} characters, the most a roster code can be.`,
+  )
 
 export async function encodeRosterExchange(roster: {
   name: string
@@ -103,11 +109,7 @@ export const isRosterExchangeCode = (text: string) => CODE.test(text.trim())
 
 export async function decodeRosterExchange(text: string): Promise<RosterExchange> {
   const trimmed = text.trim()
-  if (trimmed.length > ROSTER_EXCHANGE_MAX_CODE_LENGTH + 200)
-    throw new RosterExchangeError(
-      'oversized',
-      `This exchange code is longer than ${ROSTER_EXCHANGE_MAX_CODE_LENGTH.toLocaleString('en')} characters, the most a roster code can be.`,
-    )
+  if (trimmed.length > ROSTER_EXCHANGE_MAX_CODE_LENGTH + 200) throw oversized()
   const match = CODE.exec(trimmed)
   if (!match) throw malformed()
   const version = Number(match[1])
@@ -119,11 +121,7 @@ export async function decodeRosterExchange(text: string): Promise<RosterExchange
         : `This exchange code uses format ${version}, which Praetorium no longer reads. Ask for a new code.`,
     )
   const body = match[2]!
-  if (body.length > ROSTER_EXCHANGE_MAX_CODE_LENGTH)
-    throw new RosterExchangeError(
-      'oversized',
-      `This exchange code is longer than ${ROSTER_EXCHANGE_MAX_CODE_LENGTH.toLocaleString('en')} characters, the most a roster code can be.`,
-    )
+  if (body.length > ROSTER_EXCHANGE_MAX_CODE_LENGTH) throw oversized()
   if (!BASE64URL.test(body)) throw malformed()
   let raw: unknown
   try {

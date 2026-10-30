@@ -19,7 +19,7 @@ import type { CanonicalCatalogue } from '../contracts/catalogue'
 import { routeSlug } from '../core/slug'
 import { remember } from '../core/collections'
 import { compiledGlobalSearchIndex } from './globalSearch'
-import { combatUnitsFor } from './combatUnits'
+import { combatUnitsFor } from '../shared/combatUnits'
 import type { CatalogueRuntime, RuntimeStartup } from './catalogueRuntime'
 import { type ConstructionSummaries, constructionSummaries, pickerConstruction, seedConstructionSummaries } from '../shared/pickerUnits'
 import { unitSummaries } from '../shared/cataloguePicker'
@@ -198,9 +198,8 @@ export function catalogueEditionLoaders(
   }
   const canonicalFor = (id: string) => canonical(id, (_key, steps) => completeSteps(steps()))
   const compiling = new Map<string, Promise<CanonicalCatalogue>>()
-  const compileCooperatively = (key: string, steps: () => CanonicalCatalogueSteps) => {
-    return remember(compiling, key, () => completeStepsCooperatively(steps()).finally(() => compiling.delete(key)))
-  }
+  const compileCooperatively = (key: string, steps: () => CanonicalCatalogueSteps) =>
+    remember(compiling, key, () => completeStepsCooperatively(steps()).finally(() => compiling.delete(key)))
   const defaults = () =>
     new Set(
       allFactions()

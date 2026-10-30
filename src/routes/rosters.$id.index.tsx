@@ -1,8 +1,5 @@
-import { createFileRoute, useNavigate, useRouter } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
-import { ClaimGuestRoster, GuestRoster, useGuestDraft } from '../client/features/rosters/GuestRoster'
-import { meQuery } from '../client/queries'
-import { useEffect } from 'react'
+import { createFileRoute } from '@tanstack/react-router'
+import { DeviceRoster, GuestDraftRoster } from '../client/features/rosters/RosterRouteViews'
 import { RosterPage } from '../client/features/rosters/RosterPage'
 import { pageHead, previewImage } from '../client/linkPreview'
 import { loadRoster } from '../client/features/rosters/rosterRouteData'
@@ -70,26 +67,4 @@ function RosterRoute() {
       requested={requested}
     />
   )
-}
-
-function DeviceRoster() {
-  const router = useRouter()
-  useEffect(() => {
-    void router.invalidate({ filter: (match) => match.routeId === Route.id })
-  }, [router])
-  return <RosterLoading />
-}
-
-/** A visitor's one list, built here; once they sign in, it is saved to the account under this same address. */
-function GuestDraftRoster({ print, requested }: { print?: boolean; requested?: ReturnType<typeof useRequestedDatasheet> }) {
-  const navigate = useNavigate()
-  const { data: me } = useQuery(meQuery())
-  const [{ guest, revision }, setGuest] = useGuestDraft(true)
-  // Discarded here or in another tab, the list is gone, so the rosters page is where the visitor goes.
-  useEffect(() => {
-    if (!guest) void navigate({ to: '/rosters', replace: true })
-  }, [guest, navigate])
-  if (!guest) return <RosterLoading />
-  if (me) return <ClaimGuestRoster key={guest.id} guest={guest} onDiscard={() => setGuest(null)} />
-  return <GuestRoster key={revision} guest={guest} print={print} requested={requested} onDiscard={() => setGuest(null)} />
 }

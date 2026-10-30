@@ -4,7 +4,7 @@ import { remember, uniqueBy } from '../core/collections'
 import { PHASES, type Stratagem } from '../core/battle'
 import { routeSlug } from '../core/slug'
 import { catalogueFactionName } from './factionNames'
-import { joinKey } from '../core/text'
+import { countLabel, foldedText, joinKey } from '../core/text'
 import type { SourceTexts, TextTransform } from './sourceText'
 import type { TextFactsByKey } from './textFacts'
 import { type PrintedTransport, printedTransport } from '../core/transport'
@@ -64,7 +64,6 @@ type ConstructionEnhancement = {
   eligibility: EnhancementEligibility | null
 }
 import type { EnhancementEligibility } from '../contracts/factions'
-export type { EnhancementEligibility } from '../contracts/factions'
 type FactionStratagem = {
   id: string
   name: string
@@ -511,12 +510,7 @@ export function enhancementEligibility(
   ) {
     keywords.push('Character')
   }
-  const words = (text: string) =>
-    text
-      .normalize('NFKD')
-      .replaceAll(/\p{M}/gu, '')
-      .toLowerCase()
-      .match(/[a-z0-9]+/g) ?? []
+  const words = (text: string) => foldedText(text).match(/[a-z0-9]+/g) ?? []
   const requirement = (phrase: string) => {
     const key = joinKey(phrase)
     const named = datasheetNames.filter((name) => joinKey(name) === key)
@@ -823,7 +817,7 @@ export function compositionCount(lines: readonly string[]) {
         ]
       : [],
   )
-  if (!totals.length) return `${lines.length} ${lines.length === 1 ? 'model' : 'models'}`
+  if (!totals.length) return countLabel(lines.length, 'model')
 
   const minimum = Math.min(...totals.map((total) => total.minimum))
   const maximum = Math.max(...totals.map((total) => total.maximum))

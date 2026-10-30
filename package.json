@@ -10,7 +10,6 @@
     "build": "ras build && ras build --config vite.seed.config.ts && tsx scripts/compileCatalogueRuntime.ts",
     "typecheck": "ras typecheck && pnpm --dir mobile typecheck && pnpm --dir spacetimedb typecheck",
     "lint": "ras lint --report-unused-disable-directives-severity=error .",
-    "lint:fix": "ras lint --fix .",
     "format": "ras format .",
     "format:check": "ras format --check .",
     "docs:lint": "markdownlint-cli2 '**/*.md' '#**/node_modules' '#.output' '#data-dev' '#catalogue-data' '#mobile/ios/**' '#mobile/.simulator-derived/**' '#CHANGELOG.md' '#test-results*/**' '#playwright-report/**'",
@@ -42,7 +41,6 @@
     "reference:evaluate": "tsx scripts/evaluateReference.ts",
     "reference:verify": "tsx scripts/verifyReferenceDeployment.ts",
     "catalogue:points": "node --max-old-space-size=8192 --import tsx scripts/checkPoints.ts && tsx scripts/checkRestrictions.ts && tsx scripts/checkJoins.ts",
-    "benchmark:pricing": "tsx scripts/benchmarkProductionPricing.ts",
     "mobile": "pnpm --dir mobile start",
     "changesets:check": "ras changesets check"
   },
@@ -64,7 +62,6 @@
     "canvas-confetti": "^1.9.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "cmdk": "^1.1.1",
     "core-js": "^3.50.0",
     "fastest-levenshtein": "1.0.16",
     "fflate": "^0.8.3",

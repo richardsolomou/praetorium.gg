@@ -17,7 +17,7 @@ import { cachedRosterPrice, cachedRosterTotalsFor, cachedRosterAssessmentsFor } 
 import { catalogueChanges } from '../../src/core/catalogueChanges'
 import { CANONICAL_CATALOGUE_SOURCE_NAMES } from '../../src/server/canonicalCatalogueSources'
 
-const reads = vi.hoisted(() => ({ factionIndexFor: vi.fn(), catalogueFor: vi.fn(), rulesFor: vi.fn(), rosterLabelRulesFor: vi.fn() }))
+const reads = vi.hoisted(() => ({ factionIndexFor: vi.fn(), catalogueFor: vi.fn(), rulesFor: vi.fn() }))
 vi.mock('../../src/server/app', () => ({ app: () => reads }))
 
 let root: string
@@ -518,7 +518,6 @@ it('refreshes cached saved-roster prices, totals and legality after an edition-o
           factionRestrictions: new Map(),
         },
     )
-    reads.rosterLabelRulesFor.mockImplementation(async (id: string) => versions.rulesFor(id))
     const price = await cachedRosterPrice(saved)
     const [totals] = await cachedRosterTotalsFor([saved])
     const [assessment] = await cachedRosterAssessmentsFor([saved])

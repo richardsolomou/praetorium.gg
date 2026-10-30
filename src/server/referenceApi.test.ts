@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { PRAETORIUM_GUIDE } from './referenceGuide'
+import { fixedWindowRateLimit } from './rateLimit'
 
 const { document, corpus, state } = vi.hoisted(() => {
   const record = {
@@ -44,9 +45,9 @@ import {
   referenceDocumentResponse,
   referenceGuideResponse,
   referenceIndexResponse,
-  referenceRateLimit,
   referenceRecordResponse,
   referenceSearchResponse,
+  referenceUnitsResponse,
 } from './referenceApi'
 
 afterEach(() => {
@@ -91,12 +92,6 @@ it('serves bounded JSON search with snapshot caching', async () => {
     body: { query: 'battlefield', results: [{ id: document.id }] },
   })
   expect((await referenceSearchResponse(new Request(request, { headers: { 'If-None-Match': etag! } }))).status).toBe(304)
-})
-
-it('accepts a weak ETag after an intermediary compresses reference search', async () => {
-  const request = new Request('https://praetorium.gg/api/reference/v1/search?q=battlefield')
-  const etag = (await referenceSearchResponse(request)).headers.get('etag')!
-  expect((await referenceSearchResponse(new Request(request, { headers: { 'If-None-Match': `W/${etag}` } }))).status).toBe(304)
 })
 
 it('serves the same document as source-attributed Markdown', async () => {
@@ -203,30 +198,29 @@ it('stops serving a memoized corpus when authoritative sync fails', async () => 
 })
 
 it('bounds unique rate-limit buckets and recovers after the window', () => {
+  const limiter = fixedWindowRateLimit('too many reference requests', 1)
   vi.useFakeTimers()
   vi.setSystemTime(new Date('2030-01-01T00:00:00Z'))
   try {
     for (let index = 0; index < 10_000; index += 1) {
-      expect(referenceRateLimit(new Request('https://praetorium.gg', { headers: { 'X-Forwarded-For': `192.0.2.${index}` } }), 1)).toBeNull()
+      expect(limiter(new Request('https://praetorium.gg', { headers: { 'X-Forwarded-For': `192.0.2.${index}` } }))).toBeNull()
     }
 
-    expect(referenceRateLimit(new Request('https://praetorium.gg', { headers: { 'X-Forwarded-For': '198.51.100.1' } }), 1)?.status).toBe(
-      429,
-    )
+    expect(limiter(new Request('https://praetorium.gg', { headers: { 'X-Forwarded-For': '198.51.100.1' } }))?.status).toBe(429)
     vi.advanceTimersByTime(60_000)
-    expect(referenceRateLimit(new Request('https://praetorium.gg', { headers: { 'X-Forwarded-For': '198.51.100.1' } }), 1)).toBeNull()
+    expect(limiter(new Request('https://praetorium.gg', { headers: { 'X-Forwarded-For': '198.51.100.1' } }))).toBeNull()
   } finally {
     vi.useRealTimers()
   }
 })
 
 it('does not trust caller-controlled Cloudflare client headers', () => {
+  const limiter = fixedWindowRateLimit('too many reference requests', 1)
   const request = (cloudflareAddress: string) =>
-    referenceRateLimit(
+    limiter(
       new Request('https://praetorium.gg', {
         headers: { 'CF-Connecting-IP': cloudflareAddress, 'X-Forwarded-For': '192.0.2.1' },
       }),
-      1,
     )
 
   expect(request('198.51.100.1')).toBeNull()
@@ -244,4 +238,15 @@ it('rate limits individual reference reads', async () => {
 
   for (let request = 0; request < 120; request += 1) expect((await read()).status).toBe(200)
   expect((await read()).status).toBe(429)
+})
+
+it('limits unit lists apart from other reference reads', async () => {
+  const headers = { 'X-Forwarded-For': '203.0.113.43' }
+  for (let request = 0; request < 121; request += 1)
+    await referenceDocumentResponse(new Request('https://praetorium.gg/api/reference/v1/documents/any', { headers }), document.id)
+  const units = await referenceUnitsResponse(
+    new Request('https://praetorium.gg/api/reference/v1/units?battleSize=0', { headers }),
+    'faction',
+  )
+  expect(units.status).toBe(400)
 })

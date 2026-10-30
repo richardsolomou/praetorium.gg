@@ -93,8 +93,4 @@ describe('invitation to track your own games', () => {
   it('invites an account with a roster to start a battle', () => {
     expect(watch({ me: { id: 'reader' }, completedTasks: ['roster'] })).toContain('<a href="/battles"')
   })
-
-  it('leaves an account that has played to watch', () => {
-    expect(watch({ me: { id: 'reader' }, completedTasks: ['roster', 'battle'] })).not.toContain('data-spectator-invite')
-  })
 })

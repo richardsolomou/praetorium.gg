@@ -9,14 +9,14 @@ import { currentUser, forSignedIn } from '../playerSession'
 import { fixedWindowRateLimit } from '../rateLimit'
 import { mutationRpc, rpc } from '../rpc'
 
-const screenshotRateLimit = fixedWindowRateLimit('too many screenshot uploads')
-const emailRateLimit = fixedWindowRateLimit('too many feedback emails')
+const screenshotRateLimit = fixedWindowRateLimit('too many screenshot uploads', 3)
+const emailRateLimit = fixedWindowRateLimit('too many feedback emails', 5)
 
 export const uploadFeedbackScreenshot = createServerFn({ method: 'POST' })
   .validator(feedbackScreenshotSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const limited = screenshotRateLimit(getRequest(), 3)
+      const limited = screenshotRateLimit(getRequest())
       if (limited) throw limited
       return storeFeedbackScreenshot(data.image)
     }),
@@ -27,7 +27,7 @@ export const emailFeedback = createServerFn({ method: 'POST' })
   .validator(feedbackEmailSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const limited = emailRateLimit(getRequest(), 5)
+      const limited = emailRateLimit(getRequest())
       if (limited) throw limited
       const delivery = app().email
       if (!delivery) return null

@@ -1,4 +1,5 @@
-import { LegalLinks, LegalPage, LegalSection } from './LegalPage'
+import { Link } from '@tanstack/react-router'
+import { LegalLinks, LegalPage, LegalSection, PrivacyEmail } from './LegalPage'
 
 export function PrivacyPolicy() {
   return (
@@ -143,9 +144,9 @@ export function PrivacyPolicy() {
           You can permanently delete your account from your profile. This removes your profile, rosters, friendships, tournament entries,
           tournaments you organize, club memberships, clubs you own and every battle you played, including shared battles. Session records
           expire on their own; usage data is kept by our analytics provider under its retention settings. The{' '}
-          <a href="/delete-account" className="text-info hover:text-parchment">
+          <Link to="/delete-account" className="text-info hover:text-parchment">
             account deletion page
-          </a>{' '}
+          </Link>{' '}
           gives the same path outside the installed application.
         </p>
       </LegalSection>
@@ -167,20 +168,16 @@ export function PrivacyPolicy() {
       <LegalSection title="Changes">
         <p>
           If this policy changes, the new version is posted on this page with an updated date. The terms of service at{' '}
-          <a href="/terms" className="text-info hover:text-parchment">
+          <Link to="/terms" className="text-info hover:text-parchment">
             /terms
-          </a>{' '}
+          </Link>{' '}
           govern use of the service itself.
         </p>
       </LegalSection>
 
       <LegalSection title="Contact">
         <p>
-          Questions, and requests for access, correction or deletion:{' '}
-          <a href="mailto:privacy@praetorium.gg" className="text-info hover:text-parchment">
-            privacy@praetorium.gg
-          </a>
-          .
+          Questions, and requests for access, correction or deletion: <PrivacyEmail />.
         </p>
       </LegalSection>
     </LegalPage>

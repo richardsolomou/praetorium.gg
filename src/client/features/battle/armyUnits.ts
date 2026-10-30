@@ -1,13 +1,5 @@
 import type { UnitState } from '../../../core/battle'
-import { GROUPS } from '../../unitGroups'
-
-/** The models an army still has on the table, out of the ones it brought. */
-export function armyModels(units: readonly UnitState[]) {
-  return {
-    standing: units.reduce((total, unit) => total + unit.alive, 0),
-    total: units.reduce((total, unit) => total + unit.models, 0),
-  }
-}
+import { shelvesOf } from '../../unitGroups'
 
 /**
  * An army on the shelves a roster is read by, with the units it has lost set aside.
@@ -18,9 +10,8 @@ export function armyModels(units: readonly UnitState[]) {
  * table is the question this list is read to answer.
  */
 export function armyShelves(units: readonly UnitState[]) {
-  const standing = units.filter((unit) => !unit.destroyed)
-  return GROUPS.flatMap(({ id, plural }) => {
-    const shelf = standing.filter((unit) => (unit.group ?? 'other') === id)
-    return shelf.length ? [{ id, plural, units: shelf }] : []
-  })
+  return shelvesOf(
+    units.filter((unit) => !unit.destroyed),
+    (unit) => unit.group,
+  )
 }

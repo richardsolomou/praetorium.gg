@@ -73,13 +73,11 @@ export function BenchmarkTargets({
           </div>
           <UnitPicker
             ariaLabel="Add benchmark target"
-            value=""
             placeholder="Add a benchmark from any faction"
             searchPlaceholder="Search benchmark units…"
             disabled={disabled || targets.length >= 50}
             index={index}
-            onValueChange={(value) => {
-              const [catalogueId, entryId] = JSON.parse(value) as [string, string]
+            onUnitChange={(catalogueId, entryId) => {
               const unit = index.find((book) => book.catalogueId === catalogueId)?.units.find((candidate) => candidate.id === entryId)
               if (unit) onChange([...targets, { key: crypto.randomUUID(), catalogueId, entryId, name: unit.name }])
             }}

@@ -1,6 +1,6 @@
 import { changesTouching, type ListContents, type RecordedChangeSet } from '../core/catalogueChanges'
 import { uniqueNames } from '../shared/pricing'
-import { rosterUseProblem } from './rosterUsage'
+import { rosterUseProblem } from '../core/rosterLegality'
 
 type PricedList = Parameters<typeof rosterUseProblem>[0] & {
   units: readonly { key: number; size: { models: number }; enhancements: readonly string[]; upgrades: readonly string[] }[]

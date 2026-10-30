@@ -27,7 +27,7 @@ const simple = [
   'one shot',
 ] as const
 type KeywordKind = (typeof simple)[number] | 'sustained hits' | 'rapid fire' | 'melta' | 'blast' | 'cleave' | 'anti'
-export type CombatKeyword = {
+type CombatKeyword = {
   kind: KeywordKind
   amount?: number | DiceExpression
   critical?: number

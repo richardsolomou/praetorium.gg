@@ -59,7 +59,9 @@ beforeEach(() => {
   vi.stubGlobal('window', { PraetoriumOffline: saved })
   vi.stubGlobal('navigator', { onLine: false })
 })
+const client = new QueryClient()
 afterEach(() => {
+  client.clear()
   setPublishedReference(null)
   onlineManager.setOnline(true)
   vi.unstubAllGlobals()
@@ -142,22 +144,12 @@ it.each(['PraetoriumOffline', 'PraetoriumReferenceCache'])(
 it('runs saved search in an already open hosted page after connectivity is lost', async () => {
   vi.stubGlobal('window', { PraetoriumReferenceCache: saved })
   onlineManager.setOnline(false)
-  const client = new QueryClient()
-  try {
-    expect((await client.query(globalSearchQuery('moving'))).map((result) => result.href)).toEqual(['/rules/core/moving'])
-  } finally {
-    client.clear()
-  }
+  expect((await client.query(globalSearchQuery('moving'))).map((result) => result.href)).toEqual(['/rules/core/moving'])
 })
 it('runs a saved datasheet filter in an already open hosted page after connectivity is lost', async () => {
   vi.stubGlobal('window', { PraetoriumReferenceCache: saved })
   onlineManager.setOnline(false)
-  const client = new QueryClient()
-  try {
-    expect((await client.query(factionDatasheetsQuery('necrons', 'Warriors'))).map((unit) => unit.name)).toEqual(['Necron Warriors'])
-  } finally {
-    client.clear()
-  }
+  expect((await client.query(factionDatasheetsQuery('necrons', 'Warriors'))).map((unit) => unit.name)).toEqual(['Necron Warriors'])
 })
 
 it('keeps private search results available online when public reference data is saved', async () => {
@@ -165,17 +157,11 @@ it('keeps private search results available online when public reference data is 
   vi.stubGlobal('navigator', { onLine: true })
   const results = [{ id: 'roster:1', group: 'Your rosters' as const, label: 'My army', detail: 'Necrons', href: '/rosters/1' }]
   vi.spyOn(functions, 'globalSearch').mockResolvedValue(results)
-  const client = new QueryClient()
-  try {
-    expect(await client.query(globalSearchQuery('army'))).toEqual(results)
-  } finally {
-    client.clear()
-  }
+  expect(await client.query(globalSearchQuery('army'))).toEqual(results)
 })
 
 it('finds a saved roster and battle through the normal search without a connection', async () => {
   vi.stubGlobal('navigator', { onLine: false })
-  const client = new QueryClient()
   client.setQueryData(['me'], { id: 'alice' })
   client.setQueryData(
     ['saved-roster-summaries'],
@@ -192,12 +178,7 @@ it('keeps public search usable when connectivity is reported but the service is 
   vi.stubGlobal('window', { PraetoriumReferenceCache: saved })
   vi.stubGlobal('navigator', { onLine: true })
   vi.spyOn(functions, 'globalSearch').mockRejectedValue(new Error('Service unreachable'))
-  const client = new QueryClient()
-  try {
-    expect((await client.query(globalSearchQuery('moving'))).map((result) => result.href)).toEqual(['/rules/core/moving'])
-  } finally {
-    client.clear()
-  }
+  expect((await client.query(globalSearchQuery('moving'))).map((result) => result.href)).toEqual(['/rules/core/moving'])
 })
 
 it('reads a download the service still publishes without contacting the service', async () => {
@@ -227,12 +208,7 @@ it('filters a current download’s datasheets without contacting the service', a
   vi.stubGlobal('navigator', { onLine: true })
   setPublishedReference(published('test'))
   vi.spyOn(functions, 'factionDatasheets').mockResolvedValue([{ id: 'live', name: 'Live Warriors' }] as never)
-  const client = new QueryClient()
-  try {
-    expect((await client.query(factionDatasheetsQuery('necrons', 'Warriors'))).map((unit) => unit.name)).toEqual(['Necron Warriors'])
-  } finally {
-    client.clear()
-  }
+  expect((await client.query(factionDatasheetsQuery('necrons', 'Warriors'))).map((unit) => unit.name)).toEqual(['Necron Warriors'])
 })
 it('reads a current download’s datasheet changes without contacting the service', async () => {
   const changes = [{ recordedAt: 1, change: { kind: 'datasheet-points', id: 'warriors' } }]
@@ -245,12 +221,7 @@ it('reads a current download’s datasheet changes without contacting the servic
   vi.stubGlobal('navigator', { onLine: true })
   setPublishedReference(published('test'))
   vi.spyOn(functions, 'referenceChanges').mockResolvedValue([])
-  const client = new QueryClient()
-  try {
-    expect(await client.query(referenceChangesQuery({ kind: 'datasheet', faction: 'necrons', slug: 'warriors' }))).toEqual(changes)
-  } finally {
-    client.clear()
-  }
+  expect(await client.query(referenceChangesQuery({ kind: 'datasheet', faction: 'necrons', slug: 'warriors' }))).toEqual(changes)
 })
 it('searches the download together with the player’s own loaded lists', () => {
   expect(

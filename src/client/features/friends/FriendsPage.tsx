@@ -15,8 +15,10 @@ import { friendshipsQuery, meQuery, opponentsQuery, playerProfileQuery, playerSe
 import { useSettled } from '../../useSettled'
 import { acceptFriend, rejectFriend, removeFriend, requestFriend } from '../../functions'
 import { PLAYER_SEARCH_MAX_LENGTH, PLAYER_SEARCH_MIN_LENGTH } from '../../../core/playerSearch'
-import type { OnboardingTarget } from '../onboarding/onboarding'
-import { InviteQr, SHARED_LABEL, useFriendInvite, useInviteShareLabel } from './friendInvite'
+import type { OnboardingTarget } from '../../onboardingTargets'
+import { InviteQr, useFriendInvite } from './friendInvite'
+import { useNativeShare } from '../../nativeBridge'
+import { shareButtonLabel } from '../../useShareLink'
 import { Problem } from '../../components/Problem'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { CreateBattle } from '../battles/CreateBattle'
@@ -96,7 +98,7 @@ export function FriendsPage() {
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-x-16">
           <aside className="min-w-0 space-y-6 lg:col-start-2 lg:row-start-1">
             <section>
-              <h2 className="rubric border-b border-edge pb-2">Add a friend</h2>
+              <SectionHeading title="Add a friend" />
               <SearchField
                 onboarding="friend-search"
                 className="mt-3"
@@ -272,7 +274,7 @@ function FriendCard({
 
 function InviteFriend() {
   const invite = useFriendInvite()
-  const shareLabel = useInviteShareLabel()
+  const nativeShare = useNativeShare()
   const [cancelling, setCancelling] = useState(false)
 
   return (
@@ -284,7 +286,7 @@ function InviteFriend() {
           <>
             <Button variant="outline" disabled={invite.busy} onClick={() => void invite.share()}>
               {invite.feedback ? <Check /> : <Link2 />}
-              {invite.feedback ? SHARED_LABEL[invite.feedback] : shareLabel}
+              {shareButtonLabel(invite.feedback, nativeShare, 'invite')}
             </Button>
             <InviteQr url={invite.url} disabled={invite.busy} />
             <Button variant="ghost" disabled={invite.busy} onClick={() => void invite.shareNew()}>

@@ -25,7 +25,7 @@ import {
   collectionProfile,
 } from '../functions'
 import { SSR_STALE_TIME } from './shared'
-import { anySignal } from '../abortSignals'
+import { withTimeout } from '../abortSignals'
 import {
   abilityRemindersKey,
   adminKey,
@@ -43,7 +43,7 @@ export const meQuery = () =>
     queryKey: meKey(),
     queryFn: async ({ client, signal }) => {
       const user = await me({
-        signal: anySignal([signal, AbortSignal.timeout(15_000)]),
+        signal: withTimeout(signal, 15_000),
         fetch: (input, init) => fetch(input, { ...init, cache: 'no-store' }),
       })
       signal.throwIfAborted()

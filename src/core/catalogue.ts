@@ -276,7 +276,7 @@ export type Catalogue = {
 }
 
 /** A kind of force, carrying the limits the game system puts on a whole army. */
-export type ForceEntry = {
+type ForceEntry = {
   id: string
   name: string
   constraints?: Constraint[]
@@ -446,6 +446,8 @@ function collectBattleSizes(root: Catalogue, sizes: Map<number, string>) {
 export function targetOf(definition: Definition, definitions: ReadonlyMap<string, Definition>): Definition {
   return 'targetId' in definition ? (definitions.get(definition.targetId) ?? definition) : definition
 }
+
+export const resolve = (definition: Definition, index: CatalogueIndex) => targetOf(definition, index.definitions)
 
 /** An entry, and its target when it is a link: the two places its own data can be written. */
 export function definitionAndTarget(definition: Definition, index: CatalogueIndex): Definition[] {

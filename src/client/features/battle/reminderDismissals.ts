@@ -43,12 +43,6 @@ export function parseReminderDismissals(value: string | null): Set<string> {
 export const serializeReminderDismissals = (dismissals: ReadonlySet<string>) => JSON.stringify([...dismissals].slice(-MAX_DISMISSALS))
 
 export function pruneReminderDismissals(dismissals: ReadonlySet<string>, context: ReminderDismissalContext): Set<string> {
-  const activePlayer = encodeURIComponent(context.activePlayerId ?? '')
-  const suffixes = [
-    '|battle',
-    `|round|${context.round}`,
-    `|turn|${context.round}|${activePlayer}`,
-    `|phase|${context.round}|${activePlayer}|${context.phase}`,
-  ]
+  const suffixes = reminderDismissalKeys('', context)
   return new Set([...dismissals].filter((key) => suffixes.some((suffix) => key.endsWith(suffix))).slice(-MAX_DISMISSALS))
 }

@@ -3,7 +3,7 @@ import type { ReferenceDocument } from '../contracts/reference'
 import type { DatasheetRelationship } from '../core/datasheet'
 import { routeSlug } from '../core/slug'
 import { publishedFacts } from '../shared/sourceText'
-import { countBy, remember } from '../core/collections'
+import { byId, countBy, remember } from '../core/collections'
 import { catalogueEditionId } from '../core/catalogueEdition'
 import { joinKey } from '../core/text'
 import { datasheetPageBySlug } from '../core/datasheetSlug'
@@ -282,7 +282,7 @@ type GameReferences = ReturnType<typeof gameReferencesFor>
 
 function missionSetups(corpus: ReferenceCorpus, rules: LoadedRules | null, matchups: GameReferencePack['missions'][number]['matchups']) {
   if (!rules) return []
-  const deployments = new Map(rules.deployments.map((deployment) => [deployment.id, deployment]))
+  const deployments = byId(rules.deployments)
   return matchups.flatMap(([you, opponent]) => {
     if (!you || !opponent) return []
     const matchupIds = new Set([`${you.id}-vs-${opponent.id}`, `${opponent.id}-vs-${you.id}`])

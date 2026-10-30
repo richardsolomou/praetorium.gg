@@ -7,7 +7,7 @@ export const gettingStartedTaskIds = ['roster', 'simulator'] as const
 /** Tours that only a finished walkthrough can complete; every other task is folded from what the player has actually done. */
 export const tourTaskIds = ['reference', 'community', 'simulator', 'roster-tools'] as const
 
-export type TourTaskId = (typeof tourTaskIds)[number]
+type TourTaskId = (typeof tourTaskIds)[number]
 
 const factTaskIds = ['roster', 'friend', 'battle', 'league'] as const
 
@@ -51,15 +51,11 @@ export function onboardingProgress(stored: StoredOnboarding, facts: OnboardingFa
   }
 }
 
-function resolvedOnboardingTasks(progress: OnboardingProgress): Set<OnboardingTaskId> {
-  return new Set([...progress.completedTasks, ...progress.skippedTasks])
-}
-
 export function onboardingComplete(progress: OnboardingProgress): boolean {
   return resolvedGettingStartedTasks(progress).length === gettingStartedTaskIds.length
 }
 
 export function resolvedGettingStartedTasks(progress: OnboardingProgress) {
-  const resolved = resolvedOnboardingTasks(progress)
+  const resolved = new Set([...progress.completedTasks, ...progress.skippedTasks])
   return gettingStartedTaskIds.filter((task) => resolved.has(task))
 }

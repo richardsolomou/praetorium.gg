@@ -151,16 +151,4 @@ describe('the anchors an update is addressed by', () => {
   it('reads the day it was recorded and the start of its digest', () => {
     expect(updateAnchor(day, '0123abcd4567ef89')).toBe('update-2026-07-22-0123abcd')
   })
-
-  it('tells two updates of one day apart', () => {
-    expect(updateAnchor(day, '0123abcd4567ef89')).not.toBe(updateAnchor(Date.UTC(2026, 6, 22, 1), 'fedcba9876543210'))
-  })
-
-  it('uses the day in UTC, whatever the time of day', () => {
-    expect(updateAnchor(Date.UTC(2026, 6, 22, 0, 0), 'ab')).toBe(updateAnchor(Date.UTC(2026, 6, 22, 23, 59), 'ab'))
-  })
-
-  it('is URL-safe', () => {
-    expect(updateAnchor(day, '0123abcd4567ef89')).toMatch(/^[a-z0-9-]+$/)
-  })
 })

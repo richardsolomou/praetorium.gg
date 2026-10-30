@@ -14,6 +14,7 @@ function stubSessionStorage() {
 describe('native tab memory', () => {
   beforeEach(() => {
     vi.unstubAllGlobals()
+    stubSessionStorage()
   })
 
   it('names the section a location belongs to', () => {
@@ -33,39 +34,33 @@ describe('native tab memory', () => {
   })
 
   it('returns a tab to where it was left', () => {
-    stubSessionStorage()
     rememberTab('/factions/necrons/datasheets/overlord')
     expect(recallTab('factions')).toMatchObject({ href: '/factions/necrons/datasheets/overlord', scrollY: 0 })
   })
 
   it('keeps one memory per section', () => {
-    stubSessionStorage()
     rememberTab('/rosters/army-id')
     rememberTab('/factions/necrons')
     expect(recallTab('rosters')).toMatchObject({ href: '/rosters/army-id', scrollY: 0 })
   })
 
   it('keeps the leaderboard position behind More', () => {
-    stubSessionStorage()
     rememberTab('/leaderboard?faction=orks', { scrollY: 480 })
 
     expect(recallTab('leaderboard')).toMatchObject({ href: '/leaderboard?faction=orks', scrollY: 480 })
   })
 
   it('has nothing to recall for a section this session has not visited', () => {
-    stubSessionStorage()
     expect(recallTab('events')).toBeNull()
   })
 
   it('remembers nothing for a location outside the tabbed sections', () => {
-    stubSessionStorage()
     rememberTab('/rosters/army-id')
     rememberTab('/profile')
     expect(recallTab('rosters')).toMatchObject({ href: '/rosters/army-id', scrollY: 0 })
   })
 
   it('remembers an open snapshot roster pane', () => {
-    stubSessionStorage()
     const rosterSnapshotPane = { workspace: '/battles/battle-id/rosters/player-id', unitKey: 'unit-id' }
     rememberTab('/battles/battle-id/rosters/player-id#roster-pane', {
       state: { rosterSnapshotPane },
@@ -75,7 +70,6 @@ describe('native tab memory', () => {
   })
 
   it('keeps both supported pane states and ignores unrelated router state', () => {
-    stubSessionStorage()
     const rosterPane = { workspace: '/rosters/army-id', pane: 'picker' }
     const rosterSnapshotPane = { workspace: '/battles/battle-id/rosters/player-id', unitKey: 'unit-id' }
     rememberTab('/rosters/army-id#roster-pane', {
@@ -86,7 +80,6 @@ describe('native tab memory', () => {
   })
 
   it('remembers an open roster pane and each scroll region', () => {
-    stubSessionStorage()
     const rosterPane = { workspace: '/rosters/army-id', pane: 'loadout', selectedKey: 2 }
     rememberTab('/rosters/army-id#roster-pane', {
       scrollY: 120,
@@ -103,14 +96,12 @@ describe('native tab memory', () => {
   })
 
   it('forgets a location that turned out not to exist', () => {
-    stubSessionStorage()
     rememberTab('/rosters/deleted-army')
     forgetTab('/rosters/deleted-army')
     expect(recallTab('rosters')).toBeNull()
   })
 
   it('keeps a tab memory that has moved on from a missing location', () => {
-    stubSessionStorage()
     rememberTab('/rosters/army-id')
     forgetTab('/rosters/deleted-army')
     expect(recallTab('rosters')).toMatchObject({ href: '/rosters/army-id' })

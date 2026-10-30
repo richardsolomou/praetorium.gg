@@ -29,6 +29,13 @@ import { fixedWindowRateLimit } from './rateLimit'
 import { catalogueEditionId } from '../core/catalogueEdition'
 import { datasheetPageBySlug } from '../core/datasheetSlug'
 
+export const referenceRateLimit = fixedWindowRateLimit('too many reference requests', 120)
+const unitsRateLimit = fixedWindowRateLimit('too many reference requests', 60)
+
+function rateLimited<A extends unknown[]>(respond: (request: Request, ...args: A) => Promise<Response>, limit = referenceRateLimit) {
+  return async (request: Request, ...args: A) => limit(request) ?? respond(request, ...args)
+}
+
 type ReferenceRecord = {
   kind: ReferenceKind
   canonicalUrl: string
@@ -99,9 +106,7 @@ export async function referenceDocumentFor(id: string) {
   return corpus && { corpus, document: corpus.byId.get(id) }
 }
 
-export async function referenceSearchResponse(request: Request) {
-  const limited = referenceRateLimit(request, 120)
-  if (limited) return limited
+export const referenceSearchResponse = rateLimited(async (request: Request) => {
   const parsed = parseReferenceSearch(new URL(request.url))
   if ('error' in parsed) return problem(parsed.error, 400)
   const corpus = await activeReferenceCorpus()
@@ -115,21 +120,17 @@ export async function referenceSearchResponse(request: Request) {
     ),
   ].join('\n\n')
   return referenceResponse(request, corpus.revision, `search:${JSON.stringify(parsed)}`, result, markdown)
-}
+})
 
-export async function referenceFactionsResponse(request: Request) {
-  const limited = referenceRateLimit(request, 120)
-  if (limited) return limited
+export const referenceFactionsResponse = rateLimited(async (request: Request) => {
   const corpus = await activeReferenceCorpus()
   if (!corpus) return referenceUnavailable()
   const data = { factions: referenceFactions(corpus), revisions: corpus.catalogue.revisions }
   const markdown = `# Factions\n\n${data.factions.map((faction) => `- [${faction.name}](/factions/${faction.slug}) (${faction.datasheets} datasheets, ${faction.detachments} detachments)`).join('\n')}\n`
   return referenceResponse(request, corpus.revision, 'factions', data, markdown)
-}
+})
 
-export async function referenceIndexResponse(request: Request) {
-  const limited = referenceRateLimit(request, 120)
-  if (limited) return limited
+export const referenceIndexResponse = rateLimited(async (request: Request) => {
   const corpus = await activeReferenceCorpus()
   if (!corpus) return referenceUnavailable()
   const data = referenceIndex(corpus)
@@ -144,11 +145,9 @@ export async function referenceIndexResponse(request: Request) {
     ...data.factions.map((faction) => `- ${faction.name} (${faction.datasheets} datasheets, ${faction.detachments} detachments)`),
   ].join('\n\n')
   return referenceResponse(request, data.corpusRevision, 'index', data, markdown)
-}
+})
 
-export async function referenceGuideResponse(request: Request) {
-  const limited = referenceRateLimit(request, 120)
-  if (limited) return limited
+export const referenceGuideResponse = rateLimited(async (request: Request) => {
   const corpus = await activeReferenceCorpus()
   if (!corpus) return referenceUnavailable()
   return referenceResponse(
@@ -158,11 +157,9 @@ export async function referenceGuideResponse(request: Request) {
     PRAETORIUM_GUIDE,
     praetoriumGuideMarkdown(),
   )
-}
+})
 
-export async function referenceUnitsResponse(request: Request, catalogueId: string) {
-  const limited = referenceRateLimit(request, 60)
-  if (limited) return limited
+export const referenceUnitsResponse = rateLimited(async (request: Request, catalogueId: string) => {
   const url = new URL(request.url)
   const rawBattleSize = url.searchParams.get('battleSize')
   const battleSize = rawBattleSize === null ? undefined : Number(rawBattleSize)
@@ -198,21 +195,17 @@ export async function referenceUnitsResponse(request: Request, catalogueId: stri
     data,
     markdown,
   )
-}
+}, unitsRateLimit)
 
-export async function referenceRecordResponse(request: Request, id: string) {
-  const limited = referenceRateLimit(request, 120)
-  if (limited) return limited
+export const referenceRecordResponse = rateLimited(async (request: Request, id: string) => {
   const found = await referenceRecordFor(id)
   if (!found) return referenceUnavailable()
   const { corpus, record } = found
   if (!record) return problem('reference record not found', 404)
   return referenceResponse(request, corpus.revision, `record:${id}`, record, referenceDocumentMarkdown(record.document))
-}
+})
 
-export async function referenceDatasheetResponse(request: Request, catalogueId: string, slug: string) {
-  const limited = referenceRateLimit(request, 120)
-  if (limited) return limited
+export const referenceDatasheetResponse = rateLimited(async (request: Request, catalogueId: string, slug: string) => {
   const corpus = await activeReferenceCorpus(catalogueId)
   if (!corpus) return referenceUnavailable()
   const data = datasheetPageBySlug(
@@ -229,11 +222,9 @@ export async function referenceDatasheetResponse(request: Request, catalogueId: 
     attribution: document?.attribution ?? [],
     data,
   })
-}
+})
 
-export async function referenceDetachmentResponse(request: Request, catalogueId: string, slug: string) {
-  const limited = referenceRateLimit(request, 120)
-  if (limited) return limited
+export const referenceDetachmentResponse = rateLimited(async (request: Request, catalogueId: string, slug: string) => {
   const corpus = await activeReferenceCorpus(catalogueId)
   if (!corpus) return referenceUnavailable()
   const data = corpus.catalogue.detachments.find(
@@ -248,11 +239,9 @@ export async function referenceDetachmentResponse(request: Request, catalogueId:
     attribution: document?.attribution ?? [data.attribution],
     data,
   })
-}
+})
 
-export async function referenceRuleSectionResponse(request: Request, documentId: string, sectionId: string) {
-  const limited = referenceRateLimit(request, 120)
-  if (limited) return limited
+export const referenceRuleSectionResponse = rateLimited(async (request: Request, documentId: string, sectionId: string) => {
   const corpus = await activeReferenceCorpus()
   if (!corpus) return referenceUnavailable()
   const document = corpus.catalogue.ruleDocuments.find((entry) => entry.slug === documentId || entry.id === documentId)
@@ -273,17 +262,15 @@ export async function referenceRuleSectionResponse(request: Request, documentId:
     })
     .join('\n')
   return referenceResponse(request, corpus.revision, `rule:${document.slug}:${section.slug}`, record, markdown)
-}
+})
 
-export async function referenceDocumentResponse(request: Request, id: string) {
-  const limited = referenceRateLimit(request, 120)
-  if (limited) return limited
+export const referenceDocumentResponse = rateLimited(async (request: Request, id: string) => {
   const found = await referenceDocumentFor(id)
   if (!found) return referenceUnavailable()
   const { corpus, document } = found
   if (!document) return problem('reference document not found', 404)
   return referenceResponse(request, corpus.revision, id, document, referenceDocumentMarkdown(document))
-}
+})
 
 function recordResponse(request: Request, corpus: ReferenceCorpus, document: ReferenceDocument | undefined, record: ReferenceRecord) {
   return referenceResponse(
@@ -349,5 +336,3 @@ const referenceUnavailable = () => problem('reference data is unavailable', 503)
 function problem(error: string, status: number) {
   return Response.json({ error }, { status, headers: { 'Cache-Control': 'no-store' } })
 }
-
-export const referenceRateLimit = fixedWindowRateLimit('too many reference requests')

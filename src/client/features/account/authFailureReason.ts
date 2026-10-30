@@ -1,3 +1,4 @@
+import { posthog } from 'posthog-js'
 import { classifyAuthCallbackFailure, classifySignInFailure } from 'ras-stack/auth/client'
 import { isFetchNetworkFailure } from '../../networkErrors'
 
@@ -41,4 +42,9 @@ export function authFailureReason(failure: unknown): AuthFailureReason {
   if (code === 'USER_ALREADY_EXISTS' || code === 'USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL') return 'account_exists'
   if (typeof status === 'number' && status >= 500) return 'server_error'
   return 'other'
+}
+
+/** Records `account_authentication_failed` for the attempt described by `context`. */
+export function captureAuthFailure(failure: unknown, context: { action: string; method: string; native?: true }) {
+  posthog.capture('account_authentication_failed', { ...context, reason: authFailureReason(failure) })
 }

@@ -1,5 +1,4 @@
 import { useQuery } from '@tanstack/react-query'
-import { cn } from '@/lib/utils'
 import { ImagePlus } from 'lucide-react'
 import { useState, type DragEvent } from 'react'
 import { MAX_DATASHEET_PHOTOS, photoRow } from '../../../core/collectionPhotos'
@@ -15,7 +14,7 @@ const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp']
  *
  * A datasheet the player's models count as keeps its photos with that row, so the models are not added to the collection twice.
  */
-export function PhotoDropZone({ entryId, name, className = '' }: { entryId: string; name: string; className?: string }) {
+export function PhotoDropZone({ entryId, name }: { entryId: string; name: string }) {
   const { data: photos } = useQuery(collectionPhotosQuery())
   const { data: owned } = useQuery(collectionQuery())
   const { data: countsAs } = useQuery(collectionCountsAsQuery())
@@ -57,7 +56,7 @@ export function PhotoDropZone({ entryId, name, className = '' }: { entryId: stri
 
   return (
     <div
-      className={cn('flex flex-col gap-1', className)}
+      className="flex aspect-square flex-col gap-1"
       onDragOver={(event) => {
         event.preventDefault()
         setDragging(true)

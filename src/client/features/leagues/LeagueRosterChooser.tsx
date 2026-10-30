@@ -18,9 +18,9 @@ export function RosterChooser({
   error,
   failedRosterId,
   requiredLimit,
-  pointsBudget = null,
-  seatPoints = null,
-  shared = false,
+  pointsBudget,
+  seatPoints,
+  shared,
   onClose,
   onChoose,
 }: {
@@ -30,11 +30,11 @@ export function RosterChooser({
   failedRosterId: string | null
   requiredLimit: number | null
   /** The event's own points total, which a roster's budget must match; null where the size's full points apply. */
-  pointsBudget?: number | null
+  pointsBudget: number | null
   /** What a team event's seat may spend; its list is built at `requiredLimit` or smaller, with any points total. */
-  seatPoints?: number | null
+  seatPoints: number | null
   /** Whether the seat splits twice `seatPoints` with an ally rather than spending its own. */
-  shared?: boolean
+  shared: boolean
   onClose: () => void
   onChoose: (roster: SavedRoster) => void
 }) {
@@ -109,24 +109,6 @@ export function RosterChooser({
         ) : null}
       </DialogContent>
     </Dialog>
-  )
-}
-
-export function LeagueBattleSkeleton() {
-  return (
-    <div className="space-y-2" aria-label="Loading battles">
-      <Skeleton className="h-4 w-20" />
-      {Array.from({ length: 2 }, (_, index) => (
-        <div key={index} className="flex min-h-20 items-center gap-3 border border-edge bg-panel p-3" aria-hidden>
-          <Skeleton className="size-10 shrink-0 rounded-full" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-3 w-2/3" />
-          </div>
-          <Skeleton className="h-8 w-20" />
-        </div>
-      ))}
-    </div>
   )
 }
 

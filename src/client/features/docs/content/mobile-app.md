@@ -1,4 +1,4 @@
-The Praetorium app opens the same site as praetorium.gg, with the same account, rosters and battles. The differences are around the edges: sign-in, offline use, notifications and the screen during a battle.
+The Praetorium app opens the same site as praetorium.gg, with the same account, rosters and battles. The differences are around the edges: sign-in, offline use, notifications, the screen during a battle and the Apple Watch.
 
 ## Sign in on the app
 
@@ -23,6 +23,12 @@ When notifications are available, Home shows **Get notified about your games**. 
 ## During a battle
 
 The screen stays awake while a battle you're seated in is open, and each recorded action gives a light vibration.
+
+## Apple Watch
+
+With an Apple Watch paired to your iPhone, the Praetorium watch app follows the last live battle you opened on the phone, whether you're playing or watching. It shows the round, phase, whose turn it is, the turn timer and each side's VP and CP, and keeps updating while the watch app is open, even with your iPhone locked. When it can't get an update, the status turns orange and reads **Saved** with the time of the last one.
+
+In a battle you're playing, the next pages show your objectives and reminders. **Dismiss on watch** hides a reminder on the watch only. Turn on **Reminder taps** in the watch app's settings for a gentle tap when new reminders arrive while it's open. Signing out on the phone clears the battle from the watch.
 
 ## Updates
 

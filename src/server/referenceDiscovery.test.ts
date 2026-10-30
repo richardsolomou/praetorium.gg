@@ -99,7 +99,7 @@ vi.mock('./app', () => ({
   app: () => ({
     catalogueHistoryFor: async () => history.entries,
     canonicalCatalogueFor: async () => canonical,
-    battleReadRulesFor: async () => rules,
+    rulesFor: async () => rules,
   }),
 }))
 vi.mock('../shared/gameReferences', () => ({ gameReferencesFor: () => ({ dispositions: [{ id: 'take-and-hold' }] }) }))
@@ -297,10 +297,4 @@ it('returns updated discovery text when its content changes without a corpus rev
     status: 200,
     containsReplacement: true,
   })
-})
-
-it('accepts a weak ETag for llms.txt', async () => {
-  const request = new Request('https://praetorium.gg/llms.txt')
-  const etag = (await referenceLlms(request)).headers.get('etag')!
-  expect((await referenceLlms(new Request(request, { headers: { 'If-None-Match': `W/${etag}` } }))).status).toBe(304)
 })

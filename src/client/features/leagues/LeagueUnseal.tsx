@@ -2,10 +2,10 @@ import { useMutation } from '@tanstack/react-query'
 import { LockKeyholeOpen } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { unsealLeagueRoster } from '../../functions'
 import { useLeagueRefresh } from './leagueEvent'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
+import { IconAction } from './LeagueEntrants'
 
 /** An organizer's way to send one revealed roster back to its player, behind a confirmation that says what it costs. */
 export function UnsealRoster({ token, eventToken, userId, label }: { token: string; eventToken: string; userId: string; label: string }) {
@@ -20,28 +20,24 @@ export function UnsealRoster({ token, eventToken, userId, label }: { token: stri
   })
   return (
     <>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="text-dim hover:text-discarded pointer-coarse:size-11"
-              aria-label={`Unseal ${label}’s roster`}
-              disabled={unseal.isPending}
-              onClick={() => {
-                unseal.reset()
-                setConfirming(true)
-              }}
-            />
-          }
-        >
-          <LockKeyholeOpen aria-hidden />
-        </TooltipTrigger>
-        <TooltipContent role="tooltip" side="bottom">
-          Unseal roster
-        </TooltipContent>
-      </Tooltip>
+      <IconAction
+        tooltip="Unseal roster"
+        trigger={
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-dim hover:text-discarded pointer-coarse:size-11"
+            aria-label={`Unseal ${label}’s roster`}
+            disabled={unseal.isPending}
+            onClick={() => {
+              unseal.reset()
+              setConfirming(true)
+            }}
+          />
+        }
+      >
+        <LockKeyholeOpen aria-hidden />
+      </IconAction>
       <ConfirmDialog
         open={confirming}
         title={`Unseal ${label}’s roster?`}

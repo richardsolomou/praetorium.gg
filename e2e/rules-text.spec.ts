@@ -32,12 +32,6 @@ async function setSource(page: Page, name: 'BSData' | 'Game Datacards', on: bool
   await expect(toggle).toBeChecked({ checked: on })
 }
 
-test('a new device is asked where rules text comes from only where text is missing', async ({ page }) => {
-  await page.goto(rulesPage)
-  await expect(page.getByRole('main').getByText('Rules text isn’t loaded.').first()).toBeVisible()
-  await expect(page.getByRole('complementary', { name: 'Rules text' })).toHaveCount(0)
-})
-
 test('choosing sources asks which external sources to load, with none turned on', async ({ page }) => {
   await page.goto(rulesPage)
   await ask(page).click()
@@ -72,11 +66,12 @@ test('a rules page carries no rules text until the reader loads it', async ({ pa
   await expect(page.getByRole('main').getByText('Game Datacards')).toHaveCount(0)
 })
 
-test('every rule on a rules page asks for its text', async ({ page }) => {
+test('a new device is asked for text by every rule on a rules page and nowhere else', async ({ page }) => {
   await page.goto(rulesPage)
   const rules = page.getByRole('main').getByRole('article')
   await expect(rules.first()).toBeVisible()
   await expect(page.getByRole('main').getByText('Rules text isn’t loaded.')).toHaveCount(await rules.count())
+  await expect(page.getByRole('complementary', { name: 'Rules text' })).toHaveCount(0)
 })
 
 test('a source turned on holds across a reload until it is turned off', async ({ page }) => {
@@ -131,16 +126,6 @@ test('a source file that fails to load says so and loads when tried again', asyn
   await page.getByRole('main').getByRole('button', { name: 'Try again' }).first().click()
   await expect(page.getByText(ability)).toBeVisible()
   await expect(failures).toHaveCount(0)
-})
-
-test('BSData text loads while Game Datacards text stays unloaded', async ({ page }) => {
-  await setSource(page, 'BSData', true)
-  await page.goto('/factions/necrons/datasheets/overlord')
-  await expect(page.getByText(ability)).toBeVisible()
-  await page.goto(rulesPage)
-  await expect(page.getByRole('heading', { level: 2, name: 'Moving Units' })).toBeVisible()
-  await expect(ask(page)).toBeVisible()
-  await expect(page.getByText(prose)).toHaveCount(0)
 })
 
 test('Game Datacards text loads while BSData text stays unloaded', async ({ page }) => {

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { constantTimeEqual } from 'better-auth/crypto'
-import { byId } from '../core/collections'
+import { byId, chunks, countBy } from '../core/collections'
 import { guestSeatId, isGuestSeat, newBattleSeats, type NewBattlePlayers, type CreateBattleInput } from '../core/newBattle'
 import { type BattlebaseBattle, battlebaseBattleImport, battlebaseBattleSchema } from '../core/battlebaseBattle'
 import { guestSessionCurrent } from '../core/guestSession'
@@ -50,8 +50,8 @@ import {
   serviceRecord,
 } from '../core/serviceRecord'
 import { routeSlug } from '../core/slug'
+import type { PushPlatform } from '../core/notificationConfig'
 import {
-  armyOf,
   battleOutcome,
   OVERALL,
   sideScore,
@@ -70,7 +70,8 @@ import { REPLAY_BATCH_SIZE, type BattlesCursor } from '../contracts/battles'
 import { gameReferencesFor } from '../shared/gameReferences'
 import { archivedArmies } from '../core/archivedArmies'
 import { currentCatalogueFamilyId } from '../core/retiredCatalogueIds'
-import { type BattleMissionRules, type BattleReadRules, type LoadedRules, type Mission } from './rules'
+import { type BattleMissionRules, type BattleReadRules, type LoadedRules } from './rules'
+import type { Mission } from '../shared/rulesCards'
 import { type Notifier, silentNotifier } from './pushNotifier'
 import { LeagueService } from './services/leagueService'
 import { ClubService } from './services/clubService'
@@ -327,7 +328,10 @@ export class PraetoriumService {
   private async armyTables() {
     const factions = await this.battleFactions()
     return new Map(
-      factions.map(({ slug: _slug, displayName, icon }) => [armyOf({ displayName }), { slug: armyOf({ displayName }), displayName, icon }]),
+      factions.map(({ displayName, icon }) => {
+        const slug = routeSlug(displayName)
+        return [slug, { slug, displayName, icon }]
+      }),
     )
   }
 
@@ -534,16 +538,19 @@ export class PraetoriumService {
       this.repository.rostersByUser(userId),
     ])
     const archived = archivedArmies(rosters)
-    const uses = new Map<string, number>()
-    for (const history of seated) {
-      const built = foldHistory(history).players.find((player) => player.id === userId)?.roster?.built
-      if (built && archived.has(currentCatalogueFamilyId(built.catalogueId))) continue
-      const entries = new Set([
-        ...(built?.picks ?? []).map((pick) => pick.entryId),
-        ...(built?.units ?? []).flatMap((unit) => (unit.entryId ? [unit.entryId] : [])),
-      ])
-      for (const entryId of entries) uses.set(entryId, (uses.get(entryId) ?? 0) + 1)
-    }
+    const uses = countBy(
+      seated.flatMap((history) => {
+        const built = foldHistory(history).players.find((player) => player.id === userId)?.roster?.built
+        if (built && archived.has(currentCatalogueFamilyId(built.catalogueId))) return []
+        return [
+          ...new Set([
+            ...(built?.picks ?? []).map((pick) => pick.entryId),
+            ...(built?.units ?? []).flatMap((unit) => (unit.entryId ? [unit.entryId] : [])),
+          ]),
+        ]
+      }),
+      (entryId) => entryId,
+    )
     return [...uses].map(([entryId, battles]) => ({ entryId, battles })).toSorted((a, b) => b.battles - a.battles)
   }
 
@@ -594,7 +601,7 @@ export class PraetoriumService {
     await this.repository.deleteAbilityReminder(userId, key)
   }
 
-  registerPushDevice(userId: string, device: { token: string; platform: 'ios' | 'android' }) {
+  registerPushDevice(userId: string, device: { token: string; platform: PushPlatform }) {
     return this.repository.registerPushToken({ userId, ...device, now: this.clock() })
   }
 
@@ -848,8 +855,8 @@ export class PraetoriumService {
     const finished = battles.flatMap((battle) => ('status' in battle && battle.status !== 'finished' ? [] : [battle.token]))
     if (finished.length) await this.refreshStandings()
     const changes = new Map<string, Readonly<Record<string, number>>>()
-    for (let at = 0; at < finished.length; at += 500)
-      for (const row of await this.repository.ratingChanges(finished.slice(at, at + 500))) changes.set(row.token, row.changes)
+    for (const batch of chunks(finished, 500))
+      for (const row of await this.repository.ratingChanges(batch)) changes.set(row.token, row.changes)
     return battles.map((battle) => {
       const ratingChanges = changes.get(battle.token)
       return ratingChanges ? { ...battle, ratingChanges } : battle
@@ -918,7 +925,7 @@ export class PraetoriumService {
     if (new Set(invited).size !== invited.length || invited.some((id) => id === userId || !known.has(id))) {
       throw new Response('choose an opponent', { status: 400 })
     }
-    const allowed = new Map(invitable.map((opponent) => [opponent.id, opponent]))
+    const allowed = byId(invitable)
     // Joining a club is consent to play its members, so a club game needs no friendship; the product database checks membership again.
     const clubToken = typeof input === 'object' ? input.clubToken : undefined
     const { club = null, season = null } = (clubToken && (await this.clubService.clubWithSeason(clubToken, userId))) || {}

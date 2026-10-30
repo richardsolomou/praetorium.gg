@@ -94,8 +94,7 @@ function enhancementIndex(loaded: LoadedCatalogue): EnhancementIndex {
         forced.set(key, [...(forced.get(key) ?? []), entry])
       }
     }
-    const indexed = { byCardName, forced }
-    return indexed
+    return { byCardName, forced }
   })
 }
 

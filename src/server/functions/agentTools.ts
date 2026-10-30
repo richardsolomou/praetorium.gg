@@ -23,7 +23,7 @@ export const callBrowserAgentTool = createServerFn({ method: 'POST' })
   .validator(agentCallSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const limited = referenceRateLimit(getRequest(), 120)
+      const limited = referenceRateLimit(getRequest())
       if (limited) throw limited
       return JSON.stringify(await executeBrowserAgentTool(data.name, parseInput(data.input), data.expectedUserId))
     }),
@@ -33,7 +33,7 @@ export const prepareBrowserAgentTool = createServerFn({ method: 'POST' })
   .validator(agentCallSchema)
   .handler(({ data }) =>
     mutationRpc(async () => {
-      const limited = referenceRateLimit(getRequest(), 120)
+      const limited = referenceRateLimit(getRequest())
       if (limited) throw limited
       return prepareBrowserAgentWrite(data.name, parseInput(data.input), data.expectedUserId)
     }),

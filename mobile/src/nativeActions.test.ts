@@ -1,6 +1,7 @@
 import demo from '../../mobile/watch/demo-battle.json'
 import { describe, expect, it, vi } from 'vitest'
-import { NATIVE_BRIDGE_SCRIPT, nativePushAnswerScript, nativeWatchCapabilityScript, parseNativeActionRequest } from './nativeActions'
+import { NATIVE_EVENTS } from '../../src/contracts/nativeBridge'
+import { NATIVE_BRIDGE_SCRIPT, nativeAnswerScript, nativeWatchCapabilityScript, parseNativeActionRequest } from './nativeActions'
 
 describe('parseNativeActionRequest', () => {
   it('accepts an account snapshot and its explicit removal', () => {
@@ -90,10 +91,15 @@ describe('parseNativeActionRequest', () => {
   )
 })
 
-describe('nativePushAnswerScript', () => {
+describe('nativeAnswerScript', () => {
   it('dispatches the answer to the page as data rather than code', () => {
     const dispatched: unknown[] = []
-    const script = nativePushAnswerScript('request-1', { status: 'granted', token: 'ExponentPushToken["x"]', platform: 'ios' })
+    const script = nativeAnswerScript(NATIVE_EVENTS.push, {
+      id: 'request-1',
+      status: 'granted',
+      token: 'ExponentPushToken["x"]',
+      platform: 'ios',
+    })
     // oxlint-disable-next-line typescript/no-implied-eval -- Execute the injected script the way the WebView does.
     const run = new Function('window', 'CustomEvent', script)
     run(

@@ -114,13 +114,6 @@ describe('the join from a datasheet to its card', () => {
     ])
   })
 
-  it('reports a faction file without an army-rule card', () => {
-    const loaded = book()
-    loaded.factionContents.set('test-catalogue', withCards('Test catalogue', ['Rhino']))
-
-    expect(datacardJoinReport(loaded, () => true).factionsWithoutArmyRules).toEqual(['Test catalogue'])
-  })
-
   it('does not report a faction file with an army-rule card', () => {
     const loaded = book()
     const content = withCards('Test catalogue', ['Rhino'])

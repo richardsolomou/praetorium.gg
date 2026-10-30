@@ -84,11 +84,11 @@ export function remember<K, T>(
 
 /** `compute()` once per owner and key, kept for as long as the owner lives; undefined and null results are cached too. */
 export function cachedIn<O extends WeakKey, T>(store: WeakMap<O, Map<string, T>>, owner: O, key: string, compute: () => T): T {
-  const cache = remember(store, owner, () => new Map<string, T>())
-  if (cache.has(key)) return cache.get(key)!
-  const value = compute()
-  cache.set(key, value)
-  return value
+  return remember(
+    remember(store, owner, () => new Map<string, T>()),
+    key,
+    compute,
+  )
 }
 
 /** Evicts the least recently used entry once it holds more than its limit. */

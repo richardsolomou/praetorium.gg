@@ -4,7 +4,6 @@ import { routeSlug } from '../core/slug'
 import { normalizeRuleReference } from '../core/ruleReference'
 import { readSharedJson } from './sharedJson'
 import { joinKey } from '../core/text'
-import { titleCase } from '../shared/rulesSource'
 import {
   type RuleCard,
   type SectionProse,
@@ -29,6 +28,9 @@ import { type TextFacts, textFactsOf } from '../shared/textFacts'
 import { publishedTexts } from './sourceTexts'
 export * from '../shared/datacards'
 const NO_SECTIONS: SectionProse = () => new Map()
+
+const titleCase = (name: string) =>
+  name.toLowerCase().replaceAll(/(^|[\s(\-–—])([a-z])/g, (_, before: string, letter: string) => `${before}${letter.toUpperCase()}`)
 
 /** How each file's strings are published: tokens, except for checks that read the source's words directly. */
 export type TextsFor = (file: string) => SourceTexts

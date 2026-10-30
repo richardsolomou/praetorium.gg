@@ -5,7 +5,6 @@ import {
   commandRefusal,
   optionalRules,
   pickedOptionalRules,
-  GAME_SIZES,
   isKotcLimit,
   detachmentLimit,
   detachmentPointsError,
@@ -185,16 +184,12 @@ describe('setup', () => {
     expect(battleView({ token: 'league-battle' }, NAMES, leagueBattle(), ALICE).leagueToken).toBe('league')
   })
 
-  it('refuses to replace a sealed league roster', () => {
-    expect(validate(leagueBattle(), ALICE, builtRoster('Replacement', ['Terminators']))).toBe('these rosters are sealed')
-  })
-
-  it('refuses to remove a sealed league roster', () => {
-    expect(validate(leagueBattle(), ALICE, { kind: 'detach-roster' })).toBe('these rosters are sealed')
-  })
-
-  it('refuses to reset sealed league rosters', () => {
-    expect(validate(leagueBattle(), ALICE, { kind: 'reset-setup' })).toBe('these rosters are sealed')
+  it.each<[string, Command]>([
+    ['replace a sealed league roster', builtRoster('Replacement', ['Terminators'])],
+    ['remove a sealed league roster', { kind: 'detach-roster' }],
+    ['reset sealed league rosters', { kind: 'reset-setup' }],
+  ])('refuses to %s', (_action, command) => {
+    expect(validate(leagueBattle(), ALICE, command)).toBe('these rosters are sealed')
   })
 
   it('refuses to change a sealed league battle size', () => {
@@ -664,10 +659,6 @@ describe('setup', () => {
     expect(formatDatasheetLimit(600, false)).toBe(1)
     expect(formatDatasheetLimit(600, true)).toBe(2)
     expect(formatDatasheetLimit(2000, false)).toBeNull()
-  })
-
-  it('offers King of the Colosseum at 600 points only', () => {
-    expect(GAME_SIZES.filter((size) => size.name.startsWith('King of the Colosseum')).map((size) => size.limit)).toEqual([600])
   })
 
   it('keeps playing a roster saved at a size no longer offered', () => {

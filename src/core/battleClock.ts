@@ -1,7 +1,7 @@
 import { applyEntry, emptyBattle, reduceBattle, type BattleState, type LoggedCommand, type Phase, type PlayerId } from './battle'
 
 /** The time a side spent in one phase of one battle round. */
-export type ClockSpan = { side: number; round: number; phase: Phase; ms: number }
+type ClockSpan = { side: number; round: number; phase: Phase; ms: number }
 
 export type BattleClock = {
   /** Settled time, in the order each side, round and phase was first entered. */

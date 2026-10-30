@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent } from '../../components/Dialog'
 import { useCompactChrome } from '../shell/useCompactChrome'
 
-type Props = Omit<ComponentProps<typeof Dialog>, 'defaultOpen'> & {
+type Props = Omit<ComponentProps<typeof Dialog>, 'defaultOpen' | 'modal' | 'disablePointerDismissal'> & {
   minimizedLabel?: string
   resumeLabel?: string
 }
@@ -12,16 +12,7 @@ type Props = Omit<ComponentProps<typeof Dialog>, 'defaultOpen'> & {
 export const BattleMinimizeContext = createContext<((id: string, minimized: boolean) => number) | null>(null)
 const InspectContext = createContext<(() => void) | null>(null)
 
-export function BattlePromptDialog({
-  children,
-  modal,
-  disablePointerDismissal,
-  open,
-  onOpenChange,
-  minimizedLabel,
-  resumeLabel = 'Return to prompt',
-  ...props
-}: Props) {
+export function BattlePromptDialog({ children, open, onOpenChange, minimizedLabel, resumeLabel = 'Return to prompt', ...props }: Props) {
   const applicationNavigation = useCompactChrome()
   const [internalOpen, setInternalOpen] = useState(false)
   const [inspecting, setInspecting] = useState(false)
@@ -55,8 +46,8 @@ export function BattlePromptDialog({
         <Dialog
           {...props}
           open={(open ?? internalOpen) && !inspecting}
-          modal={applicationNavigation ? false : modal}
-          disablePointerDismissal={applicationNavigation || disablePointerDismissal}
+          modal={!applicationNavigation}
+          disablePointerDismissal={applicationNavigation}
           onOpenChange={(next, details) => {
             if (open === undefined) setInternalOpen(next)
             onOpenChange?.(next, details)

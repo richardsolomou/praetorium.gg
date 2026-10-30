@@ -1,6 +1,8 @@
+import type { BattleStatus } from './battle'
 import type { CatalogueEdition } from './catalogueEdition'
 import { isGuestSeat } from './newBattle'
 import { routeSlug } from './slug'
+import { compareText } from './text'
 /** Standings rate players from finished battles; each faction table rates the seats that fielded it. */
 import { ordinal, rate, rating, type Rating } from 'openskill'
 
@@ -14,7 +16,7 @@ export type StandingFaction = {
 
 /** One finished battle, as the battle list already summarizes it. */
 export type StandingBattle = {
-  status: 'setup' | 'playing' | 'finished'
+  status: BattleStatus
   playerIds: readonly string[]
   players: readonly string[]
   playerDetails?: readonly { id: string; name: string; image?: string | null }[]
@@ -49,26 +51,24 @@ export type RatingPoint = { at: number; rating: number }
  * The overall table and one per faction played, most played first, how far each counted
  * battle moved each seat's overall rating, and each player's overall rating after every one.
  */
-export type StandingsTables<B extends StandingBattle = StandingBattle> = {
+type StandingsTables<B extends StandingBattle = StandingBattle> = {
   overall: Standing[]
   factions: { faction: StandingFaction; rows: Standing[] }[]
   changes: Map<B, number[]>
   history: Map<string, RatingPoint[]>
 }
 
+export type BattleOutcome = 'won' | 'lost' | 'drawn'
+
 /** Concession takes precedence over score, and allies share their side’s result. */
-export function battleOutcome(battle: StandingBattle, side: number): 'won' | 'lost' | 'drawn' {
+export function battleOutcome(battle: StandingBattle, side: number): BattleOutcome {
   const conceded = battle.result?.concededBy
   const concededSide = conceded ? battle.sides[battle.playerIds.indexOf(conceded)] : undefined
   const totals = [...new Set(battle.sides)].map((index) => ({ index, total: sideScore(battle, index) }))
   return sideOutcome(totals, side, concededSide)
 }
 
-export function sideOutcome(
-  sides: readonly { index: number; total: number }[],
-  side: number,
-  concededSide?: number,
-): 'won' | 'lost' | 'drawn' {
+export function sideOutcome(sides: readonly { index: number; total: number }[], side: number, concededSide?: number): BattleOutcome {
   if (concededSide !== undefined) return concededSide === side ? 'lost' : 'won'
   const ours = sides.find((candidate) => candidate.index === side)?.total ?? 0
   const theirs = Math.max(...sides.filter((other) => other.index !== side).map((other) => other.total), Number.NEGATIVE_INFINITY)
@@ -79,6 +79,11 @@ export function sideOutcome(
 
 export function sideScore(battle: StandingBattle, side: number) {
   return battle.sides.reduce((total, seat, index) => (seat === side ? total + (battle.scores[index] ?? 0) : total), 0)
+}
+
+/** The best score among the sides opposing `side`, 0 when none does. */
+export function opponentScore(battle: StandingBattle, side: number) {
+  return Math.max(0, ...[...new Set(battle.sides)].filter((other) => other !== side).map((other) => sideScore(battle, other)))
 }
 
 /**
@@ -107,7 +112,7 @@ const mean = (values: readonly number[]) => values.reduce((total, value) => tota
 /** The overall table's key. A faction table's key is its army's slug, which every rules version of the army shares. */
 export const OVERALL = ''
 
-export const armyOf = (faction: Pick<StandingFaction, 'displayName'>) => routeSlug(faction.displayName)
+const armyOf = (faction: StandingFaction) => routeSlug(faction.displayName)
 
 /** One player's place in one table as it stands: their skill and their record so far. */
 export type Rated = { skill: Rating; row: Standing }
@@ -246,7 +251,7 @@ export function compareStandings(one: Standing, other: Standing): number {
     winRate(other) - winRate(one) ||
     averagePoints(other) - averagePoints(one) ||
     one.name.localeCompare(other.name) ||
-    one.id.localeCompare(other.id)
+    compareText(one.id, other.id)
   )
 }
 

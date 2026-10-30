@@ -43,14 +43,10 @@ export function factionSelectGroups<
         }
       : undefined,
   })
-  const favourite = favouritesFirst(
-    factions.filter((entry) => favourites.has(entry.id)),
-    favourites,
-  )
+  const favourite = factions.filter((entry) => favourites.has(entry.id))
   const groups = shelve(factions.filter((entry) => !favourites.has(entry.id))).map((shelf) => ({
     label: shelf.lineage,
     items: shelf.factions.map(option),
   }))
   return favourite.length ? [{ label: 'Favourites', items: favourite.map(option) }, ...groups] : groups
 }
-import { favouritesFirst } from '../../../favouriteFactions'

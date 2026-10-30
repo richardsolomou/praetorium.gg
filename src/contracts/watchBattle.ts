@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { PHASES } from '../core/battle'
+import { BATTLE_STATUSES, PHASES } from '../core/battle'
 import { clockMs, runsIn, type BattleClock } from '../core/battleClock'
 import type { BattleView } from '../core/battleView'
 
@@ -17,7 +17,7 @@ const watchBattleSchema = z.object({
     .url({ protocol: /^https?$/ })
     .max(500)
     .optional(),
-  status: z.enum(['setup', 'playing', 'finished']).optional(),
+  status: z.enum(BATTLE_STATUSES).optional(),
   round: z.number().int().nonnegative(),
   rounds: z.number().int().positive(),
   phase: z.enum(PHASES),
@@ -93,5 +93,3 @@ export function watchLive(view: BattleView, clock: BattleClock, now: number) {
     sides: captains.map((captain) => ({ index: captain.side, vp: captain.total, cp: captain.cp })),
   }
 }
-
-export type WatchLive = ReturnType<typeof watchLive>

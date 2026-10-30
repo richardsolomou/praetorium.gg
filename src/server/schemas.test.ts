@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { REPLAY_BATCH_SIZE } from '../contracts/battles'
+import { TERRAIN_GEOMETRY_VERSION } from '../contracts/terrainReference'
 import { PROFILE_NAME_MAX_LENGTH } from '../core/profileName'
 import {
   battleReplayBatchSchema,
@@ -39,15 +40,13 @@ describe('replay batch input', () => {
 })
 
 describe('terrain reference input', () => {
-  it('accepts the geometry cache version and keeps older clients valid', () => {
+  it('accepts the geometry cache version the client sends and keeps unversioned clients valid', () => {
     const legacy = { matchupIds: ['take-vs-purge'] }
-    expect(terrainReferencesSchema.parse(legacy)).toEqual(legacy)
-    expect(terrainReferencesSchema.parse({ ...legacy, geometryVersion: 2 })).toEqual({ ...legacy, geometryVersion: 2 })
-    expect(terrainReferencesSchema.parse({ ...legacy, geometryVersion: 3 })).toEqual({ ...legacy, geometryVersion: 3 })
-    expect(terrainReferencesSchema.parse({ ...legacy, geometryVersion: 6 })).toEqual({ ...legacy, geometryVersion: 6 })
-    expect(terrainReferencesSchema.parse({ ...legacy, geometryVersion: 7 })).toEqual({ ...legacy, geometryVersion: 7 })
-    expect(terrainReferencesSchema.parse({ ...legacy, geometryVersion: 8 })).toEqual({ ...legacy, geometryVersion: 8 })
-    expect(terrainReferencesSchema.safeParse({ ...legacy, geometryVersion: 9 }).success).toBe(false)
+    expect(
+      [undefined, TERRAIN_GEOMETRY_VERSION, TERRAIN_GEOMETRY_VERSION + 1].map(
+        (geometryVersion) => terrainReferencesSchema.safeParse({ ...legacy, geometryVersion }).success,
+      ),
+    ).toEqual([true, true, false])
   })
 })
 

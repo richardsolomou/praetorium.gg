@@ -664,6 +664,8 @@ export async function advance(page: Page, { dismissReminders = true }: { dismiss
 
 export const scoreboard = (page: Page) => page.getByRole('region', { name: 'Battle scoreboard' })
 
+export const playerPanel = (scope: Page | Locator, side: 0 | 1) => scope.locator(`[data-panel="player"][data-side="${side}"]`)
+
 /** Concedes the open battle from its options menu, reopening the menu until it shows: a press before hydration opens nothing. */
 export async function concede(page: Page) {
   const choice = page.getByRole('menuitem', { name: 'Concede battle', exact: true })
@@ -829,6 +831,11 @@ export async function shotAtWidths(page: Page, name: string, { fullPage = false 
 /** The page is no wider than its viewport; a failure shows by how much it overflows. */
 export async function expectNoPageOverflow(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBe(0)
+}
+
+/** No element the locator matches scrolls sideways, allowing a pixel of subpixel rounding. */
+export async function expectNoHorizontalOverflow(scope: Locator) {
+  expect(await scope.evaluateAll((elements) => elements.every((element) => element.scrollWidth <= element.clientWidth + 1))).toBe(true)
 }
 
 /** The smallest Necrons list an event will seal, a Skorpekh Lord as its Warlord, and its roster id. */

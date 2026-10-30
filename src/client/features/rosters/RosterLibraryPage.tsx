@@ -39,16 +39,10 @@ import { keepRosterSort } from './rosterSort'
 import { type RosterSort, sortRosters } from '../../../core/rosterSort'
 import { SETUP_STATE, useWorkspaceState } from './workspaceState'
 import { useFavouriteFactions } from '../../favouriteFactions'
-import {
-  factionIndexQuery,
-  gameReferencesQuery,
-  meQuery,
-  rostersLentToMeQuery,
-  savedRosterChangedIdsQuery,
-  savedRosterSummariesQuery,
-} from '../../queries'
+import { factionIndexQuery, meQuery, rostersLentToMeQuery, savedRosterChangedIdsQuery, savedRosterSummariesQuery } from '../../queries'
 import { LentRosterList } from './LentRosters'
 import { RosterViews } from './RosterViews'
+import { useDispositionNames } from '../battle/setup/chrome'
 import { useOrigin } from '../../useOrigin'
 import type { RosterVisibility } from '../../../core/savedRoster'
 import { ROSTER_LIBRARY_BATCH_SIZE } from '../../../core/rosterLibrary'
@@ -107,7 +101,7 @@ export function RosterLibraryPage({
   const savedResult = useQuery({ ...savedRosterSummariesQuery(), enabled: Boolean(me) })
   const availableResult = useQuery(factionIndexQuery())
   const lent = useQuery({ ...rostersLentToMeQuery(), enabled: Boolean(me) }).data ?? []
-  const { data: references } = useQuery(gameReferencesQuery())
+  const nameDisposition = useDispositionNames()
   const guestRow = useGuestRosterRow(guest)
   const account = useAccountPrompt()
   const saved = me ? (savedResult.data ?? []) : guest ? [guestRosterSummary(guest)] : []
@@ -200,7 +194,7 @@ export function RosterLibraryPage({
         faction={available?.factions.find((entry) => entry.id === roster.catalogueId)}
         points={pageById.get(roster.id)?.points}
         label={pageById.get(roster.id)?.label}
-        dispositionName={references?.dispositions.find((entry) => entry.id === roster.disposition)?.name}
+        dispositionName={nameDisposition(roster.disposition)?.name}
         factionLoading={availableResult.isPending}
         pointsLoading={guest ? guestRow.pending : pages.pending(index)}
         problem={pageById.get(roster.id)?.problem ?? null}

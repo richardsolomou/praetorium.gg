@@ -14,6 +14,7 @@ import { gameReferencesQuery, terrainMatchupIds, terrainReferencesQuery } from '
 import { PageContent, PageHeader } from '../../../components/Page'
 import { buttonClass } from '../../../components/buttonClass'
 import { matchupMission } from './dispositionMatchups'
+import { SectionHeading } from '../../../components/SectionHeading'
 
 export function MissionMatchupPage({ packId, you, opponent }: { packId: string; you: string; opponent: string }) {
   const { data } = useQuery(gameReferencesQuery())
@@ -69,7 +70,7 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
       </PageHeader>
       <PageContent className="space-y-6">
         <section>
-          <h2 className="rubric border-b border-edge pb-2">Primary missions</h2>
+          <SectionHeading title="Primary missions" />
           <div className="mt-4 grid gap-6 md:grid-cols-2">
             {sides.map((side) => (
               <div
@@ -90,10 +91,7 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
 
         {sides.some((side) => side.actions.length) ? (
           <section aria-label="Actions">
-            <h2 className="rubric flex justify-between border-b border-edge pb-2">
-              <span>Actions</span>
-              <span className="readout">{sides.reduce((total, side) => total + side.actions.length, 0)}</span>
-            </h2>
+            <SectionHeading title="Actions" count={sides.reduce((total, side) => total + side.actions.length, 0)} />
             <div className="mt-4 grid items-start gap-6 md:grid-cols-2">
               {sides.map((side) => (
                 <div
@@ -117,12 +115,14 @@ export function MissionMatchupPage({ packId, you, opponent }: { packId: string; 
         ) : null}
 
         <section>
-          <h2 className="rubric flex justify-between border-b border-edge pb-2">
-            <span>Terrain layouts</span>
-            <span className="readout" aria-label={terrainQuery.isPending ? 'Loading terrain layout count' : undefined}>
-              {terrainQuery.isPending ? '…' : terrainQuery.isError ? '—' : layouts.length}
-            </span>
-          </h2>
+          <SectionHeading
+            title="Terrain layouts"
+            detail={
+              <span className="readout" aria-label={terrainQuery.isPending ? 'Loading terrain layout count' : undefined}>
+                {terrainQuery.isPending ? '…' : terrainQuery.isError ? '—' : layouts.length}
+              </span>
+            }
+          />
           {terrainQuery.isPending ? (
             <PageState
               className="mt-3 min-h-64"

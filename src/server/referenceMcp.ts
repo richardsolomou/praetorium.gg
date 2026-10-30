@@ -23,7 +23,7 @@ const MCP_REQUEST_MAX_BYTES = 64 * 1024
 
 export async function handleReferenceMcp(request: Request) {
   if (request.method !== 'POST') return referenceMcpResponse(methodNotAllowed())
-  const limited = referenceRateLimit(request, 120)
+  const limited = referenceRateLimit(request)
   if (limited) return referenceMcpResponse(limited)
   const body = await boundedMcpBody(request)
   if ('error' in body) return referenceMcpResponse(body.error)

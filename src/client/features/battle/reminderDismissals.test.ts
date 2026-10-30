@@ -4,17 +4,12 @@ import {
   pruneReminderDismissals,
   reminderDismissalKey,
   reminderDismissalKeys,
-  reminderDismissalStorageKey,
   serializeReminderDismissals,
 } from './reminderDismissals'
 
 const context = { round: 3, activePlayerId: 'player:two', phase: 'fight' } as const
 
 describe('reminder dismissal keys', () => {
-  it('stores one bounded record per battle', () => {
-    expect(reminderDismissalStorageKey('battle')).toBe('praetorium.reminders.battle')
-  })
-
   it('limits each scope to its battle moment', () => {
     expect(reminderDismissalKeys('ability:key', context)).toEqual([
       'ability%3Akey|phase|3|player%3Atwo|fight',

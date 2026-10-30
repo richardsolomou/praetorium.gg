@@ -1,6 +1,6 @@
 import { chooseCombatUnit, combatEstimate, closeCombatBreakdown, openCombatControls, holdCombatCalculations, combatDamage } from './combat'
 import { expect, test, type Page } from './test'
-import { addUnit, createRoster, signUp, waitForRosterSave, expectNoPageOverflow, chooseOption } from './account'
+import { addUnit, createRoster, signUp, waitForRosterSave, expectNoHorizontalOverflow, expectNoPageOverflow, chooseOption } from './account'
 
 async function choose(page: Page, control: string, name: string) {
   await chooseOption(page, control, name)
@@ -14,11 +14,7 @@ async function choose(page: Page, control: string, name: string) {
 
 async function noOverflow(page: Page) {
   await expectNoPageOverflow(page)
-  expect(
-    await page
-      .locator('aside, [role=dialog], [data-slot=roster-units], [data-slot=scroll-area-viewport]')
-      .evaluateAll((panels) => panels.every((panel) => panel.scrollWidth <= panel.clientWidth + 1)),
-  ).toBe(true)
+  await expectNoHorizontalOverflow(page.locator('aside, [role=dialog], [data-slot=roster-units], [data-slot=scroll-area-viewport]'))
 }
 
 test('Invasion Fleet hides unsupported rules in both roles while retaining calculated buffs', async ({ page }) => {

@@ -2,6 +2,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { useQuery } from '@tanstack/react-query'
 import { ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import {
@@ -10,6 +11,7 @@ import {
   leaguePlacesSeat,
   leagueArmyPointsError,
   leagueFormat,
+  LEAGUE_ADMIN_MAX,
   LEAGUE_MEMBER_MAX,
   type LeagueAdmission,
   type LeagueAllowance,
@@ -17,9 +19,11 @@ import {
 } from '../../../core/league'
 import { pointsBudgetError } from '../../../core/battle'
 import type { TableShape } from '../../../core/tableShape'
+import { AdminsField, type AdminPerson } from '../../components/AdminsField'
 import { Choice } from '../../components/Choice'
+import { inputMoment, momentFromInput } from '../../dates'
+import { friendshipsQuery } from '../../queries'
 import { LeagueEventRuleFields, CLUB_ROSTER_RULE, ROSTER_RULE } from './LeagueEventRuleFields'
-import { LeagueAdminsField, type AdminChoice } from './LeagueAdminsField'
 import { leagueAllowances } from './leagueEvent'
 
 export type LeagueFormValue = {
@@ -51,39 +55,39 @@ export type LeagueFormValue = {
 export function LeagueFormFields({
   idPrefix,
   value,
-  seated = 0,
-  limitFormat = value.format,
-  ruleLock = null,
-  shapeLock = null,
+  seated,
+  limitFormat,
+  ruleLock,
+  shapeLock,
   tournament,
   ownerPlays,
-  optionsOpen = false,
+  optionsOpen,
   admins,
-  disabled = false,
+  disabled,
   onChange,
   onOwnerPlaysChange,
 }: {
   idPrefix: string
   value: LeagueFormValue
   /** Accepted entrants in the open event, who each hold a place the limit cannot drop below. */
-  seated?: number
+  seated: number
   /** The shape the limit must seat, or null once the event it would constrain is revealed. */
-  limitFormat?: TableShape | null
+  limitFormat: TableShape | null
   /** Why the format and points can no longer change, or null while they can. */
-  ruleLock?: string | null
+  ruleLock: string | null
   /** Why the format and size can no longer change while points and house rules still can, or null. */
-  shapeLock?: string | null
+  shapeLock: string | null
   /** Whether the form sets up a tournament rather than a club's sealed game. */
   tournament: boolean
   /** Whether the organizer enters as a player; omitted where their entry already stands on its own. */
-  ownerPlays?: boolean
+  ownerPlays: boolean | undefined
   /** Whether More options starts unfolded, as it does when editing a league that already has them set. */
-  optionsOpen?: boolean
+  optionsOpen: boolean
   /** The owner's choice of admins, offered only to the owner of a league that already exists. */
-  admins?: AdminChoice
-  disabled?: boolean
+  admins: AdminChoice | undefined
+  disabled: boolean
   onChange: (value: LeagueFormValue) => void
-  onOwnerPlaysChange?: (plays: boolean) => void
+  onOwnerPlaysChange: (plays: boolean) => void
 }) {
   const [showOptions, setShowOptions] = useState(optionsOpen)
   const minimum = leagueMinimumPlaces(limitFormat, seated)
@@ -139,7 +143,7 @@ export function LeagueFormFields({
         )}
       </div>
       <ScheduleFields idPrefix={idPrefix} value={value} tournament={tournament} disabled={disabled} onChange={onChange} />
-      {ownerPlays === undefined || !onOwnerPlaysChange ? null : (
+      {ownerPlays === undefined ? null : (
         <div className="flex items-center gap-3">
           <Switch id={`${idPrefix}-owner-plays`} checked={ownerPlays} disabled={disabled} onCheckedChange={onOwnerPlaysChange} />
           <Label htmlFor={`${idPrefix}-owner-plays`} className="cursor-pointer text-sm font-bold uppercase">
@@ -227,7 +231,7 @@ export function LeagueFormFields({
 }
 
 /** Whether the form can be saved: a tournament's name and a limit that seats the chosen shape and everyone already in. */
-export function leagueFormValid(value: LeagueFormValue, seated = 0, limitFormat: TableShape | null = value.format, tournament = true) {
+export function leagueFormValid(value: LeagueFormValue, seated: number, limitFormat: TableShape | null, tournament: boolean) {
   return (
     (!tournament || (Boolean(value.name.trim()) && leaguePlacesSeat(limitFormat, value.playerLimit, seated))) &&
     !pointsBudgetError(value.rosterLimit, value.pointsBudget) &&
@@ -238,15 +242,6 @@ export function leagueFormValid(value: LeagueFormValue, seated = 0, limitFormat:
 
 const scheduleProblem = ({ playsAt, sealBy }: Pick<LeagueFormValue, 'playsAt' | 'sealBy'>) =>
   playsAt !== null && sealBy !== null && sealBy > playsAt ? 'Set the roster deadline before the date it’s played.' : null
-
-/** A moment as a `datetime-local` field holds it, in the reader's own timezone. */
-export const inputMoment = (at: number | null) => {
-  if (at === null) return ''
-  const date = new Date(at)
-  const pad = (part: number) => String(part).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
-}
-export const momentFromInput = (text: string) => (text ? new Date(text).getTime() : null)
 
 /** When the event is played and when rosters must be sealed by, both optional and open to change until the reveal. */
 function ScheduleFields({
@@ -295,5 +290,30 @@ function ScheduleFields({
             : 'Both optional. After the deadline nobody can seal, and anyone who hasn’t sealed doesn’t play.')}
       </p>
     </div>
+  )
+}
+
+/** The admins being chosen: `known` names the ones already saved, so a friendship that has since ended still shows them. */
+type AdminChoice = { selected: string[]; known: readonly AdminPerson[]; onChange: (ids: string[]) => void }
+
+/** Friends the owner trusts to run the league beside them: start events, change settings, and manage players. */
+function LeagueAdminsField({ idPrefix, admins, disabled }: { idPrefix: string; admins: AdminChoice; disabled: boolean }) {
+  const { data: friendships } = useQuery(friendshipsQuery())
+  return (
+    <AdminsField
+      id={`${idPrefix}-admin`}
+      people={admins.known}
+      candidates={friendships?.friends ?? []}
+      selected={admins.selected}
+      max={LEAGUE_ADMIN_MAX}
+      disabled={disabled}
+      onChange={admins.onChange}
+      labels={{
+        former: 'Former friend',
+        add: 'Add a friend as an admin',
+        none: 'Add friends to make them admins',
+        hint: 'Admins change settings and manage players. Only you can delete it.',
+      }}
+    />
   )
 }

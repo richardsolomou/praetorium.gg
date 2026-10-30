@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import { posthog } from 'posthog-js'
 import { useState } from 'react'
 import { useAuthAction } from 'ras-stack/auth/react'
 import { Button } from '@/components/ui/button'
@@ -7,7 +8,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { PASSWORD_MIN_LENGTH } from '../../../authConfig'
 import { authClient } from '../../authClient'
-import { finishPasswordRecovery } from './passwordRecovery'
 import { Problem } from '../../components/Problem'
 
 export function ResetPasswordPage({ token, tokenError, next }: { token?: string; tokenError?: string; next?: string }) {
@@ -54,7 +54,8 @@ export function ResetPasswordPage({ token, tokenError, next }: { token?: string;
                 if (!result.error) {
                   const search = new URLSearchParams({ reset: 'true' })
                   if (next) search.set('next', next)
-                  finishPasswordRecovery(`/sign-in?${search}`)
+                  posthog.reset()
+                  window.location.replace(`/sign-in?${search}`)
                 }
               }}
             >

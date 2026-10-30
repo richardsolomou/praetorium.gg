@@ -6,12 +6,13 @@ import { Button } from '@/components/ui/button'
 import { collectionPhotoPath } from '../../../contracts/collection'
 import { keepCollectionPhotoAsAdmin, removeCollectionPhotoAsAdmin } from '../../functions'
 import { adminCollectionPhotosQuery, heldCollectionPhotosQuery, refreshAdminQueries } from '../../queries'
-import { useDateFormatting } from '../../dates'
+import { useMoment } from '../../dates'
 import { ConfirmDialog } from '../../components/ConfirmDialog'
 import { Problem } from '../../components/Problem'
 import { PhotoLightbox, usePhotoSteps } from '../collection/PhotoLightbox'
 import { FactionReferenceLink } from '../../components/FactionReferenceLink'
 import { countLabel } from '../../text'
+import { SectionHeading } from '../../components/SectionHeading'
 
 type AdminPhoto = {
   photoId: string
@@ -148,14 +149,14 @@ export function AdminPhotos() {
 
 /** Whose photo it is, linking to their collection, and when it was uploaded. */
 function PhotoCredit({ photo, stacked = false }: { photo: AdminPhoto; stacked?: boolean }) {
-  const dates = useDateFormatting()
+  const moment = useMoment()
   return (
     <>
       <Link to="/users/$userId" params={{ userId: photo.owner.id }} search={{ tab: 'collection' }} className="text-info underline">
         {photo.owner.name}
       </Link>
       {stacked ? <br /> : ' · '}
-      {dates.date(photo.at)}, {dates.time(photo.at)}
+      {moment(photo.at)}
     </>
   )
 }
@@ -237,10 +238,8 @@ function PhotoSection({
 }) {
   return (
     <section aria-labelledby={id}>
-      <h2 id={id} className="rubric border-b border-edge pb-2">
-        {title}
-      </h2>
-      <p className="mt-2 text-sm text-dim">{photos?.length === 0 ? empty : description}</p>
+      <SectionHeading id={id} title={title} />
+      <p className="text-sm text-dim">{photos?.length === 0 ? empty : description}</p>
       <ul className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
         {photos?.map((photo) => (
           <li key={photo.photoId} className="flex min-w-0 flex-col border border-edge bg-sunken">

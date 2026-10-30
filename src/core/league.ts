@@ -18,6 +18,8 @@ import {
   type FormatRuleId,
   type Roster,
   type BuiltRoster,
+  builtDetachments,
+  pointsSpent,
 } from './battle'
 import { z } from 'zod'
 import { matchedPlayName, NON_MATCHED_PLAY_KINDS, nonMatchedPlayKind, type NonMatchedPlayKind } from './name'
@@ -32,7 +34,7 @@ export type LeagueVisibility = (typeof LEAGUE_VISIBILITIES)[number]
 export const LEAGUE_ADMISSIONS = ['automatic', 'approval'] as const
 export type LeagueAdmission = (typeof LEAGUE_ADMISSIONS)[number]
 
-const LEAGUE_ENTRY_STATUSES = ['pending', 'accepted', 'rejected'] as const
+export const LEAGUE_ENTRY_STATUSES = ['pending', 'accepted', 'rejected'] as const
 export type LeagueEntryStatus = (typeof LEAGUE_ENTRY_STATUSES)[number]
 
 export const LEAGUE_DEFAULT_ROSTER_LIMIT = 2_000
@@ -416,7 +418,7 @@ export function readsSealedLeagueRoster(
  * A fixed pair's sealed choices: the Force Disposition its lists offer and the card it plays, and the entrants whose
  * lists name a Warlord and whose leads it. Each is null while the pair still owes it.
  */
-export type LeagueTeam = {
+type LeagueTeam = {
   id: string
   userIds: string[]
   choices: string[]
@@ -596,14 +598,14 @@ export function leagueArmy(roster: Roster): LeagueArmy {
     disposition: built.disposition,
     pointsBudget: built.pointsBudget ?? null,
     waivedRules: built.waivedRules ?? [],
-    points: built.units.reduce((total, unit) => total + unit.points, 0),
+    points: pointsSpent(built),
     limit: built.limit,
     unitCount: attachedUnitCount(built.units),
   }
 }
 
 function sealedDetachments(built: BuiltRoster) {
-  const names = built.detachments?.map((detachment) => detachment.name) ?? (built.detachment ? [built.detachment] : [])
+  const names = builtDetachments(built).map((detachment) => detachment.name)
   return (built.detachmentIds ?? []).map((id, index) => ({ id, name: names[index] ?? id }))
 }
 

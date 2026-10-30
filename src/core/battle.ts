@@ -126,6 +126,9 @@ export type BuiltRoster = {
   units: SubmittedUnit[]
 }
 
+export const builtDetachments = (built: Pick<BuiltRoster, 'detachment' | 'detachments'> | undefined) =>
+  built?.detachments ?? (built?.detachment ? [{ name: built.detachment, points: null }] : [])
+
 export type SubmittedUnit = {
   key: string
   name: string
@@ -1208,8 +1211,11 @@ export type PlayerState = {
 /** `name` and `cp` are what the use said at the time, so a later pool or price change cannot rewrite it. */
 type StratagemUse = { key: string; name: string; cp: number; round: number; phase: Phase; turn: PlayerId | null }
 
+export const BATTLE_STATUSES = ['setup', 'playing', 'finished'] as const
+export type BattleStatus = (typeof BATTLE_STATUSES)[number]
+
 export type BattleState = {
-  status: 'setup' | 'playing' | 'finished'
+  status: BattleStatus
   /** The shared setup section shown on every seated device. */
   setupStep: number
   /** The setup sections the table has marked done, in ascending order. */

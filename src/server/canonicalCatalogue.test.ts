@@ -420,7 +420,7 @@ describe('canonical catalogue', () => {
 
   it('pauses before each datasheet so other work can run between them', () => {
     const loaded = catalogue([squad, { ...squad, id: 'veterans', name: 'Veterans' }])
-    expect([...canonicalCatalogueSteps(loaded, revisions)]).toHaveLength(compileCanonicalCatalogue(loaded, revisions).datasheets.length)
+    expect([...canonicalCatalogueSteps(loaded, revisions)]).toHaveLength(2)
   })
 
   it('compiles the same catalogue when run between other work', async () => {

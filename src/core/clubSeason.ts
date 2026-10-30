@@ -1,3 +1,4 @@
+import type { BattleStatus } from './battle'
 import { shuffle } from './swiss'
 
 /**
@@ -47,14 +48,14 @@ function seededRandom(seed: number) {
   }
 }
 
-export type SeasonFixtureStatus = 'bye' | 'void' | 'open' | 'playing' | 'finished'
+type SeasonFixtureStatus = 'bye' | 'void' | 'open' | 'playing' | 'finished'
 
 /**
  * Where a fixture stands. A finished battle always counts. Otherwise a fixture with a player who has left the season is
  * void, a bye included, and nobody plays it.
  */
 export function seasonFixtureStatus(
-  fixture: { aId: string; bId: string | null; battle: { status: 'setup' | 'playing' | 'finished' } | null },
+  fixture: { aId: string; bId: string | null; battle: { status: BattleStatus } | null },
   stillPlaying: (userId: string) => boolean,
 ): SeasonFixtureStatus {
   if (fixture.battle?.status === 'finished') return 'finished'

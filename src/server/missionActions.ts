@@ -2,8 +2,6 @@ import { type MissionPack, missionCards, packText } from './missionPacks'
 import { english, records } from '../shared/datacards'
 import type { MissionAction } from '../contracts/missions'
 
-export type { MissionAction } from '../contracts/missions'
-
 /** Cards are keyed by name because the rules source and the mission pack give them unrelated ids. */
 export const missionCardKey = (name: string) => name.toLowerCase().replaceAll(/\s+/g, ' ').trim()
 

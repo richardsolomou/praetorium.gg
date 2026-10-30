@@ -18,6 +18,19 @@ import { OfflineRefusal } from '../../offline/offlineRefusal'
 import { afterFailedCommand, drainCommands, showPrediction } from './useCommand'
 
 const queued = (basedOn: number, background = false) => ({ basedOn, background })
+const begin = { command: { kind: 'begin-battle' } as never, basedOn: 0 }
+
+const drain = (options: Partial<Parameters<typeof drainCommands>[0]> = {}) =>
+  drainCommands({
+    token: 'battle',
+    queryClient: new QueryClient(),
+    seen: { current: 0 },
+    queued: { current: [begin] },
+    draining: { current: false },
+    setPending: () => {},
+    setProblem: () => {},
+    ...options,
+  })
 
 describe('the command queue after a failed command', () => {
   it('drops a tap built from the same screen as a failed tap', () => {
@@ -48,15 +61,7 @@ describe('automatic reloads while commands are queued', () => {
     let saved!: () => void
     writeAppSnapshot.mockImplementationOnce(() => new Promise<void>((resolve) => (saved = resolve))).mockResolvedValue(undefined)
     const client = new QueryClient()
-    const drained = drainCommands({
-      token: 'battle',
-      queryClient: client,
-      seen: { current: 0 },
-      queued: { current: [0, 1].map(() => ({ command: { kind: 'begin-battle' } as never, basedOn: 0 })) },
-      draining: { current: false },
-      setPending: () => {},
-      setProblem: () => {},
-    })
+    const drained = drain({ queryClient: client, queued: { current: [begin, begin] } })
     await vi.waitFor(() => expect(writeAppSnapshot).toHaveBeenCalledOnce())
     expect(writesPending(client)).toBe(true)
     saved()
@@ -69,15 +74,7 @@ describe('a command answered after a realtime refetch', () => {
     submit.mockResolvedValueOnce({ result: { outcome: 'appended' }, screen: { kind: 'battle', view: { seq: 5 } } })
     const client = new QueryClient()
     client.setQueryData(['battle', 'battle'], { kind: 'battle', view: { seq: 6 } })
-    await drainCommands({
-      token: 'battle',
-      queryClient: client,
-      seen: { current: 4 },
-      queued: { current: [{ command: { kind: 'advance' } as never, basedOn: 4 }] },
-      draining: { current: false },
-      setPending: () => {},
-      setProblem: () => {},
-    })
+    await drain({ queryClient: client, seen: { current: 4 }, queued: { current: [{ command: { kind: 'advance' } as never, basedOn: 4 }] } })
     expect(client.getQueryData(['battle', 'battle'])).toEqual({ kind: 'battle', view: { seq: 6 } })
   })
 })
@@ -86,36 +83,14 @@ describe('a command sent while the connection drops', () => {
   it('asks the player to check their connection and reports nothing', async () => {
     submit.mockRejectedValueOnce(new TypeError('Load failed'))
     const setProblem = vi.fn()
-    await drainCommands({
-      token: 'battle',
-      queryClient: new QueryClient(),
-      seen: { current: 0 },
-      queued: { current: [{ command: { kind: 'begin-battle' } as never, basedOn: 0 }] },
-      draining: { current: false },
-      setPending: () => {},
-      setProblem,
-    })
+    await drain({ setProblem })
     expect(setProblem).toHaveBeenLastCalledWith('Check your connection and try again.')
     expect(captureException).not.toHaveBeenCalled()
   })
 
   it('counts the failed command and the commands dropped behind it', async () => {
     submit.mockRejectedValueOnce(new TypeError('Load failed'))
-    const command = { kind: 'begin-battle' } as never
-    await drainCommands({
-      token: 'battle',
-      queryClient: new QueryClient(),
-      seen: { current: 0 },
-      queued: {
-        current: [
-          { command, basedOn: 0 },
-          { command, basedOn: 0, background: true },
-        ],
-      },
-      draining: { current: false },
-      setPending: () => {},
-      setProblem: () => {},
-    })
+    await drain({ queued: { current: [begin, { ...begin, background: true }] } })
     expect(capture).toHaveBeenCalledWith('battle_command_failed', {
       command: 'begin-battle',
       reason: 'network',
@@ -128,15 +103,7 @@ describe('a command sent while the connection drops', () => {
 it('shows a sync conflict to review without reporting it', async () => {
   submit.mockRejectedValueOnce(new OfflineRefusal('Review this battle’s sync conflict before continuing.'))
   captureException.mockClear()
-  await drainCommands({
-    token: 'battle',
-    queryClient: new QueryClient(),
-    seen: { current: 0 },
-    queued: { current: [{ command: { kind: 'begin-battle' } as never, basedOn: 0 }] },
-    draining: { current: false },
-    setPending: () => {},
-    setProblem: () => {},
-  })
+  await drain()
   expect(captureException).not.toHaveBeenCalled()
 })
 
@@ -153,22 +120,18 @@ describe('a command shown before the service answers', () => {
     }
     return { client, projection }
   }
-  const drain = (client: QueryClient, projection: { current: null }, taps: number) =>
-    drainCommands({
-      token: 'battle',
+  const drainTaps = (client: QueryClient, projection: { current: null }, taps: number) =>
+    drain({
       queryClient: client,
       seen: { current: 4 },
       queued: { current: Array.from({ length: taps }, () => ({ command: { kind: 'advance' } as never, basedOn: 4 })) },
-      draining: { current: false },
-      setPending: () => {},
-      setProblem: () => {},
       projection,
     })
 
   it('keeps the next tap’s result shown when the service accepts the first', async () => {
     const { client, projection } = await predicted(5, 6)
     submit.mockResolvedValueOnce({ result: { outcome: 'appended' }, screen: screen(5) }).mockReturnValueOnce(new Promise(() => {}))
-    void drain(client, projection, 2)
+    void drainTaps(client, projection, 2)
     await vi.waitFor(() => expect(submit).toHaveBeenCalledTimes(2))
     expect(client.getQueryData(['battle', 'battle'])).toEqual(screen(6))
   })
@@ -176,14 +139,14 @@ describe('a command shown before the service answers', () => {
   it('returns to the service’s screen when it refuses the command', async () => {
     const { client, projection } = await predicted(5)
     submit.mockResolvedValueOnce({ result: { outcome: 'refused', reason: 'No.' }, screen: screen(4) })
-    await drain(client, projection, 1)
+    await drainTaps(client, projection, 1)
     expect(client.getQueryData(['battle', 'battle'])).toEqual(screen(4))
   })
 
   it('returns to the service’s screen when sending the command fails', async () => {
     const { client, projection } = await predicted(5)
     submit.mockRejectedValueOnce(new Error('Server error'))
-    await drain(client, projection, 1)
+    await drainTaps(client, projection, 1)
     expect(client.getQueryData(['battle', 'battle'])).toEqual(screen(4))
   })
 })

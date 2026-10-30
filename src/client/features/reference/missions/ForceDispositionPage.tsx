@@ -7,6 +7,7 @@ import { dispositionDetachmentsQuery, gameReferencesQuery } from '../../../queri
 import { FactionMark } from '../../../components/FactionMark'
 import { PageContent, PageHeader } from '../../../components/Page'
 import { dispositionMatchups } from './dispositionMatchups'
+import { SectionHeading } from '../../../components/SectionHeading'
 
 export function ForceDispositionPage({ dispositionId }: { dispositionId: string }) {
   const { data } = useQuery(gameReferencesQuery())
@@ -30,12 +31,14 @@ export function ForceDispositionPage({ dispositionId }: { dispositionId: string 
       <PageContent className="space-y-6">
         {packs.map(({ pack, matchups }) => (
           <section key={pack.id}>
-            <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-              <span>Primary missions</span>
-              <Link to="/missions/$packId" params={{ packId: pack.id }} className="eyebrow text-info hover:text-bone">
-                {pack.name}
-              </Link>
-            </h2>
+            <SectionHeading
+              title="Primary missions"
+              detail={
+                <Link to="/missions/$packId" params={{ packId: pack.id }} className="eyebrow text-info hover:text-bone">
+                  {pack.name}
+                </Link>
+              }
+            />
             <div className="mt-3 grid gap-px border border-edge bg-edge">
               {matchups.map(({ opponent, mission }) => (
                 <Link
@@ -53,10 +56,7 @@ export function ForceDispositionPage({ dispositionId }: { dispositionId: string 
         ))}
 
         <section>
-          <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-            <span>Detachments</span>
-            {factions ? <span className="readout">{detachmentCount}</span> : null}
-          </h2>
+          <SectionHeading title="Detachments" count={factions ? detachmentCount : undefined} />
           {!factions ? (
             <div aria-busy className="mt-3 grid gap-3 md:grid-cols-2">
               <Skeleton className="h-32" />

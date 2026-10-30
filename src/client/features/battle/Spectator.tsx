@@ -16,7 +16,7 @@ import { deploymentFor } from '../../battleSummary'
 import { replayPreloadBatches } from '../../replayPrefetch'
 import { missionCardsByKey } from './missionDeck'
 import { battleClubsQuery, battleReplayKey, deploymentsQuery, gameReferencesQuery, meQuery, replayAtQuery } from '../../queries'
-import { sides, type Side, type SideMission } from '../../sides'
+import { formatName, sides, type Side, type SideMission } from '../../sides'
 import { ArmyIdentity } from './ArmyIdentity'
 import { PlayerName } from './PlayerName'
 import { PlayerRatingChange } from './PlayerRatingChange'
@@ -47,7 +47,6 @@ type Props = {
 }
 
 const ignoreCommand = (_command: Command) => {}
-const noAwards = () => []
 const emptyTimeline: readonly ReplayPoint[] = []
 const noReference = () => undefined
 const noPrompts: never[] = []
@@ -118,10 +117,7 @@ export function Spectator({
     captured.current = true
     posthog.capture('battle_spectated', {
       status: view.status,
-      format: table
-        .map((side) => side.armies.length)
-        .toSorted((left, right) => right - left)
-        .join('v'),
+      format: formatName(table),
       player_count: view.players.length,
       league: Boolean(view.leagueToken),
     })
@@ -269,7 +265,7 @@ function ReplayTimeline({
             {loading ? <span className="truncate text-3xs text-dim">Loading…</span> : null}
             {error ? <span className="truncate text-3xs text-destructive">Could not load</span> : null}
           </div>
-          <p className="text-xs font-semibold text-parchment">{selected.round > 0 ? `Round ${selected.round}` : 'Setup'}</p>
+          <p className="text-xs font-semibold text-parchment">{roundName}</p>
           <p className="readout justify-self-end text-xs text-dim">
             {index + 1}/{points.length}
           </p>
@@ -353,7 +349,6 @@ function SpectatorSide({
     actionable: false,
     pending: false,
     send: ignoreCommand,
-    awardsFor: noAwards,
     referenceFor,
     guides,
   }

@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { remember } from '../core/collections'
 import { type CatalogueComposition, readCatalogueComposition } from './catalogueComposition'
-import { type CatalogueSourceConfig, catalogueSources } from './catalogueSources'
+import { type CatalogueSourceConfig, catalogueSources, readRevisions } from './catalogueSources'
 import { type SourceTexts, TEXT_HASH_LENGTH, type TextSource, type TextSourceFile, sourceStrings, textToken } from '../shared/sourceText'
 
 export type { SourceTexts }
@@ -96,18 +96,15 @@ function retainedUrl(snapshotFile: string, snapshot: RetainedSnapshot | null, ba
   return `https://raw.githubusercontent.com/${base[source as 'definitions' | 'points' | 'datacards'].repository}/${revision}/${file}`
 }
 
-const readJson = (file: string): unknown => (fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null)
-
 /** The retained snapshots a snapshot root holds, read from their own files. */
 export const retainedSnapshots =
   (root: string) =>
   (editionId: string): RetainedSnapshot | null => {
     const directory = path.join(root, 'editions', editionId)
-    const revisions = readJson(path.join(directory, 'revision.json'))
-    if (!revisions || typeof revisions !== 'object') return null
+    if (!fs.existsSync(path.join(directory, 'revision.json'))) return null
     return {
       composition: fs.existsSync(path.join(directory, 'composition.json')) ? readCatalogueComposition(directory) : null,
-      revisions: revisions as Record<string, string>,
+      revisions: readRevisions(directory),
     }
   }
 

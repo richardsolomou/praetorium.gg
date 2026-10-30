@@ -180,7 +180,7 @@ test('stops before recording delivery when main history is unavailable', () => {
   expect(delivery('stable', 'binary')).toMatchObject({
     status: 1,
     calls: [],
-    error: expect.stringContaining('Cannot compare iOS revisions'),
+    error: expect.stringContaining('Cannot compare revisions'),
   })
 })
 

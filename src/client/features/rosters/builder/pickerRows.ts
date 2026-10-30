@@ -1,3 +1,4 @@
+import { groupBy } from '../../../../core/collections'
 import { matchSearchText } from '../../../../core/datasheetSearch'
 import type { NonMatchedPlayKind } from '../../../../core/name'
 import type { RosterPick } from '../../../../core/roster'
@@ -40,13 +41,10 @@ export function pickerRows<U extends { id: string; points: number | null }>({ un
   const listed = (loadout: PickerLoadout) =>
     (!query.trim() || searched.has(loadout.picks[0].entryId) || matchSearchText(query, loadout.name) !== null) &&
     keeps(loadout.picks[0].entryId, loadout.points)
-  const byUnit = new Map<string, PickerLoadout[]>()
-  const unavailable: PickerLoadout[] = []
-  for (const loadout of loadouts.filter(listed)) {
-    const entryId = loadout.picks[0].entryId
-    if (!loadout.picks.every((pick) => offered.has(pick.entryId))) unavailable.push(loadout)
-    else byUnit.set(entryId, [...(byUnit.get(entryId) ?? []), loadout])
-  }
+  const kept = loadouts.filter(listed)
+  const available = (loadout: PickerLoadout) => loadout.picks.every((pick) => offered.has(pick.entryId))
+  const byUnit = groupBy(kept.filter(available), (loadout) => loadout.picks[0].entryId)
+  const unavailable = kept.filter((loadout) => !available(loadout))
   const shown = found.filter((unit) => byUnit.has(unit.id) || keeps(unit.id, unit.points))
   const shownIds = new Set(shown.map((unit) => unit.id))
   return {

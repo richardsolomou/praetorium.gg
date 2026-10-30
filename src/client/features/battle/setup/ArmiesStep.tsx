@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button'
 import { buttonClass } from '../../../components/buttonClass'
 import {
   AlertDialog,
-  AlertDialogAction,
   AlertDialogCancel,
   AlertDialogContent,
   AlertDialogDescription,
@@ -27,14 +26,14 @@ import {
 } from '../../../../core/battle'
 import { type BattleView } from '../../../../core/battleView'
 import { errorMessage } from '../../../queryClient'
-import { rostersLentToMeQuery, savedRosterSummariesQuery } from '../../../queries'
+import { rostersLentToMeQuery, savedRosterSummariesQuery, type QueryData } from '../../../queries'
 import { type Army, type Side, sideName } from '../../../sides'
 import { ArmyIdentity } from '../ArmyIdentity'
 import { RosterChoices } from '../../rosters/RosterChoices'
 import type { RosterProblem } from '../../rosters/RosterSummary'
 import { LentRosterList, type LentRoster } from '../../rosters/LentRosters'
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../../components/Dialog'
-import { rosterWaivers, WaiverList, WaiverNote } from '../../../components/FormatWaivers'
+import { rosterWaivers, WaiverConfirmDialog, WaiverNote } from '../../../components/FormatWaivers'
 import { BATTLE_SIZE_CONTROL, CHOOSABLE, CHOSEN, DispositionChip, SetupNote, SetupSidePanel, useDispositionNames } from './chrome'
 import { Problem } from '../../../components/Problem'
 import { isGuestSeat } from '../../../../core/newBattle'
@@ -43,8 +42,10 @@ import { GuestInvite } from '../GuestInvite'
 import { GuestRosterChooser } from './GuestRosterChooser'
 import { visitorFieldingReminders } from '../../rosters/visitorReminders'
 import { useHistoryDialog } from '../../../useHistoryDialog'
+import { SectionHeading } from '../../../components/SectionHeading'
+import { countLabel } from '../../../text'
 
-type SavedRoster = Awaited<ReturnType<NonNullable<ReturnType<typeof savedRosterSummariesQuery>['queryFn']>>>[number]
+type SavedRoster = QueryData<typeof savedRosterSummariesQuery>[number]
 type Props = {
   view: BattleView
   sides: Side[]
@@ -97,13 +98,10 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
   }
   // The confirmation closes as it is answered, so a refused attach reports itself in
   // the chooser behind it rather than under a dialog that has nowhere to say it.
-  const confirm = () => {
-    const chosen = confirming
+  const confirm = (chosen: SavedRoster) => {
     setConfirming(null)
-    if (chosen) void attach(chosen)
+    void attach(chosen)
   }
-  const confirmingWaivers = rosterWaivers(confirming)
-  const oneWaiver = confirmingWaivers.length === 1
   return (
     <div className="space-y-4">
       {team && view.settings.limit !== null ? (
@@ -135,7 +133,7 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
                     {army.roster ? (
                       <span className="mt-0.5 block text-xs text-dim">
                         {army.roster.built
-                          ? `${army.unitCount} units · ${(army.points ?? 0).toLocaleString('en')} of ${pointsLabel(team ? (sharedSidePoints(view, side.index) ?? armyPointsFor(view, side.index) ?? pointsBudgetOf(army.roster.built)) : pointsBudgetOf(army.roster.built))}`
+                          ? `${countLabel(army.unitCount, 'unit')} · ${(army.points ?? 0).toLocaleString('en')} of ${pointsLabel(team ? (sharedSidePoints(view, side.index) ?? armyPointsFor(view, side.index) ?? pointsBudgetOf(army.roster.built)) : pointsBudgetOf(army.roster.built))}`
                           : 'Imported army'}
                       </span>
                     ) : null}
@@ -259,39 +257,15 @@ export function ArmiesStep({ view, sides, send, attachRoster, pending, problem }
         }}
         error={rosterQuery.error ? errorMessage(rosterQuery.error) : problem}
       />
-      <AlertDialog open={confirming !== null} onOpenChange={(open) => !open && setConfirming(null)}>
-        <AlertDialogContent className="border-discarded/50 sm:max-w-lg [&>*]:min-w-0">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2 text-discarded">
-              <TriangleAlert className="size-5 shrink-0" aria-hidden />
-              {confirmingWaivers.length === 1 ? 'This list waives a rule' : `This list waives ${confirmingWaivers.length} rules`}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirming?.name} is not playing {oneWaiver ? 'one of' : 'some of'} the rules of its battle size:
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <WaiverList rules={confirmingWaivers} />
-          <p className="text-sm text-dim">
-            Praetorium has not checked {oneWaiver ? 'it' : 'them'}, so this army may be illegal. Everyone at this table sees what it waives.
-          </p>
-          <AlertDialogFooter className="sm:flex-wrap">
-            {confirming ? (
-              <Link
-                to="/rosters/$id"
-                params={{ id: confirming.id }}
-                data-slot="button"
-                className={buttonClass({ variant: 'outline', className: 'sm:mr-auto' })}
-              >
-                <Pencil /> Edit roster
-              </Link>
-            ) : null}
-            <AlertDialogCancel disabled={pending}>Choose another</AlertDialogCancel>
-            <AlertDialogAction disabled={pending} onClick={confirm}>
-              Bring it anyway
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <WaiverConfirmDialog
+        roster={confirming}
+        noun="list"
+        consequence="this army may be illegal. Everyone at this table sees what it waives."
+        confirmLabel="Bring it anyway"
+        pending={pending}
+        onCancel={() => setConfirming(null)}
+        onConfirm={confirm}
+      />
       <AlertDialog open={overLimit !== null} onOpenChange={(open) => !open && setOverLimit(null)}>
         <AlertDialogContent className="border-destructive/50 sm:max-w-lg [&>*]:min-w-0">
           <AlertDialogHeader>
@@ -381,9 +355,7 @@ function RosterChooser({
           </DialogDescription>
         </DialogHeader>
         <DialogBody>
-          <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-            Rosters <span className="readout">{rosters.length}</span>
-          </h2>
+          <SectionHeading title="Rosters" count={rosters.length} className="mb-0" />
           <div className="space-y-2">
             {loading ? (
               <div className="space-y-2" aria-label="Loading rosters">
@@ -403,7 +375,7 @@ function RosterChooser({
               <div className="space-y-3 border border-edge bg-sunken p-4">
                 <p className="text-sm text-dim">
                   {savedCount
-                    ? `None of your ${savedCount} saved rosters is built for ${requiredLimit?.toLocaleString('en')} points${orSmaller ? ' or fewer' : ''}.`
+                    ? `None of your ${savedCount} saved rosters is built for ${pointsLabel(requiredLimit!)}${orSmaller ? ' or fewer' : ''}.`
                     : 'You do not have a saved roster yet.'}
                 </p>
                 <div className="flex flex-wrap gap-2">
@@ -432,9 +404,7 @@ function RosterChooser({
           </div>
           {lent.length ? (
             <>
-              <h2 className="rubric flex items-baseline justify-between border-b border-edge pb-2">
-                Lent by friends <span className="readout">{lent.length}</span>
-              </h2>
+              <SectionHeading title="Lent by friends" count={lent.length} className="mb-0" />
               <LentRosterList rosters={lent} selectedId={selectedId} disabled={pending} onChoose={onChoose} />
             </>
           ) : null}

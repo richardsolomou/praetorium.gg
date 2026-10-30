@@ -1,9 +1,10 @@
-import { execFileSync, spawnSync } from 'node:child_process'
+import { execFileSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import { createRequire, isBuiltin } from 'node:module'
 import path from 'node:path'
 import { parse, parseAllDocuments } from 'yaml'
 import { isEntryPoint } from './lib/entryPoint.ts'
+import { isAncestor } from './lib/git.ts'
 import { stepOutput } from './lib/stepOutput.ts'
 
 // The shell pins TypeScript 6; the web compiler no longer exposes this parser API.
@@ -133,10 +134,7 @@ export function iosDeliveryChanged(root: string, base: string, revision: string,
   const current = iosDeliveryFingerprint(root, revision)
   return ![base, ...pending].some((previous) => {
     if (/^0+$/.test(previous)) return false
-    const ancestry = spawnSync('git', ['merge-base', '--is-ancestor', revision, previous], { cwd: root, encoding: 'utf8' })
-    if (ancestry.status === 0) return true
-    if (ancestry.status !== 1) throw new Error(`Cannot compare iOS revisions: ${ancestry.stderr}`, { cause: ancestry.error })
-    return iosDeliveryFingerprint(root, previous) === current
+    return isAncestor(root, revision, previous) || iosDeliveryFingerprint(root, previous) === current
   })
 }
 

@@ -168,8 +168,8 @@ export function SearchableSelect({
 /**
  * Scrolls the open list, and only the list, so the chosen option sits in its middle.
  *
- * `scrollIntoView` also scrolls every ancestor that can, so a select on a page rather
- * than in a dialog moved the page under the pointer that opened it.
+ * `scrollIntoView` also scrolls every ancestor that can, which would move a page under
+ * the pointer that opened the select.
  */
 function centreSelected(container: HTMLElement | null) {
   const item = container?.querySelector<HTMLElement>('[data-selected]')

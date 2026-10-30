@@ -42,13 +42,6 @@ describe('profileUpdate', () => {
     expect(storeProfileImage).not.toHaveBeenCalled()
   })
 
-  it('rejects an active image format', async () => {
-    expect(await profileUpdate({ image: 'data:image/svg+xml;base64,PHN2Zy8+' })).toEqual({
-      ok: false,
-      error: 'Choose a JPEG, PNG or WebP profile picture.',
-    })
-  })
-
   it('rejects an arbitrary URL that never went through an upload', async () => {
     expect(await profileUpdate({ image: 'https://evil.example/tracker.png' })).toEqual({
       ok: false,

@@ -1,15 +1,4 @@
-import path from 'node:path'
-import { spacetimedbModuleTestPlugin } from 'spacetimedb/server/test-utils/vitest'
-import { defineConfig } from 'vitest/config'
+import { defineConfig, mergeConfig } from 'vitest/config'
+import base from './vitest.config'
 
-export default defineConfig({
-  plugins: [spacetimedbModuleTestPlugin()],
-  resolve: { alias: { '@': path.resolve(import.meta.dirname, 'src') } },
-  assetsInclude: ['**/*.wasm'],
-  test: {
-    environment: 'node',
-    include: ['src/**/*.test.ts', 'scripts/**/*.test.ts', 'mobile/src/**/*.test.ts', 'spacetimedb/src/**/*.test.ts'],
-    exclude: ['**/*.integration.test.ts'],
-    pool: 'forks',
-  },
-})
+export default mergeConfig(base, defineConfig({ test: { exclude: ['**/*.integration.test.ts'] } }))

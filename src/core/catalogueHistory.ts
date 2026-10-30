@@ -25,7 +25,7 @@ export type CatalogueHistoryEntry = {
   changes: CatalogueChangeSet
 }
 
-export type CatalogueHistory = { format: typeof CATALOGUE_HISTORY_FORMAT; entries: CatalogueHistoryEntry[] }
+type CatalogueHistory = { format: typeof CATALOGUE_HISTORY_FORMAT; entries: CatalogueHistoryEntry[] }
 
 export const CATALOGUE_HISTORY_FORMAT = 'praetorium.catalogue-history.v1' as const
 
@@ -65,7 +65,7 @@ export function appendHistory(history: readonly CatalogueHistoryEntry[], entry: 
 }
 
 /** Where a page of history ended: its last entry's time and key. */
-export type HistoryCursor = { recordedAt: number; key: string }
+type HistoryCursor = { recordedAt: number; key: string }
 
 /**
  * One page of history, newest first, and where the next page starts. The order is total —
@@ -117,7 +117,7 @@ export function historySince(history: readonly CatalogueHistoryEntry[], after: n
 const INLINE_UPDATE_CHANGES = 5
 
 /** Changes that the same armies all recorded. */
-export type SharedChanges = { factions: { catalogueId: string; faction: string }[]; changes: CatalogueChange[] }
+type SharedChanges = { factions: { catalogueId: string; faction: string }[]; changes: CatalogueChange[] }
 
 /**
  * An update's changes, each said once under every army that recorded it, in groups of the
